@@ -189,9 +189,10 @@ class SensFunc(datamodel.DataContainer):
         sobjs_std = specobjs.SpecObjs.from_fitsfile(self.spec1df).get_std(
                             multi_spec_det=self.par['multi_spec_det'])
 
+        if sobjs_std is None:
+            msgs.error('There is a problem with your standard star spec1d file: {:s}'.format(self.spec1df))
         # Unpack standard
-        wave, counts, counts_ivar, counts_mask, self.meta_spec, header \
-                = sobjs_std.unpack_object(ret_flam=False)
+        wave, counts, counts_ivar, counts_mask, self.meta_spec, header = sobjs_std.unpack_object(ret_flam=False)
 
         # Perform any instrument tweaks
         wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk \

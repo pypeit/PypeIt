@@ -33,14 +33,12 @@ class CompareSky(scriptbase.ScriptBase):
     def main(args):
 
         import os
-        from pkg_resources import resource_filename
 
         from matplotlib import pyplot as plt
 
         from linetools.spectra.io import readspec
+        from pypeit import data
 
-        # Path to archived sky spectra
-        sky_path = os.path.join(resource_filename('pypeit', 'data'), 'sky_spec')
 
         # Extension
         exten = args.exten if args.exten is not None else 1
@@ -61,7 +59,7 @@ class CompareSky(scriptbase.ScriptBase):
         # Load user file
         user_sky = readspec(args.file, exten=exten, **ikwargs)
         # Load sky spec
-        arx_sky = readspec(os.path.join(sky_path, args.skyfile))
+        arx_sky = data.load_sky_spectrum(args.skyfile)
 
         # Plot
         plt.clf()

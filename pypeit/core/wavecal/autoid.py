@@ -962,7 +962,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
             ax.plot(xvals, np.roll(pspec, int(shift_cc)), 'k', label='input')  # Input
             ax.legend()
             plt.show()
-            embed(header='909 autoid')
+            #embed(header='909 autoid')
         i0 = npad // 2 + int(shift_cc)
 
         # Generate the template snippet
@@ -1058,7 +1058,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
                                               sigrej_first=par['sigrej_first'],
                                               sigrej_final=par['sigrej_final'])
         except TypeError:
-            embed(header='974 of autoid')
+            #embed(header='974 of autoid')
             wvcalib[str(slit)] = None
         else:
             wvcalib[str(slit)] = copy.deepcopy(final_fit)
@@ -2042,7 +2042,7 @@ class HolyGrail:
             plt.subplot(212)
             plt.plot(xplt, dplt, 'bx')
             plt.show()
-            embed()
+            #embed()
 
         fact_nl = 1.2  # Non linear factor
         new_good_fit = np.zeros(self._nslit, dtype=np.bool)
@@ -2091,7 +2091,7 @@ class HolyGrail:
                 waves[:, slit] = utils.func_val(fitc, xv, func, minx=fmin, maxx=fmax)
 
         msgs.info("Performing a PCA on the order wavelength solutions")
-        embed()
+        #embed()
         pca_wave, outpar = pca.basis(xcen, waves, coeffs, lnpc, ofit, x0in=ords, mask=maskord, skipx0=False, function=func)
 
         # Report the QA
@@ -2179,7 +2179,7 @@ class HolyGrail:
                 plt.plot(final_fit['pixel_fit'], final_fit['wave_fit'], 'bx')
                 plt.plot(xplt, yplt, 'r-')
                 plt.show()
-                embed()
+                #embed()
 
         # debugging
         if self._debug:
@@ -2206,7 +2206,7 @@ class HolyGrail:
             plt.subplot(212)
             plt.plot(xplt, dplt, 'bx')
             plt.show()
-            embed()
+            #embed()
 
         return new_bad_slits
 
@@ -2238,13 +2238,13 @@ class HolyGrail:
                     arr = self._all_tcent_weak.copy()[self._icut_weak]
                     err = self._all_ecent_weak.copy()[self._icut_weak]
                 else:
-                    embed()
+                    msgs.error('CODING ERROR: Cut must be True')
             else:
                 if cut:
                     arr = self._all_tcent.copy()[self._icut]
                     err = self._all_ecent.copy()[self._icut]
                 else:
-                    embed()
+                    msgs.error('CODING ERROR: Cut must be True')
         else:
             arr, err = arr_err[0], arr_err[1]
         # Return the appropriate tcent

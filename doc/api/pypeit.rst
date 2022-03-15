@@ -9,6 +9,7 @@ Subpackages
 
    pypeit.bspline
    pypeit.core
+   pypeit.data
    pypeit.display
    pypeit.images
    pypeit.move_median
@@ -45,8 +46,8 @@ Submodules
    pypeit.pypeit
    pypeit.pypeitsetup
    pypeit.pypmsgs
-   pypeit.reduce
    pypeit.sampling
+   pypeit.sensfilearchive
    pypeit.sensfunc
    pypeit.setup_package
    pypeit.slittrace

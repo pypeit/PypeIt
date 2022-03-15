@@ -89,7 +89,17 @@ The algorithm options are:
 ++++++
 
 Provide a file to guide the process.  Do this if your changes to
-the defaults are not accommodated by the script inputs.
+the defaults are not accommodated by the script inputs.  This file
+contains a Parameter Block where you can specify ``sensfunc`` parameters.
+For example, if you wish to use the MaunaKea telluric grid with your data,
+you would create a sens file containing:
+
+    .. code-block:: ini
+        # User-defined execution parameters
+        [sensfunc]
+           algorithm = IR
+           [[IR]]
+              telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
 
 IR without a Standard
 ---------------------
@@ -97,12 +107,13 @@ IR without a Standard
 If you wish to generate a sensitivity function on a standard
 star that is not part of the PypeIt database and are working
 in the IR, you can feed the stellar parameters.  Here is an
-example::
+example sens file:
 
-    [sensfunc]
-       algorithm = IR
-       star_mag = 12.1
-       star_type = A0
+    .. code-block:: ini
+        [sensfunc]
+           algorithm = IR
+           star_mag = 12.1
+           star_type = A0
 
 Then run on the spec1d file as you would otherwise.
 For an A0 star, we use the Vega spectrum.  Otherwise,
@@ -323,6 +334,19 @@ Here is a typical call::
 Again, the :doc:`out_spec1D` files are modified in place.
 See :ref:`pypeit_show_1dspec` for details on how to view them.
 
+Archival Sensitivity Functions
+------------------------------
+PypeIt supports using archived sensitivity functions for fluxcalibration. Currently only
+experimental keck_deimos sensitivity files are available.  They can be applied by adding
+``use_archived_sens = True`` to the flux file passed to ``pypeit_flux_calib``. For example::
+
+    [fluxcalib]
+       use_archived_sens = True
+
+    flux read
+       spec1d_d1010_0056-HIT2015-mask03_DEIMOS_20151010T045816.550.fits
+    flux end
+
 FluxSpec Class
 ==============
 
@@ -341,11 +365,6 @@ please do the following steps:
 
 - Make sure you have installed the relevant atmosphere telluric models.  See the
   instructions for installing this :ref:`data_installation`. 
-
-.. WHEN INSTALLING VIA PIP/CONDA, THE PATH TO THE PYPEIT DIRECTORY IS NOT
-.. STRAIGHT-FORWARD FOR SOMEONE NOT FAMILIAR WITH PYTHON PACKAGE INSTALLATION.
-.. THIS IS WHY I ADDED THE NEW "DATA INSTALLATION" SCRIPTS.  CAN THE TELGRIDFILE
-.. JUST BE THE NAME OF A FILE IN THE /pypeit/data/telluric/atm_grids/ DIRECTORY?
 
 - Write the filename of the corresponding file for your observatory in the
   parameter telgridfile (i.e. keck_lris_sens.txt), e.g.:

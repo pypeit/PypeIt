@@ -9,8 +9,6 @@ import os
 import copy
 from glob import glob
 
-from pkg_resources import resource_filename
-
 from IPython import embed
 
 import numpy as np
@@ -20,7 +18,7 @@ from astropy.table import Table
 from astropy.stats import sigma_clipped_stats
 
 from pypeit import utils
-from pypeit import pypeit
+from pypeit import data
 from pypeit import par, msgs
 from pypeit import pypeitsetup
 from pypeit import wavecalib
@@ -35,7 +33,6 @@ from pypeit import calibrations
 from pypeit.display import display
 from pypeit.images import buildimage
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.core.wavecal import wvutils
 from pypeit import sensfunc
 from pypeit.core import flux_calib
 from pypeit.scripts import scriptbase
@@ -123,9 +120,9 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
 
     # Instantiate Extract object
     extract = extraction.Extract.get_instance(sciImg, sobjs_obj, spectrograph, parset, caliBrate,
-                                              'science', bkg_redux=True, find_negative=True, show=show)
+                                              'science', bkg_redux=True, return_negative=True, show=show)
     skymodel, objmodel, ivarmodel, \
-    outmask, sobjs, scaleimg, waveimg, tilts = extract.run_extraction(global_sky, sobjs_obj , return_negative=True)
+    outmask, sobjs, scaleimg, waveimg, tilts = extract.run(global_sky, sobjs_obj)
 
     # TODO -- Do this upstream
     # Tack on detector
@@ -246,7 +243,7 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
         files = files[np.argsort(mjds)]
 
         # Calibration Master directory
-        master_dir = resource_filename('pypeit', 'data/QL_MASTERS') \
+        master_dir = os.path.join(data.Paths.data, 'QL_MASTERS') \
                         if args.master_dir is None else args.master_dir
         if not os.path.isdir(master_dir):
             msgs.error(f'{master_dir} does not exist!  You must install the QL_MASTERS '

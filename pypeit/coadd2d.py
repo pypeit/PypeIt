@@ -613,12 +613,11 @@ class CoAdd2D:
                                                       parcopy['reduce']['findobj']['find_fwhm'])
                 # Assign undetected objects
                 sobjs_obj = slits.mask_add_missing_obj(sobjs_obj, None, fwhm,
-                                                       parcopy['reduce']['missing_objs_boxcar_rad']/platescale)
+                                                       parcopy['reduce']['slitmask']['missing_objs_boxcar_rad']/platescale)
 
         # Initiate Extract object
         exTract = extraction.Extract.get_instance(sciImage, sobjs_obj, self.spectrograph, parcopy, caliBrate,
-                                                  'science_coadd2d', bkg_redux=self.bkg_redux,
-                                                  find_negative=self.find_negative, show=show)
+                                                  'science_coadd2d', bkg_redux=self.bkg_redux, show=show)
 
         # Set the tilts and waveimg attributes from the psuedo_dict here, since we generate these dynamically from fits
         # normally, but this is not possible for coadds

@@ -1,16 +1,31 @@
 
-1.7.1dev
+1.8.2dev
 --------
 
+- When using glob to get files in pypeit_setup, added automatic sorting so that
+  the default `comb_id` ordering matches the sorted file name.
+- Improve Keck/KCWI automatic frame typing.
+
+
+1.8.1 (23 Feb 2022)
+-------------------
+
+- various hotfixes
+- Include preliminary support for fluxing with archived SensFunc files
+  for DEIMOS.
+
+1.8.0 (12 Feb 2022)
+-------------------
+
 - Fixed a bug about how `maskdef_offset` is assigned to each detector
-- Changed default behavior for how PypeIt computes `maskdef_offset` for DEIMOS.
-  It now uses by default the stars in the alignment boxes.
+- Changed default behavior for how PypeIt computes `maskdef_offset` for
+  DEIMOS.  It now uses by default the stars in the alignment boxes.
 - Introduces pypeit_parse_calib_id script
 - Refactor manual extraction
 - Fixed 2Dcoadd spec bugs for central wavelength dithers.
 - GMOS doc updates
-- Add 2D wavelength calibration image to MasterFlat output; include wavelength
-  calibration in pypeit_chk_flat ginga display.
+- Add 2D wavelength calibration image to MasterFlat output; include
+  wavelength calibration in pypeit_chk_flat ginga display.
 - Introduce mosaicing
     - `det` arguments can now be tuples with a list of detectors to
       combine into a mosaic.  Mosaics can now be defined in the pypeit
@@ -54,32 +69,44 @@
 - Dark counts used for calculating the shot noise now includes measured
   dark images if provided
 - `PypeIt` file parameters can now parse sets of tuples; e.g.,
-  `detnum=(1,2),(3,4)` should get parsed as `par['detnum'] = [(1,2), (3,4)]`.
+  `detnum=(1,2),(3,4)` should get parsed as `par['detnum'] = [(1,2),
+  (3,4)]`.
 - `PypeIt.select_detectors` has been moved to `Spectrograph`.
-- Update for `LDT/DeVeny` including support for binned data, `use_header`
-  for reading arc lamps used from frames, and `reid_arxiv` templates for
-  three additional gratings.
+- Update for `LDT/DeVeny` including support for binned data,
+  `use_header` for reading arc lamps used from frames, and `reid_arxiv`
+  templates for three additional gratings.
 - Slurps in and uses slitmask design for Keck/LRIS (limited usage)
 - Hotfix for `gemini_gmos` mosaic tracing parameters
-- Include sky model in 2nd pass of global sky subtraction (not for IR redux).
+- Include sky model in 2nd pass of global sky subtraction (not for IR
+  redux).
 - Skymask is now computed also for the maskdef_extract objects.
 - Added dedicated fwhm and boxcar_radius for maskdef_extract objects.
 - Added pypeit_version to the pypeit file header.
 - Set DEIMOS `find_fwhm` default to 0.8" in binned pixels.
 - Added row-dependent pattern-noise calculation
-- Improvements in `pypeit_coadd_2d`:
+- Improvements in `pypeit_coadd_2dspec`:
     - `maskdef_id` assigned to each slit
-    - Assigning object's name, ra and dec to detected objects is now available
+    - Assigning object's name, ra and dec to detected objects is now
+      available
     - Force extract of undetected objects is now available
     - `maskdef_offset` can be use as offsets in the coadd
-    - Coadding only a specific sets of slits is now possible with the parset `--only_slits`
-    - If the user inputs a list of offsets, the weights can still be computed
-      if a bright object is found, otherwise uniform weigths will be used
+    - Coadding only a specific sets of slits is now possible with the
+      parset `--only_slits`
+    - If the user inputs a list of offsets, the weights can still be
+      computed if a bright object is found, otherwise uniform weigths
+      will be used
     - Fixed manual extraction bug
     - Various improvements in the flow of the code
     - spec1d*.txt is now produced also for coadd2d
 - Scripts to explore the noise residuals in PypeIt
-
+- Added Coadd2D HOWTO docs
+    - Fixes a  bug in echelle object finding
+    - Attempt to make the threshold computation for object finding more robust.
+    - Fixed a bug in extraction for echelle spectrographs for IR reductions.
+    - Tuned up preivious refactor of object finding and extraction classes.
+    - Fixed a bug that was introduced in skymask definition.
+    - Fixed a bug where negative objects were not being found for IR reductions of standard stars.
+- Add template wavelength solution for soar_goodman_red 400_SYZY
 
 1.7.0 (19 Nov 2021)
 -------------------
