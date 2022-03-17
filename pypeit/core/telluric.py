@@ -166,7 +166,7 @@ def read_telluric_pca(filename, wave_min=None, wave_max=None, pad_frac=0.10):
     if not os.path.isfile(filename):
         msgs.error(f"File {filename} is not on your disk.  You likely need to download the Telluric files.  See https://pypeit.readthedocs.io/en/release/installing.html#atmospheric-model-grids")
 
-    hdul = io.fits_open(filename)
+    hdul = fits.open(filename)
     wave_grid_full = hdul[1].data
     pca_comp_full = hdul[0].data
     ncomp = hdul[0].header['NCOMP']
