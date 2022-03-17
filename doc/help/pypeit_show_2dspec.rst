@@ -11,7 +11,7 @@
     folder
     
     positional arguments:
-      file                  PYPIT spec2d file
+      file                  PypeIt spec2d file
     
     optional arguments:
       -h, --help            show this help message and exit

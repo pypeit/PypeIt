@@ -6,14 +6,12 @@ Coadding module.
 .. include:: ../include/links.rst
 """
 import inspect
-import os
 
 from IPython import embed
 
 import numpy as np
 
 from astropy.io import fits
-from astropy.time import Time
 
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.onespec import OneSpec
@@ -21,8 +19,6 @@ from pypeit import sensfunc
 from pypeit import specobjs
 from pypeit import msgs
 from pypeit.core import coadd, flux_calib
-from pypeit import datamodel
-from pypeit import io
 from pypeit.history import History
 
 

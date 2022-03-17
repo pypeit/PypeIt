@@ -779,7 +779,7 @@ class Spectrograph:
                 description above.  Note detectors are 1-indexed.
 
         Returns:
-            :obj:`list`: List of detectors or detector mosaics to be reduced.
+            :obj:`list`: Uniqe List of detectors or detector mosaics to be reduced.
 
         Raises:
             PypeItError: Raised if any of the detectors or detector mosaics
@@ -799,7 +799,8 @@ class Spectrograph:
         if any([s not in allowed for s in _subset]):
             msgs.error('Selected detectors or detector mosaics contain invalid values.')
 
-        return _subset
+        # Require the list contains unique items
+        return list(set(_subset))
 
     @property
     def default_mosaic(self):
@@ -1058,6 +1059,8 @@ class Spectrograph:
         #   or search for it as a compound method
         value = None
         try:
+            # TODO: Change so that 'card' isn't a required keyword?  ala:
+            # if 'card' not in self.meta[meta_key].keys() or self.meta[meta_key]['card'] is None:
             if self.meta[meta_key]['card'] is None:
                 if 'default' in self.meta[meta_key].keys():
                     value = self.meta[meta_key]['default']
@@ -1069,7 +1072,7 @@ class Spectrograph:
                 # Grab from the header, if we can
                 value = headarr[self.meta[meta_key]['ext']][self.meta[meta_key]['card']]
         except (KeyError, TypeError) as e:
-            if ignore_bad_header or (not required):
+            if ignore_bad_header or not required:
                 msgs.warn("Bad Header, but we'll try to continue on..") 
             else:
                 raise e

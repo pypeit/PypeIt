@@ -10,9 +10,11 @@ from IPython import embed
 
 import numpy as np
 
+from pypeit import utils
 from pypeit import datamodel
 from pypeit import io
 from pypeit.spectrographs.util import load_spectrograph
+
 
 class OneSpec(datamodel.DataContainer):
     """
@@ -84,6 +86,15 @@ class OneSpec(datamodel.DataContainer):
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
 
+    @property
+    def sig(self):
+        """ Return the 1-sigma array
+
+        Returns:
+            `numpy.ndarray`_: error array
+        """
+        return np.sqrt(utils.inverse(self.ivar))
+        
     def _init_internals(self):
         self.head0 = None
         self.filename = None

@@ -3,7 +3,7 @@ import numpy as np
 import os.path
 
 from pypeit import io
-from pkg_resources import resource_filename
+from pypeit import data
 
 
 def sav_to_fits(savfile):
@@ -28,7 +28,8 @@ def sav_to_fits(savfile):
         if type(sav[k]) is not np.ndarray:
             sav[k] = np.asarray([sav[k]])
 
-    to_path = resource_filename('pypeit', 'data/static_calibs/keck_deimos/')
-    io.write_to_fits(sav, to_path + savfile_name + '.fits', overwrite=True)
+    io.write_to_fits(sav, os.path.join(data.Paths.static_calibs, 'keck_deimos',
+                                       f'{savfile_name}.fits'),
+                     overwrite=True)
 
     return

@@ -8,7 +8,6 @@ Coadding module.
 
 import os
 import sys
-from pkg_resources import resource_filename
 
 from IPython import embed
 
@@ -19,12 +18,8 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import NullFormatter, NullLocator, MaxNLocator
 
 from astropy import stats
-from astropy.io import fits
 from astropy import convolution
-from astropy.table import Table
-from astropy import constants
 
-from pypeit.spectrographs.util import load_spectrograph
 from pypeit import utils
 from pypeit.core import fitting
 from pypeit import specobjs
@@ -32,7 +27,7 @@ from pypeit import msgs
 from pypeit.core import combine
 from pypeit.core.wavecal import wvutils
 from pypeit.core import pydl
-from pypeit.core import flux_calib
+from pypeit import data
 
 
 def renormalize_errors_qa(chi, maskchi, sigma_corr, sig_range = 6.0, title='', qafile=None):
@@ -1454,7 +1449,7 @@ def coadd_iexp_qa(wave, flux, rejivar, mask, wave_stack, flux_stack, ivar_stack,
         # TODO Use one of our telluric models here instead
         # Plot transmission
         if (np.max(wave[mask]) > 9000.0):
-            skytrans_file = resource_filename('pypeit', '/data/skisim/atm_transmission_secz1.5_1.6mm.dat')
+            skytrans_file = os.path.join(data.Paths.skisim, 'atm_transmission_secz1.5_1.6mm.dat')
             skycat = np.genfromtxt(skytrans_file, dtype='float')
             scale = 0.8 * ymax
             spec_plot.plot(skycat[:, 0] * 1e4, skycat[:, 1] * scale, 'm-', alpha=0.5, zorder=11)
@@ -1585,7 +1580,7 @@ def coadd_qa(wave, flux, ivar, nused, mask=None, tell=None, title=None, qafile=N
 
     # Plot transmission
     if (np.max(wave[mask])>9000.0) and (tell is None):
-        skytrans_file = resource_filename('pypeit', '/data/skisim/atm_transmission_secz1.5_1.6mm.dat')
+        skytrans_file = os.path.join(data.Paths.skisim, 'atm_transmission_secz1.5_1.6mm.dat')
         skycat = np.genfromtxt(skytrans_file,dtype='float')
         scale = 0.8*ymax
         spec_plot.plot(skycat[:,0]*1e4,skycat[:,1]*scale,'m-',alpha=0.5,zorder=11)
@@ -2693,7 +2688,7 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
     """
     Determine the spatial bins for a 2d coadd and relative pixel coordinate images. This routine loops over all the
     images being coadded and creates an image of spatial pixel positions relative to the reference trace for each image
-    in used of the desired rebinned spatial pixel sampling spat_samp_fact.  The minimum and maximum relative pixel positions
+    in units of the desired rebinned spatial pixel sampling spat_samp_fact.  The minimum and maximum relative pixel positions
     in this frame are then used to define a spatial position grid with whatever desired pixel spatial sampling.
 
     Parameters
@@ -2747,7 +2742,8 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
 
 def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack,
                     inmask_stack, tilts_stack,
-                    thismask_stack, waveimg_stack, wave_grid, spat_samp_fact=1.0,
+                    thismask_stack, waveimg_stack,
+                    wave_grid, spat_samp_fact=1.0, maskdef_dict=None,
                     weights='uniform', interp_dspat=True):
     """
     Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs.
@@ -2758,10 +2754,11 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     covariant errors.  Dithering is supported as all images are centered
     relative to a set of reference traces in trace_stack.
 
-    ..todo.. -- These docs appear out-of-date
+    .. todo::
+        These docs appear out-of-date
 
     Args:
-        trace_stack (`numpy.ndarray`_):
+        ref_trace_stack (`numpy.ndarray`_):
             Stack of reference traces about which the images are
             rectified and coadded.  If the images were not dithered then
             this reference trace can simply be the center of the slit::
@@ -2772,7 +2769,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
             the slitcen appropriately shifted with the dither pattern,
             or it could be the trace of the object of interest in each
             exposure determined by running PypeIt on the individual
-            images.  Shape is (nimgs, nspec).
+            images.  Shape is (nspec, nimgs).
         sciimg_stack (`numpy.ndarray`_):
             Stack of science images.  Shape is (nimgs, nspec, nspat).
         sciivar_stack (`numpy.ndarray`_):
@@ -2795,17 +2792,18 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
             the slit in question.  `True` values are on the slit;
             `False` values are off the slit.  Shape is (nimgs, nspec,
             nspat).
-        weights (`numpy.ndarray`_, optional):
+        weights (`numpy.ndarray`_ or str, optional):
             The weights used when combining the rectified images (see
-            :func:`weighted_combine`).  If no weights are provided,
-            uniform weighting is used.  Weights are broadast to the
-            correct size of the image stacks (see
-            :func:`broadcast_weights`), as necessary.  Shape must be
-            (nimgs,), (nimgs, nspec), or (nimgs, nspec, nspat).
+            :func:`weighted_combine`).  If weights is set to 'uniform' then a
+            uniform weighting is used.  Weights are broadast to the correct size
+            of the image stacks (see :func:`broadcast_weights`), as necessary.
+            If an array is passed in shape must be (nimgs,), (nimgs, nspec), or
+            (nimgs, nspec, nspat).  (TODO: JFH I think the str option should be
+            changed here, but am leaving it for now.)
         spat_samp_fact (float, optional):
-            Spatial sampling for 2d coadd spatial bins in pixels. A value > 1.0 (i.e. bigger pixels)
-            will downsample the images spatially, whereas < 1.0 will oversample. Default = 1.0
-
+            Spatial sampling for 2d coadd spatial bins in pixels. A value > 1.0
+            (i.e. bigger pixels) will downsample the images spatially, whereas <
+            1.0 will oversample. Default = 1.0
         loglam_grid (`numpy.ndarray`_, optional):
             Wavelength grid in log10(wave) onto which the image stacks
             will be rectified.  The code will automatically choose the
@@ -2815,9 +2813,13 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
         wave_grid (`numpy.ndarray`_, optional):
             Same as `loglam_grid` but in angstroms instead of
             log(angstroms). (TODO: Check units...)
+        maskdef_dict (:obj:`dict`, optional): Dictionary containing all the maskdef info. The quantities saved
+            are: maskdef_id, maskdef_objpos, maskdef_slitcen, maskdef_designtab. To learn what
+            they are see :class:`~pypeit.slittrace.SlitTraceSet` datamodel.
 
     Returns:
         tuple: Returns the following (TODO: This needs to be updated):
+
             - sciimg: float ndarray shape = (nspec_coadd, nspat_coadd):
               Rectified and coadded science image
             - sciivar: float ndarray shape = (nspec_coadd, nspat_coadd):
@@ -2850,12 +2852,13 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
               information about the slits boundaries. The slit
               boundaries are trivial and are simply vertical traces at 0
               and nspat_coadd-1.
+
     """
     nimgs, nspec, nspat = sciimg_stack.shape
 
     # TODO -- If weights is a numpy.ndarray, how can this not crash?
     #   Maybe the doc string above is inaccurate?
-    if 'uniform' in weights:
+    if isinstance(weights,str) and weights == 'uniform':
         msgs.info('No weights were provided. Using uniform weights.')
         weights = np.ones(nimgs)/float(nimgs)
 
@@ -2920,11 +2923,28 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
         dspat_img_fake = spat_img_coadd + dspat_mid[0]
         dspat[np.invert(outmask)] = dspat_img_fake[np.invert(outmask)]
 
+    # initiate maskdef parameters
+    maskdef_id = None
+    maskdef_designtab = None
+    new_maskdef_objpos = None
+    new_maskdef_slitcen = None
+    if maskdef_dict is not None and maskdef_dict['maskdef_id'] is not None:
+        maskdef_id = maskdef_dict['maskdef_id']
+        # update maskdef_objpos and maskdef_slitcen with the new value in the new slit
+        if maskdef_dict['maskdef_objpos'] is not None and maskdef_dict['maskdef_slitcen'] is not None:
+            new_maskdef_objpos = np.searchsorted(dspat[nspec_coadd//2, :], maskdef_dict['maskdef_objpos'])
+            # maskdef_slitcen is the old slit center
+            new_maskdef_slitcen = np.searchsorted(dspat[nspec_coadd//2, :], maskdef_dict['maskdef_slitcen'])
+        if maskdef_dict['maskdef_designtab'] is not None:
+            maskdef_designtab = maskdef_dict['maskdef_designtab']
+
     return dict(wave_bins=wave_bins, dspat_bins=dspat_bins, wave_mid=wave_mid, wave_min=wave_min,
                 wave_max=wave_max, dspat_mid=dspat_mid, sciimg=sciimg, sciivar=sciivar,
                 imgminsky=imgminsky, outmask=outmask, nused=nused, tilts=tilts, waveimg=waveimg,
-                dspat=dspat, nspec=imgminsky.shape[0], nspat=imgminsky.shape[1])
-
+                dspat=dspat, nspec=imgminsky.shape[0], nspat=imgminsky.shape[1],
+                maskdef_id=maskdef_id, maskdef_slitcen=new_maskdef_slitcen,
+                maskdef_objpos=new_maskdef_objpos,
+                maskdef_designtab=maskdef_designtab)
 
 
 def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, inmask_stack, sci_list, var_list):
@@ -3193,7 +3213,7 @@ def sync_pair(spec1_file, spec2_file, det, sync_dict=None, sync_toler=3, debug=F
             done2[idx] = True
 
         else:
-            embed(header="70 Should not get here")
+            msgs.error('CODING ERROR: nmtch must be 0 or 1; submit an issue')
         # Update
         update_sync_dict(sync_dict, indx1, files, names)
 

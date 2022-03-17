@@ -3,12 +3,6 @@ Module for Gemini GMOS specific methods.
 
 .. include:: ../include/links.rst
 """
-import os
-import glob
-from pkg_resources import resource_filename
-
-from IPython import embed
-
 import numpy as np
 
 from pypeit import msgs
@@ -190,7 +184,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # Always default to reducing as a mosaic
         par['rdx']['detnum'] = [(1,2,3)]
 
-        par['calibrations']['slitedges']['edge_thresh'] = 20.
+        par['calibrations']['slitedges']['follow_span'] = 80
+        par['calibrations']['slitedges']['edge_thresh'] = 100.
         par['calibrations']['slitedges']['fit_order'] = 3
 
         # 1D wavelength solution
@@ -588,9 +583,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         """
         par = super().default_pypeit_par()
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['IR']['telgridfile'] \
-                = os.path.join(par['sensfunc']['IR'].default_root,
-                               'TelFit_LasCampanas_3100_26100_R20000.fits')
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
         # Bound the detector with slit edges if no edges are found. These data are often trimmed
         # so we implement this here as the default.
         par['calibrations']['slitedges']['bound_detector'] = True
