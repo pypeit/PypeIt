@@ -4607,7 +4607,7 @@ class Collate1DPar(ParSet):
         # RMS threshold to exclude spectra by.
         defaults['rms_thresh'] = None
         dtypes['rms_thresh'] = float
-        descr['rms_thresh'] = "If specified, any spectra with an RMS > this value is excluded from collating."
+        descr['rms_thresh'] = "If specified, any object with an RMS > this value is excluded from collating."
 
         # How to match objects
         defaults['match_using'] = 'ra/dec'
