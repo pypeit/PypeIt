@@ -29,8 +29,8 @@
                               flux                  Flux calibrate using archived sensfuncs.
                               ignore_flux           Ignore any flux calibration information in
                                                     spec1d files.
-                              rms_thresh            If set any objects with rms > than this are
-                                                    skipped.
+                              rms_thresh            If set, any objects with a rms > than the input
+                                                    value are skipped, else all rms values are accepted.
                              
                             spec1d read
                             <path to spec1d files, wildcards allowed>
@@ -69,6 +69,6 @@
                             excluded.
       --exclude_serendip    Whether to exclude SERENDIP objects from collating.
       --rms_thresh RMS_THRESH
-                            If specified, any object with an RMS > this value is
-                            excluded from collating.
+                            If set, any objects with an RMS > this value are
+                            skipped, else all RMS values are accepted.
     
