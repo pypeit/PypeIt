@@ -121,8 +121,8 @@ followed by a list of spec1d files. An example configuration file is shown below
     # (e.g. OPT_FLAM or BOX_FLAM) is not available the uncalibrated data is coadded.
     #ignore_flux = False
     
-    # Exclude any object with a wave_rms > than this threshold
-    #rms_thresh = 0.2
+    # Exclude any object with a wavelength wave_rms > than this threshold
+    # wv_rms_thresh = 0.2
 
     # Where to place coadded files and report files. Defaults to
     # current directory.

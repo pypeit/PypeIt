@@ -343,14 +343,14 @@ def test_exclude_source_objects(monkeypatch):
     uncollated_list = SourceObject.build_source_objects(file_list, 'ra/dec')
     par = pypeitpar.PypeItPar()
     par['collate1d']['exclude_serendip'] = True
-    par['collate1d']['rms_thresh'] = 0.1
+    par['collate1d']['wv_rms_thresh'] = 0.1
     filtered_list, excluded_msgs = exclude_source_objects(uncollated_list, {'3003': 'Test Exclude`'}, par)
     assert [so.spec_obj_list[0].NAME for so in filtered_list] == ['SPAT1234_SLIT1234_DET01', 'SPAT5334_SLIT4934_DET02']
     assert [so.spec1d_file_list[0] for so in filtered_list] == ['spec1d_file1', 'spec1d_file1']
 
     par['collate1d']['exclude_serendip'] = False
     par['coadd1d']['ex_value'] = 'BOX'
-    par['collate1d']['rms_thresh'] = None
+    par['collate1d']['wv_rms_thresh'] = None
 
     filtered_list, excluded_msgs = exclude_source_objects(uncollated_list, dict(), par)
     assert [so.spec_obj_list[0].NAME for so in filtered_list] == ['SPAT1234_SLIT1234_DET01', 'SPAT1233_SLIT1235_DET07', 'SPAT6250_SLIT6235_DET03', 'SPAT6256_SLIT6245_DET05', 'SPAT6934_SLIT6245_DET05']
