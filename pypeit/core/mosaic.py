@@ -163,7 +163,7 @@ def prepare_mosaic(shape, tforms, buffer=0, inplace=False):
     return mosaic_shape, _tforms
 
 
-def build_image_mosaic(imgs, tforms, ivar=None, bpm=None, mosaic_shape=None, cval=0., order=0,
+def build_image_mosaic(imgs, tforms, ivar=None, bpm=None, mosaic_shape=None, cval=0., order=1,
                        overlap='combine'):
     r"""
     Use the provided images and transformation matrices to construct an image

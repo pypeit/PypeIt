@@ -104,6 +104,18 @@ def plot(image:np.ndarray, chi_select:np.ndarray, flux_select:np.ndarray,
     plt.tight_layout()
 
 
+def get_flux_slit(spec2DObj, slitidx, pad=0):
+    slit_select = spec2DObj.slits.slit_img(pad=pad, slitidx=slitidx)
+
+    flux = spec2DObj.sciimg - spec2DObj.skymodel
+    if spec2DObj.objmodel is not None:
+        flux -= spec2DObj.objmodel
+    flux_slit = flux * (slit_select == spec2DObj.slits.spat_id[slitidx])
+    # Error
+    err_slit = np.sqrt(utils.inverse(spec2DObj.ivarmodel)) * (slit_select == spec2DObj.slits.spat_id[slitidx])
+    return flux_slit, err_slit
+
+
 class ChkNoise2D(scriptbase.ScriptBase):
 
     @classmethod
@@ -245,12 +257,12 @@ class ChkNoise2D(scriptbase.ScriptBase):
                     continue
 
                 # Flux to show
-                flux_select = spec2DObj.sciimg - spec2DObj.skymodel
-                if spec2DObj.objmodel is not None:
-                    flux_select -= spec2DObj.objmodel
-                flux_select *= input_mask
-                # Error
-                err_select = np.sqrt(utils.inverse(spec2DObj.ivarmodel)) * input_mask
+                # get flux and err from in this slit
+                flux_slit, err_slit = get_flux_slit(spec2DObj, i, pad=args.pad)
+                # flux in the wavelength range
+                flux_select = flux_slit * input_mask
+                # Error in the wavelength range
+                err_select = err_slit * input_mask
 
                 # get edges of the slit to plot
                 left, right, _ = spec2DObj.slits.select_edges()
