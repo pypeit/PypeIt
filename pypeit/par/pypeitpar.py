@@ -217,7 +217,7 @@ class ProcessImagesPar(ParSet):
                  use_biasimage=None, use_overscan=None, use_darkimage=None,
                  empirical_rn=None, shot_noise=None, noise_floor=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
-                 use_pattern=None, spat_flexure_correct=None):
+                 use_pattern=None, use_continuum=None, spat_flexure_correct=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -280,6 +280,11 @@ class ProcessImagesPar(ParSet):
         descr['use_pattern'] = 'Subtract off a detector pattern. This pattern is assumed to be ' \
                                'sinusoidal along one direction, with a frequency that is ' \
                                'constant across the detector.'
+
+        defaults['use_continuum'] = False
+        dtypes['use_continuum'] = bool
+        descr['use_continuum'] = 'Subtract off the continuum level fromt he image. This correction is helpful ' \
+                                 'if you are combining arcs with multiple different lamps and exposure times. '
 
         defaults['empirical_rn'] = False
         dtypes['empirical_rn'] = bool
@@ -407,7 +412,7 @@ class ProcessImagesPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'use_pattern', 'use_overscan',
+        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'use_continuum', 'use_pattern', 'use_overscan',
                    'overscan_method', 'overscan_par', 'use_darkimage', 'spat_flexure_correct',
                    'use_illumflat', 'use_specillum', 'empirical_rn', 'shot_noise', 'noise_floor',
                    'use_pixelflat', 'combine', 'satpix', #'cr_sigrej',

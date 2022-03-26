@@ -100,6 +100,8 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        par['calibrations']['slitedges']['edge_thresh'] = 10
+        par['calibrations']['slitedges']['sobel_mode'] = 'constant'
         par['calibrations']['slitedges']['bound_detector'] = True
 
         # Set pixel flat combination method
@@ -116,6 +118,10 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures
         par['calibrations']['arcframe']['process']['clip']=False
         par['calibrations']['arcframe']['process']['combine']='mean' #Multiple arcs with different lamps, so can't median combine
+        par['calibrations']['arcframe']['process']['use_continuum']=True #Multiple arcs with different lamps, so can't median combine
+        par['calibrations']['tiltframe']['process']['clip']=False
+        par['calibrations']['tiltframe']['process']['combine']='mean' #Multiple arcs with different lamps, so can't median combine
+        par['calibrations']['tiltframe']['process']['use_continuum']=True #Multiple arcs with different lamps, so can't median combine
         par['calibrations']['standardframe']['exprng'] = [None, 120]
         par['scienceframe']['exprng'] = [90, None]
 
@@ -123,10 +129,6 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         turn_off = dict(use_overscan=False)
         par.reset_all_processimages_par(**turn_off)
         par['scienceframe']['process']['use_overscan'] = False
-
-
-
-
 
         return par
 
