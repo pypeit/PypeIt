@@ -75,7 +75,11 @@ def plot(image:np.ndarray, chi_select:np.ndarray, flux_select:np.ndarray,
                                                                            shrink=0.),
                         annotation_clip=True, horizontalalignment='center', color='k', fontsize=10)
 
-    if not (lbda_min is None and lbda_max is None):
+    if lbda_min is not None or lbda_max is not None:
+        if lbda_min is None:
+            lbda_min = lbda_1d.min()
+        if lbda_max is None:
+            lbda_max = lbda_1d.max()
         ax.axvspan(lbda_1d.searchsorted(lbda_min), lbda_1d.searchsorted(lbda_max), color='tab:green', alpha=0.2, zorder=2)
     ax.set_xticks([])
     ax.set_yticks([])
