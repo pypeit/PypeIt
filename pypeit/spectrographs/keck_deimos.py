@@ -1298,14 +1298,16 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         for i in range(omodel_bspat.size):
             # We "flag" the left and right traces predicted by the optical model that are outside of the
             # current detector, by giving a value of -1.
-            # bottom
-            thisccd = np.logical_or(ccd_b[i, :] == _ccdnum[0], ccd_b[i, :] == _ccdnum[1]) if nimg == 2 \
+            thisccd_b = np.logical_or(ccd_b[i, :] == _ccdnum[0], ccd_b[i, :] == _ccdnum[1]) if nimg == 2 \
                 else ccd_b[i, :] == _ccdnum[0]
-            omodel_bspat[i] = -1 if bedge_pix[i, thisccd].shape[0] < 10 else \
-                              np.median(bedge_pix[i, thisccd])
+            thisccd_t = np.logical_or(ccd_t[i, :] == _ccdnum[0], ccd_t[i, :] == _ccdnum[1]) if nimg == 2 \
+                else ccd_t[i, :] == _ccdnum[0]
+            # bottom
+            omodel_bspat[i] = -1 if bedge_pix[i, thisccd_b].shape[0] < 10 else \
+                              np.median(bedge_pix[i, thisccd_b])
             # top
-            omodel_tspat[i] = -1 if tedge_pix[i, thisccd].shape[0] < 10 else \
-                              np.median(tedge_pix[i, thisccd])
+            omodel_tspat[i] = -1 if tedge_pix[i, thisccd_t].shape[0] < 10 else \
+                              np.median(tedge_pix[i, thisccd_t])
 
             # If a left (or right) trace is outside of the detector, the corresponding right (or left) trace
             # is determined using the pixel position from the image plane.

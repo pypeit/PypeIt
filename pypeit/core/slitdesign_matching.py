@@ -361,3 +361,4 @@ def plot_matches(edgetrace, ind, x_model, yref, slit_index, nspat=2048, duplicat
     plt.xlim(-buffer, nspat+buffer)
     plt.ylim(0, edgetrace.shape[0])
     plt.legend(loc=1)
+    plt.show()

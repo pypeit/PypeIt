@@ -4187,6 +4187,7 @@ class EdgeTraceSet(DataContainer):
             plt.xlim(0, self.traceimg.shape[1] + 20)
             plt.ylim(0, self.traceimg.shape[1] + 20)
             plt.legend()
+            plt.show()
         msgs.info('SLIT_MATCH: RMS residuals for left and right edges: {}, {} pixels'.format(sigres_b, sigres_t))
 
 

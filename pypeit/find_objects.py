@@ -514,6 +514,7 @@ class FindObjects:
                 continue
 
             # Find sky
+            embed()
             global_sky[thismask] = skysub.global_skysub(
                 self.sciImg.image, skysub_ivar, self.tilts, thismask,
                 self.slits_left[:,slit_idx], self.slits_right[:,slit_idx],
@@ -524,7 +525,7 @@ class FindObjects:
 
             # Mask if something went wrong
             if np.sum(global_sky[thismask]) == 0.:
-                msgs.warn("Bad fit to sky.  Rejecting slit: {:d}".format(slit_idx))
+                msgs.warn("Bad fit to sky.  Rejecting slit: {:d}".format(slit_spat))
                 self.reduce_bpm[slit_idx] = True
 
         if update_crmask and self.par['scienceframe']['process']['mask_cr']:
