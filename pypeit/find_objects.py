@@ -514,7 +514,6 @@ class FindObjects:
                 continue
 
             # Find sky
-            embed()
             global_sky[thismask] = skysub.global_skysub(
                 self.sciImg.image, skysub_ivar, self.tilts, thismask,
                 self.slits_left[:,slit_idx], self.slits_right[:,slit_idx],
