@@ -71,7 +71,7 @@ def get_report_metadata(object_header_keys, spec_obj_keys, file_info):
     if not isinstance(file_info, SourceObject):
         return (None, None)
 
-    coaddfile = os.path.basename(file_info.coaddfile)
+    coaddfile = build_coadd_file_name(file_info)
     result_rows = []
     for i in range(len(file_info.spec1d_header_list)):
 
@@ -257,7 +257,40 @@ def flux(par, spectrograph, spec1d_files, failed_fluxing_msgs):
     # Return the succesfully fluxed files
     return flux_calibrated_files
 
-def coadd(par, source):
+def build_coadd_file_name(source_object):
+    """Build the output file name for coadding.
+    The filename convention is J<hmsdms+dms>_<instrument name>_<YYYYMMDD>.fits
+    when matching by RA/DEC and SPAT_<spatial position>_<instrument name>_<YYYYMMDD>.fits
+    when matching by pixel position. The date portion may be <YYYYMMDD-YYYMMDD> if the
+    files coadded span more than one date.
+
+    Currently instrument_name is taken from spectrograph.camera
+
+    Returns: 
+        str:  The name of the coadd output file.
+    """
+    mjd_list = [float(h['MJD']) for h in source_object.spec1d_header_list]
+    start_mjd = np.min(mjd_list)
+    end_mjd = np.max(mjd_list)
+
+    start_date_portion = Time(start_mjd, format="mjd").strftime('%Y%m%d')
+    end_date_portion = Time(end_mjd, format="mjd").strftime('%Y%m%d')
+
+    if start_date_portion != end_date_portion:
+        date_portion = f"{start_date_portion}_{end_date_portion}"
+    else:
+        date_portion = start_date_portion
+
+    if source_object.match_type == 'ra/dec':
+        coord_portion = 'J' + source_object.coord.to_string('hmsdms', sep='', precision=2).replace(' ', '')
+    else:
+        coord_portion = source_object.spec_obj_list[0]['NAME'].split('_')[0]
+    instrument_name = source_object._spectrograph.camera
+    
+    return f'{coord_portion}_{instrument_name}_{date_portion}.fits'
+
+
+def coadd(par, coaddfile, source):
     """coadd the spectra for a given source.
 
     Args:
@@ -266,24 +299,24 @@ def coadd(par, source):
             which files and spectra to coadd.
     """
     # Set destination file for coadding
-    par['coadd1d']['coaddfile'] = source.coaddfile
+    par['coadd1d']['coaddfile'] = coaddfile
     
     # Determine if we should coadd flux calibrated data
     flux_key = par['coadd1d']['ex_value'] + "_FLAM"
 
     if par['collate1d']['ignore_flux'] is True:
         # Use non fluxed if asked to
-        msgs.info(f"Ignoring flux for {source.coaddfile}.")
+        msgs.info(f"Ignoring flux for {coaddfile}.")
         par['coadd1d']['flux_value'] = False
 
     elif False in [x[flux_key] is not None for x in source.spec_obj_list]:               
         # Do not use fluxed data if one or more objects have not been flux calibrated 
-        msgs.info(f"Not all spec1ds for {source.coaddfile} are flux calibrated, using counts instead.")
+        msgs.info(f"Not all spec1ds for {coaddfile} are flux calibrated, using counts instead.")
         par['coadd1d']['flux_value'] = False
     
     else:
         # Use fluxed data
-        msgs.info(f"Using flux for {source.coaddfile}.")
+        msgs.info(f"Using flux for {coaddfile}.")
         par['coadd1d']['flux_value'] = True
 
 
@@ -296,7 +329,7 @@ def coadd(par, source):
     # Run
     coAdd1d.run()
     # Save to file
-    coAdd1d.save(source.coaddfile)
+    coAdd1d.save(coaddfile)
 
 def find_spec2d_from_spec1d(spec1d_files):
     """
@@ -593,8 +626,7 @@ class Collate1D(scriptbase.ScriptBase):
 
         # Build source objects from spec1d file, this list is not collated 
         source_objects = SourceObject.build_source_objects(spec1d_files,
-                                                           par['collate1d']['match_using'],
-                                                           par['collate1d']['outdir'])
+                                                           par['collate1d']['match_using'])
 
         # Filter based on the coadding ex_value, and the exclude_serendip 
         # boolean
@@ -607,21 +639,21 @@ class Collate1D(scriptbase.ScriptBase):
         successful_source_list = []
         failed_source_msgs = []
         for source in source_list:
-
-            msgs.info(f'Creating {source.coaddfile} from the following sources:')
+            coaddfile = os.path.join(par['collate1d']['outdir'], build_coadd_file_name(source))
+            msgs.info(f'Creating {coaddfile} from the following sources:')
             for i in range(len(source.spec_obj_list)):
                 msgs.info(f'    {source.spec1d_file_list[i]}: {source.spec_obj_list[i].NAME} '
                           f'({source.spec_obj_list[i].MASKDEF_OBJNAME})')
 
             if not args.dry_run:
                 try:
-                    coadd(par, source)
+                    coadd(par, coaddfile, source)
                     successful_source_list.append(source)
                 except Exception:
                     formatted_exception = traceback.format_exc()
                     msgs.warn(formatted_exception)
-                    msgs.warn(f"Failed to coadd {source.coaddfile}, skipping")
-                    failed_source_msgs.append(f"Failed to coadd {source.coaddfile}:")
+                    msgs.warn(f"Failed to coadd {coaddfile}, skipping")
+                    failed_source_msgs.append(f"Failed to coadd {coaddfile}:")
                     failed_source_msgs.append(formatted_exception)
 
         # Create collate_report.dat
@@ -637,5 +669,3 @@ class Collate1D(scriptbase.ScriptBase):
         msgs.info(f'Total duration: {total_time}')
 
         return 0
-
-

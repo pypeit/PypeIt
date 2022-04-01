@@ -11,6 +11,7 @@ from IPython import embed
 import numpy as np
 
 from astropy.io import fits
+from astropy.time import Time
 
 from pypeit import par, msgs
 from pypeit import coadd1d
@@ -83,6 +84,34 @@ def read_coaddfile(ifile):
     return cfg_lines, spec1dfiles, objids
 
 
+def build_coadd_file_name(spec1dfiles, spectrograph):
+    """Build the output file name for coadding.
+    The filename convention is coadd1d_<target>_<instrument name>_<YYYYMMDD>.fits or
+    coadd1d_<target>_<instrument name>_<YYYYMMDD>-<YYYYMMDD>.fits if the coadd included more than
+    one day's worth of data. The default location of the file will be along side the first spec1d file.
+
+    Currently instrument_name is taken from spectrograph.camera
+
+    Returns: 
+        str:  The name of the coadd output file.
+    """
+    mjd_list = [float(fits.getheader(f)['MJD']) for f in spec1dfiles]
+    start_mjd = np.min(mjd_list)
+    end_mjd = np.max(mjd_list)
+
+    start_date_portion = Time(start_mjd, format="mjd").strftime('%Y%m%d')
+    end_date_portion = Time(end_mjd, format="mjd").strftime('%Y%m%d')
+
+    if start_date_portion != end_date_portion:
+        date_portion = f"{start_date_portion}_{end_date_portion}"
+    else:
+        date_portion = start_date_portion
+
+    instrument_name = spectrograph.camera
+    target = fits.getheader(spec1dfiles[0])['TARGET']
+    path = os.path.dirname(os.path.abspath(spec1dfiles[0]))
+    return os.path.join(path, f'coadd1d_{target}_{instrument_name}_{date_portion}.fits')
+
 # TODO: I can't find where this function is used.  The only place is see is in
 # test_syncspec.py.  Can we comment it out or remove it?
 def coadd1d_filelist(files, outroot, det, debug=False, show=False):
@@ -143,7 +172,7 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
                             help="R|File to guide coadding process. This file must have the "
                                  "following format: \n\n"
                                  "F|[coadd1d]\n"
-                                 "F|   coaddfile='output_filename.fits'\n"
+                                 "F|   coaddfile='output_filename.fits' # Optional\n"
                                  "F|   sensfuncfile = 'sensfunc.fits' # Required only for Echelle\n"
                                  "\n"
                                  "F|   coadd1d read\n"
@@ -168,7 +197,9 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
                                  "spec1dfile: full path to a PypeIt spec1dfile\n\n"
                                  "objid: the object identifier. To determine the objids inspect "
                                  "the spec1d_*.txt files or run pypeit_show_1dspec spec1dfile "
-                                 "--list\n\n")
+                                 "--list\n\n"
+                                 "If the coaddfile is not given the output file will be placed "
+                                 "along side the first spec1d file.\n\n")
         parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
         parser.add_argument("--show", default=False, action="store_true",
                             help="show QA during coadding process")
@@ -217,6 +248,9 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
 
         if spectrograph.pypeline == 'Echelle' and sensfile is None:
             msgs.error('You must specify the sensfuncfile in the .coadd1d file for Echelle coadds')
+
+        if coaddfile is None:
+            coaddfile = build_coadd_file_name(spec1dfiles, spectrograph)
 
         # Instantiate
         coAdd1d = coadd1d.CoAdd1D.get_instance(spec1dfiles, objids, spectrograph=spectrograph,
