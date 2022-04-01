@@ -90,7 +90,7 @@ def plot(args, line_wav_z:np.ndarray, line_names:np.ndarray,
     ax.set_xlim(np.min(lbda[sec]), np.max(lbda[sec]))
     ymax = sigma_clip(flux[sec], sigma=10, return_bounds=True)[2]*1.3
     ymin = sigma_clip(flux[sec], sigma=5, return_bounds=True)[1]*1.05
-    ax.set_ylim(-200, 1200)
+    ax.set_ylim(ymin, ymax)
     ax.set_xlabel('Wavelength  (Angstrom)')
     ax.set_ylabel(r'Counts')
     plt.legend(loc=3)
