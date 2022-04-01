@@ -453,8 +453,11 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             msc_rot[i] = rotation[d]
             msc_tfm[i] = build_image_mosaic_transform(shape, msc_sft[i], msc_rot[i], binning)
 
+        # Hard coded for now. Order of the interpolation used to construct the mosaic
+        msc_order = 0
+
         return Mosaic(mosaic_id, detectors, shape, np.array(msc_sft), np.array(msc_rot),
-                      np.array(msc_tfm))
+                      np.array(msc_tfm), msc_order)
 
     @property
     def allowed_mosaics(self):

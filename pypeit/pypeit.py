@@ -861,6 +861,12 @@ class PypeIt:
         else:
             final_global_sky = objFind.global_skysub(previous_sky=initial_sky, skymask=skymask, show=self.show)
 
+        # update here slits.mask since global_skysub modify reduce_bpm and we need to propagate it into extraction
+        flagged_slits = np.where(objFind.reduce_bpm)[0]
+        if len(flagged_slits) > 0:
+            self.caliBrate.slits.mask[flagged_slits] = \
+                self.caliBrate.slits.bitmask.turn_on(self.caliBrate.slits.mask[flagged_slits], 'BADREDUCE')
+
 
         msgs.info("Extraction begins for {} on det={}".format(self.basename, det))
 

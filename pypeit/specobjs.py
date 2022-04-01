@@ -856,10 +856,10 @@ class SpecObjs:
             obj_tbl['s2n'] = s2n
             obj_tbl['s2n'].format = '.2f'
             # is this a forced extraction at the expected position from slitmask design?
-            if not np.all(np.array(maskdef_extract) == None):
+            if not np.all(np.array(maskdef_extract) == False):
                     obj_tbl['maskdef_extract'] = maskdef_extract
             # only if manual extractions exist, print this
-            if not np.all(np.array(manual_extract) == None):
+            if not np.all(np.array(manual_extract) == False):
                 obj_tbl['manual_extract'] = manual_extract
 
             # Wavelengths

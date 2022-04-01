@@ -467,6 +467,8 @@ class FindObjects:
             `numpy.ndarray`_: image of the the global sky model
 
         """
+        # reset bpm since global sky is run several times and reduce_bpm is here updated.
+        self.reduce_bpm = self.reduce_bpm_init.copy()
         # Prep
         global_sky = np.zeros_like(self.sciImg.image)
         # Parameters for a standard star
