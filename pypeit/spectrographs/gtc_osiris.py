@@ -108,7 +108,6 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         # Wavelength calibration methods
-#        par['calibrations']['wavelengths']['method'] = 'holy-grail'
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI,ArI']
 
