@@ -15,23 +15,20 @@ from pypeit import specobjs
 from pypeit.spec2dobj import AllSpec2DObj
 from pypeit.core.collate import collate_spectra_by_source, SourceObject
 from pypeit.archive import ArchiveDir
-from pypeit.scripts.collate_1d import find_spec2d_from_spec1d,find_slits_to_exclude, exclude_source_objects, get_report_metadata
+from pypeit.scripts.collate_1d import find_spec2d_from_spec1d,find_slits_to_exclude, exclude_source_objects, get_report_metadata, flux, coadd
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.par import pypeitpar
 from pypeit.pypmsgs import PypeItError
 from pypeit.images.detector_container import DetectorContainer
+from pypeit import fluxcalibrate
+from pypeit import coadd1d
 
 from pypeit.tests.tstutils import data_path, cooked_required
 
-class mock_coadd:
-    pass
-
-def mock_get_instance():
-    pass
 
 
 class MockSpecObj:
-    def __init__(self, MASKDEF_OBJNAME, MASKDEF_ID, DET, RA, DEC, SPAT_PIXPOS, NAME, OPT_COUNTS=None, BOX_COUNTS=None):
+    def __init__(self, MASKDEF_OBJNAME, MASKDEF_ID, DET, RA, DEC, SPAT_PIXPOS, NAME, OPT_FLAM=None, OPT_COUNTS=None, BOX_COUNTS=None):
         self.MASKDEF_OBJNAME = MASKDEF_OBJNAME
         self.MASKDEF_ID = MASKDEF_ID
         self.DET = DetectorContainer.get_name(DET)
@@ -39,6 +36,7 @@ class MockSpecObj:
         self.SPAT_PIXPOS = SPAT_PIXPOS
         self.DEC = DEC
         self.NAME = NAME
+        self.OPT_FLAM = OPT_FLAM
         self.OPT_COUNTS = OPT_COUNTS
         self.BOX_COUNTS = BOX_COUNTS
 
@@ -87,16 +85,16 @@ class MockSpecObjs:
         # object4 also has boxcar counts and no opt_counts
 
         if file == "spec1d_file1":
-            self.specobjs = [MockSpecObj(MASKDEF_OBJNAME='object1',  MASKDEF_ID='1001', DET=1, RA=201.1517, DEC=27.3246, SPAT_PIXPOS=1234.0, NAME='SPAT1234_SLIT1234_DET01', OPT_COUNTS=np.zeros(100), BOX_COUNTS=np.zeros(100)),
-                             MockSpecObj(MASKDEF_OBJNAME='SERENDIP', MASKDEF_ID='1001', DET=1, RA=201.1522, DEC=27.3250, SPAT_PIXPOS=1334.0, NAME='SPAT1334_SLIT1234_DET01', OPT_COUNTS=np.zeros(100)),
-                             MockSpecObj(MASKDEF_OBJNAME='object2',  MASKDEF_ID='3002', DET=2, RA=201.0051, DEC=27.2228, SPAT_PIXPOS=5334.0, NAME='SPAT5334_SLIT4934_DET02', OPT_COUNTS=np.zeros(100)),
-                             MockSpecObj(MASKDEF_OBJNAME='object3',  MASKDEF_ID='3003', DET=3, RA=201.2517, DEC=27.3333, SPAT_PIXPOS=3233.0, NAME='SPAT3233_SLIT3235_DET03', OPT_COUNTS=np.zeros(100)),
+            self.specobjs = [MockSpecObj(MASKDEF_OBJNAME='object1',  MASKDEF_ID='1001', DET=1, RA=201.1517, DEC=27.3246, SPAT_PIXPOS=1234.0, NAME='SPAT1234_SLIT1234_DET01', OPT_COUNTS=np.zeros(100), OPT_FLAM=np.zeros(100), BOX_COUNTS=np.zeros(100)),
+                             MockSpecObj(MASKDEF_OBJNAME='SERENDIP', MASKDEF_ID='1001', DET=1, RA=201.1522, DEC=27.3250, SPAT_PIXPOS=1334.0, NAME='SPAT1334_SLIT1234_DET01', OPT_COUNTS=np.zeros(100), OPT_FLAM=np.zeros(100)),
+                             MockSpecObj(MASKDEF_OBJNAME='object2',  MASKDEF_ID='3002', DET=2, RA=201.0051, DEC=27.2228, SPAT_PIXPOS=5334.0, NAME='SPAT5334_SLIT4934_DET02', OPT_COUNTS=np.zeros(100), OPT_FLAM=np.zeros(100)),
+                             MockSpecObj(MASKDEF_OBJNAME='object3',  MASKDEF_ID='3003', DET=3, RA=201.2517, DEC=27.3333, SPAT_PIXPOS=3233.0, NAME='SPAT3233_SLIT3235_DET03', OPT_COUNTS=np.zeros(100), OPT_FLAM=np.zeros(100)),
                              MockSpecObj(MASKDEF_OBJNAME='object3',  MASKDEF_ID='3003', DET=3, RA=201.2517, DEC=27.3333, SPAT_PIXPOS=3232.0, NAME='SPAT3232_SLIT3235_DET03'),
-                             MockSpecObj(MASKDEF_OBJNAME='object3',  MASKDEF_ID='3003', DET=5, RA=201.2517, DEC=27.3333, SPAT_PIXPOS=3236.0, NAME='SPAT3236_SLIT3245_DET05', OPT_COUNTS=np.zeros(100)),
-                             MockSpecObj(MASKDEF_OBJNAME='object1',  MASKDEF_ID='1001', DET=7, RA=201.1517, DEC=27.3246, SPAT_PIXPOS=1233.0, NAME='SPAT1233_SLIT1235_DET07', OPT_COUNTS=np.zeros(100), BOX_COUNTS=np.zeros(100)),
-                             MockSpecObj(MASKDEF_OBJNAME='SERENDIP', MASKDEF_ID='1001', DET=7, RA=201.1520, DEC=27.3249, SPAT_PIXPOS=1336.0, NAME='SPAT1336_SLIT1235_DET07', OPT_COUNTS=np.zeros(100))]
+                             MockSpecObj(MASKDEF_OBJNAME='object3',  MASKDEF_ID='3003', DET=5, RA=201.2517, DEC=27.3333, SPAT_PIXPOS=3236.0, NAME='SPAT3236_SLIT3245_DET05', OPT_COUNTS=np.zeros(100), OPT_FLAM=np.zeros(100)),
+                             MockSpecObj(MASKDEF_OBJNAME='object1',  MASKDEF_ID='1001', DET=7, RA=201.1517, DEC=27.3246, SPAT_PIXPOS=1233.0, NAME='SPAT1233_SLIT1235_DET07', OPT_COUNTS=np.zeros(100), OPT_FLAM=np.zeros(100), BOX_COUNTS=np.zeros(100)),
+                             MockSpecObj(MASKDEF_OBJNAME='SERENDIP', MASKDEF_ID='1001', DET=7, RA=201.1520, DEC=27.3249, SPAT_PIXPOS=1336.0, NAME='SPAT1336_SLIT1235_DET07', OPT_COUNTS=np.zeros(100), OPT_FLAM=np.zeros(100))]
         else:
-            self.specobjs = [MockSpecObj(MASKDEF_OBJNAME='object3',  MASKDEF_ID='3003', DET=3, RA=201.2517, DEC=27.3333, SPAT_PIXPOS=3234.0, NAME='SPAT3234_SLIT3236_DET03', OPT_COUNTS=np.zeros(100)),
+            self.specobjs = [MockSpecObj(MASKDEF_OBJNAME='object3',  MASKDEF_ID='3003', DET=3, RA=201.2517, DEC=27.3333, SPAT_PIXPOS=3234.0, NAME='SPAT3234_SLIT3236_DET03', OPT_FLAM=np.zeros(100), OPT_COUNTS=np.zeros(100)),
                              MockSpecObj(MASKDEF_OBJNAME='object4',  MASKDEF_ID='4004', DET=3, RA=201.0052, DEC=27.2418, SPAT_PIXPOS=6250.0, NAME='SPAT6250_SLIT6235_DET03', BOX_COUNTS=np.zeros(100)),
                              MockSpecObj(MASKDEF_OBJNAME='object4',  MASKDEF_ID='4004', DET=5, RA=201.0052, DEC=27.2418, SPAT_PIXPOS=6256.0, NAME='SPAT6256_SLIT6245_DET05', BOX_COUNTS=np.zeros(100)),
                              MockSpecObj(MASKDEF_OBJNAME='SERENDIP', MASKDEF_ID='4004', DET=5, RA=201.0056, DEC=27.2419, SPAT_PIXPOS=6934.0, NAME='SPAT6934_SLIT6245_DET05', BOX_COUNTS=np.zeros(100)),
@@ -425,4 +423,129 @@ def test_get_report_metadata(monkeypatch):
     assert (None, None) ==  get_report_metadata(['DISPNAME', 'MJD', 'GUIDFHWM'],
                                                 ['MASKDEF_OBJNAME', 'NAME'],
                                                 "afilename")
+
+def test_flux(monkeypatch):
+    
+    def mock_get_header(file):
+        if file == "fail_grating.fits":
+            return {"DISPNAME": "Unknown"}
+        else: 
+            return {"DISPNAME": "600ZD" }
+
+    def mock_get_flux_calib_instance(spec1d_files, sens_files, par):
+        if spec1d_files[0] == "fail_flux.fits":
+            raise PypeItError("Test failure")
+        else:
+            # The collate_1d caller doesn't use the output, it just
+            # depends on the side effect of fluxing
+            return None 
+
+    # Test success
+    with monkeypatch.context() as m:
+        monkeypatch.setattr(fits, "getheader", mock_get_header)
+        monkeypatch.setattr(fluxcalibrate.FluxCalibrate, "get_instance", mock_get_flux_calib_instance)
+
+        spectrograph = load_spectrograph('keck_deimos')
+        # This could break if we start supporting it
+        unsupported_spectrograph = load_spectrograph('shane_kast_red')
+
+        par = pypeitpar.PypeItPar()
+        par['fluxcalib'] = pypeitpar.FluxCalibratePar()
+
+        # Test success
+        failed_messages = []
+        flux(par, spectrograph, ["no_fail.fits"], failed_messages)
+
+        assert len(failed_messages) == 0
+
+        # Test failure due to no archived sensfunc
+        flux(par, spectrograph, ["fail_grating.fits"], failed_messages)
+        assert failed_messages[0] == "Could not find archived sensfunc to flux fail_grating.fits, skipping it."
+
+        failed_messages = []
+
+        # Test failure in fluxing
+        flux(par, spectrograph, ["fail_flux.fits"], failed_messages)
+        assert failed_messages[0] == "Failed to flux calibrate fail_flux.fits, skipping it."
+        
+        # Test failure due to unsupported spectrograph
+        with pytest.raises(PypeItError):
+            flux(par, unsupported_spectrograph, ["600ZD_file.fits"], failed_messages)            
+
+def test_coadd(monkeypatch):
+
+    class mock_coadd:
+
+        def run(self):
+            return
+
+        def save(self, file):
+            return
+
+    def mock_get_instance(*args, **kwargs):
+        return mock_coadd()
+
+    with monkeypatch.context() as m:
+        monkeypatch.setattr(coadd1d.CoAdd1D, "get_instance", mock_get_instance)
+        par = pypeitpar.PypeItPar()
+        par['collate1d'] = pypeitpar.Collate1DPar()
+        par['coadd1d'] = pypeitpar.Coadd1DPar()
+        spectrograph = load_spectrograph('keck_deimos')
+
+        filenames = ['spec1d_file1', 'spec1d_file2']
+        specobjs_file1 = mock_specobjs(filenames[0])
+        specobjs_file2 = mock_specobjs(filenames[1])
+        header_file1 = mock_header(filenames[0])
+        header_file2 = mock_header(filenames[1])
+
+        # Both source object 1's SpecObj objects will have OPT_FLAM
+        file1_objects = [3,  # 'SPAT3233_SLIT3235_DET03'
+                         5,] # 'SPAT3236_SLIT3245_DET05'
+                            
+        # Only one of source object 2's SpecObj objects will have OPT_FLAM
+        file2_objects = [0,  # 'SPAT3234_SLIT3236_DET03'
+                         4,] # 'SPAT3237_SLIT3246_DET05'
+
+        source_object1 = SourceObject(specobjs_file1.specobjs[file1_objects[0]], 
+                                      header_file1, 
+                                      filenames[0], 
+                                      spectrograph, 
+                                      'ra/dec')
+
+        for object in file1_objects[1:]:
+            source_object1.spec_obj_list.append(specobjs_file1.specobjs[object])
+            source_object1.spec1d_file_list.append(filenames[0])
+            source_object1.spec1d_header_list.append(header_file1)
+
+        source_object2 = SourceObject(specobjs_file2.specobjs[file2_objects[0]], 
+                                      header_file2, 
+                                      filenames[1], 
+                                      spectrograph, 
+                                      'ra/dec')
+
+        for object in file2_objects:
+            source_object2.spec_obj_list.append(specobjs_file2.specobjs[object])
+            source_object2.spec1d_file_list.append(filenames[1])
+            source_object2.spec1d_header_list.append(header_file2)
+
+        # Test with out using fluxed data
+        par['collate1d']['ignore_flux'] = True
+        par['coadd1d']['flux_value'] = True
+        coadd(par, source_object1)
+
+        assert par['coadd1d']['flux_value'] == False
+
+        # Test using fluxed data
+        par['collate1d']['ignore_flux'] = False
+        par['coadd1d']['flux_value'] = False
+        coadd(par, source_object1)
+
+        assert par['coadd1d']['flux_value'] == True
+
+        # Test not using fluxed data because not all SpecObj objects had flux data
+        par['collate1d']['ignore_flux'] = False
+        par['coadd1d']['flux_value'] = True
+        coadd(par, source_object2)
+
+        assert par['coadd1d']['flux_value'] == False
 

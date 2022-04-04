@@ -323,6 +323,19 @@ Here is a typical call::
 Again, the :doc:`out_spec1D` files are modified in place.
 See :ref:`pypeit_show_1dspec` for details on how to view them.
 
+Archival Sensitivity Functions
+------------------------------
+PypeIt supports using archived sensitivity functions for fluxcalibration. Currently only
+experimental keck_deimos sensitivity files are available.  They can be applied by adding
+``use_archived_sens = True`` to the flux file passed to ``pypeit_flux_calib``. For example::
+
+    [fluxcalib]
+       use_archived_sens = True
+
+    flux read
+       spec1d_d1010_0056-HIT2015-mask03_DEIMOS_20151010T045816.550.fits
+    flux end
+
 FluxSpec Class
 ==============
 
