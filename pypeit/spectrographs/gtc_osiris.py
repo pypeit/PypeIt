@@ -100,7 +100,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-        par['calibrations']['slitedges']['edge_thresh'] = 10
+        par['calibrations']['slitedges']['edge_thresh'] = 20
         par['calibrations']['slitedges']['sobel_mode'] = 'constant'
         par['calibrations']['slitedges']['sobel_enhance'] = 5
         par['calibrations']['slitedges']['bound_detector'] = True

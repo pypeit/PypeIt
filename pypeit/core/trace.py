@@ -102,7 +102,7 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
     filt = ndimage.sobel(sqmstrace, axis=1, mode=sobel_mode)
     # Enhance blurred edges
     if sobel_enhance > 0:
-        filt = nsum * ndimage.uniform_filter1d(filt, size=sobel_enhance, axis=1)
+        filt = sobel_enhance * ndimage.uniform_filter1d(filt, size=sobel_enhance, axis=1)
     # Apply the bad-pixel mask
     if bpm is not None:
         # NOTE: Casts to float because filt is float
