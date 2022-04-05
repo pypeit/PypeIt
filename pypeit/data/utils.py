@@ -13,7 +13,7 @@ from pypeit import io
 from pypeit import msgs
 
 __all__ = ['Paths', 'load_telluric_grid', 'load_thar_spec',
-           'load_sky_spectrum']
+           'load_sky_spectrum', 'get_reid_arxiv_filepath']
 
 
 class Paths_meta(type):
@@ -119,6 +119,38 @@ class Paths(metaclass=Paths_meta):
 
     [extended_summary]
     """
+
+
+# Remote-fetch functions for package data not distributed via PyPI ===========#
+def get_reid_arxiv_filepath(arxiv_file, use_local=False):
+    """get_reid_arxiv_filepath Return the full path to the `reid_arxiv` file
+
+    In an attempt to reduce the size of the PypeIt package as distributed on
+    PyPI, the `reid_arxiv` files are not longer distributed with the package.
+    The collection of files are hosted remotely, and only the `reid_arxiv`
+    files needed by a particular user are downloaded to the local machine.
+
+    This function checks for the local existance of the `redi_arxiv` file, and
+    downloads it from the remote server into the proper `Paths` location for
+    future use.  As most users will need only a small number of `reid_arxiv`
+    files for thier particular reductions, the remote fetch will only occur
+    once per file (per version on PypeIt installed via PyPI or conda).
+
+    Args:
+        arxiv_file: str
+          The base filename of the `reid_arxiv` file to be located
+        use_local: bool, optional
+          [STUB FOR FUTURE FUNCTIONALITY]  If the WavelengthSolutionPar
+          parameter `use_local` is set to True, look for the `reid_arxiv`
+          file on the local filesystem rather than in the PypeIt package
+          data.
+
+    Returns:
+        calibfile: str
+          The full path to the `reid_arxiv` file
+    """
+    # Return current functionality for now
+    return os.path.join(Paths.reid_arxiv, arxiv_file)
 
 
 # Loading Functions for Particular File Types ================================#

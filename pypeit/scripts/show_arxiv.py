@@ -31,7 +31,7 @@ class ShowArxiv(scriptbase.ScriptBase):
 
         # Path
         if os.path.basename(args.file) == args.file:
-            args.file = os.path.join(data.Paths.reid_arxiv, args.file)
+            args.file = data.get_reid_arxiv_filepath(args.file)
 
         wave, flux, binspec = waveio.load_template(args.file, args.det)
 

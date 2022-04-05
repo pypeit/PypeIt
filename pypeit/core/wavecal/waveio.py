@@ -71,7 +71,7 @@ def load_template(arxiv_file, det, wvrng=None):
     """
     # Path already included?
     if os.path.basename(arxiv_file) == arxiv_file:
-        calibfile = os.path.join(data.Paths.reid_arxiv, arxiv_file)
+        calibfile = data.get_reid_arxiv_filepath(arxiv_file)
     else:
         calibfile = arxiv_file
     # Read me
@@ -107,7 +107,7 @@ def load_reid_arxiv(arxiv_file):
 
     """
     # ToDO put in some code to allow user specified files rather than everything in the main directory
-    calibfile = os.path.join(data.Paths.reid_arxiv, arxiv_file)
+    calibfile = data.get_reid_arxiv_filepath(arxiv_file)
     # This is a hack as it will fail if we change the data model yet again for wavelength solutions
     if calibfile[-4:] == 'json':
         wv_calib_arxiv = load_wavelength_calibration(calibfile)
