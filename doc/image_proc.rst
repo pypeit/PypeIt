@@ -309,11 +309,17 @@ with different lamps.
 
     If you set this parameter to True, you should also set the following parameters:
 
-    calibrations arcframe process clip = False
-    calibrations arcframe process combine = 'mean'
-    calibrations tiltframe process clip = False
-    calibrations tiltframe process combine = 'mean'
+.. code-block:: ini
 
+    [calibrations]
+        [[arcframe]]
+            [[[process]]]
+                clip = False
+                combine = mean
+        [[tiltframe]]
+            [[[process]]]
+                clip = False
+                combine = mean
 .. note::
 
     Currently, to apply the slit-illumination and spectral response corrections,
