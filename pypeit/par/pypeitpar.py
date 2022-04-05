@@ -283,8 +283,9 @@ class ProcessImagesPar(ParSet):
 
         defaults['use_continuum'] = False
         dtypes['use_continuum'] = bool
-        descr['use_continuum'] = 'Subtract off the continuum level fromt he image. This correction is helpful ' \
-                                 'if you are combining arcs with multiple different lamps and exposure times. '
+        descr['use_continuum'] = 'Subtract off the continuum level from an image. This parameter should only ' \
+                                 'be set to True to combine arcs with multiple different lamps.' \
+                                 'For all other cases, this parameter should probably be False.'
 
         defaults['empirical_rn'] = False
         dtypes['empirical_rn'] = bool
@@ -2635,9 +2636,12 @@ class EdgeTracePar(ParSet):
         descr['edge_thresh'] = 'Threshold for finding edges in the Sobel-filtered significance' \
                                ' image.'
 
-        defaults['sobel_enhance'] = False
-        dtypes['sobel_enhance'] = bool
-        descr['sobel_enhance'] = 'Enhance the sobel filtering? Set to true if slit edges are not well-defined.'
+        defaults['sobel_enhance'] = 0
+        dtypes['sobel_enhance'] = int
+        descr['sobel_enhance'] = 'Enhance the sobel filtering? A value of 0 will not enhance the sobel filtering.' \
+                                 'Any other value > 0 will sum the sobel values. For example, a value of 3 will' \
+                                 'combine the sobel values for the 3 nearest pixels. This is useful when a slit' \
+                                 'edge is poorly defined (e.g. vignetted).'
 
         defaults['exclude_regions'] = None
         dtypes['exclude_regions'] = [list, str]

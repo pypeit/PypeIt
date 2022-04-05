@@ -102,7 +102,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
         par['calibrations']['slitedges']['edge_thresh'] = 10
         par['calibrations']['slitedges']['sobel_mode'] = 'constant'
-        par['calibrations']['slitedges']['sobel_enhance'] = True
+        par['calibrations']['slitedges']['sobel_enhance'] = 5
         par['calibrations']['slitedges']['bound_detector'] = True
 
         # Set pixel flat combination method
