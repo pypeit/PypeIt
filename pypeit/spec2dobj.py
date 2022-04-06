@@ -463,13 +463,13 @@ class AllSpec2DObj:
         # TODO -- Should this be in the header of the individual HDUs ?
         if master_key_dict is not None:
             if 'bias' in master_key_dict.keys():
-                hdr['BIASMKEY'] = master_key_dict['bias'][:-2]
+                hdr['BIASMKEY'] = master_key_dict['bias'][:-5]
             if 'arc' in master_key_dict.keys():
-                hdr['ARCMKEY'] = master_key_dict['arc'][:-2]
+                hdr['ARCMKEY'] = master_key_dict['arc'][:-5]
             if 'trace' in master_key_dict.keys():
-                hdr['TRACMKEY'] = master_key_dict['trace'][:-2]
+                hdr['TRACMKEY'] = master_key_dict['trace'][:-5]
             if 'flat' in master_key_dict.keys():
-                hdr['FLATMKEY'] = master_key_dict['flat'][:-2]
+                hdr['FLATMKEY'] = master_key_dict['flat'][:-5]
 
         # Processing steps
         # TODO: Assumes processing steps for all detectors are the same...  Does
