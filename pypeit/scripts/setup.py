@@ -60,8 +60,6 @@ class Setup(scriptbase.ScriptBase):
 
         from pypeit.pypeitsetup import PypeItSetup
 
-    #    if args.root is None:
-    #        raise IOError('root is a required argument.  Use the -r, --root command-line option.')
         if args.spectrograph is None:
             raise IOError('spectrograph is a required argument.  Use the -s, --spectrograph '
                           'command-line option.')
