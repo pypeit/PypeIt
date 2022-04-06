@@ -17,7 +17,7 @@ from scipy.interpolate import interp1d
 import numpy as np
 
 from pypeit import msgs
-from pypeit import spec2dobj, alignframe, flatfield
+from pypeit import spec2dobj, masterframe, alignframe, flatfield
 from pypeit.core.flux_calib import load_extinction_data, extinction_correction, fit_zeropoint, get_standard_spectrum, ZP_UNIT_CONST, PYPEIT_FLUX_SCALE
 from pypeit.core.flexure import calculate_image_offset
 from pypeit.core import parse
@@ -880,8 +880,9 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
         # Loading the alignments frame for these data
         astrometric = cubepar['astrometric']
         msgs.info("Loading alignments")
-        alignfile = "{0:s}/Master{1:s}_{2:s}_01.{3:s}".format(hdr['PYPMFDIR'], alignframe.Alignments.master_type,
-                                                              hdr['TRACMKEY'], alignframe.Alignments.master_file_format)
+        alignfile = masterframe.construct_file_name(alignframe.Alignments,
+                                                    hdr['TRACMKEY']+detname,
+                                                    master_dir=hdr['PYPMFDIR'])
         alignments = None
         if os.path.exists(alignfile) and cubepar['astrometric']:
             alignments = alignframe.Alignments.from_file(alignfile)
@@ -927,12 +928,9 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
 
         # Correct for sensitivity as a function of grating angle
         # (this assumes the spectrum of the flatfield lamp has the same shape for all setups)
-        embed()
         flatfile = masterframe.construct_file_name(flatfield.FlatImages,
-                                                           self.master_key_dict['flat'],
-                                                           master_dir=self.master_dir)
-        # "{0:s}/Master{1:s}_{2:s}_01.{3:s}".format(hdr['PYPMFDIR'], flatfield.FlatImages.master_type,
-        #                                                      hdr['FLATMKEY'], flatfield.FlatImages.master_file_format)
+                                                   hdr['FLATMKEY']+detname,
+                                                   master_dir=hdr['PYPMFDIR'])
         if cubepar['grating_corr'] and flatfile not in flat_splines.keys():
             msgs.info("Calculating relative sensitivity for grating correction")
             flatimages = flatfield.FlatImages.from_file(flatfile)
