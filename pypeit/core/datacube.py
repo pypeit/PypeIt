@@ -927,8 +927,12 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
 
         # Correct for sensitivity as a function of grating angle
         # (this assumes the spectrum of the flatfield lamp has the same shape for all setups)
-        flatfile = "{0:s}/Master{1:s}_{2:s}_01.{3:s}".format(hdr['PYPMFDIR'], flatfield.FlatImages.master_type,
-                                                             hdr['FLATMKEY'], flatfield.FlatImages.master_file_format)
+        embed()
+        flatfile = masterframe.construct_file_name(flatfield.FlatImages,
+                                                           self.master_key_dict['flat'],
+                                                           master_dir=self.master_dir)
+        # "{0:s}/Master{1:s}_{2:s}_01.{3:s}".format(hdr['PYPMFDIR'], flatfield.FlatImages.master_type,
+        #                                                      hdr['FLATMKEY'], flatfield.FlatImages.master_file_format)
         if cubepar['grating_corr'] and flatfile not in flat_splines.keys():
             msgs.info("Calculating relative sensitivity for grating correction")
             flatimages = flatfield.FlatImages.from_file(flatfile)
@@ -976,6 +980,7 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
             wave_corr = (wave_ext[wvsrt] - minw) / (maxw - minw)
             coeff_gratcorr = np.polyfit(wave_corr[wblz], grat_corr_tmp[wblz], 2)
             grat_corr = np.polyval(coeff_gratcorr, wave_corr)
+            #grat_corr = grat_corr_tmp # TODO :: REMOVE THIS LINE
         # Sensitivity function
         sens_func = 1.0
         if fluxcal:
