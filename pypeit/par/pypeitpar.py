@@ -4554,7 +4554,7 @@ class Collate1DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, tolerance=None, dry_run=None, ignore_flux=None, flux=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, outdir=None):
+    def __init__(self, tolerance=None, dry_run=None, ignore_flux=None, flux=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, wv_rms_thresh=None, outdir=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -4610,6 +4610,11 @@ class Collate1DPar(ParSet):
         dtypes['exclude_serendip'] = bool
         descr['exclude_serendip'] = "Whether to exclude SERENDIP objects from collating."
 
+        # Wavelength RMS threshold to exclude spectra by.
+        defaults['wv_rms_thresh'] = None
+        dtypes['wv_rms_thresh'] = float
+        descr['wv_rms_thresh'] = "If set, any objects with a wavelength RMS > this value are skipped, else all wavelength RMS values are accepted."
+
         # How to match objects
         defaults['match_using'] = 'ra/dec'
         options['match_using'] = [ 'pixel', 'ra/dec']
@@ -4627,7 +4632,7 @@ class Collate1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = [*cfg.keys()]
-        parkeys = ['tolerance', 'dry_run', 'ignore_flux', 'flux', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir']
+        parkeys = ['tolerance', 'dry_run', 'ignore_flux', 'flux', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir', 'wv_rms_thresh']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

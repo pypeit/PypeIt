@@ -95,6 +95,7 @@ For example, if you wish to use the MaunaKea telluric grid with your data,
 you would create a sens file containing:
 
     .. code-block:: ini
+
         # User-defined execution parameters
         [sensfunc]
            algorithm = IR
@@ -110,6 +111,7 @@ in the IR, you can feed the stellar parameters.  Here is an
 example sens file:
 
     .. code-block:: ini
+
         [sensfunc]
            algorithm = IR
            star_mag = 12.1
