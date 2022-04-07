@@ -826,6 +826,8 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
     locations = parset['calibrations']['alignment']['locations']
     flat_splines = dict()   # A dictionary containing the splines of the flatfield
     if cubepar['scale_corr'] is not None:
+        msgs.info("Loading scale image for relative spectral illumination correction:" +
+                  msgs.newline() + cubepar['scale_corr'])
         try:
             spec2DObj = spec2dobj.Spec2DObj.from_file(cubepar['scale_corr'], detname)
             relScaleImg = spec2DObj.scaleimg
