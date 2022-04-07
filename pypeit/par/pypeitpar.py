@@ -3548,8 +3548,8 @@ class SkySubPar(ParSet):
 
         defaults['global_sky_std'] = True
         dtypes['global_sky_std'] = bool
-        descr['global_sky_std'] = 'Global sky subtraction will be performed on standard stars. This should be turned' \
-                                  'off for example for near-IR reductions with narrow slits, since bright standards can' \
+        descr['global_sky_std'] = 'Global sky subtraction will be performed on standard stars. This should be turned ' \
+                                  'off for example for near-IR reductions with narrow slits, since bright standards can ' \
                                   'fill the slit causing global sky-subtraction to fail. In these situations we go ' \
                                   'straight to local sky-subtraction since it is designed to deal with such situations'
 
@@ -3564,11 +3564,11 @@ class SkySubPar(ParSet):
         # Masking
         defaults['user_regions'] = None
         dtypes['user_regions'] = [str, list]
-        descr['user_regions'] = 'A user-defined sky regions mask can be set using this keyword. To allow' \
-                                'the code to identify the sky regions automatically, set this variable to' \
-                                'an empty string. If you wish to set the sky regions, The text should be' \
-                                'a comma separated list of percentages to apply to _all_ slits' \
-                                ' For example: The following string   :10,35:65,80:   would select the' \
+        descr['user_regions'] = 'A user-defined sky regions mask can be set using this keyword. To allow ' \
+                                'the code to identify the sky regions automatically, set this variable to ' \
+                                'an empty string. If you wish to set the sky regions, The text should be ' \
+                                'a comma separated list of percentages to apply to _all_ slits ' \
+                                ' For example: The following string   :10,35:65,80:   would select the ' \
                                 'first 10%, the inner 30%, and the final 20% of _all_ slits.'
 
         defaults['mask_by_boxcar'] = False
@@ -3577,13 +3577,14 @@ class SkySubPar(ParSet):
 
         defaults['load_mask'] = False
         dtypes['load_mask'] = bool
-        descr['load_mask'] = 'Load a user-defined sky regions mask to be used for the sky regions. Note,' \
-                             'if you set this to True, you must first run the pypeit_skysub_regions GUI' \
+        descr['load_mask'] = 'Load a user-defined sky regions mask to be used for the sky regions. Note, ' \
+                             'if you set this to True, you must first run the pypeit_skysub_regions GUI ' \
                              'to manually select and store the regions to file.'
 
         defaults['joint_fit'] = False
         dtypes['joint_fit'] = bool
-        descr['joint_fit'] = 'Perform a simultaneous joint fit to sky regions using all available slits.'
+        descr['joint_fit'] = 'Perform a simultaneous joint fit to sky regions using all available slits. ' \
+                             'Currently, this parameter is only used for IFU data reduction.'
 
         # Instantiate the parameter set
         super(SkySubPar, self).__init__(list(pars.keys()),
