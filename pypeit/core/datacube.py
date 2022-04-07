@@ -880,9 +880,7 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
         # Loading the alignments frame for these data
         astrometric = cubepar['astrometric']
         msgs.info("Loading alignments")
-        alignfile = masterframe.construct_file_name(alignframe.Alignments,
-                                                    hdr['TRACMKEY']+detname,
-                                                    master_dir=hdr['PYPMFDIR'])
+        alignfile = masterframe.construct_file_name(alignframe.Alignments, hdr['TRACMKEY'], master_dir=hdr['PYPMFDIR'])
         alignments = None
         if os.path.exists(alignfile) and cubepar['astrometric']:
             alignments = alignframe.Alignments.from_file(alignfile)
@@ -928,9 +926,7 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
 
         # Correct for sensitivity as a function of grating angle
         # (this assumes the spectrum of the flatfield lamp has the same shape for all setups)
-        flatfile = masterframe.construct_file_name(flatfield.FlatImages,
-                                                   hdr['FLATMKEY']+detname,
-                                                   master_dir=hdr['PYPMFDIR'])
+        flatfile = masterframe.construct_file_name(flatfield.FlatImages, hdr['FLATMKEY'], master_dir=hdr['PYPMFDIR'])
         if cubepar['grating_corr'] and flatfile not in flat_splines.keys():
             msgs.info("Calculating relative sensitivity for grating correction")
             flatimages = flatfield.FlatImages.from_file(flatfile)
