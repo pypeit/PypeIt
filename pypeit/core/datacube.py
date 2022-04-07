@@ -343,8 +343,17 @@ def extract_standard_spec(stdcube, subsample=20):
     mask[ww] = 1
     mask = rebinND(mask, (flxcube.shape[0], flxcube.shape[1])).reshape(flxcube.shape[0], flxcube.shape[1], 1)
 
+    # Generate a sky mask
+    newshape = (flxcube.shape[0] * subsample, flxcube.shape[1] * subsample)
+    smask = np.zeros(newshape)
+    nsig = 8  # 8 sigma should be far enough
+    ww = np.where((np.sqrt((xx - popt[1]) ** 2 + (yy - popt[2]) ** 2) < nsig * wid))
+    smask[ww] = 1
+    smask = rebinND(smask, (flxcube.shape[0], flxcube.shape[1])).reshape(flxcube.shape[0], flxcube.shape[1], 1)
+    smask -= mask
+
     # Subtract the residual sky
-    skymask = (varcube > 0.0) * (1-mask)
+    skymask = (varcube > 0.0) * smask
     skycube = flxcube * skymask
     skyspec = skycube.sum(0).sum(0)
     nrmsky = skymask.sum(0).sum(0)
