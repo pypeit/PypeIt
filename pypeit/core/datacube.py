@@ -825,6 +825,14 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
     weights = np.ones(numfiles)  # Weights to use when combining cubes
     locations = parset['calibrations']['alignment']['locations']
     flat_splines = dict()   # A dictionary containing the splines of the flatfield
+    if cubepar['scale_corr'] is not None:
+        try:
+            spec2DObj = spec2dobj.Spec2DObj.from_file(cubepar['scale_corr'], detname)
+            relScaleImg = spec2DObj.scaleimg
+        except:
+            msgs.warn("Could not load scaleimg from spec2d file:" + msgs.newline() + cubepar['scale_corr'] +
+                      "scale correction will not be performed")
+            cubepar['scale_corr'] = None
     for ff, fil in enumerate(files):
         # Load it up
         spec2DObj = spec2dobj.Spec2DObj.from_file(fil, detname)
@@ -841,8 +849,9 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
         msgs.reset(verbosity=2)
 
         # Extract the information
-        sciimg = (spec2DObj.sciimg-spec2DObj.skymodel)  # Subtract sky
-        ivar = spec2DObj.ivarraw
+        relscl = spec2DObj.scaleimg/relScaleImg
+        sciimg = (spec2DObj.sciimg-spec2DObj.skymodel)*relscl  # Subtract sky
+        ivar = spec2DObj.ivarraw / relscl**2
         waveimg = spec2DObj.waveimg
         bpmmask = spec2DObj.bpmmask
 

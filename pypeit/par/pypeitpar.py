@@ -1224,7 +1224,7 @@ class CubePar(ParSet):
     def __init__(self, slit_spec=None, relative_weights=None, combine=None, output_filename=None,
                  standard_cube=None, reference_image=None, save_whitelight=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
-                 spatial_delta=None, wave_delta=None, astrometric=None, grating_corr=None):
+                 spatial_delta=None, wave_delta=None, astrometric=None, grating_corr=None, scale_corr=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1244,87 +1244,87 @@ class CubePar(ParSet):
         # Cube Parameters
         defaults['slit_spec'] = True
         dtypes['slit_spec'] = [bool]
-        descr['slit_spec'] = 'If the data use slits in one spatial direction, set this to True.' \
+        descr['slit_spec'] = 'If the data use slits in one spatial direction, set this to True. ' \
                              'If the data uses fibres for all spaxels, set this to False.'
 
         defaults['relative_weights'] = False
         dtypes['relative_weights'] = [bool]
-        descr['relative_weights'] = 'If set to True, the combined frames will use a relative weighting scheme.' \
-                                    'This only works well if there is a common continuum source in the field of' \
-                                    'view of all input observations, and is generally only required if high' \
+        descr['relative_weights'] = 'If set to True, the combined frames will use a relative weighting scheme. ' \
+                                    'This only works well if there is a common continuum source in the field of ' \
+                                    'view of all input observations, and is generally only required if high ' \
                                     'relative precision is desired.'
 
         defaults['combine'] = False
         dtypes['combine'] = [bool]
-        descr['combine'] = 'If set to True, the input frames will be combined. Otherwise, a separate' \
-                           'datacube will be generated for each input spec2d file, and will be saved as' \
+        descr['combine'] = 'If set to True, the input frames will be combined. Otherwise, a separate ' \
+                           'datacube will be generated for each input spec2d file, and will be saved as ' \
                            'a spec3d file.'
 
         defaults['output_filename'] = "datacube.fits"
         dtypes['output_filename'] = str
-        descr['output_filename'] = 'If combining multiple frames, this string sets the output filename of' \
-                                   'the combined datacube. If combine=False, the output filenames will be' \
+        descr['output_filename'] = 'If combining multiple frames, this string sets the output filename of ' \
+                                   'the combined datacube. If combine=False, the output filenames will be ' \
                                    'prefixed with "spec3d_"'
 
         defaults['standard_cube'] = None
         dtypes['standard_cube'] = str
-        descr['standard_cube'] = 'Filename of a standard star datacube. This cube will be used to correct' \
-                                 'the relative scales of the slits, and to flux calibrate the science' \
+        descr['standard_cube'] = 'Filename of a standard star datacube. This cube will be used to correct ' \
+                                 'the relative scales of the slits, and to flux calibrate the science ' \
                                  'datacube.'
 
         defaults['reference_image'] = None
         dtypes['reference_image'] = str
-        descr['reference_image'] = 'White light image of a previously combined datacube. The white light' \
-                                   'image will be used as a reference when calculating the offsets of the' \
+        descr['reference_image'] = 'White light image of a previously combined datacube. The white light ' \
+                                   'image will be used as a reference when calculating the offsets of the ' \
                                    'input spec2d files.'
 
         defaults['save_whitelight'] = False
         dtypes['save_whitelight'] = bool
-        descr['save_whitelight'] = 'Save a white light image of the combined datacube. The output filename' \
-                                   'will be given by the "output_filename" variable with a suffix "_whitelight".' \
-                                   'Note that the white light image collapses the flux along the wavelength axis,' \
-                                   'so some spaxels in the 2D white light image may have different wavelength' \
-                                   'ranges. If combine=False, the individual spec3d files will have a suffix' \
+        descr['save_whitelight'] = 'Save a white light image of the combined datacube. The output filename ' \
+                                   'will be given by the "output_filename" variable with a suffix "_whitelight". ' \
+                                   'Note that the white light image collapses the flux along the wavelength axis, ' \
+                                   'so some spaxels in the 2D white light image may have different wavelength ' \
+                                   'ranges. If combine=False, the individual spec3d files will have a suffix ' \
                                    '"_whitelight".'
 
         defaults['ra_min'] = None
         dtypes['ra_min'] = float
-        descr['ra_min'] = 'Minimum RA to use when generating the WCS. If None, the default is minimum RA' \
+        descr['ra_min'] = 'Minimum RA to use when generating the WCS. If None, the default is minimum RA ' \
                           'based on the WCS of all spaxels. Units should be degrees.'
 
         defaults['ra_max'] = None
         dtypes['ra_max'] = float
-        descr['ra_max'] = 'Maximum RA to use when generating the WCS. If None, the default is maximum RA' \
+        descr['ra_max'] = 'Maximum RA to use when generating the WCS. If None, the default is maximum RA ' \
                           'based on the WCS of all spaxels. Units should be degrees.'
 
         defaults['dec_min'] = None
         dtypes['dec_min'] = float
-        descr['dec_min'] = 'Minimum DEC to use when generating the WCS. If None, the default is minimum DEC' \
+        descr['dec_min'] = 'Minimum DEC to use when generating the WCS. If None, the default is minimum DEC ' \
                            'based on the WCS of all spaxels. Units should be degrees.'
 
         defaults['dec_max'] = None
         dtypes['dec_max'] = float
-        descr['dec_max'] = 'Maximum DEC to use when generating the WCS. If None, the default is maximum DEC' \
+        descr['dec_max'] = 'Maximum DEC to use when generating the WCS. If None, the default is maximum DEC ' \
                            'based on the WCS of all spaxels. Units should be degrees.'
 
         defaults['wave_min'] = None
         dtypes['wave_min'] = float
-        descr['wave_min'] = 'Minimum wavelength to use when generating the WCS. If None, the default is' \
+        descr['wave_min'] = 'Minimum wavelength to use when generating the WCS. If None, the default is ' \
                             'minimum wavelength based on the WCS of all spaxels. Units should be Angstroms.'
 
         defaults['wave_max'] = None
         dtypes['wave_max'] = float
-        descr['wave_max'] = 'Maximum wavelength to use when generating the WCS. If None, the default is' \
+        descr['wave_max'] = 'Maximum wavelength to use when generating the WCS. If None, the default is ' \
                             'maximum wavelength based on the WCS of all spaxels. Units should be Angstroms.'
 
         defaults['spatial_delta'] = None
         dtypes['spatial_delta'] = float
-        descr['spatial_delta'] = 'The spatial size of each spaxel to use when generating the WCS (in arcsec).' \
+        descr['spatial_delta'] = 'The spatial size of each spaxel to use when generating the WCS (in arcsec). ' \
                                  'If None, the default is set by the spectrograph file.'
 
         defaults['wave_delta'] = None
         dtypes['wave_delta'] = float
-        descr['wave_delta'] = 'The wavelength step to use when generating the WCS (in Angstroms).' \
+        descr['wave_delta'] = 'The wavelength step to use when generating the WCS (in Angstroms). ' \
                                 'If None, the default is set by the wavelength solution.'
 
         defaults['astrometric'] = True
@@ -1333,10 +1333,18 @@ class CubePar(ParSet):
 
         defaults['grating_corr'] = True
         dtypes['grating_corr'] = bool
-        descr['grating_corr'] = 'This option performs a small correction for the relative blaze function of all' \
-                                'input frames that have (even slightly) different grating angles, or if you are' \
-                                'flux calibrating your science data with a standard star that was observed with' \
+        descr['grating_corr'] = 'This option performs a small correction for the relative blaze function of all ' \
+                                'input frames that have (even slightly) different grating angles, or if you are ' \
+                                'flux calibrating your science data with a standard star that was observed with ' \
                                 'a slightly different setup.'
+
+        defaults['scale_corr'] = None
+        dtypes['scale_corr'] = str
+        descr['scale_corr'] = 'This option performs a small correction for the relative spectral illumination ' \
+                              'scale of different spec2D files. specify the relative path+file to the spec2D ' \
+                              'file that you would like to use for the relative scaling. If you want to perform ' \
+                              'this correction, it is best to use the spec2d file with the highest S/N sky spectrum. ' \
+                              'You should choose the same frame for both the standards and science frames.'
 
         # Instantiate the parameter set
         super(CubePar, self).__init__(list(pars.keys()),
@@ -1354,7 +1362,8 @@ class CubePar(ParSet):
         # Basic keywords
         parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'reference_image',
                    'save_whitelight', 'ra_min', 'ra_max', 'dec_min', 'dec_max', 'wave_min', 'wave_max',
-                   'spatial_delta', 'wave_delta', 'relative_weights', 'combine', 'astrometric', 'grating_corr']
+                   'spatial_delta', 'wave_delta', 'relative_weights', 'combine', 'astrometric', 'grating_corr',
+                   'scale_corr']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
