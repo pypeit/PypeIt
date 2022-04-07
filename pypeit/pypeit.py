@@ -860,7 +860,7 @@ class PypeIt:
             final_global_sky = initial_sky
         else:
             final_global_sky = objFind.global_skysub(previous_sky=initial_sky, skymask=skymask, show=self.show)
-        scaleImg = self.objFind.scaleimg
+        scaleImg = objFind.scaleimg
 
         msgs.info("Extraction begins for {} on det={}".format(self.basename, det))
 
