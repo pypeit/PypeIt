@@ -1,12 +1,25 @@
 # -*- coding: utf-8 -*-
 """
-Data locations for built-in PypeIt data files
+Data utilities for built-in PypeIt data files
+
+
+NOTE: The remote package data only changes with a new release of PypeIt, and
+      the installation of a new version from PyPI or conda will obliterate
+      the existing package data.  Therefore, the latest versions of a file
+      will be downloaded following an upgrade.
+
+      There is the issue, however, of an older version of PypeIt downloading a
+      file associated with a newer version of the pipeline.  Perhaps on the
+      remote server, the package data files can be sorted in subdirectories
+      by PypeIt version number, so the proper files are always downloaded for
+      the pipeline version in use.
 
 .. include:: ../include/links.rst
 """
 import os
 from pkg_resources import resource_filename
 
+from astropy.utils import data as astropy_data
 from linetools.spectra import xspectrum1d
 
 from pypeit import io
@@ -149,8 +162,19 @@ def get_reid_arxiv_filepath(arxiv_file, use_local=False):
         calibfile: str
           The full path to the `reid_arxiv` file
     """
+    # Full path within the package data structure:
+    reid_path = os.path.join(Paths.reid_arxiv, arxiv_file)
+
+    # Check if the file does not exist in the package directory
+    if not os.path.isfile(reid_path):
+        msgs.warn(f"reid_arxiv file {arxiv_file} does not exist in the package directory.")
+
+        github_url = f"https://github.com/pypeit/PypeIt/blob/release/pypeit/data/arc_lines/reid_arxiv/{arxiv_file}?raw=true"
+
+        reid_path = astropy_data.download_file(github_url, cache=True, timeout=10, pkgname='pypeit')
+
     # Return current functionality for now
-    return os.path.join(Paths.reid_arxiv, arxiv_file)
+    return reid_path
 
 
 # Loading Functions for Particular File Types ================================#
@@ -233,3 +257,10 @@ def check_isdir(path):
         raise NotADirectoryError(f"Unable to find {path}.  "
                                     "Check your installation.")
     return path
+
+
+
+def main():
+    pass
+if __name__ == '__main__':
+    main()
