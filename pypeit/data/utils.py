@@ -5,15 +5,16 @@ Data utilities for built-in PypeIt data files
 .. include:: ../include/links.rst
 """
 import os
-from pkg_resources import resource_filename
+import shutil
 import urllib
 
 from astropy.utils import data as astropy_data
 from linetools.spectra import xspectrum1d
+from pkg_resources import resource_filename
 
 from pypeit import io
 from pypeit import msgs
-from pypeit import __version__
+from pypeit import __version__ as pypeit_version
 
 __all__ = ['Paths', 'load_telluric_grid', 'load_thar_spec',
            'load_sky_spectrum', 'get_reid_arxiv_filepath',
@@ -174,6 +175,11 @@ def get_reid_arxiv_filepath(arxiv_file, use_local=False):
 
         reid_path = fetch_remote_file(arxiv_file, 'arc_lines/reid_arxiv')
 
+        # If a development version, copy into the package directory, point path there
+        if ".dev" in pypeit_version:
+            shutil.copy(reid_path, os.path.join(Paths.reid_arxiv, arxiv_file))
+            reid_path = os.path.join(Paths.reid_arxiv, arxiv_file)
+
     # Return the path to the `reid_arxiv` file
     return reid_path
 
@@ -224,6 +230,11 @@ def get_skisim_filepath(skisim_file, use_local=False):
         msgs.warn(f"skisim file {skisim_file} does not exist in the package directory.")
 
         skisim_path = fetch_remote_file(skisim_file, 'skisim')
+
+        # If a development version, copy into the package directory, point path there
+        if ".dev" in pypeit_version:
+            shutil.copy(skisim_path, os.path.join(Paths.skisim, skisim_file))
+            skisim_path = os.path.join(Paths.skisim, skisim_file)
 
     # Return the path to the `skisim` file
     return skisim_path
@@ -276,12 +287,17 @@ def get_sensfunc_filepath(sensfunc_file, use_local=False):
 
         sensfunc_path = fetch_remote_file(sensfunc_file, 'sensfuncs')
 
+        # If a development version, copy into the package directory, point path there
+        if ".dev" in pypeit_version:
+            shutil.copy(sensfunc_path, os.path.join(Paths.sensfuncs, sensfunc_file))
+            sensfunc_path = os.path.join(Paths.sensfuncs, sensfunc_file)
+
     # Return the path to the `sensfunc` file
     return sensfunc_path
 
 
 def fetch_remote_file(filename, filetype):
-    """fetch_remote_file Use `astropy.utils.data` to fetch file
+    """fetch_remote_file Use `astropy.utils.data` to fetch file from remote or cache
 
     The function `download_file` will first look in the local cache (the option
     `cache=True` is used with this function to retrieve downloaded files from
@@ -298,11 +314,11 @@ def fetch_remote_file(filename, filetype):
         path_to_file: str
           The local path to the desired file in the cache
     """
-
     # Look in the current `develop` branch if the code is not a tagged release
-    tag = "develop" if ".dev" in __version__ else __version__
+    tag = "develop" if ".dev" in pypeit_version else pypeit_version
 
     # Build up the remote_url for GitHub
+    # TODO: If we host these files elsewhere, need to change this hard-code
     remote_url = (f"https://github.com/pypeit/PypeIt/blob/{tag}/pypeit/"
                   f"data/{filetype}/{filename}?raw=true")
 
@@ -340,7 +356,8 @@ def load_telluric_grid(filename):
     if not os.path.isfile(file_with_path):
         msgs.error(f"File {file_with_path} is not on your disk.  "
                    "You likely need to download the Telluric files.  "
-                   "See https://pypeit.readthedocs.io/en/release/installing.html#atmospheric-model-grids")
+                   "See https://pypeit.readthedocs.io/en/release/installing.html"
+                   "#atmospheric-model-grids")
 
     return io.fits_open(file_with_path)
 
@@ -393,10 +410,3 @@ def check_isdir(path):
         raise NotADirectoryError(f"Unable to find {path}.  "
                                     "Check your installation.")
     return path
-
-
-
-def main():
-    pass
-if __name__ == '__main__':
-    main()
