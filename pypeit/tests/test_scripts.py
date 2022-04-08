@@ -123,7 +123,7 @@ def test_trace_add_rm():
     # Add lines to remove and add slits. This removes the one slit that
     # is found and adds another.
     ps.user_cfg += ['[calibrations]', '[[slitedges]]', 'rm_slits = 1:1028:170',
-                    'add_slits = 1:1028:30:300']
+                    'add_slits = 1:1028:30:300', 'add_predict = straight']
 
     # Use PypeItMetaData to write the complete PypeIt file
     pypeit_file = ps.fitstbl.write_pypeit(output_path=os.getcwd(), cfg_lines=ps.user_cfg,
