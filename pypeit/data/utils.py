@@ -2,33 +2,25 @@
 """
 Data utilities for built-in PypeIt data files
 
-
-NOTE: The remote package data only changes with a new release of PypeIt, and
-      the installation of a new version from PyPI or conda will obliterate
-      the existing package data.  Therefore, the latest versions of a file
-      will be downloaded following an upgrade.
-
-      There is the issue, however, of an older version of PypeIt downloading a
-      file associated with a newer version of the pipeline.  Perhaps on the
-      remote server, the package data files can be sorted in subdirectories
-      by PypeIt version number, so the proper files are always downloaded for
-      the pipeline version in use.
-
 .. include:: ../include/links.rst
 """
 import os
 from pkg_resources import resource_filename
+import urllib
 
 from astropy.utils import data as astropy_data
 from linetools.spectra import xspectrum1d
 
 from pypeit import io
 from pypeit import msgs
+from pypeit import __version__
 
 __all__ = ['Paths', 'load_telluric_grid', 'load_thar_spec',
-           'load_sky_spectrum', 'get_reid_arxiv_filepath']
+           'load_sky_spectrum', 'get_reid_arxiv_filepath',
+           'get_skisim_filepath', 'get_sensfunc_filepath']
 
 
+# Package-Data Paths =========================================================#
 class Paths_meta(type):
     """Paths_meta MetaClass for Paths; only needed until python>=3.9
 
@@ -143,11 +135,19 @@ def get_reid_arxiv_filepath(arxiv_file, use_local=False):
     The collection of files are hosted remotely, and only the `reid_arxiv`
     files needed by a particular user are downloaded to the local machine.
 
-    This function checks for the local existance of the `redi_arxiv` file, and
-    downloads it from the remote server into the proper `Paths` location for
-    future use.  As most users will need only a small number of `reid_arxiv`
-    files for thier particular reductions, the remote fetch will only occur
-    once per file (per version on PypeIt installed via PyPI or conda).
+    This function checks for the local existance of the `reid_arxiv` file, and
+    downloads it from the remote server using AstroPy's `download_file`
+    function.  The file downloaded in this fashion is kept in the PypeIt
+    cache (nominally `~/.pypeit/cache`) and is not placed into the package
+    directory itself.
+
+    The cache keeps a hash of the file URL, which contains the PypeIt version
+    number.  As users update to newer versions, the `reid_arxiv` files will be
+    downloaded again (matching the new version #) to catch any changes.
+
+    As most users will need only a small number of `reid_arxiv` files for thier
+    particular reductions, the remote fetch will only occur once per file (per
+    version of PypeIt).
 
     Args:
         arxiv_file: str
@@ -165,16 +165,152 @@ def get_reid_arxiv_filepath(arxiv_file, use_local=False):
     # Full path within the package data structure:
     reid_path = os.path.join(Paths.reid_arxiv, arxiv_file)
 
-    # Check if the file does not exist in the package directory
+    # Check if the file does NOT exist in the package directory
+    # NOTE: This should be the case for all but from-source installations
     if not os.path.isfile(reid_path):
+
+        # Output a brief warning for now -- makes it easier to find in the output
         msgs.warn(f"reid_arxiv file {arxiv_file} does not exist in the package directory.")
 
-        github_url = f"https://github.com/pypeit/PypeIt/blob/release/pypeit/data/arc_lines/reid_arxiv/{arxiv_file}?raw=true"
+        reid_path = fetch_remote_file(arxiv_file, 'arc_lines/reid_arxiv')
 
-        reid_path = astropy_data.download_file(github_url, cache=True, timeout=10, pkgname='pypeit')
-
-    # Return current functionality for now
+    # Return the path to the `reid_arxiv` file
     return reid_path
+
+
+def get_skisim_filepath(skisim_file, use_local=False):
+    """get_skisim_filepath Return the full path to the `skisim` file
+
+    In an attempt to reduce the size of the PypeIt package as distributed on
+    PyPI, the `skisim` files are not longer distributed with the package.
+    The collection of files are hosted remotely, and only the `skisim`
+    files needed by a particular user are downloaded to the local machine.
+
+    This function checks for the local existance of the `skisim` file, and
+    downloads it from the remote server using AstroPy's `download_file`
+    function.  The file downloaded in this fashion is kept in the PypeIt
+    cache (nominally `~/.pypeit/cache`) and is not placed into the package
+    directory itself.
+
+    The cache keeps a hash of the file URL, which contains the PypeIt version
+    number.  As users update to newer versions, the `skisim` files will be
+    downloaded again (matching the new version #) to catch any changes.
+
+    As most users will need only a small number of `skisim` files for thier
+    particular reductions, the remote fetch will only occur once per file (per
+    version of PypeIt).
+
+    Args:
+        skisim_file: str
+          The base filename of the `skisim` file to be located
+        use_local: bool, optional
+          [STUB FOR FUTURE FUNCTIONALITY]  If the ___
+          parameter `use_local` is set to True, look for the `skisim`
+          file on the local filesystem rather than in the PypeIt package
+          data.
+
+    Returns:
+        calibfile: str
+          The full path to the `skisim` file
+    """
+    # Full path within the package data structure:
+    skisim_path = os.path.join(Paths.skisim, skisim_file)
+
+    # Check if the file does NOT exist in the package directory
+    # NOTE: This should be the case for all but from-source installations
+    if not os.path.isfile(skisim_path):
+
+        # Output a brief warning for now -- makes it easier to find in the output
+        msgs.warn(f"skisim file {skisim_file} does not exist in the package directory.")
+
+        skisim_path = fetch_remote_file(skisim_file, 'skisim')
+
+    # Return the path to the `skisim` file
+    return skisim_path
+
+
+def get_sensfunc_filepath(sensfunc_file, use_local=False):
+    """get_sensfunc_filepath Return the full path to the `sensfunc` file
+
+    In an attempt to reduce the size of the PypeIt package as distributed on
+    PyPI, the `sensfunc` files are not longer distributed with the package.
+    The collection of files are hosted remotely, and only the `sensfunc`
+    files needed by a particular user are downloaded to the local machine.
+
+    This function checks for the local existance of the `sensfunc` file, and
+    downloads it from the remote server using AstroPy's `download_file`
+    function.  The file downloaded in this fashion is kept in the PypeIt
+    cache (nominally `~/.pypeit/cache`) and is not placed into the package
+    directory itself.
+
+    The cache keeps a hash of the file URL, which contains the PypeIt version
+    number.  As users update to newer versions, the `sensfunc` files will be
+    downloaded again (matching the new version #) to catch any changes.
+
+    As most users will need only a small number of `sensfunc` files for thier
+    particular reductions, the remote fetch will only occur once per file (per
+    version of PypeIt).
+
+    Args:
+        sensfunc_file: str
+          The base filename of the `sensfunc` file to be located
+        use_local: bool, optional
+          [STUB FOR FUTURE FUNCTIONALITY]  If the ___
+          parameter `use_local` is set to True, look for the `sensfunc`
+          file on the local filesystem rather than in the PypeIt package
+          data.
+
+    Returns:
+        calibfile: str
+          The full path to the `sensfunc` file
+    """
+    # Full path within the package data structure:
+    sensfunc_path = os.path.join(Paths.sensfuncs, sensfunc_file)
+
+    # Check if the file does NOT exist in the package directory
+    # NOTE: This should be the case for all but from-source installations
+    if not os.path.isfile(sensfunc_path):
+
+        # Output a brief warning for now -- makes it easier to find in the output
+        msgs.warn(f"sensfunc file {sensfunc_file} does not exist in the package directory.")
+
+        sensfunc_path = fetch_remote_file(sensfunc_file, 'sensfuncs')
+
+    # Return the path to the `sensfunc` file
+    return sensfunc_path
+
+
+def fetch_remote_file(filename, filetype):
+    """fetch_remote_file Use `astropy.utils.data` to fetch file
+
+    The function `download_file` will first look in the local cache (the option
+    `cache=True` is used with this function to retrieve downloaded files from
+    the cache, as needed) before downloading the file from the remote server.
+
+    Args:
+        filename: str
+          The base filename to search for
+        filetype: str
+          The subdirectory of `pypeit/data/` in which to find the file
+          (e.g., `arc_lines/reid_arxiv` or `sensfuncs`)
+
+    Returns:
+        path_to_file: str
+          The local path to the desired file in the cache
+    """
+
+    # Look in the current `develop` branch if the code is not a tagged release
+    tag = "develop" if ".dev" in __version__ else __version__
+
+    # Build up the remote_url for GitHub
+    remote_url = (f"https://github.com/pypeit/PypeIt/blob/{tag}/pypeit/"
+                  f"data/{filetype}/{filename}?raw=true")
+
+    # Get the file from cache, if available, or download from the remote server
+    try:
+        return astropy_data.download_file(remote_url, cache=True, timeout=10, pkgname='pypeit')
+    except urllib.error.URLError as error:
+        msgs.error(f"Error downloading {filename}: {error}")
 
 
 # Loading Functions for Particular File Types ================================#

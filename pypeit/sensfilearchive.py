@@ -85,7 +85,7 @@ class DEIMOSSensFileArchive(SensFileArchive):
         if grating not in ["600ZD", "830G", "900ZD", "1200B", "1200G"]:
             msgs.error(f"There are no archived SensFuncFiles for keck_deimos grating {grating}.")
         
-        archived_file = os.path.join(data.Paths.sensfuncs, f"keck_deimos_{grating}_sensfunc.fits")
+        archived_file = data.get_sensfunc_filepath(f"keck_deimos_{grating}_sensfunc.fits")
         msgs.info(f"Found archived sensfile '{archived_file}'")
         return archived_file
 

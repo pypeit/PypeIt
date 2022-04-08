@@ -75,7 +75,7 @@ def load_template(arxiv_file, det, wvrng=None):
     else:
         calibfile = arxiv_file
     # Read me
-    tbl = Table.read(calibfile)
+    tbl = Table.read(calibfile, format='fits')
     # Parse on detector?
     if 'det' in tbl.keys():
         idx = np.where(tbl['det'].data & 2**det)[0]
@@ -124,7 +124,7 @@ def load_reid_arxiv(arxiv_file):
     elif calibfile[-4:] == 'fits':
         # The following is a bit of a hack too
         par = None
-        wv_tbl = Table.read(calibfile)
+        wv_tbl = Table.read(calibfile, format='fits')
         wv_calib_arxiv = OrderedDict()
         nrow = wv_tbl['wave'].shape[0]
         for irow in np.arange(nrow):
