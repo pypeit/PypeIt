@@ -6,6 +6,7 @@ Script to install quick-look master files into the user's pypeit installation.
 """
 
 from pypeit.scripts import scriptbase
+from pypeit import data
 
 
 class InstallQLMasters(scriptbase.ScriptBase):
@@ -33,7 +34,6 @@ class InstallQLMasters(scriptbase.ScriptBase):
     def main(args):
         import os
         import zipfile
-        from pkg_resources import resource_filename
 
         from pypeit.io import create_symlink
 
@@ -68,14 +68,9 @@ class InstallQLMasters(scriptbase.ScriptBase):
                                         f'{_odir}, but that directory does not exist.  Check '
                                         'and/or re-download the zip file.')
 
-        # Get the pypeit data directory and make sure it exists
-        data_dir = resource_filename('pypeit', 'data')
-        if not os.path.isdir(data_dir):
-            raise NotADirectoryError(f'Unable to find {data_dir}.  Check your installation.')
-
         # Create a symlink to the QL_MASTERS directory in the pypeit/data
         # directory.
-        create_symlink(ql_dir, data_dir, overwrite=True)
+        create_symlink(ql_dir, data.Paths.data, overwrite=True)
 
         # Remove the zip file if the user requested
         if args.rmzip:

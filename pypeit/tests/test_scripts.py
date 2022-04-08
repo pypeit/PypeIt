@@ -2,7 +2,6 @@
 Module to run tests on scripts
 """
 import os
-from pkg_resources import resource_filename
 import shutil
 from pathlib import Path
 
@@ -20,7 +19,7 @@ from pypeit import scripts
 from pypeit.tests.tstutils import dev_suite_required, cooked_required, data_path
 from pypeit.display import display
 from pypeit import edgetrace
-from pypeit import utils
+from pypeit import data
 from pypeit import io
 from pypeit import wavecalib
 from pypeit import coadd1d
@@ -382,8 +381,7 @@ def test_obslog():
 def test_compare_sky():
     spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
                              'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
-    sky_file = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
-                                              'sky_kastb_600.fits')
+    sky_file = 'sky_kastb_600.fits'
 
     # Running in `test` mode for boxcar extraction
     pargs = scripts.compare_sky.CompareSky.parse_args([spec_file, sky_file, '--test'])
@@ -399,7 +397,7 @@ def test_compare_sky():
 def test_collate_1d(tmp_path, monkeypatch):
 
     # Build up arguments for testing command line parsing
-    args = ['--dry_run', '--ignore_flux', '--flux', '--outdir', '/outdir2', '--match', 'ra/dec', '--exclude_slit_bm', 'BOXSLIT', '--exclude_serendip']
+    args = ['--dry_run', '--ignore_flux', '--flux', '--outdir', '/outdir2', '--match', 'ra/dec', '--exclude_slit_bm', 'BOXSLIT', '--exclude_serendip', '--wv_rms_thresh', '0.2']
     spec1d_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_b27*')
     spec1d_args = ['--spec1d_files', spec1d_file]
     tol_args = ['--tolerance', '0.03d']
@@ -423,6 +421,7 @@ def test_collate_1d(tmp_path, monkeypatch):
         print("match_using = 'pixel'", file=f)
         print("exclude_slit_trace_bm = BADREDUCE", file=f)
         print("exclude_serendip = False", file=f)
+        print("wv_rms_thresh = 0.1", file=f)
         print("spec1d read", file=f)
         print(alt_spec1d, file=f)
         print("spec1d end", file=f)
@@ -454,6 +453,7 @@ def test_collate_1d(tmp_path, monkeypatch):
     assert params['collate1d']['tolerance'] == '0.03d'
     assert params['collate1d']['exclude_slit_trace_bm'] == ['BOXSLIT']
     assert params['collate1d']['exclude_serendip'] is True
+    assert params['collate1d']['wv_rms_thresh'] == 0.2
     assert params['coadd1d']['ex_value'] == 'OPT'
     assert spectrograph.name == 'shane_kast_blue'
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_spec1d
@@ -469,6 +469,7 @@ def test_collate_1d(tmp_path, monkeypatch):
     assert params['collate1d']['match_using'] == 'pixel'
     assert params['collate1d']['exclude_slit_trace_bm'] == 'BADREDUCE'
     assert params['collate1d']['exclude_serendip'] is False
+    assert params['collate1d']['wv_rms_thresh'] == 0.1
     assert params['coadd1d']['ex_value'] == 'BOX'
     assert spectrograph.name == 'keck_deimos'
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_alt_spec1d
@@ -485,6 +486,7 @@ def test_collate_1d(tmp_path, monkeypatch):
     assert params['collate1d']['match_using'] == 'ra/dec'
     assert params['collate1d']['exclude_slit_trace_bm'] == ['BOXSLIT']
     assert params['collate1d']['exclude_serendip'] is True
+    assert params['collate1d']['wv_rms_thresh'] == 0.2
     assert spectrograph.name == 'shane_kast_blue'
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_spec1d
 
