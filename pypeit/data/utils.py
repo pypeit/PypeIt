@@ -18,7 +18,8 @@ from pypeit import __version__ as pypeit_version
 
 __all__ = ['Paths', 'load_telluric_grid', 'load_thar_spec',
            'load_sky_spectrum', 'get_reid_arxiv_filepath',
-           'get_skisim_filepath', 'get_sensfunc_filepath']
+           'get_skisim_filepath', 'get_sensfunc_filepath',
+           'fetch_remote_file']
 
 
 # Package-Data Paths =========================================================#
@@ -296,7 +297,63 @@ def get_sensfunc_filepath(sensfunc_file, use_local=False):
     return sensfunc_path
 
 
-def fetch_remote_file(filename, filetype):
+def get_telgrid_filepath(telgrid_file, use_local=False):
+    """get_sensfunc_filepath Return the full path to the `sensfunc` file
+
+    In an attempt to reduce the size of the PypeIt package as distributed on
+    PyPI, the `sensfunc` files are not longer distributed with the package.
+    The collection of files are hosted remotely, and only the `sensfunc`
+    files needed by a particular user are downloaded to the local machine.
+
+    This function checks for the local existance of the `sensfunc` file, and
+    downloads it from the remote server using AstroPy's `download_file`
+    function.  The file downloaded in this fashion is kept in the PypeIt
+    cache (nominally `~/.pypeit/cache`) and is not placed into the package
+    directory itself.
+
+    The cache keeps a hash of the file URL, which contains the PypeIt version
+    number.  As users update to newer versions, the `sensfunc` files will be
+    downloaded again (matching the new version #) to catch any changes.
+
+    As most users will need only a small number of `sensfunc` files for thier
+    particular reductions, the remote fetch will only occur once per file (per
+    version of PypeIt).
+
+    Args:
+        sensfunc_file: str
+          The base filename of the `sensfunc` file to be located
+        use_local: bool, optional
+          [STUB FOR FUTURE FUNCTIONALITY]  If the ___
+          parameter `use_local` is set to True, look for the `sensfunc`
+          file on the local filesystem rather than in the PypeIt package
+          data.
+
+    Returns:
+        calibfile: str
+          The full path to the `sensfunc` file
+    """
+    # Full path within the package data structure:
+    telgrid_path = os.path.join(Paths.telgrid, telgrid_file)
+
+    # Check if the file does NOT exist in the package directory
+    # NOTE: This should be the case for most installations
+    if not os.path.isfile(telgrid_path):
+
+        # Output a brief warning for now -- makes it easier to find in the output
+        msgs.warn(f"telgrid file {telgrid_file} does not exist in the package directory.")
+
+        telgrid_path = fetch_remote_file(telgrid_file, 'telgrid', remote_host='s3_cloud')
+
+        # If a development version, MOVE into the package directory, point path there
+        if ".dev" in pypeit_version:
+            shutil.move(telgrid_path, os.path.join(Paths.telgrid, telgrid_file))
+            telgrid_path = os.path.join(Paths.telgrid, telgrid_file)
+
+    # Return the path to the `telgrid` file
+    return telgrid_path
+
+
+def fetch_remote_file(filename, filetype, remote_host='github', install_script=False):
     """fetch_remote_file Use `astropy.utils.data` to fetch file from remote or cache
 
     The function `download_file` will first look in the local cache (the option
@@ -309,19 +366,45 @@ def fetch_remote_file(filename, filetype):
         filetype: str
           The subdirectory of `pypeit/data/` in which to find the file
           (e.g., `arc_lines/reid_arxiv` or `sensfuncs`)
+        remote_host: str, optional
+          The remote host scheme.  Currently only 'github' and 's3_cloud' are
+          supported.  [Default: 'github']
+        install_script: bool, optional
+          This function is being called from an install script (i.e.,
+          `pypeit_install_telluric`) -- relates to warnings displayed.
+          [Default: False]
 
     Returns:
         path_to_file: str
           The local path to the desired file in the cache
     """
-    # Look in the current `develop` branch if the code is not a tagged release
-    tag = "develop" if ".dev" in pypeit_version else pypeit_version
+    # Check that specified `remote_host` is supported
+    if remote_host not in ['github', 's3_cloud']:
+        msgs.error(f"Remote host {remote_host} is not supported for package data download.")
 
-    # Build up the remote_url for GitHub
-    # TODO: If we host these files elsewhere, need to change this hard-code
-    remote_url = (f"https://github.com/pypeit/PypeIt/blob/{tag}/pypeit/"
-                  f"data/{filetype}/{filename}?raw=true")
+    # Build the remote_url based on `remote_host`:
+    if remote_host == 'github':
+        # Build up the remote_url for GitHub
 
+        # Look in the current `develop` branch if the code is not a tagged release
+        tag = "develop" if ".dev" in pypeit_version else pypeit_version
+
+        # TODO: If we host these files elsewhere, need to change this hard-code
+        remote_url = (f"https://github.com/pypeit/PypeIt/blob/{tag}/pypeit/"
+                      f"data/{filetype}/{filename}?raw=true")
+
+    elif remote_host == 's3_cloud':
+        # Build up the remote_url for S3 Cloud
+        # TODO: Put the correct path here once we get it from @profxj
+        remote_url = (f"https://s3/{filetype}/{filename}")
+
+        if not install_script:
+            # Display a warning that this may take a while, and the user
+            #   may wish to download using the `pypeit_install_telluric` script
+            msgs.warn(f"You may wish to download {filename}{msgs.newline()}"
+                      f"independently from `run_pypeit` by using the{msgs.newline()}"
+                      "`pypeit_install_telluric` script.")
+ 
     # Get the file from cache, if available, or download from the remote server
     try:
         return astropy_data.download_file(remote_url, cache=True, timeout=10, pkgname='pypeit')
@@ -349,10 +432,11 @@ def load_telluric_grid(filename):
         msgs.error("No file specified for telluric correction.  "
                    "See https://pypeit.readthedocs.io/en/latest/telluric.html")
 
-    # Add standard data path to the filename, as contained in default pypeit pars
-    file_with_path = os.path.join(Paths.telgrid, filename)
+    # Get the data path for the filename, whether in the package directory or cache
+    file_with_path = get_telgrid_filepath(filename)
 
     # Check for existance of file
+    # NOTE: With the use of `get_telgrid_filepath()`, this should never run
     if not os.path.isfile(file_with_path):
         msgs.error(f"File {file_with_path} is not on your disk.  "
                    "You likely need to download the Telluric files.  "
