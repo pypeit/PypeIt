@@ -304,7 +304,6 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
 
         ## Read in the master frames that we need
         ##
-        embed()
         if std_spec1d_file is not None:
             # Get the standard trace if need be
             sobjs = specobjs.SpecObjs.from_fitsfile(std_spec1d_file, chk_version=False)

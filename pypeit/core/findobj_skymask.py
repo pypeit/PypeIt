@@ -1166,7 +1166,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
         viewer, ch = display.show_image(image * (thismask * inmask), chname='objs_in_slit_show')
 
     objfind_QA(spat_peaks, snr_peaks_all, spat_vector, snr_smash_smth, snr_thresh, qa_title, peaks_gpm,
-               near_edge_bpm, nperslit_bpm, objfindQA_filename=objfindQA_filename, show=True) #show_peaks)
+               near_edge_bpm, nperslit_bpm, objfindQA_filename=objfindQA_filename, show=show_peaks) #show_peaks)
 
     nobj_reg = np.sum(peaks_gpm)
 
