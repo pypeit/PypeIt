@@ -44,7 +44,7 @@
                             spec1dfile --list
                              
                             If the coaddfile is not given the output file will be
-                            placed along side the first spec1d file.
+                            placed in the same directory as the first spec1d file.
                              
     
     optional arguments:

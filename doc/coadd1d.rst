@@ -48,7 +48,7 @@ The opening block sets parameters for the process, including
 the output file name.  See `Parameters`_ for common choices.
 
 The coaddfile parameter is optional, if it is not set 
-the output file will be placed along aside the first spec1d 
+the output file will be placed in the same directory as the first spec1d 
 file named "coadd1d_<target>_<instrument>_<date or date range>.fits".
 
 **Note:** if you are using an Echelle :doc:`spectrographs`

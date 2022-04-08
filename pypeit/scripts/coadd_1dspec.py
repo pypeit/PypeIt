@@ -199,7 +199,7 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
                                  "the spec1d_*.txt files or run pypeit_show_1dspec spec1dfile "
                                  "--list\n\n"
                                  "If the coaddfile is not given the output file will be placed "
-                                 "along side the first spec1d file.\n\n")
+                                 "in the same directory as the first spec1d file.\n\n")
         parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
         parser.add_argument("--show", default=False, action="store_true",
                             help="show QA during coadding process")
