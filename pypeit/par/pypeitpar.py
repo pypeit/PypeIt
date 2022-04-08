@@ -2372,7 +2372,7 @@ class WavelengthSolutionPar(ParSet):
         dtypes['reid_arxiv'] = str
         descr['reid_arxiv'] = 'Name of the archival wavelength solution file that will be used ' \
                               'for the wavelength reidentification.  Only used if ``method`` is ' \
-                              '\'reidentify\''
+                              '\'reidentify\' or \'full_template\'.'
 
         defaults['nreid_min'] = 1
         dtypes['nreid_min'] = int

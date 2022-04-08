@@ -19,7 +19,7 @@ from pypeit import __version__ as pypeit_version
 __all__ = ['Paths', 'load_telluric_grid', 'load_thar_spec',
            'load_sky_spectrum', 'get_reid_arxiv_filepath',
            'get_skisim_filepath', 'get_sensfunc_filepath',
-           'fetch_remote_file']
+           'fetch_remote_file', 'write_file_to_cache']
 
 
 # Package-Data Paths =========================================================#
@@ -174,7 +174,7 @@ def get_reid_arxiv_filepath(arxiv_file, use_local=False):
         # Output a brief warning for now -- makes it easier to find in the output
         msgs.warn(f"reid_arxiv file {arxiv_file} does not exist in the package directory.")
 
-        reid_path = fetch_remote_file(arxiv_file, 'arc_lines/reid_arxiv')
+        reid_path = fetch_remote_file(arxiv_file, "arc_lines/reid_arxiv")
 
         # If a development version, copy into the package directory, point path there
         if ".dev" in pypeit_version:
@@ -230,7 +230,7 @@ def get_skisim_filepath(skisim_file, use_local=False):
         # Output a brief warning for now -- makes it easier to find in the output
         msgs.warn(f"skisim file {skisim_file} does not exist in the package directory.")
 
-        skisim_path = fetch_remote_file(skisim_file, 'skisim')
+        skisim_path = fetch_remote_file(skisim_file, "skisim")
 
         # If a development version, copy into the package directory, point path there
         if ".dev" in pypeit_version:
@@ -286,7 +286,7 @@ def get_sensfunc_filepath(sensfunc_file, use_local=False):
         # Output a brief warning for now -- makes it easier to find in the output
         msgs.warn(f"sensfunc file {sensfunc_file} does not exist in the package directory.")
 
-        sensfunc_path = fetch_remote_file(sensfunc_file, 'sensfuncs')
+        sensfunc_path = fetch_remote_file(sensfunc_file, "sensfuncs")
 
         # If a development version, copy into the package directory, point path there
         if ".dev" in pypeit_version:
@@ -353,7 +353,8 @@ def get_telgrid_filepath(telgrid_file, use_local=False):
     return telgrid_path
 
 
-def fetch_remote_file(filename, filetype, remote_host='github', install_script=False):
+def fetch_remote_file(filename, filetype, remote_host='github', install_script=False,
+                      force_update=False):
     """fetch_remote_file Use `astropy.utils.data` to fetch file from remote or cache
 
     The function `download_file` will first look in the local cache (the option
@@ -373,43 +374,92 @@ def fetch_remote_file(filename, filetype, remote_host='github', install_script=F
           This function is being called from an install script (i.e.,
           `pypeit_install_telluric`) -- relates to warnings displayed.
           [Default: False]
+        force_update: bool, optional
+          Force `astropy_data.download_file()` to update the cache by downloading
+          the latest version.  [Default: False]
 
     Returns:
         path_to_file: str
           The local path to the desired file in the cache
     """
-    # Check that specified `remote_host` is supported
-    if remote_host not in ['github', 's3_cloud']:
-        msgs.error(f"Remote host {remote_host} is not supported for package data download.")
+    remote_url = _build_remote_url(filename, filetype, remote_host=remote_host)
 
-    # Build the remote_url based on `remote_host`:
-    if remote_host == 'github':
-        # Build up the remote_url for GitHub
+    if remote_host == "s3_cloud" and not install_script:
+        # Display a warning that this may take a while, and the user
+        #   may wish to download using the `pypeit_install_telluric` script
+        msgs.warn(f"You may wish to download {filename}{msgs.newline()}"
+                    f"independently from your reduction by using the{msgs.newline()}"
+                    "`pypeit_install_telluric` script.")
 
-        # Look in the current `develop` branch if the code is not a tagged release
-        tag = "develop" if ".dev" in pypeit_version else pypeit_version
-
-        # TODO: If we host these files elsewhere, need to change this hard-code
-        remote_url = (f"https://github.com/pypeit/PypeIt/blob/{tag}/pypeit/"
-                      f"data/{filetype}/{filename}?raw=true")
-
-    elif remote_host == 's3_cloud':
-        # Build up the remote_url for S3 Cloud
-        # TODO: Put the correct path here once we get it from @profxj
-        remote_url = (f"https://s3/{filetype}/{filename}")
-
-        if not install_script:
-            # Display a warning that this may take a while, and the user
-            #   may wish to download using the `pypeit_install_telluric` script
-            msgs.warn(f"You may wish to download {filename}{msgs.newline()}"
-                      f"independently from `run_pypeit` by using the{msgs.newline()}"
-                      "`pypeit_install_telluric` script.")
- 
     # Get the file from cache, if available, or download from the remote server
+    cache = 'update' if force_update else True
     try:
-        return astropy_data.download_file(remote_url, cache=True, timeout=10, pkgname='pypeit')
+        return astropy_data.download_file(remote_url, cache=cache, timeout=10, pkgname="pypeit")
     except urllib.error.URLError as error:
         msgs.error(f"Error downloading {filename}: {error}")
+
+
+def write_file_to_cache(filename, cachename, filetype, remote_host="github"):
+    """write_file_to_cache Use `astropy.utils.data` to save local file to cache
+
+    This function writes a local file to the PypeIt cache as if it came from a
+    remote server.  This is useful for being able to use lcoally created files
+    in place of PypeIt-distributed versions.
+
+    Args:
+        filename: str
+          The filename of the local file to save
+        cachename: str
+          The name of the cached version of the file
+        filetype: str
+          The subdirectory of `pypeit/data/` in which to find the file
+          (e.g., `arc_lines/reid_arxiv` or `sensfuncs`)
+        remote_host: str, optional
+          The remote host scheme.  Currently only 'github' and 's3_cloud' are
+          supported.  [Default: 'github']
+    """
+   # Build the `url_key` as if this file were in the remote location
+    url_key = _build_remote_url(cachename, filetype, remote_host=remote_host)
+
+    # Use `import file_to_cache()` to place the `filename` into the cache
+    astropy_data.import_file_to_cache(url_key, filename, pkgname="pypeit")
+
+
+def _build_remote_url(f_name, f_type, remote_host=""):
+    """build_remote_url Build the remote URL for the `astropy.utils.data` functions
+
+    This function keeps the URL-creation in one place.  In the event that files
+    are moved from GitHub or S3_Cloud, this is the only place that would need
+    to be changed.
+
+    Args:
+        f_name: str
+          The base filename to search for
+        f_type: str
+          The subdirectory of `pypeit/data/` in which to find the file
+          (e.g., `arc_lines/reid_arxiv` or `sensfuncs`)
+        remote_host: str, optional
+          The remote host scheme.  Currently only 'github' and 's3_cloud' are
+          supported.  [Default: '']
+
+    Returns:
+        url: str
+          The URL of the `f_name` of `f_type` on server `remote_host`
+    """
+    if remote_host == "github":
+        # Build up the remote_url for GitHub
+        # Look in the current `develop` branch if the code is not a tagged release
+        tag = "develop" if ".dev" in pypeit_version else pypeit_version
+        # TODO: If we host these files elsewhere, need to change this hard-code
+        return (f"https://github.com/pypeit/PypeIt/blob/{tag}/pypeit/"
+                   f"data/{f_type}/{f_name}?raw=true")
+
+    if remote_host == "s3_cloud":
+        # Build up the remote_url for S3 Cloud
+        # TODO: Put the correct path here once we get it from @profxj
+        return f"https://s3/{f_type}/{f_name}"
+
+    msgs.error(f"Remote host type {remote_host} is not supported for package data caching.")
 
 
 # Loading Functions for Particular File Types ================================#

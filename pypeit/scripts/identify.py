@@ -63,8 +63,8 @@ class Identify(scriptbase.ScriptBase):
         # Get the lamp list
         if args.lamps is None:
             lamps = par['lamps']
-            if lamps is None:
-                msgs.error('Cannot determine the lamps')
+            if lamps is None or lamps == ['use_header']:
+                msgs.error('Cannot determine the lamps; use --lamps argument')
         else:
             lamps = args.lamps.split(",")
         par['lamps'] = lamps
@@ -91,7 +91,8 @@ class Identify(scriptbase.ScriptBase):
         arcfitter = Identify.initialise(arccen, lamps, slits, slit=int(args.slit), par=par,
                                         wv_calib_all=wv_calib, wavelim=[args.wmin, args.wmax],
                                         nonlinear_counts=msarc.detector.nonlinear_counts(),
-                                        pxtoler=args.pixtol, test=args.test, fwhm=args.fwhm)
+                                        pxtoler=args.pixtol, test=args.test, fwhm=args.fwhm,
+                                        specname=spec.name)
         # Testing?
         if args.test:
             return arcfitter

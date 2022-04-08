@@ -192,22 +192,33 @@ issue`_.
 Additional Data
 ===============
 
-Some data used by ``PypeIt`` is not kept in the GitHub repository or distributed
-via `pip`_ because of its large size.  These include:
+Some data used by ``PypeIt`` are either not kept in the GitHub repository or distributed
+via `pip`_ because of their large size.  These include:
 
- - Raw data included in our development suite used for extensive testing of the code base,
+ - Wavelength calibration template (``reid-arxiv``) files for all instruments,
+ - Canned sensitivity function (``sensfunc``) files for Mauna Kea,
+ - Sky transmission data (``skisim``) files,
  - Atmospheric model grids used for telluric correction and flux calibration, and
  - Canned data-reduction products used by quick-look scripts.
 
-These are all located in our open-access `PypeIt dev-suite Google Drive`_.
+To ease the downloading and storing of these files, ``PypeIt`` now uses the ``astropy``
+download/cache system to maintain copies of these files in a user-writeable location
+that is independent of the ``PypeIt`` installation.  For most users, this will be
+something like ``~/.pypeit/cache``, but is adjustable via ``astropy``'s `configuration
+system <https://docs.astropy.org/en/stable/config/index.html#astropy-config>`__.
+
+Raw data included in our development suite that is used for extensive testing of the code
+base are located in our open-access `PypeIt dev-suite Google Drive`_.
+
+
 
 .. note::
 
     We continue to work on cleaner installation solutions for these data
-    products, particularly for the telluric grids and the quick-look master
-    files.  In the meantime, note that you will likely need to re-run the
-    data-specific installation scripts described below every time you upgrade
-    your installation (via `pip`_ or `conda`_).
+    products, particularly for the quick-look master files.  In the meantime,
+    note that you will likely need to re-run the data-specific installation
+    scripts described below every time you upgrade your installation (via
+    `pip`_ or `conda`_).
 
 Raw Data
 --------
@@ -229,43 +240,33 @@ Atmospheric Model Grids
 
 Calculation of the sensitivity functions for IR instruments and general fitting
 of telluric absorption uses a grid of model atmosphere spectra.  These model
-grids are provided in the ``Telluric`` directory in the `PypeIt dev-suite Google
-Drive`_ and range in size from 3.5-7.7 GB.  Each file provides model spectra for
+grids range in size from 3.5-7.7 GB.  Each file provides model spectra for
 atmospheric conditions specific to an observatory; however, a model grid is not
 provided for all observatories with spectrographs supported by ``PypeIt``.  If
 you do not find models for your observatory, you can use the Maunakea model as
 an approximation. It includes a large grid of different parameters and should be
 good enough for most purposes.
 
-To install the model grids:
+**NOTE:** Instruments that anticipate needing
+a telluric grid have its filename already included in the ``telgridfile`` `TelluricPar
+keyword <https://pypeit.readthedocs.io/en/latest/pypeit_par.html#telluricpar-keywords>`__.
+The needed model grid will download automatically when required by the code, but
+given the size of these files and your downlink speed, this may take some time.
+To install the grid independent of a reduction, run the ``pypeit_install_telluric``
+script, calling the filename of the grid required.  For example, if you needed the file
+``TelFit_MaunaKea_3100_26100_R200000.fits``, you would execute:
 
-    #. Download the relevant file(s) from the Telluric directory in the `PypeIt
-       dev-suite Google Drive`_.
+    .. code-block:: console
 
-    #. Run the ``pypeit_install_telluric`` script.  For example, if you've
-       downloaded ``TelFit_MaunaKea_3100_26100_R200000.fits`` to ``my_path``,
-       then you would execute:
+        pypeit_install_telluric TelFit_MaunaKea_3100_26100_R200000.fits
 
-        .. code-block:: console
+The downloaded file will exist in the ``PypeIt`` cache, and will persist through
+upgrades of your installation via `pip`_ or `conda`_.  To force the update of a
+telluric model grid file to the latest version, simply run ``pypeit_install_telluric``
+with the ``--force_update`` option.
 
-            pypeit_install_telluric --path my_path
-
-       or
-
-        .. code-block:: console
-
-            cd my_path
-            pypeit_install_telluric
-
-The ``pypeit_install_telluric`` script simply searches for all the ``TelFit*``
-files in the path it is provided and creates symlinks to those files in the
-``pypeit/data/telluric/atm_grids`` directory in your installation of ``PypeIt``.
-
-.. warning::
-
-    The installation script simply creates symlinks to the downloaded data.
-    This means that if you move the original data, the symlinks will become
-    broken **and you will need to rerun the installation script.**
+The model grids are available for viewing or download separately from the cache in
+the `PypeIt dev-suite Google Drive`_.
 
 
 Quick-look Master Files

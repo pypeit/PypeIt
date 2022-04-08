@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 import copy
 import numpy as np
@@ -17,7 +18,7 @@ from IPython import embed
 
 from pypeit.par import pypeitpar
 from pypeit.core.wavecal import wv_fitting, waveio, wvutils
-from pypeit import utils, msgs
+from pypeit import data, msgs
 from astropy.io import ascii as ascii_io
 from astropy.table import Table
 
@@ -89,6 +90,8 @@ class Identify:
             If a best-fitting solution exists, and you wish to load it, provide the wv_calib dictionary.
         pxtoler : float, optional
             Tolerance in pixels for adding lines with the auto option
+        specname : str, optional
+            The name of the spectrograph
         """
         # Store the axes
         self.axes = axes
@@ -98,6 +101,7 @@ class Identify:
         self.specdata = spec.get_ydata()
         self.specx = np.arange(self.specdata.size)
         self.plotx = self.specx.copy()
+        self.specname = specname
         # Detections, linelist, line IDs, and fitting params
         self._slit = slit
         self._spatid = spatid
@@ -185,7 +189,7 @@ class Identify:
     @classmethod
     def initialise(cls, arccen, lamps, slits, slit=0, par=None, wv_calib_all=None,
                    wavelim=None, nonlinear_counts=None, test=False,
-                   pxtoler=0.1, fwhm=4.):
+                   pxtoler=0.1, fwhm=4., specname=""):
         """Initialise the 'Identify' window for real-time wavelength calibration
 
         .. todo::
@@ -219,7 +223,8 @@ class Identify:
             FWHM of arc lines in pixels
         pxtoler : float, optional
             Tolerance in pixels for adding lines with the auto option
-
+        specname : str, optional
+            The name of the spectrograph
 
         Returns
         -------
@@ -310,7 +315,7 @@ class Identify:
         # Initialise the identify window and display to screen
         fig.canvas.set_window_title('PypeIt - Identify')
         ident = Identify(fig.canvas, axes, spec, specres, detns, line_lists, par, lflag_color, slit=slit,
-                         spatid=str(slits.spat_id[slit]), wv_calib=wv_calib, pxtoler=pxtoler)
+                         spatid=str(slits.spat_id[slit]), wv_calib=wv_calib, pxtoler=pxtoler, specname=specname)
 
         if not test:
             plt.show()
@@ -701,17 +706,26 @@ class Identify:
                                                              (self.specdata.size - 1))
                 wvutils.write_template(wavelengths, self.specdata, binspec,
                                          './', 'wvarxiv.fits')
-                msgs.info("\nYour arxiv solution has been written to wvarxiv.fits")
-                #msgs.info("\nYour wavelength solution has been stored here:" + msgs.newline() +
-                #          os.path.join(master_dir, outroot) + msgs.newline() + msgs.newline() +
-                #          "If you would like to move this to the PypeIt database, please move this file into the directory:" +
-                #          msgs.newline() + templates.outpath + msgs.newline() + msgs.newline() +
-                #          "Please consider sending your solution to the PypeIt team!" + msgs.newline())
-                #
+
+                # Also copy the file to the cache for direct use
+                date_str = datetime.now().strftime("%Y%m%d")
+                cachename = f"manual_{self.specname}_{date_str}.fits"
+                data.write_file_to_cache("wvarxiv.fits",
+                                         cachename,
+                                         "arc_lines/reid_arxiv")
+
+                msgs.info("Your arxiv solution has been written to ./wvarxiv.fits\n")
+                msgs.info(f"Your arxiv solution has been cached.{msgs.newline()}"
+                          f"Use 'reid_arxiv = {cachename}' in your{msgs.newline()}"
+                          "PypeIt Reduction File to utilize this wavelength solution.")
+
+                # Write the WVCalib file
                 outfname = "wvcalib.fits"
                 if wvcalib is not None:
                     wvcalib.to_file(outfname, overwrite=True)
-                    msgs.info("\nA WaveCalib container was written to wvcalib.fits")
+                    msgs.info("A WaveCalib container was written to wvcalib.fits")
+
+                # Print some helpful information
                 print("\n\nPlease visit the following site if you want to include your solution in PypeIt:")
                 print("https://pypeit.readthedocs.io/en/latest/construct_template.html#creating-the-template\n")
                 print("You will need the following information:")
