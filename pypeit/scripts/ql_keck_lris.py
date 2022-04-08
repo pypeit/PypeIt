@@ -7,7 +7,6 @@ Script for quick-look reductions of Keck MOSFIRE observations.
 
 import os
 import copy
-from glob import glob
 import time
 
 from pkg_resources import resource_filename

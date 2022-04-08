@@ -7,7 +7,7 @@ Script for quick-look reductions of Keck MOSFIRE observations.
 
 import os
 import copy
-from glob import glob
+import time
 
 from IPython import embed
 
@@ -224,6 +224,8 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
 
     @staticmethod
     def main(args):
+
+        tstart = time.time()
 
         # Read in the spectrograph, config the parset
         spectrograph = load_spectrograph('keck_mosfire')
@@ -492,6 +494,10 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
             hdul = fits.HDUList([hdu, hdu_resid, hdu_wave])
             msgs.info('Writing sky subtracted image to {:s}'.format(outfile))
             hdul.writeto(outfile, overwrite=True)
+
+
+        msgs.info(utils.get_time_string(time.time()-tstart))
+
 
         if args.embed:
             embed()
