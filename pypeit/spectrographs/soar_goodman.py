@@ -3,11 +3,7 @@ Module for the SOAR/Goodman instrument
 
 .. include:: ../include/links.rst
 """
-from IPython.terminal.embed import embed
-from pkg_resources import resource_filename
-
 import numpy as np
-import os
 
 from astropy.time import Time
 
@@ -237,9 +233,7 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
         par['scienceframe']['exprng'] = [90, None]
 
         #par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['IR']['telgridfile'] \
-                = os.path.join(par['sensfunc']['IR'].default_root,
-                               'TelFit_LasCampanas_3100_26100_R20000.fits')
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
 
         return par
 

@@ -6,7 +6,6 @@
 """
 import os
 import glob
-from pkg_resources import resource_filename
 
 from IPython import embed
 
@@ -32,6 +31,7 @@ from pypeit import io
 from pypeit.wavemodel import conv2res
 from pypeit.core.wavecal import wvutils
 from pypeit.core import fitting
+from pypeit import data
 #from pypeit.core import telluric
 
 
@@ -130,7 +130,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     closest = dict(sep=999 * units.deg)
 
     for sset in std_sets:
-        path = resource_filename('pypeit', os.path.join('data', 'standards', sset))
+        path = os.path.join(data.Paths.standards, sset)
         star_file =  os.path.join(path, '{0}_info.txt'.format(sset))
         if not os.path.isfile(star_file):
             msgs.warn('File does not exist!: {0}'.format(star_file))
@@ -268,7 +268,7 @@ def stellar_model(V, sptype):
     logg_sol = np.log10(6.67259e-8) + np.log10(1.989e33) - 2.0 * np.log10(6.96e10)
 
     # Load Schmidt-Kaler (1982) table
-    sk82_file = resource_filename('pypeit', 'data/standards/kurucz93/schmidt-kaler_table.txt')
+    sk82_file = os.path.join(data.Paths.standards, 'kurucz93', 'schmidt-kaler_table.txt')
     sk82_tab = ascii.read(sk82_file, names=('Sp', 'logTeff', 'Teff', '(B-V)_0', 'M_V', 'B.C.', 'M_bol', 'L/L_sol'))
 
     # TODO, currently this only works on select stellar types. Add ability to interpolate across types.
@@ -313,7 +313,7 @@ def stellar_model(V, sptype):
     indg = np.argmin(np.abs(loggk - logg))
 
     # Grab Kurucz filename
-    std_file = resource_filename('pypeit', '/data/standards/kurucz93/kp00/kp00_{:d}.fits.gz'.format(int(Tk[indT])))
+    std_file = os.path.join(data.Paths.standards, 'kurucz93', 'kp00', f'kp00_{int(Tk[indT])}.fits.gz')
     std = table.Table.read(std_file)
 
     # Grab specific spectrum
@@ -365,7 +365,7 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
         if 'A0' in star_type:
             msgs.info('Getting vega spectrum')
             ## Vega model from TSPECTOOL
-            vega_file = resource_filename('pypeit', '/data/standards/vega_tspectool_vacuum.dat')
+            vega_file = os.path.join(data.Paths.standards, 'vega_tspectool_vacuum.dat')
             vega_data = table.Table.read(vega_file, comment='#', format='ascii')
             std_dict = dict(cal_file='vega_tspectool_vacuum', name=star_type, Vmag=star_mag,
                             std_ra=ra, std_dec=dec)
@@ -408,8 +408,7 @@ def load_extinction_data(longitude, latitude, toler=5. * units.deg):
     # Mosaic coord
     mosaic_coord = coordinates.SkyCoord(longitude, latitude, frame='gcrs', unit=units.deg)
     # Read list
-    extinct_path = resource_filename('pypeit', '/data/extinction/')
-    extinct_summ = extinct_path + 'README'
+    extinct_summ = os.path.join(data.Paths.extinction, 'README')
     extinct_files = table.Table.read(extinct_summ, comment='#', format='ascii')
     # Coords
     ext_coord = coordinates.SkyCoord(extinct_files['Lon'], extinct_files['Lat'], frame='gcrs',
@@ -424,8 +423,8 @@ def load_extinction_data(longitude, latitude, toler=5. * units.deg):
         msgs.warn("You should generate a site-specific file")
         return None
     # Read
-    extinct = table.Table.read(extinct_path + extinct_file, comment='#', format='ascii',
-                               names=('iwave', 'mag_ext'))
+    extinct = table.Table.read(os.path.join(data.Paths.extinction, extinct_file),
+                               comment='#', format='ascii', names=('iwave', 'mag_ext'))
     wave = table.Column(np.array(extinct['iwave']) * units.AA, name='wave')
     extinct.add_column(wave)
     # Return
@@ -951,15 +950,15 @@ def get_mask(wave_star,flux_star, ivar_star, mask_star, mask_abs_lines=True, mas
             ## Read atmosphere transmission
             #
             #if watervp <1.5:
-            #    skytrans_file = resource_filename('pypeit', '/data/skisim/'+'mktrans_zm_10_10.dat')
+            #    skytrans_file = os.path.join(data.Paths.skisim, 'mktrans_zm_10_10.dat')
             #elif (watervp>=1.5 and watervp<2.3):
-            #    skytrans_file = resource_filename('pypeit', '/data/skisim/'+'mktrans_zm_16_10.dat')
+            #    skytrans_file = os.path.join(data.Paths.skisim, 'mktrans_zm_16_10.dat')
             #elif (watervp>=2.3 and watervp<4.0):
-            #    skytrans_file = resource_filename('pypeit', '/data/skisim/' + 'mktrans_zm_30_10.dat')
+            #    skytrans_file = os.path.join(data.Paths.skisim, 'mktrans_zm_30_10.dat')
             #else:
-            #    skytrans_file = resource_filename('pypeit', '/data/skisim/' + 'mktrans_zm_50_10.dat')
+            #    skytrans_file = os.path.join(data.Paths.skisim, 'mktrans_zm_50_10.dat')
             #
-            skytrans_file = resource_filename('pypeit', '/data/skisim/' + 'mktrans_zm_10_10.dat')
+            skytrans_file = os.path.join(data.Paths.skisim, 'mktrans_zm_10_10.dat')
             skytrans = ascii.read(skytrans_file)
             wave_trans, trans = skytrans['wave'].data*10000.0, skytrans['trans'].data
             trans_use = (wave_trans>=np.min(wave_star)-100.0) & (wave_trans<=np.max(wave_star)+100.0)
@@ -1360,7 +1359,7 @@ def load_filter_file(filter):
                       + VISTA_filters + TMASS_filters + GAIA_filters + GALEX_filters + WISE_filters
     """
 
-    filter_file = resource_filename('pypeit', os.path.join('data', 'filters', 'filter_list.ascii'))
+    filter_file = os.path.join(data.Paths.filters, 'filter_list.ascii')
     tbl = table.Table.read(filter_file, format='ascii')
 
     allowed_options = tbl['filter'].data
@@ -1369,7 +1368,7 @@ def load_filter_file(filter):
     if filter not in allowed_options:
         msgs.error("PypeIt is not ready for filter = {}".format(filter))
 
-    trans_file = resource_filename('pypeit', os.path.join('data', 'filters', 'filtercurves.fits'))
+    trans_file = os.path.join(data.Paths.filters, 'filtercurves.fits')
     trans = io.fits_open(trans_file)
     wave = trans[filter].data['lam']  # Angstroms
     instr = trans[filter].data['Rlam']  # Am keeping in atmospheric terms

@@ -6,11 +6,11 @@ Provides a class that handles archived sensfunc files.
 """
 from abc import ABC, abstractmethod
 import os
-from pkg_resources import resource_filename
 
 from astropy.io import fits
 
 from pypeit import msgs
+from pypeit import data
 
 class SensFileArchive(ABC):
     """Class for managing archived SensFunc files. This is an abstract class that instantitates 
@@ -85,7 +85,7 @@ class DEIMOSSensFileArchive(SensFileArchive):
         if grating not in ["600ZD", "830G", "900ZD", "1200B", "1200G"]:
             msgs.error(f"There are no archived SensFuncFiles for keck_deimos grating {grating}.")
         
-        archived_file = resource_filename('pypeit', os.path.join('data', 'sensfuncs', f"keck_deimos_{grating}_sensfunc.fits"))
+        archived_file = os.path.join(data.Paths.sensfuncs, f"keck_deimos_{grating}_sensfunc.fits")
         msgs.info(f"Found archived sensfile '{archived_file}'")
         return archived_file
 

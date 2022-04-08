@@ -8,7 +8,6 @@ Coadding module.
 
 import os
 import sys
-from pkg_resources import resource_filename
 
 from IPython import embed
 
@@ -19,12 +18,8 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import NullFormatter, NullLocator, MaxNLocator
 
 from astropy import stats
-from astropy.io import fits
 from astropy import convolution
-from astropy.table import Table
-from astropy import constants
 
-from pypeit.spectrographs.util import load_spectrograph
 from pypeit import utils
 from pypeit.core import fitting
 from pypeit import specobjs
@@ -32,7 +27,7 @@ from pypeit import msgs
 from pypeit.core import combine
 from pypeit.core.wavecal import wvutils
 from pypeit.core import pydl
-from pypeit.core import flux_calib
+from pypeit import data
 
 
 def renormalize_errors_qa(chi, maskchi, sigma_corr, sig_range = 6.0, title='', qafile=None):
@@ -1454,7 +1449,7 @@ def coadd_iexp_qa(wave, flux, rejivar, mask, wave_stack, flux_stack, ivar_stack,
         # TODO Use one of our telluric models here instead
         # Plot transmission
         if (np.max(wave[mask]) > 9000.0):
-            skytrans_file = resource_filename('pypeit', '/data/skisim/atm_transmission_secz1.5_1.6mm.dat')
+            skytrans_file = os.path.join(data.Paths.skisim, 'atm_transmission_secz1.5_1.6mm.dat')
             skycat = np.genfromtxt(skytrans_file, dtype='float')
             scale = 0.8 * ymax
             spec_plot.plot(skycat[:, 0] * 1e4, skycat[:, 1] * scale, 'm-', alpha=0.5, zorder=11)
@@ -1585,7 +1580,7 @@ def coadd_qa(wave, flux, ivar, nused, mask=None, tell=None, title=None, qafile=N
 
     # Plot transmission
     if (np.max(wave[mask])>9000.0) and (tell is None):
-        skytrans_file = resource_filename('pypeit', '/data/skisim/atm_transmission_secz1.5_1.6mm.dat')
+        skytrans_file = os.path.join(data.Paths.skisim, 'atm_transmission_secz1.5_1.6mm.dat')
         skycat = np.genfromtxt(skytrans_file,dtype='float')
         scale = 0.8*ymax
         spec_plot.plot(skycat[:,0]*1e4,skycat[:,1]*scale,'m-',alpha=0.5,zorder=11)
