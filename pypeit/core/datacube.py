@@ -825,6 +825,7 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
     weights = np.ones(numfiles)  # Weights to use when combining cubes
     locations = parset['calibrations']['alignment']['locations']
     flat_splines = dict()   # A dictionary containing the splines of the flatfield
+    # Load the scaleimg frame for the scale correction
     if cubepar['scale_corr'] is not None:
         msgs.info("Loading scale image for relative spectral illumination correction:" +
                   msgs.newline() + cubepar['scale_corr'])
@@ -835,6 +836,7 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
             msgs.warn("Could not load scaleimg from spec2d file:" + msgs.newline() + cubepar['scale_corr'] +
                       "scale correction will not be performed")
             cubepar['scale_corr'] = None
+    # Load all spec2d files and prepare the data for making a datacube
     for ff, fil in enumerate(files):
         # Load it up
         spec2DObj = spec2dobj.Spec2DObj.from_file(fil, detname)
@@ -994,7 +996,6 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
             wave_corr = (wave_ext[wvsrt] - minw) / (maxw - minw)
             coeff_gratcorr = np.polyfit(wave_corr[wblz], grat_corr_tmp[wblz], 2)
             grat_corr = np.polyval(coeff_gratcorr, wave_corr)
-            #grat_corr = grat_corr_tmp # TODO :: REMOVE THIS LINE
         # Sensitivity function
         sens_func = 1.0
         if fluxcal:
