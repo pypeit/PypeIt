@@ -207,12 +207,12 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
         plt.clf()
         ax = plt.gca()
         was_fit_and_masked = inmask_fit & np.logical_not(outmask)
-        ax.plot(pix[inmask_fit], sky[inmask_fit], color='k', marker='o', markersize=0.4, mfc='k', fillstyle='full', linestyle='None')
-        ax.plot(pix[was_fit_and_masked], sky[was_fit_and_masked], color='red', marker='+', markersize=1.5, mfc='red', fillstyle='full', linestyle='None')
-        ax.plot(pix, yfit, color='cornflowerblue')
-        ax.plot(skyset.breakpoints[goodbk], yfit_bkpt, color='lawngreen', marker='o', markersize=4.0, mfc='lawngreen', fillstyle='full', linestyle='None')
+        ax.plot(pix[inmask_fit], sky[inmask_fit], color='k', marker='o', markersize=0.4, mfc='k', fillstyle='full', linestyle='None', label='Pixels that were fit')
+        ax.plot(pix[was_fit_and_masked], sky[was_fit_and_masked], color='red', marker='+', markersize=1.5, mfc='red', fillstyle='full', linestyle='None', label='Pixels masked by fit')
+        ax.plot(pix, yfit, color='cornflowerblue', label='B-spline fit')
+        ax.plot(skyset.breakpoints[goodbk], yfit_bkpt, color='lawngreen', marker='o', markersize=4.0, mfc='lawngreen', fillstyle='full', linestyle='None', label='Good B-spline breakpoints')
         ax.set_ylim((0.99*yfit.min(),1.01*yfit.max()))
-
+        plt.legend()
         plt.show()
 
     # Return
