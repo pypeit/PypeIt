@@ -129,7 +129,7 @@ class Paths(metaclass=Paths_meta):
 
 
 # Remote-fetch functions for package data not distributed via PyPI ===========#
-def get_reid_arxiv_filepath(arxiv_file, use_local=False):
+def get_reid_arxiv_filepath(arxiv_file):
     """get_reid_arxiv_filepath Return the full path to the `reid_arxiv` file
 
     In an attempt to reduce the size of the PypeIt package as distributed on
@@ -154,11 +154,6 @@ def get_reid_arxiv_filepath(arxiv_file, use_local=False):
     Args:
         arxiv_file: str
           The base filename of the `reid_arxiv` file to be located
-        use_local: bool, optional
-          [STUB FOR FUTURE FUNCTIONALITY]  If the WavelengthSolutionPar
-          parameter `use_local` is set to True, look for the `reid_arxiv`
-          file on the local filesystem rather than in the PypeIt package
-          data.
 
     Returns:
         calibfile: str
@@ -185,7 +180,7 @@ def get_reid_arxiv_filepath(arxiv_file, use_local=False):
     return reid_path
 
 
-def get_skisim_filepath(skisim_file, use_local=False):
+def get_skisim_filepath(skisim_file):
     """get_skisim_filepath Return the full path to the `skisim` file
 
     In an attempt to reduce the size of the PypeIt package as distributed on
@@ -210,11 +205,6 @@ def get_skisim_filepath(skisim_file, use_local=False):
     Args:
         skisim_file: str
           The base filename of the `skisim` file to be located
-        use_local: bool, optional
-          [STUB FOR FUTURE FUNCTIONALITY]  If the ___
-          parameter `use_local` is set to True, look for the `skisim`
-          file on the local filesystem rather than in the PypeIt package
-          data.
 
     Returns:
         calibfile: str
@@ -241,7 +231,7 @@ def get_skisim_filepath(skisim_file, use_local=False):
     return skisim_path
 
 
-def get_sensfunc_filepath(sensfunc_file, use_local=False):
+def get_sensfunc_filepath(sensfunc_file):
     """get_sensfunc_filepath Return the full path to the `sensfunc` file
 
     In an attempt to reduce the size of the PypeIt package as distributed on
@@ -266,11 +256,6 @@ def get_sensfunc_filepath(sensfunc_file, use_local=False):
     Args:
         sensfunc_file: str
           The base filename of the `sensfunc` file to be located
-        use_local: bool, optional
-          [STUB FOR FUTURE FUNCTIONALITY]  If the ___
-          parameter `use_local` is set to True, look for the `sensfunc`
-          file on the local filesystem rather than in the PypeIt package
-          data.
 
     Returns:
         calibfile: str
@@ -297,7 +282,7 @@ def get_sensfunc_filepath(sensfunc_file, use_local=False):
     return sensfunc_path
 
 
-def get_telgrid_filepath(telgrid_file, use_local=False):
+def get_telgrid_filepath(telgrid_file):
     """get_sensfunc_filepath Return the full path to the `sensfunc` file
 
     In an attempt to reduce the size of the PypeIt package as distributed on
@@ -322,11 +307,6 @@ def get_telgrid_filepath(telgrid_file, use_local=False):
     Args:
         sensfunc_file: str
           The base filename of the `sensfunc` file to be located
-        use_local: bool, optional
-          [STUB FOR FUTURE FUNCTIONALITY]  If the ___
-          parameter `use_local` is set to True, look for the `sensfunc`
-          file on the local filesystem rather than in the PypeIt package
-          data.
 
     Returns:
         calibfile: str
