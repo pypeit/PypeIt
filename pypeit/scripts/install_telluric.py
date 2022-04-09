@@ -20,14 +20,24 @@ class InstallTelluric(scriptbase.ScriptBase):
                                  'from the Cloud and installed in the PypeIt cache')
         parser.add_argument('--force_update', action='store_true',
                             help='Force download of latest version of the telluric grid')
+        parser.add_argument('--local_file', action='store_true',
+                            help='This is a local file (downloaded or created) to be '
+                                 'installed in the cache')
         return parser
 
     @staticmethod
     def main(args):
+        import os
 
         # Loop through the files passed
         for file in args.files:
 
-            # Download the file into the cache if not already there (unless force_update)
-            data.fetch_remote_file(file, 'telgrid', remote_host='s3_cloud',
-                                   install_script=True, force_update=args.force_update)
+            if args.local_file:
+                # Copy the previously downloaded or power-user-created file to the cache
+                data.write_file_to_cache(file, os.path.basename(file),
+                                         'telgrid', remote_host="s3_cloud")
+
+            else:
+                # Download the file into the cache if not already there (unless force_update)
+                data.fetch_remote_file(file, 'telgrid', remote_host="s3_cloud",
+                                       install_script=True, force_update=args.force_update)
