@@ -154,7 +154,8 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
                   (filter2 == 'blind')):
                 return 'dark'
 
-        msgs.error("Not ready for this compound meta")
+        else:
+            msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
