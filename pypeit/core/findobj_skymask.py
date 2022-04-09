@@ -1146,11 +1146,16 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
 
 
     # If the user requested the nperslit most significant peaks have been requested, then only return these
+    #TODO FIX THIS HACK
+    nperslit=None
     if nperslit is not None:
         # If the requested number is less than (the non-edge) number found, mask them out
         if nperslit < npeak_not_near_edge:
             snr_thresh = snr_peaks_all[np.logical_not(near_edge_bpm)].argsort()[::-1][nperslit-1]
-            nperslit_bpm = np.logical_not(near_edge_bpm) & snr_peaks_all < snr_thresh
+            try:
+                nperslit_bpm = np.logical_not(near_edge_bpm) & snr_peaks_all < snr_thresh
+            except:
+                embed()
         else:
             nperslit_bpm = np.zeros(npeaks_all, dtype=bool)
     else:
