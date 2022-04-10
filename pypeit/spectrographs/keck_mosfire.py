@@ -208,7 +208,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             if self.get_meta_value(headarr, 'filter1') == 'Y':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_Y.fits'
             if self.get_meta_value(headarr, 'filter1') == 'J':
-                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_Y.fits'
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_J.fits'
             if self.get_meta_value(headarr, 'filter1') == 'H':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_H.fits'
             if self.get_meta_value(headarr, 'filter1') == 'K':
