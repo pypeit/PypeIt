@@ -69,9 +69,14 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
     fig = plt.figure(figsize=figsize)
     gs = gridspec.GridSpec(nrows,ncols)#, figure = fig)
 
+    # log is True by default, but if a large part of spectrum is < 0, we cannot use the log plot
+    if np.median(arc_spec) < 200.:
+        log = False
+
 
     # Simple spectrum plot
     ax_spec = plt.subplot(gs[:,0])
+    ax_spec.minorticks_on()
     ax_spec.plot(np.arange(len(arc_spec)), arc_spec)
     ymin, ymax = np.min(arc_spec), np.max(arc_spec)
     if log:
@@ -155,6 +160,8 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
     ax_fit.set_ylim((ymin, ymax))
     ax_fit.set_ylabel('Wavelength')
     ax_fit.get_xaxis().set_ticks([]) # Suppress labeling
+    ax_fit.minorticks_on()
+    ax_fit.tick_params(axis="y", which='both', right=True)
 
     # Stats
     wave_soln_fit = waveFit.pypeitfit.eval(waveFit.pixel_fit/waveFit.xnorm)#, 'legendre',minx=fit['fmin'], maxx=fit['fmax'])
@@ -168,6 +175,8 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
     ax_res.set_xlim(xmin, xmax)
     ax_res.set_xlabel('Pixel')
     ax_res.set_ylabel('Residuals (Pix)')
+    ax_res.minorticks_on()
+    ax_res.tick_params(axis="y", which='both', right=True)
 
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)

@@ -179,6 +179,41 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                 # assume that the main target is always detected, i.e., skipping force extraction
                 par['reduce']['slitmask']['extract_missing_objs'] = False
 
+        # wavelength calibration using OH lines
+        if 'long2pos_specphot' not in self.get_meta_value(headarr, 'decker') and \
+                self.get_meta_value(headarr, 'filter1') in ['Y', 'J', 'H', 'K']:
+            par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['fwhm_fromlines'] = True
+            par['calibrations']['wavelengths']['sigdetect'] = 10.
+
+            # templates
+            if self.get_meta_value(headarr, 'filter1') == 'Y':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_Y.fits'
+            if self.get_meta_value(headarr, 'filter1') == 'J':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_J.fits'
+            if self.get_meta_value(headarr, 'filter1') == 'H':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_H.fits'
+            if self.get_meta_value(headarr, 'filter1') == 'K':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_K.fits'
+
+        # wavelength calibration using arc lines (we use this as default only for long2pos_specphot mask)
+        elif 'long2pos_specphot' in self.get_meta_value(headarr, 'decker') and \
+                self.get_meta_value(headarr, 'filter1') in ['Y', 'J', 'H', 'K']:
+            par['calibrations']['wavelengths']['lamps'] = ['Ar_IR_MOSFIRE', 'Ne_IR_MOSFIRE']
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['fwhm_fromlines'] = True
+
+            # templates
+            if self.get_meta_value(headarr, 'filter1') == 'Y':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_Y.fits'
+            if self.get_meta_value(headarr, 'filter1') == 'J':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_Y.fits'
+            if self.get_meta_value(headarr, 'filter1') == 'H':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_H.fits'
+            if self.get_meta_value(headarr, 'filter1') == 'K':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_K.fits'
+
         # Return
         return par
 
