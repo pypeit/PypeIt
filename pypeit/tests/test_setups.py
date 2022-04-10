@@ -80,7 +80,7 @@ def test_setup_made_pypeit_file():
 
 @dev_suite_required
 def test_setup_keck_lris_red_mark4():
-    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/keck_lris_red_mark4/long_400_8500')
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/keck_lris_red_mark4/long_400_8500_d560')
     droot += '/'
     pargs = Setup.parse_args(['-r', droot, '-s', 'keck_lris_red_mark4'])
     Setup.main(pargs)
