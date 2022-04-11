@@ -2,6 +2,9 @@
 """
 Data utilities for built-in PypeIt data files
 
+NOTE: If the hostname URL for the telluric atmospheric grids on S3 changes,
+      the only place that needs to change is the file `s3_url.txt`.
+
 .. include:: ../include/links.rst
 """
 import os
@@ -320,9 +323,10 @@ def get_telgrid_filepath(telgrid_file):
     if not os.path.isfile(telgrid_path):
 
         # Output a brief warning for now -- makes it easier to find in the output
-        msgs.warn(f"telgrid file {telgrid_file} does not exist in the package directory.")
+        msgs.info(f"telgrid file {telgrid_file} does not exist{msgs.newline()}"
+                  "in the package directory; checking cache...")
 
-        telgrid_path = fetch_remote_file(telgrid_file, 'telgrid', remote_host='s3_cloud')
+        telgrid_path = fetch_remote_file(telgrid_file, 'telluric/atm_grids', remote_host='s3_cloud')
 
         # If a development version, MOVE into the package directory, point path there
         if ".dev" in pypeit_version:
@@ -376,7 +380,12 @@ def fetch_remote_file(filename, filetype, remote_host='github', install_script=F
     try:
         return astropy_data.download_file(remote_url, cache=cache, timeout=10, pkgname="pypeit")
     except urllib.error.URLError as error:
-        msgs.error(f"Error downloading {filename}: {error}")
+        msgs.error(f"Error downloading {filename}: {error}{msgs.newline()}"
+                   f"URL attempted: {remote_url}{msgs.newline()}"
+                   f"If the error relates to the server not being found,{msgs.newline()}"
+                   f"check your internet connection.  If the remote server{msgs.newline()}"
+                   f"name has changed, please contact the PypeIt development{msgs.newline()}"
+                   "team.")
 
 
 def write_file_to_cache(filename, cachename, filetype, remote_host="github"):
@@ -436,10 +445,40 @@ def _build_remote_url(f_name, f_type, remote_host=""):
 
     if remote_host == "s3_cloud":
         # Build up the remote_url for S3 Cloud
-        # TODO: Put the correct path here once we get it from @profxj
-        return f"https://s3/{f_type}/{f_name}"
+        return f"https://{_get_s3_hostname()}/pypeit/{f_type}/{f_name}"
 
     msgs.error(f"Remote host type {remote_host} is not supported for package data caching.")
+
+
+def _get_s3_hostname():
+    """_get_s3_hostname Get the current S3 hostname from the package file
+
+    Since the S3 server hostname used to hold package data such as telluric
+    atmospheric grids may change periodically, we keep the current hostname
+    in a separate file (s3_url.txt), and pull the current version from the
+    PypeIt `release` branch whenever needed.
+
+    If GitHub cannot be reached, the routine uses the version of `s3_url.txt`
+    included with the package distribution.
+
+    Returns:
+        s3_hostname: str
+          The current hostname URL of the S3 server holding package data
+    """
+    # Always point to the `release` version of `s3_url.txt`, which can be updated
+    # via a hotfix PR and does not require the user to upgrade the package
+    remote_url = f"https://github.com/pypeit/PypeIt/blob/release/pypeit/data/s3_url.txt?raw=true"
+
+    # Try getting the latest version from the server, else use what's included
+    try:
+        filepath = astropy_data.download_file(remote_url, cache="update",
+                                              timeout=10, pkgname="pypeit")
+    except urllib.error.URLError:
+        filepath = os.path.join(Paths.data, "s3_url.txt")
+
+    # Open the file and return the URL
+    with open(filepath, "r", encoding="utf-8") as fileobj:
+        return fileobj.read().strip()
 
 
 # Loading Functions for Particular File Types ================================#

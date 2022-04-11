@@ -35,9 +35,9 @@ class InstallTelluric(scriptbase.ScriptBase):
             if args.local_file:
                 # Copy the previously downloaded or power-user-created file to the cache
                 data.write_file_to_cache(file, os.path.basename(file),
-                                         'telgrid', remote_host="s3_cloud")
+                                         'telluric/atm_grids', remote_host="s3_cloud")
 
             else:
                 # Download the file into the cache if not already there (unless force_update)
-                data.fetch_remote_file(file, 'telgrid', remote_host="s3_cloud",
+                data.fetch_remote_file(file, 'telluric/atm_grids', remote_host="s3_cloud",
                                        install_script=True, force_update=args.force_update)
