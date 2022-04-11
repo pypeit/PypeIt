@@ -3946,7 +3946,7 @@ class EdgeTraceSet(DataContainer):
         elif method == 'pca':
             if self.is_empty:
                 msgs.error('No edge traces currently exist.  Cannot insert user slits with a '
-                           'shape based on the PCA decomposition of the existing slit edges!
+                           'shape based on the PCA decomposition of the existing slit edges!  '
                            'Set add_predict = straight.')
             if self.pcatype is None:
                 if not self.can_pca():
