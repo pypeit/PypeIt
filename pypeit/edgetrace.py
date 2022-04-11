@@ -3933,7 +3933,8 @@ class EdgeTraceSet(DataContainer):
         elif method == 'nearest':
             if self.is_empty:
                 msgs.error('No edge traces currently exist.  Cannot insert user slits with a '
-                           'shape based on the nearest existing slit edges!')
+                           'shape based on the nearest existing slit edges!  '
+                           'Set add_predict = straight.')
             # Use the measured edges if the functional forms don't exist (yet)
             trace_cen = self.edge_cen if self.edge_fit is None else self.edge_fit
             # Find the trace nearest to the one to be inserted
@@ -3945,12 +3946,13 @@ class EdgeTraceSet(DataContainer):
         elif method == 'pca':
             if self.is_empty:
                 msgs.error('No edge traces currently exist.  Cannot insert user slits with a '
-                           'shape based on the PCA decomposition of the existing slit edges!')
+                           'shape based on the PCA decomposition of the existing slit edges!
+                           'Set add_predict = straight.')
             if self.pcatype is None:
                 if not self.can_pca():
                     msgs.error('PCA does not exist and cannot be constructed!  Cannot insert user '
                                'slits with a shape based on the PCA decomposition of the existing '
-                               'slit edges!')
+                               'slit edges!  Use add_predict = straight or nearest.')
                 self.build_pca()
             # Use the pca to predict the traces at the requested spatial positions
             trace_ref = new_trace_coo[:,1]
