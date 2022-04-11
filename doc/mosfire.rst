@@ -155,6 +155,7 @@ of using the OH line, this can be done by adding in the :doc:`pypeit_file`::
           sigdetect = 5
           method = full_template
           reid_arxiv = keck_mosfire_arcs_Y.fits
+          lamps = Ar_IR_MOSFIRE,Ne_IR_MOSFIRE
 
 
 

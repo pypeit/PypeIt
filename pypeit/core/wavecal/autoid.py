@@ -69,8 +69,9 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
     fig = plt.figure(figsize=figsize)
     gs = gridspec.GridSpec(nrows,ncols)#, figure = fig)
 
-    # log is True by default, but if a large part of spectrum is < 0, we cannot use the log plot
-    if np.median(arc_spec) < 200.:
+    # log is True by default, but if a large part of spectrum is < 0, the log plot will look very bad
+    neg_values = np.where(arc_spec < 0)[0]
+    if neg_values.size > 0.3 * len(arc_spec):
         log = False
 
 
