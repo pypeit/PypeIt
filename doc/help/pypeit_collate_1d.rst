@@ -6,7 +6,7 @@
                              [--tolerance TOLERANCE] [--match MATCH] [--dry_run]
                              [--ignore_flux] [--flux]
                              [--exclude_slit_bm [EXCLUDE_SLIT_BM ...]]
-                             [--exclude_serendip]
+                             [--exclude_serendip] [--wv_rms_thresh WV_RMS_THRESH]
                              [input_file]
     
     Flux/Coadd multiple 1d spectra from multiple nights and prepare a directory for
@@ -26,6 +26,11 @@
                                                     "ra/dec"
                               dry_run               If set the matches are displayed
                                                     without any processing
+                              flux                  Flux calibrate using archived sensfuncs.
+                              ignore_flux           Ignore any flux calibration information in
+                                                    spec1d files.
+                              wv_rms_thresh         If set, any objects with a wavelength rms > than the input
+                                                    value are skipped, else all wavelength rms values are accepted.
                              
                             spec1d read
                             <path to spec1d files, wildcards allowed>
@@ -63,4 +68,8 @@
                             A list of slit trace bitmask bits that should be
                             excluded.
       --exclude_serendip    Whether to exclude SERENDIP objects from collating.
+      --wv_rms_thresh WV_RMS_THRESH
+                            If set, any objects with a wavelength RMS > this value
+                            are skipped, else all wavelength RMS values are
+                            accepted.
     

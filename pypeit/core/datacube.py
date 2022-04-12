@@ -17,7 +17,7 @@ from scipy.interpolate import interp1d
 import numpy as np
 
 from pypeit import msgs
-from pypeit import spec2dobj, alignframe
+from pypeit import spec2dobj, alignframe, masterframe
 from pypeit.core.flux_calib import load_extinction_data, extinction_correction
 from pypeit.core.flexure import calculate_image_offset
 from pypeit.core import parse
@@ -661,8 +661,7 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
         astrometric = cubepar['astrometric']
         msgs.info("Loading alignments")
         hdr = fits.open(fil)[0].header
-        alignfile = "{0:s}/Master{1:s}_{2:s}_01.{3:s}".format(hdr['PYPMFDIR'], alignframe.Alignments.master_type,
-                                                              hdr['TRACMKEY'], alignframe.Alignments.master_file_format)
+        alignfile = masterframe.construct_file_name(alignframe.Alignments, hdr['TRACMKEY'], master_dir=hdr['PYPMFDIR'])
         alignments = None
         if os.path.exists(alignfile) and cubepar['astrometric']:
             alignments = alignframe.Alignments.from_file(alignfile)

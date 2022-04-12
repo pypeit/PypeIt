@@ -2604,7 +2604,7 @@ class EdgeTracePar(ParSet):
                  length_range=None, minimum_slit_gap=None, clip=None, order_match=None,
                  order_offset=None, use_maskdesign=None, maskdesign_maxsep=None,
                  maskdesign_step=None, maskdesign_sigrej=None, pad=None, add_slits=None,
-                 rm_slits=None):
+                 add_predict=None, rm_slits=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3004,6 +3004,16 @@ class EdgeTracePar(ParSet):
                              'extending spatially from 2121 to 2322 and another on detector 3 ' \
                              'at spec=2000 extending from 1201 to 1500.'
 
+        defaults['add_predict'] = 'nearest'
+        dtypes['add_predict'] = str
+        descr['add_predict'] = 'Sets the method used to predict the shape of the left and right ' \
+                               'traces for a user-defined slit inserted.  Options are (1) ' \
+                               '``straight`` inserts traces with a constant spatial pixels ' \
+                               'position, (2) ``nearest`` inserts traces with a form identical ' \
+                               'to the automatically identified trace at the nearest spatial ' \
+                               'position to the inserted slit, or (3) ``pca`` uses the PCA ' \
+                               'decomposition to predict the shape of the traces.'
+
         dtypes['rm_slits'] = [str, list]
         descr['rm_slits'] = 'Remove one or more user-specified slits.  The syntax used to ' \
                             'define a slit to remove is: \'det:spec:spat\' where det=detector, ' \
@@ -3035,7 +3045,8 @@ class EdgeTracePar(ParSet):
                    'sync_to_edge', 'bound_detector', 'minimum_slit_length',
                    'minimum_slit_length_sci', 'length_range', 'minimum_slit_gap', 'clip',
                    'order_match', 'order_offset', 'use_maskdesign', 'maskdesign_maxsep',
-                   'maskdesign_step', 'maskdesign_sigrej', 'pad', 'add_slits', 'rm_slits']
+                   'maskdesign_step', 'maskdesign_sigrej', 'pad', 'add_slits', 'add_predict',
+                   'rm_slits']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -4561,7 +4572,7 @@ class Collate1DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, tolerance=None, dry_run=None, ignore_flux=None, flux=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, outdir=None):
+    def __init__(self, tolerance=None, dry_run=None, ignore_flux=None, flux=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, wv_rms_thresh=None, outdir=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -4617,6 +4628,11 @@ class Collate1DPar(ParSet):
         dtypes['exclude_serendip'] = bool
         descr['exclude_serendip'] = "Whether to exclude SERENDIP objects from collating."
 
+        # Wavelength RMS threshold to exclude spectra by.
+        defaults['wv_rms_thresh'] = None
+        dtypes['wv_rms_thresh'] = float
+        descr['wv_rms_thresh'] = "If set, any objects with a wavelength RMS > this value are skipped, else all wavelength RMS values are accepted."
+
         # How to match objects
         defaults['match_using'] = 'ra/dec'
         options['match_using'] = [ 'pixel', 'ra/dec']
@@ -4634,7 +4650,7 @@ class Collate1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = [*cfg.keys()]
-        parkeys = ['tolerance', 'dry_run', 'ignore_flux', 'flux', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir']
+        parkeys = ['tolerance', 'dry_run', 'ignore_flux', 'flux', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir', 'wv_rms_thresh']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
