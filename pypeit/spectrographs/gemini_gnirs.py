@@ -147,7 +147,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
             # Wavelengths
             par['calibrations']['wavelengths']['rms_threshold'] = 1.0  # Might be grating dependent..
-            par['calibrations']['wavelengths']['sigdetect'] = 5.0
+            par['calibrations']['wavelengths']['sigdetect'] =  [4.0, 5.0, 5.0, 5.0, 5.0, 5.0] #5.0
             par['calibrations']['wavelengths']['lamps'] = ['OH_GNIRS']
             #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
             par['calibrations']['wavelengths']['n_first'] = 2
