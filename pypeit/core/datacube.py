@@ -17,16 +17,12 @@ from scipy.interpolate import interp1d
 import numpy as np
 
 from pypeit import msgs
-from pypeit import spec2dobj, masterframe, alignframe, flatfield
+from pypeit import alignframe, datamodel, flatfield, io, masterframe, specobj, spec2dobj, utils
 from pypeit.core.flux_calib import load_extinction_data, extinction_correction, fit_zeropoint, get_standard_spectrum, ZP_UNIT_CONST, PYPEIT_FLUX_SCALE
 from pypeit.core.flexure import calculate_image_offset
-from pypeit.core import parse
-#from pypeit.core.procimg import grow_masked
+from pypeit.core import coadd, extract, findobj_skymask, parse, skysub
 from pypeit.core.procimg import grow_mask
-from pypeit.core import coadd
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit import datamodel
-from pypeit import io
 
 from IPython import embed
 
@@ -273,14 +269,28 @@ def dar_correction(wave_arr, coord, obstime, location, pressure, temperature, re
     return ra_diff, dec_diff
 
 
-def twoD_Gaussian(tup, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
+def gaussian2D_cube(tup, amplitude, xo, yo, dxdz, dydz, sigma_x, sigma_y, theta, offset):
+    (x, y, z) = tup
+    xo = float(xo) + z*dxdz
+    yo = float(yo) + z*dydz
+    a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
+    b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
+    c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
+    norm = 1/(2*np.pi*np.sqrt(a*c-b*b))
+    g = offset + norm*amplitude*np.exp( - (a*((x-xo)**2) + 2*b*(x-xo)*(y-yo)
+                            + c*((y-yo)**2)))
+    return g.ravel()
+
+
+def gaussian2D(tup, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
     (x, y) = tup
     xo = float(xo)
     yo = float(yo)
     a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
     b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
     c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
-    g = offset + amplitude*np.exp( - (a*((x-xo)**2) + 2*b*(x-xo)*(y-yo)
+    norm = 1/(2*np.pi*np.sqrt(a*c-b*b))
+    g = offset + norm*amplitude*np.exp( - (a*((x-xo)**2) + 2*b*(x-xo)*(y-yo)
                             + c*((y-yo)**2)))
     return g.ravel()
 
@@ -290,12 +300,16 @@ def rebinND(a, shape):
     return a.reshape(sh).mean(-1).mean(1)
 
 
-def extract_standard_spec(stdcube, subsample=20):
+def extract_standard_spec(stdcube, subsample=20, method='boxcar'):
     """ Extract a spectrum of a standard star from a datacube
 
     Args:
         std_cube (`astropy.io.fits.HDUList`_):
             An HDU list of fits files
+        subsample (int):
+            Number of pixels to subpixellate spectrum when creating mask
+        method (str):
+            Method used to extract standard star spectrum
 
     Returns:
         wave (`numpy.ndarray`_): Wavelength of the star.
@@ -317,28 +331,30 @@ def extract_standard_spec(stdcube, subsample=20):
     nrmval = np.sum(flxcube != 0.0, axis=2)
     nrmval[nrmval == 0.0] = 1.0
     wl_img = np.sum(flxcube, axis=2) / nrmval
+    wlscl = np.max(wl_img)  # Need to make sure the value is of order 1, so it's the same order of magnitude as the other parameters
 
     # Estimate the centroid and width of the standard star
-    x = np.linspace(0, wl_img.shape[1] - 1, wl_img.shape[1])
-    y = np.linspace(0, wl_img.shape[0] - 1, wl_img.shape[0])
-    xx, yy = np.meshgrid(x, y)
+    x = np.linspace(0, wl_img.shape[0] - 1, wl_img.shape[0])
+    y = np.linspace(0, wl_img.shape[1] - 1, wl_img.shape[1])
+    xx, yy = np.meshgrid(x, y, indexing='ij')
     idx_max = np.unravel_index(np.argmax(wl_img), wl_img.shape)
-    initial_guess = (np.max(wl_img), idx_max[1], idx_max[0], 2, 2, 0, 0)
-    wlscl = np.max(wl_img)  # Need to make sure the value is of order 1, so it's the same order of magnitude as the other parameters
+    initial_guess = (1, idx_max[0], idx_max[1], 2, 2, 0, 0)
+    wlscl = np.max(
+        wl_img)  # Need to make sure the value is of order 1, so it's the same order of magnitude as the other parameters
     bounds = ([0, 0, 0, 0.5, 0.5, -np.pi, -np.inf],
-              [np.inf,wl_img.shape[1],wl_img.shape[0],wl_img.shape[1],wl_img.shape[0],np.pi,np.inf])
-    popt, pcov = opt.curve_fit(twoD_Gaussian, (xx, yy), wl_img.ravel()/wlscl, bounds=bounds, p0=initial_guess)
+              [np.inf, wl_img.shape[0], wl_img.shape[1], wl_img.shape[0], wl_img.shape[1], np.pi, np.inf])
+    popt, pcov = opt.curve_fit(gaussian2D, (xx, yy), wl_img.ravel() / wlscl, bounds=bounds, p0=initial_guess)
     wid = max(popt[3], popt[4])
 
     # Setup the coordinates of the mask
-    x = np.linspace(0, flxcube.shape[1] - 1, flxcube.shape[1] * subsample)
-    y = np.linspace(0, flxcube.shape[0] - 1, flxcube.shape[0] * subsample)
-    xx, yy = np.meshgrid(x, y)
+    x = np.linspace(0, flxcube.shape[0] - 1, flxcube.shape[0] * subsample)
+    y = np.linspace(0, flxcube.shape[1] - 1, flxcube.shape[1] * subsample)
+    xx, yy = np.meshgrid(x, y, indexing='ij')
 
     # Generate a mask
     newshape = (flxcube.shape[0] * subsample, flxcube.shape[1] * subsample)
     mask = np.zeros(newshape)
-    nsig = 4  # 4 sigma should be far enough
+    nsig = 4  # 4 sigma should be far enough... Note: percentage enclosed for 2D Gaussian = 1-np.exp(-0.5 * nsig**2)
     ww = np.where((np.sqrt((xx - popt[1]) ** 2 + (yy - popt[2]) ** 2) < nsig * wid))
     mask[ww] = 1
     mask = rebinND(mask, (flxcube.shape[0], flxcube.shape[1])).reshape(flxcube.shape[0], flxcube.shape[1], 1)
@@ -357,23 +373,122 @@ def extract_standard_spec(stdcube, subsample=20):
     skycube = flxcube * skymask
     skyspec = skycube.sum(0).sum(0)
     nrmsky = skymask.sum(0).sum(0)
-    skyspec *= (nrmsky!=0)/(nrmsky + (nrmsky==0))
-    flxcube -= skyspec.reshape((1, 1, flxcube.shape[2]))
-    # Extract boxcar
-    cntmask = (varcube > 0.0) * mask
-    scimask = flxcube * cntmask
-    varmask = varcube * cntmask
-    cnt_spec = cntmask.sum(0).sum(0) / mask.sum()
-    nrmcnt = (cnt_spec!=0)/(cnt_spec + (cnt_spec==0))
-    box_flux = scimask.sum(0).sum(0) * nrmcnt
-    box_var = varmask.sum(0).sum(0) * nrmcnt**2
-    box_gpm = np.ones(box_flux.size, dtype=np.bool)
+    skyspec *= utils.inverse(nrmsky)
+    flxcube -= skyspec.reshape((1, 1, numwave))
+
+    if method == 'boxcar':
+        msgs.info("Extracting a boxcar spectrum of datacube")
+        # Extract boxcar
+        cntmask = (varcube > 0.0) * mask
+        scimask = flxcube * cntmask
+        varmask = varcube * cntmask**2
+        cnt_spec = cntmask.sum(0).sum(0) * utils.inverse(mask.sum())
+        nrmcnt = utils.inverse(cnt_spec)
+        box_flux = scimask.sum(0).sum(0) * nrmcnt
+        box_var = varmask.sum(0).sum(0) * nrmcnt**2
+        box_gpm = np.ones(box_flux.size, dtype=np.bool)
+        # Setup the return values
+        ret_flux, ret_var, ret_gpm = box_flux, box_var, box_gpm
+    elif method == 'gauss2d':
+        # Generate a mask
+        fitmask = (varcube > 0.0) * mask
+        # Estimate the centroid and width of the standard star
+        x = np.linspace(0, flxcube.shape[0] - 1, flxcube.shape[0])
+        y = np.linspace(0, flxcube.shape[1] - 1, flxcube.shape[1])
+        z = np.linspace(0, flxcube.shape[2] - 1, flxcube.shape[2])
+        xx, yy, zz = np.meshgrid(x, y, z, indexing='ij')
+        ww = np.where(fitmask)
+        initial_guess = (1, idx_max[0], idx_max[1], 0.0, 0.0, 2, 2, 0, 0)
+        bounds = ([-np.inf, 0, 0, -np.inf, -np.inf, 0.5, 0.5, -np.pi, -np.inf],
+                  [np.inf,wl_img.shape[0],wl_img.shape[1],np.inf, np.inf, wl_img.shape[0],wl_img.shape[0],np.pi,np.inf])
+        msgs.info("Fitting a 2D Gaussian to the datacube")
+        popt, pcov = opt.curve_fit(gaussian2D_cube, (xx[ww], yy[ww], zz[ww]), flxcube[ww] / wlscl,
+                                   # sigma=np.ones(ww[0].size), bounds=bounds, p0=initial_guess)
+                                   sigma=np.sqrt(varcube[ww]) / wlscl, bounds=bounds, p0=initial_guess)
+        # Subtract off the best-fitting continuum
+        popt[-1] = 0
+        # Generate the best-fitting model to be used as an optimal profile
+        model = gaussian2D_cube((xx, yy, zz), *popt).reshape(flxcube.shape)
+        numim = flxcube.shape[0]*flxcube.shape[1]
+
+        # Optimally extract
+        msgs.info("Optimally extracting...")
+        sciimg = (flxcube*mask).reshape((numim, numwave)).T
+        ivar = utils.inverse((varcube*mask**2).reshape((numim, numwave)).T)
+        optmask = fitmask.reshape((numim, numwave)).T
+        waveimg = np.ones((numwave, numim))  # Just a dummy array - not needed
+        skyimg = np.zeros((numwave, numim))  # Just a dummy array - not needed
+        thismask = np.ones((numwave, numim))  # Just a dummy array - not needed
+        oprof = model.reshape((numim, numwave)).T
+        sobj = specobj.SpecObj('IFU', 'DET01', SLITID=0)
+        extract.extract_optimal(sciimg, ivar, optmask, waveimg, skyimg, thismask, oprof, sobj)
+        opt_flux, opt_var, opt_gpm = sobj.OPT_COUNTS, sobj.OPT_COUNTS_SIG**2, sobj.OPT_MASK
+        # Setup the return values
+        ret_flux, ret_var, ret_gpm = opt_flux, opt_var, opt_gpm
+    elif method == 'optimal':
+        # First do a boxcar along one dimension
+        msgs.info("Collapsing datacube to a 2D image")
+        omask = mask+smask
+        idx_sum = 0
+        cntmask = (varcube > 0.0) * omask
+        scimask = flxcube * cntmask
+        varmask = varcube * cntmask**2
+        cnt_spec = cntmask.sum(idx_sum) * utils.inverse(omask.sum(idx_sum))
+        nrmcnt = utils.inverse(cnt_spec)
+        box_sciimg = scimask.sum(idx_sum) * nrmcnt
+        box_scivar = varmask.sum(idx_sum) * nrmcnt**2
+        box_sciivar = utils.inverse(box_scivar)
+        # Transpose for optimal
+        box_sciimg = box_sciimg.T
+        box_sciivar = box_sciivar.T
+
+        # Prepare for optimal
+        msgs.info("Starting optimal extraction")
+        thismask = np.ones(box_sciimg.shape, dtype=np.bool)
+        nspec, nspat = thismask.shape[0], thismask.shape[1]
+        slit_left = np.zeros(nspec)
+        slit_right = np.ones(nspec)*(nspat-1)
+        tilts = np.outer(np.linspace(0.0,1.0,nspec), np.ones(nspat))
+        waveimg = np.outer(wave.value, np.ones(nspat))
+        global_sky = np.zeros_like(box_sciimg)
+        # Find objects and then extract
+        sobj = findobj_skymask.objs_in_slit(box_sciimg, thismask, slit_left, slit_right)
+        skysub.local_skysub_extract(box_sciimg, box_sciivar, tilts, waveimg, global_sky, thismask, slit_left,
+                             slit_right, sobj, model_noise=False)
+        opt_flux, opt_var, opt_gpm = sobj.OPT_COUNTS[0,:], sobj.OPT_COUNTS_SIG[0,:]**2, sobj.OPT_MASK[0,:]
+        # Setup the return values
+        ret_flux, ret_var, ret_gpm = opt_flux, opt_var, opt_gpm
+
+        ###  OLD VERSION OF OPTIMAL USING 2D PROFILE
+        # # Generate a mask
+        # mask = (mask==1).astype(np.float)
+        # fitmask = (varcube > 0.0) * mask
+        # numim = flxcube.shape[0]*flxcube.shape[1]
+        # wl_img -= np.sum(wl_img[:, :, np.newaxis] * smask)/np.sum(smask)
+        # model = wl_img[:, :, np.newaxis] * mask
+        # # Optimally extract
+        # msgs.info("Optimally extracting...")
+        # sciimg = (flxcube*mask).reshape((numim, numwave)).T
+        # ivar = utils.inverse((varcube*mask**2).reshape((numim, numwave)).T)
+        # optmask = (fitmask > 0).reshape((numim, numwave)).T
+        # waveimg = np.ones((numwave, numim))  # Just a dummy array - not needed
+        # skyimg = np.zeros((numwave, numim))  # Just a dummy array - not needed
+        # thismask = np.ones((numwave, numim))  # Just a dummy array - not needed
+        # oprof = model.repeat(numwave, axis=2).reshape((numim, numwave)).T
+        # sobj = specobj.SpecObj('IFU', 'DET01', SLITID=0)
+        # extract.extract_optimal(sciimg, ivar, optmask, waveimg, skyimg, thismask, oprof, sobj)
+        # opt_flux, opt_var, opt_gpm = sobj.OPT_COUNTS, sobj.OPT_COUNTS_SIG**2, sobj.OPT_MASK
+        # # Setup the return values
+        # ret_flux, ret_var, ret_gpm = opt_flux, opt_var, opt_gpm
+    else:
+        msgs.error("Unknown extraction method: ", method)
+
     # Convert to counts/s/A
     arcsecSQ = 3600.0*3600.0*(stdwcs.wcs.cdelt[0]*stdwcs.wcs.cdelt[1])
-    box_flux *= arcsecSQ
-    box_var *= arcsecSQ**2
+    ret_flux *= arcsecSQ
+    ret_var *= arcsecSQ**2
     # Return the box extraction results
-    return wave, box_flux, 1/box_var, box_gpm
+    return wave, ret_flux, utils.inverse(ret_var), ret_gpm
 
 
 def make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat, ref_filename):
@@ -692,14 +807,39 @@ def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bin
         hdr['FLUXUNIT'] = (PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
     else:
         hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
+    # from matplotlib import pyplot as plt
+    # embed()
+    # assert(False)
+    # mskvals = np.load("mskvals.npy")
+    # resid = all_sci*np.sqrt(all_ivar)*mskvals
+    # resid = resid[resid!=0]
+    # nrm, _, _ = plt.hist(resid.flatten(), bins=100)
+    # rx = np.linspace(-10,10,1000)
+    # ry = np.max(nrm)*np.exp(-0.5*rx**2)
+    # plt.plot(rx, ry, 'k-')
+    # plt.show()
+    #
+    # ww = np.where(mskvals)
+    # new_pix_coord = [pix_coord[0][ww], pix_coord[1][ww], pix_coord[2][ww]]
+    # # Use NGP to generate the cube - this ensures errors between neighbouring voxels are not correlated
+    # datacube, edges = np.histogramdd(new_pix_coord, bins=bins, weights=all_sci[ww] * all_wghts[ww])
+    # norm, edges = np.histogramdd(new_pix_coord, bins=bins, weights=all_wghts[ww])
+    # norm_cube = utils.inverse(norm)
+    # datacube *= norm_cube
+    # # Create the variance cube, including weights
+    # msgs.info("Generating variance cube")
+    # all_var = utils.inverse(all_ivar)
+    # var_cube, edges = np.histogramdd(new_pix_coord, bins=bins, weights=all_var[ww] * all_wghts[ww]**2)
+    # var_cube *= norm_cube**2
+
     # Use NGP to generate the cube - this ensures errors between neighbouring voxels are not correlated
     datacube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci * all_wghts)
     norm, edges = np.histogramdd(pix_coord, bins=bins, weights=all_wghts)
-    norm_cube = (norm > 0) / (norm + (norm == 0))
+    norm_cube = utils.inverse(norm)
     datacube *= norm_cube
     # Create the variance cube, including weights
     msgs.info("Generating variance cube")
-    all_var = (all_ivar > 0) / (all_ivar + (all_ivar == 0))
+    all_var = utils.inverse(all_ivar)
     var_cube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_var * all_wghts**2)
     var_cube *= norm_cube**2
 
@@ -707,7 +847,7 @@ def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bin
     if debug:
         datacube_resid, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci*np.sqrt(all_ivar))
         norm, edges = np.histogramdd(pix_coord, bins=bins)
-        norm_cube = (norm > 0) / (norm + (norm == 0))
+        norm_cube = utils.inverse(norm)
         outfile_resid = "datacube_resid.fits"
         msgs.info("Saving datacube as: {0:s}".format(outfile_resid))
         hdu = fits.PrimaryHDU((datacube_resid*norm_cube).T, header=hdr)
@@ -861,6 +1001,24 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
 
         # Grab the slit edges
         slits = spec2DObj.slits
+
+        # embed()
+        # assert(False)
+        # from pypeit.core import skysub
+        # skyregtxt = ":30,60:"  # BB08
+        # slits_left, slits_right, _ = slits.select_edges(initial=True, flexure=flexure)
+        # maxslitlength = np.max(slits_right - slits_left)
+        # # Get the regions
+        # status, regions = skysub.read_userregions(skyregtxt, slits.nslits, maxslitlength)
+        # # Generate image
+        # skymask_init = skysub.generate_mask("IFU", regions, slits, slits_left, slits_right, spat_flexure=flexure)
+        # resid = sciimg*np.sqrt(ivar)*skymask_init*(bpmmask==0)*(ivar!=0)
+        # resid = resid[resid!=0.0]
+        # nrm, _, _ = plt.hist(resid.flatten(), bins=100)
+        # rx = np.linspace(-10,10,1000)
+        # ry = np.max(nrm)*np.exp(-0.5*rx**2)
+        # plt.plot(rx, ry, 'k-')
+        # plt.show()
 
         wave0 = waveimg[waveimg != 0.0].min()
         # Calculate the delta wave in every pixel on the slit
@@ -1017,6 +1175,7 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
         numpix = raimg[onslit_gpm].size
 
         # Calculate the weights relative to the zeroth cube
+        # TODO :: This is dodgy when there is mostly sky...
         weights[ff] = np.median(flux_sav[resrt]*np.sqrt(ivar_sav[resrt]))**2
 
         # If individual frames are to be output, there's no need to store information, just make the cubes now
