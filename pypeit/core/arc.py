@@ -923,6 +923,8 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     #    detns = censpec.copy()
     #detns = detns.astype(np.float)
 
+    # Need to use bpm since when arc spectrum is padded, the padding can make the thresh low and also will screw up
+    # continuum fitting
     bpm_out = censpec == 0.0 if bpm is None else bpm
     xrng = np.arange(censpec.size, dtype=np.float)
 
@@ -935,7 +937,6 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
 
     arc = censpec - cont_now
     if input_thresh is None:
-        # Need to use bpm since when arc spectrum is padded, the padding can make the thresh low
         (mean, med, stddev) = stats.sigma_clipped_stats(arc[cont_mask & np.logical_not(bpm_out)], sigma_lower=3.0, sigma_upper=3.0)
         thresh = med + sigdetect*stddev
     else:
