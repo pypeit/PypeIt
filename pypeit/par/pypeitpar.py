@@ -62,7 +62,6 @@ assuming you want it to be accessed throughout the code.
 """
 import os
 import warnings
-from pkg_resources import resource_filename
 import inspect
 from IPython import embed
 from collections import OrderedDict
@@ -788,8 +787,7 @@ class FlexurePar(ParSet):
         dtypes['spec_maxshift'] = [int, float]
         descr['spec_maxshift'] = 'Maximum allowed spectral flexure shift in pixels.'
 
-        defaults['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
-                                            'paranal_sky.fits')
+        defaults['spectrum'] = 'paranal_sky.fits'
         dtypes['spectrum'] = str
         descr['spectrum'] = 'Archive sky spectrum to be used for the flexure correction.'
 
@@ -1844,7 +1842,9 @@ class TelluricPar(ParSet):
         dtypes['telgridfile'] = str
         descr['telgridfile'] = 'File containing the telluric grid for the observatory in question. These grids are ' \
                                'generated from HITRAN models for each observatory using nominal site parameters. They ' \
-                               'must be downloaded from the GoogleDrive and stored in PypeIt/pypeit/data/telluric/'
+                               'must be downloaded from the GoogleDrive and installed in your PypeIt installation via ' \
+                               'the pypeit_install_telluric script. NOTE: This parameter no longer includes the full ' \
+                               'pathname to the Telluric Grid file, but is just the filename of the grid itself.'
 
         defaults['sn_clip'] = 30.0
         dtypes['sn_clip'] = [int, float]
@@ -1988,10 +1988,10 @@ class TelluricPar(ParSet):
         descr['delta_redshift'] = 'Range within the redshift can be varied for telluric fitting, i.e. the code performs a bounded optimization within' \
                                   'the redshift +- delta_redshift'
 
-        defaults['pca_file'] = os.path.join(resource_filename('pypeit', 'data/telluric/models/'),
-                                            'qso_pca_1200_3100.fits')
+        defaults['pca_file'] = 'qso_pca_1200_3100.fits'
         dtypes['pca_file'] = str
-        descr['pca_file'] = 'Fits file containing quasar PCA model. Needed for objmodel=qso'
+        descr['pca_file'] = 'Fits file containing quasar PCA model. Needed for objmodel=qso.  NOTE: This parameter no longer includes the full ' \
+                               'pathname to the Telluric Model file, but is just the filename of the model itself.'
 
         defaults['npca'] = 8
         dtypes['npca'] = int
@@ -2103,13 +2103,6 @@ class TelluricPar(ParSet):
         pass
         # JFH add something in here which checks that the recombination value provided is bewteen 0 and 1, although
         # scipy.optimize.differential_evoluiton probalby checks this.
-
-    @property
-    def default_root(self):
-        """
-        Return the default path to the atmospheric model grids.
-        """
-        return resource_filename('pypeit', '/data/telluric/atm_grids/')
 
 
 class ReduxPar(ParSet):
@@ -2335,7 +2328,7 @@ class WavelengthSolutionPar(ParSet):
         descr['lamps'] = 'Name of one or more ions used for the wavelength calibration.  Use ' \
                          '``None`` for no calibration. Choose ``use_header`` to use the list of lamps ' \
                          'recorded in the header of the arc frames (this is currently ' \
-                         'available only for Keck DEIMOS).' # \
+                         'available only for Keck DEIMOS and LDT DeVeny).' # \
 #                         'Options are: {0}'.format(', '.join(WavelengthSolutionPar.valid_lamps()))
 
         defaults['use_instr_flag'] = False
@@ -2591,8 +2584,8 @@ class EdgeTracePar(ParSet):
     see :ref:`pypeitpar`.
     """
     prefix = 'ETP'  # Prefix for writing parameters to a header is a class attribute
-    def __init__(self, filt_iter=None, sobel_mode=None, edge_thresh=None, exclude_regions=None, follow_span=None,
-                 det_min_spec_length=None, max_shift_abs=None, max_shift_adj=None,
+    def __init__(self, filt_iter=None, sobel_mode=None, edge_thresh=None, exclude_regions=None,
+                 follow_span=None, det_min_spec_length=None, max_shift_abs=None, max_shift_adj=None,
                  max_spat_error=None, match_tol=None, fit_function=None, fit_order=None,
                  fit_maxdev=None, fit_maxiter=None, fit_niter=None, fit_min_spec_length=None,
                  auto_pca=None, left_right_pca=None, pca_min_edges=None, pca_n=None,
@@ -2605,7 +2598,7 @@ class EdgeTracePar(ParSet):
                  length_range=None, minimum_slit_gap=None, clip=None, order_match=None,
                  order_offset=None, use_maskdesign=None, maskdesign_maxsep=None,
                  maskdesign_step=None, maskdesign_sigrej=None, pad=None, add_slits=None,
-                 rm_slits=None):
+                 add_predict=None, rm_slits=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2998,6 +2991,16 @@ class EdgeTracePar(ParSet):
                              'extending spatially from 2121 to 2322 and another on detector 3 ' \
                              'at spec=2000 extending from 1201 to 1500.'
 
+        defaults['add_predict'] = 'nearest'
+        dtypes['add_predict'] = str
+        descr['add_predict'] = 'Sets the method used to predict the shape of the left and right ' \
+                               'traces for a user-defined slit inserted.  Options are (1) ' \
+                               '``straight`` inserts traces with a constant spatial pixels ' \
+                               'position, (2) ``nearest`` inserts traces with a form identical ' \
+                               'to the automatically identified trace at the nearest spatial ' \
+                               'position to the inserted slit, or (3) ``pca`` uses the PCA ' \
+                               'decomposition to predict the shape of the traces.'
+
         dtypes['rm_slits'] = [str, list]
         descr['rm_slits'] = 'Remove one or more user-specified slits.  The syntax used to ' \
                             'define a slit to remove is: \'det:spec:spat\' where det=detector, ' \
@@ -3029,7 +3032,8 @@ class EdgeTracePar(ParSet):
                    'sync_to_edge', 'bound_detector', 'minimum_slit_length',
                    'minimum_slit_length_sci', 'length_range', 'minimum_slit_gap', 'clip',
                    'order_match', 'order_offset', 'use_maskdesign', 'maskdesign_maxsep',
-                   'maskdesign_step', 'maskdesign_sigrej', 'pad', 'add_slits', 'rm_slits']
+                   'maskdesign_step', 'maskdesign_sigrej', 'pad', 'add_slits', 'add_predict',
+                   'rm_slits']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -4555,7 +4559,7 @@ class Collate1DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, tolerance=None, dry_run=None, ignore_flux=None, flux=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, outdir=None):
+    def __init__(self, tolerance=None, dry_run=None, ignore_flux=None, flux=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, wv_rms_thresh=None, outdir=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -4611,6 +4615,11 @@ class Collate1DPar(ParSet):
         dtypes['exclude_serendip'] = bool
         descr['exclude_serendip'] = "Whether to exclude SERENDIP objects from collating."
 
+        # Wavelength RMS threshold to exclude spectra by.
+        defaults['wv_rms_thresh'] = None
+        dtypes['wv_rms_thresh'] = float
+        descr['wv_rms_thresh'] = "If set, any objects with a wavelength RMS > this value are skipped, else all wavelength RMS values are accepted."
+
         # How to match objects
         defaults['match_using'] = 'ra/dec'
         options['match_using'] = [ 'pixel', 'ra/dec']
@@ -4628,7 +4637,7 @@ class Collate1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = [*cfg.keys()]
-        parkeys = ['tolerance', 'dry_run', 'ignore_flux', 'flux', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir']
+        parkeys = ['tolerance', 'dry_run', 'ignore_flux', 'flux', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir', 'wv_rms_thresh']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

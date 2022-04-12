@@ -16,7 +16,6 @@ from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
 
-from pkg_resources import resource_filename
 
 class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
     """

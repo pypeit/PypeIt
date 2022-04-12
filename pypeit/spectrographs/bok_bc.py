@@ -3,8 +3,6 @@ Module for Bok/B&C specific methods.
 
 .. include:: ../include/links.rst
 """
-from pkg_resources import resource_filename
-
 import numpy as np
 
 from astropy.time import Time
