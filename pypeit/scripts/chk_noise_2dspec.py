@@ -243,10 +243,10 @@ class ChkNoise2D(scriptbase.ScriptBase):
             for i in show_slits:
                 pypeit_id = all_pypeit_ids[i]
                 if all_maskdef_ids is not None:
-                    basename = '{}_DET{}_maskdefID{}_pypeitID{}'.format(spec2DObj.head0['DECKER'],
-                                                                        args.det, all_maskdef_ids[i], pypeit_id)
+                    basename = '{}_{}_maskdefID{}_pypeitID{}'.format(spec2DObj.head0['DECKER'],
+                                                                        detname, all_maskdef_ids[i], pypeit_id)
                 else:
-                    basename = '{}_DET{}_pypeitID{}'.format(spec2DObj.head0['DECKER'], args.det, pypeit_id)
+                    basename = '{}_{}_pypeitID{}'.format(spec2DObj.head0['DECKER'], detname, pypeit_id)
 
                 # Chi
                 chi_slit, _, _ = spec2DObj.calc_chi_slit(i, pad=args.pad)

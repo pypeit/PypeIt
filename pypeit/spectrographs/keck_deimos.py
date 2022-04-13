@@ -47,22 +47,40 @@ class DEIMOSMosaicLookUp:
     Similar to :class:`~pypeit.spectrographs.gemini_gmos.GeminiGMOSMosaicLookUp`
 
     """
+    # geometry = {
+    #     'MSC01': {'default_shape': (8218, 2064),
+    #               'blue_det': {'shift': (0., 0.), 'rotation': 0.},
+    #               'red_det': {'shift': (-11.4, 4116.7), 'rotation':  0.197}},
+    #
+    #     'MSC02': {'default_shape': (8218, 2064),
+    #               'blue_det': {'shift': (0., 0.), 'rotation': 0},
+    #               'red_det': {'shift': (9.6, 4114.9), 'rotation': -0.110}},
+    #
+    #     'MSC03': {'default_shape': (8218, 2064),
+    #               'blue_det': {'shift': (0., 0.), 'rotation': 0},
+    #               'red_det': {'shift': (2.5, 4114.4), 'rotation': -0.02}},
+    #
+    #     'MSC04': {'default_shape': (8218, 2064),
+    #               'blue_det': {'shift': (0., 0.), 'rotation': 0.},
+    #               'red_det': {'shift': (-5.5, 4108.7), 'rotation': 0.0511}},
+    # }
+
     geometry = {
         'MSC01': {'default_shape': (8218, 2064),
-                  'blue_det': {'shift': (0., 0.), 'rotation': 0.},
-                  'red_det': {'shift': (-11.4, 4116.7), 'rotation':  0.197}},
+                  'blue_det': {'shift': (-2.97, -4116.7), 'rotation': -0.197},
+                  'red_det': {'shift': (0., 0.), 'rotation': 0.}},
 
         'MSC02': {'default_shape': (8218, 2064),
-                  'blue_det': {'shift': (0., 0.), 'rotation': 0},
-                  'red_det': {'shift': (9.6, 4114.9), 'rotation': -0.110}},
+                  'blue_det': {'shift': (-1.92, -4114.9), 'rotation': 0.110},
+                  'red_det': {'shift': (0., 0.), 'rotation': 0}},
 
         'MSC03': {'default_shape': (8218, 2064),
-                  'blue_det': {'shift': (0., 0.), 'rotation': 0},
-                  'red_det': {'shift': (2.5, 4114.4), 'rotation': -0.02}},
+                  'blue_det': {'shift': (-1.23, -4114.4), 'rotation': 0.02},
+                  'red_det': {'shift': (0., 0.), 'rotation': 0}},
 
         'MSC04': {'default_shape': (8218, 2064),
-                  'blue_det': {'shift': (0., 0.), 'rotation': 0.},
-                  'red_det': {'shift': (-5.5, 4108.7), 'rotation': 0.0511}},
+                  'blue_det': {'shift': (1.05, -4108.7), 'rotation': -0.0511},
+                  'red_det': {'shift': (0., 0.), 'rotation': 0.}},
     }
 
 
