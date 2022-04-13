@@ -276,10 +276,7 @@ def build_coadd_file_name(source_object):
     start_date_portion = Time(start_mjd, format="mjd").strftime('%Y%m%d')
     end_date_portion = Time(end_mjd, format="mjd").strftime('%Y%m%d')
 
-    if start_date_portion != end_date_portion:
-        date_portion = f"{start_date_portion}_{end_date_portion}"
-    else:
-        date_portion = start_date_portion
+    date_portion = f"{start_date_portion}_{end_date_portion}"
 
     if source_object.match_type == 'ra/dec':
         coord_portion = 'J' + source_object.coord.to_string('hmsdms', sep='', precision=2).replace(' ', '')

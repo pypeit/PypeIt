@@ -266,7 +266,7 @@ def test_coadd1d_1(monkeypatch):
     parfile = 'files/coadd1d.par'
     if os.path.isfile(parfile):
         os.remove(parfile)
-    coadd_ofile = data_path('coadd1d_J1217p3905_KASTb_20150520.fits')
+    coadd_ofile = data_path('coadd1d_J1217p3905_KASTb_20150520_20150520.fits')
     if os.path.isfile(coadd_ofile):
         os.remove(coadd_ofile)
 

@@ -275,11 +275,11 @@ def test_build_coadd_file_name():
     source = SourceObject(mock_sobjs.specobjs[0], mock_sobjs.header, 'spec1d_file1',
                           spectrograph, 'ra/dec')
 
-    assert build_coadd_file_name(source) == 'J132436.41+271928.56_DEIMOS_20200130.fits'
+    assert build_coadd_file_name(source) == 'J132436.41+271928.56_DEIMOS_20200130_20200130.fits'
 
     source2 = SourceObject(mock_sobjs.specobjs[0], mock_sobjs.header, 'spec1d_file1',
                            spectrograph, 'pixel')
-    assert build_coadd_file_name(source2) == 'SPAT1234_DEIMOS_20200130.fits'
+    assert build_coadd_file_name(source2) == 'SPAT1234_DEIMOS_20200130_20200130.fits'
 
 def test_find_slits_to_exclude(monkeypatch):
 

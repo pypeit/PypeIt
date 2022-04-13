@@ -95,17 +95,20 @@ def build_coadd_file_name(spec1dfiles, spectrograph):
     Returns: 
         str:  The name of the coadd output file.
     """
-    mjd_list = [float(fits.getheader(f)['MJD']) for f in spec1dfiles]
+    mjd_list = []
+    for f in spec1dfiles:
+        try:
+            mjd_list.append(float(fits.getheader(f)['MJD']))
+        except Exception as e:
+            msgs.error(f"Failed to read MJD from {f}: {e}")
+
     start_mjd = np.min(mjd_list)
     end_mjd = np.max(mjd_list)
 
     start_date_portion = Time(start_mjd, format="mjd").strftime('%Y%m%d')
     end_date_portion = Time(end_mjd, format="mjd").strftime('%Y%m%d')
 
-    if start_date_portion != end_date_portion:
-        date_portion = f"{start_date_portion}_{end_date_portion}"
-    else:
-        date_portion = start_date_portion
+    date_portion = f"{start_date_portion}_{end_date_portion}"
 
     instrument_name = spectrograph.camera
     target = fits.getheader(spec1dfiles[0])['TARGET']

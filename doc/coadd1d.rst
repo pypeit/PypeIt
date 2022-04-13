@@ -49,7 +49,7 @@ the output file name.  See `Parameters`_ for common choices.
 
 The coaddfile parameter is optional, if it is not set 
 the output file will be placed in the same directory as the first spec1d 
-file named "coadd1d_<target>_<instrument>_<date or date range>.fits".
+file named "coadd1d_<target>_<instrument>_<start date>_<end date>.fits".
 
 **Note:** if you are using an Echelle :doc:`spectrographs`
 (e.g. keck_nires), you must specify a *sensfuncfile*
