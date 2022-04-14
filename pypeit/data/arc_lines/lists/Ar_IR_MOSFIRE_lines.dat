@@ -1,3 +1,4 @@
+# Created Apr 2022. Wavelengths are vacuum
 |     wave |  ion | NIST | Instr |     amplitude |               Source |
 |  8266.79 |  ArI |    1 |    32 |          1890 | keck_mosfire_webpage |
 |  8410.52 |  ArI |    1 |    32 |         27660 | keck_mosfire_webpage |
