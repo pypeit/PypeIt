@@ -78,7 +78,7 @@ def test_overscan_subtract(deimos_flat_files):
     assert rawImage.steps['trim']
     assert rawImage.image.shape == (1,4096,2048)
 
-"""
+
 @dev_suite_required
 def test_continuum_subtraction(kast_blue_arc_file):
     one_file = kast_blue_arc_file[0]
@@ -86,11 +86,10 @@ def test_continuum_subtraction(kast_blue_arc_file):
     # Kast
     det = 1
     rawImage = rawimage.RawImage(one_file, spectograph, det)
-    defpar = spectograph.default_pypeit_par()['arcframe']['process']
+    defpar = spectograph.default_pypeit_par()['calibrations']['arcframe']['process']
     defpar['use_continuum'] = True
     rawImage.par = defpar
     # Subtract continuum
     rawImage.subtract_continuum(force=True)
     # Test
     assert rawImage.steps['subtract_continuum']
-"""
