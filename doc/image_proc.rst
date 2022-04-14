@@ -297,6 +297,35 @@ error budget.  See :ref:`flat_fielding` for additional discussion.
     you must also apply the pixel-to-pixel correction. I.e., in order to perform
     *any* flat-field correction, ``use_pixelflat`` must be true.
 
+Continuum removal
+-----------------
+
+If multiple different arc frames are being combined, a smooth representation of
+the image can be subtracted off by setting the ``use_continuum`` variable to true.
+This variable should *only* be set to true if you intend to combine multiple arcs
+with different lamps.
+
+.. warning::
+
+    If you set this parameter to True, you should also set the following parameters:
+
+.. code-block:: ini
+
+    [calibrations]
+        [[arcframe]]
+            [[[process]]]
+                clip = False
+                combine = mean
+        [[tiltframe]]
+            [[[process]]]
+                clip = False
+                combine = mean
+.. note::
+
+    Currently, to apply the slit-illumination and spectral response corrections,
+    you must also apply the pixel-to-pixel correction. I.e., in order to perform
+    *any* flat-field correction, ``use_pixelflat`` must be true.
+
 Counting Statistics and Noise Floor
 -----------------------------------
 
