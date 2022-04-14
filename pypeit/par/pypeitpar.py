@@ -217,7 +217,7 @@ class ProcessImagesPar(ParSet):
                  use_biasimage=None, use_overscan=None, use_darkimage=None,
                  empirical_rn=None, shot_noise=None, noise_floor=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
-                 use_pattern=None, spat_flexure_correct=None):
+                 use_pattern=None, use_continuum=None, spat_flexure_correct=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -280,6 +280,12 @@ class ProcessImagesPar(ParSet):
         descr['use_pattern'] = 'Subtract off a detector pattern. This pattern is assumed to be ' \
                                'sinusoidal along one direction, with a frequency that is ' \
                                'constant across the detector.'
+
+        defaults['use_continuum'] = False
+        dtypes['use_continuum'] = bool
+        descr['use_continuum'] = 'Subtract off the continuum level from an image. This parameter should only ' \
+                                 'be set to True to combine arcs with multiple different lamps.' \
+                                 'For all other cases, this parameter should probably be False.'
 
         defaults['empirical_rn'] = False
         dtypes['empirical_rn'] = bool
@@ -407,7 +413,7 @@ class ProcessImagesPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'use_pattern', 'use_overscan',
+        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'use_continuum', 'use_pattern', 'use_overscan',
                    'overscan_method', 'overscan_par', 'use_darkimage', 'spat_flexure_correct',
                    'use_illumflat', 'use_specillum', 'empirical_rn', 'shot_noise', 'noise_floor',
                    'use_pixelflat', 'combine', 'satpix', #'cr_sigrej',
@@ -2591,8 +2597,8 @@ class EdgeTracePar(ParSet):
     see :ref:`pypeitpar`.
     """
     prefix = 'ETP'  # Prefix for writing parameters to a header is a class attribute
-    def __init__(self, filt_iter=None, sobel_mode=None, edge_thresh=None, exclude_regions=None, follow_span=None,
-                 det_min_spec_length=None, max_shift_abs=None, max_shift_adj=None,
+    def __init__(self, filt_iter=None, sobel_mode=None, edge_thresh=None, sobel_enhance=None, exclude_regions=None,
+                 follow_span=None, det_min_spec_length=None, max_shift_abs=None, max_shift_adj=None,
                  max_spat_error=None, match_tol=None, fit_function=None, fit_order=None,
                  fit_maxdev=None, fit_maxiter=None, fit_niter=None, fit_min_spec_length=None,
                  auto_pca=None, left_right_pca=None, pca_min_edges=None, pca_n=None,
@@ -2605,7 +2611,7 @@ class EdgeTracePar(ParSet):
                  length_range=None, minimum_slit_gap=None, clip=None, order_match=None,
                  order_offset=None, use_maskdesign=None, maskdesign_maxsep=None,
                  maskdesign_step=None, maskdesign_sigrej=None, pad=None, add_slits=None,
-                 rm_slits=None):
+                 add_predict=None, rm_slits=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2636,6 +2642,13 @@ class EdgeTracePar(ParSet):
         dtypes['edge_thresh'] = [int, float]
         descr['edge_thresh'] = 'Threshold for finding edges in the Sobel-filtered significance' \
                                ' image.'
+
+        defaults['sobel_enhance'] = 0
+        dtypes['sobel_enhance'] = int
+        descr['sobel_enhance'] = 'Enhance the sobel filtering? A value of 0 will not enhance the sobel filtering.' \
+                                 'Any other value > 0 will sum the sobel values. For example, a value of 3 will' \
+                                 'combine the sobel values for the 3 nearest pixels. This is useful when a slit' \
+                                 'edge is poorly defined (e.g. vignetted).'
 
         defaults['exclude_regions'] = None
         dtypes['exclude_regions'] = [list, str]
@@ -2998,6 +3011,16 @@ class EdgeTracePar(ParSet):
                              'extending spatially from 2121 to 2322 and another on detector 3 ' \
                              'at spec=2000 extending from 1201 to 1500.'
 
+        defaults['add_predict'] = 'nearest'
+        dtypes['add_predict'] = str
+        descr['add_predict'] = 'Sets the method used to predict the shape of the left and right ' \
+                               'traces for a user-defined slit inserted.  Options are (1) ' \
+                               '``straight`` inserts traces with a constant spatial pixels ' \
+                               'position, (2) ``nearest`` inserts traces with a form identical ' \
+                               'to the automatically identified trace at the nearest spatial ' \
+                               'position to the inserted slit, or (3) ``pca`` uses the PCA ' \
+                               'decomposition to predict the shape of the traces.'
+
         dtypes['rm_slits'] = [str, list]
         descr['rm_slits'] = 'Remove one or more user-specified slits.  The syntax used to ' \
                             'define a slit to remove is: \'det:spec:spat\' where det=detector, ' \
@@ -3018,7 +3041,7 @@ class EdgeTracePar(ParSet):
     def from_dict(cls, cfg):
         # TODO Please provide docs
         k = np.array([*cfg.keys()])
-        parkeys = ['filt_iter', 'sobel_mode', 'edge_thresh', 'exclude_regions', 'follow_span', 'det_min_spec_length',
+        parkeys = ['filt_iter', 'sobel_mode', 'edge_thresh', 'sobel_enhance', 'exclude_regions', 'follow_span', 'det_min_spec_length',
                    'max_shift_abs', 'max_shift_adj', 'max_spat_error', 'match_tol', 'fit_function',
                    'fit_order', 'fit_maxdev', 'fit_maxiter', 'fit_niter', 'fit_min_spec_length',
                    'auto_pca', 'left_right_pca', 'pca_min_edges', 'pca_n', 'pca_var_percent',
@@ -3029,7 +3052,8 @@ class EdgeTracePar(ParSet):
                    'sync_to_edge', 'bound_detector', 'minimum_slit_length',
                    'minimum_slit_length_sci', 'length_range', 'minimum_slit_gap', 'clip',
                    'order_match', 'order_offset', 'use_maskdesign', 'maskdesign_maxsep',
-                   'maskdesign_step', 'maskdesign_sigrej', 'pad', 'add_slits', 'rm_slits']
+                   'maskdesign_step', 'maskdesign_sigrej', 'pad', 'add_slits', 'add_predict',
+                   'rm_slits']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

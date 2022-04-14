@@ -15,7 +15,8 @@ from pypeit import specobjs
 from pypeit.spec2dobj import AllSpec2DObj
 from pypeit.core.collate import collate_spectra_by_source, SourceObject
 from pypeit.archive import ArchiveDir
-from pypeit.scripts.collate_1d import find_spec2d_from_spec1d,find_slits_to_exclude, exclude_source_objects, get_report_metadata, flux, coadd
+from pypeit.scripts.collate_1d import find_spec2d_from_spec1d,find_slits_to_exclude, exclude_source_objects
+from pypeit.scripts.collate_1d import flux, coadd, build_coadd_file_name, get_report_metadata
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.par import pypeitpar
 from pypeit.pypmsgs import PypeItError
@@ -274,11 +275,11 @@ def test_build_coadd_file_name():
     source = SourceObject(mock_sobjs.specobjs[0], mock_sobjs.header, 'spec1d_file1',
                           spectrograph, 'ra/dec')
 
-    assert source.coaddfile == 'J132436.41+271928.56_DEIMOS_20200130.fits'
+    assert build_coadd_file_name(source) == 'J132436.41+271928.56_DEIMOS_20200130_20200130.fits'
 
     source2 = SourceObject(mock_sobjs.specobjs[0], mock_sobjs.header, 'spec1d_file1',
                            spectrograph, 'pixel')
-    assert source2.coaddfile == 'SPAT1234_DEIMOS_20200130.fits'
+    assert build_coadd_file_name(source2) == 'SPAT1234_DEIMOS_20200130_20200130.fits'
 
 def test_find_slits_to_exclude(monkeypatch):
 
@@ -397,8 +398,7 @@ def test_get_report_metadata(monkeypatch):
                                  filenames[0], 
                                  spectrograph, 
                                  'ra/dec')
-    source_object.coaddfile = "/user/test/coaddfile.fits"
-    dest_file = os.path.basename(source_object.coaddfile)
+
     for object in file1_objects[1:]:
         source_object.spec_obj_list.append(specobjs_file1.specobjs[object])
         source_object.spec1d_file_list.append(filenames[0])
@@ -414,7 +414,7 @@ def test_get_report_metadata(monkeypatch):
     (metadata_rows, files_to_copy) = get_report_metadata(['DISPNAME','MJD', 'GUIDFHWM'],
                                                          ['MASKDEF_OBJNAME', 'NAME'],
                                                          source_object)
-
+    dest_file = 'J132500.41+271959.88_DEIMOS_20200130_20200131.fits'
     assert len(metadata_rows) == 4
     assert metadata_rows[0] == [dest_file, 'object3', 'SPAT3233_SLIT3235_DET03', 'spec1d_file1', '830G', '58878.0', None]
     assert metadata_rows[1] == [dest_file, 'object3', 'SPAT3236_SLIT3245_DET05', 'spec1d_file1', '830G', '58878.0', None]
@@ -533,21 +533,22 @@ def test_coadd(monkeypatch):
         # Test with out using fluxed data
         par['collate1d']['ignore_flux'] = True
         par['coadd1d']['flux_value'] = True
-        coadd(par, source_object1)
+        test_file = "test_coadd_name"
+        coadd(par, test_file, source_object1)
 
         assert par['coadd1d']['flux_value'] == False
 
         # Test using fluxed data
         par['collate1d']['ignore_flux'] = False
         par['coadd1d']['flux_value'] = False
-        coadd(par, source_object1)
+        coadd(par, test_file, source_object1)
 
         assert par['coadd1d']['flux_value'] == True
 
         # Test not using fluxed data because not all SpecObj objects had flux data
         par['collate1d']['ignore_flux'] = False
         par['coadd1d']['flux_value'] = True
-        coadd(par, source_object2)
+        coadd(par, test_file, source_object2)
 
         assert par['coadd1d']['flux_value'] == False
 
