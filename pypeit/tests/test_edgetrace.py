@@ -14,6 +14,7 @@ from pypeit.tests.tstutils import cooked_required
 from pypeit.spectrographs import util
 
 from pypeit import edgetrace
+from pypeit.core import trace
 
 @cooked_required
 def test_addrm_slit():
@@ -43,6 +44,37 @@ def test_addrm_slit():
     edges.rm_user_traces(rm_user_slits)
     assert edges.ntrace//2 == nslits, 'Did not remove trace.'
 
+@cooked_required
+def test_sobel_enhance():
+    """ This tests if the sobel enhance improves the edge detection. """
+
+    # Check for files
+    trace_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace',
+                              'MasterEdges_KeckLRISb_long_600_4000_det2.fits.gz')
+    assert os.path.isfile(trace_file), 'Trace file does not exist!'
+
+    # Instantiate
+    edges = edgetrace.EdgeTraceSet.from_file(trace_file)
+    spectograph = util.load_spectrograph(edges.PYP_SPEC)
+    defpar = spectograph.default_pypeit_par()['calibrations']['slitedges']
+    # Test significance with and without sobel enhancement
+    defpar['sobel_enhance'] = 0
+    sobelsig, edge_img \
+        = trace.detect_slit_edges(edges.traceimg.image, bpm=edges.tracebpm,
+                                  median_iterations=defpar['filt_iter'],
+                                  sobel_mode=defpar['sobel_mode'],
+                                  sigdetect=defpar['edge_thresh'],
+                                  sobel_enhance=defpar['sobel_enhance'])
+    sobenh0 = np.max(sobelsig)
+    defpar['sobel_enhance'] = 3
+    sobelsig, edge_img \
+        = trace.detect_slit_edges(edges.traceimg.image, bpm=edges.tracebpm,
+                                  median_iterations=defpar['filt_iter'],
+                                  sobel_mode=defpar['sobel_mode'],
+                                  sigdetect=defpar['edge_thresh'],
+                                  sobel_enhance=defpar['sobel_enhance'])
+    sobenh1 = np.max(sobelsig)
+    assert sobenh1 > 2*sobenh0, 'Sobel enhancement did not significantly improve edge detection.'
 
 # TODO: Can we (and is it useful to) get these tests back?
 

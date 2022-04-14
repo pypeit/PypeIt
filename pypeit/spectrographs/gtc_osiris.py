@@ -100,33 +100,36 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        par['calibrations']['slitedges']['edge_thresh'] = 20
+        par['calibrations']['slitedges']['sobel_mode'] = 'constant'
+        par['calibrations']['slitedges']['sobel_enhance'] = 5
         par['calibrations']['slitedges']['bound_detector'] = True
 
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         # Wavelength calibration methods
-#        par['calibrations']['wavelengths']['method'] = 'holy-grail'
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI,ArI']
 
         # Set the default exposure time ranges for the frame typing
+        par['scienceframe']['exprng'] = [90, None]
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures
-        par['calibrations']['arcframe']['process']['clip']=False
-        par['calibrations']['arcframe']['process']['combine']='mean' #Multiple arcs with different lamps, so can't median combine
+        par['calibrations']['arcframe']['process']['clip'] = False
         par['calibrations']['standardframe']['exprng'] = [None, 120]
-        par['scienceframe']['exprng'] = [90, None]
+        # Multiple arcs with different lamps, so can't median combine nor clip, also need to remove continuum
+        par['calibrations']['arcframe']['process']['combine'] = 'mean'
+        par['calibrations']['arcframe']['process']['use_continuum'] = True
+        par['calibrations']['tiltframe']['process']['clip'] = False
+        par['calibrations']['tiltframe']['process']['combine'] = 'mean'
+        par['calibrations']['tiltframe']['process']['use_continuum'] = True
 
         # No ovescan region
         turn_off = dict(use_overscan=False)
         par.reset_all_processimages_par(**turn_off)
         par['scienceframe']['process']['use_overscan'] = False
-
-
-
-
 
         return par
 

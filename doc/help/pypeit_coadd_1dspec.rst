@@ -12,7 +12,7 @@
                             following format:
                              
                             [coadd1d]
-                               coaddfile='output_filename.fits'
+                               coaddfile='output_filename.fits' # Optional
                                sensfuncfile = 'sensfunc.fits' # Required only for Echelle
                              
                                coadd1d read
@@ -42,6 +42,9 @@
                             objid: the object identifier. To determine the objids
                             inspect the spec1d_*.txt files or run pypeit_show_1dspec
                             spec1dfile --list
+                             
+                            If the coaddfile is not given the output file will be
+                            placed in the same directory as the first spec1d file.
                              
     
     optional arguments:
