@@ -222,6 +222,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         """
         par = super().default_pypeit_par()
 
+        # mosaic by default
+        par['rdx']['detnum'] = [(1, 5), (2, 6), (3, 7), (4, 8)]
+
         # Spectral flexure correction
         par['flexure']['spec_method'] = 'boxcar'
         # Set wave tilts order
@@ -279,9 +282,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
         headarr = self.get_headarr(scifile)
-
-        # mosaic by default
-        par['rdx']['detnum'] = [(1, 5), (2, 6), (3, 7), (4, 8)]
 
         # When using LVM mask reduce only detectors 3,7
         if 'LVMslit' in self.get_meta_value(headarr, 'decker'):
@@ -785,8 +785,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
     def allowed_mosaics(self):
         """
         Return the list of allowed detector mosaics.
-
-        Gemini GMOS only allows for mosaicing all three detectors.
 
         Returns:
             :obj:`list`: List of tuples, where each tuple provides the 1-indexed

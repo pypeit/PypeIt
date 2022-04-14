@@ -1,3 +1,4 @@
+.. include:: include/links.rst
 ***********
 Keck DEIMOS
 ***********
@@ -33,6 +34,34 @@ data are listed here: :ref:`instr_par`.
 These are tuned to the standard calibration
 set taken with DEIMOS.
 
+MOSAIC
+======
+
+``PypeIt``, by default, uses a mosaic approach for the reduction. It basically constructs a mosaic
+of the blue and red detector data and reduces it, instead of processing the detector data individually.
+``PypeIt`` generates four mosaics, one per each blue-red detectors pair. The mosaic reduction is switched
+on by setting the parameter ``detnum`` in :ref:`pypeit_par:ReduxPar Keywords` to be a list of
+tuples of the detector indices that are mosaic-ed together. For DEIMOS, it looks like::
+
+  [rdx]
+      spectrograph = keck_deimos
+      detnum = [(1, 5), (2, 6), (3, 7), (4, 8)]
+
+This is already the default for DEIMOS, but the user can modify it in the :ref:`pypeit_file` to restrict
+the reduction to only a subset of the four mosaics, or to tun off the mosaic reduction, by changing ``detnum``
+to be a list of just detector indices, or to perform an "hybrid" reduction, e.g.,::
+
+  [rdx]
+      spectrograph = keck_deimos
+      detnum = [1, (2, 6), (3, 7), (4, 8)]
+
+
+The image transformations used to construct the mosaic image are performed using `scipy.ndimage.affine_transform`_
+(see :ref:`mosaic` for more details). For DEIMOS, the image transformations are applied ony to the blue detectors and
+an interpolation (order=5) is performed. Note that the interpolation may increase the size of cosmic rays and other
+detector artifacts (only for the blue detectors), resulting in a larger area around cosmic rays and artifacts
+being masked.
+
 Calibrations
 ============
 
@@ -67,9 +96,6 @@ When the extraction of undetected objects is performed, the user can input a val
 optimal extraction by setting the parameter **missing_objs_fwhm** in :ref:`pypeit_par:SlitMaskPar Keywords`.
 If **missing_objs_fwhm = None** (which is the default) ``PypeIt`` will use the median FWHM of all the
 detected objects.
-
-Moreover, it may be occasionally necessary to set **no_local_sky = True** in :ref:`pypeit_par:SkySubPar Keywords`
-to avoid a bad local sky subtraction.
 
 Wavelength Calibration
 ----------------------
@@ -114,6 +140,8 @@ For RV users, you may wish to use the
 initially reducing the data without the standard corrections.
 See those docs for further details and note it has only been
 tested for the 1200 line grating and with redder wavelengths.
+Also, note that this script works only id the a mosaic reduction is not
+performed, i.e., the blue and red detectors are reduced separately.
 
 
 Additional Reading

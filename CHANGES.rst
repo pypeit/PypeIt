@@ -5,6 +5,7 @@
 - When using glob to get files in pypeit_setup, added automatic sorting so that
   the default `comb_id` ordering matches the sorted file name.
 - Improve Keck/KCWI automatic frame typing.
+- Mosaic is now avaialble for Keck/DEIMOS too.
 
 
 1.8.1 (23 Feb 2022)

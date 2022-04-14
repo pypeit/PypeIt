@@ -78,9 +78,6 @@ optimal extraction by setting the parameter **missing_objs_fwhm** in :ref:`pypei
 If **missing_objs_fwhm = None** (which is the default) ``PypeIt`` will use the median FWHM of all the
 detected objects.
 
-Moreover, it may be occasionally necessary to set **no_local_sky = True** in :ref:`pypeit_par:SkySubPar Keywords`
-to avoid a bad local sky subtraction.
-
 long2pos
 ********
 This a custom CSU mask with two slits that are offset from the field center (plus a center alignment box),
