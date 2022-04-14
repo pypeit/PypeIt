@@ -145,14 +145,14 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
         headarr = self.get_headarr(scifile)
+        decker = self.get_meta_value(headarr, 'decker')
 
-        if 'LONGSLIT' in self.get_meta_value(headarr, 'decker'):
+        if 'LONGSLIT' in decker:
             # turn PCA off
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
             # if "x" is not in the maskname, the maskname does not include the number of CSU
             # used for the longslit and the length of the longslit cannot be determined
-            if ('LONGSLIT-46x' not in self.get_meta_value(headarr, 'decker')) and \
-                    ('x' in self.get_meta_value(headarr, 'decker')):
+            if ('LONGSLIT-46x' not in decker) and ('x' in decker):
                 # find the spat pixel positions where the longslit starts and ends
                 pix_start, pix_end = self.find_longslit_pos(scifile)
                 # exclude the random slits outside the longslit from slit tracing
@@ -171,7 +171,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             par['reduce']['slitmask']['assign_obj'] = True
             # force extraction of undetected objects
             par['reduce']['slitmask']['extract_missing_objs'] = True
-            if 'long2pos' in self.get_meta_value(headarr, 'decker'):
+            if 'long2pos' in decker:
                 # exclude the random slits outside the long2pos from slit tracing
                 pix_start, pix_end = self._long2pos_pos()
                 par['calibrations']['slitedges']['exclude_regions'] = ['1:0:{}'.format(pix_start),
@@ -179,39 +179,46 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                 # assume that the main target is always detected, i.e., skipping force extraction
                 par['reduce']['slitmask']['extract_missing_objs'] = False
 
-        # wavelength calibration using OH lines
-        if 'long2pos_specphot' not in self.get_meta_value(headarr, 'decker') and \
-                self.get_meta_value(headarr, 'filter1') in ['Y', 'J', 'H', 'K']:
-            par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
+        # wavelength calibration
+        supported_filters = ['Y', 'J', 'J2', 'H', 'K']
+        filter = self.get_meta_value(headarr, 'filter1')
+        # using OH lines
+        if 'long2pos_specphot' not in decker and filter in supported_filters:
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['fwhm_fromlines'] = True
             par['calibrations']['wavelengths']['sigdetect'] = 10.
-
             # templates
-            if self.get_meta_value(headarr, 'filter1') == 'Y':
+            if filter == 'Y':
+                par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_Y']
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_Y.fits'
-            if self.get_meta_value(headarr, 'filter1') == 'J':
+            elif filter == 'J':
+                par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_J']
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_J.fits'
-            if self.get_meta_value(headarr, 'filter1') == 'H':
+            elif filter == 'J2':
+                par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_J']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_J2.fits'
+            elif filter == 'H':
+                par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_H']
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_H.fits'
-            if self.get_meta_value(headarr, 'filter1') == 'K':
+            elif filter == 'K':
+                par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_K']
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_K.fits'
 
-        # wavelength calibration using arc lines (we use this as default only for long2pos_specphot mask)
-        elif 'long2pos_specphot' in self.get_meta_value(headarr, 'decker') and \
-                self.get_meta_value(headarr, 'filter1') in ['Y', 'J', 'H', 'K']:
+        # using arc lines (we use this as default only for long2pos_specphot mask)
+        elif 'long2pos_specphot' in decker and filter in supported_filters:
             par['calibrations']['wavelengths']['lamps'] = ['Ar_IR_MOSFIRE', 'Ne_IR_MOSFIRE']
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['fwhm_fromlines'] = True
-
             # templates
-            if self.get_meta_value(headarr, 'filter1') == 'Y':
+            if filter == 'Y':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_Y.fits'
-            if self.get_meta_value(headarr, 'filter1') == 'J':
+            elif filter == 'J':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_J.fits'
-            if self.get_meta_value(headarr, 'filter1') == 'H':
+            elif filter == 'J2':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_J2.fits'
+            elif filter == 'H':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_H.fits'
-            if self.get_meta_value(headarr, 'filter1') == 'K':
+            elif filter == 'K':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_K.fits'
 
         # Return
@@ -270,7 +277,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             PWSTATA7 = headarr[0].get('PWSTATA7')
             PWSTATA8 = headarr[0].get('PWSTATA8')
             if FLATSPEC == 0 and PWSTATA7 == 0 and PWSTATA8 == 0:
-                if 'Flat:Off' in headarr[0].get('OBJECT') or "lamps off" in headarr[0].get('OBJECT'):
+                if 'Flat' in headarr[0].get('OBJECT'):
                     return 'flatlampoff'
                 else:
                     return 'object'

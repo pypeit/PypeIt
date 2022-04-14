@@ -50,6 +50,29 @@ def keck_mosfire_OH_J(overwrite=False):
                              shift_wave=True)
 
 
+def keck_mosfire_OH_J2(overwrite=False):
+    binspec = 1
+    outroot = 'keck_mosfire_OH_J2.fits'
+    # PypeIt fits
+    wpath = os.path.join(templates.template_path, 'Keck_MOSFIRE', 'OH_lines', 'J2')
+
+    basefiles = ['MasterWaveCalib_A_1_DET01_useS1102.fits', 'MasterWaveCalib_A_1_DET01_useS1565.fits']
+    wfiles = [os.path.join(wpath, basefile) for basefile in basefiles]
+    # Snippets
+    ifiles = [0, 1]
+    slits = [1102, 1565]
+    wv_cuts = [11740.]
+    assert len(wv_cuts) == len(slits)-1
+    # det_dict
+    det_cut = None
+    #
+    templates.build_template(wfiles, slits, wv_cuts, binspec, outroot,
+                             ifiles=ifiles, det_cut=det_cut, chk=True,
+                             normalize=False, lowredux=False,
+                             subtract_conti=True, overwrite=overwrite,
+                             shift_wave=True)
+
+
 def keck_mosfire_OH_K(overwrite=False):
     binspec = 1
     outroot = 'keck_mosfire_OH_K.fits'
@@ -166,6 +189,29 @@ def keck_mosfire_arcs_J(overwrite=False):
                              shift_wave=True)
 
 
+def keck_mosfire_arcs_J2(overwrite=False):
+    binspec = 1
+    outroot = 'keck_mosfire_arcs_J2.fits'
+    # PypeIt fits
+    wpath = os.path.join(templates.template_path, 'Keck_MOSFIRE', 'arclines', 'J2')
+
+    basefiles = ['MasterWaveCalib_A_1_DET01_useS0838.fits', 'MasterWaveCalib_A_1_DET01_useS0126.fits']
+    wfiles = [os.path.join(wpath, basefile) for basefile in basefiles]
+    # Snippets
+    ifiles = [0, 1]
+    slits = [838, 126]
+    wv_cuts = [12530.]
+    assert len(wv_cuts) == len(slits)-1
+    # det_dict
+    det_cut = None
+    #
+    templates.build_template(wfiles, slits, wv_cuts, binspec, outroot,
+                             ifiles=ifiles, det_cut=det_cut, chk=True,
+                             normalize=False, lowredux=False,
+                             subtract_conti=True, overwrite=overwrite,
+                             shift_wave=True)
+
+
 def keck_mosfire_arcs_Y(overwrite=False):
     binspec = 1
     outroot = 'keck_mosfire_arcs_Y.fits'
@@ -193,6 +239,7 @@ if __name__ == '__main__':
     # templates using OH lines
     # keck_mosfire_OH_H(overwrite=False)
     # keck_mosfire_OH_J(overwrite=False)
+    # keck_mosfire_OH_J2(overwrite=False)
     # keck_mosfire_OH_K(overwrite=False)
     # keck_mosfire_OH_Y(overwrite=False)
 
@@ -200,5 +247,6 @@ if __name__ == '__main__':
     # keck_mosfire_arcs_K(overwrite=False)
     # keck_mosfire_arcs_H(overwrite=False)
     # keck_mosfire_arcs_J(overwrite=False)
+    # keck_mosfire_arcs_J2(overwrite=False)
     # keck_mosfire_arcs_Y(overwrite=False)
     pass

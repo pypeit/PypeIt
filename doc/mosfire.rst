@@ -127,20 +127,22 @@ Wavelength calibration
 ----------------------
 As default, the wavelength calibration is performed using the OH lines in science frames and
 the :ref:`wave_calib:Full Template` algorithm. The templates are created in the same way as done for Keck/DEIMOS
-(see :ref:`deimos_wavecalib`). There are four templates, one per each MOSFIRE filter:
+(see :ref:`deimos_wavecalib`). There are five templates, one per each of the most commonly used MOSFIRE filters:
 
 - keck_mosfire_OH_Y.fits
 - keck_mosfire_OH_J.fits
+- keck_mosfire_OH_J2.fits
 - keck_mosfire_OH_H.fits
 - keck_mosfire_OH_K.fits
 
 and ``PypeIt`` will automatically choose the right template according to the specific dataset.
 
 When `long2pos_specphot` mask is used, the wavelength calibration using OH lines will not be successful. Therefore,
-four additional templates using arcs lines (Ar, Ne) are also available:
+five additional templates using arcs lines (Ar, Ne) are also available:
 
 - keck_mosfire_arcs_Y.fits
 - keck_mosfire_arcs_J.fits
+- keck_mosfire_arcs_J2.fits
 - keck_mosfire_arcs_H.fits
 - keck_mosfire_arcs_K.fits
 
@@ -148,7 +150,7 @@ four additional templates using arcs lines (Ar, Ne) are also available:
 Arc frames must be provided.
 
 If there are other cases in which the user prefers to perform the wavelength calibration using the arc frames, instead
-of using the OH line, this can be done by adding in the :doc:`pypeit_file`::
+of using the OH lines, this can be done by adding in the :doc:`pypeit_file`::
 
     [calibrations]
        [[wavelengths]]

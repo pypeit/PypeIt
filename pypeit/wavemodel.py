@@ -717,7 +717,7 @@ def create_linelist(wavelength, spec, fwhm, sigdetec=2.,
 
 def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, nirsky_outfile=None,
                       fwhm=None, sigdetec=3., line_name='OH', file_root_name=None, iraf_frmt=False, 
-                      debug=False):
+                      vacuum=False, debug=False):
     """Create a synthetic sky spectrum at a given resolution, extract significant lines, and
     store them in a PypeIt compatibile file. The skymodel is built from nearIR_modelsky and
     includes black body at 250K, OH lines, and H2O lines (but only at lambda>2.3microns).
@@ -758,6 +758,8 @@ def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, ni
     iraf_frmt : bool
         if True, the file is written in the IRAF format (i.e. wavelength,
         ion name, amplitude).
+    vacuum (bool):
+        If True, write the wavelengths in vacuum
     debug : boolean
         If True will show debug plots
     """
@@ -786,7 +788,7 @@ def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, ni
         file_root_name = 'OH_SKY'
 
     create_linelist(wavelength, spec, fwhm=fwhm, sigdetec=sigdetec, line_name=line_name,
-                    file_root_name=file_root_name, iraf_frmt=iraf_frmt, debug=debug)
+                    file_root_name=file_root_name, iraf_frmt=iraf_frmt, debug=debug, vacuum=vacuum)
 
 
 def create_ThArlinelist(resolution, waveminmax=(3000.,10500.), dlam=40.0, flgd=True, thar_outfile=None,
