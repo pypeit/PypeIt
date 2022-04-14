@@ -60,7 +60,8 @@ class DataCube(datamodel.DataContainer):
     """
     version = '1.0.2'
 
-    datamodel = {'flux': dict(otype=np.ndarray, atype=np.floating, descr='Flux array in units of counts/s/Ang or 10^-17 erg/s/cm^2/Ang'),
+    datamodel = {'flux': dict(otype=np.ndarray, atype=np.floating, descr='Flux array in units of counts/s/Ang/arcsec^2'
+                                                                         'or 10^-17 erg/s/cm^2/Ang/arcsec^2'),
                  'variance': dict(otype=np.ndarray, atype=np.floating, descr='Variance array (matches units of flux)'),
                  'blaze_wave': dict(otype=np.ndarray, atype=np.floating, descr='Wavelength array of the spectral blaze function'),
                  'blaze_spec': dict(otype=np.ndarray, atype=np.floating, descr='The spectral blaze function'),
