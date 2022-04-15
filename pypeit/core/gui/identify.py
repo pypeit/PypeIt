@@ -717,7 +717,7 @@ class Identify:
                                          './', 'wvarxiv.fits')
 
                 # Also copy the file to the cache for direct use
-                date_str = datetime.now().strftime("%Y%m%d")
+                date_str = datetime.now().strftime("%Y%m%dT%H%M")
                 cachename = f"manual_{self.specname}_{date_str}.fits"
                 data.write_file_to_cache("wvarxiv.fits",
                                          cachename,
