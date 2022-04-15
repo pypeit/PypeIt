@@ -174,11 +174,6 @@ def get_reid_arxiv_filepath(arxiv_file):
 
         reid_path = fetch_remote_file(arxiv_file, "arc_lines/reid_arxiv")
 
-        # If a development version, copy into the package directory, point path there
-        if ".dev" in pypeit_version:
-            shutil.copy(reid_path, os.path.join(Paths.reid_arxiv, arxiv_file))
-            reid_path = os.path.join(Paths.reid_arxiv, arxiv_file)
-
     # Return the path to the `reid_arxiv` file
     return reid_path
 
@@ -225,11 +220,6 @@ def get_skisim_filepath(skisim_file):
 
         skisim_path = fetch_remote_file(skisim_file, "skisim")
 
-        # If a development version, copy into the package directory, point path there
-        if ".dev" in pypeit_version:
-            shutil.copy(skisim_path, os.path.join(Paths.skisim, skisim_file))
-            skisim_path = os.path.join(Paths.skisim, skisim_file)
-
     # Return the path to the `skisim` file
     return skisim_path
 
@@ -275,11 +265,6 @@ def get_sensfunc_filepath(sensfunc_file):
         msgs.warn(f"sensfunc file {sensfunc_file} does not exist in the package directory.")
 
         sensfunc_path = fetch_remote_file(sensfunc_file, "sensfuncs")
-
-        # If a development version, copy into the package directory, point path there
-        if ".dev" in pypeit_version:
-            shutil.copy(sensfunc_path, os.path.join(Paths.sensfuncs, sensfunc_file))
-            sensfunc_path = os.path.join(Paths.sensfuncs, sensfunc_file)
 
     # Return the path to the `sensfunc` file
     return sensfunc_path
