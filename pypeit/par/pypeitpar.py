@@ -542,7 +542,7 @@ class FlatFieldPar(ParSet):
                  spec_samp_coarse=None, spat_samp=None, tweak_slits=None, tweak_slits_thresh=None,
                  tweak_slits_maxfrac=None, rej_sticky=None, slit_trim=None, slit_illum_pad=None,
                  illum_iter=None, illum_rej=None, twod_fit_npoly=None, saturated_slits=None,
-                 slit_illum_relative=None, slit_illum_ref_idx=None,
+                 slit_illum_relative=None, slit_illum_ref_idx=None, slit_illum_smooth_npix=None,
                  pixelflat_min_wave=None, pixelflat_max_wave=None):
 
         # Grab the parameter names and values from the function
@@ -639,7 +639,7 @@ class FlatFieldPar(ParSet):
 
         defaults['slit_illum_relative'] = False
         dtypes['slit_illum_relative'] = bool
-        descr['slit_illum_relative'] = 'Generate an image of the relative spectral illumination' \
+        descr['slit_illum_relative'] = 'Generate an image of the relative spectral illumination ' \
                                        'for a multi-slit setup.  If you set ``use_slitillum = ' \
                                        'True`` for any of the frames that use the flat-field ' \
                                        'model, this *must* be set to True.'
@@ -676,8 +676,14 @@ class FlatFieldPar(ParSet):
         defaults['slit_illum_ref_idx'] = 0
         dtypes['slit_illum_ref_idx'] = int
         descr['slit_illum_ref_idx'] = 'The index of a reference slit (0-indexed) used for estimating ' \
-                                      'the relative spectral sensitivity (or the relative blaze). This' \
+                                      'the relative spectral sensitivity (or the relative blaze). This ' \
                                       'parameter is only used if ``slit_illum_relative = True``.'
+
+        defaults['slit_illum_smooth_npix'] = 10
+        dtypes['slit_illum_smooth_npix'] = int
+        descr['slit_illum_smooth_npix'] = 'The number of pixels used to determine smoothly varying ' \
+                                          'relative weights is given by ``nspec/slit_illum_smooth_npix``, ' \
+                                          'where nspec is the number of spectral pixels.'
 
         # Instantiate the parameter set
         super(FlatFieldPar, self).__init__(list(pars.keys()),
@@ -697,7 +703,8 @@ class FlatFieldPar(ParSet):
                    'spat_samp', 'pixelflat_min_wave', 'pixelflat_max_wave',
                    'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
                    'rej_sticky', 'slit_trim', 'slit_illum_pad', 'slit_illum_relative',
-                   'illum_iter', 'illum_rej', 'twod_fit_npoly', 'saturated_slits', 'slit_illum_ref_idx']
+                   'illum_iter', 'illum_rej', 'twod_fit_npoly', 'saturated_slits',
+                   'slit_illum_ref_idx', 'slit_illum_smooth_npix']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
