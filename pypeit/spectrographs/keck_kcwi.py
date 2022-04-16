@@ -613,7 +613,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 oscansec_img = pix_img.copy()
 
         # Calculate the pattern frequency
-        hdu = self.calc_pattern_freq(raw_img, rawdatasec_img, oscansec_img, hdu)
+        #hdu = self.calc_pattern_freq(raw_img, rawdatasec_img, oscansec_img, hdu)
 
         # Return
         return detpar, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
@@ -653,9 +653,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         Returns
         -------
-        hdu : `astropy.io.fits.HDUList`_
-            The input HDUList, with header updated to include the frequency
-            of each amplifier.
+        patt_freqs : `list`_
+            List of pattern frequencies.
         """
         msgs.info("Calculating pattern noise frequency")
 
@@ -667,6 +666,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         num_amps = unq_amps.size
 
         # Loop through amplifiers and calculate the frequency
+        patt_freqs = []
         for amp in unq_amps:
             # Grab the pixels where the amplifier has data
             pixs = np.where((rawdatasec_img == amp) | (oscansec_img == amp))
@@ -687,12 +687,11 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 frame = raw_img[cmin:cmax, rmin:rmax].astype(np.float64)
             # Calculate the pattern frequency
             freq = procimg.pattern_frequency(frame)
+            patt_freqs.append(freq)
             msgs.info("Pattern frequency of amplifier {0:d}/{1:d} = {2:f}".format(amp, num_amps, freq))
-            # Add the frequency to the zeroth header
-            hdu[0].header['PYPFRQ{0:02d}'.format(amp)] = freq
-
-        # Return the updated HDU
-        return hdu
+        print(patt_freqs)
+        # Return the list of pattern frequencies
+        return patt_freqs
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
