@@ -1145,7 +1145,6 @@ class ArchiveReid:
         # TODO: What does and does not need to be an attribute?
 
         # Debugging
-        debug_all=True
         self.debug_peaks = debug_peaks or debug_all
         self.debug_xcorr = debug_xcorr or debug_all
         self.debug_reid = debug_reid or debug_all
