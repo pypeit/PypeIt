@@ -1116,7 +1116,8 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
             # Calculate the relative scale
             scale_model = flatfield.illum_profile_spectral(flatframe, waveimg, slits,
                                                            slit_illum_ref_idx=flatpar['slit_illum_ref_idx'], model=None,
-                                                           skymask=None, trim=flatpar['slit_trim'], flexure=flexure)
+                                                           skymask=None, trim=flatpar['slit_trim'], flexure=flexure,
+                                                           smooth_npix=flatpar['slit_illum_smooth_npix'])
             # Apply the relative scale and generate a 1D "spectrum"
             onslit = waveimg != 0
             wavebins = np.linspace(np.min(waveimg[onslit]), np.max(waveimg[onslit]), slits.nspec)
