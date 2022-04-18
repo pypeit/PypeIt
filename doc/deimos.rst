@@ -39,25 +39,29 @@ MOSAIC
 
 ``PypeIt``, by default, uses a mosaic approach for the reduction. It basically constructs a mosaic
 of the blue and red detector data and reduces it, instead of processing the detector data individually.
-``PypeIt`` generates four mosaics, one per each blue-red detectors pair. The mosaic reduction is switched
+``PypeIt`` generates four mosaics, one per each blue-red detector pair. The mosaic reduction is switched
 on by setting the parameter ``detnum`` in :ref:`pypeit_par:ReduxPar Keywords` to be a list of
-tuples of the detector indices that are mosaic-ed together. For DEIMOS, it looks like::
+tuples of the detector indices that are mosaiced together. For DEIMOS, it looks like:
 
-  [rdx]
-      spectrograph = keck_deimos
-      detnum = [(1, 5), (2, 6), (3, 7), (4, 8)]
+.. code-block:: ini
+
+    [rdx]
+        spectrograph = keck_deimos
+        detnum = [(1, 5), (2, 6), (3, 7), (4, 8)]
 
 This is already the default for DEIMOS, but the user can modify it in the :ref:`pypeit_file` to restrict
-the reduction to only a subset of the four mosaics, or to tun off the mosaic reduction, by changing ``detnum``
-to be a list of just detector indices, or to perform an "hybrid" reduction, e.g.,::
+the reduction to only a subset of the four mosaics, or to turn off the mosaic reduction, by changing ``detnum``
+to be a list of just detector indices, or to perform a "hybrid" reduction, e.g.,:
 
-  [rdx]
-      spectrograph = keck_deimos
-      detnum = [1, (2, 6), (3, 7), (4, 8)]
+.. code-block:: ini
+
+    [rdx]
+        spectrograph = keck_deimos
+        detnum = [1, (2, 6), (3, 7), (4, 8)]
 
 
 The image transformations used to construct the mosaic image are performed using `scipy.ndimage.affine_transform`_
-(see :ref:`mosaic` for more details). For DEIMOS, the image transformations are applied ony to the blue detectors and
+(see :ref:`mosaic` for more details). For DEIMOS, the image transformations are applied only to the blue detectors and
 an interpolation (order=5) is performed. Note that the interpolation may increase the size of cosmic rays and other
 detector artifacts (only for the blue detectors), resulting in a larger area around cosmic rays and artifacts
 being masked.
@@ -99,6 +103,7 @@ detected objects.
 
 Wavelength Calibration
 ----------------------
+
 ``PypeIt`` is able (currently only for DEIMOS) to read from the header of the arc frames which
 lamps were ON during the observations and to set those to be the list of lamps to be used
 for the wavelength calibration. This functionality is switched on by setting ``lamps = use_header``
@@ -108,10 +113,12 @@ It may happen, occasionally, that some lamps are not recorded in the header even
 during the observations. This could be the case if a specific script, called `calib_blue`
 (see https://www2.keck.hawaii.edu/inst/deimos/calib_blue.html), is used to take arc frames for
 blue observations. To resolve this, the user can just edit the PypeIt file to input the correct
-list of lamps in the following way::
+list of lamps in the following way:
+
+.. code-block:: ini
 
     [calibrations]
-      [[wavelengths]]
+        [[wavelengths]]
             lamps = ArI, NeI, KrI, XeI, CdI, ZnI, HgI
 
 
@@ -140,7 +147,7 @@ For RV users, you may wish to use the
 initially reducing the data without the standard corrections.
 See those docs for further details and note it has only been
 tested for the 1200 line grating and with redder wavelengths.
-Also, note that this script works only id the a mosaic reduction is not
+Also, note that this script works only if the mosaic reduction is not
 performed, i.e., the blue and red detectors are reduced separately.
 
 

@@ -571,7 +571,7 @@ class PypeIt:
                 self.par['reduce']['slitmask'], dither_off=dither_off)
             # determine if slitmask offsets exist and compute an average offsets over all the detectors
             calib_slits = slittrace.average_maskdef_offset(
-                calib_slits, platescale[0], self.spectrograph.list_detectors(mosaic='MSC'in calib_slits[0].detname))
+                calib_slits, platescale[0], self.spectrograph.list_detectors(mosaic='MSC' in calib_slits[0].detname))
             # slitmask design matching and add undetected objects
             all_specobjs_objfind = slittrace.assign_addobjs_alldets(
                 all_specobjs_objfind, calib_slits, spat_flexure, platescale,

@@ -56,13 +56,15 @@ class ManualExtractionObj(datamodel.DataContainer):
         """Generate the object from an entry in the fitstbl
 
         Args:
-            frame (str): filename
-            inp (str): det:spat:spec:fwhm
-                1:1181.8:3820.6:3.
+            frame (str):
+                filename
+            inp (str):
+                String specifying the manual aperture: ``det:spat:spec:fwhm``;
+                e.g., ``1:1181.8:3820.6:3.``
             spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-            The `Spectrograph` instance that sets the
-            instrument used to take the observations.  Used to set check that
-            the input value of the mosaic detectors are allowed for this spectrograph
+                The `Spectrograph` instance that sets the instrument used to
+                take the observations.  Used to set check that the input value
+                of the mosaic detectors are allowed for this spectrograph
 
         Returns:
             ManualExtractionObj:
@@ -123,7 +125,7 @@ class ManualExtractionObj(datamodel.DataContainer):
         Repackage into a dict for the extraction code
 
         Args:
-            det (int):
+            det (str):
                 Detector name under consideration
             neg (bool, optional):
                 If True, return the negative image requests
