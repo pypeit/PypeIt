@@ -725,8 +725,9 @@ class Identify:
 
                 msgs.info("Your arxiv solution has been written to ./wvarxiv.fits\n")
                 msgs.info(f"Your arxiv solution has been cached.{msgs.newline()}"
-                          f"Use 'reid_arxiv = {cachename}' in your{msgs.newline()}"
-                          "PypeIt Reduction File to utilize this wavelength solution.")
+                          f"Use 'reid_arxiv = {cachename}' and{msgs.newline()}"
+                          f"'method = full_template' in your PypeIt{msgs.newline()}"
+                          "Reduction File to utilize this wavelength solution.")
 
                 # Write the WVCalib file
                 outfname = "wvcalib.fits"
