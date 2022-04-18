@@ -14,6 +14,7 @@ import urllib
 from astropy.utils import data as astropy_data
 from linetools.spectra import xspectrum1d
 from pkg_resources import resource_filename
+import requests
 
 from pypeit import io
 from pypeit import msgs
@@ -371,12 +372,25 @@ def fetch_remote_file(filename, filetype, remote_host='github', install_script=F
     try:
         return astropy_data.download_file(remote_url, cache=cache, timeout=10, pkgname="pypeit")
     except urllib.error.URLError as error:
-        msgs.error(f"Error downloading {filename}: {error}{msgs.newline()}"
-                   f"URL attempted: {remote_url}{msgs.newline()}"
-                   f"If the error relates to the server not being found,{msgs.newline()}"
-                   f"check your internet connection.  If the remote server{msgs.newline()}"
-                   f"name has changed, please contact the PypeIt development{msgs.newline()}"
-                   "team.")
+        if remote_host == "s3_cloud" and (requests.head(remote_url).status_code in
+                                         [requests.codes.forbidden, requests.codes.not_found]):
+
+            err_msg = (f"The file {filename}{msgs.newline()}"
+                       f"is not hosted in the cloud.  Please download this file from{msgs.newline()}"
+                       f"the PypeIt Google Drive and install it using the script{msgs.newline()}"
+                       f"pypeit_install_telluric --local.  See instructions at{msgs.newline()}"
+                       "https://pypeit.readthedocs.io/en/latest/installing.html#additional-data")
+
+        else:
+            err_msg = (f"Error downloading {filename}: {error}{msgs.newline()}"
+                       f"URL attempted: {remote_url}{msgs.newline()}"
+                       f"If the error relates to the server not being found,{msgs.newline()}"
+                       f"check your internet connection.  If the remote server{msgs.newline()}"
+                       f"name has changed, please contact the PypeIt development{msgs.newline()}"
+                       "team.")
+
+        # Raise the appropriate error message
+        msgs.error(err_msg)
 
 
 def write_file_to_cache(filename, cachename, filetype, remote_host="github"):
