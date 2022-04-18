@@ -14,6 +14,7 @@ import urllib
 from astropy.utils import data as astropy_data
 from linetools.spectra import xspectrum1d
 from pkg_resources import resource_filename
+import requests
 
 from pypeit import io
 from pypeit import msgs
@@ -170,7 +171,8 @@ def get_reid_arxiv_filepath(arxiv_file):
     if not os.path.isfile(reid_path):
 
         # Output a brief warning for now -- makes it easier to find in the output
-        msgs.warn(f"reid_arxiv file {arxiv_file} does not exist in the package directory.")
+        msgs.info(f"reid_arxiv file {arxiv_file} does not exist in{msgs.newline()}"
+                  "the package directory.  Checking cache or downloading the file now.")
 
         reid_path = fetch_remote_file(arxiv_file, "arc_lines/reid_arxiv")
 
@@ -216,7 +218,8 @@ def get_skisim_filepath(skisim_file):
     if not os.path.isfile(skisim_path):
 
         # Output a brief warning for now -- makes it easier to find in the output
-        msgs.warn(f"skisim file {skisim_file} does not exist in the package directory.")
+        msgs.info(f"skisim file {skisim_file} does not exist in{msgs.newline()}"
+                  "the package directory.  Checking cache or downloading the file now.")
 
         skisim_path = fetch_remote_file(skisim_file, "skisim")
 
@@ -262,7 +265,8 @@ def get_sensfunc_filepath(sensfunc_file):
     if not os.path.isfile(sensfunc_path):
 
         # Output a brief warning for now -- makes it easier to find in the output
-        msgs.warn(f"sensfunc file {sensfunc_file} does not exist in the package directory.")
+        msgs.info(f"sensfunc file {sensfunc_file} does not exist in{msgs.newline()}"
+                  "the package directory.  Checking cache or downloading the file now.")
 
         sensfunc_path = fetch_remote_file(sensfunc_file, "sensfuncs")
 
@@ -308,8 +312,8 @@ def get_telgrid_filepath(telgrid_file):
     if not os.path.isfile(telgrid_path):
 
         # Output a brief warning for now -- makes it easier to find in the output
-        msgs.info(f"telgrid file {telgrid_file} does not exist{msgs.newline()}"
-                  "in the package directory; checking cache...")
+        msgs.info(f"telgrid file {telgrid_file} does not exist in{msgs.newline()}"
+                  "the package directory.  Checking cache or downloading the file now.")
 
         telgrid_path = fetch_remote_file(telgrid_file, 'telluric/atm_grids', remote_host='s3_cloud')
 
@@ -323,7 +327,7 @@ def get_telgrid_filepath(telgrid_file):
 
 
 def fetch_remote_file(filename, filetype, remote_host='github', install_script=False,
-                      force_update=False):
+                      force_update=False, test_version=None):
     """fetch_remote_file Use `astropy.utils.data` to fetch file from remote or cache
 
     The function `download_file` will first look in the local cache (the option
@@ -346,12 +350,15 @@ def fetch_remote_file(filename, filetype, remote_host='github', install_script=F
         force_update: bool, optional
           Force `astropy_data.download_file()` to update the cache by downloading
           the latest version.  [Default: False]
+        test_version: str, optional
+          A contrived PypeIt version number, for use with unit tests  [Default: None]
 
     Returns:
         path_to_file: str
           The local path to the desired file in the cache
     """
-    remote_url = _build_remote_url(filename, filetype, remote_host=remote_host)
+    remote_url = _build_remote_url(filename, filetype, remote_host=remote_host,
+                                   test_version=test_version)
 
     if remote_host == "s3_cloud" and not install_script:
         # Display a warning that this may take a while, and the user
@@ -365,12 +372,25 @@ def fetch_remote_file(filename, filetype, remote_host='github', install_script=F
     try:
         return astropy_data.download_file(remote_url, cache=cache, timeout=10, pkgname="pypeit")
     except urllib.error.URLError as error:
-        msgs.error(f"Error downloading {filename}: {error}{msgs.newline()}"
-                   f"URL attempted: {remote_url}{msgs.newline()}"
-                   f"If the error relates to the server not being found,{msgs.newline()}"
-                   f"check your internet connection.  If the remote server{msgs.newline()}"
-                   f"name has changed, please contact the PypeIt development{msgs.newline()}"
-                   "team.")
+        if remote_host == "s3_cloud" and (requests.head(remote_url).status_code in
+                                         [requests.codes.forbidden, requests.codes.not_found]):
+
+            err_msg = (f"The file {filename}{msgs.newline()}"
+                       f"is not hosted in the cloud.  Please download this file from{msgs.newline()}"
+                       f"the PypeIt Google Drive and install it using the script{msgs.newline()}"
+                       f"pypeit_install_telluric --local.  See instructions at{msgs.newline()}"
+                       "https://pypeit.readthedocs.io/en/latest/installing.html#additional-data")
+
+        else:
+            err_msg = (f"Error downloading {filename}: {error}{msgs.newline()}"
+                       f"URL attempted: {remote_url}{msgs.newline()}"
+                       f"If the error relates to the server not being found,{msgs.newline()}"
+                       f"check your internet connection.  If the remote server{msgs.newline()}"
+                       f"name has changed, please contact the PypeIt development{msgs.newline()}"
+                       "team.")
+
+        # Raise the appropriate error message
+        msgs.error(err_msg)
 
 
 def write_file_to_cache(filename, cachename, filetype, remote_host="github"):
@@ -399,7 +419,7 @@ def write_file_to_cache(filename, cachename, filetype, remote_host="github"):
     astropy_data.import_file_to_cache(url_key, filename, pkgname="pypeit")
 
 
-def _build_remote_url(f_name, f_type, remote_host=""):
+def _build_remote_url(f_name, f_type, remote_host="", test_version=None):
     """build_remote_url Build the remote URL for the `astropy.utils.data` functions
 
     This function keeps the URL-creation in one place.  In the event that files
@@ -415,15 +435,20 @@ def _build_remote_url(f_name, f_type, remote_host=""):
         remote_host: str, optional
           The remote host scheme.  Currently only 'github' and 's3_cloud' are
           supported.  [Default: '']
+        test_version: str, optional
+          A contrived PypeIt version number, for use with unit tests  [Default: None]
 
     Returns:
         url: str
           The URL of the `f_name` of `f_type` on server `remote_host`
     """
+    # Allow a contrived version # in Unit Testing, otherwise read in `pypeit_version`
+    version = test_version if test_version else pypeit_version
+
     if remote_host == "github":
         # Build up the remote_url for GitHub
         # Look in the current `develop` branch if the code is not a tagged release
-        tag = "develop" if ".dev" in pypeit_version else pypeit_version
+        tag = "develop" if ".dev" in version else version
         # TODO: If we host these files elsewhere, need to change this hard-code
         return (f"https://github.com/pypeit/PypeIt/blob/{tag}/pypeit/"
                    f"data/{f_type}/{f_name}?raw=true")

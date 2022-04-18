@@ -265,8 +265,11 @@ upgrades of your installation via `pip`_ or `conda`_.  To force the update of a
 telluric model grid file to the latest version, simply run ``pypeit_install_telluric``
 with the ``--force_update`` option.
 
-The model grids are available for viewing or download separately from the cache in
-the `PypeIt dev-suite Google Drive`_.
+If you require a telluric grid that is not presently hosted in the cloud, the code will
+instruct you to download the file separately from the `PypeIt dev-suite Google Drive`_.
+Users may select any of the files in the Google Drive for their telluric correction,
+download them sepatately, then install them using the ``--local`` option to
+``pypeit_install_telluric``.
 
 
 Quick-look Master Files
