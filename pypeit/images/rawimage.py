@@ -13,8 +13,8 @@ from IPython import embed
 import numpy as np
 
 from astropy import stats
-
 from pypeit import msgs
+from pypeit.core import arc
 from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.core import flat
@@ -176,6 +176,7 @@ class RawImage:
         self.steps = dict(apply_gain=False,
                           subtract_pattern=False,
                           subtract_overscan=False,
+                          subtract_continuum=False,
                           trim=False,
                           orient=False,
                           subtract_bias=False,
@@ -633,6 +634,11 @@ class RawImage:
         # Calculate the inverse variance
         self.ivar = self.build_ivar()
 
+        #   - Subtract continuum level
+        if self.par['use_continuum']:
+            # Calculate a simple smooth continuum image, and subtract this from the frame
+            self.subtract_continuum()
+
         # Generate a PypeItImage.
         # NOTE: To reconstruct the variance model, you need base_var, image,
         # img_scale, noise_floor, and shot_noise.
@@ -1074,6 +1080,31 @@ class RawImage:
             _ps_img[i] = procimg.subtract_pattern(self.image[i], self.datasec_img[i],
                                                   self.oscansec_img[i], frequency=frequency)
         self.image = np.array(_ps_img)
+        self.steps[step] = True
+
+    def subtract_continuum(self, force=False):
+        """
+        Subtract the continuum level from the image.
+
+        Args:
+            force (:obj:`bool`, optional):
+                Force the continuum to be subtracted, even if the step log
+                (:attr:`steps`) indicates that it already has been.
+        """
+        step = inspect.stack()[0][3]
+        if self.steps[step] and not force:
+            # Already bias subtracted
+            msgs.warn('Image was already continuum subtracted.')
+            return
+
+        # Generate the continuum image
+        for ii in range(self.nimg):
+            cont = np.zeros((self.image.shape[1], self.image.shape[2]))
+            for rr in range(self.image.shape[2]):
+                cont_now, cont_mask = arc.iter_continuum(self.image[ii, :, rr])
+                cont[:,rr] = cont_now
+            self.image[ii,:,:] -= cont
+        #cont = ndimage.median_filter(self.image, size=(1,101,3), mode='reflect')
         self.steps[step] = True
 
     def trim(self, force=False):
