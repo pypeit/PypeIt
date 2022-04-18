@@ -55,6 +55,23 @@ def gemini_gmos_r400_e2v(overwrite=False):  # GMOS R400 E2V
                    normalize=True, overwrite=overwrite, subtract_conti=True)
 
 # ##############################
+def gemini_gmos_r400_e2v_mosaic(overwrite=False):  # GMOS R400 E2V
+    # Turns off normalize
+    binspec = 2
+    outroot = 'gemini_gmos_r400_e2v_mosaic.fits'
+    #
+    ifiles = [0, 1, 2]
+    slits = [0, 0, 0]
+    lcut = [6000., 7450]
+    wfile1 = os.path.join(templates.template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_1_01.json')
+    wfile2 = os.path.join(templates.template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_1_02.json')
+    wfile3 = os.path.join(templates.template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_1_03.json')
+    #
+    templates.build_template([wfile1, wfile2, wfile3], slits, lcut, binspec,
+                   outroot, lowredux=False, ifiles=ifiles, chk=True,
+                   normalize=False, overwrite=overwrite, subtract_conti=True)
+
+# ##############################
 def gemini_gmos_b600_ham(overwrite=False):
     binspec = 2
     outroot = 'gemini_gmos_b600_ham.fits'
@@ -113,7 +130,8 @@ def gemini_gmos_r831_ham(overwrite=False):
 
 
 if __name__ == '__main__':
-    gemini_gmos_r400_hama()#overwrite=True)
+    #gemini_gmos_r400_hama()#overwrite=True)
     #gemini_gmos_r400_e2v(overwrite=True)
+    gemini_gmos_r400_e2v_mosaic(overwrite=True)
     #gemini_gmos_b600_ham(overwrite=True)
     #gemini_gmos_r831_ham(overwrite=False)
