@@ -889,15 +889,15 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
         spec = spectrograph
         specname = spectrograph.name
 
-    # Get the detector number and string representation
-    det = 1 if parset is None else parset['rdx']['detnum']
-    detname = spec.get_det_name(det)
-
     # Grab the parset, if not provided
     if parset is None:
         parset = spec.default_pypeit_par()
     cubepar = parset['reduce']['cube']
     flatpar = parset['calibrations']['flatfield']
+
+    # Get the detector number and string representation
+    det = 1 if parset['rdx']['detnum'] is None else parset['rdx']['detnum']
+    detname = spec.get_det_name(det)
 
     # prep
     numfiles = len(files)
@@ -967,6 +967,7 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
     locations = parset['calibrations']['alignment']['locations']
     flat_splines = dict()   # A dictionary containing the splines of the flatfield
     # Load the scaleimg frame for the scale correction
+    relScaleImg = np.array([1])
     if cubepar['scale_corr'] is not None:
         msgs.info("Loading scale image for relative spectral illumination correction:" +
                   msgs.newline() + cubepar['scale_corr'])

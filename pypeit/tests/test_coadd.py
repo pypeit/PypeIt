@@ -6,16 +6,13 @@ import os
 import pytest
 import numpy as np
 
-from astropy import units
 from linetools.spectra.utils import collate
 from linetools.spectra.xspectrum1d import XSpectrum1D
 
 from pypeit.core import coadd
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core.datacube import coadd_cube
-from pypeit import msgs
 from pypeit import utils
-from IPython import embed
 from pypeit.tests.tstutils import cooked_required, data_path
 
 import warnings
@@ -115,7 +112,10 @@ def test_coadd_datacube():
                           'spec2d_KB.20191219.56886-BB1245p4238_KCWI_20191219T154806.538.fits'),
              os.path.join(droot,
                           'spec2d_KB.20191219.57662-BB1245p4238_KCWI_20191219T160102.755.fits')]
-    coadd_cube(files, overwrite=True)
-    os.remove('datacube.fits')
-
-
+    output_filename = "BB1245p4238_KCWI_20191219.fits"
+    # Grab the spectrograph and parset
+    spec = load_spectrograph("keck_kcwi")
+    parset = spec.default_pypeit_par()
+    parset['reduce']['cube']['output_filename'] = output_filename
+    coadd_cube(files, parset=parset, overwrite=True)
+    os.remove(output_filename)
