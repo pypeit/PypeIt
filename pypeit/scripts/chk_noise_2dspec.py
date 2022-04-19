@@ -109,6 +109,19 @@ def plot(image:np.ndarray, chi_select:np.ndarray, flux_select:np.ndarray,
 
 
 def get_flux_slit(spec2DObj, slitidx, pad=0):
+    """
+    Returns the flux and error of a specific slit.
+    The flux would be sky subtracted and object removed.
+
+    Args:
+        spec2DObj (:class:`~pypeit.spec2dobj.Spec2DObj`): 2D spectra object
+        slitidx (int): Given slit/order
+        pad (int, optional):  Ignore pixels within pad of edges.
+
+    Returns:
+        :obj:`tuple`: tuple of `numpy.ndarray`_ with flux and error of the 2D spectrum
+
+    """
     slit_select = spec2DObj.slits.slit_img(pad=pad, slitidx=slitidx)
 
     flux = spec2DObj.sciimg - spec2DObj.skymodel

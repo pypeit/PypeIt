@@ -226,6 +226,9 @@ def run_on_science(pargs, script_Utils, calib_pypeit_file, ps_sci):
                 ps.user_cfg.pop(kk)
         ridx = ps.user_cfg.index('[rdx]')
         ps.user_cfg.insert(ridx+1, '    slitspatnum = {0}'.format(pargs.slit_spat))
+        # this is to avoid that the default detnum (which was introduced for mosaic)
+        # will be passed to the reduction and crash it
+        ps.user_cfg.insert(ridx+2, '    detnum = None')
     else:
         raise NotImplementedError('NOT READY:  118 of ql_deimos')
 

@@ -47,6 +47,8 @@ class DEIMOSMosaicLookUp:
     Similar to :class:`~pypeit.spectrographs.gemini_gmos.GeminiGMOSMosaicLookUp`
 
     """
+    # THESE are the parameters for trasforming the red detectors (below are the ones to trasform the blue detector).
+    # We'll kep these here for now.
     # geometry = {
     #     'MSC01': {'default_shape': (8218, 2064),
     #               'blue_det': {'shift': (0., 0.), 'rotation': 0.},
@@ -710,7 +712,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             return detectors[0], image[0], hdu, exptime, rawdatasec_img[0], oscansec_img[0]
         return mosaic, image, hdu, exptime, rawdatasec_img, oscansec_img
 
-    def get_mosaic_par(self, mosaic, hdu=None):
+    def get_mosaic_par(self, mosaic, hdu=None, msc_order=5):
         """
         Return the hard-coded parameters needed to construct detector mosaics
         from unbinned images.
@@ -731,6 +733,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 default.  BEWARE: If ``hdu`` is not provided, the binning is
                 assumed to be `1,1`, which will cause faults if applied to
                 binned images!
+            msc_order (:obj:`int`, optional):
+                Order of the interpolation used to construct the mosaic.
 
         Returns:
             :class:`~pypeit.images.mosaic.Mosaic`: Object with the mosaic *and*
@@ -774,9 +778,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             msc_sft[i] = shift[i]
             msc_rot[i] = rotation[i]
             msc_tfm[i] = build_image_mosaic_transform(shape, msc_sft[i], msc_rot[i], binning)
-
-        # Hard coded for now. Order of the interpolation used to construct the mosaic
-        msc_order = 5
 
         return Mosaic(mosaic_id, detectors, shape, np.array(msc_sft), np.array(msc_rot),
                       np.array(msc_tfm), msc_order)
@@ -1293,8 +1294,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             msgs.error('A detector number must be provided')
 
         # parse ccdnum
-        nimg, _det = self.validate_det(ccdnum)
-        _ccdnum = [d for d in _det]
+        nimg, _ccdnum = self.validate_det(ccdnum)
 
         # Match left and right edges separately
         # Sort slits in mm from the slit-mask design
@@ -1425,13 +1425,18 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         found in detectors 1 and 5 are just from the blue and red counterparts
         of the same slit.
 
+        Args:
+            mosaic (:obj:`bool`, optional):
+                Is this a mosaic reduction?
+                It is used to determine how to list the detector, i.e., 'DET' or 'MSC'.
+
         Returns:
             `numpy.ndarray`_: The list of detectors in a `numpy.ndarray`_.  If
             the array is 2D, there are detectors separated along the dispersion
             axis.
         """
         if mosaic:
-            return np.array(['MSC{:02d}'.format(i+1) for i in range(len(self.allowed_mosaics))])
+            return np.array([self.get_det_name(_det) for _det in self.allowed_mosaics])
         else:
             return np.array([detector_container.DetectorContainer.get_name(i+1)
                              for i in range(self.ndet)]).reshape(2,-1)

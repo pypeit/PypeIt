@@ -487,6 +487,11 @@ class Spectrograph:
         found in detectors 1 and 5 are just from the blue and red counterparts
         of the same slit.
 
+        Args:
+            mosaic (:obj:`bool`, optional):
+                Is this a mosaic reduction?
+                It is used to determine how to list the detector, i.e., 'DET' or 'MSC'.
+
         Returns:
             `numpy.ndarray`_: The list of detectors in a `numpy.ndarray`_.  If
             the array is 2D, there are detectors separated along the dispersion
