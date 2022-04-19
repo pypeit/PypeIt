@@ -133,7 +133,7 @@ class Paths(metaclass=Paths_meta):
 
 
 # Remote-fetch functions for package data not distributed via PyPI ===========#
-def get_reid_arxiv_filepath(arxiv_file):
+def get_reid_arxiv_filepath(arxiv_file, copy_to_pkgdir=False):
     """get_reid_arxiv_filepath Return the full path to the `reid_arxiv` file
 
     In an attempt to reduce the size of the PypeIt package as distributed on
@@ -158,6 +158,9 @@ def get_reid_arxiv_filepath(arxiv_file):
     Args:
         arxiv_file: str
           The base filename of the `reid_arxiv` file to be located
+        copy_to_pkgdir: bool, optional
+          Force copy any cached downloaded file into the package directory
+          [Default: False]
 
     Returns:
         calibfile: str
@@ -170,17 +173,21 @@ def get_reid_arxiv_filepath(arxiv_file):
     # NOTE: This should be the case for all but from-source installations
     if not os.path.isfile(reid_path):
 
-        # Output a brief warning for now -- makes it easier to find in the output
+        # Output an informational message
         msgs.info(f"reid_arxiv file {arxiv_file} does not exist in{msgs.newline()}"
                   "the package directory.  Checking cache or downloading the file now.")
 
         reid_path = fetch_remote_file(arxiv_file, "arc_lines/reid_arxiv")
 
+        # If requested, copy to package data directory and point the path there
+        if copy_to_pkgdir:
+            reid_path = _copy_cache_to_pkgdir(reid_path, Paths.reid_arxiv, arxiv_file)
+
     # Return the path to the `reid_arxiv` file
     return reid_path
 
 
-def get_skisim_filepath(skisim_file):
+def get_skisim_filepath(skisim_file, copy_to_pkgdir=False):
     """get_skisim_filepath Return the full path to the `skisim` file
 
     In an attempt to reduce the size of the PypeIt package as distributed on
@@ -205,6 +212,9 @@ def get_skisim_filepath(skisim_file):
     Args:
         skisim_file: str
           The base filename of the `skisim` file to be located
+        copy_to_pkgdir: bool, optional
+          Force copy any cached downloaded file into the package directory
+          [Default: False]
 
     Returns:
         calibfile: str
@@ -217,17 +227,21 @@ def get_skisim_filepath(skisim_file):
     # NOTE: This should be the case for all but from-source installations
     if not os.path.isfile(skisim_path):
 
-        # Output a brief warning for now -- makes it easier to find in the output
+        # Output an informational message
         msgs.info(f"skisim file {skisim_file} does not exist in{msgs.newline()}"
                   "the package directory.  Checking cache or downloading the file now.")
 
         skisim_path = fetch_remote_file(skisim_file, "skisim")
 
+        # If requested, copy to package data directory and point the path there
+        if copy_to_pkgdir:
+            skisim_path = _copy_cache_to_pkgdir(skisim_path, Paths.skisim, skisim_file)
+
     # Return the path to the `skisim` file
     return skisim_path
 
 
-def get_sensfunc_filepath(sensfunc_file):
+def get_sensfunc_filepath(sensfunc_file, copy_to_pkgdir=False):
     """get_sensfunc_filepath Return the full path to the `sensfunc` file
 
     In an attempt to reduce the size of the PypeIt package as distributed on
@@ -252,6 +266,9 @@ def get_sensfunc_filepath(sensfunc_file):
     Args:
         sensfunc_file: str
           The base filename of the `sensfunc` file to be located
+        copy_to_pkgdir: bool, optional
+          Force copy any cached downloaded file into the package directory
+          [Default: False]
 
     Returns:
         calibfile: str
@@ -264,11 +281,15 @@ def get_sensfunc_filepath(sensfunc_file):
     # NOTE: This should be the case for all but from-source installations
     if not os.path.isfile(sensfunc_path):
 
-        # Output a brief warning for now -- makes it easier to find in the output
+        # Output an informational message
         msgs.info(f"sensfunc file {sensfunc_file} does not exist in{msgs.newline()}"
                   "the package directory.  Checking cache or downloading the file now.")
 
         sensfunc_path = fetch_remote_file(sensfunc_file, "sensfuncs")
+
+        # If requested, copy to package data directory and point the path there
+        if copy_to_pkgdir:
+            sensfunc_path = _copy_cache_to_pkgdir(sensfunc_path, Paths.sensfuncs, sensfunc_file)
 
     # Return the path to the `sensfunc` file
     return sensfunc_path
@@ -368,9 +389,10 @@ def fetch_remote_file(filename, filetype, remote_host='github', install_script=F
                     "`pypeit_install_telluric` script.")
 
     # Get the file from cache, if available, or download from the remote server
-    cache = 'update' if force_update else True
     try:
-        return astropy_data.download_file(remote_url, cache=cache, timeout=10, pkgname="pypeit")
+        return astropy_data.download_file(remote_url, cache="update" if force_update else True,
+                                          timeout=10, pkgname="pypeit")
+
     except urllib.error.URLError as error:
         if remote_host == "s3_cloud" and (requests.head(remote_url).status_code in
                                          [requests.codes.forbidden, requests.codes.not_found]):
@@ -491,6 +513,32 @@ def _get_s3_hostname():
         return fileobj.read().strip()
 
 
+def _copy_cache_to_pkgdir(file_in_cache, package_directory_path, data_filename):
+    """_copy_cache_to_pkgdir Copy a cache file into the package directory
+
+    This should only be done if the user is certain they have write access for
+    the package directory structure.
+
+    Args:
+        file_in_cache: str
+          The full path to the cached file, as returned by `download_file()`
+        package_directory_path: str
+          The directory path to the `pypeit/data` directory needed for this file
+        data_filename: str
+          The base filename of the actual data file in question
+
+    Returns:
+        output_path: str
+          The full path to the data file within the package directory
+    """
+    # Construct the output path
+    output_path = os.path.join(package_directory_path, data_filename)
+    # Copy
+    shutil.copy2(file_in_cache, output_path)
+    # Return
+    return output_path
+
+
 # Loading Functions for Particular File Types ================================#
 def load_telluric_grid(filename):
     """
@@ -565,7 +613,7 @@ def load_sky_spectrum(sky_file):
 
 # Utility Function ===========================================================#
 def check_isdir(path):
-    """_check_isdir Check that the hardwired directory exists
+    """check_isdir Check that the hardwired directory exists
 
     If yes, return the directory path, else raise NotADirectoryError
     """
