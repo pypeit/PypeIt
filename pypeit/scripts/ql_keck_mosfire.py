@@ -122,7 +122,7 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
     extract = extraction.Extract.get_instance(sciImg, sobjs_obj, spectrograph, parset, caliBrate,
                                               'science', bkg_redux=True, return_negative=True, show=show)
     skymodel, objmodel, ivarmodel, \
-    outmask, sobjs, scaleimg, waveimg, tilts = extract.run(global_sky, sobjs_obj)
+    outmask, sobjs, waveimg, tilts = extract.run(global_sky, sobjs_obj)
 
     # TODO -- Do this upstream
     # Tack on detector

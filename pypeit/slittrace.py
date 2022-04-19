@@ -457,7 +457,8 @@ class SlitTraceSet(datamodel.DataContainer):
         msgs.work("Spatial flexure is not currently implemented for the astrometric alignment")
         # Check if the user has skimage installed
         if skimageTransform is None or alignments is None:
-            msgs.warn("scikit-image is not installed - astrometric correction not implemented")
+            if skimageTransform is None: msgs.warn("scikit-image is not installed - astrometric correction not implemented")
+            else: msgs.warn("Alignments were not provided - astrometric correction not implemented")
             astrometric = False
         # Prepare the parameters
         if not astrometric:

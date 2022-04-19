@@ -840,7 +840,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         crota = np.radians(-(skypa + rotoff))
 
         # Calculate the fits coordinates
-        cdelt1 = -slscl#*(24/23)  # The factor (24/23) is a hack - It is introduced because the centre of 1st and 24th slices are 23 slices apart... TODO :: Need to think of a better way to deal with this
+        cdelt1 = -slscl
         cdelt2 = pxscl
         if coord is None:
             ra = 0.
@@ -855,7 +855,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)  # DEC degress per column
         cd22 = cdelt2 * np.cos(crota)                          # DEC degrees per row
         # Get reference pixels (set these to the middle of the FOV)
-        crpix1 = 12.   # i.e. 24 slices/2
+        crpix1 = 24/2 - 0.5   # i.e. 24 slices/2 and then -0.5 to account for the bin edge used with NGP
         crpix2 = slitlength / 2.
         crpix3 = 1.
         # Get the offset

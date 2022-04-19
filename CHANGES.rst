@@ -133,6 +133,7 @@
     - improvements in the frame typing
 - Implements new Mark4 detector for Keck/LRISr  (aka keck_lris_red_mark4)
 - QL script for Keck/DEIMOS
+- Implemented flux calibration and grating correction for datacubes.
 
 
 1.6.0 (1 Oct 2021)
