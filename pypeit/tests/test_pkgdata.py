@@ -29,8 +29,10 @@ def test_fetch_github_files():
     # Define the version as the most recent stable release for GitHub fetch
     pv = pkg_resources.parse_version(__version__)
     if pv.is_devrelease:
-        prev_release = f"{pv.major}.{pv.minor}.{pv.micro - 1}"
+        # If this is a development version
+        prev_release = "develop"
     else:
+        # Otherwise, just use the version
         prev_release = __version__
 
     # These are commonly used files, do all three in one test
