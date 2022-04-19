@@ -217,7 +217,7 @@ class ProcessImagesPar(ParSet):
                  use_biasimage=None, use_overscan=None, use_darkimage=None,
                  empirical_rn=None, shot_noise=None, noise_floor=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
-                 use_pattern=None, spat_flexure_correct=None):
+                 use_pattern=None, use_continuum=None, spat_flexure_correct=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -280,6 +280,12 @@ class ProcessImagesPar(ParSet):
         descr['use_pattern'] = 'Subtract off a detector pattern. This pattern is assumed to be ' \
                                'sinusoidal along one direction, with a frequency that is ' \
                                'constant across the detector.'
+
+        defaults['use_continuum'] = False
+        dtypes['use_continuum'] = bool
+        descr['use_continuum'] = 'Subtract off the continuum level from an image. This parameter should only ' \
+                                 'be set to True to combine arcs with multiple different lamps.' \
+                                 'For all other cases, this parameter should probably be False.'
 
         defaults['empirical_rn'] = False
         dtypes['empirical_rn'] = bool
@@ -407,7 +413,7 @@ class ProcessImagesPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'use_pattern', 'use_overscan',
+        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'use_continuum', 'use_pattern', 'use_overscan',
                    'overscan_method', 'overscan_par', 'use_darkimage', 'spat_flexure_correct',
                    'use_illumflat', 'use_specillum', 'empirical_rn', 'shot_noise', 'noise_floor',
                    'use_pixelflat', 'combine', 'satpix', #'cr_sigrej',
@@ -2591,7 +2597,7 @@ class EdgeTracePar(ParSet):
     see :ref:`pypeitpar`.
     """
     prefix = 'ETP'  # Prefix for writing parameters to a header is a class attribute
-    def __init__(self, filt_iter=None, sobel_mode=None, edge_thresh=None, exclude_regions=None,
+    def __init__(self, filt_iter=None, sobel_mode=None, edge_thresh=None, sobel_enhance=None, exclude_regions=None,
                  follow_span=None, det_min_spec_length=None, max_shift_abs=None, max_shift_adj=None,
                  max_spat_error=None, match_tol=None, fit_function=None, fit_order=None,
                  fit_maxdev=None, fit_maxiter=None, fit_niter=None, fit_min_spec_length=None,
@@ -2636,6 +2642,13 @@ class EdgeTracePar(ParSet):
         dtypes['edge_thresh'] = [int, float]
         descr['edge_thresh'] = 'Threshold for finding edges in the Sobel-filtered significance' \
                                ' image.'
+
+        defaults['sobel_enhance'] = 0
+        dtypes['sobel_enhance'] = int
+        descr['sobel_enhance'] = 'Enhance the sobel filtering? A value of 0 will not enhance the sobel filtering.' \
+                                 'Any other value > 0 will sum the sobel values. For example, a value of 3 will' \
+                                 'combine the sobel values for the 3 nearest pixels. This is useful when a slit' \
+                                 'edge is poorly defined (e.g. vignetted).'
 
         defaults['exclude_regions'] = None
         dtypes['exclude_regions'] = [list, str]
@@ -3028,7 +3041,7 @@ class EdgeTracePar(ParSet):
     def from_dict(cls, cfg):
         # TODO Please provide docs
         k = np.array([*cfg.keys()])
-        parkeys = ['filt_iter', 'sobel_mode', 'edge_thresh', 'exclude_regions', 'follow_span', 'det_min_spec_length',
+        parkeys = ['filt_iter', 'sobel_mode', 'edge_thresh', 'sobel_enhance', 'exclude_regions', 'follow_span', 'det_min_spec_length',
                    'max_shift_abs', 'max_shift_adj', 'max_spat_error', 'match_tol', 'fit_function',
                    'fit_order', 'fit_maxdev', 'fit_maxiter', 'fit_niter', 'fit_min_spec_length',
                    'auto_pca', 'left_right_pca', 'pca_min_edges', 'pca_n', 'pca_var_percent',
