@@ -88,9 +88,14 @@ class Identify(scriptbase.ScriptBase):
         arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[args.slit])
 
         # Launch the identify window
+        # TODO -- REMOVE THIS HACK
+        try:
+            nonlinear_counts = msarc.detector.nonlinear_counts()
+        except:
+            nonlinear_counts = 1e10
         arcfitter = Identify.initialise(arccen, lamps, slits, slit=int(args.slit), par=par,
                                         wv_calib_all=wv_calib, wavelim=[args.wmin, args.wmax],
-                                        nonlinear_counts=msarc.detector.nonlinear_counts(),
+                                        nonlinear_counts=nonlinear_counts,
                                         pxtoler=args.pixtol, test=args.test, fwhm=args.fwhm)
         # Testing?
         if args.test:
