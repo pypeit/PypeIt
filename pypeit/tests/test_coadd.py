@@ -117,5 +117,6 @@ def test_coadd_datacube():
     spec = load_spectrograph("keck_kcwi")
     parset = spec.default_pypeit_par()
     parset['reduce']['cube']['output_filename'] = output_filename
+    parset['reduce']['cube']['combine'] = True
     coadd_cube(files, parset=parset, overwrite=True)
     os.remove(output_filename)
