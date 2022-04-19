@@ -200,6 +200,8 @@ class PypeIt:
         """
         Generate QA wrappers
         """
+        msgs.qa_path = self.qa_path
+        qa.gen_qa_dir(self.qa_path)
         qa.gen_mf_html(self.pypeit_file, self.qa_path)
         qa.gen_exp_html()
 
@@ -1021,7 +1023,6 @@ class PypeIt:
         all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr,
                                  update_det=update_det,
                                  slitspatnum=self.par['rdx']['slitspatnum'])
-
 
     def msgs_reset(self):
         """
