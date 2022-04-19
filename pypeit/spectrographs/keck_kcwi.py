@@ -925,4 +925,18 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         spec_bins = np.arange(1+num_wave) - 0.5
         return xbins, ybins, spec_bins
 
+    def flatfield_structure(self, ff_struct):
+        r"""
+        Perform a model fit to any instrument-specific flatfield structure.
+
+        Args:
+            ff_struct (`numpy.ndarray`_):
+                An image of the flatfield structure.
+
+        Returns:
+            `numpy.ndarray`_: A model fit to the flatfield structure.
+        """
+        msgs.info("Performing a fit to the flatfield structure")
+
+        return np.ones_like(ff_struct)
 

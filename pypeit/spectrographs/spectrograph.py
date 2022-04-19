@@ -1184,13 +1184,27 @@ class Spectrograph:
                 Number of wavelength steps.  Given by::
                     int(round((wavemax-wavemin)/delta_wave))
 
-        Args:
+        Returns:
             :obj:`tuple`: Three 1D `numpy.ndarray`_ providing the bins to use
             when constructing a histogram of the spec2d files. The elements
             are :math:`(x,y,\lambda)`.
         """
         msgs.warn("No datacube setup for spectrograph: {0:s}".format(self.name))
         return None
+
+    def flatfield_structure(self, ff_struct):
+        r"""
+        Perform a model fit to any instrument-specific flatfield structure.
+
+        Args:
+            ff_struct (`numpy.ndarray`_):
+                An image of the flatfield structure.
+
+        Returns:
+            `numpy.ndarray`_: A model fit to the flatfield structure.
+        """
+        msgs.warn("Flatfield structure is not implemented for spectrograph: {0:s}".format(self.name))
+        return np.ones_like(ff_struct)
 
     def validate_metadata(self):
         """
