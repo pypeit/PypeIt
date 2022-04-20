@@ -1192,13 +1192,15 @@ class Spectrograph:
         msgs.warn("No datacube setup for spectrograph: {0:s}".format(self.name))
         return None
 
-    def flatfield_structure(self, ff_struct):
+    def flatfield_structure(self, ff_struct, gpmask):
         r"""
         Perform a model fit to any instrument-specific flatfield structure.
 
         Args:
             ff_struct (`numpy.ndarray`_):
                 An image of the flatfield structure.
+            gpmask (`numpy.ndarray`_):
+                Good pixel mask (True=good), the same shape as ff_struct.
 
         Returns:
             `numpy.ndarray`_: A model fit to the flatfield structure.

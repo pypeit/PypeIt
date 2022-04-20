@@ -447,18 +447,21 @@ class FlatField:
         """
         # Fit it
         # NOTE: Tilts do not change and self.slits is updated internally.
-        if not self.flatpar['flatfield_instr']:
+        if not self.flatpar['flatfield_structure']:
             self.fit(spat_illum_only=self.spat_illum_only, debug=debug)
         else:  # Iterate on the pixelflat if required by the spectrograph
-            niter = 1
+            niter = 2
             rawflat_orig = self.rawflatimg.image.copy()
+            gpm = np.ones(rawflat_orig.shape, dtype=bool) if self.rawflatimg.bpm is None else \
+                (1 - self.rawflatimg.bpm).astype(bool)
             for ff in range(niter):
                 # Just get the spatial and spectral profiles for now
-                self.fit(spat_illum_only=True, debug=debug)
+                self.fit(spat_illum_only=self.spat_illum_only, debug=debug)
                 # Extract a structure image
                 ff_struct = self.extract_structure(rawflat_orig)
+                gpmask = (self.waveimg != 0.0) & gpm
                 # Deal with flatfield structure in an instrument specific way
-                ff_specmodel = self.spectrograph.flatfield_structure(ff_struct)
+                ff_specmodel = self.spectrograph.flatfield_structure(ff_struct, gpmask)
                 # Apply this model
                 self.rawflatimg.image = rawflat_orig * utils.inverse(ff_specmodel)
             # Perform a final 2D fit with the cleaned image
@@ -1213,6 +1216,7 @@ class FlatField:
             An image containing the detector structure (i.e. the raw flatfield image
             divided by the spectral and spatial illumination profile fits).
         """
+        msgs.info("Extracting flatfield structure")
         # Build the mask and make a temporary instance of FlatImages
         bpmflats = self.build_mask()
         tmp_flats = FlatImages(illumflat_raw=self.rawflatimg.image,
@@ -1230,7 +1234,7 @@ class FlatField:
                                              flexure=self.wavetilts.spat_flexure,
                                              smooth_npix=self.flatpar['slit_illum_smooth_npix'])
         # Construct a wavelength array
-        onslits = (self.waveimg != 0.0)
+        onslits = (self.waveimg != 0.0) & gpm
         minwv = np.min(self.waveimg[onslits])
         maxwv = np.max(self.waveimg)
         wavebins = np.linspace(minwv, maxwv, self.slits.nspec)
@@ -1247,9 +1251,9 @@ class FlatField:
                                                    fill_value="extrapolate")(waveimg[onslits])
         # Apply relative scale
         spec_model *= scale_model
-        # Divide spectrum of pixelflat to uncover flatfield structure residuals
-        # TODO :: maybe divide by pixel-to-pixel sensitivity variations here too? If so, would need to do a 2D fit earlier in this loop.
-        ff_struct = rawflat * utils.inverse(spec_model)
+        # Divide model spectrum of pixelflat, and the small-scale pixel-to-pixel sensitivity variations,
+        # to uncover the large scale detector structure
+        ff_struct = rawflat * utils.inverse(spec_model) * utils.inverse(self.mspixelflat)
         return ff_struct
 
     def spectral_illumination(self, gpm=None, debug=False):
