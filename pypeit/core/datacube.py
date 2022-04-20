@@ -60,7 +60,8 @@ class DataCube(datamodel.DataContainer):
     """
     version = '1.0.2'
 
-    datamodel = {'flux': dict(otype=np.ndarray, atype=np.floating, descr='Flux array in units of counts/s/Ang or 10^-17 erg/s/cm^2/Ang'),
+    datamodel = {'flux': dict(otype=np.ndarray, atype=np.floating, descr='Flux array in units of counts/s/Ang/arcsec^2'
+                                                                         'or 10^-17 erg/s/cm^2/Ang/arcsec^2'),
                  'variance': dict(otype=np.ndarray, atype=np.floating, descr='Variance array (matches units of flux)'),
                  'blaze_wave': dict(otype=np.ndarray, atype=np.floating, descr='Wavelength array of the spectral blaze function'),
                  'blaze_spec': dict(otype=np.ndarray, atype=np.floating, descr='The spectral blaze function'),
@@ -888,15 +889,15 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
         spec = spectrograph
         specname = spectrograph.name
 
-    # Get the detector number and string representation
-    det = 1 if parset is None else parset['rdx']['detnum']
-    detname = spec.get_det_name(det)
-
     # Grab the parset, if not provided
     if parset is None:
         parset = spec.default_pypeit_par()
     cubepar = parset['reduce']['cube']
     flatpar = parset['calibrations']['flatfield']
+
+    # Get the detector number and string representation
+    det = 1 if parset['rdx']['detnum'] is None else parset['rdx']['detnum']
+    detname = spec.get_det_name(det)
 
     # prep
     numfiles = len(files)
@@ -966,6 +967,7 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
     locations = parset['calibrations']['alignment']['locations']
     flat_splines = dict()   # A dictionary containing the splines of the flatfield
     # Load the scaleimg frame for the scale correction
+    relScaleImg = np.array([1])
     if cubepar['scale_corr'] is not None:
         msgs.info("Loading scale image for relative spectral illumination correction:" +
                   msgs.newline() + cubepar['scale_corr'])
@@ -1115,7 +1117,8 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
             # Calculate the relative scale
             scale_model = flatfield.illum_profile_spectral(flatframe, waveimg, slits,
                                                            slit_illum_ref_idx=flatpar['slit_illum_ref_idx'], model=None,
-                                                           skymask=None, trim=flatpar['slit_trim'], flexure=flexure)
+                                                           skymask=None, trim=flatpar['slit_trim'], flexure=flexure,
+                                                           smooth_npix=flatpar['slit_illum_smooth_npix'])
             # Apply the relative scale and generate a 1D "spectrum"
             onslit = waveimg != 0
             wavebins = np.linspace(np.min(waveimg[onslit]), np.max(waveimg[onslit]), slits.nspec)

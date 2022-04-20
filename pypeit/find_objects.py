@@ -1128,10 +1128,12 @@ class IFUFindObjects(MultiSlitFindObjects):
         """
         trim = self.par['calibrations']['flatfield']['slit_trim']
         ref_idx = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
+        smooth_npix = self.par['calibrations']['flatfield']['slit_illum_smooth_npix']
         gpm = self.sciImg.select_flag(invert=True)
         scaleImg = flatfield.illum_profile_spectral(self.sciImg.image.copy(), self.waveimg, self.slits,
                                                     slit_illum_ref_idx=ref_idx, model=global_sky, gpmask=gpm,
-                                                    skymask=skymask, trim=trim, flexure=self.spat_flexure_shift)
+                                                    skymask=skymask, trim=trim, flexure=self.spat_flexure_shift,
+                                                    smooth_npix=smooth_npix)
         # Now apply the correction to the science frame
         self.apply_relative_scale(scaleImg)
 
