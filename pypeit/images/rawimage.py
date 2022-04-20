@@ -1062,23 +1062,14 @@ class RawImage:
             if not np.any(self.oscansec_img[i] > 0):
                 msgs.error('Image has no overscan region.  Pattern noise cannot be subtracted.')
 
-            # Grab the frequency, if it exists in the header.  For some instruments,
-            # PYPFRQ is added to the header in get_rawimage() in the spectrograph
-            # file.  See keck_kcwi.py for an example.
-            frequency = []
-            try:
-                # Grab a list of all the amplifiers
-                amps = np.sort(np.unique(self.oscansec_img[i,self.oscansec_img[i] > 0]))
-                for amp in amps:
-                    frequency.append(self.hdu[0].header['PYPFRQ{0:02d}'.format(amp)])
-                # Final check to make sure the list isn't empty (which it shouldn't be, anyway)
-                if len(frequency) == 0:
-                    frequency = None
-            except KeyError:
-                frequency = None
+            patt_freqs = self.spectrograph.calc_pattern_freq(self.image[i], self.datasec_img[i],
+                                                            self.oscansec_img[i], self.hdu)
+            # Final check to make sure the list isn't empty (which it shouldn't be, anyway)
+            if len(patt_freqs) == 0:
+                patt_freqs = None
             # Subtract the pattern and overwrite the current image
             _ps_img[i] = procimg.subtract_pattern(self.image[i], self.datasec_img[i],
-                                                  self.oscansec_img[i], frequency=frequency)
+                                                  self.oscansec_img[i], frequency=patt_freqs)
         self.image = np.array(_ps_img)
         self.steps[step] = True
 
