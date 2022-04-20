@@ -462,6 +462,13 @@ class FlatField:
                 gpmask = (self.waveimg != 0.0) & gpm
                 # Deal with flatfield structure in an instrument specific way
                 ff_specmodel = self.spectrograph.flatfield_structure(ff_struct, gpmask)
+                # TODO :: Remove the following lines - just debugging...
+                hdu = fits.PrimaryHDU(ff_struct)
+                hdu.writeto("structure_data_{0:d}.fits".format(ff), overwrite=True)
+                hdu = fits.PrimaryHDU(ff_specmodel)
+                hdu.writeto("structure_model_{0:d}.fits".format(ff), overwrite=True)
+                hdu = fits.PrimaryHDU(ff_struct-ff_specmodel)
+                hdu.writeto("structure_resid_{0:d}.fits".format(ff), overwrite=True)
                 # Apply this model
                 self.rawflatimg.image = rawflat_orig * utils.inverse(ff_specmodel)
             # Perform a final 2D fit with the cleaned image
