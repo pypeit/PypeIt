@@ -924,18 +924,44 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         spec_bins = np.arange(1+num_wave) - 0.5
         return xbins, ybins, spec_bins
 
-    def flatfield_structure(self, ff_struct):
+    def flatfield_structure(self, ff_struct, gpmask):
         r"""
-        Perform a model fit to any instrument-specific flatfield structure.
+        Perform a model fit to the flatfield structure of KCWI data.
+        A few different setups were inspected (BH2 & BM with different
+        grating angles), and a very similar structure was found for all
+        setups, indicating that this structure is something to do with
+        the detector. The starting parameters and functional form are
+        assumed to be sufficient for all setups.
 
         Args:
             ff_struct (`numpy.ndarray`_):
                 An image of the flatfield structure.
+            gpmask (`numpy.ndarray`_):
+                Good pixel mask (True=good), the same shape as ff_struct.
 
         Returns:
             `numpy.ndarray`_: A model fit to the flatfield structure.
         """
         msgs.info("Performing a fit to the flatfield structure")
 
-        return np.ones_like(ff_struct)
+        # Define a 2D sine function, which is a good description of KCWI data
+        def sinfunc2d(x, amp, scl, phase, wavelength, angle):
+            """
+            2D Sine function
+            """
+            xx, yy = x
+            angle *= np.pi / 180.0
+            return 1 + (amp + xx * scl) * np.sin(
+                2 * np.pi * (xx * np.cos(angle) + yy * np.sin(angle)) / wavelength + phase)
 
+        x = np.arange(ff_struct.shape[0])
+        y = np.arange(ff_struct.shape[1])
+        xx, yy = np.meshgrid(x, y, indexing='ij')
+        # Prepare the starting parameters
+        amp = 0.02  # Roughly a 2% effect
+        scale = 0.0  # Assume the amplitude is constant over the detector
+        wavelength = np.sqrt(ff_struct.shape[0]**2 + ff_structshape[1]**2) / 31.5  # 31-32 cycles of the pattern from corner to corner
+        phase, angle = 0.0, -45.34  # No phase, and a decent guess at the angle
+        p0 = [amp, scale, phase, wavelength, angle]
+        popt, pcov = curve_fit(sinfunc2d, (xx[gpmask], yy[gpmask]), ff_struct[gpmask], p0=p0)
+        return sinfunc2d((xx, yy), *popt)
