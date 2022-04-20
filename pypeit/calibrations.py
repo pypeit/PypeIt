@@ -566,7 +566,7 @@ class Calibrations:
                                                         self.par['illumflatframe'],
                                                         illum_image_files, dark=self.msdark,
                                                         bias=self.msbias, bpm=self.msbpm)
-            # Initialise the pixel flat
+            # Initialise the illum flat
             illumFlatField = flatfield.FlatField(illum_flat, self.spectrograph,
                                                  self.par['flatfield'], self.slits, self.wavetilts,
                                                  self.wv_calib, spat_illum_only=True)
