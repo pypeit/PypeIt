@@ -306,9 +306,13 @@ class FindObjects:
         self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
         #
 
-        # First pass object finding
+        # JFH Added first sky subt
+        # Global sky subtract (self.global_sky is also generated here)
+        initial_sky0 = self.global_skysub(skymask=None, update_crmask=False).copy()
+
+        # First pass object finding (JFH added skysubtraction here)
         sobjs_obj, self.nobj = \
-            self.find_objects(self.sciImg.image, self.sciImg.ivar, std_trace=std_trace,
+            self.find_objects(self.sciImg.image-initial_sky0, self.sciImg.ivar, std_trace=std_trace,
                               show_peaks=show_peaks,
                               show=self.findobj_show and not self.std_redux,
                               save_objfindQA=self.par['reduce']['findobj']['skip_second_find'] | self.std_redux)
@@ -784,17 +788,14 @@ class MultiSlitFindObjects(FindObjects):
                     findobj_skymask.objs_in_slit(image, ivar, thismask,
                                 self.slits_left[:,slit_idx],
                                 self.slits_right[:,slit_idx],
-                                inmask=inmask, has_negative=self.find_negative,
+                                inmask=inmask,
                                 ncoeff=self.par['reduce']['findobj']['trace_npoly'],
                                 std_trace=std_trace,
                                 snr_thresh=snr_thresh,
-                                cont_sig_thresh=self.par['reduce']['findobj']['cont_sig_thresh'],
                                 hand_extract_dict=manual_extract_dict,
                                 specobj_dict=specobj_dict, show_peaks=show_peaks,
                                 show_fits=show_fits, show_trace=show_trace,
                                 trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
-                                cont_fit=self.par['reduce']['findobj']['find_cont_fit'],
-                                npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
                                 fwhm=self.par['reduce']['findobj']['find_fwhm'],
                                 use_user_fwhm=self.par['reduce']['extraction']['use_user_fwhm'],
                                 boxcar_rad=self.par['reduce']['extraction']['boxcar_radius'] / self.get_platescale(),  #pixels
@@ -934,7 +935,7 @@ class EchelleFindObjects(FindObjects):
             image, ivar, self.slitmask, self.slits_left, self.slits_right,
             self.order_vec, self.reduce_bpm, det=self.det,
             spec_min_max=np.vstack((self.slits.specmin, self.slits.specmax)),
-            inmask=inmask, has_negative=self.find_negative, ncoeff=self.par['reduce']['findobj']['trace_npoly'],
+            inmask=inmask, ncoeff=self.par['reduce']['findobj']['trace_npoly'],
             hand_extract_dict=manual_extract_dict, plate_scale=plate_scale,
             std_trace=std_trace,
             specobj_dict=specobj_dict,

@@ -148,13 +148,13 @@ def create_skymask(sobjs, thismask, slit_left, slit_righ, box_rad_pix=None, trim
 
 
 def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslits, det=1,
-                inmask=None, spec_min_max=None, fof_link=1.5, plate_scale=0.2, has_negative=False,
+                inmask=None, spec_min_max=None, fof_link=1.5, plate_scale=0.2,
                 std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0,
                 nabove_min_snr=2, pca_explained_var=99.0, box_radius=2.0, fwhm=3.0,
                 use_user_fwhm=False, maxdev=2.0, hand_extract_dict=None, nperorder=2,
-                extract_maskwidth=3.0, snr_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0,
-                cont_sig_thresh=2.0, specobj_dict=None, trim_edg=(5,5), cont_fit=True,
-                npoly_cont=1, show_peaks=False, show_fits=False, show_single_fits=False,
+                extract_maskwidth=3.0, snr_thresh=10.0,
+                specobj_dict=None, trim_edg=(5,5), cont_fit=True,
+                show_peaks=False, show_fits=False, show_single_fits=False,
                 show_trace=False, show_single_trace=False, show_pca=False,
                 debug_all=False, objfindQA_filename=None):
     """
@@ -257,16 +257,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             in the data accounted for by the PCA used to truncate the
             number of PCA coefficients to keep (see `npca`). Ignored
             if `npca` is provided directly. See :func:`pypeit.core.pca.pca_decomposition`.
-        cont_sig_thresh (:obj:`float`, optional):
-            Significance threshold for peak detection for determinining which pixels to use for the iteratively
-            fit continuum of the spectral direction smashed image. This is passed to objfind which is then passed as
-            the sigthresh parameter to core.arc.iter_continum. For extremely narrow slits that are almost filled by
-            the object trace set this to a smaller number like 1.0 or disable continuum fitting altogether with
-            cont_fit=False below. Default = 1.0
-        npoly_cont (:obj:`int`):
-            Order of polynomial fit to the illumination pattern across the slit when peak finding
-        cont_fit (:obj:`bool`):
-            Fit a continuum to the illumination pattern across the slit when peak finding
         trim_edg (:obj:`tuple`):
             Ignore objects within this many pixels of the left and right
             slit boundaries, where the first element refers to the left
@@ -279,22 +269,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
 
                 specobj_dict = {'SLITID': 999, 'DET': 'DET01',
                                 'OBJTYPE': 'unknown', 'PYPELINE': 'unknown'}
-        abs_thresh (:obj:`float`):
-            Absolute threshold for object detection.  Objects are found
-            by smashing out the spectral direction along the curved
-            slit/order traces, and abs_thresh is in the units of this
-            smashed profile.  The code uses the maximum of the
-            thresholds defined by sig_thresh, peak_thers, and
-            abs_thresh.
-        peak_thresh (:obj:`float`):
-            Peak threshold for object detection. This is a number
-            between 0 and 1 and represents the fraction of the brightest
-            object on the slit that will be kept as an object, i.e. if
-            ymax is the brightest object of the spectrum smashed out in
-            the spectral direction, all objects with ypeak >
-            peak_thresh*ymak are kept. The code uses the maximum of the
-            thresholds defined by sig_thresh, peak_thers, and
-            abs_thresh.
         extract_maskwidth (:obj:`float`,optional):
             This parameter determines the initial size of the region in
             units of fwhm that will be used for local sky subtraction in
@@ -308,9 +282,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             trace which is used as a crutch for tracing. If the no
             standard star is provided the code uses the the slit
             boundaries as the crutch.
-        has_negative (:obj:`bool`, optional):
-            Image has negative object traces, i.e. for IR difference imaging. This impacts how the
-            iterative conntinuum is fit to the spectral direction smashed image for object finding. Default=False
         box_radius (:obj:`float`):
             Box_car extraction radius in arcseconds to assign to each detected object and to be
             used later for boxcar extraction. In this method box_radius is converted into pixels
@@ -447,11 +418,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         sobjs_slit = \
             objs_in_slit(image, ivar, thisslit_gpm, slit_left[:,iord], slit_righ[:,iord], spec_min_max=spec_min_max[:,iord],
                     inmask=inmask_iord,std_trace=std_in, ncoeff=ncoeff, fwhm=fwhm, use_user_fwhm=use_user_fwhm, maxdev=maxdev,
-                    hand_extract_dict=new_hand_extract_dict, has_negative=has_negative,
-                    nperslit=nperorder, extract_maskwidth=extract_maskwidth, snr_thresh=snr_thresh,
-                    peak_thresh=peak_thresh, abs_thresh=abs_thresh, cont_sig_thresh=cont_sig_thresh,
-                    trim_edg=trim_edg, boxcar_rad=box_radius/plate_scale_ord[iord], cont_fit=cont_fit,
-                    npoly_cont=npoly_cont, show_peaks=show_peaks, show_fits=show_single_fits,
+                    hand_extract_dict=new_hand_extract_dict,  nperslit=nperorder, extract_maskwidth=extract_maskwidth,
+                    snr_thresh=snr_thresh, trim_edg=trim_edg, boxcar_rad=box_radius/plate_scale_ord[iord],
+                    show_peaks=show_peaks, show_fits=show_single_fits,
                     show_trace=show_single_trace, qa_title=qa_title, specobj_dict=specobj_dict,
                     objfindQA_filename=ech_objfindQA_filename)
         sobjs.add_sobj(sobjs_slit)
@@ -815,6 +784,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
 
     return sobjs_final
 
+# DEPRECATED
 def get_fluxconv(flux_mean, gpm, fwhm, npoly_cont, cont_sig_thresh, has_negative,
                  qa_title=None, show_cont=False, cont_fit=False):
 
@@ -872,10 +842,10 @@ def objfind_QA(spat_peaks, snr_peaks, spat_vector, snr_vector, snr_thresh, qa_ti
 
 
 def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_user_fwhm=False, boxcar_rad=7.,
-                 maxdev=2.0, has_negative=False, spec_min_max=None, hand_extract_dict=None, std_trace=None,
-                 ncoeff=5, nperslit=None, snr_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0, trim_edg=(5,5),
-                 cont_sig_thresh=2.0, extract_maskwidth=4.0, specobj_dict=None, cont_fit=True, npoly_cont=1,
-                 find_min_max=None, show_peaks=False, show_fits=False, show_trace=False, show_cont=False,
+                 maxdev=2.0, spec_min_max=None, hand_extract_dict=None, std_trace=None,
+                 ncoeff=5, nperslit=None, snr_thresh=10.0, peak_thresh=0.0, trim_edg=(5,5),
+                 extract_maskwidth=4.0, specobj_dict=None, find_min_max=None,
+                 show_peaks=False, show_fits=False, show_trace=False,
                  debug_all=False, qa_title='objfind', objfindQA_filename=None):
 
     """
@@ -949,48 +919,15 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
             Maximum number of objects allowed per slit. The code will
             take the nperslit most significant detections.
         snr_thresh (:obj:`float`):
-            S/N ratio threshold for object detection. The code uses
-            the maximum of the thresholds defined by snr_thresh,
-            peak_thresh, and abs_thresh.  For the default behavior
-            peak_thresh and abs_thresh are zero, so snr_thresh defines
-            the threshold.
-        peak_thresh (:obj:`float`):
-            Peak threshold for object detection. This is a number
-            between 0 and 1 and represents the fraction of the brightest
-            object on the slit that will be kept as an object, i.e. if
-            ymax is the brightest object of the spectrum smashed out in
-            the spectral direction, all objects with ypeak >
-            peak_thresh*ymak are kept. The code uses the maximum of the
-            thresholds defined by sig_thresh, peak_thers, and
-            abs_thresh.
-        abs_thresh (:obj:`float`):
-            Absolute threshold for object detection.  Objects are found
-            by smashing out the spectral direction along the curved
-            slit/order traces, and abs_thresh is in the units of this
-            smashed profile.  The code uses the maximum of the
-            thresholds defined by sig_thresh, peak_thers, and
-            abs_thresh.
+            S/N ratio threshold for object detection in the 1d spectral direction smashed out image.
         extract_maskwidth (:obj:`float`,optional):
             This parameter determines the initial size of the region in
             units of fwhm that will be used for local sky subtraction in
             the routine skysub.local_skysub_extract.
-        cont_sig_thresh (:obj:`float`, optional):
-            Significance threshold for peak detection for determinining which pixels to use for the iteratively
-            fit continuum of the spectral direction smashed image. This is passed as the sigthresh parameter
-            to core.arc.iter_continum. For extremely narrow slits that are almost filled by the object trace set
-            this to a smaller number like 1.0 or disable continuum fitting altogether with cont_fit=False below.
-            Default = 2.0.
         trim_edg (:obj:`tuple`):
             Ignore objects within this many pixels of the left and right
             slit boundaries, where the first element refers to the left
             and second refers to the right. This is tuple of 2 integers of floats
-        has_negative (:obj:`bool`, optional):
-            Image has negative object traces, i.e. for IR difference imaging. This impacts how the
-            iterative conntinuum is fit to the spectral direction smashed image for object finding. Default=False
-        cont_fit (:obj:`bool`):
-            Fit a continuum to the illumination pattern across the slit when peak finding
-        npoly_cont (:obj:`int`):
-            Order of polynomial fit to the illumination pattern across the slit when peak finding
         specobj_dict (:obj:`dict`):
             Dictionary containing meta-data for the objects that will be
             propgated into the SpecObj objects, i.e. SLITID,
@@ -1005,8 +942,6 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
             Plot trace fitting for final fits using PCA as crutch
         show_trace (:obj:`bool`):
             Whether display the resulting traces on top of the image
-        show_cont (:obj:`bool`):
-            Show debugging plot of the routine used to determine the spectrum continuum
         debug_all (:obj:`bool`):
             Show all the debugging plots?
         qa_title (:obj:`str`, optional):
@@ -1033,7 +968,6 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
         show_peaks=True
         show_fits = True
         show_trace = True
-        show_cont = True
 
 
     if specobj_dict is None:
@@ -1076,8 +1010,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
         find_min_max[1] = int(np.round(spec_min_max[1]))
 
 
-    totmask = thismask & inmask & np.invert(edgmask)
-    thisimg = image*totmask
+    #totmask = thismask & inmask & np.invert(edgmask)
     #  Smash the image (for this slit) into a single flux vector.  How many pixels wide is the slit at each Y?
     xsize = slit_righ - slit_left
     #nsamp = np.ceil(np.median(xsize)) # JFH Changed 07-07-19
@@ -1087,19 +1020,20 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
     righ_asym = left_asym + np.outer(xsize/nsamp, np.ones(int(nsamp)))
     # This extract_asymbox_boxcar call rectifies the image along the curved object traces
     gpm_tot = thismask & inmask
+
     image_rect, gpm_rect, npix_rect, ivar_rect = extract.extract_asym_boxcar(image, left_asym, righ_asym, gpm=gpm_tot, ivar=ivar)
-
+    #embed()
     # This smashes out the spatial direction to construct an aggregate sky model
-    sky_mean, sky_median, sky_sig = stats.sigma_clipped_stats(image_rect, mask=np.logical_not(gpm_rect), axis=1, sigma=3.0,
-                                                              cenfunc='median', stdfunc=utils.nan_mad_std)
-    gpm_sky = np.sum(gpm_rect,axis=1) != 0 & np.isfinite(sky_median)
-    sky_fill_value = np.median(sky_median[gpm_sky]) if np.any(gpm_sky) else 0.0
-    sky_median[np.logical_not(gpm_sky)] = sky_fill_value
+    #sky_mean, sky_median, sky_sig = stats.sigma_clipped_stats(image_rect, mask=np.logical_not(gpm_rect), axis=1, sigma=3.0,
+    #                                                          cenfunc='median', stdfunc=utils.nan_mad_std)
+    #gpm_sky = np.sum(gpm_rect,axis=1) != 0 & np.isfinite(sky_median)
+    #sky_fill_value = np.median(sky_median[gpm_sky]) if np.any(gpm_sky) else 0.0
+    #sky_median[np.logical_not(gpm_sky)] = sky_fill_value
 
-    sky_rect = np.repeat(sky_median[:, np.newaxis], nsamp, axis=1)
-
+    #sky_rect = np.repeat(sky_median[:, np.newaxis], nsamp, axis=1)
+    sky_rect = 0.0*image_rect
     # Smash out the spectral direction masking outlying pixels. We use this mask gpm_sigclip below
-    data = np.ma.MaskedArray(image_rect-sky_rect, mask=np.logical_not(gpm_rect))
+    data = np.ma.MaskedArray(image_rect - sky_rect, mask=np.logical_not(gpm_rect))
     sigclip = stats.SigmaClip(sigma=5.0, maxiters=25, cenfunc='median', stdfunc=utils.nan_mad_std)
     data_clipped, lower, upper = sigclip(data, axis=0, masked=True, return_bounds=True)
     gpm_sigclip = np.logical_not(data_clipped.mask)  # gpm_smash = True are good values
@@ -1146,8 +1080,6 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
 
 
     # If the user requested the nperslit most significant peaks have been requested, then only return these
-    #TODO FIX THIS HACK
-    #nperslit=None
     if nperslit is not None:
         # If the requested number is less than (the non-edge) number found, mask them out
         if nperslit < npeak_not_near_edge:
@@ -1164,8 +1096,10 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
     spat_peaks = slit_left[specmid] + xsize[specmid] * x_peaks_all/ nsamp
 
     # TODO: Change this to show_image or something
+    show_peaks=True
     if show_peaks:
-        viewer, ch = display.show_image(image * (thismask * inmask), chname='objs_in_slit_show')
+        # Show rectified image here? Add this to QA
+        viewer, ch = display.show_image(image_rect*gpm_rect*np.sqrt(ivar_rect), chname='objs_in_slit_show', cuts=(-5.0,5.0))
 
     objfind_QA(spat_peaks, snr_peaks_all, spat_vector, snr_smash_smth, snr_thresh, qa_title, peaks_gpm,
                near_edge_bpm, nperslit_bpm, objfindQA_filename=objfindQA_filename, show=show_peaks) #show_peaks)
