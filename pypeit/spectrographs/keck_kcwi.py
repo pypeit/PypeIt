@@ -927,7 +927,12 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
     def flatfield_structure(self, ff_struct, gpmask):
         r"""
-        Perform a model fit to any instrument-specific flatfield structure.
+        Perform a model fit to the flatfield structure of KCWI data.
+        A few different setups were inspected (BH2 & BM with different
+        grating angles), and a very similar structure was found for all
+        setups, indicating that this structure is something to do with
+        the detector. The starting parameters and functional form are
+        assumed to be sufficient for all setups.
 
         Args:
             ff_struct (`numpy.ndarray`_):
