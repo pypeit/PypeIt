@@ -91,8 +91,8 @@ class Identify(scriptbase.ScriptBase):
         # TODO -- REMOVE THIS HACK
         try:
             nonlinear_counts = msarc.detector.nonlinear_counts()
-        except:
-            nonlinear_counts = 1e10
+        except AttributeError:
+            nonlinear_counts = None
         arcfitter = Identify.initialise(arccen, lamps, slits, slit=int(args.slit), par=par,
                                         wv_calib_all=wv_calib, wavelim=[args.wmin, args.wmax],
                                         nonlinear_counts=nonlinear_counts,
