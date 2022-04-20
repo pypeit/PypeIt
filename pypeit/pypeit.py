@@ -761,10 +761,7 @@ class PypeIt:
 
         # Is this a standard star?
         self.std_redux = 'standard' in self.objtype
-        if self.std_redux:
-            frame_par = self.par['calibrations']['standardframe']
-        else:
-            frame_par = self.par['scienceframe']
+        frame_par = self.par['calibrations']['standardframe'] if self.std_redux else self.par['scienceframe']
         # Get the standard trace if need be
         std_trace = self.get_std_trace(self.std_redux, det, std_outfile)
 

@@ -841,9 +841,10 @@ def objfind_QA(spat_peaks, snr_peaks, spat_vector, snr_vector, snr_thresh, qa_ti
 
 
 
-def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_user_fwhm=False, boxcar_rad=7.,
+def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0,
+                 sigclip_smash=10.0, use_user_fwhm=False, boxcar_rad=7.,
                  maxdev=2.0, spec_min_max=None, hand_extract_dict=None, std_trace=None,
-                 ncoeff=5, nperslit=None, snr_thresh=10.0, peak_thresh=0.0, trim_edg=(5,5),
+                 ncoeff=5, nperslit=None, snr_thresh=10.0, trim_edg=(5,5),
                  extract_maskwidth=4.0, specobj_dict=None, find_min_max=None,
                  show_peaks=False, show_fits=False, show_trace=False,
                  debug_all=False, qa_title='objfind', objfindQA_filename=None):
@@ -894,6 +895,10 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
             it will default to the values of spec_min_max
         fwhm (:obj:`float`):
             Estimated fwhm of the objects in pixels
+        sigclip_smash: (:obj:`float`):
+            Sigma clipping threshold used when using astrop.sigma_clippped_stats to compute average slit emission profile
+            by averaging the (rectified) image along the spatial direction. Default = 10.0
+
         use_user_fwhm (:obj:`bool`):
             If True PypeIt will use the spatial profile fwm input by the user (i.e. the fwhm parameter above)
             rather than determine the spatial fwhm from the smashed spatial profile via the automated algorithm.
@@ -973,10 +978,6 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
     if specobj_dict is None:
         specobj_dict = dict(SLITID=999, DET='DET01', OBJTYPE='unknown', PYPELINE='MultiSlit')
 
-    # Check that peak_thresh values make sense
-    if peak_thresh < 0 or peak_thresh > 1:
-        msgs.error('Invalid value of peak_thresh. It must be between 0.0 and 1.0')
-
     nspec, nspat = image.shape
     specmid = nspec//2
 
@@ -1034,7 +1035,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
     sky_rect = 0.0*image_rect
     # Smash out the spectral direction masking outlying pixels. We use this mask gpm_sigclip below
     data = np.ma.MaskedArray(image_rect - sky_rect, mask=np.logical_not(gpm_rect))
-    sigclip = stats.SigmaClip(sigma=5.0, maxiters=25, cenfunc='median', stdfunc=utils.nan_mad_std)
+    sigclip = stats.SigmaClip(sigma=sigclip_smash, maxiters=25, cenfunc='median', stdfunc=utils.nan_mad_std)
     data_clipped, lower, upper = sigclip(data, axis=0, masked=True, return_bounds=True)
     gpm_sigclip = np.logical_not(data_clipped.mask)  # gpm_smash = True are good values
 
@@ -1096,7 +1097,6 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
     spat_peaks = slit_left[specmid] + xsize[specmid] * x_peaks_all/ nsamp
 
     # TODO: Change this to show_image or something
-    show_peaks=True
     if show_peaks:
         # Show rectified image here? Add this to QA
         viewer, ch = display.show_image(image_rect*gpm_rect*np.sqrt(ivar_rect), chname='objs_in_slit_show', cuts=(-5.0,5.0))

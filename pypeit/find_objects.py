@@ -306,8 +306,8 @@ class FindObjects:
         self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
         #
 
-        # JFH Added first sky subt
-        # Global sky subtract (self.global_sky is also generated here)
+        # JFH Perform a first pass sky-subtraction without masking any objects
+        # TODO: DEIMOS box slits are not being sky-subtracted. Not sure why
         initial_sky0 = self.global_skysub(skymask=None, update_crmask=False).copy()
 
         # First pass object finding (JFH added skysubtraction here)
@@ -319,12 +319,15 @@ class FindObjects:
 
         # create skymask using first pass sobjs_obj
         skymask_init = self.create_skymask(sobjs_obj)
-
         # Check if the user wants to overwrite the skymask with a pre-defined sky regions file.
         skymask_init, usersky = self.load_skyregions(skymask_init)
 
-        # Global sky subtract (self.global_sky is also generated here)
-        initial_sky = self.global_skysub(skymask=skymask_init).copy()
+        # If no objects were found and user did not define sky regions, don't redo global sky subtraction
+        if self.nobj == 0 and not usersky:
+            initial_sky = initial_sky0
+        else:
+            # Global sky subtract now using the skymask defined by object positions
+            initial_sky = self.global_skysub(skymask=skymask_init).copy()
 
         # Second pass object finding on sky-subtracted image
         if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
@@ -546,6 +549,7 @@ class FindObjects:
         # Return
         return global_sky
 
+    # TODO This should be a method in IFU, not in the general class as Multi and Echelle don't use it I believe JFH
     def load_skyregions(self, skymask_init):
         """
         Load or generate the sky regions
