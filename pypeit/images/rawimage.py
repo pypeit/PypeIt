@@ -269,7 +269,8 @@ class RawImage:
                 # doesn't check this...
                 gain[i] += procimg.gain_frame(self.oscansec_img[i],
                                               np.atleast_1d(self.detector[i]['gain']))
-
+            # Set gain to 1 outside of the datasec and oscansec sections.
+            gain[i][gain[i]==0] = 1
         # Convert from DN to counts
         self.image *= np.array(gain)
 
@@ -1063,7 +1064,7 @@ class RawImage:
                 msgs.error('Image has no overscan region.  Pattern noise cannot be subtracted.')
 
             patt_freqs = self.spectrograph.calc_pattern_freq(self.image[i], self.datasec_img[i],
-                                                            self.oscansec_img[i], self.hdu)
+                                                             self.oscansec_img[i], self.hdu)
             # Final check to make sure the list isn't empty (which it shouldn't be, anyway)
             if len(patt_freqs) == 0:
                 patt_freqs = None

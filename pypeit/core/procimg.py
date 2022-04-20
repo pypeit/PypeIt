@@ -722,7 +722,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
     Returns:
         `numpy.ndarray`_: The input frame with the pattern subtracted
     """
-    msgs.info("Analyzing detector pattern")
+    msgs.info("Analyzing detector pattern (this process can take several minutes)")
 
     # Copy the data so that the subtraction is not done in place
     frame_orig = rawframe.copy()

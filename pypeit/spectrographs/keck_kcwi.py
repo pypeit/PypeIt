@@ -613,9 +613,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             elif section == 'BSEC':
                 oscansec_img = pix_img.copy()
 
-        # Calculate the pattern frequency
-        #hdu = self.calc_pattern_freq(raw_img, rawdatasec_img, oscansec_img, hdu)
-
         # Return
         return detpar, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
 
@@ -657,7 +654,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         patt_freqs : `list`_
             List of pattern frequencies.
         """
-        msgs.info("Calculating pattern noise frequency")
+        msgs.info("Calculating pattern noise frequency (this process can take several minutes)")
 
         # Make a copy of te original frame
         raw_img = frame.copy()
@@ -690,7 +687,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             freq = procimg.pattern_frequency(frame)
             patt_freqs.append(freq)
             msgs.info("Pattern frequency of amplifier {0:d}/{1:d} = {2:f}".format(amp, num_amps, freq))
-        print(patt_freqs)
+
         # Return the list of pattern frequencies
         return patt_freqs
 
