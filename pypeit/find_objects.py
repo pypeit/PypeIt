@@ -770,7 +770,7 @@ class MultiSlitFindObjects(FindObjects):
             if self.slits.bitmask.flagged(self.slits.mask[slit_idx], flag='BOXSLIT'):
                 snr_thresh = 0.
             else:
-                snr_thresh = self.par['reduce']['findobj']['sig_thresh']
+                snr_thresh = self.par['reduce']['findobj']['snr_thresh']
 
             # Set objfind QA filename
             objfindQA_filename = None
@@ -939,12 +939,9 @@ class EchelleFindObjects(FindObjects):
             hand_extract_dict=manual_extract_dict, plate_scale=plate_scale,
             std_trace=std_trace,
             specobj_dict=specobj_dict,
-            snr_thresh=self.par['reduce']['findobj']['sig_thresh'],
-            cont_sig_thresh=self.par['reduce']['findobj']['cont_sig_thresh'],
+            snr_thresh=self.par['reduce']['findobj']['snr_thresh'],
             show_peaks=show_peaks, show_fits=show_fits,
             trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
-            cont_fit=self.par['reduce']['findobj']['find_cont_fit'],
-            npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
             fwhm=self.par['reduce']['findobj']['find_fwhm'],
             use_user_fwhm=self.par['reduce']['extraction']['use_user_fwhm'],
             nperorder=self.par['reduce']['findobj']['maxnumber'],

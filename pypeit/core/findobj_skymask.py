@@ -153,7 +153,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                 nabove_min_snr=2, pca_explained_var=99.0, box_radius=2.0, fwhm=3.0,
                 use_user_fwhm=False, maxdev=2.0, hand_extract_dict=None, nperorder=2,
                 extract_maskwidth=3.0, snr_thresh=10.0,
-                specobj_dict=None, trim_edg=(5,5), cont_fit=True,
+                specobj_dict=None, trim_edg=(5,5),
                 show_peaks=False, show_fits=False, show_single_fits=False,
                 show_trace=False, show_single_trace=False, show_pca=False,
                 debug_all=False, objfindQA_filename=None):
