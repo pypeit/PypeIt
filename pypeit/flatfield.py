@@ -463,6 +463,7 @@ class FlatField:
                 # Deal with flatfield structure in an instrument specific way
                 ff_specmodel = self.spectrograph.flatfield_structure(ff_struct, gpmask)
                 # TODO :: Remove the following lines - just debugging...
+                import astropy.io.fits as fits
                 hdu = fits.PrimaryHDU(ff_struct)
                 hdu.writeto("structure_data_{0:d}.fits".format(ff), overwrite=True)
                 hdu = fits.PrimaryHDU(ff_specmodel)
@@ -1231,7 +1232,7 @@ class FlatField:
                                illumflat_bpm=bpmflats, PYP_SPEC=self.spectrograph.name,
                                spat_id=self.slits.spat_id)
         # Divide by the spatial profile
-        spat_illum = tmp_flats.fit2illumflat(slits, frametype='pixel')
+        spat_illum = tmp_flats.fit2illumflat(self.slits, frametype='pixel')
         rawflat = rawflat_orig * utils.inverse(spat_illum)
         # Now fit the spectral profile
         gpm = np.ones(rawflat.shape, dtype=bool) if self.rawflatimg.bpm is None else (1 - self.rawflatimg.bpm).astype(bool)
@@ -1255,7 +1256,7 @@ class FlatField:
         # Create a 1D model of the spectrum and assign a flux to each detector pixel
         spec_model = np.ones_like(rawflat)
         spec_model[onslits] = interpolate.interp1d(wave_ref, spec_ref, kind='linear', bounds_error=False,
-                                                   fill_value="extrapolate")(waveimg[onslits])
+                                                   fill_value="extrapolate")(self.waveimg[onslits])
         # Apply relative scale
         spec_model *= scale_model
         # Divide model spectrum of pixelflat, and the small-scale pixel-to-pixel sensitivity variations,
@@ -1298,7 +1299,8 @@ class FlatField:
         return illum_profile_spectral(rawflat, self.waveimg, self.slits,
                                       slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
                                       model=None, gpmask=gpm, skymask=None, trim=trim,
-                                      flexure=flex, smooth_npix=self.flatpar['slit_illum_smooth_npix'])
+                                      flexure=self.wavetilts.spat_flexure,
+                                      smooth_npix=self.flatpar['slit_illum_smooth_npix'])
 
 
 def show_flats(image_list, wcs_match=True, slits=None, waveimg=None):
