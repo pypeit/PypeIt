@@ -172,23 +172,3 @@ def test_lacosmic():
     __crmask = procimg.lacosmic(test_img, saturation=np.full(test_img.shape, 6000.),
                                     varframe=test_var, maxiter=1)
     assert np.array_equal(__crmask, _crmask), 'Saturation array failed.'
-
-
-def test_fit_pattern():
-    spec = load_spectrograph('keck_kcwi')
-    # Generate a good pixel mask
-    frsize = 4100
-    gpm = np.ones((frsize,frsize), dtype=np.bool)
-    # Generate a fake image
-    sinemodel = lambda xx, yy, amp, scl, phase, wavelength, angle: 1 + (amp + xx * scl) * np.sin(
-                2 * np.pi * (xx * np.cos(angle) + yy * np.sin(angle*np.pi / 180.0)) / wavelength + phase)
-    x = np.arange(ff_struct.shape[0])
-    y = np.arange(ff_struct.shape[1])
-    xx, yy = np.meshgrid(x, y, indexing='ij')
-    amp, scale, wavelength, phase, angle = 0.02, 0.0, 1.41*frsize/31.5, 0.0, -45.34
-    img = sinemodel(xx, yy, amp, scale, wavelength, phase, angle)
-    model = spec.flatfield_structure(img, gpm)
-    assert np.allclose(img, model, atol=0.001), 'pattern fitting failed.'
-
-
-

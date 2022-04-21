@@ -15,7 +15,7 @@ from astropy import wcs, units
 from astropy.io import fits
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, EarthLocation
-
+from scipy.optimize import curve_fit
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit import io
@@ -960,7 +960,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Prepare the starting parameters
         amp = 0.02  # Roughly a 2% effect
         scale = 0.0  # Assume the amplitude is constant over the detector
-        wavelength = np.sqrt(ff_struct.shape[0]**2 + ff_structshape[1]**2) / 31.5  # 31-32 cycles of the pattern from corner to corner
+        wavelength = np.sqrt(ff_struct.shape[0]**2 + ff_struct.shape[1]**2) / 31.5  # 31-32 cycles of the pattern from corner to corner
         phase, angle = 0.0, -45.34  # No phase, and a decent guess at the angle
         p0 = [amp, scale, phase, wavelength, angle]
         popt, pcov = curve_fit(sinfunc2d, (xx[gpmask], yy[gpmask]), ff_struct[gpmask], p0=p0)

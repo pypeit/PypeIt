@@ -121,3 +121,19 @@ def test_flatimages():
 #    # Use the trace image
 #    flatImages = flatField.run()
 #    assert np.isclose(np.median(flatImages.pixelflat), 1.0)
+
+def test_fit_structure():
+    spec = load_spectrograph('keck_kcwi')
+    # Generate a good pixel mask
+    frsize = 4100
+    gpm = np.ones((frsize,frsize), dtype=np.bool)
+    # Generate a fake image
+    sinemodel = lambda xx, yy, amp, scl, phase, wavelength, angle: 1 + (amp + xx * scl) * np.sin(
+                2 * np.pi * (xx * np.cos(angle*np.pi / 180.0) + yy * np.sin(angle*np.pi / 180.0)) / wavelength + phase)
+    x = np.arange(frsize)
+    y = np.arange(frsize)
+    xx, yy = np.meshgrid(x, y, indexing='ij')
+    amp, scale, wavelength, phase, angle = 0.02, 0.0, 1.41*frsize/31.5, 0.0, -45.34
+    img = sinemodel(xx, yy, amp, scale, phase, wavelength, angle)
+    model = spec.flatfield_structure(img, gpm)
+    assert np.allclose(img, model, atol=0.001), 'structure fitting failed.'
