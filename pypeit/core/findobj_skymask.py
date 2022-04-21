@@ -842,7 +842,7 @@ def objfind_QA(spat_peaks, snr_peaks, spat_vector, snr_vector, snr_thresh, qa_ti
 
 
 def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0,
-                 sigclip_smash=10.0, use_user_fwhm=False, boxcar_rad=7.,
+                 sigclip_smash=5.0, use_user_fwhm=False, boxcar_rad=7.,
                  maxdev=2.0, spec_min_max=None, hand_extract_dict=None, std_trace=None,
                  ncoeff=5, nperslit=None, snr_thresh=10.0, trim_edg=(5,5),
                  extract_maskwidth=4.0, specobj_dict=None, find_min_max=None,
@@ -1032,9 +1032,9 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
     #sky_median[np.logical_not(gpm_sky)] = sky_fill_value
 
     #sky_rect = np.repeat(sky_median[:, np.newaxis], nsamp, axis=1)
-    sky_rect = 0.0*image_rect
+    #sky_rect = 0.0*image_rect
     # Smash out the spectral direction masking outlying pixels. We use this mask gpm_sigclip below
-    data = np.ma.MaskedArray(image_rect - sky_rect, mask=np.logical_not(gpm_rect))
+    data = np.ma.MaskedArray(image_rect, mask=np.logical_not(gpm_rect))
     sigclip = stats.SigmaClip(sigma=sigclip_smash, maxiters=25, cenfunc='median', stdfunc=utils.nan_mad_std)
     data_clipped, lower, upper = sigclip(data, axis=0, masked=True, return_bounds=True)
     gpm_sigclip = np.logical_not(data_clipped.mask)  # gpm_smash = True are good values
@@ -1043,7 +1043,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
     nsmash = find_min_max[1] - find_min_max[0] + 1
     npix_smash = np.sum(gpm_sigclip[find_min_max[0]:find_min_max[1]], axis=0)
     gpm_smash = npix_smash > 0.3*nsmash
-    flux_sum_smash = np.sum(((image_rect-sky_rect)*gpm_sigclip)[find_min_max[0]:find_min_max[1]], axis=0)
+    flux_sum_smash = np.sum((image_rect*gpm_sigclip)[find_min_max[0]:find_min_max[1]], axis=0)
     flux_smash = flux_sum_smash*gpm_smash/(npix_smash + (npix_smash == 0.0))
 
     if not np.any(gpm_smash):
@@ -1062,8 +1062,12 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
     snr_smash_smth = scipy.ndimage.filters.gaussian_filter1d(snr_smash, gauss_smth_sigma, mode='nearest')
     flux_smash_smth = scipy.ndimage.filters.gaussian_filter1d(flux_smash, gauss_smth_sigma, mode='nearest')
 
-    # TODO Make this peak finding use sub-pixel centroiding?
-    x_peaks_all = arc.detect_peaks(snr_smash_smth, mph=snr_thresh, mpd=fwhm*0.75, show=False)
+    _, _, x_peaks_out, x_width, x_err, igood, _, _ = arc.detect_lines(
+        snr_smash_smth, input_thresh=snr_thresh, fit_frac_fwhm=1.5, fwhm=fwhm, min_pkdist_frac_fwhm=0.75,
+        max_frac_fwhm=3.0, cont_subtract=False, debug_peak_find=False)
+
+    x_peaks_all = x_peaks_out[igood]
+    #x_peaks_all = arc.detect_peaks(snr_smash_smth, mph=snr_thresh, mpd=fwhm*0.75, show=False)
     snr_peaks_all = np.interp(x_peaks_all, np.arange(nsamp), snr_smash_smth)
     flux_peaks_all = np.interp(x_peaks_all, np.arange(nsamp), flux_smash_smth)
     npeaks_all = len(x_peaks_all)
@@ -1097,6 +1101,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
     spat_peaks = slit_left[specmid] + xsize[specmid] * x_peaks_all/ nsamp
 
     # TODO: Change this to show_image or something
+    #show_peaks=True
     if show_peaks:
         # Show rectified image here? Add this to QA
         viewer, ch = display.show_image(image_rect*gpm_rect*np.sqrt(ivar_rect), chname='objs_in_slit_show', cuts=(-5.0,5.0))

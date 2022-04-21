@@ -806,8 +806,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
                  min_pkdist_frac_fwhm=0.75, cont_samp=30, nonlinear_counts=1e10, niter_cont=3,
                  nfind=None, bpm=None, verbose=False, debug=False, debug_peak_find=False):
     """
-    Extract an arc down the center of the chip and identify
-    statistically significant lines for analysis.
+    Identify peaks in arc spectrum  significant lines for analysis.
 
     Parameters
     ----------
@@ -835,11 +834,11 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     fwhm : float, default = 4.0, optional
        Number of pixels per fwhm resolution element.
 
-    fit_frac_fwhm: float, default 0.5, optional
+    fit_frac_fwhm: float, default 1.25, optional
        Number of pixels that are used in the fits for Gaussian arc
        line centroiding expressed as a fraction of the fwhm parameter
 
-    max_frac_fwhm:  float, default = 2.5, optional
+    max_frac_fwhm:  float, default = 3.0, optional
        maximum width allowed for usable arc lines expressed relative
        to the fwhm.
 
