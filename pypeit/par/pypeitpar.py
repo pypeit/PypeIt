@@ -857,7 +857,7 @@ class AlignPar(ParSet):
 
     """
 
-    def __init__(self, locations=None, trace_npoly=None, trim_edge=None, sig_thresh=None):
+    def __init__(self, locations=None, trace_npoly=None, trim_edge=None, snr_thresh=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -886,9 +886,9 @@ class AlignPar(ParSet):
         dtypes['trim_edge'] = list
         descr['trim_edge'] = 'Trim the slit by this number of pixels left/right before finding alignment bars'
 
-        defaults['sig_thresh'] = 1.0  # This must be low, because the routine will find the
-        dtypes['sig_thresh'] = [int, float]
-        descr['sig_thresh'] = 'Significance threshold for finding an alignment trace. This should be a low' \
+        defaults['snr_thresh'] = 1.0  # This must be low, because the routine will find the
+        dtypes['snr_thresh'] = [int, float]
+        descr['snr_thresh'] = 'S/N ratio threshold for finding an alignment trace. This should be a low' \
                               'number to ensure that the algorithm finds all bars. The algorithm will' \
                               'then only use the N most significant detections, where N is the number' \
                               'of elements specified in the "locations" keyword argument'
@@ -905,7 +905,7 @@ class AlignPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['locations', 'trace_npoly', 'trim_edge', 'sig_thresh']
+        parkeys = ['locations', 'trace_npoly', 'trim_edge', 'snr_thresh']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

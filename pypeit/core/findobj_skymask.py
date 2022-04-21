@@ -785,30 +785,30 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     return sobjs_final
 
 # DEPRECATED
-def get_fluxconv(flux_mean, gpm, fwhm, npoly_cont, cont_sig_thresh, has_negative,
-                 qa_title=None, show_cont=False, cont_fit=False):
-
-    nsamp = flux_mean.size
-    gauss_smth_sigma = (fwhm/2.3548)
-    cont_samp = np.fmin(int(np.ceil(nsamp/(fwhm/2.3548))), 30)
-
-    flux_mean_med0 = np.median(flux_mean[gpm])
-    # Fill in masked values with the running median
-    spat_pix = np.arange(nsamp)
-    flux_mean_fill_val = np.interp(spat_pix, spat_pix[gpm], fast_running_median(flux_mean[gpm], 5.0*fwhm))
-    flux_mean[np.logical_not(gpm)] = flux_mean_fill_val[np.logical_not(gpm)]
-    fluxsub0 = flux_mean - flux_mean_med0
-    fluxconv0 = scipy.ndimage.filters.gaussian_filter1d(fluxsub0, gauss_smth_sigma, mode='nearest')
-
-    #show_cont=True
-    cont, cont_gpm = arc.iter_continuum(
-        fluxconv0, inmask=gpm, fwhm=fwhm, cont_frac_fwhm=2.0, sigthresh=cont_sig_thresh, sigrej=2.0, cont_samp=cont_samp,
-        npoly=(0 if (nsamp/fwhm < 20.0) else npoly_cont), cont_mask_neg=has_negative, debug=show_cont, debug_peak_find=False,
-        qa_title=qa_title)
-
-    fluxconv_cont = (fluxconv0 - cont) if cont_fit else fluxconv0
-
-    return fluxconv_cont, cont_gpm
+# def get_fluxconv(flux_mean, gpm, fwhm, npoly_cont, cont_sig_thresh, has_negative,
+#                  qa_title=None, show_cont=False, cont_fit=False):
+#
+#     nsamp = flux_mean.size
+#     gauss_smth_sigma = (fwhm/2.3548)
+#     cont_samp = np.fmin(int(np.ceil(nsamp/(fwhm/2.3548))), 30)
+#
+#     flux_mean_med0 = np.median(flux_mean[gpm])
+#     # Fill in masked values with the running median
+#     spat_pix = np.arange(nsamp)
+#     flux_mean_fill_val = np.interp(spat_pix, spat_pix[gpm], fast_running_median(flux_mean[gpm], 5.0*fwhm))
+#     flux_mean[np.logical_not(gpm)] = flux_mean_fill_val[np.logical_not(gpm)]
+#     fluxsub0 = flux_mean - flux_mean_med0
+#     fluxconv0 = scipy.ndimage.filters.gaussian_filter1d(fluxsub0, gauss_smth_sigma, mode='nearest')
+#
+#     #show_cont=True
+#     cont, cont_gpm = arc.iter_continuum(
+#         fluxconv0, inmask=gpm, fwhm=fwhm, cont_frac_fwhm=2.0, sigthresh=cont_sig_thresh, sigrej=2.0, cont_samp=cont_samp,
+#         npoly=(0 if (nsamp/fwhm < 20.0) else npoly_cont), cont_mask_neg=has_negative, debug=show_cont, debug_peak_find=False,
+#         qa_title=qa_title)
+#
+#     fluxconv_cont = (fluxconv0 - cont) if cont_fit else fluxconv0
+#
+#     return fluxconv_cont, cont_gpm
 
 
 def objfind_QA(spat_peaks, snr_peaks, spat_vector, snr_vector, snr_thresh, qa_title, peak_gpm,
@@ -1045,6 +1045,10 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
     gpm_smash = npix_smash > 0.3*nsmash
     flux_sum_smash = np.sum((image_rect*gpm_sigclip)[find_min_max[0]:find_min_max[1]], axis=0)
     flux_smash = flux_sum_smash*gpm_smash/(npix_smash + (npix_smash == 0.0))
+    flux_smash_mean, flux_smash_med, flux_smash_std = stats.sigma_clipped_stats(flux_smash,
+                                                                                mask=np.logical_not(gpm_smash),
+                                                                                sigma_lower=3.0, sigma_upper=3.0)
+    flux_smash_recen = flux_smash - flux_smash_med
 
     if not np.any(gpm_smash):
         msgs.info('No objects found')
@@ -1056,15 +1060,15 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
     var_sum_smash = np.sum((var_rect*gpm_sigclip)[find_min_max[0]:find_min_max[1]], axis=0)
     var_smash = var_sum_smash/(npix_smash**2 + (npix_smash == 0.0))
     ivar_smash = utils.inverse(var_smash)*gpm_smash
-    snr_smash = flux_smash*np.sqrt(ivar_smash)
+    snr_smash = flux_smash_recen*np.sqrt(ivar_smash)
 
     gauss_smth_sigma = (fwhm/2.3548)
     snr_smash_smth = scipy.ndimage.filters.gaussian_filter1d(snr_smash, gauss_smth_sigma, mode='nearest')
-    flux_smash_smth = scipy.ndimage.filters.gaussian_filter1d(flux_smash, gauss_smth_sigma, mode='nearest')
+    flux_smash_smth = scipy.ndimage.filters.gaussian_filter1d(flux_smash_recen, gauss_smth_sigma, mode='nearest')
 
     _, _, x_peaks_out, x_width, x_err, igood, _, _ = arc.detect_lines(
         snr_smash_smth, input_thresh=snr_thresh, fit_frac_fwhm=1.5, fwhm=fwhm, min_pkdist_frac_fwhm=0.75,
-        max_frac_fwhm=3.0, cont_subtract=False, debug_peak_find=False)
+        max_frac_fwhm=10.0, cont_subtract=False, debug_peak_find=False)
 
     x_peaks_all = x_peaks_out[igood]
     #x_peaks_all = arc.detect_peaks(snr_smash_smth, mph=snr_thresh, mpd=fwhm*0.75, show=False)
@@ -1088,8 +1092,8 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
     if nperslit is not None:
         # If the requested number is less than (the non-edge) number found, mask them out
         if nperslit < npeak_not_near_edge:
-            snr_thresh = snr_peaks_all[snr_peaks_all[np.logical_not(near_edge_bpm)].argsort()[::-1][nperslit-1]]
-            nperslit_bpm = np.logical_not(near_edge_bpm) & (snr_peaks_all < snr_thresh)
+            snr_thresh_perslit = snr_peaks_all[snr_peaks_all[np.logical_not(near_edge_bpm)].argsort()[::-1][nperslit-1]]
+            nperslit_bpm = np.logical_not(near_edge_bpm) & (snr_peaks_all < snr_thresh_perslit)
         else:
             nperslit_bpm = np.zeros(npeaks_all, dtype=bool)
     else:
@@ -1101,7 +1105,6 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
     spat_peaks = slit_left[specmid] + xsize[specmid] * x_peaks_all/ nsamp
 
     # TODO: Change this to show_image or something
-    #show_peaks=True
     if show_peaks:
         # Show rectified image here? Add this to QA
         viewer, ch = display.show_image(image_rect*gpm_rect*np.sqrt(ivar_rect), chname='objs_in_slit_show', cuts=(-5.0,5.0))
@@ -1272,7 +1275,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
             f_ximg = scipy.interpolate.RectBivariateSpline(spec_vec, spat_vec, ximg)
             thisobj.SPAT_FRACPOS = float(f_ximg(thisobj.hand_extract_spec, thisobj.hand_extract_spat, grid=False)) # interpolate from ximg
             thisobj.smash_peakflux = np.interp(thisobj.SPAT_FRACPOS*nsamp,np.arange(nsamp), flux_smash_smth) # interpolate from fluxconv
-            thisobj.smash_peakflux = np.interp(thisobj.SPAT_FRACPOS*nsamp,np.arange(nsamp), snr_smash_smth) # interpolate from fluxconv
+            thisobj.smash_snr = np.interp(thisobj.SPAT_FRACPOS*nsamp,np.arange(nsamp), snr_smash_smth) # interpolate from fluxconv
             # assign the trace
             spat_0 = np.interp(thisobj.hand_extract_spec, spec_vec, trace_model)
             shift = thisobj.hand_extract_spat - spat_0
