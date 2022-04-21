@@ -3,6 +3,7 @@ Module for Keck/MOSFIRE specific methods.
 
 .. include:: ../include/links.rst
 """
+import os
 import numpy as np
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
@@ -124,6 +125,12 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['IR']['maxiter'] = 2
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
         return par
+
+
+
+    def get_ql_master_dir(self, file):
+        mosfire_filter = self.get_meta_value(file, 'filter1')
+        return os.path.join(self.name, mosfire_filter)
 
     def config_specific_par(self, scifile, inp_par=None):
         """

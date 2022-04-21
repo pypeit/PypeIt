@@ -86,6 +86,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
         return par
 
+
     def config_specific_par(self, scifile, inp_par=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
@@ -1101,6 +1102,35 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # Return
         return detector
 
+
+    def parse_dither_pattern(self, file_list, ext=None):
+        """
+        Parse headers from a file list to determine the dither pattern.
+
+        Parameters
+        ----------
+        file_list (list of strings):
+            List of files for which dither pattern is desired
+        ext (int, optional):
+            Extension containing the relevant header for these files. Default=None. If None, code uses
+            self.primary_hdrext
+
+        Returns
+        -------
+        dither_pattern, dither_id, offset_arcsec
+
+        dither_pattern (str `numpy.ndarray`_):
+            Array of dither pattern names
+        dither_id (str `numpy.ndarray`_):
+            Array of dither pattern IDs
+        offset_arc (float `numpy.ndarray`_):
+            Array of dither pattern offsets
+        """
+        nfiles = len(file_list)
+        dummy_str_array = np.array(nfiles*[''])
+        dummy_id_array = np.array(nfiles*['A'])
+        return dummy_str_array, dummy_id_array,  np.zeros(nfiles)
+
     @classmethod
     def default_pypeit_par(cls):
         """
@@ -1140,6 +1170,10 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         par['sensfunc']['polyorder'] = 9
 
         return par
+
+    def get_ql_master_dir(self, file):
+        lris_grating = self.get_meta_value(file, 'dispname')
+        return os.path.join(self.name, lris_grating)
 
     def config_specific_par(self, scifile, inp_par=None):
         """

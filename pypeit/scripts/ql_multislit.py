@@ -1,5 +1,5 @@
 """
-Script for quick-look reductions of Keck MOSFIRE observations.
+Script for quick-look reductions for Multislit observations.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
@@ -20,6 +20,7 @@ from astropy.table import Table
 from astropy.stats import sigma_clipped_stats
 
 from pypeit import utils
+from pypeit import data
 from pypeit import pypeit
 from pypeit import par, msgs
 from pypeit import pypeitsetup
@@ -40,19 +41,21 @@ from pypeit.core.wavecal import wvutils
 from pypeit import sensfunc
 from pypeit.core import flux_calib
 from pypeit.scripts import scriptbase
+from pypeit.spectrographs import available_spectrographs
 
 
+# TODO make the quicklook default_pypeit_par part of the spectrograph class
 def config_lines(args):
     # Config the run
     cfg_lines = ['[rdx]']
-    cfg_lines += ['    spectrograph = {0}'.format('keck_lris_red_mark4')]
+    cfg_lines += ['    spectrograph = {0}'.format(args.spectrograph)]
     cfg_lines += ['    redux_path = {0}'.format(args.redux_path)]
     cfg_lines += ['    scidir = Science_QL']
     # Calibrations
     cfg_lines += ['[baseprocess]']
     cfg_lines += ['    use_pixelflat = False']
     cfg_lines += ['    use_illumflat = False']
-    cfg_lines += ['    use_biasimage = False'] # TODO fix for LRIS
+    cfg_lines += ['    use_biasimage = False'] # TODO determine how to make this instrument specific?
 
     cfg_lines += ['[calibrations]']
     cfg_lines += ['    [[wavelengths]]']
@@ -73,8 +76,112 @@ def config_lines(args):
     cfg_lines += ['        spec_method = skip']
     return cfg_lines
 
+def print_offset_report(files, dither_pattern, dither_id, offset_arcsec, target, platescale):
 
-def run(files, caliBrate, spectrograph, det, parset, show=False, std_trace=None):
+    if len(np.unique(dither_pattern)) > 1:
+        msgs.error('Script only supported for a single type of dither pattern.')
+    A_files = files[dither_id == 'A']
+    B_files = files[dither_id == 'B']
+    nA = len(A_files)
+    nB = len(B_files)
+
+    # Print out a report on the offsets
+    msg_string = msgs.newline() + '*******************************************************'
+    msg_string += msgs.newline() + ' Summary of offsets for target {:s} with dither pattern:   {:s}'.format(target,
+                                                                                                            dither_pattern[
+                                                                                                                0])
+    msg_string += msgs.newline() + '*******************************************************'
+    msg_string += msgs.newline() + 'filename     Position         arcsec    pixels    '
+    msg_string += msgs.newline() + '----------------------------------------------------'
+    for iexp, file in enumerate(files):
+        msg_string += msgs.newline() + '    {:s}    {:s}   {:6.2f}    {:6.2f}'.format(
+            os.path.basename(file), dither_id[iexp], offset_arcsec[iexp], offset_arcsec[iexp] / platescale)
+    msg_string += msgs.newline() + '********************************************************'
+    msgs.info(msg_string)
+
+def build_calibrate(det, files, spectrograph, parset, bias_masterframe_name, slit_masterframe_name, wvcalib_masterframe_name,
+                       tilts_masterframe_name):
+    # Read in the bias
+    msbias = buildimage.BiasImage.from_file(bias_masterframe_name) if bias_masterframe_name is not None else None
+    # Read in the msbpm
+    msbpm = spectrograph.bpm(files[0], det)
+    # Read in the slits
+    slits = slittrace.SlitTraceSet.from_file(slit_masterframe_name)
+    # Reset the bitmask
+    slits.mask = slits.mask_init.copy()
+    # Read in the wv_calib
+    wv_calib = wavecalib.WaveCalib.from_file(wvcalib_masterframe_name)
+    # wv_calib.is_synced(slits)
+    slits.mask_wvcalib(wv_calib)
+    # Read in the tilts
+    tilts_obj = wavetilts.WaveTilts.from_file(tilts_masterframe_name)
+    tilts_obj.is_synced(slits)
+    slits.mask_wavetilts(tilts_obj)
+
+    # Build the Calibrate object
+    caliBrate = calibrations.Calibrations(None, parset['calibrations'], spectrograph, None)
+    caliBrate.msbias = msbias
+    caliBrate.msbpm = msbpm
+    caliBrate.slits = slits
+    caliBrate.wavetilts = tilts_obj
+    caliBrate.wv_calib = wv_calib
+    caliBrate.binning = f'{slits.binspec},{slits.binspat}'
+
+    return caliBrate
+
+def run(files, dither_id, offset_arcsec, caliBrate, spectrograph, det, platescale, parset, std_trace, show, bkg_redux=False):
+
+    msg_string = msgs.newline() + '*******************************************************'
+    spec2d_list = []
+    offset_ref = offset_arcsec[0]
+    offsets_dith_pix = []
+    # Generalize to a multiple slits, doing one slit at a time?
+
+    uniq_throws, uni_indx = np.unique(np.abs(offset_arcsec), return_inverse=True)
+    # uniq_throws = uniq values of the dither throw
+    # uni_indx = indices into the uniq_throws array needed to reconstruct the original array
+    nuniq = uniq_throws.size
+    for iuniq in range(nuniq):
+        A_ind = (uni_indx == iuniq) & (dither_id == 'A')
+        B_ind = (uni_indx == iuniq) & (dither_id == 'B')
+        A_files_uni = files[A_ind]
+        A_dither_id_uni = dither_id[A_ind]
+        B_dither_id_uni = dither_id[B_ind]
+        B_files_uni = files[B_ind]
+        A_offset = offset_arcsec[A_ind]
+        B_offset = offset_arcsec[B_ind]
+        A_offset_pix = (np.mean(A_offset) - offset_ref) / platescale
+        B_offset_pix = (np.mean(B_offset) - offset_ref) / platescale
+        throw = np.abs(A_offset[0])
+        if bkg_redux:
+            msgs.info('Reducing A-B pairs for throw = {:}'.format(throw))
+            if (len(A_files_uni) > 0) & (len(B_files_uni) > 0):
+                spec2DObj_A, spec2DObj_B = reduce(A_files_uni, caliBrate, spectrograph, det, parset,
+                                                  bkg_files=B_files_uni, show=show, std_trace=std_trace)
+                spec2d_list += [spec2DObj_A, spec2DObj_B]
+                offsets_dith_pix += [A_offset_pix, B_offset_pix]
+            else:
+                msgs.warn('Skpping files that do not have an A-B match with the same throw:')
+                for iexp in range(len(A_files_uni)):
+                    msg_string += msgs.newline() + '    {:s}    {:s}   {:6.2f}    {:6.2f}'.format(
+                        os.path.basename(A_files_uni[iexp]), A_dither_id_uni[iexp],
+                        A_offset[iexp], A_offset[iexp] / platescale)
+                for iexp in range(len(B_files_uni)):
+                    msg_string += msgs.newline() + '    {:s}    {:s}   {:6.2f}    {:6.2f}'.format(
+                        os.path.basename(B_files_uni[iexp]), B_dither_id_uni[iexp],
+                        B_offset[iexp], B_offset[iexp] / platescale)
+        else:
+            msgs.info('Reducing images for offset = {:}'.format(A_offset[0]))
+            spec2DObj = run(A_files_uni, caliBrate, spectrograph, det, parset, show=show, std_trace=std_trace)
+            spec2d_list += [spec2DObj]
+            offsets_dith_pix += [A_offset_pix]
+
+    offsets_dith_pix = np.array(offsets_dith_pix)
+
+    return spec2d_list, offsets_dith_pix
+
+
+def reduce(files, caliBrate, spectrograph, det, parset, bkg_files=None, show=False, std_trace=None):
     """
     Peform 2d extraction for a set of files at the same unique A-B offset location.
 
@@ -108,40 +215,29 @@ def run(files, caliBrate, spectrograph, det, parset, show=False, std_trace=None)
 
     """
 
+    bkg_redux = bkg_files is not None
     # Build Science image
     sciImg = buildimage.buildimage_fromlist(
-        spectrograph, det, parset['scienceframe'], list(files),  bias=caliBrate.msbias,
-        bpm=caliBrate.msbpm, slits=caliBrate.slits, ignore_saturation=False)
+        spectrograph, det, parset['scienceframe'], list(files), bpm=caliBrate.msbpm, slits=caliBrate.slits,
+        ignore_saturation=False)
 
+    if bkg_files is not None:
+    # Background Image?
+    sciImg = sciImg.sub(buildimage.buildimage_fromlist(spectrograph, det, parset['scienceframe'], list(bkg_files),
+                                                       bpm=caliBrate.msbpm, slits=caliBrate.slits, ignore_saturation=False),
+            parset['scienceframe']['process'])
 
-    # Instantiate FindObjects object
-    # Required for pypeline specific object
-    # At instantiaton, the fullmask in self.sciImg is modified
     # DP: Should find_negative be True here? JFH: For quicklook yes!
     objFind = find_objects.FindObjects.get_instance(sciImg, spectrograph, parset, caliBrate, 'science',
-                                                    bkg_redux=False, find_negative=False, show=show)
+                                                    bkg_redux=bkg_redux, find_negative=bkg_redux, show=show)
 
     global_sky, sobjs_obj = objFind.run(std_trace=std_trace, show_peaks=show)
 
-
     # Instantiate Extract object
     extract = extraction.Extract.get_instance(sciImg, sobjs_obj, spectrograph, parset, caliBrate,
-                                              'science', bkg_redux=False, return_negative=False, show=show)
-
-    skymodel, objmodel, ivarmodel, outmask, sobjs, scaleimg, waveimg, tilts = extract.run(global_sky, sobjs_obj)
-
-
-    # Instantiate Reduce object
-    # Required for pypeline specific object
-    # At instantiaton, the fullmask in self.sciImg is modified
-    #redux = reduce.Reduce.get_instance(sciImg, spectrograph, parset, caliBrate, 'science', ir_redux=True, show=show, det=det)
-
-    # skymodel, objmodel, ivarmodel, outmask, sobjs, scaleimg, waveimg, tilts = redux.run(
-    #     std_trace=std_trace, return_negative=True, show_peaks=show)
-
-    #global_sky, sobjs_obj, skymask = redux.run_objfind(std_trace=std_trace, show_peaks=show)
-    #skymodel, objmodel, ivarmodel, outmask, sobjs, scaleimg, waveimg, tilts = redux.run_extraction(
-    #    global_sky, sobjs_obj, skymask)
+                                              'science', bkg_redux=bkg_redux, return_negative=bkg_redux, show=show)
+    skymodel, objmodel, ivarmodel, \
+    outmask, sobjs, scaleimg, waveimg, tilts = extract.run(global_sky, sobjs_obj)
 
     # TODO -- Do this upstream
     # Tack on detector
@@ -155,31 +251,56 @@ def run(files, caliBrate, spectrograph, det, parset, show=False, std_trace=None)
 
     # Construct the Spec2DObj with the positive image
     spec2DObj = spec2dobj.Spec2DObj(sciimg=sciImg.image,
-                                    ivarraw=sciImg.ivar,
-                                    skymodel=skymodel,
-                                    objmodel=objmodel,
-                                    ivarmodel=ivarmodel,
-                                    scaleimg=scaleimg,
-                                    waveimg=waveimg,
-                                    bpmmask=outmask,
-                                    detector=sciImg.detector,
-                                    sci_spat_flexure=sciImg.spat_flexure,
-                                    sci_spec_flexure=spec_flex_table,
-                                    vel_corr=None,
-                                    vel_type=parset['calibrations']['wavelengths']['refframe'],
-                                    tilts=tilts,
-                                    slits=copy.deepcopy(caliBrate.slits),
-                                    maskdef_designtab=None)
+                                      ivarraw=sciImg.ivar,
+                                      skymodel=skymodel,
+                                      objmodel=objmodel,
+                                      ivarmodel=ivarmodel,
+                                      scaleimg=scaleimg,
+                                      waveimg=waveimg,
+                                      bpmmask=outmask,
+                                      detector=sciImg.detector,
+                                      sci_spat_flexure=sciImg.spat_flexure,
+                                      sci_spec_flexure=spec_flex_table,
+                                      vel_corr=None,
+                                      vel_type=parset['calibrations']['wavelengths']['refframe'],
+                                      tilts=tilts,
+                                      slits=copy.deepcopy(caliBrate.slits),
+                                      maskdef_designtab=None)
     spec2DObj.process_steps = sciImg.process_steps
-    return spec2DObj
+
+    if not bkg_redux:
+        return spec2DObj
+    else:
+        # Construct the Spec2DObj with the negative image
+        spec2DObj_bkg = spec2dobj.Spec2DObj(sciimg=-sciImg.image,
+                                           ivarraw=sciImg.ivar,
+                                           skymodel=-skymodel,
+                                           objmodel=-objmodel,
+                                           ivarmodel=ivarmodel,
+                                           scaleimg=scaleimg,
+                                           waveimg=waveimg,
+                                           bpmmask=outmask,
+                                           detector=sciImg.detector,
+                                           sci_spat_flexure=sciImg.spat_flexure,
+                                           sci_spec_flexure=spec_flex_table,
+                                           vel_corr=None,
+                                           vel_type=parset['calibrations']['wavelengths']['refframe'],
+                                           tilts=tilts,
+                                           slits=copy.deepcopy(caliBrate.slits),
+                                           maskdef_designtab=None)
+        return spec2DObj, spec2DObj_bkg
 
 
-class QLKECKLRIS(scriptbase.ScriptBase):
+
+
+class QL_MOS(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
-        parser = super().get_parser(description='Script to produce quick-look PypeIt reductions '
-                                                'on a pair of MOSFIRE files (A-B)', width=width)
+        parser = super().get_parser(description='Script to produce quick-look multislit PypeIt reductions', width=width)
+        parser.add_argument('spectrograph', type=str,
+                            help='A valid spectrograph identifier: {0}'.format(
+                                 ', '.join(available_spectrographs)))
         parser.add_argument('full_rawpath', type=str, help='Full path to the raw files')
         parser.add_argument('files', type=str, nargs='+',
                             help='list of frames i.e. img1.fits img2.fits')
@@ -191,6 +312,10 @@ class QLKECKLRIS(scriptbase.ScriptBase):
                             help='Make the spatial grid finer (spat_samp_fact < 1.0) or coarser '
                                  '(spat_samp_fact > 1.0) by this sampling factor, i.e. units of '
                                  'spat_samp_fact are pixels.')
+        parser.add_argument("--bkg_redux", default=False, action='store_true',
+                            help='If set the script will perform difference imaging quicklook. Namely it will identify '
+                                 'sequences of AB pairs based on the dither pattern and perform difference imaging sky '
+                                 'subtraction and fit for residuals')
         parser.add_argument("--flux", default=False, action='store_true',
                             help='This option will multiply in sensitivity function to obtain a '
                                  'flux calibrated 2d spectrum')
@@ -211,15 +336,19 @@ class QLKECKLRIS(scriptbase.ScriptBase):
                                  'to the left.')
         parser.add_argument("--redux_path", type=str, default=os.getcwd(),
                             help="Location where reduction outputs should be stored.")
-        # TODO make an environment variable
-        parser.add_argument("--master_dir", type=str, default=None,  #os.getenv('QL_MASTERS'),
+        parser.add_argument("--master_dir", type=str, default=os.getenv('QL_MASTERS'),
                             help="Location of PypeIt Master files used for the reduction.")
         parser.add_argument('--embed', default=False, action='store_true',
                             help='Upon completion embed in ipython shell')
         parser.add_argument("--show", default=False, action="store_true",
                             help='Show the reduction steps. Equivalent to the -s option when '
                                  'running pypeit.')
+        parser.add_argument('--det', type=str, default='1', nargs='*',
+                            help='Detector(s) to show.  If more than one, the list of detectors '
+                                 'must be one of the allowed mosaics hard-coded for the selected '
+                                 'spectrograph.')
         return parser
+
 
     @staticmethod
     def main(args):
@@ -229,13 +358,13 @@ class QLKECKLRIS(scriptbase.ScriptBase):
         files = np.array([os.path.join(args.full_rawpath, file) for file in args.files])
         nfiles = len(files)
 
+
         # Read in the spectrograph, config the parset
-        spectrograph = load_spectrograph('keck_lris_red_mark4')
-        #spectrograph_def_par = spectrograph.default_pypeit_par()
+        spectrograph = load_spectrograph(args.spectrograph)
         spectrograph_cfg_lines = spectrograph.config_specific_par(files[0]).to_config()
         parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines,
                                               merge_with=config_lines(args))
-        science_path = os.path.join(parset['rdx']['redux_path'], parset['rdx']['scidir'])
+
 
         target = spectrograph.get_meta_value(files[0], 'target')
         mjds = np.zeros(nfiles)
@@ -244,37 +373,32 @@ class QLKECKLRIS(scriptbase.ScriptBase):
                                                       no_fussing=True)
         files = files[np.argsort(mjds)]
 
+        # Get the master path
+
         # Calibration Master directory
-        #TODO hardwired for now
-        master_dir ='./'
-        #master_dir = resource_filename('pypeit', 'data/QL_MASTERS') \
-        #    if args.master_dir is None else args.master_dir
+        master_dir = os.path.join(data.Paths.data, 'QL_MASTERS') if args.master_dir is None else args.master_dir
+        master_subdir = spectrograph.get_ql_master_dir(files[0])
+        master_path = os.path.join(master_dir, master_subdir)
+
         if not os.path.isdir(master_dir):
             msgs.error(f'{master_dir} does not exist!  You must install the QL_MASTERS '
                        'directory; download the data from the PypeIt dev-suite Google Drive and '
                        'either define a QL_MASTERS environmental variable or use the '
                        'pypeit_install_ql_masters script.')
 
-        # Define some hard wired master files here to be later parsed out of the directory
-        lris_grating = spectrograph.get_meta_value(files[0], 'dispname')
-        #lris_masters = os.path.join(master_dir, 'LRIS_MASTERS', lris_grism)
-        if args.master_dir is None:
-            lris_masters='/Users/joe/lris_observing_2022/Jan26/quicklook/LRIS_QL_MASTERS/'
-        else:
-            lris_masters = args.master_dir
-
         bias_masterframe_name = \
-            utils.find_single_file(os.path.join(lris_masters, "MasterBias*"))
+            utils.find_single_file(os.path.join(master_path, "MasterBias*"))
         slit_masterframe_name \
-            = utils.find_single_file(os.path.join(lris_masters, "MasterSlits*"))
+            = utils.find_single_file(os.path.join(master_path, "MasterSlits*"))
         tilts_masterframe_name \
-            = utils.find_single_file(os.path.join(lris_masters, "MasterTilts*"))
+            = utils.find_single_file(os.path.join(master_path, "MasterTilts*"))
         wvcalib_masterframe_name \
-            = utils.find_single_file(os.path.join(lris_masters, 'MasterWaveCalib*'))
-        std_spec1d_file = utils.find_single_file(os.path.join(lris_masters, 'spec1d_*'))
-        sensfunc_masterframe_name = utils.find_single_file(os.path.join(lris_masters, 'sens_*'))
+            = utils.find_single_file(os.path.join(master_path, 'MasterWaveCalib*'))
+        std_spec1d_file = utils.find_single_file(os.path.join(master_path, 'spec1d_*'))
+        sensfunc_masterframe_name = utils.find_single_file(os.path.join(master_path, 'sens_*'))
 
-        # TODO make and impelement sensfunc
+
+        # TODO Implement some kind of checking for minimal masters. If --flux is set check for sensfunc etc.
         #if (bias_masterframe_name is None or not os.path.isfile(bias_masterframe_name)) or \
         if (slit_masterframe_name is None or not os.path.isfile(slit_masterframe_name)) or \
                 (tilts_masterframe_name is None or not os.path.isfile(tilts_masterframe_name)) or \
@@ -283,106 +407,28 @@ class QLKECKLRIS(scriptbase.ScriptBase):
             msgs.error('Master frames not found.  Check that environment variable QL_MASTERS '
                        'points at the Master Calibs')
 
-        # We need the platescale
 
-        # Get detector (there's only one)
-        #det = 1 # MOSFIRE has a single detector
-        #detector = spectrograph.get_detector_par(det)
-        #detname = detector.name
-
-        # We need the platescale
-        det_container = spectrograph.get_detector_par(1, hdu=fits.open(files[0]))
+        det_container = spectrograph.get_detector_par(args.det, hdu=fits.open(files[0]))
         binspectral, binspatial = parse_binning(det_container['binning'])
         platescale = det_container['platescale']*binspatial
-        # Parse the offset information out of the headers.
-        # TODO ADD this functionality!
-        #_, _, offset_arcsec = spectrograph.parse_dither_pattern(files)
-        offset_arcsec = np.zeros(len(files))
+        detname = det_container.name
 
-        # Print out a report on the offsets
-        msg_string = msgs.newline()  + '*******************************************************'
-        msg_string += msgs.newline() + ' Summary of offsets for target {:s}:                   '
-        msg_string += msgs.newline() + '*******************************************************'
-        msg_string += msgs.newline() + '           filename                arcsec   pixels    '
-        msg_string += msgs.newline() + '----------------------------------------------------'
-        for iexp, file in enumerate(files):
-            msg_string += msgs.newline() + '    {:s}    {:6.2f}    {:6.2f}'.format(
-                os.path.basename(file), offset_arcsec[iexp], offset_arcsec[iexp] / platescale)
-        msg_string += msgs.newline() + '********************************************************'
-        msgs.info(msg_string)
-
-        ## Read in the master frames that we need
-        ##
-        det = 1  # Currently CHIP1 is supported
         if std_spec1d_file is not None:
-            # Get the standard trace if need be
-            sobjs = specobjs.SpecObjs.from_fitsfile(std_spec1d_file, chk_version=False)
-            this_det = sobjs.DET == det
-            if np.any(this_det):
-                sobjs_det = sobjs[this_det]
-                sobjs_std = sobjs_det.get_std()
-                std_trace = None if sobjs_std is None else sobjs_std.TRACE_SPAT.flatten()
-            else:
-                std_trace = None
+            std_trace = specobjs.get_std_trace(detname, std_spec1d_file)
         else:
             std_trace = None
 
-        # Read in the bias
-        msbias = buildimage.BiasImage.from_file(bias_masterframe_name) if bias_masterframe_name is not None else None
-        # Read in the msbpm
-        sdet = get_dnum(det, prefix=False)
-        msbpm = spectrograph.bpm(files[0], det)
-        # Read in the slits
-        slits = slittrace.SlitTraceSet.from_file(slit_masterframe_name)
-        # Reset the bitmask
-        slits.mask = slits.mask_init.copy()
-        # Read in the wv_calib
-        wv_calib = wavecalib.WaveCalib.from_file(wvcalib_masterframe_name)
-        # wv_calib.is_synced(slits)
-        slits.mask_wvcalib(wv_calib)
-        # Read in the tilts
-        tilts_obj = wavetilts.WaveTilts.from_file(tilts_masterframe_name)
-        tilts_obj.is_synced(slits)
-        slits.mask_wavetilts(tilts_obj)
+        # Parse the offset information out of the headers. TODO in the future
+        # get this out of fitstable
+        dither_pattern, dither_id, offset_arcsec = spectrograph.parse_dither_pattern(files)
 
-        # Build the Calibrate object
-        caliBrate = calibrations.Calibrations(None, parset['calibrations'], spectrograph, None)
-        caliBrate.msbias = msbias
-        caliBrate.msbpm = msbpm
-        caliBrate.slits = slits
-        caliBrate.wavetilts = tilts_obj
-        caliBrate.wv_calib = wv_calib
-        caliBrate.binning = f'{slits.binspec},{slits.binspat}'
+        print_offset_report(files, dither_pattern, dither_id, offset_arcsec, target, platescale)
+        caliBrate = build_calibrate(args.det, files, spectrograph, parset, bias_masterframe_name,
+                                        slit_masterframe_name, wvcalib_masterframe_name, tilts_masterframe_name)
+        spec2d_list, offsets_dith_pix = run(files, dither_id, offset_arcsec, caliBrate, spectrograph, args.det,
+                                            platescale, parset, std_trace, args.show, bkg_redux=args.bkg_redux)
 
-
-        # Find the unique offsets. This is a bit of a kludge, i.e. we are considering offsets within
-        # 0.1 arcsec of each other to be the same throw, but I should like to be able to specify a tolerance here,
-        # but then I need a version of unique that accepts a tolerance
-        spec2d_list = []
-        offset_ref = offset_arcsec[0]
-        offsets_dith_pix = []
-        # Generalize to a multiple slits, doing one slit at a time?
-        islit = 0
-
-        # Loop over the unique throws and create a spec2d_A and spec2D_B for
-        # each, which are then fed into coadd2d with the correct offsets
-
-        # TODO Rework the logic here so that we can print out a unified report
-        # on what was actually reduced.
-
-        uniq_offsets, uni_indx = np.unique(np.around(offset_arcsec), return_inverse=True)
-        nuniq = uniq_offsets.size
-        for iuniq in range(nuniq):
-            indx = uni_indx == iuniq
-            files_uni = files[indx]
-            offsets = offset_arcsec[indx]
-            msgs.info('Reducing images for offset = {:}'.format(offsets[0]))
-            spec2DObj = run(files_uni, caliBrate, spectrograph, det, parset, show=args.show, std_trace=std_trace)
-            spec2d_list += [spec2DObj]
-            offsets_dith_pix += [np.mean(offsets)/platescale]
-
-        offsets_dith_pix = np.array(offsets_dith_pix)
-
+        # Override offsets if they were passed in?
         if args.offset is not None:
             offsets_pixels = np.array([0.0, args.offset])
             msgs.info('Using user specified offsets instead: {:5.2f}'.format(args.offset))
@@ -391,13 +437,14 @@ class QLKECKLRIS(scriptbase.ScriptBase):
 
 
         # Instantiate Coadd2d
-        coadd = coadd2d.CoAdd2D.get_instance(spec2d_list, spectrograph, parset, det=det,
+        coadd = coadd2d.CoAdd2D.get_instance(spec2d_list, spectrograph, parset, det=args.det,
                                              offsets=offsets_pixels, weights='uniform',
                                              spec_samp_fact=args.spec_samp_fact,
                                              spat_samp_fact=args.spat_samp_fact,
                                              bkg_redux=True, debug=args.show)
         # Coadd the slits
         # TODO implement only_slits later
+        islit = 0
         coadd_dict_list = coadd.coadd(only_slits=None, interp_dspat=False)
         # Create the pseudo images
         pseudo_dict = coadd.create_pseudo_image(coadd_dict_list)
@@ -433,6 +480,7 @@ class QLKECKLRIS(scriptbase.ScriptBase):
         # Now display the images #
         ##########################
         if not args.no_gui:
+            sdet = get_dnum(args.det, prefix=False)
             display.connect_to_ginga(raise_err=True, allow_new=True)
 
             # TODO: Bug in ginga prevents me from using cuts here for some
@@ -453,7 +501,7 @@ class QLKECKLRIS(scriptbase.ScriptBase):
                                                    waveimg=pseudo_dict['waveimg'], clear=True,
                                                    cuts=cuts_skysub)
             slit_left, slit_righ, _ = pseudo_dict['slits'].select_edges()
-            slit_id = slits.slitord_id[0]
+            slit_id = caliBrate.slits.slitord_id[0]
             display.show_slits(viewer, ch_skysub, slit_left, slit_righ, slit_ids=slit_id)
 
             # SKRESIDS
@@ -464,8 +512,7 @@ class QLKECKLRIS(scriptbase.ScriptBase):
                                                       waveimg=pseudo_dict['waveimg'],
                                                       cuts=cuts_resid)
 
-            display.show_slits(viewer, ch_skyresids, slit_left, slit_righ,
-                               slit_ids=slits.slitord_id[0])
+            display.show_slits(viewer, ch_skyresids, slit_left, slit_righ, slit_ids=caliBrate.slits.slitord_id[0])
             shell = viewer.shell()
             out = shell.start_global_plugin('WCSMatch')
             out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel',
@@ -492,5 +539,3 @@ class QLKECKLRIS(scriptbase.ScriptBase):
             embed()
 
         return 0
-
-

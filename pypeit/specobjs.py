@@ -917,6 +917,35 @@ class SpecObjs:
 
         return groups
 
+#TODO Should this be a classmethod on specobjs??
+def get_std_trace(detname, std_outfile):
+
+    sobjs = SpecObjs.from_fitsfile(std_outfile)
+    pypeline = sobjs.PYPELINE
+    # Does the detector match?
+    # TODO: Instrument specific logic here could be implemented with the
+    # parset. For example LRIS-B or LRIS-R we we would use the standard
+    # from another detector.
+
+    this_det = sobjs.DET == detname
+    if np.any(this_det):
+        sobjs_det = sobjs[this_det]
+        sobjs_std = sobjs_det.get_std()
+        # No standard extracted on this detector??
+        if sobjs_std is None:
+            return None
+        std_trace = sobjs_std.TRACE_SPAT
+        # flatten the array if this multislit
+        if 'MultiSlit' in pypeline:
+            std_trace = std_trace.flatten()
+        elif 'Echelle' in pypeline:
+            std_trace = std_trace.T
+        else:
+            msgs.error('Unrecognized pypeline')
+    else:
+        std_trace = None
+
+    return std_trace
 
 def lst_to_array(lst, mask=None):
     """

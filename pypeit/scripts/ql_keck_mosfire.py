@@ -67,7 +67,7 @@ def config_lines(args):
     return cfg_lines
 
 
-def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False, std_trace=None):
+def reduce_IR(A_files, B_files, caliBrate, spectrograph, det, parset, show=False, std_trace=None):
     """
     Peform 2d extraction for a set of files at the same unique A-B offset location.
 
@@ -344,10 +344,7 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
 
         # Find the unique throw absolute value, which defines each MASK_NOD seqeunce
         #uniq_offsets, _ = np.unique(offset_arcsec, return_inverse=True)
-        uniq_throws, uni_indx = np.unique(np.abs(offset_arcsec), return_inverse=True)
-        # uniq_throws = uniq values of the dither throw
-        # uni_indx = indices into the uniq_throws array needed to reconstruct the original array
-        nuniq = uniq_throws.size
+
         spec2d_list =[]
         offset_ref = offset_arcsec[0]
         offsets_dith_pix = []
@@ -359,7 +356,11 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
 
         # TODO Rework the logic here so that we can print out a unified report
         # on what was actually reduced.
-        
+
+        uniq_throws, uni_indx = np.unique(np.abs(offset_arcsec), return_inverse=True)
+        # uniq_throws = uniq values of the dither throw
+        # uni_indx = indices into the uniq_throws array needed to reconstruct the original array
+        nuniq = uniq_throws.size
         for iuniq in range(nuniq):
             A_ind = (uni_indx == iuniq) & (dither_id == 'A')
             B_ind = (uni_indx == iuniq) & (dither_id == 'B')
@@ -372,7 +373,7 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
             throw = np.abs(A_offset[0])
             msgs.info('Reducing A-B pairs for throw = {:}'.format(throw))
             if (len(A_files_uni) > 0) & (len(B_files_uni) > 0):
-                spec2DObj_A, spec2DObj_B = run_pair(A_files_uni, B_files_uni, caliBrate,
+                spec2DObj_A, spec2DObj_B = reduce_IR(A_files_uni, B_files_uni, caliBrate,
                                                     spectrograph, det, parset, show=args.show,
                                                     std_trace=std_trace)
                 spec2d_list += [spec2DObj_A, spec2DObj_B]
