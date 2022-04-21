@@ -106,8 +106,9 @@ def reduce_IR(A_files, B_files, caliBrate, spectrograph, det, parset, show=False
         spectrograph, det, parset['scienceframe'], list(A_files), bpm=caliBrate.msbpm, slits=caliBrate.slits, ignore_saturation=False)
 
     # Background Image?
-    sciImg = sciImg.sub(buildimage.buildimage_fromlist(spectrograph, det, parset['scienceframe'], list(B_files), bpm=caliBrate.msbpm, slits=caliBrate.slits, ignore_saturation=False),
-            parset['scienceframe']['process'])
+    sciImg = sciImg.sub(buildimage.buildimage_fromlist(spectrograph, det, parset['scienceframe'], list(B_files),
+                                                       bpm=caliBrate.msbpm, slits=caliBrate.slits, ignore_saturation=False),
+                        parset['scienceframe']['process'])
     # Instantiate FindObjects object
     # Required for pypeline specific object
     # At instantiaton, the fullmask in self.sciImg is modified
