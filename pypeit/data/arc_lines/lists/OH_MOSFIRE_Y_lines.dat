@@ -1,4 +1,5 @@
 # Created by DP on 2022-Apr-13. R=3388 (from MOSFIRE website) and dv=40km/s
+# Wavelengths are in vacuum
 |               wave | ion | NIST | Instr |           amplitude |       Source |
 |  8016.262535623336 |  OH |    1 |    32 |   0.626101103091485 | wavemodel.py |
 |  8028.017279661609 |  OH |    1 |    32 |  1.5245780075276625 | wavemodel.py |
