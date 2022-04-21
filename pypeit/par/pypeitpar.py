@@ -1147,7 +1147,7 @@ class Coadd2DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, offsets=None, spat_toler=None, weights=None, use_slits4wvgrid=None,
+    def __init__(self, only_slits=None, offsets=None, spat_toler=None, weights=None, use_slits4wvgrid=None,
                  manual=None):
 
         # Grab the parameter names and values from the function
@@ -1162,6 +1162,11 @@ class Coadd2DPar(ParSet):
         descr = OrderedDict.fromkeys(pars.keys())
 
         # Offsets
+        defaults['only_slits'] = None
+        dtypes['only_slits'] = [int, list]
+        descr['only_slits'] = 'Slit ID, or list of slit IDs that the user want to restrict the coadd to.' \
+                              'I.e., only this/these slit/s will be coadded.'
+
         defaults['offsets'] = None
         dtypes['offsets'] = [list, str]
         descr['offsets'] = 'User-input list of offsets for the images being combined (spat pixels). ' \
@@ -1200,7 +1205,7 @@ class Coadd2DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['offsets', 'spat_toler', 'weights', 'use_slits4wvgrid', 'manual']
+        parkeys = ['only_slits', 'offsets', 'spat_toler', 'weights', 'use_slits4wvgrid', 'manual']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
