@@ -270,35 +270,113 @@ def dar_correction(wave_arr, coord, obstime, location, pressure, temperature, re
     return ra_diff, dec_diff
 
 
-def gaussian2D_cube(tup, amplitude, xo, yo, dxdz, dydz, sigma_x, sigma_y, theta, offset):
+def gaussian2D_cube(tup, intflux, xo, yo, dxdz, dydz, sigma_x, sigma_y, theta, offset):
+    """ Fit a 2D Gaussian function to a datacube. This function assumes that each wavelength
+    slice of the datacube is well-fit by a 2D Gaussian. The centre of the Gaussian is allowed
+    to vary linearly as a function of wavelength.
+
+    NOTE : the integrated flux does not vary with wavelength.
+
+    Args:
+        tup (:obj:`tuple`):
+            A three element tuple containing the x, y, and z locations of each pixel in the cube
+        intflux (float):
+            The Integrated flux of the Gaussian
+        xo (float):
+            The centre of the Gaussian along the x-coordinate when z=0
+        yo (float):
+            The centre of the Gaussian along the y-coordinate when z=0
+        dxdz (float):
+            The change of xo with increasing z
+        dydz (float):
+            The change of yo with increasing z
+        sigma_x (float):
+            The standard deviation in the x-direction
+        sigma_y (float):
+            The standard deviation in the y-direction
+        theta (float):
+            The orientation angle of the 2D Gaussian
+        offset (float):
+            Constant offset
+
+    Returns:
+        gtwod (`numpy.ndarray`_): The 2D Gaussian evaluated at the coordinate (x, y, z)
+    """
+    # Extract the (x, y, z) coordinates of each pixel from the tuple
     (x, y, z) = tup
+    # Calculate the centre of the Gaussian for each z coordinate
     xo = float(xo) + z*dxdz
     yo = float(yo) + z*dydz
+    # Account for a rotated 2D Gaussian
     a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
     b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
     c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
+    # Normalise so that the integrated flux is a parameter, instead of the amplitude
     norm = 1/(2*np.pi*np.sqrt(a*c-b*b))
-    g = offset + norm*amplitude*np.exp( - (a*((x-xo)**2) + 2*b*(x-xo)*(y-yo)
-                            + c*((y-yo)**2)))
-    return g.ravel()
+    gtwod = offset + norm*intflux*np.exp(-(a*((x-xo)**2) + 2*b*(x-xo)*(y-yo) + c*((y-yo)**2)))
+    return gtwod.ravel()
 
 
-def gaussian2D(tup, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
+def gaussian2D(tup, intflux, xo, yo, sigma_x, sigma_y, theta, offset):
+    """ Fit a 2D Gaussian function to an image.
+
+    Args:
+        tup (:obj:`tuple`):
+            A two element tuple containing the x and y coordinates of each pixel in the image
+        intflux (float):
+            The Integrated flux of the 2D Gaussian
+        xo (float):
+            The centre of the Gaussian along the x-coordinate when z=0
+        yo (float):
+            The centre of the Gaussian along the y-coordinate when z=0
+        sigma_x (float):
+            The standard deviation in the x-direction
+        sigma_y (float):
+            The standard deviation in the y-direction
+        theta (float):
+            The orientation angle of the 2D Gaussian
+        offset (float):
+            Constant offset
+
+    Returns:
+        gtwod (`numpy.ndarray`_): The 2D Gaussian evaluated at the coordinate (x, y)
+    """
+    # Extract the (x, y, z) coordinates of each pixel from the tuple
     (x, y) = tup
+    # Ensure these are floating point
     xo = float(xo)
     yo = float(yo)
+    # Account for a rotated 2D Gaussian
     a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
     b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
     c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
+    # Normalise so that the integrated flux is a parameter, instead of the amplitude
     norm = 1/(2*np.pi*np.sqrt(a*c-b*b))
-    g = offset + norm*amplitude*np.exp( - (a*((x-xo)**2) + 2*b*(x-xo)*(y-yo)
-                            + c*((y-yo)**2)))
-    return g.ravel()
+    gtwod = offset + norm*intflux*np.exp(-(a*((x-xo)**2) + 2*b*(x-xo)*(y-yo) + c*((y-yo)**2)))
+    return gtwod.ravel()
 
 
-def rebinND(a, shape):
-    sh = shape[0],a.shape[0]//shape[0],shape[1],a.shape[1]//shape[1]
-    return a.reshape(sh).mean(-1).mean(1)
+def rebinND(img, shape):
+    """
+    Rebin a 2D image to a smaller shape. For example, if img.shape=(100,100),
+    then shape=(10,10) would average the first 10x10 pixels into a single output
+    pixel, then next 10x10 pixels will be output into the next pixel
+
+    Args:
+        img (`numpy.ndarray`_):
+            A 2D input image
+        shape (:obj:`tuple`):
+            The desired shape to be returned. The elements of img.shape
+            should be an integer multiple of the elements of shape.
+
+    Returns:
+        img_out (`numpy.ndarray`_): The input image rebinned to shape
+    """
+    # Convert input 2D image into a 4D array to make the rebinning easier
+    sh = shape[0], img.shape[0]//shape[0], shape[1], img.shape[1]//shape[1]
+    # Rebin to the 4D array and then average over the second and last elements.
+    img_out = img.reshape(sh).mean(-1).mean(1)
+    return img_out
 
 
 def extract_standard_spec(stdcube, subsample=20, method='boxcar'):
@@ -484,7 +562,7 @@ def extract_standard_spec(stdcube, subsample=20, method='boxcar'):
     else:
         msgs.error("Unknown extraction method: ", method)
 
-    # Convert to counts/s/A
+    # Convert from counts/s/Ang/arcsec**2 to counts/s/Ang
     arcsecSQ = 3600.0*3600.0*(stdwcs.wcs.cdelt[0]*stdwcs.wcs.cdelt[1])
     ret_flux *= arcsecSQ
     ret_var *= arcsecSQ**2
@@ -808,30 +886,6 @@ def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bin
         hdr['FLUXUNIT'] = (PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
     else:
         hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
-    # from matplotlib import pyplot as plt
-    # embed()
-    # assert(False)
-    # mskvals = np.load("mskvals.npy")
-    # resid = all_sci*np.sqrt(all_ivar)*mskvals
-    # resid = resid[resid!=0]
-    # nrm, _, _ = plt.hist(resid.flatten(), bins=100)
-    # rx = np.linspace(-10,10,1000)
-    # ry = np.max(nrm)*np.exp(-0.5*rx**2)
-    # plt.plot(rx, ry, 'k-')
-    # plt.show()
-    #
-    # ww = np.where(mskvals)
-    # new_pix_coord = [pix_coord[0][ww], pix_coord[1][ww], pix_coord[2][ww]]
-    # # Use NGP to generate the cube - this ensures errors between neighbouring voxels are not correlated
-    # datacube, edges = np.histogramdd(new_pix_coord, bins=bins, weights=all_sci[ww] * all_wghts[ww])
-    # norm, edges = np.histogramdd(new_pix_coord, bins=bins, weights=all_wghts[ww])
-    # norm_cube = utils.inverse(norm)
-    # datacube *= norm_cube
-    # # Create the variance cube, including weights
-    # msgs.info("Generating variance cube")
-    # all_var = utils.inverse(all_ivar)
-    # var_cube, edges = np.histogramdd(new_pix_coord, bins=bins, weights=all_var[ww] * all_wghts[ww]**2)
-    # var_cube *= norm_cube**2
 
     # Use NGP to generate the cube - this ensures errors between neighbouring voxels are not correlated
     datacube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci * all_wghts)
@@ -962,7 +1016,6 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
     dspat = None if cubepar['spatial_delta'] is None else cubepar['spatial_delta']/3600.0  # binning size on the sky (/3600 to convert to degrees)
     dwv = cubepar['wave_delta']       # binning size in wavelength direction (in Angstroms)
     wave_ref = None
-    whitelight_img = None  # This is the whitelight image based on all input spec2d frames
     weights = np.ones(numfiles)  # Weights to use when combining cubes
     locations = parset['calibrations']['alignment']['locations']
     flat_splines = dict()   # A dictionary containing the splines of the flatfield
@@ -1003,24 +1056,6 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
 
         # Grab the slit edges
         slits = spec2DObj.slits
-
-        # embed()
-        # assert(False)
-        # from pypeit.core import skysub
-        # skyregtxt = ":30,60:"  # BB08
-        # slits_left, slits_right, _ = slits.select_edges(initial=True, flexure=flexure)
-        # maxslitlength = np.max(slits_right - slits_left)
-        # # Get the regions
-        # status, regions = skysub.read_userregions(skyregtxt, slits.nslits, maxslitlength)
-        # # Generate image
-        # skymask_init = skysub.generate_mask("IFU", regions, slits, slits_left, slits_right, spat_flexure=flexure)
-        # resid = sciimg*np.sqrt(ivar)*skymask_init*(bpmmask==0)*(ivar!=0)
-        # resid = resid[resid!=0.0]
-        # nrm, _, _ = plt.hist(resid.flatten(), bins=100)
-        # rx = np.linspace(-10,10,1000)
-        # ry = np.max(nrm)*np.exp(-0.5*rx**2)
-        # plt.plot(rx, ry, 'k-')
-        # plt.show()
 
         wave0 = waveimg[waveimg != 0.0].min()
         # Calculate the delta wave in every pixel on the slit
@@ -1325,7 +1360,7 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
     pix_coord = masterwcs.wcs_world2pix(all_ra, all_dec, all_wave * 1.0E-10, 0)
     hdr = masterwcs.to_header()
 
-    # Find the NGP coordinates for all input pixels
+    # Generate a datacube using nearest grid point (NGP)
     msgs.info("Generating data cube")
     generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bins, overwrite=overwrite,
                       blaze_wave=blaze_wave, blaze_spec=blaze_spec, fluxcal=fluxcal, specname=specname)

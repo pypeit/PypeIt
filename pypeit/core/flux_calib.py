@@ -39,7 +39,7 @@ from pypeit import data
 TINY = 1e-15
 SN2_MAX = (20.0) ** 2
 PYPEIT_FLUX_SCALE = 1e-17
-
+BB_SCALE_FACTOR = 1.0E-23  # Scale factor used for the tabulated blackbody dimensionless flux scale factor.
 
 def zp_unit_const():
     """
@@ -64,7 +64,7 @@ def blackbody_func(a, teff):
 
     Args:
         a (float):
-            flux normalisation factor
+            flux normalisation factor (dimensionless)
         teff (float):
             Effective temperature of the blackbody (in units of K)
 
@@ -73,9 +73,10 @@ def blackbody_func(a, teff):
         flam : `numpy.ndarray`_ flux in units of erg/s/cm^2/A
     """
     waves = np.arange(3000.0, 25000.0, 0.1) * units.AA
+    temp = teff * units.K
     # Calculate the function
     flam = ((a*2*constants.h*constants.c**2)/waves**5) / (np.exp((constants.h*constants.c / 
-                (waves*constants.k_B*teff)).to(units.m/units.m).value)-1.0)
+                (waves*constants.k_B*temp)).to(units.m/units.m).value)-1.0)
     flam = flam.to(units.erg / units.s / units.cm ** 2 / units.AA).value / PYPEIT_FLUX_SCALE
     return waves.value, flam
 
@@ -209,7 +210,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
                 std_dict['flux'] = std_dict['flux'][np.logical_not(mask)]
             elif sset == 'blackbody':
                 # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
-                waves, flam = blackbody_func(star_tbl[_idx]['a_x10m23']*1.0E-23, star_tbl[_idx]['T_K']*units.K)
+                waves, flam = blackbody_func(star_tbl[_idx]['a_x10m23']*BB_SCALE_FACTOR, star_tbl[_idx]['T_K'])
                 std_dict['std_source'] = sset
                 std_dict['wave'] = waves * units.AA
                 std_dict['flux'] = flam * units.erg / units.s / units.cm ** 2 / units.AA
@@ -609,7 +610,7 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
 
     for iord in range(norders):
         # Prepare some arrays for the zero point fit
-        Nlam_star, Nlam_star_ivar, gpm_star = prep_zeropoint(wave_arr[:,iord], counts_arr[:,iord], ivar_arr[:,iord],
+        Nlam_star, Nlam_star_ivar, gpm_star = counts2Nlam(wave_arr[:, iord], counts_arr[:, iord], ivar_arr[:, iord],
                                                              mask_arr[:,iord], exptime, airmass, longitude, latitude)
         # Fit the zeropoint
         zeropoint_data[:, iord], zeropoint_data_gpm[:, iord], zeropoint_fit[:, iord], zeropoint_fit_gpm[:, iord], =\
@@ -735,7 +736,7 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
     return senstot/exptime/delta_wave
 
 
-def prep_zeropoint(wave, counts, counts_ivar, counts_mask, exptime, airmass, longitude, latitude):
+def counts2Nlam(wave, counts, counts_ivar, counts_mask, exptime, airmass, longitude, latitude):
     """
     Prepare units of flux calibration and apply extinction correction
 
@@ -793,6 +794,12 @@ def fit_zeropoint(wave, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
     Args:
         wave (`numpy.ndarray`_):
             Wavelength of the star. Shape (nspec,)
+        Nlam_star (`numpy.ndarray`_):
+            counts/second/Angstrom
+        Nlam_ivar_star (`numpy.ndarray`_):
+            Inverse variance of Nlam_star
+        gpm_star (`numpy.ndarray`_):
+            Good pixel mask for Nlam_star
         std_dict (dict):
             Dictionary containing information about the standard star returned by flux_calib.get_standard_spectrum
         mask_abs_lines (bool):

@@ -764,7 +764,7 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
         for iexp in range(nstack):
             # Compute the relative (S/N)^2 and update the mask
             sn2[iexp] /= sn2[ref_spec]
-            mask_stack[:, iexp] *= (mask_stack[:, ref_spec]) | (sn_val[:, ref_spec] != 0)
+            mask_stack[:, iexp] = mask_stack[:, iexp] & ((mask_stack[:, ref_spec]) | (sn_val[:, ref_spec] != 0))
             sn_val[:, iexp] *= refscale
 
     # TODO: ivar weights is better than SN**2 or const_weights for merging orders. Eventually, we will change it to
