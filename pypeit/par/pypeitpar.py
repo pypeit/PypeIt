@@ -647,8 +647,9 @@ class FlatFieldPar(ParSet):
         dtypes['slit_illum_relative'] = bool
         descr['slit_illum_relative'] = 'Generate an image of the relative spectral illumination ' \
                                        'for a multi-slit setup.  If you set ``use_slitillum = ' \
-                                       'True`` for any of the frames that use the flat-field ' \
-                                       'model, this *must* be set to True.'
+                                       'True`` for any of the frames that use the flatfield ' \
+                                       'model, this *must* be set to True. Currently, this is ' \
+                                       'only used for IFU reductions.'
 
         defaults['illum_iter'] = 0
         dtypes['illum_iter'] = int
