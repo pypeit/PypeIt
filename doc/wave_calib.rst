@@ -189,20 +189,17 @@ a message indicating how to use it, such as:
    .. code-block:: console
 
       [INFO]    :: Your arxiv solution has been written to ./wvarxiv.fits
-      [INFO]    :: Your arxiv solution has been cached.
-               Use 'reid_arxiv = manual_keck_lris_20220214.fits' in your
-               PypeIt Reduction File to utilize this wavelength solution.
+      [INFO]    :: Your arxiv solution has also been cached.
+                  To utilize this wavelength solution, insert the
+                  following block in your PypeIt Reduction File:
+                  [calibrations]
+                     [[wavelengths]]
+                        reid_arxiv = manual_ldt_deveny_20220422T1006.fits
+                        method = full_template
 
-To use this wavelength solution, simply add the following to
-your PypeIt Reduction File::
 
-  [calibrations]
-     [[wavelengths]]
-        method = full_template
-        reid_arxiv = manual_keck_lris_20220214.fits
-
-(replacing the ``reid_arxiv`` filename with the actual output
-from ``pypeit_identify``).  Run PypeIt in the standard
+Replace the ``reid_arxiv`` filename with the filename output
+on your screen from ``pypeit_identify``, and run PypeIt in the standard
 :ref:`wvcalib-fulltemplate` mode.
 
 We also recommend that you send your solution to the

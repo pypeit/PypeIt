@@ -419,7 +419,7 @@ def write_file_to_cache(filename, cachename, filetype, remote_host="github"):
     """write_file_to_cache Use `astropy.utils.data` to save local file to cache
 
     This function writes a local file to the PypeIt cache as if it came from a
-    remote server.  This is useful for being able to use lcoally created files
+    remote server.  This is useful for being able to use locally created files
     in place of PypeIt-distributed versions.
 
     Args:
