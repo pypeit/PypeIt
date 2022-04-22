@@ -450,33 +450,27 @@ class FlatField:
         if not self.flatpar['flatfield_structure']:
             self.fit(spat_illum_only=self.spat_illum_only, debug=debug)
         else:  # Iterate on the pixelflat if required by the spectrograph
-            niter = 2
+            niter = 1
             rawflat_orig = self.rawflatimg.image.copy()
             gpm = np.ones(rawflat_orig.shape, dtype=bool) if self.rawflatimg.bpm is None else \
                 (1 - self.rawflatimg.bpm).astype(bool)
             for ff in range(niter):
                 # Just get the spatial and spectral profiles for now
                 self.fit(spat_illum_only=self.spat_illum_only, debug=debug)
+                msgs.info("Iteration {0:d} of flatfield structure extraction".format(ff+1))
                 # Extract a structure image
                 ff_struct = self.extract_structure(rawflat_orig)
                 gpmask = (self.waveimg != 0.0) & gpm
                 # Deal with flatfield structure in an instrument specific way
                 ff_specmodel = self.spectrograph.flatfield_structure(ff_struct, gpmask)
-                # TODO :: Remove the following lines - just debugging...
-                import astropy.io.fits as fits
-                hdu = fits.PrimaryHDU(ff_struct)
-                hdu.writeto("structure_data_{0:d}.fits".format(ff), overwrite=True)
-                hdu = fits.PrimaryHDU(ff_specmodel)
-                hdu.writeto("structure_model_{0:d}.fits".format(ff), overwrite=True)
-                hdu = fits.PrimaryHDU(ff_struct-ff_specmodel)
-                hdu.writeto("structure_resid_{0:d}.fits".format(ff), overwrite=True)
                 # Apply this model
                 self.rawflatimg.image = rawflat_orig * utils.inverse(ff_specmodel)
             # Perform a final 2D fit with the cleaned image
             self.fit(spat_illum_only=self.spat_illum_only, debug=debug)
-            # fold in the spectrograph specific flatfield
+            # fold in the spectrograph specific flatfield, and reset the rawimg
             self.flat_model *= ff_specmodel
             self.mspixelflat *= ff_specmodel
+            self.rawflatimg.image = rawflat_orig
 
         if show:
             self.show(wcs_match=True)
@@ -519,6 +513,7 @@ class FlatField:
         """
         Generate an image of the wavelength of each pixel.
         """
+        msgs.info("Generating wavelength image")
         flex = self.wavetilts.spat_flexure
         slitmask = self.slits.slit_img(initial=True, flexure=flex)
         tilts = self.wavetilts.fit2tiltimg(slitmask, flexure=flex)
@@ -1284,7 +1279,6 @@ class FlatField:
         """
         msgs.info("Deriving spectral illumination profile")
         # Generate a wavelength image
-        msgs.info("Generating wavelength image")
         if self.waveimg is None: self.build_waveimg()
         msgs.info('Performing a joint fit to the flat-field response')
         # Grab some parameters

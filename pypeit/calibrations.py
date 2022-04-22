@@ -559,13 +559,15 @@ class Calibrations:
                                                  self.wv_calib)
             # Generate
             pixelflatImages = pixelFlatField.run(show=self.show)
+            # Set flatimages in case we want to apply the pixel-to-pixel sensitivity corrections to the illumflat
+            self.flatimages = pixelflatImages
 
         # Only build illum_flat if the input files are different from the pixel flat
         if not pix_is_illum and len(illum_image_files) > 0:
             illum_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                        self.par['illumflatframe'],
-                                                        illum_image_files, dark=self.msdark,
-                                                        bias=self.msbias, bpm=self.msbpm)
+                                                        self.par['illumflatframe'], illum_image_files,
+                                                        dark=self.msdark, bias=self.msbias,
+                                                        flatimages=self.flatimages, bpm=self.msbpm)
             # Initialise the illum flat
             illumFlatField = flatfield.FlatField(illum_flat, self.spectrograph,
                                                  self.par['flatfield'], self.slits, self.wavetilts,
