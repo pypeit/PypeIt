@@ -1173,7 +1173,9 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
 
     def get_ql_master_dir(self, file):
         lris_grating = self.get_meta_value(file, 'dispname')
-        return os.path.join(self.name, lris_grating)
+        lris_dichroic = self.get_meta_value(file, 'dichroic')
+        setup_path = lris_grating.replace('/','_') + '_d' + lris_dichroic
+        return os.path.join(self.name, setup_path)
 
     def config_specific_par(self, scifile, inp_par=None):
         """

@@ -43,6 +43,22 @@ from pypeit.core import flux_calib
 from pypeit.scripts import scriptbase
 from pypeit.spectrographs import available_spectrographs
 
+def parse_det(det, spectrograph):
+    #TODO Need a utility routine to deal with this
+    if 'mosaic' in det:
+        mosaic = True
+        _det = spectrograph.default_mosaic
+        if _det is None:
+            msgs.error(f'{spectrograph.name} does not have a known mosaic')
+    else:
+        try:
+            _det = tuple(int(d) for d in det)
+        except:
+            msgs.error(f'Could not convert detector input to integer.')
+        mosaic = len(_det) > 1
+        if not mosaic:
+            _det = _det[0]
+    return _det
 
 # TODO make the quicklook default_pypeit_par part of the spectrograph class
 def config_lines(args):
@@ -172,7 +188,7 @@ def run(files, dither_id, offset_arcsec, caliBrate, spectrograph, det, platescal
                         B_offset[iexp], B_offset[iexp] / platescale)
         else:
             msgs.info('Reducing images for offset = {:}'.format(A_offset[0]))
-            spec2DObj = run(A_files_uni, caliBrate, spectrograph, det, parset, show=show, std_trace=std_trace)
+            spec2DObj = reduce(A_files_uni, caliBrate, spectrograph, det, parset, show=show, std_trace=std_trace)
             spec2d_list += [spec2DObj]
             offsets_dith_pix += [A_offset_pix]
 
@@ -353,6 +369,8 @@ class QL_MOS(scriptbase.ScriptBase):
     @staticmethod
     def main(args):
 
+        # Parse the detector this is taken from view_fits but this should be made into a utility function
+
         tstart = time.time()
         # Parse the files sort by MJD
         files = np.array([os.path.join(args.full_rawpath, file) for file in args.files])
@@ -364,7 +382,7 @@ class QL_MOS(scriptbase.ScriptBase):
         spectrograph_cfg_lines = spectrograph.config_specific_par(files[0]).to_config()
         parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines,
                                               merge_with=config_lines(args))
-
+        _det = parse_det(args.det, spectrograph)
 
         target = spectrograph.get_meta_value(files[0], 'target')
         mjds = np.zeros(nfiles)
@@ -379,9 +397,8 @@ class QL_MOS(scriptbase.ScriptBase):
         master_dir = os.path.join(data.Paths.data, 'QL_MASTERS') if args.master_dir is None else args.master_dir
         master_subdir = spectrograph.get_ql_master_dir(files[0])
         master_path = os.path.join(master_dir, master_subdir)
-
-        if not os.path.isdir(master_dir):
-            msgs.error(f'{master_dir} does not exist!  You must install the QL_MASTERS '
+        if not os.path.isdir(master_path):
+            msgs.error(f'{master_path} does not exist!  You must install the QL_MASTERS '
                        'directory; download the data from the PypeIt dev-suite Google Drive and '
                        'either define a QL_MASTERS environmental variable or use the '
                        'pypeit_install_ql_masters script.')
@@ -407,8 +424,7 @@ class QL_MOS(scriptbase.ScriptBase):
             msgs.error('Master frames not found.  Check that environment variable QL_MASTERS '
                        'points at the Master Calibs')
 
-
-        det_container = spectrograph.get_detector_par(args.det, hdu=fits.open(files[0]))
+        det_container = spectrograph.get_detector_par(_det, hdu=fits.open(files[0]))
         binspectral, binspatial = parse_binning(det_container['binning'])
         platescale = det_container['platescale']*binspatial
         detname = det_container.name
@@ -423,9 +439,10 @@ class QL_MOS(scriptbase.ScriptBase):
         dither_pattern, dither_id, offset_arcsec = spectrograph.parse_dither_pattern(files)
 
         print_offset_report(files, dither_pattern, dither_id, offset_arcsec, target, platescale)
-        caliBrate = build_calibrate(args.det, files, spectrograph, parset, bias_masterframe_name,
+        caliBrate = build_calibrate(_det, files, spectrograph, parset, bias_masterframe_name,
                                         slit_masterframe_name, wvcalib_masterframe_name, tilts_masterframe_name)
-        spec2d_list, offsets_dith_pix = run(files, dither_id, offset_arcsec, caliBrate, spectrograph, args.det,
+
+        spec2d_list, offsets_dith_pix = run(files, dither_id, offset_arcsec, caliBrate, spectrograph, _det,
                                             platescale, parset, std_trace, args.show, bkg_redux=args.bkg_redux)
 
         # Override offsets if they were passed in?
@@ -437,7 +454,7 @@ class QL_MOS(scriptbase.ScriptBase):
 
 
         # Instantiate Coadd2d
-        coadd = coadd2d.CoAdd2D.get_instance(spec2d_list, spectrograph, parset, det=args.det,
+        coadd = coadd2d.CoAdd2D.get_instance(spec2d_list, spectrograph, parset, det=_det,
                                              offsets=offsets_pixels, weights='uniform',
                                              spec_samp_fact=args.spec_samp_fact,
                                              spat_samp_fact=args.spat_samp_fact,
@@ -480,7 +497,7 @@ class QL_MOS(scriptbase.ScriptBase):
         # Now display the images #
         ##########################
         if not args.no_gui:
-            sdet = get_dnum(args.det, prefix=False)
+            sdet = get_dnum(_det, prefix=False)
             display.connect_to_ginga(raise_err=True, allow_new=True)
 
             # TODO: Bug in ginga prevents me from using cuts here for some
