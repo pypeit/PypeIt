@@ -356,11 +356,48 @@ def gaussian2D(tup, intflux, xo, yo, sigma_x, sigma_y, theta, offset):
     return gtwod.ravel()
 
 
+def fitGaussian2D(image, norm=False):
+    """
+    Fit a 2D Gaussian to an input image. It is recommended that the input image
+    is scaled to a maximum value that is ~1, so that all fit parameters are of
+    the same order of magnitude. Set norm=True if you do not care about the
+    amplitude or integrated flux. Otherwise, make sure you scale the image by
+    a known value prior to passing it into this function.
+
+    Args:
+        image (`numpy.ndarray`_):
+            A 2D input image
+        norm (bool, optional):
+            If True, the input image will be normalised to the maximum value
+            of the input image.
+
+    Returns:
+        popt (`numpy.ndarray`_): The optimum parameters of the Gaussian in the following order: Integrated flux, x center, y center, sigma_x, sigma_y, theta, offset. See `pypeit.core.datacube.gaussian2D`_ for a more detailed description of the model.
+        pcov (`numpy.ndarray`_): Corresponding covariance matrix
+    """
+    # Normalise if requested
+    wlscl = np.max(image) if norm else 1
+    # Setup the coordinates
+    x = np.linspace(0, image.shape[0] - 1, image.shape[0])
+    y = np.linspace(0, image.shape[1] - 1, image.shape[1])
+    xx, yy = np.meshgrid(x, y, indexing='ij')
+    # Setup the fitting params
+    idx_max = np.unravel_index(np.argmax(image), image.shape)
+    initial_guess = (1, idx_max[0], idx_max[1], 2, 2, 0, 0)
+    bounds = ([0, 0, 0, 0.5, 0.5, -np.pi, -np.inf],
+              [np.inf, image.shape[0], image.shape[1], image.shape[0], image.shape[1], np.pi, np.inf])
+    # Perform the fit
+    popt, pcov = opt.curve_fit(gaussian2D, (xx, yy), image.ravel() / wlscl, bounds=bounds, p0=initial_guess)
+    # Return the fitting results
+    return popt, pcov
+
+
 def rebinND(img, shape):
     """
     Rebin a 2D image to a smaller shape. For example, if img.shape=(100,100),
-    then shape=(10,10) would average the first 10x10 pixels into a single output
-    pixel, then next 10x10 pixels will be output into the next pixel
+    then shape=(10,10) would take the mean of the first 10x10 pixels into a
+    single output pixel, then the mean of the next 10x10 pixels will be output
+    into the next pixel
 
     Args:
         img (`numpy.ndarray`_):
@@ -406,23 +443,9 @@ def extract_standard_spec(stdcube, subsample=20, method='boxcar'):
     wcs_wav = stdwcs.wcs_pix2world(np.vstack((np.zeros(numwave), np.zeros(numwave), np.arange(numwave))).T, 0)
     wave = wcs_wav[:, 2] * 1.0E10 * units.AA
 
-    # Generate a whitelight image
-    nrmval = np.sum(flxcube != 0.0, axis=2)
-    nrmval[nrmval == 0.0] = 1.0
-    wl_img = np.sum(flxcube, axis=2) / nrmval
-    wlscl = np.max(wl_img)  # Need to make sure the value is of order 1, so it's the same order of magnitude as the other parameters
-
-    # Estimate the centroid and width of the standard star
-    x = np.linspace(0, wl_img.shape[0] - 1, wl_img.shape[0])
-    y = np.linspace(0, wl_img.shape[1] - 1, wl_img.shape[1])
-    xx, yy = np.meshgrid(x, y, indexing='ij')
-    idx_max = np.unravel_index(np.argmax(wl_img), wl_img.shape)
-    initial_guess = (1, idx_max[0], idx_max[1], 2, 2, 0, 0)
-    wlscl = np.max(
-        wl_img)  # Need to make sure the value is of order 1, so it's the same order of magnitude as the other parameters
-    bounds = ([0, 0, 0, 0.5, 0.5, -np.pi, -np.inf],
-              [np.inf, wl_img.shape[0], wl_img.shape[1], wl_img.shape[0], wl_img.shape[1], np.pi, np.inf])
-    popt, pcov = opt.curve_fit(gaussian2D, (xx, yy), wl_img.ravel() / wlscl, bounds=bounds, p0=initial_guess)
+    # Generate a whitelight image, and fit a 2D Gaussian to estimate centroid and width
+    wl_img = make_whitelight_fromcube(flxcube)
+    popt, pcov = fitGaussian2D(wl_img, norm=True)
     wid = max(popt[3], popt[4])
 
     # Setup the coordinates of the mask
@@ -471,19 +494,26 @@ def extract_standard_spec(stdcube, subsample=20, method='boxcar'):
     elif method == 'gauss2d':
         # Generate a mask
         fitmask = (varcube > 0.0) * mask
-        # Estimate the centroid and width of the standard star
+        # Setup the coordinates
         x = np.linspace(0, flxcube.shape[0] - 1, flxcube.shape[0])
         y = np.linspace(0, flxcube.shape[1] - 1, flxcube.shape[1])
         z = np.linspace(0, flxcube.shape[2] - 1, flxcube.shape[2])
         xx, yy, zz = np.meshgrid(x, y, z, indexing='ij')
+        # Normalise the flux in each wavelength channel
+        scispec = (flxcube * fitmask).sum(0).sum(0).reshape((1, 1, flxcube.shape[2]))
+        cntspec = fitmask.sum(0).sum(0).reshape((1, 1, flxcube.shape[2]))
+        # These operations are all inverted, because we need to divide flxcube by scispec
+        cntspec *= utils.inverse(scispec)
+        cubefit = flxcube * cntspec
+        cubesigfit = np.sqrt(varcube) * cntspec
+        # Setup the fit params
         ww = np.where(fitmask)
         initial_guess = (1, idx_max[0], idx_max[1], 0.0, 0.0, 2, 2, 0, 0)
         bounds = ([-np.inf, 0, 0, -np.inf, -np.inf, 0.5, 0.5, -np.pi, -np.inf],
                   [np.inf,wl_img.shape[0],wl_img.shape[1],np.inf, np.inf, wl_img.shape[0],wl_img.shape[0],np.pi,np.inf])
         msgs.info("Fitting a 2D Gaussian to the datacube")
-        popt, pcov = opt.curve_fit(gaussian2D_cube, (xx[ww], yy[ww], zz[ww]), flxcube[ww] / wlscl,
-                                   # sigma=np.ones(ww[0].size), bounds=bounds, p0=initial_guess)
-                                   sigma=np.sqrt(varcube[ww]) / wlscl, bounds=bounds, p0=initial_guess)
+        popt, pcov = opt.curve_fit(gaussian2D_cube, (xx[ww], yy[ww], zz[ww]), cubefit[ww],
+                                   sigma=cubesigfit[ww], bounds=bounds, p0=initial_guess)
         # Subtract off the best-fitting continuum
         popt[-1] = 0
         # Generate the best-fitting model to be used as an optimal profile
@@ -537,28 +567,6 @@ def extract_standard_spec(stdcube, subsample=20, method='boxcar'):
         opt_flux, opt_var, opt_gpm = sobj.OPT_COUNTS[0,:], sobj.OPT_COUNTS_SIG[0,:]**2, sobj.OPT_MASK[0,:]
         # Setup the return values
         ret_flux, ret_var, ret_gpm = opt_flux, opt_var, opt_gpm
-
-        ###  OLD VERSION OF OPTIMAL USING 2D PROFILE
-        # # Generate a mask
-        # mask = (mask==1).astype(np.float)
-        # fitmask = (varcube > 0.0) * mask
-        # numim = flxcube.shape[0]*flxcube.shape[1]
-        # wl_img -= np.sum(wl_img[:, :, np.newaxis] * smask)/np.sum(smask)
-        # model = wl_img[:, :, np.newaxis] * mask
-        # # Optimally extract
-        # msgs.info("Optimally extracting...")
-        # sciimg = (flxcube*mask).reshape((numim, numwave)).T
-        # ivar = utils.inverse((varcube*mask**2).reshape((numim, numwave)).T)
-        # optmask = (fitmask > 0).reshape((numim, numwave)).T
-        # waveimg = np.ones((numwave, numim))  # Just a dummy array - not needed
-        # skyimg = np.zeros((numwave, numim))  # Just a dummy array - not needed
-        # thismask = np.ones((numwave, numim))  # Just a dummy array - not needed
-        # oprof = model.repeat(numwave, axis=2).reshape((numim, numwave)).T
-        # sobj = specobj.SpecObj('IFU', 'DET01', SLITID=0)
-        # extract.extract_optimal(sciimg, ivar, optmask, waveimg, skyimg, thismask, oprof, sobj)
-        # opt_flux, opt_var, opt_gpm = sobj.OPT_COUNTS, sobj.OPT_COUNTS_SIG**2, sobj.OPT_MASK
-        # # Setup the return values
-        # ret_flux, ret_var, ret_gpm = opt_flux, opt_var, opt_gpm
     else:
         msgs.error("Unknown extraction method: ", method)
 
@@ -570,9 +578,51 @@ def extract_standard_spec(stdcube, subsample=20, method='boxcar'):
     return wave, ret_flux, utils.inverse(ret_var), ret_gpm
 
 
+def make_whitelight_fromcube(cube, wave=None, wavemin=None, wavemax=None):
+    """ Generate a white light image using an input cube.
+
+    Args:
+        cube (`numpy.ndarray`_):
+            3D datacube (the final element contains the wavelength dimension)
+        wave (`numpy.ndarray`_, optional):
+            1D wavelength array. Only required if wavemin or wavemax are not None.
+        wavemin (float, None):
+            Minimum wavelength (same units as wave) to be included in the whitelight image.
+            You must provide wave as well if you want to reduce the wavelength range.
+        wavemax (float, None):
+            Maximum wavelength (same units as wave) to be included in the whitelight image.
+            You must provide wave as well if you want to reduce the wavelength range.
+
+    Returns:
+        wl_img (`numpy.ndarray`_): Whitelight image of the input cube.
+    """
+    # Make a wavelength cut, if requested
+    cutcube = cube.copy()
+    if wavemin is not None or wavemax is not None:
+        # Make some checks on the input
+        if wave is None:
+            msgs.error("wave variable must be supplied to create white light image with wavelength cuts")
+        else:
+            if wave.size != cube.shape[2]:
+                msgs.error("wave variable should have the same length as the third axis of cube.")
+        # assign wavemin & wavemax if one is not provided
+        if wavemin is None:
+            wavemin = np.min(wave)
+        if wavemax is None:
+            wavemax = np.max(wave)
+        ww = np.where((wave >= wavemin) & (wave <= wavemax))[0]
+        wmin, wmax = ww[0], ww[-1]+1
+        cutcube = cube[:, :, wmin:wmax]
+    # Now sum along the wavelength axis
+    nrmval = np.sum(cutcube != 0.0, axis=2)
+    nrmval[nrmval == 0.0] = 1.0
+    wl_img = np.sum(cutcube, axis=2) / nrmval
+    return wl_img
+
+
 def make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat, ref_filename):
-    """ Generate a whitelight image of every input frame,
-    based on a reference image. Note the, the reference
+    """ Generate a whitelight image using the individual pixels of every
+    input frame, based on a reference image. Note the, the reference
     image must have a well-defined WCS.
 
     Args:
@@ -615,15 +665,15 @@ def make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_i
     wlwcs = generate_masterWCS(coord_min, coord_dlt)
 
     # Generate white light images
-    whitelight_imgs, _, _ = make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
-                                            whitelightWCS=wlwcs, numra=numra, numdec=numdec)
+    whitelight_imgs, _, _ = make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
+                                                       whitelightWCS=wlwcs, numra=numra, numdec=numdec)
     # Return required info
     return reference_image, whitelight_imgs, wlwcs
 
 
-def make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
-                    all_ivar=None, whitelightWCS=None, numra=None, numdec=None):
-    """ Generate a whitelight image of every input frame
+def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
+                               all_ivar=None, whitelightWCS=None, numra=None, numdec=None):
+    """ Generate a whitelight image using the individual pixels of every input frame
 
     Args:
         all_ra (`numpy.ndarray`_):
@@ -1222,8 +1272,8 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
             if cubepar['save_whitelight']:
                 # Generate individual whitelight images of each spec2d file
                 out_whitelight = outfile.replace(".fits", "_whitelight.fits")
-                whitelight_img, _, wlwcs = make_whitelight(raimg[onslit_gpm], decimg[onslit_gpm], wave_ext,
-                                                           flux_sav[resrt], np.ones(numpix), np.zeros(numpix), dspat)
+                whitelight_img, _, wlwcs = make_whitelight_frompixels(raimg[onslit_gpm], decimg[onslit_gpm], wave_ext,
+                                                                      flux_sav[resrt], np.ones(numpix), np.zeros(numpix), dspat)
                 msgs.info("Saving white light image as: {0:s}".format(out_whitelight))
                 img_hdu = fits.PrimaryHDU(whitelight_img.T, header=wlwcs.to_header())
                 img_hdu.writeto(out_whitelight, overwrite=overwrite)
@@ -1259,7 +1309,7 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
     # Check if a reference whitelight image should be used to register the offsets
     if cubepar["reference_image"] is None:
         # Generate white light images
-        whitelight_imgs, _, _ = make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat)
+        whitelight_imgs, _, _ = make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat)
         # ref_idx will be the index of the cube with the highest S/N
         ref_idx = np.argmax(weights)
         reference_image = whitelight_imgs[:, :, ref_idx].copy()
@@ -1294,8 +1344,8 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
     # Generate a white light image of *all* data
     msgs.info("Generating global white light image")
     if cubepar["reference_image"] is None:
-        whitelight_img, _, wlwcs = make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts,
-                                                   np.zeros(all_ra.size), dspat)
+        whitelight_img, _, wlwcs = make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts,
+                                                              np.zeros(all_ra.size), dspat)
     else:
         _, whitelight_img, wlwcs = \
             make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, np.zeros(all_ra.size),
@@ -1312,8 +1362,8 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
         if whitelight_img is None:
             msgs.info("Generating global white light image")
             if cubepar["reference_image"] is None:
-                whitelight_img, _, wlwcs = make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts,
-                                                           np.zeros(all_ra.size), dspat)
+                whitelight_img, _, wlwcs = make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts,
+                                                                      np.zeros(all_ra.size), dspat)
             else:
                 _, whitelight_img, wlwcs = \
                     make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts,

@@ -1276,7 +1276,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
         Information stored about the slits
     slit_illum_ref_idx : int
         Index of slit that is used as the reference.
-    smooth_npix : int
+    smooth_npix : int, optional
         smoothing used for determining smoothly varying relative weights by sn_weights
     model : `numpy.ndarray`_, None
         A model of the rawimg data. If None, rawimg will be used.
