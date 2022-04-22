@@ -147,7 +147,7 @@ def oh_lines():
     """
 
     msgs.info("Reading in the Rousselot (2000) OH line list")
-    oh = np.loadtxt(os.path.join(data.Paths.skisim, 'rousselot2000.dat'),
+    oh = np.loadtxt(data.get_skisim_filepath('rousselot2000.dat'),
                     usecols=(0, 1))
     return oh[:,0]/10000., oh[:,1] # wave converted to microns
 
@@ -171,7 +171,7 @@ def transparency(wavelength, debug=False):
     """
 
     msgs.info("Reading in the atmospheric transmission model")
-    transparency = np.loadtxt(os.path.join(data.Paths.skisim, 'atm_transmission_secz1.5_1.6mm.dat'))
+    transparency = np.loadtxt(data.get_skisim_filepath('atm_transmission_secz1.5_1.6mm.dat'))
     wave_mod = transparency[:,0]
     tran_mod = transparency[:,1]
 
@@ -225,7 +225,7 @@ def h2o_lines():
     """
 
     msgs.info("Reading in the water atmsopheric spectrum")
-    h2o = np.loadtxt(os.path.join(data.Paths.skisim, 'HITRAN.txt'),
+    h2o = np.loadtxt(data.get_skisim_filepath('HITRAN.txt'),
                      usecols=(0, 1))
     h2o_wv = 1./ h2o[:,0] * 1e4 # microns
     h2o_rad = h2o[:,1] * 5e11 # added to match XIDL

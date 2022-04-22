@@ -181,20 +181,29 @@ quit the GUI to see if you want to save the solution. Note,
 you can increase this tolerance using the command line option
 `pixtol`, or by setting the `force_save` command line option.
 
-To use this wavelength solution in your reduction, you will
-need to add your solution to the PypeIt database. To do this,
-you will need to move the output file into the master directory,
-which will be similar to the following directory:
+In addition to writing the wavelength solution to the file
+``wvarxiv.fits`` in the current working directory, ``PypeIt``
+now also saves the solution in the PypeIt cache and prints
+a message indicating how to use it, such as:
 
-``/directory/to/PypeIt/pypeit/data/arc_lines/reid_arxiv/name_of_your_solution.fits``
+   .. code-block:: console
 
-Once your solution is in the database, you will be able to
-run PypeIt in the standard :ref:`wvcalib-fulltemplate` mode.
-Make sure you add the following line to your pypeit file::
+      [INFO]    :: Your arxiv solution has been written to ./wvarxiv.fits
+      [INFO]    :: Your arxiv solution has been cached.
+               Use 'reid_arxiv = manual_keck_lris_20220214.fits' in your
+               PypeIt Reduction File to utilize this wavelength solution.
+
+To use this wavelength solution, simply add the following to
+your PypeIt Reduction File::
 
   [calibrations]
      [[wavelengths]]
-        reid_arxiv = name_of_your_solution.fits
+        method = full_template
+        reid_arxiv = manual_keck_lris_20220214.fits
+
+(replacing the ``reid_arxiv`` filename with the actual output
+from ``pypeit_identify``).  Run PypeIt in the standard
+:ref:`wvcalib-fulltemplate` mode.
 
 We also recommend that you send your solution to the
 PypeIt development (e.g. post it on GitHub or the Users Slack)

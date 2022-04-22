@@ -2288,7 +2288,7 @@ class WavelengthSolutionPar(ParSet):
                  sigdetect=None, fwhm=None, fwhm_fromlines=None, reid_arxiv=None,
                  nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
                  rms_threshold=None, match_toler=None, func=None, n_first=None, n_final=None,
-                 sigrej_first=None, sigrej_final=None, wv_cen=None, disp=None, numsearch=None,
+                 sigrej_first=None, sigrej_final=None, numsearch=None,
                  nfitpix=None, IDpixels=None, IDwaves=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None):
 
@@ -2412,7 +2412,7 @@ class WavelengthSolutionPar(ParSet):
         dtypes['reid_arxiv'] = str
         descr['reid_arxiv'] = 'Name of the archival wavelength solution file that will be used ' \
                               'for the wavelength reidentification.  Only used if ``method`` is ' \
-                              '\'reidentify\''
+                              '\'reidentify\' or \'full_template\'.'
 
         defaults['nreid_min'] = 1
         dtypes['nreid_min'] = int
@@ -2510,18 +2510,6 @@ class WavelengthSolutionPar(ParSet):
         descr['sigrej_final'] = 'Number of sigma for rejection for the final guess to the ' \
                                 'wavelength solution.'
 
-        # TODO: Not used
-        # Backwards compatibility with basic and semi_brute algorithms
-        defaults['wv_cen'] = 0.0
-        dtypes['wv_cen'] = float
-        descr['wv_cen'] = 'Central wavelength. Backwards compatibility with basic and ' \
-                          'semi-brute algorithms.'
-
-        defaults['disp'] = 0.0
-        dtypes['disp'] = float
-        descr['disp'] = 'Dispersion. Backwards compatibility with basic and semi-brute algorithms.'
-
-
         defaults['numsearch'] = 20
         dtypes['numsearch'] = int
         descr['numsearch'] = 'Number of brightest arc lines to search for in preliminary ' \
@@ -2561,7 +2549,7 @@ class WavelengthSolutionPar(ParSet):
                    'ech_norder_coeff', 'ech_sigrej', 'lamps', 'sigdetect',
                    'fwhm', 'fwhm_fromlines', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
-                   'sigrej_first', 'sigrej_final', 'wv_cen', 'disp', 'numsearch', 'nfitpix',
+                   'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
                    'IDpixels', 'IDwaves', 'refframe', 'nsnippet', 'use_instr_flag',
                    'wvrng_arxiv']
 
@@ -2588,7 +2576,7 @@ class WavelengthSolutionPar(ParSet):
         Return the valid wavelength solution methods.
         """
         # TODO: Remove from this list anything that is not valid!
-        return ['simple', 'semi-brute', 'basic', 'holy-grail', 'identify', 'reidentify',
+        return ['simple', 'holy-grail', 'identify', 'reidentify',
                 'full_template']
 
     @staticmethod
