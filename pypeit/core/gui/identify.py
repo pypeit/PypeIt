@@ -281,6 +281,7 @@ class Identify:
             ax.set_ylim( (max(1., spec.get_ydata().min()),
                         4.0 * spec.get_ydata().max()))
         else:
+            ax.set_yscale('linear')
             ax.set_ylim((0.0, 1.1 * spec.get_ydata().max()))
         ax.set_xlabel('Pixel')
         ax.set_ylabel('Flux')
@@ -724,10 +725,13 @@ class Identify:
                                          "arc_lines/reid_arxiv")
 
                 msgs.info("Your arxiv solution has been written to ./wvarxiv.fits\n")
-                msgs.info(f"Your arxiv solution has been cached.{msgs.newline()}"
-                          f"Use 'reid_arxiv = {cachename}' and{msgs.newline()}"
-                          f"'method = full_template' in your PypeIt{msgs.newline()}"
-                          "Reduction File to utilize this wavelength solution.")
+                msgs.info(f"Your arxiv solution has also been cached.{msgs.newline()}"
+                          f"To utilize this wavelength solution, insert the{msgs.newline()}"
+                          f"following block in your PypeIt Reduction File:{msgs.newline()}"
+                          f" [calibrations]{msgs.newline()}"
+                          f"   [[wavelengths]]{msgs.newline()}"
+                          f"     reid_arxiv = {cachename}{msgs.newline()}"
+                          f"     method = full_template\n")
 
                 # Write the WVCalib file
                 outfname = "wvcalib.fits"
