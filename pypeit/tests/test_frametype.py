@@ -75,7 +75,7 @@ def test_mosfire():
 
     # Get the list of setup directories
     setups = [os.path.join(raw_dir, isetup)
-                for isetup in ['Y_multi', 'long2pos1_H', 'mask1_K_with_continuum', 'mask1_J_with_continuum']]
+                for isetup in ['Y_multi', 'mask1_K_with_continuum', 'mask1_J_with_continuum']]
 
     # Set the output path and *remove if* if it already exists
     output_path = os.path.join(os.getcwd(), 'output')
