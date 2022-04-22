@@ -3552,6 +3552,8 @@ class SkySubPar(ParSet):
         dtypes['sky_sigrej'] = float
         descr['sky_sigrej'] = 'Rejection parameter for local sky subtraction'
 
+
+
         defaults['global_sky_std'] = True
         dtypes['global_sky_std'] = bool
         descr['global_sky_std'] = 'Global sky subtraction will be performed on standard stars. This should be turned' \
