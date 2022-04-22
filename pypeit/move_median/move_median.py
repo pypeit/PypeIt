@@ -3,7 +3,10 @@ import warnings
 try:
     from bottleneck import move_median as move_median_
     def move_median(seq, window):
-        return move_median_(seq, window=window)
+        try:
+            return move_median_(seq, window=window)
+        except:
+            embed()
     #warnings.warn("using bottleneck")
 except:
     warnings.warn('Unable to load bottleneck moving median.  Try reinstalling bottleneck.  In the '
