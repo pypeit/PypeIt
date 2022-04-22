@@ -811,7 +811,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     Parameters
     ----------
     censpec : `numpy.ndarray`_
-      A 1D spectrum to be searched for significant detections
+      A 1D spectrum to be searched for significant detections, shape = (nspec,)
 
     sigdetect : float, default=20., optional
        Sigma threshold above fluctuations for arc-line detection.
@@ -878,7 +878,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
 
     bpm: `numpy.ndarray`_, optional
         Bad-pixel mask for input spectrum. If None, all pixels
-        considered good.
+        considered good. If passed in shape must match that of censpec
 
     verbose: bool, default = False
        Output more stuff to the screen.
@@ -915,25 +915,28 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
 
     # TODO: Why is this here? Can't the calling function be required to
     # pass a single spectrum?  This is not reflected in the docstring.
-    if len(censpec.shape) == 3:
-        detns = censpec[:, 0].flatten()
-    else:
-        detns = censpec.copy()
-    detns = detns.astype(np.float)
-    xrng = np.arange(detns.size, dtype=np.float)
+    # OLD CODE
+    #if len(censpec.shape) == 3:
+    #    detns = censpec[:, 0].flatten()
+    #else:
+    #    detns = censpec.copy()
+    #detns = detns.astype(np.float)
+
+    # Need to use bpm since when arc spectrum is padded, the padding can make the thresh low and also will screw up
+    # continuum fitting
+    bpm_out = censpec == 0.0 if bpm is None else bpm
+    xrng = np.arange(censpec.size, dtype=np.float)
 
     if cont_subtract:
-        cont_now, cont_mask = iter_continuum(detns, inmask=None if bpm is None else np.invert(bpm),
-                                             fwhm=fwhm, niter_cont=niter_cont, cont_samp=cont_samp,
-                                             cont_frac_fwhm=cont_frac_fwhm)
+        cont_now, cont_mask = iter_continuum(censpec, inmask=np.logical_not(bpm_out), fwhm=fwhm, niter_cont=niter_cont,
+                                             cont_samp=cont_samp, cont_frac_fwhm=cont_frac_fwhm)
     else:
-        cont_mask = np.ones(detns.size, dtype=bool)
-        cont_now = np.zeros_like(detns)
+        cont_mask = np.ones(censpec.size, dtype=bool)
+        cont_now = np.zeros_like(censpec)
 
-    arc = detns - cont_now
+    arc = (censpec - cont_now)*np.logical_not(bpm_out)
     if input_thresh is None:
-        # Need to add condition `arc!=0` since arc spectrum is padded and the pad makes the thresh low
-        (mean, med, stddev) = stats.sigma_clipped_stats(arc[cont_mask&(arc!=0)], sigma_lower=3.0, sigma_upper=3.0)
+        (mean, med, stddev) = stats.sigma_clipped_stats(arc[cont_mask & np.logical_not(bpm_out)], sigma_lower=3.0, sigma_upper=3.0)
         thresh = med + sigdetect*stddev
     else:
         med = 0.0
@@ -957,7 +960,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     # Set the amplitudes using the spectra directly for both the input
     # and continuum-subtracted spectrum.
     # TODO: Why does this interpolate to pixt and not tcent?
-    tampl_true = np.interp(pixt, xrng, detns)
+    tampl_true = np.interp(pixt, xrng, censpec)
     tampl = np.interp(pixt, xrng, arc)
 
     # Find the lines that meet the following criteria:

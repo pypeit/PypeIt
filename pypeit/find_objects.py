@@ -520,6 +520,7 @@ class FindObjects:
                 self.slits_left[:,slit_idx], self.slits_right[:,slit_idx],
                 inmask=inmask, sigrej=sigrej,
                 bsp=self.par['reduce']['skysub']['bspline_spacing'],
+                trim_edg=tuple(self.par['reduce']['trim_edge']),
                 no_poly=self.par['reduce']['skysub']['no_poly'],
                 pos_mask=(not self.bkg_redux), show_fit=show_fit)
 
@@ -1167,6 +1168,7 @@ class IFUFindObjects(MultiSlitFindObjects):
         model_ivar = self.sciImg.ivar
         for nn in range(numiter):
             msgs.info("Performing iterative joint sky subtraction - ITERATION {0:d}/{1:d}".format(nn+1, numiter))
+            # TODO trim_edg is in the parset so it should be passed in here via trim_edg=tuple(self.par['reduce']['trim_edge']),
             global_sky[thismask] = skysub.global_skysub(self.sciImg.image, model_ivar, tilt_wave,
                                                              thismask, self.slits_left, self.slits_right, inmask=inmask,
                                                              sigrej=sigrej, trim_edg=trim_edg,
