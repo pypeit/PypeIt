@@ -1285,7 +1285,7 @@ class CubePar(ParSet):
                            'datacube will be generated for each input spec2d file, and will be saved as ' \
                            'a spec3d file.'
 
-        defaults['output_filename'] = "datacube.fits"
+        defaults['output_filename'] = ""
         dtypes['output_filename'] = str
         descr['output_filename'] = 'If combining multiple frames, this string sets the output filename of ' \
                                    'the combined datacube. If combine=False, the output filenames will be ' \
@@ -3585,6 +3585,8 @@ class SkySubPar(ParSet):
         defaults['sky_sigrej'] = 3.0
         dtypes['sky_sigrej'] = float
         descr['sky_sigrej'] = 'Rejection parameter for local sky subtraction'
+
+
 
         defaults['global_sky_std'] = True
         dtypes['global_sky_std'] = bool

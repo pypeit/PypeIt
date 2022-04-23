@@ -593,7 +593,6 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
 
     # Do the cross-correlation first and determine the initial shift
     shift_cc, corr_cc = xcorr_shift(y1, y2, smooth = None, percent_ceil = None, use_raw_arc = True, sigdetect = sigdetect, fwhm=fwhm, debug = debug)
-
     if corr_cc < cc_thresh:
         return -1, shift_cc, 1.0, corr_cc, shift_cc, corr_cc
     else:
