@@ -119,4 +119,16 @@ def test_coadd_datacube():
     parset['reduce']['cube']['output_filename'] = output_filename
     parset['reduce']['cube']['combine'] = True
     coadd_cube(files, parset=parset, overwrite=True)
+    # Now test the fluxing
+    flux_files = [files[0]]
+    output_fileflux = "BB1245p4238_KCWI_20191219_fluxing.fits"
+    parset['reduce']['cube']['output_filename'] = output_fileflux
+    parset['reduce']['cube']['combine'] = False
+    parset['reduce']['cube']['standard_cube'] = output_filename
+    coadd_cube(flux_files, parset=parset, overwrite=True)
+    # Check the files exist
+    assert(os.path.exists(output_filename))
+    assert(os.path.exists(output_fileflux))
+    # Remove the created files
     os.remove(output_filename)
+    os.remove(output_fileflux)

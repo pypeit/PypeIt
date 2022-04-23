@@ -1274,7 +1274,7 @@ class CubePar(ParSet):
                            'datacube will be generated for each input spec2d file, and will be saved as ' \
                            'a spec3d file.'
 
-        defaults['output_filename'] = "datacube.fits"
+        defaults['output_filename'] = ""
         dtypes['output_filename'] = str
         descr['output_filename'] = 'If combining multiple frames, this string sets the output filename of ' \
                                    'the combined datacube. If combine=False, the output filenames will be ' \

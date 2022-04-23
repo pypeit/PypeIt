@@ -963,6 +963,38 @@ def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bin
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
 
 
+def get_output_filename(fil, par_outfile, combine, idx=1):
+    """
+    Get the output filename of a datacube, given the input
+
+    Args:
+        fil (str):
+            The spec2d filename.
+        par_outfile (str):
+            The user-specified output filename (see cubepar['output_filename'])
+        combine (bool):
+            Should the input frames be combined into a single datacube?
+        idx (int, optional):
+            Index of filename to be saved. Required if combine=False.
+
+    Returns:
+        outfile (str): The output filename to use.
+    """
+    if combine:
+        if par_outfile == "":
+            par_outfile = "datacube.fits"
+        # Check the output files don't exist
+        outfile = par_outfile if ".fits" in par_outfile else par_outfile + ".fits"
+    else:
+        if par_outfile == "":
+            outfile = fil.replace("spec2d_", "spec3d_")
+        else:
+            # Use the output filename as a prefix
+            outfile = os.path.splitext(par_outfile)[0] + "_{0:03d}.fits".format(idx)
+    # Return the outfile
+    return outfile
+
+
 def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
     """ Main routine to coadd spec2D files into a 3D datacube
 
@@ -1007,22 +1039,31 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
     numfiles = len(files)
     combine = cubepar['combine']
 
-    # Check the output files don't exist
-    outfile = cubepar['output_filename'] if ".fits" in cubepar['output_filename'] else cubepar['output_filename'] + ".fits"
-    out_whitelight = outfile.replace(".fits", "_whitelight.fits")
+    # Check if the output file exists
     if combine:
+        outfile = get_output_filename("", cubepar['output_filename'], combine)
+        out_whitelight = os.path.splitext(outfile)[0] + "_whitelight.fits"
         if os.path.exists(outfile) and not overwrite:
             msgs.error("Output filename already exists:"+msgs.newline()+outfile)
         if os.path.exists(out_whitelight) and cubepar['save_whitelight'] and not overwrite:
             msgs.error("Output filename already exists:"+msgs.newline()+out_whitelight)
     else:
-        for ff in range(numfiles):
-            outfile = files[ff].replace("spec2d_", "spec3d_")
-            out_whitelight = outfile.replace(".fits", "_whitelight.fits")
+        # Finally, if there's just one file, check if the output filename is given
+        if numfiles == 1 and cubepar['output_filename'] != "":
+            outfile = get_output_filename("", cubepar['output_filename'], True, -1)
+            out_whitelight = os.path.splitext(outfile)[0] + "_whitelight.fits"
             if os.path.exists(outfile) and not overwrite:
                 msgs.error("Output filename already exists:" + msgs.newline() + outfile)
             if os.path.exists(out_whitelight) and cubepar['save_whitelight'] and not overwrite:
                 msgs.error("Output filename already exists:" + msgs.newline() + out_whitelight)
+        else:
+            for ff in range(numfiles):
+                outfile = get_output_filename(files[ff], cubepar['output_filename'], combine, ff+1)
+                out_whitelight = os.path.splitext(outfile)[0] + "_whitelight.fits"
+                if os.path.exists(outfile) and not overwrite:
+                    msgs.error("Output filename already exists:" + msgs.newline() + outfile)
+                if os.path.exists(out_whitelight) and cubepar['save_whitelight'] and not overwrite:
+                    msgs.error("Output filename already exists:" + msgs.newline() + out_whitelight)
 
     # Check the reference cube and image exist, if requested
     fluxcal = False
@@ -1268,16 +1309,20 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
 
         # If individual frames are to be output, there's no need to store information, just make the cubes now
         if not combine:
-            outfile = fil.replace("spec2d_", "spec3d_")
+            # Get the output filename
+            if numfiles == 1 and cubepar['output_filename'] != "":
+                outfile = get_output_filename("", cubepar['output_filename'], True, -1)
+            else:
+                outfile = get_output_filename(fil, cubepar['output_filename'], combine, ff+1)
+            # Generate individual whitelight images of each spec2d file
             if cubepar['save_whitelight']:
-                # Generate individual whitelight images of each spec2d file
-                out_whitelight = outfile.replace(".fits", "_whitelight.fits")
+                out_whitelight = os.path.splitext(outfile)[0] + "_whitelight.fits"
                 whitelight_img, _, wlwcs = make_whitelight_frompixels(raimg[onslit_gpm], decimg[onslit_gpm], wave_ext,
                                                                       flux_sav[resrt], np.ones(numpix), np.zeros(numpix), dspat)
                 msgs.info("Saving white light image as: {0:s}".format(out_whitelight))
                 img_hdu = fits.PrimaryHDU(whitelight_img.T, header=wlwcs.to_header())
                 img_hdu.writeto(out_whitelight, overwrite=overwrite)
-
+            # Make the datacube
             slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
             numwav = int((np.max(waveimg) - wave0) / dwv)
             bins = spec.get_datacube_bins(slitlength, minmax, numwav)
