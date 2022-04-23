@@ -813,32 +813,116 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
 
 def objfind_QA(spat_peaks, snr_peaks, spat_vector, snr_vector, snr_thresh, qa_title, peak_gpm,
                near_edge_bpm, nperslit_bpm, objfindQA_filename=None, show=False):
+    """
 
+    Args:
+        spat_peaks:
+        snr_peaks:
+        spat_vector:
+        snr_vector:
+        snr_thresh:
+        qa_title:
+        peak_gpm:
+        near_edge_bpm:
+        nperslit_bpm:
+        objfindQA_filename:
+        show:
 
-        plt.plot(spat_vector, snr_vector, drawstyle='steps-mid', color='black', label = 'Collapsed SNR (FWHM convol)')
-        plt.hlines(snr_thresh,spat_vector.min(),spat_vector.max(), color='red',linestyle='--',
-                   label='SNR_THRESH={:5.3f}'.format(snr_thresh))
-        if np.any(peak_gpm):
-            plt.plot(spat_peaks[peak_gpm], snr_peaks[peak_gpm], color='red', marker='o', markersize=10.0,
-                     mfc='lawngreen', fillstyle='full',linestyle='None', zorder = 10,label='Good Object')
-        if np.any(near_edge_bpm):
-            plt.plot(spat_peaks[near_edge_bpm], snr_peaks[near_edge_bpm], color='red', marker='o', markersize=10.0,
-                     mfc='cyan', fillstyle='full', linestyle='None', zorder = 10,label='Rejected: Near Edge')
-        if np.any(nperslit_bpm):
-            plt.plot(spat_peaks[nperslit_bpm], snr_peaks[nperslit_bpm], color='red', marker='o', markersize=10.0,
-                     mfc='yellow', fillstyle='full', linestyle='None', zorder = 10,label='Rejected: Nperslit')
-        plt.legend()
-        plt.xlabel('Approximate Spatial Position (pixels)')
-        plt.ylabel('SNR')
-        plt.title(qa_title)
-        #plt.ylim(np.fmax(snr_vector.min(), -20.0), 1.3*snr_vector.max())
-        fig = plt.gcf()
-        if show:
-            plt.show()
-        if objfindQA_filename is not None:
-            fig.savefig(objfindQA_filename, dpi=400)
-        plt.close('all')
+    Returns:
 
+    """
+
+    plt.plot(spat_vector, snr_vector, drawstyle='steps-mid', color='black', label = 'Collapsed SNR (FWHM convol)')
+    plt.hlines(snr_thresh,spat_vector.min(),spat_vector.max(), color='red',linestyle='--',
+               label='SNR_THRESH={:5.3f}'.format(snr_thresh))
+    if np.any(peak_gpm):
+        plt.plot(spat_peaks[peak_gpm], snr_peaks[peak_gpm], color='red', marker='o', markersize=10.0,
+                 mfc='lawngreen', fillstyle='full',linestyle='None', zorder = 10,label='Good Object')
+    if np.any(near_edge_bpm):
+        plt.plot(spat_peaks[near_edge_bpm], snr_peaks[near_edge_bpm], color='red', marker='o', markersize=10.0,
+                 mfc='cyan', fillstyle='full', linestyle='None', zorder = 10,label='Rejected: Near Edge')
+    if np.any(nperslit_bpm):
+        plt.plot(spat_peaks[nperslit_bpm], snr_peaks[nperslit_bpm], color='red', marker='o', markersize=10.0,
+                 mfc='yellow', fillstyle='full', linestyle='None', zorder = 10,label='Rejected: Nperslit')
+    plt.legend()
+    plt.xlabel('Approximate Spatial Position (pixels)')
+    plt.ylabel('SNR')
+    plt.title(qa_title)
+    #plt.ylim(np.fmax(snr_vector.min(), -20.0), 1.3*snr_vector.max())
+    fig = plt.gcf()
+    if show:
+        plt.show()
+    if objfindQA_filename is not None:
+        fig.savefig(objfindQA_filename, dpi=400)
+    plt.close('all')
+
+def get_fwhm(fwhm_in, nsamp, smash_peakflux, spat_fracpos, flux_smash_smth):
+    """
+
+    Args:
+        fwhm_in:
+        nsamp:
+        smash_peakflux:
+        spat_fracpos:
+        flux_smash_smth:
+
+    Returns:
+
+    """
+
+    # Determine the fwhm max
+    yhalf = 0.5*smash_peakflux
+    xpk = spat_fracpos*nsamp
+    x0 = int(np.rint(xpk))
+    # TODO It seems we have two codes that do similar things, i.e. findfwhm in arextract.py. Could imagine having one
+    # Find right location where smash profile croses yhalf
+    if x0 < (int(nsamp) - 1):
+        ind_righ, = np.where(flux_smash_smth[x0:] < yhalf)
+        if len(ind_righ) > 0:
+            i2 = ind_righ[0]
+            if i2 == 0:
+                xrigh = None
+            else:
+                xrigh_int = scipy.interpolate.interp1d(flux_smash_smth[x0 + i2 - 1:x0 + i2 + 1],
+                                                       x0 + np.array([i2 - 1, i2], dtype=float),
+                                                       assume_sorted=False)
+                xrigh = xrigh_int([yhalf])[0]
+        else:
+            xrigh = None
+    else:
+        xrigh = None
+    # Find left location where smash profile crosses yhalf
+    if x0 > 0:
+        ind_left, = np.where(flux_smash_smth[0:np.fmin(x0 + 1, int(nsamp) - 1)] < yhalf)
+        if len(ind_left) > 0:
+            i1 = (ind_left[::-1])[0]
+            if i1 == (int(nsamp) - 1):
+                xleft = None
+            else:
+                xleft_int = scipy.interpolate.interp1d(flux_smash_smth[i1:i1 + 2],
+                                                       np.array([i1, i1 + 1], dtype=float), assume_sorted=False)
+                xleft = xleft_int([yhalf])[0]
+        else:
+            xleft = None
+    else:
+        xleft = None
+
+    # Set FWHM for the object
+    if (xleft is None) & (xrigh is None):
+        fwhm_measure = None
+    elif xrigh is None:
+        fwhm_measure = 2.0 * (xpk - xleft)
+    elif xleft is None:
+        fwhm_measure = 2.0 * (xrigh - xpk)
+    else:
+        fwhm_measure = (xrigh - xleft)
+
+    if fwhm_measure is not None:
+        fwhm_out = np.sqrt(np.fmax(fwhm_measure ** 2 - fwhm_in ** 2, (fwhm_in / 2.0) ** 2))  # Set a floor of fwhm/2 on fwhm
+    else:
+        fwhm_out = fwhm
+
+    return fwhm_out
 
 
 def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0,
@@ -1154,55 +1238,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
         if use_user_fwhm:
             sobjs[iobj].FWHM = fwhm
         else:
-            # Determine the fwhm max
-            yhalf = 0.5*sobjs[iobj].smash_peakflux
-            xpk = sobjs[iobj].SPAT_FRACPOS*nsamp
-            x0 = int(np.rint(xpk))
-            # TODO It seems we have two codes that do similar things, i.e. findfwhm in arextract.py. Could imagine having one
-            # Find right location where smash profile croses yhalf
-            if x0 < (int(nsamp)-1):
-                ind_righ, = np.where(flux_smash_smth[x0:] < yhalf)
-                if len(ind_righ) > 0:
-                    i2 = ind_righ[0]
-                    if i2 == 0:
-                        xrigh = None
-                    else:
-                        xrigh_int = scipy.interpolate.interp1d(flux_smash_smth[x0 + i2-1:x0 + i2 + 1], x0 + np.array([i2-1,i2],dtype=float),assume_sorted=False)
-                        xrigh = xrigh_int([yhalf])[0]
-                else:
-                    xrigh = None
-            else:
-                xrigh = None
-            # Find left location where smash profile crosses yhalf
-            if x0 > 0:
-                ind_left, = np.where(flux_smash_smth[0:np.fmin(x0+1,int(nsamp)-1)] < yhalf)
-                if len(ind_left) > 0:
-                    i1 = (ind_left[::-1])[0]
-                    if i1 == (int(nsamp)-1):
-                        xleft = None
-                    else:
-                        xleft_int = scipy.interpolate.interp1d(flux_smash_smth[i1:i1+2],np.array([i1,i1+1],dtype=float), assume_sorted= False)
-                        xleft = xleft_int([yhalf])[0]
-                else:
-                    xleft = None
-            else:
-                xleft = None
-
-            # Set FWHM for the object
-            if (xleft is None) & (xrigh is None):
-                fwhm_measure = None
-            elif xrigh is None:
-                fwhm_measure = 2.0*(xpk- xleft)
-            elif xleft is None:
-                fwhm_measure = 2.0*(xrigh - xpk)
-            else:
-                fwhm_measure = (xrigh - xleft)
-
-            if fwhm_measure is not None:
-                sobjs[iobj].FWHM = np.sqrt(np.fmax(fwhm_measure**2 - fwhm**2, (fwhm/2.0)**2)) # Set a floor of fwhm/2 on fwhm
-            else:
-                sobjs[iobj].FWHM = fwhm
-
+            sobjs[iobj].FWHM = get_fwhm(fwhm, nsamp, sobjs[iobj].smash_peakflux, sobjs[iobj].SPAT_FRACPOS, flux_smash_smth)
 
         # assign BOX_RADIUS
         sobjs[iobj].BOX_RADIUS = boxcar_rad
@@ -1213,8 +1249,8 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
     else:
         msgs.info("Automatic finding routine found {0:d} objects".format(len(sobjs)))
 
+    # Fit the object traces
     msgs.info('Fitting the object traces')
-
     if len(sobjs) > 0:
         # Note the transpose is here to pass in the TRACE_SPAT correctly.
         xinit_fweight = np.copy(sobjs.TRACE_SPAT.T)

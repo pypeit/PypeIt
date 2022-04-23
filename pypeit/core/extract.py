@@ -479,7 +479,7 @@ def qa_fit_profile(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind =
     plt.show()
     return
 
-
+# TODO JFH Split up the profile part and the QA part for cleaner code
 def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
                     ind = None, l_limit = None, r_limit=None, xlim = None, xtrunc = 1e6):
 
@@ -520,15 +520,9 @@ def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
     msgs.info(title_string)
     inf = np.isfinite(profile_model) == False
     ninf = np.sum(inf)
-    if (ninf != 0):
+    if ninf != 0:
         msgs.warn("Nan pixel values in object profile... setting them to zero")
         profile_model[inf] = 0.0
-    # JFH Not sure we need this normalization.
-    #nspat = profile_model.shape[1]
-    #norm_spec = np.sum(profile_model, 1)
-    #norm = np.outer(norm_spec, np.ones(nspat))
-    #if np.sum(norm) > 0.0:
-    #    profile_model = profile_model*(norm > 0.0)/(norm + (norm <= 0.0))
     if show_profile:
         qa_fit_profile(sigma_x, norm_obj, profile_model, title = title_string, l_limit = l_limit, r_limit = r_limit,
                        ind=ind, xlim = xlim, xtrunc=xtrunc)
@@ -625,15 +619,25 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     wave_min = waveimg[thismask].min()
     wave_max = waveimg[thismask].max()
 
+    # sigma_x represents the profile argument, i.e. (x-x0)/sigma
+    sigma = np.full(nspec, thisfwhm/2.3548)
+    fwhmfit = sigma*2.3548
+    trace_corr = np.zeros(nspec)
+    sigma_x = dspat/np.outer(sigma, np.ones(nspat)) - np.outer(trace_corr, np.ones(nspat))
+
     # This adds an error floor to the fluxivar_sm, preventing too much rejection at high-S/N (i.e. standard stars)
     # TODO implement the ivar_cap function here in utils.
     sn_cap = 100.0
     fluxivar_sm = utils.clip_ivar(flux_sm, fluxivar_sm0, sn_cap)
-    indsp = (wave >= wave_min) & (wave <= wave_max) & \
-             np.isfinite(flux_sm) & \
-             (flux_sm > -1000.0) & (fluxivar_sm > 0.0)
+    indsp = (wave >= wave_min) & (wave <= wave_max) & np.isfinite(flux_sm) & (flux_sm > -1000.0) & (fluxivar_sm > 0.0)
+    if not np.any(indsp):
+        msgs.warn('There are no pixels eligible to be fit for the object profile.' + msgs.newline() +
+                  'There is likely an issue in local_skysub_extract. Returning a Gassuain with fwhm={:5.3f}'.format(thisfwhm))
+        profile_model = return_gaussian(sigma_x, None, thisfwhm, 0.0, obj_string, False)
+        return profile_model, trace_in, fwhmfit, 0.0
+
     b_answer, bmask   = fitting.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp],
-                                     kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
+                                        kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
     b_answer, bmask2  = fitting.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask,
                                      kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
     c_answer, cmask   = fitting.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask2,
@@ -642,7 +646,10 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     try:
         cont_flux, _ = c_answer.value(wave[indsp])
     except:
-        msgs.error("Bad Fitting in extract:fit_profile..")
+        msgs.warn('Problem estimating S/N ratio of spectrum' + msgs.newline() +
+                  'There is likely an issue in local_skysub_extract. Returning a Gassuain with fwhm={:5.3f}'.format(thisfwhm))
+        profile_model = return_gaussian(sigma_x, None, thisfwhm, 0.0, obj_string, False)
+        return profile_model, trace_in, fwhmfit, 0.0
 
     sn2 = (np.fmax(spline_flux*(np.sqrt(np.fmax(fluxivar_sm[indsp], 0))*bmask2),0))**2
     ind_nonzero = (sn2 > 0)
@@ -733,20 +740,15 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     xtemp = (np.cumsum(np.outer(4.0 + np.sqrt(np.fmax(sn2_1, 0.0)),np.ones(nspat)))).reshape((nspec,nspat))
     xtemp = xtemp/xtemp.max()
 
-    sigma = np.full(nspec, thisfwhm/2.3548)
-    fwhmfit = sigma*2.3548
-    trace_corr = np.zeros(nspec)
     msgs.info("Gaussian vs b-spline of width " + "{:6.2f}".format(thisfwhm) + " pixels")
     area = 1.0
-    # sigma_x represents the profile argument, i.e. (x-x0)/sigma
-    sigma_x = dspat/np.outer(sigma, np.ones(nspat)) - np.outer(trace_corr, np.ones(nspat))
 
     # If we have too few pixels to fit a profile or S/N is too low, just use a Gaussian profile
     if((ngood < 10) or (med_sn2 < sn_gauss**2) or (gauss is True)):
         msgs.info("Too few good pixels or S/N <" + "{:5.1f}".format(sn_gauss) + " or gauss flag set")
         msgs.info("Returning Gaussian profile")
         profile_model = return_gaussian(sigma_x, norm_obj, thisfwhm, med_sn2, obj_string,show_profile,ind=good,xtrunc=7.0)
-        return (profile_model, trace_in, fwhmfit, med_sn2)
+        return profile_model, trace_in, fwhmfit, med_sn2
 
     mask = np.full(nspec*nspat, False, dtype=bool)
 
