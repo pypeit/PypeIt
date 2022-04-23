@@ -405,7 +405,7 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         par.reset_all_processimages_par(**turn_off)
 
         # Scienceimage parameters
-        par['reduce']['findobj']['sig_thresh'] = 5
+        par['reduce']['findobj']['snr_thresh'] = 5
         #par['reduce']['maxnumber'] = 2
         par['reduce']['findobj']['find_trim_edge'] = [50,50]
         par['flexure']['spec_method'] = 'skip'

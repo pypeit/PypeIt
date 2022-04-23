@@ -3323,9 +3323,9 @@ class ReducePar(ParSet):
         dtypes['cube'] = [ ParSet, dict ]
         descr['cube'] = 'Parameters for cube generation algorithms'
 
-        defaults['trim_edge'] = [0, 0]
+        defaults['trim_edge'] = [3, 3]
         dtypes['trim_edge'] = list
-        descr['trim_edge'] = 'Trim the slit by this number of pixels left/right when performing sky sub'
+        descr['trim_edge'] = 'Trim the slit by this number of pixels left/right when performing sky subtraction'
 
         # Instantiate the parameter set
         super(ReducePar, self).__init__(list(pars.keys()),
