@@ -2285,17 +2285,18 @@ class WavelengthSolutionPar(ParSet):
         defaults['method'] = 'holy-grail'
         options['method'] = WavelengthSolutionPar.valid_methods()
         dtypes['method'] = str
-        descr['method'] = 'Method to use to fit the individual arc lines.  Note that most of ' \
+        descr['method'] = 'Method to use to fit the individual arc lines.  Note that some of ' \
                           'the available methods should not be used; they are unstable and ' \
-                          'require significant parameter tweaking to succeed.  You should use' \
-                          'either \'holy-grail\' or \'reidentify\': \'holy-grail\' attempts to ' \
-                          'get a first guess at line IDs by looking for patterns in the line ' \
-                          'locations.  It is fully automated.  When it works, it works well; ' \
-                          'however, it can fail catastrophically.  Instead, \'reidentify\' is ' \
-                          'the preferred method.  It requires an archived wavelength solution ' \
-                          'for your specific instrument/grating combination as a reference.  ' \
+                          'require significant parameter tweaking to succeed.  You should use ' \
+                          'one of \'holy-grail\', \'reidentify\', or \'full_template\'.  ' \
+                          '\'holy-grail\' attempts to get a first guess at line IDs by looking ' \
+                          'for patterns in the line locations.  It is fully automated.  When ' \
+                          'it works, it works well; however, it can fail catastrophically.  ' \
+                          'Instead, \'reidentify\' and \'full_template\' are the preferred ' \
+                          'methods.  They require an archived wavelength solution for your ' \
+                          'specific instrument/grating combination as a reference.  ' \
                           'This is used to anchor the wavelength solution for the data being ' \
-                          'reduced.  All options are: {0}'.format(', '.join(options['method']))
+                          f"reduced.  All options are: {', '.join(options['method'])}."
 
         # Echelle wavelength calibration stuff
         # TODO: Is this needed? I.e., where do we need this parameter
