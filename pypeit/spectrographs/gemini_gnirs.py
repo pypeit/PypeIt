@@ -88,6 +88,9 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['reduce']['skysub']['no_poly'] = True             # Do not use polynomial degree of freedom for global skysub
         par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
 
+        # Standards
+        par['calibrations']['standardframe']['process']['mask_cr'] = False # Do not mask_cr standards
+
         # Do not correct for flexure
         par['flexure']['spec_method'] = 'skip'
 

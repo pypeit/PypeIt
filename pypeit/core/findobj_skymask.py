@@ -859,6 +859,8 @@ def objfind_QA(spat_peaks, snr_peaks, spat_vector, snr_vector, snr_thresh, qa_ti
 def get_fwhm(fwhm_in, nsamp, smash_peakflux, spat_fracpos, flux_smash_smth):
     """
 
+    Utilith routine to measure the fwhm of an object trace from the spectrally smashed flux profile
+
     Args:
         fwhm_in:
         nsamp:
@@ -883,9 +885,10 @@ def get_fwhm(fwhm_in, nsamp, smash_peakflux, spat_fracpos, flux_smash_smth):
             if i2 == 0:
                 xrigh = None
             else:
-                xrigh_int = scipy.interpolate.interp1d(flux_smash_smth[x0 + i2 - 1:x0 + i2 + 1],
-                                                       x0 + np.array([i2 - 1, i2], dtype=float),
-                                                       assume_sorted=False)
+                xarr_righ = x0 + np.array([i2 - 1, i2], dtype=float)
+                xrigh_int = scipy.interpolate.interp1d(flux_smash_smth[x0 + i2 - 1:x0 + i2 + 1], xarr_righ,
+                                                       assume_sorted=False, bounds_error=False,
+                                                       fill_value=(xarr_righ[0], xarr_righ[1]))
                 xrigh = xrigh_int([yhalf])[0]
         else:
             xrigh = None
@@ -899,8 +902,10 @@ def get_fwhm(fwhm_in, nsamp, smash_peakflux, spat_fracpos, flux_smash_smth):
             if i1 == (int(nsamp) - 1):
                 xleft = None
             else:
-                xleft_int = scipy.interpolate.interp1d(flux_smash_smth[i1:i1 + 2],
-                                                       np.array([i1, i1 + 1], dtype=float), assume_sorted=False)
+                xarr_left = np.array([i1, i1 + 1], dtype=float)
+                xleft_int = scipy.interpolate.interp1d(flux_smash_smth[i1:i1 + 2], xarr_left,
+                                                       assume_sorted=False, bounds_error=False,
+                                                       fill_value=(xarr_left[0], xarr_left[1]))
                 xleft = xleft_int([yhalf])[0]
         else:
             xleft = None
@@ -1076,24 +1081,36 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
         inmask = thismask
 
     # If spec_min_max was not passed in, determine it from the thismask
-    if spec_min_max is None or np.any([s is None for s in spec_min_max]):
+    ispec, ispat = np.where(thismask)
+    spec_min = ispec.min()
+    spec_max = ispec.max()
+    if spec_min_max is None or np.any([s is None or np.isinf(s) for s in spec_min_max]):
         if spec_min_max is None:
-            spec_min_max = [None, None]
-        ispec, ispat = np.where(thismask)
-        if spec_min_max[0] is None:
-            spec_min_max[0] = ispec.min()
-        if spec_min_max[1] is None:
-            spec_min_max[1] = ispec.max()
+            spec_min_max_out = np.array([spec_min, spec_max])
+        else:
+            spec_min_max_out = np.array(spec_min_max).copy()
+            if spec_min_max_out[0] is None or np.isinf(spec_min_max_out[0]):
+                spec_min_max_out[0] = spec_min
+            if spec_min_max_out[1] is None or np.isinf(spec_min_max_out[1]):
+                spec_min_max_out[1] = spec_max
+        spec_min_max_out = np.array(spec_min_max_out).astype(int)
+    else:
+        spec_min_max_out = np.array(spec_min_max).astype(int)
+
 
     # If find_min_max was not passed in, set it to the values for spec_min_max
-    if find_min_max is None or np.any([s is None for s in spec_min_max]):
+    if find_min_max is None or np.any([f is None or np.isinf(f) for f in find_min_max]):
         if find_min_max is None:
-            find_min_max = [None, None]
-    if find_min_max[0] is None:
-        find_min_max[0] = int(np.round(spec_min_max[0]))
-    if find_min_max[1] is None:
-        find_min_max[1] = int(np.round(spec_min_max[1]))
-
+            find_min_max_out = spec_min_max_out
+        else:
+            find_min_max_out = np.array(find_min_max).copy()
+            if find_min_max_out[0] is None or np.isinf(find_min_max_out[0]):
+                find_min_max_out[0] = spec_min_max_out[0]
+            if find_min_max_out[1] is None or np.isinf(find_min_max_out[1]):
+                find_min_max_out[1] = spec_min_max_out[1]
+        find_min_max_out = np.array(find_min_max_out).astype(int)
+    else:
+        find_min_max_out = np.array(find_min_max).astype(int)
 
     #totmask = thismask & inmask & np.invert(edgmask)
     #  Smash the image (for this slit) into a single flux vector.  How many pixels wide is the slit at each Y?
@@ -1124,10 +1141,10 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
     gpm_sigclip = np.logical_not(data_clipped.mask)  # gpm_smash = True are good values
 
     # Compute the average flux over the set of pixels that are not masked by gpm_sigclip
-    nsmash = find_min_max[1] - find_min_max[0] + 1
-    npix_smash = np.sum(gpm_sigclip[find_min_max[0]:find_min_max[1]], axis=0)
+    nsmash = find_min_max_out[1] - find_min_max_out[0] + 1
+    npix_smash = np.sum(gpm_sigclip[find_min_max_out[0]:find_min_max_out[1]], axis=0)
     gpm_smash = npix_smash > 0.3*nsmash
-    flux_sum_smash = np.sum((image_rect*gpm_sigclip)[find_min_max[0]:find_min_max[1]], axis=0)
+    flux_sum_smash = np.sum((image_rect*gpm_sigclip)[find_min_max_out[0]:find_min_max_out[1]], axis=0)
     flux_smash = flux_sum_smash*gpm_smash/(npix_smash + (npix_smash == 0.0))
     flux_smash_mean, flux_smash_med, flux_smash_std = stats.sigma_clipped_stats(flux_smash,
                                                                                 mask=np.logical_not(gpm_smash),
@@ -1141,7 +1158,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
 
     # Compute the formal corresponding variance over the set of pixels that are not masked by gpm_sigclip
     var_rect = utils.inverse(ivar_rect)
-    var_sum_smash = np.sum((var_rect*gpm_sigclip)[find_min_max[0]:find_min_max[1]], axis=0)
+    var_sum_smash = np.sum((var_rect*gpm_sigclip)[find_min_max_out[0]:find_min_max_out[1]], axis=0)
     var_smash = var_sum_smash/(npix_smash**2 + (npix_smash == 0.0))
     ivar_smash = utils.inverse(var_smash)*gpm_smash
     snr_smash = flux_smash_recen*np.sqrt(ivar_smash)
@@ -1254,7 +1271,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
     if len(sobjs) > 0:
         # Note the transpose is here to pass in the TRACE_SPAT correctly.
         xinit_fweight = np.copy(sobjs.TRACE_SPAT.T)
-        spec_mask = (spec_vec >= spec_min_max[0]) & (spec_vec <= spec_min_max[1])
+        spec_mask = (spec_vec >= spec_min_max_out[0]) & (spec_vec <= spec_min_max_out[1])
         trc_inmask = np.outer(spec_mask, np.ones(len(sobjs), dtype=bool))
         xfit_fweight = fit_trace(image, xinit_fweight, ncoeff, bpm=np.invert(inmask),
                                  trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,

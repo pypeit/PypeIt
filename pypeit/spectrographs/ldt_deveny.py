@@ -221,7 +221,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['objlim'] = 2.0   # Default: 3.0
 
         # Reduction and Extraction Parameters -- Look for fainter objects
-        par['reduce']['findobj']['sig_thresh'] = 5.0   # Default: 10.0
+        par['reduce']['findobj']['snr_thresh'] = 5.0   # Default: 10.0
 
         # Flexure Correction Parameters
         par['flexure']['spec_method'] = 'boxcar'  # Default: 'skip'
