@@ -1098,12 +1098,10 @@ class MultiSlitCoAdd2D(CoAdd2D):
             sobjs = specobjs.SpecObjs()
             for iexp in range(self.nexp):
                 sobjs_exp = findobj_skymask.objs_in_slit(sci_list_rebin[0][iexp,:,:], thismask, slit_left, slit_righ,
-                                               inmask=inmask[iexp,:,:], has_negative=self.find_negative,
-                                               fwhm=self.par['reduce']['findobj']['find_fwhm'],
+                                               inmask=inmask[iexp,:,:], fwhm=self.par['reduce']['findobj']['find_fwhm'],
                                                trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
-                                               npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
                                                maxdev=self.par['reduce']['findobj']['find_maxdev'],
-                                               ncoeff=3, sig_thresh=self.par['reduce']['findobj']['sig_thresh'], nperslit=1,
+                                               ncoeff=3, snr_thresh=self.par['reduce']['findobj']['snr_thresh'], nperslit=1,
                                                find_min_max=self.par['reduce']['findobj']['find_min_max'],
                                                show_trace=self.debug_offsets, show_peaks=self.debug_offsets)
                 sobjs.add_sobj(sobjs_exp)
