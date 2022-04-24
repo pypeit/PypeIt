@@ -10,6 +10,9 @@
 - Adeed more flexible quicklook that can handle dithering.
 - Refactored object finding
 - Bug fixes in local sky subtraction and extraction
+- Fixed pypeit setup issues due to bad LRIS headers.
+- Added support for VLT FORS2 600z grism.
+- Added enhancements and fixes for Keck lris red Mark4.
 
 
 1.8.1 (23 Feb 2022)
@@ -18,10 +21,7 @@
 - various hotfixes
 - Include preliminary support for fluxing with archived SensFunc files
   for DEIMOS.
-- Added enhancements and fixes for Keck lris red Mark4.
-- Fixed pypeit setup issues due to bad LRIS headers.
-- Added support for VLT FORS2 600z grism.
-- Experimental quick look for LRIS and VLT.
+
 
 1.8.0 (12 Feb 2022)
 -------------------
