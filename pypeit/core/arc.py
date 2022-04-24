@@ -678,14 +678,14 @@ def _plot(x, mph, mpd, threshold, edge, valley, ax, ind):
     plt.show()
 
 
-def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_cont = 3, cont_samp = 30, cont_frac_fwhm=1.0,
+def iter_continuum(spec, gpm=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_cont = 3, cont_samp = 30, cont_frac_fwhm=1.0,
                    cont_mask_neg=False, qa_title='', npoly=None, debug_peak_find=False, debug=False):
     """
     Routine to determine the continuum and continuum pixels in spectra with peaks.
 
     Args:
        spec (`numpy.ndarray`_, float,  shape (nspec,)  A 1D spectrum for which the continuum is to be characterized
-       inmask: `numpy.ndarray`_, bool, shape (nspec,)   A mask indicating which pixels are good. True = Good, False=Bad
+       gpm: `numpy.ndarray`_, bool, shape (nspec,)   A mask indicating which pixels are good. True = Good, False=Bad
        niter_cont: int, default = 3
             Number of iterations of peak finding, masking, and continuum fitting used to define the continuum.
        npoly: int, default = None
@@ -721,11 +721,11 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
 
     """
 
-    if inmask is None:
-        inmask = np.ones(spec.size,dtype=bool)
-        cont_mask = np.copy(inmask)
+    if gpm is None:
+        gpm = np.ones(spec.size,dtype=bool)
+        cont_mask = np.copy(gpm)
     else:
-        cont_mask = np.copy(inmask)
+        cont_mask = np.copy(gpm)
 
     nspec = spec.size
     spec_vec = np.arange(nspec)
@@ -733,12 +733,12 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
     mask_sm = np.round(cont_frac_fwhm*fwhm).astype(int)
     mask_odd = mask_sm + 1 if mask_sm % 2 == 0 else mask_sm
 
-    nspec_available = np.sum(inmask)
+    nspec_available = np.sum(gpm)
     max_mask_frac = 0.70
     max_nmask = int(np.ceil((max_mask_frac)*nspec_available))
     for iter in range(niter_cont):
         spec_sub = spec - cont_now
-        mask_sigclip = np.invert(cont_mask & inmask)
+        mask_sigclip = np.invert(cont_mask & gpm)
         (mean, med, stddev) = stats.sigma_clipped_stats(spec_sub, mask=mask_sigclip, sigma_lower=sigrej,
                                                         sigma_upper=sigrej, cenfunc='median', stdfunc=utils.nan_mad_std)
         # be very liberal in determining threshold for continuum determination
@@ -752,21 +752,21 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
             cont_mask_fine[pixt_now_neg] = 0.0
         # cont_mask is the mask for defining the continuum regions: True is good,  False is bad
         peak_mask = (utils.smooth(cont_mask_fine,mask_odd) > 0.999)
-        cont_mask = peak_mask & inmask
+        cont_mask = peak_mask & gpm
         # If more than max_mask_frac of the nspec_available are getting masked than short circuit this masking
         #frac_mask = np.sum(np.invert(cont_mask))/float(nspec)
-        nmask = np.sum(np.invert(peak_mask[inmask]))
+        nmask = np.sum(np.invert(peak_mask[gpm]))
         if nmask > max_nmask:
             msgs.warn('Too many pixels {:d} masked in spectrum continuum definiton: frac_mask = {:5.3f} > {:5.3f} which is '
                       'max allowed. Only masking the {:d} largest values....'.format(nmask, nmask/nspec_available, max_mask_frac, max_nmask))
             # Old
-            #cont_mask = np.ones_like(cont_mask) & inmask
+            #cont_mask = np.ones_like(cont_mask) & gpm
             # Short circuit the masking and just mask the 0.70 most offending pixels
-            peak_mask_ind = np.where(np.logical_not(peak_mask) & inmask)[0]
+            peak_mask_ind = np.where(np.logical_not(peak_mask) & gpm)[0]
             isort = np.argsort(np.abs(spec[peak_mask_ind]))[::-1]
             peak_mask_new = np.ones_like(peak_mask)
             peak_mask_new[peak_mask_ind[isort[0:max_nmask]]] = False
-            cont_mask = peak_mask_new & inmask
+            cont_mask = peak_mask_new & gpm
 
 
 
@@ -928,7 +928,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     xrng = np.arange(censpec.size, dtype=np.float)
 
     if cont_subtract:
-        cont_now, cont_mask = iter_continuum(censpec, inmask=np.logical_not(bpm_out), fwhm=fwhm, niter_cont=niter_cont,
+        cont_now, cont_mask = iter_continuum(censpec, gpm=np.logical_not(bpm_out), fwhm=fwhm, niter_cont=niter_cont,
                                              cont_samp=cont_samp, cont_frac_fwhm=cont_frac_fwhm)
     else:
         cont_mask = np.ones(censpec.size, dtype=bool)
