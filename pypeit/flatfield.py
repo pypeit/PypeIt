@@ -1318,7 +1318,8 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
     # Prepare wavelength array for all spectra
     dwav = np.max((mnmx_wv[:, 1] - mnmx_wv[:, 0])/slits.nspec)
     numsamp = int((np.max(mnmx_wv) - np.min(mnmx_wv)) / dwav)
-    wavebins = np.linspace(np.min(mnmx_wv), np.max(mnmx_wv), numsamp)
+    # TODO :: Think about numsamp//20... it might be better to use a different number, or add this as a parameter.
+    wavebins = np.linspace(np.min(mnmx_wv), np.max(mnmx_wv), numsamp//20)
 
     # Start by building a reference spectrum
     onslit_ref_trim = (slitid_img_trim == slits.spat_id[slit_illum_ref_idx]) & gpm & skymask_now
@@ -1326,7 +1327,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
     cntr, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins)
     cntr = cntr.astype(np.float)
     norm = (cntr != 0) / (cntr + (cntr == 0))
-    spec_ref = hist * norm
+    spec_ref = np.clip(hist, 0, None) * norm
     wave_ref = 0.5 * (wavebins[1:] + wavebins[:-1])
 
     # Iterate until convergence
@@ -1349,7 +1350,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
             cntr = cntr.astype(np.float)
             cntr *= spec_ref
             norm = (cntr != 0) / (cntr + (cntr == 0))
-            arr = hist * norm
+            arr = np.clip(hist, 0, None) * norm
             gdmask = (arr != 0)
             # Calculate a smooth version of the relative response
             relscale = coadd.smooth_weights(arr, gdmask, sn_smooth_npix)
@@ -1364,7 +1365,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
             cntr, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins)
             cntr = cntr.astype(np.float)
             norm = (cntr != 0) / (cntr + (cntr == 0))
-            spec_ref = hist * norm
+            spec_ref = np.clip(hist, 0, None) * norm
         minv, maxv = np.min(relscl_model), np.max(relscl_model)
         if 1/minv + maxv > lo_prev+hi_prev:
             # Adding noise, so break

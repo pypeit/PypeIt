@@ -306,9 +306,11 @@ class FindObjects:
         self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
         #
 
+        # Check if the user wants to use a pre-defined sky regions file.
+        skymask0, usersky = self.load_skyregions(None)
         # JFH Perform a first pass sky-subtraction without masking any objects
         # TODO: DEIMOS box slits are not being sky-subtracted. Not sure why
-        initial_sky0 = self.global_skysub(skymask=None, update_crmask=False).copy()
+        initial_sky0 = self.global_skysub(skymask=skymask0, update_crmask=False).copy()
 
         # First pass object finding (JFH added skysubtraction here)
         sobjs_obj, self.nobj = \
@@ -551,6 +553,7 @@ class FindObjects:
         return global_sky
 
     # TODO This should be a method in IFU, not in the general class as Multi and Echelle don't use it I believe JFH
+    # RJC - I disagree - this is a general method not specific to IFU reductions, and may be useful if folks want to manually define the sky regions, even for long slit. It's also perfectly suited for echelle
     def load_skyregions(self, skymask_init):
         """
         Load or generate the sky regions
