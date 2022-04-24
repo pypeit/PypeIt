@@ -378,8 +378,8 @@ def fetch_remote_file(filename, filetype, remote_host='github', install_script=F
         path_to_file: str
           The local path to the desired file in the cache
     """
-    remote_url = _build_remote_url(filename, filetype, remote_host=remote_host,
-                                   test_version=test_version)
+    remote_url, sources = _build_remote_url(filename, filetype, remote_host=remote_host,
+                                            test_version=test_version)
 
     if remote_host == "s3_cloud" and not install_script:
         # Display a warning that this may take a while, and the user
@@ -391,10 +391,10 @@ def fetch_remote_file(filename, filetype, remote_host='github', install_script=F
     # Get the file from cache, if available, or download from the remote server
     try:
         return astropy_data.download_file(remote_url, cache="update" if force_update else True,
-                                          timeout=10, pkgname="pypeit")
+                                          sources=sources, timeout=10, pkgname="pypeit")
 
     except urllib.error.URLError as error:
-        if remote_host == "s3_cloud" and (requests.head(remote_url).status_code in
+        if remote_host == "s3_cloud" and (requests.head(sources[0]).status_code in
                                          [requests.codes.forbidden, requests.codes.not_found]):
 
             err_msg = (f"The file {filename}{msgs.newline()}"
@@ -435,7 +435,7 @@ def write_file_to_cache(filename, cachename, filetype, remote_host="github"):
           supported.  [Default: 'github']
     """
    # Build the `url_key` as if this file were in the remote location
-    url_key = _build_remote_url(cachename, filetype, remote_host=remote_host)
+    url_key, _ = _build_remote_url(cachename, filetype, remote_host=remote_host)
 
     # Use `import file_to_cache()` to place the `filename` into the cache
     astropy_data.import_file_to_cache(url_key, filename, pkgname="pypeit")
@@ -463,6 +463,13 @@ def _build_remote_url(f_name, f_type, remote_host="", test_version=None):
     Returns:
         url: str
           The URL of the `f_name` of `f_type` on server `remote_host`
+        sources: list or None
+          For 's3_cloud', the list of URLs to actually try, passed to `download_file()`,
+          used in the event that the S3 location changes.  We maintain the static URL
+          for the name to prevent re-downloading of large data files in the event the
+          S3 location changes (but the file itself is unchanged).
+          If None (e.g. for 'github'), then `download_file()` is unaffected, and the
+          `url` (above) is what controls the download.
     """
     # Allow a contrived version # in Unit Testing, otherwise read in `pypeit_version`
     version = test_version if test_version else pypeit_version
@@ -473,11 +480,12 @@ def _build_remote_url(f_name, f_type, remote_host="", test_version=None):
         tag = "develop" if ".dev" in version else version
         # TODO: If we host these files elsewhere, need to change this hard-code
         return (f"https://github.com/pypeit/PypeIt/blob/{tag}/pypeit/"
-                   f"data/{f_type}/{f_name}?raw=true")
+                   f"data/{f_type}/{f_name}?raw=true"), None
 
     if remote_host == "s3_cloud":
-        # Build up the remote_url for S3 Cloud
-        return f"https://{_get_s3_hostname()}/pypeit/{f_type}/{f_name}"
+        # Build up the (permanent) `remote_url` and (fluid) `sources` for S3 Cloud
+        return (f"https://s3-west.nrp-nautilus.io/pypeit/{f_type}/{f_name}",
+               [f"https://{_get_s3_hostname()}/pypeit/{f_type}/{f_name}"])
 
     msgs.error(f"Remote host type {remote_host} is not supported for package data caching.")
 

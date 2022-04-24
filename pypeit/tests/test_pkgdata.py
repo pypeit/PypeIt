@@ -13,15 +13,15 @@ def test_cloud_url():
 
     # The telgrid files live on a cloud server.  Test for file existance (or URL change)
     telgrid_file = "TelFit_MaunaKea_3100_26100_R20000.fits"
-    telgrid_url = data.utils._build_remote_url(telgrid_file, "telluric/atm_grids",
+    _, telgrid_src = data.utils._build_remote_url(telgrid_file, "telluric/atm_grids",
                                                remote_host="s3_cloud")
 
     # Get Url; status code == 200 is success
-    get = requests.head(telgrid_url)
+    get = requests.head(telgrid_src[0])
     try:
         assert get.status_code == requests.codes.ok
     except AssertionError as err:
-        raise Exception(f"Got status {get.status_code} (!= 200) for URL {telgrid_url}") from err
+        raise Exception(f"Got status {get.status_code} (!= 200) for URL {telgrid_src[0]}") from err
 
 
 def test_fetch_github_files():
