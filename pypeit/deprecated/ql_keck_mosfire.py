@@ -337,6 +337,7 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
 
         # Build the Calibrate object
         caliBrate = calibrations.Calibrations(None, parset['calibrations'], spectrograph, None)
+        caliBrate.det = det
         caliBrate.slits = slits
         caliBrate.msbpm = msbpm
         caliBrate.wavetilts = tilts_obj

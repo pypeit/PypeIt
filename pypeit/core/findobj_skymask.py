@@ -135,7 +135,7 @@ def create_skymask(sobjs, thismask, slit_left, slit_righ, box_rad_pix=None, trim
     # on narrow slits/orders, we have problems. We should revisit this after object finding is refactored since
     # maybe then the fwhm estimates will be more robust.
     if box_rad_pix is None and np.all([sobj.smash_peakflux is not None for sobj in sobjs]) \
-            and np.all([sobj.smash_peakflux != 0. for sobj in sobjs]):
+            and np.all([sobj.smash_peakflux != 0. for sobj in sobjs]) and not np.all(skymask_objflux == thismask):
         # TODO This is a kludge until we refactor this routine. Basically mask design objects that are not auto-ID
         # always have smash_peakflux undefined. If there is a hybrid situation of auto-ID and maskdesign, the logic
         # here does not really make sense. Soution would be to compute thershold and smash_peakflux for all objects.
@@ -1291,7 +1291,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
     if hand_extract_dict is not None:
         # First Parse the hand_dict
         hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm = [
-            hand_extract_dict[key] for key in ['spec', 'spat', 'det', 'fwhm']]
+            hand_extract_dict[key] for key in ['spec', 'spat', 'detname', 'fwhm']]
 
         # Determine if these hand apertures land on the slit in question
         hand_on_slit = np.where(np.array(thismask[np.rint(hand_extract_spec).astype(int),

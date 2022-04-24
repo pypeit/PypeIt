@@ -310,10 +310,10 @@ class CoAdd2D:
 
         for iexp, sobjs in enumerate(self.stack_dict['specobjs_list']):
             ithis = sobjs.slitorder_objid_indices(slitorderid, objid[iexp])
-            flux_stack[:, iexp] = sobjs[ithis].OPT_COUNTS if sobjs[ithis][0].OPT_COUNTS is not None else sobjs[ithis].BOX_COUNTS
-            ivar_stack[:, iexp] = sobjs[ithis].OPT_COUNTS_IVAR if sobjs[ithis][0].OPT_COUNTS_IVAR is not None else sobjs[ithis].BOX_COUNTS_IVAR
-            wave_stack[:, iexp] = sobjs[ithis].OPT_WAVE if sobjs[ithis][0].OPT_WAVE is not None else sobjs[ithis].BOX_WAVE
-            mask_stack[:, iexp] = sobjs[ithis].OPT_MASK if sobjs[ithis][0].OPT_MASK is not None else sobjs[ithis].BOX_MASK
+            flux_stack[:, iexp] = sobjs[ithis].OPT_COUNTS
+            ivar_stack[:, iexp] = sobjs[ithis].OPT_COUNTS_IVAR
+            wave_stack[:, iexp] = sobjs[ithis].OPT_WAVE
+            mask_stack[:, iexp] = sobjs[ithis].OPT_MASK
 
         # TODO For now just use the zero as the reference for the wavelengths? Perhaps we should be rebinning the data though?
         rms_sn, weights = coadd.sn_weights(wave_stack, flux_stack, ivar_stack, mask_stack, self.sn_smooth_npix,
@@ -556,26 +556,14 @@ class CoAdd2D:
         caliBrate.det = self.det
         caliBrate.binning = self.binning
 
-        # Manual extraction. Select only the manual extractions input by the user that match the current detector
-        manual_dict = None
-        if self.par['coadd2d']['manual'] is not None:
-            manual_string = ','.join(np.atleast_1d(self.par['coadd2d']['manual']))
-            if len(manual_string.strip()) > 0:
-                manual_obj = ManualExtractionObj.by_fitstbl_input('None', manual_string)
-                uniq_dets = np.unique(manual_obj.det)
-                if uniq_dets.size > 1:
-                    msgs.error('2D co-adding does not support extractions from multiple detectors. '
-                               'Perform the co-adding for each detector separately.')
-
-                # manual_obj indx for this det
-                thisdet = np.where(manual_obj.det == sciImage.detector.det)[0]
-                manual_obj.det = manual_obj.det[thisdet]
-                manual_obj.spec = manual_obj.spec[thisdet]
-                manual_obj.spat = manual_obj.spat[thisdet]
-                manual_obj.fwhm = manual_obj.fwhm[thisdet]
-                if manual_obj.det.size > 0:
-                    # TODO: Leaving `neg=False`, the default, consider changing to neg=self.find_negative.
-                    manual_dict = manual_obj.dict_for_objfind(manual_obj.det[0])
+        # Manual extraction.
+        manual_obj = None
+        if self.par['coadd2d']['manual'] is not None and len(self.par['coadd2d']['manual']) > 0:
+            manual_obj = ManualExtractionObj.by_fitstbl_input('None', self.par['coadd2d']['manual'], self.spectrograph)
+            #uniq_dets = np.unique(manual_obj.det)
+            #if uniq_dets.size > 1:
+            #    msgs.error('2D co-adding does not support extractions from multiple detectors. '
+            #               'Perform the co-adding for each detector separately.')
 
         # Get bpm mask. There should not be any masked slits because we excluded those already
         # before the coadd, but we need to pass a bpm to FindObjects and Extract
@@ -585,7 +573,7 @@ class CoAdd2D:
 
         # Initiate FindObjects object
         objFind = find_objects.FindObjects.get_instance(sciImage, self.spectrograph, parcopy, caliBrate,
-                                           'science_coadd2d', bkg_redux=self.bkg_redux,
+                                           'science_coadd2d', bkg_redux=self.bkg_redux, manual=manual_obj,
                                            find_negative=self.find_negative, show=show)
 
         # Set the tilts and waveimg attributes from the psuedo_dict here, since we generate these dynamically from fits
@@ -602,7 +590,7 @@ class CoAdd2D:
                        chname='imgminsky', slits=True, clear=True)
 
         sobjs_obj, nobj = objFind.find_objects(sciImage.image, sciImage.ivar, show_peaks=show_peaks,
-                                               save_objfindQA=True, manual_extract_dict=manual_dict)
+                                               save_objfindQA=True)
 
         # maskdef stuff
         if parcopy['reduce']['slitmask']['assign_obj'] and slits.maskdef_designtab is not None:
@@ -641,7 +629,7 @@ class CoAdd2D:
                                                                                    model_noise=False, show_profile=show,
                                                                                    show=show)
 
-        if self.find_negative:
+        if self.find_negative and not parcopy['reduce']['extraction']['return_negative']:
             sobjs.purge_neg()
 
         # Add the rest to the pseudo_dict
@@ -797,9 +785,9 @@ class CoAdd2D:
             indx = 0
             for spec_this in self.stack_dict['specobjs_list']:
                 for spec in spec_this:
-                    waves[:, indx] = spec.OPT_WAVE if spec.OPT_WAVE is not None else spec.BOX_WAVE
+                    waves[:, indx] = spec.OPT_WAVE
                     # TODO -- OPT_MASK is likely to become a bpm with int values
-                    gpm[:, indx] = spec.OPT_MASK if spec.OPT_MASK is not None else spec.BOX_MASK
+                    gpm[:, indx] = spec.OPT_MASK
                     indx += 1
 
         wave_grid, wave_grid_mid, dsamp = wvutils.get_wave_grid(waves, masks=gpm,
@@ -1200,10 +1188,10 @@ class MultiSlitCoAdd2D(CoAdd2D):
                     wave = np.zeros((nspec, nobj_slit))
                     mask = np.zeros((nspec, nobj_slit), dtype=bool)
                     for iobj, spec in enumerate(sobjs[ithis]):
-                        flux[:, iobj] = spec.OPT_COUNTS if spec.OPT_COUNTS is not None else spec.BOX_COUNTS
-                        ivar[:, iobj] = spec.OPT_COUNTS_IVAR if spec.OPT_COUNTS_IVAR is not None else spec.BOX_COUNTS_IVAR
-                        wave[:, iobj] = spec.OPT_WAVE if spec.OPT_WAVE is not None else spec.BOX_WAVE
-                        mask[:, iobj] = spec.OPT_MASK if spec.OPT_MASK is not None else spec.BOX_MASK
+                        flux[:, iobj] = spec.OPT_COUNTS
+                        ivar[:, iobj] = spec.OPT_COUNTS_IVAR
+                        wave[:, iobj] = spec.OPT_WAVE
+                        mask[:, iobj] = spec.OPT_MASK
                     rms_sn, weights = coadd.sn_weights(wave, flux, ivar, mask, None, const_weights=True)
                     imax = np.argmax(rms_sn)
                     slit_snr_max[islit, iexp] = rms_sn[imax]
@@ -1448,7 +1436,6 @@ class EchelleCoAdd2D(CoAdd2D):
             order_snr = np.zeros((nslits, nobjs))
             for iord in range(nslits):
                 for iobj in range(nobjs):
-                    # TODO make robust against OPT not existing
                     ind = (sobjs.ECH_ORDERINDX == iord) & (sobjs.ECH_OBJID == uni_objid[iobj])
                     # ignore objects for which optimal extraction could not be performed (i.e., OPT_COUNTS is None)
                     if np.any(sobjs[ind][0].OPT_COUNTS):

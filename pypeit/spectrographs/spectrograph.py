@@ -468,7 +468,7 @@ class Spectrograph:
         msgs.info(f'Generating a BPM using bias for det={_det} for {self.name}')
         return self.bpm_frombias(msbias, bpm_img)
 
-    def list_detectors(self):
+    def list_detectors(self, mosaic=False):
         """
         List the *names* of the detectors in this spectrograph.
 
@@ -488,6 +488,11 @@ class Spectrograph:
         such that all the bluest detectors are in ``dets[0]``, and the slits
         found in detectors 1 and 5 are just from the blue and red counterparts
         of the same slit.
+
+        Args:
+            mosaic (:obj:`bool`, optional):
+                Is this a mosaic reduction?
+                It is used to determine how to list the detector, i.e., 'DET' or 'MSC'.
 
         Returns:
             `numpy.ndarray`_: The list of detectors in a `numpy.ndarray`_.  If
@@ -802,7 +807,13 @@ class Spectrograph:
             msgs.error('Selected detectors or detector mosaics contain invalid values.')
 
         # Require the list contains unique items
-        return list(set(_subset))
+        # DP: I had to modify this, because list(set(_subset)) was changing the order of the detectors
+        unique_subset = []
+        for item in _subset:
+            if item not in unique_subset:
+                unique_subset.append(item)
+
+        return unique_subset
 
     @property
     def default_mosaic(self):
