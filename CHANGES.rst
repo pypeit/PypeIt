@@ -6,6 +6,8 @@
   the default `comb_id` ordering matches the sorted file name.
 - Improve Keck/KCWI automatic frame typing.
 - Wavelength templates (OH lines and arc lamps) created for Keck/MOSFIRE
+- Mosaic is now available for Keck/DEIMOS too.
+
 
 1.8.1 (23 Feb 2022)
 -------------------
