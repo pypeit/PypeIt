@@ -7,6 +7,9 @@
 - Improve Keck/KCWI automatic frame typing.
 - Wavelength templates (OH lines and arc lamps) created for Keck/MOSFIRE
 - Mosaic is now available for Keck/DEIMOS too.
+- Adeed more flexible quicklook that can handle dithering.
+- Refactored object finding
+- Bug fixes in local sky subtraction and extraction
 
 
 1.8.1 (23 Feb 2022)
@@ -17,7 +20,7 @@
   for DEIMOS.
 - Added enhancements and fixes for Keck lris red Mark4.
 - Fixed pypeit setup issues due to bad LRIS headers.
-- Added support for VLT xshooter 600z grism.
+- Added support for VLT FORS2 600z grism.
 - Experimental quick look for LRIS and VLT.
 
 1.8.0 (12 Feb 2022)
