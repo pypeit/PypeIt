@@ -560,6 +560,7 @@ class CoAdd2D:
         manual_obj = None
         if self.par['coadd2d']['manual'] is not None and len(self.par['coadd2d']['manual']) > 0:
             manual_obj = ManualExtractionObj.by_fitstbl_input('None', self.par['coadd2d']['manual'], self.spectrograph)
+            # TODO This was in JFH's branch but may no longer be needed
             #uniq_dets = np.unique(manual_obj.det)
             #if uniq_dets.size > 1:
             #    msgs.error('2D co-adding does not support extractions from multiple detectors. '
