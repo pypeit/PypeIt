@@ -40,7 +40,15 @@ Pixel Flat
 ----------
 
 It is recommended to correct for pixel-to-pixel variations
-using the internal "Continuum" lamp.
+using the internal "Continuum" lamp. We have also identified
+that there is some detector structure at the level of a few
+percent. The default setting is to model and account for the
+detector structure. If you would like to turn this off, you
+should add the following to your pypeit file::
+
+    [calibrations]
+      [[flatfield]]
+         flatfield_structure = False
 
 Trace Flat
 ----------
@@ -61,7 +69,7 @@ turn off the astrometric correction using the command::
 
     [reduce]
       [[cube]]
-           astrometric = False
+         astrometric = False
 
 
 Image processing
@@ -72,7 +80,7 @@ CCD Pattern Removal
 
 We identified a sinusoidal pattern that is imprinted on the
 CCD which varies with time and CCD row (i.e. the sinusoidal
-pattern is present in the spatial direction). If you are working
+pattern is present only in the spatial direction). If you are working
 in the read noise limit, we recommend that you subtract off this
 pattern. We have a robust algorithm to remove this pattern in both
 1x1 and 2x2 binning data, but it is relatively slow. This pattern
@@ -91,7 +99,20 @@ is reduced by 25-40 percent if the pattern noise is subtracted.
 Relative spectral illumination correction
 -----------------------------------------
 
-PypeIt uses a flat field frame to make a first guess at the relative
+TBC... the best approach is still being investigated...
+
+At this stage, we recommend that you take sky flats to measure
+the relative spectral sensitivity of the different slices. Alternatively,
+you can use the sky regions of your science and standard star frames,
+but note that you need sufficient counts to do this properly. To turn
+on a joint fit to the sky spectrum (and therefore account for the relative
+transmission of the slices) add the following to your pypeit file::
+
+    [reduce]
+      [[skysub]]
+        joint_fit = True
+
+PypeIt can also use a flat field frame to make a first guess at the relative
 spectral illumination. A fine correction to this relative spectral
 illumination can be performed using the sky. This algorithm ensures
 that each slice has the same sensitivity as a function
@@ -103,13 +124,21 @@ you can turn it off using the command::
 
     [scienceframe]
       [[process]]
-           use_specillum = False
+         use_specillum = False
 
 Sky subtraction
 ---------------
 
 See :doc:`skysub` for useful hints to define the sky regions
 using an interactive GUI.
+
+Flux calibration
+---------------
+
+You should reduce all standard star observations as if they are science
+observations (i.e. in your .pypeit file, make sure the standard star frames
+are labelled as "science" and not "standard"). The flux calibration is done
+outside of the pipeline when creating datacubes.
 
 Producing datacubes
 +++++++++++++++++++
