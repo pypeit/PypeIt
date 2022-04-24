@@ -93,7 +93,7 @@ class Identify:
             Tolerance in pixels for adding lines with the auto option
         specname : str, optional
             The name of the spectrograph
-        ylog : bool, optional
+        y_log : bool, optional
             Scale the Y-axis logarithmically instead of linearly?  (Default: True)
         """
         # Store the axes
@@ -229,7 +229,7 @@ class Identify:
             Tolerance in pixels for adding lines with the auto option
         specname : str, optional
             The name of the spectrograph
-        ylog : bool, optional
+        y_log : bool, optional
             Scale the Y-axis logarithmically instead of linearly?  (Default: True)
 
         Returns
