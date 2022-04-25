@@ -19,12 +19,14 @@ import numpy as np
 from astropy.coordinates import Angle
 from astropy.io import fits
 from astropy.time import Time
+from linetools import utils as ltu
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import coadd1d
 from pypeit import msgs
 from pypeit import par
 from pypeit.utils import is_float
+from pypeit.core import wave
 from pypeit.archive import ArchiveMetadata, ArchiveDir
 from pypeit.core.collate import collate_spectra_by_source, SourceObject
 from pypeit.scripts import scriptbase
@@ -32,7 +34,7 @@ from pypeit.slittrace import SlitTraceBitMask
 from pypeit.spec2dobj import AllSpec2DObj
 from pypeit.sensfilearchive import SensFileArchive
 from pypeit import fluxcalibrate
-
+from pypeit.specobjs import SpecObjs
 
 
 def get_report_metadata(object_header_keys, spec_obj_keys, file_info):
@@ -286,7 +288,50 @@ def build_coadd_file_name(source_object):
     
     return f'{coord_portion}_{instrument_name}_{date_portion}.fits'
 
+def refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_msgs):
 
+    refframe = par['collate1d']['refframe']
+    msgs.info(f"Performing a {refframe} correction")
+
+    for spec1d in spec1d_files:
+        # Calculate correction
+        try:
+            sobjs = SpecObjs.from_fitsfile(spec1d)
+            hdr_ra = sobjs.header['RA']
+            hdr_dec = sobjs.header['DEC']
+            hdr_radec = ltu.radec_to_coord((hdr_ra, hdr_dec))
+            obstime = Time(sobjs.header['MJD'], format='mjd')
+        except Exception as e:
+            msg = f'Failed to perform {refframe} correction on {spec1d}: {e}'
+            msgs.info(msg)
+            spec1d_failure_msgs.append(msg)
+            continue
+        corrected_at_least_one = False
+        for sobj in sobjs:
+            if sobj['VEL_CORR'] is not None:
+                # Don't double correct
+                msg = f"Not performing {refframe} correction for {spec1d} object {sobj['NAME']} because it has already been corrected."
+                msgs.info(msg)
+                spec1d_failure_msgs.append(msg)
+                continue
+
+            if sobj['RA'] is not None and sobj['DEC'] is not None:
+                radec = ltu.radec_to_coord((sobj['RA'], sobj['DEC']))
+            else:
+                radec = hdr_radec
+
+            vel, vel_corr = wave.geomotion_correct(radec, obstime,
+                                                   spectrograph.telescope['longitude'],
+                                                   spectrograph.telescope['latitude'],
+                                                   spectrograph.telescope['elevation'],
+                                                   refframe)
+            # Apply correction to objects
+            msgs.info(f'Applying {refframe} correction = {vel} km/s')
+            sobj.apply_helio(vel_corr, refframe)
+            corrected_at_least_one = True
+        if corrected_at_least_one:
+            sobjs.write_to_fits(spec1d, overwrite=True)
+        
 def coadd(par, coaddfile, source):
     """coadd the spectra for a given source.
 
@@ -355,7 +400,7 @@ def find_spec2d_from_spec1d(spec1d_files):
     return spec2d_files
 
 
-def write_warnings(par, excluded_obj_msgs, failed_source_msgs, failed_fluxing_msgs, start_time, total_time):
+def write_warnings(par, excluded_obj_msgs, failed_source_msgs, spec1d_failure_msgs, start_time, total_time):
     """
     Write gathered warning messages to a `collate_warnings.txt` file.
 
@@ -366,8 +411,8 @@ def write_warnings(par, excluded_obj_msgs, failed_source_msgs, failed_fluxing_ms
         failed_source_msgs (:obj:`list` of :obj:`str`): 
             Messages about which objects failed coadding and why.
 
-        failed_fluxing_msgs (:obj:)`list` of :obj:`str`): 
-            Messages about which files could not be flux calibrated and why.
+        spec1d_failure_msgs (:obj:)`list` of :obj:`str`): 
+            Messages about failures with spec1d files and why.
 
     """
     report_filename = os.path.join(par['collate1d']['outdir'], "collate_warnings.txt")
@@ -377,9 +422,9 @@ def write_warnings(par, excluded_obj_msgs, failed_source_msgs, failed_fluxing_ms
         print(f"\nStarted {start_time.isoformat(sep=' ')}", file=f)
         print(f"Duration: {total_time}", file=f)
 
-        if len(failed_fluxing_msgs) > 0:
-            print("\nFlux calibration failures\n", file=f)
-            for msg in failed_fluxing_msgs:
+        if len(spec1d_failure_msgs) > 0:
+            print("\spec1d_* failures\n", file=f)
+            for msg in spec1d_failure_msgs:
                 print(msg, file=f)
 
         print("\nExcluded Objects:\n", file=f)
@@ -469,6 +514,9 @@ def build_parameters(args):
 
     if args.outdir is not None:
         params['collate1d']['outdir'] = args.outdir
+
+    if args.refframe is not None:
+        params['collate1d']['refframe'] = args.refframe
 
     return params, spectrograph, spec1d_files
 
@@ -572,6 +620,8 @@ class Collate1D(scriptbase.ScriptBase):
         parser.add_argument('--exclude_serendip', action='store_true',
                             help=blank_par.descr['exclude_serendip'])
         parser.add_argument("--wv_rms_thresh", type=float, default = None, help=blank_par.descr['wv_rms_thresh'])
+        parser.add_argument("--refframe", type=str, default = None, choices = pypeitpar.WavelengthSolutionPar.valid_reference_frames(),
+                            help=blank_par.descr['refframe'])
         return parser
 
     @staticmethod
@@ -617,9 +667,12 @@ class Collate1D(scriptbase.ScriptBase):
             exclude_map = dict()
 
         # Flux the spec1ds based on a archived sensfunc
-        failed_fluxing_msgs = []        
+        spec1d_failure_msgs = []        
         if par['collate1d']['flux']:
-            spec1d_files = flux(par, spectrograph, spec1d_files, failed_fluxing_msgs)
+            spec1d_files = flux(par, spectrograph, spec1d_files, spec1d_failure_msgs)
+
+        if par['collate1d']['refframe'] in  ['heliocentric', 'barycentric']:
+            refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_msgs)
 
         # Build source objects from spec1d file, this list is not collated 
         source_objects = SourceObject.build_source_objects(spec1d_files,
@@ -661,7 +714,7 @@ class Collate1D(scriptbase.ScriptBase):
         total_time = datetime.now() - start_time
 
         write_warnings(par, excluded_obj_msgs, failed_source_msgs,
-                       failed_fluxing_msgs, start_time, total_time)
+                       spec1d_failure_msgs, start_time, total_time)
 
         msgs.info(f'Total duration: {total_time}')
 
