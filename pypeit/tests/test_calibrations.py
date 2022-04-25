@@ -13,7 +13,6 @@ import numpy as np
 from pypeit import calibrations
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit import wavecalib
 from IPython import embed
 
 from pypeit.tests.tstutils import dummy_fitstbl
