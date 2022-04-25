@@ -76,6 +76,7 @@ def test_archive_meta(tmp_path):
 
     assert test_meta3._metadata == expected_rows
 
+# TODO -- Move to DevSuite [DR]
 @cooked_required
 def test_archive_dir(tmp_path):
 
