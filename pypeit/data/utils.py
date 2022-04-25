@@ -483,8 +483,8 @@ def _build_remote_url(f_name, f_type, remote_host="", test_version=None):
                    f"data/{f_type}/{f_name}?raw=true"), None
 
     if remote_host == "s3_cloud":
-        # Build up the (permanent) `remote_url` and (fluid) `sources` for S3 Cloud
-        return (f"https://s3-west.nrp-nautilus.io/pypeit/{f_type}/{f_name}",
+        # Build up the (permanent, fake) `remote_url` and (fluid, real) `sources` for S3 Cloud
+        return (f"https://s3.cloud.com/pypeit/{f_type}/{f_name}",
                [f"https://{_get_s3_hostname()}/pypeit/{f_type}/{f_name}"])
 
     msgs.error(f"Remote host type {remote_host} is not supported for package data caching.")
