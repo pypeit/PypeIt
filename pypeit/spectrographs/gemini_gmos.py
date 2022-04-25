@@ -14,7 +14,8 @@ from pypeit.core import parse
 from pypeit.images import detector_container
 from pypeit.images.mosaic import Mosaic
 from pypeit.core.mosaic import build_image_mosaic_transform
-from pypeit.par import pypeitpar
+
+from IPython import embed
 
 class GeminiGMOSMosaicLookUp:
     """
@@ -251,7 +252,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # Allow for various binning
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
-        par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[1]
+        par['calibrations']['wavelengths']['fwhm'] = 10.0 / binning[1]
 
         return par
 
@@ -1048,8 +1049,8 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
 
         if self.get_meta_value(scifile, 'dispname')[0:4] == 'R400':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_e2v_mosaic.fits'
-            #par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_e2v.fits'
-        #
+            par['calibrations']['wavelengths']['sigdetect'] = 1.  # The blue wavelengths are *faint*
+        # Return
         return par
 
 # TODO: Someone please check the docstring
