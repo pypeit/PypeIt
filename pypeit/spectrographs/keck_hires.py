@@ -30,9 +30,13 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
     """
 
     ndet = 3
+    name = 'keck_hires'
     telescope = telescopes.KeckTelescopePar()
-    pypeline = 'Echelle'
+    camera = 'HIRES'
     header_name = 'HIRES'
+    pypeline = 'Echelle'
+    supported = True
+
 
     # Place holder taken from X-shooter VIS
     @classmethod
@@ -51,7 +55,6 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
                        use_darkimage=False, use_illumflat=False, use_pixelflat=False,
                        use_specillum=False)
         par.reset_all_processimages_par(**turn_on)
-
         # X-SHOOTER arcs/tilts are also have different binning with bias
         # frames, so don't use bias frames. Don't use the biases for any
         # calibrations since it appears to be a different amplifier readout
@@ -61,11 +64,12 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         # standards are read with a different read mode and we don't yet have
         # the option to use different sets of biases for different standards,
         # or use the overscan for standards but not for science frames
-        par['scienceframe']['process']['use_biasimage'] = True
-        par['scienceframe']['process']['use_illumflat'] = True
-        par['scienceframe']['process']['use_pixelflat'] = True
-        par['calibrations']['standardframe']['process']['use_illumflat'] = True
-        par['calibrations']['standardframe']['process']['use_pixelflat'] = True
+        # TODO testing
+        par['scienceframe']['process']['use_biasimage'] = False
+        par['scienceframe']['process']['use_illumflat'] = False
+        par['scienceframe']['process']['use_pixelflat'] = False
+        par['calibrations']['standardframe']['process']['use_illumflat'] = False
+        par['calibrations']['standardframe']['process']['use_pixelflat'] = False
         # par['scienceframe']['useframe'] ='overscan'
 
         par['calibrations']['slitedges']['edge_thresh'] = 8.0
@@ -118,7 +122,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = [9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Paranal_VIS_4900_11100_R25000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
         return par
 
     def init_meta(self):
@@ -202,19 +206,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         return super().pypeit_file_keys() + ['frameno']
 
 
-    @classmethod
-    def default_pypeit_par(cls):
-        """
-        Return the default parameters to use for this instrument.
-        
-        Returns:
-            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
-        """
-        par = super().default_pypeit_par()
-        # Correct for flexure using the default approach
-        #par['flexure'] = pypeitpar.FlexurePar()
-        return par
+
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
