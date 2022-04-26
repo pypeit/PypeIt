@@ -12,6 +12,7 @@ import shutil
 import urllib
 
 from astropy.utils import data as astropy_data
+import github
 from linetools.spectra import xspectrum1d
 from pkg_resources import resource_filename
 import requests
@@ -348,7 +349,7 @@ def get_telgrid_filepath(telgrid_file):
 
 
 def fetch_remote_file(filename, filetype, remote_host='github', install_script=False,
-                      force_update=False, test_version=None):
+                      force_update=False, test_version=None, full_url=None):
     """fetch_remote_file Use `astropy.utils.data` to fetch file from remote or cache
 
     The function `download_file` will first look in the local cache (the option
@@ -373,13 +374,19 @@ def fetch_remote_file(filename, filetype, remote_host='github', install_script=F
           the latest version.  [Default: False]
         test_version: str, optional
           A contrived PypeIt version number, for use with unit tests  [Default: None]
+        full_url: str, optional
+          The full url (i.e., skip _build_remote_url())  [Default: None]
 
     Returns:
         path_to_file: str
           The local path to the desired file in the cache
     """
-    remote_url, sources = _build_remote_url(filename, filetype, remote_host=remote_host,
-                                            test_version=test_version)
+    # In some cases, we have the full URL already, but most of the time not
+    if full_url:
+        remote_url, sources = full_url, None
+    else:
+        remote_url, sources = _build_remote_url(filename, filetype, remote_host=remote_host,
+                                                test_version=test_version)
 
     if remote_host == "s3_cloud" and not install_script:
         # Display a warning that this may take a while, and the user
@@ -475,12 +482,21 @@ def _build_remote_url(f_name, f_type, remote_host="", test_version=None):
     version = test_version if test_version else pypeit_version
 
     if remote_host == "github":
-        # Build up the remote_url for GitHub
         # Look in the current `develop` branch if the code is not a tagged release
         tag = "develop" if ".dev" in version else version
-        # TODO: If we host these files elsewhere, need to change this hard-code
-        return (f"https://github.com/pypeit/PypeIt/blob/{tag}/pypeit/"
-                   f"data/{f_type}/{f_name}?raw=true"), None
+
+        # Use PyGithub to get the download URL from the repo, with error checking
+        try:
+            repo = github.Github().get_repo("pypeit/PypeIt")
+            dir_listing = repo.get_contents(f"pypeit/data/{f_type}", tag)
+        except github.GithubException as err:
+            raise ValueError(f"Directory {f_type} not found in the '{tag}' GitHub tree") from err
+        urls = [listing.download_url for listing in dir_listing if listing.name == f_name]
+
+        # Double-check that the desired file was found; return
+        if not urls:
+            raise ValueError(f"File {f_name} not found in the '{tag}' GitHub tree")
+        return urls[0], None
 
     if remote_host == "s3_cloud":
         # Build up the (permanent, fake) `remote_url` and (fluid, real) `sources` for S3 Cloud
@@ -498,6 +514,10 @@ def _get_s3_hostname():
     in a separate file (s3_url.txt), and pull the current version from the
     PypeIt `release` branch whenever needed.
 
+    NOTE: When/if the S3 URL changes, the `release` branch version of
+          `s3_url.txt` can be updated easily with a hotfix PR, and this
+          routine will pull it.
+
     If GitHub cannot be reached, the routine uses the version of `s3_url.txt`
     included with the package distribution.
 
@@ -507,13 +527,14 @@ def _get_s3_hostname():
     """
     # Always point to the `release` version of `s3_url.txt`, which can be updated
     # via a hotfix PR and does not require the user to upgrade the package
-    remote_url = f"https://github.com/pypeit/PypeIt/blob/release/pypeit/data/s3_url.txt?raw=true"
 
     # Try getting the latest version from the server, else use what's included
     try:
+        repo = github.Github().get_repo("pypeit/PypeIt")
+        remote_url = repo.get_contents("pypeit/data/s3_url.txt", "release").download_url
         filepath = astropy_data.download_file(remote_url, cache="update",
                                               timeout=10, pkgname="pypeit")
-    except urllib.error.URLError:
+    except (urllib.error.URLError, github.GithubException):
         filepath = os.path.join(Paths.data, "s3_url.txt")
 
     # Open the file and return the URL
