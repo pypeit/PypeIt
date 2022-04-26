@@ -161,8 +161,7 @@ def get_reid_arxiv_filepath(arxiv_file):
           The base filename of the ``reid_arxiv`` file to be located
 
     Returns:
-        calibfile (str):
-          The full path to the ``reid_arxiv`` file
+        str: The full path to the ``reid_arxiv`` file
     """
     # Full path within the package data structure:
     reid_path = os.path.join(Paths.reid_arxiv, arxiv_file)
@@ -208,8 +207,7 @@ def get_skisim_filepath(skisim_file):
           The base filename of the ``skisim`` file to be located
 
     Returns:
-        calibfile (str):
-          The full path to the ``skisim`` file
+        str: The full path to the ``skisim`` file
     """
     # Full path within the package data structure:
     skisim_path = os.path.join(Paths.skisim, skisim_file)
@@ -258,8 +256,7 @@ def get_sensfunc_filepath(sensfunc_file, symlink_in_pkgdir=False):
           pointing to the cached downloaded file.  Defaults to False.
 
     Returns:
-        calibfile (str):
-          The full path to the ``sensfunc`` file
+        str: The full path to the ``sensfunc`` file
     """
     # Full path within the package data structure:
     sensfunc_path = os.path.join(Paths.sensfuncs, sensfunc_file)
@@ -308,8 +305,7 @@ def get_telgrid_filepath(telgrid_file):
           The base filename of the ``sensfunc`` file to be located
 
     Returns:
-        calibfile (str):
-          The full path to the ``sensfunc`` file
+        str: The full path to the ``sensfunc`` file
     """
     # Full path within the package data structure:
     telgrid_path = os.path.join(Paths.telgrid, telgrid_file)
@@ -363,8 +359,7 @@ def fetch_remote_file(filename, filetype, remote_host='github', install_script=F
           The full url (i.e., skip _build_remote_url())  Defaults to None.
 
     Returns:
-        path_to_file (str):
-          The local path to the desired file in the cache
+        str: The local path to the desired file in the cache
     """
     # In some cases, we have the full URL already, but most of the time not
     if full_url:
@@ -454,16 +449,16 @@ def _build_remote_url(f_name, f_type, remote_host=""):
           supported.  Defaults to ''.
 
     Returns:
-        url (str):
-          The URL of the ``f_name`` of ``f_type`` on server ``remote_host``
-        sources (:obj:`list` or :obj:`None`):
-          For 's3_cloud', the list of URLs to actually try, passed to
-          ``download_file()``, used in the event that the S3 location changes.
-          We maintain the static URL for the name to prevent re-downloading of
-          large data files in the event the S3 location changes (but the file
-          itself is unchanged).  If None (e.g. for 'github'), then
-          ``download_file()`` is unaffected, and the ``url`` (above) is what
-          controls the download.
+        tuple: URLs for both cache storage name and current download link:
+
+           * url (str): The URL of the ``f_name`` of ``f_type`` on server ``remote_host``
+           * sources (:obj:`list` or :obj:`None`): For 's3_cloud', the list of URLs to
+                actually try, passed to ``download_file()``, used in the event that the
+                S3 location changes.  We maintain the static URL for the name to prevent
+                re-downloading of large data files in the event the S3 location changes
+                (but the file itself is unchanged).  If None (e.g. for 'github'), then
+                ``download_file()`` is unaffected, and the ``url`` (above) is what
+                controls the download.
     """
     if remote_host == "github":
         # Hard-wire the URL based on PypeIt Version
@@ -497,8 +492,7 @@ def _get_s3_hostname():
     included with the package distribution.
 
     Returns:
-        s3_hostname (str):
-          The current hostname URL of the S3 server holding package data
+        str: The current hostname URL of the S3 server holding package data
     """
     # Try getting the latest version from the server, else use what's included
     try:
@@ -530,8 +524,7 @@ def load_telluric_grid(filename):
           The filename (NO PATH) of the telluric atmospheric grid to use.
 
     Returns:
-        telgrid (:obj:`astropy.io.fits.HDUList`):
-          Telluric Grid FITS HDU list
+        (:obj:`astropy.io.fits.HDUList`): Telluric Grid FITS HDU list
     """
     # Check for existance of file parameter
     if not filename:
@@ -562,8 +555,7 @@ def load_thar_spec():
           The filename (NO PATH) of the telluric atmospheric grid to use.
 
     Returns:
-        thar_spec (:obj:`astropy.io.fits.HDUList`):
-          ThAr Spectrum FITS HDU list
+        (:obj:`astropy.io.fits.HDUList`): ThAr Spectrum FITS HDU list
     """
     return io.fits_open(os.path.join(Paths.arclines, 'thar_spec_MM201006.fits'))
 
@@ -582,8 +574,7 @@ def load_sky_spectrum(sky_file):
           The filename (NO PATH) of the sky file to use.
 
     Returns:
-        sky_spec (:obj:`XSpectrum1D`):
-          spectrum
+        (:obj:`XSpectrum1D`): Sky spectrum
     """
     return xspectrum1d.XSpectrum1D.from_file(os.path.join(Paths.sky_spec, sky_file))
 
