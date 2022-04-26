@@ -7,8 +7,9 @@ import os
 
 import numpy as np
 
-from astropy.coordinates import SkyCoord
-from astropy import units
+from pkg_resources import resource_filename
+
+from astropy.table import Table
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -701,3 +702,65 @@ def read_hires(raw_file, det=None):
     return image, head0, rawdatasec_img, oscansec_img, hdu
 
 
+def grab_arctempl_file(arc_meta:dict, ORDRS=None):
+    # Read template file
+    templ_table_file = os.path.join(
+        resource_filename('pypeit', 'data'), 'arc_lines',
+        'hires', 'hires_templ.dat')
+    tbl = Table.read(templ_table_file, format='ascii')
+    
+    gd = tbl['XDISP'] == arc_meta['dispname']
+    cut_tbl = tbl[gd]
+
+    # Unpack for convenience
+    chip = cut_tbl['Chip']
+    echa = cut_tbl['ECH']
+    xda = cut_tbl['XDAng']
+
+    # Match
+    # ;; Closest XDANGL irrespective of binning
+    if ORDRS is None:
+        # Tolerances on ECHA and XDA
+        tols = [[0.05, 0.2], [0.05, 0.4], [0.1, 0.4]]
+        for tol in tols:
+            #; Best = EDANGL LT 0.05 and XDANGL LT 0.2
+            mtch = np.where((np.abs(arc_meta['echangle']-echa) < tol[0]) &
+                   (np.abs(arc_meta['xdangle']-xda) < tol[1]) &
+                   (arc_meta['det'] == chip) )[0]
+            if len(mtch) > 0:
+                break
+        if len(mtch) == 0:
+            mtch = np.where(arc_meta['det'] == chip)[0]
+    else: 
+        msgs.error("NEED TO PORT THE IDL CODE BELOW")
+    '''
+      ;; Specified orders
+      gdo = where(min(ordrs) GE ordi AND $
+                  max(ordrs) LE ordf, ngdo)
+      if ngdo EQ 0 then begin
+         mtch = where(hires.cross EQ xdisp, nmt)
+         gdo = where(min(ordrs) GE ordi[mtch] AND $
+                     (max(ordrs) < maxo) LE ordf[mtch], ngdo)
+         if ngdo EQ 0 then begin
+            print, 'hires_arctempl:  No archived wavelengths fitting your' + $
+                   'setup.  Contact JXP ASAP (xavier@ucolick.org)!'
+            stop
+         endif
+         mtch = mtch[gdo]
+      endif else mtch = gdo 
+    '''
+
+    #; Closet ECHANGL
+    imn = np.argmin(np.abs(arc_meta['echangle']-echa[mtch]))
+    allx = np.where(np.abs(echa[mtch]-echa[mtch[imn]]) < 0.001)[0]
+
+    if len(allx) != 1: #;; Close XDANGL
+        imne = np.argmin(np.abs(arc_meta['xdangle']-xda[mtch[allx]]))
+        idx = mtch[allx[imne]]
+    else:
+        idx = mtch[allx[0]]
+
+    # Return the filename (without path)
+
+    # Return
+    return cut_tbl['Name'][idx]
