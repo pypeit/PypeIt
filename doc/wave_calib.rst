@@ -181,28 +181,26 @@ quit the GUI to see if you want to save the solution. Note,
 you can increase this tolerance using the command line option
 `pixtol`, or by setting the `force_save` command line option.
 
-In addition to writing the wavelength solution to the file
-``wvarxiv.fits`` in the current working directory, ``PypeIt``
-now also saves the solution in the PypeIt cache and prints
-a message indicating how to use it, such as:
+In addition to writing the wavelength solution to the current
+working directory, ``PypeIt`` now also saves the solution in
+the PypeIt cache (identified by spectrograph and the current
+time for uniqueness) and prints a message indicating how to
+use it, such as:
 
    .. code-block:: console
 
-      [INFO]    :: Your arxiv solution has been written to ./wvarxiv.fits
-      [INFO]    :: Your arxiv solution has been cached.
-               Use 'reid_arxiv = manual_keck_lris_20220214.fits' in your
-               PypeIt Reduction File to utilize this wavelength solution.
+      [INFO]    :: Your arxiv solution has been written to ./wvarxiv_ldt_deveny_20220426T0958.fits
+      [INFO]    :: Your arxiv solution has also been cached.
+                  To utilize this wavelength solution, insert the
+                  following block in your PypeIt Reduction File:
+                  [calibrations]
+                     [[wavelengths]]
+                        reid_arxiv = wvarxiv_ldt_deveny_20220426T0958.fits
+                        method = full_template
 
-To use this wavelength solution, simply add the following to
-your PypeIt Reduction File::
 
-  [calibrations]
-     [[wavelengths]]
-        method = full_template
-        reid_arxiv = manual_keck_lris_20220214.fits
-
-(replacing the ``reid_arxiv`` filename with the actual output
-from ``pypeit_identify``).  Run PypeIt in the standard
+Replace the ``reid_arxiv`` filename with the filename output
+on your screen from ``pypeit_identify``, and run PypeIt in the standard
 :ref:`wvcalib-fulltemplate` mode.
 
 We also recommend that you send your solution to the

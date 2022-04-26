@@ -288,7 +288,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         elif self.get_meta_value(scifile, 'dispname') == 'R500B':
             # par['calibrations']['wavelengths']['wv_cen'] = 4745.
             # par['calibrations']['wavelengths']['disp'] = 3.54
-            # par['calibrations']['wavelengths']['lamps'] = ['HgI,NeI']
+            par['calibrations']['wavelengths']['lamps'] = ['HgI,NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500B.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'R500R':
             # par['calibrations']['wavelengths']['wv_cen'] = 7165.

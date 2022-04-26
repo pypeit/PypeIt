@@ -44,6 +44,7 @@ operations = dict({'cursor': "Select lines (LMB click)\n" +
                    'r' : "Refit a line",
                    's' : "Save current line IDs to a file",
                    'w' : "Toggle wavelength/pixels on the x-axis of the main panel",
+                   'y' : "Toggle the y-axis scale between logarithmic and linear",
                    'z' : "Delete a single line identification",
                    '+/-' : "Raise/Lower the order of the fitting polynomial"
                    })
@@ -58,7 +59,7 @@ class Identify:
     """
 
     def __init__(self, canvas, axes, spec, specres, detns, line_lists, par, lflag_color,
-                 slit=0, spatid='0', wv_calib=None, pxtoler=None, specname=""):
+                 slit=0, spatid='0', wv_calib=None, pxtoler=None, specname="", y_log=True):
         """Controls for the Identify task in PypeIt.
 
         The main goal of this routine is to interactively identify arc lines
@@ -92,6 +93,8 @@ class Identify:
             Tolerance in pixels for adding lines with the auto option
         specname : str, optional
             The name of the spectrograph
+        y_log : bool, optional
+            Scale the Y-axis logarithmically instead of linearly?  (Default: True)
         """
         # Store the axes
         self.axes = axes
@@ -102,6 +105,7 @@ class Identify:
         self.specx = np.arange(self.specdata.size)
         self.plotx = self.specx.copy()
         self.specname = specname
+        self.y_log = y_log
         # Detections, linelist, line IDs, and fitting params
         self._slit = slit
         self._spatid = spatid
@@ -225,7 +229,7 @@ class Identify:
             Tolerance in pixels for adding lines with the auto option
         specname : str, optional
             The name of the spectrograph
-        ylog : bool, optional
+        y_log : bool, optional
             Scale the Y-axis logarithmically instead of linearly?  (Default: True)
 
         Returns
@@ -281,6 +285,7 @@ class Identify:
             ax.set_ylim( (max(1., spec.get_ydata().min()),
                         4.0 * spec.get_ydata().max()))
         else:
+            ax.set_yscale('linear')
             ax.set_ylim((0.0, 1.1 * spec.get_ydata().max()))
         ax.set_xlabel('Pixel')
         ax.set_ylabel('Flux')
@@ -323,7 +328,7 @@ class Identify:
         axes = dict(main=ax, fit=axfit, resid=axres, info=axinfo)
         # Initialise the identify window and display to screen
         fig.canvas.set_window_title('PypeIt - Identify')
-        ident = Identify(fig.canvas, axes, spec, specres, detns, line_lists, par, lflag_color, slit=slit,
+        ident = Identify(fig.canvas, axes, spec, specres, detns, line_lists, par, lflag_color, slit=slit, y_log=y_log,
                          spatid=str(slits.spat_id[slit]), wv_calib=wv_calib, pxtoler=pxtoler, specname=specname)
 
         if not test:
@@ -424,6 +429,17 @@ class Identify:
         self.spec.set_xdata(self.plotx)
         if toggled:
             self.axes['main'].set_xlim([self.plotx.min(), self.plotx.max()])
+
+    def toggle_yscale(self):
+        self.y_log = not self.y_log
+        # Update the y-axis scale and axis range
+        if self.y_log:
+            self.axes['main'].set_yscale('log')
+            self.axes['main'].set_ylim((max(1., self.spec.get_ydata().min()),
+                                       4.0 * self.spec.get_ydata().max()))
+        else:
+            self.axes['main'].set_yscale('linear')
+            self.axes['main'].set_ylim((0.0, 1.1 * self.spec.get_ydata().max()))
 
     def draw_ghost(self):
         """Draw tick marks at the location of the ghost
@@ -713,21 +729,26 @@ class Identify:
                 #outroot = templates.pypeit_identify_record(final_fit, binspec, specname, gratname, dispangl, outdir=master_dir)
                 wavelengths = self._fitdict['full_fit'].eval(np.arange(self.specdata.size) /
                                                              (self.specdata.size - 1))
+
+                # Instead of a generic name, save the wvarxiv with a unique identifier
+                date_str = datetime.now().strftime("%Y%m%dT%H%M")
+                wvarxiv_name = f"wvarxiv_{self.specname}_{date_str}.fits"
                 wvutils.write_template(wavelengths, self.specdata, binspec,
-                                         './', 'wvarxiv.fits')
+                                         './', wvarxiv_name)
 
                 # Also copy the file to the cache for direct use
-                date_str = datetime.now().strftime("%Y%m%dT%H%M")
-                cachename = f"manual_{self.specname}_{date_str}.fits"
-                data.write_file_to_cache("wvarxiv.fits",
-                                         cachename,
+                data.write_file_to_cache(wvarxiv_name,
+                                         wvarxiv_name,
                                          "arc_lines/reid_arxiv")
 
-                msgs.info("Your arxiv solution has been written to ./wvarxiv.fits\n")
-                msgs.info(f"Your arxiv solution has been cached.{msgs.newline()}"
-                          f"Use 'reid_arxiv = {cachename}' and{msgs.newline()}"
-                          f"'method = full_template' in your PypeIt{msgs.newline()}"
-                          "Reduction File to utilize this wavelength solution.")
+                msgs.info(f"Your arxiv solution has been written to ./{wvarxiv_name}\n")
+                msgs.info(f"Your arxiv solution has also been cached.{msgs.newline()}"
+                          f"To utilize this wavelength solution, insert the{msgs.newline()}"
+                          f"following block in your PypeIt Reduction File:{msgs.newline()}"
+                          f" [calibrations]{msgs.newline()}"
+                          f"   [[wavelengths]]{msgs.newline()}"
+                          f"     reid_arxiv = {wvarxiv_name}{msgs.newline()}"
+                          f"     method = full_template\n")
 
                 # Write the WVCalib file
                 outfname = "wvcalib.fits"
@@ -962,6 +983,9 @@ class Identify:
             self.save_IDs()
         elif key == 'w':
             self.toggle_wavepix(toggled=True)
+            self.replot()
+        elif key == 'y':
+            self.toggle_yscale()
             self.replot()
         elif key == 'z':
             self.delete_line_id()

@@ -171,8 +171,6 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
         par['calibrations']['wavelengths']['n_first'] = 3
         par['calibrations']['wavelengths']['n_final'] = 5
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
-        # par['calibrations']['wavelengths']['wv_cen'] = 4859.0
-        # par['calibrations']['wavelengths']['disp'] = 0.2
         # Do not flux calibrate
         par['fluxcalib'] = None
         # Set the default exposure time ranges for the frame typing
@@ -318,8 +316,6 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'ArII', 'CuI']
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
-        # par['calibrations']['wavelengths']['wv_cen'] = 6000.0
-        # par['calibrations']['wavelengths']['disp'] = 0.2
         # Do not flux calibrate
         par['fluxcalib'] = None
         # Set the default exposure time ranges for the frame typing
