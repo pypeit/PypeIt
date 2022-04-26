@@ -703,7 +703,15 @@ class Identify:
         wvcalib : :class:`pypeit.wavecalib.WaveCalib`
             Wavelength solution
 
+        Returns
+        -------
+
+        wvarxiv_name : :obj:`str` or :obj:`None`
+            The name of the wvarxiv file if saved, else None
         """
+        # For return
+        wvarxiv_name = None
+
         # Line IDs
         ans = ''
         if not force_save:
@@ -777,6 +785,9 @@ class Identify:
                     ans = 'y'
                 if ans == 'y':
                     self.save_IDs()
+
+        # For the cases that need the wvarxiv name, return it
+        return wvarxiv_name
 
     def button_press_callback(self, event):
         """What to do when the mouse button is pressed

@@ -354,14 +354,14 @@ def test_identify():
                               )
 
     # If you touch the following line, you probably need to update the call in scripts/identify.py
-    arcfitter.store_solution(final_fit, 1, rmstol=0.1, force_save=True, wvcalib=waveCalib)
+    wvarxiv_fn = arcfitter.store_solution(final_fit, 1, rmstol=0.1, force_save=True, wvcalib=waveCalib)
 
     # Test we can read it
     tmp = wavecalib.WaveCalib.from_file('wvcalib.fits')
 
     # Clean up -- If these fail then the store solution failed
     os.remove('waveid.ascii')
-    os.remove('wvarxiv.fits')
+    os.remove(wvarxiv_fn)
     os.remove('wvcalib.fits')
 
 
