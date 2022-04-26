@@ -219,12 +219,39 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         self.meta['mjd'] = dict(ext=0, card='MJD_OBS')
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+
+        # Dithering
+        self.meta['dithpos'] = dict(ext=0, card='QOFFSET')
+        self.meta['dithoff'] = dict(card=None, compound=True)
+
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='GRATING')
         self.meta['hatch'] = dict(ext=0, card='COVER')
         self.meta['dispangle'] = dict(ext=0, card='GRATTILT', rtol=1e-4)
         self.meta['idname'] = dict(ext=0, card='OBSTYPE')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
+
+    def compound_meta(self, headarr, meta_key):
+        """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
+
+        Args:
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
+
+        Returns:
+            object: Metadata value read from the header(s).
+        """
+        if meta_key == 'dithoff':
+            if headarr[0].get('OBSTYPE') == 'OBJECT':
+                return headarr[0].get('QOFFSET')
+            else:
+                return 0.0
+        else:
+            msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -241,6 +268,22 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             object.
         """
         return ['decker', 'dispname', 'dispangle']
+
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard ``PypeIt`` file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        #        pypeit_keys = super().pypeit_file_keys()
+        #        # TODO: Why are these added here? See
+        #        # pypeit.metadata.PypeItMetaData.set_pypeit_cols
+        #        pypeit_keys += [calib', 'comb_id', 'bkg_id']
+        #        return pypeit_keys
+        return super().pypeit_file_keys() + ['dithoff']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
