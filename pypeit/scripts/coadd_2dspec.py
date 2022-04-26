@@ -157,8 +157,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         msgs_string += 'Coadding frame sky-subtraced with {:s}'.format(skysub_mode)
         msgs_string += 'Searching for objects that are {:s}'.format(findobj_mode)
         msgs_string += msgs.newline() + 'Combining frames in 2d coadd:' + msgs.newline()
-        for file in spec2d_files:
-            msgs_string += '{0:s}'.format(os.path.basename(file)) + msgs.newline()
+        for f, file in enumerate(spec2d_files):
+            msgs_string += 'Exp {0}: {1:s}'.format(f, os.path.basename(file)) + msgs.newline()
         msgs.info(msgs_string)
 
         # TODO: This needs to be added to the parameter list for rdx
