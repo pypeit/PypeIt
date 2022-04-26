@@ -114,6 +114,19 @@ running, e.g.:
     marks may not be correct, leading to errors when they are directly pasted
     into a terminal window.
 
+Upgrading to a new version via ``pip``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Upgrading ``PypeIt`` should simply be a matter of executing:
+
+.. code-block:: console
+
+    pip install pypeit --upgrade
+
+If this causes problems (e.g., a new ``PypeIt`` script is unavailable or
+you encounter script errors), first try uninstalling (e.g., ``pip uninstall pypeit``)
+and then reinstalling.
+
 Install via ``conda`` (recommended overall and *required for Apple Silicon*)
 ----------------------------------------------------------------------------
 
@@ -145,18 +158,18 @@ To use this:
 
 This environment should now be ready to use and contain the latest official ``pypeit`` release.
 
-Upgrading to a new version
---------------------------
+Upgrading to a new version via ``conda``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Upgrading ``PypeIt`` should simply be a matter of executing:
+Upgrading ``PypeIt`` within your ``pypeit`` ``conda`` environment should simply be a matter of executing:
 
 .. code-block:: console
 
-    pip install pypeit --upgrade
+    conda update --all
 
 If this causes problems (e.g., a new ``PypeIt`` script is unavailable or
-you encounter script errors), first try uninstalling (e.g., ``pip uninstall pypeit``)
-and then reinstalling.
+you encounter script errors), simply remove the conda environment
+(e.g., ``conda env remove pypeit``) and reinstall as above.
 
 .. _m1_macs:
 
@@ -205,33 +218,27 @@ To ease the downloading and storing of these files, ``PypeIt`` now uses the ``as
 download/cache system to maintain copies of these files in a user-writeable location
 that is independent of the ``PypeIt`` installation.  For most users, this will be
 something like ``~/.pypeit/cache``, but is adjustable via ``astropy``'s `configuration
-system <https://docs.astropy.org/en/stable/config/index.html#astropy-config>`__.
+system <https://docs.astropy.org/en/stable/config/index.html#astropy-config>`__.  By
+default, ``PypeIt`` will download necessary files at runtime if they are not already
+cached.
 
-Raw data included in our development suite that is used for extensive testing of the code
-base are located in our open-access `PypeIt dev-suite Google Drive`_.
+Because a fresh install of ``PypeIt`` does not contain all of the ancillary data that
+might be required for data reduction, users planning to run the pipeline without an
+internet connection will need to cache the necessary data files ahead of time.  To ease
+this process, a script ``pypeit_cache_github_data`` is included.  For example, to
+download the needed files for the ``keck_deimos`` spectrograph, you would execute:
 
+      .. code-block:: console
 
+        $ pypeit_cache_github_data keck_deimos
 
-.. note::
+Once cached, the data will be accessed by ``PypeIt`` without requiring an internet
+connection.  This script will also download Atmospheric Model Grids specified in the
+instrument-wide configuration, but may not catch configuration-specific ``telgridfile``
+parameter specifications.  Before trying to run ``PypeIt`` offline, verify that any
+necessary Atmospheric Model Grids are installed; if not, install them using the
+instructions below.
 
-    We continue to work on cleaner installation solutions for these data
-    products, particularly for the quick-look master files.  In the meantime,
-    note that you will likely need to re-run the data-specific installation
-    scripts described below every time you upgrade your installation (via
-    `pip`_ or `conda`_).
-
-Raw Data
---------
-
-Example raw data for all supported spectrographs are used in extensive testing
-of the code base during development; see :ref:`dev-suite`.  General users should
-not need access to these data; however, they may be useful for learning how to
-use ``PypeIt`` before running it on your own data from the same instrument.
-These data are stored in the ``RAW_DATA`` directory in the `PypeIt dev-suite
-Google Drive`_, divided into subdirectories for each instrument and instrument
-setup.  See also the `PypeIt-development-suite`_ GitHub repository, which
-includes a :doc:`pypeit_file` for each instrument and setup used during
-development testing.
 
 .. _install_atmosphere:
 
@@ -258,7 +265,7 @@ script, calling the filename of the grid required.  For example, if you needed t
 
     .. code-block:: console
 
-        pypeit_install_telluric TelFit_MaunaKea_3100_26100_R200000.fits
+        $ pypeit_install_telluric TelFit_MaunaKea_3100_26100_R200000.fits
 
 The downloaded file will exist in the ``PypeIt`` cache, and will persist through
 upgrades of your installation via `pip`_ or `conda`_.  To force the update of a
@@ -272,8 +279,30 @@ download them sepatately, then install them using the ``--local`` option to
 ``pypeit_install_telluric``.
 
 
-Quick-look Master Files
+Raw Data
+--------
+
+Example raw data for all supported spectrographs are used in extensive testing
+of the code base during development; see :ref:`dev-suite`.  General users should
+not need access to these data; however, they may be useful for learning how to
+use ``PypeIt`` before running it on your own data from the same instrument.
+These data are stored in the ``RAW_DATA`` directory in the `PypeIt dev-suite
+Google Drive`_, divided into subdirectories for each instrument and instrument
+setup.  See also the `PypeIt-development-suite`_ GitHub repository, which
+includes a :doc:`pypeit_file` for each instrument and setup used during
+development testing.
+
+
+Quick-Look Master Files
 -----------------------
+
+.. note::
+
+    We continue to work on cleaner installation solutions for these data
+    products, particularly for the quick-look master files.  In the meantime,
+    note that you will likely need to re-run the data-specific installation
+    scripts described below every time you upgrade your installation (via
+    `pip`_ or `conda`_).
 
 Some of the quick-look reductions provided by ``PypeIt`` require canned master
 files to speed up the data-reduction process, as appropriate for a quick-look
@@ -291,7 +320,7 @@ To install the quick-look master files:
 
         .. code-block:: console
 
-            pypeit_install_ql_masters --zip ~/Downloads/QL_MASTERS-20210722T162355Z-001.zip --odir my_path
+            $ pypeit_install_ql_masters --zip ~/Downloads/QL_MASTERS-20210722T162355Z-001.zip --odir my_path
 
 The ``pypeit_install_ql_masters`` script will unzip the downloaded file in the
 ``my_path`` directory and create a symlink to the extracted directory in the
