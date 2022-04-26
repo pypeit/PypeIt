@@ -94,7 +94,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         # This is for 1x1 binning. Needs to be divided by binning for binned data!!
         par['calibrations']['wavelengths']['fwhm'] = 11.0
         # Reidentification parameters
-        par['calibrations']['wavelengths']['method'] = 'reidentify'
+        par['calibrations']['wavelengths']['method'] = 'full_template'
         # TODO: the arxived solution is for 1x1 binning. It needs to be
         # generalized for different binning!
         par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_vis1x1.fits'

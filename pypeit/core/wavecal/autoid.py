@@ -1148,7 +1148,7 @@ class ArchiveReid:
             msgs.error('Input parameters must be provided by a WavelengthSolutionPar object.')
         # TODO: Do we need ech_fix_format if we have
         # spectrograph.pypeline, assuming we keep passing spectrograph?
-        if par['ech_fix_format'] and orders is None:
+        if spectrograph.ech_fixed_format and orders is None:
             msgs.error('If the specrograph is a fixed-format echelle (ech_fix_format is True), '
                        'the orders must be provided.')
 
