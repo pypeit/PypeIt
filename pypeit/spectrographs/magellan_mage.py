@@ -28,6 +28,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
     header_name = 'MagE'
     telescope = telescopes.MagellanTelescopePar()
     pypeline = 'Echelle'
+    ech_fixed_format = True
     supported = True
     comment = 'See :doc:`mage`'
 

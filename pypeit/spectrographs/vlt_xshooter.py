@@ -27,6 +27,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
     ndet = 1
     telescope = telescopes.VLTTelescopePar()
     pypeline = 'Echelle'
+    ech_fixed_format = True
     header_name = 'XSHOOTER'
 
     def init_meta(self):

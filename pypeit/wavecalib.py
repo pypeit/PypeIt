@@ -328,7 +328,7 @@ class BuildWaveCalib:
 
     frametype = 'wv_calib'
 
-    def __init__(self, msarc, slits, spectrograph, par, lamps, binspectral=None, det=1,
+    def __init__(self, msarc, slits, spectrograph, par, lamps, binspectral=None, meta_dict=None, det=1,
                  qa_path=None, msbpm=None, master_key=None):
 
         # TODO: This should be a stop-gap to avoid instantiation of this with
@@ -342,6 +342,7 @@ class BuildWaveCalib:
         self.spectrograph = spectrograph
         self.par = par
         self.lamps = lamps
+        self.meta_dict=meta_dict
 
         # Optional parameters
         self.bpm = self.msarc.select_flag(flag='BPM') if msbpm is None else msbpm.astype(bool)
@@ -669,6 +670,10 @@ class BuildWaveCalib:
         # Extract an arc down each slit
         self.arccen, self.wvc_bpm = self.extract_arcs()
 
+        # If this is a fixed format echelle, determine the order numbers from the arc
+        if self.spectrograph.pypeline == 'Echelle' and not self.spectrograph.ech_fixed_format:
+            self.orders = self.get_echelle_orders(self.arccen)
+
         # Fill up the calibrations and generate QA
         self.wv_calib = self.build_wv_calib(self.arccen, self.par['method'], skip_QA=skip_QA)
 
@@ -692,6 +697,21 @@ class BuildWaveCalib:
         self.wv_calib['strpar'] = json.dumps(j_par)#, sort_keys=True, indent=4, separators=(',', ': '))
 
         return self.wv_calib
+
+    def get_echelle_orders(self, arccen):
+        """
+
+        Args:
+            arccen:
+
+        Returns:
+
+        """
+
+        from pypeit.spectrographs.keck_hires import
+        # Load the template from file
+        #template = self.spectrograph.grab_template_filename()
+
 
     def show(self, item, slit=None):
         """

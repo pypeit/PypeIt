@@ -24,6 +24,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
     camera = 'TSPEC'
     header_name = 'TSPEC_SPEC'
     pypeline = 'Echelle'
+    ech_fixed_format = True
     supported = True
     comment = 'TripleSpec spectrograph'
 

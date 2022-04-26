@@ -2434,11 +2434,11 @@ class WavelengthSolutionPar(ParSet):
                              'computation for each arc line. If not an odd number one will ' \
                              'be added to it to make it odd.'
 
-        defaults['ech_fix_format'] = True
-        dtypes['ech_fix_format'] = bool
-        descr['ech_fix_format'] = 'Is this a fixed format echelle?  If so reidentification ' \
-                                  'will assume that each order in the data is aligned with a ' \
-                                  'single order in the reid arxiv.'
+#        defaults['ech_fix_format'] = True
+#        dtypes['ech_fix_format'] = bool
+#        descr['ech_fix_format'] = 'Is this a fixed format echelle?  If so reidentification ' \
+#                                  'will assume that each order in the data is aligned with a ' \
+#                                  'single order in the reid arxiv.'
 
         # These are the parameters used for the iterative fitting of the arc lines
         defaults['rms_threshold'] = 0.15
