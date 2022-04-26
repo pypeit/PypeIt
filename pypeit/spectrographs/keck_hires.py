@@ -17,7 +17,9 @@ from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
-from pypeit import data
+from pypeit.par import pypeitpar
+
+from IPython import embed
 
 
 class KECKHIRESSpectrograph(spectrograph.Spectrograph):
@@ -52,10 +54,10 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         #self.meta['dispname'] = dict(ext=0, card='ECHNAME')
         # Extras for config and frametyping
         self.meta['hatch'] = dict(ext=0, card='HATOPEN')
-        self.meta['xd'] = dict(ext=0, card='XDISPERS')
+        self.meta['dispname'] = dict(ext=0, card='XDISPERS')
         self.meta['filter1'] = dict(ext=0, card='FIL1NAME')
-        self.meta['echangle'] = dict(ext=0, card='ECHANGL')
-        self.meta['xdangle'] = dict(ext=0, card='XDANGL')
+        self.meta['echangle'] = dict(ext=0, card='ECHANGL', rtol=1e-3)
+        self.meta['xdangle'] = dict(ext=0, card='XDANGL', rtol=1e-3)
         self.meta['idname'] = dict(ext=0, card='IMAGETYP')
         self.meta['frameno'] = dict(ext=0, card='FRAMENO')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
@@ -98,7 +100,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['xd', 'filter1', 'echangle', 'xdangle']
+        return ['filter1', 'echangle', 'xdangle']
 
 
     def pypeit_file_keys(self):
@@ -124,7 +126,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         """
         par = super().default_pypeit_par()
         # Correct for flexure using the default approach
-        par['flexure'] = pypeitpar.FlexurePar()
+        #par['flexure'] = pypeitpar.FlexurePar()
         return par
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
@@ -165,6 +167,108 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
+
+
+    def get_rawimage(self, raw_file, det):
+        """
+        Read raw images and generate a few other bits and pieces
+        that are key for image processing.
+
+        Based on readmhdufits.pro
+
+        Parameters
+        ----------
+        raw_file : :obj:`str`
+            File to read
+        det : :obj:`int`
+            1-indexed detector to read
+
+        Returns
+        -------
+        detector_par : :class:`pypeit.images.detector_container.DetectorContainer`
+            Detector metadata parameters.
+        raw_img : `numpy.ndarray`_
+            Raw image for this detector.
+        hdu : `astropy.io.fits.HDUList`_
+            Opened fits file
+        exptime : :obj:`float`
+            Exposure time read from the file header
+        rawdatasec_img : `numpy.ndarray`_
+            Data (Science) section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        oscansec_img : `numpy.ndarray`_
+            Overscan section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        """
+        # TODO -- Put a check in here to avoid data using the
+        #  original CCD (1 chip)
+
+        # Read a single HIRES chip
+        image, header, rawdatasec_img, oscansec_img, hdul = read_hires(raw_file, det=det)
+        
+        detector_par = self.get_detector_par(det, hdu=hdul)
+
+        # Return
+        return detector_par, image, hdul, header['EXPTIME'], rawdatasec_img, oscansec_img
+
+    def get_detector_par(self, det, hdu=None):
+        """
+        Return metadata for the selected detector.
+
+        Args:
+            det (:obj:`int`):
+                1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
+
+        Returns:
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
+        """
+        # Binning
+        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
+
+        # Detector 1
+        # TODO -- Fill these in properly for HIRES
+        detector_dict1 = dict(
+            binning         = binning,
+            det             = 1,
+            dataext         = 1,
+            specaxis        = 0,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.135,
+            darkcurr        = 0.0,
+            saturation      = 65535.,
+            nonlinear       = 0.86,
+            mincounts       = -1e10,
+            numamplifiers   = 1,
+            gain            = np.atleast_1d([1.]),
+            ronoise         = np.atleast_1d([3.]),
+            )
+
+        # Detector 2
+        detector_dict2 = detector_dict1.copy()
+        detector_dict2.update(dict(
+            det=2,
+            dataext=2,
+            gain=np.atleast_1d([1.]),
+            ronoise=np.atleast_1d([3.])
+        ))
+
+        # Instantiate
+        detector_dicts = [detector_dict1, detector_dict2]
+        detector = detector_container.DetectorContainer(
+            **detector_dicts[det-1])
+
+        if hdu is None:
+            return detector
+
+        # Return
+        return detector
 
 # TODO: This spectrograph is way out of date
 #    def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
@@ -335,15 +439,6 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
 
         return par
 
-    def init_meta(self):
-        """
-        Define how metadata are derived from the spectrograph files.
-
-        That is, this associates the ``PypeIt``-specific metadata keywords
-        with the instrument-specific header cards using :attr:`meta`.
-        """
-        super().init_meta()
-        self.meta['decker'] = dict(ext=0, card='DECKNAME')
 
 
 def indexing(itt, postpix, det=None,xbin=None,ybin=None):
@@ -443,25 +538,26 @@ def read_hires(raw_file, det=None):
 
     Returns
     -------
-    array : ndarray
-        Combined image
+    image : ndarray
+        Raw image including overscan
     header : FITS header
-    sections : tuple
-        List of datasec, oscansec sections
+    rawdatasec_img : `numpy.ndarray`_
+        Data (Science) section of the detector as provided by setting the
+        (1-indexed) number of the amplifier used to read each detector pixel.
+        Pixels unassociated with any amplifier are set to 0.
+    oscansec_img : `numpy.ndarray`_
+        Overscan section of the detector as provided by setting the
+        (1-indexed) number of the amplifier used to read each detector pixel.
+        Pixels unassociated with any amplifier are set to 0.
+    hdu : List of HUDs
 
     """
 
     # Check for file; allow for extra .gz, etc. suffix
-    fil = glob.glob(raw_file + '*')
-    if len(fil) != 1:
-        msgs.error('Found {0} files matching {1}'.format(len(fil), raw_file + '*'))
-    # Read
-    try:
-        msgs.info("Reading HIRES file: {:s}".format(fil[0]))
-    except AttributeError:
-        print("Reading HIRES file: {:s}".format(fil[0]))
+    if not os.path.isfile(raw_file):
+        msgs.error(f'{raw_file} not found!')
 
-    hdu = io.fits_open(fil[0])
+    hdu = io.fits_open(raw_file)
     head0 = hdu[0].header
 
     # Get post, pre-pix values
@@ -510,12 +606,19 @@ def read_hires(raw_file, det=None):
         image[y1:y2, x1:x2] = data
         image[o_y1:o_y2, o_x1:o_x2] = oscan
 
+        # Rawdatasec
+        rawdatasec_img = np.zeros_like(image, dtype=int)
+        rawdatasec_img[y1:y2, x1:x2] = 1
+        oscansec_img = np.zeros_like(image, dtype=int)
+        oscansec_img[o_y1:o_y2, o_x1:o_x2] = 1
+
         # Sections
         idsec = '[{:d}:{:d},{:d}:{:d}]'.format(y1, y2, x1, x2)
         iosec = '[{:d}:{:d},{:d}:{:d}]'.format(o_y1, o_y2, o_x1, o_x2)
         dsec.append(idsec)
         osec.append(iosec)
+
     # Return
-    return image, head0, (dsec,osec)
+    return image, head0, rawdatasec_img, oscansec_img, hdu
 
 
