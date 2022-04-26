@@ -729,23 +729,25 @@ class Identify:
                 #outroot = templates.pypeit_identify_record(final_fit, binspec, specname, gratname, dispangl, outdir=master_dir)
                 wavelengths = self._fitdict['full_fit'].eval(np.arange(self.specdata.size) /
                                                              (self.specdata.size - 1))
+
+                # Instead of a generic name, save the wvarxiv with a unique identifier
+                date_str = datetime.now().strftime("%Y%m%dT%H%M")
+                wvarxiv_name = f"wvarxiv_{self.specname}_{date_str}.fits"
                 wvutils.write_template(wavelengths, self.specdata, binspec,
-                                         './', 'wvarxiv.fits')
+                                         './', wvarxiv_name)
 
                 # Also copy the file to the cache for direct use
-                date_str = datetime.now().strftime("%Y%m%dT%H%M")
-                cachename = f"manual_{self.specname}_{date_str}.fits"
-                data.write_file_to_cache("wvarxiv.fits",
-                                         cachename,
+                data.write_file_to_cache(wvarxiv_name,
+                                         wvarxiv_name,
                                          "arc_lines/reid_arxiv")
 
-                msgs.info("Your arxiv solution has been written to ./wvarxiv.fits\n")
+                msgs.info(f"Your arxiv solution has been written to ./{wvarxiv_name}\n")
                 msgs.info(f"Your arxiv solution has also been cached.{msgs.newline()}"
                           f"To utilize this wavelength solution, insert the{msgs.newline()}"
                           f"following block in your PypeIt Reduction File:{msgs.newline()}"
                           f" [calibrations]{msgs.newline()}"
                           f"   [[wavelengths]]{msgs.newline()}"
-                          f"     reid_arxiv = {cachename}{msgs.newline()}"
+                          f"     reid_arxiv = {wvarxiv_name}{msgs.newline()}"
                           f"     method = full_template\n")
 
                 # Write the WVCalib file

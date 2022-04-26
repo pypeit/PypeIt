@@ -10,7 +10,7 @@ from pypeit import data
 from pypeit import msgs
 from pypeit.spectrographs import available_spectrographs
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit import __version__ as pypeit_version
+from pypeit import __version__
 
 class CacheGithubData(scriptbase.ScriptBase):
 
@@ -32,7 +32,7 @@ class CacheGithubData(scriptbase.ScriptBase):
 
         # First, get the list of reid_arxiv files in GitHub for the present PypeIt version
         # Look in the current `develop` branch if the code is not a tagged release
-        tag = "develop" if ".dev" in pypeit_version else pypeit_version
+        tag = "develop" if ".dev" in __version__ else __version__
         
         # Use PyGithub to get the download URLs from the repo, with error checking
         repo = github.Github().get_repo("pypeit/PypeIt")
