@@ -131,6 +131,7 @@ class Paths(metaclass=Paths_meta):
 
     [extended_summary]
     """
+    github_repo = github.Github().get_repo("pypeit/PypeIt")
 
 
 # Remote-fetch functions for package data not distributed via PyPI ===========#
@@ -487,8 +488,7 @@ def _build_remote_url(f_name, f_type, remote_host="", test_version=None):
 
         # Use PyGithub to get the download URL from the repo, with error checking
         try:
-            repo = github.Github().get_repo("pypeit/PypeIt")
-            dir_listing = repo.get_contents(f"pypeit/data/{f_type}", tag)
+            dir_listing = Paths.github_repo.get_contents(f"pypeit/data/{f_type}", tag)
         except github.GithubException as err:
             raise ValueError(f"Directory {f_type} not found in the '{tag}' GitHub tree") from err
         urls = [listing.download_url for listing in dir_listing if listing.name == f_name]
@@ -525,13 +525,9 @@ def _get_s3_hostname():
         s3_hostname: str
           The current hostname URL of the S3 server holding package data
     """
-    # Always point to the `release` version of `s3_url.txt`, which can be updated
-    # via a hotfix PR and does not require the user to upgrade the package
-
     # Try getting the latest version from the server, else use what's included
     try:
-        repo = github.Github().get_repo("pypeit/PypeIt")
-        remote_url = repo.get_contents("pypeit/data/s3_url.txt", "release").download_url
+        remote_url = Paths.github_repo.get_contents("pypeit/data/s3_url.txt", "release").download_url
         filepath = astropy_data.download_file(remote_url, cache="update",
                                               timeout=10, pkgname="pypeit")
     except (urllib.error.URLError, github.GithubException):
