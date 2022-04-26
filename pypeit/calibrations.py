@@ -719,9 +719,12 @@ class Calibrations:
             is_arc = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID)
             lamps = self.spectrograph.get_lamps(self.fitstbl[is_arc]) \
                 if self.par['wavelengths']['lamps'] == ['use_header'] else self.par['wavelengths']['lamps']
+            meta_dict = dict(self.fitstbl[is_arc][0]) \
+                if self.spectrograph.pypeline == 'Echelle' and not self.spectrograph.ech_fixed_format else None
             # Instantiate
             self.waveCalib = wavecalib.BuildWaveCalib(self.msarc, self.slits, self.spectrograph,
                                                       self.par['wavelengths'], lamps,
+                                                      meta_dict = meta_dict,
                                                       binspectral=binspec, det=self.det,
                                                       master_key=self.master_key_dict['arc'],
                                                       qa_path=self.qa_path) #, msbpm=self.msbpm)
