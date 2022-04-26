@@ -1,11 +1,7 @@
 """
 Module to run tests on WaveCalib and WaveFit
 """
-import sys
-import io
 import os
-import shutil
-import inspect
 
 import pytest
 
