@@ -1,25 +1,23 @@
 """
-Implements HIRES-specific functions, including reading in slitmask design
-files.
+Module for Keck/HIRES
 
-.. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import glob
-
-from IPython import embed
+import os
 
 import numpy as np
 
-from scipy import interpolate
+from astropy.coordinates import SkyCoord
+from astropy import units
 
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
-from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
+from pypeit.images import detector_container
+from pypeit import data
 
 
 class KECKHIRESSpectrograph(spectrograph.Spectrograph):
@@ -28,23 +26,11 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
     This spectrograph is not yet supported.
     """
-    ndet = 1
+
+    ndet = 3
     telescope = telescopes.KeckTelescopePar()
     pypeline = 'Echelle'
-
-    @classmethod
-    def default_pypeit_par(cls):
-        """
-        Return the default parameters to use for this instrument.
-        
-        Returns:
-            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
-        """
-        par = super().default_pypeit_par()
-        # Correct for flexure using the default approach
-        par['flexure'] = pypeitpar.FlexurePar()
-        return par
+    header_name = 'HIRES'
 
     def init_meta(self):
         """
@@ -66,8 +52,24 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         self.meta['dispname'] = dict(ext=0, card='ECHNAME')
         # Extras for config and frametyping
-#        self.meta['echangl'] = dict(ext=0, card='ECHANGL')
-#        self.meta['xdangl'] = dict(ext=0, card='XDANGL')
+
+    #        self.meta['echangl'] = dict(ext=0, card='ECHANGL')
+    #        self.meta['xdangl'] = dict(ext=0, card='XDANGL')
+
+
+    @classmethod
+    def default_pypeit_par(cls):
+        """
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
+        """
+        par = super().default_pypeit_par()
+        # Correct for flexure using the default approach
+        par['flexure'] = pypeitpar.FlexurePar()
+        return par
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
