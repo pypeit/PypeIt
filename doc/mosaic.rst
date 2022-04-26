@@ -10,7 +10,7 @@ Detector Mosaics
 If the geometry of each detector in a detector array is known *a priori*,
 ``PypeIt`` can construct a mosaic of the detector data for further processing,
 instead of processing the detector data individually.  This is currently the
-default approach for Gemini/GMOS only (soon we will add Keck/DEIMOS).
+default approach for Gemini/GMOS and  Keck/DEIMOS only.
 
 Coordinate Conventions
 ----------------------
