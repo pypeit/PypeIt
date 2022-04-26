@@ -90,6 +90,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
     """
     name = 'magellan_fire'
     pypeline = 'Echelle'
+    ech_fixed_format = True
     supported = True
     comment = 'Magellan/FIRE in echelle mode'
 

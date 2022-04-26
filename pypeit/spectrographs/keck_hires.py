@@ -35,6 +35,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
     camera = 'HIRES'
     header_name = 'HIRES'
     pypeline = 'Echelle'
+    ech_fixed_format = False
     supported = True
 
 

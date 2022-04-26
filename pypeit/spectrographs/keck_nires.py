@@ -22,7 +22,9 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
     camera = 'NIRES'
     header_name = 'NIRES'
     pypeline = 'Echelle'
+    ech_fixed_format = True
     supported = True
+
 
     def get_detector_par(self, det, hdu=None):
         """
