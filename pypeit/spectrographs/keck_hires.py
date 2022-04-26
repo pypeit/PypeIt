@@ -6,6 +6,7 @@ Module for Keck/HIRES
 import os
 
 import numpy as np
+from scipy.io import readsav
 
 from pkg_resources import resource_filename
 
@@ -764,3 +765,12 @@ def grab_arctempl_file(arc_meta:dict, ORDRS=None):
 
     # Return
     return cut_tbl['Name'][idx]
+
+def load_hires_template(template_file:str):
+    dat_dict = readsav(template_file)
+
+    # Chop down to good orders
+    n_orders = len(dat_dict['guess_ordr'])
+
+    # Return
+    return dat_dict['guess_ordr'], dat_dict['sv_aspec'][:n_orders,:]
