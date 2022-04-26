@@ -316,8 +316,7 @@ class FindObjects:
         skymask0, usersky = self.load_skyregions(None)
         # JFH Perform a first pass sky-subtraction without masking any objects
         # TODO: DEIMOS box slits are not being sky-subtracted. Not sure why
-        initial_sky0 = self.global_skysub(skymask=skymask0, update_crmask=False).copy()
-
+        initial_sky0 = self.global_skysub(skymask=skymask0, update_crmask=False, objs_not_masked=True).copy()
         # First pass object finding (JFH added skysubtraction here)
         sobjs_obj, self.nobj = \
             self.find_objects(self.sciImg.image-initial_sky0, self.sciImg.ivar, std_trace=std_trace,
@@ -455,7 +454,7 @@ class FindObjects:
         pass
 
     def global_skysub(self, skymask=None, update_crmask=True, trim_edg=(3,3),
-                      previous_sky=None, show_fit=False, show=False, show_objs=False):
+                      previous_sky=None, show_fit=False, show=False, show_objs=False, objs_not_masked=False):
         """
         Perform global sky subtraction, slit by slit
 
@@ -471,6 +470,10 @@ class FindObjects:
             previous_sky (`numpy.ndarray`_, optional):
                 Sky model estimate from a previous run of global_sky
                 Used to generate an improved estimated of the variance
+            objs_not_masked (bool, optional):
+                Set this to be True if there are objects on the slit/order that are not being masked
+                by the skymask. This is typically the case for the first pass sky-subtraction
+                before object finding, since a skymask has not yet been created.
 
         Returns:
             `numpy.ndarray`_: image of the the global sky model
@@ -532,7 +535,7 @@ class FindObjects:
                 bsp=self.par['reduce']['skysub']['bspline_spacing'],
                 trim_edg=tuple(self.par['reduce']['trim_edge']),
                 no_poly=self.par['reduce']['skysub']['no_poly'],
-                pos_mask=(not self.bkg_redux), show_fit=show_fit)
+                pos_mask=(not self.bkg_redux) and not objs_not_masked, show_fit=show_fit)
 
             # Mask if something went wrong
             if np.sum(global_sky[thismask]) == 0.:
@@ -1147,7 +1150,7 @@ class IFUFindObjects(MultiSlitFindObjects):
         self.apply_relative_scale(scaleImg)
 
     def joint_skysub(self, skymask=None, update_crmask=True, trim_edg=(0,0),
-                     show_fit=False, show=False, show_objs=False, adderr=0.01):
+                     show_fit=False, show=False, show_objs=False, adderr=0.01, objs_not_masked=False):
         """ Perform a joint sky model fit to the data. See Reduce.global_skysub()
         for parameter definitions.
         """
@@ -1182,7 +1185,7 @@ class IFUFindObjects(MultiSlitFindObjects):
                                                              sigrej=sigrej, trim_edg=trim_edg,
                                                              bsp=self.par['reduce']['skysub']['bspline_spacing'],
                                                              no_poly=self.par['reduce']['skysub']['no_poly'],
-                                                             pos_mask=(not self.bkg_redux), show_fit=show_fit)
+                                                             pos_mask=(not self.bkg_redux) and not objs_not_masked, show_fit=show_fit)
             # Update the ivar image used in the sky fit
             msgs.info("Updating sky noise model")
             # Choose the highest counts out of sky and object
@@ -1216,7 +1219,7 @@ class IFUFindObjects(MultiSlitFindObjects):
         return global_sky
 
     def global_skysub(self, skymask=None, update_crmask=True, trim_edg=(0,0),
-                      previous_sky=None, show_fit=False, show=False, show_objs=False):
+                      previous_sky=None, show_fit=False, show=False, show_objs=False, objs_not_masked=False):
         """
         Perform global sky subtraction. This IFU-specific routine ensures that the
         edges of the slits are not trimmed, and performs a spatial and spectral
@@ -1254,12 +1257,14 @@ class IFUFindObjects(MultiSlitFindObjects):
         if self.par['reduce']['skysub']['joint_fit']:
             # Use sky information in all slits to perform a joint sky fit
             global_sky = self.joint_skysub(skymask=skymask, update_crmask=update_crmask, trim_edg=trim_edg,
-                                                show_fit=show_fit, show=show, show_objs=show_objs)
+                                           show_fit=show_fit, show=show, show_objs=show_objs,
+                                           objs_not_masked=objs_not_masked)
         else:
             # Re-run global skysub on individual slits, with the science frame now scaled
             global_sky = super().global_skysub(skymask=skymask, update_crmask=update_crmask,
-                                                    trim_edg=trim_edg, show_fit=show_fit,
-                                                    show=show, show_objs=show_objs)
+                                               trim_edg=trim_edg, show_fit=show_fit,
+                                               show=show, show_objs=show_objs,
+                                               objs_not_masked=objs_not_masked)
 
         # TODO remove? This does not seem to be usable
         # debug = False
