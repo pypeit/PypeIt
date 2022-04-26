@@ -131,16 +131,6 @@ class Paths(metaclass=Paths_meta):
 
     [extended_summary]
     """
-    # Go through a rather convoluted process to get the root download URL for
-    #  everything in the `data/` directory; point to the current `develop`
-    #  branch if the code is not a tagged release
-    github_repo = github.Github().get_repo("pypeit/PypeIt")
-    github_data = (
-        github_repo.get_contents(
-            "pypeit/data/utils.py",
-            "develop" if ".dev" in pypeit_version else pypeit_version)
-        .download_url.strip("utils.py")
-    )
 
 
 # Remote-fetch functions for package data not distributed via PyPI ===========#
@@ -488,8 +478,12 @@ def _build_remote_url(f_name, f_type, remote_host=""):
           `url` (above) is what controls the download.
     """
     if remote_host == "github":
-        # Use the GitHub download URL from PyGithub
-        return f"{Paths.github_data}/{f_type}/{f_name}", None
+        # Hard-wire the URL based on PypeIt Version
+        data_url = (
+            "https://raw.githubusercontent.com/pypeit/PypeIt/"
+            f"{'develop' if '.dev' in pypeit_version else pypeit_version}/pypeit/data/"
+        )
+        return f"{data_url}/{f_type}/{f_name}", None
 
     if remote_host == "s3_cloud":
         # Build up the (permanent, fake) `remote_url` and (fluid, real) `sources` for S3 Cloud
@@ -520,9 +514,12 @@ def _get_s3_hostname():
     """
     # Try getting the latest version from the server, else use what's included
     try:
-        remote_url = Paths.github_repo.get_contents(
-            "pypeit/data/s3_url.txt", "release"
-        ).download_url
+        remote_url = (
+            github.Github()
+            .get_repo("pypeit/PypeIt")
+            .get_contents("pypeit/data/s3_url.txt", "release")
+            .download_url
+        )
         filepath = astropy_data.download_file(
             remote_url, cache="update", timeout=10, pkgname="pypeit"
         )

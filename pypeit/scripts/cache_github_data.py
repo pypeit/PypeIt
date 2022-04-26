@@ -34,7 +34,7 @@ class CacheGithubData(scriptbase.ScriptBase):
         tag = "develop" if ".dev" in pypeit_version else pypeit_version
         
         # Use PyGithub to get the download URLs from the repo, with error checking
-        repo = data.Paths.github_repo
+        repo = github.Github().get_repo("pypeit/PypeIt")
         try:
             arxiv_listing = repo.get_contents(f"pypeit/data/arc_lines/reid_arxiv", tag)
             sensfunc_listing = repo.get_contents(f"pypeit/data/sensfuncs", tag)
