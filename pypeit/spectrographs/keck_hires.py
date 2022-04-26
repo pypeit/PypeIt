@@ -41,20 +41,76 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         """
         self.meta = {}
         # Required (core)
-        self.meta['ra'] = dict(ext=0, card='RA')
-        self.meta['dec'] = dict(ext=0, card='DEC')
+        self.meta['ra'] = dict(ext=0, card='RA', required_ftypes=['science', 'standard'])
+        self.meta['dec'] = dict(ext=0, card='DEC', required_ftypes=['science', 'standard'])
         self.meta['target'] = dict(ext=0, card='OBJECT')
         self.meta['decker'] = dict(ext=0, card='DECKNAME')
-        self.meta['binning'] = dict(ext=0, card='BINNING')
-
+        self.meta['binning'] = dict(card=None, compound=True)
         self.meta['mjd'] = dict(ext=0, card='MJD')
-        self.meta['exptime'] = dict(ext=0, card='EXPTIME')
+        self.meta['exptime'] = dict(ext=0, card='ELAPTIME') # This may depend on the old/new detector
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
-        self.meta['dispname'] = dict(ext=0, card='ECHNAME')
+        #self.meta['dispname'] = dict(ext=0, card='ECHNAME')
         # Extras for config and frametyping
+        self.meta['hatch'] = dict(ext=0, card='HATOPEN')
+        self.meta['xd'] = dict(ext=0, card='XDISPERS')
+        self.meta['filter1'] = dict(ext=0, card='FIL1NAME')
+        self.meta['echangle'] = dict(ext=0, card='ECHANGL')
+        self.meta['xdangle'] = dict(ext=0, card='XDANGL')
+        self.meta['idname'] = dict(ext=0, card='IMAGETYP')
+        self.meta['frameno'] = dict(ext=0, card='FRAMENO')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
-    #        self.meta['echangl'] = dict(ext=0, card='ECHANGL')
-    #        self.meta['xdangl'] = dict(ext=0, card='XDANGL')
+
+    def compound_meta(self, headarr, meta_key):
+        """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
+
+        Args:
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
+
+        Returns:
+            object: Metadata value read from the header(s).
+        """
+        if meta_key == 'binning':
+            # TODO JFH Is this correct or should it be flipped?
+            binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
+            binning = parse.binning2string(binspec, binspatial)
+            return binning
+        else:
+            msgs.error("Not ready for this compound meta")
+
+
+    def configuration_keys(self):
+        """
+        Return the metadata keys that define a unique instrument
+        configuration.
+
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
+        """
+        return ['xd', 'filter1', 'echangle', 'xdangle']
+
+
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard ``PypeIt`` file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        return super().pypeit_file_keys() + ['frameno']
 
 
     @classmethod
