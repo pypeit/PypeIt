@@ -26,27 +26,18 @@ def test_cloud_url():
 
 def test_fetch_github_files():
 
-    # Define the version as the most recent stable release for GitHub fetch
-    pv = pkg_resources.parse_version(__version__)
-    if pv.is_devrelease:
-        # If this is a development version
-        prev_release = "develop"
-    else:
-        # Otherwise, just use the version
-        prev_release = __version__
-
     # These are commonly used files, do all three in one test
     # First test a `reid_arxiv` file
     data.fetch_remote_file("keck_deimos_600ZD.fits", "arc_lines/reid_arxiv",
-                           test_version=prev_release, force_update=True)
+                           force_update=True)
 
     # Next, try a `skisim` file
     data.fetch_remote_file("mktrans_zm_10_10.dat", "skisim",
-                           test_version=prev_release, force_update=True)
+                           force_update=True)
  
     # Finally, try a `sensfunc` file
     data.fetch_remote_file("keck_deimos_600ZD_sensfunc.fits", "sensfuncs",
-                           test_version=prev_release, force_update=True)
+                           force_update=True)
 
 
 def test_load_sky_spectrum():
