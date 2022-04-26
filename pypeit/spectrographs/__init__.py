@@ -50,4 +50,6 @@ def spectrograph_classes():
     srt = np.argsort(np.array([c.name for c in spec_c]))
     return dict([ (c.name,c) for c in spec_c[srt]])
 
+from IPython import embed
+embed()
 available_spectrographs = list(spectrograph_classes().keys())

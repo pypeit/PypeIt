@@ -34,6 +34,93 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
     pypeline = 'Echelle'
     header_name = 'HIRES'
 
+    # Place holder taken from X-shooter VIS
+    @classmethod
+    def default_pypeit_par(cls):
+        """
+        Return the default parameters to use for this instrument.
+
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
+        """
+        par = super().default_pypeit_par()
+
+        # Adjustments to parameters for VIS
+        turn_on = dict(use_biasimage=False, use_overscan=True, overscan_method='median',
+                       use_darkimage=False, use_illumflat=False, use_pixelflat=False,
+                       use_specillum=False)
+        par.reset_all_processimages_par(**turn_on)
+
+        # X-SHOOTER arcs/tilts are also have different binning with bias
+        # frames, so don't use bias frames. Don't use the biases for any
+        # calibrations since it appears to be a different amplifier readout
+        par['calibrations']['traceframe']['process']['overscan_method'] = 'median'
+
+        # Right now we are using the overscan and not biases becuase the
+        # standards are read with a different read mode and we don't yet have
+        # the option to use different sets of biases for different standards,
+        # or use the overscan for standards but not for science frames
+        par['scienceframe']['process']['use_biasimage'] = True
+        par['scienceframe']['process']['use_illumflat'] = True
+        par['scienceframe']['process']['use_pixelflat'] = True
+        par['calibrations']['standardframe']['process']['use_illumflat'] = True
+        par['calibrations']['standardframe']['process']['use_pixelflat'] = True
+        # par['scienceframe']['useframe'] ='overscan'
+
+        par['calibrations']['slitedges']['edge_thresh'] = 8.0
+        par['calibrations']['slitedges']['fit_order'] = 8
+        par['calibrations']['slitedges']['max_shift_adj'] = 0.5
+        par['calibrations']['slitedges']['trace_thresh'] = 10.
+        par['calibrations']['slitedges']['left_right_pca'] = True
+        par['calibrations']['slitedges']['length_range'] = 0.3
+
+        # These are the defaults
+        par['calibrations']['tilts']['tracethresh'] = 15
+        par['calibrations']['tilts']['spat_order'] = 3
+        par['calibrations']['tilts']['spec_order'] = 5  # [5, 5, 5] + 12*[7] # + [5]
+
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_VIS']
+        # This is for 1x1 binning. TODO GET BINNING SORTED OUT!!
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.50
+        par['calibrations']['wavelengths']['sigdetect'] = 5.0
+        par['calibrations']['wavelengths']['n_final'] = [3] + 13 * [4] + [3]
+        # This is for 1x1 binning. Needs to be divided by binning for binned data!!
+        par['calibrations']['wavelengths']['fwhm'] = 11.0
+        # Reidentification parameters
+        par['calibrations']['wavelengths']['method'] = 'reidentify'
+        # TODO: the arxived solution is for 1x1 binning. It needs to be
+        # generalized for different binning!
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_vis1x1.fits'
+        par['calibrations']['wavelengths']['cc_thresh'] = 0.50
+        par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
+        par['calibrations']['wavelengths']['ech_fix_format'] = True
+        # Echelle parameters
+        par['calibrations']['wavelengths']['echelle'] = True
+        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
+        par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
+        par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+
+        # Flats
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
+        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
+
+        # Extraction
+        par['reduce']['skysub']['bspline_spacing'] = 0.5
+        par['reduce']['skysub']['global_sky_std'] = False
+        # local sky subtraction operates on entire slit
+        par['reduce']['extraction']['model_full_slit'] = True
+        # Mask 3 edges pixels since the slit is short, insted of default (5,5)
+        par['reduce']['findobj']['find_trim_edge'] = [3, 3]
+        # Continnum order for determining thresholds
+
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = [9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Paranal_VIS_4900_11100_R25000.fits'
+        return par
+
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
@@ -383,61 +470,61 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 #                 self.datasec_img[datasec] = i+1
 #         return self.datasec_img
 
-
-class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
-    """
-    Child to handle KECK/HIRES-R specific code
-
-    .. warning::
-        Spectrograph not yet supported
-    """
-    name = 'keck_hires_red'
-    camera = 'HIRES_R'
-
-    @classmethod
-    def default_pypeit_par(cls):
-        """
-        Return the default parameters to use for this instrument.
-        
-        Returns:
-            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
-        """
-        par = super().default_pypeit_par()
-
-        # Adjustments to slit and tilts for NIR
-        par['calibrations']['slitedges']['edge_thresh'] = 600.
-        par['calibrations']['slitedges']['fit_order'] = 5
-        par['calibrations']['slitedges']['max_shift_adj'] = 0.5
-        par['calibrations']['slitedges']['left_right_pca'] = True
-
-        par['calibrations']['tilts']['tracethresh'] = 20
-        # Bias
-        par['calibrations']['biasframe']['useframe'] = 'bias'
-
-        # 1D wavelength solution
-        par['calibrations']['wavelengths']['lamps'] = ['ThAr']
-        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.25
-        par['calibrations']['wavelengths']['sigdetect'] = 5.0
-        # Reidentification parameters
-        #par['calibrations']['wavelengths']['method'] = 'reidentify'
-        #par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_nir.json'
-        par['calibrations']['wavelengths']['ech_fix_format'] = True
-        # Echelle parameters
-        par['calibrations']['wavelengths']['echelle'] = True
-        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
-        par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
-        par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
-
-        # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
-        par['scienceframe']['process']['sigclip'] = 20.0
-        par['scienceframe']['process']['satpix'] ='nothing'
-        par['calibrations']['standardframe']['exprng'] = [None, 600]
-        par['scienceframe']['exprng'] = [600, None]
-
-        return par
+# This is deprecated.
+# class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
+#     """
+#     Child to handle KECK/HIRES-R specific code
+#
+#     .. warning::
+#         Spectrograph not yet supported
+#     """
+#     name = 'keck_hires_red'
+#     camera = 'HIRES_R'
+#
+#     @classmethod
+#     def default_pypeit_par(cls):
+#         """
+#         Return the default parameters to use for this instrument.
+#
+#         Returns:
+#             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+#             all of ``PypeIt`` methods.
+#         """
+#         par = super().default_pypeit_par()
+#
+#         # Adjustments to slit and tilts for NIR
+#         par['calibrations']['slitedges']['edge_thresh'] = 600.
+#         par['calibrations']['slitedges']['fit_order'] = 5
+#         par['calibrations']['slitedges']['max_shift_adj'] = 0.5
+#         par['calibrations']['slitedges']['left_right_pca'] = True
+#
+#         par['calibrations']['tilts']['tracethresh'] = 20
+#         # Bias
+#         par['calibrations']['biasframe']['useframe'] = 'bias'
+#
+#         # 1D wavelength solution
+#         par['calibrations']['wavelengths']['lamps'] = ['ThAr']
+#         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+#         par['calibrations']['wavelengths']['rms_threshold'] = 0.25
+#         par['calibrations']['wavelengths']['sigdetect'] = 5.0
+#         # Reidentification parameters
+#         #par['calibrations']['wavelengths']['method'] = 'reidentify'
+#         #par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_nir.json'
+#         par['calibrations']['wavelengths']['ech_fix_format'] = True
+#         # Echelle parameters
+#         par['calibrations']['wavelengths']['echelle'] = True
+#         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
+#         par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
+#         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+#
+#         # Always correct for flexure, starting with default parameters
+#         par['flexure'] = pypeitpar.FlexurePar()
+#         par['scienceframe']['process']['sigclip'] = 20.0
+#         par['scienceframe']['process']['satpix'] ='nothing'
+#         par['calibrations']['standardframe']['exprng'] = [None, 600]
+#         par['scienceframe']['exprng'] = [600, None]
+#
+#         return par
 
 
 
