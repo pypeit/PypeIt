@@ -11,16 +11,9 @@ import numpy as np
 from astropy import time
 from pypeit import data
 
-from pypeit.images import buildimage
-from pypeit import edgetrace
-from pypeit import wavecalib
-from pypeit import flatfield
-from pypeit import wavetilts
-from pypeit.core.wavecal import waveio
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.metadata import PypeItMetaData
-from pypeit import masterframe
 
 # ----------------------------------------------------------------------
 # pytest @decorators setting the tests to perform

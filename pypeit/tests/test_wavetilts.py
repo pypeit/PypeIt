@@ -8,23 +8,9 @@ import pytest
 import numpy as np
 
 
-from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters, cooked_required
+from pypeit.tests.tstutils import data_path
 from pypeit import wavetilts
-from pypeit import slittrace
-from pypeit.core import tracewave, pixels
-from pypeit.par import pypeitpar
-from pypeit.spectrographs.util import load_spectrograph
 
-
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
-
-
-@pytest.fixture
-@cooked_required
-def master_dir():
-    return os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue')
 
 instant_dict = dict(coeffs=np.ones((6,4,1)),
                     nslit=1,
