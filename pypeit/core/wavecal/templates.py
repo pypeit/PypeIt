@@ -391,7 +391,7 @@ def read_ascii(tbl_file, in_vac=True):
 
 def xidl_arcspec(xidl_file, slit):
     """
-    Read an XIDL format solution
+    Read an XIDL format solution for a Longslit
 
     Note:  These are in air
 
@@ -400,6 +400,10 @@ def xidl_arcspec(xidl_file, slit):
         slit (int):
 
     Returns:
+        wave (np.ndarray):
+            Wavelengths in vacuum for that slit
+        spec (np.ndarray):
+            Arc spectrum for that slit
 
     """
     xidl_dict = readsav(xidl_file)
@@ -428,6 +432,54 @@ def xidl_arcspec(xidl_file, slit):
         spec = spec[::-1]
     # Return
     return wv_vac.value, spec
+
+
+def xidl_hires(xidl_file, bin=1):
+    """
+    Read an XIDL format solution for Keck/HIRES
+
+    Note:  They used air
+
+    Args:
+        xidl_file (str):
+            Keck/HIRES save file
+
+    Returns:
+
+    """
+    xidl_dict = readsav(xidl_file)
+    nspec = xidl_dict['guess_ordr'].size
+    npix = xidl_dict['sv_aspec'].shape[1]
+
+    # Wavelengths
+    wave = np.zeros((nspec, npix))
+    spec = np.zeros((nspec, npix))
+
+    calib = xidl_dict['all_arcfit']
+
+    # Here we go on the fits
+    for kk in range(nspec):
+        # Generate the wavelengths
+        if calib['FUNC'][kk] == b'CHEBY':
+            log10_wv_air = cheby_val(calib['FFIT'][kk], 
+                               np.arange(npix),
+                        calib['NRM'][kk], calib['NORD'][kk])
+        elif calib['FUNC'][kk] == b'POLY':
+            log10_wv_air = poly_val(calib['FFIT'][kk], 
+                              np.arange(npix), 
+                              calib['NRM'][kk])
+
+        wv_vac = airtovac(10**log10_wv_air * units.AA)
+        ispec = xidl_dict['sv_aspec'][kk,:]
+        # Flip to blue to red?
+        if wv_vac[1] < wv_vac[0]:
+            wv_vac = wv_vac[::-1]
+            ispec = ispec[::-1]
+        # Fill
+        wave[kk,:] = wv_vac.value
+        spec[kk,:] = ispec
+    # Return
+    return wave, spec
 
 
 def main(flg):
