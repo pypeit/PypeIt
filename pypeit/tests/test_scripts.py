@@ -500,7 +500,7 @@ def test_collate_1d(tmp_path, monkeypatch):
     # Also test using an external coadd1d file with the same name
     parsed_args = scripts.collate_1d.Collate1D.parse_args([config_file_spec1d])
     params, spectrograph, expanded_spec1d_files = scripts.collate_1d.build_parameters(parsed_args)
-    assert params['collate1d']['tolerance'] == 3.0
+    assert params['collate1d']['tolerance'] == 1.0
     assert params['collate1d']['match_using'] == 'ra/dec'
     assert params['coadd1d']['ex_value'] == 'BOX'
     assert spectrograph.name == 'shane_kast_blue'

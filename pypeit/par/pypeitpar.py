@@ -4574,7 +4574,7 @@ class Collate1DPar(ParSet):
         descr = OrderedDict.fromkeys(pars.keys())
 
         # Threshold for grouping by object
-        defaults['tolerance'] = '3.0'
+        defaults['tolerance'] = '1.0'
         dtypes['tolerance'] = [str, float]
         descr['tolerance'] = "The tolerance used when comparing the coordinates of objects. If two " \
                              "objects are within this distance from each other, they " \
