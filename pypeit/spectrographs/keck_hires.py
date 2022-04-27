@@ -332,7 +332,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             ronoise         = np.atleast_1d([3.]),
             )
 
-        # Detector 2
+        # Detector 2. HACK
         detector_dict2 = detector_dict1.copy()
         detector_dict2.update(dict(
             det=2,
@@ -341,8 +341,18 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             ronoise=np.atleast_1d([3.])
         ))
 
+
+        # Detector 3,. HACK
+        detector_dict3 = detector_dict1.copy()
+        detector_dict3.update(dict(
+            det=3,
+            dataext=3,
+            gain=np.atleast_1d([1.]),
+            ronoise=np.atleast_1d([3.])
+        ))
+
         # Instantiate
-        detector_dicts = [detector_dict1, detector_dict2]
+        detector_dicts = [detector_dict1, detector_dict2, detector_dict3]
         detector = detector_container.DetectorContainer(
             **detector_dicts[det-1])
 
@@ -523,7 +533,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
 
 
-def indexing(itt, postpix, det=None,xbin=None,ybin=None):
+def indexing(itt, postpix, det=None,xbin=1,ybin=1):
     """
     Some annoying book-keeping for instrument placement.
 
@@ -605,7 +615,7 @@ def hires_read_1chip(hdu,chipno):
     # Return
     return data, oscan
 
-def read_hires(raw_file, det=None):
+def read_hires(raw_file, det=None, spectrim=20):
     """
     Read a raw HIRES data frame (one or more detectors).
 
@@ -617,6 +627,11 @@ def read_hires(raw_file, det=None):
     ----------
     raw_file : str
         Filename
+    spectrim: int, optional
+       Number of unbinned pixels to trim off spectral direction because top side of detector is not illuiminated.
+       Default is 20.
+
+
 
     Returns
     -------
@@ -663,7 +678,8 @@ def read_hires(raw_file, det=None):
     if binning != '3,1':
         msgs.warn("This binning for HIRES might not work.  But it might..")
 
-    xbin, ybin = [int(ibin) for ibin in binning.split(',')]
+
+    binspatial, binspec = parse.parse_binning(head0['BINNING'])
 
     # HIRES detectors
     nchip = 3
@@ -682,7 +698,7 @@ def read_hires(raw_file, det=None):
             image = np.zeros((data.shape[0],data.shape[1]+oscan.shape[1]))
 
         # Indexing
-        x1, x2, y1, y2, o_x1, o_x2, o_y1, o_y2 = indexing(tt, postpix, det=det,xbin=xbin,ybin=ybin)
+        x1, x2, y1, y2, o_x1, o_x2, o_y1, o_y2 = indexing(tt, postpix, det=det,xbin=binspatial, ybin=binspec)
 
         # Fill
         image[y1:y2, x1:x2] = data
@@ -690,21 +706,21 @@ def read_hires(raw_file, det=None):
 
         # Rawdatasec
         rawdatasec_img = np.zeros_like(image, dtype=int)
-        rawdatasec_img[y1:y2, x1:x2] = 1
+        rawdatasec_img[y1:y2-spectrim//binspec, x1:x2] = 1
         oscansec_img = np.zeros_like(image, dtype=int)
-        oscansec_img[o_y1:o_y2, o_x1:o_x2] = 1
+        oscansec_img[o_y1:o_y2-spectrim//binspec, o_x1:o_x2] = 1
 
         # Sections
-        idsec = '[{:d}:{:d},{:d}:{:d}]'.format(y1, y2, x1, x2)
-        iosec = '[{:d}:{:d},{:d}:{:d}]'.format(o_y1, o_y2, o_x1, o_x2)
-        dsec.append(idsec)
-        osec.append(iosec)
+        #idsec = '[{:d}:{:d},{:d}:{:d}]'.format(y1, y2, x1, x2)
+        #iosec = '[{:d}:{:d},{:d}:{:d}]'.format(o_y1, o_y2, o_x1, o_x2)
+        #dsec.append(idsec)
+        #osec.append(iosec)
 
     # Return
     return image, head0, rawdatasec_img, oscansec_img, hdu
 
 
-def grab_arctempl_file(arc_meta:dict, ORDRS=None):
+def grab_arctempl_dict(arc_meta:dict, det, ORDRS=None):
     # Read template file
     templ_table_file = os.path.join(
         resource_filename('pypeit', 'data'), 'arc_lines',
@@ -728,11 +744,11 @@ def grab_arctempl_file(arc_meta:dict, ORDRS=None):
             #; Best = EDANGL LT 0.05 and XDANGL LT 0.2
             mtch = np.where((np.abs(arc_meta['echangle']-echa) < tol[0]) &
                    (np.abs(arc_meta['xdangle']-xda) < tol[1]) &
-                   (arc_meta['det'] == chip) )[0]
+                   (det == chip) )[0]
             if len(mtch) > 0:
                 break
         if len(mtch) == 0:
-            mtch = np.where(arc_meta['det'] == chip)[0]
+            mtch = np.where(det == chip)[0]
     else: 
         msgs.error("NEED TO PORT THE IDL CODE BELOW")
     '''
@@ -763,15 +779,13 @@ def grab_arctempl_file(arc_meta:dict, ORDRS=None):
         idx = mtch[allx[0]]
 
     # Return the filename (without path)
-
     # Return
-    return cut_tbl['Name'][idx]
+    return dict(cut_tbl[idx])
 
 def load_hires_template(template_file:str):
     dat_dict = readsav(template_file)
 
     # Chop down to good orders
     n_orders = len(dat_dict['guess_ordr'])
-
     # Return
-    return dat_dict['guess_ordr'], dat_dict['sv_aspec'][:n_orders,:]
+    return dat_dict['guess_ordr'][::-1], dat_dict['sv_aspec'][:n_orders,:][::-1, :].T

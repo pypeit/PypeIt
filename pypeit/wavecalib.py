@@ -672,7 +672,7 @@ class BuildWaveCalib:
 
         # If this is a fixed format echelle, determine the order numbers from the arc
         if self.spectrograph.pypeline == 'Echelle' and not self.spectrograph.ech_fixed_format:
-            self.orders = self.get_echelle_orders(self.arccen)
+            self.orders = self.get_echelle_orders()
 
         # Fill up the calibrations and generate QA
         self.wv_calib = self.build_wv_calib(self.arccen, self.par['method'], skip_QA=skip_QA)
@@ -698,7 +698,7 @@ class BuildWaveCalib:
 
         return self.wv_calib
 
-    def get_echelle_orders(self, arccen):
+    def get_echelle_orders(self):
         """
 
         Args:
@@ -708,8 +708,33 @@ class BuildWaveCalib:
 
         """
 
-        from pypeit.spectrographs.keck_hires import
         # Load the template from file
+        from pypeit.spectrographs.keck_hires import grab_arctempl_dict, load_hires_template
+        from pypeit.core.wavecal import wvutils
+
+        nspec, norders = self.arccen.shape
+
+        arctempl_dict = grab_arctempl_dict(self.meta_dict, self.det)
+        arctempl_file = os.path.join(os.getenv('HIRES_CALIBS'), 'ARCS', arctempl_dict['Name'])
+        guess_order, archive_arc = load_hires_template(arctempl_file)
+        # TODO sort out binning here.
+        norders_max = np.fmax(self.arccen.shape[1], archive_arc.shape[1])
+        archive_arc_pad = np.zeros((nspec, norders_max))
+        archive_arc_pad[:archive_arc.shape[0], :archive_arc.shape[1]] = archive_arc
+        arccen_pad = np.zeros_like(archive_arc_pad)
+        arccen_pad[:self.arccen.shape[0], :self.arccen.shape[1]] = self.arccen
+
+        shift_cc, corr_cc = wvutils.xcorr_shift(arccen_pad.flatten('F'), archive_arc_pad.flatten('F'),
+                                                smooth=5.0, percent_ceil=80.0, sigdetect=10.0, fwhm=4.0, debug=True)
+        ordr_shift = int(np.round(shift_cc/nspec))
+        spec_shift = int(np.round(shift_cc - ordr_shift * nspec))
+
+        order_vec = guess_order[0] + ordr_shift - np.arange(norders)
+
+        #TODO pass this into the slit structure
+
+        return order_vec, ordr_shift, spec_shift
+
         #template = self.spectrograph.grab_template_filename()
 
 
