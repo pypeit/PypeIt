@@ -573,7 +573,7 @@ class PypeIt:
                 self.par['reduce']['slitmask'], dither_off=dither_off)
             # determine if slitmask offsets exist and compute an average offsets over all the detectors
             calib_slits = slittrace.average_maskdef_offset(
-                calib_slits, platescale[0], self.spectrograph.list_detectors())
+                calib_slits, platescale[0], self.spectrograph.list_detectors(mosaic='MSC' in calib_slits[0].detname))
             # slitmask design matching and add undetected objects
             all_specobjs_objfind = slittrace.assign_addobjs_alldets(
                 all_specobjs_objfind, calib_slits, spat_flexure, platescale,
@@ -794,7 +794,7 @@ class PypeIt:
         # Deal with manual extraction
         row = self.fitstbl[frames[0]]
         manual_obj = ManualExtractionObj.by_fitstbl_input(
-            row['filename'], row['manual']) if len(row['manual'].strip()) > 0 else None
+            row['filename'], row['manual'], self.spectrograph) if len(row['manual'].strip()) > 0 else None
 
         # Instantiate Reduce object
         # Required for pypeline specific object
@@ -864,6 +864,12 @@ class PypeIt:
             final_global_sky = objFind.global_skysub(previous_sky=initial_sky, skymask=skymask, show=self.show)
         scaleImg = objFind.scaleimg
 
+        # update here slits.mask since global_skysub modify reduce_bpm and we need to propagate it into extraction
+        flagged_slits = np.where(objFind.reduce_bpm)[0]
+        if len(flagged_slits) > 0:
+            self.caliBrate.slits.mask[flagged_slits] = \
+                self.caliBrate.slits.bitmask.turn_on(self.caliBrate.slits.mask[flagged_slits], 'BADREDUCE')
+
         msgs.info("Extraction begins for {} on det={}".format(self.basename, det))
 
         # Instantiate Reduce object
@@ -873,7 +879,8 @@ class PypeIt:
         self.exTract = extraction.Extract.get_instance(
             sciImg, sobjs_obj, self.spectrograph, 
             self.par, self.caliBrate, self.objtype, 
-            bkg_redux=self.bkg_redux, 
+            bkg_redux=self.bkg_redux,
+            return_negative=self.par['reduce']['extraction']['return_negative'],
             std_redux=self.std_redux,
             show=self.show,
             basename=self.basename)
