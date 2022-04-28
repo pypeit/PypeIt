@@ -597,6 +597,8 @@ class Collate1D(scriptbase.ScriptBase):
                                  'F|                        spec1d files.\n'
                                  'F|  wv_rms_thresh         If set, any objects with a wavelength rms > than the input\n'
                                  'F|                        value are skipped, else all wavelength rms values are accepted.\n'
+                                 'F|  refframe              Perform reference frame correction prior to coadding.\n'
+                                f'F|                        Options are {pypeitpar.WavelengthSolutionPar.valid_reference_frames()}. Defaults to None.\n'
                                  '\n'
                                  'F|spec1d read\n'
                                  'F|<path to spec1d files, wildcards allowed>\n'

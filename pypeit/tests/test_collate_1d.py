@@ -131,6 +131,9 @@ class MockSpecObjs:
     def __getitem__(self, idx):
         return self.specobjs[idx]
 
+    def write_to_fits(self, *args, **kwargs):
+        pass
+
 def mock_specobjs(file):
     return MockSpecObjs(file)
 
@@ -579,7 +582,15 @@ def test_coadd(monkeypatch):
         assert par['coadd1d']['flux_value'] == False
 
 def test_refframe_correction(monkeypatch):
-    monkeypatch.setattr(specobjs.SpecObjs, "from_fitsfile", mock_specobjs)
+
+    sobjs_map = {"spec1d_file1": MockSpecObjs("spec1d_file1"),
+                 "spec1d_file3": MockSpecObjs("spec1d_file3"),
+                 "spec1d_file4": MockSpecObjs("spec1d_file4")}
+
+    def local_mock_specobjs(file):
+        return sobjs_map[file]
+
+    monkeypatch.setattr(specobjs.SpecObjs, "from_fitsfile", local_mock_specobjs)
     def mock_geomotion_correct(*args, **kwargs):
         return 1.0, 1.0
     monkeypatch.setattr(wave,"geomotion_correct", mock_geomotion_correct)
@@ -594,3 +605,8 @@ def test_refframe_correction(monkeypatch):
     assert messages[0] == "Not performing heliocentric correction for spec1d_file1 object SPAT1334_SLIT1234_DET01 because it has already been corrected."
     assert messages[1].startswith('Failed to perform heliocentric correction on spec1d_file3: ')
     assert messages[2] == "Not performing heliocentric correction for spec1d_file4 object SPAT3234_SLIT3236_DET03 because it has already been corrected."
+
+    assert sobjs_map['spec1d_file1'][0].VEL_CORR == 1.0
+    assert sobjs_map['spec1d_file1'][1].VEL_CORR == 2.0
+    assert sobjs_map['spec1d_file4'][0].VEL_CORR == 2.0
+    assert sobjs_map['spec1d_file4'][1].VEL_CORR == 1.0
