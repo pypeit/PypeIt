@@ -986,7 +986,8 @@ class EdgeTraceSet(DataContainer):
                 = trace.detect_slit_edges(_img, bpm=self.tracebpm,
                                           median_iterations=self.par['filt_iter'],
                                           sobel_mode=self.par['sobel_mode'],
-                                          sigdetect=self.par['edge_thresh'])
+                                          sigdetect=self.par['edge_thresh'],
+                                          sobel_enhance=self.par['sobel_enhance'])
         # Empty out the images prepared for left and right tracing
         # until they're needed.
         self.sobelsig_left = None
@@ -4247,6 +4248,7 @@ class EdgeTraceSet(DataContainer):
             plt.xlim(0, self.traceimg.shape[1] + 20)
             plt.ylim(0, self.traceimg.shape[1] + 20)
             plt.legend()
+            plt.show()
         msgs.info('SLIT_MATCH: RMS residuals for left and right edges: {}, {} pixels'.format(sigres_b, sigres_t))
 
 

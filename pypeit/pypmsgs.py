@@ -71,6 +71,7 @@ class Messages:
         # object itself...
         self.sciexp = None
         self.pypeit_file = None
+        self.qa_path = None
 
         # Initialize the log
         self._log = None
@@ -167,7 +168,7 @@ class Messages:
         '''
         Close the log file before the code exits
         '''
-        close_qa(self.pypeit_file)
+        close_qa(self.pypeit_file, self.qa_path)
         return self.reset_log_file(None)
 
     def error(self, msg):

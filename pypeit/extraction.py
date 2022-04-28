@@ -149,9 +149,9 @@ class Extract:
         self.initialise_slits()
 
         # Internal bpm mask
-        self.reduce_bpm = (self.slits.mask > 0) & (np.invert(self.slits.bitmask.flagged(
+        self.extract_bpm = (self.slits.mask > 0) & (np.invert(self.slits.bitmask.flagged(
                         self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing)))
-        self.reduce_bpm_init = self.reduce_bpm.copy()
+        self.extract_bpm_init = self.extract_bpm.copy()
 
         # These may be None (i.e. COADD2D)
         self.waveTilts = caliBrate.wavetilts
@@ -165,7 +165,7 @@ class Extract:
         self.det = caliBrate.det
         self.binning = caliBrate.binning
         self.pypeline = spectrograph.pypeline
-        self.reduce_show = show
+        self.extract_show = show
 
         self.steps = []
 
@@ -184,7 +184,7 @@ class Extract:
         # remove objects found in `BOXSLIT` (we don't want to extract those)
         remove_idx = []
         for i, sobj in enumerate(self.sobjs_obj):
-            if sobj.SLITID in list(self.slits.spat_id[self.reduce_bpm]):
+            if sobj.SLITID in list(self.slits.spat_id[self.extract_bpm]):
                 remove_idx.append(i)
         # remove
         self.sobjs_obj.remove_sobj(remove_idx)
@@ -282,8 +282,8 @@ class Extract:
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
                 self.local_skysub_extract(global_sky, self.sobjs_obj,
                                           model_noise=(not self.bkg_redux),
-                                          show_profile=self.reduce_show,
-                                          show=self.reduce_show)
+                                          show_profile=self.extract_show,
+                                          show=self.extract_show)
 
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
@@ -394,8 +394,11 @@ class Extract:
         self.refframe_correct(ra, dec, obstime, sobjs=self.sobjs)
 
         # Update the mask
-        reduce_masked = np.where(np.invert(self.reduce_bpm_init) & self.reduce_bpm & (self.slits.mask > 2))[0]
+        # TODO avoid modifying arguments to a class or function in place. If slits is mutable, it should be a return
+        # value for the run function
+        reduce_masked = np.where(np.invert(self.extract_bpm_init) & self.extract_bpm & (self.slits.mask > 2))[0]
         if len(reduce_masked) > 0:
+            # TODO Change BADREDUCE to BADEXTRACT
             self.slits.mask[reduce_masked] = self.slits.bitmask.turn_on(
                 self.slits.mask[reduce_masked], 'BADREDUCE')
 
@@ -436,7 +439,7 @@ class Extract:
 
         # Prepare a list of slit spectra, if required.
         if mode == "global":
-            gd_slits = np.logical_not(self.reduce_bpm)
+            gd_slits = np.logical_not(self.extract_bpm)
             # TODO :: Need to think about spatial flexure - is the appropriate spatial flexure already included in trace_spat via left/right slits?
             trace_spat = 0.5 * (self.slits_left + self.slits_right)
             trace_spec = np.arange(self.slits.nspec)
@@ -457,12 +460,11 @@ class Extract:
 
             # Measure flexure
             # If mode == global: specobjs = None and slitspecs != None
-            flex_list = flexure.spec_flexure_slit(self.slits, self.slits.slitord_id, self.reduce_bpm,
+            flex_list = flexure.spec_flexure_slit(self.slits, self.slits.slitord_id, self.extract_bpm,
                                                   self.par['flexure']['spectrum'],
                                                   method=self.par['flexure']['spec_method'],
                                                   mxshft=self.par['flexure']['spec_maxshift'],
                                                   specobjs=sobjs, slit_specs=slit_specs)
-
             # Store the slit shifts that were applied to each slit
             # These corrections are later needed so the specobjs metadata contains the total spectral flexure
             self.slitshift = np.zeros(self.slits.nslits)
@@ -478,7 +480,7 @@ class Extract:
         elif mode == "local":
             # Measure flexure:
             # If mode == local: specobjs != None and slitspecs = None
-            flex_list = flexure.spec_flexure_slit(self.slits, self.slits.slitord_id, self.reduce_bpm,
+            flex_list = flexure.spec_flexure_slit(self.slits, self.slits.slitord_id, self.extract_bpm,
                                                   self.par['flexure']['spectrum'],
                                                   method=self.par['flexure']['spec_method'],
                                                   mxshft=self.par['flexure']['spec_maxshift'],
@@ -503,7 +505,7 @@ class Extract:
         # Save QA
         basename = f'{self.basename}_{mode}_{self.spectrograph.get_det_name(self.det)}'
         out_dir = os.path.join(self.par['rdx']['redux_path'], 'QA')
-        flexure.spec_flexure_qa(self.slits.slitord_id, self.reduce_bpm, basename, flex_list,
+        flexure.spec_flexure_qa(self.slits.slitord_id, self.extract_bpm, basename, flex_list,
                                 specobjs=sobjs, out_dir=out_dir)
 
     def refframe_correct(self, ra, dec, obstime, sobjs=None):
@@ -534,7 +536,7 @@ class Extract:
             msgs.info('Applying {0} correction = {1:0.5f} km/s'.format(refframe, vel))
             if (sobjs is not None) and (sobjs.nobj != 0):
                 # Loop on slits to apply
-                gd_slitord = self.slits.slitord_id[np.logical_not(self.reduce_bpm)]
+                gd_slitord = self.slits.slitord_id[np.logical_not(self.extract_bpm)]
                 for slitord in gd_slitord:
                     indx = sobjs.slitorder_indices(slitord)
                     this_specobjs = sobjs[indx]
@@ -719,7 +721,7 @@ class MultiSlitExtract(Extract):
         self.global_sky = global_sky
 
         # get the good slits
-        gdslits = np.where(np.invert(self.reduce_bpm))[0]
+        gdslits = np.where(np.invert(self.extract_bpm))[0]
 
         # Allocate the images that are needed
         # Initialize to mask in case no objects were found
