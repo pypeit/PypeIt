@@ -22,6 +22,7 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit import io
 from pypeit import wavecalib
+from pypeit.core import arc
 from pypeit.core.wave import airtovac
 from pypeit.core.wavecal import waveio
 from pypeit.core.wavecal import wvutils
@@ -434,7 +435,7 @@ def xidl_arcspec(xidl_file, slit):
     return wv_vac.value, spec
 
 
-def xidl_hires(xidl_file, bin=1):
+def xidl_hires(xidl_file, specbin=1):
     """
     Read an XIDL format solution for Keck/HIRES
 
@@ -448,38 +449,48 @@ def xidl_hires(xidl_file, bin=1):
 
     """
     xidl_dict = readsav(xidl_file)
-    nspec = xidl_dict['guess_ordr'].size
-    npix = xidl_dict['sv_aspec'].shape[1]
+    order_vec = xidl_dict['guess_ordr']
+    norders = order_vec.size
+    nspec = xidl_dict['sv_aspec'].shape[1]
 
     # Wavelengths
-    wave = np.zeros((nspec, npix))
-    spec = np.zeros((nspec, npix))
+    wave = np.zeros((norders, specbin*nspec))
+    spec = np.zeros((norders, specbin*nspec))
 
     calib = xidl_dict['all_arcfit']
+    order_mask = np.ones(norders, dtype=bool)
 
     # Here we go on the fits
-    for kk in range(nspec):
+    for kk in range(norders):
         # Generate the wavelengths
         if calib['FUNC'][kk] == b'CHEBY':
             log10_wv_air = cheby_val(calib['FFIT'][kk], 
-                               np.arange(npix),
+                               np.arange(nspec),
                         calib['NRM'][kk], calib['NORD'][kk])
         elif calib['FUNC'][kk] == b'POLY':
             log10_wv_air = poly_val(calib['FFIT'][kk], 
-                              np.arange(npix), 
+                              np.arange(nspec),
                               calib['NRM'][kk])
+        else:
+            order_mask[kk]=False
+            continue
 
-        wv_vac = airtovac(10**log10_wv_air * units.AA)
+        wv_vac = airtovac(10**log10_wv_air * units.AA).value
         ispec = xidl_dict['sv_aspec'][kk,:]
         # Flip to blue to red?
         if wv_vac[1] < wv_vac[0]:
             wv_vac = wv_vac[::-1]
             ispec = ispec[::-1]
         # Fill
-        wave[kk,:] = wv_vac.value
-        spec[kk,:] = ispec
+        if specbin != 1:
+            wave[kk,:] = arc.resize_spec(wv_vac, nspec*specbin)
+            spec[kk,:] = arc.resize_spec(ispec, nspec*specbin)
+        else:
+            wave[kk,:] = wv_vac
+            spec[kk,:] = ispec
     # Return
-    return wave, spec
+
+    return order_vec[order_mask], wave[order_mask,:], spec[order_mask,:]
 
 
 def main(flg):
