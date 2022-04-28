@@ -181,7 +181,13 @@ class FindObjects:
         self.find_negative = find_negative
 
         self.std_redux = std_redux
+        # This can be a single integer for a single detector or a tuple for
+        # multiple detectors placed in a mosaic.
         self.det = caliBrate.det
+        # This is the string name of the detector or mosaic used when saving the
+        # processed data to PypeIt's main output files
+        self.detname = self.spectrograph.get_det_name(self.det)
+
         self.binning = caliBrate.binning
         self.pypeline = spectrograph.pypeline
         self.findobj_show = show
@@ -377,7 +383,7 @@ class FindObjects:
         """
         # Positive image
         if manual_extract_dict is None:
-            manual_extract_dict= self.manual.dict_for_objfind(self.det, neg=False) if self.manual is not None else None
+            manual_extract_dict= self.manual.dict_for_objfind(self.detname, neg=False) if self.manual is not None else None
 
         sobjs_obj_single, nobj_single = \
             self.find_objects_pypeline(image,
@@ -391,7 +397,7 @@ class FindObjects:
         if self.find_negative:
             msgs.info("Finding objects in the negative image")
             # Parses
-            manual_extract_dict = self.manual.dict_for_objfind(self.det, neg=True) if self.manual is not None else None
+            manual_extract_dict = self.manual.dict_for_objfind(self.detname, neg=True) if self.manual is not None else None
             sobjs_obj_single_neg, nobj_single_neg = \
                 self.find_objects_pypeline(-image, std_trace=std_trace,
                                            show_peaks=show_peaks, show_fits=show_fits,
@@ -461,6 +467,8 @@ class FindObjects:
             `numpy.ndarray`_: image of the the global sky model
 
         """
+        # reset bpm since global sky is run several times and reduce_bpm is here updated.
+        self.reduce_bpm = self.reduce_bpm_init.copy()
         # Prep
         global_sky = np.zeros_like(self.sciImg.image)
         # Parameters for a standard star
@@ -519,7 +527,7 @@ class FindObjects:
 
             # Mask if something went wrong
             if np.sum(global_sky[thismask]) == 0.:
-                msgs.warn("Bad fit to sky.  Rejecting slit: {:d}".format(slit_idx))
+                msgs.warn("Bad fit to sky.  Rejecting slit: {:d}".format(slit_spat))
                 self.reduce_bpm[slit_idx] = True
 
         if update_crmask and self.par['scienceframe']['process']['mask_cr']:
@@ -635,7 +643,6 @@ class FindObjects:
             bitmask_in = None
 
         img_gpm = self.sciImg.select_flag(invert=True)
-        detname = self.spectrograph.get_det_name(self.det)
 
         if attr == 'global' and all([a is not None for a in [self.sciImg.image, global_sky, self.sciImg.fullmask]]):
             # global sky subtraction
@@ -645,7 +652,7 @@ class FindObjects:
                                                          sigma_upper=5.0)
             cut_min = mean - 1.0 * sigma
             cut_max = mean + 4.0 * sigma
-            ch_name = chname if chname is not None else f'global_sky_{detname}'
+            ch_name = chname if chname is not None else f'global_sky_{self.detname}'
             viewer, ch = display.show_image(image, chname=ch_name, bitmask=bitmask_in,
                                             mask=mask_in, clear=clear, wcs_match=True)
                                           #, cuts=(cut_min, cut_max))
@@ -777,9 +784,8 @@ class MultiSlitFindObjects(FindObjects):
                     basename = 'neg_' + self.basename if neg else 'pos_' + self.basename
                 else:
                     basename = self.basename
-                detname = self.spectrograph.get_det_name(self.det)
                 objfindQA_filename = qa.set_qa_filename(basename, 'obj_profile_qa', slit=slit_spat,
-                                                        det=detname, out_dir=out_dir)
+                                                        det=self.detname, out_dir=out_dir)
 
             sobjs_slit = \
                     findobj_skymask.objs_in_slit(image, thismask,
@@ -927,9 +933,8 @@ class EchelleFindObjects(FindObjects):
                 basename = 'neg_' + self.basename if neg else 'pos_' + self.basename
             else:
                 basename = self.basename
-            detname = self.spectrograph.get_det_name(self.det)
             objfindQA_filename = qa.set_qa_filename(basename, 'obj_profile_qa', slit=999,
-                                                    det=detname, out_dir=out_dir)
+                                                    det=self.detname, out_dir=out_dir)
 
         sobjs_ech = findobj_skymask.ech_objfind(
             image, self.sciImg.ivar, self.slitmask, self.slits_left, self.slits_right,

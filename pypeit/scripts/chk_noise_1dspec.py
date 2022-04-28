@@ -72,7 +72,7 @@ def plot(args, line_wav_z:np.ndarray, line_names:np.ndarray,
     ax.plot(lbda[sec], np.zeros(lbda[sec].size), ls='--', color='Gray', zorder=-1)
     
     if args.ploterr: 
-        ax.plot(lbda[sec], err[sec], drawstyle=drawstyle, lw=1, color='#ff6666', zorder=0, label='noise')
+        ax.plot(lbda[sec], err[sec], drawstyle=drawstyle, lw=1, color='#ff6666', zorder=2, label='noise')
     if z is not None:
         line_num = 0
         for i in range(line_wav_z.shape[0]):
