@@ -7,6 +7,7 @@
                              [--ignore_flux] [--flux]
                              [--exclude_slit_bm [EXCLUDE_SLIT_BM ...]]
                              [--exclude_serendip] [--wv_rms_thresh WV_RMS_THRESH]
+                             [--refframe {observed,heliocentric,barycentric}]
                              [input_file]
     
     Flux/Coadd multiple 1d spectra from multiple nights and prepare a directory for
@@ -31,6 +32,8 @@
                                                     spec1d files.
                               wv_rms_thresh         If set, any objects with a wavelength rms > than the input
                                                     value are skipped, else all wavelength rms values are accepted.
+                              refframe              Perform reference frame correction prior to coadding.
+                                                    Options are ['observed', 'heliocentric', 'barycentric']. Defaults to None.
                              
                             spec1d read
                             <path to spec1d files, wildcards allowed>
@@ -72,4 +75,7 @@
                             If set, any objects with a wavelength RMS > this value
                             are skipped, else all wavelength RMS values are
                             accepted.
+      --refframe {observed,heliocentric,barycentric}
+                            Perform reference frame correction prior to coadding.
+                            Options are: observed, heliocentric, barycentric
     

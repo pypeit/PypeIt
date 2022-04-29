@@ -116,6 +116,10 @@ followed by a list of spec1d files. An example configuration file is shown below
     # Defaults to False
     #flux = False
 
+    # Whether to perform reference frame correciton on spec1d files.
+    # Options can be None, observed,heliocentric,barycentric. Defaults to None.
+    #refframe = heliocentric
+
     # Whether to ignore existing flux calibrated data in the spec1ds.
     # Defaults to False. Even when this is False, if the flux calibration data 
     # (e.g. OPT_FLAM or BOX_FLAM) is not available the uncalibrated data is coadded.
