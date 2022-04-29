@@ -294,7 +294,7 @@ def refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_msgs):
     msgs.info(f"Performing a {refframe} correction")
 
     for spec1d in spec1d_files:
-        # Calculate correction
+        # Get values from the fits header needed to calculate the correction
         try:
             sobjs = SpecObjs.from_fitsfile(spec1d)
             hdr_ra = sobjs.header['RA']
@@ -306,6 +306,7 @@ def refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_msgs):
             msgs.info(msg)
             spec1d_failure_msgs.append(msg)
             continue
+
         corrected_at_least_one = False
         for sobj in sobjs:
             if sobj['VEL_CORR'] is not None:
@@ -314,12 +315,12 @@ def refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_msgs):
                 msgs.info(msg)
                 spec1d_failure_msgs.append(msg)
                 continue
-
+            # Use the SpecObj RA/DEC if it's available, otherwise use the value from the header
             if sobj['RA'] is not None and sobj['DEC'] is not None:
                 radec = ltu.radec_to_coord((sobj['RA'], sobj['DEC']))
             else:
                 radec = hdr_radec
-
+            # Calculate the correction
             vel, vel_corr = wave.geomotion_correct(radec, obstime,
                                                    spectrograph.telescope['longitude'],
                                                    spectrograph.telescope['latitude'],
@@ -423,7 +424,7 @@ def write_warnings(par, excluded_obj_msgs, failed_source_msgs, spec1d_failure_ms
         print(f"Duration: {total_time}", file=f)
 
         if len(spec1d_failure_msgs) > 0:
-            print("\spec1d_* failures\n", file=f)
+            print("\nspec1d_* failures\n", file=f)
             for msg in spec1d_failure_msgs:
                 print(msg, file=f)
 
