@@ -31,7 +31,6 @@ Submodules
    pypeit.coadd1d
    pypeit.coadd2d
    pypeit.compiler_version
-   pypeit.compiler_version
    pypeit.datamodel
    pypeit.edgetrace
    pypeit.extraction
