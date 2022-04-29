@@ -7,6 +7,13 @@
 - Improve Keck/KCWI automatic frame typing.
 - Wavelength templates (OH lines and arc lamps) created for Keck/MOSFIRE
 - Mosaic is now available for Keck/DEIMOS too.
+- Various package data (e.g., reid_arxiv, sensfunc) are no longer distributed via
+  PyPI to reduce package size; introduce mechanisms for downloading/caching needed
+  data either at runtime or on demand.
+- Save output wavelength calibration from `pypeit_identify` to the cache for
+  direct reuse in data reduction.
+- The `pypeit_identify` GUI can now toggle between linear and log scaling of the
+  arc spectrum flux.
 - Adeed more flexible quicklook that can handle dithering.
 - Refactored object finding
 - Bug fixes in local sky subtraction and extraction
