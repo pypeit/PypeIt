@@ -266,7 +266,7 @@ def get_spectrograph_gain_ronoise_dirpath(spectrograph_name):
     if not os.path.isdir(gain_ronoise_spectr_path):
 
         # Output an informational message
-        msgs.info(f"{spectrograph_name} gain_ronoise files does not exist in{msgs.newline()}"
+        msgs.info(f"{spectrograph_name} gain_ronoise directory does not exist in{msgs.newline()}"
                   "the package directory.  Checking cache or downloading the file now.")
 
         gain_ronoise_spectr_path = fetch_remote_file(f'{spectrograph_name}/gain_ronoise', "spectrograph")
