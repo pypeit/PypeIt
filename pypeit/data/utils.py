@@ -83,8 +83,8 @@ from pypeit import __version__
 
 __all__ = ['Paths', 'load_telluric_grid', 'load_thar_spec',
            'load_sky_spectrum', 'get_reid_arxiv_filepath',
-           'get_skisim_filepath', 'get_spectrograph_gain_ronoise_dirpath',
-           'get_sensfunc_filepath', 'fetch_remote_file', 'write_file_to_cache']
+           'get_skisim_filepath', 'get_sensfunc_filepath',
+           'fetch_remote_file', 'write_file_to_cache']
 
 
 # Package-Data Paths =========================================================#
@@ -288,51 +288,6 @@ def get_skisim_filepath(skisim_file):
 
     # Return the path to the `skisim` file
     return skisim_path
-
-def get_spectrograph_gain_ronoise_dirpath(spectrograph_name):
-    """Return the full path to the ``data/spectrographs/gain_ronoise`` directory
-
-    In an attempt to reduce the size of the PypeIt package as distributed on
-    PyPI, the ``data/spectrograph/gain_ronoise`` directory is not longer distributed with the package.
-    The collection of files are hosted remotely, and only the ``data/spectrographs/gain_ronoise``
-    directory needed by a particular user are downloaded to the local machine.
-
-    This function checks for the local existance of the ``data/spectrographs/gain_ronoise`` directory, and
-    downloads it from the remote server using AstroPy's ``download_file()``
-    function.  The file downloaded in this fashion is kept in the PypeIt
-    cache (nominally ``~/.pypeit/cache``) and is not placed into the package
-    directory itself.
-
-    The cache keeps a hash of the file URL, which contains the PypeIt version
-    number.  As users update to newer versions, the ``data/spectrographs/gain_ronoise`` directory will be
-    downloaded again (matching the new version #) to catch any changes.
-
-    As most users will need only a small number of ``data/spectrographs`` files for their
-    particular reductions, the remote fetch will only occur once per file (per
-    version of PypeIt).
-
-    Args:
-        spectrograph_name (str):
-          Spectrograph name
-
-    Returns:
-        str: The full path to the ``data/spectrograph/gain_ronoise`` directory
-    """
-    # Full path within the package data structure:
-    gain_ronoise_spectr_path = os.path.join(Paths.spectrographs, spectrograph_name, 'gain_ronoise')
-
-    # Check if the directory does NOT exist in the package directory
-    # NOTE: This should be the case for all but from-source installations
-    if not os.path.isdir(gain_ronoise_spectr_path):
-
-        # Output an informational message
-        msgs.info(f"{spectrograph_name} gain_ronoise directory does not exist in{msgs.newline()}"
-                  "the package directory.  Checking cache or downloading the file now.")
-
-        gain_ronoise_spectr_path = fetch_remote_file(f'{spectrograph_name}/gain_ronoise', "spectrograph")
-
-    # Return the path to the `gain_ronoise` directory
-    return gain_ronoise_spectr_path
 
 
 def get_sensfunc_filepath(sensfunc_file, symlink_in_pkgdir=False):
