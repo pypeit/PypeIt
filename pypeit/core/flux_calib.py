@@ -131,9 +131,9 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
 
     for sset in std_sets:
         path = os.path.join(data.Paths.standards, sset)
-        star_file =  os.path.join(path, '{0}_info.txt'.format(sset))
+        star_file =  os.path.join(path, f"{sset}_info.txt")
         if not os.path.isfile(star_file):
-            msgs.warn('File does not exist!: {0}'.format(star_file))
+            msgs.warn(f"File does not exist!: {star_file}")
             continue
 
         star_tbl = table.Table.read(star_file, comment='#', format='ascii')
@@ -950,15 +950,15 @@ def get_mask(wave_star,flux_star, ivar_star, mask_star, mask_abs_lines=True, mas
             ## Read atmosphere transmission
             #
             #if watervp <1.5:
-            #    skytrans_file = os.path.join(data.Paths.skisim, 'mktrans_zm_10_10.dat')
+            #    skytrans_file = data.get_skisim_filepath('mktrans_zm_10_10.dat')
             #elif (watervp>=1.5 and watervp<2.3):
-            #    skytrans_file = os.path.join(data.Paths.skisim, 'mktrans_zm_16_10.dat')
+            #    skytrans_file = data.get_skisim_filepath('mktrans_zm_16_10.dat')
             #elif (watervp>=2.3 and watervp<4.0):
-            #    skytrans_file = os.path.join(data.Paths.skisim, 'mktrans_zm_30_10.dat')
+            #    skytrans_file = data.get_skisim_filepath('mktrans_zm_30_10.dat')
             #else:
-            #    skytrans_file = os.path.join(data.Paths.skisim, 'mktrans_zm_50_10.dat')
+            #    skytrans_file = data.get_skisim_filepath('mktrans_zm_50_10.dat')
             #
-            skytrans_file = os.path.join(data.Paths.skisim, 'mktrans_zm_10_10.dat')
+            skytrans_file = data.get_skisim_filepath('mktrans_zm_10_10.dat')
             skytrans = ascii.read(skytrans_file)
             wave_trans, trans = skytrans['wave'].data*10000.0, skytrans['trans'].data
             trans_use = (wave_trans>=np.min(wave_star)-100.0) & (wave_trans<=np.max(wave_star)+100.0)

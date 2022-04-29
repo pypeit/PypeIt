@@ -2286,7 +2286,7 @@ class WavelengthSolutionPar(ParSet):
                  sigdetect=None, fwhm=None, fwhm_fromlines=None, reid_arxiv=None,
                  nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
                  rms_threshold=None, match_toler=None, func=None, n_first=None, n_final=None,
-                 sigrej_first=None, sigrej_final=None, wv_cen=None, disp=None, numsearch=None,
+                 sigrej_first=None, sigrej_final=None, numsearch=None,
                  nfitpix=None, IDpixels=None, IDwaves=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None):
 
@@ -2317,17 +2317,18 @@ class WavelengthSolutionPar(ParSet):
         defaults['method'] = 'holy-grail'
         options['method'] = WavelengthSolutionPar.valid_methods()
         dtypes['method'] = str
-        descr['method'] = 'Method to use to fit the individual arc lines.  Note that most of ' \
+        descr['method'] = 'Method to use to fit the individual arc lines.  Note that some of ' \
                           'the available methods should not be used; they are unstable and ' \
-                          'require significant parameter tweaking to succeed.  You should use' \
-                          'either \'holy-grail\' or \'reidentify\': \'holy-grail\' attempts to ' \
-                          'get a first guess at line IDs by looking for patterns in the line ' \
-                          'locations.  It is fully automated.  When it works, it works well; ' \
-                          'however, it can fail catastrophically.  Instead, \'reidentify\' is ' \
-                          'the preferred method.  It requires an archived wavelength solution ' \
-                          'for your specific instrument/grating combination as a reference.  ' \
+                          'require significant parameter tweaking to succeed.  You should use ' \
+                          'one of \'holy-grail\', \'reidentify\', or \'full_template\'.  ' \
+                          '\'holy-grail\' attempts to get a first guess at line IDs by looking ' \
+                          'for patterns in the line locations.  It is fully automated.  When ' \
+                          'it works, it works well; however, it can fail catastrophically.  ' \
+                          'Instead, \'reidentify\' and \'full_template\' are the preferred ' \
+                          'methods.  They require an archived wavelength solution for your ' \
+                          'specific instrument/grating combination as a reference.  ' \
                           'This is used to anchor the wavelength solution for the data being ' \
-                          'reduced.  All options are: {0}'.format(', '.join(options['method']))
+                          f"reduced.  All options are: {', '.join(options['method'])}."
 
         # Echelle wavelength calibration stuff
         # TODO: Is this needed? I.e., where do we need this parameter
@@ -2410,7 +2411,7 @@ class WavelengthSolutionPar(ParSet):
         dtypes['reid_arxiv'] = str
         descr['reid_arxiv'] = 'Name of the archival wavelength solution file that will be used ' \
                               'for the wavelength reidentification.  Only used if ``method`` is ' \
-                              '\'reidentify\''
+                              '\'reidentify\' or \'full_template\'.'
 
         defaults['nreid_min'] = 1
         dtypes['nreid_min'] = int
@@ -2508,18 +2509,6 @@ class WavelengthSolutionPar(ParSet):
         descr['sigrej_final'] = 'Number of sigma for rejection for the final guess to the ' \
                                 'wavelength solution.'
 
-        # TODO: Not used
-        # Backwards compatibility with basic and semi_brute algorithms
-        defaults['wv_cen'] = 0.0
-        dtypes['wv_cen'] = float
-        descr['wv_cen'] = 'Central wavelength. Backwards compatibility with basic and ' \
-                          'semi-brute algorithms.'
-
-        defaults['disp'] = 0.0
-        dtypes['disp'] = float
-        descr['disp'] = 'Dispersion. Backwards compatibility with basic and semi-brute algorithms.'
-
-
         defaults['numsearch'] = 20
         dtypes['numsearch'] = int
         descr['numsearch'] = 'Number of brightest arc lines to search for in preliminary ' \
@@ -2559,7 +2548,7 @@ class WavelengthSolutionPar(ParSet):
                    'ech_norder_coeff', 'ech_sigrej', 'lamps', 'sigdetect',
                    'fwhm', 'fwhm_fromlines', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
-                   'sigrej_first', 'sigrej_final', 'wv_cen', 'disp', 'numsearch', 'nfitpix',
+                   'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
                    'IDpixels', 'IDwaves', 'refframe', 'nsnippet', 'use_instr_flag',
                    'wvrng_arxiv']
 
@@ -2586,7 +2575,7 @@ class WavelengthSolutionPar(ParSet):
         Return the valid wavelength solution methods.
         """
         # TODO: Remove from this list anything that is not valid!
-        return ['simple', 'semi-brute', 'basic', 'holy-grail', 'identify', 'reidentify',
+        return ['simple', 'holy-grail', 'identify', 'reidentify',
                 'full_template']
 
     @staticmethod
