@@ -1049,7 +1049,9 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
 
         if self.get_meta_value(scifile, 'dispname')[0:4] == 'R400':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_e2v_mosaic.fits'
-            par['calibrations']['wavelengths']['sigdetect'] = 1.  # The blue wavelengths are *faint*
+            # The blue wavelengths are *faint*
+            #   But redder observations may prefer something closer to the default
+            par['calibrations']['wavelengths']['sigdetect'] = 1.  
         # Return
         return par
 
