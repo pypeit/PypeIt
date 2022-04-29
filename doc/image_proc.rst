@@ -230,16 +230,15 @@ In addition to readnoise and gain, our instrument-specific
 provide the expected dark current; see :ref:`detectors`.  The tabulated dark
 current must be in elections per pixel per *hour*.  Note that:
 
-    - "per pixel" means per
-*unbinned* pixel; dark current in a binned pixel is :math:`N_{\rm bin}` higher
-than in an unbinned pixel
+    - "per pixel" means per *unbinned* pixel; dark current in a binned pixel is
+      :math:`N_{\rm bin}` higher than in an unbinned pixel
 
     - the tabulated dark current is in e-/pixel/hr, whereas the equation above
-    gives :math:`D` in units of e-/pixel/s.  Within ``PypeIt`` all exposure
-    times are assumed to be in seconds such that the hr-to-second unit
-    conversion is done during the dark subtraction.
+      gives :math:`D` in units of e-/pixel/s.  Within ``PypeIt`` all exposure
+      times are assumed to be in seconds such that the hr-to-second unit
+      conversion is done during the dark subtraction.
 
-As of version 1.8.1, this tabulated dark current (scaled by the frame exposure
+As of version 1.6.0, this tabulated dark current (scaled by the frame exposure
 time and the binning) is *always* subtracted from the observed images (i.e.,
 there is currently no parameter that will turn this off).  This is primarily due
 to how we account for dark current in our image variance model (see above);
