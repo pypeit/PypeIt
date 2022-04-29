@@ -494,7 +494,8 @@ def xcorr_shift(inspec1,inspec2, smooth=1.0, percent_ceil=80.0, use_raw_arc=Fals
 
 
 def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ceil=80.0, use_raw_arc=False,
-                        shift_mnmx=(-0.05,0.05), stretch_mnmx=(0.95,1.05), sigdetect = 10.0, fwhm = 4.0,debug=False, seed = None):
+                        shift_mnmx=(-0.05,0.05), stretch_mnmx=(0.95,1.05), sigdetect = 10.0, fwhm = 4.0,debug=False,
+                        toler=1e-5, seed = None):
 
     """ Determine the shift and stretch of inspec2 relative to inspec1.  This routine computes an initial
     guess for the shift via maximimizing the cross-correlation. It then performs a two parameter search for the shift and stretch
@@ -545,6 +546,8 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
     seed: int or np.random.RandomState, optional, default = None
         Seed for scipy.optimize.differential_evolution optimizer. If not
         specified, the calculation will not be repeatable
+    toler (float):
+        Tolerance for differential evolution optimizaiton.
     debug = False
        Show plots to the screen useful for debugging.
 
@@ -598,8 +601,8 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
     else:
         bounds = [(shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]), stretch_mnmx]
         # TODO Can we make the differential evolution run faster?
-        result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), tol=1e-4,
-                                                       bounds=bounds, disp=False, polish=True, seed=seed)
+        result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), tol=toler,
+                                                       bounds=bounds, disp=debug, polish=True, seed=seed)
         corr_de = -result.fun
         shift_de = result.x[0]
         stretch_de = result.x[1]

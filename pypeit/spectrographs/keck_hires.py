@@ -20,8 +20,27 @@ from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 from pypeit.par import pypeitpar
+from pypeit.images.mosaic import Mosaic
+from pypeit.core.mosaic import build_image_mosaic_transform
+
 
 from IPython import embed
+
+
+
+class HIRESMosaicLookUp:
+    """
+    Provides the geometry required to mosaic Keck DEIMOS data.
+    Similar to :class:`~pypeit.spectrographs.gemini_gmos.GeminiGMOSMosaicLookUp`
+
+    """
+    geometry = {
+        'MSC01': {'default_shape': (6168, 3990),
+                  'blue_det': {'shift': (-2048.0 -12.0, 0.0), 'rotation': 0.},
+                  'green_det': {'shift': (0., 0.), 'rotation': 0.},
+                  'red_det': {'shift': (2048.0 + 12.0, 0.), 'rotation': 0.}},
+    }
+
 
 
 class KECKHIRESSpectrograph(spectrograph.Spectrograph):
@@ -251,7 +270,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         return np.zeros(len(fitstbl), dtype=bool)
 
 
-    def get_rawimage(self, raw_file, det):
+    def get_rawimage(self, raw_file, det, spectrim=20):
         """
         Read raw images and generate a few other bits and pieces
         that are key for image processing.
@@ -287,13 +306,177 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         # TODO -- Put a check in here to avoid data using the
         #  original CCD (1 chip)
 
-        # Read a single HIRES chip
-        image, header, rawdatasec_img, oscansec_img, hdul = read_hires(raw_file, det=det)
-        
-        detector_par = self.get_detector_par(det, hdu=hdul)
+
+        # Check for file; allow for extra .gz, etc. suffix
+        if not os.path.isfile(raw_file):
+            msgs.error(f'{raw_file} not found!')
+        hdu = io.fits_open(raw_file)
+
+        head0 = hdu[0].header
+
+        # Get post, pre-pix values
+        precol = head0['PRECOL']
+        postpix = head0['POSTPIX']
+        preline = head0['PRELINE']
+        postline = head0['POSTLINE']
+        detlsize = head0['DETLSIZE']
+        x0, x_npix, y0, y_npix = np.array(parse.load_sections(detlsize)).flatten()
+
+        # get the x and y binning factors...
+        #binning = head0['BINNING']
+
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+        # TODO: JFH I think this works fine
+        if binning != '3,1':
+            msgs.warn("This binning for HIRES might not work.  But it might..")
+
+        # We are flipping this because HIRES stores the binning oppostire of the (binspec, binspat) pypeit convention.
+        binspatial, binspec = parse.parse_binning(head0['BINNING'])
+        # Validate the entered (list of) detector(s)
+        nimg, _det = self.validate_det(det)
+
+        # Grab the detector or mosaic parameters
+        mosaic = None if nimg == 1 else self.get_mosaic_par(det, hdu=hdu)
+        detectors = [self.get_detector_par(det, hdu=hdu)] if nimg == 1 else mosaic.detectors
+
+        # get the chips to read in
+        # DP: I don't know if this needs to still exist. I believe det is never None
+        if det is None:
+            chips = range(self.ndet)
+        else:
+            chips = [d-1 for d in _det]  # Indexing starts at 0 here
+
+        # get final datasec and oscan size (it's the same for every chip so
+        # it's safe to determine it outsize the loop)
+
+        # Create final image
+        if det is None:
+            # JFH: TODO is this a good idea?
+            image = np.zeros((x_npix, y_npix + 4 * postpix))
+            rawdatasec_img = np.zeros_like(image, dtype=int)
+            oscansec_img = np.zeros_like(image, dtype=int)
+        else:
+            data, oscan = hires_read_1chip(hdu, chips[0] + 1)
+            image = np.zeros((nimg, data.shape[0], data.shape[1] + oscan.shape[1]))
+            rawdatasec_img = np.zeros_like(image, dtype=int)
+            oscansec_img = np.zeros_like(image, dtype=int)
+
+
+        # Loop over the chips
+        for ii, tt in enumerate(chips):
+            image_ii, oscan_ii = hires_read_1chip(hdu, tt + 1)
+
+            # Indexing
+            x1, x2, y1, y2, o_x1, o_x2, o_y1, o_y2 = indexing(tt, postpix, det=det, xbin=binspatial, ybin=binspec)
+
+            # Fill
+            image[ii, y1:y2, x1:x2] = image_ii
+            image[ii, o_y1:o_y2, o_x1:o_x2] = oscan_ii
+            rawdatasec_img[ii, y1:y2-spectrim//binspec, x1:x2] = 1  # Amp
+            oscansec_img[ii, o_y1:o_y2-spectrim//binspec, o_x1:o_x2] = 1  # Amp
+
+        exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
 
         # Return
-        return detector_par, image, hdul, header['EXPTIME'], rawdatasec_img, oscansec_img
+        # Handle returning both single and multiple images
+        if nimg == 1:
+            return detectors[0], image[0], hdu, exptime, rawdatasec_img[0], oscansec_img[0]
+        return mosaic, image, hdu, exptime, rawdatasec_img, oscansec_img
+
+
+    def get_mosaic_par(self, mosaic, hdu=None, msc_order=0):
+        """
+        Return the hard-coded parameters needed to construct detector mosaics
+        from unbinned images.
+
+        The parameters expect the images to be trimmed and oriented to follow
+        the ``PypeIt`` shape convention of ``(nspec,nspat)``.  For returned
+        lists, the length of the list is the same as the number of detectors in
+        the mosaic, and they are ordered by the detector number.
+
+        Args:
+            mosaic (:obj:`tuple`):
+                Tuple of detector numbers used to construct the mosaic.  Must be
+                one among the list of possible mosaics as hard-coded by the
+                :func:`allowed_mosaics` function.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent detector parameters are set to a
+                default.  BEWARE: If ``hdu`` is not provided, the binning is
+                assumed to be `1,1`, which will cause faults if applied to
+                binned images!
+            msc_order (:obj:`int`, optional):
+                Order of the interpolation used to construct the mosaic.
+
+        Returns:
+            :class:`~pypeit.images.mosaic.Mosaic`: Object with the mosaic *and*
+            detector parameters.
+        """
+
+        # Validate the entered (list of) detector(s)
+        nimg, _ = self.validate_det(mosaic)
+
+        # Index of mosaic in list of allowed detector combinations
+        mosaic_id = self.allowed_mosaics.index(mosaic)+1
+        detid = f'MSC0{mosaic_id}'
+
+        # Get the detectors
+        detectors = np.array([self.get_detector_par(det, hdu=hdu) for det in mosaic])
+        # Binning *must* be consistent for all detectors
+        if any(d.binning != detectors[0].binning for d in detectors[1:]):
+            msgs.error('Binning is somehow inconsistent between detectors in the mosaic!')
+
+        # Collect the offsets and rotations for *all unbinned* detectors in the
+        # full instrument, ordered by the number of the detector.  Detector
+        # numbers must be sequential and 1-indexed.
+        # See the mosaic documentattion.
+        msc_geometry = HIRESMosaicLookUp.geometry
+        expected_shape = msc_geometry[detid]['default_shape']
+        shift = np.array([(msc_geometry[detid]['blue_det']['shift'][0], msc_geometry[detid]['blue_det']['shift'][1]),
+                          (msc_geometry[detid]['green_det']['shift'][0], msc_geometry[detid]['green_det']['shift'][1]),
+                          (msc_geometry[detid]['red_det']['shift'][0], msc_geometry[detid]['red_det']['shift'][1])])
+
+        rotation = np.array([msc_geometry[detid]['blue_det']['rotation'], msc_geometry[detid]['green_det']['rotation'],
+                             msc_geometry[detid]['red_det']['rotation']])
+
+        # The binning and process image shape must be the same for all images in
+        # the mosaic
+        binning = tuple(int(b) for b in detectors[0].binning.split(','))
+        shape = tuple(n // b for n, b in zip(expected_shape, binning))
+
+        msc_sft = [None]*nimg
+        msc_rot = [None]*nimg
+        msc_tfm = [None]*nimg
+
+        for i in range(nimg):
+            msc_sft[i] = shift[i]
+            msc_rot[i] = rotation[i]
+            # binning is here in the PypeIt convention of (binspec, binspat), but the mosaic tranformations
+            # occur in the raw data frame, which flips spectral and spatial
+            msc_tfm[i] = build_image_mosaic_transform(shape, msc_sft[i], msc_rot[i], tuple(reversed(binning)))
+
+        return Mosaic(mosaic_id, detectors, shape, np.array(msc_sft), np.array(msc_rot),
+                      np.array(msc_tfm), msc_order)
+
+
+    @property
+    def allowed_mosaics(self):
+        """
+        Return the list of allowed detector mosaics.
+
+        Gemini GMOS only allows for mosaicing all three detectors.
+
+        Returns:
+            :obj:`list`: List of tuples, where each tuple provides the 1-indexed
+            detector numbers that can be combined into a mosaic and processed by
+            ``PypeIt``.
+        """
+        return [(1,2,3)]
+
+    @property
+    def default_mosaic(self):
+        return self.allowed_mosaics[0]
+
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -615,7 +798,8 @@ def hires_read_1chip(hdu,chipno):
     # Return
     return data, oscan
 
-def read_hires(raw_file, det=None, spectrim=20):
+# THIS is deprecated
+def read_hires(hdu, det=None, spectrim=20):
     """
     Read a raw HIRES data frame (one or more detectors).
 
@@ -650,11 +834,6 @@ def read_hires(raw_file, det=None, spectrim=20):
 
     """
 
-    # Check for file; allow for extra .gz, etc. suffix
-    if not os.path.isfile(raw_file):
-        msgs.error(f'{raw_file} not found!')
-
-    hdu = io.fits_open(raw_file)
     head0 = hdu[0].header
 
     # Get post, pre-pix values

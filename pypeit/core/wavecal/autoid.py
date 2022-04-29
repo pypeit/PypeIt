@@ -806,6 +806,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
                         line_iarxiv = np.append(line_iarxiv,iarxiv)
 
     narxiv_used = np.sum(wcen != 0.0)
+
     # Initialise the patterns dictionary, sigdetect not used anywhere
     if (narxiv_used == 0) or (len(np.unique(line_indx)) < 3):
         patt_dict_slit = patterns.empty_patt_dict(detections.size)
@@ -819,7 +820,6 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     patt_dict_slit['bwv'] = np.median(wcen[wcen != 0.0])
     patt_dict_slit['bdisp'] = np.median(disp[disp != 0.0])
     patt_dict_slit['sigdetect'] = sigdetect
-
 
 
     if debug_reid:
