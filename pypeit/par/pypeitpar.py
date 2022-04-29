@@ -215,6 +215,7 @@ class ProcessImagesPar(ParSet):
                  comb_sigrej=None,
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None,
                  use_biasimage=None, use_overscan=None, use_darkimage=None,
+                 dark_expscale=None,
                  empirical_rn=None, shot_noise=None, noise_floor=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
                  use_pattern=None, use_continuum=None, spat_flexure_correct=None):
@@ -274,6 +275,15 @@ class ProcessImagesPar(ParSet):
         dtypes['use_darkimage'] = bool
         descr['use_darkimage'] = 'Subtract off a dark image.  If True, one or more darks must ' \
                                  'be provided.'
+
+        defaults['dark_expscale'] = False
+        dtypes['dark_expscale'] = bool
+        descr['dark_expscale'] = 'If designated dark frames are used and have a different ' \
+                                 'exposure time than the science frames, scale the counts by ' \
+                                 'the by the ratio in the exposure times to adjust the dark ' \
+                                 'counts for the difference in exposure time.  WARNING: You ' \
+                                 'should always take dark frames that have the same exposure ' \
+                                 'time as your science frames, so use this option with care!'
 
         defaults['use_pattern'] = False
         dtypes['use_pattern'] = bool
@@ -413,10 +423,11 @@ class ProcessImagesPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'use_continuum', 'use_pattern', 'use_overscan',
-                   'overscan_method', 'overscan_par', 'use_darkimage', 'spat_flexure_correct',
-                   'use_illumflat', 'use_specillum', 'empirical_rn', 'shot_noise', 'noise_floor',
-                   'use_pixelflat', 'combine', 'satpix', #'cr_sigrej',
+        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'use_continuum', 'use_pattern',
+                   'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
+                   'dark_expscale', 'spat_flexure_correct', 'use_illumflat', 'use_specillum',
+                   'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
+                   'satpix', #'cr_sigrej',
                    'n_lohi', 'mask_cr',
                    #'replace',
                    'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact', 'sigclip',

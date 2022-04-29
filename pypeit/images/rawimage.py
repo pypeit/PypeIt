@@ -291,7 +291,11 @@ class RawImage:
             msgs.error('Dark image has not been created!  Run build_dark.')
         _dark = self.dark if self.par['shot_noise'] else None
         _counts = self.image if self.par['shot_noise'] else None
-        self.base_var = procimg.base_variance(self.rn2img, darkcurr=_dark, exptime=self.exptime,
+        # NOTE: self.dark is expected to be in *counts*.  This means that
+        # procimg.base_variance should be called with exptime=None.  If the
+        # exposure time is provided, the units of the dark current are expected
+        # to be in e-/hr!
+        self.base_var = procimg.base_variance(self.rn2img, darkcurr=_dark, #exptime=self.exptime,
                                               proc_var=self.proc_var, count_scale=self.img_scale)
         var = procimg.variance_model(self.base_var, counts=_counts, count_scale=self.img_scale,
                                      noise_floor=self.par['noise_floor'])
@@ -417,9 +421,10 @@ class RawImage:
                observed dark images.  The shape and orientation of the observed
                dark image must match the *processed* image.  I.e., if you trim
                and orient this image, you must also have trimmed and oriented
-               the dark frames.  The dark image is *automatically* scaled by the
-               ratio of the exposure times to ensure the counts/s in the dark
-               are removed from the image being processed.
+               the dark frames.  To scale the dark image by the ratio of the
+               exposure times to ensure the counts/s in the dark are removed
+               from the image being processed, set the ``dark_expscale``
+               parameter to true.
 
             #. :func:`subtract_dark`: Subtract the master dark image and
                propagate any error.
@@ -605,7 +610,8 @@ class RawImage:
         #     frame is provided and subtracted, its shape and orientation must
         #     match the *processed* image, and the units *must* be in
         #     electrons/counts.
-        self.build_dark(dark_image=dark if self.par['use_darkimage'] else None)
+        self.build_dark(dark_image=dark if self.par['use_darkimage'] else None,
+                        expscale=self.par['dark_expscale'])
 
         #   - Subtract dark current.  This simply subtracts the dark current
         #     from the image being processed.  If available, uncertainty from
@@ -884,7 +890,7 @@ class RawImage:
 
     # TODO: expscale is currently not a parameter that the user can control.
     # Should it be?
-    def build_dark(self, dark_image=None, expscale=True):
+    def build_dark(self, dark_image=None, expscale=False):
         """
         Build the dark image data used for dark subtraction and error
         propagation.
@@ -904,12 +910,10 @@ class RawImage:
 
         .. warning::
 
-            The current default automatically scales the dark frame to match the
-            exposure time of the image being processed.  Typically dark frames
-            should have the same exposure time as the image being processed, so
-            this will have no effect.  However, beware if that's not the case,
-            and make sure this scaling is appropriate.  Use ``expscale`` to
-            turn it off.
+            Typically dark frames should have the same exposure time as the
+            image being processed.  However, beware if that's not the case, and 
+            make sure any use of exposure time scaling of the counts (see
+            ``expscale``) is appropriate!
 
         Args:
             dark_image (:class:`~pypeit.images.pypeitimage.PypeItImage`, optional):
