@@ -395,7 +395,7 @@ def zerolag_shift_stretch(theta, y1, y2):
     y2_corr = shift_and_stretch(y2, shift, stretch)
     # Zero lag correlation
     corr_zero = np.sum(y1*y2_corr)
-    corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2*y2))
+    corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2_corr*y2_corr))
     corr_norm = corr_zero/corr_denom
     return -corr_norm
 
