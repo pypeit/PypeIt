@@ -29,10 +29,7 @@ class ShowArxiv(scriptbase.ScriptBase):
         from matplotlib import pyplot as plt
         from pypeit.core.wavecal import waveio
 
-        # Path
-        if os.path.basename(args.file) == args.file:
-            args.file = os.path.join(data.Paths.reid_arxiv, args.file)
-
+        # NOTE: Path is checked within load_template()
         wave, flux, binspec = waveio.load_template(args.file, args.det)
 
         plt.clf()
