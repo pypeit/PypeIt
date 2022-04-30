@@ -72,7 +72,10 @@ import shutil
 import urllib
 
 import astropy.utils.data
-import github
+try:
+    import github
+except:
+    pass
 from linetools.spectra import xspectrum1d
 from pkg_resources import resource_filename
 import requests

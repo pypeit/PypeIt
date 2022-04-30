@@ -416,8 +416,10 @@ def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False,sig
 
     if percent_ceil is not None and (ampl.size > 0):
         # If this is set, set a ceiling on the greater > 10sigma peaks
-        ceil1 = np.percentile(ampl, percent_ceil)
-        spec1 = np.fmin(use_arc, ceil1)
+        ceil_upper = np.percentile(ampl[ampl >= 0.0], percent_ceil) if np.any(ampl >= 0.0) else 0.0
+        # Set a lower ceiling on negative fluctuations
+        ceil_lower = np.percentile(ampl[ampl < 0.0], percent_ceil) if np.any(ampl < 0.0) else 0.0
+        spec1 = np.clip(use_arc, ceil_lower, ceil_upper)
     else:
         spec1 = np.copy(use_arc)
 
@@ -602,7 +604,7 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
         bounds = [(shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]), stretch_mnmx]
         # TODO Can we make the differential evolution run faster?
         result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), tol=toler,
-                                                       bounds=bounds, disp=debug, polish=True, seed=seed)
+                                                       bounds=bounds, disp=False, polish=True, seed=seed)
         corr_de = -result.fun
         shift_de = result.x[0]
         stretch_de = result.x[1]
