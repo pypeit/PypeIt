@@ -3,11 +3,7 @@ Module for MMT MMIRS
 
 .. include:: ../include/links.rst
 """
-import os
 import glob
-from pkg_resources import resource_filename
-
-from IPython import embed
 
 import numpy as np
 from scipy.signal import savgol_filter
@@ -186,9 +182,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
         # ToDo: replace the telluric grid file for MMT site.
-        par['sensfunc']['IR']['telgridfile'] \
-                = os.path.join(par['sensfunc']['IR'].default_root,
-                               'TelFit_MaunaKea_3100_26100_R20000.fits')
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
 
         return par
 

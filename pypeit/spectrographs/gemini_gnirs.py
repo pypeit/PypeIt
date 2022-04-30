@@ -3,11 +3,6 @@ Module for Gemini/GNIRS specific methods.
 
 .. include:: ../include/links.rst
 """
-import os
-from pkg_resources import resource_filename
-
-from IPython import embed
-
 import numpy as np
 
 from pypeit import msgs
@@ -107,9 +102,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 6
-        par['sensfunc']['IR']['telgridfile'] \
-                = os.path.join(par['sensfunc']['IR'].default_root,
-                               'TelFit_MaunaKea_3100_26100_R20000.fits')
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
@@ -147,7 +140,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
             # Wavelengths
             par['calibrations']['wavelengths']['rms_threshold'] = 1.0  # Might be grating dependent..
-            par['calibrations']['wavelengths']['sigdetect'] = 5.0
+            par['calibrations']['wavelengths']['sigdetect'] =  [4.0, 5.0, 5.0, 5.0, 5.0, 5.0] #5.0
             par['calibrations']['wavelengths']['lamps'] = ['OH_GNIRS']
             #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
             par['calibrations']['wavelengths']['n_first'] = 2

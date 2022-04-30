@@ -1,4 +1,21 @@
 
+1.8.2dev
+--------
+
+- When using glob to get files in pypeit_setup, added automatic sorting so that
+  the default `comb_id` ordering matches the sorted file name.
+- Improve Keck/KCWI automatic frame typing.
+- Wavelength templates (OH lines and arc lamps) created for Keck/MOSFIRE
+- Mosaic is now available for Keck/DEIMOS too.
+- Various package data (e.g., reid_arxiv, sensfunc) are no longer distributed via
+  PyPI to reduce package size; introduce mechanisms for downloading/caching needed
+  data either at runtime or on demand.
+- Save output wavelength calibration from `pypeit_identify` to the cache for
+  direct reuse in data reduction.
+- The `pypeit_identify` GUI can now toggle between linear and log scaling of the
+  arc spectrum flux.
+
+
 1.8.1 (23 Feb 2022)
 -------------------
 
@@ -99,7 +116,6 @@
     - Fixed a bug that was introduced in skymask definition.
     - Fixed a bug where negative objects were not being found for IR reductions of standard stars.
 - Add template wavelength solution for soar_goodman_red 400_SYZY
-
 
 1.7.0 (19 Nov 2021)
 -------------------

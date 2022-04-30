@@ -4,13 +4,12 @@ Odds and ends in support of tests
 import os
 import copy
 import pytest
-from pkg_resources import resource_filename
 
 from IPython import embed
 
 import numpy as np
 from astropy import time
-from astropy.io import fits
+from pypeit import data
 
 from pypeit.images import buildimage
 from pypeit import edgetrace
@@ -18,6 +17,7 @@ from pypeit import wavecalib
 from pypeit import flatfield
 from pypeit import wavetilts
 from pypeit.core.wavecal import waveio
+from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.metadata import PypeItMetaData
 from pypeit import masterframe
@@ -36,8 +36,8 @@ cooked_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None or
                             reason='no dev-suite cooked directory')
 
 # Tests require the Telluric file (Mauna Kea)
-tell_test_grid = os.path.join(resource_filename('pypeit', 'data'), 'telluric', 'atm_grids',
-                              'TelFit_MaunaKea_3100_26100_R20000.fits')
+par = Spectrograph.default_pypeit_par()
+tell_test_grid = os.path.join(data.Paths.telgrid, 'TelFit_MaunaKea_3100_26100_R20000.fits')
 telluric_required = pytest.mark.skipif(not os.path.isfile(tell_test_grid),
                                        reason='no Mauna Kea telluric file')
 

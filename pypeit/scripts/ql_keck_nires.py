@@ -34,6 +34,7 @@ class QLKeckNIRES(scriptbase.ScriptBase):
         from pypeit import pypeitsetup
         from pypeit.core import framematch
         from pypeit import msgs
+        from pypeit import data
 
         # Setup
         data_files = [os.path.join(args.full_rawpath, args.fileA),
@@ -55,7 +56,7 @@ class QLKeckNIRES(scriptbase.ScriptBase):
 
         # Calibrations
         default_master_dir = os.getenv('QL_MASTERS')
-        master_dir = resource_filename('pypeit', 'data/QL_MASTERS') \
+        master_dir = os.path.join(data.Paths.data, 'QL_MASTERS') \
                         if default_master_dir is None else default_master_dir
         master_dir = os.path.join(master_dir, 'NIRES_MASTERS')
         if not os.path.isdir(master_dir):

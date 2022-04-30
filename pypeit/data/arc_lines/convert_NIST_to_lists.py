@@ -8,12 +8,10 @@ import os
 import pdb
 import datetime
 
-from pkg_resources import resource_filename
 from collections import OrderedDict
 from astropy.table import Table, Column
 
-line_path = resource_filename('pypeit', '/data/arc_lines/lists/')
-nist_path = resource_filename('pypeit', '/data/arc_lines/NIST/')
+from pypeit import data
 
 
 def parser(options=None):
@@ -78,11 +76,11 @@ def load_line_list(line):
     line_list : Table
 
     """
-    line_file = nist_path + '{:s}_vacuum.ascii'.format(line)
+    line_file = os.path.join(data.Paths.nist, f'{line}_vacuum.ascii')
 
     # Check the NIST lines file exists
     if not os.path.isfile(line_file):
-        raise IOError("Input line {:s} is not available".format(line))
+        raise IOError(f"Input line {line} is not available")
 
     line_list = Table.read(line_file, format='ascii.fixed_width', comment='#')
 
@@ -175,7 +173,7 @@ def main(args=None):
         return
 
     # Write the table to disk
-    outfile = line_path + '{:s}_lines.dat'.format(line)
+    outfile = os.path.join(data.Paths.linelist, f'{line}_lines.dat')
     write_line_list(linelist, outfile)
     return
 
