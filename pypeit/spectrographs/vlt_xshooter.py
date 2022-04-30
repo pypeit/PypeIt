@@ -915,7 +915,8 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slitedges']['length_range'] = 0.3
 
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_UVB']
+        # TODO -- Trim the MagE linelist down for X-Shooter (or supplement!)
+        par['calibrations']['wavelengths']['lamps'] = ['ThAr_MagE'] 
         par['calibrations']['wavelengths']['rms_threshold'] = 0.50 
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         # Reidentification parameters
@@ -987,17 +988,20 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         nrm_edges = edges.edge_fit[edges.nspec//2,:] / edges.nspat
         slit_cen = ((nrm_edges + np.roll(nrm_edges,1))/2)[np.arange(nrm_edges.size//2)*2+1]
         """
-        # This starts by ignoring the first, partial order
+        # This starts by ignoring the first, partial order (25?)
+        #  Order 24 is very faint and not included here
         return np.array([0.32671887, 0.39553878, 0.45989826, 0.52009878, 0.5764598,
             0.62917188, 0.67859507, 0.72482729, 0.76815531, 0.80879042,
-            0.84700373, 0.88317493])
+            0.84700373])
+        # Reddest order (12) is ignored (for now)
+        #, 0.88317493])
 
     @property
     def orders(self):
         """
         Return the order number for each echelle order.
         """
-        return np.arange(24, 12, -1, dtype=int)
+        return np.arange(23, 12, -1, dtype=int)
 
     @property
     def spec_min_max(self):
