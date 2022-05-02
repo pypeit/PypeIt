@@ -685,7 +685,8 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
 
     Args:
        spec (`numpy.ndarray`_, float,  shape (nspec,)  A 1D spectrum for which the continuum is to be characterized
-       inmask: `numpy.ndarray`_, bool, shape (nspec,)   A mask indicating which pixels are good. True = Good, False=Bad
+       inmask: `numpy.ndarray`_, bool, shape (nspec,)   
+            A mask indicating which pixels are good. True = Good, False=Bad
        niter_cont: int, default = 3
             Number of iterations of peak finding, masking, and continuum fitting used to define the continuum.
        npoly: int, default = None
@@ -771,7 +772,11 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
 
 
         ngood = np.sum(cont_mask)
+        if ngood == 0:
+            msgs.warn("All pixels rejected for continuum.  Returning a 0 array")
+            return np.zeros_like(spec), cont_mask
         samp_width = np.ceil(ngood/cont_samp).astype(int)
+
         cont_med = utils.fast_running_median(spec[cont_mask], samp_width)
         if npoly is not None:
             # ToDO robust_poly_fit needs to return minv and maxv as outputs for the fits to be usable downstream
