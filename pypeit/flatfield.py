@@ -462,14 +462,14 @@ class FlatField:
                 ff_struct = self.extract_structure(rawflat_orig)
                 gpmask = (self.waveimg != 0.0) & gpm
                 # Deal with flatfield structure in an instrument specific way
-                ff_specmodel = self.spectrograph.flatfield_structure(ff_struct, gpmask)
+                ff_struct_model = self.spectrograph.flatfield_structure(ff_struct, gpmask)
                 # Apply this model
-                self.rawflatimg.image = rawflat_orig * utils.inverse(ff_specmodel)
+                self.rawflatimg.image = rawflat_orig * utils.inverse(ff_struct_model)
             # Perform a final 2D fit with the cleaned image
             self.fit(spat_illum_only=self.spat_illum_only, debug=debug)
             # fold in the spectrograph specific flatfield, and reset the rawimg
-            self.flat_model *= ff_specmodel
-            self.mspixelflat *= ff_specmodel
+            self.flat_model *= ff_struct_model
+            self.mspixelflat *= ff_struct_model
             self.rawflatimg.image = rawflat_orig
 
         if show:
