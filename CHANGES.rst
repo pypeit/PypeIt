@@ -14,6 +14,7 @@
   direct reuse in data reduction.
 - The `pypeit_identify` GUI can now toggle between linear and log scaling of the
   arc spectrum flux.
+- Keck/DEIMOS now uses gain/RN values measured periodically by WMKO
 
 
 1.8.1 (23 Feb 2022)
