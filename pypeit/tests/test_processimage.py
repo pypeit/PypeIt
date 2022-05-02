@@ -34,6 +34,11 @@ def kast_blue_bias_files():
     return glob.glob(os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'shane_kast_blue',
                                   '600_4310_d55', 'b1?.fits*'))
 
+@pytest.fixture
+@dev_suite_required
+def kast_blue_arc_file():
+    return glob.glob(os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'shane_kast_blue',
+                                  '600_4310_d55', 'b1.fits*'))
 
 @dev_suite_required
 def test_instantiate(deimos_flat_files, kast_blue_bias_files):
@@ -74,4 +79,17 @@ def test_overscan_subtract(deimos_flat_files):
     assert rawImage.image.shape == (1,4096,2048)
 
 
-
+@dev_suite_required
+def test_continuum_subtraction(kast_blue_arc_file):
+    one_file = kast_blue_arc_file[0]
+    spectograph = load_spectrograph('shane_kast_blue')
+    # Kast
+    det = 1
+    rawImage = rawimage.RawImage(one_file, spectograph, det)
+    defpar = spectograph.default_pypeit_par()['calibrations']['arcframe']['process']
+    defpar['use_continuum'] = True
+    rawImage.par = defpar
+    # Subtract continuum
+    rawImage.subtract_continuum(force=True)
+    # Test
+    assert rawImage.steps['subtract_continuum']

@@ -5,7 +5,6 @@
 
 """
 import inspect
-from pkg_resources import resource_filename
 
 import numpy as np
 import copy, os
@@ -32,6 +31,7 @@ from pypeit.datamodel import DataContainer
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
 from pypeit import specobjs
+from pypeit import data
 
 from IPython import embed
 
@@ -112,24 +112,6 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
     return lag_max[0]
 
 
-def load_sky_spectrum(sky_file):
-    """
-    Load a sky spectrum into an XSpectrum1D object
-
-    .. todo::
-
-        Try to eliminate the XSpectrum1D dependancy
-
-    Args:
-        sky_file: str
-
-    Returns:
-        sky_spec: XSpectrum1D
-          spectrum
-    """
-    return xspectrum1d.XSpectrum1D.from_file(sky_file)
-
-
 def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
     """ Calculate shift between object sky spectrum and archive sky spectrum
 
@@ -152,10 +134,8 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
 
     # Determine the brightest emission lines
     msgs.warn("If we use Paranal, cut down on wavelength early on")
-    arx_amp, arx_amp_cont, arx_cent, arx_wid, _, arx_w, arx_yprep, nsig \
-            = arx_lines
-    obj_amp, obj_amp_cont, obj_cent, obj_wid, _, obj_w, obj_yprep, nsig_obj \
-            = arc.detect_lines(obj_skyspec.flux.value)
+    arx_amp, arx_amp_cont, arx_cent, arx_wid, _, arx_w, arx_yprep, nsig = arx_lines
+    obj_amp, obj_amp_cont, obj_cent, obj_wid, _, obj_w, obj_yprep, nsig_obj = arc.detect_lines(obj_skyspec.flux.value)
 
     # Keep only 5 brightest amplitude lines (xxx_keep is array of
     # indices within arx_w of the 5 brightest)
@@ -377,7 +357,7 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
 
     # Load Archive. Save the line information to avoid the performance hit from calling it on the archive sky spectrum
     # multiple times
-    sky_spectrum = load_sky_spectrum(sky_file)
+    sky_spectrum = data.load_sky_spectrum(sky_file)
     sky_lines = arc.detect_lines(sky_spectrum.flux.value)
 
     nslits = slits.nslits
@@ -850,10 +830,9 @@ class MultiSlitFlexure(DataContainer):
 
         # Load up specobjs
         self.specobjs = specobjs.SpecObjs.from_fitsfile(self.s1dfile, chk_version=False) 
-        #  Sky lines
-        sky_file = os.path.join(resource_filename('pypeit', 'data'), 'sky_spec',
-                                'sky_single_mg.dat')
-        self.sky_table = ascii.read(sky_file)
+        #  Sky lines -- This one is ASCII, so don't use load_sky_spectrum()
+        sky_file = 'sky_single_mg.dat'
+        self.sky_table = ascii.read(os.path.join(data.Paths.sky_spec, sky_file))
 
     def _init_internals(self):
         # Parameters (FlexurePar)

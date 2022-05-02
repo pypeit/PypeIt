@@ -6,6 +6,7 @@ Wrapper to matplotlib to show an archived arc spectrum
 """
 
 from pypeit.scripts import scriptbase
+from pypeit import data
 
 
 class ShowArxiv(scriptbase.ScriptBase):
@@ -24,16 +25,11 @@ class ShowArxiv(scriptbase.ScriptBase):
         """ Shows the spectrum
         """
         import os
-        from pkg_resources import resource_filename
 
         from matplotlib import pyplot as plt
         from pypeit.core.wavecal import waveio
 
-        # Path
-        if os.path.basename(args.file) == args.file:
-            args.file = os.path.join(resource_filename('pypeit', 'data'),
-                                     'arc_lines', 'reid_arxiv', args.file)
-
+        # NOTE: Path is checked within load_template()
         wave, flux, binspec = waveio.load_template(args.file, args.det)
 
         plt.clf()

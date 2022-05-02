@@ -6,11 +6,11 @@ Provides a class that handles archived sensfunc files.
 """
 from abc import ABC, abstractmethod
 import os
-from pkg_resources import resource_filename
 
 from astropy.io import fits
 
 from pypeit import msgs
+from pypeit import data
 
 class SensFileArchive(ABC):
     """Class for managing archived SensFunc files. This is an abstract class that instantitates 
@@ -67,11 +67,12 @@ class DEIMOSSensFileArchive(SensFileArchive):
     """SensFileArchive subclass specifically for keck_deimos SensFuncs."""
     spec_name = "keck_deimos"
 
-    def get_archived_sensfile(self, fitsfile):
+    def get_archived_sensfile(self, fitsfile, symlink_in_pkgdir=False):
         """Get the full path name of the archived sens file that can be used to flux calibrate a given fitsfile
         
         Args:
             fitsfile (str): The fitsfile to find an archived SensFunc file for.
+            symlink_in_pkgdir (bool): Create a symlink to the the cached file in the package directory (default False)
 
         Return:
             str: The full pathname of the archived SensFunc.
@@ -85,7 +86,8 @@ class DEIMOSSensFileArchive(SensFileArchive):
         if grating not in ["600ZD", "830G", "900ZD", "1200B", "1200G"]:
             msgs.error(f"There are no archived SensFuncFiles for keck_deimos grating {grating}.")
         
-        archived_file = resource_filename('pypeit', os.path.join('data', 'sensfuncs', f"keck_deimos_{grating}_sensfunc.fits"))
+        archived_file = data.get_sensfunc_filepath(f"keck_deimos_{grating}_sensfunc.fits",
+                                                   symlink_in_pkgdir=symlink_in_pkgdir)
         msgs.info(f"Found archived sensfile '{archived_file}'")
         return archived_file
 

@@ -2,7 +2,6 @@
 Module to run tests on scripts
 """
 import os
-from pkg_resources import resource_filename
 import shutil
 from pathlib import Path
 
@@ -20,7 +19,7 @@ from pypeit import scripts
 from pypeit.tests.tstutils import dev_suite_required, cooked_required, data_path
 from pypeit.display import display
 from pypeit import edgetrace
-from pypeit import utils
+from pypeit import data
 from pypeit import io
 from pypeit import wavecalib
 from pypeit import coadd1d
@@ -124,7 +123,7 @@ def test_trace_add_rm():
     # Add lines to remove and add slits. This removes the one slit that
     # is found and adds another.
     ps.user_cfg += ['[calibrations]', '[[slitedges]]', 'rm_slits = 1:1028:170',
-                    'add_slits = 1:1028:30:300']
+                    'add_slits = 1:1028:30:300', 'add_predict = straight']
 
     # Use PypeItMetaData to write the complete PypeIt file
     pypeit_file = ps.fitstbl.write_pypeit(output_path=os.getcwd(), cfg_lines=ps.user_cfg,
@@ -252,22 +251,28 @@ def test_chk_wavecalib():
 
 
 # NOTE: May fail if DetectorContainer datamodel changes.
-def test_coadd1d_1():
+def test_coadd1d_1(monkeypatch):
     """
     Test basic coadd using shane_kast_blue
     """
+    dp = data_path('')
+    # Change to the parent directory of the data path, so we can test that
+    # coadding without a coadd output file specified places the output next
+    # to the spec1ds. Using monkeypatch means the current working directory
+    # will be restored after the test.
+    monkeypatch.chdir(Path(dp).parent)
+
     # NOTE: flux_value is False
-    parfile = 'coadd1d.par'
+    parfile = 'files/coadd1d.par'
     if os.path.isfile(parfile):
         os.remove(parfile)
-    coadd_ofile = data_path('J1217p3905_coadd.fits')
+    coadd_ofile = data_path('coadd1d_J1217p3905_KASTb_20150520_20150520.fits')
     if os.path.isfile(coadd_ofile):
         os.remove(coadd_ofile)
 
     coadd_ifile = data_path('shane_kast_blue.coadd1d')
     scripts.coadd_1dspec.CoAdd1DSpec.main(
-            scripts.coadd_1dspec.CoAdd1DSpec.parse_args([coadd_ifile, '--test_spec_path',
-                                                         data_path('')]))
+            scripts.coadd_1dspec.CoAdd1DSpec.parse_args([coadd_ifile, "--par_outfile", parfile]))
     hdu = io.fits_open(coadd_ofile)
     assert hdu[1].header['EXT_MODE'] == 'OPT'
     assert hdu[1].header['FLUXED'] is False
@@ -349,14 +354,14 @@ def test_identify():
                               )
 
     # If you touch the following line, you probably need to update the call in scripts/identify.py
-    arcfitter.store_solution(final_fit, 1, rmstol=0.1, force_save=True, wvcalib=waveCalib)
+    wvarxiv_fn = arcfitter.store_solution(final_fit, 1, rmstol=0.1, force_save=True, wvcalib=waveCalib)
 
     # Test we can read it
     tmp = wavecalib.WaveCalib.from_file('wvcalib.fits')
 
     # Clean up -- If these fail then the store solution failed
     os.remove('waveid.ascii')
-    os.remove('wvarxiv.fits')
+    os.remove(wvarxiv_fn)
     os.remove('wvcalib.fits')
 
 
@@ -382,8 +387,7 @@ def test_obslog():
 def test_compare_sky():
     spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
                              'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
-    sky_file = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
-                                              'sky_kastb_600.fits')
+    sky_file = 'sky_kastb_600.fits'
 
     # Running in `test` mode for boxcar extraction
     pargs = scripts.compare_sky.CompareSky.parse_args([spec_file, sky_file, '--test'])
@@ -399,7 +403,7 @@ def test_compare_sky():
 def test_collate_1d(tmp_path, monkeypatch):
 
     # Build up arguments for testing command line parsing
-    args = ['--dry_run', '--ignore_flux', '--flux', '--outdir', '/outdir2', '--match', 'ra/dec', '--exclude_slit_bm', 'BOXSLIT', '--exclude_serendip']
+    args = ['--dry_run', '--ignore_flux', '--flux', '--outdir', '/outdir2', '--match', 'ra/dec', '--exclude_slit_bm', 'BOXSLIT', '--exclude_serendip', '--wv_rms_thresh', '0.2']
     spec1d_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_b27*')
     spec1d_args = ['--spec1d_files', spec1d_file]
     tol_args = ['--tolerance', '0.03d']
@@ -423,6 +427,7 @@ def test_collate_1d(tmp_path, monkeypatch):
         print("match_using = 'pixel'", file=f)
         print("exclude_slit_trace_bm = BADREDUCE", file=f)
         print("exclude_serendip = False", file=f)
+        print("wv_rms_thresh = 0.1", file=f)
         print("spec1d read", file=f)
         print(alt_spec1d, file=f)
         print("spec1d end", file=f)
@@ -454,6 +459,7 @@ def test_collate_1d(tmp_path, monkeypatch):
     assert params['collate1d']['tolerance'] == '0.03d'
     assert params['collate1d']['exclude_slit_trace_bm'] == ['BOXSLIT']
     assert params['collate1d']['exclude_serendip'] is True
+    assert params['collate1d']['wv_rms_thresh'] == 0.2
     assert params['coadd1d']['ex_value'] == 'OPT'
     assert spectrograph.name == 'shane_kast_blue'
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_spec1d
@@ -469,6 +475,7 @@ def test_collate_1d(tmp_path, monkeypatch):
     assert params['collate1d']['match_using'] == 'pixel'
     assert params['collate1d']['exclude_slit_trace_bm'] == 'BADREDUCE'
     assert params['collate1d']['exclude_serendip'] is False
+    assert params['collate1d']['wv_rms_thresh'] == 0.1
     assert params['coadd1d']['ex_value'] == 'BOX'
     assert spectrograph.name == 'keck_deimos'
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_alt_spec1d
@@ -485,6 +492,7 @@ def test_collate_1d(tmp_path, monkeypatch):
     assert params['collate1d']['match_using'] == 'ra/dec'
     assert params['collate1d']['exclude_slit_trace_bm'] == ['BOXSLIT']
     assert params['collate1d']['exclude_serendip'] is True
+    assert params['collate1d']['wv_rms_thresh'] == 0.2
     assert spectrograph.name == 'shane_kast_blue'
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_spec1d
 
