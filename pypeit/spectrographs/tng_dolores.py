@@ -25,9 +25,6 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
     camera = 'DOLORES'
     comment = 'DOLORES (LRS) spectrograph; LR-R'
 
-#    def __init__(self):
-#        super().__init__()
-#        self.timeunit = 'isot'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -63,8 +60,8 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
             numamplifiers   = 1,
             gain            = np.atleast_1d(0.97),
             ronoise         = np.atleast_1d(9.0),
-            datasec         = np.atleast_1d('[51:,1:2045]'),
-            oscansec        = np.atleast_1d('[51:,2054:]'),
+            datasec         = np.atleast_1d('[1:2045,51:]'),
+            oscansec        = np.atleast_1d('[2054:,51:]'),
             )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -111,7 +108,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         if self.get_meta_value(scifile, 'dispname') == 'LR-B':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'tng_dolores_LR-B_arx.fits'
             # Add CdI
-            par['calibrations']['wavelengths']['method'] = 'full_template'#'holy-grail'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI']
         else:
             msg.warn('Check wavelength calibration file.')
