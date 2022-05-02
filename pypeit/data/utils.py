@@ -1,9 +1,69 @@
 # -*- coding: utf-8 -*-
 """
-Data utilities for built-in PypeIt data files
+Data utilities for built-in ``PypeIt`` data files
 
-NOTE: If the hostname URL for the telluric atmospheric grids on S3 changes,
-      the only place that needs to change is the file `s3_url.txt`.
+.. note::
+
+    If the hostname URL for the telluric atmospheric grids on S3 changes, the
+    only place that needs to change is the file ``s3_url.txt``.
+
+----
+
+Implementation Documentation
+----------------------------
+
+This module contains the organization scheme for the ``pypeit/data`` files
+needed by the ``PypeIt`` package.  Any routine in the package that needs to load
+a data file stored in this directory should use the paths supplied by this
+module and not call `resource_filename
+<https://setuptools.pypa.io/en/latest/pkg_resources.html#resource-extraction>`__
+or attempt to otherwise directly access the package directory structure.  In
+this way, if structural changes to this directory are needed, only this module
+need be modified and the remainder of the package can remain ignorant of those
+changes and continue to call the paths supplied by this module.
+
+Most (by number) of the package data files here are distributed with the
+``PypeIt`` package and are accessed via the :class:`~pypeit.data.utils.Paths`
+class.  For instance, the NIR spectrophotometry for Vega is accessed via:
+
+.. code-block:: python
+
+    vega_file = os.path.join(data.Paths.standards, 'vega_tspectool_vacuum.dat')
+
+For some directories, however, the size of the included files is large enough
+that it was beginning to cause problems with distributing the package via PyPI.
+For these specific directories, the data is still stored in the GitHub
+repository but is not distributed with the PyPI package.  In order to access
+and use these files, we use the AstroPy download/cache system, and specific
+functions (``get_*_filepath()``) are required to interact with these files.
+Currently, the directories covered by the AstroPy download/cache system are:
+
+    * arc_lines/reid_arxiv
+    * skisim
+    * sensfuncs
+
+From time to time, it may be necessary to add additional files/directories to
+the AstroPy download/cache system.  In this case, there is a particular
+sequence of steps required.  The caching routines look for remote-hosted data
+files in either the ``develop`` tree or a tagged version tree (e.g., ``1.8.0``)
+of the repository, any new files must be already present in the repo before
+testing a new ``get_*_filepath()`` routine.  Order of operations is:
+
+    #. Add any new remote-hosted files to the GitHub repo via a separate PR
+       that also modifies ``MANIFEST.in`` to exclude these files from the
+       distributed package.
+
+    #. Create a new ``get_*_filepath()`` function in this module, following the
+       example of one of the existing functions.  Elsewhere in ``PypeIt``, load
+       the needed file by invoking the new ``get_*_filepath()`` function.  An
+       example of this can be found in ``pypeit/core/flux_calib.py`` where
+       ``get_skisim_filepath()`` is called to locate sky transmission files.
+
+If new package-included data are added that are not very large (total directory
+size < a few MB), it is not necessary to use the AstroPy cache/download system.
+In this case, simply add the directory path to the
+:class:`~pypeit.data.utils.Paths` class and access the enclosed files similarly
+to the Vega example above.
 
 .. include:: ../include/links.rst
 """
@@ -70,6 +130,7 @@ class Paths_meta(type):
         # Other
         cls._sky_spec = os.path.join(cls._data, 'sky_spec')
         cls._static_calibs = os.path.join(cls._data, 'static_calibs')
+        cls._spectrographs = os.path.join(cls._data, 'spectrographs')
 
     @property
     def data(cls):
@@ -124,6 +185,9 @@ class Paths_meta(type):
     @property
     def static_calibs(cls):
         return check_isdir(cls._static_calibs)
+    @property
+    def spectrographs(cls):
+        return check_isdir(cls._spectrographs)
 
 
 class Paths(metaclass=Paths_meta):
@@ -329,6 +393,7 @@ def get_telgrid_filepath(telgrid_file):
     return telgrid_path
 
 
+# AstroPy download/cache infrastructure ======================================#
 def fetch_remote_file(filename, filetype, remote_host='github', install_script=False,
                       force_update=False, full_url=None):
     """Use ``astropy.utils.data`` to fetch file from remote or cache
