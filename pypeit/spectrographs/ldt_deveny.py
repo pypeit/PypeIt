@@ -113,7 +113,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['idname'] = dict(ext=0, card='IMAGETYP')
         self.meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-3)
-        #self.meta['cenwave'] = dict(card=None, compound=True)
+        self.meta['cenwave'] = dict(card=None, compound=True, rtol=5)
         self.meta['filter1'] = dict(card=None, compound=True)
         self.meta['slitwid'] = dict(ext=0, card='SLITASEC')
         self.meta['lampstat01'] = dict(card=None, compound=True)
@@ -148,9 +148,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             #  populated `LAMPCAL` string, or 'off' to ensure a positive entry for
             #  `lampstat01`.
             lampcal = headarr[0]['LAMPCAL'].strip()
-            if lampcal == '':
-                return 'off'
-            return lampcal
+            return 'off' if lampcal == '' else lampcal
 
         if meta_key == 'dispname':
             # Convert older FITS keyword GRATING (gpmm/blaze) into the newer
@@ -172,10 +170,23 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             return headarr[0]['FILTREAR'].split()[0].upper()
 
         if meta_key == 'cenwave':
-            # Use the DeVeny grating angle formula to return the central wavelength
-            #  rounded to the nearest, say, 50A
-            #  Use headarr[0]['GRATING'].split('/')[0] and headarr[0]['GRANGLE']
-            return 5000
+            # The central wavelength is more descriptive of the grating angle position
+            #  than just the angle value.  Use the DeVeny grating angle formula to
+            #  return the central wavelength of the configuration.
+
+            # DeVeny Fixed Optical Angles in radians
+            CAMCOL = np.deg2rad(55.00)  # Camera-to-Collimator Angle
+            COLL = np.deg2rad(10.00)    # Collimator-to-Grating Angle
+            # Grating angle in radians
+            theta = np.deg2rad(float(headarr[0]['GRANGLE']))
+            # Wavelength in Angstroms
+            wavelen = (
+                (np.sin(COLL + theta) + np.sin(COLL + theta - CAMCOL))  # Angles
+                * 1.0e7                                                 # Angstroms/mm
+                / float(headarr[0]["GRATING"].split("/")[0])            # lines / mm
+            )
+            # Round the wavelength to the nearest 5A
+            return np.around(wavelen / 5, decimals=0) * 5
 
         msgs.error(f"Not ready for compound meta {meta_key} for LDT/DeVeny")
 
@@ -251,8 +262,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        # TODO: Change 'dispangle' -> 'cenwave'
-        return ['dispname', 'dispangle', 'filter1', 'binning']
+        return ['dispname', 'cenwave', 'filter1', 'binning']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -273,26 +283,49 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             `numpy.ndarray`_: Boolean array with the flags selecting the
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
-        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-        if ftype == 'bias':
-            return fitstbl['idname'] == 'BIAS'
-        if ftype in ['arc', 'tilt']:
+        good_exp = framematch.check_frame_exptime(fitstbl["exptime"], exprng)
+        if ftype == "bias":
+            return fitstbl["idname"] == "BIAS"
+        if ftype in ["arc", "tilt"]:
             # FOCUS frames should have frametype None, BIAS is bias regardless of lamp status
-            return good_exp & (fitstbl['lampstat01'] != 'off') & (fitstbl['idname'] != 'FOCUS') & \
-                   (fitstbl['idname'] != 'BIAS')
-        if ftype in ['trace', 'pixelflat']:
-            return good_exp & (fitstbl['idname'] == 'DOME FLAT') & (fitstbl['lampstat01'] == 'off')
-        if ftype in ['illumflat','sky']:
-            return good_exp & (fitstbl['idname'] == 'SKY FLAT') & (fitstbl['lampstat01'] == 'off')
-        if ftype == 'science':
+            return (
+                good_exp
+                & (fitstbl["lampstat01"] != "off")
+                & (fitstbl["idname"] != "FOCUS")
+                & (fitstbl["idname"] != "BIAS")
+            )
+        if ftype in ["trace", "pixelflat"]:
+            return (
+                good_exp
+                & (fitstbl["idname"] == "DOME FLAT")
+                & (fitstbl["lampstat01"] == "off")
+            )
+        if ftype in ["illumflat", "sky"]:
+            return (
+                good_exp
+                & (fitstbl["idname"] == "SKY FLAT")
+                & (fitstbl["lampstat01"] == "off")
+            )
+        if ftype == "science":
             # Both OBJECT and STANDARD frames should be processed as science frames
-            return good_exp & (fitstbl['lampstat01'] == 'off') & \
-                   ((fitstbl['idname'] == 'OBJECT') | (fitstbl['idname'] == 'STANDARD'))        
-        if ftype == 'standard':
-            return good_exp & (fitstbl['idname'] == 'STANDARD') & (fitstbl['lampstat01'] == 'off')
-        if ftype == 'dark':
-            return good_exp & (fitstbl['idname'] == 'DARK') & (fitstbl['lampstat01'] == 'off')
-        if ftype in ['pinhole','align']:
+            return (
+                good_exp
+                & ((fitstbl["idname"] == "OBJECT") | (fitstbl["idname"] == "STANDARD"))
+                & (fitstbl["lampstat01"] == "off")
+            )
+        if ftype == "standard":
+            return (
+                good_exp
+                & (fitstbl["idname"] == "STANDARD")
+                & (fitstbl["lampstat01"] == "off")
+            )
+        if ftype == "dark":
+            return (
+                good_exp
+                & (fitstbl["idname"] == "DARK")
+                & (fitstbl["lampstat01"] == "off")
+            )
+        if ftype in ["pinhole", "align"]:
             # Don't types pinhole or align frames
             return np.zeros(len(fitstbl), dtype=bool)
         msgs.warn(f"Cannot determine if frames are of type {ftype}")
@@ -307,7 +340,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return super().pypeit_file_keys() + ['slitwid','lampstat01']
+        return super().pypeit_file_keys() + ['dispangle','slitwid','lampstat01']
 
     def get_lamps(self, fitstbl):
         """
@@ -348,7 +381,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_150_HgCdAr.fits'
             # Because of the wide wavelength range, split DV1 arcs in half for reidentification
-            par['calibrations']['wavelengths']['nsnippet'] = 2  # Back to default for this grating
+            par['calibrations']['wavelengths']['nsnippet'] = 2
             # Because of the wide wavelength range, solution more non-linear; user higher orders
             par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
             par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
@@ -364,7 +397,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
 
         elif grating == 'DV5 (500/5500)':
-            # Use this `reid_arxiv`
+            # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_500_HgCdAr.fits'
 
         elif grating in ['DV6 (600/4900)', 'DV7 (600/6750)']:
