@@ -877,9 +877,12 @@ class EdgeTraceSet(DataContainer):
                                                     self.traceimg.detector.det)
             if add_user_slits is not None:
                 ad_rm = True
-                self.add_user_traces(add_user_slits)
+                self.add_user_traces(add_user_slits, method=self.par['add_predict'])
         if show_stages and ad_rm:
             self.show(title='After user-dictated adding/removing slits')
+
+        # TODO: If slits are added/removed, should the code check again if the
+        # traces are synced?
 
         # TODO: Add a parameter and an if statement that will allow for
         # this.
@@ -983,7 +986,8 @@ class EdgeTraceSet(DataContainer):
                 = trace.detect_slit_edges(_img, bpm=self.tracebpm,
                                           median_iterations=self.par['filt_iter'],
                                           sobel_mode=self.par['sobel_mode'],
-                                          sigdetect=self.par['edge_thresh'])
+                                          sigdetect=self.par['edge_thresh'],
+                                          sobel_enhance=self.par['sobel_enhance'])
         # Empty out the images prepared for left and right tracing
         # until they're needed.
         self.sobelsig_left = None
@@ -3113,7 +3117,7 @@ class EdgeTraceSet(DataContainer):
             use_center (:obj:`bool`, optional):
                 Use the center measurements for the PCA decomposition
                 instead of the functional fit to those data. This is
-                only relevant if both are available. If not fits have
+                only relevant if both are available. If no fits have
                 been performed, the function will automatically use
                 the center measurements.
             debug (:obj:`bool`, optional):
@@ -3171,7 +3175,7 @@ class EdgeTraceSet(DataContainer):
 
         # The call to can_pca means that short traces are fully masked
         # and that valid traces will be any trace with unmasked pixels.
-        use_trace = np.sum(np.invert(bpm), axis=0) > 0
+        use_trace = np.sum(np.logical_not(bpm), axis=0) > 0
 
         # Set the reference row so that, regardless of whether the PCA
         # is for the left, right, or all traces, the reference row is
@@ -3278,7 +3282,7 @@ class EdgeTraceSet(DataContainer):
         trace_ref = self.edge_cen[reference_row,:] if self.pcatype == 'center' \
                             else self.edge_fit[reference_row,:]
         side = self.is_right.astype(int)*2-1
-        self.edge_fit = self.predict_traces(trace_ref, side)
+        self.edge_fit = self.predict_traces(trace_ref, side=side)
 
         # TODO: Compare with the fit data. Remove traces where the mean
         # offset between the PCA prediction and the measured centroids
@@ -3839,7 +3843,7 @@ class EdgeTraceSet(DataContainer):
 
         # Predict the traces either using the PCA or using the nearest slit edge
         if self.par['sync_predict'] == 'pca':
-            trace_add = self.predict_traces(trace_ref[add_edge], side[add_edge])
+            trace_add = self.predict_traces(trace_ref[add_edge], side=side[add_edge])
         elif self.par['sync_predict'] == 'nearest':
             # Index of trace nearest the ones to add
             # TODO: Force it to use the nearest edge of the same side;
@@ -3848,7 +3852,7 @@ class EdgeTraceSet(DataContainer):
             nearest = utils.nearest_unmasked(np.ma.MaskedArray(trace_ref, mask=add_edge))
             # Indices of the original traces
             indx = np.zeros(len(add_edge), dtype=int)
-            indx[np.invert(add_edge)] = np.arange(self.ntrace)
+            indx[np.logical_not(add_edge)] = np.arange(self.ntrace)
             # Offset the original traces by a constant based on the
             # reference trace position to construct the new traces.
             trace_add = trace_cen[:,indx[nearest[add_edge]]] + trace_ref[add_edge] \
@@ -3886,31 +3890,88 @@ class EdgeTraceSet(DataContainer):
         self.log += [inspect.stack()[0][3]]
         return True
 
-    def add_user_traces(self, user_traces):
+    def add_user_traces(self, user_traces, method='straight'):
         """
-        Add user-defined slit(s)
+        Add traces for user-defined slits.
 
         Args:
-            user_slits (list):
+            user_slits (:obj:`list`):
+                A list of lists with the coordinates for the new traces.  For
+                each new slit, the list provides the spectral coordinate at
+                which the slit edges are defined and the left and right spatial
+                pixels that the traces should pass through.  I.e., ``[664, 323,
+                348]`` mean construct a left edge that passes through pixel
+                ``(664,323)`` (ordered spectral then spatial) and a right edge
+                that passes through pixel ``(664,348)``.
+
+            method (:obj:`str`, optional):
+                The method used to construct the traces.  Options are:
+
+                    - ``'straight'``: Simply insert traces that have a constant
+                      spatial position as a function of spectral pixel.
+
+                    - ``'nearest'``: Constrain the trace to follow the same form
+                      as an existing trace that is nearest the provided new
+                      trace coordinates.
+
+                    - ``'pca'``: Use the PCA decomposition of the traces to
+                      predict the added trace.  If the PCA does not currently
+                      exist, the function will try to (re)build it.
 
         """
-        sides = []
-        new_traces = np.zeros((self.nspec, len(user_traces)*2))
-        # Add user input slits
-        for kk, new_slit in enumerate(user_traces):
-            # Parse
-            y_spec, x_spat0, x_spat1 = new_slit
-            msgs.info("Adding new slits at x0, x1 (left, right)".format(x_spat0, x_spat1))
-            #
-            # TODO -- Use existing traces (ideally the PCA) not just vertical lines!
-            sides.append(-1)
-            sides.append(1)
-            # Trace cen
-            new_traces[:,kk*2] = x_spat0
-            new_traces[:,kk*2+1] = x_spat1
+        #msgs.info("Adding new slits at x0, x1 (left, right)".format(x_spat0, x_spat1))
+        # Number of added slits
+        n_add = len(user_traces)
+        # Add two traces for each slit, one left and one right
+        side = np.tile([-1,1], (1,n_add)).ravel()
+        # Reformat the user-defined input into an array of spectral and spatial
+        # coordiates for the new traces
+        new_trace_coo = np.array(user_traces, dtype=float)
+        new_trace_coo = np.insert(new_trace_coo, 2, new_trace_coo[:,0], axis=1).reshape(-1,2)
+        if method == 'straight':
+            # Just repeat the spatial positions
+            new_traces = np.tile(new_trace_coo[:,1], (self.nspec,1))
+        elif method == 'nearest':
+            if self.is_empty:
+                msgs.error('No edge traces currently exist.  Cannot insert user slits with a '
+                           'shape based on the nearest existing slit edges!  '
+                           'Set add_predict = straight.')
+            # Use the measured edges if the functional forms don't exist (yet)
+            trace_cen = self.edge_cen if self.edge_fit is None else self.edge_fit
+            # Find the trace nearest to the one to be inserted
+            nearest = np.array([np.argmin(np.absolute(trace_cen[int(coo[0])] - coo[1]))
+                                    for coo in new_trace_coo])
+            # Construct the new traces by offseting the existing ones
+            new_traces = trace_cen[:,nearest] + new_trace_coo[:,1] \
+                            - trace_cen[new_trace_coo[:,0].astype(int), nearest]
+        elif method == 'pca':
+            if self.is_empty:
+                msgs.error('No edge traces currently exist.  Cannot insert user slits with a '
+                           'shape based on the PCA decomposition of the existing slit edges!  '
+                           'Set add_predict = straight.')
+            if self.pcatype is None:
+                if not self.can_pca():
+                    msgs.error('PCA does not exist and cannot be constructed!  Cannot insert user '
+                               'slits with a shape based on the PCA decomposition of the existing '
+                               'slit edges!  Use add_predict = straight or nearest.')
+                self.build_pca()
+            # Use the pca to predict the traces at the requested spatial positions
+            trace_ref = new_trace_coo[:,1]
+            new_traces = self.predict_traces(trace_ref, side=side)
+            # NOTE: The users can pick spectral rows in the definition of the
+            # new slits that are not the same as the reference row at which the
+            # PCA is defined.  This iteration in the prediction tries to adjust
+            # the reference spatial position for the prediction so that the
+            # predicted trace runs through the user-specific spatial position at
+            # the user-specified spectral position.
+            trace_ref += new_trace_coo[:,1] \
+                            - new_traces[new_trace_coo[:,0].astype(int),np.arange(n_add*2)]
+            new_traces = self.predict_traces(trace_ref, side=side)
+        else:
+            msgs.error(f'Unknown method for adding user slit: {method}')
 
         # Insert
-        self.insert_traces(np.array(sides), new_traces, mode='user')
+        self.insert_traces(side, new_traces, mode='user')
         # Sync
         self.check_synced(rebuild_pca=False)
 
@@ -4187,6 +4248,7 @@ class EdgeTraceSet(DataContainer):
             plt.xlim(0, self.traceimg.shape[1] + 20)
             plt.ylim(0, self.traceimg.shape[1] + 20)
             plt.legend()
+            plt.show()
         msgs.info('SLIT_MATCH: RMS residuals for left and right edges: {}, {} pixels'.format(sigres_b, sigres_t))
 
 

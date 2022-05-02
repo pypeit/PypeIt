@@ -13,8 +13,8 @@ from IPython import embed
 import numpy as np
 
 from astropy import stats
-
 from pypeit import msgs
+from pypeit.core import arc
 from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.core import flat
@@ -176,6 +176,7 @@ class RawImage:
         self.steps = dict(apply_gain=False,
                           subtract_pattern=False,
                           subtract_overscan=False,
+                          subtract_continuum=False,
                           trim=False,
                           orient=False,
                           subtract_bias=False,
@@ -633,6 +634,11 @@ class RawImage:
         # Calculate the inverse variance
         self.ivar = self.build_ivar()
 
+        #   - Subtract continuum level
+        if self.par['use_continuum']:
+            # Calculate a simple smooth continuum image, and subtract this from the frame
+            self.subtract_continuum()
+
         # Generate a PypeItImage.
         # NOTE: To reconstruct the variance model, you need base_var, image,
         # img_scale, noise_floor, and shot_noise.
@@ -1076,6 +1082,31 @@ class RawImage:
         self.image = np.array(_ps_img)
         self.steps[step] = True
 
+    def subtract_continuum(self, force=False):
+        """
+        Subtract the continuum level from the image.
+
+        Args:
+            force (:obj:`bool`, optional):
+                Force the continuum to be subtracted, even if the step log
+                (:attr:`steps`) indicates that it already has been.
+        """
+        step = inspect.stack()[0][3]
+        if self.steps[step] and not force:
+            # Already bias subtracted
+            msgs.warn('Image was already continuum subtracted.')
+            return
+
+        # Generate the continuum image
+        for ii in range(self.nimg):
+            cont = np.zeros((self.image.shape[1], self.image.shape[2]))
+            for rr in range(self.image.shape[2]):
+                cont_now, cont_mask = arc.iter_continuum(self.image[ii, :, rr])
+                cont[:,rr] = cont_now
+            self.image[ii,:,:] -= cont
+        #cont = ndimage.median_filter(self.image, size=(1,101,3), mode='reflect')
+        self.steps[step] = True
+
     def trim(self, force=False):
         """
         Trim image attributes to include only the science data.
@@ -1149,7 +1180,7 @@ class RawImage:
         # Transform the image data to the mosaic frame.  This call determines
         # the shape of the mosaic image and adjusts the relative transforms to
         # the absolute mosaic frame.
-        self.image, _, _img_npix, _tforms = build_image_mosaic(self.image, self.mosaic.tform)
+        self.image, _, _img_npix, _tforms = build_image_mosaic(self.image, self.mosaic.tform, order=self.mosaic.msc_order)
         shape = self.image.shape
         # Maintain dimensionality
         self.image = np.expand_dims(self.image, 0)
@@ -1160,11 +1191,13 @@ class RawImage:
 
         # Transform the BPM and maintain its type
         bpm_type = self.bpm.dtype
-        self._bpm = build_image_mosaic(self.bpm.astype(float), _tforms, mosaic_shape=shape)[0]
+        self._bpm = build_image_mosaic(self.bpm.astype(float), _tforms, mosaic_shape=shape, order=self.mosaic.msc_order)[0]
         # Include pixels that have no contribution from the original image in
         # the bad pixel mask of the mosaic.
         self._bpm[_img_npix < 1] = 1
-        self._bpm = np.expand_dims(self._bpm.astype(bpm_type), 0)
+        # np.round helps to deal with cases where the interpolation is performed
+        # and values of adjacent pixels are combined
+        self._bpm = np.expand_dims(np.round(self._bpm).astype(bpm_type), 0)
 
         # NOTE: The bitmask is set by a combination of pixels without any
         # contributions when creating the image mosaic and when mosaicing the
@@ -1173,29 +1206,29 @@ class RawImage:
 
         # Get the pixels associated with each amplifier
         self.datasec_img = build_image_mosaic(self.datasec_img.astype(float), _tforms,
-                                              mosaic_shape=shape)[0]
-        self.datasec_img = np.expand_dims(self.datasec_img.astype(int), 0)
+                                              mosaic_shape=shape, order=self.mosaic.msc_order)[0]
+        self.datasec_img = np.expand_dims(np.round(self.datasec_img).astype(int), 0)
 
         # Get the pixels associated with each detector
         self.det_img = build_image_mosaic(self.det_img.astype(float), _tforms,
-                                          mosaic_shape=shape)[0]
-        self.det_img = np.expand_dims(self.det_img.astype(int), 0)
+                                          mosaic_shape=shape, order=self.mosaic.msc_order)[0]
+        self.det_img = np.expand_dims(np.round(self.det_img).astype(int), 0)
 
         # Transform all the variance arrays, as necessary
         if self.rn2img is not None:
-            self.rn2img = build_image_mosaic(self.rn2img, _tforms, mosaic_shape=shape)[0]
+            self.rn2img = build_image_mosaic(self.rn2img, _tforms, mosaic_shape=shape, order=self.mosaic.msc_order)[0]
             self.rn2img = np.expand_dims(self.rn2img, 0)
         if self.dark is not None:
-            self.dark = build_image_mosaic(self.dark, _tforms, mosaic_shape=shape)[0]
+            self.dark = build_image_mosaic(self.dark, _tforms, mosaic_shape=shape, order=self.mosaic.msc_order)[0]
             self.dark = np.expand_dims(self.dark, 0)
         if self.dark_var is not None:
-            self.dark_var = build_image_mosaic(self.dark_var, _tforms, mosaic_shape=shape)[0]
+            self.dark_var = build_image_mosaic(self.dark_var, _tforms, mosaic_shape=shape, order=self.mosaic.msc_order)[0]
             self.dark_var = np.expand_dims(self.dark_var, 0)
         if self.proc_var is not None:
-            self.proc_var = build_image_mosaic(self.proc_var, _tforms, mosaic_shape=shape)[0]
+            self.proc_var = build_image_mosaic(self.proc_var, _tforms, mosaic_shape=shape, order=self.mosaic.msc_order)[0]
             self.proc_var = np.expand_dims(self.proc_var, 0)
         if self.base_var is not None:
-            self.base_var = build_image_mosaic(self.base_var, _tforms, mosaic_shape=shape)[0]
+            self.base_var = build_image_mosaic(self.base_var, _tforms, mosaic_shape=shape, order=self.mosaic.msc_order)[0]
             self.base_var = np.expand_dims(self.base_var, 0)
 
         # TODO: Mosaicing means that many of the internals are no longer
