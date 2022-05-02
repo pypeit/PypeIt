@@ -283,49 +283,49 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             `numpy.ndarray`_: Boolean array with the flags selecting the
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
-        good_exp = framematch.check_frame_exptime(fitstbl["exptime"], exprng)
-        if ftype == "bias":
-            return fitstbl["idname"] == "BIAS"
-        if ftype in ["arc", "tilt"]:
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        if ftype == 'bias':
+            return fitstbl['idname'] == 'BIAS'
+        if ftype in ['arc', 'tilt']:
             # FOCUS frames should have frametype None, BIAS is bias regardless of lamp status
             return (
                 good_exp
-                & (fitstbl["lampstat01"] != "off")
-                & (fitstbl["idname"] != "FOCUS")
-                & (fitstbl["idname"] != "BIAS")
+                & (fitstbl['lampstat01'] != 'off')
+                & (fitstbl['idname'] != 'FOCUS')
+                & (fitstbl['idname'] != 'BIAS')
             )
-        if ftype in ["trace", "pixelflat"]:
+        if ftype in ['trace', 'pixelflat']:
             return (
                 good_exp
-                & (fitstbl["idname"] == "DOME FLAT")
-                & (fitstbl["lampstat01"] == "off")
+                & (fitstbl['idname'] == 'DOME FLAT')
+                & (fitstbl['lampstat01'] == 'off')
             )
-        if ftype in ["illumflat", "sky"]:
+        if ftype in ['illumflat', 'sky']:
             return (
                 good_exp
-                & (fitstbl["idname"] == "SKY FLAT")
-                & (fitstbl["lampstat01"] == "off")
+                & (fitstbl['idname'] == 'SKY FLAT')
+                & (fitstbl['lampstat01'] == 'off')
             )
-        if ftype == "science":
+        if ftype == 'science':
             # Both OBJECT and STANDARD frames should be processed as science frames
             return (
                 good_exp
-                & ((fitstbl["idname"] == "OBJECT") | (fitstbl["idname"] == "STANDARD"))
-                & (fitstbl["lampstat01"] == "off")
+                & ((fitstbl['idname'] == 'OBJECT') | (fitstbl['idname'] == 'STANDARD'))
+                & (fitstbl['lampstat01'] == 'off')
             )
-        if ftype == "standard":
+        if ftype == 'standard':
             return (
                 good_exp
-                & (fitstbl["idname"] == "STANDARD")
-                & (fitstbl["lampstat01"] == "off")
+                & (fitstbl['idname'] == 'STANDARD')
+                & (fitstbl['lampstat01'] == 'off')
             )
-        if ftype == "dark":
+        if ftype == 'dark':
             return (
                 good_exp
-                & (fitstbl["idname"] == "DARK")
-                & (fitstbl["lampstat01"] == "off")
+                & (fitstbl['idname'] == 'DARK')
+                & (fitstbl['lampstat01'] == 'off')
             )
-        if ftype in ["pinhole", "align"]:
+        if ftype in ['pinhole', 'align']:
             # Don't types pinhole or align frames
             return np.zeros(len(fitstbl), dtype=bool)
         msgs.warn(f"Cannot determine if frames are of type {ftype}")
