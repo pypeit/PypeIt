@@ -14,6 +14,8 @@
   direct reuse in data reduction.
 - The `pypeit_identify` GUI can now toggle between linear and log scaling of the
   arc spectrum flux.
+- Improved wavelength solution for Gemini-Nort E2V detector
+- Keck/DEIMOS now uses gain/RN values measured periodically by WMKO
 - Adeed more flexible quicklook that can handle dithering.
 - Refactored object finding
 - Bug fixes in local sky subtraction and extraction

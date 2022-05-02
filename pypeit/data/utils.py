@@ -133,6 +133,7 @@ class Paths_meta(type):
         # Other
         cls._sky_spec = os.path.join(cls._data, 'sky_spec')
         cls._static_calibs = os.path.join(cls._data, 'static_calibs')
+        cls._spectrographs = os.path.join(cls._data, 'spectrographs')
 
     @property
     def data(cls):
@@ -187,6 +188,9 @@ class Paths_meta(type):
     @property
     def static_calibs(cls):
         return check_isdir(cls._static_calibs)
+    @property
+    def spectrographs(cls):
+        return check_isdir(cls._spectrographs)
 
 
 class Paths(metaclass=Paths_meta):
