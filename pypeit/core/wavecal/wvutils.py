@@ -15,6 +15,7 @@ from scipy.signal import resample
 import scipy
 from scipy.optimize import curve_fit
 
+import astropy
 from astropy.table import Table
 from astropy import convolution
 from astropy import constants
@@ -351,9 +352,9 @@ def shift_and_stretch(spec, shift, stretch):
 
     nspec = spec.shape[0]
     # pad the spectrum on both sizes
-    x1 = np.arange(nspec)/float(nspec)
+    x1 = np.arange(nspec)/float(nspec-1)
     nspec_stretch = int(nspec*stretch)
-    x2 = np.arange(nspec_stretch)/float(nspec_stretch)
+    x2 = np.arange(nspec_stretch)/float(nspec_stretch-1)
     spec_str = (scipy.interpolate.interp1d(x1, spec, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(x2)
     # Now create a shifted version
     ind_shift = np.arange(nspec_stretch) - shift
@@ -399,8 +400,33 @@ def zerolag_shift_stretch(theta, y1, y2):
     corr_norm = corr_zero/corr_denom
     return -corr_norm
 
-def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False,sigdetect = 10.0, fwhm = 4.0):
-    """ Utility routine to smooth and apply a ceiling to spectra """
+
+def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False, sigdetect = 10.0, fwhm = 4.0,
+                     large_scale_fwhm_fact=20.0, large_scale_sigrej=20.0):
+    """  Utility routine to smooth and apply a ceiling to spectra
+
+    Args:
+        inspec1 (ndarray):
+          Input spectrum, shape = (nspec,)
+        smooth (int):
+          Number of pixels to smooth by
+        percent_ceil (float):
+          Upper percentile threshold for thresholding positive and negative values
+        use_raw_arc (bool):
+          If True, use the raw arc and do not continuum subtract. Default = False
+        sigdetect (float):
+          Peak finding threshold which is used if continuum subtraction will occur (i.e. if use_raw_arc = False)
+        fwhm (float):
+          Fwhm of arc lines for peak finding if continuum subtraction will occur (i.e. if use_raw_arc = False)
+        large_scale_fwhm_fact (float):
+          Number of fwhms to use as the width of the running median to take out large scale features from saturated
+          lines.
+        large_scale_percentile (float):
+          Percentile of large_scale_smoothed arc to set as the threshold above which the arc is masked to zero.
+
+    Returns:
+
+    """
 
     # ToDO can we improve the logic here. Technically if use_raw_arc = True and perecent_ceil=None
     # we don't need to peak find or continuum subtract, but this makes the code pretty uggly.
@@ -428,13 +454,25 @@ def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False,sig
     else:
         y1 = np.copy(spec1)
 
-    return y1
+    # Mask out large scale features
+    y1_ls = utils.fast_running_median(y1, fwhm * large_scale_fwhm_fact)
+    mean, med, stddev = astropy.stats.sigma_clipped_stats(y1_ls[y1_ls != 0.0], sigma_lower=3.0, sigma_upper=3.0, cenfunc='median',
+                                                          stdfunc=utils.nan_mad_std)
+    if (mean != 0.0) & (med != 0.0) & (stddev != 0.0):
+        y1_ls_bpm = (y1_ls > (med + large_scale_sigrej*stddev)) | ((y1_ls < (med - large_scale_sigrej*stddev)))
+    else:
+        y1_ls_bpm = np.zeros_like(y1_ls, dtype=bool)
+
+    y1_out = y1*np.logical_not(y1_ls_bpm)
+
+    return y1_out
 
 
 
 # ToDO can we speed this code up? I've heard numpy.correlate is faster. Someone should investigate optimization. Also we don't need to compute
 # all these lags.
-def xcorr_shift(inspec1,inspec2, smooth=1.0, percent_ceil=80.0, use_raw_arc=False, sigdetect=10.0, fwhm=4.0, debug=False):
+def xcorr_shift(inspec1,inspec2, smooth=1.0, percent_ceil=80.0, use_raw_arc=False, sigdetect=10.0, fwhm=4.0,
+                do_smooth_ceil=True, debug=False):
 
     """ Determine the shift inspec2 relative to inspec1.  This routine computes the shift by finding the maximum of the
     the cross-correlation coefficient. The convention for the shift is that positive shift means inspec2 is shifted to the right
@@ -459,6 +497,10 @@ def xcorr_shift(inspec1,inspec2, smooth=1.0, percent_ceil=80.0, use_raw_arc=Fals
         use_raw_arc: bool, default = False
             If this parameter is True the raw arc will be used rather
             than the continuum subtracted arc
+        do_smooth_ceil: bool, default = True
+            If this parameter is True the arc will be clipped, smoothed, and large scale features will be removed.
+            If the arc has already been processed by smooth_ceil_cont, then set this to False
+
         debug: boolean, default = False
 
     Returns:
@@ -470,8 +512,11 @@ def xcorr_shift(inspec1,inspec2, smooth=1.0, percent_ceil=80.0, use_raw_arc=Fals
 
     """
 
-    y1 = smooth_ceil_cont(inspec1,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc, sigdetect = sigdetect, fwhm = fwhm)
-    y2 = smooth_ceil_cont(inspec2,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc, sigdetect = sigdetect, fwhm = fwhm)
+    if do_smooth_ceil:
+        y1 = smooth_ceil_cont(inspec1,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc, sigdetect = sigdetect, fwhm = fwhm)
+        y2 = smooth_ceil_cont(inspec2,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc, sigdetect = sigdetect, fwhm = fwhm)
+    else:
+        y1, y2 = inspec1, inspec2
 
     nspec = y1.shape[0]
     lags = np.arange(-nspec + 1, nspec)
@@ -597,8 +642,9 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
     y2 = smooth_ceil_cont(inspec2,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc, sigdetect = sigdetect, fwhm = fwhm)
 
     # Do the cross-correlation first and determine the initial shift
-    shift_cc, corr_cc = xcorr_shift(y1, y2, smooth = None, percent_ceil = None, use_raw_arc = True, sigdetect = sigdetect, fwhm=fwhm, debug = debug)
-    if corr_cc < cc_thresh:
+    shift_cc, corr_cc = xcorr_shift(y1, y2, smooth = None, percent_ceil = None, do_smooth_ceil=False, sigdetect = sigdetect, fwhm=fwhm, debug = debug)
+    # TODO JFH Is this a good idea? Stretch fitting seems to recover better values
+    if corr_cc < -np.inf: # < cc_thresh:
         return -1, shift_cc, 1.0, corr_cc, shift_cc, corr_cc
     else:
         bounds = [(shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]), stretch_mnmx]

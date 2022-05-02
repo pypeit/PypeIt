@@ -666,6 +666,10 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     else:
         msgs.error('Unrecognized shape for spec_arxiv. It must be either a one dimensional or two dimensional numpy array')
 
+    # TODO: JFH I would like to take these calls out. This reidentify code should only ever be run by comparing
+    # data with the same binning. That would then allow me to drop the requirement that this code operate
+    # on arrays of same number of pixels. I'm a big confused on how that interacts with stretch though so postponing
+    # these changes for now.
     spec_arxiv = arc.resize_spec(spec_arxiv1, nspec)
     wave_soln_arxiv = arc.resize_spec(wave_soln_arxiv1, nspec)
 
