@@ -123,6 +123,7 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
                                               'science', bkg_redux=True, return_negative=True, show=show)
     skymodel, objmodel, ivarmodel, \
     outmask, sobjs, waveimg, tilts = extract.run(global_sky, sobjs_obj)
+    scaleimg = np.array([1.0], dtype=np.float)  # np.array([1]) applies no scale
 
     # TODO -- Do this upstream
     # Tack on detector
