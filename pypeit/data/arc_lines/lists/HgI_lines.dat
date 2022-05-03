@@ -1,4 +1,5 @@
 # Creation Date: 2022-Feb-28
+# VACUUM -- MUST BE IN NIST
 | ion |       wave | NIST | Instr | amplitude |                    Source |
 | HgI |  2968.1495 |    1 |     0 |      3000 | ldt_deveny_300_HgCdAr.fits |
 | HgI |  3022.384  |    1 |     0 |      1200 | ldt_deveny_300_HgCdAr.fits |
