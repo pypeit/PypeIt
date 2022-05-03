@@ -215,13 +215,12 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         #par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'HgI']
         # Set this as default... but use `holy-grail` for DV4, DV8
         par['calibrations']['wavelengths']['method'] = 'full_template'
-        # These are changes from defaults from another spectrograph, but seem
-        #   to work well for LDT/DeVeny.
-        # The DeVeny arc lines are bright, but FWHM varies based on slitwidth used
+        # The DeVeny arc line FWHM varies based on slitwidth used
         par['calibrations']['wavelengths']['fwhm_fromlines'] = True
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.5  # Default: 0.15
-        par['calibrations']['wavelengths']['sigdetect'] = 10.  # Default: 5.0
         par['calibrations']['wavelengths']['nsnippet'] = 1  # Default: 2
+        # Because of the wide wavelength range, solution more non-linear; user higher orders
+        par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
+        par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
 
         # Slit-edge settings for long-slit data (DeVeny's slit is > 90" long)
         par['calibrations']['slitedges']['bound_detector'] = True
@@ -382,39 +381,45 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_150_HgCdAr.fits'
             # Because of the wide wavelength range, split DV1 arcs in half for reidentification
             par['calibrations']['wavelengths']['nsnippet'] = 2
-            # Because of the wide wavelength range, solution more non-linear; user higher orders
-            par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
-            par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
 
         elif grating in ['DV2 (300/4000)', 'DV3 (300/6750)']:
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_300_HgCdAr.fits'
-            # Use a higher-order final fit because of the still-wide wavelength range
-            par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
 
         elif grating == 'DV4 (400/8000)':
             # We don't have a good `reid_arxiv`` for this grating yet; use `holy-grail`
+            #  and it's associated tweaks in parameters
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
+            par['calibrations']['wavelengths']['sigdetect'] = 10.0  # Default: 5.0
+            par['calibrations']['wavelengths']['rms_threshold'] = 0.5  # Default: 0.15
 
         elif grating == 'DV5 (500/5500)':
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_500_HgCdAr.fits'
+            par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
 
         elif grating in ['DV6 (600/4900)', 'DV7 (600/6750)']:
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_600_HgCdAr.fits'
+            # Given the narrow range of wavelengths, use a lower initial order of the fit
+            par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
 
         elif grating == 'DV8 (831/8000)':
             # We don't have a good `reid_arxiv`` for this grating yet; use `holy-grail`
+            #  and it's associated tweaks in parameters
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
+            par['calibrations']['wavelengths']['sigdetect'] = 10.0  # Default: 5.0
+            par['calibrations']['wavelengths']['rms_threshold'] = 0.5  # Default: 0.15
             # Given the narrow range of wavelengths, use a lower final order of the fit
-            par['calibrations']['wavelengths']['n_final'] = 3  # Default: 4
+            par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
+            par['calibrations']['wavelengths']['n_final'] = 4  # Default: 5
 
         elif grating == 'DV9 (1200/5000)':
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_1200_HgCdAr.fits'
             # Given the narrow range of wavelengths, use a lower final order of the fit
-            par['calibrations']['wavelengths']['n_final'] = 3  # Default: 4
+            par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
+            par['calibrations']['wavelengths']['n_final'] = 4  # Default: 5
 
         elif grating == 'DV10 (2160/5000)':
             # Presently unsupported; no parameter changes
