@@ -313,8 +313,6 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         # Start with instrument wide
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
-        headarr = self.get_headarr(scifile)
-        
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == '300':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'bok_bc_300.fits'
