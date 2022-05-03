@@ -1039,10 +1039,15 @@ class SlitTraceSet(datamodel.DataContainer):
                 obj_fwhm = 0.
             in_toler = np.abs(separ*plate_scale) < (TOLER + cc_rms + obj_fwhm/2)
             if np.any(in_toler):
-                # Parse the peak fluxes
+                # Find positive peakflux
                 peak_flux = cut_sobjs[idx].smash_peakflux[in_toler]
-                imx_peak = np.argmax(peak_flux)
-                imx_idx = idx[in_toler][imx_peak]
+                pos_peak_flux = np.where(peak_flux>0)[0]
+                if np.any(pos_peak_flux):
+                    # find the object with the smallest separation
+                    closest_idx = np.argmin(np.abs(separ[in_toler][pos_peak_flux]))
+                else:
+                    closest_idx = np.argmin(np.abs(separ[in_toler]))
+                imx_idx = idx[in_toler][closest_idx]
                 # Object in Mask Definition
                 oidx = np.where(obj_maskdef_id == maskid)[0][0]
                 # Assign

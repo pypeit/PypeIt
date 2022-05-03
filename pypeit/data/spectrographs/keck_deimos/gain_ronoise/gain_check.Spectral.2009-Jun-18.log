@@ -1,0 +1,27 @@
+# logfile = /home/dmoseng/data/gain/gain_check.Spectral.2009-Jun-18.log
+# datestr = Thu Jun 18 18:48:23 2009
+# mode = Spectral
+# flatfile1 = d0619_0012.fits
+# flatfile2 = d0619_0013.fits
+# flatfile3 = d0619_0014.fits
+# flatfile4 = d0619_0015.fits
+# flatfile5 = d0619_0016.fits
+# zerofile1 = d0619_0009.fits
+# zerofile2 = d0619_0010.fits
+# column1 = videoinp
+# column2 = amploc
+# column3 = ccdloc
+# column4 = amptype
+# column5 = gain [e-/DN]
+# column6 = sigma_gain [e-/DN]
+# column7 = readnoise [e-]
+# column8 = sigma_readnoise [e-]
+#----------------------------------------
+   2 1   1   B         1.2218   0.0013538      2.5617   0.0028384
+   4 3   2   B         1.1906   0.0011552      2.4962   0.0024220
+   6 5   3   B         1.2882   0.0024430      2.7010   0.0051222
+   8 7   4   B         1.2232   0.0016048      2.5647   0.0033647
+  10 10  5   B         1.1919   0.0024033      2.4990   0.0050388
+  12 12  6   B         1.2249   0.0039156      2.5682   0.0082098
+  14 14  7   B         1.2460   0.0037497      2.6124   0.0078616
+  16 16  8   B         1.2532   0.0026811      2.6275   0.0056217

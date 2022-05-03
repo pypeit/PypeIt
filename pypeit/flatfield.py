@@ -911,6 +911,13 @@ class FlatField:
                           'spectral shape is poor, or the illumination profile is very irregular.')
 
             # First fit -- With initial slits
+            if not np.any(spat_gpm):
+                msgs.warn('Flat-field failed during normalization!  Not flat-fielding '
+                          'slit {0} and continuing!'.format(slit_spat))
+                self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(
+                    self.slits.mask[slit_idx], 'BADFLATCALIB')
+                continue
+
             exit_status, spat_coo_data,  spat_flat_data, spat_bspl, spat_gpm_fit, \
                 spat_flat_fit, spat_flat_data_raw \
                         = self.spatial_fit(norm_spec, spat_coo_init, median_slit_widths[slit_idx],

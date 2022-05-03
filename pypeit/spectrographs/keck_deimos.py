@@ -20,6 +20,8 @@ from astropy.coordinates import SkyCoord, Angle
 from astropy.table import Table
 from astropy import units, time
 
+import datetime
+
 import linetools
 
 from pypeit import msgs
@@ -137,7 +139,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.1185,
-            darkcurr        = 4.19,
+            darkcurr        = 3.30, # changed by DP. Taken from WMKO measurements on 2022-Apr-22
             saturation      = 65535., # ADU
             nonlinear       = 0.95,   # Changed by JFH from 0.86 to 0.95
             mincounts       = -1e10,
@@ -150,7 +152,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict2.update(dict(
             det=2,
             dataext=2,
-            darkcurr=3.46,
+            darkcurr=3.60,
             gain=np.atleast_1d(1.188),
             ronoise=np.atleast_1d(2.491),
         ))
@@ -159,7 +161,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict3.update(dict(
             det=3,
             dataext=3,
-            darkcurr=4.03,
+            darkcurr=3.50,
             gain=np.atleast_1d(1.248),
             ronoise=np.atleast_1d(2.618),
         ))
@@ -168,7 +170,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict4.update(dict(
             det=4,
             dataext=4,
-            darkcurr=3.80,
+            darkcurr=3.70,
             gain=np.atleast_1d(1.220),
             ronoise=np.atleast_1d(2.557),
         ))
@@ -177,7 +179,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict5.update(dict(
             det=5,
             dataext=5,
-            darkcurr=4.71,
+            darkcurr=2.70,
             gain=np.atleast_1d(1.184),
             ronoise=np.atleast_1d(2.482),
         ))
@@ -186,7 +188,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict6.update(dict(
             det=6,
             dataext=6,
-            darkcurr=4.28,
+            darkcurr=3.80,
             gain=np.atleast_1d(1.177),
             ronoise=np.atleast_1d(2.469),
         ))
@@ -195,7 +197,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict7.update(dict(
             det=7,
             dataext=7,
-            darkcurr=3.33,
+            darkcurr=3.30,
             gain=np.atleast_1d(1.201),
             ronoise=np.atleast_1d(2.518),
         ))
@@ -204,10 +206,50 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict8.update(dict(
             det=8,
             dataext=8,
-            darkcurr=3.69,
+            darkcurr=3.70,
             gain=np.atleast_1d(1.230),
             ronoise=np.atleast_1d(2.580),
         ))
+
+        if hdu is not None:
+            # raw frame date in mjd
+            date = time.Time(self.get_meta_value(self.get_headarr(hdu), 'mjd'), format='mjd').value
+            # get the measurements files
+            measure_files = np.array(glob.glob(os.path.join(data.Paths.spectrographs, "keck_deimos/gain_ronoise", "*")))
+            # Parse the dates recorded in the name of the files
+            measure_dates = np.array([os.path.basename(f).split('.')[2] for f in measure_files])
+            # convert into datetime format
+            dtime = np.array([datetime.datetime.strptime(mm, '%Y-%b-%d') for mm in measure_dates])
+            # convert to mjd
+            mjd_measured = time.Time(dtime, scale='utc').to_value('mjd')
+            # find the closest in time to the raw frame date
+            close_idx = np.argmin(np.absolute(mjd_measured - date))
+            # get measurements
+            tab_measure = t = Table.read(measure_files[close_idx], format='ascii')
+            measured_det =  tab_measure['col3']
+            measured_gain =  tab_measure['col5']  # [e-/DN]
+            measured_ronoise =  tab_measure['col7']   # [e-]
+            msgs.info(f"We are using DEIMOS gain/RN values based on WMKO estimates on {measure_dates[close_idx]}.")
+            # get gain
+            detector_dict1['gain'] = measured_gain[measured_det == 1]
+            detector_dict2['gain'] = measured_gain[measured_det == 2]
+            detector_dict3['gain'] = measured_gain[measured_det == 3]
+            detector_dict4['gain'] = measured_gain[measured_det == 4]
+            detector_dict5['gain'] = measured_gain[measured_det == 5]
+            detector_dict6['gain'] = measured_gain[measured_det == 6]
+            detector_dict7['gain'] = measured_gain[measured_det == 7]
+            detector_dict8['gain'] = measured_gain[measured_det == 8]
+
+            # get ronoise
+            detector_dict1['ronoise'] = measured_ronoise[measured_det == 1]
+            detector_dict2['ronoise'] = measured_ronoise[measured_det == 2]
+            detector_dict3['ronoise'] = measured_ronoise[measured_det == 3]
+            detector_dict4['ronoise'] = measured_ronoise[measured_det == 4]
+            detector_dict5['ronoise'] = measured_ronoise[measured_det == 5]
+            detector_dict6['ronoise'] = measured_ronoise[measured_det == 6]
+            detector_dict7['ronoise'] = measured_ronoise[measured_det == 7]
+            detector_dict8['ronoise'] = measured_ronoise[measured_det == 8]
+
         detectors = [detector_dict1, detector_dict2, detector_dict3, detector_dict4,
                      detector_dict5, detector_dict6, detector_dict7, detector_dict8]
         # Return
