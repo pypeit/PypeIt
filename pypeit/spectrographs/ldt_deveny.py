@@ -299,7 +299,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
                 & (fitstbl['idname'] == 'DOME FLAT')
                 & (fitstbl['lampstat01'] == 'off')
             )
-        if ftype in ['illumflat', 'sky']:
+        if ftype in ['illumflat','sky']:
             return (
                 good_exp
                 & (fitstbl['idname'] == 'SKY FLAT')
@@ -324,7 +324,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
                 & (fitstbl['idname'] == 'DARK')
                 & (fitstbl['lampstat01'] == 'off')
             )
-        if ftype in ['pinhole', 'align']:
+        if ftype in ['pinhole','align']:
             # Don't types pinhole or align frames
             return np.zeros(len(fitstbl), dtype=bool)
         msgs.warn(f"Cannot determine if frames are of type {ftype}")
@@ -344,14 +344,31 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
     def get_lamps(self, fitstbl):
         """
         Extract the list of arc lamps used from header
+
+        .. note::
+
+            There are some faint Cd and Hg lines in the DV9 spectra that are
+            helpful for nailing down the wavelength calibration for that
+            grating, but these lines are too faint / close to other lines for
+            use with other gratings.  Therefore, use a grating-specific line
+            list for Cd and Hg with DV9, but use the usual ion lists for
+            everything else.
+
         Args:
             fitstbl (`astropy.table.Table`_):
                 The table with the metadata for one or more arc frames.
         Returns:
             lamps (:obj:`list`) : List used arc lamps
         """
-        return [f'{lamp.strip()}I' for lamp in np.unique( np.concatenate(
-            [lname.split(',') for lname in fitstbl['lampstat01']]) )]
+        grating = fitstbl['dispname'][0].split()[0]              # Get the DVn specifier
+        return [
+            f"{lamp.strip()}_DeVeny1200"                         # Instrument-specific list
+            if grating == "DV9" and lamp.strip() in ["Cd", "Hg"] # Under these conditions
+            else f"{lamp.strip()}I"                              # Otherwise, the usuals
+            for lamp in np.unique(
+                np.concatenate([lname.split(",") for lname in fitstbl["lampstat01"]])
+            )
+        ]
 
     def config_specific_par(self, scifile, inp_par=None):
         """
