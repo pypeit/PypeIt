@@ -16,6 +16,7 @@
   scaling of the arc spectrum flux.
 - Improved wavelength solution for Gemini-Nort E2V detector
 - Keck/DEIMOS now uses gain/RN values measured periodically by WMKO
+- Add bok_bc 300 grating template
 - Expose exposure time scaling for dark frames as an image processing
   parameter, and set the default behavior to ignore any difference in
   exposure time.  Also fixes a bug in the variance calculation.
