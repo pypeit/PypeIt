@@ -314,8 +314,9 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
         # Wavelength calibrations
-        #if self.get_meta_value(scifile, 'dispname') == 'R1200B':
-        #    par['calibrations']['wavelengths']['reid_arxiv'] = 'wht_isis_blue_1200_4800.fits'
+        if self.get_meta_value(scifile, 'dispname') == '300':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'bok_bc_300.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
 
         return par
 
