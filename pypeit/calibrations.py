@@ -520,6 +520,9 @@ class Calibrations:
         # Prep
         illum_image_files, self.master_key_dict['flat'] = self._prep_calibrations('illumflat')
         pixflat_image_files, self.master_key_dict['flat'] = self._prep_calibrations('pixelflat')
+        # flats lamp off
+        illumLoff_image_files, self.master_key_dict['flat'] = self._prep_calibrations('illumflatlampoff')
+        pixflatLoff_image_files, self.master_key_dict['flat'] = self._prep_calibrations('pixelflatlampoff')
 
         masterframe_filename = masterframe.construct_file_name(flatfield.FlatImages,
                                                            self.master_key_dict['flat'],
@@ -553,6 +556,12 @@ class Calibrations:
                                                         self.par['pixelflatframe'],
                                                         pixflat_image_files, dark=self.msdark,
                                                         bias=self.msbias, bpm=self.msbpm)
+            if len(pixflatLoff_image_files) > 0:
+                pixel_flat = pixel_flat.sub(buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                                           self.par['pixelflatframe'],
+                                                                           pixflatLoff_image_files, dark=self.msdark,
+                                                                           bias=self.msbias, bpm=self.msbpm),
+                                            self.par['pixelflatframe']['process'])
             # Initialise the pixel flat
             pixelFlatField = flatfield.FlatField(pixel_flat, self.spectrograph,
                                                  self.par['flatfield'], self.slits, self.wavetilts,
@@ -566,6 +575,12 @@ class Calibrations:
                                                         self.par['illumflatframe'],
                                                         illum_image_files, dark=self.msdark,
                                                         bias=self.msbias, bpm=self.msbpm)
+            if len(illumLoff_image_files) > 0:
+                illum_flat = illum_flat.sub(buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                                           self.par['illumflatframe'],
+                                                                           illumLoff_image_files, dark=self.msdark,
+                                                                           bias=self.msbias, bpm=self.msbpm),
+                                            self.par['illumflatframe']['process'])
             # Initialise the pixel flat
             illumFlatField = flatfield.FlatField(illum_flat, self.spectrograph,
                                                  self.par['flatfield'], self.slits, self.wavetilts,
