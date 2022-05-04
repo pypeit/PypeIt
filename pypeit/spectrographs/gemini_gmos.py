@@ -133,8 +133,17 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            binspatial, binspec = parse.parse_binning(headarr[1]['CCDSUM'])
-            binning = parse.binning2string(binspec, binspatial)
+            # binning in the raw frames
+            ccdsum = headarr[1].get('CCDSUM')
+            embed()
+            if ccdsum is not None:
+                binspatial, binspec = parse.parse_binning(ccdsum)
+                binning = parse.binning2string(binspec, binspatial)
+            else:
+                # binning in the spec2d file
+                binning = headarr[0].get('BINNING')
+            if binning is None:
+                msgs.error('Binning not found')
             return binning
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
