@@ -135,7 +135,6 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         if meta_key == 'binning':
             # binning in the raw frames
             ccdsum = headarr[1].get('CCDSUM')
-            embed()
             if ccdsum is not None:
                 binspatial, binspec = parse.parse_binning(ccdsum)
                 binning = parse.binning2string(binspec, binspatial)
