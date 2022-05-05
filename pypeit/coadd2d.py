@@ -1099,7 +1099,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
             else:
                 # if maskdef_offsets were not computed during the main reduction, we cannot continue
                 msgs.error('No maskdef_offset recoded in SlitTraceSet')
-        # 3) parset `offsets` is None but we have a bright object
+        # 3) parset `offsets` = 'auto' but we have a bright object
         elif offsets == 'auto' and self.objid_bri is not None:
             # Compute offsets using the bright object
             if self.par['coadd2d']['user_obj'] is not None:
@@ -1429,7 +1429,7 @@ class EchelleCoAdd2D(CoAdd2D):
         if isinstance(self.offsets, (list, np.ndarray)):
             self.objid_bri = None
 
-        # 2) parset `offsets` is None but we have a bright object
+        # 2) parset `offsets` = 'auto' but we have a bright object
         if offsets == 'auto' and self.objid_bri is not None:
             # offsets are not determined, but the bright object is used to construct
             # a reference trace (this is done in coadd using method `reference_trace_stack`)
