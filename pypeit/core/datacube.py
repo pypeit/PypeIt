@@ -1238,8 +1238,8 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
         if cubepar['grating_corr'] and flatfile not in flat_splines.keys():
             msgs.info("Calculating relative sensitivity for grating correction")
             flatimages = flatfield.FlatImages.from_file(flatfile)
-            flatframe = flatimages.pixelflat_model
-            flatframe /= flatimages.fit2illumflat(slits, frametype='pixel', initial=True, flexure_shift=flexure)
+            flatframe = flatimages.illumflat_raw
+            flatframe /= flatimages.fit2illumflat(slits, frametype='illum', initial=True, flexure_shift=flexure)
             # Calculate the relative scale
             scale_model = flatfield.illum_profile_spectral(flatframe, waveimg, slits,
                                                            slit_illum_ref_idx=flatpar['slit_illum_ref_idx'], model=None,
@@ -1304,8 +1304,7 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
         numpix = raimg[onslit_gpm].size
 
         # Calculate the weights relative to the zeroth cube
-        # TODO :: This is dodgy when there is mostly sky...
-        weights[ff] = np.median(flux_sav[resrt]*np.sqrt(ivar_sav[resrt]))**2
+        weights[ff] = exptime  #np.median(flux_sav[resrt]*np.sqrt(ivar_sav[resrt]))**2
 
         # If individual frames are to be output, there's no need to store information, just make the cubes now
         if not combine:
