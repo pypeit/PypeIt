@@ -199,12 +199,47 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
 
 
 def extract_asym_boxcar(sciimg, left_trace, righ_trace, gpm=None, ivar=None):
+    """
+    Perform assymetric boxcar extraction of the flux between two traces.
 
+    Parameters
+    ----------
+    sciimg : float `numpy.ndarray`_, shape (nspec, nspat)
+        Science frame for the extraction
+
+    left_trace : float `numpy.ndarray`_, shape (nspec, napertures)
+        Left trace boundary of the extraction region.
+
+    right_trace : float `numpy.ndarray`_, shape (nspec, napertures)
+        Right trace boundary of the extraction region.
+
+    gpm : boolean `numpy.ndarray`_, shape (nspec, nspat)
+        Good-pixel mask, indicating which pixels are should or should not be
+        used. Good pixels = True, Bad Pixels = False. Optional.
+    ivar : float `numpy.ndarray`_, shape (nspec, nspat)
+        Inverse variance of science frame. Can be a model or deduced from the
+        image itself. If ivar is set then this code will return the
+        error on the extraction. Optional
+
+    Returns
+    -------
+    flux_out : float `numpy.ndarray`_, shape (nspec, napertures)
+        Array containing the boxcar extracted flux as a function of spectral position for each aperture.
+    gpm_box : boool `numpy.ndarray`_, shape (nspec, napertures)
+        Good pixel mask for the boxcar extracted flux
+    box_npix :   float `numpy.ndarray`_, shape (nspec, napertures)
+        Array containing the number of pixels which contributed to the boxcar sum of the flux for each
+        spectral position for each aperture.
+    ivar_out : float `numpy.ndarray`_, shape (nspec, napertures)
+        Array containing the inverse variance of the boxcar extracted flux as a function of spectral position
+        for each aperture. This will only be returned if the input parameter ivar is not None.
+
+    """
     ivar1 = np.ones_like(sciimg) if ivar is None else ivar
     gpm1 = ivar1 > 0.0 if gpm is None else gpm
 
     flux_box = moment1d(sciimg*gpm1, (left_trace+righ_trace)/2.0, (righ_trace-left_trace))[0]
-    box_denom = moment1d(gpm1, (left_trace+righ_trace)/2.0, (righ_trace-left_trace))[0]
+    #box_denom = moment1d(gpm1, (left_trace+righ_trace)/2.0, (righ_trace-left_trace))[0]
 
     pixtot = moment1d(sciimg*0 + 1.0, (left_trace+righ_trace)/2.0, (righ_trace-left_trace))[0]
     pixmsk = moment1d(ivar1*gpm1 == 0.0, (left_trace+righ_trace)/2.0, (righ_trace-left_trace))[0]
