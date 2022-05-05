@@ -791,7 +791,7 @@ class CoAdd2D:
                     gpm[:, indx] = spec.OPT_MASK
                     indx += 1
 
-        wave_grid, wave_grid_mid, dsamp = wvutils.get_wave_grid(waves, masks=gpm,
+        wave_grid, wave_grid_mid, dsamp = wvutils.get_wave_grid(waves=waves, masks=gpm,
                                                                 spec_samp_fact=self.spec_samp_fact,
                                                                 **kwargs_wave)
         return wave_grid, wave_grid_mid, dsamp
