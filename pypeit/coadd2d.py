@@ -181,7 +181,7 @@ class CoAdd2D:
         self.pseudo_dict = None
 
         self.objid_bri = None
-        self.slitid_bri  = None
+        self.slitid_bri = None
         self.snr_bar_bri = None
         self.use_weights = None
         self.wave_grid = None
@@ -311,24 +311,25 @@ class CoAdd2D:
             ithis = sobjs.slitorder_objid_indices(slitorderid, objid[iexp])
             if not np.any(ithis):
                 msgs.error('Slit/order or OBJID provided not valid. Optimal weights cannot be determined.')
-            # check if OPT_COUNTS is avaialble
+            # check if OPT_COUNTS is available
             if sobjs[ithis][0].OPT_COUNTS is not None and sobjs[ithis][0].OPT_COUNTS_IVAR is not None \
                     and sobjs[ithis][0].OPT_WAVE is not None and sobjs[ithis][0].OPT_MASK is not None:
                 flux_stack[:, iexp] = sobjs[ithis][0].OPT_COUNTS
                 ivar_stack[:, iexp] = sobjs[ithis][0].OPT_COUNTS_IVAR
                 wave_stack[:, iexp] = sobjs[ithis][0].OPT_WAVE
                 mask_stack[:, iexp] = sobjs[ithis][0].OPT_MASK
-            # check if BOX_COUNTS is avaialble
+            # check if BOX_COUNTS is available
             elif sobjs[ithis][0].BOX_COUNTS is not None and sobjs[ithis][0].BOX_COUNTS_IVAR is not None \
                     and sobjs[ithis][0].BOX_WAVE is not None and sobjs[ithis][0].BOX_MASK is not None:
                 msgs.warn(f'Optimal extraction not available for object '
-                          f'{objid[iexp]} of slit {slitorderid} in exp {iexp}. Using box extraction.')
+                          f'{objid[iexp]} of slit/order {slitorderid} in exp {iexp}. Using box extraction.')
                 flux_stack[:, iexp] = sobjs[ithis][0].BOX_COUNTS
                 ivar_stack[:, iexp] = sobjs[ithis][0].BOX_COUNTS_IVAR
                 wave_stack[:, iexp] = sobjs[ithis][0].BOX_WAVE
                 mask_stack[:, iexp] = sobjs[ithis][0].BOX_MASK
             else:
-                msgs.error(f'Optimal weights cannot be determined because flux not available in slit={slitorderid}')
+                msgs.error(f'Optimal weights cannot be determined because '
+                           f'flux not available in slit/order = {slitorderid}')
 
         # TODO For now just use the zero as the reference for the wavelengths? Perhaps we should be rebinning the data though?
         rms_sn, weights = coadd.sn_weights(wave_stack, flux_stack, ivar_stack, mask_stack, self.sn_smooth_npix,
@@ -843,7 +844,6 @@ class CoAdd2D:
                 if os.path.isfile(spec1d_file):
                     sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file, chk_version=chk_version)
                     this_det = sobjs.DET == self.detname
-                    #sobjs[this_det][0].OPT_COUNTS = None
                     specobjs_list.append(sobjs[this_det])
             # TODO the code should run without a spec1d file, but we need to implement that
             slits_list.append(s2dobj.slits)
@@ -926,7 +926,6 @@ class CoAdd2D:
             self.offsets = self.check_input(offsets, type='offsets')
             offsets_method = 'user input'
             self.offsets_report(self.offsets, offsets_method)
-
 
     def compute_weights(self, weights):
         """
@@ -1050,9 +1049,9 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 # does it exists?
                 user_obj_exist = []
                 for sobjs in self.stack_dict['specobjs_list']:
-                    user_obj_exist.append(sobjs.slitorder_objid_indices(user_slit, user_objid)[0])
+                    user_obj_exist.append(np.any(sobjs.slitorder_objid_indices(user_slit, user_objid)))
                 if not np.all(user_obj_exist):
-                    msgs.error('Object provided through `user_obj` does not exist in all the spec1ds. ')
+                    msgs.error('Object provided through `user_obj` does not exist in all the exposures.')
 
         # find if there is a bright object we could use
         if len(self.stack_dict['specobjs_list']) > 0 and self.par['coadd2d']['user_obj'] is not None:
@@ -1065,11 +1064,11 @@ class MultiSlitCoAdd2D(CoAdd2D):
         else:
             self.objid_bri, self.slitidx_bri, self.spatid_bri, self.snr_bar_bri = None, None, None, None
 
-        # get self.offsets
-        self.compute_offsets(offsets)
-
         # get self.use_weights
         self.compute_weights(weights)
+
+        # get self.offsets
+        self.compute_offsets(offsets)
 
     # TODO When we run multislit, we actually compute the rebinned images twice. Once here to compute the offsets
     # and another time to weighted_combine the images in compute2d. This could be sped up
@@ -1208,6 +1207,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 - snr_bar: ndarray, float, shape (len(list),): Average
                   S/N over all the orders for this object
         """
+        msgs.info('Finding brightest object')
         nexp = len(specobjs_list)
         nspec = specobjs_list[0][0].TRACE_SPAT.shape[0]
         nslits = spat_ids.size
@@ -1228,14 +1228,14 @@ class MultiSlitCoAdd2D(CoAdd2D):
                     mask = np.zeros((nspec, nobj_slit), dtype=bool)
                     remove_indx = []
                     for iobj, spec in enumerate(sobjs[ithis]):
-                        # check if OPT_COUNTS is avaialble
+                        # check if OPT_COUNTS is available
                         if spec.OPT_COUNTS is not None and spec.OPT_COUNTS_IVAR is not None \
                                 and spec.OPT_WAVE is not None and spec.OPT_MASK is not None:
                             flux[:, iobj] = spec.OPT_COUNTS
                             ivar[:, iobj] = spec.OPT_COUNTS_IVAR
                             wave[:, iobj] = spec.OPT_WAVE
                             mask[:, iobj] = spec.OPT_MASK
-                        # check if BOX_COUNTS is avaialble
+                        # check if BOX_COUNTS is available
                         elif spec.BOX_COUNTS is not None and spec.BOX_COUNTS_IVAR is not None \
                                 and spec.BOX_WAVE is not None and spec.BOX_MASK is not None:
                             msgs.warn(f'Optimal extraction not available for obj {spec.OBJID} '
@@ -1386,7 +1386,7 @@ class EchelleCoAdd2D(CoAdd2D):
 
         # Check if the user-input object to compute offsets and weights exists
         if self.par['coadd2d']['user_obj'] is not None:
-            if len(self.par['coadd2d']['user_obj']) != 1:
+            if not isinstance(self.par['coadd2d']['user_obj'], int):
                 msgs.error('Parameter `user_obj` must include only the object OBJID.')
             else:
                 user_objid = self.par['coadd2d']['user_obj']
@@ -1394,9 +1394,9 @@ class EchelleCoAdd2D(CoAdd2D):
                 user_obj_exist = []
                 for sobjs in self.stack_dict['specobjs_list']:
                     for iord in range(self.nslits_single):
-                        user_obj_exist.append(sobjs.slitorder_objid_indices(iord, user_objid)[0])
+                        user_obj_exist.append(np.any(sobjs.slitorder_objid_indices(sobjs.ECH_ORDER[iord], user_objid)))
                 if not np.all(user_obj_exist):
-                    msgs.error('Object provided through `user_obj` does not exist in all the spec1ds. ')
+                    msgs.error('Object provided through `user_obj` does not exist in all the exposures.')
 
         # find if there is a bright object we could use
         if len(self.stack_dict['specobjs_list']) > 0 and self.par['coadd2d']['user_obj'] is not None:
@@ -1407,11 +1407,11 @@ class EchelleCoAdd2D(CoAdd2D):
         else:
             self.objid_bri, self.slitid_bri, self.snr_bar_bri = None, None, None
 
-        # get self.offsets
-        self.compute_offsets(offsets)
-
         # get self.use_weights
         self.compute_weights(weights)
+
+        # get self.offsets
+        self.compute_offsets(offsets)
 
     def compute_offsets(self, offsets):
         """
@@ -1424,6 +1424,10 @@ class EchelleCoAdd2D(CoAdd2D):
 
         """
         super(EchelleCoAdd2D, self).compute_offsets(offsets)
+
+        # adjustment for echelle to case 1): a list of offsets is provided by the user
+        if isinstance(self.offsets, (list, np.ndarray)):
+            self.objid_bri = None
 
         # 2) parset `offsets` is None but we have a bright object
         if offsets == 'auto' and self.objid_bri is not None:
@@ -1480,6 +1484,7 @@ class EchelleCoAdd2D(CoAdd2D):
                 - snr_bar: ndarray, float, shape (len(list),): Average
                   S/N over all the orders for this object
         """
+        msgs.info('Finding brightest object')
         nexp = len(specobjs_list)
 
         objid = np.zeros(nexp, dtype=int)
@@ -1501,7 +1506,7 @@ class EchelleCoAdd2D(CoAdd2D):
                         ivar = sobjs[ind][0].OPT_COUNTS_IVAR
                         wave = sobjs[ind][0].OPT_WAVE
                         mask = sobjs[ind][0].OPT_MASK
-                        # check if BOX_COUNTS is avaialble
+                        # check if BOX_COUNTS is available
                     elif sobjs[ind][0].BOX_COUNTS is not None and sobjs[ind][0].BOX_COUNTS_IVAR is not None \
                              and sobjs[ind][0].BOX_WAVE is not None and sobjs[ind][0].BOX_MASK is not None:
                         msgs.warn(f'Optimal extraction not available for object {sobjs[ind][0].ECH_OBJID} '
@@ -1569,10 +1574,10 @@ class EchelleCoAdd2D(CoAdd2D):
 
         """
 
-        if offsets != 'auto' and objid is not None:
+        if offsets is not None and objid is not None:
             msgs.error('You can only input offsets or an objid, but not both')
         nexp = len(offsets) if offsets is not None else len(objid)
-        if offsets != 'auto':
+        if isinstance(offsets, (list, np.ndarray)):
             return self.offset_slit_cen(slitid, offsets)
         elif objid is not None:
             specobjs_list = self.stack_dict['specobjs_list']
