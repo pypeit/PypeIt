@@ -113,7 +113,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['idname'] = dict(ext=0, card='IMAGETYP')
         self.meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-3)
-        self.meta['cenwave'] = dict(card=None, compound=True, rtol=5)
+        self.meta['cenwave'] = dict(card=None, compound=True, rtol=1.0)
         self.meta['filter1'] = dict(card=None, compound=True)
         self.meta['slitwid'] = dict(ext=0, card='SLITASEC')
         self.meta['lampstat01'] = dict(card=None, compound=True)
@@ -174,6 +174,13 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             #  than just the angle value.  Use the DeVeny grating angle formula to
             #  return the central wavelength of the configuration.
 
+            # Extract lines/mm, catch 'UNKNOWN' grating
+            lpmm = (
+                np.inf
+                if headarr[0]["GRATING"] == "UNKNOWN"
+                else float(headarr[0]["GRATING"].split("/")[0])
+            )
+
             # DeVeny Fixed Optical Angles in radians
             CAMCOL = np.deg2rad(55.00)  # Camera-to-Collimator Angle
             COLL = np.deg2rad(10.00)    # Collimator-to-Grating Angle
@@ -183,7 +190,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             wavelen = (
                 (np.sin(COLL + theta) + np.sin(COLL + theta - CAMCOL))  # Angles
                 * 1.0e7                                                 # Angstroms/mm
-                / float(headarr[0]["GRATING"].split("/")[0])            # lines / mm
+                / lpmm                                                  # lines / mm
             )
             # Round the wavelength to the nearest 5A
             return np.around(wavelen / 5, decimals=0) * 5
