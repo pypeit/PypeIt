@@ -562,8 +562,6 @@ class FindObjects:
         # Return
         return global_sky
 
-    # TODO This should be a method in IFU, not in the general class as Multi and Echelle don't use it I believe JFH
-    # RJC - I disagree - this is a general method not specific to IFU reductions, and may be useful if folks want to manually define the sky regions, even for long slit. It's also perfectly suited for echelle
     def load_skyregions(self, skymask_init):
         """
         Load or generate the sky regions
