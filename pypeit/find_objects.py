@@ -314,8 +314,7 @@ class FindObjects:
 
         # Check if the user wants to use a pre-defined sky regions file.
         skymask0, usersky = self.load_skyregions(None)
-        # JFH Perform a first pass sky-subtraction without masking any objects
-        # TODO: DEIMOS box slits are not being sky-subtracted. Not sure why
+        # Perform a first pass sky-subtraction without masking any objects
         initial_sky0 = self.global_skysub(skymask=skymask0, update_crmask=False, objs_not_masked=True).copy()
         # First pass object finding (JFH added skysubtraction here)
         sobjs_obj, self.nobj = \
