@@ -1168,10 +1168,11 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
     ivar_smash = utils.inverse(var_smash)*gpm_smash
     snr_smash = flux_smash_recen*np.sqrt(ivar_smash)
 
+    # Smooth this SNR image with a Gaussian set by the input fwhm
     gauss_smth_sigma = (fwhm/2.3548)
     snr_smash_smth = scipy.ndimage.filters.gaussian_filter1d(snr_smash, gauss_smth_sigma, mode='nearest')
     flux_smash_smth = scipy.ndimage.filters.gaussian_filter1d(flux_smash_recen, gauss_smth_sigma, mode='nearest')
-
+    # Search for spatial direction peaks in the smoothed snr image
     _, _, x_peaks_out, x_width, x_err, igood, _, _ = arc.detect_lines(
         snr_smash_smth, input_thresh=snr_thresh, fit_frac_fwhm=1.5, fwhm=fwhm, min_pkdist_frac_fwhm=0.75,
         max_frac_fwhm=10.0, cont_subtract=False, debug_peak_find=False)
