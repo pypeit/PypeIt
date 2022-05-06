@@ -3,7 +3,6 @@ Implements the objects used to construct sensitivity functions.
 
 .. include:: ../include/links.rst
 """
-import os
 import inspect
 
 from IPython import embed
@@ -19,7 +18,6 @@ from astropy import table
 from pypeit import msgs
 from pypeit import specobjs
 from pypeit import utils
-from pypeit import io
 from pypeit.core import coadd
 from pypeit.core import flux_calib
 from pypeit.core import telluric

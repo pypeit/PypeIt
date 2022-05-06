@@ -1400,7 +1400,11 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
 
     # init_breakpoints = fullbkpt
     msgs.info("Bspline fit on zeropoint. ")
-    bset1, bmask = fitting.iterfit(wave, zeropoint_clean, invvar=zeropoint_ivar, inmask=zeropoint_fitmask, upper=upper, lower=lower,
+    # TODO: This is a hack, but the mask sent to iterfit is not truly applied
+    # Do not send non-finite points to the iterfit(), else `bset1` will be np.nan
+    finite_gpm = np.isfinite(zeropoint_clean)
+    bset1, bmask = fitting.iterfit(wave[finite_gpm], zeropoint_clean[finite_gpm], invvar=zeropoint_ivar[finite_gpm],
+                                inmask=zeropoint_fitmask[finite_gpm], upper=upper, lower=lower,
                                 fullbkpt=init_breakpoints, maxiter=maxiter, kwargs_bspline=kwargs_bspline,
                                 kwargs_reject=kwargs_reject)
     zeropoint_bspl, zeropoint_fit_gpm = bset1.value(wave)
@@ -1411,6 +1415,7 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
         plt.figure(1)
         plt.plot(wave, zeropoint_data, drawstyle='steps-mid', color='black', label='Zeropoint Data')
         plt.plot(wave, zeropoint_bspl, color='cornflowerblue', label='Bspline fit')
+        plt.plot(wave, zeropoint_poly, color='orchid', label='PolyFit for masking')
         plt.plot(wave[np.invert(zeropoint_fitmask)], zeropoint_data[np.invert(zeropoint_fitmask)], '+', color='red', markersize=5.0,
                  label='masked zeropoint')
         plt.plot(wave[np.invert(zeropoint_fitmask)], zeropoint_bspl[np.invert(zeropoint_fitmask)], '+', color='red', markersize=5.0,

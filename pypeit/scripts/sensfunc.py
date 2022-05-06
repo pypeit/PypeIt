@@ -76,6 +76,7 @@ class SensFunc(scriptbase.ScriptBase):
 
         from pypeit import msgs
         from pypeit import inputfiles
+        from pypeit import io
         from pypeit.par import pypeitpar
         from pypeit import sensfunc
         from pypeit.spectrographs.util import load_spectrograph
@@ -106,6 +107,14 @@ class SensFunc(scriptbase.ScriptBase):
         header = fits.getheader(args.spec1dfile)
         spectrograph = load_spectrograph(header['PYP_SPEC'])
         spectrograph_def_par = spectrograph.default_pypeit_par()
+
+        # Construct a primary FITS header that includes the spectrograph's
+        #   config keys for inclusion in the output sensfunc file
+        primary_hdr = io.initialize_header()
+        add_keys = ['PYP_SPEC'] + spectrograph.configuration_keys()
+        for key in add_keys:
+            if key.upper() in header.keys():
+                primary_hdr[key.upper()] = header[key.upper()]
 
         # If the .sens file was passed in read it and overwrite default parameters
 
@@ -150,8 +159,8 @@ class SensFunc(scriptbase.ScriptBase):
                                                  debug=args.debug)
         # Generate the sensfunc
         sensobj.run()
-        # Write it out to a file
-        sensobj.to_file(outfile, overwrite=True)
+        # Write it out to a file, including the new primary FITS header
+        sensobj.to_file(outfile, overwrite=True, primary_hdr=primary_hdr)
 
         #TODO JFH Add a show_sensfunc option here and to the sensfunc classes.
 
