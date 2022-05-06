@@ -1531,6 +1531,34 @@ class Spectrograph:
         """
         return wave_in, counts_in, counts_ivar_in, gpm_in
 
+    def calc_pattern_freq(self, frame, rawdatasec_img, oscansec_img, hdu):
+        """
+        Calculate the pattern frequency using the overscan region that covers
+        the overscan and data sections. Using a larger range allows the
+        frequency to be pinned down with high accuracy.
+
+        Parameters
+        ----------
+        frame : `numpy.ndarray`_
+            Raw data frame to be used to estimate the pattern frequency.
+        rawdatasec_img : `numpy.ndarray`_
+            Array the same shape as ``frame``, used as a mask to identify the
+            data pixels (0 is no data, non-zero values indicate the amplifier
+            number).
+        oscansec_img : `numpy.ndarray`_
+            Array the same shape as ``frame``, used as a mask to identify the
+            overscan pixels (0 is no data, non-zero values indicate the
+            amplifier number).
+        hdu : `astropy.io.fits.HDUList`_
+            Opened fits file.
+
+        Returns
+        -------
+        patt_freqs : `list`_
+            List of pattern frequencies.
+        """
+        msgs.info("Pattern noise removal is not implemented for spectrograph {0:s}".format(self.name))
+        return []
 
 
     def __repr__(self):
