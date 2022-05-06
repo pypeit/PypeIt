@@ -700,7 +700,7 @@ class PypeIt:
         sciImg : :class:`~pypeit.images.pypeitimage.PypeItImage`
             Science image
         objFind : :class:`~pypeit.find_objects.FindObjects`
-            Object finding object
+            Object finding speobject
 
         """
         # Grab some meta-data needed for the reduction from the fitstbl
@@ -718,7 +718,6 @@ class PypeIt:
             std_trace = specobjs.get_std_trace(self.spectrograph.get_det_name(det), std_outfile)
         else:
             std_trace = None
-        #std_trace = self.get_std_trace(self.std_redux, det, std_outfile)
 
         # Build Science image
         sci_files = self.fitstbl.frame_paths(frames)

@@ -50,7 +50,7 @@ class SpecObj(datamodel.DataContainer):
             Running index for the order.
     """
 
-    version = '1.1.5'
+    version = '1.1.6'
     """
     Current datamodel version number.
     """
