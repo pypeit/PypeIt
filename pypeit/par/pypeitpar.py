@@ -3437,16 +3437,6 @@ class FindObjPar(ParSet):
         dtypes['find_trim_edge'] = list
         descr['find_trim_edge'] = 'Trim the slit by this number of pixels left/right before finding objects'
 
-        #defaults['find_cont_fit'] = True
-        #dtypes['find_cont_fit'] = bool
-        #descr['find_cont_fit'] = 'Fit a continuum to the illumination pattern across the trace rectified image' \
-        #                         ' (masking objects) when searching for peaks to initially identify objects'
-
-        #defaults['find_npoly_cont'] = 1
-        #dtypes['find_npoly_cont'] = int
-        #descr['find_npoly_cont'] = 'Polynomial order for fitting continuum to the illumination pattern across the trace rectified image' \
-        #                           ' (masking objects) when searching for peaks to initially identify objects'
-
         defaults['find_extrap_npoly'] = 3
         dtypes['find_extrap_npoly'] = int
         descr['find_extrap_npoly'] = 'Polynomial order used for trace extrapolation'
@@ -3509,12 +3499,6 @@ class FindObjPar(ParSet):
                                 'detector. It only used for object finding. This parameter is helpful if your object only'\
                                 'has emission lines or at high redshift and the trace only shows in part of the detector.'
 
-        #defaults['cont_sig_thresh'] = 2.0
-        #dtypes['cont_sig_thresh'] = [int, float]
-        #descr['cont_sig_thresh'] = 'Significance threshold for peak detection for determinining which pixels to use for ' \
-        #                           'the iteratively fit continuum of the spectral direction smashed image. This is ' \
-        #                           'passed as the sigthresh parameter to core.arc.iter_continum. For extremely narrow ' \
-        #                           'slits that are almost filled by the object trace set this to a smaller number like 1.0'
 
         # Instantiate the parameter set
         super(FindObjPar, self).__init__(list(pars.keys()),

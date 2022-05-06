@@ -1232,7 +1232,6 @@ class PypeItMetaData:
         # Use the user-defined frame types from the input dictionary
         if user is not None:
             if len(user.keys()) != len(self):
-                # TODO: JFH added to print out a more informative error message
                 if len(np.unique(self['filename'].data)) != len(self):
                     raise ValueError('Your pypeit file has duplicate filenames which is not allowed.')
                 else:
