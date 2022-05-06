@@ -916,6 +916,19 @@ class SpecObjs:
 
 #TODO Should this be a classmethod on specobjs??
 def get_std_trace(detname, std_outfile):
+    """
+     Returns the trace of the standard.
+
+     Args:
+         det (:obj:`int`, :obj:`tuple`):
+             1-indexed detector(s) to process.
+         std_outfile (:obj:`str`):
+             Filename with the standard star spec1d file.  Can be None.
+     Returns:
+         `numpy.ndarray`_: Trace of the standard star on input detector.
+         Will be None if ``std_outfile`` is None, or if the selected detector/mosaic is not available
+         in the provided spec1d file.
+     """
 
     sobjs = SpecObjs.from_fitsfile(std_outfile)
     pypeline = sobjs.PYPELINE
