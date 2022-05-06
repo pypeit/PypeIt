@@ -1138,14 +1138,16 @@ class IFUFindObjects(MultiSlitFindObjects):
              global_sky (`numpy.ndarray`_):
                 Model of the sky
              skymask (`numpy.ndarray`_, optional):
-                Mask of sky regions where the spatial illumination will be determined
+                Mask of sky regions where the spectral illumination will be determined
         """
         trim = self.par['calibrations']['flatfield']['slit_trim']
         ref_idx = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
+        smooth_npix = self.par['calibrations']['flatfield']['slit_illum_smooth_npix']
         gpm = self.sciImg.select_flag(invert=True)
         scaleImg = flatfield.illum_profile_spectral(self.sciImg.image.copy(), self.waveimg, self.slits,
                                                     slit_illum_ref_idx=ref_idx, model=global_sky, gpmask=gpm,
-                                                    skymask=skymask, trim=trim, flexure=self.spat_flexure_shift)
+                                                    skymask=skymask, trim=trim, flexure=self.spat_flexure_shift,
+                                                    smooth_npix=smooth_npix)
         # Now apply the correction to the science frame
         self.apply_relative_scale(scaleImg)
 
@@ -1189,7 +1191,7 @@ class IFUFindObjects(MultiSlitFindObjects):
             # Update the ivar image used in the sky fit
             msgs.info("Updating sky noise model")
             # Choose the highest counts out of sky and object
-            counts = global_sky# + np.clip(self.sciImg.image-self.global_sky, 0, None)
+            counts = global_sky
             _scale = None if self.sciImg.img_scale is None else self.sciImg.img_scale[thismask]
             # NOTE: darkcurr must be a float for the call below to work.
             var = procimg.variance_model(self.sciImg.base_var[thismask], counts=counts[thismask],
@@ -1200,7 +1202,7 @@ class IFUFindObjects(MultiSlitFindObjects):
             # model_ivar = utils.inverse(var)
             # Redo the relative spectral illumination correction with the improved sky model
             if self.par['scienceframe']['process']['use_specillum']:
-                self.illum_profile_spectral(global_sky, skymask=skymask)
+                self.illum_profile_spectral(global_sky, skymask=thismask)
 
         if update_crmask:
             # Find CRs with sky subtraction

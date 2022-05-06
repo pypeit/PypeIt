@@ -885,6 +885,13 @@ class FlatField:
                           'spectral shape is poor, or the illumination profile is very irregular.')
 
             # First fit -- With initial slits
+            if not np.any(spat_gpm):
+                msgs.warn('Flat-field failed during normalization!  Not flat-fielding '
+                          'slit {0} and continuing!'.format(slit_spat))
+                self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(
+                    self.slits.mask[slit_idx], 'BADFLATCALIB')
+                continue
+
             exit_status, spat_coo_data,  spat_flat_data, spat_bspl, spat_gpm_fit, \
                 spat_flat_fit, spat_flat_data_raw \
                         = self.spatial_fit(norm_spec, spat_coo_init, median_slit_widths[slit_idx],
@@ -1220,7 +1227,7 @@ class FlatField:
         return illum_profile_spectral(rawflat, waveimg, self.slits,
                                       slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
                                       model=None, gpmask=gpm, skymask=None, trim=trim,
-                                      flexure=flex)
+                                      flexure=flex, smooth_npix=self.flatpar['slit_illum_smooth_npix'])
 
 
 def show_flats(image_list, wcs_match=True, slits=None, waveimg=None):
@@ -1276,8 +1283,8 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
         Information stored about the slits
     slit_illum_ref_idx : int
         Index of slit that is used as the reference.
-    smooth_npix : int
-        smoothing used for determining smoothly varying S/N ratio weights by sn_weights
+    smooth_npix : int, optional
+        smoothing used for determining smoothly varying relative weights by sn_weights
     model : `numpy.ndarray`_, None
         A model of the rawimg data. If None, rawimg will be used.
     gpmask : `numpy.ndarray`_, None
@@ -1326,14 +1333,16 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
     hist, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins, weights=modelimg_copy[onslit_ref_trim])
     cntr, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins)
     cntr = cntr.astype(np.float)
-    norm = (cntr != 0) / (cntr + (cntr == 0))
+    norm = utils.inverse(cntr)
     spec_ref = np.clip(hist, 0, None) * norm
     wave_ref = 0.5 * (wavebins[1:] + wavebins[:-1])
+    sn_smooth_npix = wave_ref.size // smooth_npix if (smooth_npix is not None) else wave_ref.size // 10
+    # Smooth the reference spectrum
+    spec_ref = coadd.smooth_weights(spec_ref, (spec_ref != 0), sn_smooth_npix)
 
     # Iterate until convergence
     maxiter = 10
     lo_prev, hi_prev = 1.0E-32, 1.0E32
-    sn_smooth_npix = smooth_npix if (smooth_npix is not None) else int(np.round(wave_ref.size / 10))
     for rr in range(maxiter):
         # Reset the relative scaling for this iteration
         relscl_model = np.ones_like(rawimg)
@@ -1341,7 +1350,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
         for ss in range(slits.spat_id.size):
             # Check if this index is the reference
             if wvsrt[ss] == slit_illum_ref_idx: continue
-            # Calculate the region of overlap
+            # Calculate the region of overlap›
             onslit_b = (slitid_img_trim == slits.spat_id[wvsrt[ss]])
             onslit_b_init = (slitid_img_init == slits.spat_id[wvsrt[ss]])
             onslit_b_olap = onslit_b & gpm & (waveimg >= mnmx_wv[wvsrt[ss], 0]) & (waveimg <= mnmx_wv[wvsrt[ss], 1]) & skymask_now
@@ -1349,7 +1358,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
             cntr, edge = np.histogram(waveimg[onslit_b_olap], bins=wavebins)
             cntr = cntr.astype(np.float)
             cntr *= spec_ref
-            norm = (cntr != 0) / (cntr + (cntr == 0))
+            norm = utils.inverse(cntr)
             arr = np.clip(hist, 0, None) * norm
             gdmask = (arr != 0)
             # Calculate a smooth version of the relative response
@@ -1364,7 +1373,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
             hist, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins, weights=modelimg_copy[onslit_ref_trim]/relscl_model[onslit_ref_trim])
             cntr, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins)
             cntr = cntr.astype(np.float)
-            norm = (cntr != 0) / (cntr + (cntr == 0))
+            norm = utils.inverse(cntr)
             spec_ref = np.clip(hist, 0, None) * norm
         minv, maxv = np.min(relscl_model), np.max(relscl_model)
         if 1/minv + maxv > lo_prev+hi_prev:

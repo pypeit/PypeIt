@@ -3,7 +3,7 @@
     $ pypeit_identify -h
     usage: pypeit_identify [-h] [--lamps LAMPS] [-s] [--wmin WMIN] [--wmax WMAX]
                            [--slit SLIT] [--det DET] [--rmstol RMSTOL] [--fwhm FWHM]
-                           [--pixtol PIXTOL] [--test] [--force_save]
+                           [--pixtol PIXTOL] [--test] [--linear] [--force_save]
                            arc_file slits_file
     
     Launch PypeIt identify tool, display extracted MasterArc, and load linelist.Run
@@ -27,5 +27,7 @@
       --fwhm FWHM      FWHM for line finding (default: 4.0)
       --pixtol PIXTOL  Pixel tolerance for Auto IDs (default: 0.1)
       --test           Unit tests? (default: False)
+      --linear         Show the spectrum in linear scale? (Default: log (default:
+                       False)
       --force_save     Save the solutions, despite the RMS (default: False)
     

@@ -48,7 +48,7 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
         Inverse variance of science frame. Can be a model or deduced from the
         image itself.
     mask : boolean `numpy.ndarray`_, shape (nspec, nspat)
-        Good-pixel mask, indicating which pixels are should or should not be
+        Good-pixel mask, indicating which pixels should or should not be
         used. Good pixels = True, Bad Pixels = False
     waveimg : float `numpy.ndarray`_, shape (nspec, nspat)
         Wavelength image.

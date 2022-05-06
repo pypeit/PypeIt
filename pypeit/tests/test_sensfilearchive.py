@@ -32,7 +32,8 @@ def test_get_archived_sensfile(monkeypatch):
     # Test success by making sure the file with the right name is returned, and that the file exists
     with monkeypatch.context() as m:
         monkeypatch.setattr(fits, "getheader", partial(mock_get_header, mock_return='600ZD'))
-        sensfile = Path(sfa.get_archived_sensfile("test_file.fits"))
+        # Note: `symlink_in_pkgdir=True` is needed to appease the `assert` below
+        sensfile = Path(sfa.get_archived_sensfile("test_file.fits", symlink_in_pkgdir=True))
         assert sensfile.exists() is True and sensfile.name == "keck_deimos_600ZD_sensfunc.fits"
 
     # Test failure
