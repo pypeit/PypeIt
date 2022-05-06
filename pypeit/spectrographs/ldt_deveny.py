@@ -54,25 +54,28 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             Object with the detector metadata.
         """
         if hdu is None:
+            dataext = 0                     # Raw data
             binning = '1,1'                 # Most common use mode
             gain = np.atleast_1d(1.52)      # Hardcoded in the header
             ronoise = np.atleast_1d(4.9)    # Hardcoded in the header
             datasec = np.atleast_1d('[5:512,53:2095]')   # For 1x1 binning
             oscansec = np.atleast_1d('[5:512,5:48]')     # For 1x1 binning
         else:
+            # If file is post-processed, data extension is specified.  Raw is 0.
+            dataext = hdu[0].header.get('POST_EXT', 0)
             binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
             gain = np.atleast_1d(hdu[0].header['GAIN'])
             ronoise = np.atleast_1d(hdu[0].header['RDNOISE'])
             datasec = self.rotate_trimsections(hdu[0].header['TRIMSEC'],
-                                               hdu[0].header['NAXIS1'])
+                                               hdu[dataext].header['NAXIS1'])
             oscansec = self.rotate_trimsections(hdu[0].header['BIASSEC'],
-                                               hdu[0].header['NAXIS1'])
+                                               hdu[dataext].header['NAXIS1'])
 
         # Detector
         detector_dict = dict(
             binning         = binning,
-            det             = 1,
-            dataext         = 0,
+            det             = 1,        # DeVeny has but one detector
+            dataext         = dataext,
             specaxis        = 1,        # Native spectrum is along the x-axis
             specflip        = True,     # DeVeny CCD has blue at the right
             spatflip        = False,
@@ -139,8 +142,8 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             return parse.binning2string(binspec, binspatial)
 
         if meta_key == 'mjd':
-            # Use astropy to convert 'DATE-OBS' into a mjd.
-            ttime = Time(headarr[0]['DATE-OBS'], format='isot')
+            # Use custom scrubber + AstroPy to convert 'DATE-OBS' into a mjd.
+            ttime = self.scrub_isot_dateobs(headarr[0]['DATE-OBS'])
             return ttime.mjd
 
         if meta_key == 'lampstat01':
@@ -158,9 +161,12 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
                         "400/8500":"DV4", "500/5500":"DV5", "600/4900":"DV6",
                         "600/6750":"DV7", "831/8000":"DV8", "1200/5000":"DV9",
                         "2160/5000":"DV10", "UNKNOWN":"DVxx"}
-            if headarr[0]['GRATING'] not in gratings:
-                raise ValueError(f"Grating value {headarr[0]['GRATING']} not recognized.")
-            return f"{gratings[headarr[0]['GRATING']]} ({headarr[0]['GRATING']})"
+            if (grating_kwd := headarr[0]['GRATING']) not in gratings:
+                raise ValueError(f"Grating value {grating_kwd} not recognized.")
+            if grating_kwd == "UNKNOWN":
+                msgs.warn(f"Grating not selected in the LOUI; {msgs.newline()}"
+                          "Fix the header keyword GRATING before proceeding.")
+            return f"{gratings[grating_kwd]} ({grating_kwd})"
 
         if meta_key == 'decker':
             # Provide a stub for future inclusion of a decker on LDT/DeVeny.
@@ -176,20 +182,21 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             #  return the central wavelength of the configuration.
 
             # Extract lines/mm, catch 'UNKNOWN' grating
-            lpmm = (
-                np.inf
-                if headarr[0]["GRATING"] == "UNKNOWN"
-                else float(headarr[0]["GRATING"].split("/")[0])
-            )
+            if (grating_kwd := headarr[0]["GRATING"]) == "UNKNOWN":
+                lpmm = np.inf
+                msgs.warn(f"Grating angle not selected in the LOUI; {msgs.newline()}"
+                          "Fix the header keyword GRANGLE before proceeding.")
+            else:
+                lpmm = float(grating_kwd.split("/")[0])
 
             # DeVeny Fixed Optical Angles in radians
-            CAMCOL = np.deg2rad(55.00)  # Camera-to-Collimator Angle
-            COLL = np.deg2rad(10.00)    # Collimator-to-Grating Angle
+            col_grat = np.deg2rad(10.00)  # Collimator-to-Grating Angle
+            cam_col = np.deg2rad(55.00)   # Camera-to-Collimator Angle
             # Grating angle in radians
             theta = np.deg2rad(float(headarr[0]['GRANGLE']))
             # Wavelength in Angstroms
             wavelen = (
-                (np.sin(COLL + theta) + np.sin(COLL + theta - CAMCOL))  # Angles
+                (np.sin(col_grat + theta) + np.sin(col_grat + theta - cam_col))  # Angles
                 * 1.0e7                                                 # Angstroms/mm
                 / lpmm                                                  # lines / mm
             )
@@ -250,17 +257,21 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         set_use = dict(use_illumflat=False)
         par.reset_all_processimages_par(**set_use)
 
+        # For processing the arc frame, these settings allow for the combination of
+        #   of frames from different lamps into a comprehensible Master
+        par['calibrations']['arcframe']['process']['clip'] = False
+        par['calibrations']['arcframe']['process']['combine'] = 'mean'
+        par['calibrations']['arcframe']['process']['subtract_continuum'] = True
+        par['calibrations']['tiltframe']['process']['clip'] = False
+        par['calibrations']['tiltframe']['process']['combine'] = 'mean'
+        par['calibrations']['tiltframe']['process']['subtract_continuum'] = True
+
         # Make a bad pixel mask
         par['calibrations']['bpm_usebias'] = True
 
         # Wavelength Calibration Parameters
-        # Do not sigmaclip the arc frames for better MasterArc and better wavecalib
-        par['calibrations']['arcframe']['process']['clip'] = False
-        # Do not sigmaclip the tilt frames
-        par['calibrations']['tiltframe']['process']['clip'] = False
         # Arc lamps list from header -- instead of defining the full list here
         par['calibrations']['wavelengths']['lamps'] = ['use_header']
-        #par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'HgI']
         # Set this as default... but use `holy-grail` for DV4, DV8
         par['calibrations']['wavelengths']['method'] = 'full_template'
         # The DeVeny arc line FWHM varies based on slitwidth used
@@ -275,6 +286,9 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
         par['calibrations']['slitedges']['minimum_slit_length'] = 90.
 
+        # Flat-field parameter modification
+        par['calibrations']['flatfield']['pixelflat_min_wave'] = 3000.
+
         # For the tilts, our lines are not as well-behaved as others',
         #   possibly due to the Wynne type E camera.
         par['calibrations']['tilts']['spat_order'] = 4  # Default: 3
@@ -284,14 +298,22 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['sigclip'] = 5.0  # Default: 4.5
         par['scienceframe']['process']['objlim'] = 2.0   # Default: 3.0
 
-        # Reduction and Extraction Parameters -- Look for fainter objects
-        par['reduce']['findobj']['snr_thresh'] = 5.0   # Default: 10.0
+        # Object Finding and Extraction Parameters
+        assumed_seeing = 1.2  # arcsec
+        par['reduce']['findobj']['trace_npoly'] = 3   # Default: 5
+        par['reduce']['findobj']['snr_thresh'] = 50.0   # Default: 10.0
+        par['reduce']['findobj']['maxnumber_std'] = 1   # Default: 5
+        par['reduce']['findobj']['maxnumber_sci'] = 5   # Default: 10
+        par['reduce']['findobj']['find_fwhm'] = assumed_seeing / 0.34   # Default: 5.0 pix
+        par['reduce']['extraction']['boxcar_radius'] = assumed_seeing * 1.5  # Default: 1.5"
 
         # Flexure Correction Parameters
         par['flexure']['spec_method'] = 'boxcar'  # Default: 'skip'
+        par['flexure']['spec_maxshift'] = 30  # Default: 20
 
         # Sensitivity Function Parameters
-        par['sensfunc']['polyorder'] = 7  # Default: 5
+        par['sensfunc']['UVIS']['nresln'] = 15  # Default: 20
+        par['sensfunc']['UVIS']['polycorrect'] = False  # Default: True
 
         return par
 
@@ -331,17 +353,16 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
                 & (fitstbl['idname'] == 'DOME FLAT')
                 & (fitstbl['lampstat01'] == 'off')
             )
-        if ftype in ['illumflat','sky']:
+        if ftype == 'illumflat':
             return (
                 good_exp
                 & (fitstbl['idname'] == 'SKY FLAT')
                 & (fitstbl['lampstat01'] == 'off')
             )
         if ftype == 'science':
-            # Both OBJECT and STANDARD frames should be processed as science frames
             return (
                 good_exp
-                & ((fitstbl['idname'] == 'OBJECT') | (fitstbl['idname'] == 'STANDARD'))
+                & (fitstbl['idname'] == 'OBJECT')
                 & (fitstbl['lampstat01'] == 'off')
             )
         if ftype == 'standard':
@@ -356,8 +377,8 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
                 & (fitstbl['idname'] == 'DARK')
                 & (fitstbl['lampstat01'] == 'off')
             )
-        if ftype in ['pinhole','align']:
-            # Don't types pinhole or align frames
+        if ftype in ['pinhole', 'align', 'sky', 'lampoffflats']:
+            # DeVeny doesn't have any of these types of frames
             return np.zeros(len(fitstbl), dtype=bool)
         msgs.warn(f"Cannot determine if frames are of type {ftype}")
         return np.zeros(len(fitstbl), dtype=bool)
@@ -419,21 +440,34 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
+        # Start with instrument-wide parameters
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
-        # Set parameters based on grating used:
+        # Adjust parameters based on DeVeny grating used
         grating = self.get_meta_value(scifile, 'dispname')
+
+        # How to compute resolving power on the fly?  (From p200_dbsp)
+        # par['sensfunc']['UVIS']['resolution'] = resolving_power.decompose().value
 
         if grating == 'DV1 (150/5000)':
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_150_HgCdAr.fits'
             # Because of the wide wavelength range, split DV1 arcs in half for reidentification
             par['calibrations']['wavelengths']['nsnippet'] = 2
+            # The approximate resolution of this grating
+            par['sensfunc']['UVIS']['resolution'] = 400
 
-        elif grating in ['DV2 (300/4000)', 'DV3 (300/6750)']:
+        elif grating == 'DV2 (300/4000)':
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_300_HgCdAr.fits'
+            # The approximate resolution of this grating
+            par['sensfunc']['UVIS']['resolution'] = 800
+
+        elif grating == 'DV3 (300/6750)':
+            # Use this `reid_arxiv` with the `full-template` method:
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_300_HgCdAr.fits'
+            # The approximate resolution of this grating
+            par['sensfunc']['UVIS']['resolution'] = 1200
 
         elif grating == 'DV4 (400/8000)':
             # We don't have a good `reid_arxiv`` for this grating yet; use `holy-grail`
@@ -441,17 +475,34 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
             par['calibrations']['wavelengths']['sigdetect'] = 10.0  # Default: 5.0
             par['calibrations']['wavelengths']['rms_threshold'] = 0.5  # Default: 0.15
+             # Start with a lower-order Legendre polymonial for the wavelength fit
+            par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
+            # The approximate resolution of this grating
+            par['sensfunc']['UVIS']['resolution'] = 1800
 
         elif grating == 'DV5 (500/5500)':
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_500_HgCdAr.fits'
+            # Start with a lower-order Legendre polymonial for the wavelength fit
             par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
+            # The approximate resolution of this grating
+            par['sensfunc']['UVIS']['resolution'] = 1450
 
-        elif grating in ['DV6 (600/4900)', 'DV7 (600/6750)']:
+        elif grating == 'DV6 (600/4900)':
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_600_HgCdAr.fits'
-            # Given the narrow range of wavelengths, use a lower initial order of the fit
+            # Start with a lower-order Legendre polymonial for the wavelength fit
             par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
+            # The approximate resolution of this grating
+            par['sensfunc']['UVIS']['resolution'] = 1500
+
+        elif grating == 'DV7 (600/6750)':
+            # Use this `reid_arxiv` with the `full-template` method:
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_600_HgCdAr.fits'
+            # Start with a lower-order Legendre polymonial for the wavelength fit
+            par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
+            # The approximate resolution of this grating
+            par['sensfunc']['UVIS']['resolution'] = 2000
 
         elif grating == 'DV8 (831/8000)':
             # We don't have a good `reid_arxiv`` for this grating yet; use `holy-grail`
@@ -459,16 +510,20 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
             par['calibrations']['wavelengths']['sigdetect'] = 10.0  # Default: 5.0
             par['calibrations']['wavelengths']['rms_threshold'] = 0.5  # Default: 0.15
-            # Given the narrow range of wavelengths, use a lower final order of the fit
+            # Start/end with a lower-order Legendre polymonial for the wavelength fit
             par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
             par['calibrations']['wavelengths']['n_final'] = 4  # Default: 5
+            # The approximate resolution of this grating
+            par['sensfunc']['UVIS']['resolution'] = 3200
 
         elif grating == 'DV9 (1200/5000)':
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_1200_HgCdAr.fits'
-            # Given the narrow range of wavelengths, use a lower final order of the fit
+            # Start/end with a lower-order Legendre polymonial for the wavelength fit
             par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
             par['calibrations']['wavelengths']['n_final'] = 4  # Default: 5
+            # The approximate resolution of this grating
+            par['sensfunc']['UVIS']['resolution'] = 3000
 
         elif grating == 'DV10 (2160/5000)':
             # Presently unsupported; no parameter changes
@@ -476,6 +531,12 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
 
         else:
             pass
+
+        # Adjust parameters based on CCD binning
+        binspec, binspat = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
+        par['reduce']['findobj']['find_fwhm'] /= binspat  # Specified in pixels and not arcsec
+        par['flexure']['spec_maxshift'] /= binspec
+        par['sensfunc']['UVIS']['resolution'] /= binspec
 
         return par
 
@@ -555,7 +616,78 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         # Return
         return detector, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
 
-    def rotate_trimsections(self, section_string, nspecpix):
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table):
+        """
+        This routine is for performing instrument/disperser specific tweaks to
+        standard stars so that sensitivity function fits will be well behaved.
+
+        These are tweaks needed by LDT/DeVeny for smooth sensfunc sailing.
+
+        Parameters
+        ----------
+        wave_in: (float np.ndarray) shape = (nspec,)
+            Input standard star wavelenghts
+        counts_in: (float np.ndarray) shape = (nspec,)
+            Input standard star counts
+        counts_ivar_in: (float np.ndarray) shape = (nspec,)
+            Input inverse variance of standard star counts
+        gpm_in: (bool np.ndarray) shape = (nspec,)
+            Input good pixel mask for standard
+        meta_table: (dict)
+            Table containing meta data that is slupred from the specobjs object.
+            See unpack_object routine in specobjs.py for the contents of this table.
+
+        Returns
+        -------
+        wave_out: (float np.ndarray) shape = (nspec,)
+            Output standard star wavelenghts
+        counts_out: (float np.ndarray) shape = (nspec,)
+            Output standard star counts
+        counts_ivar_out: (float np.ndarray) shape = (nspec,)
+            Output inverse variance of standard star counts
+        gpm_out: (bool np.ndarray) shape = (nspec,)
+            Output good pixel mask for standard
+        """
+        # First, simply chop off the wavelengths outside physical limits:
+        beyond = (wave_in < 2900.0) | (wave_in > 11000.0)
+        wave_out = wave_in[np.logical_not(beyond)]
+        counts_out = counts_in[np.logical_not(beyond)]
+        counts_ivar_out = counts_ivar_in[np.logical_not(beyond)]
+        gpm_out = gpm_in[np.logical_not(beyond)]
+
+        # Next, build a gpm based on other reasonable wavelengths and filters
+        edge_region = (wave_out < 3000.0) | (wave_out > 10200.0)
+        neg_counts = counts_out <= 0
+
+        # If an order-blocking filter was in use, mask blocked region
+        #  at "nominal" cutoff value
+        if 'FILTER1' in meta_table.keys():
+            rearfilt = meta_table['FILTER1'].strip()
+            if rearfilt == "OG570":
+                block_region = wave_out < 5700.0
+            elif rearfilt == 'GG495':
+                block_region = wave_out < 4950.0
+            elif rearfilt == 'GG420':
+                block_region = wave_out < 4200.0
+            elif rearfilt == 'WG360':
+                block_region = wave_out < 3600.0
+            else:
+                block_region = wave_out < 0
+        # In case the filter didn't make it into the header
+        else: block_region = wave_out < 0
+
+        # Build up the OUTPUT GOOD PIXEL MASK
+        gpm_out = (
+            gpm_out
+            & np.logical_not(edge_region)
+            & np.logical_not(neg_counts)
+            & np.logical_not(block_region)
+        )
+
+        return wave_out, counts_out, counts_ivar_out, gpm_out
+
+    @staticmethod
+    def rotate_trimsections(section_string: str, nspecpix: int):
         """
         In order to orient LDT/DeVeny images into the PypeIt-standard
         configuration, frames are essentially rotated 90º clockwise.  As such,
@@ -582,8 +714,73 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
 
         # The spatial section is unchanged, but the spectral section flips
         #  Add 1 because the pixels are 1-indexed (FITS standard)
-        # TODO: Why does this need to be cast specifically as int32?
-        y2p, y1p = nspecpix - np.int32(spec_sec.split(':')) + 1
+        y2p, y1p = nspecpix - np.array(spec_sec.split(':'), dtype=int) + 1
 
         # Return the PypeIt-standard Numpy array
         return np.atleast_1d(f"[{spat_sec},{y1p}:{y2p}]")
+
+    @staticmethod
+    def scrub_isot_dateobs(dt_str: str):
+        """Scrub the input DATE-OBS for ingestion by datetime
+
+        First of all, strict ISO 8601 format requires a 6-digit "microsecond" field
+        as the fractional portion of the seconds.  In the DATE-OBS field, lois only
+        prints two digits for the fractional second.  The main scrub here adds
+        additional trailing zeroes to satifsy the formatting requirements of
+        :obj:`datetime.datetime.fromisoformat`.
+
+        While this yields happy results for the majority of cases, sometimes lois
+        has roundoff abnormalities in the time string written to the DATE-OBS
+        header keyword.  For example, "2020-01-30T13:17:010.00" was written, where
+        the seconds has 3 digits -- presumably the seconds field was constructed
+        with a leading zero because ``sec`` was < 10, but when rounded for printing
+        yielded "10.00", producing a complete seconds field of "010.00".
+
+        These kinds of abnormalities cause the standard python datetime parsers to
+        freak out with ``ValueError`` s.  This function attempts to return the
+        datetime directly, but then scrubs any values that cause a ``ValueError``.
+
+        The scrubbing consists of deconstructing the string into its components,
+        then carefully reconstructing it into proper ISO 8601 format.  Also, some
+        recursive edge-case catching is done, but at some point you just have to
+        go buy a lottery ticket.
+
+        Parameters
+        ----------
+        dt_str : str
+            Input datetime string from the DATE-OBS header keyword
+
+        Returns
+        -------
+        `astropy.time.Time`_
+            The Astropy Time() object corresponding to the DATE-OBS input string
+        """
+        # Clean all leading / trailing whitespace
+        dt_str = dt_str.strip()
+        try:
+            # fromisoformat() expects a 6-digit microsecond field; append zeros
+            if (n_micro := len(dt_str.split(".")[-1])) < 6:
+                dt_str += "0" * (6 - n_micro)
+            return Time(dt_str, format='isot')
+        except ValueError:
+            # Split out all pieces of the datetime, and recompile
+            date, time = dt_str.split("T")
+            yea, mon, day = date.split("-")
+            hou, mnt, sec = time.split(":")
+            # Check if the seconds is exactly equal to 60... increment minute
+            if sec == "60.00":
+                sec = "00.00"
+                if mnt != "59":
+                    mnt = int(mnt) + 1
+                else:
+                    mnt = "00"
+                    if hou != "23":
+                        hou = int(hou) + 1
+                    else:
+                        hou = "00"
+                        # If the edge cases go past here, go buy a lottery ticket!
+                        day = int(day) + 1
+            # Reconstitute the DATE-OBS string, and return the Time() object
+            date = f"{int(yea):04d}-{int(mon):02d}-{int(day):02d}"
+            time = f"{int(hou):02d}:{int(mnt):02d}:{float(sec):09.6f}"
+            return Time(f"{date}T{time}", format='isot')
