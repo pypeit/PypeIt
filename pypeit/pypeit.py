@@ -640,57 +640,6 @@ class PypeIt:
         setup = self.fitstbl.master_key(frame, det=det)
         return objtype_out, setup, obstime, basename, binning
 
-    # DEPRECATED
-    # def get_std_trace(self, std_redux, det, std_outfile):
-    #     """
-    #     Returns the trace of the standard if it is applicable to the current reduction
-    #
-    #     Args:
-    #         std_redux (:obj:`bool`):
-    #             Flag that the current reduction *is* the reduction of a standard
-    #             and that this step should be skipped.   So, if this is False,
-    #             the method will proceed; otherwise, the returned value is always
-    #             None.
-    #         det (:obj:`int`, :obj:`tuple`):
-    #             1-indexed detector(s) to process.
-    #         std_outfile (:obj:`str`):
-    #             Filename with the standard star spec1d file.  Can be None.
-    #
-    #     Returns:
-    #         `numpy.ndarray`_: Trace of the standard star on input detector.
-    #         Will be None if ``std_redux`` is true, if ``std_outfile`` is None,
-    #         or if the selected detector/mosaic is not available in the provided
-    #         spec1d file.
-    #     """
-    #     if std_redux is False and std_outfile is not None:
-    #         sobjs = specobjs.SpecObjs.from_fitsfile(std_outfile)
-    #         detname = self.spectrograph.get_det_name(det)
-    #         # Does the detector match?
-    #         # TODO: Instrument specific logic here could be implemented with the
-    #         # parset. For example LRIS-B or LRIS-R we we would use the standard
-    #         # from another detector.
-    #
-    #         this_det = sobjs.DET == detname
-    #         if np.any(this_det):
-    #             sobjs_det = sobjs[this_det]
-    #             sobjs_std = sobjs_det.get_std()
-    #             # No standard extracted on this detector??
-    #             if sobjs_std is None:
-    #                 return None
-    #             std_trace = sobjs_std.TRACE_SPAT
-    #             # flatten the array if this multislit
-    #             if 'MultiSlit' in self.spectrograph.pypeline:
-    #                 std_trace = std_trace.flatten()
-    #             elif 'Echelle' in self.spectrograph.pypeline:
-    #                 std_trace = std_trace.T
-    #             else:
-    #                 msgs.error('Unrecognized pypeline')
-    #         else:
-    #             std_trace = None
-    #     else:
-    #         std_trace = None
-    #
-    #     return std_trace
 
     def calib_one(self, frames, det):
         """
