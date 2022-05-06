@@ -852,16 +852,28 @@ def objfind_QA(spat_peaks, snr_peaks, spat_vector, snr_vector, snr_thresh, qa_ti
 def get_fwhm(fwhm_in, nsamp, smash_peakflux, spat_fracpos, flux_smash_smth):
     """
 
-    Utilith routine to measure the fwhm of an object trace from the spectrally smashed flux profile
+    Utility routine to measure the fwhm of an object trace from the spectrally smashed flux profile by determining
+    the locations along the spatial direction where this profile reaches have its peak value.
 
     Args:
-        fwhm_in:
-        nsamp:
-        smash_peakflux:
-        spat_fracpos:
-        flux_smash_smth:
+        fwhm_in (float):
+           Best guess for the fwhm of this object
+        nsamp (int):
+           Number of pixels along the
+        smash_peakflux (float):
+            The peak flux in the 1d flux profile (i.e. spectral direction has been smashed out) at the object location.
+        spat_fracpos (float):
+            Fractional spatial position along the slit where object is located and at which the flux_smash_smth
+            array has value smash_peakflux (see above and below).
+        flux_smash_smth (`numpy.ndarray`_):
+            A 1D array cotaining the flux averaged along the spectral direction at each location
+            along the slit in the spatial direction location (i.e. spectral
+            direction has been smashed out). Shape = (nsamp,).
 
     Returns:
+        fwhm_out (float):
+            The fwhm determined from the object flux profile, unleess the fwhm could not be found from the profile,
+            in which case the input guess fwhm_in is simply returned.
 
     """
 
@@ -918,7 +930,7 @@ def get_fwhm(fwhm_in, nsamp, smash_peakflux, spat_fracpos, flux_smash_smth):
     if fwhm_measure is not None:
         fwhm_out = np.sqrt(np.fmax(fwhm_measure ** 2 - fwhm_in ** 2, (fwhm_in / 2.0) ** 2))  # Set a floor of fwhm/2 on fwhm
     else:
-        fwhm_out = fwhm
+        fwhm_out = fwhm_in
 
     return fwhm_out
 
