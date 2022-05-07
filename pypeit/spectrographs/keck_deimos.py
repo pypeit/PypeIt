@@ -357,6 +357,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             par['reduce']['slitmask']['assign_obj'] = True
             # force extraction of undetected objects
             par['reduce']['slitmask']['extract_missing_objs'] = True
+            # lower tilts spat_order and higher spec_order for multislits (i.e., generally not very long slits)
+            par['calibrations']['tilts']['spat_order'] = 2  # Default: 3
+            par['calibrations']['tilts']['spec_order'] = 5  # Default: 4
+
 
         # Templates
         if self.get_meta_value(headarr, 'dispname') == '600ZD':
@@ -383,7 +387,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # increase order of final fit because better for mosaic (mosaic is the default)
         par['calibrations']['wavelengths']['n_final'] = 6
         # increase sigdetect because better for mosaic (mosaic is the default)
-        par['calibrations']['wavelengths']['sigdetect'] = 20.
+        par['calibrations']['wavelengths']['sigdetect'] = 10.
 
         # Wavelength FWHM
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))

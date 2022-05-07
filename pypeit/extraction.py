@@ -283,6 +283,20 @@ class Extract:
                                           model_noise=(not self.bkg_redux),
                                           show_profile=self.extract_show,
                                           show=self.extract_show)
+        embed()
+        # Remove sobjs that don't have both OPT_COUNTS and BOX_COUNTS
+        remove_idx = []
+        for idx, sobj in enumerate(self.sobjs):
+            # Find them
+            if sobj.OPT_COUNTS is None and sobj.BOX_COUNTS is None:
+                remove_idx.append(idx)
+                msgs.warn(f'Removing object at pixel {sobj.SPAT_PIXPOS} because '
+                          f'both optimal and boxcar extraction could not be performed')
+            elif sobj.OPT_COUNTS is None:
+                msgs.warn(f'Optimal extraction could not be performed for object at pixel {sobj.SPAT_PIXPOS}')
+
+        # Remove them
+        self.sobjs.remove_sobj(idx)
 
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
