@@ -882,66 +882,26 @@ def pattern_frequency(frame, axis=1):
     # Calculate the output image dimensions of the model signal
     # Subtract the DC offset
     arr -= np.median(arr, axis=1)[:, np.newaxis]
-    # Find significant deviations and ignore those rows
-    mad = 1.4826*np.median(np.abs(arr))
-    ww = np.where(arr > 10*mad)
-    # Create a mask of these rows
-    msk = np.sort(np.unique(ww[0]))
 
     # Compute the Fourier transform to obtain an estimate of the dominant frequency component
     amp = np.fft.rfft(arr, axis=1)
     idx = (np.arange(arr.shape[0]), np.argmax(np.abs(amp), axis=1))
 
     # Construct the variables of the sinusoidal waveform
-    amps = (np.abs(amp))[idx] * (2.0 / arr.shape[1])
-    phss = np.arctan2(amp.imag, amp.real)[idx]
     frqs = idx[1]
 
-    # Use the above to as initial guess parameters in chi-squared minimisation
-    cosfunc = lambda xarr, *p: p[0] * np.cos(2.0 * np.pi * p[1] * xarr + p[2])
-    xdata = np.linspace(0.0, 1.0, arr.shape[1])
-    # Calculate the amplitude distribution
-    amp_dist = np.zeros(arr.shape[0])
-    frq_dist = np.zeros(arr.shape[0])
-    # Loop over all rows to new independent values that can be averaged
+    min_fr = np.median(frqs-1)/(arr.shape[1]-1)
+    max_fr = np.median(frqs+1)/(arr.shape[1]-1)
+    all_freq = np.zeros(arr.shape[0])
+    pixels = np.arange(arr.shape[1])
     for ii in range(arr.shape[0]):
-        if ii in msk:
-            continue
-        try:
-            popt, pcov = curve_fit(cosfunc, xdata, arr[ii, :], p0=[amps[ii], frqs[ii], phss[ii]],
-                                   bounds=([-np.inf, frqs[ii]-1, -np.inf],
-                                           [+np.inf, frqs[ii]+1, +np.inf]))
-        except ValueError:
-            msgs.warn(f'Input data invalid for pattern frequency fit of row {ii+1}/{arr.shape[0]}')
-            continue
-        except RuntimeError:
-            msgs.warn(f'Pattern frequency fit failed for row {ii+1}/{arr.shape[0]}')
-            continue
-        amp_dist[ii] = popt[0]
-        frq_dist[ii] = popt[1]
-    ww = np.where(amp_dist > 0.0)
-    use_amp = np.median(amp_dist[ww])
-    use_frq = np.median(frq_dist[ww])
-    # Calculate the frequency distribution with a prior on the amplitude
-    frq_dist = np.zeros(arr.shape[0])
-    for ii in range(arr.shape[0]):
-        if ii in msk:
-            continue
-        try:
-            popt, pcov = curve_fit(cosfunc, xdata, arr[ii, :], p0=[use_amp, use_frq, phss[ii]],
-                                   bounds=([use_amp * 0.99999999, use_frq-1, -np.inf],
-                                           [use_amp * 1.00000001, use_frq+1, +np.inf]))
-        except ValueError:
-            msgs.warn(f'Input data invalid for pattern frequency fit of row {ii+1}/{arr.shape[0]}')
-            continue
-        except RuntimeError:
-            msgs.warn(f'Pattern frequency fit failed for row {ii+1}/{arr.shape[0]}')
-            continue
-        frq_dist[ii] = popt[1]
-    # Ignore masked values, and return the best estimate of the frequency
-    ww = np.where(frq_dist > 0.0)
-    medfrq = np.median(frq_dist[ww])
-    return medfrq/(arr.shape[1]-1)
+        sgnl = arr[ii, :]
+        LSfreq, power = LombScargle(pixels, sgnl).autopower(minimum_frequency=min_fr, maximum_frequency=max_fr, samples_per_peak=10)
+        bst = np.argmax(power)
+        cc = np.polyfit(LSfreq[bst-2:bst+3], power[bst-2:bst+3], 2)
+        all_freq[ii] = -0.5*cc[1]/cc[0]
+    medfrq = np.median(all_freq)
+    return medfrq
 
 
 # TODO: Provide a replace_pixels method that does this on a pixel by
