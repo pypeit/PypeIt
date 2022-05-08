@@ -722,7 +722,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
     Returns:
         `numpy.ndarray`_: The input frame with the pattern subtracted
     """
-    msgs.info("Analyzing detector pattern (this process can take several minutes)")
+    msgs.info("Analyzing detector pattern")
 
     # Copy the data so that the subtraction is not done in place
     frame_orig = rawframe.copy()
@@ -781,62 +781,75 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         frq_mod = np.polyval(cc, all_rows) * (overscan.shape[1]-1)
 
         # Convert frequency to the size of the overscan region
-        msgs.info("Subtracting detector pattern with frequency = {0:f}".format(use_fr))
+        msgs.info("Subtracting detector pattern from amplifier {0:d} with frequency = {1:f}".format(amp, use_fr))
 
         # Get a first guess of the amplitude and phase information
-        amp = np.fft.rfft(overscan, axis=1)
-        idx = (np.arange(overscan.shape[0]), np.argmax(np.abs(amp), axis=1))
-        # Convert result to amplitude and phase
-        amps = (np.abs(amp))[idx] * (2.0 / overscan.shape[1])
-        phss = np.arctan2(amp.imag, amp.real)[idx]
-
-        # Use the above to as initial guess parameters in chi-squared minimisation
-        cosfunc = lambda xarr, *p: p[0] * np.cos(2.0 * np.pi * p[1] * xarr + p[2])
         xdata, step = np.linspace(0.0, 1.0, overscan.shape[1], retstep=True)
         xdata_all = (np.arange(osd_slice[1].start, osd_slice[1].stop) - os_slice[1].start) * step
-        model_pattern = np.zeros_like(oscandata)
-        val = np.zeros(overscan.shape[0])
-        # Get the best estimate of the amplitude
-        for ii in range(overscan.shape[0]):
-            try:
-                popt, pcov = curve_fit(cosfunc, xdata, overscan[ii, :], p0=[amps[ii], frq_mod[ii], phss[ii]],
-                                       bounds=([-np.inf, frq_mod[ii] * 0.99999999, -np.inf],
-                                               [+np.inf, frq_mod[ii] * 1.00000001, +np.inf]))
-            except ValueError:
-                msgs.warn("Input data invalid for pattern subtraction of row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
-                continue
-            except RuntimeError:
-                msgs.warn("Pattern subtraction fit failed for row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
-                continue
-            val[ii] = popt[0]
-        use_amp = np.median(val)
-        # Get the best estimate of the phase, and generate a model
-        for ii in range(overscan.shape[0]):
-            try:
-                popt, pcov = curve_fit(cosfunc, xdata, overscan[ii, :], p0=[use_amp, frq_mod[ii], phss[ii]],
-                                       bounds=([use_amp * 0.99999999, frq_mod[ii] * 0.99999999, -np.inf],
-                                               [use_amp * 1.00000001, frq_mod[ii] * 1.00000001, +np.inf]))
-            except ValueError:
-                msgs.warn("Input data invalid for pattern subtraction of row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
-                continue
-            except RuntimeError:
-                msgs.warn("Pattern subtraction fit failed for row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
-                continue
-            model_pattern[ii, :] = cosfunc(xdata_all, *popt)
-        outframe[osd_slice] -= model_pattern
+        tmpamp = np.fft.rfft(overscan, axis=1)
+        idx = (np.arange(overscan.shape[0]), np.argmax(np.abs(tmpamp), axis=1))
+        # Convert result to amplitude and phase
+        amps = (np.abs(tmpamp))[idx] * (2.0 / overscan.shape[1])
 
-#    debug = False
-#        debug (:obj:`bool`, optional):
-#            Debug the code (True means yes)
-#    if debug:
-#        embed()
-#        import astropy.io.fits as fits
-#        hdu = fits.PrimaryHDU(rawframe)
-#        hdu.writeto("tst_raw.fits", overwrite=True)
-#        hdu = fits.PrimaryHDU(outframe)
-#        hdu.writeto("tst_sub.fits", overwrite=True)
-#        hdu = fits.PrimaryHDU(rawframe - outframe)
-#        hdu.writeto("tst_mod.fits", overwrite=True)
+        # Use the above to as initial guess parameters for a chi-squared minimisation of the amplitudes
+        msgs.info("Measuring amplitude-pixel dependence of amplifier {0:d}".format(amp))
+        nspec = overscan.shape[0]
+        model_pattern = np.zeros_like(oscandata)
+        cosfunc = lambda xarr, *p: p[0] * np.cos(2.0 * np.pi * xarr + p[1])
+        nsamp = xdata.size // 10
+        bins = np.linspace(0.0, 1.0, nsamp)
+        cent = 0.5 * (bins[1:] + bins[:-1])
+        amps_fit = np.zeros(nspec)
+        for ii in range(nspec):
+            # Register all values between 0-1
+            resid = (frq_mod[ii] * xdata) % 1
+            hist, _ = np.histogram(resid, bins=bins, weights=overscan[ii, :])
+            norm, _ = np.histogram(resid, bins=bins)
+            hist *= utils.inverse(norm)
+            # Only use the good pixels
+            wgd = norm != 0
+            try:
+                # Now fit it
+                popt, pcov = curve_fit(cosfunc, cent[wgd], hist[wgd], p0=[amps[ii], 0.0],
+                                       bounds=([0, -np.inf],
+                                               [np.inf, np.inf]))
+            except ValueError:
+                msgs.warn("Input data invalid for pattern subtraction of row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
+                continue
+            except RuntimeError:
+                msgs.warn("Pattern subtraction fit failed for row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
+                continue
+            amps_fit[ii] = popt[0]
+        # Construct a model of the amplitudes as a fucntion of spectral pixel
+        xspec = np.arange(nspec)
+        amp_mod = np.polyval(np.polyfit(xspec, amps_fit, 1), xspec)
+
+        # Now determine the phase, given a prior on the amplitude and frequency
+        msgs.info("Calculating pattern phases of amplifier {0:d}".format(amp))
+        cosfunc = lambda xarr, *p: np.cos(2.0 * np.pi * xarr + p[0])
+        cosfunc_full = lambda xarr, *p: p[0] * np.cos(2.0 * np.pi * p[1] * xarr + p[2])
+        for ii in range(nspec):
+            resid = (frq_mod[ii] * xdata) % 1
+            hist, _ = np.histogram(resid, bins=bins, weights=overscan[ii, :])
+            norm, _ = np.histogram(resid, bins=bins)
+            hist *= utils.inverse(norm)
+            hist /= amp_mod[ii]  # Normalise so that the amplitude is ~1
+            # Only use the good pixels
+            wgd = norm != 0
+            try:
+                # Now fit it
+                popt, pcov = curve_fit(cosfunc, cent[wgd], hist[wgd], p0=[0.0],
+                                       bounds=([-np.inf], [np.inf]))
+            except ValueError:
+                msgs.warn("Input data invalid for pattern subtraction of row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
+                continue
+            except RuntimeError:
+                msgs.warn("Pattern subtraction fit failed for row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
+                continue
+            # Calculate the model pattern, given the amplitude, frequency and phase information
+            model_pattern[ii, :] = cosfunc_full(xdata_all, amp_mod[ii], frq_mod[ii], popt[0])
+
+        outframe[osd_slice] -= model_pattern
 
     # Transpose if the input frame if applied along a different axis
     if axis == 0:
@@ -869,66 +882,26 @@ def pattern_frequency(frame, axis=1):
     # Calculate the output image dimensions of the model signal
     # Subtract the DC offset
     arr -= np.median(arr, axis=1)[:, np.newaxis]
-    # Find significant deviations and ignore those rows
-    mad = 1.4826*np.median(np.abs(arr))
-    ww = np.where(arr > 10*mad)
-    # Create a mask of these rows
-    msk = np.sort(np.unique(ww[0]))
 
     # Compute the Fourier transform to obtain an estimate of the dominant frequency component
     amp = np.fft.rfft(arr, axis=1)
     idx = (np.arange(arr.shape[0]), np.argmax(np.abs(amp), axis=1))
 
     # Construct the variables of the sinusoidal waveform
-    amps = (np.abs(amp))[idx] * (2.0 / arr.shape[1])
-    phss = np.arctan2(amp.imag, amp.real)[idx]
     frqs = idx[1]
 
-    # Use the above to as initial guess parameters in chi-squared minimisation
-    cosfunc = lambda xarr, *p: p[0] * np.cos(2.0 * np.pi * p[1] * xarr + p[2])
-    xdata = np.linspace(0.0, 1.0, arr.shape[1])
-    # Calculate the amplitude distribution
-    amp_dist = np.zeros(arr.shape[0])
-    frq_dist = np.zeros(arr.shape[0])
-    # Loop over all rows to new independent values that can be averaged
+    min_fr = np.median(frqs-1)/(arr.shape[1]-1)
+    max_fr = np.median(frqs+1)/(arr.shape[1]-1)
+    all_freq = np.zeros(arr.shape[0])
+    pixels = np.arange(arr.shape[1])
     for ii in range(arr.shape[0]):
-        if ii in msk:
-            continue
-        try:
-            popt, pcov = curve_fit(cosfunc, xdata, arr[ii, :], p0=[amps[ii], frqs[ii], phss[ii]],
-                                   bounds=([-np.inf, frqs[ii]-1, -np.inf],
-                                           [+np.inf, frqs[ii]+1, +np.inf]))
-        except ValueError:
-            msgs.warn(f'Input data invalid for pattern frequency fit of row {ii+1}/{arr.shape[0]}')
-            continue
-        except RuntimeError:
-            msgs.warn(f'Pattern frequency fit failed for row {ii+1}/{arr.shape[0]}')
-            continue
-        amp_dist[ii] = popt[0]
-        frq_dist[ii] = popt[1]
-    ww = np.where(amp_dist > 0.0)
-    use_amp = np.median(amp_dist[ww])
-    use_frq = np.median(frq_dist[ww])
-    # Calculate the frequency distribution with a prior on the amplitude
-    frq_dist = np.zeros(arr.shape[0])
-    for ii in range(arr.shape[0]):
-        if ii in msk:
-            continue
-        try:
-            popt, pcov = curve_fit(cosfunc, xdata, arr[ii, :], p0=[use_amp, use_frq, phss[ii]],
-                                   bounds=([use_amp * 0.99999999, use_frq-1, -np.inf],
-                                           [use_amp * 1.00000001, use_frq+1, +np.inf]))
-        except ValueError:
-            msgs.warn(f'Input data invalid for pattern frequency fit of row {ii+1}/{arr.shape[0]}')
-            continue
-        except RuntimeError:
-            msgs.warn(f'Pattern frequency fit failed for row {ii+1}/{arr.shape[0]}')
-            continue
-        frq_dist[ii] = popt[1]
-    # Ignore masked values, and return the best estimate of the frequency
-    ww = np.where(frq_dist > 0.0)
-    medfrq = np.median(frq_dist[ww])
-    return medfrq/(arr.shape[1]-1)
+        sgnl = arr[ii, :]
+        LSfreq, power = LombScargle(pixels, sgnl).autopower(minimum_frequency=min_fr, maximum_frequency=max_fr, samples_per_peak=10)
+        bst = np.argmax(power)
+        cc = np.polyfit(LSfreq[bst-2:bst+3], power[bst-2:bst+3], 2)
+        all_freq[ii] = -0.5*cc[1]/cc[0]
+    medfrq = np.median(all_freq)
+    return medfrq
 
 
 # TODO: Provide a replace_pixels method that does this on a pixel by
