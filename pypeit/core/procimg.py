@@ -784,114 +784,84 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         msgs.info("Subtracting detector pattern with frequency = {0:f}".format(use_fr))
 
         # Get a first guess of the amplitude and phase information
-        import time
         xdata, step = np.linspace(0.0, 1.0, overscan.shape[1], retstep=True)
         xdata_all = (np.arange(osd_slice[1].start, osd_slice[1].stop) - os_slice[1].start) * step
-        atime = time.time()
         amp = np.fft.rfft(overscan, axis=1)
         idx = (np.arange(overscan.shape[0]), np.argmax(np.abs(amp), axis=1))
         # Convert result to amplitude and phase
         amps = (np.abs(amp))[idx] * (2.0 / overscan.shape[1])
-        phss = np.arctan2(amp.imag, amp.real)[idx]
 
-        # Use the above to as initial guess parameters in chi-squared minimisation
-        cosfunc = lambda xarr, *p: p[0] * np.cos(2.0 * np.pi * p[1] * xarr + p[2])
+        # Use the above to as initial guess parameters for a chi-squared minimisation of the amplitudes
+        msgs.info("Measuring amplitude-pixel dependence")
+        nspec = overscan.shape[0]
         model_pattern = np.zeros_like(oscandata)
-        val = np.zeros(overscan.shape[0])
-        # Get the best estimate of the amplitude
-        for ii in range(overscan.shape[0]):
+        cosfunc = lambda xarr, *p: p[0] * np.cos(2.0 * np.pi * xarr + p[1])
+        nsamp = xdata.size // 10
+        bins = np.linspace(0.0, 1.0, nsamp)
+        cent = 0.5 * (bins[1:] + bins[:-1])
+        amps_fit = np.zeros(nspec)
+        for ii in range(nspec):
+            # Register all values between 0-1
+            resid = (frq_mod[ii] * xdata) % 1
+            hist, _ = np.histogram(resid, bins=bins, weights=overscan[ii, :])
+            norm, _ = np.histogram(resid, bins=bins)
+            hist *= utils.inverse(norm)
+            # Only use the good pixels
+            wgd = norm != 0
             try:
-                popt, pcov = curve_fit(cosfunc, xdata, overscan[ii, :], p0=[amps[ii], frq_mod[ii], phss[ii]],
-                                       bounds=([-np.inf, frq_mod[ii] * 0.99999999, -np.inf],
-                                               [+np.inf, frq_mod[ii] * 1.00000001, +np.inf]))
+                # Now fit it
+                popt, pcov = curve_fit(cosfunc, cent[wgd], hist[wgd], p0=[amps[ii], 0.0],
+                                       bounds=([0, -np.inf],
+                                               [np.inf, np.inf]))
             except ValueError:
                 msgs.warn("Input data invalid for pattern subtraction of row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
                 continue
             except RuntimeError:
                 msgs.warn("Pattern subtraction fit failed for row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
                 continue
-            val[ii] = popt[0]
-        use_amp = np.median(val)
-        # Get the best estimate of the phase, and generate a model
-        for ii in range(overscan.shape[0]):
+            amps_fit[ii] = popt[0]
+        # Construct a model of the amplitudes as a fucntion of spectral pixel
+        xspec = np.arange(nspec)
+        amp_mod = np.polyval(np.polyfit(xspec, amps_fit, 1), xspec)
+
+        # Now determine the phase, given a prior on the amplitude and frequency
+        msgs.info("Calculating pattern phase")
+        phss = np.zeros(overscan.shape[0])
+        cosfunc = lambda xarr, *p: np.cos(2.0 * np.pi * xarr + p[0])
+        cosfunc_full = lambda xarr, *p: p[0] * np.cos(2.0 * np.pi * p[1] * xarr + p[2])
+        for ii in range(nspec):
+            resid = (frq_mod[ii] * xdata) % 1
+            hist, _ = np.histogram(resid, bins=bins, weights=overscan[ii, :])
+            norm, _ = np.histogram(resid, bins=bins)
+            hist *= utils.inverse(norm)
+            hist /= amp_mod[ii]  # Normalise so that the amplitude is ~1
+            # Only use the good pixels
+            wgd = norm != 0
             try:
-                popt, pcov = curve_fit(cosfunc, xdata, overscan[ii, :], p0=[use_amp, frq_mod[ii], phss[ii]],
-                                       bounds=([use_amp * 0.99999999, frq_mod[ii] * 0.99999999, -np.inf],
-                                               [use_amp * 1.00000001, frq_mod[ii] * 1.00000001, +np.inf]))
+                # Now fit it
+                popt, pcov = curve_fit(cosfunc, cent, hist, p0=[0.0],
+                                       bounds=([-np.inf], [np.inf]))
             except ValueError:
                 msgs.warn("Input data invalid for pattern subtraction of row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
                 continue
             except RuntimeError:
                 msgs.warn("Pattern subtraction fit failed for row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
                 continue
-            model_pattern[ii, :] = cosfunc(xdata_all, *popt)
-        btime = time.time()
-        print("Old algorithm time: ", btime-atime)
-
-        embed()
-        from scipy import signal
-        # Try a faster approach
-        def arcsine_func(x, norm, mean, amp, sig, nresn=1000):
-            # Use numerical integration
-            newx = np.linspace(np.min(x), np.max(x), x.size * nresn)
-            sqrtval = (amp - mean + newx) * (amp - newx + mean)
-            ws = sqrtval <= 0.0
-            sqrtval[ws] = 100.0 * np.max(sqrtval)
-            func = norm / (np.pi * np.sqrt(sqrtval))
-            func[ws] = 0.0
-            kern = np.exp(-0.5 * (newx / sig) ** 2) / (np.sqrt(2 * np.pi) * sig)
-            convfunc = signal.convolve(func, kern, mode='same')
-            # Now rebin onto the same xdata shape
-            intfunc = convfunc.reshape((x.size, nresn)).sum(1) / nresn
-            return intfunc
-
-        # Get a best estimate of the amplitude
-        atime = time.time()
-        model_pattern2 = np.zeros_like(oscandata)
-        ynoise = overscan.flatten()
-        # Construct a histogram of the data
-        dx = np.std(ynoise) / 10
-        xtra = (np.max(ynoise) - np.min(ynoise)) / 2
-        xrng = np.arange(np.min(ynoise) - xtra, np.max(ynoise) + xtra + dx, dx)
-        yhist, edges = np.histogram(ynoise, bins=xrng)
-        sig = np.clip(np.sqrt(yhist), 1.0, None)  # An estimate of the uncertainty in each bin
-        xvals = 0.5 * (xrng[1:] + xrng[:-1])
-        # Fit the data - start with a best guess of the starting parameters
-        p0 = [np.max(yhist) * dx * dx, 0.0, amp, amp * 0.1]
-        popt, pcov = opt.curve_fit(arcsine_func, xvals, yhist, sigma=sig, p0=p0)
-        # Just need the amplitude
-        use_amp = popt[2]
-        cosfunc = lambda xarr, phs: xarr[0] * np.cos(2.0 * np.pi * xarr[1] * xarr[2:] + phs)
-        xsend = np.append(np.array([use_amp, 0.0]), xdata)
-        for ii in range(overscan.shape[0]):
-            xsend[1] = frq_mod[ii]
-            try:
-                popt, pcov = curve_fit(cosfunc, xsend, overscan[ii, :], p0=[phss[ii]], bounds=([-np.inf], [+np.inf]))
-            except ValueError:
-                msgs.warn("Input data invalid for pattern subtraction of row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
-                continue
-            except RuntimeError:
-                msgs.warn("Pattern subtraction fit failed for row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
-                continue
-            model_pattern2[ii, :] = cosfunc(xsend, *popt)
-
-        btime = time.time()
-        print("New algorithm time: ", btime - atime)
+            # Calculate the model pattern, given the amplitude, frequency and phase information
+            model_pattern[ii, :] = cosfunc_full(xdata_all, amp_mod[ii], frq_mod[ii], popt[0])
 
         outframe[osd_slice] -= model_pattern
 
-#    debug = False
-#        debug (:obj:`bool`, optional):
-#            Debug the code (True means yes)
-#    if debug:
-#        embed()
-#        import astropy.io.fits as fits
-#        hdu = fits.PrimaryHDU(rawframe)
-#        hdu.writeto("tst_raw.fits", overwrite=True)
-#        hdu = fits.PrimaryHDU(outframe)
-#        hdu.writeto("tst_sub.fits", overwrite=True)
-#        hdu = fits.PrimaryHDU(rawframe - outframe)
-#        hdu.writeto("tst_mod.fits", overwrite=True)
+    debug = True
+    if debug:
+        embed()
+        import astropy.io.fits as fits
+        hdu = fits.PrimaryHDU(rawframe)
+        hdu.writeto("tst_raw.fits", overwrite=True)
+        hdu = fits.PrimaryHDU(outframe)
+        hdu.writeto("tst_sub.fits", overwrite=True)
+        hdu = fits.PrimaryHDU(rawframe - outframe)
+        hdu.writeto("tst_mod.fits", overwrite=True)
 
     # Transpose if the input frame if applied along a different axis
     if axis == 0:
