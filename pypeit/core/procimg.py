@@ -897,7 +897,7 @@ def pattern_frequency(frame, axis=1):
     for ii in range(arr.shape[0]):
         sgnl = arr[ii, :]
         LSfreq, power = LombScargle(pixels, sgnl).autopower(minimum_frequency=min_fr, maximum_frequency=max_fr, samples_per_peak=10)
-        bst = np.argmax(power)
+        bst = 2+np.argmax(power[2:-2])  # Ignore edges, and add 2 to get the index of the original array - allows a quadratic function to be fit to the highest power.
         cc = np.polyfit(LSfreq[bst-2:bst+3], power[bst-2:bst+3], 2)
         all_freq[ii] = -0.5*cc[1]/cc[0]
     medfrq = np.median(all_freq)
