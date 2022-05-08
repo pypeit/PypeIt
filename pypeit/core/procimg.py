@@ -722,7 +722,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
     Returns:
         `numpy.ndarray`_: The input frame with the pattern subtracted
     """
-    msgs.info("Analyzing detector pattern (this process can take several minutes)")
+    msgs.info("Analyzing detector pattern")
 
     # Copy the data so that the subtraction is not done in place
     frame_orig = rawframe.copy()
@@ -781,18 +781,18 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         frq_mod = np.polyval(cc, all_rows) * (overscan.shape[1]-1)
 
         # Convert frequency to the size of the overscan region
-        msgs.info("Subtracting detector pattern with frequency = {0:f}".format(use_fr))
+        msgs.info("Subtracting detector pattern from amplifier {0:d} with frequency = {1:f}".format(amp, use_fr))
 
         # Get a first guess of the amplitude and phase information
         xdata, step = np.linspace(0.0, 1.0, overscan.shape[1], retstep=True)
         xdata_all = (np.arange(osd_slice[1].start, osd_slice[1].stop) - os_slice[1].start) * step
-        amp = np.fft.rfft(overscan, axis=1)
-        idx = (np.arange(overscan.shape[0]), np.argmax(np.abs(amp), axis=1))
+        tmpamp = np.fft.rfft(overscan, axis=1)
+        idx = (np.arange(overscan.shape[0]), np.argmax(np.abs(tmpamp), axis=1))
         # Convert result to amplitude and phase
-        amps = (np.abs(amp))[idx] * (2.0 / overscan.shape[1])
+        amps = (np.abs(tmpamp))[idx] * (2.0 / overscan.shape[1])
 
         # Use the above to as initial guess parameters for a chi-squared minimisation of the amplitudes
-        msgs.info("Measuring amplitude-pixel dependence")
+        msgs.info("Measuring amplitude-pixel dependence of amplifier {0:d}".format(amp))
         nspec = overscan.shape[0]
         model_pattern = np.zeros_like(oscandata)
         cosfunc = lambda xarr, *p: p[0] * np.cos(2.0 * np.pi * xarr + p[1])
@@ -825,7 +825,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         amp_mod = np.polyval(np.polyfit(xspec, amps_fit, 1), xspec)
 
         # Now determine the phase, given a prior on the amplitude and frequency
-        msgs.info("Calculating pattern phase")
+        msgs.info("Calculating pattern phases of amplifier {0:d}".format(amp))
         cosfunc = lambda xarr, *p: np.cos(2.0 * np.pi * xarr + p[0])
         cosfunc_full = lambda xarr, *p: p[0] * np.cos(2.0 * np.pi * p[1] * xarr + p[2])
         for ii in range(nspec):
