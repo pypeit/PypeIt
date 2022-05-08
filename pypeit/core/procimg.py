@@ -826,7 +826,6 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
 
         # Now determine the phase, given a prior on the amplitude and frequency
         msgs.info("Calculating pattern phase")
-        phss = np.zeros(overscan.shape[0])
         cosfunc = lambda xarr, *p: np.cos(2.0 * np.pi * xarr + p[0])
         cosfunc_full = lambda xarr, *p: p[0] * np.cos(2.0 * np.pi * p[1] * xarr + p[2])
         for ii in range(nspec):
@@ -839,7 +838,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
             wgd = norm != 0
             try:
                 # Now fit it
-                popt, pcov = curve_fit(cosfunc, cent, hist, p0=[0.0],
+                popt, pcov = curve_fit(cosfunc, cent[wgd], hist[wgd], p0=[0.0],
                                        bounds=([-np.inf], [np.inf]))
             except ValueError:
                 msgs.warn("Input data invalid for pattern subtraction of row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
@@ -851,17 +850,6 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
             model_pattern[ii, :] = cosfunc_full(xdata_all, amp_mod[ii], frq_mod[ii], popt[0])
 
         outframe[osd_slice] -= model_pattern
-
-    debug = True
-    if debug:
-        embed()
-        import astropy.io.fits as fits
-        hdu = fits.PrimaryHDU(rawframe)
-        hdu.writeto("tst_raw.fits", overwrite=True)
-        hdu = fits.PrimaryHDU(outframe)
-        hdu.writeto("tst_sub.fits", overwrite=True)
-        hdu = fits.PrimaryHDU(rawframe - outframe)
-        hdu.writeto("tst_mod.fits", overwrite=True)
 
     # Transpose if the input frame if applied along a different axis
     if axis == 0:
