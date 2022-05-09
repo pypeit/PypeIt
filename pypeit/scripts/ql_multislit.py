@@ -253,8 +253,7 @@ def reduce(files, caliBrate, spectrograph, parset, bkg_files=None, show=False, s
     # Instantiate Extract object
     extract = extraction.Extract.get_instance(sciImg, sobjs_obj, spectrograph, parset, caliBrate,
                                               'science', bkg_redux=bkg_redux, return_negative=bkg_redux, show=show)
-    skymodel, objmodel, ivarmodel, \
-    outmask, sobjs, scaleimg, waveimg, tilts = extract.run(global_sky, sobjs_obj)
+    skymodel, objmodel, ivarmodel, outmask, sobjs, waveimg, tilts = extract.run(global_sky, sobjs_obj)
 
     # TODO -- Do this upstream
     # Tack on detector
@@ -431,7 +430,7 @@ class QL_MOS(scriptbase.ScriptBase):
         detname = det_container.name
 
         if std_spec1d_file is not None:
-            std_trace = specobjs.get_std_trace(detname, std_spec1d_file)
+            std_trace = specobjs.get_std_trace(detname, std_spec1d_file, chk_version=False)
         else:
             std_trace = None
 

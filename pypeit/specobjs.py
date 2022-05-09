@@ -915,7 +915,7 @@ class SpecObjs:
         return groups
 
 #TODO Should this be a classmethod on specobjs??
-def get_std_trace(detname, std_outfile):
+def get_std_trace(detname, std_outfile, chk_version=True):
     """
      Returns the trace of the standard.
 
@@ -930,7 +930,7 @@ def get_std_trace(detname, std_outfile):
          in the provided spec1d file.
      """
 
-    sobjs = SpecObjs.from_fitsfile(std_outfile)
+    sobjs = SpecObjs.from_fitsfile(std_outfile, chk_version=chk_version)
     pypeline = sobjs.PYPELINE
     # Does the detector match?
     # TODO: Instrument specific logic here could be implemented with the
