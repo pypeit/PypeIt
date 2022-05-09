@@ -267,21 +267,21 @@ def reduce(files, caliBrate, spectrograph, parset, bkg_files=None, show=False, s
 
     # Construct the Spec2DObj with the positive image
     spec2DObj = spec2dobj.Spec2DObj(sciimg=sciImg.image,
-                                      ivarraw=sciImg.ivar,
-                                      skymodel=skymodel,
-                                      objmodel=objmodel,
-                                      ivarmodel=ivarmodel,
-                                      scaleimg=scaleimg,
-                                      waveimg=waveimg,
-                                      bpmmask=outmask,
-                                      detector=sciImg.detector,
-                                      sci_spat_flexure=sciImg.spat_flexure,
-                                      sci_spec_flexure=spec_flex_table,
-                                      vel_corr=None,
-                                      vel_type=parset['calibrations']['wavelengths']['refframe'],
-                                      tilts=tilts,
-                                      slits=copy.deepcopy(caliBrate.slits),
-                                      maskdef_designtab=None)
+                                    ivarraw=sciImg.ivar,
+                                    skymodel=skymodel,
+                                    objmodel=objmodel,
+                                    ivarmodel=ivarmodel,
+                                    scaleimg=None,
+                                    waveimg=waveimg,
+                                    bpmmask=outmask,
+                                    detector=sciImg.detector,
+                                    sci_spat_flexure=sciImg.spat_flexure,
+                                    sci_spec_flexure=spec_flex_table,
+                                    vel_corr=None,
+                                    vel_type=parset['calibrations']['wavelengths']['refframe'],
+                                    tilts=tilts,
+                                    slits=copy.deepcopy(caliBrate.slits),
+                                    maskdef_designtab=None)
     spec2DObj.process_steps = sciImg.process_steps
 
     if not bkg_redux:
@@ -293,7 +293,7 @@ def reduce(files, caliBrate, spectrograph, parset, bkg_files=None, show=False, s
                                            skymodel=-skymodel,
                                            objmodel=-objmodel,
                                            ivarmodel=ivarmodel,
-                                           scaleimg=scaleimg,
+                                           scaleimg=None,
                                            waveimg=waveimg,
                                            bpmmask=outmask,
                                            detector=sciImg.detector,
