@@ -343,7 +343,6 @@ class Extract:
         # TODO this should return things to make the control flow less opqaque.
         self.prepare_extraction(global_sky)
 
-
         # Do we have any positive objects to proceed with?
         if self.nobj_to_extract > 0:
             # Apply a global flexure correction to each slit

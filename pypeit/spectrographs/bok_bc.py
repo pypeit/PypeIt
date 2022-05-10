@@ -236,7 +236,7 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         par['reduce']['skysub']['global_sky_std']  = False
 
         par['reduce']['extraction']['sn_gauss'] = 4.0
-        par['reduce']['findobj']['sig_thresh'] = 5.0
+        par['reduce']['findobj']['snr_thresh'] = 5.0
         par['reduce']['skysub']['sky_sigrej'] = 5.0
         par['reduce']['findobj']['find_trim_edge'] = [5,5]
 

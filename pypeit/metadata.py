@@ -1232,7 +1232,10 @@ class PypeItMetaData:
         # Use the user-defined frame types from the input dictionary
         if user is not None:
             if len(user.keys()) != len(self):
-                raise ValueError('The user-provided dictionary does not match table length.')
+                if len(np.unique(self['filename'].data)) != len(self):
+                    raise ValueError('Your pypeit file has duplicate filenames which is not allowed.')
+                else:
+                    raise ValueError('The user-provided dictionary does not match table length.')
             msgs.info('Using user-provided frame types.')
             for ifile,ftypes in user.items():
                 indx = self['filename'] == ifile

@@ -42,6 +42,8 @@ from pypeit.core import meta
 from pypeit.par import pypeitpar
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
+from astropy.io.fits import Header
+
 
 # TODO: Create an EchelleSpectrograph derived class that holds all of
 # the echelle specific methods.
@@ -318,6 +320,36 @@ class Spectrograph:
             image = np.flip(image, axis=1)
         return image
 
+
+
+    def parse_dither_pattern(self, file_list, ext=None):
+        """
+        Parse headers from a file list to determine the dither pattern.
+
+        Parameters
+        ----------
+        file_list (list of strings):
+            List of files for which dither pattern is desired
+        ext (int, optional):
+            Extension containing the relevant header for these files. Default=None. If None, code uses
+            self.primary_hdrext
+
+        Returns
+        -------
+        dither_pattern, dither_id, offset_arcsec
+
+        dither_pattern (str `numpy.ndarray`_):
+            Array of dither pattern names
+        dither_id (str `numpy.ndarray`_):
+            Array of dither pattern IDs
+        offset_arc (float `numpy.ndarray`_):
+            Array of dither pattern offsets
+        """
+        nfiles = len(file_list)
+        dummy_str_array = np.array(nfiles*[''])
+        dummy_id_array = np.array(nfiles*['A'])
+        return dummy_str_array, dummy_id_array,  np.zeros(nfiles)
+
     # TODO: JFH Are these bad pixel masks in the raw frame, or the
     # flipped/transposed pypeit frame?? KBW: Does the new description of
     # "shape" answer this? (JXP please check I edited this correctly).
@@ -477,9 +509,9 @@ class Spectrograph:
         Detectors separated along the dispersion direction should be ordered
         along the first axis of the returned array.  For example, Keck/DEIMOS
         returns:
-        
+
         .. code-block:: python
-        
+
             dets = np.array([['DET01', 'DET02', 'DET03', 'DET04'],
                              ['DET05', 'DET06', 'DET07', 'DET08']])
 
@@ -581,7 +613,7 @@ class Spectrograph:
             if instr_names[0] != self.header_name:
                 msgs.warn(f"Your header's instrument name doesn't match the expected one! {instr_names[0]}, {self.header_name}\n"+
                 f"You may have chosen the wrong PypeIt spectrograph name")
-            
+
 
     def config_independent_frames(self):
         """
@@ -794,7 +826,7 @@ class Spectrograph:
             return np.arange(1, self.ndet+1).tolist()
 
         if isinstance(subset, str):
-            _subset = parse.parse_slitspatnum(subset)[0].tolist() 
+            _subset = parse.parse_slitspatnum(subset)[0].tolist()
         elif isinstance(subset, (int, tuple)):
             _subset = [subset]
         else:
@@ -1003,15 +1035,16 @@ class Spectrograph:
             kk += 1
         return "_".join(lampstat)
 
-    def get_meta_value(self, inp, meta_key, required=False, 
+    def get_meta_value(self, inp, meta_key, required=False,
                        ignore_bad_header=False,
                        usr_row=None, no_fussing=False):
         """
         Return meta data from a given file (or its array of headers).
 
         Args:
-            inp (:obj:`str`, :obj:`list`):
-                Input filename or list of `astropy.io.fits.Header`_ objects.
+            inp (:obj:`str`, :obj:`astropy.io.fits.Header`_, :obj:`list`):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list of
+                 `astropy.io.fits.Header`_ objects
             meta_key (:obj:`str`, :obj:`list`):
                 A (list of) strings with the keywords to read from the file
                 header(s).
@@ -1041,7 +1074,16 @@ class Spectrograph:
         Returns:
             object: Value recovered for (each) keyword.
         """
-        headarr = self.get_headarr(inp) if isinstance(inp, str) else inp
+        #if meta_key == 'ra':
+        #    embed()
+        if isinstance(inp, str):
+            headarr = self.get_headarr(inp)
+        elif isinstance(inp, list):
+            headarr = inp
+        elif isinstance(inp, Header):
+            headarr = [inp]
+        else:
+            msgs.error('Unrecognized type for input')
 
         # Loop?
         if isinstance(meta_key, list):
@@ -1140,10 +1182,13 @@ class Spectrograph:
                             if ftype in self.meta[meta_key]['required_ftypes']:
                                 kerror = True
                     # Bomb out?
+                    # TODO Bombing out is not acceptable as we have discussed.
                     if kerror:
                         #embed(header=utils.embed_header())
-                        msgs.error('Required meta "{0}" did not load!'.format(meta_key)
-                                   + 'You may have a corrupt header.')
+                        msgs.warn('Required meta "{0}" did not load!'.format(meta_key)
+                                  + 'You may have a corrupt header.')
+                        #msgs.error('Required meta "{0}" did not load!'.format(meta_key)
+                        #           + 'You may have a corrupt header.')
                 else:
                     msgs.warn('Required card {0} missing '.format(self.meta[meta_key]['card'])
                               + 'from your header.  Proceeding with risk...')
@@ -1454,12 +1499,12 @@ class Spectrograph:
     def spec1d_match_spectra(self, sobjs):
         """
         Match up slits in a :class:`~pypeit.specobjs.SpecObjs` object.
-        
+
         This typically done across multiple detectors; see
         :func:`pypeit.specrographs.keck_deimos.spec1d_match_spectra`.
 
         Args:
-            sobjs (:class:`~pypeit.specobjs.SpecObjs`): 
+            sobjs (:class:`~pypeit.specobjs.SpecObjs`):
                 Spec1D objects
 
         Returns:
@@ -1468,32 +1513,6 @@ class Spectrograph:
         """
         msgs.error(f'Method to match slits across detectors not defined for {self.name}')
 
-    # TODO: Shold this be a class method?
-    def parse_dither_pattern(self, file_list, ext=None):
-        """
-        Parse headers from a file list to determine the dither pattern.
-
-        Parameters
-        ----------
-        file_list (list of strings):
-            List of files for which dither pattern is desired
-        ext (int, optional):
-            Extension containing the relevant header for these files. Default=None. If None, code uses
-            self.primary_hdrext
-
-
-        Returns
-        -------
-        dither_pattern, dither_id, offset_arcsec
-
-        dither_pattern (str `numpy.ndarray`_):
-            Array of dither pattern names
-        dither_id (str `numpy.ndarray`_):
-            Array of dither pattern IDs
-        offset_arc (float `numpy.ndarray`_):
-            Array of dither pattern offsets
-        """
-        pass
 
     def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table):
         """
