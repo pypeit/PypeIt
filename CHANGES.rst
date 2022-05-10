@@ -2,22 +2,25 @@
 1.8.2dev
 --------
 
-- When using glob to get files in pypeit_setup, added automatic sorting so that
-  the default `comb_id` ordering matches the sorted file name.
+- When using glob to get files in pypeit_setup, added automatic sorting
+  so that the default `comb_id` ordering matches the sorted file name.
 - Improve Keck/KCWI automatic frame typing.
 - Wavelength templates (OH lines and arc lamps) created for Keck/MOSFIRE
 - Mosaic is now available for Keck/DEIMOS too.
-- Various package data (e.g., reid_arxiv, sensfunc) are no longer distributed via
-  PyPI to reduce package size; introduce mechanisms for downloading/caching needed
-  data either at runtime or on demand.
-- Save output wavelength calibration from `pypeit_identify` to the cache for
-  direct reuse in data reduction.
-- The `pypeit_identify` GUI can now toggle between linear and log scaling of the
-  arc spectrum flux.
+- Various package data (e.g., reid_arxiv, sensfunc) are no longer
+  distributed via PyPI to reduce package size; introduce mechanisms for
+  downloading/caching needed data either at runtime or on demand.
+- Save output wavelength calibration from `pypeit_identify` to the cache
+  for direct reuse in data reduction.
+- The `pypeit_identify` GUI can now toggle between linear and log
+  scaling of the arc spectrum flux.
 - Improved wavelength solution for Gemini-Nort E2V detector
 - Keck/DEIMOS now uses gain/RN values measured periodically by WMKO
 - Add bok_bc 300 grating template
-- Adeed more flexible quicklook that can handle dithering.
+- Expose exposure time scaling for dark frames as an image processing
+  parameter, and set the default behavior to ignore any difference in
+  exposure time.  Also fixes a bug in the variance calculation.
+- Added more flexible quicklook that can handle dithering.
 - Refactored object finding
 - Bug fixes in local sky subtraction and extraction
 - Fixed pypeit setup issues due to bad LRIS headers.
