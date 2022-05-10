@@ -225,10 +225,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             # find the closest in time to the raw frame date
             close_idx = np.argmin(np.absolute(mjd_measured - date))
             # get measurements
-            tab_measure = t = Table.read(measure_files[close_idx], format='ascii')
-            measured_det =  tab_measure['col3']
-            measured_gain =  tab_measure['col5']  # [e-/DN]
-            measured_ronoise =  tab_measure['col7']   # [e-]
+            tab_measure = Table.read(measure_files[close_idx], format='ascii')
+            measured_det = tab_measure['col3']
+            measured_gain = tab_measure['col5']  # [e-/DN]
+            measured_ronoise = tab_measure['col7']   # [e-]
             msgs.info(f"We are using DEIMOS gain/RN values based on WMKO estimates on {measure_dates[close_idx]}.")
             # get gain
             detector_dict1['gain'] = measured_gain[measured_det == 1]
