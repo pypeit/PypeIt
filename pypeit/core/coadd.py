@@ -762,11 +762,10 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
         # Adjust the arrays to be relative
         refscale = (sn_val[:, ref_spec] > 0) / (sn_val[:, ref_spec] + (sn_val[:, ref_spec] == 0))
         for iexp in range(nstack):
-            if iexp != ref_spec:
-                # Compute the relative (S/N)^2 and update the mask
-                sn2[iexp] /= sn2[ref_spec]
-                mask_stack[:, iexp] *= (mask_stack[:, ref_spec]) | (sn_val[:, ref_spec] != 0)
-                sn_val[:, iexp] *= refscale
+            # Compute the relative (S/N)^2 and update the mask
+            sn2[iexp] /= sn2[ref_spec]
+            mask_stack[:, iexp] = mask_stack[:, iexp] & ((mask_stack[:, ref_spec]) | (sn_val[:, ref_spec] != 0))
+            sn_val[:, iexp] *= refscale
 
     # TODO: ivar weights is better than SN**2 or const_weights for merging orders. Eventually, we will change it to
     # TODO: Should ivar weights be deprecated??
@@ -1449,7 +1448,7 @@ def coadd_iexp_qa(wave, flux, rejivar, mask, wave_stack, flux_stack, ivar_stack,
         # TODO Use one of our telluric models here instead
         # Plot transmission
         if (np.max(wave[mask]) > 9000.0):
-            skytrans_file = os.path.join(data.Paths.skisim, 'atm_transmission_secz1.5_1.6mm.dat')
+            skytrans_file = data.get_skisim_filepath('atm_transmission_secz1.5_1.6mm.dat')
             skycat = np.genfromtxt(skytrans_file, dtype='float')
             scale = 0.8 * ymax
             spec_plot.plot(skycat[:, 0] * 1e4, skycat[:, 1] * scale, 'm-', alpha=0.5, zorder=11)
@@ -1580,7 +1579,7 @@ def coadd_qa(wave, flux, ivar, nused, mask=None, tell=None, title=None, qafile=N
 
     # Plot transmission
     if (np.max(wave[mask])>9000.0) and (tell is None):
-        skytrans_file = os.path.join(data.Paths.skisim, 'atm_transmission_secz1.5_1.6mm.dat')
+        skytrans_file = data.get_skisim_filepath('atm_transmission_secz1.5_1.6mm.dat')
         skycat = np.genfromtxt(skytrans_file,dtype='float')
         scale = 0.8*ymax
         spec_plot.plot(skycat[:,0]*1e4,skycat[:,1]*scale,'m-',alpha=0.5,zorder=11)
