@@ -340,3 +340,66 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
 
         # Return
         return par
+
+    def bpm(self, filename, det, shape=None, msbias=None):
+        """
+        Generate a default bad-pixel mask.
+
+        Even though they are both optional, either the precise shape for
+        the image (``shape``) or an example file that can be read to get
+        the shape (``filename`` using :func:`get_image_shape`) *must* be
+        provided.
+
+        Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
+            det (:obj:`int`):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
+            msbias (`numpy.ndarray`_, optional):
+                Master bias frame used to identify bad pixels. **This is
+                ignored for KCWI.**
+
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
+        """
+        # Call the base-class method to generate the empty bpm; msbias is always set to None.
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=None)
+
+        # Extract some header info
+        head0 = fits.getheader(filename, ext=0)
+        binning = head0['CCDSUM']
+
+        # DET02 2x2 binning
+        # 110: 111, 1946: 2050
+        # 476:477, 1154:2050
+
+        # Construct a list of the bad columns
+        bc = []
+        if det == 1:
+            # No bad pixel columns on detector 1
+        elif det == 2:
+            if binning == '1 1':
+                # The BPM is based on 2x2 binning data, so the 2x2 numbers are just multiplied by two
+                msgs.warn("BPM is likely over-estimated for 1x1 binning")
+                bc = [[220, 222, 3892, 4100],
+                      [952, 954, 2304, 4100]]
+            elif binning == '2 2':
+                bc = [[110, 111, 1946, 2050],
+                      [476, 477, 1154, 2050]]
+        else:
+            msgs.warn("Bad pixel mask is not available for det={0:s} binning={1:s}".format(det, binning))
+            bc = []
+
+        # Apply these bad columns to the mask
+        for bb in range(len(bc)):
+            bpm_img[bc[bb][2]:bc[bb][3] + 1, bc[bb][0]:bc[bb][1] + 1] = 1
+
+        return bpm_img
+
