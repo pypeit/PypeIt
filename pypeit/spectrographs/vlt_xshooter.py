@@ -275,13 +275,14 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
+        # Standards
+        par['calibrations']['standardframe']['process']['mask_cr'] = False
+
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['skysub']['global_sky_std']  = False # Do not perform global sky subtraction for standard stars
         par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
         par['reduce']['findobj']['trace_npoly'] = 8
-        par['reduce']['findobj']['find_npoly_cont'] = 0  # Continnum order for determining thresholds
-        par['reduce']['findobj']['find_cont_fit'] = False  # Don't attempt to fit a continuum to the trace rectified image
         par['reduce']['findobj']['maxnumber'] = 1  # Assume that there is only one object on the slit.
 
 
@@ -679,9 +680,6 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # Mask 3 edges pixels since the slit is short, insted of default (5,5)
         par['reduce']['findobj']['find_trim_edge'] = [3,3]
         # Continnum order for determining thresholds
-        par['reduce']['findobj']['find_npoly_cont'] = 0
-        # Don't attempt to fit a continuum to the trace rectified image
-        par['reduce']['findobj']['find_cont_fit'] = False
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'

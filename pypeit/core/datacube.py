@@ -1078,8 +1078,9 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
         stdcube = fits.open(cubepar['standard_cube'])
         star_ra, star_dec = stdcube[1].header['CRVAL1'], stdcube[1].header['CRVAL2']
         # Extract the information about the blaze
-        blaze_wave, blaze_spec = stdcube['BLAZE_WAVE'].data, stdcube['BLAZE_SPEC'].data
-        blaze_spline = interp1d(blaze_wave, blaze_spec, kind='linear', bounds_error=False, fill_value="extrapolate")
+        if cubepar['grating_corr']:
+            blaze_wave, blaze_spec = stdcube['BLAZE_WAVE'].data, stdcube['BLAZE_SPEC'].data
+            blaze_spline = interp1d(blaze_wave, blaze_spec, kind='linear', bounds_error=False, fill_value="extrapolate")
         # Extract a spectrum of the standard star
         wave, Nlam_star, Nlam_ivar_star, gpm_star = extract_standard_spec(stdcube)
         # Read in some information above the standard star

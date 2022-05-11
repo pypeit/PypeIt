@@ -876,7 +876,7 @@ class AlignPar(ParSet):
 
     """
 
-    def __init__(self, locations=None, trace_npoly=None, trim_edge=None, sig_thresh=None):
+    def __init__(self, locations=None, trace_npoly=None, trim_edge=None, snr_thresh=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -905,9 +905,9 @@ class AlignPar(ParSet):
         dtypes['trim_edge'] = list
         descr['trim_edge'] = 'Trim the slit by this number of pixels left/right before finding alignment bars'
 
-        defaults['sig_thresh'] = 1.0  # This must be low, because the routine will find the
-        dtypes['sig_thresh'] = [int, float]
-        descr['sig_thresh'] = 'Significance threshold for finding an alignment trace. This should be a low' \
+        defaults['snr_thresh'] = 1.0  # This must be low, because the routine will find the
+        dtypes['snr_thresh'] = [int, float]
+        descr['snr_thresh'] = 'S/N ratio threshold for finding an alignment trace. This should be a low' \
                               'number to ensure that the algorithm finds all bars. The algorithm will' \
                               'then only use the N most significant detections, where N is the number' \
                               'of elements specified in the "locations" keyword argument'
@@ -924,7 +924,7 @@ class AlignPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['locations', 'trace_npoly', 'trim_edge', 'sig_thresh']
+        parkeys = ['locations', 'trace_npoly', 'trim_edge', 'snr_thresh']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -3353,9 +3353,9 @@ class ReducePar(ParSet):
         dtypes['cube'] = [ ParSet, dict ]
         descr['cube'] = 'Parameters for cube generation algorithms'
 
-        defaults['trim_edge'] = [0, 0]
+        defaults['trim_edge'] = [3, 3]
         dtypes['trim_edge'] = list
-        descr['trim_edge'] = 'Trim the slit by this number of pixels left/right when performing sky sub'
+        descr['trim_edge'] = 'Trim the slit by this number of pixels left/right when performing sky subtraction'
 
         # Instantiate the parameter set
         super(ReducePar, self).__init__(list(pars.keys()),
@@ -3403,11 +3403,11 @@ class FindObjPar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, trace_npoly=None, sig_thresh=None, find_trim_edge=None, find_cont_fit=None,
-                 find_npoly_cont=None, find_maxdev=None, find_extrap_npoly=None, maxnumber=None,
+    def __init__(self, trace_npoly=None, snr_thresh=None, find_trim_edge=None,
+                 find_maxdev=None, find_extrap_npoly=None, maxnumber=None,
                  find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None,
-                 ech_find_nabove_min_snr=None, skip_second_find=None, skip_final_global=None, find_negative=None, find_min_max=None,
-                 cont_sig_thresh=None):
+                 ech_find_nabove_min_snr=None, skip_second_find=None, skip_final_global=None, find_negative=None,
+                 find_min_max=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -3440,23 +3440,13 @@ class FindObjPar(ParSet):
                              'extracted apertures are explicitly requested, they do not count against this maxnumber. If more than ' \
                              'maxnumber objects are detected, then highest S/N ratio objects will be the ones that are kept.'
 
-        defaults['sig_thresh'] = 10.0
-        dtypes['sig_thresh'] = [int, float]
-        descr['sig_thresh'] = 'Significance threshold for object finding.'
+        defaults['snr_thresh'] = 10.0
+        dtypes['snr_thresh'] = [int, float]
+        descr['snr_thresh'] = 'S/N threshold for object finding in wavelength direction smashed image.'
 
         defaults['find_trim_edge'] = [5,5]
         dtypes['find_trim_edge'] = list
         descr['find_trim_edge'] = 'Trim the slit by this number of pixels left/right before finding objects'
-
-        defaults['find_cont_fit'] = True
-        dtypes['find_cont_fit'] = bool
-        descr['find_cont_fit'] = 'Fit a continuum to the illumination pattern across the trace rectified image' \
-                                 ' (masking objects) when searching for peaks to initially identify objects'
-
-        defaults['find_npoly_cont'] = 1
-        dtypes['find_npoly_cont'] = int
-        descr['find_npoly_cont'] = 'Polynomial order for fitting continuum to the illumination pattern across the trace rectified image' \
-                                   ' (masking objects) when searching for peaks to initially identify objects'
 
         defaults['find_extrap_npoly'] = 3
         dtypes['find_extrap_npoly'] = int
@@ -3520,12 +3510,6 @@ class FindObjPar(ParSet):
                                 'detector. It only used for object finding. This parameter is helpful if your object only'\
                                 'has emission lines or at high redshift and the trace only shows in part of the detector.'
 
-        defaults['cont_sig_thresh'] = 2.0
-        dtypes['cont_sig_thresh'] = [int, float]
-        descr['cont_sig_thresh'] = 'Significance threshold for peak detection for determinining which pixels to use for ' \
-                                   'the iteratively fit continuum of the spectral direction smashed image. This is ' \
-                                   'passed as the sigthresh parameter to core.arc.iter_continum. For extremely narrow ' \
-                                   'slits that are almost filled by the object trace set this to a smaller number like 1.0'
 
         # Instantiate the parameter set
         super(FindObjPar, self).__init__(list(pars.keys()),
@@ -3541,11 +3525,11 @@ class FindObjPar(ParSet):
         k = np.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['trace_npoly', 'sig_thresh', 'find_trim_edge',
-                   'find_cont_fit', 'find_npoly_cont',
+        parkeys = ['trace_npoly', 'snr_thresh', 'find_trim_edge',
                    'find_extrap_npoly', 'maxnumber',
                    'find_maxdev', 'find_fwhm', 'ech_find_max_snr',
-                   'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find', 'skip_final_global', 'find_negative', 'find_min_max', 'cont_sig_thresh']
+                   'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find', 'skip_final_global',
+                   'find_negative', 'find_min_max']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

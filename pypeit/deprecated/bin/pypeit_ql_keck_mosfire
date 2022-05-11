@@ -9,7 +9,7 @@
 This script runs PypeIt
 """
 
-from pypeit.scripts import ql_keck_mosfire
+from pypeit.deprecated import ql_keck_mosfire
 import sys
 
 if __name__ == '__main__':

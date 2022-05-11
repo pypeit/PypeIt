@@ -17,6 +17,12 @@
 - Improved wavelength solution for Gemini-Nort E2V detector
 - Keck/DEIMOS now uses gain/RN values measured periodically by WMKO
 - Add bok_bc 300 grating template
+- Adeed more flexible quicklook that can handle dithering.
+- Refactored object finding
+- Bug fixes in local sky subtraction and extraction
+- Fixed pypeit setup issues due to bad LRIS headers.
+- Added support for VLT FORS2 600z grism.
+- Added enhancements and fixes for Keck lris red Mark4.
 
 1.8.1 (23 Feb 2022)
 -------------------
@@ -24,6 +30,7 @@
 - various hotfixes
 - Include preliminary support for fluxing with archived SensFunc files
   for DEIMOS.
+
 
 1.8.0 (12 Feb 2022)
 -------------------

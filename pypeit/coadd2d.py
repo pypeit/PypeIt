@@ -15,6 +15,7 @@ from matplotlib import pyplot as plt
 from astropy.table import Table, vstack
 
 from pypeit import msgs
+from pypeit import utils
 from pypeit import specobjs
 from pypeit import slittrace
 from pypeit import extraction
@@ -228,7 +229,7 @@ class CoAdd2D:
         This provides an array of index of slits in the un-coadded frames that are considered good for 2d coadding.
         A bitmask common to all the un-coadded frames is used to determine which slits are good. Also,
         If the `only_slits` parameter is provided only those slits are considered good for 2d coadding.
-        
+
         Args:
             only_slits (:obj:`list`, optional):
                 List of slits to combine. It must be `slitord_id`
@@ -559,7 +560,6 @@ class CoAdd2D:
         manual_obj = None
         if self.par['coadd2d']['manual'] is not None and len(self.par['coadd2d']['manual']) > 0:
             manual_obj = ManualExtractionObj.by_fitstbl_input('None', self.par['coadd2d']['manual'], self.spectrograph)
-
         # Get bpm mask. There should not be any masked slits because we excluded those already
         # before the coadd, but we need to pass a bpm to FindObjects and Extract
         slits = pseudo_dict['slits']
@@ -584,7 +584,7 @@ class CoAdd2D:
             objFind.show('image', image=pseudo_dict['imgminsky']*gpm.astype(float),
                        chname='imgminsky', slits=True, clear=True)
 
-        sobjs_obj, nobj = objFind.find_objects(sciImage.image, show_peaks=show_peaks,
+        sobjs_obj, nobj = objFind.find_objects(sciImage.image, sciImage.ivar, show_peaks=show_peaks,
                                                save_objfindQA=True)
 
         # maskdef stuff
@@ -1067,7 +1067,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
             dspat_bins, dspat_stack = coadd.get_spat_bins(thismask_stack, trace_stack_bri)
 
             sci_list = [self.stack_dict['sciimg_stack'] - self.stack_dict['skymodel_stack']]
-            var_list = []
+            var_list = [utils.inverse(self.stack_dict['sciivar_stack'])]
 
             msgs.info('Rebinning Images')
             sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack = coadd.rebin2d(
@@ -1081,15 +1081,14 @@ class MultiSlitCoAdd2D(CoAdd2D):
             traces_rect = np.zeros((nspec_pseudo, self.nexp))
             sobjs = specobjs.SpecObjs()
             for iexp in range(self.nexp):
-                sobjs_exp = findobj_skymask.objs_in_slit(sci_list_rebin[0][iexp,:,:], thismask, slit_left, slit_righ,
-                                               inmask=inmask[iexp,:,:], has_negative=self.find_negative,
-                                               fwhm=self.par['reduce']['findobj']['find_fwhm'],
-                                               trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
-                                               npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
-                                               maxdev=self.par['reduce']['findobj']['find_maxdev'],
-                                               ncoeff=3, sig_thresh=self.par['reduce']['findobj']['sig_thresh'], nperslit=1,
-                                               find_min_max=self.par['reduce']['findobj']['find_min_max'],
-                                               show_trace=self.debug_offsets, show_peaks=self.debug_offsets)
+                sobjs_exp = findobj_skymask.objs_in_slit(
+                    sci_list_rebin[0][iexp,:,:], utils.inverse(var_list_rebin[0][iexp,:,:]), thismask, slit_left, slit_righ,
+                    inmask=inmask[iexp,:,:], fwhm=self.par['reduce']['findobj']['find_fwhm'],
+                    trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
+                    maxdev=self.par['reduce']['findobj']['find_maxdev'],
+                    ncoeff=3, snr_thresh=self.par['reduce']['findobj']['snr_thresh'], nperslit=1,
+                    find_min_max=self.par['reduce']['findobj']['find_min_max'],
+                    show_trace=self.debug_offsets, show_peaks=self.debug_offsets)
                 sobjs.add_sobj(sobjs_exp)
                 traces_rect[:, iexp] = sobjs_exp.TRACE_SPAT
             # Now deterimine the offsets. Arbitrarily set the zeroth trace to the reference
