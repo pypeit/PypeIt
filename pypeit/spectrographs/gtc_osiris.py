@@ -61,7 +61,8 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             numamplifiers   = 1,
             gain            = np.atleast_1d([0.95]),
             ronoise         = np.atleast_1d([4.5]),
-            datasec         = np.atleast_1d('[1:4102,52:1880]')
+            datasec         = np.atleast_1d('[1:4102,280:2048]'),
+            oscansec        = np.atleast_1d('[1:4102,6:44]')
             )
         # Detector 2
         detector_dict2 = dict(
@@ -79,7 +80,8 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             numamplifiers   = 1,
             gain            = np.atleast_1d([0.95]),
             ronoise         = np.atleast_1d([4.5]),
-            datasec         = np.atleast_1d('[1:4102,52:1880]')
+            datasec         = np.atleast_1d('[1:4102,52:1920]'),
+            oscansec        = np.atleast_1d('[1:4102,6:40]')
             )
 
         detectors = [detector_dict1, detector_dict2]
@@ -100,9 +102,9 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-        par['calibrations']['slitedges']['edge_thresh'] = 20
-        par['calibrations']['slitedges']['sobel_mode'] = 'constant'
-        par['calibrations']['slitedges']['sobel_enhance'] = 5
+#        par['calibrations']['slitedges']['edge_thresh'] = 20
+#        par['calibrations']['slitedges']['sobel_mode'] = 'constant'
+#        par['calibrations']['slitedges']['sobel_enhance'] = 0
         par['calibrations']['slitedges']['bound_detector'] = True
 
         # Set pixel flat combination method
@@ -126,10 +128,10 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['tiltframe']['process']['combine'] = 'mean'
         par['calibrations']['tiltframe']['process']['use_continuum'] = True
 
-        # No ovescan region
-        turn_off = dict(use_overscan=False)
-        par.reset_all_processimages_par(**turn_off)
-        par['scienceframe']['process']['use_overscan'] = False
+        # No overscan region
+        # turn_off = dict(use_overscan=False)
+        # par.reset_all_processimages_par(**turn_off)
+        # par['scienceframe']['process']['use_overscan'] = False
 
         return par
 
@@ -248,7 +250,6 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         """
         return {'standard': 'dispname','bias': None, 'dark': None}
 
-
     def config_specific_par(self, scifile, inp_par=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
@@ -273,6 +274,9 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             par['reduce']['findobj']['find_trim_edge'] = [1,1]
             par['calibrations']['slitedges']['sync_predict'] = 'pca'
             par['calibrations']['slitedges']['det_buffer'] = 1
+        elif self.get_meta_value(scifile, 'idname') == 'OsirisLongSlitSpectroscopy':
+            # Do not tweak the slit edges for longslit
+            par['calibrations']['flatfield']['tweak_slits'] = False
 
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == 'R300B':
