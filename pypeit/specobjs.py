@@ -262,10 +262,14 @@ class SpecObjs:
         pypeline = (self.PYPELINE)[0]
         if 'MultiSlit' in pypeline or 'IFU' in pypeline:
             # Have to do a loop to extract the counts for all objects
-            if self.OPT_COUNTS[0] is not None:
-                SNR = np.median(self.OPT_COUNTS*np.sqrt(self.OPT_COUNTS_IVAR), axis=1)
-            elif self.BOX_COUNTS[0] is not None:
-                SNR = np.median(self.BOX_COUNTS*np.sqrt(self.BOX_COUNTS_IVAR), axis=1)
+            if len(self.OPT_COUNTS) != 0 and self.OPT_COUNTS[0] is not None:
+                SNR = np.zeros(len(self.OPT_COUNTS))
+                for ss in range(len(self.OPT_COUNTS)):
+                    SNR[ss] = np.median(self.OPT_COUNTS[ss] * np.sqrt(self.OPT_COUNTS_IVAR[ss]))
+            elif len(self.BOX_COUNTS) != 0 and self.BOX_COUNTS[0] is not None:
+                SNR = np.zeros(len(self.BOX_COUNTS))
+                for ss in range(len(self.BOX_COUNTS)):
+                    SNR[ss] = np.median(self.BOX_COUNTS[ss]*np.sqrt(self.BOX_COUNTS_IVAR[ss]))
             else:
                 return None
 
