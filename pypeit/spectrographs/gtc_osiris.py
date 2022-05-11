@@ -11,6 +11,7 @@ from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
+import astropy.io.fits as fits
 
 
 class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
@@ -384,6 +385,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         bc = []
         if det == 1:
             # No bad pixel columns on detector 1
+            pass
         elif det == 2:
             if binning == '1 1':
                 # The BPM is based on 2x2 binning data, so the 2x2 numbers are just multiplied by two
@@ -394,7 +396,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
                 bc = [[110, 111, 1946, 2050],
                       [476, 477, 1154, 2050]]
         else:
-            msgs.warn("Bad pixel mask is not available for det={0:s} binning={1:s}".format(det, binning))
+            msgs.warn("Bad pixel mask is not available for det={0:d} binning={1:s}".format(det, binning))
             bc = []
 
         # Apply these bad columns to the mask
