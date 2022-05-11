@@ -3672,9 +3672,11 @@ class EdgeTraceSet(DataContainer):
             `numpy.ndarray`_: The nudged traces.
         """
         # Check input
-        if self.par['max_nudge'] is not None and self.par['max_nudge'] <= 0:
-            # Nothing to do
-            return trace_cen
+        if self.par['max_nudge'] is None:
+            return trace_cen  # Nothing to do
+        elif self.par['max_nudge'] <= 0:
+            return trace_cen  # Nothing to do
+        # Check vector size
         if trace_cen.shape[0] != self.nspec:
             msgs.error('Traces have incorrect length.')
         _buffer = self.par['det_buffer']
