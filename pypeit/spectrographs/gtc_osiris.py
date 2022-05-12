@@ -103,9 +103,6 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-#        par['calibrations']['slitedges']['edge_thresh'] = 20
-#        par['calibrations']['slitedges']['sobel_mode'] = 'constant'
-#        par['calibrations']['slitedges']['sobel_enhance'] = 0
         par['calibrations']['slitedges']['bound_detector'] = True
 
         # Set pixel flat combination method
@@ -128,11 +125,6 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['tiltframe']['process']['clip'] = False
         par['calibrations']['tiltframe']['process']['combine'] = 'mean'
         par['calibrations']['tiltframe']['process']['use_continuum'] = True
-
-        # No overscan region
-        # turn_off = dict(use_overscan=False)
-        # par.reset_all_processimages_par(**turn_off)
-        # par['scienceframe']['process']['use_overscan'] = False
 
         return par
 
@@ -376,10 +368,6 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         # Extract some header info
         head0 = fits.getheader(filename, ext=0)
         binning = head0['CCDSUM']
-
-        # DET02 2x2 binning
-        # 110: 111, 1946: 2050
-        # 476:477, 1154:2050
 
         # Construct a list of the bad columns
         bc = []
