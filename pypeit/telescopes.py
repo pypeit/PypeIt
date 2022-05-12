@@ -168,5 +168,5 @@ class LDTTelescopePar(TelescopePar):
                                               elevation=2361.0,
                                               fratio=6.1,
                                               diameter=4.3,
-                                              eff_aperture=49.5)
+                                              eff_aperture=12.85)
 
