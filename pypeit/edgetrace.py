@@ -4267,8 +4267,7 @@ class EdgeTraceSet(DataContainer):
         # Find if there are missing traces.
         # Need exactly one occurrence of each index in "need"
         buffer = self.par['det_buffer']+1
-        need = (top_edge_pred > buffer) & (top_edge_pred < (self.traceimg.shape[1] - 2*buffer)) &\
-               (bot_edge_pred > 2*buffer) & (bot_edge_pred < (self.traceimg.shape[1] - 1 - buffer)) &\
+        need = (top_edge_pred > 3*buffer) & (bot_edge_pred < (self.traceimg.shape[1] - 1 - 3*buffer)) & \
                ((omodel_bspat != -1) | (omodel_tspat != -1))
 
         # bottom edges
