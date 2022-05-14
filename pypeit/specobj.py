@@ -674,3 +674,5 @@ class SpecObj(datamodel.DataContainer):
 
         """
         return self.BOX_WAVE, self.BOX_COUNTS, self.BOX_COUNTS_IVAR, self.BOX_MASK
+
+    
