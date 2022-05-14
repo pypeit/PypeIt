@@ -271,7 +271,7 @@ entries, as described in :doc:`out_spec1D`.
 Flux File
 ---------
 
-To flux one or more spec1d files, generate a flux_file that is has the
+To flux one or more spec1d files, generate a flux_file with the
 following format::
 
     flux read
