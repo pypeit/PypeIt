@@ -98,7 +98,7 @@ Grating correction
 
 The grating correction is needed if any of the data are recorded
 with even a very slightly different setup (e.g. data taken on two
-different nights with the same _intended_ wavelength coverage,
+different nights with the same *intended* wavelength coverage,
 but the grating angle of the two nights were slightly different).
 This is also needed if your standard star observations were taken
 with a slightly different setup. This correction requires that you

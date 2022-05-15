@@ -65,7 +65,9 @@ Alignment frames
 PypeIt uses alignment frames to perform an astrometric correction.
 For KCWI, these are referred to as "Cont Bars" frames. This correction
 is small, and if you do not have alignment frames for KCWI you should
-turn off the astrometric correction using the command::
+turn off the astrometric correction when combining your data with the
+pypeit_coadd_datacube routine (see :doc:`coadd3d` for the
+documentation) using the command::
 
     [reduce]
       [[cube]]
@@ -83,7 +85,8 @@ CCD which varies with time and CCD row (i.e. the sinusoidal
 pattern is present only in the spatial direction). If you are working
 in the read noise limit, we recommend that you subtract off this
 pattern. We have a robust algorithm to remove this pattern in both
-1x1 and 2x2 binning data, but it is relatively slow. This pattern
+1x1 and 2x2 binning data. Our tests indicated the the effective read
+noise can be reduced by a factor of 1.5-1.6. This pattern
 is removed by default, but if you would prefer to turn this
 off, you can do so by adding the following in your
 :doc:`pypeit_file`::
@@ -93,38 +96,52 @@ off, you can do so by adding the following in your
            use_pattern = False
 
 Note, the effective read noise of the data is determined from the
-overscan regions. Our tests suggest that the effective read noise
-is reduced by 25-40 percent if the pattern noise is subtracted.
+overscan regions. Also note that this pattern noise is different
+from the detector structure mentioned above for pixelflats. The
+pattern noise is additive, the detector structure is multiplicative.
 
 Relative spectral illumination correction
 -----------------------------------------
 
-TBC... the best approach is still being investigated...
-
 At this stage, we recommend that you take sky flats to measure
-the relative spectral sensitivity of the different slices. Alternatively,
-you can use the sky regions of your science and standard star frames,
-but note that you need sufficient counts to do this properly. To turn
-on a joint fit to the sky spectrum (and therefore account for the relative
-transmission of the slices) add the following to your pypeit file::
+the relative spectral sensitivity of the different slices. It's possible
+that a short exposure of the moon will work equally well. You could also
+use dome flats if you can get sufficient blue counts. You should create
+a :doc:`pypeit_file` that is separate from your science observations, and
+reduce this sky flat frame as if it were a science frame (i.e. label it
+as a science frame in this :doc:`pypeit_file`). You should then add the
+following lines to the top of the :doc:`pypeit_file`::
+
+    [reduce]
+      [[skysub]]
+        joint_fit = True
+        user_regions = :50,50:
+
+The first of these commands performs a joint fit to all slices (i.e. assumes
+that the sky is the same in all slices), while the second command tells pypeit
+to use the entire slice to determine the sky and relative scale. This process
+only calculates the relative scale correction. To apply it to your science
+frames, this scale correction is applied when you make the datacube. The
+command to apply this scale correction to your science frames in your
+:doc:`coadd3d` file::
+
+    [reduce]
+      [[skysub]]
+        scale_corr = Science/spec2d_KB.blah-Sky_KCWI_blah.fits
+
+where the spec2d file is the name of the reduced sky flat file. If you did
+not take sky flats or dome flats, you *should not use the internal flats*.
+The only other reasonable alternative is to use the sky regions of your
+science frames, but note that you need sufficient counts to do this properly.
+To turn on a joint fit to the sky spectrum (and therefore account for the
+relative transmission of the slices) add the following to your pypeit file::
 
     [reduce]
       [[skysub]]
         joint_fit = True
 
-PypeIt can also use a flat field frame to make a first guess at the relative
-spectral illumination. A fine correction to this relative spectral
-illumination can be performed using the sky. This algorithm ensures
-that each slice has the same sensitivity as a function
-of wavelength. We recommend that you design your observations
-so that each slice contains some sky. If you would not like to
-perform a relative spectral sensitivity correction (for example,
-if you do not have enough sky information for this to be reliable),
-you can turn it off using the command::
-
-    [scienceframe]
-      [[process]]
-         use_specillum = False
+and you can also set the user_regions (as above), if you know where the sky
+appears on the slices.
 
 Sky subtraction
 ---------------
