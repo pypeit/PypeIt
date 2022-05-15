@@ -11,6 +11,7 @@ from scipy.optimize import curve_fit
 
 from astropy.convolution import convolve, Box2DKernel
 from astropy.timeseries import LombScargle
+from astropy import stats
 
 from pypeit import msgs
 from pypeit import utils
@@ -696,7 +697,14 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
     calculates the frequency of the signal, generates a model, and subtracts
     this signal from the data. This sinusoidal pattern noise was first
     identified in KCWI, but the source of this pattern noise is not currently
-    known.
+    known. The pattern model is generated with a three step process:
+
+    STEP 1: Given a first guess at the frequency, calculate how frequency depends on pixel row (slight linear dependence)
+    STEP 2: Using the frequency model, calculate the amplitude of the signal (usually a constant for all pixel rows)
+    STEP 3: Using the model of the frequency and the amplitude, calculate the phase of the signal for each pixel row.
+            Note that the phase is different for each pixel row.
+    A complete detector model is generated for the pattern noise using the frequency+amplitude+phase, and an estimate
+    of the improved effective read noise is provided.
 
     Args:
         rawframe (`numpy.ndarray`_):
@@ -767,6 +775,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         # Subtract the DC offset
         overscan -= np.median(overscan, axis=1)[:, np.newaxis]
 
+        # STEP 1 - calculate how frequency depends on pixel row
         # Estimate the frequency at each pixel
         all_rows = np.arange(overscan.shape[0])
         all_freq = np.zeros(overscan.shape[0])
@@ -791,6 +800,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         # Convert result to amplitude and phase
         amps = (np.abs(tmpamp))[idx] * (2.0 / overscan.shape[1])
 
+        # STEP 2 - Using th emodel frequency, calculate how amplitude depends on pixel row (usually constant)
         # Use the above to as initial guess parameters for a chi-squared minimisation of the amplitudes
         msgs.info("Measuring amplitude-pixel dependence of amplifier {0:d}".format(amp))
         nspec = overscan.shape[0]
@@ -824,6 +834,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         xspec = np.arange(nspec)
         amp_mod = np.polyval(np.polyfit(xspec, amps_fit, 1), xspec)
 
+        # STEP 3 - Using the model frequency and amplitude, calculate the phase of every pixel row
         # Now determine the phase, given a prior on the amplitude and frequency
         msgs.info("Calculating pattern phases of amplifier {0:d}".format(amp))
         cosfunc = lambda xarr, *p: np.cos(2.0 * np.pi * xarr + p[0])
@@ -849,6 +860,15 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
             # Calculate the model pattern, given the amplitude, frequency and phase information
             model_pattern[ii, :] = cosfunc_full(xdata_all, amp_mod[ii], frq_mod[ii], popt[0])
 
+        # Estimate the improvement of the effective read noise
+        tmp = outframe.copy()
+        tmp[osd_slice] -= model_pattern
+        mod_oscan, _ = rect_slice_with_mask(tmp, tmp_oscan, amp)
+        old_ron = stats.sigma_clipped_stats(overscan, sigma=5)[-1]
+        new_ron = stats.sigma_clipped_stats(overscan-mod_oscan, sigma=5)[-1]
+        msgs.info(f'Effective readnoise of amplifier {amp} reduced by a factor of {old_ron/new_ron:.2f}x')
+
+        # Subtract the model pattern from the full datasec
         outframe[osd_slice] -= model_pattern
 
     # Transpose if the input frame if applied along a different axis
