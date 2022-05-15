@@ -654,7 +654,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         patt_freqs : `list`_
             List of pattern frequencies.
         """
-        msgs.info("Calculating pattern noise frequency (this process can take several minutes)")
+        msgs.info("Calculating pattern noise frequency")
 
         # Make a copy of te original frame
         raw_img = frame.copy()
