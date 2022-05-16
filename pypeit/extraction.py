@@ -283,7 +283,7 @@ class Extract:
                                           model_noise=(not self.bkg_redux),
                                           show_profile=self.extract_show,
                                           show=self.extract_show)
-        embed()
+
         # Remove sobjs that don't have both OPT_COUNTS and BOX_COUNTS
         remove_idx = []
         for idx, sobj in enumerate(self.sobjs):
