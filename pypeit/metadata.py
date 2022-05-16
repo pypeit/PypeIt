@@ -195,7 +195,7 @@ class PypeItMetaData:
 
             # Read the fits headers.  NOTE: If the file cannot be opened,
             # headarr will be None, and the subsequent loop over the meta keys
-            # will fill data dictionary with None values.
+            # will fill the data dictionary with None values.
             headarr = self.spectrograph.get_headarr(ifile, strict=strict)
 
             # Grab Meta
