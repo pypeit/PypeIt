@@ -637,10 +637,8 @@ class SpecObj(datamodel.DataContainer):
             :obj:bool: True if all OPT values are available
         """
         keys_to_check = ['OPT_WAVE', 'OPT_COUNTS', 'OPT_COUNTS_IVAR', 'OPT_MASK']
-        has_opt = []
-        for key in keys_to_check:
-            has_opt.append(True if self[key] is not None else False)
-        return np.all(has_opt)
+
+        return np.all([self[key] is not None for key in keys_to_check])
 
     def get_opt_ext(self):
         """
@@ -660,10 +658,8 @@ class SpecObj(datamodel.DataContainer):
             :obj:bool: True if all BOX values are available
         """
         keys_to_check = ['BOX_WAVE', 'BOX_COUNTS', 'BOX_COUNTS_IVAR', 'BOX_MASK']
-        has_box = []
-        for key in keys_to_check:
-            has_box.append(True if self[key] is not None else False)
-        return np.all(has_box)
+
+        return np.all([self[key] is not None for key in keys_to_check])
 
     def get_box_ext(self):
         """
@@ -675,4 +671,6 @@ class SpecObj(datamodel.DataContainer):
         """
         return self.BOX_WAVE, self.BOX_COUNTS, self.BOX_COUNTS_IVAR, self.BOX_MASK
 
-    
+
+
+
