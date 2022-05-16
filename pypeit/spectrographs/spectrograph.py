@@ -1182,13 +1182,9 @@ class Spectrograph:
                             if ftype in self.meta[meta_key]['required_ftypes']:
                                 kerror = True
                     # Bomb out?
-                    # TODO Bombing out is not acceptable as we have discussed.
                     if kerror:
-                        #embed(header=utils.embed_header())
-                        msgs.warn('Required meta "{0}" did not load!'.format(meta_key)
-                                  + 'You may have a corrupt header.')
-                        #msgs.error('Required meta "{0}" did not load!'.format(meta_key)
-                        #           + 'You may have a corrupt header.')
+                        msgs.error('Required meta "{0}" did not load!'.format(meta_key)
+                                   + 'You may have a corrupt header.')
                 else:
                     msgs.warn('Required card {0} missing '.format(self.meta[meta_key]['card'])
                               + 'from your header.  Proceeding with risk...')
