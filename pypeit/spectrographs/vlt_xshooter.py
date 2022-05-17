@@ -992,16 +992,15 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         #  Order 24 is very faint and not included here
         return np.array([0.32671887, 0.39553878, 0.45989826, 0.52009878, 0.5764598,
             0.62917188, 0.67859507, 0.72482729, 0.76815531, 0.80879042,
-            0.84700373])
-        # Reddest order (12) is ignored (for now)
-        #, 0.88317493])
+            0.84700373, 0.88317493])
 
     @property
     def orders(self):
         """
         Return the order number for each echelle order.
         """
-        return np.arange(23, 12, -1, dtype=int)
+        return np.arange(23, 11, -1, dtype=int)   # 12 orders
+        #return np.arange(23, 12, -1, dtype=int)
 
     @property
     def spec_min_max(self):
