@@ -204,7 +204,7 @@ def get_wave_grid(waves=None, masks=None, wave_method='linear', iref=0, wave_gri
     """
     c_kms = constants.c.to('km/s').value
 
-    if wave_method is 'user_input':
+    if 'user_input' in wave_method:
         wave_grid = wave_grid_input
     else:
         if masks is None:
