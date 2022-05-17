@@ -3672,10 +3672,9 @@ class EdgeTraceSet(DataContainer):
             `numpy.ndarray`_: The nudged traces.
         """
         # Check input
-        if self.par['max_nudge'] is None:
-            return trace_cen  # Nothing to do
-        elif self.par['max_nudge'] <= 0:
-            return trace_cen  # Nothing to do
+        if self.par['max_nudge'] is not None and self.par['max_nudge'] <= 0:
+            # Nothing to do
+            return trace_cen
         # Check vector size
         if trace_cen.shape[0] != self.nspec:
             msgs.error('Traces have incorrect length.')
@@ -3684,8 +3683,9 @@ class EdgeTraceSet(DataContainer):
             msgs.warn('Buffer must be greater than 0; ignoring.')
             _buffer = 0
 
-        msgs.info('Nudging traces, by at most {0} pixel(s)'.format(self.par['max_nudge'])
-                  + ', to be no closer than {0} pixel(s) from the detector edge.'.format(_buffer))
+        if self.par['max_nudge'] is not None:
+            msgs.info('Nudging traces, by at most {0} pixel(s)'.format(self.par['max_nudge'])
+                      + ', to be no closer than {0} pixel(s) from the detector edge.'.format(_buffer))
 
         # NOTE: Should never happen, but this makes a compromise if a
         # trace crosses both the left and right spatial edge of the
