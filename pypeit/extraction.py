@@ -285,7 +285,6 @@ class Extract:
                                           show=self.extract_show)
 
         # Remove sobjs that don't have both OPT_COUNTS and BOX_COUNTS
-        embed(header='288 of extraction')
         remove_idx = []
         for idx, sobj in enumerate(self.sobjs):
             # Find them
