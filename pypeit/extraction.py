@@ -298,7 +298,7 @@ class Extract:
 
         # Remove them
         if len(remove_idx) > 0:
-            self.sobjs.remove_sobj(idx)
+            self.sobjs.remove_sobj(remove_idx)
 
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
