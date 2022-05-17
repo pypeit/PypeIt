@@ -120,8 +120,10 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
 
     # Sky pixels for fitting
     gpm = thismask & (ivar > 0.0) & inmask & np.logical_not(edgmask)
-    if not np.any(gpm):
-        msgs.warn("Input pixel mask + edges has no good pixels.  There is likely a problem with this slit.")
+    bad_pixel_frac = np.sum(thismask & np.logical_not(gpm))/np.sum(thismask)
+    if bad_pixel_frac > 0.8:
+        msgs.warn('This slit/order has {:5.3f} of the pixels masked, which exceeds the threshold of 0.80. '.format(bad_pixel_frac)
+                  + msgs.newline() + 'There is likely a problem with this slit. Giving up on global sky-subtraction.')
         return np.zeros(np.sum(thismask))
 
     # Sub arrays
@@ -147,10 +149,14 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
                                             ingpm=inmask_fit[pos_sky], upper=sigrej, lower=sigrej,
                                             kwargs_bspline={'bkspace':bsp},
                                             kwargs_reject={'groupbadpix': True, 'maxrej': 10})
-            res = (sky[pos_sky] - np.exp(lsky_fit)) * np.sqrt(sky_ivar[pos_sky])
-            lmask = (res < 5.0) & (res > -4.0)
-            sky_ivar[pos_sky] = sky_ivar[pos_sky] * lmask
-            inmask_fit[pos_sky] = (sky_ivar[pos_sky] > 0.0) & lmask & inmask_prop[pos_sky]
+            if exit_status != 0:
+                msgs.warn('Global sky-subtraction did not exit cleanly for initial positive sky fit.'
+                          + msgs.newline() + 'Initial masking based on positive sky fit will be skipped')
+            else:
+                res = (sky[pos_sky] - np.exp(lsky_fit)) * np.sqrt(sky_ivar[pos_sky])
+                lmask = (res < 5.0) & (res > -4.0)
+                sky_ivar[pos_sky] = sky_ivar[pos_sky] * lmask
+                inmask_fit[pos_sky] = (sky_ivar[pos_sky] > 0.0) & lmask & inmask_prop[pos_sky]
 
     # Include a polynomial basis?
     if no_poly:
@@ -162,11 +168,11 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
 
     # Perform the full fit now
     msgs.info("Full fit in global sky sub.")
-    skyset, outmask, yfit, _, exit_status \
-            = fitting.bspline_profile(pix, sky, sky_ivar, poly_basis, ingpm=inmask_fit, nord=4,
-                                    upper=sigrej, lower=sigrej, maxiter=maxiter,
-                                    kwargs_bspline={'bkspace':bsp},
-                                    kwargs_reject={'groupbadpix':True, 'maxrej': 10})
+    skyset, outmask, yfit, _, exit_status = fitting.bspline_profile(pix, sky, sky_ivar, poly_basis, ingpm=inmask_fit, nord=4,
+                                                                    upper=sigrej, lower=sigrej, maxiter=maxiter,
+                                                                    kwargs_bspline={'bkspace':bsp},
+                                                                    kwargs_reject={'groupbadpix':True, 'maxrej': 10})
+
     # TODO JFH This is a hack for now to deal with bad fits for which iterations do not converge. This is related
     # to the groupbadpix behavior requested for the djs_reject rejection. It would be good to
     # better understand what this functionality is doing, but it makes the rejection much more quickly approach a small
