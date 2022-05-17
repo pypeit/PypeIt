@@ -142,10 +142,11 @@ def build_calibrate(det, files, spectrograph, parset, bias_masterframe_name, sli
     caliBrate.wavetilts = tilts_obj
     caliBrate.wv_calib = wv_calib
     caliBrate.binning = f'{slits.binspec},{slits.binspat}'
+    caliBrate.det = det
 
     return caliBrate
 
-def run(files, dither_id, offset_arcsec, caliBrate, spectrograph, det, platescale, parset, std_trace, show, bkg_redux=False):
+def run(files, dither_id, offset_arcsec, caliBrate, spectrograph, platescale, parset, std_trace, show, bkg_redux=False):
 
     msg_string = msgs.newline() + '*******************************************************'
     spec2d_list = []
@@ -172,7 +173,7 @@ def run(files, dither_id, offset_arcsec, caliBrate, spectrograph, det, platescal
         if bkg_redux:
             msgs.info('Reducing A-B pairs for throw = {:}'.format(throw))
             if (len(A_files_uni) > 0) & (len(B_files_uni) > 0):
-                spec2DObj_A, spec2DObj_B = reduce(A_files_uni, caliBrate, spectrograph, det, parset,
+                spec2DObj_A, spec2DObj_B = reduce(A_files_uni, caliBrate, spectrograph, parset,
                                                   bkg_files=B_files_uni, show=show, std_trace=std_trace)
                 spec2d_list += [spec2DObj_A, spec2DObj_B]
                 offsets_dith_pix += [A_offset_pix, B_offset_pix]
@@ -188,7 +189,7 @@ def run(files, dither_id, offset_arcsec, caliBrate, spectrograph, det, platescal
                         B_offset[iexp], B_offset[iexp] / platescale)
         else:
             msgs.info('Reducing images for offset = {:}'.format(A_offset[0]))
-            spec2DObj = reduce(A_files_uni, caliBrate, spectrograph, det, parset, show=show, std_trace=std_trace)
+            spec2DObj = reduce(A_files_uni, caliBrate, spectrograph, parset, show=show, std_trace=std_trace)
             spec2d_list += [spec2DObj]
             offsets_dith_pix += [A_offset_pix]
 
@@ -197,7 +198,7 @@ def run(files, dither_id, offset_arcsec, caliBrate, spectrograph, det, platescal
     return spec2d_list, offsets_dith_pix
 
 
-def reduce(files, caliBrate, spectrograph, det, parset, bkg_files=None, show=False, std_trace=None):
+def reduce(files, caliBrate, spectrograph, parset, bkg_files=None, show=False, std_trace=None):
     """
     Peform 2d extraction for a set of files at the same unique A-B offset location.
 
@@ -234,12 +235,12 @@ def reduce(files, caliBrate, spectrograph, det, parset, bkg_files=None, show=Fal
     bkg_redux = bkg_files is not None
     # Build Science image
     sciImg = buildimage.buildimage_fromlist(
-        spectrograph, det, parset['scienceframe'], list(files), bpm=caliBrate.msbpm, slits=caliBrate.slits,
+        spectrograph, caliBrate.det, parset['scienceframe'], list(files), bpm=caliBrate.msbpm, slits=caliBrate.slits,
         ignore_saturation=False)
 
     if bkg_files is not None:
         # Background Image?
-        sciImg = sciImg.sub(buildimage.buildimage_fromlist(spectrograph, det, parset['scienceframe'], list(bkg_files),
+        sciImg = sciImg.sub(buildimage.buildimage_fromlist(spectrograph, caliBrate.det, parset['scienceframe'], list(bkg_files),
                                                            bpm=caliBrate.msbpm, slits=caliBrate.slits,
                                                            ignore_saturation=False), parset['scienceframe']['process'])
 
@@ -252,8 +253,7 @@ def reduce(files, caliBrate, spectrograph, det, parset, bkg_files=None, show=Fal
     # Instantiate Extract object
     extract = extraction.Extract.get_instance(sciImg, sobjs_obj, spectrograph, parset, caliBrate,
                                               'science', bkg_redux=bkg_redux, return_negative=bkg_redux, show=show)
-    skymodel, objmodel, ivarmodel, \
-    outmask, sobjs, scaleimg, waveimg, tilts = extract.run(global_sky, sobjs_obj)
+    skymodel, objmodel, ivarmodel, outmask, sobjs, waveimg, tilts = extract.run(global_sky, sobjs_obj)
 
     # TODO -- Do this upstream
     # Tack on detector
@@ -267,21 +267,21 @@ def reduce(files, caliBrate, spectrograph, det, parset, bkg_files=None, show=Fal
 
     # Construct the Spec2DObj with the positive image
     spec2DObj = spec2dobj.Spec2DObj(sciimg=sciImg.image,
-                                      ivarraw=sciImg.ivar,
-                                      skymodel=skymodel,
-                                      objmodel=objmodel,
-                                      ivarmodel=ivarmodel,
-                                      scaleimg=scaleimg,
-                                      waveimg=waveimg,
-                                      bpmmask=outmask,
-                                      detector=sciImg.detector,
-                                      sci_spat_flexure=sciImg.spat_flexure,
-                                      sci_spec_flexure=spec_flex_table,
-                                      vel_corr=None,
-                                      vel_type=parset['calibrations']['wavelengths']['refframe'],
-                                      tilts=tilts,
-                                      slits=copy.deepcopy(caliBrate.slits),
-                                      maskdef_designtab=None)
+                                    ivarraw=sciImg.ivar,
+                                    skymodel=skymodel,
+                                    objmodel=objmodel,
+                                    ivarmodel=ivarmodel,
+                                    scaleimg=None,
+                                    waveimg=waveimg,
+                                    bpmmask=outmask,
+                                    detector=sciImg.detector,
+                                    sci_spat_flexure=sciImg.spat_flexure,
+                                    sci_spec_flexure=spec_flex_table,
+                                    vel_corr=None,
+                                    vel_type=parset['calibrations']['wavelengths']['refframe'],
+                                    tilts=tilts,
+                                    slits=copy.deepcopy(caliBrate.slits),
+                                    maskdef_designtab=None)
     spec2DObj.process_steps = sciImg.process_steps
 
     if not bkg_redux:
@@ -293,7 +293,7 @@ def reduce(files, caliBrate, spectrograph, det, parset, bkg_files=None, show=Fal
                                            skymodel=-skymodel,
                                            objmodel=-objmodel,
                                            ivarmodel=ivarmodel,
-                                           scaleimg=scaleimg,
+                                           scaleimg=None,
                                            waveimg=waveimg,
                                            bpmmask=outmask,
                                            detector=sciImg.detector,
@@ -430,7 +430,7 @@ class QL_MOS(scriptbase.ScriptBase):
         detname = det_container.name
 
         if std_spec1d_file is not None:
-            std_trace = specobjs.get_std_trace(detname, std_spec1d_file)
+            std_trace = specobjs.get_std_trace(detname, std_spec1d_file, chk_version=False)
         else:
             std_trace = None
 
@@ -442,7 +442,7 @@ class QL_MOS(scriptbase.ScriptBase):
         caliBrate = build_calibrate(_det, files, spectrograph, parset, bias_masterframe_name,
                                         slit_masterframe_name, wvcalib_masterframe_name, tilts_masterframe_name)
 
-        spec2d_list, offsets_dith_pix = run(files, dither_id, offset_arcsec, caliBrate, spectrograph, _det,
+        spec2d_list, offsets_dith_pix = run(files, dither_id, offset_arcsec, caliBrate, spectrograph,
                                             platescale, parset, std_trace, args.show, bkg_redux=args.bkg_redux)
 
         # Override offsets if they were passed in?

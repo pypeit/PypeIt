@@ -861,6 +861,7 @@ class UVISSensFunc(SensFunc):
                                                     self.meta_spec['ECH_ORDERS'],
                                                     polyorder=self.par['polyorder'],
                                                     balm_mask_wid=self.par['UVIS']['balm_mask_wid'],
+                                                    mask_abs_lines=self.par['mask_abs_lines'],
                                                     nresln=self.par['UVIS']['nresln'],
                                                     resolution=self.par['UVIS']['resolution'],
                                                     trans_thresh=self.par['UVIS']['trans_thresh'],

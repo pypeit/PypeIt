@@ -120,8 +120,10 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
 
     # Sky pixels for fitting
     gpm = thismask & (ivar > 0.0) & inmask & np.logical_not(edgmask)
-    if not np.any(gpm):
-        msgs.warn("Input pixel mask + edges has no good pixels.  There is likely a problem with this slit.")
+    bad_pixel_frac = np.sum(thismask & np.logical_not(gpm))/np.sum(thismask)
+    if bad_pixel_frac > 0.8:
+        msgs.warn('This slit/order has {:5.3f} of the pixels masked, which exceeds the threshold of 0.80. '.format(bad_pixel_frac)
+                  + msgs.newline() + 'There is likely a problem with this slit. Giving up on global sky-subtraction.')
         return np.zeros(np.sum(thismask))
 
     # Sub arrays
@@ -147,10 +149,14 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
                                             ingpm=inmask_fit[pos_sky], upper=sigrej, lower=sigrej,
                                             kwargs_bspline={'bkspace':bsp},
                                             kwargs_reject={'groupbadpix': True, 'maxrej': 10})
-            res = (sky[pos_sky] - np.exp(lsky_fit)) * np.sqrt(sky_ivar[pos_sky])
-            lmask = (res < 5.0) & (res > -4.0)
-            sky_ivar[pos_sky] = sky_ivar[pos_sky] * lmask
-            inmask_fit[pos_sky] = (sky_ivar[pos_sky] > 0.0) & lmask & inmask_prop[pos_sky]
+            if exit_status != 0:
+                msgs.warn('Global sky-subtraction did not exit cleanly for initial positive sky fit.'
+                          + msgs.newline() + 'Initial masking based on positive sky fit will be skipped')
+            else:
+                res = (sky[pos_sky] - np.exp(lsky_fit)) * np.sqrt(sky_ivar[pos_sky])
+                lmask = (res < 5.0) & (res > -4.0)
+                sky_ivar[pos_sky] = sky_ivar[pos_sky] * lmask
+                inmask_fit[pos_sky] = (sky_ivar[pos_sky] > 0.0) & lmask & inmask_prop[pos_sky]
 
     # Include a polynomial basis?
     if no_poly:
@@ -162,11 +168,11 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
 
     # Perform the full fit now
     msgs.info("Full fit in global sky sub.")
-    skyset, outmask, yfit, _, exit_status \
-            = fitting.bspline_profile(pix, sky, sky_ivar, poly_basis, ingpm=inmask_fit, nord=4,
-                                    upper=sigrej, lower=sigrej, maxiter=maxiter,
-                                    kwargs_bspline={'bkspace':bsp},
-                                    kwargs_reject={'groupbadpix':True, 'maxrej': 10})
+    skyset, outmask, yfit, _, exit_status = fitting.bspline_profile(pix, sky, sky_ivar, poly_basis, ingpm=inmask_fit, nord=4,
+                                                                    upper=sigrej, lower=sigrej, maxiter=maxiter,
+                                                                    kwargs_bspline={'bkspace':bsp},
+                                                                    kwargs_reject={'groupbadpix':True, 'maxrej': 10})
+
     # TODO JFH This is a hack for now to deal with bad fits for which iterations do not converge. This is related
     # to the groupbadpix behavior requested for the djs_reject rejection. It would be good to
     # better understand what this functionality is doing, but it makes the rejection much more quickly approach a small
@@ -229,38 +235,38 @@ def skyoptimal(piximg, data, ivar, oprof, sigrej=3.0, npoly=1, spatial_img=None,
     and object flux.
 
     Args:
-        piximg `numpy.ndarray`_:
+        piximg (`numpy.ndarray`_):
            piximg is tilts*(nspec-1) where nspec is the number of pixels in the spectral direction of the raw image.
            This is a wavelength in image coordinates which acts as the independent variable
            for sky and object model fits. This is 1d array (flattened in the calling routine) with shape= (nflat,).
-        data `numpy.ndarray`_:
+        data (`numpy.ndarray`_):
            science data that is being fit. Same shape as piximg.
-        ivar:
+        ivar (`numpy.ndarray`_):
            inverse variance of science data that is being fit. Same shape as piximg.
-        oprof `numpy.ndarray`_:
+        oprof (`numpy.ndarray`_):
            Flattened object profiles for the data that is being fit. Shape = (nflat, nobj) where nobj is the number
            of objects being simultaneously fit. In other words, there are nobj object profiles.
-        sigrej `float`_:
+        sigrej (`float`_):
            Sigma  threshold for outlier rejection.
-        npoly `int_`:
+        npoly (`int_`):
            Order of polynomaial for the sky-background basis function. If spatial_img is passed in a fit with two independent
            variables will be performed (spectral described by piximg, and spatial direction described by spatia_img)
            and a legendre polynomial basis of order npoly will be used for the spatial direction.
            If npoly=1 or if spatial_img is not passed, a flat spatial profile basis funciton will instead be used.
-        spatial_img `numpy.ndarray`_:
+        spatial_img (`numpy.ndarray`_):
            Image of the spatial coordinates of each pixel in the image used for 2d fitting.  Same shape as piximg.
-        fullbkpt `numpy.ndarray`_:
+        fullbkpt (`numpy.ndarray`_):
            A 1d float array containing the breakpoints to be used for the B-spline fit. The breakpoints are arranged
            in the spectral direction,  i.e. along the directino of the piximg independent variable.
 
     Returns:
         sky_bmodel, obj_bmodel, gpm
 
-        sky_bmodel `numpy.ndarray`_:
+        sky_bmodel (`numpy.ndarray`_):
            Array with same shape as piximg containing the B-spline model of the sky.
-        obj_bmodel `numpy.ndarray`_:
+        obj_bmodel (`numpy.ndarray`_):
            Array with same shape as piximg containing the B-spline model of the object flux.
-        gpm `numpy.ndarray`_:
+        gpm (`numpy.ndarray`_):
            Boolean good pixel mask array with the same shape as piximg indicating whether a pixel is good (True)
            or was masked (False).
 

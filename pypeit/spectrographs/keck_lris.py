@@ -178,14 +178,13 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             return binning
         elif 'lampstat' in meta_key:
             idx = int(meta_key[-2:])
-            try:
-                curr_date = time.Time(self.get_meta_value(headarr, 'mjd'), format='mjd')
-            except:
-                msgs.warn('No mjd in header. You either have bad headers, '
-                          'or incorrectly specified the wrong spectrograph, '
-                          'or are reading in other files from your directory.  '
-                          'Using 2022-01-01 as the date for parsing lamp info from headers')
-                curr_date =  time.Time("2022-01-01", format='isot')
+            curr_date = time.Time(self.get_meta_value(headarr, 'mjd'), format='mjd')
+            #except:
+            #    msgs.warn('No mjd in header. You either have bad headers, '
+            #              'or incorrectly specified the wrong spectrograph, '
+            #              'or are reading in other files from your directory.  '
+            #              'Using 2022-01-01 as the date for parsing lamp info from headers')
+            #    curr_date =  time.Time("2022-01-01", format='isot')
             # Modern -- Assuming the change occurred with the new red detector
             t_newlamp = time.Time("2014-02-15", format='isot')  # LAMPS changed in Header
             if curr_date > t_newlamp:
@@ -1103,33 +1102,6 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         return detector
 
 
-    def parse_dither_pattern(self, file_list, ext=None):
-        """
-        Parse headers from a file list to determine the dither pattern.
-
-        Parameters
-        ----------
-        file_list (list of strings):
-            List of files for which dither pattern is desired
-        ext (int, optional):
-            Extension containing the relevant header for these files. Default=None. If None, code uses
-            self.primary_hdrext
-
-        Returns
-        -------
-        dither_pattern, dither_id, offset_arcsec
-
-        dither_pattern (str `numpy.ndarray`_):
-            Array of dither pattern names
-        dither_id (str `numpy.ndarray`_):
-            Array of dither pattern IDs
-        offset_arc (float `numpy.ndarray`_):
-            Array of dither pattern offsets
-        """
-        nfiles = len(file_list)
-        dummy_str_array = np.array(nfiles*[''])
-        dummy_id_array = np.array(nfiles*['A'])
-        return dummy_str_array, dummy_id_array,  np.zeros(nfiles)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -1172,6 +1144,19 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         return par
 
     def get_ql_master_dir(self, file):
+        """
+        Returns master file directory for quicklook reductions.
+
+        Args:
+            file (str):
+              Image file
+
+        Returns:
+            master_dir (str):
+              Quicklook Master directory
+
+        """
+
         lris_grating = self.get_meta_value(file, 'dispname')
         lris_dichroic = self.get_meta_value(file, 'dichroic')
         setup_path = lris_grating.replace('/','_') + '_d' + lris_dichroic
