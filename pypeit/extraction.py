@@ -296,7 +296,8 @@ class Extract:
                 msgs.warn(f'Optimal extraction could not be performed for object at pixel {sobj.SPAT_PIXPOS}')
 
         # Remove them
-        self.sobjs.remove_sobj(idx)
+        if len(remove_idx) > 0:
+            self.sobjs.remove_sobj(remove_idx)
 
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
