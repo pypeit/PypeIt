@@ -285,6 +285,7 @@ class Extract:
                                           show=self.extract_show)
 
         # Remove sobjs that don't have both OPT_COUNTS and BOX_COUNTS
+        embed(header='288 of extraction')
         remove_idx = []
         for idx, sobj in enumerate(self.sobjs):
             # Find them
@@ -296,7 +297,8 @@ class Extract:
                 msgs.warn(f'Optimal extraction could not be performed for object at pixel {sobj.SPAT_PIXPOS}')
 
         # Remove them
-        self.sobjs.remove_sobj(idx)
+        if len(remove_idx) > 0:
+            self.sobjs.remove_sobj(idx)
 
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
