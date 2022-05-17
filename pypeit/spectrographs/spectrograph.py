@@ -1043,24 +1043,29 @@ class Spectrograph:
 
         Args:
             inp (:obj:`str`, :obj:`astropy.io.fits.Header`_, :obj:`list`):
-                Input filename, an `astropy.io.fits.Header`_ object, or a list of
-                 `astropy.io.fits.Header`_ objects
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  If None, function simply
+                returns None without issuing any warnings/errors, unless
+                ``required`` is True.
             meta_key (:obj:`str`, :obj:`list`):
-                A (list of) strings with the keywords to read from the file
+                A (list of) string(s) with the keywords to read from the file
                 header(s).
             required (:obj:`bool`, optional):
-                The metadata is required and must be available. If it is not,
-                the method will raise an exception.
-                This can and is over-ruled by information in the meta dict
+                The metadata are required and must be available. If it is not,
+                the method will raise an exception.  Metadata requirements can
+                be globally defined and/or frame-type specific for each
+                spectrograph, which will override any value given here.  See the
+                ``required`` and ``required_ftype`` keyword in
+                ``self.meta[meta_key]``.
             ignore_bad_header (:obj:`bool`, optional):
                 ``PypeIt`` expects certain metadata values to have specific
                 datatypes. If the keyword finds the appropriate data but it
                 cannot be cast to the correct datatype, this parameter
                 determines whether or not the method raises an exception. If
-                True, the incorrect type is ignored. It is recommended that
-                this be False unless you know for sure that ``PypeIt`` can
-                proceed appropriately.
-                Note: This bool trumps ``required``
+                True, the incorrect type is ignored. It is recommended that this
+                be False unless you know for sure that ``PypeIt`` can proceed
+                appropriately.  This flag takes precedence over ``required``;
+                i.e., if ``ignore_bad_header`` is True, ``required`` is ignored.
             usr_row (`astropy.table.Table`_, optional):
                 A single row table with the user-supplied frametype. This is
                 used to determine if the metadata value is required for each
@@ -1072,18 +1077,40 @@ class Spectrograph:
                 ra/dec.
 
         Returns:
-            object: Value recovered for (each) keyword.
+            Value recovered for (each) keyword.  Can be None.
         """
-        #if meta_key == 'ra':
-        #    embed()
+#        # Code before merge
+#        if isinstance(inp, str):
+#            headarr = self.get_headarr(inp)
+#        elif isinstance(inp, list):
+#            headarr = inp
+#        elif isinstance(inp, Header):
+#            headarr = [inp]
+#        else:
+#            msgs.error('Unrecognized type for input')
+#        # Code from develop
+#        headarr = self.get_headarr(inp) if isinstance(inp, str) else inp
+#        if headarr is None:
+#            if required:
+#                msgs.error(f'Unable to access required metadata value for {meta_key}.  Input is '
+#                           f'either a bad file or an invalid argument to get_meta_value: {inp}.')
+#            return None
+
+        # Merged code
         if isinstance(inp, str):
             headarr = self.get_headarr(inp)
-        elif isinstance(inp, list):
+        elif inp is None or isinstance(inp, list):
             headarr = inp
         elif isinstance(inp, Header):
             headarr = [inp]
         else:
             msgs.error('Unrecognized type for input')
+        
+        if headarr is None:
+            if required:
+                msgs.error(f'Unable to access required metadata value for {meta_key}.  Input is '
+                           f'either a bad file or an invalid argument to get_meta_value: {inp}.')
+            return None
 
         # Loop?
         if isinstance(meta_key, list):
@@ -1098,7 +1125,7 @@ class Spectrograph:
                 return None
 
         # Is this meta required for this frame type (Spectrograph specific)
-        if ('required_ftypes' in self.meta[meta_key]) and (usr_row is not None):
+        if 'required_ftypes' in self.meta[meta_key] and usr_row is not None:
             required = False
             for ftype in self.meta[meta_key]['required_ftypes']:
                 if ftype in usr_row['frametype']:
@@ -1282,7 +1309,8 @@ class Spectrograph:
 
         Args:
             inp (:obj:`str`, `astropy.io.fits.HDUList`_):
-                Name of the file to read or the previously opened HDU list.
+                Name of the file to read or the previously opened HDU list.  If
+                None, the function will simply return None.
             strict (:obj:`bool`, optional):
                 Function will fault if :func:`fits.getheader` fails to read
                 any of the headers. Set to False to report a warning and
@@ -1290,8 +1318,13 @@ class Spectrograph:
 
         Returns:
             :obj:`list`: A list of `astropy.io.fits.Header`_ objects with the
-            extension headers.
+            extension headers.  If ``strict`` is False and ``inp`` is a file
+            name to be opened, the function will return None if
+            :func:`~pypeit.io.fits_open` faults for any reason.
         """
+        if inp is None:
+            return None
+
         # Faster to open the whole file and then assign the headers,
         # particularly for gzipped files (e.g., DEIMOS)
         if isinstance(inp, str):
@@ -1303,7 +1336,7 @@ class Spectrograph:
                 else:
                     msgs.warn('Problem opening {0}.'.format(inp) + msgs.newline()
                               + 'Proceeding, but should consider removing this file!')
-                    return ['None']*999 # self.numhead
+                    return None #['None']*999 # self.numhead
         else:
             hdu = inp
         return [hdu[k].header for k in range(len(hdu))]

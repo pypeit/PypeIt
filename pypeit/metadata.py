@@ -72,7 +72,7 @@ class PypeItMetaData:
         strict (:obj:`bool`, optional):
             Function will fault if there is a problem with the reading
             the header for any of the provided files; see
-            :func:`pypeit.spectrographs.spectrograph.get_headarr`.  Set
+            :func:`~pypeit.spectrographs.spectrograph.get_headarr`.  Set
             to False to instead report a warning and continue.
 
     Attributes:
@@ -193,7 +193,9 @@ class PypeItMetaData:
             if not data['directory'][idx]:
                 data['directory'][idx] = '.'
 
-            # Read the fits headers
+            # Read the fits headers.  NOTE: If the file cannot be opened,
+            # headarr will be None, and the subsequent loop over the meta keys
+            # will fill the data dictionary with None values.
             headarr = self.spectrograph.get_headarr(ifile, strict=strict)
 
             # Grab Meta
@@ -222,10 +224,10 @@ class PypeItMetaData:
             filenames = np.asarray(data['filename'])
             bad_files = filenames[mjd == None]
             # Print status message
-            msg = 'Time invalid for {0} files.\n'.format(len(bad_files))
-            msg += 'Continuing, but the following frames may be empty or have corrupt headers:\n'
+            msg = f'Time invalid for {len(bad_files)} files.\nContinuing, but the following ' \
+                  'frames either could not be opened, are empty, or have corrupt headers:\n'
             for file in bad_files:
-                msg += '    {0}\n'.format(file)
+                msg += f'    {file}\n'
             msgs.warn(msg)
 
         # Return
