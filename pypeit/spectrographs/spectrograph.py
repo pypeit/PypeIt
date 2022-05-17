@@ -1079,24 +1079,6 @@ class Spectrograph:
         Returns:
             Value recovered for (each) keyword.  Can be None.
         """
-#        # Code before merge
-#        if isinstance(inp, str):
-#            headarr = self.get_headarr(inp)
-#        elif isinstance(inp, list):
-#            headarr = inp
-#        elif isinstance(inp, Header):
-#            headarr = [inp]
-#        else:
-#            msgs.error('Unrecognized type for input')
-#        # Code from develop
-#        headarr = self.get_headarr(inp) if isinstance(inp, str) else inp
-#        if headarr is None:
-#            if required:
-#                msgs.error(f'Unable to access required metadata value for {meta_key}.  Input is '
-#                           f'either a bad file or an invalid argument to get_meta_value: {inp}.')
-#            return None
-
-        # Merged code
         if isinstance(inp, str):
             headarr = self.get_headarr(inp)
         elif inp is None or isinstance(inp, list):
