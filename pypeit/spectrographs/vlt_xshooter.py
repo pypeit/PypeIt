@@ -916,7 +916,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
 
         # 1D wavelength solution
         # TODO -- Trim the MagE linelist down for X-Shooter (or supplement!)
-        par['calibrations']['wavelengths']['lamps'] = ['ThAr_MagE'] 
+        par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_UVB']
         par['calibrations']['wavelengths']['rms_threshold'] = 0.50 
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         # Reidentification parameters
