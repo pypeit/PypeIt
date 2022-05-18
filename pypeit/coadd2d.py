@@ -593,7 +593,7 @@ class CoAdd2D:
             objFind.show('image', image=pseudo_dict['imgminsky']*gpm.astype(float),
                        chname='imgminsky', slits=True, clear=True)
 
-        sobjs_obj, nobj = objFind.find_objects(sciImage.image, sciImage.ivar, show_peaks=show_peaks,
+        sobjs_obj, nobj = objFind.find_objects(sciImage.image, sciImage.ivar, show_peaks=show or show_peaks,
                                                save_objfindQA=True)
 
         # maskdef stuff
@@ -627,14 +627,19 @@ class CoAdd2D:
 
         # Local sky-subtraction
         global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
-        skymodel_pseudo, objmodel_pseudo, \
-            ivarmodel_pseudo, outmask_pseudo, sobjs = exTract.local_skysub_extract(global_sky_pseudo, sobjs_obj,
-                                                                                   spat_pix=pseudo_dict['spat_img'],
-                                                                                   model_noise=False, show_profile=show,
-                                                                                   show=show)
 
-        if self.find_negative and not parcopy['reduce']['extraction']['return_negative']:
-            sobjs.purge_neg()
+        skymodel_pseudo, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, _, _ = exTract.run(
+            global_sky_pseudo, prepare_extraction=False, model_noise=False, spat_pix=pseudo_dict['spat_img'])
+
+        # OLD CODE
+        #skymodel_pseudo, objmodel_pseudo, \
+        #    ivarmodel_pseudo, outmask_pseudo, sobjs = exTract.local_skysub_extract(global_sky_pseudo, sobjs_obj,
+        #                                                                           spat_pix=pseudo_dict['spat_img'],
+        #                                                                           model_noise=False, show_profile=show,
+        #                                                                           show=show)
+        #if self.find_negative and not parcopy['reduce']['extraction']['return_negative']:
+        #    sobjs.purge_neg()
+
 
         # Add the rest to the pseudo_dict
         pseudo_dict['skymodel'] = skymodel_pseudo

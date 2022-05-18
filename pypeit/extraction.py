@@ -238,7 +238,7 @@ class Extract:
 #        # For echelle
 #        self.spatial_coo = self.slits.spatial_coordinates(initial=initial, flexure=self.spat_flexure_shift)
 
-    def extract(self, global_sky):
+    def extract(self, global_sky, model_noise=None, spat_pix=None):
         """
         Main method to extract spectra from the ScienceImage
 
@@ -278,16 +278,18 @@ class Extract:
             self.outmask = self.sciImg.fullmask
             self.skymodel = global_sky.copy()
         else:  # Local sky subtraction and optimal extraction.
+            model_noise_1 = (not self.bkg_redux) if model_noise is None else model_noise
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
                 self.local_skysub_extract(global_sky, self.sobjs_obj,
-                                          model_noise=(not self.bkg_redux),
+                                          model_noise=model_noise_1,
+                                          spat_pix = spat_pix,
                                           show_profile=self.extract_show,
                                           show=self.extract_show)
 
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
-    def prepare_extraction(self, global_sky):
+    def prepare_extraction(self):
         """ Prepare the masks and wavelength image for extraction.
         """
         # Deal with dynamic calibrations
@@ -307,12 +309,10 @@ class Extract:
         msgs.info("Generating wavelength image")
         self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
 
-        # Set the initial and global sky
-        self.global_sky = global_sky
 
 
 
-    def run(self, global_sky, ra=None, dec=None, obstime=None):
+    def run(self, global_sky, prepare_extraction=True, model_noise=None, spat_pix=None, ra=None, dec=None, obstime=None):
         """
         Primary code flow for PypeIt reductions
 
@@ -341,7 +341,10 @@ class Extract:
         """
         # Start by preparing some masks and the wavelength image, ready for extraction
         # TODO this should return things to make the control flow less opqaque.
-        self.prepare_extraction(global_sky)
+        if prepare_extraction:
+            self.prepare_extraction()
+
+        self.global_sky = global_sky
 
         # Do we have any positive objects to proceed with?
         if self.nobj_to_extract > 0:
@@ -352,7 +355,7 @@ class Extract:
 
             # Extract + Return
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
-                = self.extract(self.global_sky)
+                = self.extract(self.global_sky, model_noise=model_noise, spat_pix=spat_pix)
 
             if self.bkg_redux:
                 self.sobjs.make_neg_pos() if self.return_negative else self.sobjs.purge_neg()
