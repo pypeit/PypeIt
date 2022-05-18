@@ -1166,8 +1166,8 @@ class Coadd2DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, offsets=None, spat_toler=None, weights=None, use_slits4wvgrid=None,
-                 manual=None):
+    def __init__(self, only_slits=None, offsets=None, spat_toler=None, weights=None, user_obj=None,
+                 use_slits4wvgrid=None, manual=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1181,11 +1181,20 @@ class Coadd2DPar(ParSet):
         descr = OrderedDict.fromkeys(pars.keys())
 
         # Offsets
-        defaults['offsets'] = None
+        defaults['only_slits'] = None
+        dtypes['only_slits'] = [int, list]
+        descr['only_slits'] = 'Slit ID, or list of slit IDs that the user want to restrict the coadd to.' \
+                              'I.e., only this/these slit/s will be coadded.'
+
+        defaults['offsets'] = 'auto'
         dtypes['offsets'] = [list, str]
-        descr['offsets'] = 'User-input list of offsets for the images being combined (spat pixels). ' \
+        descr['offsets'] = 'Offsets for the images being combined (spat pixels). Options are: ' \
+                           '``maskdef_offsets``, ``auto``, and a list of offsets.' \
                            'Use ``maskdef_offsets`` to use the offsets computed during the slitmask ' \
-                           'design matching (currently available for DEIMOS and MOSFIRE only).'
+                           'design matching (currently available for DEIMOS and MOSFIRE only). If ``auto`` ' \
+                           'is chosen, PypeIt will try to compute the offsets using a reference object ' \
+                           'with the highest S/N, or an object selected by the user (see ``user_obj``). ' \
+                           'If a list of offsets is provided, PypeIt will use it. '
 
         defaults['spat_toler'] = 5
         dtypes['spat_toler'] = int
@@ -1197,13 +1206,29 @@ class Coadd2DPar(ParSet):
         dtypes['use_slits4wvgrid'] = bool
         descr['use_slits4wvgrid'] = 'If True, use the slits to set the trace down the center'
 
-        # TODO -- Provide all the weights options here
         # Weights
         defaults['weights'] = 'auto'
         dtypes['weights'] = [str, list]
-        descr['weights'] = 'Mode for the weights used to coadd images.  See coadd2d.py for all options.'
+        descr['weights'] = 'Mode for the weights used to coadd images. Options are: ' \
+                           '``auto``, ``uniform``, or a list of weights. If ``auto`` is used, ' \
+                           'PypeIt will try to compute the weights using a reference object ' \
+                           'with the highest S/N, or an object selected by the user (see ``user_obj``), ' \
+                           'if ``uniform`` is used, uniform weights will be applied. If a list of weights ' \
+                           'is provided, PypeIt will use it.'
 
-        # Weights
+        # object to use for weights and offsets
+        defaults['user_obj'] = None
+        dtypes['user_obj'] = [int, list]
+        descr['user_obj'] = 'Object that the user wants to use to compute the weights and/or the ' \
+                            'offsets for coadding images. For slit spectroscopy, provide the ' \
+                            '``SLITID`` and the ``OBJID``, separated by comma, of the selected object. ' \
+                            'For echelle spectroscopy, provide the ``ECH_OBJID`` of the selected object. ' \
+                            'See :doc:`out_spec1D`for more info about ``SLITID``, ``OBJID`` and ``ECH_OBJID``. ' \
+                            'If this parameter is not ``None``, it will be used to compute the offsets ' \
+                            'only if ``offsets = auto``, and it will used to compute ' \
+                            'the weights only if ``weights = auto``.'
+
+        # manual extraction
         defaults['manual'] = None
         dtypes['manual'] = str
         descr['manual'] = 'Manual extraction parameters. det:spat:spec:fwhm. ' \
@@ -1221,7 +1246,7 @@ class Coadd2DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['offsets', 'spat_toler', 'weights', 'use_slits4wvgrid', 'manual']
+        parkeys = ['only_slits', 'offsets', 'spat_toler', 'weights', 'user_obj', 'use_slits4wvgrid', 'manual']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
