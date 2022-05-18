@@ -314,15 +314,15 @@ class FindObjects:
 
         # Check if the user wants to use a pre-defined sky regions file.
         skymask0, usersky = self.load_skyregions(None)
-        # Perform a first pass sky-subtraction without masking any objects
+        # Perform a first pass sky-subtraction without masking any objects. Should  we make this no_poly=True to
+        # have fewer degrees of freedom in the with with-object global sky fits??
         initial_sky0 = self.global_skysub(skymask=skymask0, update_crmask=False, objs_not_masked=True).copy()
-        # First pass object finding (JFH added skysubtraction here)
+        # First pass object finding
         sobjs_obj, self.nobj = \
             self.find_objects(self.sciImg.image-initial_sky0, self.sciImg.ivar, std_trace=std_trace,
                               show_peaks=show_peaks,
                               show=self.findobj_show and not self.std_redux,
                               save_objfindQA=self.par['reduce']['findobj']['skip_second_find'] | self.std_redux)
-
         # create skymask using first pass sobjs_obj
         skymask_init = self.create_skymask(sobjs_obj)
         # Check if the user wants to overwrite the skymask with a pre-defined sky regions file.
@@ -944,6 +944,11 @@ class EchelleFindObjects(FindObjects):
             objfindQA_filename = qa.set_qa_filename(basename, 'obj_profile_qa', slit=999,
                                                     det=self.detname, out_dir=out_dir)
 
+        #This could cause problems if there are more than one object on the echelle slit, i,e, this tacitly
+        #assumes that the standards for echelle have a single object. If this causes problems, we could make an
+        #nperorder_std as a parameter in the parset that the user can adjust.
+        nperorder = 1 if self.std_redux else self.par['reduce']['findobj']['maxnumber']
+
         sobjs_ech = findobj_skymask.ech_objfind(
             image, ivar, self.slitmask, self.slits_left, self.slits_right,
             self.order_vec, self.reduce_bpm, det=self.det,
@@ -957,7 +962,7 @@ class EchelleFindObjects(FindObjects):
             trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
             fwhm=self.par['reduce']['findobj']['find_fwhm'],
             use_user_fwhm=self.par['reduce']['extraction']['use_user_fwhm'],
-            nperorder=self.par['reduce']['findobj']['maxnumber'],
+            nperorder=nperorder,
             maxdev=self.par['reduce']['findobj']['find_maxdev'],
             max_snr=self.par['reduce']['findobj']['ech_find_max_snr'],
             min_snr=self.par['reduce']['findobj']['ech_find_min_snr'],

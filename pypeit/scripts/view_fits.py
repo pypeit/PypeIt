@@ -26,6 +26,9 @@ class ViewFits(scriptbase.ScriptBase):
                             help='Process the image (i.e. orient, overscan subtract, multiply by '
                                  'gain) using pypeit.images.buildimage. Note det=mosaic will not '
                                  'work with this option')
+        parser.add_argument('--bkg_file', type=str, default=None, help='FITS file to be subtracted from the image in file.'
+                            '--proc must be set in order for this option to work.')
+
         parser.add_argument('--exten', type=int, default=None,
                             help='Show a FITS extension in the raw file. Note --proc and --mosaic '
                                  'will not work with this option.')
@@ -95,11 +98,22 @@ class ViewFits(scriptbase.ScriptBase):
                 # perform bias subtraction or flat-fielding)
                 par = spectrograph.default_pypeit_par()['calibrations']['biasframe']
                 try:
-                    img = buildimage.buildimage_fromlist(spectrograph, _det, par,
-                                                         [args.file], mosaic=mosaic).image
+                    Img = buildimage.buildimage_fromlist(spectrograph, _det, par,
+                                                         [args.file], mosaic=mosaic)
                 except Exception as e:
                     msgs.error(bad_read_message 
                                + f'  Original exception -- {type(e).__name__}: {str(e)}')
+
+                if args.bkg_file is not None:
+                    try:
+                        bkgImg = buildimage.buildimage_fromlist(spectrograph, _det, par, [args.bkg_file], mosaic=mosaic)
+                    except Exception as e:
+                        msgs.error(bad_read_message
+                                   + f'  Original exception -- {type(e).__name__}: {str(e)}')
+                    Img = Img.sub(bkgImg, par['process'])
+
+                img = Img.image
+
             else:
                 try:
                     img = spectrograph.get_rawimage(args.file, _det)[1]
