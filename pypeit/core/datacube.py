@@ -515,20 +515,29 @@ def extract_standard_spec(stdcube, subsample=20, method='boxcar'):
     skyspec *= utils.inverse(nrmsky)
     flxcube -= skyspec.reshape((1, 1, numwave))
 
+    # Subtract the residual sky from the whitelight image
+    sky_val = np.sum(wl_img[:,:,np.newaxis] * smask) / np.sum(smask)
+    wl_img -= sky_val
+
     if method == 'boxcar':
         msgs.info("Extracting a boxcar spectrum of datacube")
+        # Construct an image that contains the fraction of flux included in the
+        # boxcar extraction at each wavelength interval
+        norm_flux = wl_img[:,:,np.newaxis] * mask
+        norm_flux /= np.sum(norm_flux)
         # Extract boxcar
-        cntmask = (varcube > 0.0) * mask
+        cntmask = (varcube > 0.0) * mask  # Good pixels within the masked region around the standard star
+        flxscl = (norm_flux * cntmask).sum(0).sum(0)  # This accounts for the flux that is missing due to masked pixels
         scimask = flxcube * cntmask
         varmask = varcube * cntmask**2
-        cnt_spec = cntmask.sum(0).sum(0) * utils.inverse(mask.sum())
-        nrmcnt = utils.inverse(cnt_spec)
+        nrmcnt = utils.inverse(flxscl)
         box_flux = scimask.sum(0).sum(0) * nrmcnt
         box_var = varmask.sum(0).sum(0) * nrmcnt**2
-        box_gpm = np.ones(box_flux.size, dtype=np.bool)
+        box_gpm = flxscl > 0.5  # Good pixels are those where at least half the standard star flux is measured
         # Setup the return values
         ret_flux, ret_var, ret_gpm = box_flux, box_var, box_gpm
     elif method == 'gauss2d':
+        msgs.error("Use method=boxcar... this method has not been thoroughly tested")
         # Generate a mask
         fitmask = (varcube > 0.0) * mask
         # Setup the coordinates
@@ -572,6 +581,7 @@ def extract_standard_spec(stdcube, subsample=20, method='boxcar'):
         # Setup the return values
         ret_flux, ret_var, ret_gpm = opt_flux, opt_var, opt_gpm
     elif method == 'optimal':
+        msgs.error("Use method=boxcar... this method has not been thoroughly tested")
         # First do a boxcar along one dimension
         msgs.info("Collapsing datacube to a 2D image")
         omask = mask+smask
@@ -1145,13 +1155,14 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                 Nlam_ivar_star *= grat_corr**2
 
             # TODO :: remove this code for debugging
-            wok = np.where((wave.value>3975.0)&(wave.value<4400.0))
-            wave = wave[wok]
-            Nlam_star = Nlam_star[wok]
-            Nlam_ivar_star = Nlam_ivar_star[wok]
-            gpm_star = gpm_star[wok]
-            plt.subplot(211)
+#            wbad = np.where(Nlam_star*np.sqrt(Nlam_ivar_star) < 5.0)  # Only use significant detections
+#            wbad = np.where((wave.value < 3965.0) | (wave.value > 4425.0))
+#            gpm_star[wbad] = False
+            plt.subplot(311)
             plt.plot(wave.data, Nlam_star, col[ss]+'-')
+            plt.subplot(312)
+#            plt.plot(wave.data, Nlam_star*np.sqrt(Nlam_ivar_star), col[ss]+'-')
+            plt.plot(wave.data, gpm_star, col[ss]+'-')
 
             # Read in some information above the standard star
             std_dict = get_standard_spectrum(star_type=senspar['star_type'],
@@ -1166,9 +1177,9 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                               polycorrect=senspar['UVIS']['polycorrect'], polyfunc=senspar['UVIS']['polyfunc'])
             wgd = np.where(zeropoint_fit_gpm)
             sens = np.power(10.0, -0.4 * (zeropoint_fit[wgd] - ZP_UNIT_CONST)) / np.square(wave[wgd])
-            flux_spline = interp1d(wave[wgd], sens, kind='linear', bounds_error=False, fill_value="extrapolate")
+            flux_spline = interp1d(wave[wgd], sens, kind='linear', bounds_error=False, fill_value=np.median(sens))#"extrapolate")
             # TODO : REMOVE - just debugging...
-            plt.subplot(212)
+            plt.subplot(313)
             plt.plot(wave, flux_spline(wave), col[ss]+'-')
         plt.show()
         embed()

@@ -1072,8 +1072,9 @@ def compute_zeropoint(wave, N_lam, N_lam_gpm, flam_std_star, tellmodel=None):
     zeropoint_gpm (`numpy.ndarray`_):
         Zeropoint good pixel mask, bool, shape  (nspec,)
     """
-
+    # Set the optional parameters
     tellmodel = np.ones_like(N_lam) if tellmodel is None else tellmodel
+    # Calculate the zeropoint
     S_nu_dimless = np.square(wave)*tellmodel*flam_std_star*utils.inverse(N_lam)
     zeropoint = -2.5*np.log10(S_nu_dimless + (S_nu_dimless <= 0.0)) + ZP_UNIT_CONST
     zeropoint_gpm = N_lam_gpm & np.isfinite(zeropoint) & (N_lam > 0.0) & (S_nu_dimless > 0.0) & \
@@ -1219,12 +1220,7 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
     if mask_balm is None:
         mask_balm = np.ones_like(wave, dtype=bool)
 
-    #S_nu_dimless = np.square(wave)*flam_true*utils.inverse(Nlam)*(Nlam > 0.0)
-    #zeropoint_data = -2.5*np.log10(S_nu_dimless) + telluric.zp_unit_const()
-    # zeropoint_gpm is the pixels for which zp is not defined, zeropoint_fitmask includes additional Balmer/Telluric masking for polyfit
-    #zeropoint_gpm = Nlam_gpm & np.isfinite(zeropoint_data) & (Nlam > 0.0) & np.isfinite(flam_true) & (wave > 1.0)
     zeropoint_data, zeropoint_data_gpm = compute_zeropoint(wave, Nlam, Nlam_gpm, flam_true)
-
 
     zeropoint_fitmask = zeropoint_data_gpm & mask_tell & mask_balm
     wave_min = wave[wave > 1.0].min()
@@ -1236,11 +1232,15 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
                                 grow=0, sticky=True, use_mad=True)
 
     zeropoint_poly = pypeitFit.eval(wave)
-    # Robustly characterize the stanarad deviation for the b-spline fitting.
+    # Robustly characterize the standard deviation for the b-spline fitting.
     zp_dev_mean, zp_dev_median, zp_std = stats.sigma_clipped_stats(zeropoint_data - zeropoint_poly, np.invert(zeropoint_fitmask),
                                                                    cenfunc='median', stdfunc=utils.nan_mad_std,
                                                                    maxiters=10, sigma_lower=lower, sigma_upper=upper)
-    zeropoint_ivar = np.ones_like(zeropoint_data)/zp_std**2
+    #zeropoint_ivar = np.ones_like(zeropoint_data)/zp_std**2
+    Nlam_fit = zeropoint_poly...
+    # S_nu_dimless = np.square(wave)*tellmodel*flam_std_star*utils.inverse(N_lam)
+    # zeropoint = -2.5*np.log10(S_nu_dimless + (S_nu_dimless <= 0.0)) + ZP_UNIT_CONST
+    zeropoint_ivar = Nlam_ivar * (np.log(10)*Nlam_fit/2.5)**2
 
     ZP_MAX = 40.0
     ZP_MIN = 5.0
@@ -1302,6 +1302,8 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
     zeropoint_bspl, zeropoint_fit_gpm = bset1.value(wave)
     zeropoint_bspl_bkpt, _ = bset1.value(init_breakpoints)
 
+    #embed()
+
     if debug:
         # Check for calibration
         plt.figure(1)
@@ -1341,7 +1343,7 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
 
 
     # TODO Should we return the bspline fitmask here?
-    return zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm
+    return zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fitmask#zeropoint_fit_gpm
 
 def load_filter_file(filter):
     """
