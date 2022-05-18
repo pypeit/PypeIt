@@ -42,6 +42,8 @@ class DataCube(datamodel.DataContainer):
             Wavelength array of the spectral blaze function
         blaze_spec (`numpy.ndarray`_):
             The spectral blaze function
+        sensfunc (`numpy.ndarray`_, None):
+            Sensitivity function (nwave,). Only saved if the data are fluxed.
         PYP_SPEC (str):
             Name of the PypeIt Spectrograph
         fluxed (bool):
@@ -65,6 +67,7 @@ class DataCube(datamodel.DataContainer):
                  'variance': dict(otype=np.ndarray, atype=np.floating, descr='Variance array (matches units of flux)'),
                  'blaze_wave': dict(otype=np.ndarray, atype=np.floating, descr='Wavelength array of the spectral blaze function'),
                  'blaze_spec': dict(otype=np.ndarray, atype=np.floating, descr='The spectral blaze function'),
+                 'sensfunc': dict(otype=np.ndarray, atype=np.floating, descr='Sensitivity function 10^-17 erg/(counts/cm^2)'),
                  'PYP_SPEC': dict(otype=str, descr='PypeIt: Spectrograph name'),
                  'fluxed': dict(otype=bool, descr='Boolean indicating if the datacube is fluxed.')}
 
@@ -88,7 +91,7 @@ class DataCube(datamodel.DataContainer):
         slf.spect_meta = slf.spectrograph.parse_spec_header(slf.head0)
         return slf
 
-    def __init__(self, flux, variance, PYP_SPEC, blaze_wave, blaze_spec, fluxed=None):
+    def __init__(self, flux, variance, PYP_SPEC, blaze_wave, blaze_spec, sensfunc=None, fluxed=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
@@ -946,7 +949,7 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
 
 def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bins,
                       overwrite=False, blaze_wave=None, blaze_spec=None, fluxcal=False,
-                      specname="PYP_SPEC", debug=False):
+                      sensfunc=None, specname="PYP_SPEC", debug=False):
     """
     Save a datacube using the Nearest Grid Point (NGP) algorithm.
 
@@ -971,6 +974,8 @@ def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bin
             Wavelength array of the spectral blaze function
         blaze_spec (`numpy.ndarray`_):
             Spectral blaze function
+        sensfunc (`numpy.ndarray`_, None):
+            Sensitivity function that has been applied to the datacube
         fluxcal (bool):
             Are the data flux calibrated?
         specname (str):
@@ -1006,7 +1011,7 @@ def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bin
         hdu.writeto(outfile_resid, overwrite=overwrite)
 
     msgs.info("Saving datacube as: {0:s}".format(outfile))
-    final_cube = DataCube(datacube.T, var_cube.T, specname, blaze_wave, blaze_spec, fluxed=fluxcal)
+    final_cube = DataCube(datacube.T, var_cube.T, specname, blaze_wave, blaze_spec, sensfunc=sensfunc, fluxed=fluxcal)
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
 
 
@@ -1119,70 +1124,49 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     blaze_wave, blaze_spec = None, None
     blaze_spline, flux_spline = None, None
     if cubepar['standard_cube'] is not None:
-        if type(cubepar['standard_cube']) is str:
-            # Only one cube is supplied, convert to a list
-            cubepar['standard_cube'] = [cubepar['standard_cube']]
         fluxcal = True
         senspar = parset['sensfunc']
-        # If multiple standard stars are provided, loop over to get an average sensitivity function
-        # TODO : Remove the following two lines
-        col = ['r', 'g', 'b']
-        from matplotlib import pyplot as plt
-        for ss, ss_file in enumerate(cubepar['standard_cube']):
-            if not os.path.exists(ss_file):
-                msgs.error("Standard cube does not exist:" + msgs.newline() + ss_file)
-            # Load the standard star cube and retrieve its RA + DEC
-            stdcube = fits.open(ss_file)
-            star_ra, star_dec = stdcube[1].header['CRVAL1'], stdcube[1].header['CRVAL2']
+        ss_file = cubepar['standard_cube']
+        if not os.path.exists(ss_file):
+            msgs.error("Standard cube does not exist:" + msgs.newline() + ss_file)
+        msgs.info(f"Loading standard star cube: {ss_file:s}")
+        # Load the standard star cube and retrieve its RA + DEC
+        stdcube = fits.open(ss_file)
+        star_ra, star_dec = stdcube[1].header['CRVAL1'], stdcube[1].header['CRVAL2']
 
-            # Extract a spectrum of the standard star
-            wave, Nlam_star, Nlam_ivar_star, gpm_star = extract_standard_spec(stdcube)
+        # Extract a spectrum of the standard star
+        wave, Nlam_star, Nlam_ivar_star, gpm_star = extract_standard_spec(stdcube)
 
-            # Extract the information about the blaze
-            if cubepar['grating_corr']:
-                blaze_wave_curr, blaze_spec_curr = stdcube['BLAZE_WAVE'].data, stdcube['BLAZE_SPEC'].data
-                blaze_spline_curr = interp1d(blaze_wave_curr, blaze_spec_curr,
-                                             kind='linear', bounds_error=False, fill_value="extrapolate")
-                # The first standard star cube is used as the reference blaze spline
-                if blaze_spline is None:
-                    blaze_wave, blaze_spec = stdcube['BLAZE_WAVE'].data, stdcube['BLAZE_SPEC'].data
-                    blaze_spline = interp1d(blaze_wave, blaze_spec,
-                                            kind='linear', bounds_error=False, fill_value="extrapolate")
-                # Perform a grating correction
-                grat_corr = calc_grating_corr(wave.data, blaze_wave_curr, blaze_spline_curr, blaze_wave, blaze_spline)
-                # Apply the grating correction to the standard star spectrum
-                Nlam_star /= grat_corr
-                Nlam_ivar_star *= grat_corr**2
+        # Extract the information about the blaze
+        if cubepar['grating_corr']:
+            blaze_wave_curr, blaze_spec_curr = stdcube['BLAZE_WAVE'].data, stdcube['BLAZE_SPEC'].data
+            blaze_spline_curr = interp1d(blaze_wave_curr, blaze_spec_curr,
+                                         kind='linear', bounds_error=False, fill_value="extrapolate")
+            # The first standard star cube is used as the reference blaze spline
+            if blaze_spline is None:
+                blaze_wave, blaze_spec = stdcube['BLAZE_WAVE'].data, stdcube['BLAZE_SPEC'].data
+                blaze_spline = interp1d(blaze_wave, blaze_spec,
+                                        kind='linear', bounds_error=False, fill_value="extrapolate")
+            # Perform a grating correction
+            grat_corr = calc_grating_corr(wave.value, blaze_wave_curr, blaze_spline_curr, blaze_wave, blaze_spline)
+            # Apply the grating correction to the standard star spectrum
+            Nlam_star /= grat_corr
+            Nlam_ivar_star *= grat_corr**2
 
-            # TODO :: remove this code for debugging
-#            wbad = np.where(Nlam_star*np.sqrt(Nlam_ivar_star) < 5.0)  # Only use significant detections
-#            wbad = np.where((wave.value < 3965.0) | (wave.value > 4425.0))
-#            gpm_star[wbad] = False
-            plt.subplot(311)
-            plt.plot(wave.data, Nlam_star, col[ss]+'-')
-            plt.subplot(312)
-#            plt.plot(wave.data, Nlam_star*np.sqrt(Nlam_ivar_star), col[ss]+'-')
-            plt.plot(wave.data, gpm_star, col[ss]+'-')
-
-            # Read in some information above the standard star
-            std_dict = get_standard_spectrum(star_type=senspar['star_type'],
-                                             star_mag=senspar['star_mag'],
-                                             ra=star_ra, dec=star_dec)
-            # Calculate the sensitivity curve
-            zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm =\
-                fit_zeropoint(wave.value, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
-                              mask_abs_lines=senspar['mask_abs_lines'], balm_mask_wid=senspar['UVIS']['balm_mask_wid'],
-                              nresln=senspar['UVIS']['nresln'], resolution=senspar['UVIS']['resolution'],
-                              trans_thresh=senspar['UVIS']['trans_thresh'], polyorder=senspar['polyorder'],
-                              polycorrect=senspar['UVIS']['polycorrect'], polyfunc=senspar['UVIS']['polyfunc'])
-            wgd = np.where(zeropoint_fit_gpm)
-            sens = np.power(10.0, -0.4 * (zeropoint_fit[wgd] - ZP_UNIT_CONST)) / np.square(wave[wgd])
-            flux_spline = interp1d(wave[wgd], sens, kind='linear', bounds_error=False, fill_value=np.median(sens))#"extrapolate")
-            # TODO : REMOVE - just debugging...
-            plt.subplot(313)
-            plt.plot(wave, flux_spline(wave), col[ss]+'-')
-        plt.show()
-        embed()
+        # Read in some information above the standard star
+        std_dict = get_standard_spectrum(star_type=senspar['star_type'],
+                                         star_mag=senspar['star_mag'],
+                                         ra=star_ra, dec=star_dec)
+        # Calculate the sensitivity curve
+        zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm =\
+            fit_zeropoint(wave.value, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
+                          mask_abs_lines=senspar['mask_abs_lines'], balm_mask_wid=senspar['UVIS']['balm_mask_wid'],
+                          nresln=senspar['UVIS']['nresln'], resolution=senspar['UVIS']['resolution'],
+                          trans_thresh=senspar['UVIS']['trans_thresh'], polyorder=senspar['polyorder'],
+                          polycorrect=senspar['UVIS']['polycorrect'], polyfunc=senspar['UVIS']['polyfunc'])
+        wgd = np.where(zeropoint_fit_gpm)
+        sens = np.power(10.0, -0.4 * (zeropoint_fit[wgd] - ZP_UNIT_CONST)) / np.square(wave[wgd])
+        flux_spline = interp1d(wave[wgd], sens, kind='linear', bounds_error=False, fill_value="extrapolate")
 
     # If a reference image has been set, check that it exists
     if cubepar['reference_image'] is not None:
@@ -1233,8 +1217,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         if opts[ff]['scale_corr'] is not None:
             try:
                 msgs.info("Loading relative scale image")
-                spec2DObj = spec2dobj.Spec2DObj.from_file(opts[ff]['scale_corr'], detname)
-                relScaleImg = spec2DObj.scaleimg
+                spec2DObj_scl = spec2dobj.Spec2DObj.from_file(opts[ff]['scale_corr'], detname)
+                relScaleImg = spec2DObj_scl.scaleimg
             except:
                 msgs.warn("Could not load scaleimg from spec2d file:" + msgs.newline() + opts[ff]['scale_corr'])
                 if cubepar['scale_corr'] is not None:
@@ -1552,7 +1536,14 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     pix_coord = masterwcs.wcs_world2pix(all_ra, all_dec, all_wave * 1.0E-10, 0)
     hdr = masterwcs.to_header()
 
+    sensfunc = None
+    if flux_spline is not None:
+        wcs_wav = masterwcs.wcs_pix2world(np.vstack((np.zeros(numwav), np.zeros(numwav), np.arange(numwav))).T, 0)
+        senswave = wcs_wav[:, 2] * 1.0E10
+        sensfunc = flux_spline(senswave)
+
     # Generate a datacube using nearest grid point (NGP)
     msgs.info("Generating data cube")
     generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bins, overwrite=overwrite,
-                      blaze_wave=blaze_wave, blaze_spec=blaze_spec, fluxcal=fluxcal, specname=specname)
+                      blaze_wave=blaze_wave, blaze_spec=blaze_spec, sensfunc=sensfunc, fluxcal=fluxcal,
+                      specname=specname)
