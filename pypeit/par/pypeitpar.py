@@ -1305,13 +1305,10 @@ class CubePar(ParSet):
                                    'prefixed with "spec3d_"'
 
         defaults['standard_cube'] = None
-        dtypes['standard_cube'] = [str, list]
+        dtypes['standard_cube'] = str
         descr['standard_cube'] = 'Filename of a standard star datacube. This cube will be used to correct ' \
                                  'the relative scales of the slits, and to flux calibrate the science ' \
-                                 'datacube. If you provide a comma-separated list of standard star cubes, ' \
-                                 'PypeIt will calculate an average sensitivity function based on the input ' \
-                                 'standard star cubes. When a list of cubes is provided, the first standard ' \
-                                 'star cube is used as reference for the relative scales of the slits.'
+                                 'datacube.'
 
         defaults['reference_image'] = None
         dtypes['reference_image'] = str
