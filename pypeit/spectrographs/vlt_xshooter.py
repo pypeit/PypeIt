@@ -680,6 +680,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['reduce']['extraction']['model_full_slit'] = True
         # Mask 3 edges pixels since the slit is short, insted of default (5,5)
         par['reduce']['findobj']['find_trim_edge'] = [3,3]
+        par['reduce']['findobj']['maxnumber'] = 1  # Assume that there is only one object on the slit.
         # Continnum order for determining thresholds
 
         # Sensitivity function parameters

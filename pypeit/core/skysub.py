@@ -122,7 +122,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
     gpm = thismask & (ivar > 0.0) & inmask & np.logical_not(edgmask)
     bad_pixel_frac = np.sum(thismask & np.logical_not(gpm))/np.sum(thismask)
     if bad_pixel_frac > 0.8:
-        msgs.warn('This slit/order has {:5.3f} of the pixels masked, which exceeds the threshold of 0.80. '.format(bad_pixel_frac)
+        msgs.warn('This slit/order has {:5.3f}% of the pixels masked, which exceeds the threshold of 90%. '.format(bad_pixel_frac*100.0)
                   + msgs.newline() + 'There is likely a problem with this slit. Giving up on global sky-subtraction.')
         return np.zeros(np.sum(thismask))
 

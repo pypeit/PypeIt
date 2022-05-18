@@ -176,7 +176,8 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         par['calibrations']['slitedges']['pca_order'] = 3
 
         # Model entire slit
-        par['reduce']['extraction']['model_full_slit'] = True # local sky subtraction operates on entire slit
+        par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
+        par['reduce']['findobj']['maxnumber'] = 1  # Slit is narrow so allow one object per order
 
         # Processing steps
         turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,

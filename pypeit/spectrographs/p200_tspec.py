@@ -154,6 +154,10 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
 
+        # Model entire slit
+        par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
+        par['reduce']['findobj']['maxnumber'] = 1  # Slit is narrow so allow one object per order
+
         # Flexure
         par['flexure']['spec_method'] = 'skip'
 
