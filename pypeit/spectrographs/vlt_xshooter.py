@@ -915,14 +915,12 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slitedges']['length_range'] = 0.3
 
         # 1D wavelength solution
-        # TODO -- Trim the MagE linelist down for X-Shooter (or supplement!)
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_UVB']
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.50 
-        par['calibrations']['wavelengths']['sigdetect'] = 5.0
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.60 
+        par['calibrations']['wavelengths']['sigdetect'] = 3.0 # Pretty faint lines in places
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
-        # ToDo the arxived solution is for 1x1 binning. It needs to be generalized for different binning!
-        #par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_uvb1x1_iraf.json'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_uvb1x1.fits'
         par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
