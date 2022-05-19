@@ -1,0 +1,18 @@
+# Creation Date: 2022-Feb-28
+# VACUUM -- MUST BE IN NIST
+| ion |       wave | NIST | Instr | amplitude |                    Source |
+| HgI |  2968.1495 |    1 |     0 |      3000 | ldt_deveny_300_HgCdAr.fits |
+| HgI |  3022.384  |    1 |     0 |      1200 | ldt_deveny_300_HgCdAr.fits |
+| HgI |  3342.4450 |    1 |     0 |       700 | ldt_deveny_300_HgCdAr.fits |
+| HgI |  3651.1980 |    1 |     6 |      7408 | lrisb_600_4000_PYPIT.json |
+| HgI |  3664.3270 |    1 |     2 |      1042 | lrisb_600_4000_PYPIT.json |
+| HgI |  4047.7080 |    1 |     6 |     12902 | lrisb_600_4000_PYPIT.json |
+| HgI |  4078.9880 |    1 |     6 |       884 | lrisb_600_4000_PYPIT.json |
+| HgI |  4340.4431 |    1 |     0 |        50 | ldt_deveny_1200_HgCdAr.fits |
+| HgI |  4348.7166 |    1 |     0 |       150 | ldt_deveny_1200_HgCdAr.fits |
+| HgI |  4359.5600 |    1 |     6 |     38125 | lrisb_600_4000_PYPIT.json |
+| HgI |  4917.4406 |    1 |     0 |       500 | ldt_deveny_600_HgCdAr.fits |
+| HgI |  5462.2680 |    1 |    15 |     28377 | lrisb_600_4000_PYPIT.json |
+| HgI |  5771.2100 |    1 |     9 |      5510 | lrisr_600_7500_PYPIT.json |
+| HgI |  5792.2760 |    1 |     9 |      6029 | lrisr_600_7500_PYPIT.json |
+| HgI |  6909.37   |    1 |     0 |      1000 | ldt_deveny_1200_HgCdAr.fits |

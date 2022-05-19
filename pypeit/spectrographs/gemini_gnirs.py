@@ -81,14 +81,16 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
         # Reduce parameters
-        par['reduce']['findobj']['sig_thresh'] = 5.0          # Object finding threshold
+        #par['reduce']['findobj']['snr_thresh'] = 5.0          # Object finding threshold
         par['reduce']['findobj']['find_trim_edge'] = [2,2]    # Slit is too short to trim 5,5 especially
-        par['reduce']['findobj']['find_cont_fit'] = False     # Don't continuum fit objfind for narrow slits
-        par['reduce']['findobj']['find_npoly_cont'] = 0       # Continnum order for determining thresholds
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['skysub']['global_sky_std']  = False    # Do not perform global sky subtraction for standard stars
         par['reduce']['skysub']['no_poly'] = True             # Do not use polynomial degree of freedom for global skysub
         par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
+        par['reduce']['findobj']['maxnumber_sci'] = 2  # Slit is narrow so allow one object per order
+        par['reduce']['findobj']['maxnumber_std'] = 1  # Slit is narrow so allow one object per order
+        # Standards
+        par['calibrations']['standardframe']['process']['mask_cr'] = False # Do not mask_cr standards
 
         # Do not correct for flexure
         par['flexure']['spec_method'] = 'skip'
