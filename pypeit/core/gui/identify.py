@@ -1,7 +1,6 @@
 from datetime import datetime
 import os
 import copy
-from re import I
 import numpy as np
 import matplotlib
 try:

@@ -5006,12 +5006,13 @@ class EdgeTraceSet(DataContainer):
                 _indx = np.array([2*ii, 2*ii+1])
                 self.edge_msk[:,_indx] = self.bitmask.turn_on(
                     self.edge_msk[:,_indx], 'ORDERMISMATCH')
-            # Redo the above                                                            
+            # Redo the above calculations                                                            
             slit_cen = slit_cen[np.invert(bad_slits)]
             sep = self.spectrograph.order_spat_pos[:,None] - slit_cen[None,:] - offset
             slit_indx = np.ma.MaskedArray(np.ma.argmin(np.absolute(sep), axis=1))
-        elif slit_cen.size < self.spectrograph.order_spat_pos.size:
-            msgs.error("We detected fewer orders than expecting.  Modify your edge finding parameters!")
+        # TODO -- Should I keep this on, or might we succeed (possible)?
+        #elif slit_cen.size < self.spectrograph.order_spat_pos.size:
+        #    msgs.error("We detected fewer orders than expecting.  Modify your edge finding parameters!")
 
 
         # Minimum separation between the order and its matching slit;

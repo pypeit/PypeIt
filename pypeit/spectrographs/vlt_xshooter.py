@@ -622,16 +622,15 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # calibrations since it appears to be a different amplifier readout
         par['calibrations']['traceframe']['process']['overscan_method'] = 'median'
 
+        par['scienceframe']['process']['use_biasimage']=True
+        par['scienceframe']['process']['use_illumflat']=True
+        par['scienceframe']['process']['use_pixelflat']=True
         # Right now we are using the overscan and not biases becuase the
         # standards are read with a different read mode and we don't yet have
         # the option to use different sets of biases for different standards,
         # or use the overscan for standards but not for science frames
-        par['scienceframe']['process']['use_biasimage']=True
-        par['scienceframe']['process']['use_illumflat']=True
-        par['scienceframe']['process']['use_pixelflat']=True
         par['calibrations']['standardframe']['process']['use_illumflat']=True
         par['calibrations']['standardframe']['process']['use_pixelflat']=True
-        #par['scienceframe']['useframe'] ='overscan'
 
         par['calibrations']['slitedges']['edge_thresh'] = 8.0
         par['calibrations']['slitedges']['fit_order'] = 8
@@ -643,14 +642,14 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # These are the defaults
         par['calibrations']['tilts']['tracethresh'] = 15
         par['calibrations']['tilts']['spat_order'] =  3
-        par['calibrations']['tilts']['spec_order'] =  5 # [5, 5, 5] + 12*[7] # + [5]
+        par['calibrations']['tilts']['spec_order'] =  5 
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_VIS']
-        # This is for 1x1 binning. TODO GET BINNING SORTED OUT!!
+        # The following is for 1x1 binning. TODO GET BINNING SORTED OUT!!
         par['calibrations']['wavelengths']['rms_threshold'] = 0.50
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
-        par['calibrations']['wavelengths']['n_final'] = [3] + 13*[4] + [3]
+        par['calibrations']['wavelengths']['n_final'] = [3] + 10*[4] 
         # This is for 1x1 binning. Needs to be divided by binning for binned data!!
         par['calibrations']['wavelengths']['fwhm'] = 11.0
         # Reidentification parameters
