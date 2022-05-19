@@ -310,7 +310,6 @@ class FindObjects:
             tilt_flexure_shift = self.spat_flexure_shift
         msgs.info("Generating tilts image")
         self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
-        #
 
         # Check if the user wants to use a pre-defined sky regions file.
         skymask0, usersky = self.load_skyregions(None)
@@ -798,6 +797,8 @@ class MultiSlitFindObjects(FindObjects):
                 objfindQA_filename = qa.set_qa_filename(basename, 'obj_profile_qa', slit=slit_spat,
                                                         det=self.detname, out_dir=out_dir)
 
+            maxnumber =  self.par['reduce']['findobj']['maxnumber_std'] if self.std_redux \
+                else self.par['reduce']['findobj']['maxnumber_sci']
             sobjs_slit = \
                     findobj_skymask.objs_in_slit(image, ivar, thismask,
                                 self.slits_left[:,slit_idx],
@@ -815,7 +816,7 @@ class MultiSlitFindObjects(FindObjects):
                                 boxcar_rad=self.par['reduce']['extraction']['boxcar_radius'] / self.get_platescale(),  #pixels
                                 maxdev=self.par['reduce']['findobj']['find_maxdev'],
                                 find_min_max=self.par['reduce']['findobj']['find_min_max'],
-                                qa_title=qa_title, nperslit=self.par['reduce']['findobj']['maxnumber'],
+                                qa_title=qa_title, nperslit=maxnumber,
                                 objfindQA_filename=objfindQA_filename,
                                 debug_all=debug)
             # Record
@@ -947,7 +948,8 @@ class EchelleFindObjects(FindObjects):
         #This could cause problems if there are more than one object on the echelle slit, i,e, this tacitly
         #assumes that the standards for echelle have a single object. If this causes problems, we could make an
         #nperorder_std as a parameter in the parset that the user can adjust.
-        nperorder = 1 if self.std_redux else self.par['reduce']['findobj']['maxnumber']
+        nperorder =  self.par['reduce']['findobj']['maxnumber_std'] if self.std_redux \
+            else self.par['reduce']['findobj']['maxnumber_sci']
 
         sobjs_ech = findobj_skymask.ech_objfind(
             image, ivar, self.slitmask, self.slits_left, self.slits_right,

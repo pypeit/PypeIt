@@ -283,7 +283,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['reduce']['skysub']['global_sky_std']  = False # Do not perform global sky subtraction for standard stars
         par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
         par['reduce']['findobj']['trace_npoly'] = 8
-        par['reduce']['findobj']['maxnumber'] = 1  # Assume that there is only one object on the slit.
+        par['reduce']['findobj']['maxnumber_sci'] = 1  # Assume that there is only one object on the slit.
+        par['reduce']['findobj']['maxnumber_std'] = 1  # Assume that there is only one object on the slit.
 
 
         # The settings below enable X-shooter dark subtraction from the traceframe and pixelflatframe, but enforce
@@ -680,7 +681,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['reduce']['extraction']['model_full_slit'] = True
         # Mask 3 edges pixels since the slit is short, insted of default (5,5)
         par['reduce']['findobj']['find_trim_edge'] = [3,3]
-        par['reduce']['findobj']['maxnumber'] = 1  # Assume that there is only one object on the slit.
+        par['reduce']['findobj']['maxnumber_sci'] = 1  # Assume that there is only one object on the slit.
+        par['reduce']['findobj']['maxnumber_std'] = 1  # Assume that there is only one object on the slit.
         # Continnum order for determining thresholds
 
         # Sensitivity function parameters
