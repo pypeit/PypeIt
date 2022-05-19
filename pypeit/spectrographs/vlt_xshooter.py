@@ -942,6 +942,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['standardframe']['process']['use_illumflat']=True
         par['calibrations']['standardframe']['process']['use_pixelflat']=True
 
+
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.5
         par['reduce']['skysub']['global_sky_std'] = False
@@ -952,6 +953,8 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         par['reduce']['findobj']['find_npoly_cont'] = 0
         # Don't attempt to fit a continuum to the trace rectified image
         par['reduce']['findobj']['find_cont_fit'] = False
+        par['reduce']['findobj']['maxnumber_sci'] = 2  # Assume that there is a max of 2 objects on the slit
+        par['reduce']['findobj']['maxnumber_std'] = 1  # Assume that there is only one object on the slit.
 
         return par
 
