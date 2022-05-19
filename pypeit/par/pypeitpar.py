@@ -3460,7 +3460,7 @@ class FindObjPar(ParSet):
                              'applies per order. Note that objects on a slit/order impact the sky-modeling and so ' \
                              'maxnumber should never be lower than the true number of detectable objects on your slit. ' \
                              'For image differenced observations with positive and negative object traces, maxnumber applies' \
-                             'to the number of positive/negative traces individually. In other words, if you had two positive objects and' \
+                             'to the number of positive (or negative) traces individually. In other words, if you had two positive objects and' \
                              'one negative object, then you would set maxnumber to be equal to two (not three). Note that if manually' \
                              'extracted apertures are explicitly requested, they do not count against this maxnumber. If more than ' \
                              'maxnumber objects are detected, then highest S/N ratio objects will be the ones that are kept.'
