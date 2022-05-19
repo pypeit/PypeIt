@@ -875,7 +875,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
             platescale      = 0.161, # average from order 14 and order 24, see manual
             darkcurr        = 0.0,
             saturation      = 65000.,
-            nonlinear       = 0.86,
+            nonlinear       = 0.86,  
             mincounts       = -1e10,
             numamplifiers   = 1,
             gain            = np.atleast_1d(1.61),
@@ -973,7 +973,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         """
         Number of orders observed for this spectograph.
         """
-        return 12
+        return 11
 
     @property
     def order_spat_pos(self):
@@ -988,17 +988,18 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         """
         # This starts by ignoring the first, partial order (25?)
         #  Order 24 is very faint and not included here
+        #  Order 12 is very faint and not included here (the flat crashes out with issues..)
         return np.array([0.32671887, 0.39553878, 0.45989826, 0.52009878, 0.5764598,
             0.62917188, 0.67859507, 0.72482729, 0.76815531, 0.80879042,
-            0.84700373, 0.88317493])
+            0.84700373])#, 0.88317493])
 
     @property
     def orders(self):
         """
         Return the order number for each echelle order.
         """
-        return np.arange(23, 11, -1, dtype=int)   # 12 orders
-        #return np.arange(23, 12, -1, dtype=int)
+        return np.arange(23, 12, -1, dtype=int)  # 11 orders; the reddest is too faint to use
+        #return np.arange(23, 11, -1, dtype=int)   # 12 orders
 
     @property
     def spec_min_max(self):

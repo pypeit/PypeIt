@@ -4876,7 +4876,8 @@ class EdgeTraceSet(DataContainer):
         #     self._fill_design_table(register, _design_file)
         #     self._fill_objects_table(register)
 
-    def slit_spatial_center(self, normalized=True, spec=None, use_center=False, include_box=False):
+    def slit_spatial_center(self, normalized=True, spec=None, use_center=False, 
+                            include_box=False):
         """
         Return the spatial coordinate of the center of each slit.
 
@@ -4895,6 +4896,7 @@ class EdgeTraceSet(DataContainer):
                 even if the slit edges have been otherwise modeled.
             include_box (:obj:`bool`, optional):
                 Include box slits in the calculated coordinates.
+
 
         Returns:
             `numpy.ma.MaskedArray`_: Spatial coordinates of the slit
@@ -4991,6 +4993,26 @@ class EdgeTraceSet(DataContainer):
         sep = self.spectrograph.order_spat_pos[:,None] - slit_cen[None,:] - offset
         # Find the smallest offset for each order
         slit_indx = np.ma.MaskedArray(np.ma.argmin(np.absolute(sep), axis=1))
+
+        # Cut down, as needed
+        if self.spectrograph.order_spat_pos.size < slit_cen.size:
+            msgs.warn("We detected more orders than calibrated. Trimming the extras")
+            # Mask
+            bad_slits = np.ones(slit_cen.size, dtype=bool)
+            bad_slits[slit_indx] = False
+            bad_indx = np.where(bad_slits)[0]
+            for ii in bad_indx:
+                # Left/right
+                _indx = np.array([2*ii, 2*ii+1])
+                self.edge_msk[:,_indx] = self.bitmask.turn_on(
+                    self.edge_msk[:,_indx], 'ORDERMISMATCH')
+            # Redo the above                                                            
+            slit_cen = slit_cen[np.invert(bad_slits)]
+            sep = self.spectrograph.order_spat_pos[:,None] - slit_cen[None,:] - offset
+            slit_indx = np.ma.MaskedArray(np.ma.argmin(np.absolute(sep), axis=1))
+        elif slit_cen.size < self.spectrograph.order_spat_pos.size:
+            msgs.error("We detected fewer orders than expecting.  Modify your edge finding parameters!")
+
 
         # Minimum separation between the order and its matching slit;
         # keep the signed value for reporting, but used the absolute
