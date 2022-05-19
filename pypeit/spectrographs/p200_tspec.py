@@ -156,7 +156,8 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
 
         # Model entire slit
         par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
-        par['reduce']['findobj']['maxnumber'] = 1  # Slit is narrow so allow one object per order
+        par['reduce']['findobj']['maxnumber_sci'] = 2  # Slit is narrow so allow one object per order
+        par['reduce']['findobj']['maxnumber_std'] = 1  # Slit is narrow so allow one object per order
 
         # Flexure
         par['flexure']['spec_method'] = 'skip'
