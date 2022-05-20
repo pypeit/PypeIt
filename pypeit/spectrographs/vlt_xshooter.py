@@ -902,6 +902,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         turn_on = dict(use_biasimage=False, use_overscan=True, overscan_method='median',
                        use_darkimage=False, use_illumflat=False, use_pixelflat=False,
                        use_specillum=False)
+        par.reset_all_processimages_par(**turn_on)
 
         # X-SHOOTER arcs/tilts are also have different binning with bias
         # frames, so don't use bias frames. Don't use the biases for any
