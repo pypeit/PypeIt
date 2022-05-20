@@ -56,29 +56,34 @@ case that the instrument requires no change to the global default).
 Setup Block
 -----------
 
-The next block, beginning with line ``setup read``, describes the
-instrument configuration. There should only be one setup shown (e.g.,
-``Setup A``), and the parameters provided show the salient metadata
-for that instrument configuration. **You should not edit any of
-this**; it is informational and required. See :doc:`setup`.
+The next block, beginning with line ``setup read`` and
+ending with ``setup end``, describes the
+instrument configuration. There can only be one setup shown 
+(e.g., ``Setup A``), and the parameters provided show the salient 
+metadata for that instrument configuration. 
+**You should not edit any of this**; 
+it is informational and required. See :doc:`setup`.
 
 .. _data_block:
 
 Data Block
 ----------
 
-Last is the data block, beginning with the line ``data read``, which
-includes the path(s) to the raw data files and a table describing
-those files. It is common to edit this table as described below.
+Last is the data block, beginning with the line ``data read``
+and ending with ``data end``, which
+includes the path(s) to the raw data files and a table 
+describing those files. It is common to edit this table 
+as described below.
 
-The data block is a fixed-format table as written by the underlying
-`astropy.table.Table`_ object used by :ref:`pypeit_setup`. The |
-symbols need not align but the number per row must be equal.
+The data block is a fixed-format table as written by 
+the underlying `astropy.table.Table`_ object used by 
+:ref:`pypeit_setup`. The | symbols need not align but the 
+number per row must be equal.
 
 .. warning::
 
-    Users should always generate the ``PypeIt`` reduction file using
-    the :ref:`pypeit_setup` script. However, you will often need to
+    Users are recommended to always generate the ``PypeIt`` reduction 
+    file using the :ref:`pypeit_setup` script. However, you will often need to
     edit it because it is virtually impossible to create an automated
     procedure that will work in all cases. The ``PypeIt`` reduction
     file is the ultimate authority in terms of how the data is

@@ -236,6 +236,7 @@ def _read_pypeit_file_lines(ifile):
         :obj:`numpy.ndarray`: Returns a list of the valid lines in the
         files.
     """
+    raise msgs.error("This is now in pypeitfile.py")
     # Check the files
     if not os.path.isfile(ifile):
         msgs.error('The filename does not exist -' + msgs.newline() + ifile)
@@ -465,32 +466,32 @@ def _read_data_file_table(lines, file_check=True):
     return data_files, frametype, tbl
 
 
-def _parse_setup_lines(lines):
-    """
-    Return a list of the setup names and corresponding dict
-
-    Args:
-        lines (`numpy.ndarray`_): Setup lines as an array
-
-    Returns:
-        tuple: list, dict
-
-    """
-    setups = []
-    # Kludge for backwards compatability
-    line_list = lines.tolist()
-    for ss, line in enumerate(line_list):
-        if 'Setup' in line and ':' not in line:
-            line_list[ss] = line+':'
-    # Slurp
-    ystr = '\n'.join(line_list)
-    sdict = yaml.safe_load(ystr)
-    for key in sdict:
-        if 'Setup' in key:
-            tsetup = key.split()[1].strip()
-            setups.append(tsetup)
-    # TODO -- Crash if there is more than one setup.  Should not happen
-    return setups, sdict
+#def _parse_setup_lines(lines):
+#    """
+#    Return a list of the setup names and corresponding dict
+#
+#    Args:
+#        lines (`numpy.ndarray`_): Setup lines as an array
+#
+#    Returns:
+#        tuple: list, dict
+#
+#    """
+#    setups = []
+#    # Kludge for backwards compatability
+#    line_list = lines.tolist()
+#    for ss, line in enumerate(line_list):
+#        if 'Setup' in line and ':' not in line:
+#            line_list[ss] = line+':'
+#    # Slurp
+#    ystr = '\n'.join(line_list)
+#    sdict = yaml.safe_load(ystr)
+#    for key in sdict:
+#        if 'Setup' in key:
+#            tsetup = key.split()[1].strip()
+#            setups.append(tsetup)
+#    # TODO -- Crash if there is more than one setup.  Should not happen
+#    return setups, sdict
 
 def parse_tool_config(config_file, block, check_files=False):
     """
