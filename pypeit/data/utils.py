@@ -430,11 +430,11 @@ def get_linelist_filepath(linelist_file):
     # NOTE: This should only be the case for user-installed line lists
     if not os.path.isfile(linelist_path):
 
-        # Output an informational message
-        msgs.info(f"linelist file {linelist_file} does not exist in{msgs.newline()}"
-                  "the package directory.  Checking cache for user-installed list.")
-
         linelist_path = fetch_remote_file(linelist_file, "arc_lines/lists")
+
+        # Output an informational message
+        msgs.info(f"Using line list file {linelist_file}{msgs.newline()}"
+                  "that was found in the cache.")
 
     # Return the path to the `linelist` file
     return linelist_path
