@@ -19,6 +19,7 @@ from configobj import ConfigObj
 from astropy.io import fits
 from astropy.table import Table
 
+from pypeit import pypeitfile
 from pypeit import masterframe
 from pypeit import msgs
 from pypeit import calibrations
@@ -93,13 +94,14 @@ class PypeIt:
         
         self.msgs_reset()
         
-        # Load
-        cfg_lines, data_files, frametype, usrdata, setups, _ \
-                = parse_pypeit_file(pypeit_file, runtime=True)
+        # Load up PypeIt file
+        self.pypeItFile = pypeitfile.PypeItFile.from_file(pypeit_file)
+        #cfg_lines, data_files, frametype, usrdata, setups, _ \
+        #        = parse_pypeit_file(pypeit_file, runtime=True)
         self.calib_only = calib_only
 
         # Spectrograph
-        cfg = ConfigObj(cfg_lines)
+        cfg = ConfigObj(self.pypeItFile.config)
         spectrograph_name = cfg['rdx']['spectrograph']
         self.spectrograph = load_spectrograph(spectrograph_name)
         msgs.info('Loaded spectrograph {0}'.format(self.spectrograph.name))
@@ -109,14 +111,14 @@ class PypeIt:
         #   - Grab a science or standard file for configuration specific parameters
 
         config_specific_file = None
-        for idx, row in enumerate(usrdata):
+        for idx, row in enumerate(self.pypeItFile.data):
             if ('science' in row['frametype']) or ('standard' in row['frametype']):
-                config_specific_file = data_files[idx]
+                config_specific_file = self.pypeItFile.data_files[idx]
         # search for arcs, trace if no scistd was there
         if config_specific_file is None:
-            for idx, row in enumerate(usrdata):
+            for idx, row in enumerate(self.pypeItFile.data):
                 if ('arc' in row['frametype']) or ('trace' in row['frametype']):
-                    config_specific_file = data_files[idx]
+                    config_specific_file = self.pypeItFile.data_files[idx]
         if config_specific_file is not None:
             msgs.info(
                 'Setting configuration-specific parameters using {0}'.format(os.path.split(config_specific_file)[1]))
@@ -124,7 +126,8 @@ class PypeIt:
 
         #   - Build the full set, merging with any user-provided
         #     parameters
-        self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
+        self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, 
+                                            merge_with=cfg.write())
         msgs.info('Built full PypeIt parameter set.')
 
         # Check the output paths are ready
@@ -138,11 +141,15 @@ class PypeIt:
         # Build the meta data
         #   - Re-initilize based on the file data
         msgs.info('Compiling metadata')
-        self.fitstbl = PypeItMetaData(self.spectrograph, self.par, files=data_files,
-                                      usrdata=usrdata, strict=True)
+        self.fitstbl = PypeItMetaData(self.spectrograph, self.par, 
+                                      files=self.pypeItFile.data_files,
+                                      usrdata=self.pypeItFile.data, 
+                                      strict=True)
         #   - Interpret automated or user-provided data from the PypeIt
         #   file
-        self.fitstbl.finalize_usr_build(frametype, setups[0])
+        self.fitstbl.finalize_usr_build(
+            self.pypeItFile.frametypes, 
+            self.pypeItFile.setup_name)
 
         
         # --------------------------------------------------------------

@@ -27,21 +27,15 @@ def test_write_pypeit_file():
     data['exptime'] = [1., 10.]
     file_paths = [data_path('')]
     confdict = {'rdx': {'spectrograph': 'keck_hires'}}
+    setup_dict = {'Setup A': ' '}
+
+
     # Instantiate
-    pypeItFile = pypeitfile.PypeItFile(confdict, file_paths, data)
+    pypeItFile = pypeitfile.PypeItFile(confdict, file_paths, 
+                                       data, setup_dict)
 
     # Write
     pypeItFile.write(outfile)
 
     # Clean up
     os.remove(outfile)
-
-'''
-tmp = {'rdx': {'spectrograph': 'keck_hires'}}
-confObj = configobj.ConfigObj(tmp)
-
-tmp2 = ['[rdx]', 'spectrograph = shane_kast_blue']
-confObj2 = configobj.ConfigObj(tmp2)
-
-pytest.set_trace()
-'''

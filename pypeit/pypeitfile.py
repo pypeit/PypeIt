@@ -23,9 +23,9 @@ class PypeItFile:
             Configuration dict
         data_table (:class:`astropy.table.Table`):
             Data block
-        setup (:obj:`dict`, optional):
+        setup (:obj:`dict`):
             dict defining the Setup
-            Defaults to A and otherwise a null description
+            The first key contains the name
     """
     def __init__(self, config:dict, file_paths:list,
                  data_table:Table,
@@ -116,9 +116,53 @@ class PypeItFile:
         if 'rdx' not in self.config.keys() or 'spectrograph' not in self.config['rdx'].keys():
             msgs.error(f"Missing spectrograph in the Parameter block of your PypeIt file.  Add it!")
 
+        # Setup
+        setup_keys = list(self.setup)
+        assert 'Setup' in setup_keys[0]
+
         # Done
         msgs.info('PypeIt file vetted.')
         
+    @property
+    def data_files(self):
+        """Generate a list of the data files with 
+        the full path.  The files must exist and be 
+        within one of the paths for this to succeed.
+
+        Raises:
+            ValueError: _description_
+
+        Returns:
+            list: List of full path to each data file
+        """
+        ## Build full paths to file and set frame types
+        data_files = []
+        for row in self.data:
+            #frametype[tbl['filename'][i]] = tbl['frametype'][i]
+            for p in self.file_paths:
+                filename = os.path.join(
+                    p, row['filename'])
+                if os.path.isfile(filename):
+                    break
+            # Check we got a good hit
+            if not os.path.isfile(filename): 
+                msgs.error(f"{row['filename']} does not exist in one of the provided paths.  Remove from your PypeIt file")
+            data_files.append(filename)
+        # Return
+        return data_files
+
+    @property
+    def frametypes(self):
+        frametypes = {}
+        for row in self.data:
+            frametypes[row['filename']] = row['frametype']
+        #
+        return frametypes
+
+    @property
+    def setup_name(self):
+        keys = list(self.setup.keys())
+        return keys[0].split(' ')[-1]
 
     @staticmethod
     def _parse_setup_lines(lines):
@@ -202,20 +246,9 @@ class PypeItFile:
             data[key] = tbl[:,i]
         tbl = Table(data)
 
-        ## Build full paths to file and set frame types
-        #frametype = {}
-        #data_files = []
-        #for i in range(nfiles):
-        #    frametype[tbl['filename'][i]] = tbl['frametype'][i]
-        #    for p in paths:
-        #        filename = os.path.join(p, tbl['filename'][i])
-        #        if os.path.isfile(filename):
-        #            break
-        #    data_files.append(filename)
-        #    #if not os.path.isfile(filename) and file_check:
-        #    #    msgs.error('File does not exist: {0}'.format(filename))
 
         return paths, tbl
+
     def write(self, pypeit_file):
         """
         Generate a PypeIt file
@@ -266,7 +299,6 @@ class PypeItFile:
             f.write("\n")
 
         msgs.info('PypeIt file written to: {0}'.format(pypeit_file))
-
 
 
 def _find_block(lines, block):
