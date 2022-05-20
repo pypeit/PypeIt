@@ -19,6 +19,7 @@ from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 from pypeit import data
 
+from IPython import embed
 
 class VLTXShooterSpectrograph(spectrograph.Spectrograph):
     """
@@ -306,23 +307,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         return par
 
-# TODO: out-of-date
-#    def check_headers(self, headers):
-#        """
-#        Check headers match expectations for an VLT/XSHOOTER exposure.
-#
-#        See also
-#        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-#
-#        Args:
-#            headers (list):
-#                A list of headers read from a fits file
-#        """
-#        expected_values = { '0.INSTRUME': 'XSHOOTER',
-#                            '0.HIERARCH ESO SEQ ARM': 'NIR',
-#                            '0.NAXIS': 2 }
-#        super(VLTXShooterNIRSpectrograph, self).check_headers(headers,
-#                                                              expected_values=expected_values)
 
     def init_meta(self):
         """
@@ -376,7 +360,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-        good_seq = np.array([seq is not None and int(seq) % 2 == 1 for seq in fitstbl['seq_expno']])
+        good_flat_seq = np.array([seq is not None and int(seq) % 2 == 1 for seq in fitstbl['seq_expno']])
+        good_dark_seq = np.array([seq is not None and int(seq) % 2 == 0 for seq in fitstbl['seq_expno']])
         # TODO: Allow for 'sky' frame type, for now include sky in
         # 'science' category
         if ftype == 'science':
@@ -396,14 +381,14 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
             return good_exp & (((fitstbl['target'] == 'LAMP,DFLAT')
                                | (fitstbl['target'] == 'LAMP,QFLAT')
                                | (fitstbl['target'] == 'LAMP,FLAT'))
-                               & good_seq)
+                               & good_flat_seq)
         
         if ftype in ['dark']:
             # Lamp off flats are taken second (even exposure number)
             return good_exp & (((fitstbl['target'] == 'LAMP,DFLAT')
                                 | (fitstbl['target'] == 'LAMP,QFLAT')
                                 | (fitstbl['target'] == 'LAMP,FLAT'))
-                               & good_seq)
+                               & good_dark_seq)
         
         if ftype == 'pinhole':
             # Don't type pinhole
