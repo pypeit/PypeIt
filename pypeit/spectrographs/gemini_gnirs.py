@@ -87,7 +87,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['reduce']['skysub']['global_sky_std']  = False    # Do not perform global sky subtraction for standard stars
         par['reduce']['skysub']['no_poly'] = True             # Do not use polynomial degree of freedom for global skysub
         par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
-        par['reduce']['findobj']['maxnumber'] = 1  # Slit is narrow so allow one object per order
+        par['reduce']['findobj']['maxnumber_sci'] = 2  # Slit is narrow so allow one object per order
+        par['reduce']['findobj']['maxnumber_std'] = 1  # Slit is narrow so allow one object per order
         # Standards
         par['calibrations']['standardframe']['process']['mask_cr'] = False # Do not mask_cr standards
 

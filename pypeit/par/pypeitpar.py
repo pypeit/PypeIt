@@ -3429,7 +3429,7 @@ class FindObjPar(ParSet):
     """
 
     def __init__(self, trace_npoly=None, snr_thresh=None, find_trim_edge=None,
-                 find_maxdev=None, find_extrap_npoly=None, maxnumber=None,
+                 find_maxdev=None, find_extrap_npoly=None, maxnumber_sci=None, maxnumber_std=None,
                  find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None,
                  ech_find_nabove_min_snr=None, skip_second_find=None, skip_final_global=None, find_negative=None,
                  find_min_max=None):
@@ -3451,19 +3451,27 @@ class FindObjPar(ParSet):
         dtypes['trace_npoly'] = int
         descr['trace_npoly'] = 'Order of legendre polynomial fits to object traces.'
 
-        defaults['maxnumber'] = 10
-        dtypes['maxnumber'] = int
-        descr['maxnumber'] = 'Maximum number of objects to extract in a science frame.  Use ' \
+        defaults['maxnumber_sci'] = 10
+        dtypes['maxnumber_sci'] = int
+        descr['maxnumber_sci'] = 'Maximum number of objects to extract in a science frame.  Use ' \
                              'None for no limit. This parameter can be useful in situations where systematics lead to ' \
                              'spurious extra objects. Setting this parameter means they will be trimmed. ' \
                              'For mulitslit maxnumber applies per slit, for echelle observations this ' \
                              'applies per order. Note that objects on a slit/order impact the sky-modeling and so ' \
                              'maxnumber should never be lower than the true number of detectable objects on your slit. ' \
                              'For image differenced observations with positive and negative object traces, maxnumber applies' \
-                             'to the number of positive/negative traces individually. In other words, if you had two positive objects and' \
+                             'to the number of positive (or negative) traces individually. In other words, if you had two positive objects and' \
                              'one negative object, then you would set maxnumber to be equal to two (not three). Note that if manually' \
                              'extracted apertures are explicitly requested, they do not count against this maxnumber. If more than ' \
-                             'maxnumber objects are detected, then highest S/N ratio objects will be the ones that are kept.'
+                             'maxnumber objects are detected, then highest S/N ratio objects will be the ones that are kept. ' \
+                             'For multislit observations the choice here depends on the slit length. For echelle observations ' \
+                             'with short slits we set the default to be 1'
+
+        defaults['maxnumber_std'] = 5
+        dtypes['maxnumber_std'] = int
+        descr['maxnumber_std'] = 'Maximum number of objects to extract in a standard star frame.  Same functionality as ' \
+                                 'maxnumber_sci documented above. For multislit observations the default here is 5, for echelle' \
+                                 'observations the default is 1'
 
         defaults['snr_thresh'] = 10.0
         dtypes['snr_thresh'] = [int, float]
@@ -3551,7 +3559,7 @@ class FindObjPar(ParSet):
 
         # Basic keywords
         parkeys = ['trace_npoly', 'snr_thresh', 'find_trim_edge',
-                   'find_extrap_npoly', 'maxnumber',
+                   'find_extrap_npoly', 'maxnumber_sci', 'maxnumber_std',
                    'find_maxdev', 'find_fwhm', 'ech_find_max_snr',
                    'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find', 'skip_final_global',
                    'find_negative', 'find_min_max']
