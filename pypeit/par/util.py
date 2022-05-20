@@ -7,7 +7,7 @@ Utility functions for PypeIt parameter sets
 import os
 import time
 import glob
-import yaml
+from importlib_metadata import Deprecated
 from IPython import embed
 
 import numpy as np
@@ -493,55 +493,55 @@ def _read_data_file_table(lines, file_check=True):
 #    # TODO -- Crash if there is more than one setup.  Should not happen
 #    return setups, sdict
 
-def parse_tool_config(config_file, block, check_files=False):
-    """
-    Given a configuration file for a pypeit tool (such as pypeit_coadd_1dspec,
-    pypeit_flux_calib, etc.) parse the file into a list of configuraiton lines
-    and a list of data files. Wildcards in the data file list will be expanded.
-
-    Example data file list:
-    spec1d read
-    Science/spec1d_DE.20130409.20629-S13A-SDF-z6clus_DEIMOS_2013Apr09T054342.730.fits
-    Science/spec1d_DE.20130409.20629-S13A-SDF-z6clus_DEIMOS_2013Apr09T054342.730.fits
-    spec1d end
-
-
-    Args:
-        lines (:obj:`numpy.ndarray`): List of lines to read.
-        block (str): Name of the block to read from (e.g. 'spec1d')
-
-    Returns:
-        cfg_lines (list):
-          Config lines to modify ParSet values, i.e. lines that did not
-          contain the "read" list.
-
-        files (list):
-          Contains the list of lines read.
-
-    Raises:
-        ValueError if there was no list to read or there was a syntax error with the "read" portion.
-    """
-
-    msgs.info(f'Loading the {config_file} config file')
-    lines = _read_pypeit_file_lines(config_file)
-
-    files = []
-    is_config = np.ones(len(lines), dtype=bool)
-
-    s, e = _find_pypeit_block(lines, block)
-    if s >= 0 and e < 0:
-        files = None
-    elif (s < 0) or (s==e):
-        files = None
-    else:
-        if check_files:
-            files = _read_data_file_names(lines[s:e])
-        else:
-            files = lines[s:e]
-
-    is_config[s-1:e+1] = False
-
-    return list(lines[is_config]), files
+#def parse_tool_config(config_file, block, check_files=False):
+#    """
+#    Given a configuration file for a pypeit tool (such as pypeit_coadd_1dspec,
+#    pypeit_flux_calib, etc.) parse the file into a list of configuraiton lines
+#    and a list of data files. Wildcards in the data file list will be expanded.
+#
+#    Example data file list:
+#    spec1d read
+#    Science/spec1d_DE.20130409.20629-S13A-SDF-z6clus_DEIMOS_2013Apr09T054342.730.fits
+#    Science/spec1d_DE.20130409.20629-S13A-SDF-z6clus_DEIMOS_2013Apr09T054342.730.fits
+#    spec1d end
+#
+#
+#    Args:
+#        lines (:obj:`numpy.ndarray`): List of lines to read.
+#        block (str): Name of the block to read from (e.g. 'spec1d')
+#
+#    Returns:
+#        cfg_lines (list):
+#          Config lines to modify ParSet values, i.e. lines that did not
+#          contain the "read" list.
+#
+#        files (list):
+#          Contains the list of lines read.
+#
+#    Raises:
+#        ValueError if there was no list to read or there was a syntax error with the "read" portion.
+#    """
+#
+#    msgs.info(f'Loading the {config_file} config file')
+#    lines = _read_pypeit_file_lines(config_file)
+#
+#    files = []
+#    is_config = np.ones(len(lines), dtype=bool)
+#
+#    s, e = _find_pypeit_block(lines, block)
+#    if s >= 0 and e < 0:
+#        files = None
+#    elif (s < 0) or (s==e):
+#        files = None
+#    else:
+#        if check_files:
+#            files = _read_data_file_names(lines[s:e])
+#        else:
+#            files = lines[s:e]
+#
+#    is_config[s-1:e+1] = False
+#
+#    return list(lines[is_config]), files
 
 
 def parse_pypeit_file(ifile, file_check=True, runtime=False):
@@ -667,6 +667,7 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
         sorted_files (list, optional):
         paths (list, optional): List of paths for slurping data files
     """
+    raise Deprecated("NOT USED ANYMORE!")
     # Error checking
     if not isinstance(data_files, list):
         raise IOError("data_files needs to be a list")
