@@ -126,7 +126,6 @@ class Extract:
         self.objtype = objtype
         self.par = par
         self.caliBrate = caliBrate
-        self.scaleimg = np.array([1.0], dtype=np.float)  # np.array([1]) applies no scale
         self.basename = basename
         # Parse
         # Slit pieces
@@ -404,7 +403,7 @@ class Extract:
 
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, \
-               self.scaleimg, self.waveimg, self.tilts
+               self.waveimg, self.tilts
 
     def local_skysub_extract(self, global_sky, sobjs, model_noise=True, spat_pix=None,
                              show_profile=False, show_resids=False, show=False):

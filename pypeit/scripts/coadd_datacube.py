@@ -47,5 +47,5 @@ class CoAddDataCube(scriptbase.ScriptBase):
 
         # Coadd the files
         tstart = time.time()
-        coadd_cube(spec2d_files, parset, overwrite=args.overwrite)
+        coadd_cube(spec2d_files, parset=parset, overwrite=args.overwrite)
         msgs.info(utils.get_time_string(time.time()-tstart))

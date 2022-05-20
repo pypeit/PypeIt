@@ -862,13 +862,13 @@ class PypeIt:
             final_global_sky = initial_sky
         else:
             final_global_sky = objFind.global_skysub(previous_sky=initial_sky, skymask=skymask, show=self.show)
+        scaleImg = objFind.scaleimg
 
         # update here slits.mask since global_skysub modify reduce_bpm and we need to propagate it into extraction
         flagged_slits = np.where(objFind.reduce_bpm)[0]
         if len(flagged_slits) > 0:
             self.caliBrate.slits.mask[flagged_slits] = \
                 self.caliBrate.slits.bitmask.turn_on(self.caliBrate.slits.mask[flagged_slits], 'BADREDUCE')
-
 
         msgs.info("Extraction begins for {} on det={}".format(self.basename, det))
 
@@ -886,7 +886,7 @@ class PypeIt:
             basename=self.basename)
 
         if not self.par['reduce']['extraction']['skip_extraction']:
-            skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, \
+            skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, \
                 tilts = self.exTract.run(final_global_sky, ra=self.fitstbl["ra"][frames[0]],
                                          dec=self.fitstbl["dec"][frames[0]], obstime=self.obstime)
         else:
@@ -897,7 +897,6 @@ class PypeIt:
             objmodel = np.zeros_like(self.exTract.sciImg.image)
             ivarmodel = np.copy(self.exTract.sciImg.ivar)
             outmask = self.exTract.sciImg.fullmask
-            scaleImg = self.exTract.scaleimg
             waveImg = self.exTract.waveimg
             tilts = self.exTract.tilts
             sobjs = sobjs_obj
