@@ -101,8 +101,7 @@ class PypeIt:
         self.calib_only = calib_only
 
         # Spectrograph
-        cfg = ConfigObj(self.pypeItFile.config)
-        spectrograph_name = cfg['rdx']['spectrograph']
+        spectrograph_name = self.pypeItFile.config['rdx']['spectrograph']
         self.spectrograph = load_spectrograph(spectrograph_name)
         msgs.info('Loaded spectrograph {0}'.format(self.spectrograph.name))
 
@@ -127,7 +126,7 @@ class PypeIt:
         #   - Build the full set, merging with any user-provided
         #     parameters
         self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, 
-                                            merge_with=cfg.write())
+                                            merge_with=self.pypeItFile.cfg_lines)
         msgs.info('Built full PypeIt parameter set.')
 
         # Check the output paths are ready

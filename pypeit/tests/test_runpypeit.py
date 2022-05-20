@@ -126,6 +126,7 @@ def test_run_pypeit():
     assert os.path.isfile(pyp_file), 'PypeIt file not written.'
 
     # Try to run with -m and -o
+    pytest.set_trace()
     pargs = RunPypeIt.parse_args([pyp_file, '-o', '-m', '-r', configdir])
     RunPypeIt.main(pargs)
 

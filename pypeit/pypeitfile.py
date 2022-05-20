@@ -19,15 +19,16 @@ class PypeItFile:
     Class to load, process, and write PypeIt files
 
     Args:
-        config (:obj:`dict`):
-            Configuration dict
+        config (:obj:`dict` or :obj:`list`):
+            Configuration dict or list of config lines
+            Converted to a ConfigObj
         data_table (:class:`astropy.table.Table`):
             Data block
         setup (:obj:`dict`):
             dict defining the Setup
             The first key contains the name
     """
-    def __init__(self, config:dict, file_paths:list,
+    def __init__(self, config, file_paths:list,
                  data_table:Table,
                  setup:dict=None):
         # Load up
@@ -35,8 +36,8 @@ class PypeItFile:
         self.file_paths = file_paths
         self.setup = setup
 
-        # Load up config
-        self.config = config
+        # Load up ConfigObj
+        self.config = configobj.ConfigObj(config)
 
         # Vet
         self.vet()
@@ -50,12 +51,6 @@ class PypeItFile:
             ifile (:obj:`str`):
                 Name of pypeit file
 
-        #Returns:
-        #    :obj:`tuple`:  Provides (1) a list of configuration lines, (2) a list of
-        #    datafiles to read, (3) a list of frametypes for each file, (4) an
-        #    `astropy.table.Table`_ with the user supplied metadata for the data
-        #    files, (5) a list of setup lines, and (6) a instrument configuration
-        #    (setup) dictionary.
         Returns:
             pypeItFile (:class:`PypeItFile`):
         """
@@ -88,15 +83,11 @@ class PypeItFile:
         setups, sdict = cls._parse_setup_lines(lines[s:e])
         is_config[s-1:e+1] = False
 
-        # Build the configobj 
-        confObj = configobj.ConfigObj(list(lines[is_config]))
-        confdict = confObj.dict()
-
         # vet
         msgs.info('PypeIt file loaded successfully.')
 
         # Instantiate
-        slf = cls(confdict, paths, usrtbl, setup=sdict)
+        slf = cls(list(lines[is_config]), paths, usrtbl, setup=sdict)
 
         return slf
 
@@ -109,9 +100,6 @@ class PypeItFile:
             if key not in self.data.keys():
                 msgs.error("Add {:s} to your PypeIt file before using run_pypeit".format(key))
 
-        # Config
-        # Confirm we can generate a ConfiObj
-        confObj = configobj.ConfigObj(self.config)
         # Confirm spectrograph is present
         if 'rdx' not in self.config.keys() or 'spectrograph' not in self.config['rdx'].keys():
             msgs.error(f"Missing spectrograph in the Parameter block of your PypeIt file.  Add it!")
@@ -153,6 +141,12 @@ class PypeItFile:
 
     @property
     def frametypes(self):
+        """Return a dict of the frametypes
+        with key, item the filename, frametype 
+
+        Returns:
+            dict: 
+        """
         frametypes = {}
         for row in self.data:
             frametypes[row['filename']] = row['frametype']
@@ -163,6 +157,10 @@ class PypeItFile:
     def setup_name(self):
         keys = list(self.setup.keys())
         return keys[0].split(' ')[-1]
+
+    @property
+    def cfg_lines(self):
+        return self.config.write()
 
     @staticmethod
     def _parse_setup_lines(lines):
@@ -266,8 +264,7 @@ class PypeItFile:
 
             # Parameter block
             f.write("# User-defined execution parameters\n")
-            confObj = configobj.ConfigObj(self.config)
-            f.write('\n'.join(confObj.write()))
+            f.write('\n'.join(self.cfg_lines))
             f.write('\n')
             f.write('\n')
 
