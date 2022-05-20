@@ -951,9 +951,9 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         # Mask 3 edges pixels since the slit is short, insted of default (5,5)
         par['reduce']['findobj']['find_trim_edge'] = [3,3]
         # Continnum order for determining thresholds
-        par['reduce']['findobj']['find_npoly_cont'] = 0
+        #par['reduce']['findobj']['find_npoly_cont'] = 0
         # Don't attempt to fit a continuum to the trace rectified image
-        par['reduce']['findobj']['find_cont_fit'] = False
+        #par['reduce']['findobj']['find_cont_fit'] = False
         par['reduce']['findobj']['maxnumber_sci'] = 2  # Assume that there is a max of 2 objects on the slit
         par['reduce']['findobj']['maxnumber_std'] = 1  # Assume that there is only one object on the slit.
 
