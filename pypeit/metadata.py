@@ -1612,10 +1612,10 @@ class PypeItMetaData:
 
             # Setup dict
             setup_dict = {}
-            setup_dict[f'Setup {setup}:'] = ' ' 
+            setup_dict[f'Setup {setup}'] = {}
             for key in cfg[setup]:
-                setup_dict[key] = cfg[setup][key]
-
+                setup_dict[f'Setup {setup}'][key] = cfg[setup][key]
+            
             # Get the paths
             in_cfg = self['setup'] == setup
             if not np.any(in_cfg):
@@ -1625,9 +1625,9 @@ class PypeItMetaData:
             # Get the data lines
             subtbl = self.table[output_cols][in_cfg]
             subtbl.sort(['frametype','filename'])
-            with io.StringIO() as ff:
-                subtbl.write(ff, format='ascii.fixed_width')
-                data_lines = ff.getvalue().split('\n')[:-1]
+            #with io.StringIO() as ff:
+            #    subtbl.write(ff, format='ascii.fixed_width')
+            #    data_lines = ff.getvalue().split('\n')[:-1]
 
             # Config lines
             if cfg_lines is None:
