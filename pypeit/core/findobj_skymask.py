@@ -347,6 +347,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             ispec, ispat = np.where(slitmask == gdslit_spat[iord])
             spec_min_max[:,iord] = ispec.min(), ispec.max()
 
+    # Setup the plate scale
     if isinstance(plate_scale,(float, int)):
         plate_scale_ord = np.full(norders, plate_scale)
     elif isinstance(plate_scale,(np.ndarray, list, tuple)):
