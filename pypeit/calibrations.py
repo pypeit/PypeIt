@@ -521,8 +521,7 @@ class Calibrations:
         illum_image_files, self.master_key_dict['flat'] = self._prep_calibrations('illumflat')
         pixflat_image_files, self.master_key_dict['flat'] = self._prep_calibrations('pixelflat')
         # flats lamp off
-        illumLoff_image_files, self.master_key_dict['flat'] = self._prep_calibrations('illumflatlampoff')
-        pixflatLoff_image_files, self.master_key_dict['flat'] = self._prep_calibrations('pixelflatlampoff')
+        flatLoff_image_files, _ = self._prep_calibrations('thermalflat')
 
         masterframe_filename = masterframe.construct_file_name(flatfield.FlatImages,
                                                            self.master_key_dict['flat'],
@@ -552,14 +551,20 @@ class Calibrations:
         # Check if the image files are the same
         pix_is_illum = Counter(illum_image_files) == Counter(pixflat_image_files)
         if len(pixflat_image_files) > 0:
+            msgs.info('Creating Master Pixel Flat using files: ')
+            for f in pixflat_image_files:
+                msgs.info(f'{f}')
             pixel_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['pixelflatframe'],
                                                         pixflat_image_files, dark=self.msdark,
                                                         bias=self.msbias, bpm=self.msbpm)
-            if len(pixflatLoff_image_files) > 0:
+            if len(flatLoff_image_files) > 0:
+                msgs.info('Subtracting Master lamp off Flat using files: ')
+                for f in flatLoff_image_files:
+                    msgs.info(f'{f}')
                 pixel_flat = pixel_flat.sub(buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                                           self.par['pixelflatframe'],
-                                                                           pixflatLoff_image_files, dark=self.msdark,
+                                                                           self.par['thermalflat'],
+                                                                           flatLoff_image_files, dark=self.msdark,
                                                                            bias=self.msbias, bpm=self.msbpm),
                                             self.par['pixelflatframe']['process'])
             # Initialise the pixel flat
@@ -571,14 +576,20 @@ class Calibrations:
 
         # Only build illum_flat if the input files are different from the pixel flat
         if not pix_is_illum and len(illum_image_files) > 0:
+            msgs.info('Creating Master Illumination Flat using files: ')
+            for f in illum_image_files:
+                msgs.info(f'{f}')
             illum_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['illumflatframe'],
                                                         illum_image_files, dark=self.msdark,
                                                         bias=self.msbias, bpm=self.msbpm)
-            if len(illumLoff_image_files) > 0:
+            if len(flatLoff_image_files) > 0:
+                msgs.info('Subtracting Master lamp off Flat using files: ')
+                for f in flatLoff_image_files:
+                    msgs.info(f'{f}')
                 illum_flat = illum_flat.sub(buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                                           self.par['illumflatframe'],
-                                                                           illumLoff_image_files, dark=self.msdark,
+                                                                           self.par['thermalflat'],
+                                                                           flatLoff_image_files, dark=self.msdark,
                                                                            bias=self.msbias, bpm=self.msbpm),
                                             self.par['illumflatframe']['process'])
             # Initialise the pixel flat

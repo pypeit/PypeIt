@@ -367,7 +367,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'object')
         if ftype in ['bias', 'dark']:
             return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'dark')
-        if ftype in ['illumflatlampoff', 'pixelflatlampoff']:
+        if ftype in ['thermalflat']:
             return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'flatlampoff')
         if ftype in ['illumflat', 'pixelflat', 'trace']:
             # Flats and trace frames are typed together

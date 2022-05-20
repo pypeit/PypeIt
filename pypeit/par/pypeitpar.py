@@ -3882,6 +3882,14 @@ class CalibrationsPar(ParSet):
         dtypes['illumflatframe'] = [ ParSet, dict ]
         descr['illumflatframe'] = 'The frames and combination rules for the illumination flat'
 
+        defaults['thermalflatframe'] = FrameGroupPar(frametype='thermalflat',
+                                                   process=ProcessImagesPar(satpix='nothing',
+                                                                            use_pixelflat=False,
+                                                                            use_illumflat=False,
+                                                                            use_specillum=False))
+        dtypes['thermalflatframe'] = [ ParSet, dict ]
+        descr['thermalflatframe'] = 'The frames and combination rules for the lamp off flats'
+
         defaults['pinholeframe'] = FrameGroupPar(frametype='pinhole')
         dtypes['pinholeframe'] = [ ParSet, dict ]
         descr['pinholeframe'] = 'The frames and combination rules for the pinholes'
