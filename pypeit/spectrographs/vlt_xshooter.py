@@ -652,7 +652,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # The following is for 1x1 binning. TODO GET BINNING SORTED OUT!!
         par['calibrations']['wavelengths']['rms_threshold'] = 0.50
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
-        par['calibrations']['wavelengths']['n_final'] = [3] + 10*[4] 
+        par['calibrations']['wavelengths']['n_final'] = [3] + 13*[4] + [3]
         # This is for 1x1 binning. Needs to be divided by binning for binned data!!
         par['calibrations']['wavelengths']['fwhm'] = 11.0
         # Reidentification parameters
@@ -917,6 +917,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_UVB']
+        par['calibrations']['wavelengths']['n_final'] = [3] + 10*[4] 
         par['calibrations']['wavelengths']['rms_threshold'] = 0.60 
         par['calibrations']['wavelengths']['sigdetect'] = 3.0 # Pretty faint lines in places
         # Reidentification parameters
