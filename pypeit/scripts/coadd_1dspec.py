@@ -13,7 +13,8 @@ import numpy as np
 from astropy.io import fits
 from astropy.time import Time
 
-from pypeit import par, msgs
+from pypeit import msgs
+from pypeit import pypeitfile
 from pypeit import coadd1d
 from pypeit.core import coadd
 from pypeit.par import pypeitpar
@@ -43,14 +44,14 @@ def read_coaddfile(ifile):
     """
     # Read in the pypeit reduction file
     msgs.info('Loading the coadd1d file')
-    lines = par.util._read_pypeit_file_lines(ifile)
+    lines = pypeitfile.read_pypeit_file_lines(ifile)
     is_config = np.ones(len(lines), dtype=bool)
 
 
     # Parse the fluxing block
     spec1dfiles = []
     objids_in = []
-    s, e = par.util._find_pypeit_block(lines, 'coadd1d')
+    s, e = pypeitfile.find_block(lines, 'coadd1d')
     if s >= 0 and e < 0:
         msgs.error("Missing 'coadd1d end' in {0}".format(ifile))
     elif (s < 0) or (s==e):

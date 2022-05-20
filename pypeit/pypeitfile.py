@@ -61,7 +61,7 @@ class PypeItFile:
         """
         # Read in the pypeit reduction file
         msgs.info('Loading the reduction file')
-        lines = _read_pypeit_file_lines(pypeit_file)
+        lines = read_pypeit_file_lines(pypeit_file)
 
         # Used to select the configuration lines: Anything that isn't part
         # of the data or setup blocks is assumed to be part of the
@@ -69,7 +69,7 @@ class PypeItFile:
         is_config = np.ones(len(lines), dtype=bool)
 
         # Parse data block
-        s, e = _find_block(lines, 'data')
+        s, e = find_block(lines, 'data')
         if s >= 0 and e < 0:
             msgs.error("Missing 'data end' in {0}".format(pypeit_file))
         if s < 0:
@@ -78,7 +78,7 @@ class PypeItFile:
         is_config[s-1:e+1] = False
 
         # Parse the setup block
-        s, e = _find_block(lines, 'setup')
+        s, e = find_block(lines, 'setup')
         if s >= 0 and e < 0:
             msgs.error(f"Missing 'setup end' in {pypeit_file}")
         elif s < 0:
@@ -301,7 +301,7 @@ class PypeItFile:
         msgs.info('PypeIt file written to: {0}'.format(pypeit_file))
 
 
-def _find_block(lines, block):
+def find_block(lines, block):
     """
     Find a specific block of lines
 
@@ -338,7 +338,7 @@ def _find_block(lines, block):
     return start, end
 
 
-def _read_pypeit_file_lines(ifile):
+def read_pypeit_file_lines(ifile):
     """
     General parser for a pypeit file.
     Used for many of our input files, including the main PypeIt file.
