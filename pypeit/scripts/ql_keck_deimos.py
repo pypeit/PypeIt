@@ -19,8 +19,6 @@ import argparse
 from pypeit.scripts import scriptbase
 
 from pypeit.scripts.utils import Utilities
-from pypeit.par import PypeItPar
-from pypeit.par.util import parse_pypeit_file
 from pypeit.pypeitsetup import PypeItSetup
 from pypeit import msgs
 from pypeit.scripts import run_pypeit
