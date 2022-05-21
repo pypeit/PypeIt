@@ -628,6 +628,39 @@ def extract_standard_spec(stdcube, subsample=20, method='boxcar'):
     return wave, ret_flux, utils.inverse(ret_var), ret_gpm
 
 
+def make_good_skymask(slitimg, tilts):
+    """ Mask the spectral edges of each slit. Some extreme values of the tilts are
+    only sampled with a small fraction of the pixels of the slit width. This leads
+    to a bad extrapolation/determination of the sky model.
+
+    Args:
+        slitimg (`numpy.ndarray`_):
+            An image of the slit indicating which slit each pixel belongs to
+        tilts (`numpy.ndarray`_):
+            Spectral tilts.
+
+    Returns:
+        gpm (`numpy.ndarray`_): A mask of the good sky pixels (True = good)
+    """
+    msgs.info("Masking edge pixels where the sky model is poor")
+    # Initialise the GPM
+    gpm = np.zeros(slitimg.shape, dtype=bool)
+    # Find unique slits
+    unq = np.unique(slitimg[slitimg>0])
+    for uu in range(unq.size):
+        # Find the x,y pixels in this slit
+        ww = np.where(slitimg==unq[uu])
+        # Mask the bottom pixels first
+        wb = np.where(ww[0] == 0)[0]
+        wt = np.where(ww[0] == np.max(ww[0]))[0]
+        # Calculate the maximum tilt from the bottom row, and the miminum tilt from the top row
+        maxtlt = np.max(tilts[0,  ww[1][wb]])
+        mintlt = np.min(tilts[-1, ww[1][wt]])
+        # Mask all values below this maximum
+        gpm[ww] = (tilts[ww]>=maxtlt) & (tilts[ww]<=mintlt)  # The signs are correct here.
+    return gpm
+
+
 def make_whitelight_fromcube(cube, wave=None, wavemin=None, wavemax=None):
     """ Generate a white light image using an input cube.
 
@@ -1257,7 +1290,12 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
         msgs.info("Constructing slit image")
         slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=flexure)
-        onslit_gpm = (slitid_img_init > 0) & (bpmmask == 0)
+
+        # Remove edges of the spectrum where the sky model is bad
+        sky_is_good = make_good_skymask(slitid_img_init, spec2DObj.tilts)
+
+        # Construct a good pixel mask
+        onslit_gpm = (slitid_img_init > 0) & (bpmmask == 0) & sky_is_good
 
         # Grab the WCS of this frame
         frame_wcs = spec.get_wcs(spec2DObj.head0, slits, detector.platescale, wave0, dwv)
