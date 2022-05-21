@@ -1216,7 +1216,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         relScaleImg = relScaleImgDef.copy()
         if opts[ff]['scale_corr'] is not None:
             try:
-                msgs.info("Loading relative scale image")
+                msgs.info("Loading relative scale image:"+msgs.newline()+opts[ff]['scale_corr'])
                 spec2DObj_scl = spec2dobj.Spec2DObj.from_file(opts[ff]['scale_corr'], detname)
                 relScaleImg = spec2DObj_scl.scaleimg
             except:
@@ -1279,12 +1279,15 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         msgs.info("Loading alignments")
         alignfile = masterframe.construct_file_name(alignframe.Alignments, hdr['TRACMKEY'], master_dir=hdr['PYPMFDIR'])
         alignments = None
-        if os.path.exists(alignfile) and cubepar['astrometric']:
-            alignments = alignframe.Alignments.from_file(alignfile)
+        if cubepar['astrometric']:
+            if os.path.exists(alignfile) and cubepar['astrometric']:
+                alignments = alignframe.Alignments.from_file(alignfile)
+            else:
+                msgs.warn("Could not find Master Alignment frame:"+msgs.newline()+alignfile)
+                msgs.warn("Astrometric correction will not be performed")
+                astrometric = False
         else:
-            msgs.warn("Could not find Master Alignment frame:"+msgs.newline()+alignfile)
-            msgs.warn("Astrometric correction will not be performed")
-            astrometric = False
+            msgs.info("Astrometric correction will not be performed")
 
         # Generate an RA/DEC image
         msgs.info("Generating RA/DEC image")
@@ -1345,6 +1348,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             wave_spl = 0.5 * (wavebins[1:] + wavebins[:-1])
             flat_splines[flatfile] = interp1d(wave_spl, spec_spl, kind='linear',
                                               bounds_error=False, fill_value="extrapolate")
+            flat_splines[flatfile+"_wave"] = wave_spl.copy()
             # Check if a reference blaze spline exists (either from a standard star if fluxing or from a previous
             # exposure in this for loop)
             if blaze_spline is None:
@@ -1364,7 +1368,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         # Grating correction
         grat_corr = 1.0
         if cubepar['grating_corr']:
-            grat_corr = calc_grating_corr(wave_ext[wvsrt], wave_spl, flat_splines[flatfile], blaze_wave, blaze_spline)
+            grat_corr = calc_grating_corr(wave_ext[wvsrt], flat_splines[flatfile+"_wave"], flat_splines[flatfile],
+                                          blaze_wave, blaze_spline)
         # Sensitivity function
         sens_func = 1.0
         if fluxcal:
