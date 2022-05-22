@@ -536,7 +536,7 @@ def extract_standard_spec(stdcube, subsample=20, method='boxcar'):
         nrmcnt = utils.inverse(flxscl)
         box_flux = scimask.sum(0).sum(0) * nrmcnt
         box_var = varmask.sum(0).sum(0) * nrmcnt**2
-        box_gpm = flxscl > 0.5  # Good pixels are those where at least half the standard star flux is measured
+        box_gpm = flxscl > 1/3  # Good pixels are those where at least one-third of the standard star flux is measured
         # Setup the return values
         ret_flux, ret_var, ret_gpm = box_flux, box_var, box_gpm
     elif method == 'gauss2d':
