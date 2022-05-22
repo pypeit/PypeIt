@@ -737,11 +737,13 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         binning = head0['BINNING']
 
         # Construct a list of the bad columns
-        # Note: These were taken from v1.1.0 (REL) Date: 2018/06/11 of KDERP
+        # Note: These were taken from v1.1.0 (REL) Date: 2018/06/11 of KDERP (updated to be more conservative)
         #       KDERP store values and in the code (stage1) subtract 1 from the badcol data files.
         #       Instead of this, I have already pre-subtracted the values in the following arrays.
         bc = None
         if ampmode == 'ALL':
+            # TODO: There are several bad columns in this mode, but this is typically only used for arcs.
+            #       It's the same set of bad columns seen in the TBO and TUP amplifier modes.
             if binning == '1,1':
                 bc = [[3676, 3676, 2056, 2244]]
             elif binning == '2,2':
@@ -759,11 +761,13 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                       [1838, 1838, 1122, 2055]]
         if ampmode == 'TUP':
             if binning == '1,1':
-                bc = [[2622, 2622, 3492, 3528],
+#                bc = [[2622, 2622, 3492, 3528],
+                bc = [[2622, 2622, 3492, 4111],   # Extending this BPM, as sometimes the bad column is larger than this.
                       [3295, 3300, 1550, 1555],
                       [3676, 3676, 1866, 4111]]
             elif binning == '2,2':
-                bc = [[1311, 1311, 1745, 1788],
+#                bc = [[1311, 1311, 1745, 1788],
+                bc = [[1311, 1311, 1745, 2055],   # Extending this BPM, as sometimes the bad column is larger than this.
                       [1646, 1650,  775,  777],
                       [1838, 1838,  933, 2055]]
         if bc is None:
