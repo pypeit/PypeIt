@@ -597,7 +597,9 @@ def parse_pypeit_file(ifile, file_check=True, runtime=False):
     if s >= 0 and e < 0:
         msgs.error("Missing 'setup end' in {0}".format(ifile))
     if s < 0:
-        msgs.warn("Missing setup block! This may be a problem")
+        # TODO: This gets issued every time anyone runs pypeit_setup.  Is this
+        # warning worthwhile and/or still true?
+#        msgs.warn("Missing setup block! This may be a problem")
         setups, sdict = [], {}
     else:
         setups, sdict = _parse_setup_lines(lines[s:e])

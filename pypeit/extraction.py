@@ -238,7 +238,7 @@ class Extract:
 #        # For echelle
 #        self.spatial_coo = self.slits.spatial_coordinates(initial=initial, flexure=self.spat_flexure_shift)
 
-    def extract(self, global_sky, sobjs_obj):
+    def extract(self, global_sky):
         """
         Main method to extract spectra from the ScienceImage
 
@@ -352,7 +352,7 @@ class Extract:
 
             # Extract + Return
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
-                = self.extract(self.global_sky, self.sobjs_obj)
+                = self.extract(self.global_sky)
 
             if self.bkg_redux:
                 self.sobjs.make_neg_pos() if self.return_negative else self.sobjs.purge_neg()

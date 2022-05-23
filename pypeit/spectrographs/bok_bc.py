@@ -186,6 +186,7 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        par['calibrations']['slitedges']['edge_thresh'] = 50.0
 
         # JFH Is this correct?
         # Processing steps
