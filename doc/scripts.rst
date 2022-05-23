@@ -188,6 +188,18 @@ pypeit_chk_wavecalib
 
 See :ref:`pypeit-chk-wavecalib` for details.
 
+pypeit_show_wvcalib
+===================
+
+Allows the user to plot the calibrated arc spectrum for a given
+slit/order.  This is primariliy useful for generating new wavelength
+solutions.  Here is a standard call::
+
+    pypeit_show_wvcalib MasterWaveCalib_A_1_DET01.fits 17 --is_order  # for magellan_mage
+
+This launches a matplotlib GUI plot of Order=17 for the magellan_mage spectrograph.
+
+
 .. _pypeit_parse_slits:
 
 pypeit_parse_slits

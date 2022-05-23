@@ -26,6 +26,9 @@
 - Fixed pypeit setup issues due to bad LRIS headers.
 - Added support for VLT FORS2 600z grism.
 - Added enhancements and fixes for Keck lris red Mark4.
+- Add spectrograph child for VLT X-SHOOTER UVB arm
+- Minor enhancements to `pypeit_identify` GUI
+- Refactoring of `pypeit_show_wvcalib` GUI
 
 1.8.1 (23 Feb 2022)
 -------------------

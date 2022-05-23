@@ -847,7 +847,6 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
             Object with the detector metadata.
         """
         # Binning
-        # TODO: Could this be detector dependent??
         binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
@@ -954,7 +953,6 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         """
         super().init_meta()
         # Add the name of the dispersing element
-        # dispangle and filter1 are not defined for Shane Kast Blue
 
         # Required
         self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI3 NAME')
@@ -1000,7 +998,6 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         """
         spec_max = np.asarray([4000]*13)# + [3000])
         spec_min = np.asarray([0]*13)
-        #spec_min = np.asarray([2000,1000] + [0]*13)
         return np.vstack((spec_min, spec_max))
 
     def order_platescale(self, order_vec, binning = None):
