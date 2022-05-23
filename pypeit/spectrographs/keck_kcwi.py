@@ -651,7 +651,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         Returns
         -------
-        patt_freqs : `list`_
+        patt_freqs : :obj:`list`
             List of pattern frequencies.
         """
         msgs.info("Calculating pattern noise frequency")

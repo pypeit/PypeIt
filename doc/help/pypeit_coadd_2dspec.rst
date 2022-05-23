@@ -12,8 +12,12 @@
     optional arguments:
       -h, --help            show this help message and exit
       --file FILE           File to guide 2d coadds (default: None)
-      --det DET             Only coadd data from this detector (1-indexed) (default:
-                            None)
+      --det DET             1-indexed detector or list of detectors that the user
+                            wants tocoadd. If None, all the detectors are coadded.
+                            If the spec2d aremosaiced and the user wants to restrict
+                            the coadd to only selectedmosaics, use the parameter
+                            detnum in the coadd2d file as done inrun_pypeit
+                            (default: None)
       --obj OBJ             Object name in lieu of extension, e.g if the spec2d
                             files are named
                             'spec2d_J1234+5678_GNIRS_2017Mar31T085412.181.fits' then

@@ -1223,7 +1223,7 @@ class Coadd2DPar(ParSet):
                             'offsets for coadding images. For slit spectroscopy, provide the ' \
                             '``SLITID`` and the ``OBJID``, separated by comma, of the selected object. ' \
                             'For echelle spectroscopy, provide the ``ECH_OBJID`` of the selected object. ' \
-                            'See :doc:`out_spec1D`for more info about ``SLITID``, ``OBJID`` and ``ECH_OBJID``. ' \
+                            'See :doc:`out_spec1D` for more info about ``SLITID``, ``OBJID`` and ``ECH_OBJID``. ' \
                             'If this parameter is not ``None``, it will be used to compute the offsets ' \
                             'only if ``offsets = auto``, and it will used to compute ' \
                             'the weights only if ``weights = auto``.'
@@ -1316,7 +1316,7 @@ class CubePar(ParSet):
         dtypes['output_filename'] = str
         descr['output_filename'] = 'If combining multiple frames, this string sets the output filename of ' \
                                    'the combined datacube. If combine=False, the output filenames will be ' \
-                                   'prefixed with "spec3d_"'
+                                   'prefixed with "spec3d_*"'
 
         defaults['standard_cube'] = None
         dtypes['standard_cube'] = str
