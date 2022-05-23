@@ -823,7 +823,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
 class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
     """
-    Child to handle VLT/XSHOOTER specific code
+    Child to handle VLT/XSHOOTER specific code for the UVB arm
     """
 
     name = 'vlt_xshooter_uvb'
