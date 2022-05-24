@@ -364,16 +364,24 @@ def fitGaussian2D(image, norm=False):
     amplitude or integrated flux. Otherwise, make sure you scale the image by
     a known value prior to passing it into this function.
 
-    Args:
-        image (`numpy.ndarray`_):
-            A 2D input image
-        norm (bool, optional):
-            If True, the input image will be normalised to the maximum value
-            of the input image.
+    Parameters
+    ----------
+    image : `numpy.ndarray`_
+        A 2D input image
+    norm : bool, optional
+        If True, the input image will be normalised to the maximum value
+        of the input image.
 
-    Returns:
-        popt (`numpy.ndarray`_): The optimum parameters of the Gaussian in the following order: Integrated flux, x center, y center, sigma_x, sigma_y, theta, offset. See `pypeit.core.datacube.gaussian2D`_ for a more detailed description of the model.
-        pcov (`numpy.ndarray`_): Corresponding covariance matrix
+    Returns
+    -------
+    popt : `numpy.ndarray`_
+       The optimum parameters of the Gaussian in the following order: Integrated
+       flux, x center, y center, sigma_x, sigma_y, theta, offset. See
+       :func:`~pypeit.core.datacube.gaussian2D` for a more detailed description
+       of the model.
+    pcov : `numpy.ndarray`_
+        Corresponding covariance matrix
+
     """
     # Normalise if requested
     wlscl = np.max(image) if norm else 1

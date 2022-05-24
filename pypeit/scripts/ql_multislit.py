@@ -253,8 +253,7 @@ def reduce(files, caliBrate, spectrograph, parset, bkg_files=None, show=False, s
     # Instantiate Extract object
     extract = extraction.Extract.get_instance(sciImg, sobjs_obj, spectrograph, parset, caliBrate,
                                               'science', bkg_redux=bkg_redux, return_negative=bkg_redux, show=show)
-    skymodel, objmodel, ivarmodel, \
-    outmask, sobjs, scaleimg, waveimg, tilts = extract.run(global_sky, sobjs_obj)
+    skymodel, objmodel, ivarmodel, outmask, sobjs, waveimg, tilts = extract.run(global_sky, sobjs_obj)
 
     # TODO -- Do this upstream
     # Tack on detector
@@ -268,21 +267,21 @@ def reduce(files, caliBrate, spectrograph, parset, bkg_files=None, show=False, s
 
     # Construct the Spec2DObj with the positive image
     spec2DObj = spec2dobj.Spec2DObj(sciimg=sciImg.image,
-                                      ivarraw=sciImg.ivar,
-                                      skymodel=skymodel,
-                                      objmodel=objmodel,
-                                      ivarmodel=ivarmodel,
-                                      scaleimg=scaleimg,
-                                      waveimg=waveimg,
-                                      bpmmask=outmask,
-                                      detector=sciImg.detector,
-                                      sci_spat_flexure=sciImg.spat_flexure,
-                                      sci_spec_flexure=spec_flex_table,
-                                      vel_corr=None,
-                                      vel_type=parset['calibrations']['wavelengths']['refframe'],
-                                      tilts=tilts,
-                                      slits=copy.deepcopy(caliBrate.slits),
-                                      maskdef_designtab=None)
+                                    ivarraw=sciImg.ivar,
+                                    skymodel=skymodel,
+                                    objmodel=objmodel,
+                                    ivarmodel=ivarmodel,
+                                    scaleimg=None,
+                                    waveimg=waveimg,
+                                    bpmmask=outmask,
+                                    detector=sciImg.detector,
+                                    sci_spat_flexure=sciImg.spat_flexure,
+                                    sci_spec_flexure=spec_flex_table,
+                                    vel_corr=None,
+                                    vel_type=parset['calibrations']['wavelengths']['refframe'],
+                                    tilts=tilts,
+                                    slits=copy.deepcopy(caliBrate.slits),
+                                    maskdef_designtab=None)
     spec2DObj.process_steps = sciImg.process_steps
 
     if not bkg_redux:
@@ -294,7 +293,7 @@ def reduce(files, caliBrate, spectrograph, parset, bkg_files=None, show=False, s
                                            skymodel=-skymodel,
                                            objmodel=-objmodel,
                                            ivarmodel=ivarmodel,
-                                           scaleimg=scaleimg,
+                                           scaleimg=None,
                                            waveimg=waveimg,
                                            bpmmask=outmask,
                                            detector=sciImg.detector,
@@ -431,7 +430,7 @@ class QL_MOS(scriptbase.ScriptBase):
         detname = det_container.name
 
         if std_spec1d_file is not None:
-            std_trace = specobjs.get_std_trace(detname, std_spec1d_file)
+            std_trace = specobjs.get_std_trace(detname, std_spec1d_file, chk_version=False)
         else:
             std_trace = None
 

@@ -19,15 +19,16 @@
 - Improved wavelength solution for Gemini-Nort E2V detector
 - Keck/DEIMOS now uses gain/RN values measured periodically by WMKO
 - Add bok_bc 300 grating template
-- Adeed more flexible quicklook that can handle dithering.
+- Added more flexible quicklook that can handle dithering.
+- Expose exposure time scaling for dark frames as an image processing
+  parameter, and set the default behavior to ignore any difference in
+  exposure time.  Also fixes a bug in the variance calculation.
+- Added more flexible quicklook that can handle dithering.
 - Refactored object finding
 - Bug fixes in local sky subtraction and extraction
 - Fixed pypeit setup issues due to bad LRIS headers.
 - Added support for VLT FORS2 600z grism.
 - Added enhancements and fixes for Keck lris red Mark4.
-- Expose exposure time scaling for dark frames as an image processing
-  parameter, and set the default behavior to ignore any difference in
-  exposure time.  Also fixes a bug in the variance calculation.
 
 
 1.8.1 (23 Feb 2022)

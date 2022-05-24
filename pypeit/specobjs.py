@@ -263,9 +263,9 @@ class SpecObjs:
         if 'MultiSlit' in pypeline or 'IFU' in pypeline:
             # Have to do a loop to extract the counts for all objects
             if self.OPT_COUNTS[0] is not None:
-                SNR = np.median(self.OPT_COUNTS*np.sqrt(self.OPT_COUNTS_IVAR), axis=1)
+                SNR = np.median(self.OPT_COUNTS * np.sqrt(self.OPT_COUNTS_IVAR), axis=1)
             elif self.BOX_COUNTS[0] is not None:
-                SNR = np.median(self.BOX_COUNTS*np.sqrt(self.BOX_COUNTS_IVAR), axis=1)
+                SNR = np.median(self.BOX_COUNTS * np.sqrt(self.BOX_COUNTS_IVAR), axis=1)
             else:
                 return None
 
@@ -915,7 +915,7 @@ class SpecObjs:
         return groups
 
 #TODO Should this be a classmethod on specobjs??
-def get_std_trace(detname, std_outfile):
+def get_std_trace(detname, std_outfile, chk_version=True):
     """
      Returns the trace of the standard.
 
@@ -930,7 +930,7 @@ def get_std_trace(detname, std_outfile):
          in the provided spec1d file.
      """
 
-    sobjs = SpecObjs.from_fitsfile(std_outfile)
+    sobjs = SpecObjs.from_fitsfile(std_outfile, chk_version=chk_version)
     pypeline = sobjs.PYPELINE
     # Does the detector match?
     # TODO: Instrument specific logic here could be implemented with the
