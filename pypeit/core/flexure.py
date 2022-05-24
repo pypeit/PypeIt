@@ -671,16 +671,21 @@ def calculate_image_offset(image, im_ref, nfit=3):
     # Find the maximum
     amax = np.unravel_index(np.argmax(ccorr), ccorr.shape)
 
-    # Perform a 2D Gaussian fit
-    x = np.arange(amax[0]-nfit, amax[0] + nfit+1)
-    y = np.arange(amax[1]-nfit, amax[1] + nfit+1)
+    # Extract a small region around the maximum, and check the limits
+    xlo, xhi = amax[0]-nfit, amax[0] + nfit+1
+    ylo, yhi = amax[1]-nfit, amax[1] + nfit+1
+    if xlo < 0: xlo = 0
+    if xhi > ccorr.shape[0]-1: xhi = ccorr.shape[0]-1
+    if ylo < 0: ylo = 0
+    if yhi > ccorr.shape[1]-1: yhi = ccorr.shape[1]-1
+    x = np.arange(xlo, xhi)
+    y = np.arange(ylo, yhi)
+    # Setup some initial parameters
     initial_guess = (np.max(ccorr), amax[0], amax[1], 3, 3, 0, 0)
     xx, yy = np.meshgrid(x, y, indexing='ij')
 
-    # Fit the neighborhood of the maximum to calculate the offset
-    popt, _ = opt.curve_fit(fitting.twoD_Gaussian, (xx, yy),
-                            ccorr[amax[0]-nfit:amax[0]+nfit+1, amax[1]-nfit:amax[1]+nfit+1].ravel(),
-                            p0=initial_guess)
+    # Fit the neighborhood of the maximum with a Gaussian to calculate the offset
+    popt, _ = opt.curve_fit(fitting.twoD_Gaussian, (xx, yy), ccorr[xlo:xhi, ylo:yhi].ravel(), p0=initial_guess)
     # Return the RA and DEC shift, in pixels
     return popt[1] - ccorr.shape[0]//2, popt[2] - ccorr.shape[1]//2
 
