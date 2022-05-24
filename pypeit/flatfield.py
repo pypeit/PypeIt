@@ -1217,8 +1217,6 @@ class FlatField:
         ----------
         rawflat_orig : `numpy.ndarray`_
             The original raw image of the flatfield
-        debug : bool
-            Debug the routine
 
         Returns
         -------

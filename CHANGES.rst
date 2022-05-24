@@ -23,7 +23,6 @@
 - Expose exposure time scaling for dark frames as an image processing
   parameter, and set the default behavior to ignore any difference in
   exposure time.  Also fixes a bug in the variance calculation.
-- Added more flexible quicklook that can handle dithering.
 - Refactored object finding
 - Bug fixes in local sky subtraction and extraction
 - Fixed pypeit setup issues due to bad LRIS headers.
