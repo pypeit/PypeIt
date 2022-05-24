@@ -122,7 +122,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
     gpm = thismask & (ivar > 0.0) & inmask & np.logical_not(edgmask)
     bad_pixel_frac = np.sum(thismask & np.logical_not(gpm))/np.sum(thismask)
     if bad_pixel_frac > 0.8:
-        msgs.warn('This slit/order has {:5.3f} of the pixels masked, which exceeds the threshold of 0.80. '.format(bad_pixel_frac)
+        msgs.warn('This slit/order has {:5.3f}% of the pixels masked, which exceeds the threshold of 90%. '.format(bad_pixel_frac*100.0)
                   + msgs.newline() + 'There is likely a problem with this slit. Giving up on global sky-subtraction.')
         return np.zeros(np.sum(thismask))
 
@@ -234,42 +234,52 @@ def skyoptimal(piximg, data, ivar, oprof, sigrej=3.0, npoly=1, spatial_img=None,
     Utility routine used by local_skysub_extract that performs the joint b-spline fit for sky-background
     and object flux.
 
-    Args:
-        piximg (`numpy.ndarray`_):
-           piximg is tilts*(nspec-1) where nspec is the number of pixels in the spectral direction of the raw image.
-           This is a wavelength in image coordinates which acts as the independent variable
-           for sky and object model fits. This is 1d array (flattened in the calling routine) with shape= (nflat,).
-        data (`numpy.ndarray`_):
-           science data that is being fit. Same shape as piximg.
-        ivar (`numpy.ndarray`_):
-           inverse variance of science data that is being fit. Same shape as piximg.
-        oprof (`numpy.ndarray`_):
-           Flattened object profiles for the data that is being fit. Shape = (nflat, nobj) where nobj is the number
-           of objects being simultaneously fit. In other words, there are nobj object profiles.
-        sigrej (`float`_):
-           Sigma  threshold for outlier rejection.
-        npoly (`int_`):
-           Order of polynomaial for the sky-background basis function. If spatial_img is passed in a fit with two independent
-           variables will be performed (spectral described by piximg, and spatial direction described by spatia_img)
-           and a legendre polynomial basis of order npoly will be used for the spatial direction.
-           If npoly=1 or if spatial_img is not passed, a flat spatial profile basis funciton will instead be used.
-        spatial_img (`numpy.ndarray`_):
-           Image of the spatial coordinates of each pixel in the image used for 2d fitting.  Same shape as piximg.
-        fullbkpt (`numpy.ndarray`_):
-           A 1d float array containing the breakpoints to be used for the B-spline fit. The breakpoints are arranged
-           in the spectral direction,  i.e. along the directino of the piximg independent variable.
+    Parameters
+    ----------
+    piximg : `numpy.ndarray`_
+        piximg is tilts*(nspec-1) where nspec is the number of pixels in the
+        spectral direction of the raw image.  This is a wavelength in image
+        coordinates which acts as the independent variable for sky and
+        object model fits. This is 1d array (flattened in the calling
+        routine) with shape= (nflat,).
+    data : `numpy.ndarray`_
+        science data that is being fit. Same shape as piximg.
+    ivar : `numpy.ndarray`_
+        inverse variance of science data that is being fit. Same shape as piximg.
+    oprof : `numpy.ndarray`_
+        Flattened object profiles for the data that is being fit. Shape =
+        (nflat, nobj) where nobj is the number of objects being
+        simultaneously fit. In other words, there are nobj object profiles.
+    sigrej : :obj:`float`
+        Sigma  threshold for outlier rejection.
+    npoly : :obj:`int`
+        Order of polynomaial for the sky-background basis function. If
+        spatial_img is passed in a fit with two independent variables will
+        be performed (spectral described by piximg, and spatial direction
+        described by spatia_img) and a legendre polynomial basis of order
+        npoly will be used for the spatial direction.  If npoly=1 or if
+        spatial_img is not passed, a flat spatial profile basis funciton
+        will instead be used.
+    spatial_img : `numpy.ndarray`_
+        Image of the spatial coordinates of each pixel in the image used for
+        2d fitting.  Same shape as piximg.
+    fullbkpt : `numpy.ndarray`_
+        A 1d float array containing the breakpoints to be used for the
+        B-spline fit. The breakpoints are arranged in the spectral
+        direction,  i.e. along the directino of the piximg independent
+        variable.
 
-    Returns:
-        sky_bmodel, obj_bmodel, gpm
-
-        sky_bmodel (`numpy.ndarray`_):
-           Array with same shape as piximg containing the B-spline model of the sky.
-        obj_bmodel (`numpy.ndarray`_):
-           Array with same shape as piximg containing the B-spline model of the object flux.
-        gpm (`numpy.ndarray`_):
-           Boolean good pixel mask array with the same shape as piximg indicating whether a pixel is good (True)
-           or was masked (False).
-
+    Returns
+    -------
+    sky_bmodel : `numpy.ndarray`_
+        Array with same shape as piximg containing the B-spline model of the
+        sky.
+    obj_bmodel : `numpy.ndarray`_
+        Array with same shape as piximg containing the B-spline model of the
+        object flux.
+    gpm : `numpy.ndarray`_
+        Boolean good pixel mask array with the same shape as piximg indicating
+        whether a pixel is good (True) or was masked (False).
     """
 
     sortpix = piximg.argsort()
