@@ -1,6 +1,6 @@
 
 
-Version: 1.1.5
+Version: 1.1.6
 
 ======================  =========================  =================  ====================================================================================================================================================================================
 Obj Key                 Obj Type                   Array Type         Description                                                                                                                                                                         
@@ -57,13 +57,13 @@ Obj Key                 Obj Type                   Array Type         Descriptio
 ``SLITID``              int, integer                                  PypeIt slit ID (aka SPAT_ID).                                                                                                                                                       
 ``SPAT_FRACPOS``        float, floating                               Fractional location of the object on the slit                                                                                                                                       
 ``SPAT_PIXPOS``         float, floating                               Spatial location of the trace on detector (pixel) at half-way                                                                                                                       
-``THRESHOLD``           float                                         Threshold used for object finding                                                                                                                                                   
 ``TRACE_SPAT``          ndarray                    float              Object trace along the spec (spatial pixel)                                                                                                                                         
 ``VEL_CORR``            float                                         Relativistic velocity correction for wavelengths                                                                                                                                    
 ``VEL_TYPE``            str                                           Type of heliocentric correction (if any)                                                                                                                                            
 ``WAVE_RMS``            float, floating                               RMS (pix) for the wavelength solution for this slit.                                                                                                                                
 ``hand_extract_flag``   bool                                          Boolean indicating if this is a forced extraction at the location provided by the user.                                                                                             
 ``maskwidth``           float, floating                               Size (in units of fwhm) of the region used for local sky subtraction                                                                                                                
-``smash_peakflux``      float                                         Peak value of the spectrum spatial profile                                                                                                                                          
+``smash_peakflux``      float                                         Peak value of the spectral direction collapsed spatial profile                                                                                                                      
+``smash_snr``           float                                         Peak S/N ratio of the spectral direction collapsed patial profile                                                                                                                   
 ``trace_spec``          ndarray                    int,numpy.integer  Array of pixels along the spectral direction                                                                                                                                        
 ======================  =========================  =================  ====================================================================================================================================================================================
