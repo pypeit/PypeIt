@@ -248,6 +248,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Relative illumination correction
         par['calibrations']['flatfield']['slit_illum_relative'] = True  # Calculate the relative slit illumination
         par['calibrations']['flatfield']['slit_illum_ref_idx'] = 14  # The reference index - this should probably be the same for the science frame
+        par['calibrations']['flatfield']['slit_illum_smooth_npix'] = 4  # Sufficiently small value so less structure in relative weights
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 0.01]
@@ -264,7 +265,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['sigclip'] = 4.0
         par['scienceframe']['process']['objlim'] = 1.5
         par['scienceframe']['process']['use_illumflat'] = True  # illumflat is applied when building the relative scale image in reduce.py, so should be applied to scienceframe too.
-        par['scienceframe']['process']['use_specillum'] = True  # apply relative spectral illumination
+        par['scienceframe']['process']['use_specillum'] = False  # apply relative spectral illumination
         par['scienceframe']['process']['spat_flexure_correct'] = False  # don't correct for spatial flexure - varying spatial illumination profile could throw this correction off. Also, there's no way to do astrometric correction if we can't correct for spatial flexure of the contbars frames
         par['scienceframe']['process']['use_biasimage'] = False
         par['scienceframe']['process']['use_darkimage'] = False
@@ -612,9 +613,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             elif section == 'BSEC':
                 oscansec_img = pix_img.copy()
 
-        # Calculate the pattern frequency
-        hdu = self.calc_pattern_freq(raw_img, rawdatasec_img, oscansec_img, hdu)
-
         # Return
         return detpar, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
 
@@ -653,9 +651,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         Returns
         -------
-        hdu : `astropy.io.fits.HDUList`_
-            The input HDUList, with header updated to include the frequency
-            of each amplifier.
+        patt_freqs : :obj:`list`
+            List of pattern frequencies.
         """
         msgs.info("Calculating pattern noise frequency")
 
@@ -667,6 +664,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         num_amps = unq_amps.size
 
         # Loop through amplifiers and calculate the frequency
+        patt_freqs = []
         for amp in unq_amps:
             # Grab the pixels where the amplifier has data
             pixs = np.where((rawdatasec_img == amp) | (oscansec_img == amp))
@@ -687,12 +685,11 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 frame = raw_img[cmin:cmax, rmin:rmax].astype(np.float64)
             # Calculate the pattern frequency
             freq = procimg.pattern_frequency(frame)
+            patt_freqs.append(freq)
             msgs.info("Pattern frequency of amplifier {0:d}/{1:d} = {2:f}".format(amp, num_amps, freq))
-            # Add the frequency to the zeroth header
-            hdu[0].header['PYPFRQ{0:02d}'.format(amp)] = freq
 
-        # Return the updated HDU
-        return hdu
+        # Return the list of pattern frequencies
+        return patt_freqs
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
@@ -839,7 +836,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         crota = np.radians(-(skypa + rotoff))
 
         # Calculate the fits coordinates
-        cdelt1 = -slscl#*(24/23)  # The factor (24/23) is a hack - It is introduced because the centre of 1st and 24th slices are 23 slices apart... TODO :: Need to think of a better way to deal with this
+        cdelt1 = -slscl
         cdelt2 = pxscl
         if coord is None:
             ra = 0.
@@ -854,7 +851,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)  # DEC degress per column
         cd22 = cdelt2 * np.cos(crota)                          # DEC degrees per row
         # Get reference pixels (set these to the middle of the FOV)
-        crpix1 = 12.   # i.e. 24 slices/2
+        crpix1 = 24/2 - 0.5   # i.e. 24 slices/2 and then -0.5 to account for the bin edge used with NGP
         crpix2 = slitlength / 2.
         crpix3 = 1.
         # Get the offset

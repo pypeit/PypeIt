@@ -457,7 +457,8 @@ class SlitTraceSet(datamodel.DataContainer):
         msgs.work("Spatial flexure is not currently implemented for the astrometric alignment")
         # Check if the user has skimage installed
         if skimageTransform is None or alignments is None:
-            msgs.warn("scikit-image is not installed - astrometric correction not implemented")
+            if skimageTransform is None: msgs.warn("scikit-image is not installed - astrometric correction not implemented")
+            else: msgs.warn("Alignments were not provided - astrometric correction not implemented")
             astrometric = False
         # Prepare the parameters
         if not astrometric:
@@ -906,8 +907,9 @@ class SlitTraceSet(datamodel.DataContainer):
             thisobj.FWHM = fwhm  # pixels
             thisobj.BOX_RADIUS = boxcar_rad  # pixels
             thisobj.maskwidth = 4. * fwhm  # matches objfind() in extract.py
+            thisobj.smash_snr = 0.
             thisobj.smash_peakflux = 0.
-            thisobj.THRESHOLD = 0.
+            #thisobj.THRESHOLD = 0.
             # Finishing up
             thisobj.set_name()
             # Mask info
@@ -1055,7 +1057,6 @@ class SlitTraceSet(datamodel.DataContainer):
                 sobj.DEC = self.maskdef_designtab['OBJDEC'][oidx]
                 sobj.MASKDEF_OBJNAME = self.maskdef_designtab['OBJNAME'][oidx]
                 sobj.MASKDEF_EXTRACT = False
-                sobj.hand_extract_flag = False
                 # Remove that idx value
                 idx = idx.tolist()
                 idx.remove(imx_idx)
@@ -1072,7 +1073,6 @@ class SlitTraceSet(datamodel.DataContainer):
                 sobj.DEC = new_obj_coord.dec.value
                 sobj.MASKDEF_OBJNAME = 'SERENDIP'
                 sobj.MASKDEF_EXTRACT = False
-                sobj.hand_extract_flag = False
         # Give fake values of RA, DEC, and MASKDEF_OBJNAME for object with maskdef_id=-99.
         noidx = np.where(cut_sobjs.MASKDEF_ID == -99)[0]
         if noidx.size > 0:
@@ -1082,7 +1082,6 @@ class SlitTraceSet(datamodel.DataContainer):
                 sobj.DEC = 0.0
                 sobj.MASKDEF_OBJNAME = 'NONE'
                 sobj.MASKDEF_EXTRACT = False
-                sobj.hand_extract_flag = False
 
         # Return
         return sobjs

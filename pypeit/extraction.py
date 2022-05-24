@@ -126,7 +126,6 @@ class Extract:
         self.objtype = objtype
         self.par = par
         self.caliBrate = caliBrate
-        self.scaleimg = np.array([1.0], dtype=np.float)  # np.array([1]) applies no scale
         self.basename = basename
         # Parse
         # Slit pieces
@@ -239,7 +238,7 @@ class Extract:
 #        # For echelle
 #        self.spatial_coo = self.slits.spatial_coordinates(initial=initial, flexure=self.spat_flexure_shift)
 
-    def extract(self, global_sky, sobjs_obj):
+    def extract(self, global_sky):
         """
         Main method to extract spectra from the ScienceImage
 
@@ -284,6 +283,21 @@ class Extract:
                                           model_noise=(not self.bkg_redux),
                                           show_profile=self.extract_show,
                                           show=self.extract_show)
+
+        # Remove sobjs that don't have both OPT_COUNTS and BOX_COUNTS
+        remove_idx = []
+        for idx, sobj in enumerate(self.sobjs):
+            # Find them
+            if sobj.OPT_COUNTS is None and sobj.BOX_COUNTS is None:
+                remove_idx.append(idx)
+                msgs.warn(f'Removing object at pixel {sobj.SPAT_PIXPOS} because '
+                          f'both optimal and boxcar extraction could not be performed')
+            elif sobj.OPT_COUNTS is None:
+                msgs.warn(f'Optimal extraction could not be performed for object at pixel {sobj.SPAT_PIXPOS}')
+
+        # Remove them
+        if len(remove_idx) > 0:
+            self.sobjs.remove_sobj(remove_idx)
 
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
@@ -344,7 +358,6 @@ class Extract:
         # TODO this should return things to make the control flow less opqaque.
         self.prepare_extraction(global_sky)
 
-
         # Do we have any positive objects to proceed with?
         if self.nobj_to_extract > 0:
             # Apply a global flexure correction to each slit
@@ -354,7 +367,7 @@ class Extract:
 
             # Extract + Return
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
-                = self.extract(self.global_sky, self.sobjs_obj)
+                = self.extract(self.global_sky)
 
             if self.bkg_redux:
                 self.sobjs.make_neg_pos() if self.return_negative else self.sobjs.purge_neg()
@@ -404,7 +417,7 @@ class Extract:
 
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, \
-               self.scaleimg, self.waveimg, self.tilts
+               self.waveimg, self.tilts
 
     def local_skysub_extract(self, global_sky, sobjs, model_noise=True, spat_pix=None,
                              show_profile=False, show_resids=False, show=False):
