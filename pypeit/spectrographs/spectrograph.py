@@ -1042,7 +1042,7 @@ class Spectrograph:
         Return meta data from a given file (or its array of headers).
 
         Args:
-            inp (:obj:`str`, :obj:`astropy.io.fits.Header`_, :obj:`list`):
+            inp (:obj:`str`, `astropy.io.fits.Header`_, :obj:`list`):
                 Input filename, an `astropy.io.fits.Header`_ object, or a list
                 of `astropy.io.fits.Header`_ objects.  If None, function simply
                 returns None without issuing any warnings/errors, unless
@@ -1584,7 +1584,7 @@ class Spectrograph:
 
         Returns
         -------
-        patt_freqs : `list`_
+        patt_freqs : :obj:`list`
             List of pattern frequencies.
         """
         msgs.info("Pattern noise removal is not implemented for spectrograph {0:s}".format(self.name))
