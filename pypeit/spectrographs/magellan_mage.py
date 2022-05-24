@@ -121,6 +121,11 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['fit_min_spec_length'] = 0.3  # Allow for a short detected blue order
         # Find object parameters
         par['reduce']['findobj']['find_trim_edge'] = [4,4]    # Slit is too short to trim 5,5 especially with 2x binning
+        par['reduce']['findobj']['maxnumber_sci'] = 2  # Slit is narrow so allow one object per order
+        par['reduce']['findobj']['maxnumber_std'] = 1  # Slit is narrow so allow one object per order
+        par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
+
+
         # Always flux calibrate, starting with default parameters
         # Do not correct for flexure
         par['flexure']['spec_method'] = 'skip'

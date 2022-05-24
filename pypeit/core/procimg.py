@@ -699,12 +699,19 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
     identified in KCWI, but the source of this pattern noise is not currently
     known. The pattern model is generated with a three step process:
 
-    STEP 1: Given a first guess at the frequency, calculate how frequency depends on pixel row (slight linear dependence)
-    STEP 2: Using the frequency model, calculate the amplitude of the signal (usually a constant for all pixel rows)
-    STEP 3: Using the model of the frequency and the amplitude, calculate the phase of the signal for each pixel row.
-            Note that the phase is different for each pixel row.
-    A complete detector model is generated for the pattern noise using the frequency+amplitude+phase, and an estimate
-    of the improved effective read noise is provided.
+        #. Given a first guess at the frequency, calculate how frequency depends
+           on pixel row (slight linear dependence)
+
+        #. Using the frequency model, calculate the amplitude of the signal
+           (usually a constant for all pixel rows)
+
+        #. Using the model of the frequency and the amplitude, calculate the
+           phase of the signal for each pixel row.  Note that the phase is
+           different for each pixel row.
+
+    A complete detector model is generated for the pattern noise using the
+    frequency+amplitude+phase, and an estimate of the improved effective read
+    noise is provided.
 
     Args:
         rawframe (`numpy.ndarray`_):
