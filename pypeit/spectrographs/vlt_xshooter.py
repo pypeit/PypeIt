@@ -969,11 +969,15 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         """
         Return the expected spatial position of each echelle order.
 
-        from pypeit import edgetrace
-        edges = edgetrace.EdgeTraceSet.from_file('MasterEdges_A_1_DET01.fits.gz')
+        The following lines generated the values below:
 
-        nrm_edges = edges.edge_fit[edges.nspec//2,:] / edges.nspat
-        slit_cen = ((nrm_edges + np.roll(nrm_edges,1))/2)[np.arange(nrm_edges.size//2)*2+1]
+        .. code-block:: python
+            from pypeit import edgetrace
+            edges = edgetrace.EdgeTraceSet.from_file('MasterEdges_A_1_DET01.fits.gz')
+
+            nrm_edges = edges.edge_fit[edges.nspec//2,:] / edges.nspat
+            slit_cen = ((nrm_edges + np.roll(nrm_edges,1))/2)[np.arange(nrm_edges.size//2)*2+1]
+
         """
         # This starts by ignoring the first, partial order (25?)
         #  Order 24 is very faint and not included here

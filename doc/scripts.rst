@@ -199,6 +199,11 @@ solutions.  Here is a standard call::
 
 This launches a matplotlib GUI plot of Order=17 for the magellan_mage spectrograph.
 
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_show_wvcalib.rst
+
 
 .. _pypeit_parse_slits:
 

@@ -5001,13 +5001,13 @@ class EdgeTraceSet(DataContainer):
             bad_slits = np.ones(slit_cen.size, dtype=bool)
             bad_slits[slit_indx] = False
             bad_indx = np.where(bad_slits)[0]
-            for ii in bad_indx:
-                # Left/right
-                _indx = np.array([2*ii, 2*ii+1])
-                self.edge_msk[:,_indx] = self.bitmask.turn_on(
-                    self.edge_msk[:,_indx], 'ORDERMISMATCH')
+            # Flag them
+            _indx = np.append(2*bad_indx, 2*bad_indx+1)
+            self.edge_msk[:,_indx] = self.bitmask.turn_on(
+                self.edge_msk[:,_indx], 'ORDERMISMATCH')
+
             # Redo the above calculations                                                            
-            slit_cen = slit_cen[np.invert(bad_slits)]
+            slit_cen = slit_cen[np.logical_not(bad_slits)]
             sep = self.spectrograph.order_spat_pos[:,None] - slit_cen[None,:] - offset
             slit_indx = np.ma.MaskedArray(np.ma.argmin(np.absolute(sep), axis=1))
         # TODO -- Should I keep this on, or might we succeed (possible)?

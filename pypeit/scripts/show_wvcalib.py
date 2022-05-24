@@ -39,7 +39,6 @@ class ShowWvCalib(scriptbase.ScriptBase):
         wvcalib = wavecalib.WaveCalib.from_file(pargs.file)
         if pargs.slit_file is not None:
             slits = slittrace.SlitTraceSet.from_file(pargs.slit_file)
-        #embed(header='36 of show wvcalib')
 
         # Parse
         if pargs.is_order:
