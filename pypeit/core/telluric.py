@@ -1210,7 +1210,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
                       sn_clip=30.0, ballsize=5e-4, only_orders=None, maxiter=3, lower=3.0,
                       upper=3.0, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
                       debug_init=False, debug=False):
-    """
+    r"""
     Compute a sensitivity function from a standard star spectrum by
     simultaneously fitting a polynomial sensitivity function and a telluric
     model for atmospheric absorption.
@@ -1218,9 +1218,10 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
     This method is primarily used with :class:`~pypeit.sensfunc.SensFunc` to
     compute sensitivity functions.
 
-    The sensitivity function is defined to be S_lam = F_lam/(counts/s/A) where
-    F_lam is in units of 1e-17 erg/s/cm^2/A, and so the sensitivity function has
-    units of (erg/s/cm^2/A)/(counts/s/A) = erg/cm^2/counts
+    The sensitivity function is defined to be :math:`S_\lambda = F_\lambda/({\rm
+    counts/s/A})` where :math:`F_\lambda` is in units of 1e-17 :math:`{\rm
+    erg/s/cm^2/A}`, and so the sensitivity function has units of
+    :math:`{\rm (erg/s/cm^2/A)/(counts/s/A) = erg/cm^2/counts}`
 
     Parameters
     ----------
@@ -1239,7 +1240,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
         Airmass of the observation
     std_dict : :obj:`dict`
         Dictionary containing the information for the true flux of the standard
-        star. TODO: What's in this dictionary?
+        star.
     telgridfile : :obj:`str`
         File containing grid of HITRAN atmosphere models. This file is given by
         :func:`~pypeit.spectrographs.spectrograph.Spectrograph.telluric_grid_file`.
@@ -1249,7 +1250,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
         Polynomial order for the sensitivity function fit.
     mask_abs_lines : :obj:`bool`, optional, default=True
         Mask proiminent stellar absorption lines?
-    resln_guess (:obj:`float`, optional):
+    resln_guess : :obj:`float`, optional
         A guess for the resolution of your spectrum expressed as
         lambda/dlambda. The resolution is fit explicitly as part of the
         telluric model fitting, but this guess helps determine the bounds
@@ -1257,7 +1258,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
         provided, the wavelength sampling of your spectrum will be used
         and the resolution calculated using a typical sampling of 3
         spectral pixels per resolution element.
-    resln_frac_bounds (:obj:`tuple`, optional):
+    resln_frac_bounds : :obj:`tuple`, optional
         A two-tuple with the bounds for the resolution fit optimization
         which is part of the telluric model. This range is in units of
         ``resln_guess``. For example, ``(0.5, 1.5)`` would bound the
@@ -1307,7 +1308,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
         Argument for `scipy.optimize.differential_evolution`_, which will
         display status messages to the screen indicating the status of the
         optimization. See above for a description of the output and how to know
-        if things are working well.  TODO: Where above?
+        if things are working well.
     debug_init : :obj:`bool`, optional, default=False
         Show plots to the screen useful for debugging model initialization
     debug : :obj:`bool`, optional, default=False
