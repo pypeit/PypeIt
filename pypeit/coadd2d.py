@@ -532,12 +532,17 @@ class CoAdd2D:
 
     def reduce(self, pseudo_dict, show=None, show_peaks=None, basename=None):
         """
-        ..todo.. Please document me
+        Method to run the reduction on coadd2d psuedo images
 
         Args:
-            pseudo_dict:
-            show:
-            show_peaks:
+            pseudo_dict (dict):
+               Dictionary containing coadd2d psuedo images
+            show (bool):
+               If True, show the outputs to ginga and the screen analogous to run_pypeit with the -s option
+            show_peaks (bool):
+               If True, plot the object finding QA to the screen.
+            basename (str):
+               The basename for the spec2d output files.
 
         Returns:
 
@@ -654,22 +659,6 @@ class CoAdd2D:
                pseudo_dict['tilts'], pseudo_dict['waveimg']
 
 
-
-#    def save_masters(self):
-#
-#        # Write out the pseudo master files to disk
-#        master_key_dict = self.stack_dict['master_key_dict']
-#
-#        # TODO: These saving operations are a temporary kludge
-#        # spectrograph is needed for header
-#        waveImage = WaveImage(self.pseudo_dict['waveimg'], PYP_SPEC=self.spectrograph.spectrograph)
-#        wave_filename = masterframe.construct_file_name(WaveImage, master_key_dict['arc'], self.master_dir)
-#        waveImage.to_master_file(wave_filename)
-#
-#        # TODO: Assumes overwrite=True
-#        slit_filename = masterframe.construct_file_name(self.pseudo_dict['slits'], master_key_dict['trace'], self.master_dir)
-#        self.pseudo_dict['slits'].to_master_file(slit_filename) #self.master_dir, master_key_dict['trace'], self.spectrograph.spectrograph)
-#    '''
 
     def snr_report(self, snr_bar, slitid=None):
         """
