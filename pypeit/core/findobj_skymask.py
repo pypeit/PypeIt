@@ -374,8 +374,11 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                                   hand_extract_dict['spec']):
             # Find the input slit
             ispec = int(np.clip(np.round(spec),0,nspec-1))
-            ispat = int(np.clip(np.round(spat),0,nspec-1))
+            ispat = int(np.clip(np.round(spat),0,nspat-1))
             slit = slitmask[ispec, ispat]
+            if slit == -1:
+                msgs.error('You are requesting a manual extraction at a position ' +
+                           f'(spat, spec)={spat, spec} that is not on one of the echelle orders. Check your pypeit file.')
             # Fractions
             iord_hand = gdslit_spat.tolist().index(slit)
             f_spat = (spat - slit_left[ispec, iord_hand]) / (

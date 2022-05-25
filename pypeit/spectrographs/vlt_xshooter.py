@@ -283,7 +283,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['reduce']['skysub']['global_sky_std']  = False # Do not perform global sky subtraction for standard stars
         par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
         par['reduce']['findobj']['trace_npoly'] = 8
-        par['reduce']['findobj']['maxnumber'] = 1  # Assume that there is only one object on the slit.
+        par['reduce']['findobj']['maxnumber_sci'] = 2  # Assume that there is only one object on the slit.
+        par['reduce']['findobj']['maxnumber_std'] = 1  # Assume that there is only one object on the slit.
 
 
         # The settings below enable X-shooter dark subtraction from the traceframe and pixelflatframe, but enforce
@@ -375,6 +376,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        good_seq = np.array([seq is not None and int(seq) % 2 == 1 for seq in fitstbl['seq_expno']])
         # TODO: Allow for 'sky' frame type, for now include sky in
         # 'science' category
         if ftype == 'science':
@@ -394,14 +396,14 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
             return good_exp & (((fitstbl['target'] == 'LAMP,DFLAT')
                                | (fitstbl['target'] == 'LAMP,QFLAT')
                                | (fitstbl['target'] == 'LAMP,FLAT'))
-                               & (fitstbl['seq_expno'].astype(int) % 2 == 1))
+                               & good_seq)
         
         if ftype in ['dark']:
             # Lamp off flats are taken second (even exposure number)
             return good_exp & (((fitstbl['target'] == 'LAMP,DFLAT')
                                 | (fitstbl['target'] == 'LAMP,QFLAT')
                                 | (fitstbl['target'] == 'LAMP,FLAT'))
-                               & (fitstbl['seq_expno'].astype(int) % 2 == 0))
+                               & good_seq)
         
         if ftype == 'pinhole':
             # Don't type pinhole
@@ -679,6 +681,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['reduce']['extraction']['model_full_slit'] = True
         # Mask 3 edges pixels since the slit is short, insted of default (5,5)
         par['reduce']['findobj']['find_trim_edge'] = [3,3]
+        par['reduce']['findobj']['maxnumber_sci'] = 2  # Assume that there is only one object on the slit.
+        par['reduce']['findobj']['maxnumber_std'] = 1  # Assume that there is only one object on the slit.
         # Continnum order for determining thresholds
 
         # Sensitivity function parameters

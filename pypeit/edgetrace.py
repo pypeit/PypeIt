@@ -3675,6 +3675,7 @@ class EdgeTraceSet(DataContainer):
         if self.par['max_nudge'] is not None and self.par['max_nudge'] <= 0:
             # Nothing to do
             return trace_cen
+        # Check vector size
         if trace_cen.shape[0] != self.nspec:
             msgs.error('Traces have incorrect length.')
         _buffer = self.par['det_buffer']
@@ -3682,8 +3683,9 @@ class EdgeTraceSet(DataContainer):
             msgs.warn('Buffer must be greater than 0; ignoring.')
             _buffer = 0
 
-        msgs.info('Nudging traces, by at most {0} pixel(s)'.format(self.par['max_nudge'])
-                  + ', to be no closer than {0} pixel(s) from the detector edge.'.format(_buffer))
+        if self.par['max_nudge'] is not None:
+            msgs.info('Nudging traces, by at most {0} pixel(s)'.format(self.par['max_nudge'])
+                      + ', to be no closer than {0} pixel(s) from the detector edge.'.format(_buffer))
 
         # NOTE: Should never happen, but this makes a compromise if a
         # trace crosses both the left and right spatial edge of the
@@ -4266,8 +4268,8 @@ class EdgeTraceSet(DataContainer):
 
         # Find if there are missing traces.
         # Need exactly one occurrence of each index in "need"
-        buffer = self.par['det_buffer']+1
-        need = ((top_edge_pred > buffer) & (bot_edge_pred < (self.traceimg.shape[1] - 1 - buffer))) & \
+        buffer = 3*self.par['det_buffer'] + 1
+        need = (top_edge_pred > buffer) & (bot_edge_pred < (self.traceimg.shape[1] - 1 - buffer)) & \
                ((omodel_bspat != -1) | (omodel_tspat != -1))
 
         # bottom edges
