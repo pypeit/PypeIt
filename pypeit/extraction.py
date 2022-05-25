@@ -290,7 +290,7 @@ class Extract:
             self.outmask = self.sciImg.fullmask
             self.skymodel = global_sky.copy()
         else:  # Local sky subtraction and optimal extraction.
-            model_noise_1 = (not self.bkg_redux) if model_noise is None else model_noise
+            model_noise_1 = not self.bkg_redux if model_noise is None else model_noise
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
                 self.local_skysub_extract(global_sky, self.sobjs_obj,
                                           model_noise=model_noise_1,

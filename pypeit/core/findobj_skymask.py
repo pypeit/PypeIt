@@ -833,13 +833,13 @@ def objfind_QA(spat_peaks, snr_peaks, spat_vector, snr_vector, snr_thresh, qa_ti
                label='SNR_THRESH={:5.3f}'.format(snr_thresh))
     if np.any(peak_gpm):
         plt.plot(spat_peaks[peak_gpm], snr_peaks[peak_gpm], color='red', marker='o', markersize=10.0,
-                 mfc='lawngreen', fillstyle='full',linestyle='None', zorder = 10,label='Good Object')
+                 mfc='lawngreen', fillstyle='full',linestyle='None', zorder = 10,label='{:d} Good Objects'.format(np.sum(peak_gpm)))
     if np.any(near_edge_bpm):
         plt.plot(spat_peaks[near_edge_bpm], snr_peaks[near_edge_bpm], color='red', marker='o', markersize=10.0,
-                 mfc='cyan', fillstyle='full', linestyle='None', zorder = 10,label='Rejected: Near Edge')
+                 mfc='cyan', fillstyle='full', linestyle='None', zorder = 10,label='{:d} Rejected: Near Edge'.format(np.sum(near_edge_bpm)))
     if np.any(nperslit_bpm):
         plt.plot(spat_peaks[nperslit_bpm], snr_peaks[nperslit_bpm], color='red', marker='o', markersize=10.0,
-                 mfc='yellow', fillstyle='full', linestyle='None', zorder = 10,label='Rejected: Nperslit')
+                 mfc='yellow', fillstyle='full', linestyle='None', zorder = 10,label='{:d} Rejected: Nperslit'.format(np.sum(nperslit_bpm)))
     plt.legend()
     plt.xlabel('Approximate Spatial Position (pixels)')
     plt.ylabel('SNR')
