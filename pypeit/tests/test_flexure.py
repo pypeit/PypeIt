@@ -115,3 +115,18 @@ def test_flex_multi():
         os.remove(outfile)
 
 
+def test_flex_image():
+    """ Test the image alignment """
+    # Generate some fake data
+    sz = 100
+    xx, yy = np.meshgrid(np.arange(sz),np.arange(sz))
+    img = np.exp(-0.5*((sz/2-xx)**2 - (sz/2-yy)**2)/16)
+    # Check odd/even image sizes to make sure the offset is always zero for identical input images
+    xshft, yshft = flexure.calculate_image_offset(img, img)
+    assert(np.abs(xshft) < 1.0e-6 and np.abs(yshft) < 1.0e-6)
+    xshft, yshft = flexure.calculate_image_offset(img[:, :-1], img[:, :-1])
+    assert(np.abs(xshft) < 1.0e-6 and np.abs(yshft) < 1.0e-6)
+    xshft, yshft = flexure.calculate_image_offset(img[:-1, :], img[:-1, :])
+    assert(np.abs(xshft) < 1.0e-6 and np.abs(yshft) < 1.0e-6)
+    xshft, yshft = flexure.calculate_image_offset(img[:-1, :-1], img[:-1, :-1])
+    assert(np.abs(xshft) < 1.0e-6 and np.abs(yshft) < 1.0e-6)
