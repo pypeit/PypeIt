@@ -360,8 +360,12 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+
+        # Default NIR calibration behavior is to take flat/darks in sequence
+        #  These are marked by the seq_expno column
         good_flat_seq = np.array([seq is not None and int(seq) % 2 == 1 for seq in fitstbl['seq_expno']])
         good_dark_seq = np.array([seq is not None and int(seq) % 2 == 0 for seq in fitstbl['seq_expno']])
+
         # TODO: Allow for 'sky' frame type, for now include sky in
         # 'science' category
         if ftype == 'science':
@@ -891,7 +895,6 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         # X-SHOOTER arcs/tilts are also have different binning with bias
         # frames, so don't use bias frames. Don't use the biases for any
         # calibrations since it appears to be a different amplifier readout
-        par['calibrations']['traceframe']['process']['overscan_method'] = 'median'
 
         # Adjustments to slit and tilts for UVB
         par['calibrations']['slitedges']['edge_thresh'] = 8.
@@ -1063,11 +1066,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         # Call the base-class method to generate the empty bpm
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
-        # TODO -- come back to this
-        #if det == 1:
-        #    # TODO: This is for the 1x1 binning it should
-        #    # change for other binning
-        #    bpm_img[:2369,1326:1328] = 1.
+        # TODO -- Mask bad column if it is problematic (it isn't so far)
 
         return bpm_img
 
