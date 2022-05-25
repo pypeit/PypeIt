@@ -1202,12 +1202,20 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
     if nperslit is not None:
         # If the requested number is less than (the non-edge) number found, mask them out
         if nperslit < npeak_not_near_edge:
-            snr_thresh_perslit = snr_peaks_all[snr_peaks_all[np.logical_not(near_edge_bpm)].argsort()[::-1][nperslit-1]]
+            snr_peaks_not_edge = np.sort(snr_peaks_all[np.logical_not(near_edge_bpm)])[::-1]
+            snr_thresh_perslit = snr_peaks_not_edge[nperslit-1]
             nperslit_bpm = np.logical_not(near_edge_bpm) & (snr_peaks_all < snr_thresh_perslit)
         else:
             nperslit_bpm = np.zeros(npeaks_all, dtype=bool)
     else:
         nperslit_bpm = np.zeros(npeaks_all, dtype=bool)
+
+    if np.any(nperslit_bpm):
+        msgs.warn('Discarding {:d}'.format(np.sum(nperslit_bpm)) +
+                  ' at spatial pixels spat = {:} and SNR = {:}'.format(
+                      x_peaks_all[nperslit_bpm], snr_peaks_all[nperslit_bpm]) +
+                  ' which are below SNR_thresh={:5.3f} set because the maximum number of objects '.format(snr_thresh_perslit) +
+                  'requested nperslit={:d} was exceeded'.format(nperslit))
 
     peaks_gpm = np.logical_not(near_edge_bpm) & np.logical_not(nperslit_bpm)
 
