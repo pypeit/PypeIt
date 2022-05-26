@@ -1502,14 +1502,11 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     # Calculate the image offsets - check the reference is a zero shift
     ra_shift_ref, dec_shift_ref = calculate_image_offset(reference_image.copy(), reference_image.copy())
     for ff in range(numfiles):
-        # Don't correlate the reference image with itself
-        if ff == ref_idx:
-            continue
         # Calculate the shift
         ra_shift, dec_shift = calculate_image_offset(whitelight_imgs[:, :, ff], reference_image.copy())
         # Convert to reference
-        ra_shift -= ra_shift_ref
-        dec_shift -= dec_shift_ref
+        ra_shift += ra_shift_ref
+        dec_shift += dec_shift_ref
         # Convert pixel shift to degress shift
         ra_shift *= dspat/cosdec
         dec_shift *= dspat
