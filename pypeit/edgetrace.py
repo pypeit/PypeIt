@@ -4996,27 +4996,6 @@ class EdgeTraceSet(DataContainer):
         # Find the smallest offset for each order
         slit_indx = np.ma.MaskedArray(np.ma.argmin(np.absolute(sep), axis=1))
 
-        # Cut down, as needed
-        if self.spectrograph.order_spat_pos.size < slit_cen.size:
-            msgs.warn("We detected more orders than calibrated. Trimming the extras")
-            # Mask
-            bad_slits = np.ones(slit_cen.size, dtype=bool)
-            bad_slits[slit_indx] = False
-            bad_indx = np.where(bad_slits)[0]
-            # Flag them
-            _indx = np.append(2*bad_indx, 2*bad_indx+1)
-            self.edge_msk[:,_indx] = self.bitmask.turn_on(
-                self.edge_msk[:,_indx], 'ORDERMISMATCH')
-
-            # Redo the above calculations                                                            
-            slit_cen = slit_cen[np.logical_not(bad_slits)]
-            sep = self.spectrograph.order_spat_pos[:,None] - slit_cen[None,:] - offset
-            slit_indx = np.ma.MaskedArray(np.ma.argmin(np.absolute(sep), axis=1))
-        # TODO -- Should I keep this on, or might we succeed (possible)?
-        #elif slit_cen.size < self.spectrograph.order_spat_pos.size:
-        #    msgs.error("We detected fewer orders than expecting.  Modify your edge finding parameters!")
-
-
         # Minimum separation between the order and its matching slit;
         # keep the signed value for reporting, but used the absolute
         # value of the difference for vetting below.
@@ -5073,6 +5052,7 @@ class EdgeTraceSet(DataContainer):
         nfound = len(found_orders)
         indx = (2*slit_indx.compressed()[:,None] + np.tile(np.array([0,1]), (nfound,1))).ravel()
         self.orderid[indx] = (np.array([-1,1])[None,:]*found_orders[:,None]).ravel()
+        embed(header='5076 of edgetrace')
 
     def get_slits(self):
         """
