@@ -143,6 +143,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
         # TODO Heliocentric for coadd2d needs to be thought through. Currently turning it off.
         parset['calibrations']['wavelengths']['refframe'] = 'observed'
+        # TODO Flexure correction for coadd2d needs to be thought through. Currently turning it off.
+        parset['flexure']['spec_method'] = 'skip'
         # Write the par to disk
         par_outfile = basename+'_coadd2d.par'
         print("Writing the parameters to {}".format(par_outfile))
