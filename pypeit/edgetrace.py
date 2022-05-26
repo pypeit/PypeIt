@@ -5052,7 +5052,6 @@ class EdgeTraceSet(DataContainer):
         nfound = len(found_orders)
         indx = (2*slit_indx.compressed()[:,None] + np.tile(np.array([0,1]), (nfound,1))).ravel()
         self.orderid[indx] = (np.array([-1,1])[None,:]*found_orders[:,None]).ravel()
-        embed(header='5076 of edgetrace')
 
     def get_slits(self):
         """
