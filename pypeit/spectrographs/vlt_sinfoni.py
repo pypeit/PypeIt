@@ -132,10 +132,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
 
         # Object finding
-        par['reduce']['findobj']['find_cont_fit'] = True  # Attempt to fit a continuum to the trace rectified image
-        par['reduce']['findobj']['find_npoly_cont'] = 1  # Continnum order for determining thresholds
-        par['reduce']['findobj']['find_fwhm'] = 10  # Continnum order for determining thresholds
-        par['reduce']['findobj']['cont_sig_thresh'] = 1.0
+        par['reduce']['findobj']['find_fwhm'] = 10
         par['reduce']['findobj']['skip_second_find'] = True
 
 

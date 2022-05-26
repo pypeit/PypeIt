@@ -54,6 +54,7 @@ saved as `BB1245p4238.coadd3d`::
       detnum = 1
     [reduce]
       [[cube]]
+        combine = True
         output_filename = BB1245p4238_datacube.fits
         save_whitelight = True
 
@@ -64,7 +65,11 @@ saved as `BB1245p4238.coadd3d`::
     spec2d end
 
 
-The opening block sets parameters for the reduction steps
+The opening block sets parameters for the reduction steps. Note, by default, this script
+will convert all spec2d files into a spec3d file (i.e. individual datacubes for each exposure).
+If you want to combine all exposures into a single datacube, you need to set `combine = True`,
+as in the above example, and provide an `output_filename`. This is very useful if you want to
+combine several standard star exposures into a single datacube for flux calibration.
 
 The spec2d block provides a list of :doc:`out_spec2D` files.
 
@@ -81,16 +86,29 @@ Flux calibration
 If you would like to flux calibrate your datacube, you need to
 produce your standard star datacube first, and when generating
 the datacube of the science frame you must pass in the name of
-the standard star cube so that the relative scales of all the
-slits are correct. If you want to also flux calibrate, you
-will also need to set the flux calibrate argument to True.
-You can specify the standard star cube in your coadd3d file
-as follows::
+the standard star cube in your coadd3d file as follows::
 
     [reduce]
       [[cube]]
-        standard_datacube = standard_star_cube.fits
-        flux_calibrate = True
+        standard_cube = standard_star_cube.fits
+
+
+Grating correction
+==================
+
+The grating correction is needed if any of the data are recorded
+with even a very slightly different setup (e.g. data taken on two
+different nights with the same _intended_ wavelength coverage,
+but the grating angle of the two nights where slightly different).
+This is also needed if your standard star observations were taken
+with a slightly different setup. This correction requires that you
+have taken calibrations with the two different setups. By default,
+the grating correction will be applied, but it can be disabled by
+setting the following keyword argument in your coadd3d file::
+
+    [reduce]
+      [[cube]]
+        astrometric = False
 
 
 Astrometric correction
@@ -98,7 +116,7 @@ Astrometric correction
 
 If you would like to perform an astrometric correction, you
 need to install scikit-image (version > 0.17). The default
-option is to perform the astrometric correction, is a Master
+option is to perform the astrometric correction, if a Master
 Alignment frame has been computed. To disable the astrometric
 correction, set the following keyword argument in your coadd3d
 file::
@@ -107,6 +125,20 @@ file::
       [[cube]]
         astrometric = False
 
+
+White light image
+=================
+
+A white light image can be generated for the combined frame, or
+for each individual frame if `combine=False`, by setting the following
+keyword argument::
+
+    [reduce]
+      [[cube]]
+        save_whitelight = True
+
+White light images are not produced by default. The output filename for
+the white light images are given the suffix `_whitelight.fits`.
 
 Spatial alignment with different setups
 =======================================
@@ -131,13 +163,25 @@ reference_cube.fits is generated.
 Note that PypeIt is not currently setup to stitch together
 cubes covering different wavelength range, but it can coadd
 multiple spec2D files into a single datacube if the wavelength
-setup overlaps.
+setup overlaps, and the spatial positions are similar.
+
+Difficulties with combining multiple datacubes
+==============================================
+
+PypeIt is able to combine standard star frames for flux calibration, and
+should not have any difficulty with this. If your science observations are
+designed so that there is very little overlap between exposures, you should
+not expect the automatic combination algorithm to perform well. Instead, you
+should output individual data cubes and manually combine the cubes with
+purpose-built software.
 
 Current Coadd3D Data Model
 ==========================
 
-The output is a single fits file that contains the combined
-datacube, and a cube with the same shape that stores the variance.
+The output is a single fits file that contains a datacube, and
+a cube with the same shape that stores the variance. The units
+are stored in the `FLUXUNIT` header keyword.
+
 Here is a short python script that will allow you to read in and
 plot a wavelength slice of the cube::
 

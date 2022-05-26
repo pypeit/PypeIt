@@ -14,7 +14,8 @@ from pypeit.core import parse
 from pypeit.images import detector_container
 from pypeit.images.mosaic import Mosaic
 from pypeit.core.mosaic import build_image_mosaic_transform
-from pypeit.par import pypeitpar
+
+from IPython import embed
 
 class GeminiGMOSMosaicLookUp:
     """
@@ -132,8 +133,16 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            binspatial, binspec = parse.parse_binning(headarr[1]['CCDSUM'])
-            binning = parse.binning2string(binspec, binspatial)
+            # binning in the raw frames
+            ccdsum = headarr[1].get('CCDSUM')
+            if ccdsum is not None:
+                binspatial, binspec = parse.parse_binning(ccdsum)
+                binning = parse.binning2string(binspec, binspatial)
+            else:
+                # binning in the spec2d file
+                binning = headarr[0].get('BINNING')
+            if binning is None:
+                msgs.error('Binning not found')
             return binning
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
@@ -251,7 +260,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # Allow for various binning
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
-        par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[1]
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
 
         return par
 
@@ -1049,8 +1058,11 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
         if self.get_meta_value(scifile, 'dispname')[0:4] == 'R400':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_e2v.fits'
-        #
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_e2v_mosaic.fits'
+            # The blue wavelengths are *faint*
+            #   But redder observations may prefer something closer to the default
+            par['calibrations']['wavelengths']['sigdetect'] = 1.  
+        # Return
         return par
 
 # TODO: Someone please check the docstring
