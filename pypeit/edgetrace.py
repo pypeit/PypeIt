@@ -4878,7 +4878,8 @@ class EdgeTraceSet(DataContainer):
         #     self._fill_design_table(register, _design_file)
         #     self._fill_objects_table(register)
 
-    def slit_spatial_center(self, normalized=True, spec=None, use_center=False, include_box=False):
+    def slit_spatial_center(self, normalized=True, spec=None, use_center=False, 
+                            include_box=False):
         """
         Return the spatial coordinate of the center of each slit.
 
@@ -4897,6 +4898,7 @@ class EdgeTraceSet(DataContainer):
                 even if the slit edges have been otherwise modeled.
             include_box (:obj:`bool`, optional):
                 Include box slits in the calculated coordinates.
+
 
         Returns:
             `numpy.ma.MaskedArray`_: Spatial coordinates of the slit
