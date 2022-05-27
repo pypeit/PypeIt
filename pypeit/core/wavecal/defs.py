@@ -114,6 +114,7 @@ def lines():
     line_dict['OH_MOSFIRE_J'] = 2 ** 27
     line_dict['OH_MOSFIRE_H'] = 2 ** 28
     line_dict['OH_MOSFIRE_K'] = 2 ** 29
+    line_dict['ThAr_XSHOOTER_UVB'] = 2**30
     #
     return line_dict
 

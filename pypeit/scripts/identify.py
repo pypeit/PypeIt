@@ -28,6 +28,7 @@ class Identify(scriptbase.ScriptBase):
         parser.add_argument("--det", type=int, default=1, help="Detector index")
         parser.add_argument("--rmstol", type=float, default=0.1, help="RMS tolerance")
         parser.add_argument("--fwhm", type=float, default=4., help="FWHM for line finding")
+        parser.add_argument("--sigdetect", type=float, help="sigma detection for line finding")
         parser.add_argument("--pixtol", type=float, default=0.1,
                             help="Pixel tolerance for Auto IDs")
         parser.add_argument('--test', default=False, action='store_true',
@@ -98,7 +99,9 @@ class Identify(scriptbase.ScriptBase):
         arcfitter = Identify.initialise(arccen, lamps, slits, slit=int(args.slit), par=par,
                                         wv_calib_all=wv_calib, wavelim=[args.wmin, args.wmax],
                                         nonlinear_counts=nonlinear_counts,
-                                        pxtoler=args.pixtol, test=args.test, fwhm=args.fwhm,
+                                        pxtoler=args.pixtol, test=args.test, 
+                                        fwhm=args.fwhm,
+                                        sigdetect=args.sigdetect,
                                         specname=spec.name, y_log=not args.linear)
 
         # Testing?

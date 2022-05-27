@@ -1440,8 +1440,16 @@ class Spectrograph:
 
     @property
     def order_spat_pos(self):
-        """
-        Return the expected spatial position of each echelle order.
+        """ Return the expected spatial position of each echelle order.
+
+        This is for fixed-format echelle spectrographs (e.g. X-Shooter)
+        And is measured 1/2 way up the chip (spectral)
+        and in normalized units (0-1)
+
+        Returns:
+            `numpy.ndarray`_: An array with values. 
+            The length of the provided array much 
+            match self.norders
         """
         return None
 
@@ -1449,6 +1457,10 @@ class Spectrograph:
     def orders(self):
         """
         Return the order number for each echelle order.
+
+        Returns:
+            `numpy.ndarray`_: An array with values. 
+            Order number.  Must have lenght of self.norders
         """
         return None
 
