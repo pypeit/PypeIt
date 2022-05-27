@@ -731,6 +731,8 @@ class IRSensFunc(SensFunc):
                                                    self.par['IR']['telgridfile'],
                                                    polyorder=self.par['polyorder'],
                                                    ech_orders=self.meta_spec['ECH_ORDERS'],
+                                                   resln_guess=self.par['IR']['resln_guess'],
+                                                   resln_frac_bounds=self.par['IR']['resln_frac_bounds'],
                                                    sn_clip=self.par['IR']['sn_clip'],
                                                    mask_abs_lines=self.par['mask_abs_lines'],
                                                    maxiter=self.par['IR']['maxiter'],
