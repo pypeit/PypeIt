@@ -22,7 +22,7 @@ class Identify(scriptbase.ScriptBase):
         parser.add_argument('-s', '--solution', default=False, action='store_true',
                             help="Load a wavelength solution from the arc_file (if it exists)")
         parser.add_argument("--wmin", type=float, default=3000.0, help="Minimum wavelength range")
-        parser.add_argument("--wmax", type=float, default=10000.0, help="Maximum wavelength range")
+        parser.add_argument("--wmax", type=float, default=26000.0, help="Maximum wavelength range")
         parser.add_argument("--slit", type=int, default=0,
                             help="Which slit to load for wavelength calibration")
         parser.add_argument("--det", type=int, default=1, help="Detector index")
