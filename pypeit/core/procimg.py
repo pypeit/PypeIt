@@ -658,7 +658,7 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
 
         # Shape along at least one axis must match
         if not np.any([dd == do for dd, do in zip(data.shape, overscan.shape)]):
-            msgs.error('Overscan sections do not match amplifier sections for'
+            msgs.error('Overscan sections do not match amplifier sections for '
                        'amplifier {0}'.format(amp))
         compress_axis = 1 if data.shape[0] == overscan.shape[0] else 0
 
