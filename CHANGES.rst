@@ -26,6 +26,8 @@
 - Fixed pypeit setup issues due to bad LRIS headers.
 - Added support for VLT FORS2 600z grism.
 - Added enhancements and fixes for Keck lris red Mark4.
+- Fixed a bug in 2d coadding when objects were not being identified. Refactored 2d extraction.
+- Added code to better parse Gemini/GNIRS dither sequences
 
 1.8.1 (23 Feb 2022)
 -------------------

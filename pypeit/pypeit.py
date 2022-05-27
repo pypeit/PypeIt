@@ -840,9 +840,9 @@ class PypeIt:
                                          dec=self.fitstbl["dec"][frames[0]], obstime=self.obstime)
         else:
             # Although exrtaction is not performed, still need to prepare some masks and the tilts
-            self.exTract.prepare_extraction(final_global_sky)
+            self.exTract.prepare_extraction()
             # Since the extraction was not performed, fill the arrays with the best available information
-            skymodel = self.exTract.global_sky
+            skymodel = final_global_sky
             objmodel = np.zeros_like(self.exTract.sciImg.image)
             ivarmodel = np.copy(self.exTract.sciImg.ivar)
             outmask = self.exTract.sciImg.fullmask
