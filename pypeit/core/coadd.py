@@ -2025,7 +2025,7 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
         sigrej_scale: float, default=3.0
             Rejection threshold used for rejecting pixels when rescaling spectra with scale_spec.
         scale_method: str:
-            Options are poly, median, none, or hand. Hand is not well tested.
+            Options are auto, poly, median, none, or hand. Hand is not well tested.
             User can optionally specify the rescaling method. Default is 'auto' will let the
             code determine this automitically which works well.
         hand_scale: ndarray,
