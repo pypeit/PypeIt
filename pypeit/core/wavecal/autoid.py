@@ -1273,6 +1273,8 @@ class ArchiveReid:
             # If this is a fixed format echelle, arxiv has exactly the same orders as the data and so
             # we only pass in the relevant arxiv spectrum to make this much faster
             ind_sp = arxiv_orders.index(orders[slit]) if self.ech_fix_format else ind_arxiv
+            if self.ech_fix_format: 
+                msgs.info(f'Order: {orders[slit]}')
             sigdetect = wvutils.parse_param(self.par, 'sigdetect', slit)
             cc_thresh = wvutils.parse_param(self.par, 'cc_thresh', slit)
             rms_threshold = wvutils.parse_param(self.par, 'rms_threshold', slit)

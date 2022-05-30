@@ -1050,7 +1050,7 @@ class Spectrograph:
         Return meta data from a given file (or its array of headers).
 
         Args:
-            inp (:obj:`str`, :obj:`astropy.io.fits.Header`_, :obj:`list`):
+            inp (:obj:`str`, `astropy.io.fits.Header`_, :obj:`list`):
                 Input filename, an `astropy.io.fits.Header`_ object, or a list
                 of `astropy.io.fits.Header`_ objects.  If None, function simply
                 returns None without issuing any warnings/errors, unless
@@ -1448,8 +1448,16 @@ class Spectrograph:
 
     @property
     def order_spat_pos(self):
-        """
-        Return the expected spatial position of each echelle order.
+        """ Return the expected spatial position of each echelle order.
+
+        This is for fixed-format echelle spectrographs (e.g. X-Shooter)
+        And is measured 1/2 way up the chip (spectral)
+        and in normalized units (0-1)
+
+        Returns:
+            `numpy.ndarray`_: An array with values. 
+            The length of the provided array much 
+            match self.norders
         """
         return None
 
@@ -1457,6 +1465,10 @@ class Spectrograph:
     def orders(self):
         """
         Return the order number for each echelle order.
+
+        Returns:
+            `numpy.ndarray`_: An array with values. 
+            Order number.  Must have lenght of self.norders
         """
         return None
 
@@ -1592,7 +1604,7 @@ class Spectrograph:
 
         Returns
         -------
-        patt_freqs : `list`_
+        patt_freqs : :obj:`list`
             List of pattern frequencies.
         """
         msgs.info("Pattern noise removal is not implemented for spectrograph {0:s}".format(self.name))

@@ -12,6 +12,11 @@ from astropy.coordinates import solar_system, ICRS
 from astropy.coordinates import UnitSphericalRepresentation, CartesianRepresentation
 from astropy.time import Time
 
+# THIS IS NEEDED TO RUN OFFLINE -- SHOULD IT ALWAYS BE SET?
+from astropy.utils.iers import conf
+conf.auto_max_age = None
+
+
 
 from pypeit import msgs
 

@@ -27,17 +27,14 @@
 - Fixed pypeit setup issues due to bad LRIS headers.
 - Added support for VLT FORS2 600z grism.
 - Added enhancements and fixes for Keck lris red Mark4.
-- Various package data (e.g., reid_arxiv, sensfunc) are no longer distributed via
-  PyPI to reduce package size; introduce mechanisms for downloading/caching needed
-  data either at runtime or on demand.
-- Save output wavelength calibration from `pypeit_identify` to the cache for
-  direct reuse in data reduction.
-- The `pypeit_identify` GUI can now toggle between linear and log scaling of the
-  arc spectrum flux.
 - Improved wavelength solution for Gemini-Nort E2V detector
 - Keck/DEIMOS now uses gain/RN values measured periodically by WMKO
 - Add bok_bc 300 grating template
-
+- Fixed a bug in 2d coadding when objects were not being identified. Refactored 2d extraction.
+- Added code to better parse Gemini/GNIRS dither sequences
+- Add spectrograph child for VLT X-SHOOTER UVB arm
+- Minor enhancements to `pypeit_identify` GUI
+- Refactoring of `pypeit_show_wvcalib` GUI
 
 1.8.1 (23 Feb 2022)
 -------------------
