@@ -1658,7 +1658,6 @@ Alterations to the default parameters are::
           [[[process]]]
               combine = median
               use_biasimage = False
-              use_overscan = False
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
@@ -1666,20 +1665,17 @@ Alterations to the default parameters are::
           exprng = 999999, None
           [[[process]]]
               mask_cr = True
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
               clip = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               use_continuum = True
       [[tiltframe]]
           [[[process]]]
               clip = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
               use_continuum = True
@@ -1687,54 +1683,43 @@ Alterations to the default parameters are::
           [[[process]]]
               combine = median
               satpix = nothing
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
-          [[[process]]]
-              use_overscan = False
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           [[[process]]]
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
-              use_overscan = False
               noise_floor = 0.01
       [[standardframe]]
           exprng = None, 120
           [[[process]]]
               mask_cr = True
-              use_overscan = False
               noise_floor = 0.01
       [[wavelengths]]
           method = full_template
           lamps = XeI,HgI,NeI,ArI
       [[slitedges]]
-          sobel_mode = constant
-          sobel_enhance = 5
           sync_predict = nearest
           bound_detector = True
   [scienceframe]
       exprng = 90, None
       [[process]]
           mask_cr = True
-          use_overscan = False
           noise_floor = 0.01
 
 KECK DEIMOS (``keck_deimos``)
@@ -3526,7 +3511,7 @@ Alterations to the default parameters are::
           match_toler = 30.0
           n_final = 3, 3, 3, 2, 4, 4, 4, 3, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 6, 6, 4
       [[slitedges]]
-          edge_thresh = 10.0
+          edge_thresh = 3.0
           max_shift_adj = 0.5
           fit_min_spec_length = 0.5
           left_right_pca = True
@@ -5342,6 +5327,7 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
+              overscan_method = median
               combine = median
               use_biasimage = False
               shot_noise = False
@@ -5349,7 +5335,9 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
+              overscan_method = median
               mask_cr = True
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
@@ -5360,45 +5348,68 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
+              overscan_method = median
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
           [[[process]]]
+              overscan_method = median
               satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          [[[process]]]
+              overscan_method = median
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
+              overscan_method = median
               satpix = nothing
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           [[[process]]]
               overscan_method = median
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[illumflatframe]]
           [[[process]]]
+              overscan_method = median
               satpix = nothing
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[skyframe]]
           [[[process]]]
+              overscan_method = median
               mask_cr = True
+              use_biasimage = False
               noise_floor = 0.01
+              use_pixelflat = False
+              use_illumflat = False
       [[standardframe]]
           [[[process]]]
+              overscan_method = median
               mask_cr = True
+              use_biasimage = False
               noise_floor = 0.01
       [[wavelengths]]
           method = reidentify
           echelle = True
-          ech_norder_coeff = 5
           ech_sigrej = 3.0
           lamps = ThAr_XSHOOTER_UVB
-          reid_arxiv = vlt_xshooter_uvb1x1_iraf.json
-          rms_threshold = 0.5
+          sigdetect = 3.0
+          reid_arxiv = vlt_xshooter_uvb1x1.fits
+          cc_thresh = 0.5
+          cc_local_thresh = 0.5
+          rms_threshold = 0.6
+          n_final = 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
       [[slitedges]]
           edge_thresh = 8.0
           max_shift_adj = 0.5
@@ -5406,10 +5417,20 @@ Alterations to the default parameters are::
           trace_thresh = 10.0
           length_range = 0.3
   [scienceframe]
-      useframe = overscan
       [[process]]
+          overscan_method = median
           mask_cr = True
           noise_floor = 0.01
+  [reduce]
+      [[findobj]]
+          find_trim_edge = 3, 3
+          maxnumber_sci = 2
+          maxnumber_std = 1
+      [[skysub]]
+          bspline_spacing = 0.5
+          global_sky_std = False
+      [[extraction]]
+          model_full_slit = True
 
 VLT XShooter_VIS (``vlt_xshooter_vis``)
 ---------------------------------------
