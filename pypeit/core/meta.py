@@ -124,11 +124,13 @@ def define_additional_meta(nlamps=20):
     # used in the code) with the MOSFIRE dith* keywords?
     additional_meta = {'amp': dict(dtype=str, comment='Amplifier used'),
                        'arm': dict(dtype=str, comment='Name of arm (e.g. NIR for X-Shooter)'),
+                       'calpos': dict(dtype=str, comment='Position of calibration system (KCWI)'),
                        'datasec': dict(dtype=str, comment='Data section (windowing)'),
                        'dateobs': dict(dtype=str, comment='Observation date'),
                        'detector': dict(dtype=str, comment='Name of detector'),
                        'dichroic': dict(dtype=str, comment='Beam splitter'),
                        'dispangle': dict(dtype=float, comment='Angle of the disperser', rtol=0.),
+                       'cenwave': dict(dtype=float, comment='Central wavelength of the disperser', rtol=0.),
                        'dither': dict(dtype=float, comment='Dither amount in arcsec'),
                        'dithpat': dict(dtype=str, comment='Dither pattern'),
                        'dithpos': dict(dtype=str, comment='Dither position'),

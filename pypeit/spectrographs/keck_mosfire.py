@@ -4,10 +4,6 @@ Module for Keck/MOSFIRE specific methods.
 .. include:: ../include/links.rst
 """
 import os
-from pkg_resources import resource_filename
-
-from IPython import embed
-
 import numpy as np
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
@@ -127,10 +123,27 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 13
         par['sensfunc']['IR']['maxiter'] = 2
-        par['sensfunc']['IR']['telgridfile'] \
-                = os.path.join(par['sensfunc']['IR'].default_root,
-                               'TelFit_MaunaKea_3100_26100_R20000.fits')
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
         return par
+
+
+
+    def get_ql_master_dir(self, file):
+        """
+        Returns master file directory for quicklook reductions.
+
+        Args:
+            file (str):
+              Image file
+
+        Returns:
+            master_dir (str):
+              Quicklook Master directory
+
+        """
+
+        mosfire_filter = self.get_meta_value(file, 'filter1')
+        return os.path.join(self.name, mosfire_filter)
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -152,14 +165,14 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
         headarr = self.get_headarr(scifile)
+        decker = self.get_meta_value(headarr, 'decker')
 
-        if 'LONGSLIT' in self.get_meta_value(headarr, 'decker'):
+        if 'LONGSLIT' in decker:
             # turn PCA off
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
             # if "x" is not in the maskname, the maskname does not include the number of CSU
             # used for the longslit and the length of the longslit cannot be determined
-            if ('LONGSLIT-46x' not in self.get_meta_value(headarr, 'decker')) and \
-                    ('x' in self.get_meta_value(headarr, 'decker')):
+            if ('LONGSLIT-46x' not in decker) and ('x' in decker):
                 # find the spat pixel positions where the longslit starts and ends
                 pix_start, pix_end = self.find_longslit_pos(scifile)
                 # exclude the random slits outside the longslit from slit tracing
@@ -178,13 +191,55 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             par['reduce']['slitmask']['assign_obj'] = True
             # force extraction of undetected objects
             par['reduce']['slitmask']['extract_missing_objs'] = True
-            if 'long2pos' in self.get_meta_value(headarr, 'decker'):
+            if 'long2pos' in decker:
                 # exclude the random slits outside the long2pos from slit tracing
                 pix_start, pix_end = self._long2pos_pos()
                 par['calibrations']['slitedges']['exclude_regions'] = ['1:0:{}'.format(pix_start),
                                                                        '1:{}:2040'.format(pix_end)]
                 # assume that the main target is always detected, i.e., skipping force extraction
                 par['reduce']['slitmask']['extract_missing_objs'] = False
+
+        # wavelength calibration
+        supported_filters = ['Y', 'J', 'J2', 'H', 'K']
+        filter = self.get_meta_value(headarr, 'filter1')
+        # using OH lines
+        if 'long2pos_specphot' not in decker and filter in supported_filters:
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['fwhm_fromlines'] = True
+            par['calibrations']['wavelengths']['sigdetect'] = 10.
+            # templates
+            if filter == 'Y':
+                par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_Y']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_Y.fits'
+            elif filter == 'J':
+                par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_J']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_J.fits'
+            elif filter == 'J2':
+                par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_J']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_J2.fits'
+            elif filter == 'H':
+                par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_H']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_H.fits'
+            elif filter == 'K':
+                par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_K']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_K.fits'
+
+        # using arc lines (we use this as default only for long2pos_specphot mask)
+        elif 'long2pos_specphot' in decker and filter in supported_filters:
+            par['calibrations']['wavelengths']['lamps'] = ['Ar_IR_MOSFIRE', 'Ne_IR_MOSFIRE']
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['fwhm_fromlines'] = True
+            # templates
+            if filter == 'Y':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_Y.fits'
+            elif filter == 'J':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_J.fits'
+            elif filter == 'J2':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_J2.fits'
+            elif filter == 'H':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_H.fits'
+            elif filter == 'K':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_K.fits'
 
         # Return
         return par
@@ -242,7 +297,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             PWSTATA7 = headarr[0].get('PWSTATA7')
             PWSTATA8 = headarr[0].get('PWSTATA8')
             if FLATSPEC == 0 and PWSTATA7 == 0 and PWSTATA8 == 0:
-                if 'Flat:Off' in headarr[0].get('OBJECT') or "lamps off" in headarr[0].get('OBJECT'):
+                if 'Flat' in headarr[0].get('OBJECT'):
                     return 'flatlampoff'
                 else:
                     return 'object'
@@ -480,7 +535,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         else:
             return wave_in, counts_in, counts_ivar_in, gpm_in
 
-    def list_detectors(self):
+    def list_detectors(self, mosaic=False):
         """
         List the *names* of the detectors in this spectrograph.
 
@@ -500,6 +555,11 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         such that all the bluest detectors are in ``dets[0]``, and the slits
         found in detectors 1 and 5 are just from the blue and red counterparts
         of the same slit.
+
+        Args:
+            mosaic (:obj:`bool`, optional):
+                Is this a mosaic reduction?
+                It is used to determine how to list the detector, i.e., 'DET' or 'MSC'.
 
         Returns:
             `numpy.ndarray`_: The list of detectors in a `numpy.ndarray`_.  If

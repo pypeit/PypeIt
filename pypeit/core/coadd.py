@@ -8,7 +8,6 @@ Coadding module.
 
 import os
 import sys
-from pkg_resources import resource_filename
 
 from IPython import embed
 
@@ -19,12 +18,8 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import NullFormatter, NullLocator, MaxNLocator
 
 from astropy import stats
-from astropy.io import fits
 from astropy import convolution
-from astropy.table import Table
-from astropy import constants
 
-from pypeit.spectrographs.util import load_spectrograph
 from pypeit import utils
 from pypeit.core import fitting
 from pypeit import specobjs
@@ -32,7 +27,7 @@ from pypeit import msgs
 from pypeit.core import combine
 from pypeit.core.wavecal import wvutils
 from pypeit.core import pydl
-from pypeit.core import flux_calib
+from pypeit import data
 
 
 def renormalize_errors_qa(chi, maskchi, sigma_corr, sig_range = 6.0, title='', qafile=None):
@@ -767,11 +762,10 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
         # Adjust the arrays to be relative
         refscale = (sn_val[:, ref_spec] > 0) / (sn_val[:, ref_spec] + (sn_val[:, ref_spec] == 0))
         for iexp in range(nstack):
-            if iexp != ref_spec:
-                # Compute the relative (S/N)^2 and update the mask
-                sn2[iexp] /= sn2[ref_spec]
-                mask_stack[:, iexp] *= (mask_stack[:, ref_spec]) | (sn_val[:, ref_spec] != 0)
-                sn_val[:, iexp] *= refscale
+            # Compute the relative (S/N)^2 and update the mask
+            sn2[iexp] /= sn2[ref_spec]
+            mask_stack[:, iexp] = mask_stack[:, iexp] & ((mask_stack[:, ref_spec]) | (sn_val[:, ref_spec] != 0))
+            sn_val[:, iexp] *= refscale
 
     # TODO: ivar weights is better than SN**2 or const_weights for merging orders. Eventually, we will change it to
     # TODO: Should ivar weights be deprecated??
@@ -1454,7 +1448,7 @@ def coadd_iexp_qa(wave, flux, rejivar, mask, wave_stack, flux_stack, ivar_stack,
         # TODO Use one of our telluric models here instead
         # Plot transmission
         if (np.max(wave[mask]) > 9000.0):
-            skytrans_file = resource_filename('pypeit', '/data/skisim/atm_transmission_secz1.5_1.6mm.dat')
+            skytrans_file = data.get_skisim_filepath('atm_transmission_secz1.5_1.6mm.dat')
             skycat = np.genfromtxt(skytrans_file, dtype='float')
             scale = 0.8 * ymax
             spec_plot.plot(skycat[:, 0] * 1e4, skycat[:, 1] * scale, 'm-', alpha=0.5, zorder=11)
@@ -1585,7 +1579,7 @@ def coadd_qa(wave, flux, ivar, nused, mask=None, tell=None, title=None, qafile=N
 
     # Plot transmission
     if (np.max(wave[mask])>9000.0) and (tell is None):
-        skytrans_file = resource_filename('pypeit', '/data/skisim/atm_transmission_secz1.5_1.6mm.dat')
+        skytrans_file = data.get_skisim_filepath('atm_transmission_secz1.5_1.6mm.dat')
         skycat = np.genfromtxt(skytrans_file,dtype='float')
         scale = 0.8*ymax
         spec_plot.plot(skycat[:,0]*1e4,skycat[:,1]*scale,'m-',alpha=0.5,zorder=11)
@@ -2875,7 +2869,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
 
     sci_list = [weights_stack, sciimg_stack, sciimg_stack - skymodel_stack, tilts_stack,
                 waveimg_stack, dspat_stack]
-    var_list = [utils.calc_ivar(sciivar_stack)]
+    var_list = [utils.inverse(sciivar_stack)]
 
     sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack \
             = rebin2d(wave_bins, dspat_bins, waveimg_stack, dspat_stack, thismask_stack,
@@ -2892,7 +2886,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
                                sigma_clip_stack=sci_list_rebin[2], sigrej=sigrej,
                                maxiters=maxiters)
     sciimg, imgminsky, tilts, waveimg, dspat = sci_list_out
-    sciivar = utils.calc_ivar(var_list_out[0])
+    sciivar = utils.inverse(var_list_out[0])
 
     # Compute the midpoints vectors, and lower/upper bins of the rectified image in spectral and spatial directions
     wave_mid = ((wave_bins + np.roll(wave_bins,1))/2.0)[1:]

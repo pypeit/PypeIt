@@ -72,7 +72,7 @@ class PypeItMetaData:
         strict (:obj:`bool`, optional):
             Function will fault if there is a problem with the reading
             the header for any of the provided files; see
-            :func:`pypeit.spectrographs.spectrograph.get_headarr`.  Set
+            :func:`~pypeit.spectrographs.spectrograph.get_headarr`.  Set
             to False to instead report a warning and continue.
 
     Attributes:
@@ -193,7 +193,9 @@ class PypeItMetaData:
             if not data['directory'][idx]:
                 data['directory'][idx] = '.'
 
-            # Read the fits headers
+            # Read the fits headers.  NOTE: If the file cannot be opened,
+            # headarr will be None, and the subsequent loop over the meta keys
+            # will fill the data dictionary with None values.
             headarr = self.spectrograph.get_headarr(ifile, strict=strict)
 
             # Grab Meta
@@ -201,7 +203,8 @@ class PypeItMetaData:
                 value = self.spectrograph.get_meta_value(headarr, meta_key, 
                                                          required=strict,
                                                          usr_row=usr_row, 
-                        ignore_bad_header = self.par['rdx']['ignore_bad_headers'])
+                        ignore_bad_header = (
+                            self.par['rdx']['ignore_bad_headers'] or strict))
                 if isinstance(value, str) and '#' in value:
                     value = value.replace('#', '')
                     msgs.warn('Removing troublesome # character from {0}.  Returning {1}.'.format(
@@ -221,10 +224,10 @@ class PypeItMetaData:
             filenames = np.asarray(data['filename'])
             bad_files = filenames[mjd == None]
             # Print status message
-            msg = 'Time invalid for {0} files.\n'.format(len(bad_files))
-            msg += 'Continuing, but the following frames may be empty or have corrupt headers:\n'
+            msg = f'Time invalid for {len(bad_files)} files.\nContinuing, but the following ' \
+                  'frames either could not be opened, are empty, or have corrupt headers:\n'
             for file in bad_files:
-                msg += '    {0}\n'.format(file)
+                msg += f'    {file}\n'
             msgs.warn(msg)
 
         # Return
@@ -1225,10 +1228,6 @@ class PypeItMetaData:
         if 'framebit' in self.keys():
             del self.table['framebit']
 
-#        # TODO: This needs to be moved into each Spectrograph
-#        if useIDname and 'idname' not in self.keys():
-#            raise ValueError('idname is not set in table; cannot use it for file typing.')
-
         # Start
         msgs.info("Typing files")
         type_bits = np.zeros(len(self), dtype=self.type_bitmask.minimum_dtype())
@@ -1236,7 +1235,10 @@ class PypeItMetaData:
         # Use the user-defined frame types from the input dictionary
         if user is not None:
             if len(user.keys()) != len(self):
-                raise ValueError('The user-provided dictionary does not match table length.')
+                if len(np.unique(self['filename'].data)) != len(self):
+                    raise ValueError('Your pypeit file has duplicate filenames which is not allowed.')
+                else:
+                    raise ValueError('The user-provided dictionary does not match table length.')
             msgs.info('Using user-provided frame types.')
             for ifile,ftypes in user.items():
                 indx = self['filename'] == ifile
@@ -1245,11 +1247,6 @@ class PypeItMetaData:
     
         # Loop over the frame types
         for i, ftype in enumerate(self.type_bitmask.keys()):
-    
-#            # Initialize: Flag frames with the correct ID name or start by
-#            # flagging all as true
-#            indx = self['idname'] == self.spectrograph.idname(ftype) if useIDname \
-#                        else np.ones(len(self), dtype=bool)
     
             # Include a combination of instrument-specific checks using
             # combinations of the full set of metadata

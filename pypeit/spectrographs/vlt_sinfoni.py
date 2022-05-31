@@ -3,8 +3,6 @@ Module for VLT/SINFONI specific methods.
 
 .. include:: ../include/links.rst
 """
-import os
-from pkg_resources import resource_filename
 
 from IPython import embed
 
@@ -134,10 +132,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
 
         # Object finding
-        par['reduce']['findobj']['find_cont_fit'] = True  # Attempt to fit a continuum to the trace rectified image
-        par['reduce']['findobj']['find_npoly_cont'] = 1  # Continnum order for determining thresholds
-        par['reduce']['findobj']['find_fwhm'] = 10  # Continnum order for determining thresholds
-        par['reduce']['findobj']['cont_sig_thresh'] = 1.0
+        par['reduce']['findobj']['find_fwhm'] = 10
         par['reduce']['findobj']['skip_second_find'] = True
 
 
@@ -160,9 +155,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 7
-        par['sensfunc']['IR']['telgridfile'] \
-                = os.path.join(par['sensfunc']['IR'].default_root,
-                               'TelFit_Paranal_NIR_9800_25000_R25000.fits')
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Paranal_NIR_9800_25000_R25000.fits'
 
         return par
 

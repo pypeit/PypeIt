@@ -9,9 +9,6 @@ Important Notes:
 
 .. include:: ../include/links.rst
 """
-import os
-from pkg_resources import resource_filename
-
 import numpy as np
 
 from pypeit import msgs
@@ -170,7 +167,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
 
         # Set slits and tilts parameters
         par['calibrations']['tilts']['tracethresh'] = 5
-        par['calibrations']['slitedges']['edge_thresh'] = 10.
+        par['calibrations']['slitedges']['edge_thresh'] = 3.
         par['calibrations']['slitedges']['trace_thresh'] = 10.
         par['calibrations']['slitedges']['fit_order'] = 5
         par['calibrations']['slitedges']['max_shift_adj'] = 0.5
@@ -179,7 +176,9 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         par['calibrations']['slitedges']['pca_order'] = 3
 
         # Model entire slit
-        par['reduce']['extraction']['model_full_slit'] = True # local sky subtraction operates on entire slit
+        par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
+        par['reduce']['findobj']['maxnumber_sci'] = 2  # Slit is narrow so allow one object per order
+        par['reduce']['findobj']['maxnumber_std'] = 1  # Slit is narrow so allow one object per order
 
         # Processing steps
         turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
@@ -200,9 +199,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         par['sensfunc']['polyorder'] = 5
         par['sensfunc']['IR']['maxiter'] = 2
         # place holder for telgrid file
-        par['sensfunc']['IR']['telgridfile'] \
-                = os.path.join(par['sensfunc']['IR'].default_root,
-                               'TelFit_LasCampanas_3100_26100_R20000.fits')
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
 
         return par
 
@@ -410,14 +407,12 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         par.reset_all_processimages_par(**turn_off)
 
         # Scienceimage parameters
-        par['reduce']['findobj']['sig_thresh'] = 5
+        par['reduce']['findobj']['snr_thresh'] = 5
         #par['reduce']['maxnumber'] = 2
         par['reduce']['findobj']['find_trim_edge'] = [50,50]
         par['flexure']['spec_method'] = 'skip'
 
-        par['sensfunc']['IR']['telgridfile'] \
-                = resource_filename('pypeit',
-                                    '/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits')
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 60]

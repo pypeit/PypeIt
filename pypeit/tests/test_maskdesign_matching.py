@@ -118,24 +118,24 @@ def test_add_missing_slits():
         # Check the values of the traces that will be removed
         if name == 'keck_deimos':
             # Two traces NOT from the same slit
-            assert round(edges.edge_fit[edges.pca.reference_row, :][8]) == 458, \
+            assert round(edges.edge_fit[edges.pca.reference_row, :][7]) == 458, \
                         'wrong DEIMOS left trace position'
-            assert round(edges.edge_fit[edges.pca.reference_row, :][-12]) == 1690, \
+            assert round(edges.edge_fit[edges.pca.reference_row, :][-11]) == 1736, \
                         'wrong DEIMOS right trace position'
             # Two traces from the same slit
-            assert round(edges.edge_fit[edges.pca.reference_row, :][10]) == 496, \
+            assert round(edges.edge_fit[edges.pca.reference_row, :][9]) == 496, \
                         'wrong DEIMOS left trace position'
-            assert round(edges.edge_fit[edges.pca.reference_row, :][11]) == 561, \
+            assert round(edges.edge_fit[edges.pca.reference_row, :][10]) == 561, \
                         'wrong DEIMOS right trace position'
 
             # Remove two left traces and two right traces
             # NOT form the same slit
             indx = np.zeros(edges.ntrace, dtype=bool)
-            indx[8] = True
-            indx[-12] = True
+            indx[7] = True
+            indx[-11] = True
             # Form the same slit
+            indx[9] = True
             indx[10] = True
-            indx[11] = True
         elif name == 'keck_mosfire':
             # Two traces NOT from the same slit
             assert round(edges.edge_fit[edges.pca.reference_row, :][0]) == 349, \
@@ -169,7 +169,7 @@ def test_add_missing_slits():
             # Two traces NOT from the same slit
             assert round(edges.edge_fit[edges.pca.reference_row, :][8]) == 459, \
                         'DEIMOS left trace position not recovered'
-            assert round(edges.edge_fit[edges.pca.reference_row, :][-12]) == 1690, \
+            assert round(edges.edge_fit[edges.pca.reference_row, :][-11]) == 1737, \
                         'DEIMOS right trace position not recovered'
             # Two traces from the same slit
             assert round(edges.edge_fit[edges.pca.reference_row, :][10]) == 497, \

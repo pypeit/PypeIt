@@ -3,18 +3,19 @@ Module for VLT FORS (1 and 2)
 
 .. include:: ../include/links.rst
 """
-import glob
-from pkg_resources import resource_filename
-
+import os
 import numpy as np
-
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import parse
 from pypeit.core import framematch
+from pypeit.core import meta
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
-
+from astropy.coordinates import SkyCoord
+from astropy import units
+from astropy.io import fits
+from IPython import embed
 
 class VLTFORSSpectrograph(spectrograph.Spectrograph):
     """
@@ -64,6 +65,13 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         # Flats
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
+
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 8
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Paranal_NIR_9800_25000_R25000.fits'
+
+
 
         return par
 
@@ -230,7 +238,12 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
             chip = self.get_meta_value(self.get_headarr(hdu), 'detector')
 
-        # Detector 1 (Thor)  -- http://www.eso.org/sci/php/optdet/instruments/fors2/index.html
+        # These numbers are from the ESO FORS2 user manual at: 0
+        # http://www.eso.org/sci/facilities/paranal/instruments/fors/doc/VLT-MAN-ESO-13100-1543_P01.1.pdf
+        # They are for the MIT CCD (which is the default detector) for the high-gain, 100 khZ readout mode used for
+        # spectroscpy. The other readout modes are not yet implemented. The E2V detector is not yet supported!!
+
+        # CHIP1
         detector_dict1 = dict(
             binning         = binning,
             det             = 1,
@@ -239,7 +252,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.126,  # average between order 11 & 30, see manual
-            darkcurr        = 0.0,
+            darkcurr        = 2.1,
             saturation      = 2.0e5,  # I think saturation may never be a problem here since there are many DITs
             nonlinear       = 0.80,
             mincounts       = -1e10,
@@ -247,10 +260,10 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             gain            = np.atleast_1d(0.70),
             ronoise         = np.atleast_1d(2.9), # High gain
             datasec         = np.atleast_1d('[11:2059,:]'),  # For 1x binning, I think
-            oscansec        = np.atleast_1d('[2062:,:]'),
-            #suffix          = '_Thor',
+            #oscansec=np.atleast_1d('[2062:,:]'),
+            oscansec=np.atleast_1d('[1:10,:]'), # Overscan has artifacts so use pre-scan
         )
-        # Detector 2 (Belenos)
+        # CHIP2
         detector_dict2 = dict(
             binning         = binning,
             det             = 1,  # ESO writes these to separate FITS images!!
@@ -259,18 +272,18 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.126,  # average between order 11 & 30, see manual
-            darkcurr        = 0.0,
+            darkcurr        = 1.4,
             saturation      = 2.0e5,  # I think saturation may never be a problem here since there are many DITs
             nonlinear       = 0.80,
             mincounts       = -1e10,
             numamplifiers   = 1,
             gain            = np.atleast_1d(0.70),
-            ronoise         = np.atleast_1d(3.0),  # High gain
-            datasec         = np.atleast_1d('[20:,0:2048]'),
-            oscansec        = np.atleast_1d('[4:20,4:2044]'),
-            #suffix          = '_Belenos'
+            ronoise         = np.atleast_1d(3.15),  # High gain
+            datasec=np.atleast_1d('[11:2059,:]'),
+            oscansec=np.atleast_1d('[2062:,:]'), # Pre-scan has artifacts, so use overscan
+            #datasec=np.atleast_1d('[20:,0:2048]'),
+            #oscansec=np.atleast_1d('[4:20,4:2044]'),
         )
-
         # Finish
         if chip == 'CHIP1':
             return detector_container.DetectorContainer(**detector_dict1)
@@ -304,16 +317,22 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         #self.set_detector(detector)
         # Wavelengths
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-
         if self.get_meta_value(scifile, 'dispname') == 'GRIS_300I':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300I.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
         elif self.get_meta_value(scifile, 'dispname') == 'GRIS_300V':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300V.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
+        elif self.get_meta_value(scifile, 'dispname') == 'GRIS_600z':
+            par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
+            par['calibrations']['wavelengths']['method'] = 'holy-grail'
+            # Since we are using the sky to fit the wavelengths don't correct for flexure
+            par['flexure']['spec_method'] = 'skip'
+            #par['reduce']['skysub']['bspline_spacing'] = 0.6
 
-        if 'lSlit' in self.get_meta_value(scifile, 'decker'):
+        if 'lSlit' in self.get_meta_value(scifile, 'decker') or 'LSS' in self.get_meta_value(scifile, 'decker'):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+
 
         return par
 
@@ -334,3 +353,61 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         return ['dispname', 'dispangle', 'decker', 'detector']
 
 
+    def parse_dither_pattern(self, file_list, ext=None):
+        """
+        Parse headers from a file list to determine the dither pattern.
+
+        Parameters
+        ----------
+        file_list (list of strings):
+            List of files for which dither pattern is desired
+        ext (int, optional):
+            Extension containing the relevant header for these files. Default=None. If None, code uses
+            self.primary_hdrext
+
+        Returns
+        -------
+        dither_pattern, dither_id, offset_arcsec
+
+        dither_pattern (str `numpy.ndarray`_):
+            Array of dither pattern names
+        dither_id (str `numpy.ndarray`_):
+            Array of dither pattern IDs
+        offset_arc (float `numpy.ndarray`_):
+            Array of dither pattern offsets
+        """
+        nfiles = len(file_list)
+        offset_arcsec = np.zeros(nfiles)
+        dither_pattern = None
+        dither_id = None
+        for ifile, file in enumerate(file_list):
+            hdr = fits.getheader(file, self.primary_hdrext if ext is None else ext)
+            try:
+                ra, dec = meta.convert_radec(self.get_meta_value(hdr, 'ra', no_fussing=True),
+                                    self.get_meta_value(hdr, 'dec', no_fussing=True))
+            except:
+                msgs.warn('Encounter invalid value of your coordinates. Give zeros for both RA and DEC. Check that this does not cause problems with the offsets')
+                ra, dec = 0.0, 0.0
+            if ifile == 0:
+                coord_ref = SkyCoord(ra*units.deg, dec*units.deg)
+                offset_arcsec[ifile] = 0.0
+                # ESOs position angle appears to be the negative of the canonical astronomical convention
+                posang_ref = -(hdr['HIERARCH ESO INS SLIT POSANG']*units.deg)
+                posang_ref_rad = posang_ref.to('radian').value
+                # Unit vector pointing in direction of slit PA
+                u_hat_slit = np.array([np.sin(posang_ref), np.cos(posang_ref)]) # [u_hat_ra, u_hat_dec]
+            else:
+                coord_this = SkyCoord(ra*units.deg, dec*units.deg)
+                posang_this = coord_ref.position_angle(coord_this).to('deg')
+                separation  = coord_ref.separation(coord_this).to('arcsec').value
+                ra_off, dec_off = coord_ref.spherical_offsets_to(coord_this)
+                u_hat_this  = np.array([ra_off.to('arcsec').value/separation, dec_off.to('arcsec').value/separation])
+                dot_product = np.dot(u_hat_slit, u_hat_this)
+                if not np.isclose(np.abs(dot_product),1.0, atol=1e-2):
+                    msgs.error('The slit appears misaligned with the angle between the coordinates: dot_product={:7.5f}'.format(dot_product) + msgs.newline() +
+                               'The position angle in the headers {:5.3f} differs from that computed from the coordinates {:5.3f}'.format(posang_this, posang_ref))
+                offset_arcsec[ifile] = separation*np.sign(dot_product)
+
+#            dither_id.append(hdr['FRAMEID'])
+#            offset_arcsec[ifile] = hdr['YOFFSET']
+        return dither_pattern, dither_id, offset_arcsec

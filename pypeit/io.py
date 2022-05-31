@@ -657,6 +657,10 @@ def write_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
             types.
 
     """
+    # Silence the "Keyword name ... is greater than 8 characters ... a HIERARCH
+    #   card will be created" Warnings from [astropy.io.fits.card]
+    warnings.simplefilter('ignore', fits.verify.VerifyWarning)
+
     if isinstance(d, dict):
         return dict_to_hdu(d, name=name, hdr=hdr, force_to_bintbl=force_to_bintbl)
     if isinstance(d, Table):
@@ -834,16 +838,23 @@ def fits_open(filename, **kwargs):
             Passed directly to `astropy.io.fits.open`_.
 
     Returns:
-        `astropy.io.fits.HDUList`_: List of all the HDUs in the fits file
+        `astropy.io.fits.HDUList`_: List of all the HDUs in the fits file.
+
+    Raises:
+        PypeItError: Raised if the file does not exist.
     """
     if not os.path.isfile(filename):
         msgs.error(f'{filename} does not exist!')
     try:
         return fits.open(filename, **kwargs)
     except OSError as e:
-        msgs.warn('Error opening {0}: {1}'.format(filename, str(e))
-                   + '\nTrying again, assuming the error was a header problem.')
-        return fits.open(filename, ignore_missing_end=True, **kwargs)
+        msgs.warn(f'Error opening {filename} ({e}).  Trying again by setting '
+                  'ignore_missing_end=True, assuming the error was a header problem.')
+        try:
+            return fits.open(filename, ignore_missing_end=True, **kwargs)
+        except OSError as e:
+            msgs.error(f'That failed, too!  Astropy is unable to open {filename} and reports the '
+                      f'following error: {e}')
 
 
 def create_symlink(filename, symlink_dir, relative_symlink=False, overwrite=False, quiet=False):

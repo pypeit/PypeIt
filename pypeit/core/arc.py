@@ -678,14 +678,14 @@ def _plot(x, mph, mpd, threshold, edge, valley, ax, ind):
     plt.show()
 
 
-def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_cont = 3, cont_samp = 30, cont_frac_fwhm=1.0,
+def iter_continuum(spec, gpm=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_cont = 3, cont_samp = 30, cont_frac_fwhm=1.0,
                    cont_mask_neg=False, qa_title='', npoly=None, debug_peak_find=False, debug=False):
     """
     Routine to determine the continuum and continuum pixels in spectra with peaks.
 
     Args:
        spec (`numpy.ndarray`_, float,  shape (nspec,)  A 1D spectrum for which the continuum is to be characterized
-       inmask: `numpy.ndarray`_, bool, shape (nspec,)   A mask indicating which pixels are good. True = Good, False=Bad
+       gpm: `numpy.ndarray`_, bool, shape (nspec,)   A mask indicating which pixels are good. True = Good, False=Bad
        niter_cont: int, default = 3
             Number of iterations of peak finding, masking, and continuum fitting used to define the continuum.
        npoly: int, default = None
@@ -721,11 +721,11 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
 
     """
 
-    if inmask is None:
-        inmask = np.ones(spec.size,dtype=bool)
-        cont_mask = np.copy(inmask)
+    if gpm is None:
+        gpm = np.ones(spec.size,dtype=bool)
+        cont_mask = np.copy(gpm)
     else:
-        cont_mask = np.copy(inmask)
+        cont_mask = np.copy(gpm)
 
     nspec = spec.size
     spec_vec = np.arange(nspec)
@@ -733,12 +733,12 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
     mask_sm = np.round(cont_frac_fwhm*fwhm).astype(int)
     mask_odd = mask_sm + 1 if mask_sm % 2 == 0 else mask_sm
 
-    nspec_available = np.sum(inmask)
+    nspec_available = np.sum(gpm)
     max_mask_frac = 0.70
     max_nmask = int(np.ceil((max_mask_frac)*nspec_available))
     for iter in range(niter_cont):
         spec_sub = spec - cont_now
-        mask_sigclip = np.invert(cont_mask & inmask)
+        mask_sigclip = np.invert(cont_mask & gpm)
         (mean, med, stddev) = stats.sigma_clipped_stats(spec_sub, mask=mask_sigclip, sigma_lower=sigrej,
                                                         sigma_upper=sigrej, cenfunc='median', stdfunc=utils.nan_mad_std)
         # be very liberal in determining threshold for continuum determination
@@ -752,26 +752,30 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
             cont_mask_fine[pixt_now_neg] = 0.0
         # cont_mask is the mask for defining the continuum regions: True is good,  False is bad
         peak_mask = (utils.smooth(cont_mask_fine,mask_odd) > 0.999)
-        cont_mask = peak_mask & inmask
+        cont_mask = peak_mask & gpm
         # If more than max_mask_frac of the nspec_available are getting masked than short circuit this masking
         #frac_mask = np.sum(np.invert(cont_mask))/float(nspec)
-        nmask = np.sum(np.invert(peak_mask[inmask]))
+        nmask = np.sum(np.invert(peak_mask[gpm]))
         if nmask > max_nmask:
             msgs.warn('Too many pixels {:d} masked in spectrum continuum definiton: frac_mask = {:5.3f} > {:5.3f} which is '
                       'max allowed. Only masking the {:d} largest values....'.format(nmask, nmask/nspec_available, max_mask_frac, max_nmask))
             # Old
-            #cont_mask = np.ones_like(cont_mask) & inmask
+            #cont_mask = np.ones_like(cont_mask) & gpm
             # Short circuit the masking and just mask the 0.70 most offending pixels
-            peak_mask_ind = np.where(np.logical_not(peak_mask) & inmask)[0]
+            peak_mask_ind = np.where(np.logical_not(peak_mask) & gpm)[0]
             isort = np.argsort(np.abs(spec[peak_mask_ind]))[::-1]
             peak_mask_new = np.ones_like(peak_mask)
             peak_mask_new[peak_mask_ind[isort[0:max_nmask]]] = False
-            cont_mask = peak_mask_new & inmask
+            cont_mask = peak_mask_new & gpm
 
 
 
         ngood = np.sum(cont_mask)
+        if ngood == 0:
+            msgs.warn("All pixels rejected for continuum.  Returning a 0 array")
+            return np.zeros_like(spec), cont_mask
         samp_width = np.ceil(ngood/cont_samp).astype(int)
+
         cont_med = utils.fast_running_median(spec[cont_mask], samp_width)
         if npoly is not None:
             # ToDO robust_poly_fit needs to return minv and maxv as outputs for the fits to be usable downstream
@@ -806,13 +810,12 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
                  min_pkdist_frac_fwhm=0.75, cont_samp=30, nonlinear_counts=1e10, niter_cont=3,
                  nfind=None, bpm=None, verbose=False, debug=False, debug_peak_find=False):
     """
-    Extract an arc down the center of the chip and identify
-    statistically significant lines for analysis.
+    Identify peaks in arc spectrum  significant lines for analysis.
 
     Parameters
     ----------
     censpec : `numpy.ndarray`_
-      A 1D spectrum to be searched for significant detections
+      A 1D spectrum to be searched for significant detections, shape = (nspec,)
 
     sigdetect : float, default=20., optional
        Sigma threshold above fluctuations for arc-line detection.
@@ -835,11 +838,11 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     fwhm : float, default = 4.0, optional
        Number of pixels per fwhm resolution element.
 
-    fit_frac_fwhm: float, default 0.5, optional
+    fit_frac_fwhm: float, default 1.25, optional
        Number of pixels that are used in the fits for Gaussian arc
        line centroiding expressed as a fraction of the fwhm parameter
 
-    max_frac_fwhm:  float, default = 2.5, optional
+    max_frac_fwhm:  float, default = 3.0, optional
        maximum width allowed for usable arc lines expressed relative
        to the fwhm.
 
@@ -879,7 +882,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
 
     bpm: `numpy.ndarray`_, optional
         Bad-pixel mask for input spectrum. If None, all pixels
-        considered good.
+        considered good. If passed in shape must match that of censpec
 
     verbose: bool, default = False
        Output more stuff to the screen.
@@ -916,25 +919,28 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
 
     # TODO: Why is this here? Can't the calling function be required to
     # pass a single spectrum?  This is not reflected in the docstring.
-    if len(censpec.shape) == 3:
-        detns = censpec[:, 0].flatten()
-    else:
-        detns = censpec.copy()
-    detns = detns.astype(np.float)
-    xrng = np.arange(detns.size, dtype=np.float)
+    # OLD CODE
+    #if len(censpec.shape) == 3:
+    #    detns = censpec[:, 0].flatten()
+    #else:
+    #    detns = censpec.copy()
+    #detns = detns.astype(np.float)
+
+    # Need to use bpm since when arc spectrum is padded, the padding can make the thresh low and also will screw up
+    # continuum fitting
+    bpm_out = censpec == 0.0 if bpm is None else bpm
+    xrng = np.arange(censpec.size, dtype=np.float)
 
     if cont_subtract:
-        cont_now, cont_mask = iter_continuum(detns, inmask=None if bpm is None else np.invert(bpm),
-                                             fwhm=fwhm, niter_cont=niter_cont, cont_samp=cont_samp,
-                                             cont_frac_fwhm=cont_frac_fwhm)
+        cont_now, cont_mask = iter_continuum(censpec, gpm=np.logical_not(bpm_out), fwhm=fwhm, niter_cont=niter_cont,
+                                             cont_samp=cont_samp, cont_frac_fwhm=cont_frac_fwhm)
     else:
-        cont_mask = np.ones(detns.size, dtype=bool)
-        cont_now = np.zeros_like(detns)
+        cont_mask = np.ones(censpec.size, dtype=bool)
+        cont_now = np.zeros_like(censpec)
 
-    arc = detns - cont_now
+    arc = (censpec - cont_now)*np.logical_not(bpm_out)
     if input_thresh is None:
-        # Need to add condition `arc!=0` since arc spectrum is padded and the pad makes the thresh low
-        (mean, med, stddev) = stats.sigma_clipped_stats(arc[cont_mask&(arc!=0)], sigma_lower=3.0, sigma_upper=3.0)
+        (mean, med, stddev) = stats.sigma_clipped_stats(arc[cont_mask & np.logical_not(bpm_out)], sigma_lower=3.0, sigma_upper=3.0)
         thresh = med + sigdetect*stddev
     else:
         med = 0.0
@@ -958,7 +964,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     # Set the amplitudes using the spectra directly for both the input
     # and continuum-subtracted spectrum.
     # TODO: Why does this interpolate to pixt and not tcent?
-    tampl_true = np.interp(pixt, xrng, detns)
+    tampl_true = np.interp(pixt, xrng, censpec)
     tampl = np.interp(pixt, xrng, arc)
 
     # Find the lines that meet the following criteria:

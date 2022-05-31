@@ -209,7 +209,7 @@ class PypeItSetup:
                         if os.path.isdir(root) else '{0}*{1}*'.format(root, extension)
             # No pypeit file is written and we just construct the setup object
             # directly
-            return cls(glob.glob(dfname), spectrograph_name=spectrograph)
+            return cls(sorted(glob.glob(dfname)), spectrograph_name=spectrograph)
 
         # Set the output directory
         if not os.path.isdir(output_path):
@@ -289,7 +289,6 @@ class PypeItSetup:
 
         # Add this to the completed steps
         self.steps.append(inspect.stack()[0][3])
-
         # Return the table
         return self.fitstbl.table
 

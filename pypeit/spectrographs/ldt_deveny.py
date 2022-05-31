@@ -113,6 +113,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['idname'] = dict(ext=0, card='IMAGETYP')
         self.meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-3)
+        self.meta['cenwave'] = dict(card=None, compound=True, rtol=2.0)
         self.meta['filter1'] = dict(card=None, compound=True)
         self.meta['slitwid'] = dict(ext=0, card='SLITASEC')
         self.meta['lampstat01'] = dict(card=None, compound=True)
@@ -147,9 +148,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             #  populated `LAMPCAL` string, or 'off' to ensure a positive entry for
             #  `lampstat01`.
             lampcal = headarr[0]['LAMPCAL'].strip()
-            if lampcal == '':
-                return 'off'
-            return lampcal
+            return 'off' if lampcal == '' else lampcal
 
         if meta_key == 'dispname':
             # Convert older FITS keyword GRATING (gpmm/blaze) into the newer
@@ -169,6 +168,32 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         if meta_key == 'filter1':
             # Remove the parenthetical knob position to leave just the filter name
             return headarr[0]['FILTREAR'].split()[0].upper()
+
+        if meta_key == 'cenwave':
+            # The central wavelength is more descriptive of the grating angle position
+            #  than just the angle value.  Use the DeVeny grating angle formula to
+            #  return the central wavelength of the configuration.
+
+            # Extract lines/mm, catch 'UNKNOWN' grating
+            lpmm = (
+                np.inf
+                if headarr[0]["GRATING"] == "UNKNOWN"
+                else float(headarr[0]["GRATING"].split("/")[0])
+            )
+
+            # DeVeny Fixed Optical Angles in radians
+            CAMCOL = np.deg2rad(55.00)  # Camera-to-Collimator Angle
+            COLL = np.deg2rad(10.00)    # Collimator-to-Grating Angle
+            # Grating angle in radians
+            theta = np.deg2rad(float(headarr[0]['GRANGLE']))
+            # Wavelength in Angstroms
+            wavelen = (
+                (np.sin(COLL + theta) + np.sin(COLL + theta - CAMCOL))  # Angles
+                * 1.0e7                                                 # Angstroms/mm
+                / lpmm                                                  # lines / mm
+            )
+            # Round the wavelength to the nearest 5A
+            return np.around(wavelen / 5, decimals=0) * 5
 
         msgs.error(f"Not ready for compound meta {meta_key} for LDT/DeVeny")
 
@@ -195,16 +220,14 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         # Arc lamps list from header -- instead of defining the full list here
         par['calibrations']['wavelengths']['lamps'] = ['use_header']
         #par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'HgI']
-        # The default WaveCalib method is `holy-grail`, but there is an option...
-        #par['calibrations']['wavelengths']['method'] = 'full_template'
-        # These are changes from defaults from another spectrograph, but seem
-        #   to work well for LDT/DeVeny.
+        # Set this as default... but use `holy-grail` for DV4, DV8
+        par['calibrations']['wavelengths']['method'] = 'full_template'
+        # The DeVeny arc line FWHM varies based on slitwidth used
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
+        par['calibrations']['wavelengths']['nsnippet'] = 1  # Default: 2
+        # Because of the wide wavelength range, solution more non-linear; user higher orders
         par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
         par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
-        # The DeVeny arc lines are bright, but FWHM varies based on slitwidth used
-        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.5  # Default: 0.15
-        par['calibrations']['wavelengths']['sigdetect'] = 10.  # Default: 5.0
 
         # Slit-edge settings for long-slit data (DeVeny's slit is > 90" long)
         par['calibrations']['slitedges']['bound_detector'] = True
@@ -221,7 +244,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['objlim'] = 2.0   # Default: 3.0
 
         # Reduction and Extraction Parameters -- Look for fainter objects
-        par['reduce']['findobj']['sig_thresh'] = 5.0   # Default: 10.0
+        par['reduce']['findobj']['snr_thresh'] = 5.0   # Default: 10.0
 
         # Flexure Correction Parameters
         par['flexure']['spec_method'] = 'boxcar'  # Default: 'skip'
@@ -245,7 +268,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['dispname', 'dispangle', 'filter1', 'binning']
+        return ['dispname', 'cenwave', 'filter1', 'binning']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -271,20 +294,43 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             return fitstbl['idname'] == 'BIAS'
         if ftype in ['arc', 'tilt']:
             # FOCUS frames should have frametype None, BIAS is bias regardless of lamp status
-            return good_exp & (fitstbl['lampstat01'] != 'off') & (fitstbl['idname'] != 'FOCUS') & \
-                   (fitstbl['idname'] != 'BIAS')
+            return (
+                good_exp
+                & (fitstbl['lampstat01'] != 'off')
+                & (fitstbl['idname'] != 'FOCUS')
+                & (fitstbl['idname'] != 'BIAS')
+            )
         if ftype in ['trace', 'pixelflat']:
-            return good_exp & (fitstbl['idname'] == 'DOME FLAT') & (fitstbl['lampstat01'] == 'off')
+            return (
+                good_exp
+                & (fitstbl['idname'] == 'DOME FLAT')
+                & (fitstbl['lampstat01'] == 'off')
+            )
         if ftype in ['illumflat','sky']:
-            return good_exp & (fitstbl['idname'] == 'SKY FLAT') & (fitstbl['lampstat01'] == 'off')
+            return (
+                good_exp
+                & (fitstbl['idname'] == 'SKY FLAT')
+                & (fitstbl['lampstat01'] == 'off')
+            )
         if ftype == 'science':
             # Both OBJECT and STANDARD frames should be processed as science frames
-            return good_exp & (fitstbl['lampstat01'] == 'off') & \
-                   ((fitstbl['idname'] == 'OBJECT') | (fitstbl['idname'] == 'STANDARD'))        
+            return (
+                good_exp
+                & ((fitstbl['idname'] == 'OBJECT') | (fitstbl['idname'] == 'STANDARD'))
+                & (fitstbl['lampstat01'] == 'off')
+            )
         if ftype == 'standard':
-            return good_exp & (fitstbl['idname'] == 'STANDARD') & (fitstbl['lampstat01'] == 'off')
+            return (
+                good_exp
+                & (fitstbl['idname'] == 'STANDARD')
+                & (fitstbl['lampstat01'] == 'off')
+            )
         if ftype == 'dark':
-            return good_exp & (fitstbl['idname'] == 'DARK') & (fitstbl['lampstat01'] == 'off')
+            return (
+                good_exp
+                & (fitstbl['idname'] == 'DARK')
+                & (fitstbl['lampstat01'] == 'off')
+            )
         if ftype in ['pinhole','align']:
             # Don't types pinhole or align frames
             return np.zeros(len(fitstbl), dtype=bool)
@@ -300,19 +346,36 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return super().pypeit_file_keys() + ['slitwid','lampstat01']
+        return super().pypeit_file_keys() + ['dispangle','slitwid','lampstat01']
 
     def get_lamps(self, fitstbl):
         """
         Extract the list of arc lamps used from header
+
+        .. note::
+
+            There are some faint Cd and Hg lines in the DV9 spectra that are
+            helpful for nailing down the wavelength calibration for that
+            grating, but these lines are too faint / close to other lines for
+            use with other gratings.  Therefore, use a grating-specific line
+            list for Cd and Hg with DV9, but use the usual ion lists for
+            everything else.
+
         Args:
             fitstbl (`astropy.table.Table`_):
                 The table with the metadata for one or more arc frames.
         Returns:
             lamps (:obj:`list`) : List used arc lamps
         """
-        return [f'{lamp.strip()}I' for lamp in np.unique( np.concatenate(
-            [lname.split(',') for lname in fitstbl['lampstat01']]) )]
+        grating = fitstbl['dispname'][0].split()[0]              # Get the DVn specifier
+        return [
+            f"{lamp.strip()}_DeVeny1200"                         # Instrument-specific list
+            if grating == "DV9" and lamp.strip() in ["Cd", "Hg"] # Under these conditions
+            else f"{lamp.strip()}I"                              # Otherwise, the usuals
+            for lamp in np.unique(
+                np.concatenate([lname.split(",") for lname in fitstbl["lampstat01"]])
+            )
+        ]
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -336,42 +399,56 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
 
         # Set parameters based on grating used:
         grating = self.get_meta_value(scifile, 'dispname')
+
         if grating == 'DV1 (150/5000)':
-            # Default method is `holy-grail`, but user may specify `full_template` in the Pypeit
-            # Reduction File if the default method fails.  This parameter pre-loads the proper
-            # reid_arxiv in this case.
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_150l_HgCdNeAr.fits'
-        elif grating == 'DV2 (300/4000)':
-            # Default method is `holy-grail`, but user may specify `full_template` in the Pypeit
-            # Reduction File if the default method fails.  This parameter pre-loads the proper
-            # reid_arxiv in this case.
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_300l_HgCdAr.fits'
-            # Flat fielding adjustment -- Apparent smudge on DV2 grating?
-            # Possible ghost reflection causes weird excess illumination blueward of 3500A along
-            #   center of slit for flats.  Will suggest to users that adding this parameter to
-            #   the PypeIt Reduction File can mask the reflection's effect in the DV2 flats.
-            # par['calibrations']['flatfield']['pixelflat_min_wave'] = 3500
-        elif grating == 'DV3 (300/6750)':
-            pass
+            # Use this `reid_arxiv` with the `full-template` method:
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_150_HgCdAr.fits'
+            # Because of the wide wavelength range, split DV1 arcs in half for reidentification
+            par['calibrations']['wavelengths']['nsnippet'] = 2
+
+        elif grating in ['DV2 (300/4000)', 'DV3 (300/6750)']:
+            # Use this `reid_arxiv` with the `full-template` method:
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_300_HgCdAr.fits'
+
         elif grating == 'DV4 (400/8000)':
-            pass
+            # We don't have a good `reid_arxiv`` for this grating yet; use `holy-grail`
+            #  and it's associated tweaks in parameters
+            par['calibrations']['wavelengths']['method'] = 'holy-grail'
+            par['calibrations']['wavelengths']['sigdetect'] = 10.0  # Default: 5.0
+            par['calibrations']['wavelengths']['rms_threshold'] = 0.5  # Default: 0.15
+
         elif grating == 'DV5 (500/5500)':
-            # For whatever reason, 'holy-grail' fails on DV5 data.  Use 'full-template' instead.
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_500l_HgCdAr.fits'
-        elif grating == 'DV6 (600/4900)':
-            # Default method is `holy-grail`, but user may specify `full_template` in the Pypeit
-            # Reduction File if the default method fails.  This parameter pre-loads the proper
-            # reid_arxiv in this case.
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_600l_HgCdNeAr.fits'
-        elif grating == 'DV7 (600/6750)':
-            pass
+            # Use this `reid_arxiv` with the `full-template` method:
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_500_HgCdAr.fits'
+            par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
+
+        elif grating in ['DV6 (600/4900)', 'DV7 (600/6750)']:
+            # Use this `reid_arxiv` with the `full-template` method:
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_600_HgCdAr.fits'
+            # Given the narrow range of wavelengths, use a lower initial order of the fit
+            par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
+
         elif grating == 'DV8 (831/8000)':
-            pass
+            # We don't have a good `reid_arxiv`` for this grating yet; use `holy-grail`
+            #  and it's associated tweaks in parameters
+            par['calibrations']['wavelengths']['method'] = 'holy-grail'
+            par['calibrations']['wavelengths']['sigdetect'] = 10.0  # Default: 5.0
+            par['calibrations']['wavelengths']['rms_threshold'] = 0.5  # Default: 0.15
+            # Given the narrow range of wavelengths, use a lower final order of the fit
+            par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
+            par['calibrations']['wavelengths']['n_final'] = 4  # Default: 5
+
         elif grating == 'DV9 (1200/5000)':
-            pass
+            # Use this `reid_arxiv` with the `full-template` method:
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_1200_HgCdAr.fits'
+            # Given the narrow range of wavelengths, use a lower final order of the fit
+            par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
+            par['calibrations']['wavelengths']['n_final'] = 4  # Default: 5
+
         elif grating == 'DV10 (2160/5000)':
+            # Presently unsupported; no parameter changes
             pass
+
         else:
             pass
 

@@ -29,7 +29,7 @@ from pypeit.core import moment, pydl, arc
 # TODO: Some of these functions could probably just live in pypeit.edges
 
 def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mode='nearest',
-                      sigdetect=30., grow_bpm=5):
+                      sobel_enhance=0, sigdetect=30., grow_bpm=5):
     r"""
     Find slit edges using the input image.
 
@@ -60,6 +60,9 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
         sobel_mode (:obj:`str`, optional):
             Mode to use with the Sobel filter.  See
             `scipy.ndimage.sobel`_.
+        sobel_enhance (:obj:`int`, optional):
+            If slit edges are not well-defined (e.g. blurred) set this
+            parameter to a number greater than zero to enhance the edge detection.
         sigdetect (:obj:`float`, optional):
             Threshold for edge detection.
         grow_bpm (:int)
@@ -97,6 +100,9 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
 
     # Filter with a Sobel
     filt = ndimage.sobel(sqmstrace, axis=1, mode=sobel_mode)
+    # Enhance blurred edges
+    if sobel_enhance > 0:
+        filt = sobel_enhance * ndimage.uniform_filter1d(filt, size=sobel_enhance, axis=1)
     # Apply the bad-pixel mask
     if bpm is not None:
         # NOTE: Casts to float because filt is float

@@ -263,9 +263,9 @@ class SpecObjs:
         if 'MultiSlit' in pypeline or 'IFU' in pypeline:
             # Have to do a loop to extract the counts for all objects
             if self.OPT_COUNTS[0] is not None:
-                SNR = np.median(self.OPT_COUNTS*np.sqrt(self.OPT_COUNTS_IVAR), axis=1)
+                SNR = np.median(self.OPT_COUNTS * np.sqrt(self.OPT_COUNTS_IVAR), axis=1)
             elif self.BOX_COUNTS[0] is not None:
-                SNR = np.median(self.BOX_COUNTS*np.sqrt(self.BOX_COUNTS_IVAR), axis=1)
+                SNR = np.median(self.BOX_COUNTS * np.sqrt(self.BOX_COUNTS_IVAR), axis=1)
             else:
                 return None
 
@@ -779,8 +779,7 @@ class SpecObjs:
                 slits.append(specobj.ECH_ORDER)
                 names.append(specobj.ECH_NAME)
             # Wave RMS
-            if specobj.WAVE_RMS is not None:  # this is needed to print info for coadd2d
-                wave_rms.append(specobj.WAVE_RMS)
+            wave_rms.append(specobj.WAVE_RMS)
             # Boxcar width
             if specobj.BOX_RADIUS is not None:
                 slit_pix = 2.0 * specobj.BOX_RADIUS
@@ -814,15 +813,11 @@ class SpecObjs:
             # Manual extraction?
             manual_extract.append(specobj.hand_extract_flag)
             # Slitmask info
-            if specobj.MASKDEF_ID is not None:
-                maskdef_id.append(specobj.MASKDEF_ID)
-            if specobj.MASKDEF_OBJNAME is not None:
-                objname.append(specobj.MASKDEF_OBJNAME)
-            if specobj.RA is not None:
-                objra.append(specobj.RA)
-                objdec.append(specobj.DEC)
-            if specobj.MASKDEF_EXTRACT is not None:
-                maskdef_extract.append(specobj.MASKDEF_EXTRACT)
+            maskdef_id.append(specobj.MASKDEF_ID)
+            objname.append(specobj.MASKDEF_OBJNAME)
+            objra.append(specobj.RA)
+            objdec.append(specobj.DEC)
+            maskdef_extract.append(specobj.MASKDEF_EXTRACT)
 
         # Generate the table, if we have at least one source
         if len(names) > 0:
@@ -837,16 +832,17 @@ class SpecObjs:
                 obj_tbl['order'] = slits
                 obj_tbl['order'].format = 'd'
             obj_tbl['name'] = names
-            if len(maskdef_id) > 0:
+            if not np.all(np.array(maskdef_id) == None):
                 obj_tbl['maskdef_id'] = maskdef_id
-                obj_tbl['maskdef_id'].format = 'd'
-            if len(objname) > 0:
+            if not np.all(np.array(objname) == None):
                 obj_tbl['objname'] = objname
-            if len(objra) > 0:
+            if not np.all(np.array(objra) == None):
                 obj_tbl['objra'] = objra
-                obj_tbl['objra'].format = '.5f'
+                if None not in objra:
+                    obj_tbl['objra'].format = '.5f'
                 obj_tbl['objdec'] = objdec
-                obj_tbl['objdec'].format = '.5f'
+                if None not in objdec:
+                    obj_tbl['objdec'].format = '.5f'
             obj_tbl['spat_pixpos'] = spat_pixpos
             obj_tbl['spat_pixpos'].format = '.1f'
             obj_tbl['spat_fracpos'] = spat_fracpos
@@ -860,16 +856,17 @@ class SpecObjs:
             obj_tbl['s2n'] = s2n
             obj_tbl['s2n'].format = '.2f'
             # is this a forced extraction at the expected position from slitmask design?
-            if len(maskdef_extract) > 0:
-                obj_tbl['maskdef_extract'] = maskdef_extract
-            # only if manual extractions exist, print this
-            if np.any(manual_extract):
+            if not np.all(np.array(maskdef_extract) == None):
+                    obj_tbl['maskdef_extract'] = maskdef_extract
+            # only if any manual extraction exists, print this
+            if not np.all(np.array(manual_extract) == False):
                 obj_tbl['manual_extract'] = manual_extract
 
             # Wavelengths
-            if len(wave_rms) > 0:
+            if not np.all(np.array(wave_rms) == None):
                 obj_tbl['wv_rms'] = wave_rms
-                obj_tbl['wv_rms'].format = '.3f'
+                if None not in wave_rms:
+                    obj_tbl['wv_rms'].format = '.3f'
             # Write
             obj_tbl.write(outfile,format='ascii.fixed_width', overwrite=True)
 
@@ -917,6 +914,48 @@ class SpecObjs:
 
         return groups
 
+#TODO Should this be a classmethod on specobjs??
+def get_std_trace(detname, std_outfile, chk_version=True):
+    """
+     Returns the trace of the standard.
+
+     Args:
+         det (:obj:`int`, :obj:`tuple`):
+             1-indexed detector(s) to process.
+         std_outfile (:obj:`str`):
+             Filename with the standard star spec1d file.  Can be None.
+     Returns:
+         `numpy.ndarray`_: Trace of the standard star on input detector.
+         Will be None if ``std_outfile`` is None, or if the selected detector/mosaic is not available
+         in the provided spec1d file.
+     """
+
+    sobjs = SpecObjs.from_fitsfile(std_outfile, chk_version=chk_version)
+    pypeline = sobjs.PYPELINE
+    # Does the detector match?
+    # TODO: Instrument specific logic here could be implemented with the
+    # parset. For example LRIS-B or LRIS-R we we would use the standard
+    # from another detector.
+
+    this_det = sobjs.DET == detname
+    if np.any(this_det):
+        sobjs_det = sobjs[this_det]
+        sobjs_std = sobjs_det.get_std()
+        # No standard extracted on this detector??
+        if sobjs_std is None:
+            return None
+        std_trace = sobjs_std.TRACE_SPAT
+        # flatten the array if this multislit
+        if 'MultiSlit' in pypeline:
+            std_trace = std_trace.flatten()
+        elif 'Echelle' in pypeline:
+            std_trace = std_trace.T
+        else:
+            msgs.error('Unrecognized pypeline')
+    else:
+        std_trace = None
+
+    return std_trace
 
 def lst_to_array(lst, mask=None):
     """

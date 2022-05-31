@@ -7,9 +7,7 @@ Script for quick-look reductions of Keck MOSFIRE observations.
 
 import os
 import copy
-from glob import glob
-
-from pkg_resources import resource_filename
+import time
 
 from IPython import embed
 
@@ -20,7 +18,7 @@ from astropy.table import Table
 from astropy.stats import sigma_clipped_stats
 
 from pypeit import utils
-from pypeit import pypeit
+from pypeit import data
 from pypeit import par, msgs
 from pypeit import pypeitsetup
 from pypeit import wavecalib
@@ -35,7 +33,6 @@ from pypeit import calibrations
 from pypeit.display import display
 from pypeit.images import buildimage
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.core.wavecal import wvutils
 from pypeit import sensfunc
 from pypeit.core import flux_calib
 from pypeit.scripts import scriptbase
@@ -70,7 +67,7 @@ def config_lines(args):
     return cfg_lines
 
 
-def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False, std_trace=None):
+def reduce_IR(A_files, B_files, caliBrate, spectrograph, det, parset, show=False, std_trace=None):
     """
     Peform 2d extraction for a set of files at the same unique A-B offset location.
 
@@ -109,13 +106,14 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
         spectrograph, det, parset['scienceframe'], list(A_files), bpm=caliBrate.msbpm, slits=caliBrate.slits, ignore_saturation=False)
 
     # Background Image?
-    sciImg = sciImg.sub(buildimage.buildimage_fromlist(spectrograph, det, parset['scienceframe'], list(B_files), bpm=caliBrate.msbpm, slits=caliBrate.slits, ignore_saturation=False),
-            parset['scienceframe']['process'])
+    sciImg = sciImg.sub(buildimage.buildimage_fromlist(spectrograph, det, parset['scienceframe'], list(B_files),
+                                                       bpm=caliBrate.msbpm, slits=caliBrate.slits, ignore_saturation=False),
+                        parset['scienceframe']['process'])
     # Instantiate FindObjects object
     # Required for pypeline specific object
     # At instantiaton, the fullmask in self.sciImg is modified
 
-    # DP: Should find_negative be True here?
+    # DP: Should find_negative be True here? JFH: For quicklook yes!
     objFind = find_objects.FindObjects.get_instance(sciImg, spectrograph, parset, caliBrate, 'science',
                                                     bkg_redux=True, find_negative=True, show=show)
 
@@ -125,7 +123,8 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
     extract = extraction.Extract.get_instance(sciImg, sobjs_obj, spectrograph, parset, caliBrate,
                                               'science', bkg_redux=True, return_negative=True, show=show)
     skymodel, objmodel, ivarmodel, \
-    outmask, sobjs, scaleimg, waveimg, tilts = extract.run(global_sky, sobjs_obj)
+    outmask, sobjs, waveimg, tilts = extract.run(global_sky, sobjs_obj)
+    scaleimg = np.array([1.0], dtype=np.float)  # np.array([1]) applies no scale
 
     # TODO -- Do this upstream
     # Tack on detector
@@ -228,6 +227,8 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
     @staticmethod
     def main(args):
 
+        tstart = time.time()
+
         # Read in the spectrograph, config the parset
         spectrograph = load_spectrograph('keck_mosfire')
         spectrograph_def_par = spectrograph.default_pypeit_par()
@@ -246,7 +247,7 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
         files = files[np.argsort(mjds)]
 
         # Calibration Master directory
-        master_dir = resource_filename('pypeit', 'data/QL_MASTERS') \
+        master_dir = os.path.join(data.Paths.data, 'QL_MASTERS') \
                         if args.master_dir is None else args.master_dir
         if not os.path.isdir(master_dir):
             msgs.error(f'{master_dir} does not exist!  You must install the QL_MASTERS '
@@ -309,7 +310,7 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
         ##
         if std_spec1d_file is not None:
             # Get the standard trace if need be
-            sobjs = specobjs.SpecObjs.from_fitsfile(std_spec1d_file)
+            sobjs = specobjs.SpecObjs.from_fitsfile(std_spec1d_file, chk_version=False)
             this_det = sobjs.DET == detname
             if np.any(this_det):
                 sobjs_det = sobjs[this_det]
@@ -337,6 +338,7 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
 
         # Build the Calibrate object
         caliBrate = calibrations.Calibrations(None, parset['calibrations'], spectrograph, None)
+        caliBrate.det = det
         caliBrate.slits = slits
         caliBrate.msbpm = msbpm
         caliBrate.wavetilts = tilts_obj
@@ -345,10 +347,7 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
 
         # Find the unique throw absolute value, which defines each MASK_NOD seqeunce
         #uniq_offsets, _ = np.unique(offset_arcsec, return_inverse=True)
-        uniq_throws, uni_indx = np.unique(np.abs(offset_arcsec), return_inverse=True)
-        # uniq_throws = uniq values of the dither throw
-        # uni_indx = indices into the uniq_throws array needed to reconstruct the original array
-        nuniq = uniq_throws.size
+
         spec2d_list =[]
         offset_ref = offset_arcsec[0]
         offsets_dith_pix = []
@@ -360,7 +359,11 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
 
         # TODO Rework the logic here so that we can print out a unified report
         # on what was actually reduced.
-        
+
+        uniq_throws, uni_indx = np.unique(np.abs(offset_arcsec), return_inverse=True)
+        # uniq_throws = uniq values of the dither throw
+        # uni_indx = indices into the uniq_throws array needed to reconstruct the original array
+        nuniq = uniq_throws.size
         for iuniq in range(nuniq):
             A_ind = (uni_indx == iuniq) & (dither_id == 'A')
             B_ind = (uni_indx == iuniq) & (dither_id == 'B')
@@ -373,7 +376,7 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
             throw = np.abs(A_offset[0])
             msgs.info('Reducing A-B pairs for throw = {:}'.format(throw))
             if (len(A_files_uni) > 0) & (len(B_files_uni) > 0):
-                spec2DObj_A, spec2DObj_B = run_pair(A_files_uni, B_files_uni, caliBrate,
+                spec2DObj_A, spec2DObj_B = reduce_IR(A_files_uni, B_files_uni, caliBrate,
                                                     spectrograph, det, parset, show=args.show,
                                                     std_trace=std_trace)
                 spec2d_list += [spec2DObj_A, spec2DObj_B]
@@ -422,8 +425,8 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
             # don't need to do a 2d interpolation
             exptime = spectrograph.get_meta_value(files[0],'exptime')
             sens_factor = flux_calib.get_sensfunc_factor(pseudo_dict['wave_mid'][:,islit],
-                                                         sens.wave, sens.zeropoint, exptime,
-                                                         extrap_sens=parset['fluxcalib']['extrap_sens'])
+                                                         sens.wave.flatten(), sens.zeropoint.flatten(), exptime,
+                                                         extrap_sens=True) #parset['fluxcalib']['extrap_sens'])
 
             # Compute the median sensitivity and set the sensitivity to zero at
             # locations 100 times the median. This prevents the 2d image from
@@ -495,6 +498,10 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
             hdul = fits.HDUList([hdu, hdu_resid, hdu_wave])
             msgs.info('Writing sky subtracted image to {:s}'.format(outfile))
             hdul.writeto(outfile, overwrite=True)
+
+
+        msgs.info(utils.get_time_string(time.time()-tstart))
+
 
         if args.embed:
             embed()

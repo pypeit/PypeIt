@@ -3,8 +3,6 @@ Module for Bok/B&C specific methods.
 
 .. include:: ../include/links.rst
 """
-from pkg_resources import resource_filename
-
 import numpy as np
 
 from astropy.time import Time
@@ -188,6 +186,7 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        par['calibrations']['slitedges']['edge_thresh'] = 50.0
 
         # JFH Is this correct?
         # Processing steps
@@ -238,7 +237,7 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         par['reduce']['skysub']['global_sky_std']  = False
 
         par['reduce']['extraction']['sn_gauss'] = 4.0
-        par['reduce']['findobj']['sig_thresh'] = 5.0
+        par['reduce']['findobj']['snr_thresh'] = 5.0
         par['reduce']['skysub']['sky_sigrej'] = 5.0
         par['reduce']['findobj']['find_trim_edge'] = [5,5]
 
@@ -316,8 +315,9 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
         # Wavelength calibrations
-        #if self.get_meta_value(scifile, 'dispname') == 'R1200B':
-        #    par['calibrations']['wavelengths']['reid_arxiv'] = 'wht_isis_blue_1200_4800.fits'
+        if self.get_meta_value(scifile, 'dispname') == '300':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'bok_bc_300.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
 
         return par
 

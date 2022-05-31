@@ -69,9 +69,15 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
     fig = plt.figure(figsize=figsize)
     gs = gridspec.GridSpec(nrows,ncols)#, figure = fig)
 
+    # log is True by default, but if a large part of spectrum is < 0, the log plot will look very bad
+    neg_values = np.where(arc_spec < 0)[0]
+    if neg_values.size > 0.3 * len(arc_spec):
+        log = False
+
 
     # Simple spectrum plot
     ax_spec = plt.subplot(gs[:,0])
+    ax_spec.minorticks_on()
     ax_spec.plot(np.arange(len(arc_spec)), arc_spec)
     ymin, ymax = np.min(arc_spec), np.max(arc_spec)
     if log:
@@ -155,6 +161,8 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
     ax_fit.set_ylim((ymin, ymax))
     ax_fit.set_ylabel('Wavelength')
     ax_fit.get_xaxis().set_ticks([]) # Suppress labeling
+    ax_fit.minorticks_on()
+    ax_fit.tick_params(axis="y", which='both', right=True)
 
     # Stats
     wave_soln_fit = waveFit.pypeitfit.eval(waveFit.pixel_fit/waveFit.xnorm)#, 'legendre',minx=fit['fmin'], maxx=fit['fmax'])
@@ -168,6 +176,8 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
     ax_res.set_xlim(xmin, xmax)
     ax_res.set_xlabel('Pixel')
     ax_res.set_ylabel('Residuals (Pix)')
+    ax_res.minorticks_on()
+    ax_res.tick_params(axis="y", which='both', right=True)
 
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
@@ -1259,6 +1269,8 @@ class ArchiveReid:
             # If this is a fixed format echelle, arxiv has exactly the same orders as the data and so
             # we only pass in the relevant arxiv spectrum to make this much faster
             ind_sp = arxiv_orders.index(orders[slit]) if self.ech_fix_format else ind_arxiv
+            if self.ech_fix_format: 
+                msgs.info(f'Order: {orders[slit]}')
             sigdetect = wvutils.parse_param(self.par, 'sigdetect', slit)
             cc_thresh = wvutils.parse_param(self.par, 'cc_thresh', slit)
             rms_threshold = wvutils.parse_param(self.par, 'rms_threshold', slit)

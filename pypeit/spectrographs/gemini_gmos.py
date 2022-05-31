@@ -3,12 +3,6 @@ Module for Gemini GMOS specific methods.
 
 .. include:: ../include/links.rst
 """
-import os
-import glob
-from pkg_resources import resource_filename
-
-from IPython import embed
-
 import numpy as np
 
 from pypeit import msgs
@@ -20,7 +14,8 @@ from pypeit.core import parse
 from pypeit.images import detector_container
 from pypeit.images.mosaic import Mosaic
 from pypeit.core.mosaic import build_image_mosaic_transform
-from pypeit.par import pypeitpar
+
+from IPython import embed
 
 class GeminiGMOSMosaicLookUp:
     """
@@ -138,8 +133,16 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            binspatial, binspec = parse.parse_binning(headarr[1]['CCDSUM'])
-            binning = parse.binning2string(binspec, binspatial)
+            # binning in the raw frames
+            ccdsum = headarr[1].get('CCDSUM')
+            if ccdsum is not None:
+                binspatial, binspec = parse.parse_binning(ccdsum)
+                binning = parse.binning2string(binspec, binspatial)
+            else:
+                # binning in the spec2d file
+                binning = headarr[0].get('BINNING')
+            if binning is None:
+                msgs.error('Binning not found')
             return binning
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
@@ -257,7 +260,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # Allow for various binning
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
-        par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[1]
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
 
         return par
 
@@ -389,7 +392,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             return detectors[0], array[0], hdu, exptime, rawdatasec_img[0], oscansec_img[0]
         return mosaic, array, hdu, exptime, rawdatasec_img, oscansec_img
 
-    def get_mosaic_par(self, mosaic, hdu=None):
+    def get_mosaic_par(self, mosaic, hdu=None, msc_order=0):
         """
         Return the hard-coded parameters needed to construct detector mosaics
         from unbinned images.
@@ -410,6 +413,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
                 default.  BEWARE: If ``hdu`` is not provided, the binning is
                 assumed to be `1,1`, which will cause faults if applied to
                 binned images!
+            msc_order (:obj:`int`, optional):
+                Order of the interpolation used to construct the mosaic.
 
         Returns:
             :class:`~pypeit.images.mosaic.Mosaic`: Object with the mosaic *and*
@@ -460,7 +465,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             msc_tfm[i] = build_image_mosaic_transform(shape, msc_sft[i], msc_rot[i], binning)
 
         return Mosaic(mosaic_id, detectors, shape, np.array(msc_sft), np.array(msc_rot),
-                      np.array(msc_tfm))
+                      np.array(msc_tfm), msc_order)
 
     @property
     def allowed_mosaics(self):
@@ -589,9 +594,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         """
         par = super().default_pypeit_par()
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['IR']['telgridfile'] \
-                = os.path.join(par['sensfunc']['IR'].default_root,
-                               'TelFit_LasCampanas_3100_26100_R20000.fits')
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
         # Bound the detector with slit edges if no edges are found. These data are often trimmed
         # so we implement this here as the default.
         par['calibrations']['slitedges']['bound_detector'] = True
@@ -1055,8 +1058,11 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
         if self.get_meta_value(scifile, 'dispname')[0:4] == 'R400':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_e2v.fits'
-        #
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_e2v_mosaic.fits'
+            # The blue wavelengths are *faint*
+            #   But redder observations may prefer something closer to the default
+            par['calibrations']['wavelengths']['sigdetect'] = 1.  
+        # Return
         return par
 
 # TODO: Someone please check the docstring

@@ -3,9 +3,6 @@ Module for P200/Triplespec specific methods.
 
 .. include:: ../include/links.rst
 """
-import os
-from pkg_resources import resource_filename
-
 import numpy as np
 
 from astropy.time import Time
@@ -157,6 +154,11 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
 
+        # Model entire slit
+        par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
+        par['reduce']['findobj']['maxnumber_sci'] = 2  # Slit is narrow so allow one object per order
+        par['reduce']['findobj']['maxnumber_std'] = 1  # Slit is narrow so allow one object per order
+
         # Flexure
         par['flexure']['spec_method'] = 'skip'
 
@@ -175,9 +177,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
-        par['sensfunc']['IR']['telgridfile'] \
-                = os.path.join(par['sensfunc']['IR'].default_root,
-                               'TelFit_MaunaKea_3100_26100_R20000.fits')
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
 
         return par
 
