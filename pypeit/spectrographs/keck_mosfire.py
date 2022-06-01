@@ -532,6 +532,23 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             #    plt.legend()
             #    plt.show()
             return wave, counts, counts_ivar, gpm
+        elif 'J2-spectroscopy' in meta_table['DISPNAME']:
+            # TODO: how to set wave_blue and wave_red here
+            wave_blue = 11170.0  # blue wavelength below which there is contamination
+            wave_red = 12600.0  # red wavelength above which the spectrum is containated
+            second_order_region= (wave_in < wave_blue) | (wave_in > wave_red)
+            wave = wave_in.copy()
+            counts = counts_in.copy()
+            gpm = gpm_in.copy()
+            counts_ivar = counts_ivar_in.copy()
+            # By setting the wavelengths to zero, we guarantee that the sensitvity function will only be computed
+            # over the valid wavelength region. While we could mask, this would still produce a wave_min and wave_max
+            # for the zeropoint that includes the bad regions, and the polynomial fits will extrapolate crazily there
+            wave[second_order_region] = 0.0
+            counts[second_order_region] = 0.0
+            counts_ivar[second_order_region] = 0.0
+            gpm[second_order_region] = False
+            return wave, counts, counts_ivar, gpm
         else:
             return wave_in, counts_in, counts_ivar_in, gpm_in
 
