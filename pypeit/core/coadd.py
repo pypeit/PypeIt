@@ -2869,7 +2869,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
 
     sci_list = [weights_stack, sciimg_stack, sciimg_stack - skymodel_stack, tilts_stack,
                 waveimg_stack, dspat_stack]
-    var_list = [utils.calc_ivar(sciivar_stack)]
+    var_list = [utils.inverse(sciivar_stack)]
 
     sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack \
             = rebin2d(wave_bins, dspat_bins, waveimg_stack, dspat_stack, thismask_stack,
@@ -2886,7 +2886,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
                                sigma_clip_stack=sci_list_rebin[2], sigrej=sigrej,
                                maxiters=maxiters)
     sciimg, imgminsky, tilts, waveimg, dspat = sci_list_out
-    sciivar = utils.calc_ivar(var_list_out[0])
+    sciivar = utils.inverse(var_list_out[0])
 
     # Compute the midpoints vectors, and lower/upper bins of the rectified image in spectral and spatial directions
     wave_mid = ((wave_bins + np.roll(wave_bins,1))/2.0)[1:]

@@ -167,7 +167,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
 
         # Set slits and tilts parameters
         par['calibrations']['tilts']['tracethresh'] = 5
-        par['calibrations']['slitedges']['edge_thresh'] = 10.
+        par['calibrations']['slitedges']['edge_thresh'] = 3.
         par['calibrations']['slitedges']['trace_thresh'] = 10.
         par['calibrations']['slitedges']['fit_order'] = 5
         par['calibrations']['slitedges']['max_shift_adj'] = 0.5
@@ -176,7 +176,9 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         par['calibrations']['slitedges']['pca_order'] = 3
 
         # Model entire slit
-        par['reduce']['extraction']['model_full_slit'] = True # local sky subtraction operates on entire slit
+        par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
+        par['reduce']['findobj']['maxnumber_sci'] = 2  # Slit is narrow so allow one object per order
+        par['reduce']['findobj']['maxnumber_std'] = 1  # Slit is narrow so allow one object per order
 
         # Processing steps
         turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
@@ -405,7 +407,7 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         par.reset_all_processimages_par(**turn_off)
 
         # Scienceimage parameters
-        par['reduce']['findobj']['sig_thresh'] = 5
+        par['reduce']['findobj']['snr_thresh'] = 5
         #par['reduce']['maxnumber'] = 2
         par['reduce']['findobj']['find_trim_edge'] = [50,50]
         par['flexure']['spec_method'] = 'skip'

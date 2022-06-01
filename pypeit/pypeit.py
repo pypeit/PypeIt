@@ -386,7 +386,6 @@ class PypeIt:
                     # exposure
                     history = History(self.fitstbl.frame_paths(frames[0]))
                     history.add_reduce(i, self.fitstbl, frames, bg_frames)
-
                     std_spec2d, std_sobjs = self.reduce_exposure(frames, bg_frames=bg_frames)
 
                     # TODO come up with sensible naming convention for save_exposure for combined files
@@ -641,56 +640,6 @@ class PypeIt:
         setup = self.fitstbl.master_key(frame, det=det)
         return objtype_out, setup, obstime, basename, binning
 
-    def get_std_trace(self, std_redux, det, std_outfile):
-        """
-        Returns the trace of the standard if it is applicable to the current reduction
-
-        Args:
-            std_redux (:obj:`bool`):
-                Flag that the current reduction *is* the reduction of a standard
-                and that this step should be skipped.   So, if this is False,
-                the method will proceed; otherwise, the returned value is always
-                None.
-            det (:obj:`int`, :obj:`tuple`):
-                1-indexed detector(s) to process.
-            std_outfile (:obj:`str`):
-                Filename with the standard star spec1d file.  Can be None.
-
-        Returns:
-            `numpy.ndarray`_: Trace of the standard star on input detector.
-            Will be None if ``std_redux`` is true, if ``std_outfile`` is None,
-            or if the selected detector/mosaic is not available in the provided
-            spec1d file.
-        """
-        if std_redux is False and std_outfile is not None:
-            sobjs = specobjs.SpecObjs.from_fitsfile(std_outfile)
-            detname = self.spectrograph.get_det_name(det)
-            # Does the detector match?
-            # TODO: Instrument specific logic here could be implemented with the
-            # parset. For example LRIS-B or LRIS-R we we would use the standard
-            # from another detector.
-
-            this_det = sobjs.DET == detname
-            if np.any(this_det):
-                sobjs_det = sobjs[this_det]
-                sobjs_std = sobjs_det.get_std()
-                # No standard extracted on this detector??
-                if sobjs_std is None:
-                    return None
-                std_trace = sobjs_std.TRACE_SPAT
-                # flatten the array if this multislit
-                if 'MultiSlit' in self.spectrograph.pypeline:
-                    std_trace = std_trace.flatten()
-                elif 'Echelle' in self.spectrograph.pypeline:
-                    std_trace = std_trace.T
-                else:
-                    msgs.error('Unrecognized pypeline')
-            else:
-                std_trace = None
-        else:
-            std_trace = None
-
-        return std_trace
 
     def calib_one(self, frames, det):
         """
@@ -751,7 +700,7 @@ class PypeIt:
         sciImg : :class:`~pypeit.images.pypeitimage.PypeItImage`
             Science image
         objFind : :class:`~pypeit.find_objects.FindObjects`
-            Object finding object
+            Object finding speobject
 
         """
         # Grab some meta-data needed for the reduction from the fitstbl
@@ -762,12 +711,13 @@ class PypeIt:
 
         # Is this a standard star?
         self.std_redux = 'standard' in self.objtype
-        if self.std_redux:
-            frame_par = self.par['calibrations']['standardframe']
-        else:
-            frame_par = self.par['scienceframe']
+        frame_par = self.par['calibrations']['standardframe'] if self.std_redux else self.par['scienceframe']
         # Get the standard trace if need be
-        std_trace = self.get_std_trace(self.std_redux, det, std_outfile)
+
+        if self.std_redux is False and std_outfile is not None:
+            std_trace = specobjs.get_std_trace(self.spectrograph.get_det_name(det), std_outfile)
+        else:
+            std_trace = None
 
         # Build Science image
         sci_files = self.fitstbl.frame_paths(frames)
@@ -853,7 +803,6 @@ class PypeIt:
 
         # Update the skymask
         skymask = objFind.create_skymask(sobjs_obj)
-
         # Update the global sky
         if 'standard' in self.fitstbl['frametype'][frames[0]] or \
                 self.par['reduce']['findobj']['skip_final_global'] or \
@@ -891,9 +840,9 @@ class PypeIt:
                                          dec=self.fitstbl["dec"][frames[0]], obstime=self.obstime)
         else:
             # Although exrtaction is not performed, still need to prepare some masks and the tilts
-            self.exTract.prepare_extraction(final_global_sky)
+            self.exTract.prepare_extraction()
             # Since the extraction was not performed, fill the arrays with the best available information
-            skymodel = self.exTract.global_sky
+            skymodel = final_global_sky
             objmodel = np.zeros_like(self.exTract.sciImg.image)
             ivarmodel = np.copy(self.exTract.sciImg.ivar)
             outmask = self.exTract.sciImg.fullmask

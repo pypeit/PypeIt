@@ -1,6 +1,10 @@
 
-1.8.2dev
+1.9.1dev
 --------
+
+
+1.9.0 (31 May 2022)
+-------------------
 
 - When using glob to get files in pypeit_setup, added automatic sorting
   so that the default `comb_id` ordering matches the sorted file name.
@@ -20,7 +24,18 @@
 - Expose exposure time scaling for dark frames as an image processing
   parameter, and set the default behavior to ignore any difference in
   exposure time.  Also fixes a bug in the variance calculation.
-
+- Added more flexible quicklook that can handle dithering.
+- Refactored object finding
+- Bug fixes in local sky subtraction and extraction
+- Fixed pypeit setup issues due to bad LRIS headers.
+- Added support for VLT FORS2 600z grism.
+- Added enhancements and fixes for Keck lris red Mark4.
+- Fixed a bug in 2d coadding when objects were not being identified.
+  Refactored 2d extraction.
+- Added code to better parse Gemini/GNIRS dither sequences
+- Add spectrograph child for VLT X-SHOOTER UVB arm
+- Minor enhancements to `pypeit_identify` GUI
+- Refactoring of `pypeit_show_wvcalib` GUI
 
 1.8.1 (23 Feb 2022)
 -------------------
@@ -28,6 +43,7 @@
 - various hotfixes
 - Include preliminary support for fluxing with archived SensFunc files
   for DEIMOS.
+
 
 1.8.0 (12 Feb 2022)
 -------------------
