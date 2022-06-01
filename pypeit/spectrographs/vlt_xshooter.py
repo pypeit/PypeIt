@@ -976,6 +976,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         The following lines generated the values below:
 
         .. code-block:: python
+
             from pypeit import edgetrace
             edges = edgetrace.EdgeTraceSet.from_file('MasterEdges_A_1_DET01.fits.gz')
 

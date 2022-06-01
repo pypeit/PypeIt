@@ -1,6 +1,10 @@
 
-1.8.2dev
+1.9.1dev
 --------
+
+
+1.9.0 (31 May 2022)
+-------------------
 
 - When using glob to get files in pypeit_setup, added automatic sorting
   so that the default `comb_id` ordering matches the sorted file name.
@@ -27,6 +31,8 @@
 - Fixed pypeit setup issues due to bad LRIS headers.
 - Added support for VLT FORS2 600z grism.
 - Added enhancements and fixes for Keck lris red Mark4.
+- Fixed a bug in 2d coadding when objects were not being identified.
+  Refactored 2d extraction.
 - Improved wavelength solution for Gemini-Nort E2V detector
 - Keck/DEIMOS now uses gain/RN values measured periodically by WMKO
 - Add bok_bc 300 grating template
