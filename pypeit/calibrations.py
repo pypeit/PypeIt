@@ -521,7 +521,7 @@ class Calibrations:
         illum_image_files, self.master_key_dict['flat'] = self._prep_calibrations('illumflat')
         pixflat_image_files, self.master_key_dict['flat'] = self._prep_calibrations('pixelflat')
         # flats lamp off
-        flatLoff_image_files, _ = self._prep_calibrations('thermalflat')
+        flatLoff_image_files, _ = self._prep_calibrations('lampoffflats')
 
         masterframe_filename = masterframe.construct_file_name(flatfield.FlatImages,
                                                            self.master_key_dict['flat'],
@@ -559,11 +559,11 @@ class Calibrations:
                                                         pixflat_image_files, dark=self.msdark,
                                                         bias=self.msbias, bpm=self.msbpm)
             if len(flatLoff_image_files) > 0:
-                msgs.info('Subtracting Master lamp off Flat using files: ')
+                msgs.info('Subtracting lamp off flats using files: ')
                 for f in flatLoff_image_files:
                     msgs.info(f'{os.path.basename(f)}')
                 pixel_flat = pixel_flat.sub(buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                                           self.par['thermalflatframe'],
+                                                                           self.par['lampoffflatsframe'],
                                                                            flatLoff_image_files, dark=self.msdark,
                                                                            bias=self.msbias, bpm=self.msbpm),
                                             self.par['pixelflatframe']['process'])
@@ -584,11 +584,11 @@ class Calibrations:
                                                         illum_image_files, dark=self.msdark,
                                                         bias=self.msbias, bpm=self.msbpm)
             if len(flatLoff_image_files) > 0:
-                msgs.info('Subtracting Master lamp off Flat using files: ')
+                msgs.info('Subtracting lamp off flats using files: ')
                 for f in flatLoff_image_files:
                     msgs.info(f'{os.path.basename(f)}')
                 illum_flat = illum_flat.sub(buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                                           self.par['thermalflatframe'],
+                                                                           self.par['lampoffflatsframe'],
                                                                            flatLoff_image_files, dark=self.msdark,
                                                                            bias=self.msbias, bpm=self.msbpm),
                                             self.par['illumflatframe']['process'])

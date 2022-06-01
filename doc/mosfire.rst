@@ -117,10 +117,15 @@ flag **bound_detector** is set to **True**.
 Flat Fielding
 -------------
 ``Pypeit`` is able to recognize flat frames taken with the lamps off, and it will assign them the
-``thermalflat`` frame type. Whenever ``thermalflat`` frames are identified in the PypeIt file, ``Pypeit``
-will subtract them from the Master Pixel Flat and Master Illumination Flat. It is responsibility of the
-user to ensure that the ``thermalflat`` frames in the PypeIt file have the same exposure time of the
-``pixelflat`` and ``illumflat`` frames.
+``lampoffflats`` frame type. Whenever ``lampoffflats`` frames are identified in the PypeIt file, ``Pypeit``
+will subtract them from the frames taken with the lamps on  before creating the Master Pixel Flat and
+Master Illumination Flat. It is responsibility of the user to ensure that the ``lampoffflats`` frames
+in the PypeIt file have the same exposure time of the ``pixelflat`` and ``illumflat`` frames.
+
+.. note::
+    The ``lampoffflats`` frames are always subtracted from both ``pixelflat`` and ``illumflat`` frames.
+    Therefore, the user needs to be careful if assigning ``pixelflat`` and ``illumflat`` frame types to
+    different sets of flat frames.
 
 Wavelength calibration
 ----------------------
