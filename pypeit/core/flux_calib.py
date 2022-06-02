@@ -72,7 +72,9 @@ def blackbody_func(a, teff):
         waves : `numpy.ndarray`_ of the wavelengths
         flam : `numpy.ndarray`_ flux in units of erg/s/cm^2/A
     """
-    waves = np.arange(3000.0, 25000.0, 0.1) * units.AA
+    resln = 0.1  # Resolution to generate the blackbody spectrum
+    a *= resln   # Below we calculate flux/angstrom, but we generate the wavelength grid on a finer scale
+    waves = np.arange(3000.0, 25000.0, resln) * units.AA
     temp = teff * units.K
     # Calculate the function
     flam = ((a*2*constants.h*constants.c**2)/waves**5) / (np.exp((constants.h*constants.c / 
