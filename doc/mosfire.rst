@@ -116,6 +116,10 @@ flag **bound_detector** is set to **True**.
 
 Flat Fielding
 -------------
+The MOSFIRE calibration GUI provides the option to take flats with the lamps off. This is the default in the
+GUI only for the K-band, but we recommend taking these ``lampoffflats`` for all MOSFIRE spectroscopic
+observations. The purpose of the ``lampoffflats`` is to remove the increase and/or variation in zero level caused
+by persistence from the high counts in the flats and/or thermal emission from the telescope/dome (in the K-band). 
 ``Pypeit`` is able to recognize flat frames taken with the lamps off, and it will assign them the
 ``lampoffflats`` frame type. Whenever ``lampoffflats`` frames are identified in the PypeIt file, ``Pypeit``
 will subtract them from the frames taken with the lamps on  before creating the Master Pixel Flat and
@@ -124,8 +128,10 @@ in the PypeIt file have the same exposure time of the ``pixelflat`` and ``illumf
 
 .. note::
     The ``lampoffflats`` frames are always subtracted from both ``pixelflat`` and ``illumflat`` frames.
-    Therefore, the user needs to be careful if assigning ``pixelflat`` and ``illumflat`` frame types to
-    different sets of flat frames.
+    The default mode for MOSFIRE is to use the spectroscopic domeflats for both ``pixelflat`` and ``illumflat``. 
+    If the user wants to use other images (e.g. spectroscopic twilight flats) for the ``illumflat``, then the 
+    current implementation would likely fail. If distinct frames are desired for ``pixelflat`` and ``illumflat``,  
+    we currently advise users to simply not use the ``lampofflats``. 
 
 Wavelength calibration
 ----------------------
