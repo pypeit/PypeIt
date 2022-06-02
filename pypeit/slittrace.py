@@ -1494,7 +1494,7 @@ def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure, platesca
             calib_slits[i].get_maskdef_offset(sobjs, platescale[i], spat_flexure[i],
                                               slitmask_par['slitmask_offset'],
                                               slitmask_par['bright_maskdef_id'],
-                                              slitmask_par['nsig_thrshd'],
+                                              slitmask_par['snr_thrshd'],
                                               slitmask_par['use_alignbox'],
                                               dither_off=dither_off)
 

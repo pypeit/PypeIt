@@ -1766,7 +1766,7 @@ class SlitMaskPar(ParSet):
 
 
     """
-    def __init__(self, obj_toler=None, assign_obj=None, nsig_thrshd=None,
+    def __init__(self, obj_toler=None, assign_obj=None, snr_thrshd=None,
                  slitmask_offset=None, use_dither_offset=None, bright_maskdef_id=None, extract_missing_objs=None,
                  missing_objs_fwhm=None, missing_objs_boxcar_rad=None, use_alignbox=None):
 
@@ -1798,11 +1798,11 @@ class SlitMaskPar(ParSet):
         dtypes['use_alignbox'] = bool
         descr['use_alignbox'] = 'Use stars in alignment boxes to compute the slitmask offset. ' \
                                 'If this is set to ``True`` PypeIt will NOT compute ' \
-                                'the offset using `nsig_thrshd` or `bright_maskdef_id`'
+                                'the offset using `snr_thrshd` or `bright_maskdef_id`'
 
-        defaults['nsig_thrshd'] = 50.
-        dtypes['nsig_thrshd'] = [int, float]
-        descr['nsig_thrshd'] = 'Objects detected above this significance threshold will ' \
+        defaults['snr_thrshd'] = 50.
+        dtypes['snr_thrshd'] = [int, float]
+        descr['snr_thrshd'] = 'Objects detected above this S/N threshold will ' \
                                'be used to compute the slitmask offset. This is the default behaviour for DEIMOS ' \
                                ' unless ``slitmask_offset``, ``bright_maskdef_id`` or ``use_alignbox`` is set.'
 
@@ -1810,14 +1810,14 @@ class SlitMaskPar(ParSet):
         dtypes['slitmask_offset'] = [int, float]
         descr['slitmask_offset'] = 'User-provided slitmask offset (pixels) from the position expected by ' \
                                    'the slitmask design. This is optional, and if set PypeIt will NOT compute ' \
-                                   'the offset using `nsig_thrshd` or `bright_maskdef_id`.'
+                                   'the offset using `snr_thrshd` or `bright_maskdef_id`.'
 
         defaults['use_dither_offset'] = False
         dtypes['use_dither_offset'] = bool
         descr['use_dither_offset'] = 'Use the dither offset recorded in the header of science frames as the value ' \
                                      'of the slitmask offset. This is currently only available for Keck MOSFIRE ' \
                                      'reduction and it is set as the default for this instrument. If set PypeIt will ' \
-                                     'NOT compute the offset using `nsig_thrshd` or `bright_maskdef_id`. ' \
+                                     'NOT compute the offset using `snr_thrshd` or `bright_maskdef_id`. ' \
                                      'However, it is ignored if ``slitmask_offset`` is provided. '
 
         defaults['bright_maskdef_id'] = None
@@ -1859,7 +1859,7 @@ class SlitMaskPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['obj_toler', 'assign_obj', 'nsig_thrshd', 'slitmask_offset', 'use_dither_offset',
+        parkeys = ['obj_toler', 'assign_obj', 'snr_thrshd', 'slitmask_offset', 'use_dither_offset',
                    'bright_maskdef_id', 'extract_missing_objs', 'missing_objs_fwhm', 'missing_objs_boxcar_rad',
                    'use_alignbox']
 
