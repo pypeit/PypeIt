@@ -533,7 +533,6 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             #    plt.show()
             return wave, counts, counts_ivar, gpm
         elif 'J2-spectroscopy' in meta_table['DISPNAME']:
-            # TODO: how to set wave_blue and wave_red here
             wave_blue = 11170.0  # blue wavelength below which there is contamination
             wave_red = 12600.0  # red wavelength above which the spectrum is containated
             second_order_region= (wave_in < wave_blue) | (wave_in > wave_red)
