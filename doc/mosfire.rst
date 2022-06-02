@@ -122,16 +122,16 @@ observations. The purpose of the ``lampoffflats`` is to remove the increase and/
 by persistence from the high counts in the flats and/or thermal emission from the telescope/dome (in the K-band). 
 ``Pypeit`` is able to recognize flat frames taken with the lamps off, and it will assign them the
 ``lampoffflats`` frame type. Whenever ``lampoffflats`` frames are identified in the PypeIt file, ``Pypeit``
-will subtract them from the frames taken with the lamps on  before creating the Master Pixel Flat and
+will subtract them from the frames taken with the lamps on before creating the Master Edges, Master Pixel Flat and
 Master Illumination Flat. It is responsibility of the user to ensure that the ``lampoffflats`` frames
-in the PypeIt file have the same exposure time of the ``pixelflat`` and ``illumflat`` frames.
+in the PypeIt file have the same exposure time of the ``trace``, ``pixelflat`` and ``illumflat`` frames.
 
 .. note::
-    The ``lampoffflats`` frames are always subtracted from both ``pixelflat`` and ``illumflat`` frames.
-    The default mode for MOSFIRE is to use the spectroscopic domeflats for both ``pixelflat`` and ``illumflat``. 
+    The ``lampoffflats`` frames are always subtracted from the ``trace``, ``pixelflat`` and ``illumflat`` frames.
+    The default mode for MOSFIRE is to use the spectroscopic domeflats for ``trace``, ``pixelflat`` and ``illumflat``.
     If the user wants to use other images (e.g. spectroscopic twilight flats) for the ``illumflat``, then the 
-    current implementation would likely fail. If distinct frames are desired for ``pixelflat`` and ``illumflat``,  
-    we currently advise users to simply not use the ``lampofflats``. 
+    current implementation would likely fail. If distinct frames are desired for ``trace``, ``pixelflat``
+    and ``illumflat``, we currently advise users to simply not use the ``lampofflats``.
 
 Wavelength calibration
 ----------------------
