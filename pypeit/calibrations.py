@@ -650,6 +650,8 @@ class Calibrations:
 
         # Prep
         trace_image_files, self.master_key_dict['trace'] = self._prep_calibrations('trace')
+        # flats lamp off
+        flatLoff_image_files, _ = self._prep_calibrations('lampoffflats')
 
         # Reuse master frame?
         slit_masterframe_name = masterframe.construct_file_name(slittrace.SlitTraceSet,
@@ -672,11 +674,23 @@ class Calibrations:
                 return None
             else:
                 # Build the trace image
+                msgs.info('Creating Master Edges using files: ')
+                for f in trace_image_files:
+                    msgs.info(f'{os.path.basename(f)}')
                 self.traceImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                                  self.par['traceframe'],
                                                                  trace_image_files,
                                                                  bias=self.msbias, bpm=self.msbpm,
                                                                  dark=self.msdark)
+                if len(flatLoff_image_files) > 0:
+                    msgs.info('Subtracting lamp off flats using files: ')
+                    for f in flatLoff_image_files:
+                        msgs.info(f'{os.path.basename(f)}')
+                    self.traceImage.sub(buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                                       self.par['lampoffflatsframe'],
+                                                                       flatLoff_image_files, dark=self.msdark,
+                                                                       bias=self.msbias, bpm=self.msbpm),
+                                        self.par['traceframe'])
                 self.edges = edgetrace.EdgeTraceSet(self.traceImage, self.spectrograph,
                                                     self.par['slitedges'], #bpm=self.msbpm,
                                                     auto=True)
