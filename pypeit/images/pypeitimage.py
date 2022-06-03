@@ -316,7 +316,6 @@ class PypeItImage(datamodel.DataContainer):
         Returns:
             `numpy.ndarray`_: Copy of :attr:`crmask`.
         """
-        barf
         if subtract_img is not None and subtract_img.shape != self.shape:
             msgs.error('In cosmic-ray detection, image to subtract has incorrect shape.')
 
