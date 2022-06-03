@@ -690,7 +690,7 @@ class Calibrations:
                                                                        self.par['lampoffflatsframe'],
                                                                        flatLoff_image_files, dark=self.msdark,
                                                                        bias=self.msbias, bpm=self.msbpm),
-                                        self.par['traceframe'])
+                                        self.par['traceframe']['process'])
                 self.edges = edgetrace.EdgeTraceSet(self.traceImage, self.spectrograph,
                                                     self.par['slitedges'], #bpm=self.msbpm,
                                                     auto=True)
