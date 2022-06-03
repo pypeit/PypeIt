@@ -2083,6 +2083,10 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
               weighting and masking.
             - mask_stack: ndarray, bool, (ngrid,): Mask for stacked
               spectrum on wave_stack wavelength grid. True=Good.
+            - outmask: ndarray, bool, (nspec, nexp): Output mask
+              indicating which pixels are rejected in each exposure of
+              the original input spectra after performing all of the
+              iterations of combine/rejection
     '''
 
     # We cast to float64 because of a bug in np.histogram
@@ -2112,7 +2116,7 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
     if show:
         coadd_qa(wave_stack, flux_stack, ivar_stack, nused, mask=mask_stack, title='Stacked spectrum', qafile=qafile)
 
-    return wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack
+    return wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack, outmask
 
 #TODO: Make this read in a generalized file format, either specobjs or output of a previous coaddd.
 def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
@@ -2238,7 +2242,7 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
         sn_smooth_npix = int(np.round(0.1*nspec_eff))
         msgs.info('Using a sn_smooth_npix={:d} to decide how to scale and weight your spectra'.format(sn_smooth_npix))
 
-    wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack = combspec(
+    wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack, outmask = combspec(
         waves, fluxes,ivars, masks, wave_method=wave_method, dwave=dwave, dv=dv, dloglam=dloglam,
         spec_samp_fact=spec_samp_fact, wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max,
         wave_grid_input=wave_grid_input, ref_percentile=ref_percentile,
