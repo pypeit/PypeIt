@@ -431,8 +431,11 @@ class PypeIt:
                     science_basename[j] = self.basename
 
                     # TODO come up with sensible naming convention for save_exposure for combined files
-                    self.save_exposure(frames[0], sci_spec2d, sci_sobjs,
-                                       self.basename, history)
+                    if len(sci_spec2d.detectors) > 0:
+                        self.save_exposure(frames[0], sci_spec2d, sci_sobjs, self.basename, history)
+                    else:
+                        msgs.warn('No spec2d and spec1d saved to file because the '
+                                  'calibration/reduction was not successful for all the detectors')
                 else:
                     msgs.warn('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
