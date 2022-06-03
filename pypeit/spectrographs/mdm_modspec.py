@@ -172,3 +172,4 @@ def get_detector_par(self, det, hdu=None):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
+# I have added a comment!
