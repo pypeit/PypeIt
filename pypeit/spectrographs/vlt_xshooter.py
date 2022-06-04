@@ -225,9 +225,9 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par.reset_all_processimages_par(**turn_off)
         # Require dark images to be subtracted from the flat images used for
         # tracing, pixelflats, and illumflats
-        par['calibrations']['traceframe']['process']['use_darkimage'] = True
-        par['calibrations']['pixelflatframe']['process']['use_darkimage'] = True
-        par['calibrations']['illumflatframe']['process']['use_darkimage'] = True
+        # par['calibrations']['traceframe']['process']['use_darkimage'] = True
+        # par['calibrations']['pixelflatframe']['process']['use_darkimage'] = True
+        # par['calibrations']['illumflatframe']['process']['use_darkimage'] = True
         # TODO: `mask_cr` now defaults to True for darks.  Should this be turned off?
 
         # Is this needed below?
