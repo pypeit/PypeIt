@@ -7,6 +7,8 @@ This script generates files to setup a PypeIt run
 
 import os
 
+from IPython import embed
+
 from pypeit.scripts import scriptbase
 from pypeit.spectrographs import available_spectrographs
 

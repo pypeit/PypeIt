@@ -3,9 +3,12 @@
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import numpy as np
 import os
 import inspect
+
+from IPython import embed
+
+import numpy as np
 
 from pypeit import msgs
 from pypeit.images import imagebitmask
@@ -16,8 +19,6 @@ from pypeit.display import display
 from pypeit import datamodel
 from pypeit import utils
 from pypeit import masterframe
-
-from IPython import embed
 
 
 class PypeItImage(datamodel.DataContainer):
@@ -334,16 +335,15 @@ class PypeItImage(datamodel.DataContainer):
 
         # If the object has multiple images, need to flag each image individually
         if self.is_multidetector:
-            self.crmask = [None] * self.shape[0]
+            self.crmask = np.empty(self.shape, dtype=bool)
             for i in range(self.shape[0]):
                 self.crmask[i] = procimg.lacosmic(use_img[i], saturation=saturation[i],
                                                   nonlinear=nonlinear[i], bpm=_bpm[i],
-                                                  varframe=var, maxiter=par['lamaxiter'],
+                                                  varframe=var[i], maxiter=par['lamaxiter'],
                                                   grow=par['grow'],
                                                   remove_compact_obj=par['rmcompact'],
                                                   sigclip=par['sigclip'], sigfrac=par['sigfrac'],
                                                   objlim=par['objlim'])
-            self.crmask = np.array(self.crmask)
             return self.crmask.copy()
 
         # Run LA Cosmic to get the cosmic ray mask and return a copy of the
@@ -696,7 +696,8 @@ class PypeItImage(datamodel.DataContainer):
         #crmask_diff = new_sciImg.build_crmask(par) if par['mask_cr'] else np.zeros_like(other.image, dtype=bool)
         # crmask_eff assumes evertything masked in the outmask_comb is a CR in the individual images
         # JFH changed to below because this was not respecting the desire not to mask_crs
-        new_sciImg.crmask = (new_sciImg.build_crmask(par) | np.logical_not(outmask_comb)) if par['mask_cr'] else np.logical_not(outmask_comb)
+        new_sciImg.crmask = (new_sciImg.build_crmask(par) | np.logical_not(outmask_comb)) \
+                                if par['mask_cr'] else np.logical_not(outmask_comb)
         #new_sciImg.crmask = crmask_diff | np.logical_not(outmask_comb)
         # Note that the following uses the saturation and mincounts held in self.detector
         new_sciImg.build_mask()
