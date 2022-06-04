@@ -4195,6 +4195,10 @@ class EdgeTraceSet(DataContainer):
         omodel_bspat, omodel_tspat, sortindx, self.slitmask = \
             self.spectrograph.get_maskdef_slitedges(ccdnum=self.traceimg.detector.det, filename=self.maskfile, debug=debug)
 
+        if omodel_bspat[omodel_bspat!=-1].size < 3:
+            msgs.warn('Less than 3 slits are expected on this detector, slitmask matching cannot be performed')
+            return
+
         # reference row
         bpm = self.bitmask.flagged(self.edge_msk, self.bitmask.bad_flags)
         # TODO make reference row an attribute of EdgeTraceSet
@@ -4440,8 +4444,9 @@ class EdgeTraceSet(DataContainer):
 
         # force clean_traces for certain flags, because if a slit has one of these flags
         # but has also a bitmask.exclude_flags it will not be removed
-        self.clean_traces(force_flag=['SYNCERROR', 'OFFDETECTOR', 'SHORTSLIT'], rebuild_pca=True,
-                          sync_mode='both', assume_synced=True)
+        if not np.all(self.bitmask.flagged(self.edge_msk, self.bitmask.bad_flags)):
+            self.clean_traces(force_flag=['SYNCERROR', 'OFFDETECTOR', 'SHORTSLIT'], rebuild_pca=True,
+                              sync_mode='both', assume_synced=True)
 
         if self.is_synced:
             msgs.info('LEFT AND RIGHT EDGES SYNCHRONIZED AFTER MASK DESIGN MATCHING')
