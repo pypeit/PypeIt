@@ -709,10 +709,11 @@ class BuildWaveCalib:
         """
 
         # Load the template from file
-        from pypeit.spectrographs.keck_hires import grab_arctempl_dict, load_hires_template
-        from pypeit.core.wavecal import wvutils
+        #from pypeit.spectrographs.keck_hires import grab_arctempl_dict, load_hires_template
+        #from pypeit.core.wavecal import wvutils
 
         nspec, norders = self.arccen.shape
+
 
         arctempl_dict = grab_arctempl_dict(self.meta_dict, self.det)
         arctempl_file = os.path.join(os.getenv('HIRES_CALIBS'), 'ARCS', arctempl_dict['Name'])
@@ -722,7 +723,7 @@ class BuildWaveCalib:
         archive_arc_pad = np.zeros((nspec, norders_max))
         archive_arc_pad[:archive_arc.shape[0], :archive_arc.shape[1]] = archive_arc
         arccen_pad = np.zeros_like(archive_arc_pad)
-        arccen_pad[:self.arccen.shape[0], :self.arccen.shape[1]] = self.arccen
+        arccen_pad[:nspec, :norders] = self.arccen
 
         shift_cc, corr_cc = wvutils.xcorr_shift(arccen_pad.flatten('F'), archive_arc_pad.flatten('F'),
                                                 smooth=5.0, percent_ceil=80.0, sigdetect=10.0, fwhm=4.0, debug=True)
