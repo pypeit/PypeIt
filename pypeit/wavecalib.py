@@ -13,8 +13,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from linetools import utils as ltu
-
 from astropy.table import Table
+from astropy.io import fits
 
 from pypeit import msgs
 from pypeit.core import arc, qa
@@ -22,6 +22,8 @@ from pypeit.core import fitting
 from pypeit.core.wavecal import autoid, waveio, wv_fitting
 from pypeit.core.gui.identify import Identify
 from pypeit import datamodel
+from pypeit.core.wavecal import echelle, wvutils
+
 
 from IPython import embed
 
@@ -476,8 +478,8 @@ class BuildWaveCalib:
         elif method == 'reidentify':
             # Now preferred
             # Slit positions
-            arcfitter = autoid.ArchiveReid(arccen, self.spectrograph, self.lamps, self.par, ok_mask=ok_mask_idx,
-                                           #slit_spat_pos=self.spat_coo,
+            arcfitter = autoid.ArchiveReid(arccen, self.lamps, self.par,
+                                           ech_fixed_format=self.spectrograph.ech_fixed_format, ok_mask=ok_mask_idx,
                                            orders=self.orders,
                                            nonlinear_counts=self.nonlinear_counts)
             patt_dict, final_fit = arcfitter.get_results()
@@ -492,6 +494,23 @@ class BuildWaveCalib:
                                              nonlinear_counts=self.nonlinear_counts,
                                              nsnippet=self.par['nsnippet'])
                                              #debug=True, debug_reid=True, debug_xcorr=True)
+        elif self.par['method'] == 'echelle':
+            # Echelle calibration
+            # TODO: Get these from the spectrograph file later.
+            angle_fits_file = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms', 'hires_wvcalib',
+                                           'wvcalib_angle_fits.fits')
+            composite_arc_file = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms', 'hires_wvcalib',
+                                              'HIRES_composite_arc.fits')
+            # Identify the echelle orders
+            order_vec, wave_soln_arxiv, arcspec_arxiv = echelle.identify_ech_orders(
+                arccen, self.meta_dict['echangle'], self.meta_dict['xdangle'], self.meta_dict['dispname'],
+                angle_fits_file, composite_arc_file, pad=3)
+            # Put the order numbers in the slit object
+            self.slits.ech_order = order_vec
+            patt_dict, final_fit = autoid.echelle_wvcalib(arccen, order_vec, arcspec_arxiv, wave_soln_arxiv,
+                                                          self.lamps, self.par, ok_mask=ok_mask_idx,
+                                                          nonlinear_counts=self.nonlinear_counts,
+                                                          debug_all=True)
         else:
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
 
@@ -670,9 +689,10 @@ class BuildWaveCalib:
         # Extract an arc down each slit
         self.arccen, self.wvc_bpm = self.extract_arcs()
 
-        # If this is a fixed format echelle, determine the order numbers from the arc
-        if self.spectrograph.pypeline == 'Echelle' and not self.spectrograph.ech_fixed_format:
-            self.orders = self.get_echelle_orders()
+        # If this is not a fixed format echelle, determine the order numbers from the arc
+        #if self.spectrograph.pypeline == 'Echelle' and not self.spectrograph.ech_fixed_format:
+        #    self.orders, ordr_shift, spec_shift = self.get_echelle_orders()
+        #    self.slits.slitord_id = self.orders
 
         # Fill up the calibrations and generate QA
         self.wv_calib = self.build_wv_calib(self.arccen, self.par['method'], skip_QA=skip_QA)
@@ -698,7 +718,7 @@ class BuildWaveCalib:
 
         return self.wv_calib
 
-    def get_echelle_orders(self):
+    def get_echelle_orders(self, pad=3):
         """
 
         Args:
@@ -707,40 +727,36 @@ class BuildWaveCalib:
         Returns:
 
         """
-
-
         nspec, norders = self.arccen.shape
 
-        # Read in the xidl arxiv
-        arxiv_file = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms', 'hires_wvcalib',
-                                       'hires_wvcalib_xidl.fits')
-        arxiv_params = Table.read(arxiv_file, hdu=1)[0]
-        arxiv = Table.read(arxiv_file, hdu=2)
-        order_vec_guess = predict_order_coverage(arxiv_params, arxiv, self.meta_dict['dispname'], self.meta_dict['xdangle']
-                                                 , norders, pad=3)
+        angle_fits_file = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms', 'hires_wvcalib',
+                                       'wvcalib_angle_fits.fits')
+        composite_arc_file = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms', 'hires_wvcalib',
+                                          'HIRES_composite_arc.fits')
 
-        arctempl_dict = grab_arctempl_dict(self.meta_dict, self.det)
-        arctempl_file = os.path.join(os.getenv('HIRES_CALIBS'), 'ARCS', arctempl_dict['Name'])
-        guess_order, archive_arc = load_hires_template(arctempl_file)
-        # TODO sort out binning here.
-        norders_max = np.fmax(self.arccen.shape[1], archive_arc.shape[1])
-        archive_arc_pad = np.zeros((nspec, norders_max))
-        archive_arc_pad[:archive_arc.shape[0], :archive_arc.shape[1]] = archive_arc
-        arccen_pad = np.zeros_like(archive_arc_pad)
+        order_vec_guess, wave_soln_guess, arcspec_guess = echelle.predict_ech_arcspec(
+            angle_fits_file, composite_arc_file, self.meta_dict['echangle'], self.meta_dict['xdangle'],
+            self.meta_dict['dispname'], nspec, norders, pad=pad)
+        norders_guess = order_vec_guess.size
+
+        #arctempl_dict = grab_arctempl_dict(self.meta_dict, self.det)
+        #arctempl_file = os.path.join(os.getenv('HIRES_CALIBS'), 'ARCS', arctempl_dict['Name'])
+        #guess_order, archive_arc = load_hires_template(arctempl_file)
+
+        # Since we padded the guess we need to pad the data to the same size
+        arccen_pad = np.zeros((nspec, norders_guess))
         arccen_pad[:nspec, :norders] = self.arccen
 
-        shift_cc, corr_cc = wvutils.xcorr_shift(arccen_pad.flatten('F'), archive_arc_pad.flatten('F'),
+        shift_cc, corr_cc = wvutils.xcorr_shift(arccen_pad.flatten('F'), arcspec_guess.flatten('F'),
                                                 smooth=5.0, percent_ceil=80.0, sigdetect=10.0, fwhm=4.0, debug=True)
+        x_ordr_shift = shift_cc/nspec
+        msgs.info('Shift between predicted and true reddest order: {:.3f}'.format(x_ordr_shift + pad))
         ordr_shift = int(np.round(shift_cc/nspec))
         spec_shift = int(np.round(shift_cc - ordr_shift * nspec))
 
-        order_vec = guess_order[0] + ordr_shift - np.arange(norders)
-
-        #TODO pass this into the slit structure
-
+        order_vec = order_vec_guess[-1] - ordr_shift + np.arange(norders)[::-1]
         return order_vec, ordr_shift, spec_shift
 
-        #template = self.spectrograph.grab_template_filename()
 
 
     def show(self, item, slit=None):

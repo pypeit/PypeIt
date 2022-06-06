@@ -2354,7 +2354,7 @@ class WavelengthSolutionPar(ParSet):
         descr['method'] = 'Method to use to fit the individual arc lines.  Note that some of ' \
                           'the available methods should not be used; they are unstable and ' \
                           'require significant parameter tweaking to succeed.  You should use ' \
-                          'one of \'holy-grail\', \'reidentify\', or \'full_template\'.  ' \
+                          'one of \'holy-grail\', \'reidentify\', \'echelle\', or \'full_template\'.  ' \
                           '\'holy-grail\' attempts to get a first guess at line IDs by looking ' \
                           'for patterns in the line locations.  It is fully automated.  When ' \
                           'it works, it works well; however, it can fail catastrophically.  ' \
@@ -2609,7 +2609,7 @@ class WavelengthSolutionPar(ParSet):
         Return the valid wavelength solution methods.
         """
         # TODO: Remove from this list anything that is not valid!
-        return ['simple', 'holy-grail', 'identify', 'reidentify',
+        return ['simple', 'holy-grail', 'identify', 'reidentify', 'echelle',
                 'full_template']
 
     @staticmethod
