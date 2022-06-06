@@ -708,12 +708,16 @@ class BuildWaveCalib:
 
         """
 
-        # Load the template from file
-        #from pypeit.spectrographs.keck_hires import grab_arctempl_dict, load_hires_template
-        #from pypeit.core.wavecal import wvutils
 
         nspec, norders = self.arccen.shape
 
+        # Read in the xidl arxiv
+        arxiv_file = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms', 'hires_wvcalib',
+                                       'hires_wvcalib_xidl.fits')
+        arxiv_params = Table.read(arxiv_file, hdu=1)[0]
+        arxiv = Table.read(arxiv_file, hdu=2)
+        order_vec_guess = predict_order_coverage(arxiv_params, arxiv, self.meta_dict['dispname'], self.meta_dict['xdangle']
+                                                 , norders, pad=3)
 
         arctempl_dict = grab_arctempl_dict(self.meta_dict, self.det)
         arctempl_file = os.path.join(os.getenv('HIRES_CALIBS'), 'ARCS', arctempl_dict['Name'])
