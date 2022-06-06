@@ -504,13 +504,16 @@ class BuildWaveCalib:
             # Identify the echelle orders
             order_vec, wave_soln_arxiv, arcspec_arxiv = echelle.identify_ech_orders(
                 arccen, self.meta_dict['echangle'], self.meta_dict['xdangle'], self.meta_dict['dispname'],
-                angle_fits_file, composite_arc_file, pad=3)
+                angle_fits_file, composite_arc_file, pad=3, debug=True)
             # Put the order numbers in the slit object
             self.slits.ech_order = order_vec
+            # TODO:
+            # HACK!!
+            ok_mask_idx = ok_mask_idx[:-1]
             patt_dict, final_fit = autoid.echelle_wvcalib(arccen, order_vec, arcspec_arxiv, wave_soln_arxiv,
                                                           self.lamps, self.par, ok_mask=ok_mask_idx,
                                                           nonlinear_counts=self.nonlinear_counts,
-                                                          debug_all=True)
+                                                          debug_all=False)
         else:
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
 

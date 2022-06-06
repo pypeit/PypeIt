@@ -112,13 +112,13 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['tilts']['spec_order'] = 5  # [5, 5, 5] + 12*[7] # + [5]
 
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_VIS']
+        par['calibrations']['wavelengths']['lamps'] = ['ThAr']
         # This is for 1x1 binning. TODO GET BINNING SORTED OUT!!
         par['calibrations']['wavelengths']['rms_threshold'] = 0.50
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
-        par['calibrations']['wavelengths']['n_final'] = [3] + 13 * [4] + [3]
+        par['calibrations']['wavelengths']['n_final'] = 4 #[3] + 13 * [4] + [3]
         # This is for 1x1 binning. Needs to be divided by binning for binned data!!
-        par['calibrations']['wavelengths']['fwhm'] = 11.0
+        par['calibrations']['wavelengths']['fwhm'] = 8.0
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'echelle'
         # TODO: the arxived solution is for 1x1 binning. It needs to be
@@ -138,7 +138,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
         # Extraction
-        par['reduce']['skysub']['bspline_spacing'] = 0.5
+        par['reduce']['skysub']['bspline_spacing'] = 0.6
         par['reduce']['skysub']['global_sky_std'] = False
         # local sky subtraction operates on entire slit
         par['reduce']['extraction']['model_full_slit'] = True
@@ -148,7 +148,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['polyorder'] = [9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
+        par['sensfunc']['polyorder'] = 11 #[9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
         return par
 

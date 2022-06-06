@@ -155,7 +155,7 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, xdangle, 
 
     return order_vec_guess, wave_soln_guess, arcspec_guess
 
-def identify_ech_orders(arcspec, echangle, xdangle, dispname, angle_fits_file, composite_arc_file, pad=3):
+def identify_ech_orders(arcspec, echangle, xdangle, dispname, angle_fits_file, composite_arc_file, debug=False, pad=3):
     """
     Identify the orders in the echelle spectrum via cross correlation with the best guess predicted arc based
     on echangle, xdangle, and cross-disperser
@@ -197,7 +197,7 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname, angle_fits_file, c
     arccen_pad[:nspec, :norders] = arcspec
 
     shift_cc, corr_cc = wvutils.xcorr_shift(arccen_pad.flatten('F'), arcspec_guess_pad.flatten('F'),
-                                            smooth=5.0, percent_ceil=80.0, sigdetect=10.0, fwhm=4.0, debug=True)
+                                            smooth=5.0, percent_ceil=80.0, sigdetect=10.0, fwhm=4.0, debug=debug)
     x_ordr_shift = shift_cc / nspec
     ordr_shift = int(np.round(shift_cc / nspec))
     spec_shift = int(np.round(shift_cc - ordr_shift * nspec))
