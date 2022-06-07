@@ -19,7 +19,7 @@ import numpy as np
 from pypeit import msgs
 from pypeit import alignframe, datamodel, flatfield, io, masterframe, specobj, spec2dobj, utils
 from pypeit.core.flux_calib import load_extinction_data, extinction_correction, fit_zeropoint, get_standard_spectrum, ZP_UNIT_CONST, PYPEIT_FLUX_SCALE
-from pypeit.core.flexure import calculate_image_offset
+from pypeit.core.flexure import calculate_image_phase
 from pypeit.core import coadd, extract, findobj_skymask, parse, skysub
 from pypeit.core.procimg import grow_mask
 from pypeit.spectrographs.util import load_spectrograph
@@ -1500,13 +1500,9 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         msgs.info("Calculating the spatial translation of each cube relative to user-defined 'reference_image'")
 
     # Calculate the image offsets - check the reference is a zero shift
-    ra_shift_ref, dec_shift_ref = calculate_image_offset(reference_image.copy(), reference_image.copy())
     for ff in range(numfiles):
         # Calculate the shift
-        ra_shift, dec_shift = calculate_image_offset(whitelight_imgs[:, :, ff], reference_image.copy())
-        # Convert to reference
-        ra_shift += ra_shift_ref
-        dec_shift += dec_shift_ref
+        ra_shift, dec_shift = calculate_image_phase(reference_image.copy(), whitelight_imgs[:, :, ff], maskval=0.0)
         # Convert pixel shift to degress shift
         ra_shift *= dspat/cosdec
         dec_shift *= dspat
