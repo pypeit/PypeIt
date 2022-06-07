@@ -118,7 +118,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
 
     """
     # Priority
-    std_sets = ['blackbody', 'xshooter', 'calspec', 'esofil', 'noao']
+    std_sets = ['blackbody', 'xshooter', 'calspec', 'esofil', 'noao', 'ing']
 
     # SkyCoord
     obj_coord = coordinates.SkyCoord(ra, dec, unit='deg')
@@ -161,6 +161,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
             # name exact?
             if sset == "blackbody":
                 msgs.info("Blackbody standard star template will be generated")
+                fil = None
             else:
                 fil = glob.glob(std_dict['cal_file'] + '*')
                 if len(fil) == 0:
@@ -199,6 +200,16 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
                 std_dict['flux'] = std_dict['flux'][np.logical_not(mask)]
             elif sset == 'noao': #mostly copied from 'esofil', need to convert the flux units
                 # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
+                std_spec = table.Table.read(fil, format='ascii')
+                std_dict['std_source'] = sset
+                std_dict['wave'] = std_spec['col1'] * units.AA
+                std_dict['flux'] = mAB_to_cgs(std_spec['col2'],std_spec['col1']) / PYPEIT_FLUX_SCALE * \
+                                   units.erg / units.s / units.cm ** 2 / units.AA
+                # At this low resolution, best to throw out entries affected by A and B-band absorption
+                mask = (std_dict['wave'].value > 7551.) & (std_dict['wave'].value < 7749.)
+                std_dict['wave'] = std_dict['wave'][np.logical_not(mask)]
+                std_dict['flux'] = std_dict['flux'][np.logical_not(mask)]
+            elif sset == 'ing':
                 std_spec = table.Table.read(fil, format='ascii')
                 std_dict['std_source'] = sset
                 std_dict['wave'] = std_spec['col1'] * units.AA
