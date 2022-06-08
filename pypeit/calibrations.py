@@ -553,7 +553,7 @@ class Calibrations:
         if len(pixflat_image_files) > 0:
             msgs.info('Creating Master Pixel Flat using files: ')
             for f in pixflat_image_files:
-                msgs.indent(f'{os.path.basename(f)}')
+                msgs.prindent(f'{os.path.basename(f)}')
             pixel_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['pixelflatframe'],
                                                         pixflat_image_files, dark=self.msdark,
@@ -561,7 +561,7 @@ class Calibrations:
             if len(flatLoff_image_files) > 0:
                 msgs.info('Subtracting lamp off flats using files: ')
                 for f in flatLoff_image_files:
-                    msgs.indent(f'{os.path.basename(f)}')
+                    msgs.prindent(f'{os.path.basename(f)}')
                 pixel_flat = pixel_flat.sub(buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                                            self.par['lampoffflatsframe'],
                                                                            flatLoff_image_files, dark=self.msdark,
@@ -580,7 +580,7 @@ class Calibrations:
         if not pix_is_illum and len(illum_image_files) > 0:
             msgs.info('Creating Master Illumination Flat using files: ')
             for f in illum_image_files:
-                msgs.indent(f'{os.path.basename(f)}')
+                msgs.prindent(f'{os.path.basename(f)}')
             illum_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['illumflatframe'], illum_image_files,
                                                         dark=self.msdark, bias=self.msbias,
@@ -588,7 +588,7 @@ class Calibrations:
             if len(flatLoff_image_files) > 0:
                 msgs.info('Subtracting lamp off flats using files: ')
                 for f in flatLoff_image_files:
-                    msgs.indent(f'{os.path.basename(f)}')
+                    msgs.prindent(f'{os.path.basename(f)}')
                 illum_flat = illum_flat.sub(buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                                            self.par['lampoffflatsframe'],
                                                                            flatLoff_image_files, dark=self.msdark,
@@ -678,7 +678,7 @@ class Calibrations:
                 # Build the trace image
                 msgs.info('Creating Master Edges using files: ')
                 for f in trace_image_files:
-                    msgs.indent(f'{os.path.basename(f)}')
+                    msgs.prindent(f'{os.path.basename(f)}')
                 self.traceImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                                  self.par['traceframe'],
                                                                  trace_image_files,
@@ -687,7 +687,7 @@ class Calibrations:
                 if len(flatLoff_image_files) > 0:
                     msgs.info('Subtracting lamp off flats using files: ')
                     for f in flatLoff_image_files:
-                        msgs.indent(f'{os.path.basename(f)}')
+                        msgs.prindent(f'{os.path.basename(f)}')
                     self.traceImage.sub(buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                                        self.par['lampoffflatsframe'],
                                                                        flatLoff_image_files, dark=self.msdark,
