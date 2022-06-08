@@ -29,14 +29,12 @@ from pypeit import find_objects
 from pypeit import extraction
 from pypeit import spec2dobj
 from pypeit.core import qa
-from pypeit.core import parse
 from pypeit.core import findobj_skymask
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
 from pypeit import utils
 from pypeit.history import History
-from pypeit.par.util import parse_pypeit_file
 from pypeit.par import PypeItPar
 from pypeit.metadata import PypeItMetaData
 from pypeit.manual_extract import ManualExtractionObj
@@ -96,8 +94,6 @@ class PypeIt:
         
         # Load up PypeIt file
         self.pypeItFile = pypeitfile.PypeItFile.from_file(pypeit_file)
-        #cfg_lines, data_files, frametype, usrdata, setups, _ \
-        #        = parse_pypeit_file(pypeit_file, runtime=True)
         self.calib_only = calib_only
 
         # Spectrograph
