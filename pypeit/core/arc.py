@@ -332,12 +332,12 @@ def resize_mask2arc(shape_arc, slitmask_orig):
     ----------
     shape_arc : tuple
         Shape of the arc
-    slitmask_orig : `numpy.ndarray`_, float
+    slitmask_orig : `numpy.ndarray`_ of floats
         original slitmask
 
     Returns
     -------
-    slitmask : `numpy.ndarray`_, float
+    slitmask : `numpy.ndarray`_ of floats
         Slitmask with shape corresponding to that of the arc
 
     """
@@ -369,7 +369,7 @@ def resize_slits2arc(shape_arc, shape_orig, trace_orig):
             shape of the arc
         shape_orig (tuple):
             original shape of the images used to create the trace
-        trace_orig (`numpy.ndarray`_, float):
+        trace_orig (`numpy.ndarray`_ of floats):
             trace that you want to resize
     Returns:
         `numpy.ndarray`_:
@@ -426,43 +426,45 @@ def resize_spec(spec_from, nspec_to):
 def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0, nonlinear_counts=1e10,
                 slit_bpm=None, slitIDs=None):
     """
-    Extract a boxcar spectrum from the input image using the 
+    Extract a boxcar spectrum with radius `box_rad` (pixels) from the input image using the 
     input trace.  By default, outliers within the box are clipped
     with 3.0 sigma rejection using `astropy.stats.sigma_clipped_stats`_.
 
 
-    Args:
-        slit_cen (`numpy.ndarray`_):
+    Parameters
+    ----------
+    slit_cen (`numpy.ndarray`_):
             Trace down the center of the slit
-        slitmask (`numpy.ndarray`_):
+    slitmask (`numpy.ndarray`_):
             Image where pixel values identify its parent slit,
             starting with 0. Pixels with -1 are not part of any slit.
             Shape must match `arcimg`.
-        arcimg (`numpy.ndarray`_):
+    arcimg (`numpy.ndarray`_):
             Image to extract the arc from. This should be an arcimage
             or perhaps a frame with night sky lines.
-        gpm (`numpy.ndarray`_, optional):
+    gpm (`numpy.ndarray`_, optional):
             Input mask image with same shape as arcimg. Convention
             True = good and False = bad. If None, all pixels are
             considered good.
-        box_rad (:obj:`float`, optional):
+    box_rad (:obj:`float`, optional):
             Half-width of the boxcar (floating-point pixels) in the
             spatial direction used to extract the arc.
-        nonlinear_counts (:obj:`float`, optional):
+    nonlinear_counts (:obj:`float`, optional):
             Values exceeding this input value are masked as bad.
-        slitIDs (:obj:`list`, optional):
+    slitIDs (:obj:`list`, optional):
             A list of the slit IDs to extract (if None, all slits will be extracted)
 
-    Returns:
-        arc_spec : `numpy.ndarray`_ 
-            Array containing the extracted arc spectrum for each
-            slit. Shape is (nspec, nslits)
-        arc_spec_bpm : `numpy.ndarray`_ 
-            Bad-pixel mask for the spectra. Shape is (nspec,
-              nslits).
-        bpm_mask : `numpy.ndarray`_ 
-            Bad-slit mask, True means the entire spectrum is bad.
-              Shape is (nslits,).
+    Returns
+    -------
+    arc_spec : `numpy.ndarray`_ 
+        Array containing the extracted arc spectrum for each
+        slit. Shape is (nspec, nslits)
+    arc_spec_bpm : `numpy.ndarray`_ 
+        Bad-pixel mask for the spectra. Shape is (nspec,
+        nslits).
+    bpm_mask : `numpy.ndarray`_ 
+        Bad-slit mask, True means the entire spectrum is bad.
+        Shape is (nslits,).
     """
     # Initialize the good pixel mask
     _gpm = slitmask > -1 if gpm is None else gpm & (slitmask > -1)
@@ -509,6 +511,8 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
                  kpsh=False, valley=False, show=False, ax=None):
     """Detect peaks in data based on their amplitude and other features.
     This is generally, but not exclusively, used for arc line detecting.
+
+    This code was taken from https://github.com/demotu/BMC
 
     Parameters
     ----------
@@ -664,7 +668,9 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
 
 
 def plot_detect_peaks(x, mph, mpd, threshold, edge, valley, ax, ind):
-    """Plot results of the detect_peaks function, see its help."""
+    """Plot results of the detect_peaks function, see its help.
+    Only used for debugging
+    """
 
 
     if ax is None:
@@ -695,12 +701,20 @@ def iter_continuum(spec, gpm=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_
     """
     Routine to determine the continuum and continuum pixels in spectra with peaks.
 
+    The general procedure is to:
+       1.  Detect positive "peaks" using :class:`pypeit.core.arc.detect_peaks`
+       1.  Optionally, detect negative "peaks" using :class:`pypeit.core.arc.detect_peaks`
+       1.  Mask these peaks
+       1.  Generate a running medium with sampling width set by `cont_samp`
+       1.  Fit this median continuum with a polynomial of order `npoly` (if set)
+       1.  Evaluate the fit (`npoly` is set) or interpolate the median at all locations
+
     Note: This was developed for arc line spectra and may not function will in other
     contexts.
 
     Parameters
     ----------
-    spec : `numpy.ndarray`_, float  
+    spec : `numpy.ndarray`_ of floats  
           1D spectrum with shape (nspec,) for which the continuum is to be characterized
 
     gpm : `numpy.ndarray`_, bool
@@ -741,9 +755,9 @@ def iter_continuum(spec, gpm=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_
 
     Returns 
     -------
-        cont: `numpy.ndarray`_, float
+        cont: `numpy.ndarray`_ of floats
             The continuum determined with shape (nspec,) 
-        cont_mask: `numpy.ndarray`_, bool
+        cont_mask: `numpy.ndarray`_ of bool
             A mask indicating which pixels were used for continuum determination with shape (nspec,) 
 
 
@@ -1052,13 +1066,14 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     Parameters
     ----------
     xarray: `numpy.ndarray`_
-            x-values of the input spectrum
-            Either pixels or normalized pixel space (0-1)
+        x-values of the input spectrum. 
+        Either pixels or normalized pixel space (0-1)
     yarray: `numpy.ndarray`_
-            Arc spectrum in counts
-    pixt:
+        Arc spectrum in counts
+    pixt: `numpy.ndarray`_
+        Initial guess for the center of the lines
     fitp: int
-          Number of pixels to fit with
+        Number of pixels to fit with
 
     Returns
     -------
@@ -1066,8 +1081,11 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
         amplitudes of the fitted lines
     cent : `numpy.ndarray`_ 
         centroids of the fitted lines
+        -999. are bad fits
     widt : `numpy.ndarray`_ 
+        widths (sigma) of the fitted lines
     centerr : `numpy.ndarray`_
+        error in the centroids of the fitted lines
 
     """
 
@@ -1100,18 +1118,9 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
 #            continue  # Probably won't be a good solution
         # Fit the gaussian
         try:
-            #pypeitFit = fitting.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3)#, return_errors=True)
             fitc, fitcov = fitting.fit_gauss(xarray[pmin:pmax], yarray[pmin:pmax])
             ampl[p], cent[p], widt[p] = fitc
-            #ampl[p], cent[p], widt[p] = pypeitFit.fitc
             centerr[p] = fitcov[1, 1]
-            #centerr[p] = pypeitFit.fitcov[1, 1]
-            #popt, pcov = utils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 4, return_errors=True)
-            #b[p]    = popt[0]
-            #ampl[p] = popt[1]
-            #cent[p] = popt[2]
-            #widt[p] = popt[3]
-            #centerr[p] = pcov[2, 2]
         except RuntimeError:
             pass
     return ampl, cent, widt, centerr
