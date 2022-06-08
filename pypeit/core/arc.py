@@ -1290,3 +1290,49 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
 #                mask = determine_saturation_region(a, x, y, -1, -1, satdown, satlevel, mask)
 #
 #    return mask.astype(int)
+
+def find_lines_qa(spec, cen, amp, good, bpm=None, thresh=None, nonlinear=None):
+    """
+    Show a QA plot for the line detection.
+    Only used for debugging
+
+    Detected lines are marked and then 
+    color coded by a variety of criteria.
+
+    Args:
+        spec (`numpy.ndarray`_):
+            Spectrum used to detect lines
+        cen (`numpy.ndarray`_):
+            Identified line peaks
+        amp (`numpy.ndarray`_):
+            Amplitude of the identified lines.
+        good (`numpy.ndarray`_):
+            Boolean array selecting the good line detections.
+        bpm (`numpy.ndarray`_, optional):
+            The bad-pixel mask for the spectrum. If None, all pixels
+            are assumed to be valid.
+        thresh (:obj:`float`, optional):
+            Threshold value for line detection
+        nonlinear (:obj:`float`, optional):
+            Threshold for nonlinear detector response.
+    """
+    # TODO: Could just pull `amp` directly from the spectrum
+    # If bpm is provided, the masked pixels are *not* shown
+    _spec = np.ma.MaskedArray(spec, mask=np.zeros(spec.size, dtype=bool) if bpm is None else bpm)
+    pix = np.arange(_spec.size)
+    plt.figure(figsize=(14, 6))
+    plt.step(pix, _spec, color='k', where='mid', label='arc', lw=1.0)
+    plt.scatter(cen[np.invert(good)], amp[np.invert(good)], marker='+', color='C3', s=50,
+                label='bad for tilts')
+    plt.scatter(cen[good], amp[good], color='C2', marker='+', s=50, label='good for tilts')
+    if thresh is not None:
+        plt.axhline(thresh, color='cornflowerblue', linestyle=':', linewidth=2.0,
+                    label='threshold', zorder=10)
+    if nonlinear is not None and nonlinear < 1e9:
+        plt.axhline(nonlinear, color='orange', linestyle='--', linewidth=2.0, label='nonlinear',
+                    zorder=10)
+    ngood = np.sum(good)
+    plt.title('Good Lines = {0},  Bad Lines = {1}'.format(ngood, len(good)-ngood))
+    plt.ylim(np.amin(spec), 1.5 * np.amax(spec))
+    plt.legend()
+    plt.show()
