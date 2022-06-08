@@ -556,7 +556,7 @@ class PypeIt:
             objFind_list.append(objFind)
 
         # slitmask stuff
-        if self.par['reduce']['slitmask']['assign_obj']:
+        if len(calibrated_det) > 0 and self.par['reduce']['slitmask']['assign_obj']:
             # get object positions from slitmask design and slitmask offsets for all the detectors
             spat_flexure = np.array([ss.spat_flexure for ss in sciImg_list])
             # Grab platescale with binning
