@@ -447,7 +447,7 @@ class FlatField:
         """
         # Fit it
         # NOTE: Tilts do not change and self.slits is updated internally.
-        if not self.flatpar['flatfield_structure']:
+        if not self.flatpar['fit_2d_det_response']:
             # This spectrograph does not have a structure correction implemented. Ignore detector structure.
             self.fit(spat_illum_only=self.spat_illum_only, debug=debug)
         else:  # Iterate on the pixelflat if required by the spectrograph
@@ -461,19 +461,19 @@ class FlatField:
             for ff in range(niter):
                 # Just get the spatial and spectral profiles for now
                 self.fit(spat_illum_only=self.spat_illum_only, debug=debug)
-                msgs.info("Iteration {0:d} of flatfield structure extraction".format(ff+1))
-                # Extract a structure image
-                ff_struct = self.extract_structure(rawflat_orig)
+                msgs.info("Iteration {0:d} of 2D detector response extraction".format(ff+1))
+                # Extract a detector response image
+                det_resp = self.extract_structure(rawflat_orig)
                 gpmask = (self.waveimg != 0.0) & gpm
-                # Model the flatfield structure in an instrument specific way
-                ff_struct_model = self.spectrograph.flatfield_structure(ff_struct, gpmask)
+                # Model the 2D detector response in an instrument specific way
+                det_resp_model = self.spectrograph.fit_2d_det_response(det_resp, gpmask)
                 # Apply this model
-                self.rawflatimg.image = rawflat_orig * utils.inverse(ff_struct_model)
+                self.rawflatimg.image = rawflat_orig * utils.inverse(det_resp_model)
             # Perform a final 2D fit with the cleaned image
             self.fit(spat_illum_only=self.spat_illum_only, debug=debug)
             # fold in the spectrograph specific flatfield, and reset the rawimg
-            self.flat_model *= ff_struct_model
-            self.mspixelflat *= ff_struct_model
+            self.flat_model *= det_resp_model
+            self.mspixelflat *= det_resp_model
             self.rawflatimg.image = rawflat_orig
 
         if show:

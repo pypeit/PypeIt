@@ -560,7 +560,7 @@ class FlatFieldPar(ParSet):
                  tweak_slits_maxfrac=None, rej_sticky=None, slit_trim=None, slit_illum_pad=None,
                  illum_iter=None, illum_rej=None, twod_fit_npoly=None, saturated_slits=None,
                  slit_illum_relative=None, slit_illum_ref_idx=None, slit_illum_smooth_npix=None,
-                 pixelflat_min_wave=None, pixelflat_max_wave=None, flatfield_structure=None):
+                 pixelflat_min_wave=None, pixelflat_max_wave=None, fit_2d_det_response=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -703,17 +703,17 @@ class FlatFieldPar(ParSet):
                                           'relative weights is given by ``nspec/slit_illum_smooth_npix``, ' \
                                           'where nspec is the number of spectral pixels.'
 
-        defaults['flatfield_structure'] = False
-        dtypes['flatfield_structure'] = bool
-        descr['flatfield_structure'] = 'Set this variable to True if you want to compute and ' \
-                                       'account for the detector structure in the flatfield image. ' \
-                                       'Note that ``detector structure`` refers to pixel sensitivity ' \
+        defaults['fit_2d_det_response'] = False
+        dtypes['fit_2d_det_response'] = bool
+        descr['fit_2d_det_response'] = 'Set this variable to True if you want to compute and ' \
+                                       'account for the detector response in the flatfield image. ' \
+                                       'Note that ``detector response`` refers to pixel sensitivity ' \
                                        'variations that primarily depend on (x,y) detector coordinates. ' \
                                        'In most cases, the default 2D bspline is sufficient to account ' \
-                                       'for detector structure (i.e. set this parameter to False). Note ' \
+                                       'for detector response (i.e. set this parameter to False). Note ' \
                                        'that this correction will _only_ be performed for the spectrographs ' \
-                                       'that have a dedicated structure correction implemented. Currently,' \
-                                       'this correction is only implemented for KCWI.'
+                                       'that have a dedicated response correction implemented. Currently,' \
+                                       'this correction is only implemented for Keck+KCWI.'
 
         # Instantiate the parameter set
         super(FlatFieldPar, self).__init__(list(pars.keys()),
@@ -734,7 +734,7 @@ class FlatFieldPar(ParSet):
                    'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
                    'rej_sticky', 'slit_trim', 'slit_illum_pad', 'slit_illum_relative',
                    'illum_iter', 'illum_rej', 'twod_fit_npoly', 'saturated_slits',
-                   'slit_illum_ref_idx', 'slit_illum_smooth_npix', 'flatfield_structure']
+                   'slit_illum_ref_idx', 'slit_illum_smooth_npix', 'fit_2d_det_response']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

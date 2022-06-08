@@ -1253,21 +1253,21 @@ class Spectrograph:
         msgs.warn("No datacube setup for spectrograph: {0:s}".format(self.name))
         return None
 
-    def flatfield_structure(self, ff_struct, gpmask):
+    def fit_2d_det_response(self, det_resp, gpmask):
         r"""
-        Perform a model fit to any instrument-specific flatfield structure.
+        Perform a 2D model fit to the instrument-specific detector response.
 
         Args:
-            ff_struct (`numpy.ndarray`_):
-                An image of the flatfield structure.
+            det_resp(`numpy.ndarray`_):
+                An image of the detector response.
             gpmask (`numpy.ndarray`_):
                 Good pixel mask (True=good), the same shape as ff_struct.
 
         Returns:
-            `numpy.ndarray`_: A model fit to the flatfield structure.
+            `numpy.ndarray`_: A model fit to the detector response.
         """
-        msgs.warn("Flatfield structure is not implemented for spectrograph: {0:s}".format(self.name))
-        return np.ones_like(ff_struct)
+        msgs.warn("2D detector response is not implemented for spectrograph: {0:s}".format(self.name))
+        return np.ones_like(det_resp)
 
     def validate_metadata(self):
         """
