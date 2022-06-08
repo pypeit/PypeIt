@@ -4215,6 +4215,11 @@ class EdgeTraceSet(DataContainer):
             # this will allow to catch the boxslit, since in this case slitmask matching is not performed
             self.par['minimum_slit_gap'] = 0.25
             self.par['minimum_slit_length_sci'] = 4.5
+            # this will allow to keep the few slits that were found and not have auto_trace fail
+            if not self.can_pca() and self.par['sync_predict'] == 'pca':
+                self.par['sync_predict'] = 'nearest'
+                msgs.warn('Sync predict could not use PCA because too few edges were found. '
+                          'Therefore the sync_predict parameter was changed to nearest ')
             return
 
         # reference row

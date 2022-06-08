@@ -290,10 +290,16 @@ class PypeIt:
             # Find the detectors to reduce
 #            detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
 #                                                ndet=self.spectrograph.ndet)
-            detectors = self.spectrograph.select_detectors(subset=self.par['rdx']['detnum'])
+            subset = self.par['rdx']['slitspatnum'] if self.par['rdx']['slitspatnum'] is not None \
+                else self.par['rdx']['detnum']
+            detectors = self.spectrograph.select_detectors(subset=subset)
+            msgs.info(f'Detectors to work on: {detectors}')
+
             calib_dict[calib_grp] = {}
+
             # Loop on Detectors
             for self.det in detectors:
+                msgs.info("Working on detector {0}".format(self.det))
                 # Instantiate Calibrations class
                 self.caliBrate = calibrations.Calibrations.get_instance(
                     self.fitstbl, self.par['calibrations'], self.spectrograph,
@@ -308,6 +314,10 @@ class PypeIt:
                 # Allow skipping the run (e.g. parse_calib_id.py script)
                 if run:
                     self.caliBrate.run_the_steps()
+                    if not self.caliBrate.success:
+                        msgs.warn(f'Calibrations for detector {self.det} were unsuccessful!  The step '
+                                  f'that failed was {self.caliBrate.failed_step}.  Continuing by '
+                                  f'skipping this detector.')
 
                 key = self.caliBrate.master_key_dict['frame']
                 calib_dict[calib_grp][key] = {}
