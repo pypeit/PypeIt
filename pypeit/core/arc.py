@@ -668,7 +668,9 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
 
 
 def plot_detect_peaks(x, mph, mpd, threshold, edge, valley, ax, ind):
-    """Plot results of the detect_peaks function, see its help.
+    """Plot results of the :class:`pypeit.core.arc.detect_peaks` function, see its help
+    for a descriptio nof the variables.
+
     Only used for debugging
     """
 
@@ -1126,94 +1128,95 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     return ampl, cent, widt, centerr
 
 
-def simple_calib_driver(llist, censpec, ok_mask, n_final=5, get_poly=False,
-                        sigdetect=10.,
-                        IDpixels=None, IDwaves=None, nonlinear_counts=1e10):
-    wv_calib = {}
-    for slit in ok_mask:
-        iwv_calib = simple_calib(llist, censpec[:, slit], n_final=n_final,
-                                 get_poly=get_poly, IDpixels=IDpixels, IDwaves=IDwaves,
-                                 nonlinear_counts=nonlinear_counts, sigdetect=sigdetect)
-        wv_calib[str(slit)] = iwv_calib.copy()
-    return wv_calib
-
-
-def simple_calib(llist, censpec, n_final=5, get_poly=False,
-                 IDpixels=None, IDwaves=None, debug=False, sigdetect=10.,
-                 nonlinear_counts=1e10):
-    """Simple calibration algorithm for longslit wavelengths
-
-    Parameters
-    ----------
-    llist : `astropy.table.Table`_
-    censpec : `numpy.ndarray`_
-    get_poly : bool, optional
-      Pause to record the polynomial pix = b0 + b1*lambda + b2*lambda**2
-    IDpixels : list
-    IDwaves : list
-
-    Returns
-    -------
-    final_fit : dict
-      Dict of fit info
-    """
-
-    # Extract the arc
-    msgs.work("Detecting lines..")
-    #tampl, tcent, twid, _, w, yprep, nsig = detect_lines(censpec, nfitpix=nfitpix,
-    #                                                     sigdetect=sigdetect,
-    #                                                     nonlinear_counts = aparm['nonlinear_counts'])
-    tcent, ecent, cut_tcent, icut, spec_cont_sub = wvutils.arc_lines_from_spec(
-        censpec, sigdetect=sigdetect, nonlinear_counts=nonlinear_counts)#, debug = debug_peaks)
-
-    # Cut down to the good ones
-    tcent = tcent[icut]
-
-    # IDs were input by hand
-    # Check that there are at least 4 values
-    pixels = np.array(IDpixels) # settings.argflag['arc']['calibrate']['IDpixels'])
-    if np.sum(pixels > 0.) < 4:
-        msgs.error("Need to give at least 4 pixel values!")
-    #
-    msgs.info("Using input lines to seed the wavelength solution")
-    # Calculate median offset
-    mdiff = [np.min(np.abs(tcent-pix)) for pix in pixels]
-             #settings.argflag['arc']['calibrate']['IDpixels']]
-    med_poff = np.median(np.array(mdiff))
-    msgs.info("Will apply a median offset of {:g} pixels".format(med_poff))
-
-    # Match input lines to observed spectrum
-    nid = pixels.size
-    idx_str = np.ones(nid).astype(int)
-    ids = np.zeros(nid)
-    idsion = np.array(['     ']*nid)
-    gd_str = np.arange(nid).astype(int)
-    for jj,pix in enumerate(pixels):
-        diff = np.abs(tcent-pix-med_poff)
-        if np.min(diff) > 2.:
-            msgs.error("No match with input pixel {:g}!".format(pix))
-        else:
-            imn = np.argmin(diff)
-        # Set
-        idx_str[jj] = imn
-        # Take wavelength from linelist instead of input value
-        wdiff = np.abs(llist['wave']-IDwaves[jj]) # settings.argflag['arc']['calibrate']['IDwaves'][jj])
-        imnw = np.argmin(wdiff)
-        if wdiff[imnw] > 0.015:  # Arbitrary tolerance
-            msgs.error("Input IDwaves={:g} is not in the linelist.  Fix".format(
-                IDwaves[jj]))
-                    #settings.argflag['arc']['calibrate']['IDwaves'][jj]))
-        else:
-            ids[jj] = llist['wave'][imnw]
-            #idsion[jj] = llist['Ion'][imnw]
-            msgs.info("Identifying arc line: {:s} {:g}".format(idsion[jj],ids[jj]))
-
-    # Debug
-    disp = (ids[-1]-ids[0])/(tcent[idx_str[-1]]-tcent[idx_str[0]])
-    final_fit = wv_fitting.iterative_fitting(censpec, tcent, idx_str, ids,
-                                          llist, disp, verbose=False, n_final=n_final)
-    # Return
-    return final_fit
+# MOVE TO DEPRECATED
+#def simple_calib_driver(llist, censpec, ok_mask, n_final=5, get_poly=False,
+#                        sigdetect=10.,
+#                        IDpixels=None, IDwaves=None, nonlinear_counts=1e10):
+#    wv_calib = {}
+#    for slit in ok_mask:
+#        iwv_calib = simple_calib(llist, censpec[:, slit], n_final=n_final,
+#                                 get_poly=get_poly, IDpixels=IDpixels, IDwaves=IDwaves,
+#                                 nonlinear_counts=nonlinear_counts, sigdetect=sigdetect)
+#        wv_calib[str(slit)] = iwv_calib.copy()
+#    return wv_calib
+#
+#
+#def simple_calib(llist, censpec, n_final=5, get_poly=False,
+#                 IDpixels=None, IDwaves=None, debug=False, sigdetect=10.,
+#                 nonlinear_counts=1e10):
+#    """Simple calibration algorithm for longslit wavelengths
+#
+#    Parameters
+#    ----------
+#    llist : `astropy.table.Table`_
+#    censpec : `numpy.ndarray`_
+#    get_poly : bool, optional
+#      Pause to record the polynomial pix = b0 + b1*lambda + b2*lambda**2
+#    IDpixels : list
+#    IDwaves : list
+#
+#    Returns
+#    -------
+#    final_fit : dict
+#      Dict of fit info
+#    """
+#
+#    # Extract the arc
+#    msgs.work("Detecting lines..")
+#    #tampl, tcent, twid, _, w, yprep, nsig = detect_lines(censpec, nfitpix=nfitpix,
+#    #                                                     sigdetect=sigdetect,
+#    #                                                     nonlinear_counts = aparm['nonlinear_counts'])
+#    tcent, ecent, cut_tcent, icut, spec_cont_sub = wvutils.arc_lines_from_spec(
+#        censpec, sigdetect=sigdetect, nonlinear_counts=nonlinear_counts)#, debug = debug_peaks)
+#
+#    # Cut down to the good ones
+#    tcent = tcent[icut]
+#
+#    # IDs were input by hand
+#    # Check that there are at least 4 values
+#    pixels = np.array(IDpixels) # settings.argflag['arc']['calibrate']['IDpixels'])
+#    if np.sum(pixels > 0.) < 4:
+#        msgs.error("Need to give at least 4 pixel values!")
+#    #
+#    msgs.info("Using input lines to seed the wavelength solution")
+#    # Calculate median offset
+#    mdiff = [np.min(np.abs(tcent-pix)) for pix in pixels]
+#             #settings.argflag['arc']['calibrate']['IDpixels']]
+#    med_poff = np.median(np.array(mdiff))
+#    msgs.info("Will apply a median offset of {:g} pixels".format(med_poff))
+#
+#    # Match input lines to observed spectrum
+#    nid = pixels.size
+#    idx_str = np.ones(nid).astype(int)
+#    ids = np.zeros(nid)
+#    idsion = np.array(['     ']*nid)
+#    gd_str = np.arange(nid).astype(int)
+#    for jj,pix in enumerate(pixels):
+#        diff = np.abs(tcent-pix-med_poff)
+#        if np.min(diff) > 2.:
+#            msgs.error("No match with input pixel {:g}!".format(pix))
+#        else:
+#            imn = np.argmin(diff)
+#        # Set
+#        idx_str[jj] = imn
+#        # Take wavelength from linelist instead of input value
+#        wdiff = np.abs(llist['wave']-IDwaves[jj]) # settings.argflag['arc']['calibrate']['IDwaves'][jj])
+#        imnw = np.argmin(wdiff)
+#        if wdiff[imnw] > 0.015:  # Arbitrary tolerance
+#            msgs.error("Input IDwaves={:g} is not in the linelist.  Fix".format(
+#                IDwaves[jj]))
+#                    #settings.argflag['arc']['calibrate']['IDwaves'][jj]))
+#        else:
+#            ids[jj] = llist['wave'][imnw]
+#            #idsion[jj] = llist['Ion'][imnw]
+#            msgs.info("Identifying arc line: {:s} {:g}".format(idsion[jj],ids[jj]))
+#
+#    # Debug
+#    disp = (ids[-1]-ids[0])/(tcent[idx_str[-1]]-tcent[idx_str[0]])
+#    final_fit = wv_fitting.iterative_fitting(censpec, tcent, idx_str, ids,
+#                                          llist, disp, verbose=False, n_final=n_final)
+#    # Return
+#    return final_fit
 
 
 #def order_saturation(satmask, ordcen, ordwid):
