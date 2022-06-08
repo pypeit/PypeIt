@@ -155,11 +155,21 @@ class PypeItFile:
 
     @property
     def setup_name(self):
+        """Return the setup name
+
+        Returns:
+            str: Setup name.  Usually a single, capitalized Letter
+        """
         keys = list(self.setup.keys())
         return keys[0].split(' ')[-1]
 
     @property
     def cfg_lines(self):
+        """Return a list containing the configuration lines
+
+        Returns:
+            list: List of the configuration lines held in self.config
+        """
         return self.config.write()
 
     @staticmethod
@@ -249,7 +259,7 @@ class PypeItFile:
 
     def write(self, pypeit_file):
         """
-        Generate a PypeIt file
+        Write a PypeIt file to disk
 
         Args:
             pypeit_file (str): Name of PypeIt file to be generated
