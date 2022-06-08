@@ -399,10 +399,10 @@ def resize_spec(spec_from, nspec_to):
 
     Args:
         spec_from (`numpy.ndarray`_):
-            One or more spectra to resize via interpolation. Shape
+            one or more spectra to resize via interpolation. Shape
             must be (nspec, nslits) or (nspec,).
         nspec_to (int):
-            Size of spectrum you to resize to.
+            size of spectrum you wish to resize to.
 
     Returns:
         `numpy.ndarray`_: New spectra or spectrum with shape
