@@ -122,7 +122,7 @@ def test_flatimages():
 #    flatImages = flatField.run()
 #    assert np.isclose(np.median(flatImages.pixelflat), 1.0)
 
-def test_fit_structure():
+def test_fit_det_response():
     spec = load_spectrograph('keck_kcwi')
     # Generate a good pixel mask
     frsize = 4100
@@ -135,5 +135,5 @@ def test_fit_structure():
     xx, yy = np.meshgrid(x, y, indexing='ij')
     amp, scale, wavelength, phase, angle = 0.02, 0.0, 1.41*frsize/31.5, 0.0, -45.34
     img = sinemodel(xx, yy, amp, scale, phase, wavelength, angle)
-    model = spec.flatfield_structure(img, gpm)
+    model = spec.fit_2d_det_response(img, gpm)
     assert np.allclose(img, model, atol=0.001), 'structure fitting failed.'
