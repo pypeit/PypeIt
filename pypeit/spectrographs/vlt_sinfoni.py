@@ -120,10 +120,10 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         turn_off = dict(use_biasimage=False, use_overscan=False, use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
 
-        # Require dark images to be subtracted from the flat images used for tracing, pixelflats, and illumflats
-        par['calibrations']['pixelflatframe']['process']['use_darkimage'] = True
-        par['calibrations']['illumflatframe']['process']['use_darkimage'] = True
-        par['calibrations']['traceframe']['process']['use_darkimage'] = True
+        # # Require dark images to be subtracted from the flat images used for tracing, pixelflats, and illumflats
+        # par['calibrations']['pixelflatframe']['process']['use_darkimage'] = True
+        # par['calibrations']['illumflatframe']['process']['use_darkimage'] = True
+        # par['calibrations']['traceframe']['process']['use_darkimage'] = True
         # TODO: `mask_cr` now defaults to True for darks.  Should this be turned off?
 
         # Extraction

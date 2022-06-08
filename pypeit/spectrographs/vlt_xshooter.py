@@ -225,9 +225,9 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par.reset_all_processimages_par(**turn_off)
         # Require dark images to be subtracted from the flat images used for
         # tracing, pixelflats, and illumflats
-        par['calibrations']['traceframe']['process']['use_darkimage'] = True
-        par['calibrations']['pixelflatframe']['process']['use_darkimage'] = True
-        par['calibrations']['illumflatframe']['process']['use_darkimage'] = True
+        # par['calibrations']['traceframe']['process']['use_darkimage'] = True
+        # par['calibrations']['pixelflatframe']['process']['use_darkimage'] = True
+        # par['calibrations']['illumflatframe']['process']['use_darkimage'] = True
         # TODO: `mask_cr` now defaults to True for darks.  Should this be turned off?
 
         # Is this needed below?
@@ -360,8 +360,12 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+
+        # Default NIR calibration behavior is to take flat/darks in sequence
+        #  These are marked by the seq_expno column
         good_flat_seq = np.array([seq is not None and int(seq) % 2 == 1 for seq in fitstbl['seq_expno']])
         good_dark_seq = np.array([seq is not None and int(seq) % 2 == 0 for seq in fitstbl['seq_expno']])
+
         # TODO: Allow for 'sky' frame type, for now include sky in
         # 'science' category
         if ftype == 'science':
@@ -823,7 +827,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
 class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
     """
-    Child to handle VLT/XSHOOTER specific code
+    Child to handle VLT/XSHOOTER specific code for the UVB arm
     """
 
     name = 'vlt_xshooter_uvb'
@@ -847,7 +851,6 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
             Object with the detector metadata.
         """
         # Binning
-        # TODO: Could this be detector dependent??
         binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
@@ -892,7 +895,6 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         # X-SHOOTER arcs/tilts are also have different binning with bias
         # frames, so don't use bias frames. Don't use the biases for any
         # calibrations since it appears to be a different amplifier readout
-        par['calibrations']['traceframe']['process']['overscan_method'] = 'median'
 
         # Adjustments to slit and tilts for UVB
         par['calibrations']['slitedges']['edge_thresh'] = 8.
@@ -954,7 +956,6 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         """
         super().init_meta()
         # Add the name of the dispersing element
-        # dispangle and filter1 are not defined for Shane Kast Blue
 
         # Required
         self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI3 NAME')
@@ -971,11 +972,16 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         """
         Return the expected spatial position of each echelle order.
 
-        from pypeit import edgetrace
-        edges = edgetrace.EdgeTraceSet.from_file('MasterEdges_A_1_DET01.fits.gz')
+        The following lines generated the values below:
 
-        nrm_edges = edges.edge_fit[edges.nspec//2,:] / edges.nspat
-        slit_cen = ((nrm_edges + np.roll(nrm_edges,1))/2)[np.arange(nrm_edges.size//2)*2+1]
+        .. code-block:: python
+
+            from pypeit import edgetrace
+            edges = edgetrace.EdgeTraceSet.from_file('MasterEdges_A_1_DET01.fits.gz')
+
+            nrm_edges = edges.edge_fit[edges.nspec//2,:] / edges.nspat
+            slit_cen = ((nrm_edges + np.roll(nrm_edges,1))/2)[np.arange(nrm_edges.size//2)*2+1]
+
         """
         # This starts by ignoring the first, partial order (25?)
         #  Order 24 is very faint and not included here
@@ -1000,7 +1006,6 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         """
         spec_max = np.asarray([4000]*13)# + [3000])
         spec_min = np.asarray([0]*13)
-        #spec_min = np.asarray([2000,1000] + [0]*13)
         return np.vstack((spec_min, spec_max))
 
     def order_platescale(self, order_vec, binning = None):
@@ -1062,11 +1067,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         # Call the base-class method to generate the empty bpm
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
-        # TODO -- come back to this
-        #if det == 1:
-        #    # TODO: This is for the 1x1 binning it should
-        #    # change for other binning
-        #    bpm_img[:2369,1326:1328] = 1.
+        # TODO -- Mask bad column if it is problematic (it isn't so far)
 
         return bpm_img
 
