@@ -1,5 +1,7 @@
 """
-Module with core arc-lamp methods.
+Module containing the core methods for arc-lamp fitting 
+and basic analysis.  Note that there are additional modules
+in pypeit.core.wavecal related to wavelength calibration.
 
 .. include:: ../include/links.rst
 
@@ -32,13 +34,13 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
     Parameters
     ----------
     all_wv: `numpy.ndarray`_
-     wavelength of the identified lines
+     wavelengths of the identified lines
     all_pix: `numpy.ndarray`_
-      Spectral direction centroid position of the identified lines
+      Spectral direction centroid positions of the identified lines
     all_orders: `numpy.ndarray`_
       Echelle order number for each of the identified lines
     nspec: int
-      Size of the image in the spectral direction
+      size of the image in the spectral direction
     nspec_coeff : int, optional
       order of the fitting along the spectral (pixel) direction for each order
     norder_coeff : int, optional
@@ -46,11 +48,11 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
     sigrej: float, optional
       sigma level for the rejection
     debug: bool, optional
-      Extra plots to check the status of the procedure
+      If True, show extra plots to check the status of the procedure
 
     Returns
     -------
-    pypeitFit: :class:`pypeit.core.fitting.PypeItFit` 
+    pypeitFit : :class:`pypeit.core.fitting.PypeItFit` 
         2D wavelength solution fit
 
     """
@@ -104,7 +106,7 @@ def fit2darc_global_qa(pypeitFit, nspec, outfile=None):
 
     Parameters
     ----------
-    pypeitFit: :class:`pypeit.core.fitting.PypeItFit`
+    pypeitFit : :class:`pypeit.core.fitting.PypeItFit`
       Fit object for the 2D arc solution
     nspec: int
       Size of the image in the spectral direction
@@ -332,7 +334,7 @@ def resize_mask2arc(shape_arc, slitmask_orig):
 
     Returns
     -------
-    slitmask: `numpy.ndarray`_, float
+    slitmask : `numpy.ndarray`_, float
         Slitmask with shape corresponding to that of the arc
 
     """
@@ -367,7 +369,7 @@ def resize_slits2arc(shape_arc, shape_orig, trace_orig):
         trace_orig (`numpy.ndarray`_, float):
             trace that you want to resize
     Returns:
-        trace: `numpy.ndarray`_ 
+        `numpy.ndarray`_:
             trace corresponding to the binning of the arc
 
     """
@@ -389,6 +391,8 @@ def resize_slits2arc(shape_arc, shape_orig, trace_orig):
 
 def resize_spec(spec_from, nspec_to):
     """
+    Resize the input spectrum (usually an arc spectrum)
+    to a new size using linear interpolation `scipy.interpolate.interp1d`_
 
     Args:
         spec_from (`numpy.ndarray`_):
@@ -419,7 +423,10 @@ def resize_spec(spec_from, nspec_to):
 def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0, nonlinear_counts=1e10,
                 slit_bpm=None, slitIDs=None):
     """
-    Extract a boxcar spectrum down the center of the slit
+    Extract a boxcar spectrum from the input image using the 
+    input trace.  By default, outliers within the box are clipped
+    with 3.0 sigma rejection using `astropy.stats.sigma_clipped_stats`_.
+
 
     Args:
         slit_cen (`numpy.ndarray`_):
@@ -444,12 +451,14 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0, nonlinear_cou
             A list of the slit IDs to extract (if None, all slits will be extracted)
 
     Returns:
-        Three `numpy.ndarray`_ objects:
-            - Array containing the extracted arc spectrum for each
-              slit. Shape is (nspec, nslits)
-            - Bad-pixel mask for the spectra. Shape is (nspec,
+        arc_spec : `numpy.ndarray`_ 
+            Array containing the extracted arc spectrum for each
+            slit. Shape is (nspec, nslits)
+        arc_spec_bpm : `numpy.ndarray`_ 
+            Bad-pixel mask for the spectra. Shape is (nspec,
               nslits).
-            - Bad-slit mask, True means the entire spectrum is bad.
+        bpm_mask : `numpy.ndarray`_ 
+            Bad-slit mask, True means the entire spectrum is bad.
               Shape is (nslits,).
     """
     # Initialize the good pixel mask
@@ -496,6 +505,7 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0, nonlinear_cou
 def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
                  kpsh=False, valley=False, show=False, ax=None):
     """Detect peaks in data based on their amplitude and other features.
+    This is generally, but not exclusively, used for arc line detecting.
 
     Parameters
     ----------
@@ -682,45 +692,56 @@ def iter_continuum(spec, gpm=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_
     """
     Routine to determine the continuum and continuum pixels in spectra with peaks.
 
-    Args:
-       spec : `numpy.ndarray`_, float  
+    Note: This was developed for arc line spectra and may not function will in other
+    contexts.
+
+    Parameters
+    ----------
+    spec : `numpy.ndarray`_, float  
           1D spectrum with shape (nspec,) for which the continuum is to be characterized
 
-       gpm : `numpy.ndarray`_, bool, shape (nspec,)   
-          A mask indicating which pixels are good. True = Good, False=Bad
+    gpm : `numpy.ndarray`_, bool
+          A mask with shape (nspec,) indicating which pixels are good. True = Good, False=Bad
 
-       niter_cont : int, default = 3
+    niter_cont : int, default = 3, optional
             Number of iterations of peak finding, masking, and continuum fitting used to define the continuum.
 
-       npoly : int, default = None
+    npoly : int, default = None, optional
             If set the code will perform a polynomimal fit to the interpolate a running median filter of the
             continuum points instead of the default behavior which is to just return the
             interpolated running median filter
-       sigthresh: float, default = 2.0
+
+    sigthresh : float, default = 2.0, optional
             Signifiance threshold for peak finding
-       sigrej: float, default = 3.0
+
+    sigrej : float, default = 3.0, optional
             Sigma clipping rejection threshold for threshold determination
-       fwhm:  float, default = 4.0
+
+    fwhm :  float, default = 4.0, optional
             Number of pixels per fwhm resolution element.
-       cont_samp: float, default = 30.0
+
+    cont_samp: float, default = 30.0, optional
             The number of samples across the spectrum used for continuum subtraction. Continuum subtraction is done via
             median filtering, with a width of ngood/cont_samp, where ngood is the number of good pixels for estimating the continuum
             (i.e. that don't have peaks).
-       cont_frac_fwhm : float, default = 1.0
+    cont_frac_fwhm : float, default = 1.0, optional
             Width used for masking peaks in the spectrum when the continuum is being defined. Expressed as a fraction of the fwhm
             parameter
-       cont_mask_neg: bool, default = False
+    cont_mask_neg: bool, default = False, optional
            If True, the code will also search for negative peaks when iteratively determining the continuum. This option is
            used for object finding in the near-IR where there will also be negative peaks.
-       cont_samp: float, default = 30.0
+    cont_samp: float, default = 30.0, optional
            The number of samples across the spectrum used for continuum subtraction. Continuum subtraction is done via
            median filtering, with a width of ngood/cont_samp, where ngood is the number of good pixels for estimating the continuum
-        debug: bool, default = False
+    debug: bool, default = False, optional
            Show plots for debugging
 
-    Returns: (cont, cont_mask)
-        cont: `numpy.ndarray`_, float, shape (nspec) The continuum determined
-        cont_mask: `numpy.ndarray`_, bool, shape (nspec) A mask indicating which pixels were used for continuum determination
+    Returns 
+    -------
+        cont: `numpy.ndarray`_, float
+            The continuum determined with shape (nspec,) 
+        cont_mask: `numpy.ndarray`_, bool
+            A mask indicating which pixels were used for continuum determination with shape (nspec,) 
 
 
     """
@@ -814,14 +835,21 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
                  min_pkdist_frac_fwhm=0.75, cont_samp=30, nonlinear_counts=1e10, niter_cont=3,
                  nfind=None, bpm=None, verbose=False, debug=False, debug_peak_find=False):
     """
-    Identify peaks in arc spectrum  significant lines for analysis.
+    Identify peaks in an input arc spectrum that satisfy a series of criteria:
+      - Sufficient signal (set by sigdetect)
+      - Peak amplitude < nonlinear_counts
+      - Peak amplitude > input_thresh (optional)
+      - Measured FWHM < fwhm * max_frac_fwhm
+
+    By default, the input spectrum has a continuum fitted to it and then 
+    subtracted prior to peak finding.  
 
     Parameters
     ----------
     censpec : `numpy.ndarray`_
       A 1D spectrum to be searched for significant detections, shape = (nspec,)
 
-    sigdetect : float, default=20., optional
+    sigdetect : float, default=5., optional
        Sigma threshold above fluctuations for arc-line detection.
        Arcs are continuum subtracted and the fluctuations are
        computed after continuum subtraction.
