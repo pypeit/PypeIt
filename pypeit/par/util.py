@@ -7,7 +7,6 @@ Utility functions for PypeIt parameter sets
 import os
 import time
 import glob
-from importlib_metadata import Deprecated
 from IPython import embed
 
 import numpy as np
@@ -668,7 +667,7 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
         sorted_files (list, optional):
         paths (list, optional): List of paths for slurping data files
     """
-    raise Deprecated("NOT USED ANYMORE!")
+    raise DeprecatedError("NOT USED ANYMORE!")
     # Error checking
     if not isinstance(data_files, list):
         raise IOError("data_files needs to be a list")
