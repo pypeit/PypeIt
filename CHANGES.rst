@@ -3,6 +3,7 @@
 --------
 
 - Modify tweak_standard for Mosfire/J2
+- Detector structure correction included in flatfield calibration
 
 1.9.0 (31 May 2022)
 -------------------
@@ -11,7 +12,6 @@
   so that the default `comb_id` ordering matches the sorted file name.
 - Improve Keck/KCWI automatic frame typing.
 - Implemented Keck/KCWI flux calibration
-- Detector structure correction included in flatfield calibration
 - Wavelength templates (OH lines and arc lamps) created for Keck/MOSFIRE
 - Mosaic is now available for Keck/DEIMOS too.
 - Various package data (e.g., reid_arxiv, sensfunc) are no longer

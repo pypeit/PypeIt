@@ -448,12 +448,16 @@ class FlatField:
         # Fit it
         # NOTE: Tilts do not change and self.slits is updated internally.
         if not self.flatpar['flatfield_structure']:
+            # This spectrograph does not have a structure correction implemented. Ignore detector structure.
             self.fit(spat_illum_only=self.spat_illum_only, debug=debug)
         else:  # Iterate on the pixelflat if required by the spectrograph
-            niter = 1
+            # User has requested a structure correction.
+            # Note: This will only be performed if it is coded for each individual spectrograph.
+            # Make a copy of the original flat
             rawflat_orig = self.rawflatimg.image.copy()
             gpm = np.ones(rawflat_orig.shape, dtype=bool) if self.rawflatimg.bpm is None else \
                 (1 - self.rawflatimg.bpm).astype(bool)
+            niter = 1
             for ff in range(niter):
                 # Just get the spatial and spectral profiles for now
                 self.fit(spat_illum_only=self.spat_illum_only, debug=debug)
@@ -461,7 +465,7 @@ class FlatField:
                 # Extract a structure image
                 ff_struct = self.extract_structure(rawflat_orig)
                 gpmask = (self.waveimg != 0.0) & gpm
-                # Deal with flatfield structure in an instrument specific way
+                # Model the flatfield structure in an instrument specific way
                 ff_struct_model = self.spectrograph.flatfield_structure(ff_struct, gpmask)
                 # Apply this model
                 self.rawflatimg.image = rawflat_orig * utils.inverse(ff_struct_model)

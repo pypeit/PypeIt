@@ -1247,8 +1247,8 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
         if cubepar['grating_corr'] and flatfile not in flat_splines.keys():
             msgs.info("Calculating relative sensitivity for grating correction")
             flatimages = flatfield.FlatImages.from_file(flatfile)
-            flatframe = flatimages.illumflat_raw
-            flatframe /= flatimages.fit2illumflat(slits, frametype='illum', initial=True, flexure_shift=flexure)
+            flatframe = flatimages.illumflat_raw/flatimages.fit2illumflat(slits, frametype='illum', initial=True,
+                                                                          flexure_shift=flexure)
             # Calculate the relative scale
             scale_model = flatfield.illum_profile_spectral(flatframe, waveimg, slits,
                                                            slit_illum_ref_idx=flatpar['slit_illum_ref_idx'], model=None,

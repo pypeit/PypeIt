@@ -708,11 +708,12 @@ class FlatFieldPar(ParSet):
         descr['flatfield_structure'] = 'Set this variable to True if you want to compute and ' \
                                        'account for the detector structure in the flatfield image. ' \
                                        'Note that ``detector structure`` refers to pixel sensitivity ' \
-                                       'variations that depend on both the spatial and spectral coordinates. ' \
+                                       'variations that primarily depend on (x,y) detector coordinates. ' \
                                        'In most cases, the default 2D bspline is sufficient to account ' \
                                        'for detector structure (i.e. set this parameter to False). Note ' \
-                                       'that this correction will only be performed for the spectrographs ' \
-                                       'that have a dedicated structure correction.'
+                                       'that this correction will _only_ be performed for the spectrographs ' \
+                                       'that have a dedicated structure correction implemented. Currently,' \
+                                       'this correction is only implemented for KCWI.'
 
         # Instantiate the parameter set
         super(FlatFieldPar, self).__init__(list(pars.keys()),
