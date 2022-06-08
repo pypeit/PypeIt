@@ -4199,9 +4199,10 @@ class EdgeTraceSet(DataContainer):
         # box-slit traces.
         self.clean_traces(rebuild_pca=True)
 
-        # Check that there are traces to match!
+        # Check that there are still traces to match!
         if self.is_empty:
-            msgs.error('No traces to match.')
+            msgs.warn('No edges traced. Slitmask matching cannot be performed')
+            return
 
         # `traceimg` must have knowledge of the flat frame that built it
         self.maskfile = self.traceimg.files[0]
@@ -4465,10 +4466,10 @@ class EdgeTraceSet(DataContainer):
             self.clean_traces(force_flag=['SYNCERROR', 'OFFDETECTOR', 'SHORTSLIT'], rebuild_pca=True,
                               sync_mode='both', assume_synced=True)
 
+        # change sync_predict to 'nearest' only at this point because maskdesign_matching
+        # was able to deal with no pca predictions and this will allow avoid to
+        # get self.success=True in the next step of auto_trace
         if not self.can_pca() and self.par['sync_predict'] == 'pca':
-            # change sync_predict to 'nearest' only at this point because maskdesign_matching
-            # was able to deal with no pca predictions and this will allow avoid to
-            # get self.success=True in the next step of auto_trace
             self.par['sync_predict'] = 'nearest'
             msgs.warn('Sync predict could not use PCA because too few edges were found. '
                       'Therefore the sync_predict parameter was changed to nearest ')
