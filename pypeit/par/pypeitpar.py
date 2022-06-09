@@ -4306,6 +4306,9 @@ class PypeItPar(ParSet):
         """
         Construct the parameter set using a pypeit file.
 
+        Warning:  This is a bit risky in that it may well
+        lead to circular imports.  Might be best to avoid
+
         Args:
             ifile (str):
                 Name of the pypeit file to read.  Expects to find setup
