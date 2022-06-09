@@ -3,6 +3,7 @@
 --------
 
 - Modify tweak_standard for Mosfire/J2
+- Refactor PypeIt file
 
 1.9.0 (31 May 2022)
 -------------------

@@ -11,8 +11,11 @@ import pytest
 
 from pypeit.tests.tstutils import dev_suite_required
 from pypeit.pypeitsetup import PypeItSetup
-from pypeit.par.util import parse_pypeit_file
+#from pypeit.par.util import parse_pypeit_file
+from pypeit.pypeitfile import PypeItFile
 
+# TODO -- This test is moving to the DevSuite and
+#  the few changes below need to go with it
 @dev_suite_required
 def test_deimos():
     # Raw DEIMOS directory
@@ -47,22 +50,24 @@ def test_deimos():
 
         # Read the frame types from both the by-hand and automated
         # pypeit files
-        _, _, by_hand_frametypes, _, _, _ = parse_pypeit_file(by_hand_pypeit, file_check=False)
-        _, _, auto_frametypes, _, _, _ = parse_pypeit_file(pypeit_files[0], file_check=False)
+        #_, _, by_hand_frametypes, _, _, _ = parse_pypeit_file(by_hand_pypeit, file_check=False)
+        #_, _, auto_frametypes, _, _, _ = parse_pypeit_file(pypeit_files[0], file_check=False)
+        byhand_pypeItFile = PypeItFile.from_file(by_hand_pypeit)
+        auto_pypeItFile = PypeItFile.from_file(pypeit_files[0])
 
         # For each file in the by-hand list, check that the frame types
         # in the automatically generated pypeit file are identical
-        for f in by_hand_frametypes.keys():
-            type_list = np.sort(by_hand_frametypes[f].split(','))
+        for f in byhand_pypeItFile.frametypes.keys():
+            type_list = np.sort(byhand_pypeItFile.frametypes[f].split(','))
             if 'science' in type_list or 'standard' in type_list:
                 # Only ensuring that calibrations are correctly typed
                 continue
-            assert f in auto_frametypes.keys(), \
+            assert f in auto_pypeItFile.frametypes.keys(), \
                 'Frame {0} not automatically parsed for setup {1}.'.format(f, setup)
-            assert np.array_equal(type_list, np.sort(auto_frametypes[f].split(','))), \
+            assert np.array_equal(type_list, np.sort(auto_pypeItFile.frametypes[f].split(','))), \
                 'Frame types differ for file {0} in setup {1}\n'.format(f, setup) \
-                 + '    By-hand types: {0}'.format(by_hand_frametypes[f]) \
-                 + '    Automated types: {0}'.format(auto_frametypes[f])
+                 + '    By-hand types: {0}'.format(byhand_pypeItFile.frametypes[f]) \
+                 + '    Automated types: {0}'.format(auto_pypeItFile.frametypes[f])
 
         # Clean up after every setup
         shutil.rmtree(output_path)
@@ -103,19 +108,21 @@ def test_mosfire():
 
         # Read the frame types from both the by-hand and automated
         # pypeit files
-        _, _, by_hand_frametypes, _, _, _ = parse_pypeit_file(by_hand_pypeit, file_check=False)
-        _, _, auto_frametypes, _, _, _ = parse_pypeit_file(pypeit_files[0], file_check=False)
+        #_, _, by_hand_frametypes, _, _, _ = parse_pypeit_file(by_hand_pypeit, file_check=False)
+        #_, _, auto_frametypes, _, _, _ = parse_pypeit_file(pypeit_files[0], file_check=False)
+        byhand_pypeItFile = PypeItFile.from_file(by_hand_pypeit)
+        auto_pypeItFile = PypeItFile.from_file(pypeit_files[0])
 
         # For each file in the by-hand list, check that the frame types
         # in the automatically generated pypeit file are identical
-        for f in by_hand_frametypes.keys():
-            type_list = np.sort(by_hand_frametypes[f].split(','))
-            assert f in auto_frametypes.keys(), \
+        for f in byhand_pypeItFile.frametypes.keys():
+            type_list = np.sort(byhand_pypeItFile.frametypes[f].split(','))
+            assert f in auto_pypeItFile.frametypes.keys(), \
                 'Frame {0} not automatically parsed for setup {1}.'.format(f, setup)
-            assert np.array_equal(type_list, np.sort(auto_frametypes[f].split(','))), \
+            assert np.array_equal(type_list, np.sort(auto_pypeItFile.frametypes[f].split(','))), \
                 'Frame types differ for file {0} in setup {1}\n'.format(f, setup) \
-                + '    By-hand types: {0}'.format(by_hand_frametypes[f]) \
-                + '    Automated types: {0}'.format(auto_frametypes[f])
+                + '    By-hand types: {0}'.format(byhand_pypeItFile.frametypes[f]) \
+                + '    Automated types: {0}'.format(auto_pypeItFile.frametypes[f])
 
         # Clean up after every setup
         shutil.rmtree(output_path)
