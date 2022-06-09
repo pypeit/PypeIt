@@ -19,6 +19,8 @@ from pypeit.spectrographs.slitmask import SlitMask
 
 from pypeit.utils import index_of_x_eq_y
 
+from IPython import embed
+
 class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/MOSFIRE specific code
@@ -387,9 +389,9 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'object')
         if ftype in ['bias', 'dark']:
             return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'dark')
-        if ftype in ['pixelflat', 'trace']:
-            return good_exp & ((fitstbl['idname'] == 'flatlamp') | (fitstbl['idname'] == 'flatlampoff'))
-        if ftype in ['illumflat']:
+        if ftype in ['lampoffflats']:
+            return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'flatlampoff')
+        if ftype in ['illumflat', 'pixelflat', 'trace']:
             # Flats and trace frames are typed together
             return good_exp & (fitstbl['lampstat01'] == 'on') & (fitstbl['idname'] == 'flatlamp')
         if ftype == 'pinhole':
@@ -473,7 +475,6 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         """
 
-
         # Could check the wavelenghts here to do something more robust to header/meta data issues
         if 'Y-spectroscopy' in meta_table['DISPNAME']:
             #wave_out = np.copy(wave_in)
@@ -509,31 +510,39 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             #counts_ivar[apo_pix] = utils.clip_ivar(counts[apo_pix], counts_ivar_in[apo_pix], 10.0, mask=gpm_in[apo_pix])
             wave_blue = 9520.0  # blue wavelength below which there is contamination
             wave_red = 11256.0  # red wavelength above which the spectrum is containated
-            second_order_region= (wave_in < wave_blue) | (wave_in > wave_red)
-            wave = wave_in.copy()
-            counts = counts_in.copy()
-            gpm = gpm_in.copy()
-            counts_ivar = counts_ivar_in.copy()
-            # By setting the wavelengths to zero, we guarantee that the sensitvity function will only be computed
-            # over the valid wavelength region. While we could mask, this would still produce a wave_min and wave_max
-            # for the zeropoint that includes the bad regions, and the polynomial fits will extrapolate crazily there
-            wave[second_order_region] = 0.0
-            counts[second_order_region] = 0.0
-            counts_ivar[second_order_region] = 0.0
-            gpm[second_order_region] = False
-            #if debug:
-            #    from matplotlib import pyplot as plt
-            #    counts_sigma = np.sqrt(utils.inverse(counts_ivar_in))
-            #    plt.plot(wave_in, counts, color='red', alpha=0.7, label='apodized flux')
-            #    plt.plot(wave_in, counts_in, color='black', alpha=0.7, label='flux')
-            #    plt.plot(wave_in, counts_sigma, color='blue', alpha=0.7, label='flux')
-            #    plt.axvline(wave_blue, color='blue')
-            #    plt.axvline(wave_red, color='red')
-            #    plt.legend()
-            #    plt.show()
-            return wave, counts, counts_ivar, gpm
+
+        elif 'J2-spectroscopy' in meta_table['DISPNAME']:
+            wave_blue = 11170.0  # blue wavelength below which there is contamination
+            wave_red = 12600.0  # red wavelength above which the spectrum is containated
+
         else:
-            return wave_in, counts_in, counts_ivar_in, gpm_in
+            # keep everything the same
+            wave_blue = -np.inf
+            wave_red = np.inf
+
+        second_order_region= (wave_in < wave_blue) | (wave_in > wave_red)
+        wave = wave_in.copy()
+        counts = counts_in.copy()
+        gpm = gpm_in.copy()
+        counts_ivar = counts_ivar_in.copy()
+        wave[second_order_region] = 0.0
+        counts[second_order_region] = 0.0
+        counts_ivar[second_order_region] = 0.0
+        # By setting the wavelengths to zero, we guarantee that the sensitvity function will only be computed
+        # over the valid wavelength region. While we could mask, this would still produce a wave_min and wave_max
+        # for the zeropoint that includes the bad regions, and the polynomial fits will extrapolate crazily there
+        gpm[second_order_region] = False
+        #if debug:
+        #    from matplotlib import pyplot as plt
+        #    counts_sigma = np.sqrt(utils.inverse(counts_ivar_in))
+        #    plt.plot(wave_in, counts, color='red', alpha=0.7, label='apodized flux')
+        #    plt.plot(wave_in, counts_in, color='black', alpha=0.7, label='flux')
+        #    plt.plot(wave_in, counts_sigma, color='blue', alpha=0.7, label='flux')
+        #    plt.axvline(wave_blue, color='blue')
+        #    plt.axvline(wave_red, color='red')
+        #    plt.legend()
+        #    plt.show()
+        return wave, counts, counts_ivar, gpm
 
     def list_detectors(self, mosaic=False):
         """
