@@ -15,11 +15,11 @@ from configobj import ConfigObj
 from pypeit.pypmsgs import PypeItError
 from pypeit.metadata import PypeItMetaData
 from pypeit.par import PypeItPar
-from pypeit.par.util import parse_pypeit_file
 from pypeit.scripts.setup import Setup
 from pypeit.scripts.chk_for_calibs import ChkForCalibs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.tests.tstutils import dev_suite_required
+from pypeit.pypeitfile import PypeItFile
 from pypeit import pypeit
 from pypeit import pypeitsetup
 
@@ -30,7 +30,7 @@ def data_path(filename):
 
 
 def expected_file_extensions():
-    return ['pypeit', 'sorted']
+    return ['sorted']
 
 
 def test_run_setup():
@@ -69,11 +69,12 @@ def test_setup_made_pypeit_file():
     This test depends on the one above
     """
     pypeit_file = data_path('shane_kast_blue_A/shane_kast_blue_A.pypeit')
-    cfg_lines, data_files, frametype, usrdata, setups, setup_dict = parse_pypeit_file(pypeit_file)
+    pypeItFile = PypeItFile.from_file(pypeit_file)
+    #cfg_lines, data_files, frametype, usrdata, setups, setup_dict = parse_pypeit_file(pypeit_file)
     # Test
-    assert len(data_files) == 8
-    assert sorted(frametype['b1.fits.gz'].split(',')) == ['arc', 'tilt']
-    assert setups[0] == 'A'
+    assert len(pypeItFile.data_files) == 8
+    assert sorted(pypeItFile.frametypes['b1.fits.gz'].split(',')) == ['arc', 'tilt']
+    assert pypeItFile.setup_name == 'A'
 
     # Cleanup
     shutil.rmtree(data_path('shane_kast_blue_A'))
@@ -248,6 +249,8 @@ def test_setup_keck_deimos():
     shutil.rmtree(setup_dir)
 
 
+# TODO -- This test is moving to the DevSuite.  The changes
+#  need to move with them...
 @dev_suite_required
 def test_setup_keck_deimos_multiconfig():
 
@@ -276,20 +279,27 @@ def test_setup_keck_deimos_multiconfig():
         # be put into a function.
 
         # Read the pypeit file
-        cfg_lines, data_files, frametype, usrdata, setups, _ = parse_pypeit_file(f, runtime=True)
+        #cfg_lines, data_files, frametype, usrdata, setups, _ = parse_pypeit_file(f, runtime=True)
+        pypeItFile = PypeItFile.from_file(f)
         # Spectrograph
-        cfg = ConfigObj(cfg_lines)
+        cfg = ConfigObj(pypeItFile.cfg_lines)
         spectrograph = load_spectrograph(cfg['rdx']['spectrograph'])
         # Configuration-specific parameters
-        for idx, row in enumerate(usrdata):
+        for idx, row in enumerate(pypeItFile.data):
             if 'science' in row['frametype'] or 'standard' in row['frametype']:
                 break
-        spectrograph_cfg_lines = spectrograph.config_specific_par(data_files[idx]).to_config()
+        spectrograph_cfg_lines = spectrograph.config_specific_par(
+            pypeItFile.data_files[idx]).to_config()
         #  PypeIt parameters
-        par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
+        par = PypeItPar.from_cfg_lines(
+            cfg_lines=spectrograph_cfg_lines, 
+            merge_with=pypeItFile.cfg_lines)
         #  Metadata
-        fitstbl = PypeItMetaData(spectrograph, par, files=data_files, usrdata=usrdata, strict=True)
-        fitstbl.finalize_usr_build(frametype, setups[0])
+        fitstbl = PypeItMetaData(spectrograph, par, 
+                                 files=pypeItFile.data_files, 
+                                 usrdata=pypeItFile.data, 
+                                 strict=True)
+        fitstbl.finalize_usr_build(pypeItFile.frametypes, pypeItFile.setup_name)
 
         assert np.all(fitstbl['setup'] == s), 'Setup is wrong'
         assert np.all(fitstbl['calib'] == c), 'Calibration group is wrong'
