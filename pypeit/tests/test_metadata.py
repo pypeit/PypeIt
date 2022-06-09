@@ -15,7 +15,7 @@ from pypeit.tests.tstutils import dev_suite_required, data_path
 from pypeit.metadata import PypeItMetaData
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.scripts.setup import Setup
-from pypeit.pypeitfile import PypeItFile
+from pypeit.inputfiles import PypeItFile
 
 def test_read_combid():
 
@@ -37,7 +37,6 @@ def test_read_combid():
     shutil.rmtree(setup_dir)
 
     pypeit_file = os.path.join(config_dir, 'shane_kast_blue_A.pypeit')
-    #cfg_lines, data_files, frametype, usrdata, setups, _ = parse_pypeit_file(pypeit_file)
     pypeItFile = PypeItFile.from_file(pypeit_file)
 
     # Get the spectrograph
@@ -50,7 +49,7 @@ def test_read_combid():
 
     # Set the metadata
     pmd = PypeItMetaData(spectrograph, spectrograph.default_pypeit_par(), 
-                         files=pypeItFile.data_files,
+                         files=pypeItFile.filenames,
                          usrdata=pypeItFile.data, strict=False)
 
     indx = pmd['filename'] == 'b27.fits.gz'
@@ -147,7 +146,6 @@ def test_lris_blue_pypeit_overwrite():
                      'pypeit_files/keck_lris_blue_long_400_3400_d560.pypeit')
     assert os.path.isfile(f), 'Could not find pypeit file.'
         
-    #cfg_lines, data_files, frametype, usrdata, setups, _ = parse_pypeit_file(f, file_check=False)
     pypeItFile = PypeItFile.from_file(f)
 
     # Add the dev path
@@ -157,8 +155,8 @@ def test_lris_blue_pypeit_overwrite():
     # Read the fits table with and without the user data
     spectrograph = load_spectrograph('keck_lris_blue')
     par = spectrograph.default_pypeit_par()
-    fitstbl = PypeItMetaData(spectrograph, par, files=pypeItFile.data_files)
-    fitstbl_usr = PypeItMetaData(spectrograph, par, files=pypeItFile.data_files, usrdata=pypeItFile.data)
+    fitstbl = PypeItMetaData(spectrograph, par, files=pypeItFile.filenames)
+    fitstbl_usr = PypeItMetaData(spectrograph, par, files=pypeItFile.filenames, usrdata=pypeItFile.data)
 
     assert fitstbl['target'][0] == 'unknown', 'Grating name changed in file header'
     assert fitstbl_usr['target'][0] == 'test', 'Grating name changed in pypeit file'

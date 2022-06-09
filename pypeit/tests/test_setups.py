@@ -19,7 +19,7 @@ from pypeit.scripts.setup import Setup
 from pypeit.scripts.chk_for_calibs import ChkForCalibs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.tests.tstutils import dev_suite_required
-from pypeit.pypeitfile import PypeItFile
+from pypeit.inputfiles import PypeItFile
 from pypeit import pypeit
 from pypeit import pypeitsetup
 
@@ -70,9 +70,9 @@ def test_setup_made_pypeit_file():
     """
     pypeit_file = data_path('shane_kast_blue_A/shane_kast_blue_A.pypeit')
     pypeItFile = PypeItFile.from_file(pypeit_file)
-    #cfg_lines, data_files, frametype, usrdata, setups, setup_dict = parse_pypeit_file(pypeit_file)
+
     # Test
-    assert len(pypeItFile.data_files) == 8
+    assert len(pypeItFile.filenames) == 8
     assert sorted(pypeItFile.frametypes['b1.fits.gz'].split(',')) == ['arc', 'tilt']
     assert pypeItFile.setup_name == 'A'
 
@@ -279,7 +279,6 @@ def test_setup_keck_deimos_multiconfig():
         # be put into a function.
 
         # Read the pypeit file
-        #cfg_lines, data_files, frametype, usrdata, setups, _ = parse_pypeit_file(f, runtime=True)
         pypeItFile = PypeItFile.from_file(f)
         # Spectrograph
         cfg = ConfigObj(pypeItFile.cfg_lines)
@@ -289,14 +288,14 @@ def test_setup_keck_deimos_multiconfig():
             if 'science' in row['frametype'] or 'standard' in row['frametype']:
                 break
         spectrograph_cfg_lines = spectrograph.config_specific_par(
-            pypeItFile.data_files[idx]).to_config()
+            pypeItFile.filenames[idx]).to_config()
         #  PypeIt parameters
         par = PypeItPar.from_cfg_lines(
             cfg_lines=spectrograph_cfg_lines, 
             merge_with=pypeItFile.cfg_lines)
         #  Metadata
         fitstbl = PypeItMetaData(spectrograph, par, 
-                                 files=pypeItFile.data_files, 
+                                 files=pypeItFile.filenames, 
                                  usrdata=pypeItFile.data, 
                                  strict=True)
         fitstbl.finalize_usr_build(pypeItFile.frametypes, pypeItFile.setup_name)

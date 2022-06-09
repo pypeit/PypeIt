@@ -12,7 +12,7 @@ import pytest
 from pypeit.tests.tstutils import dev_suite_required
 from pypeit.pypeitsetup import PypeItSetup
 #from pypeit.par.util import parse_pypeit_file
-from pypeit.pypeitfile import PypeItFile
+from pypeit.inputfiles import PypeItFile
 
 # TODO -- This test is moving to the DevSuite and
 #  the few changes below need to go with it
