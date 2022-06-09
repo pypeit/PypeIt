@@ -19,7 +19,8 @@ from configobj import ConfigObj
 from astropy.io import fits
 from astropy.table import Table
 
-from pypeit import pypeitfile
+from pypeit import inputfiles
+from pypeit.core import parse
 from pypeit import masterframe
 from pypeit import msgs
 from pypeit import calibrations
@@ -93,7 +94,7 @@ class PypeIt:
         self.msgs_reset()
         
         # Load up PypeIt file
-        self.pypeItFile = pypeitfile.PypeItFile.from_file(pypeit_file)
+        self.pypeItFile = inputfiles.PypeItFile.from_file(pypeit_file)
         self.calib_only = calib_only
 
         # Spectrograph

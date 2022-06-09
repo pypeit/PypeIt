@@ -322,7 +322,7 @@ class PypeItMetaData:
                 # Allow for str RA, DEC (backwards compatability)
                 if key in ['ra', 'dec'] and not radec_done:
                     ras, decs = meta.convert_radec(usrdata['ra'][~nones].data,
-                                                   usrdata['dec'][~nones].data)
+                                                usrdata['dec'][~nones].data)
                     usrdata['ra'][~nones] = ras.astype(dtype)
                     usrdata['dec'][~nones] = decs.astype(dtype)
                     radec_done = True

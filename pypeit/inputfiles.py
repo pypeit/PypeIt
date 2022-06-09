@@ -176,6 +176,39 @@ class InputFile:
         else:
             return self.config.write()
 
+    @property
+    def data_files(self):
+        """Generate a list of the data files with 
+        the full path.  The files must exist and be 
+        within one of the paths for this to succeed.
+
+        Raises:
+            ValueError: _description_
+
+        Returns:
+            list: List of full path to each data file
+            or None if `filename` is not part of the data table
+            or there is no data table!
+        """
+        if self.data is None or 'filename' not in self.data.keys():
+            return None
+
+        ## Build full paths to file and set frame types
+        data_files = []
+        for row in self.data:
+            for p in self.file_paths:
+                filename = os.path.join(
+                    p, row['filename'])
+                if os.path.isfile(filename):
+                    break
+            # Check we got a good hit
+            if not os.path.isfile(filename): 
+                msgs.error(f"{row['filename']} does not exist in one of the provided paths.  Remove from your PypeIt file")
+            data_files.append(filename)
+        
+        # Return
+        return data_files
+
     @staticmethod
     def _parse_setup_lines(lines):
         """
@@ -216,15 +249,18 @@ class InputFile:
     def _read_data_file_table(lines):
         """
         Read the file table format.
+
+        Because we allow (even encourage!) the users to modify entries by hand, 
+        we have a custom way to parse what is largely a standard fixed_width 
+        ASCII table
         
         Args:
             lines (:obj:`list`):
-                List of lines *within the data* block read from the pypeit
-                file.
+                List of lines *within the data* block read from the input file.
         
         Returns:
-            Table:  A Table with the data provided in 
-            the pypeit file.  
+            tuple: list, Table.  A list of the paths provided (can be empty)
+            and a Table with the data provided in the input file.  
         """
 
         # Allow for multiple paths
@@ -238,8 +274,33 @@ class InputFile:
         npaths = len(paths)
 
         # Read the table
-        tbl = ascii.read(lines[npaths:].tolist(), header_start=0, data_start=1, 
-                         format='fixed_width')
+        #tbl = ascii.read(lines[npaths:].tolist(), 
+        #                 header_start=0, 
+        #                 data_start=1, 
+        #                 format='fixed_width')
+        # Recast each as "object" in case the user has mucked with the Table
+        #  e.g. a mix of floats and None
+        #for key in tbl.keys():
+        #    tbl[key] = tbl[key].data.astype(object)
+        #embed(header='249 of inputfiles')
+
+        # Build the table
+        #  Because we allow (even encourage!) the users to modify entries by hand, 
+        #   we have a custom way to parse what is largely a standard fixed_width table
+        nfiles = len(lines) - npaths - 1
+        header = [ l.strip() for l in lines[npaths].split('|') ][1:-1]
+        tbl = np.empty((nfiles, len(header)), dtype=object)
+
+        for i in range(nfiles):
+            row = np.array([ l.strip() for l in lines[i+npaths+1].split('|') ])[1:-1]
+            if len(row) != tbl.shape[1]:
+                raise ValueError('Data and header lines have mismatched columns!')
+            tbl[i,:] = row
+        data = {}
+        for i,key in enumerate(header):
+            data[key] = tbl[:,i]
+        tbl = Table(data)
+
         # Return
         return paths, tbl
 
@@ -365,33 +426,7 @@ class PypeItFile(InputFile):
         msgs.info('PypeIt file successfully vetted.')
 
         
-    @property
-    def data_files(self):
-        """Generate a list of the data files with 
-        the full path.  The files must exist and be 
-        within one of the paths for this to succeed.
 
-        Raises:
-            ValueError: _description_
-
-        Returns:
-            list: List of full path to each data file
-        """
-        ## Build full paths to file and set frame types
-        data_files = []
-        for row in self.data:
-            #frametype[tbl['filename'][i]] = tbl['frametype'][i]
-            for p in self.file_paths:
-                filename = os.path.join(
-                    p, row['filename'])
-                if os.path.isfile(filename):
-                    break
-            # Check we got a good hit
-            if not os.path.isfile(filename): 
-                msgs.error(f"{row['filename']} does not exist in one of the provided paths.  Remove from your PypeIt file")
-            data_files.append(filename)
-        # Return
-        return data_files
 
     @property
     def frametypes(self):
@@ -412,19 +447,19 @@ class FluxFile(InputFile):
     flavor = 'Flux'  # Defines naming of data block
     setup_required = False
 
-    @property
-    def data_files(self):
-        """Generate a list of the data files with 
-        the full path.  The files must exist and be 
-        within one of the paths for this to succeed.
-
-        Raises:
-            ValueError: _description_
-
-        Returns:
-            list: List of full path to each data file
-        """
-        return list(self.data['filename'].data)
+    #@property
+    #def data_files(self):
+    #    """Generate a list of the data files with 
+    #    the full path.  The files must exist and be 
+    #    within one of the paths for this to succeed.
+#
+#        Raises:
+#            ValueError: _description_
+#
+#        Returns:
+#            list: List of full path to each data file
+#        """
+#        return list(self.data['filename'].data)
 
 '''
     @staticmethod

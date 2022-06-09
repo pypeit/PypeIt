@@ -15,6 +15,7 @@ from astropy.table import Table
 from pypeit import msgs
 from pypeit import io
 from pypeit.scripts import scriptbase
+from pypeit import inputfiles
 
 # TODO -- We need a test of this script
 
@@ -77,18 +78,31 @@ class FluxSetup(scriptbase.ScriptBase):
             spectrograph = par[0].header['PYP_SPEC']
             pypeline = par[0].header['PYPELINE']
 
+            # Build the bits and pieces
             cfg_lines = ['[fluxcalib]']
             cfg_lines += ['  extinct_correct = False # Set to True if your SENSFUNC derived with the UVIS algorithm\n']
             cfg_lines += ['# Please add your SENSFUNC file name below before running pypeit_flux_calib']
+            data = Table()
+            data['filename'] = spec1dfiles
+            data['sensfile'] = ''
 
-            # Add path
-            path_plus_files = [os.path.join(
-                args.sci_path, item) for item in spec1dfiles]
+            # Instantiate
+            fluxFile = inputfiles.FluxFile(
+                config=cfg_lines,
+                file_paths = [args.sci_path], 
+                data_table=data)
             # Write
             flux_file = f'{spectrograph}.flux'
-            write_input_file(flux_file, path_plus_files, 
-                             cfg_lines=cfg_lines,
-                             data_block='flux')
+            fluxFile.write(flux_file)
+
+            # Add path
+            #path_plus_files = [os.path.join(
+            #    args.sci_path, item) for item in spec1dfiles]
+            # Write
+            #flux_file = f'{spectrograph}.flux'
+            #write_input_file(flux_file, path_plus_files, 
+            #                 cfg_lines=cfg_lines,
+            #                 data_block='flux')
 
             #fin = open(flux_file, "rt")
             #data = fin.read()
@@ -191,7 +205,7 @@ def write_input_file(outfile, files,
 
     # Here we go
     with open(outfile, 'w') as f:
-        f.write('# Auto-generated PypeIt input file using PypeIt version: {}\n'.format(__version__))
+        f.write('# Auto-generated PypeIt input file using PypeIt version: \n')
         #f.write('# {0}\n'.format(time.strftime("%a %d %b %Y %H:%M:%S",time.localtime())))
         f.write('# {0}\n'.format(time.strftime("%Y-%m-%d",time.localtime())))
         f.write("\n")

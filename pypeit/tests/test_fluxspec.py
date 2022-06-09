@@ -35,11 +35,15 @@ def test_input_flux_file():
     cfg_lines += ['# Please add your SENSFUNC file name below before running pypeit_flux_calib']
 
     data = Table()
-    data['filename'] = ['spec1d_A.fits', 'spec1d_B.fits']
+    # These files need to be in tests/files/
+    data['filename'] = ['spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits',
+                        'spec1d_cN20170331S0217-pisco_GNIRS_20170331T085933.097.fits']
     data['sensfile'] = 'test_sensfile.fits'
     # 
+    paths = [tstutils.data_path('')]
 
-    fluxFile = FluxFile(config=cfg_lines,
+    fluxFile = FluxFile(config=cfg_lines, 
+                        file_paths=paths,
                         data_table=data)
     # Write
     fluxFile.write(flux_input_file)
@@ -47,6 +51,11 @@ def test_input_flux_file():
     # Read
     fluxFile2 = FluxFile.from_file(flux_input_file)
     assert np.all(fluxFile2.data['filename'] == data['filename'])
+
+    # Test path
+    assert fluxFile2.file_paths[0] == paths[0]
+    data_files = fluxFile2.data_files
+    assert data_files[0] == os.path.join(paths[0], data['filename'][0])
 
     # Clean up
     os.remove(flux_input_file)
