@@ -228,7 +228,9 @@ def get_reid_arxiv_filepath(arxiv_file):
         tuple: The full path and whether the path is in the cache:
 
            * reid_path (str): The full path to the ``reid_arxiv`` file
-           * in_cache (bool): Whether the returned path is in the cache
+           * in_cache (bool or str): If the returned path is in the cache,
+                indicate whether it is a "fits" or "json", otherwise
+                return False
     """
     # Full path within the package data structure:
     reid_path = os.path.join(Paths.reid_arxiv, arxiv_file)
@@ -243,7 +245,7 @@ def get_reid_arxiv_filepath(arxiv_file):
                   "the package directory.  Checking cache or downloading the file now.")
 
         reid_path = fetch_remote_file(arxiv_file, "arc_lines/reid_arxiv")
-        in_cache = True
+        in_cache = arxiv_file[-4:]
 
     # Return the path to the `reid_arxiv` file, plus whether this is in the cache
     return reid_path, in_cache

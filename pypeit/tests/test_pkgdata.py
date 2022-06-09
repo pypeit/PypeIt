@@ -49,3 +49,4 @@ def test_waveio_load_reid_arxiv():
 
     # Test the extension logic, given the download/cache system
     waveio.load_reid_arxiv("vlt_xshooter_vis1x1.fits")
+    waveio.load_reid_arxiv("vlt_xshooter_vis1x1.json")
