@@ -34,11 +34,11 @@ def test_input_flux_file():
     cfg_lines += ['  extinct_correct = False # Set to True if your SENSFUNC derived with the UVIS algorithm\n']
     cfg_lines += ['# Please add your SENSFUNC file name below before running pypeit_flux_calib']
 
-    data = Table()
     # These files need to be in tests/files/
+    data = Table()
     data['filename'] = ['spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits',
                         'spec1d_cN20170331S0217-pisco_GNIRS_20170331T085933.097.fits']
-    data['sensfile'] = 'test_sensfile.fits'
+    data['sensfile'] = 'sens_cN20170331S0206-HIP62745_GNIRS_20170331T083351.681.fits'
     # 
     paths = [tstutils.data_path('')]
 
@@ -54,8 +54,30 @@ def test_input_flux_file():
 
     # Test path
     assert fluxFile2.file_paths[0] == paths[0]
-    data_files = fluxFile2.data_files
-    assert data_files[0] == os.path.join(paths[0], data['filename'][0])
+    assert fluxFile2.filenames[0] == os.path.join(paths[0], data['filename'][0])
+
+    # #################3
+    # Tickle the other ways to do sensfiles
+    data3 = Table()
+    data3['filename'] = ['spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits',
+                        'spec1d_cN20170331S0217-pisco_GNIRS_20170331T085933.097.fits']
+    data3['sensfile'] = ['sens_cN20170331S0206-HIP62745_GNIRS_20170331T083351.681.fits',
+                         '']
+
+    fluxFile3 = inputfiles.FluxFile(config=cfg_lines, 
+                        file_paths=paths,
+                        data_table=data3)
+    assert fluxFile3.sensfiles[1] == os.path.join(paths[0], data['sensfile'][0])
+    
+    data4 = Table()
+    data4['filename'] = ['spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits',
+                        'spec1d_cN20170331S0217-pisco_GNIRS_20170331T085933.097.fits']
+    data4['sensfile'] = ''
+
+    fluxFile4 = inputfiles.FluxFile(config=cfg_lines, 
+                        file_paths=paths,
+                        data_table=data4)
+    assert len(fluxFile4.sensfiles) == 0
 
     # Clean up
     os.remove(flux_input_file)

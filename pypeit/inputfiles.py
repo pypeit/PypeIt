@@ -350,6 +350,11 @@ class InputFile:
         ## Build full paths to file and set frame types
         data_files = []
         for row in self.data:
+
+            # Skip Empty entries?
+            if skip_blank and row[key].strip() in ['', 'none', 'None']:
+                continue
+
             # Searching..
             if len(self.file_paths) > 0:
                 for p in self.file_paths:
@@ -360,13 +365,9 @@ class InputFile:
             else:
                 filename = row[key]
 
-            # Skip Empty entries?
-            if skip_blank and filename.strip() in ['', 'none', 'None']:
-                continue
-
             # Check we got a good hit
             if not os.path.isfile(filename): 
-                msgs.error(f"{row[key]} does not exist in one of the provided paths.  Remove from your PypeIt file")
+                msgs.error(f"{row[key]} does not exist in one of the provided paths.  Modify your input {self.flavor} file")
             data_files.append(filename)
 
         # Return
