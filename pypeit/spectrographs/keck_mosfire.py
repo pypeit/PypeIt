@@ -29,7 +29,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
     camera = 'MOSFIRE'
     header_name = 'MOSFIRE'
     supported = True
-    comment = 'Gratings tested: Y, J, K; see :doc:`mosfire`'
+    comment = 'Gratings tested: Y, J, J2, H, K; see :doc:`mosfire`'
 
     def get_detector_par(self, det, hdu=None):
         """
