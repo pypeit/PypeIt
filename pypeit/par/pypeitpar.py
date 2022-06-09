@@ -73,6 +73,7 @@ from configobj import ConfigObj
 from pypeit.par.parset import ParSet
 from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
+from pypeit.pypeitfile import PypeItFile
 
 
 def tuple_force(par):
@@ -4337,8 +4338,11 @@ class PypeItPar(ParSet):
             :class:`pypeit.par.core.PypeItPar`: The instance of the
             parameter set.
         """
+        # Load PypeIt file
+        pypeItFile = PypeItFile.from_file(ifile)
         # TODO: Need to include instrument-specific defaults somewhere...
-        return cls.from_cfg_lines(merge_with=util.pypeit_config_lines(ifile), evaluate=evaluate)
+        return cls.from_cfg_lines(
+            merge_with=pypeItFile.cfg_lines, evaluate=evaluate)
 
     @classmethod
     def from_dict(cls, cfg):

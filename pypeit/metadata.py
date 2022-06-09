@@ -26,7 +26,6 @@ from pypeit.core import parse
 from pypeit.core import meta
 from pypeit.io import dict_to_lines
 from pypeit.par import PypeItPar
-from pypeit.par.util import make_pypeit_file
 from pypeit.bitmask import BitMask
 
 

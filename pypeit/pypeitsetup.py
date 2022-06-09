@@ -13,16 +13,11 @@ import datetime
 
 from IPython import embed
 
-import numpy as np
-
-from astropy.table import hstack, Table
-
 from pypeit import msgs
 from pypeit.metadata import PypeItMetaData
 from pypeit import pypeitfile
 
 from pypeit.par import PypeItPar
-from pypeit.par.util import parse_pypeit_file, make_pypeit_file
 from pypeit.spectrographs.util import load_spectrograph
 
 

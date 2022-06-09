@@ -10,14 +10,13 @@ import time
 
 import numpy as np
 
-from astropy.io import fits
 from astropy.table import Table
 
 from pypeit import msgs
 from pypeit import io
-from pypeit.par.util import make_pypeit_file
 from pypeit.scripts import scriptbase
 
+# TODO -- We need a test of this script
 
 class FluxSetup(scriptbase.ScriptBase):
 
@@ -44,7 +43,7 @@ class FluxSetup(scriptbase.ScriptBase):
     @staticmethod
     def main(args):
         """
-        This setups PypeIt files for fluxing, coadding, and telluric
+        This setups PypeIt input files for fluxing, coadding, and telluric
         corrections.  It will produce three files named as
         your_spectragraph.flux, your_spectragraph.coadd1d, and
         your_spectragraph.tell.
@@ -71,24 +70,35 @@ class FluxSetup(scriptbase.ScriptBase):
                     msgs.info('\t {:}'.format(spec2dfiles[ii]))
 
         if len(spec1dfiles) > 0:
-            par = io.fits_open(os.path.join(args.sci_path, spec1dfiles[0]))
+            par = io.fits_open(os.path.join(
+                args.sci_path, spec1dfiles[0]))
 
             ## fluxing pypeit file
             spectrograph = par[0].header['PYP_SPEC']
             pypeline = par[0].header['PYPELINE']
-            flux_file = '{:}.flux'.format(spectrograph)
+
             cfg_lines = ['[fluxcalib]']
             cfg_lines += ['  extinct_correct = False # Set to True if your SENSFUNC derived with the UVIS algorithm\n']
             cfg_lines += ['# Please add your SENSFUNC file name below before running pypeit_flux_calib']
-            make_pypeit_file(flux_file, spectrograph, spec1dfiles, cfg_lines=cfg_lines, setup_mode=True)
-            fin = open(flux_file, "rt")
-            data = fin.read()
-            data = data.replace('spec1d_', os.path.join(args.sci_path,'spec1d_'))
-            data = data.replace('data', 'flux')
-            fin.close()
-            fin = open(flux_file, "wt")
-            fin.write(data)
-            fin.close()
+
+            # Add path
+            path_plus_files = [os.path.join(
+                args.sci_path, item) for item in spec1dfiles]
+            # Write
+            flux_file = f'{spectrograph}.flux'
+            write_input_file(flux_file, path_plus_files, 
+                             cfg_lines=cfg_lines,
+                             data_block='flux')
+
+            #fin = open(flux_file, "rt")
+            #data = fin.read()
+            #data = data.replace('spec1d_', os.path.join(
+            #    args.sci_path,'spec1d_'))
+            #data = data.replace('data', 'flux')
+            #fin.close()
+            #fin = open(flux_file, "wt")
+            #fin.write(data)
+            #fin.close()
 
             ## coadd1d pypeit file
             coadd1d_file = '{:}.coadd1d'.format(spectrograph)
@@ -109,19 +119,25 @@ class FluxSetup(scriptbase.ScriptBase):
                 _, indx = np.unique(meta_tbl['name'],return_index=True)
                 objects = meta_tbl[indx]
                 for jj in range(len(objects)):
-                    spec1d_info.append(spec1dfiles[ii] + ' '+ objects['name'][jj])
-            make_pypeit_file(coadd1d_file, spectrograph, spec1d_info, cfg_lines=cfg_lines, setup_mode=True)
-            fin = open(coadd1d_file, "rt")
-            data = fin.read()
-            data = data.replace('spec1d_', os.path.join(args.sci_path,'spec1d_'))
-            data = data.replace('data', 'coadd1d')
-            fin.close()
-            fin = open(coadd1d_file, "wt")
-            fin.write(data)
-            fin.close()
+                    spec1d_info.append(
+                        os.path.join(args.sci_path,
+                        spec1dfiles[ii]) + ' '+ objects['name'][jj])
+            # Write
+            write_input_file(coadd1d_file, 
+                             spec1d_info, 
+                             file_block='coadd1d',
+                             cfg_lines=cfg_lines) 
+            #fin = open(coadd1d_file, "rt")
+            #data = fin.read()
+            #data = data.replace('spec1d_', os.path.join(args.sci_path,'spec1d_'))
+            #data = data.replace('data', 'coadd1d')
+            #fin.close()
+            #fin = open(coadd1d_file, "wt")
+            #fin.write(data)
+            #fin.close()
 
             ## tellfit pypeit file
-            tellfit_file = '{:}.tell'.format(spectrograph)
+            tellfit_file = f'{spectrograph}.tell'
             cfg_lines = ['[telluric]']
             if args.objmodel == 'qso':
                 cfg_lines += ['  objmodel = qso']
@@ -146,5 +162,67 @@ class FluxSetup(scriptbase.ScriptBase):
                 f.write('\n')
                 f.write('\n')
             msgs.info('PypeIt file written to: {0}'.format(tellfit_file))
+
+
+def write_input_file(outfile, files, 
+                     cfg_lines=None, file_block='data', 
+                     paths=None):
+    """
+    Generate a default PypeIt file
+
+    Args:
+        outfile (str): Name of output file to be generated
+        spectrograph (str):  Name of spectrograph
+        files (list):  List of data files -- essentially Deprecated
+        file_block (str): Type of file block to generate ['data', 'flux']
+        cfg_lines (list, optional):  List of configuration lines for parameters
+        paths (list, optional): List of paths for slurping data files
+    """
+    # Error checking
+    if not isinstance(files, list):
+        msgs.error("files needs to be a list")
+
+    # Defaults
+    if cfg_lines is None:
+        _cfg_lines = ['[rdx]']
+        _cfg_lines += ['    spectrograph = {0}'.format(spectrograph)]
+    else:
+        _cfg_lines = list(cfg_lines)
+
+    # Here we go
+    with open(outfile, 'w') as f:
+        f.write('# Auto-generated PypeIt input file using PypeIt version: {}\n'.format(__version__))
+        #f.write('# {0}\n'.format(time.strftime("%a %d %b %Y %H:%M:%S",time.localtime())))
+        f.write('# {0}\n'.format(time.strftime("%Y-%m-%d",time.localtime())))
+        f.write("\n")
+        f.write("# User-defined execution parameters\n")
+        f.write('\n'.join(_cfg_lines))
+        f.write('\n')
+        f.write('\n')
+
+        # Data
+        if file_block == 'data':
+            f.write("# Read in the data\n")
+        elif file_block == 'flux':
+            f.write("# Files to flux \n")
+        elif file_block == 'coadd1d':
+            f.write("# Files to coadd \n")
+        else:
+            msgs.error("Bad file block name")
+        f.write(f"{file_block} read\n")
+        # Old school
+        for datafile in files:
+            f.write(' '+datafile+'\n')
+        # paths and Setupfiles
+        if paths is not None:
+            for path in paths:
+                f.write(' path '+path+'\n')
+        #if sorted_files is not None:
+        #    f.write('\n'.join(sorted_files))
+        #    f.write('\n')
+        f.write(f"{file_block} end\n")
+        f.write("\n")
+
+    msgs.info('PypeIt input file written to: {0}'.format(outfile))
 
 

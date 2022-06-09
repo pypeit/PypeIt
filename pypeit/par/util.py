@@ -544,112 +544,112 @@ def _read_data_file_table(lines, file_check=True):
 #    return list(lines[is_config]), files
 
 
-def parse_pypeit_file(ifile, file_check=True, runtime=False):
-    """
-    Parse the user-provided .pypeit reduction file.
+#def parse_pypeit_file(ifile, file_check=True, runtime=False):
+#    """
+#    Parse the user-provided .pypeit reduction file.
+#
+#    Args:
+#        ifile (:obj:`str`):
+#            Name of pypeit file
+#        file_check (:obj:`bool`, optional):
+#            Check that the files in the pypeit configuration data file
+#            exist, and fault if they do not.
+#        runtime (:obj:`bool`, optional):
+#            Perform additional checks if called to run PypeIt
+#
+#    Returns:
+#        :obj:`tuple`:  Provides (1) a list of configuration lines, (2) a list of
+#        datafiles to read, (3) a list of frametypes for each file, (4) an
+#        `astropy.table.Table`_ with the user supplied metadata for the data
+#        files, (5) a list of setup lines, and (6) a instrument configuration
+#        (setup) dictionary.
+#    """
+#    # Read in the pypeit reduction file
+#    msgs.info('Loading the reduction file')
+#    lines = _read_pypeit_file_lines(ifile)
+#
+#    # Used to select the configuration lines: Anything that isn't part
+#    # of the data or setup blocks is assumed to be part of the
+#    # configuration
+#    is_config = np.ones(len(lines), dtype=bool)
+#
+#    # Parse data block
+#    s, e = _find_pypeit_block(lines, 'data')
+#    if s >= 0 and e < 0:
+#        msgs.error("Missing 'data end' in {0}".format(ifile))
+#    if s < 0:
+#        msgs.error("You haven't specified any data!")
+#    data_format = _determine_data_format(lines[s:e])
+#    if data_format == 'raw':
+#        frametype = None
+#        usrtbl = None
+#        data_files = _read_data_file_names(lines[s:e], file_check=file_check)
+#    elif data_format == 'table':
+#        data_files, frametype, usrtbl = _read_data_file_table(lines[s:e], file_check=file_check)
+#    is_config[s-1:e+1] = False
+#    if len(data_files) == 0 and file_check:
+#        msgs.error('There are no raw data frames' + msgs.newline() +
+#                   'Perhaps the path to the data is incorrect?')
+#    else:
+#        msgs.info('Found {0:d} raw data frames'.format(len(data_files)))
+#
+#    # Parse the setup block
+#    s, e = _find_pypeit_block(lines, 'setup')
+#    if s >= 0 and e < 0:
+#        msgs.error("Missing 'setup end' in {0}".format(ifile))
+#    if s < 0:
+#        # TODO: This gets issued every time anyone runs pypeit_setup.  Is this
+#        # warning worthwhile and/or still true?
+##        msgs.warn("Missing setup block! This may be a problem")
+#        setups, sdict = [], {}
+#    else:
+#        setups, sdict = _parse_setup_lines(lines[s:e])
+#        is_config[s-1:e+1] = False
+#
+#    # TODO: This should be moved to the PypeIt class
+#    # Running PypeIt?
+#    if runtime:
+#        for key in ['filename', 'frametype']:
+#            if key not in usrtbl.keys():
+#                msgs.error("Add {:s} to your PypeIt file before using run_pypeit".format(key))
+#        # Setup
+#        if len(setups) != 1:
+#            msgs.error("Add setup info to your PypeIt file in the setup block!")
+#
+#    msgs.info('Input file loaded successfully')
+#    return list(lines[is_config]), data_files, frametype, usrtbl, setups, sdict
 
-    Args:
-        ifile (:obj:`str`):
-            Name of pypeit file
-        file_check (:obj:`bool`, optional):
-            Check that the files in the pypeit configuration data file
-            exist, and fault if they do not.
-        runtime (:obj:`bool`, optional):
-            Perform additional checks if called to run PypeIt
 
-    Returns:
-        :obj:`tuple`:  Provides (1) a list of configuration lines, (2) a list of
-        datafiles to read, (3) a list of frametypes for each file, (4) an
-        `astropy.table.Table`_ with the user supplied metadata for the data
-        files, (5) a list of setup lines, and (6) a instrument configuration
-        (setup) dictionary.
-    """
-    # Read in the pypeit reduction file
-    msgs.info('Loading the reduction file')
-    lines = _read_pypeit_file_lines(ifile)
-
-    # Used to select the configuration lines: Anything that isn't part
-    # of the data or setup blocks is assumed to be part of the
-    # configuration
-    is_config = np.ones(len(lines), dtype=bool)
-
-    # Parse data block
-    s, e = _find_pypeit_block(lines, 'data')
-    if s >= 0 and e < 0:
-        msgs.error("Missing 'data end' in {0}".format(ifile))
-    if s < 0:
-        msgs.error("You haven't specified any data!")
-    data_format = _determine_data_format(lines[s:e])
-    if data_format == 'raw':
-        frametype = None
-        usrtbl = None
-        data_files = _read_data_file_names(lines[s:e], file_check=file_check)
-    elif data_format == 'table':
-        data_files, frametype, usrtbl = _read_data_file_table(lines[s:e], file_check=file_check)
-    is_config[s-1:e+1] = False
-    if len(data_files) == 0 and file_check:
-        msgs.error('There are no raw data frames' + msgs.newline() +
-                   'Perhaps the path to the data is incorrect?')
-    else:
-        msgs.info('Found {0:d} raw data frames'.format(len(data_files)))
-
-    # Parse the setup block
-    s, e = _find_pypeit_block(lines, 'setup')
-    if s >= 0 and e < 0:
-        msgs.error("Missing 'setup end' in {0}".format(ifile))
-    if s < 0:
-        # TODO: This gets issued every time anyone runs pypeit_setup.  Is this
-        # warning worthwhile and/or still true?
-#        msgs.warn("Missing setup block! This may be a problem")
-        setups, sdict = [], {}
-    else:
-        setups, sdict = _parse_setup_lines(lines[s:e])
-        is_config[s-1:e+1] = False
-
-    # TODO: This should be moved to the PypeIt class
-    # Running PypeIt?
-    if runtime:
-        for key in ['filename', 'frametype']:
-            if key not in usrtbl.keys():
-                msgs.error("Add {:s} to your PypeIt file before using run_pypeit".format(key))
-        # Setup
-        if len(setups) != 1:
-            msgs.error("Add setup info to your PypeIt file in the setup block!")
-
-    msgs.info('Input file loaded successfully')
-    return list(lines[is_config]), data_files, frametype, usrtbl, setups, sdict
-
-
-def pypeit_config_lines(ifile):
-    """
-    Return the config lines from a PypeIt file.
-
-    Args:
-        ifile (str): Name of PypeIt file
-
-    Returns:
-        list: List of configuration lines; will be used for ConfigObj
-
-    """
-    lines = _read_pypeit_file_lines(ifile)
-
-    # Find the config lines, assumed to be everything *except* the lines
-    # in the data and setup blocks
-    is_config = np.ones(len(lines), dtype=bool)
-
-    s, e = _find_pypeit_block(lines, 'data')
-    if s >= 0 and e < 0:
-        msgs.error("Missing 'data end' in {0}".format(ifile))
-    if not s < 0:
-        is_config[s-1:e+1] = False
-    
-    s, e = _find_pypeit_block(lines, 'setup')
-    if s >= 0 and e < 0:
-        msgs.error("Missing 'setup end' in {0}".format(ifile))
-    if not s < 0:
-        is_config[s-1:e+1] = False
-
-    return list(lines[is_config])
+#def pypeit_config_lines(ifile):
+#    """
+#    Return the config lines from a PypeIt file.
+#
+#    Args:
+#        ifile (str): Name of PypeIt file
+#
+#    Returns:
+#        list: List of configuration lines; will be used for ConfigObj
+#
+#    """
+#    lines = _read_pypeit_file_lines(ifile)
+#
+#    # Find the config lines, assumed to be everything *except* the lines
+#    # in the data and setup blocks
+#    is_config = np.ones(len(lines), dtype=bool)
+#
+#    s, e = _find_pypeit_block(lines, 'data')
+#    if s >= 0 and e < 0:
+#        msgs.error("Missing 'data end' in {0}".format(ifile))
+#    if not s < 0:
+#        is_config[s-1:e+1] = False
+#    
+#    s, e = _find_pypeit_block(lines, 'setup')
+#    if s >= 0 and e < 0:
+#        msgs.error("Missing 'setup end' in {0}".format(ifile))
+#    if not s < 0:
+#        is_config[s-1:e+1] = False
+#
+#    return list(lines[is_config])
     
 
 def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setup_mode=False,
