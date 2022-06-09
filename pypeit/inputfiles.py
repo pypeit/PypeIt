@@ -117,7 +117,7 @@ class InputFile:
             msgs.error(
                 f"Missing '{cls.data_block} end' in {input_file}")
         if s < 0:
-            msgs.error("You haven't specified any data!")
+            msgs.error("You have not specified any data!")
         paths, usrtbl = cls._read_data_file_table(lines[s:e])
         is_config[s-1:e+1] = False
 
