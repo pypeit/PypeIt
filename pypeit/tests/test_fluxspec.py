@@ -56,7 +56,7 @@ def test_input_flux_file():
     assert fluxFile2.file_paths[0] == paths[0]
     assert fluxFile2.filenames[0] == os.path.join(paths[0], data['filename'][0])
 
-    # #################3
+    # #################
     # Tickle the other ways to do sensfiles
     data3 = Table()
     data3['filename'] = ['spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits',

@@ -95,27 +95,7 @@ class FluxSetup(scriptbase.ScriptBase):
             flux_file = f'{spectrograph}.flux'
             fluxFile.write(flux_file)
 
-            # Add path
-            #path_plus_files = [os.path.join(
-            #    args.sci_path, item) for item in spec1dfiles]
-            # Write
-            #flux_file = f'{spectrograph}.flux'
-            #write_input_file(flux_file, path_plus_files, 
-            #                 cfg_lines=cfg_lines,
-            #                 data_block='flux')
-
-            #fin = open(flux_file, "rt")
-            #data = fin.read()
-            #data = data.replace('spec1d_', os.path.join(
-            #    args.sci_path,'spec1d_'))
-            #data = data.replace('data', 'flux')
-            #fin.close()
-            #fin = open(flux_file, "wt")
-            #fin.write(data)
-            #fin.close()
-
             ## coadd1d pypeit file
-            coadd1d_file = '{:}.coadd1d'.format(spectrograph)
             cfg_lines = ['[coadd1d]']
             cfg_lines += ['  coaddfile = YOUR_OUTPUT_FILE_NAME # Please set your output file name']
             cfg_lines += ['  sensfuncfile = YOUR_SENSFUNC_FILE # Please set your SENSFUNC file name. Only required for Echelle']
@@ -126,29 +106,28 @@ class FluxSetup(scriptbase.ScriptBase):
 
             cfg_lines += ['# This file includes all extracted objects. You need to figure out which object you want to \n'+\
                           '# coadd before running pypeit_coadd_1dspec!!!']
-            spec1d_info = []
+
+
+            all_specfiles, all_obj = [], []
             for ii in range(len(spec1dfiles)):
                 meta_tbl = Table.read(os.path.join(args.sci_path, spec1dfiles[ii]).replace('.fits', '.txt'),
                                       format='ascii.fixed_width')
                 _, indx = np.unique(meta_tbl['name'],return_index=True)
                 objects = meta_tbl[indx]
                 for jj in range(len(objects)):
-                    spec1d_info.append(
-                        os.path.join(args.sci_path,
-                        spec1dfiles[ii]) + ' '+ objects['name'][jj])
+                    all_specfiles.append(spec1dfiles[ii])
+                    all_obj.append(objects['name'][jj])
+            data = Table()
+            data['filename'] = all_specfiles
+            data['obj_id'] = all_obj
+            # Instantiate
+            coadd1dFile = inputfiles.Coadd1DFile(
+                config=cfg_lines,
+                file_paths = [args.sci_path], 
+                data_table=data)
             # Write
-            write_input_file(coadd1d_file, 
-                             spec1d_info, 
-                             file_block='coadd1d',
-                             cfg_lines=cfg_lines) 
-            #fin = open(coadd1d_file, "rt")
-            #data = fin.read()
-            #data = data.replace('spec1d_', os.path.join(args.sci_path,'spec1d_'))
-            #data = data.replace('data', 'coadd1d')
-            #fin.close()
-            #fin = open(coadd1d_file, "wt")
-            #fin.write(data)
-            #fin.close()
+            coadd1d_file = '{:}.coadd1d'.format(spectrograph)
+            coadd1dFile.write(coadd1d_file)
 
             ## tellfit pypeit file
             tellfit_file = f'{spectrograph}.tell'

@@ -558,3 +558,22 @@ class FluxFile(InputFile):
                   data_table=data)
 
         return slf
+
+class Coadd1DFile(InputFile):
+    """Child class for the Fluxing input file
+    """
+    data_block = 'coadd1d'  # Defines naming of data block
+    flavor = 'Coadd1D'  # Defines naming of file
+    setup_required = False
+
+    @property
+    def objids(self):
+        # Generate list, scrubbing empty entries
+        oids = [item for item in self.data['obj_id'] if item.strip() not in ['', 'none', 'None']]
+
+        # Inflate as needed
+        if len(oids) == 1 and len(oids) < len(self.data):
+            oids = oids*len(self.data)
+        # Return
+        return oids
+        

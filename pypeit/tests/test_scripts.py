@@ -300,8 +300,7 @@ def test_coadd1d_2():
 
     coadd_ifile = data_path('gemini_gnirs_32_sb_sxd.coadd1d')
     scripts.coadd_1dspec.CoAdd1DSpec.main(
-            scripts.coadd_1dspec.CoAdd1DSpec.parse_args([coadd_ifile, '--test_spec_path',
-                                                         data_path('')]))
+            scripts.coadd_1dspec.CoAdd1DSpec.parse_args([coadd_ifile]))
 
     hdu = io.fits_open(coadd_ofile)
     assert hdu[1].header['EXT_MODE'] == 'OPT'
