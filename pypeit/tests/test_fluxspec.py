@@ -10,6 +10,8 @@ from IPython import embed
 
 import numpy as np
 
+from astropy.table import Table
+
 from pypeit import fluxcalibrate
 from pypeit import sensfunc
 from pypeit.par import pypeitpar
@@ -18,6 +20,37 @@ from pypeit.tests.tstutils import cooked_required, telluric_required, data_path
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.spectrographs import keck_deimos
 from pypeit import specobjs, specobj
+from pypeit.tests import tstutils
+from pypeit.pypeitfile import FluxFile
+
+def test_input_flux_file():
+    """Tests for generating and reading fluxing input files
+    """
+    # Generate an input file
+    flux_input_file = tstutils.data_path('test.flux')
+    if os.path.isfile(flux_input_file):
+        os.remove(flux_input_file)
+
+    cfg_lines = ['[fluxcalib]']
+    cfg_lines += ['  extinct_correct = False # Set to True if your SENSFUNC derived with the UVIS algorithm\n']
+    cfg_lines += ['# Please add your SENSFUNC file name below before running pypeit_flux_calib']
+
+    data = Table()
+    data['filename'] = ['spec1d_A.fits', 'spec1d_B.fits']
+    data['sensfile'] = 'test_sensfile.fits'
+    # 
+
+    fluxFile = FluxFile(config=cfg_lines,
+                        data_table=data)
+    # Write
+    fluxFile.write(flux_input_file)
+
+    # Read
+    fluxFile2 = FluxFile.from_file(flux_input_file)
+    pytest.set_trace()
+
+    # Clean up
+    os.remove(flux_input_file)
 
 
 @pytest.fixture
