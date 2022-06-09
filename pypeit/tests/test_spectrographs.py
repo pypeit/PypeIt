@@ -11,8 +11,9 @@ from pypeit.pypmsgs import PypeItError
 from pypeit import spectrographs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import pypeitsetup
-from pypeit.par.util import make_pypeit_file
+from pypeit.tests import tstutils
 from pypeit.tests.tstutils import dev_suite_required, data_path
+from pypeit.tests.tstutils import make_shane_kast_blue_pypeitfile
 
 
 @dev_suite_required
@@ -263,9 +264,10 @@ def test_vltxshooternir():
 
 
 def test_select_detectors_pypeit_file():
-    # Generate a PYPIT file
+    # Generate a PypeIt file
+    pypeItFile = tstutils.make_shane_kast_blue_pypeitfile()
     pypeit_file = data_path('test.pypeit')
-    make_pypeit_file(pypeit_file, 'shane_kast_blue', [data_path('b*fits.gz')], setup_mode=True)
+    pypeItFile.write(pypeit_file)
 
     # Perform the setup
     setup = pypeitsetup.PypeItSetup.from_pypeit_file(pypeit_file)
