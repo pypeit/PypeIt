@@ -1,9 +1,11 @@
 """ Class for I/O of PypeIt input files"""
+
 import os
 import numpy as np
 import yaml
 import time
 import io
+import warnings
 
 import configobj
 
@@ -170,6 +172,7 @@ class InputFile:
 
         Returns:
             list: List of the configuration lines held in self.config
+            or None if self.config is None
         """
         if self.config is None:
             return None
@@ -177,37 +180,18 @@ class InputFile:
             return self.config.write()
 
     @property
-    def data_files(self):
-        """Generate a list of the data files with 
-        the full path.  The files must exist and be 
-        within one of the paths for this to succeed.
-
-        Raises:
-            ValueError: _description_
+    def filenames(self):
+        """ List of path + filename's
+        Wrapper to path_and_files().
+        See that function for a full description.
 
         Returns:
-            list: List of full path to each data file
+            list: List of the full paths to each data file
             or None if `filename` is not part of the data table
             or there is no data table!
         """
-        if self.data is None or 'filename' not in self.data.keys():
-            return None
-
-        ## Build full paths to file and set frame types
-        data_files = []
-        for row in self.data:
-            for p in self.file_paths:
-                filename = os.path.join(
-                    p, row['filename'])
-                if os.path.isfile(filename):
-                    break
-            # Check we got a good hit
-            if not os.path.isfile(filename): 
-                msgs.error(f"{row['filename']} does not exist in one of the provided paths.  Remove from your PypeIt file")
-            data_files.append(filename)
-        
         # Return
-        return data_files
+        return self.path_and_files('filename')
 
     @staticmethod
     def _parse_setup_lines(lines):
@@ -274,15 +258,16 @@ class InputFile:
         npaths = len(paths)
 
         # Read the table
+        #embed(header='263')
         #tbl = ascii.read(lines[npaths:].tolist(), 
         #                 header_start=0, 
         #                 data_start=1, 
         #                 format='fixed_width')
-        # Recast each as "object" in case the user has mucked with the Table
-        #  e.g. a mix of floats and None
+        ## Recast each as "object" in case the user has mucked with the Table
+        ##  e.g. a mix of floats and None
         #for key in tbl.keys():
         #    tbl[key] = tbl[key].data.astype(object)
-        #embed(header='249 of inputfiles')
+        ##embed(header='249 of inputfiles')
 
         # Build the table
         #  Because we allow (even encourage!) the users to modify entries by hand, 
@@ -341,12 +326,58 @@ class InputFile:
                 break
         return start, end
 
+    def path_and_files(self, key:str, skip_blank=False):
+        """Generate a list of the filenames with 
+        the full path.  The files must exist and be 
+        within one of the paths for this to succeed.
+
+        An error is raised if the path+file does not exist
+
+        Args:
+            key (str): Column of self.data with the filenames of interest
+            skip_blank (bool, optional): If True, ignore any
+            entry that is '', 'none' or 'None'. Defaults to False.
+
+        Returns:
+            list: List of the full paths to each data file
+            or None if `filename` is not part of the data table
+            or there is no data table!
+
+        """
+        if self.data is None or key not in self.data.keys():
+            return None
+
+        ## Build full paths to file and set frame types
+        data_files = []
+        for row in self.data:
+            # Searching..
+            if len(self.file_paths) > 0:
+                for p in self.file_paths:
+                    filename = os.path.join(
+                        p, row[key])
+                    if os.path.isfile(filename):
+                        break
+            else:
+                filename = row[key]
+
+            # Skip Empty entries?
+            if skip_blank and filename.strip() in ['', 'none', 'None']:
+                continue
+
+            # Check we got a good hit
+            if not os.path.isfile(filename): 
+                msgs.error(f"{row[key]} does not exist in one of the provided paths.  Remove from your PypeIt file")
+            data_files.append(filename)
+
+        # Return
+        return data_files
+
     def write(self, pypeit_input_file):
         """
         Write a PypeIt input file to disk
 
         Args:
-            pypeit_file (str): Name of PypeIt file to be generated
+            pypeit_input_file (str): Name of PypeIt file to be generated
         """
 
         # Here we go
@@ -398,10 +429,11 @@ class InputFile:
 
 
 
-
 class PypeItFile(InputFile):
+    """Child class for the PypeIt file
+    """
     data_block = 'data'  # Defines naming of data block
-    flavor = 'PypeIt'  # Defines naming of data block
+    flavor = 'PypeIt'  # Defines naming of file
     setup_required = True
 
     def vet(self):
@@ -425,9 +457,6 @@ class PypeItFile(InputFile):
         # Done
         msgs.info('PypeIt file successfully vetted.')
 
-        
-
-
     @property
     def frametypes(self):
         """Return a dict of the frametypes
@@ -443,61 +472,88 @@ class PypeItFile(InputFile):
         return frametypes
 
 class FluxFile(InputFile):
+    """Child class for the Fluxing input file
+    """
     data_block = 'flux'  # Defines naming of data block
-    flavor = 'Flux'  # Defines naming of data block
+    flavor = 'Flux'  # Defines naming of file
     setup_required = False
 
-    #@property
-    #def data_files(self):
-    #    """Generate a list of the data files with 
-    #    the full path.  The files must exist and be 
-    #    within one of the paths for this to succeed.
-#
-#        Raises:
-#            ValueError: _description_
-#
-#        Returns:
-#            list: List of full path to each data file
-#        """
-#        return list(self.data['filename'].data)
+    @property
+    def sensfiles(self):
+        """Generate a list of the sensitivity files with 
+        the full path.  The files must exist and be 
+        within one of the paths (or the current
+        folder with not other paths specified) for this to succeed.
 
-'''
-    @staticmethod
-    def _read_data_file_table(lines):
-        """
-        Read the file table format.
-        
-        Args:
-            lines (:obj:`list`):
-                List of lines *within the data* block read from the pypeit
-                file.
-        
+        Raises:
+            ValueError: _description_
+
         Returns:
-            Table:  A Table with the data provided in 
-            the input file.  
+            list: List of full path to each data file
+            or None if `filename` is not part of the data table
+            or there is no data table!
         """
+        # Grab em
+        sens_files = self.path_and_files('sensfile', skip_blank=True)
+        # Pad out
+        if len(sens_files) == 1 and len(self.filenames) > 1:
+            sens_files = sens_files*len(self.filenames)
+            
+        # Return
+        return sens_files
 
-        # Allow for multiple paths
-        paths = None
+    @classmethod
+    def read_old_fluxfile(cls, ifile):
+        """
+        Read an old style ``PypeIt`` flux file, akin to a standard ``PypeIt`` file.
 
+        The top is a config block that sets ParSet parameters.  
+
+        Args:
+            ifile (:obj:`str`):
+                Name of the flux file
+
+        Returns:
+            pypeit.inputfiles.FluxFile:
+        """
+        # Warn
+        warnings.warn("The old file type is deprecated and this code may disappear", DeprecationWarning)
+
+        # Read in the pypeit reduction file
+        msgs.info('Loading the fluxcalib file')
+        lines = read_pypeit_file_lines(ifile)
+        is_config = np.ones(len(lines), dtype=bool)
+
+        # Parse the fluxing block
         spec1dfiles = []
         sensfiles_in = []
-        for ctr, line in enumerate(lines):
-            prs = line.split(' ')
-            spec1dfiles.append(prs[0])
-            if len(prs) > 1:
-                sensfiles_in.append(prs[1])
-        # 
-        if len(sensfiles_in) == 1:
-            sensfiles_in = sensfiles_in*len(spec1dfiles)
-        elif len(sensfiles_in) == 0:
-            # This allows for auto-sensitivity files (e.g. DEIMOS)
-            sensfiles_in = None
+        s, e = InputFile.find_block(lines, 'flux')
+        if s >= 0 and e < 0:
+            msgs.error("Missing 'flux end' in {0}".format(ifile))
+        elif (s < 0) or (s==e):
+            msgs.error("Missing flux block in {0}. Check the input format for the .flux file".format(ifile))
+        else:
+            for ctr, line in enumerate(lines[s:e]):
+                prs = line.split(' ')
+                spec1dfiles.append(prs[0])
+                if len(prs) > 1:
+                    sensfiles_in.append(prs[1])
+            is_config[s-1:e+1] = False
 
-        # Build the Table
-        tbl = Table()
-        tbl['filename'] = spec1dfiles
-        tbl['sensfile'] = sensfiles_in
+        # data table
+        data = Table()
+        data['filename'] = spec1dfiles
+        # Sensfiles are a fussy matter
+        if len(sensfiles_in) == 0:
+            sensfiles = ['']*len(spec1dfiles)
+        elif len(sensfiles_in) == 1:
+            sensfiles = sensfiles_in*len(spec1dfiles)
+        else:
+            sensfiles = sensfiles_in
+        data['sensfile'] = sensfiles
 
-        return paths, tbl
-'''
+        # Instantiate
+        slf = cls(config=list(lines[is_config]), 
+                  data_table=data)
+
+        return slf

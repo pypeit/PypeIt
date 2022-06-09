@@ -20,7 +20,7 @@ from pypeit.spectrographs.util import load_spectrograph
 from pypeit.spectrographs import keck_deimos
 from pypeit import specobjs, specobj
 from pypeit.tests import tstutils
-from pypeit.inputfiles import FluxFile
+from pypeit import inputfiles 
 
 def test_input_flux_file():
     """Tests for generating and reading fluxing input files
@@ -42,14 +42,14 @@ def test_input_flux_file():
     # 
     paths = [tstutils.data_path('')]
 
-    fluxFile = FluxFile(config=cfg_lines, 
+    fluxFile = inputfiles.FluxFile(config=cfg_lines, 
                         file_paths=paths,
                         data_table=data)
     # Write
     fluxFile.write(flux_input_file)
 
     # Read
-    fluxFile2 = FluxFile.from_file(flux_input_file)
+    fluxFile2 = inputfiles.FluxFile.from_file(flux_input_file)
     assert np.all(fluxFile2.data['filename'] == data['filename'])
 
     # Test path
