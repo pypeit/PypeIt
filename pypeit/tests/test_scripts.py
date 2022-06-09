@@ -19,7 +19,6 @@ from pypeit import scripts
 from pypeit.tests.tstutils import dev_suite_required, cooked_required, data_path
 from pypeit.display import display
 from pypeit import edgetrace
-from pypeit import data
 from pypeit import io
 from pypeit import wavecalib
 from pypeit import coadd1d
