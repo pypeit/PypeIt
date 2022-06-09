@@ -93,7 +93,7 @@ class InputFile:
             msgs.error(f"Missing 'setup end' in {input_file}")
         elif s < 0 and cls.setup_required:
             msgs.error(f"Missing 'setup read' in {input_file}")
-        else:
+        elif s >= 0 and e > 0:
             setup_found = True
 
         # Proceed
@@ -176,6 +176,22 @@ class InputFile:
 
         return setups, sdict
 
+#    @staticmethod
+#    def _read_data_file_table(lines):
+#        """
+#        Read the file table format.
+#        
+#        Args:
+#            lines (:obj:`list`):
+#                List of lines *within the data* block read from the pypeit
+#                file.
+#        
+#        Returns:
+#            Table:  A Table with the data provided in 
+#            the pypeit file.  
+#        """
+#        return None, None
+
     @staticmethod
     def _read_data_file_table(lines):
         """
@@ -190,8 +206,40 @@ class InputFile:
             Table:  A Table with the data provided in 
             the pypeit file.  
         """
-        return None, None
 
+        # Allow for multiple paths
+        paths = []
+        for l in lines:
+            space_ind = l.index(" ")
+            if l[:space_ind].strip() != 'path':
+                break
+            paths += [ l[space_ind+1:] ]
+
+        npaths = len(paths)
+        header = [ l.strip() for l in lines[npaths].split('|') ][1:-1]
+
+        # Minimum columns required
+        #if 'filename' not in header:
+        #    msgs.error('Table format failure: No \'filename\' column.')
+        #if 'frametype' not in header:
+        #    msgs.error('Table format failure: No \'frametype\' column.')
+
+        # Build the table
+        nfiles = len(lines) - npaths - 1
+        tbl = np.empty((nfiles, len(header)), dtype=object)
+
+        for i in range(nfiles):
+            row = np.array([ l.strip() for l in lines[i+npaths+1].split('|') ])[1:-1]
+            if len(row) != tbl.shape[1]:
+                raise ValueError('Data and header lines have mismatched columns!')
+            tbl[i,:] = row
+        data = {}
+        for i,key in enumerate(header):
+            data[key] = tbl[:,i]
+        tbl = Table(data)
+
+
+        return paths, tbl
 
     def write(self, pypeit_input_file):
         """
@@ -235,8 +283,9 @@ class InputFile:
             f.write("# File block \n")
             f.write(f"{self.data_block} read\n")
             # paths and Setupfiles
-            for path in self.file_paths:
-                f.write(' path '+path+'\n')
+            if self.file_paths is not None:
+                for path in self.file_paths:
+                    f.write(' path '+path+'\n')
             with io.StringIO() as ff:
                 self.data.write(ff, format='ascii.fixed_width')
                 data_lines = ff.getvalue().split('\n')[:-1]
@@ -315,7 +364,6 @@ def read_pypeit_file_lines(ifile):
     lines = lines[np.array([ len(l) > 0 and l[0] != '#' for l in lines ])]
     # Remove appended comments and return
     return np.array([ l.split('#')[0] for l in lines ])
-
 
 class PypeItFile(InputFile):
     data_block = 'data'  # Defines naming of data block
@@ -434,3 +482,63 @@ class PypeItFile(InputFile):
 
 
         return paths, tbl
+
+class FluxFile(InputFile):
+    data_block = 'flux'  # Defines naming of data block
+    flavor = 'Flux'  # Defines naming of data block
+    setup_required = False
+
+    @property
+    def data_files(self):
+        """Generate a list of the data files with 
+        the full path.  The files must exist and be 
+        within one of the paths for this to succeed.
+
+        Raises:
+            ValueError: _description_
+
+        Returns:
+            list: List of full path to each data file
+        """
+        return list(self.data['filename'].data)
+
+'''
+    @staticmethod
+    def _read_data_file_table(lines):
+        """
+        Read the file table format.
+        
+        Args:
+            lines (:obj:`list`):
+                List of lines *within the data* block read from the pypeit
+                file.
+        
+        Returns:
+            Table:  A Table with the data provided in 
+            the input file.  
+        """
+
+        # Allow for multiple paths
+        paths = None
+
+        spec1dfiles = []
+        sensfiles_in = []
+        for ctr, line in enumerate(lines):
+            prs = line.split(' ')
+            spec1dfiles.append(prs[0])
+            if len(prs) > 1:
+                sensfiles_in.append(prs[1])
+        # 
+        if len(sensfiles_in) == 1:
+            sensfiles_in = sensfiles_in*len(spec1dfiles)
+        elif len(sensfiles_in) == 0:
+            # This allows for auto-sensitivity files (e.g. DEIMOS)
+            sensfiles_in = None
+
+        # Build the Table
+        tbl = Table()
+        tbl['filename'] = spec1dfiles
+        tbl['sensfile'] = sensfiles_in
+
+        return paths, tbl
+'''

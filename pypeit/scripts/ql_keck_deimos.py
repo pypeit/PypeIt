@@ -22,7 +22,7 @@ from pypeit.scripts.utils import Utilities
 from pypeit.pypeitsetup import PypeItSetup
 from pypeit import msgs
 from pypeit.scripts import run_pypeit
-from pypeit.par.util import make_pypeit_file
+#from pypeit.par.util import make_pypeit_file
 from pypeit import utils
 
 from IPython import embed

@@ -11,19 +11,11 @@ from astropy import units
 from astropy.coordinates import SkyCoord
 
 from pypeit.core import flux_calib
-from pypeit.core import load
-from pypeit.spectrographs.util import load_spectrograph
-from pypeit import specobjs
-from pypeit.tests.tstutils import dummy_fitstbl
 from pypeit.par.pypeitpar import Coadd1DPar
 
 
 from pypeit.pypmsgs import PypeItError
 
-
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
 
 
 # JFH This test is defunct
