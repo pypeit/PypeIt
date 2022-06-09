@@ -130,7 +130,6 @@ class FluxSetup(scriptbase.ScriptBase):
             coadd1dFile.write(coadd1d_file)
 
             ## tellfit pypeit file
-            tellfit_file = f'{spectrograph}.tell'
             cfg_lines = ['[telluric]']
             if args.objmodel == 'qso':
                 cfg_lines += ['  objmodel = qso']
@@ -144,17 +143,13 @@ class FluxSetup(scriptbase.ScriptBase):
                 cfg_lines += ['  objmodel = poly']
                 cfg_lines += ['  polyorder = 5']
                 cfg_lines += ['  fit_wv_min_max = 17000.0,22000.0']
+            # Instantiate
+            tellFile = inputfiles.TelluricFile(
+                config=cfg_lines)
+            # Write
+            tellfit_file = f'{spectrograph}.tell'
+            tellFile.write(tellfit_file)
 
-            with open(tellfit_file, 'w') as f:
-                f.write('# Auto-generated PypeIt file\n')
-                f.write('# {0}\n'.format(time.strftime("%a %d %m %Y %H:%M:%S", time.localtime())))
-                f.write("\n")
-                f.write("# User-defined execution parameters\n")
-                f.write("# This is only an example. Make sure to change the following parameters accordingly.\n")
-                f.write('\n'.join(cfg_lines))
-                f.write('\n')
-                f.write('\n')
-            msgs.info('PypeIt file written to: {0}'.format(tellfit_file))
 
 
 def write_input_file(outfile, files, 

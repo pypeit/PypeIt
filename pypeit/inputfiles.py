@@ -412,19 +412,20 @@ class InputFile:
                 f.write("\n")
             
             # Data block
-            f.write("# File block \n")
-            f.write(f"{self.data_block} read\n")
-            # paths and Setupfiles
-            if self.file_paths is not None:
-                for path in self.file_paths:
-                    f.write(' path '+path+'\n')
-            with io.StringIO() as ff:
-                self.data.write(ff, format='ascii.fixed_width')
-                data_lines = ff.getvalue().split('\n')[:-1]
-            f.write('\n'.join(data_lines))
-            f.write('\n')
-            f.write(f"{self.data_block} end\n")
-            f.write("\n")
+            if self.data is not None:
+                f.write("# File block \n")
+                f.write(f"{self.data_block} read\n")
+                # paths and Setupfiles
+                if self.file_paths is not None:
+                    for path in self.file_paths:
+                        f.write(' path '+path+'\n')
+                with io.StringIO() as ff:
+                    self.data.write(ff, format='ascii.fixed_width')
+                    data_lines = ff.getvalue().split('\n')[:-1]
+                f.write('\n'.join(data_lines))
+                f.write('\n')
+                f.write(f"{self.data_block} end\n")
+                f.write("\n")
 
         msgs.info(f'{self.flavor} input file written to: {pypeit_input_file}')
 
@@ -560,7 +561,7 @@ class FluxFile(InputFile):
         return slf
 
 class Coadd1DFile(InputFile):
-    """Child class for the Fluxing input file
+    """Child class for coaddition in 1D
     """
     data_block = 'coadd1d'  # Defines naming of data block
     flavor = 'Coadd1D'  # Defines naming of file
@@ -577,3 +578,16 @@ class Coadd1DFile(InputFile):
         # Return
         return oids
         
+class Coadd2DFile(InputFile):
+    """Child class for coaddition in 2D
+    """
+    data_block = 'spec2d'  # Defines naming of data block
+    flavor = 'Coadd2D'  # Defines naming of file
+    setup_required = False
+
+class TelluricFile(InputFile):
+    """Child class for telluric corrections
+    """
+    data_block = None  # Defines naming of data block
+    flavor = 'Telluric'  # Defines naming of file
+    setup_required = False

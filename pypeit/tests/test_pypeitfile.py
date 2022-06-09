@@ -26,8 +26,8 @@ def test_instantiate():
     pypeItFile = PypeItFile(confdict, file_paths, 
                                        data, setup_dict)
     # Data files                                    
-    data_files = pypeItFile.data_files
-    assert 'b1.fits.gz' in data_files[0]
+    filenames = pypeItFile.filenames
+    assert 'b1.fits.gz' in filenames[0]
 
     # Frame types
     frame_type_dict = pypeItFile.frametypes

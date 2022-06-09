@@ -152,6 +152,39 @@ def test_input_coadd1d_file():
                         data_table=data3)
     assert coadd1dFile3.objids[1] == data3['obj_id'][0]
 
+def test_input_coadd2d_file():
+    """ Test I/O of Coadd2D input files """
+
+    # Generate an input file
+    coadd2d_input_file = data_path('test.coadd2d')
+    if os.path.isfile(coadd2d_input_file):
+        os.remove(coadd2d_input_file)
+
+    cfg_lines = ['[coadd2d]']
+    cfg_lines += ['  use_slits4wvgrid = True']
+
+    # These files need to be in tests/files/
+    #  The ones below are bogus (i.e. not spec2d files)
+    data = Table()
+    data['filename'] = ['spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits',
+                        'spec1d_cN20170331S0217-pisco_GNIRS_20170331T085933.097.fits']
+    # 
+    paths = [data_path('')]
+
+    coadd2dFile = inputfiles.Coadd2DFile(config=cfg_lines, 
+                        file_paths=paths,
+                        data_table=data)
+    # Write
+    coadd2dFile.write(coadd2d_input_file)
+
+    # Read
+    coadd2dFile2 = inputfiles.Coadd2DFile.from_file(coadd2d_input_file)
+    assert np.all(coadd2dFile2.data['filename'] == data['filename'])
+
+    # Test path
+    assert coadd2dFile2.file_paths[0] == paths[0]
+    assert coadd2dFile2.filenames[0] == os.path.join(paths[0], data['filename'][0])
+
 @cooked_required
 def test_coadd_datacube():
     """ Test the coaddition of spec2D files into datacubes """
