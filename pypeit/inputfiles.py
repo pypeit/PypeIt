@@ -1,4 +1,4 @@
-""" Class for I/O of PypeIt file"""
+""" Class for I/O of PypeIt input files"""
 import os
 import numpy as np
 import yaml
@@ -8,17 +8,50 @@ import io
 import configobj
 
 from astropy.table import Table
+from astropy.io import ascii
 
 from pypeit import utils
 from pypeit import msgs, __version__
 
 from IPython import embed
 
+def read_pypeit_file_lines(ifile:str):
+    """
+    General parser for a PypeIt input file.
+    Used for many of our input files, including the main PypeIt file.
+
+    - Checks that the file exists.
+    - Reads all the lines in the file
+    - Removes comments, empty lines, and replaces special characters.
+    
+    Applies to settings, setup, and user-level reduction files.
+
+    Args:
+        ifile (str): Name of the file to parse.
+
+    Returns:
+        :obj:`numpy.ndarray`: Returns a list of the valid lines in the
+        files.
+    """
+    # Check the files
+    if not os.path.isfile(ifile):
+        msgs.error('The filename does not exist -' + msgs.newline() + ifile)
+
+    # Read the input lines and replace special characters
+    with open(ifile, 'r') as f:
+        lines = np.array([l.replace('\t', ' ').replace('\n', ' ').strip() \
+                                for l in f.readlines()])
+    # Remove empty or fully commented lines
+    lines = lines[np.array([ len(l) > 0 and l[0] != '#' for l in lines ])]
+    # Remove appended comments and return
+    return np.array([ l.split('#')[0] for l in lines ])
+
 class InputFile:
     """
     Generic class to load, process, and write PypeIt input files
 
-    In practice, we use one of the children of this class
+    In practice, we use one of the children of this clases,
+    e.g. PypeItFile
 
     Args:
         config (:obj:`dict` or :obj:`list`):
@@ -34,7 +67,7 @@ class InputFile:
     """
     data_block = None  # Defines naming of data block
     setup_required = False
-    flavor = 'generic'
+    flavor = 'Generic'
 
     def __init__(self, 
                  config=None, 
@@ -77,7 +110,7 @@ class InputFile:
         is_config = np.ones(len(lines), dtype=bool)
 
         # Parse data block
-        s, e = find_block(lines, cls.data_block) #'data')
+        s, e = cls.find_block(lines, cls.data_block) #'data')
         if s >= 0 and e < 0:
             msgs.error(
                 f"Missing '{cls.data_block} end' in {input_file}")
@@ -88,7 +121,7 @@ class InputFile:
 
         # Parse the setup block
         setup_found = False
-        s, e = find_block(lines, 'setup')
+        s, e = cls.find_block(lines, 'setup')
         if s >= 0 and e < 0 and cls.setup_required:
             msgs.error(f"Missing 'setup end' in {input_file}")
         elif s < 0 and cls.setup_required:
@@ -104,7 +137,7 @@ class InputFile:
             sdict = None
 
         # vet
-        msgs.info('PypeIt input file loaded successfully.')
+        msgs.info(f'{cls.flavor} input file loaded successfully.')
 
         # Instantiate
         slf = cls(config=list(lines[is_config]), 
@@ -138,7 +171,10 @@ class InputFile:
         Returns:
             list: List of the configuration lines held in self.config
         """
-        return self.config.write()
+        if self.config is None:
+            return None
+        else:
+            return self.config.write()
 
     @staticmethod
     def _parse_setup_lines(lines):
@@ -176,22 +212,6 @@ class InputFile:
 
         return setups, sdict
 
-#    @staticmethod
-#    def _read_data_file_table(lines):
-#        """
-#        Read the file table format.
-#        
-#        Args:
-#            lines (:obj:`list`):
-#                List of lines *within the data* block read from the pypeit
-#                file.
-#        
-#        Returns:
-#            Table:  A Table with the data provided in 
-#            the pypeit file.  
-#        """
-#        return None, None
-
     @staticmethod
     def _read_data_file_table(lines):
         """
@@ -216,30 +236,49 @@ class InputFile:
             paths += [ l[space_ind+1:] ]
 
         npaths = len(paths)
-        header = [ l.strip() for l in lines[npaths].split('|') ][1:-1]
 
-        # Minimum columns required
-        #if 'filename' not in header:
-        #    msgs.error('Table format failure: No \'filename\' column.')
-        #if 'frametype' not in header:
-        #    msgs.error('Table format failure: No \'frametype\' column.')
-
-        # Build the table
-        nfiles = len(lines) - npaths - 1
-        tbl = np.empty((nfiles, len(header)), dtype=object)
-
-        for i in range(nfiles):
-            row = np.array([ l.strip() for l in lines[i+npaths+1].split('|') ])[1:-1]
-            if len(row) != tbl.shape[1]:
-                raise ValueError('Data and header lines have mismatched columns!')
-            tbl[i,:] = row
-        data = {}
-        for i,key in enumerate(header):
-            data[key] = tbl[:,i]
-        tbl = Table(data)
-
-
+        # Read the table
+        tbl = ascii.read(lines[npaths:].tolist(), header_start=0, data_start=1, 
+                         format='fixed_width')
+        # Return
         return paths, tbl
+
+    @staticmethod
+    def find_block(lines, block):
+        """
+        Find a specific block of lines
+
+        These must be wrapped within "block read" and "block end", e.g.
+
+        setup read
+        Setup A: 
+        blah blah
+        setup end
+
+        Args:
+            lines (:obj:`list`):
+                List of file lines
+            block (:obj:`str`):
+                Name of block to parse
+
+        Returns:
+            int, int: Starting,ending line of the block;  
+                -1 if not present
+
+        """
+        start = -1
+        end = -1
+        for i, l in enumerate(lines):
+            entries = l.split()
+            if start < 0 and entries[0] == block and entries[1] == 'read':
+                start = i+1
+                continue
+            if entries[0] == block and entries[1] == 'end':
+                end = i
+                continue
+            if start >= 0 and end >= 0:
+                break
+        return start, end
 
     def write(self, pypeit_input_file):
         """
@@ -297,73 +336,7 @@ class InputFile:
         msgs.info(f'{self.flavor} input file written to: {pypeit_input_file}')
 
 
-def find_block(lines, block):
-    """
-    Find a specific block of lines
 
-    These must be wrapped within "block read" and "block end", e.g.
-
-    setup read
-    Setup A: 
-      blah blah
-    setup end
-
-    Args:
-        lines (:obj:`list`):
-            List of file lines
-        block (:obj:`str`):
-            Name of block to parse
-
-    Returns:
-        int, int: Starting,ending line of the block;  
-            -1 if not present
-
-    """
-    start = -1
-    end = -1
-    for i, l in enumerate(lines):
-        entries = l.split()
-        if start < 0 and entries[0] == block and entries[1] == 'read':
-            start = i+1
-            continue
-        if entries[0] == block and entries[1] == 'end':
-            end = i
-            continue
-        if start >= 0 and end >= 0:
-            break
-    return start, end
-
-
-def read_pypeit_file_lines(ifile):
-    """
-    General parser for a pypeit file.
-    Used for many of our input files, including the main PypeIt file.
-
-    - Checks that the file exists.
-    - Reads all the lines in the file
-    - Removes comments, empty lines, and replaces special characters.
-    
-    Applies to settings, setup, and user-level reduction files.
-
-    Args:
-        ifile (str): Name of the file to parse.
-
-    Returns:
-        :obj:`numpy.ndarray`: Returns a list of the valid lines in the
-        files.
-    """
-    # Check the files
-    if not os.path.isfile(ifile):
-        msgs.error('The filename does not exist -' + msgs.newline() + ifile)
-
-    # Read the input lines and replace special characters
-    with open(ifile, 'r') as f:
-        lines = np.array([l.replace('\t', ' ').replace('\n', ' ').strip() \
-                                for l in f.readlines()])
-    # Remove empty or fully commented lines
-    lines = lines[np.array([ len(l) > 0 and l[0] != '#' for l in lines ])]
-    # Remove appended comments and return
-    return np.array([ l.split('#')[0] for l in lines ])
 
 class PypeItFile(InputFile):
     data_block = 'data'  # Defines naming of data block
@@ -433,55 +406,6 @@ class PypeItFile(InputFile):
             frametypes[row['filename']] = row['frametype']
         #
         return frametypes
-
-    @staticmethod
-    def _read_data_file_table(lines):
-        """
-        Read the file table format.
-        
-        Args:
-            lines (:obj:`list`):
-                List of lines *within the data* block read from the pypeit
-                file.
-        
-        Returns:
-            Table:  A Table with the data provided in 
-            the pypeit file.  
-        """
-
-        # Allow for multiple paths
-        paths = []
-        for l in lines:
-            space_ind = l.index(" ")
-            if l[:space_ind].strip() != 'path':
-                break
-            paths += [ l[space_ind+1:] ]
-
-        npaths = len(paths)
-        header = [ l.strip() for l in lines[npaths].split('|') ][1:-1]
-
-        # Minimum columns required
-        #if 'filename' not in header:
-        #    msgs.error('Table format failure: No \'filename\' column.')
-        #if 'frametype' not in header:
-        #    msgs.error('Table format failure: No \'frametype\' column.')
-
-        # Build the table
-        nfiles = len(lines) - npaths - 1
-        tbl = np.empty((nfiles, len(header)), dtype=object)
-
-        for i in range(nfiles):
-            row = np.array([ l.strip() for l in lines[i+npaths+1].split('|') ])[1:-1]
-            if len(row) != tbl.shape[1]:
-                raise ValueError('Data and header lines have mismatched columns!')
-            tbl[i,:] = row
-        data = {}
-        for i,key in enumerate(header):
-            data[key] = tbl[:,i]
-        tbl = Table(data)
-
-
-        return paths, tbl
 
 class FluxFile(InputFile):
     data_block = 'flux'  # Defines naming of data block

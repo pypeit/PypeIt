@@ -13,7 +13,7 @@ import numpy as np
 from astropy.io import fits
 
 from pypeit import msgs
-from pypeit import pypeitfile
+from pypeit import inputfiles
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import fluxcalibrate
 from pypeit.par import pypeitpar
@@ -40,14 +40,14 @@ def read_fluxfile(ifile):
     """
     # Read in the pypeit reduction file
     msgs.info('Loading the fluxcalib file')
-    lines = pypeitfile.read_pypeit_file_lines(ifile)
+    lines = inputfiles.read_pypeit_file_lines(ifile)
     is_config = np.ones(len(lines), dtype=bool)
 
 
     # Parse the fluxing block
     spec1dfiles = []
     sensfiles_in = []
-    s, e = pypeitfile.find_block(lines, 'flux')
+    s, e = inputfiles.InputFile.find_block(lines, 'flux')
     if s >= 0 and e < 0:
         msgs.error("Missing 'flux end' in {0}".format(ifile))
     elif (s < 0) or (s==e):

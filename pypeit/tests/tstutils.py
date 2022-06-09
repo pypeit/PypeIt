@@ -22,7 +22,7 @@ from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.metadata import PypeItMetaData
 from pypeit import masterframe
-from pypeit.pypeitfile import PypeItFile 
+from pypeit.inputfiles import PypeItFile 
 
 # ----------------------------------------------------------------------
 # pytest @decorators setting the tests to perform

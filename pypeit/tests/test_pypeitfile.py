@@ -5,7 +5,7 @@ import pytest
 
 from astropy.table import Table
 
-from pypeit import pypeitfile
+from pypeit.inputfiles import PypeItFile
 from pypeit.tests.tstutils import data_path
 
 # Bits needed to generate a PypeIt file
@@ -23,7 +23,7 @@ setup_dict = {'Setup A': ' '}
 # TESTS
 def test_instantiate():
     # Test of instantiation
-    pypeItFile = pypeitfile.PypeItFile(confdict, file_paths, 
+    pypeItFile = PypeItFile(confdict, file_paths, 
                                        data, setup_dict)
     # Data files                                    
     data_files = pypeItFile.data_files
@@ -39,7 +39,7 @@ def test_instantiate():
 
 def test_read_pypeit_file():
     # Read the PypeIt file
-    pypeItFile = pypeitfile.PypeItFile.from_file(
+    pypeItFile = PypeItFile.from_file(
                 data_path('example_pypeit_file.pypeit'))
     assert isinstance(pypeItFile.config, dict)
 
@@ -50,7 +50,7 @@ def test_write_pypeit_file():
         os.remove(outfile)
 
     # Instantiate
-    pypeItFile = pypeitfile.PypeItFile(confdict, file_paths, 
+    pypeItFile = PypeItFile(confdict, file_paths, 
                                        data, setup_dict)
     # Write
     pypeItFile.write(outfile)

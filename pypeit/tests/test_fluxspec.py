@@ -15,13 +15,12 @@ from astropy.table import Table
 from pypeit import fluxcalibrate
 from pypeit import sensfunc
 from pypeit.par import pypeitpar
-from pypeit.scripts import flux_calib
 from pypeit.tests.tstutils import cooked_required, telluric_required, data_path
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.spectrographs import keck_deimos
 from pypeit import specobjs, specobj
 from pypeit.tests import tstutils
-from pypeit.pypeitfile import FluxFile
+from pypeit.inputfiles import FluxFile
 
 def test_input_flux_file():
     """Tests for generating and reading fluxing input files
@@ -47,7 +46,7 @@ def test_input_flux_file():
 
     # Read
     fluxFile2 = FluxFile.from_file(flux_input_file)
-    pytest.set_trace()
+    assert np.all(fluxFile2.data['filename'] == data['filename'])
 
     # Clean up
     os.remove(flux_input_file)

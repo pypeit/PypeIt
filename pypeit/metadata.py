@@ -19,7 +19,7 @@ from astropy import table, coordinates, time, units
 
 from pypeit import msgs
 from pypeit import utils
-from pypeit import pypeitfile
+from pypeit import inputfiles
 from pypeit.core import framematch
 from pypeit.core import flux_calib
 from pypeit.core import parse
@@ -1634,7 +1634,7 @@ class PypeItMetaData:
                 cfg_lines += ['    spectrograph = {0}'.format(self.spectrograph.name)]
 
             # Instantiate a PypeItFile
-            pypeItFile = pypeitfile.PypeItFile(cfg_lines, paths, subtbl, setup_dict)
+            pypeItFile = inputfiles.PypeItFile(cfg_lines, paths, subtbl, setup_dict)
             # Write
             pypeItFile.write(ofiles[j]) 
 

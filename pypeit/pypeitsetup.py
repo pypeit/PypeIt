@@ -15,7 +15,7 @@ from IPython import embed
 
 from pypeit import msgs
 from pypeit.metadata import PypeItMetaData
-from pypeit import pypeitfile
+from pypeit import inputfiles
 
 from pypeit.par import PypeItPar
 from pypeit.spectrographs.util import load_spectrograph
@@ -165,7 +165,7 @@ class PypeItSetup:
             :class:`PypeitSetup`: The instance of the class.
         """
         # Load up a pypeItFile object
-        pypeItFile = pypeitfile.PypeItFile.from_file(filename)
+        pypeItFile = inputfiles.PypeItFile.from_file(filename)
         # Instantiate
         return cls(pypeItFile.data_files, 
                    frametype=pypeItFile.frametypes, 
