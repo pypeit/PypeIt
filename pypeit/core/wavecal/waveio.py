@@ -104,8 +104,15 @@ def load_reid_arxiv(arxiv_file):
         dict, dict-like:
 
     """
-    # ToDO put in some code to allow user specified files rather than everything in the main directory
+    # This function allows users to specify their own `reid_arxiv`, in
+    #   particular, the output from `pypeit_identify`.
     calibfile, in_cache = data.get_reid_arxiv_filepath(arxiv_file)
+
+    # TODO: The `in_cache` bit is an ugly hack... work on finessing this,
+    #       especially in conjunction with dealing with the fact that
+    #       filenames in the cache are hashes of URLs, not proper "*.fits"
+    #       or whatever filenames.
+
     # This is a hack as it will fail if we change the data model yet again for wavelength solutions
     if calibfile[-4:] == 'json' or in_cache == 'json':
         wv_calib_arxiv = load_wavelength_calibration(calibfile)
