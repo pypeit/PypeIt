@@ -1,0 +1,46 @@
+#*
+#*                   H Z 1 5
+#*
+#*   Table file for flux standard HZ15 based on data from
+#*   Stone, R.P.S., 1977. Astrophys. J., 218, 767.
+#*   Adapted from SPICA .OKE file of the same or similar name.
+#*
+#*   These data are directly measured fluxes and should be used accordingly.
+#*   This file is designed for use with the Figaro routine GSPIKE.
+#*
+#SET .Z.UNITS = "AB magnitudes"
+#SET .Z.LABEL = "Flux"
+#SET .Z.REVSCALE = 1
+#SET .Z.MAGFLAG = 1
+#SET .TABLE.BANDWIDTH =  49
+#SET .TABLE.LAMBDA_DOUBLE =  5263
+#*
+ 3200 12.68 50
+ 3250 12.64 50
+ 3300 12.63 50
+ 3350 12.58 50
+ 3400 12.59 50
+ 3450 12.60 50
+ 3500 12.60 71
+ 3571 12.63 65
+ 3636 12.62 68
+ 3704 12.63 158
+ 3862 12.38 174
+ 4036 12.39 131
+ 4167 12.39 88
+ 4255 12.42 209
+ 4464 12.46 102
+ 4566 12.44 219
+ 4785 12.46 215
+ 5000 12.58 263
+ 5263 12.53 293
+ 5556 12.59 284
+ 5840 12.64 216
+ 6056 12.68 380
+ 6436 12.76 354
+ 6790 12.80 310
+ 7100 12.84 450
+ 7550 12.92 230
+ 7780 12.93 310
+ 8090 13.01 280
+ 8370 13.08 280
