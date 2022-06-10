@@ -9,6 +9,7 @@ from linetools.spectra import xspectrum1d
 
 from pypeit import data
 from pypeit import __version__
+from pypeit.core.wavecal import waveio
 
 
 def test_cloud_url():
@@ -64,3 +65,10 @@ def test_search_cache():
     data.write_file_to_cache(os.path.join(data.Paths.linelist, 'ArI_lines.dat'),
                              'totally_special_argon_lines.dat', 'arc_lines/reid_arxiv')
     assert os.path.isfile(data.search_cache('totally_special')[0])
+
+
+def test_waveio_load_reid_arxiv():
+
+    # Test the extension logic, given the download/cache system
+    waveio.load_reid_arxiv("vlt_xshooter_vis1x1.fits")
+    waveio.load_reid_arxiv("vlt_xshooter_vis1x1.json")
