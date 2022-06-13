@@ -64,5 +64,4 @@ def test_write_pypeit_file():
     pypeItFile2 = PypeItFile.from_file(outfile)
 
     # Clean up
-    pytest.set_trace()
     os.remove(outfile)
