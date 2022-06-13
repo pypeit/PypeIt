@@ -10,7 +10,7 @@ import warnings
 
 import configobj
 
-from astropy.table import Table
+from astropy.table import Table, column
 from astropy.io import ascii
 
 from pypeit import utils
@@ -280,8 +280,15 @@ class InputFile:
 
         ## Recast each as "object" in case the user has mucked with the Table
         ##  e.g. a mix of floats and None
+        ##  Also handle Masked columns (these should have been blank)
         for key in tbl.keys():
+            # Object
             tbl[key] = tbl[key].data.astype(object)
+            # Masked? i.e. empty
+            if isinstance(tbl[key], column.MaskedColumn):
+                # Replace with empty string
+                tbl.remove_column(key)
+                tbl[key] = ''
 
         # Build the table
         #  Because we allow (even encourage!) the users to modify entries by hand, 
