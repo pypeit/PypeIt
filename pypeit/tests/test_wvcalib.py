@@ -1,11 +1,7 @@
 """
 Module to run tests on WaveCalib and WaveFit
 """
-import sys
-import io
 import os
-import shutil
-import inspect
 
 import pytest
 
@@ -15,10 +11,8 @@ from pypeit.core.wavecal import wv_fitting
 from pypeit.core import fitting
 from pypeit import wavecalib
 from pypeit import slittrace
+from pypeit.tests.tstutils import data_path
 
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
 
 def test_wavefit():
     "Fuss with the WaveFit DataContainer"

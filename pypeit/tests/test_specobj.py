@@ -10,7 +10,6 @@ import pytest
 
 import numpy as np
 
-from astropy.table import Table
 from astropy.io import fits
 
 from pypeit import specobj

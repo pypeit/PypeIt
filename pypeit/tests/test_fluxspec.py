@@ -1,6 +1,6 @@
 """
 Module to run tests on SensFunc and FluxCalibrate classes
-Requires files in Development suite (Cooked) and an Environmental variable
+Requires files in PypeIt/pypeit/data
 """
 import os
 
@@ -15,7 +15,7 @@ from astropy.table import Table
 from pypeit import fluxcalibrate
 from pypeit import sensfunc
 from pypeit.par import pypeitpar
-from pypeit.tests.tstutils import cooked_required, telluric_required, data_path
+from pypeit.tests.tstutils import data_path
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.spectrographs import keck_deimos
 from pypeit import specobjs, specobj
@@ -81,73 +81,6 @@ def test_input_flux_file():
 
     # Clean up
     os.remove(flux_input_file)
-
-
-@pytest.fixture
-@cooked_required
-def kast_blue_files():
-    std_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                            'spec1d_b24-Feige66_KASTb_20150520T041246.960.fits')
-    sci_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                            'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
-    return [std_file, sci_file]
-
-
-@cooked_required
-def test_gen_sensfunc(kast_blue_files):
-
-    sens_file = data_path('sensfunc.fits')
-    if os.path.isfile(sens_file):
-        os.remove(sens_file)
-
-    # Get it started
-    spectrograph = load_spectrograph('shane_kast_blue')
-    par = spectrograph.default_pypeit_par()
-    std_file, sci_file = kast_blue_files
-    # Instantiate
-    sensFunc = sensfunc.UVISSensFunc(std_file, sens_file)
-    # Test the standard loaded
-    assert sensFunc.meta_spec['BINNING'] == '1,1'
-    assert sensFunc.meta_spec['TARGET'] == 'Feige 66'
-
-    # Generate the sensitivity function
-    sensFunc.run()
-    # Test
-    assert os.path.basename(sensFunc.std_cal) == 'feige66_002.fits'
-    # TODO: @jhennawi, please check this edit
-    assert 'SENS_ZEROPOINT' in sensFunc.sens.keys(), 'Bad column names'
-    # Write
-    sensFunc.to_file(sens_file)
-
-    os.remove(sens_file)
-
-
-@cooked_required
-def test_from_sens_func(kast_blue_files):
-
-    sens_file = data_path('sensfunc.fits')
-    if os.path.isfile(sens_file):
-        os.remove(sens_file)
-
-    spectrograph = load_spectrograph('shane_kast_blue')
-    par = spectrograph.default_pypeit_par()
-    std_file, sci_file = kast_blue_files
-
-    # Build the sensitivity function
-    sensFunc = sensfunc.UVISSensFunc(std_file, sens_file)
-    sensFunc.run()
-    sensFunc.to_file(sens_file)
-
-    # Instantiate and run
-    outfile = data_path(os.path.basename(sci_file))
-    fluxCalibrate = fluxcalibrate.MultiSlitFC([sci_file], [sens_file], par=par['fluxcalib'],
-                                              outfiles=[outfile])
-    # Test
-    sobjs = specobjs.SpecObjs.from_fitsfile(outfile)
-    assert 'OPT_FLAM' in sobjs[0].keys()
-
-    os.remove(sens_file)
-    os.remove(outfile)
 
 
 def test_extinction_correction_uvis():
@@ -218,7 +151,6 @@ def extinction_correction_tester(algorithm):
     os.remove(sens_file)
 
 
-@telluric_required
 def test_wmko_flux_std():
 
     outfile = data_path('tmp_sens.fits')
