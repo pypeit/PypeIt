@@ -1440,6 +1440,7 @@ class PypeItMetaData:
             mjd[mjd == None] = -99999.0
             isort = np.argsort(mjd)
             subtbl = subtbl[isort]
+            # This needs to match the format for writing file blocks in pypeit.inputfiles.InputFile
             subtbl.write(ff, format='ascii.fixed_width', bookend=False)
         ff.write('##end\n')
         ff.close()
