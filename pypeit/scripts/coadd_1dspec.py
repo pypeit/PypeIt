@@ -116,8 +116,10 @@ def build_coadd_file_name(spec1dfiles, spectrograph):
     path = os.path.dirname(os.path.abspath(spec1dfiles[0]))
     return os.path.join(path, f'coadd1d_{target}_{instrument_name}_{date_portion}.fits')
 
+# 
 # TODO: I can't find where this function is used.  The only place is see is in
 # test_syncspec.py.  Can we comment it out or remove it?
+# DEPRECATED
 #def coadd1d_filelist(files, outroot, det, debug=False, show=False):
 #    """
 #

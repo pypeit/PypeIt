@@ -2,6 +2,7 @@
 
 import os
 import numpy as np
+from pyparsing import delimited_list
 import yaml
 import time
 import io
@@ -250,41 +251,54 @@ class InputFile:
         # Allow for multiple paths
         paths = []
         for l in lines:
-            space_ind = l.index(" ")
-            if l[:space_ind].strip() != 'path':
+            # Original
+            #space_ind = l.index(" ")
+            #if l[:space_ind].strip() != 'path':
+            #    break
+            #paths += [ l[space_ind+1:] ]
+
+            # Strip allows for preceding spaces before path
+            prs = l.strip().split(" ")
+            if prs[0] != 'path':
                 break
-            paths += [ l[space_ind+1:] ]
+            paths += [ prs[1] ]
 
         npaths = len(paths)
 
         # Read the table
-        #embed(header='263')
-        #tbl = ascii.read(lines[npaths:].tolist(), 
-        #                 header_start=0, 
-        #                 data_start=1, 
-        #                 format='fixed_width')
+        tbl = ascii.read(lines[npaths:].tolist(), 
+                         header_start=0, 
+                         data_start=1, 
+                         delimiter='|', format='basic')
+
+        # Backwards compatability (i.e. the leading |)
+        if list(tbl.keys())[0] == 'col0':
+            msgs.warn("Your PypeIt file was written in the old format")
+            msgs.warn("We intend to maintain backwards compatability, but best to conform to the new format...")
+            tbl.remove_column('col0')
+            tbl.remove_column('_1')
+
         ## Recast each as "object" in case the user has mucked with the Table
         ##  e.g. a mix of floats and None
-        #for key in tbl.keys():
-        #    tbl[key] = tbl[key].data.astype(object)
-        ##embed(header='249 of inputfiles')
+        for key in tbl.keys():
+            tbl[key] = tbl[key].data.astype(object)
 
         # Build the table
         #  Because we allow (even encourage!) the users to modify entries by hand, 
         #   we have a custom way to parse what is largely a standard fixed_width table
-        nfiles = len(lines) - npaths - 1
-        header = [ l.strip() for l in lines[npaths].split('|') ][1:-1]
-        tbl = np.empty((nfiles, len(header)), dtype=object)
-
-        for i in range(nfiles):
-            row = np.array([ l.strip() for l in lines[i+npaths+1].split('|') ])[1:-1]
-            if len(row) != tbl.shape[1]:
-                raise ValueError('Data and header lines have mismatched columns!')
-            tbl[i,:] = row
-        data = {}
-        for i,key in enumerate(header):
-            data[key] = tbl[:,i]
-        tbl = Table(data)
+        #nfiles = len(lines) - npaths - 1
+        #header = [ l.strip() for l in lines[npaths].split('|') ][1:-1]
+        #tbl = np.empty((nfiles, len(header)), dtype=object)
+#
+#        for i in range(nfiles):
+#            row = np.array([ l.strip() for l in lines[i+npaths+1].split('|') ])[1:-1]
+#            if len(row) != tbl.shape[1]:
+#                raise ValueError('Data and header lines have mismatched columns!')
+#            tbl[i,:] = row
+#        data = {}
+#        for i,key in enumerate(header):
+#            data[key] = tbl[:,i]
+#        tbl = Table(data)
 
         # Return
         return paths, tbl
@@ -420,7 +434,8 @@ class InputFile:
                     for path in self.file_paths:
                         f.write(' path '+path+'\n')
                 with io.StringIO() as ff:
-                    self.data.write(ff, format='ascii.fixed_width')
+                    self.data.write(ff, format='ascii.fixed_width',
+                                    bookend=False)
                     data_lines = ff.getvalue().split('\n')[:-1]
                 f.write('\n'.join(data_lines))
                 f.write('\n')

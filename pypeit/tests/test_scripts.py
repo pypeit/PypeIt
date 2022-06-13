@@ -628,58 +628,60 @@ def test_flux_calib(tmp_path, monkeypatch):
             parsed_args = scripts.flux_calib.FluxCalib.parse_args([config_file_missing_flux])
             scripts.flux_calib.FluxCalib.main(parsed_args)
 
-        # Test 1 sens file with multiple spec1ds
-        config_file_one_to_many = str(tmp_path / "test_flux_calib_1_to_many.flux")
-        with open(config_file_one_to_many, "w") as f:
-            print("flux read", file=f)
-            print("| filename | sensfile |", file=f)
-            print("| spec1d_file1.fits | sens_file1.fits |", file=f)
-            print("| spec1d_file2.fits |                 |", file=f)
-            print("| spec1d_file3.fits |                 |", file=f)
-            print("flux end", file=f)
-
-        parsed_args = scripts.flux_calib.FluxCalib.parse_args([config_file_one_to_many])
-        assert scripts.flux_calib.FluxCalib.main(parsed_args) == 0
-        pytest.set_trace()
-
-        # Test 1 sens file per spec1d
-        config_file_one_to_one = str(tmp_path / "test_flux_calib_one_to_one.flux")
-        with open(config_file_one_to_one, "w") as f:
-            print("flux read", file=f)
-            print("| filename | sensfile |", file=f)
-            print("| spec1d_file1.fits | sens_file1.fits |", file=f)
-            print("| spec1d_file2.fits | sens_file2.fits |", file=f)
-            print("| spec1d_file3.fits | sens_file3.fits |", file=f)
-            print("flux end", file=f)
-
-        parsed_args = scripts.flux_calib.FluxCalib.parse_args([config_file_one_to_one])
-        assert scripts.flux_calib.FluxCalib.main(parsed_args) == 0
-        
-        # Test with no sensfunc, but using an archived sensfunc
-        config_file_use_arxiv = str(tmp_path / "test_flux_calib_use_arxiv.flux")
-        with open(config_file_use_arxiv, "w") as f:
-            print("[fluxcalib]", file=f)
-            print(" use_archived_sens = True", file=f)
-            print("flux read", file=f)
-            print("| filename | sensfile |", file=f)
-            print("| spec1d_file1.fits | |", file=f)
-            print("| spec1d_file2.fits | |", file=f)
-            print("| spec1d_file3.fits | |", file=f)
-            print("flux end", file=f)
-
-        parsed_args = scripts.flux_calib.FluxCalib.parse_args([config_file_use_arxiv])
-        assert scripts.flux_calib.FluxCalib.main(parsed_args) == 0
-        
+#        #####
+#        THESE ARE NEARLY REPLICATED IN test_fluxspec.py
+#        #####
+#        # Test 1 sens file with multiple spec1ds
+#        config_file_one_to_many = str(tmp_path / "test_flux_calib_1_to_many.flux")
+#        with open(config_file_one_to_many, "w") as f:
+#            print("flux read", file=f)
+#            print("| filename | sensfile |", file=f)
+#            print("| spec1d_file1.fits | sens_file1.fits |", file=f)
+#            print("| spec1d_file2.fits |                 |", file=f)
+#            print("| spec1d_file3.fits |                 |", file=f)
+#            print("flux end", file=f)
+#
+#        parsed_args = scripts.flux_calib.FluxCalib.parse_args([config_file_one_to_many])
+#        assert scripts.flux_calib.FluxCalib.main(parsed_args) == 0
+#
+#        # Test 1 sens file per spec1d
+#        config_file_one_to_one = str(tmp_path / "test_flux_calib_one_to_one.flux")
+#        with open(config_file_one_to_one, "w") as f:
+#            print("flux read", file=f)
+#            print("| filename | sensfile |", file=f)
+#            print("| spec1d_file1.fits | sens_file1.fits |", file=f)
+#            print("| spec1d_file2.fits | sens_file2.fits |", file=f)
+#            print("| spec1d_file3.fits | sens_file3.fits |", file=f)
+#            print("flux end", file=f)
+#
+#        parsed_args = scripts.flux_calib.FluxCalib.parse_args([config_file_one_to_one])
+#        assert scripts.flux_calib.FluxCalib.main(parsed_args) == 0
+#        
+#        # Test with no sensfunc, but using an archived sensfunc
+#        config_file_use_arxiv = str(tmp_path / "test_flux_calib_use_arxiv.flux")
+#        with open(config_file_use_arxiv, "w") as f:
+#            print("[fluxcalib]", file=f)
+#            print(" use_archived_sens = True", file=f)
+#            print("flux read", file=f)
+#            print("| filename | sensfile |", file=f)
+#            print("| spec1d_file1.fits | |", file=f)
+#            print("| spec1d_file2.fits | |", file=f)
+#            print("| spec1d_file3.fits | |", file=f)
+#            print("flux end", file=f)
+#
+#        parsed_args = scripts.flux_calib.FluxCalib.parse_args([config_file_use_arxiv])
+#        assert scripts.flux_calib.FluxCalib.main(parsed_args) == 0
+       
         
         # Test with no sensfunc, but it's an error because an archive sensfunc
         # was not requested
         config_file_no_sens = str(tmp_path / "test_flux_calib_no_sens.flux")
         with open(config_file_no_sens, "w") as f:
             print("flux read", file=f)
+            print(f"path {data_path('')}", file=f)
             print("| filename | sensfile |", file=f)
-            print("| spec1d_file1.fits | |", file=f)
-            print("| spec1d_file2.fits | |", file=f)
-            print("| spec1d_file3.fits | |", file=f)
+            print("| spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits | |", file=f)
+            print("| spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits | |", file=f)
             print("flux end", file=f)
 
         with pytest.raises(PypeItError, match = 'Invalid format for .flux'):

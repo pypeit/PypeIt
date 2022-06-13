@@ -36,16 +36,21 @@ def test_instantiate():
     # More tests
     assert pypeItFile.setup_name == 'A'
 
-
 def test_read_pypeit_file():
-    # Read the PypeIt file
+    # Read the PypeIt file (backwards compatability)
     pypeItFile = PypeItFile.from_file(
                 data_path('example_pypeit_file.pypeit'))
     assert isinstance(pypeItFile.config, dict)
 
+def test_read_backwards_pypeit_file():
+    # Read the PypeIt file (backwards compatability)
+    pypeItFile = PypeItFile.from_file(
+                data_path('example_pypeit_file_backwards.pypeit'))
+    assert isinstance(pypeItFile.config, dict)
+
 def test_write_pypeit_file():
     # Test writing a PypeIt file
-    outfile = data_path('tmp_pypeit.file')
+    outfile = data_path('tmp_file.pypeit')
     if os.path.isfile(outfile):
         os.remove(outfile)
 
@@ -55,5 +60,9 @@ def test_write_pypeit_file():
     # Write
     pypeItFile.write(outfile)
 
+    # Let's read it too
+    pypeItFile2 = PypeItFile.from_file(outfile)
+
     # Clean up
+    pytest.set_trace()
     os.remove(outfile)

@@ -1440,7 +1440,7 @@ class PypeItMetaData:
             mjd[mjd == None] = -99999.0
             isort = np.argsort(mjd)
             subtbl = subtbl[isort]
-            subtbl.write(ff, format='ascii.fixed_width')
+            subtbl.write(ff, format='ascii.fixed_width', bookend=False)
         ff.write('##end\n')
         ff.close()
 

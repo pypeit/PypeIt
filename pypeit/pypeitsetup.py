@@ -167,7 +167,7 @@ class PypeItSetup:
         # Load up a pypeItFile object
         pypeItFile = inputfiles.PypeItFile.from_file(filename)
         # Instantiate
-        return cls(pypeItFile.data_files, 
+        return cls(pypeItFile.filenames, 
                    frametype=pypeItFile.frametypes, 
                    usrdata=pypeItFile.data, 
                    setups=[pypeItFile.setup_name],
