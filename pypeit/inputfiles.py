@@ -280,15 +280,14 @@ class InputFile:
 
         ## Recast each as "object" in case the user has mucked with the Table
         ##  e.g. a mix of floats and None
-        ##  Also handle Masked columns (these should have been blank)
+        ##  Also handle Masked columns -- fill with ''
         for key in tbl.keys():
             # Object
             tbl[key] = tbl[key].data.astype(object)
-            # Masked? i.e. empty
             if isinstance(tbl[key], column.MaskedColumn):
-                # Replace with empty string
-                tbl.remove_column(key)
-                tbl[key] = ''
+                # Fill with empty string
+                tbl[key].fill_value = ''
+                tbl[key] = tbl[key].filled()
 
         # Build the table
         #  Because we allow (even encourage!) the users to modify entries by hand, 
@@ -517,7 +516,6 @@ class FluxFile(InputFile):
         if 'sensfile' not in self.data.keys():
             msgs.warn("sensfile column not provided.  Fluxing will crash if an archived sensitivity function does not exist")
             self.data['sensfile'] = ''
-
 
     @property
     def sensfiles(self):
