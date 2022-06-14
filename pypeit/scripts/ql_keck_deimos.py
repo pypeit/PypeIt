@@ -5,6 +5,7 @@
 # -*- coding: utf-8 -*-
 """
 This script runs PypeIt *fast* on a set of DEIMOS images
+  Provided...  the calibrations were generated earlier in the day
 
 .. include:: ../include/links.rst
 """
@@ -223,7 +224,7 @@ def run_on_science(pargs, calib_pypeit_file, ps_sci):
     if science_file not in calibPypeItFile.filenames:
         new_row = {}
         for key in calibPypeItFile.data.keys():
-            new_row[key] = calibPypeItFile.data[key][0]
+            new_row[key] = ps_sci.fitstbl[key][0]
         new_row['filename'] = pargs.science
 
     # Generate data block
