@@ -26,9 +26,9 @@ a leading ``#`` and are always ignored.
 
 The main three components of a ``PypeIt`` input file are:
 
-    - ``parameter block``
-    - ``setup block``
-    - ``data block``
+    - `Parameter Block`_
+    - `Setup Block`_
+    - `Data Block`_
 
 The individual file types make use of one or more of
 these components as needed.  Their ordering is not 
@@ -91,12 +91,9 @@ to the type of input file.  Here is an example for a
     # Data block
     data read
     path /Users/westfall/Work/packages/PYPIT/pypit/tests/files/
-        filename |                   date | frametype |     target | exptime | disp
-    name |     decker 
-    b1.fits.gz | 2015-05-20T01:35:58.10 |       arc |       Arcs |      30 | 600/
-    4310 | 0.5 arcsec 
-    b27.fits.gz | 2015-05-20T04:57:33.56 |   science | J1217p3905 |    1200 | 600/
-    4310 | 2.0 arcsec 
+       filename |                   date | frametype |     target | exptime | disp name |     decker 
+     b1.fits.gz | 2015-05-20T01:35:58.10 |       arc |       Arcs |      30 | 600/ 4310 | 0.5 arcsec 
+    b27.fits.gz | 2015-05-20T04:57:33.56 |   science | J1217p3905 |    1200 | 600/ 4310 | 2.0 arcsec 
     data end
 
 We now describe the two parts of the data block
@@ -120,3 +117,10 @@ data
 After the ``paths`` portion is a | delimited table that
 provides data.  It usually contains at a minimum a column
 specifying the files to be processed by the script.
+
+Links to Pypeit Input Files
+===========================
+
+Here are the main set of :doc:`input_files`:
+
+    - :doc:`pypeit_file`
