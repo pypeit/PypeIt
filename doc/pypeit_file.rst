@@ -71,7 +71,6 @@ metadata for that instrument configuration.
 it is informational and required. See :doc:`setup`
 for further details.
 
-.. _data_block:
 
 Data Block
 ----------

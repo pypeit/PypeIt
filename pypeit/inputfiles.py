@@ -502,6 +502,18 @@ class FluxFile(InputFile):
     flavor = 'Flux'  # Defines naming of file
     setup_required = False
 
+    def vet(self):
+        """ Check for required parts of the Fluxing input
+        file and handle the various options for sensfile
+        """
+        # Add a dummy sensfile column?
+        #  This is allowed if using an archived sensitivity function
+        #  And the checking has to be done in the script as the specgtrograph must be known..
+        if 'sensfile' not in self.data.keys():
+            msgs.warn("sensfile column not provided.  Fluxing will crash if an archived sensitivity function does not exist")
+            self.data['sensfile'] = ''
+
+
     @property
     def sensfiles(self):
         """Generate a list of the sensitivity files with 

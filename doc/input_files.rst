@@ -37,6 +37,8 @@ order above.
 
 We now described each in turn.
 
+.. _parameter_block:
+
 Parameter Block
 ===============
 
@@ -71,6 +73,8 @@ This block describes the instrument configuration.
 As it is only required and used with the :doc:`pypeit_file`
 we refer to its documentation of the :ref:`setup_block`
 for full details.
+
+.. _data_block:
 
 Data Block
 ==========
@@ -124,3 +128,5 @@ Links to Pypeit Input Files
 Here are the main set of :doc:`input_files`:
 
     - :doc:`pypeit_file`
+    - :ref:`sensitivity_file`
+    - :ref:`flux_file`
