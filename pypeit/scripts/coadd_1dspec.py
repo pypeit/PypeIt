@@ -175,37 +175,7 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
                                     width=width, formatter=scriptbase.SmartFormatter)
 
         parser.add_argument('coadd1d_file', type=str,
-                            help="R|File to guide coadding process. This file must have the "
-                                 "following format: \n\n"
-                                 "F|[coadd1d]\n"
-                                 "F|   coaddfile='output_filename.fits' # Optional\n"
-                                 "F|   sensfuncfile = 'sensfunc.fits' # Required only for Echelle\n"
-                                 "\n"
-                                 "F|   coadd1d read\n"
-                                 "F|     spec1dfile1 objid1\n"
-                                 "F|     spec1dfile2 objid2\n"
-                                 "F|     spec1dfile3 objid3\n"
-                                 "F|        ...    \n"
-                                 "F|   coadd1d end\n"
-                                 "\n OR the coadd1d read/end block can look like \n\n"
-                                 "F|  coadd1d read\n"
-                                 "F|     spec1dfile1 objid \n"
-                                 "F|     spec1dfile2 \n"
-                                 "F|     spec1dfile3 \n"
-                                 "F|     ...    \n"
-                                 "F|  coadd1d end\n"
-                                 "\n"
-                                 "That is the coadd1d block must either be a two column list of "
-                                 "spec1dfiles and objids, or you can specify a single objid for "
-                                 "all spec1dfiles on the first line\n\n"
-                                 "Where: \n"
-                                 "\n"
-                                 "spec1dfile: full path to a PypeIt spec1dfile\n\n"
-                                 "objid: the object identifier. To determine the objids inspect "
-                                 "the spec1d_*.txt files or run pypeit_show_1dspec spec1dfile "
-                                 "--list\n\n"
-                                 "If the coaddfile is not given the output file will be placed "
-                                 "in the same directory as the first spec1d file.\n\n")
+                            help="File to guide coadding process. See docs for formatting.\n")
         parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
         parser.add_argument("--show", default=False, action="store_true",
                             help="show QA during coadding process")
