@@ -434,7 +434,7 @@ class InputFile:
             
             # Data block
             if self.data is not None:
-                f.write("# File block \n")
+                f.write("# Data block \n")
                 f.write(f"{self.data_block} read\n")
                 # paths and Setupfiles
                 if self.file_paths is not None:
