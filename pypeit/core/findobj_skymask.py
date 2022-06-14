@@ -1066,7 +1066,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
 
     """
 
-    #debug_all=True
+    debug_all=True
     if debug_all:
         show_peaks=True
         show_fits = True
@@ -1133,7 +1133,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
     gpm_tot = thismask & inmask
 
     image_rect, gpm_rect, npix_rect, ivar_rect = extract.extract_asym_boxcar(image, left_asym, righ_asym, gpm=gpm_tot, ivar=ivar)
-    #embed()
+
     # This smashes out the spatial direction to construct an aggregate sky model
     #sky_mean, sky_median, sky_sig = stats.sigma_clipped_stats(image_rect, mask=np.logical_not(gpm_rect), axis=1, sigma=3.0,
     #                                                          cenfunc='median', stdfunc=utils.nan_mad_std)
@@ -1143,11 +1143,15 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
 
     #sky_rect = np.repeat(sky_median[:, np.newaxis], nsamp, axis=1)
     #sky_rect = 0.0*image_rect
+
     # Smash out the spectral direction masking outlying pixels. We use this mask gpm_sigclip below
     data = np.ma.MaskedArray(image_rect, mask=np.logical_not(gpm_rect))
     sigclip = stats.SigmaClip(sigma=sigclip_smash, maxiters=25, cenfunc='median', stdfunc=utils.nan_mad_std)
     data_clipped, lower, upper = sigclip(data, axis=0, masked=True, return_bounds=True)
     gpm_sigclip = np.logical_not(data_clipped.mask)  # gpm_smash = True are good values
+
+    if debug_all:
+        viewer, ch = display.show_image(image_rect*gpm_sigclip*np.sqrt(ivar_rect), chname='objs_in_slit_show', cuts=(-5.0,5.0))
 
     # Compute the average flux over the set of pixels that are not masked by gpm_sigclip
     nsmash = find_min_max_out[1] - find_min_max_out[0] + 1
@@ -1228,6 +1232,9 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
         # Show rectified image here? Add this to QA
         viewer, ch = display.show_image(image_rect*gpm_rect*np.sqrt(ivar_rect), chname='objs_in_slit_show', cuts=(-5.0,5.0))
 
+    # QA
+    if debug_all:
+        embed(header='1230 of findobj')
     objfind_QA(spat_peaks, snr_peaks_all, spat_vector, snr_smash_smth, snr_thresh, qa_title, peaks_gpm,
                near_edge_bpm, nperslit_bpm, objfindQA_filename=objfindQA_filename, show=show_peaks) #show_peaks)
 
