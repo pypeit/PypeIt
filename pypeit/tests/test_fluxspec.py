@@ -185,9 +185,9 @@ def test_flux_calib(tmp_path, monkeypatch):
         with open(config_file_no_sens, "w") as f:
             print("flux read", file=f)
             print(f"path {data_path('')}", file=f)
-            print("filename | sensfile", file=f)
-            print("spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits | ", file=f)
-            print("spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits | ", file=f)
+            print("filename", file=f)
+            print("spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits", file=f)
+            print("spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits", file=f)
             print("flux end", file=f)
 
         with pytest.raises(PypeItError, match = 'Invalid format for .flux'):
