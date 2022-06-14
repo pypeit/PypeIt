@@ -506,6 +506,11 @@ class FluxFile(InputFile):
         """ Check for required parts of the Fluxing input
         file and handle the various options for sensfile
         """
+        # Data table
+        for key in ['filename']:
+            if key not in self.data.keys():
+                msgs.error("Add {:s} to your .flux file before using run_pypeit".format(key))
+
         # Add a dummy sensfile column?
         #  This is allowed if using an archived sensitivity function
         #  And the checking has to be done in the script as the specgtrograph must be known..
@@ -600,6 +605,15 @@ class Coadd1DFile(InputFile):
     data_block = 'coadd1d'  # Defines naming of data block
     flavor = 'Coadd1D'  # Defines naming of file
     setup_required = False
+
+    def vet(self):
+        """ Check for required parts of the Fluxing input
+        file and handle the various options for sensfile
+        """
+        # Data table
+        for key in ['filename', 'obj_id']:
+            if key not in self.data.keys():
+                msgs.error("Add {:s} to your .coadd1d file before using run_pypeit".format(key))
 
     @property
     def objids(self):

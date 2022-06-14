@@ -130,4 +130,4 @@ Here are the main set of :doc:`input_files`:
     - :doc:`pypeit_file`
     - :ref:`sensitivity_file`
     - :ref:`flux_file`
-    - :ref:`coadd_1dfile`
+    - :ref:`coadd1d_file`
