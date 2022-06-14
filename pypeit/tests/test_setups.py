@@ -10,18 +10,10 @@ from IPython import embed
 import numpy as np
 
 import pytest
-from configobj import ConfigObj
 
-from pypeit.pypmsgs import PypeItError
-from pypeit.metadata import PypeItMetaData
-from pypeit.par import PypeItPar
 from pypeit.scripts.setup import Setup
-from pypeit.scripts.chk_for_calibs import ChkForCalibs
-from pypeit.spectrographs.util import load_spectrograph
 from pypeit.inputfiles import PypeItFile
 from pypeit.tests.tstutils import data_path
-from pypeit import pypeit
-from pypeit import pypeitsetup
 
 
 def expected_file_extensions():

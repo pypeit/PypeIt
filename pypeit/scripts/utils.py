@@ -77,7 +77,7 @@ class Utilities:
             self.pypeItFile = PypeItFile.from_file(self.pypeit_file) 
             # This is a HACK for compatability, but this Class is not widely used
             self.cfg_lines = self.pypeItFile.cfg_lines 
-            self.data_files = self.pypeItFile.data_files 
+            self.data_files = self.pypeItFile.filenames
             self.frametype = self.pypeItFile.frametypes 
             self.usrdata = self.pypeItFile.data 
             self.setups  = self.pypeItFile.setup_name
