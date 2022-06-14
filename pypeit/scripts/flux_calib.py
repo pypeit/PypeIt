@@ -72,7 +72,6 @@ class FluxCalib(scriptbase.ScriptBase):
         """
         # Load the file
         fluxFile = inputfiles.FluxFile.from_file(args.flux_file)
-        #config_lines, spec1dfiles, sensfiles_in = read_fluxfile(args.flux_file)
 
         # Read in spectrograph from spec1dfile header
         header = fits.getheader(fluxFile.filenames[0])
