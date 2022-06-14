@@ -118,7 +118,7 @@ class InputFile:
             msgs.error(
                 f"Missing '{cls.data_block} end' in {input_file}")
         if s < 0:
-            msgs.error("You have not specified any data!")
+            msgs.error("You have not specified any data in the data block!")
         paths, usrtbl = cls._read_data_file_table(lines[s:e])
         is_config[s-1:e+1] = False
 
@@ -633,9 +633,51 @@ class Coadd2DFile(InputFile):
     flavor = 'Coadd2D'  # Defines naming of file
     setup_required = False
 
+    def vet(self):
+        """ Check for required bits and pieces of the .coadd2d file
+        besides the input objects themselves
+        """
+
+        # Data table
+        for key in ['filename']:
+            if key not in self.data.keys():
+                msgs.error("Add {:s} to your .coadd2d file before using run_pypeit".format(key))
+
+        # Confirm spectrograph is present
+        if 'rdx' not in self.config.keys() or 'spectrograph' not in self.config['rdx'].keys():
+            msgs.error(f"Missing spectrograph in the Parameter block of your .coadd2d file.  Add it!")
+
+        # Done
+        msgs.info('.coadd2d file successfully vetted.')
+
+
 class TelluricFile(InputFile):
     """Child class for telluric corrections
     """
     data_block = None  # Defines naming of data block
     flavor = 'Telluric'  # Defines naming of file
     setup_required = False
+
+class FlexureFile(InputFile):
+    """Child class for flexure corrections
+    """
+    data_block = 'flexure'  # Defines naming of data block
+    flavor = 'Flexure'  # Defines naming of file
+    setup_required = False
+
+    def vet(self):
+        """ Check for required bits and pieces of the .flex file
+        besides the input objects themselves
+        """
+
+        # Data table
+        for key in ['filename']:
+            if key not in self.data.keys():
+                msgs.error("Add {:s} to your .flex file before using run_pypeit".format(key))
+
+        # Confirm spectrograph is present
+        if 'rdx' not in self.config.keys() or 'spectrograph' not in self.config['rdx'].keys():
+            msgs.error(f"Missing spectrograph in the Parameter block of your .flex file.  Add it!")
+
+        # Done
+        msgs.info('.flex file successfully vetted.')

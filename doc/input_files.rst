@@ -119,15 +119,42 @@ data
 ----
 
 After the ``paths`` portion is a | delimited table that
-provides data.  It usually contains at a minimum a column
+provides data.  It usually contains at a minimum a single column
 specifying the files to be processed by the script.
 
-Links to Pypeit Input Files
-===========================
+That would look like::
 
-Here are the main set of :doc:`input_files`:
+    # Data block
+    spec2d read
+    path /path/to/your/Science/folder
+    filename
+    spec2d_b170320_2083-c17_60L._LRISb_2017Mar20T055336.211.fits
+    spec2d_b170320_2090-c17_60L._LRISb_2017Mar20T082144.525.fits
+    spec2d_b170320_2084-c17_60L._LRISb_2017Mar20T062414.630.fits
+    spec2d_b170320_2091-c17_60L._LRISb_2017Mar20T085223.894.fits
+    spec2d end
+
+Many files have a multi-column table with | delimiters, e.g.:
+
+.. code-block:: console
+
+    # Data block
+    coadd1d read
+      path /path/to/your/reduced/data/Science
+                                                   filename | obj_id
+      spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits | SPAT0176-SLIT0000-DET01
+      spec1d_b28-J1217p3905_KASTb_2015May20T051801.470.fits | SPAT0175-SLIT0000-DET01
+    coadd1d end
+
+Docs on Pypeit Input Files
+==========================
+
+Here are links to the detailed
+docs on the main set of :doc:`input_files`:
 
     - :doc:`pypeit_file`
     - :ref:`sensitivity_file`
     - :ref:`flux_file`
     - :ref:`coadd1d_file`
+    - :ref:`coadd2d_file`
+    - :ref:`flexure_file`

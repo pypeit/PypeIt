@@ -37,7 +37,7 @@ Here is an example for `keck_lris_blue`::
         [[findobj]]
             sig_thresh=5.0
 
-    # Read in the data
+    # Data block
     spec2d read
     path /path/to/your/Science/folder
     filename
@@ -57,7 +57,8 @@ options specific to coadd2d including :doc:`manual`.
 
 The :ref:`data_block` always begins/ends with *spec2d read*/*spec2d end*.
 It (optionally) provides the ``path``
-to the :doc:`out_spec2D` files and then a table which
+to the :doc:`out_spec2D` files.
+It then includes a (one column) table which
 is a simple list of the :doc:`out_spec2D` files.
 
 .. _pypeit-coadd-2dspec:
