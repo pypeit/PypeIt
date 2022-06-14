@@ -20,7 +20,7 @@ from pypeit import msgs
 from pypeit import slittrace
 from pypeit import masterframe
 from pypeit.pypeitsetup import PypeItSetup
-from pypeit.pypeitfile import PypeItFile
+from pypeit.inputfiles import PypeItFile
 
 
 class Utilities:

@@ -12,25 +12,19 @@ from astropy import time
 from astropy.table import Table 
 from pypeit import data
 
-from pypeit.images import buildimage
-from pypeit import edgetrace
-from pypeit import wavecalib
-from pypeit import flatfield
-from pypeit import wavetilts
-from pypeit.core.wavecal import waveio
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.metadata import PypeItMetaData
 from pypeit import masterframe
-from pypeit.pypeitfile import PypeItFile 
+from pypeit.inputfiles import PypeItFile 
 
 # ----------------------------------------------------------------------
 # pytest @decorators setting the tests to perform
 
 # Tests require the PypeIt dev-suite
-dev_suite_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None
-                                        or not os.path.isdir(os.getenv('PYPEIT_DEV')),
-                                        reason='test requires dev suite')
+#dev_suite_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None
+#                                        or not os.path.isdir(os.getenv('PYPEIT_DEV')),
+#                                        reason='test requires dev suite')
 
 # Tests require the Cooked data
 cooked_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None or
@@ -155,78 +149,78 @@ def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype
 
 # TODO: Need to split this into functions that do and do not require
 # cooked.
-def load_kast_blue_masters(aimg=False, mstilt=False, edges=False, tilts=False, wvcalib=False, pixflat=False):
-    """
-    Load up the set of shane_kast_blue master frames
-
-    Order is Arc, edges, tilts_dict, wv_calib, pixflat
-
-    Args:
-        get_spectrograph:
-        aimg:
-        edges (bool, optional):
-            Load the slit edges
-        tilts:
-        datasec:
-        wvcalib:
-
-    Returns:
-        list: List of calibration items
-
-    """
-
-    spectrograph = load_spectrograph('shane_kast_blue')
-    spectrograph.naxis = (2112,350)     # Image shape with overscan
-
-    master_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue')
-
-    reuse_masters = True
-
-    # Load up the Masters
-    ret = []
-
-    master_key = 'A_1_DET01'
-    if aimg:
-        arc_file = masterframe.construct_file_name(buildimage.ArcImage, master_key, master_dir=master_dir)
-        AImg = buildimage.ArcImage.from_file(arc_file)
-
-    if mstilt:
-        # We use an arc
-        arc_file = masterframe.construct_file_name(buildimage.ArcImage, master_key, master_dir=master_dir)
-        AImg = buildimage.ArcImage.from_file(arc_file)
-        # Convert
-        mstilt = buildimage.TiltImage.from_pypeitimage(AImg)
-        ret.append(mstilt)
-
-    if edges:
-        #trace_file = '{0}.gz'.format(os.path.join(master_dir,
-        #                                MasterFrame.construct_file_name('Edges', master_key)))
-        trace_file = masterframe.construct_file_name(edgetrace.EdgeTraceSet, master_key, master_dir=master_dir)
-        ret.append(edgetrace.EdgeTraceSet.from_file(trace_file))
-
-    if tilts:
-        tilts_file = masterframe.construct_file_name(wavetilts.WaveTilts, master_key, master_dir=master_dir)
-        waveTilts = wavetilts.WaveTilts.from_file(tilts_file)
-        ret.append(waveTilts)
-
-    if wvcalib:
-        #calib_file = os.path.join(master_dir,
-        #                          MasterFrame.construct_file_name('WaveCalib', master_key,
-        #                                                          file_format='json'))
-        calib_file = masterframe.construct_file_name(wavecalib.WaveCalib, master_key, master_dir=master_dir)
-        wv_calib = waveio.load_wavelength_calibration(calib_file)
-        ret.append(wv_calib)
-
-    # Pixelflat
-    if pixflat:
-        #calib_file = os.path.join(master_dir,
-        #                          MasterFrame.construct_file_name('Flat', master_key))
-        flat_file = masterframe.construct_file_name(flatfield.FlatImages, master_key, master_dir=master_dir)
-        flatImages = flatfield.FlatImages.from_file(flat_file)
-        ret.append(flatImages.pixelflat_norm)
-
-    # Return
-    return ret
+#def load_kast_blue_masters(aimg=False, mstilt=False, edges=False, tilts=False, wvcalib=False, pixflat=False):
+#    """
+#    Load up the set of shane_kast_blue master frames
+#
+#    Order is Arc, edges, tilts_dict, wv_calib, pixflat
+#
+#    Args:
+#        get_spectrograph:
+#        aimg:
+#        edges (bool, optional):
+#            Load the slit edges
+#        tilts:
+#        datasec:
+#        wvcalib:
+#
+#    Returns:
+#        list: List of calibration items
+#
+#    """
+#
+#    spectrograph = load_spectrograph('shane_kast_blue')
+#    spectrograph.naxis = (2112,350)     # Image shape with overscan
+#
+#    master_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue')
+#
+#    reuse_masters = True
+#
+#    # Load up the Masters
+#    ret = []
+#
+#    master_key = 'A_1_DET01'
+#    if aimg:
+#        arc_file = masterframe.construct_file_name(buildimage.ArcImage, master_key, master_dir=master_dir)
+#        AImg = buildimage.ArcImage.from_file(arc_file)
+#
+#    if mstilt:
+#        # We use an arc
+#        arc_file = masterframe.construct_file_name(buildimage.ArcImage, master_key, master_dir=master_dir)
+#        AImg = buildimage.ArcImage.from_file(arc_file)
+#        # Convert
+#        mstilt = buildimage.TiltImage.from_pypeitimage(AImg)
+#        ret.append(mstilt)
+#
+#    if edges:
+#        #trace_file = '{0}.gz'.format(os.path.join(master_dir,
+#        #                                MasterFrame.construct_file_name('Edges', master_key)))
+#        trace_file = masterframe.construct_file_name(edgetrace.EdgeTraceSet, master_key, master_dir=master_dir)
+#        ret.append(edgetrace.EdgeTraceSet.from_file(trace_file))
+#
+#    if tilts:
+#        tilts_file = masterframe.construct_file_name(wavetilts.WaveTilts, master_key, master_dir=master_dir)
+#        waveTilts = wavetilts.WaveTilts.from_file(tilts_file)
+#        ret.append(waveTilts)
+#
+#    if wvcalib:
+#        #calib_file = os.path.join(master_dir,
+#        #                          MasterFrame.construct_file_name('WaveCalib', master_key,
+#        #                                                          file_format='json'))
+#        calib_file = masterframe.construct_file_name(wavecalib.WaveCalib, master_key, master_dir=master_dir)
+#        wv_calib = waveio.load_wavelength_calibration(calib_file)
+#        ret.append(wv_calib)
+#
+#    # Pixelflat
+#    if pixflat:
+#        #calib_file = os.path.join(master_dir,
+#        #                          MasterFrame.construct_file_name('Flat', master_key))
+#        flat_file = masterframe.construct_file_name(flatfield.FlatImages, master_key, master_dir=master_dir)
+#        flatImages = flatfield.FlatImages.from_file(flat_file)
+#        ret.append(flatImages.pixelflat_norm)
+#
+#    # Return
+#    return ret
 
 def make_shane_kast_blue_pypeitfile():
     """ Generate a PypeItFile class """
@@ -240,5 +234,4 @@ def make_shane_kast_blue_pypeitfile():
     setup_dict = {'Setup A': ' '}
 
     # Return
-    return PypeItFile(confdict, file_paths, data,
-                      setup_dict)
+    return PypeItFile(confdict, file_paths, data, setup_dict)

@@ -5,7 +5,7 @@ import pytest
 
 from astropy.table import Table
 
-from pypeit import pypeitfile
+from pypeit.inputfiles import PypeItFile
 from pypeit.tests.tstutils import data_path
 
 # Bits needed to generate a PypeIt file
@@ -23,11 +23,11 @@ setup_dict = {'Setup A': ' '}
 # TESTS
 def test_instantiate():
     # Test of instantiation
-    pypeItFile = pypeitfile.PypeItFile(confdict, file_paths, 
+    pypeItFile = PypeItFile(confdict, file_paths, 
                                        data, setup_dict)
     # Data files                                    
-    data_files = pypeItFile.data_files
-    assert 'b1.fits.gz' in data_files[0]
+    filenames = pypeItFile.filenames
+    assert 'b1.fits.gz' in filenames[0]
 
     # Frame types
     frame_type_dict = pypeItFile.frametypes
@@ -36,24 +36,32 @@ def test_instantiate():
     # More tests
     assert pypeItFile.setup_name == 'A'
 
-
 def test_read_pypeit_file():
-    # Read the PypeIt file
-    pypeItFile = pypeitfile.PypeItFile.from_file(
+    # Read the PypeIt file (backwards compatability)
+    pypeItFile = PypeItFile.from_file(
                 data_path('example_pypeit_file.pypeit'))
+    assert isinstance(pypeItFile.config, dict)
+
+def test_read_backwards_pypeit_file():
+    # Read the PypeIt file (backwards compatability)
+    pypeItFile = PypeItFile.from_file(
+                data_path('example_pypeit_file_backwards.pypeit'))
     assert isinstance(pypeItFile.config, dict)
 
 def test_write_pypeit_file():
     # Test writing a PypeIt file
-    outfile = data_path('tmp_pypeit.file')
+    outfile = data_path('tmp_file.pypeit')
     if os.path.isfile(outfile):
         os.remove(outfile)
 
     # Instantiate
-    pypeItFile = pypeitfile.PypeItFile(confdict, file_paths, 
+    pypeItFile = PypeItFile(confdict, file_paths, 
                                        data, setup_dict)
     # Write
     pypeItFile.write(outfile)
+
+    # Let's read it too
+    pypeItFile2 = PypeItFile.from_file(outfile)
 
     # Clean up
     os.remove(outfile)

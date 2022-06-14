@@ -19,7 +19,8 @@ from configobj import ConfigObj
 from astropy.io import fits
 from astropy.table import Table
 
-from pypeit import pypeitfile
+from pypeit import inputfiles
+from pypeit.core import parse
 from pypeit import masterframe
 from pypeit import msgs
 from pypeit import calibrations
@@ -93,7 +94,7 @@ class PypeIt:
         self.msgs_reset()
         
         # Load up PypeIt file
-        self.pypeItFile = pypeitfile.PypeItFile.from_file(pypeit_file)
+        self.pypeItFile = inputfiles.PypeItFile.from_file(pypeit_file)
         self.calib_only = calib_only
 
         # Spectrograph
@@ -108,12 +109,12 @@ class PypeIt:
         config_specific_file = None
         for idx, row in enumerate(self.pypeItFile.data):
             if ('science' in row['frametype']) or ('standard' in row['frametype']):
-                config_specific_file = self.pypeItFile.data_files[idx]
+                config_specific_file = self.pypeItFile.filenames[idx]
         # search for arcs, trace if no scistd was there
         if config_specific_file is None:
             for idx, row in enumerate(self.pypeItFile.data):
                 if ('arc' in row['frametype']) or ('trace' in row['frametype']):
-                    config_specific_file = self.pypeItFile.data_files[idx]
+                    config_specific_file = self.pypeItFile.filenames[idx]
         if config_specific_file is not None:
             msgs.info(
                 'Setting configuration-specific parameters using {0}'.format(os.path.split(config_specific_file)[1]))
@@ -137,7 +138,7 @@ class PypeIt:
         #   - Re-initilize based on the file data
         msgs.info('Compiling metadata')
         self.fitstbl = PypeItMetaData(self.spectrograph, self.par, 
-                                      files=self.pypeItFile.data_files,
+                                      files=self.pypeItFile.filenames,
                                       usrdata=self.pypeItFile.data, 
                                       strict=True)
         #   - Interpret automated or user-provided data from the PypeIt

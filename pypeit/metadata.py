@@ -19,7 +19,7 @@ from astropy import table, coordinates, time, units
 
 from pypeit import msgs
 from pypeit import utils
-from pypeit import pypeitfile
+from pypeit import inputfiles
 from pypeit.core import framematch
 from pypeit.core import flux_calib
 from pypeit.core import parse
@@ -322,7 +322,7 @@ class PypeItMetaData:
                 # Allow for str RA, DEC (backwards compatability)
                 if key in ['ra', 'dec'] and not radec_done:
                     ras, decs = meta.convert_radec(usrdata['ra'][~nones].data,
-                                                   usrdata['dec'][~nones].data)
+                                                usrdata['dec'][~nones].data)
                     usrdata['ra'][~nones] = ras.astype(dtype)
                     usrdata['dec'][~nones] = decs.astype(dtype)
                     radec_done = True
@@ -1440,7 +1440,8 @@ class PypeItMetaData:
             mjd[mjd == None] = -99999.0
             isort = np.argsort(mjd)
             subtbl = subtbl[isort]
-            subtbl.write(ff, format='ascii.fixed_width')
+            # This needs to match the format for writing file blocks in pypeit.inputfiles.InputFile
+            subtbl.write(ff, format='ascii.fixed_width', bookend=False)
         ff.write('##end\n')
         ff.close()
 
@@ -1634,7 +1635,7 @@ class PypeItMetaData:
                 cfg_lines += ['    spectrograph = {0}'.format(self.spectrograph.name)]
 
             # Instantiate a PypeItFile
-            pypeItFile = pypeitfile.PypeItFile(cfg_lines, paths, subtbl, setup_dict)
+            pypeItFile = inputfiles.PypeItFile(cfg_lines, paths, subtbl, setup_dict)
             # Write
             pypeItFile.write(ofiles[j]) 
 
