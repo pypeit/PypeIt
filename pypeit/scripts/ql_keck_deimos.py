@@ -18,7 +18,7 @@ import argparse
 
 from pypeit.scripts import scriptbase
 
-from pypeit.scripts.utils import Utilities
+#from pypeit.scripts.utils import Utilities
 from pypeit.pypeitsetup import PypeItSetup
 from pypeit import inputfiles, msgs
 from pypeit.scripts import run_pypeit
@@ -71,14 +71,13 @@ class QLKeckDEIMOS(scriptbase.ScriptBase):
     def main(pargs):
 
         spectrograph_name = 'keck_deimos'
-        script_Utils = Utilities(spectrograph_name)
 
         # Afternoon calibs
         if pargs.calibs_only:
             if pargs.root is None:
                 msgs.error("Need to set --root when using --calibs_only")
             msgs.info("Processing calibrations only")
-            process_calibs(pargs, script_Utils)
+            process_calibs(pargs, spectrograph_name) 
             return
 
         # Slurp the afternoon runs and grab the right PypeIt file
@@ -88,21 +87,25 @@ class QLKeckDEIMOS(scriptbase.ScriptBase):
         run_on_science(pargs, calib_pypeit_file, ps_sci)
 
 
-def process_calibs(pargs, script_Utils):
+def process_calibs(pargs, spectrograph_name:str):
     """
     Process the calibration files
 
     Args:
         pargs (argparse.ArgumentParser):
             Command line arguments
-        script_Utils (:class:`pypeit.scripts.utilts.Utilities`):
+        spectrograph_name (str):
     """
     # Slurp
     output_path = pargs.redux_path
 
     # Run setup
-    ps, setups, indx = script_Utils.run_setup(os.path.join(pargs.full_rawpath, pargs.root),
-                                              extension='.fits')
+    ps = PypeItSetup.from_file_root(os.path.join(pargs.full_rawpath, pargs.root),
+                                        spectrograph_name, 
+                                        extension='')
+    ps.run(setup_only=True, no_write_sorted=True)
+    setups, indx = ps.fitstbl.get_configuration_names(return_index=True)
+
     # Restrict on detector -- May remove this
     ps.user_cfg = ['[rdx]', 'spectrograph = {}'.format(ps.spectrograph.name)]
     ps.user_cfg += ['detnum = {}'.format(pargs.det)]
