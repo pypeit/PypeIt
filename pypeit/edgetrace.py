@@ -4352,7 +4352,6 @@ class EdgeTraceSet(DataContainer):
                         # deal with the case when the pca is not available
                         nearest = np.argmin(np.absolute(self.edge_fit[reference_row, :] - bot_edge_pred[needind_b][i]))
                         missing_left_traces = self.edge_fit[:, nearest]-(self.edge_fit[reference_row, nearest] - bot_edge_pred[needind_b][i])
-                        print(missing_left_traces[reference_row], bot_edge_pred[needind_b][i])
                     else:
                         missing_left_traces = self.predict_traces(bot_edge_pred[needind_b][i], side=-1)
                     self.insert_traces(-1, missing_left_traces, mode='mask', nudge=False)
@@ -4386,7 +4385,6 @@ class EdgeTraceSet(DataContainer):
                         # deal with the case when the pca is not available
                         nearest = np.argmin(np.absolute(self.edge_fit[reference_row, :] - top_edge_pred[needind_t[i]]))
                         missing_right_traces = self.edge_fit[:, nearest]-(self.edge_fit[reference_row, nearest] - top_edge_pred[needind_t[i]])
-                        print(missing_right_traces[reference_row], top_edge_pred[needind_t[i]])
                     else:
                         missing_right_traces = self.predict_traces(top_edge_pred[needind_t][i], side=1)
                     self.insert_traces(1, missing_right_traces, mode='mask', nudge=False)
