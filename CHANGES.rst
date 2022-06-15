@@ -3,6 +3,8 @@
 --------
 
 - Modify tweak_standard for Mosfire/J2
+- Apply find_min_max when clipping the image for object finding
+- Mask bad detector regions for global sky flexure calculation
 
 1.9.0 (31 May 2022)
 -------------------
