@@ -41,6 +41,32 @@ def get_multirow_metadata(file_info):
 
     return (metadata[dest_file], [(os.path.join(file_info.path, file_info.name), dest_file)])
 
+def cmp_files(file1, file2):
+    """
+    Compre two text files line by line. This function exists because
+    out test suite has to work under Windows and Linux, and the filecmp
+    package doesn't handle mixed newline styles.
+
+    Returns:
+    True if the files are the same, False otherwise.
+    """
+    file1_lines =[]
+    file2_lines =[]
+    with open(file1, "r") as f1:
+        file1_lines = f1.readlines()
+
+    with open(file2, "r") as f2:
+        file2_lines = f2.readlines()
+
+    if len(file1_lines) == len(file2_lines):
+        for i in range(len(file1_lines)):
+            if file1_lines[i] != file2_lines[i]:
+                return False
+    else:
+        return False
+
+    return True
+
 def test_archive_meta(tmp_path):
     test_meta_path = str(tmp_path / "test_meta.dat")
 
@@ -118,5 +144,5 @@ def test_archive_dir(tmp_path):
     good_file1 = os.path.join(good_path, 'by_id_meta.dat')
     good_file2 = os.path.join(good_path, 'by_object_meta.dat')
 
-    assert filecmp.cmp(good_file1, metadata_file1, shallow=False) is True
-    assert filecmp.cmp(good_file2, metadata_file2, shallow=False) is True
+    assert cmp_files(good_file1, metadata_file1) is True
+    assert cmp_files(good_file2, metadata_file2) is True
