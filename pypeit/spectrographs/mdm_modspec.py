@@ -201,3 +201,5 @@ def get_detector_par(self, det, hdu=None):
         par['sensfunc']['polyorder'] = 7  # Default: 5
 
         return pa
+
+    def some code here:
