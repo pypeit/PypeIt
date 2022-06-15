@@ -497,7 +497,8 @@ class Extract:
                 thismask = (self.slitmask == slit_spat)
                 box_denom = moment1d(self.waveimg * thismask > 0.0, trace_spat[:, ss], 2, row=trace_spec)[0]
                 wghts = (box_denom + (box_denom == 0.0))
-                slit_sky = moment1d(self.global_sky * thismask, trace_spat[:, ss], 2, row=trace_spec)[0] / wghts
+                # Mask by ivar to deal with bad detector regions and chip gaps
+                slit_sky = moment1d(self.global_sky * thismask * (self.sciImg.ivar>0), trace_spat[:, ss], 2, row=trace_spec)[0] / wghts
                 # Denom is computed in case the trace goes off the edge of the image
                 slit_wave = moment1d(self.waveimg * thismask, trace_spat[:, ss], 2, row=trace_spec)[0] / wghts
                 # TODO :: Need to remove this XSpectrum1D dependency - it is required in:  flexure.spec_flex_shift
