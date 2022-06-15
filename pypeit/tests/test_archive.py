@@ -60,7 +60,7 @@ def cmp_files(file1, file2):
 
     if len(file1_lines) == len(file2_lines):
         for i in range(len(file1_lines)):
-            if file1_lines[i] != file2_lines[i]:
+            if file1_lines[i].rstrip() != file2_lines[i].rstrip():
                 return False
     else:
         return False
