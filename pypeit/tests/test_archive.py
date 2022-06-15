@@ -52,15 +52,16 @@ def cmp_files(file1, file2):
     """
     file1_lines =[]
     file2_lines =[]
+
     with open(file1, "r") as f1:
-        file1_lines = f1.readlines()
+        file1_lines = [x.rstrip() for x in f1.readlines() if x.rstrip() != ""]
 
     with open(file2, "r") as f2:
-        file2_lines = f2.readlines()
+        file2_lines = [x.rstrip() for x in f2.readlines() if x.rstrip() != ""]
 
     if len(file1_lines) == len(file2_lines):
         for i in range(len(file1_lines)):
-            if file1_lines[i].rstrip() != file2_lines[i].rstrip():
+            if file1_lines[i] != file2_lines[i]:
                 return False
     else:
         return False
