@@ -23,6 +23,7 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
     header_name = 'ModSpec'
     supported = True
     comment = 'MDM Modspec spectrometer'
+    pypeline='MultiSlit'
 
 def get_detector_par(self, det, hdu=None):
         """
@@ -76,32 +77,6 @@ def get_detector_par(self, det, hdu=None):
             datasec         = datasec,  # See above
             oscansec        = oscansec  # See above
             )
-        return detector_container.DetectorContainer(**detector_dict)
-        detector_dict = dict(
-            binning         = '1,1' if hdu is None 
-                                    else self.get_meta_value(self.get_headarr(hdu), 'binning'),
-            det=1,
-            dataext         = 0,
-            specaxis        = 1,
-            specflip        = True,
-            spatflip        = False,
-            xgap            = 0.,
-            ygap            = 0.,
-            ysize           = 1.,
-            platescale      = 0.273,
-            mincounts       = -1e10,
-            darkcurr        = 0.0,
-            saturation      = 65535.,
-            nonlinear       = 0.86,
-            numamplifiers   = 4,
-            gain            = np.atleast_1d([2.2, 2.2, 2.2, 2.2]),
-            ronoise         = np.atleast_1d([5.0, 5.0, 5.0, 5.0]),
-            datasec         = np.atleast_1d(['[9:509,33:2064]', '[509:,33:2064]',
-                '[9:509, 2065:4092', '[509:, 2065:4092']),
-            oscansec        = np.atleast_1d(['[9:509, 1:32]', '[509:, 1:32]',
-                '[9:509, 4098:]', '[509:, 4098:]']),
-        )
-        # Return
         return detector_container.DetectorContainer(**detector_dict)
 
     @classmethod
@@ -172,3 +147,57 @@ def get_detector_par(self, det, hdu=None):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
+    def default_pypeit_par(cls):
+        """
+        Return the default parameters to use for this instrument.
+
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
+        """
+        par = super().default_pypeit_par()
+
+        # Let's start off without any changes, and then add them on as we need
+        # them.
+
+        # Make a bad pixel mask
+        par['calibrations']['bpm_usebias'] = True
+
+        # Wavelength Calibration Parameters
+        # Arc lamps list
+        # There is apparently a way to set it from the header. I am not too
+        # sure about how.
+        par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'XeI']
+        par['calibrations']['wavelengths']['method'] = 'full_template'
+        # Check if the FWHM derived is different than the one measured.
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
+        # Try using two snips of the spectrum
+        par['calibrations']['wavelengths']['nsnippet'] = 2  # Default: 2
+        # Because of the wide wavelength range, solution more non-linear; user higher orders
+        par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
+        par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
+
+        # Slit-edge settings for long-slit data (DeVeny's slit is > 90" long)
+        par['calibrations']['slitedges']['bound_detector'] = True
+        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        par['calibrations']['slitedges']['minimum_slit_length'] = 90.
+
+        # For the tilts, our lines are not as well-behaved as others',
+        #   possibly due to the Wynne type E camera.
+        par['calibrations']['tilts']['spat_order'] = 4  # Default: 3
+        par['calibrations']['tilts']['spec_order'] = 5  # Default: 4
+
+        # Cosmic ray rejection parameters for science frames
+        par['scienceframe']['process']['sigclip'] = 5.0  # Default: 4.5
+        par['scienceframe']['process']['objlim'] = 2.0   # Default: 3.0
+
+        # Reduction and Extraction Parameters -- Look for fainter objects
+        par['reduce']['findobj']['sig_thresh'] = 5.0   # Default: 10.0
+
+        # Flexure Correction Parameters
+        par['flexure']['spec_method'] = 'boxcar'  # Default: 'skip'
+
+        # Sensitivity Function Parameters
+        par['sensfunc']['polyorder'] = 7  # Default: 5
+
+        return pa
