@@ -813,30 +813,6 @@ class EdgeTraceSet(DataContainer):
                 self.show(title='Result after re-identifying slit edges from a spectrally '
                                 'collapsed image.')
 
-#         elif not self.is_empty and self.par['sync_predict'] == 'pca':
-#             # TODO: This causes the code to fault. Maybe there's a way
-#             # to catch this earlier on?
-#             msgs.error('Sync predict cannot use PCA because too few edges were found.  If you are '
-#                        'reducing multislit or echelle data, you may need a better trace image or '
-#                        'change the mode used to predict traces (see below).  If you are reducing '
-#                        'longslit data, make sure to set the sync_predict parameter to nearest: '
-#                        + msgs.newline() +
-#                        '    [calibrations]' + msgs.newline() +
-#                        '        [[slitedges]]' + msgs.newline() +
-#                        '            sync_predict = nearest')
-# #            self.par['sync_predict'] = 'nearest'
-#
-#             # NOTE: If the PCA decomposition is possible, the
-#             # subsequent call to trace.peak_trace (called by
-#             # peak_refine) removes all the existing traces and replaces
-#             # them with traces at the peak locations. Those traces are
-#             # then fit, regardless of the length of the centroid
-#             # measurements. So coming out of peak_refine there are no
-#             # traces that are fully masked, which is not true if that
-#             # block of code isn't run. That means for the left-right
-#             # synchronization to work correctly, we have to remove
-#             # fully masked traces. This is done inside sync().
-
         # Match the traces found in the image with the ones predicted by
         # the slit-mask design. If not expected traces are found in the image, they
         # will be removed. If traces are missed, they will be added.
@@ -3810,7 +3786,7 @@ class EdgeTraceSet(DataContainer):
             return True
 
         # Edges are currently not synced, so check the input
-        if self.par['sync_predict'] not in ['pca', 'nearest']:
+        if self.par['sync_predict'] not in ['pca', 'nearest', 'auto']:
             msgs.error('Unknown trace mode: {0}'.format(self.par['sync_predict']))
         if self.par['sync_predict'] == 'pca' and self.pcatype is None:
             msgs.error('The PCA decomposition does not exist.  Either run self.build_pca or use '
@@ -3857,10 +3833,16 @@ class EdgeTraceSet(DataContainer):
         # Get the reference locations for the new edges
         trace_ref = self._get_reference_locations(trace_cen, add_edge)
 
+        # Determine which sync_predict to use
+        if self.par['sync_predict'] == 'pca' or (self.par['sync_predict'] == 'auto' and self.can_pca()):
+            _sync_predict = 'pca'
+        else:
+            _sync_predict = 'nearest'
+
         # Predict the traces either using the PCA or using the nearest slit edge
-        if self.par['sync_predict'] == 'pca':
+        if _sync_predict == 'pca':
             trace_add = self.predict_traces(trace_ref[add_edge], side=side[add_edge])
-        elif self.par['sync_predict'] == 'nearest':
+        elif _sync_predict == 'nearest':
             # Index of trace nearest the ones to add
             # TODO: Force it to use the nearest edge of the same side;
             # i.e., when inserting a new right, force it to use the
@@ -4212,14 +4194,9 @@ class EdgeTraceSet(DataContainer):
 
         if omodel_bspat[omodel_bspat!=-1].size < 3:
             msgs.warn('Less than 3 slits are expected on this detector, slitmask matching cannot be performed')
+            # update minimum_slit_gap and minimum_slit_length_sci par
             # this will allow to catch the boxslit, since in this case slitmask matching is not performed
-            self.par['minimum_slit_gap'] = 0.25
-            self.par['minimum_slit_length_sci'] = 4.5
-            # this will allow to keep the few slits that were found and not have auto_trace fail
-            if not self.can_pca() and self.par['sync_predict'] == 'pca':
-                self.par['sync_predict'] = 'nearest'
-                msgs.warn('Sync predict could not use PCA because too few edges were found. '
-                          'Therefore the sync_predict parameter was changed to nearest ')
+            self.par = self.spectrograph.update_edgetracepar(self.par)
             return
 
         # reference row
@@ -4470,14 +4447,6 @@ class EdgeTraceSet(DataContainer):
         if not np.all(self.bitmask.flagged(self.edge_msk, self.bitmask.bad_flags)):
             self.clean_traces(force_flag=['SYNCERROR', 'OFFDETECTOR', 'SHORTSLIT'], rebuild_pca=True,
                               sync_mode='both', assume_synced=True)
-
-        # change sync_predict to 'nearest' only at this point because maskdesign_matching
-        # was able to deal with no pca predictions and this will allow avoid to
-        # get self.success=True in the next step of auto_trace
-        if not self.can_pca() and self.par['sync_predict'] == 'pca':
-            self.par['sync_predict'] = 'nearest'
-            msgs.warn('Sync predict could not use PCA because too few edges were found. '
-                      'Therefore the sync_predict parameter was changed to nearest ')
 
         if self.is_synced:
             msgs.info('LEFT AND RIGHT EDGES SYNCHRONIZED AFTER MASK DESIGN MATCHING')
