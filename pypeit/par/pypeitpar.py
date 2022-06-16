@@ -2903,7 +2903,7 @@ class EdgeTracePar(ParSet):
                                 'Use `pca` to use the PCA decomposition, `nearest` to ' \
                                 'reproduce the shape of the nearest trace, or `auto` to let PypeIt ' \
                                 'decide which mode to use between `pca` and `nearest`. In general, ' \
-                                'it will first try `pca`, and if that it is not possible, it will use `nearest`.'
+                                'it will first try `pca`, and if that is not possible, it will use `nearest`.'
 
         defaults['sync_center'] = 'median'
         options['sync_center'] = EdgeTracePar.valid_center_modes()

@@ -406,6 +406,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
     def update_edgetracepar(self, par):
         """
+        This method is used in :func:`pypeit.edgetrace.EdgeTraceSet.maskdesign_matching`
+        to update EdgeTraceSet parameters when the slitmask design matching is not feasible
+        because too few slits are present in the detector.
 
         Args:
             par (:class:`pypeit.par.pypeitpar.EdgeTracePar`):
