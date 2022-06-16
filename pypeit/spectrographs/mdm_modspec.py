@@ -97,27 +97,17 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Set pixel flat combination method
-        # Two ## denote calibrations useful for our purposes but maybe not useful for the overall calibration for Echelle
-        ## par['calibrations']['pixelflatframe']['process']['scale_method'] = 'mode' #but since not an option, 'auto' which is the default anyways
         par['calibrations']['pixelflatframe']['process']['combine'] = 'mean'
-        ## par['calibrations']['pixelflatframe']['process']['clip'] = True
-        ## par['calibrations']['pixelflatframe']['process']['comb_sigrej'] = 3.0 #not sure which
-        ## par['calibrations']['pixelflatframe']['process']['sigclip'] = 3.0 #not sure which
-        ## par['calibrations']['pixelflatframe']['process']['n_lohi'] = [1, 1] #[nlow, nhigh]
-        ## par['calibrations']['pixelflatframe']['process']['use_overscan'] = False
+        par['calibrations']['pixelflatframe']['process']['clip'] = True
+        par['calibrations']['pixelflatframe']['process']['comb_sigrej'] = 3.0 
+        par['calibrations']['pixelflatframe']['process']['n_lohi'] = [1, 1] #[nlow, nhigh]
+        par['calibrations']['pixelflatframe']['process']['use_overscan'] = False
         
-        # oy vey :
         # Wavelength calibration methods
-        par['calibrations']['wavelengths']['echelle'] = True # an additional 2-d fit wavelength fit will be performed as a function of spectral pixel and order number to improve the wavelength solution, since this is an echelle spectrograph
-        par['calibrations']['wavelengths']['ech_fix_format'] = True #this is the default but I don't know if it is or not; is this a fixed format echelle?
-        par['calibrations']['wavelengths']['ech_norder_coeff'] = 4 #default; this is the order of the final 2d fit to the order dimension
-        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4 #default; this is the order of the final 2d fit to the spectral dimension. this should be the n_final of the fits to the individual orders {???}
-        par['calibrations']['wavelengths']['ech_sigrej'] = 2.0 #defualt; this is the sigma clipping rejection threshold in the 2d fit to spectral AND order dimensions
-        par['calibrations']['wavelengths']['nreid_min'] = 1 #defualt; the minimum number of times that a given candidate reidentified line must be properly matched with a line in the arxiv to be considered a good reidentification. For echelle this depends on the number of solutions in the archived wavelength solution. Set this to 1 for fixed format echelle spectrographs. For an echelle with a tiltable grating, this will depend on the number of solutions in the archived wavelength solution. 
-    
         par['calibrations']['wavelengths']['method'] = 'full_template' #more reliable than 'holy-grail', but requires an archived wavelength solution for the specific instrument/grating combination. See https://pypeit.readthedocs.io/en/latest/pypeit_par.html#wavelengthsolutionpar-keywords, also https://pypeit.readthedocs.io/en/latest/wave_calib.html#identify and https://pypeit.readthedocs.io/en/latest/master_edges.html and https://pypeit.readthedocs.io/en/latest/master_arc.html
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'XeI', 'NeI']
         par['calibrations']['wavelengths']['reid_arxiv'] = 'mdm_modspec.fits' #abovementioned archived wavelength solution; need one for Echelle / Modspec
+        ###|||||| do this one below ||||||###
         par['calibrations']['wavelengths']['sigdetect'] = 10.0 #Sigma threshold above fluctuations for arc-line detection
         
         # Set the default exposure time ranges for the frame typing
@@ -125,8 +115,8 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures on this telescope
-        par['calibrations']['standardframe']['exprng'] = [None, 120]
-        par['scienceframe']['exprng'] = [90, None]
+        par['calibrations']['standardframe']['exprng'] = [10, 60]
+        par['scienceframe']['exprng'] = [120, 600]
 
         return par
 
@@ -137,7 +127,79 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         That is, this associates the ``PypeIt``-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
-        self.meta = 
+        self.meta = {}
+        # Required (core)
+        self.meta['ra'] = dict(ext=0, card='RA')
+        self.meta['dec'] = dict(ext=0, card='DEC')
+        self.meta['target'] = dict(ext=0, card='OBJECT')
+        self.meta['decker'] = dict(card=None)
+        self.meta['binning'] = dict(card=None, compound=True)
+        #self.meta['binning'] = [dict(ext=0, card='CCDBIN1'), dict(ext=0, card='CCDBIN2')]
+
+        self.meta['mjd'] = float(dict(ext=0, card='JD')) - 2400000.5
+        self.meta['exptime'] = dict(ext=0, card='EXPTIME')
+        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+        # Extras for config and frametyping
+        # in an example of what this code generates, see https://pypeit.readthedocs.io/en/latest/pypeit_file.html#pypeit-file
+        ## on that note, 'dispname' is showing 600/4310 and that makes no sense to me 
+        ## okay apparently according to https://watermark.silverchair.com/360-4-1281.pdf?token=AQECAHi208BE49Ooan9kkhW_Ercy7Dm3ZL_9Cf3qfKAc485ysgAAAuYwggLiBgkqhkiG9w0BBwagggLTMIICzwIBADCCAsgGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMYDY3odQx18n61h_OAgEQgIICmRDa6yhMHVq4rhm9vxfUOxJJk38Ppwr37LtGSH08YK5TV_Y3sUaRQ6Pd_CRDP4HpCy0UBoRIEvJMaW77Tnq1k45akgXw26T5D-SsWWWX8v3JYjgD5wJRzcM_lbQOgljRuBgffDixM-kc4kFvlzAUGdPfSAKT-0kYp9Bj3X6SX2QUKJabemNm3kuApMDpgOQYj1_JXDxH1FAzqUco3abNAJSJwXp33t8vhNaK3hTI_CO0X66ul6PYx2aGEs1MG2AFLT0rnPt_Q1NSoXnGhRV4AJVMXJF58I7oZ_0bLuN_P-e87J9VNA1JBp9CNJzqYN9Rz0TOHEDhmC05NTYmfNpbbZUW6R4x9u6s8cQiaK0J5C6m_DtZgxokt5Rg7fSEtOZFzD42i-B1Aln4BqX57o423Uhi1QkYGfk5eeReq-fKRFEy-vrsuEiAPYhLE045xQR_OiaKeQkeQEMxumZcDA4FPLHcF9W_cIBc9-Qr24h-xdKXYpkCg994hOcdOzMvJon9nAFJyyW6CAENtDDmFewW9-Ht3EwPYCR0Remb3SuddgZPCxBXoijUcjf7YPw9PRqRLEJ26K0ag10B_eAgwjkcEAwThhHGDp9EkkB8cmlwjca5uPOlfrZ_lqen0y-UC-8wMh4bdcvqUCmsMg3GoPC4q8CVgTPdPvXOhROgyCSbJi_J53RZD8CkE1K7K9dfDN7UsFPwhb31qWOw1FoG5dAv4xWUJZG_zOe503hFhWvql8J9Go2J1IcdZXIA1eRBueW7GF9SffIp0YQddpg4e8oAwiMKD3Tqed0--lZ2Oqx6fbbubfuo5ppFTDZi83VrlRbxdPU-blJYdYJDSDH5DoQ6xQZ6QBOwU0M95TkmiNb7LgJWz5k6pdDCbDqu
+        ## it is Grism/grating (lines mm^-1 / blaze), whatever that means
+        #self.meta['dispname'] = 'Diffraction Grating'
+        self.meta['dispname'] = '1200/5000' ## check on how this needs to be formatted
+        self.meta['idname'] = dict(ext=0, card='IMAGETYP')
+        # Lamps
+        self.meta['lampstat01'] = dict(ext=0, card='LAMPS')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
+        
+    def compound_meta(self, headarr, meta_key):
+        """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
+
+        Args:
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
+
+        Returns:
+            object: Metadata value read from the header(s).
+        """
+        if meta_key == 'binning':
+            ## double-check the bin1 vs bin2 assignment
+            binspatial = headarr[0]['CCDBIN1']
+            binspec = headarr[0]['CCDBIN2']
+            return parse.binning2string(binspec, binspatial)
+        else:
+            msgs.error("Not ready for this compound meta")
+
+    def configuration_keys(self):
+        """
+        Return the metadata keys that define a unique instrument
+        configuration.
+
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
+        """
+        return ['dispname', 'decker', 'binning']
+
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard ``PypeIt`` file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        return super().pypeit_file_keys() + ['slitwid']
+    
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
