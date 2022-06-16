@@ -24,7 +24,7 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
     supported = True
     comment = 'MDM Modspec spectrometer'
 
-def get_detector_par(self, det, hdu=None):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
@@ -40,15 +40,17 @@ def get_detector_par(self, det, hdu=None):
             Object with the detector metadata.
         """
         # Detector 1
-        gain = np.atleast_1d(1.3)      # Hardcoded in the header
-        ronoise = np.atleast_1d(7.90)    # Hardcoded in the header
+        # See Echelle at 2.4m f/7.5 scale : http://mdm.kpno.noirlab.edu/mdm-ccds.html 
+        gain = np.atleast_1d([1.3])      # Hardcoded in the header 
+        ronoise = np.atleast_1d([7.90])    # Hardcoded in the header
         len1 = hdu[0].header['NAXIS1']
         len2 = hdu[0].header['NAXIS2']
+    
         datasec = np.atleast_1d([
-            '[{0:d}:{1:d},{2:d}:{3:d}'.format(1+5, len1-5, 1, len2)])
+            '[{0:d}:{1:d},{2:d}:{3:d}]'.format(1+5, len1-5, 1, len2)])
         oscansec = np.atleast_1d([
-            '[{0:d}:{1:d},{2:d}:{3:d}'.format(1, 1+5, 1, len2),
-            '[{0:d}:{1:d},{2:d}:{3:d}'.format(len1-5, len1, 1, len2),
+            '[{0:d}:{1:d},{2:d}:{3:d}]'.format(1, 1+5, 1, len2),
+            '[{0:d}:{1:d},{2:d}:{3:d}]'.format(len1-5, len1, 1, len2)
         ])
         if hdu is None:
             binning = '1,1'                 # Most common use mode
@@ -56,7 +58,7 @@ def get_detector_par(self, det, hdu=None):
             binning = "{0},{1}".format(
                 hdu[0].header['CCDBIN1'], hdu[0].header['CCDBIN2'])
 
-        # Detector
+        # Detector 1 continued
         detector_dict = dict(
             binning         = binning,
             det             = 1,
@@ -76,35 +78,11 @@ def get_detector_par(self, det, hdu=None):
             datasec         = datasec,  # See above
             oscansec        = oscansec  # See above
             )
-        return detector_container.DetectorContainer(**detector_dict)
-        detector_dict = dict(
-            binning         = '1,1' if hdu is None 
-                                    else self.get_meta_value(self.get_headarr(hdu), 'binning'),
-            det=1,
-            dataext         = 0,
-            specaxis        = 1,
-            specflip        = True,
-            spatflip        = False,
-            xgap            = 0.,
-            ygap            = 0.,
-            ysize           = 1.,
-            platescale      = 0.273,
-            mincounts       = -1e10,
-            darkcurr        = 0.0,
-            saturation      = 65535.,
-            nonlinear       = 0.86,
-            numamplifiers   = 4,
-            gain            = np.atleast_1d([2.2, 2.2, 2.2, 2.2]),
-            ronoise         = np.atleast_1d([5.0, 5.0, 5.0, 5.0]),
-            datasec         = np.atleast_1d(['[9:509,33:2064]', '[509:,33:2064]',
-                '[9:509, 2065:4092', '[509:, 2065:4092']),
-            oscansec        = np.atleast_1d(['[9:509, 1:32]', '[509:, 1:32]',
-                '[9:509, 4098:]', '[509:, 4098:]']),
-        )
         # Return
         return detector_container.DetectorContainer(**detector_dict)
-
+        
     @classmethod
+
     def default_pypeit_par(cls):
         """
         Return the default parameters to use for this instrument.
@@ -119,12 +97,29 @@ def get_detector_par(self, det, hdu=None):
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Set pixel flat combination method
-        par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
+        # Two ## denote calibrations useful for our purposes but maybe not useful for the overall calibration for Echelle
+        ## par['calibrations']['pixelflatframe']['process']['scale_method'] = 'mode' #but since not an option, 'auto' which is the default anyways
+        par['calibrations']['pixelflatframe']['process']['combine'] = 'mean'
+        ## par['calibrations']['pixelflatframe']['process']['clip'] = True
+        ## par['calibrations']['pixelflatframe']['process']['comb_sigrej'] = 3.0 #not sure which
+        ## par['calibrations']['pixelflatframe']['process']['sigclip'] = 3.0 #not sure which
+        ## par['calibrations']['pixelflatframe']['process']['n_lohi'] = [1, 1] #[nlow, nhigh]
+        ## par['calibrations']['pixelflatframe']['process']['use_overscan'] = False
+        
+        # oy vey :
         # Wavelength calibration methods
-        par['calibrations']['wavelengths']['method'] = 'full_template'
-        par['calibrations']['wavelengths']['lamps'] = ['ArI', 'XeI']
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'mdm_osmos_mdm4k.fits'
-        par['calibrations']['wavelengths']['sigdetect'] = 10.0
+        par['calibrations']['wavelengths']['echelle'] = True # an additional 2-d fit wavelength fit will be performed as a function of spectral pixel and order number to improve the wavelength solution, since this is an echelle spectrograph
+        par['calibrations']['wavelengths']['ech_fix_format'] = True #this is the default but I don't know if it is or not; is this a fixed format echelle?
+        par['calibrations']['wavelengths']['ech_norder_coeff'] = 4 #default; this is the order of the final 2d fit to the order dimension
+        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4 #default; this is the order of the final 2d fit to the spectral dimension. this should be the n_final of the fits to the individual orders {???}
+        par['calibrations']['wavelengths']['ech_sigrej'] = 2.0 #defualt; this is the sigma clipping rejection threshold in the 2d fit to spectral AND order dimensions
+        par['calibrations']['wavelengths']['nreid_min'] = 1 #defualt; the minimum number of times that a given candidate reidentified line must be properly matched with a line in the arxiv to be considered a good reidentification. For echelle this depends on the number of solutions in the archived wavelength solution. Set this to 1 for fixed format echelle spectrographs. For an echelle with a tiltable grating, this will depend on the number of solutions in the archived wavelength solution. 
+    
+        par['calibrations']['wavelengths']['method'] = 'full_template' #more reliable than 'holy-grail', but requires an archived wavelength solution for the specific instrument/grating combination. See https://pypeit.readthedocs.io/en/latest/pypeit_par.html#wavelengthsolutionpar-keywords, also https://pypeit.readthedocs.io/en/latest/wave_calib.html#identify and https://pypeit.readthedocs.io/en/latest/master_edges.html and https://pypeit.readthedocs.io/en/latest/master_arc.html
+        par['calibrations']['wavelengths']['lamps'] = ['ArI', 'XeI', 'NeI']
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'mdm_modspec.fits' #abovementioned archived wavelength solution; need one for Echelle / Modspec
+        par['calibrations']['wavelengths']['sigdetect'] = 10.0 #Sigma threshold above fluctuations for arc-line detection
+        
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
