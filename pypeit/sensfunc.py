@@ -790,7 +790,7 @@ class IRSensFunc(SensFunc):
                     = flux_calib.compute_zeropoint(self.sens['SENS_WAVE'][i,s[i]:e[i]], N_lam,
                                                    self.sens['SENS_ZEROPOINT_GPM'][i,s[i]:e[i]],
                                                    self.telluric.obj_dict_list[i]['flam_true'],
-                                                   tellmodel=self.telluric.tellmodel_list[i])[0]
+                                                   tellmodel=self.telluric.tellmodel_list[i])
             # TODO: func is always 'legendre' because that is what's set by
             # sensfunc_telluric
             self.sens['SENS_ZEROPOINT_FIT'][i,s[i]:e[i]] \
