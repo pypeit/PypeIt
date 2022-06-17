@@ -60,7 +60,7 @@ class DataCube(datamodel.DataContainer):
             Build from PYP_SPEC
 
     """
-    version = '1.0.2'
+    version = '1.0.3'
 
     datamodel = {'flux': dict(otype=np.ndarray, atype=np.floating, descr='Flux array in units of counts/s/Ang/arcsec^2'
                                                                          'or 10^-17 erg/s/cm^2/Ang/arcsec^2'),
@@ -473,7 +473,7 @@ def extract_standard_spec(stdcube, subsample=20, method='boxcar'):
         subsample (int):
             Number of pixels to subpixellate spectrum when creating mask
         method (str):
-            Method used to extract standard star spectrum
+            Method used to extract standard star spectrum. Currently, only 'boxcar' is supported
 
     Returns:
         wave (`numpy.ndarray`_): Wavelength of the star.
@@ -637,7 +637,8 @@ def extract_standard_spec(stdcube, subsample=20, method='boxcar'):
 
 
 def make_good_skymask(slitimg, tilts):
-    """ Mask the spectral edges of each slit. Some extreme values of the tilts are
+    """ Mask the spectral edges of each slit (i.e. the pixels near the ends of
+    the detector in the spectral direction). Some extreme values of the tilts are
     only sampled with a small fraction of the pixels of the slit width. This leads
     to a bad extrapolation/determination of the sky model.
 
@@ -1212,7 +1213,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     # If a reference image has been set, check that it exists
     if cubepar['reference_image'] is not None:
         if not os.path.exists(cubepar['reference_image']):
-            msgs.error("Reference cube does not exist:" + msgs.newline() + cubepar['reference_image'])
+            msgs.error("Reference image does not exist:" + msgs.newline() + cubepar['reference_image'])
 
     # Initialise arrays for storage
     all_ra, all_dec, all_wave = np.array([]), np.array([]), np.array([])

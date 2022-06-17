@@ -691,35 +691,22 @@ def calculate_image_phase(imref, imshift, gpm_ref=None, gpm_shift=None, maskval=
     # Extract the overlapping portion of the images
     exref = imref.copy()
     exshf = imshift.copy()
-    exrefmsk = gpm_ref.copy()
-    exshfmsk = gpm_shift.copy()
     if shift[0] != 0:
         if shift[0] < 0:
             exref = exref[:shift[0], :]
             exshf = exshf[-shift[0]:, :]
-            exmsk = exrefmsk[:shift[0], :] * exshfmsk[-shift[0]:, :]
         else:
             exref = exref[shift[0]:, :]
             exshf = exshf[:-shift[0], :]
-            exmsk = exrefmsk[shift[0]:, :] * exshfmsk[:-shift[0], :]
     if shift[1] != 0:
         if shift[1] < 0:
             exref = exref[:, :shift[1]]
             exshf = exshf[:, -shift[1]:]
-            exmsk = exrefmsk[:, :shift[1]] * exshfmsk[:, -shift[1]:]
         else:
             exref = exref[:, shift[1]:]
             exshf = exshf[:, :-shift[1]]
-            exmsk = exrefmsk[:, shift[1]:] * exshfmsk[:, :-shift[1]]
-    extract = False
-    if extract:
-        pass
-        # Find the largest unmasked region
-        #gdx, gdy = find_clean_region(~exmsk, weight=exref)
-        # Compute the flow vector for a fine correction to the cross-correlation
-        #v, u = optical_flow_tvl1(exref[gdx[0]:gdx[1], gdy[0]:gdy[1]], exshf[gdx[0]:gdx[1], gdy[0]:gdy[1]])
-    else:
-        v, u = optical_flow_tvl1(exref, exshf)
+    # Compute the flow vector for a fine correction to the cross-correlation
+    v, u = optical_flow_tvl1(exref, exshf)
     shift = shift.astype(float)
     shift[0] -= np.median(v)
     shift[1] -= np.median(u)

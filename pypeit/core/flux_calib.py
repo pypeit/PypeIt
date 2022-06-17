@@ -73,11 +73,10 @@ def blackbody_func(a, teff):
         flam : `numpy.ndarray`_ flux in units of erg/s/cm^2/A
     """
     resln = 0.1  # Resolution to generate the blackbody spectrum
-    a *= resln   # Below we calculate flux/angstrom, but we generate the wavelength grid on a finer scale
     waves = np.arange(3000.0, 25000.0, resln) * units.AA
     temp = teff * units.K
-    # Calculate the function
-    flam = ((a*2*constants.h*constants.c**2)/waves**5) / (np.exp((constants.h*constants.c / 
+    # Calculate the function - note: we calculate flux/angstrom, but we generate the wavelength grid on a finer grid, so need to multiply by resln here
+    flam = ((resln*a*2*constants.h*constants.c**2)/waves**5) / (np.exp((constants.h*constants.c /
                 (waves*constants.k_B*temp)).to(units.m/units.m).value)-1.0)
     flam = flam.to(units.erg / units.s / units.cm ** 2 / units.AA).value / PYPEIT_FLUX_SCALE
     return waves.value, flam
@@ -1229,9 +1228,9 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
     zeropoint ( `numpy.ndarray`_):
       Spectroscopic zeropoint.
     """
-    if np.any(np.invert(np.isfinite(Nlam_ivar))):
+    if np.any(np.logical_not(np.isfinite(Nlam_ivar))):
         msgs.warn("NaN are present in the inverse variance")
-    ivar_bpm = np.invert(np.isfinite(Nlam_ivar) & (Nlam_ivar > 0))
+    ivar_bpm = np.logical_not(np.isfinite(Nlam_ivar) & (Nlam_ivar > 0))
 
     # check masks
     if mask_tell is None:
