@@ -249,8 +249,8 @@ class CoAdd2D:
         for i in range(1, self.nexp):
             # update bpm with the info from the other frames
             slits = self.stack_dict['slits_list'][i]
-            reduce_bpm &= (slits.mask > 0) & (np.invert(slits.bitmask.flagged(slits.mask,
-                                                                             flag=slits.bitmask.exclude_for_reducing)))
+            reduce_bpm |= (slits.mask > 0) & (np.invert(slits.bitmask.flagged(slits.mask,
+                                                                              flag=slits.bitmask.exclude_for_reducing)))
         # this are the good slit index according to the bpm mask
         good_slitindx = np.where(np.logical_not(reduce_bpm))[0]
 
@@ -532,12 +532,17 @@ class CoAdd2D:
 
     def reduce(self, pseudo_dict, show=None, show_peaks=None, basename=None):
         """
-        ..todo.. Please document me
+        Method to run the reduction on coadd2d psuedo images
 
         Args:
-            pseudo_dict:
-            show:
-            show_peaks:
+            pseudo_dict (dict):
+               Dictionary containing coadd2d psuedo images
+            show (bool):
+               If True, show the outputs to ginga and the screen analogous to run_pypeit with the -s option
+            show_peaks (bool):
+               If True, plot the object finding QA to the screen.
+            basename (str):
+               The basename for the spec2d output files.
 
         Returns:
 
@@ -593,7 +598,7 @@ class CoAdd2D:
             objFind.show('image', image=pseudo_dict['imgminsky']*gpm.astype(float),
                        chname='imgminsky', slits=True, clear=True)
 
-        sobjs_obj, nobj = objFind.find_objects(sciImage.image, sciImage.ivar, show_peaks=show_peaks,
+        sobjs_obj, nobj = objFind.find_objects(sciImage.image, sciImage.ivar, show_peaks=show or show_peaks,
                                                save_objfindQA=True)
 
         # maskdef stuff
@@ -627,14 +632,10 @@ class CoAdd2D:
 
         # Local sky-subtraction
         global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
-        skymodel_pseudo, objmodel_pseudo, \
-            ivarmodel_pseudo, outmask_pseudo, sobjs = exTract.local_skysub_extract(global_sky_pseudo, sobjs_obj,
-                                                                                   spat_pix=pseudo_dict['spat_img'],
-                                                                                   model_noise=False, show_profile=show,
-                                                                                   show=show)
 
-        if self.find_negative and not parcopy['reduce']['extraction']['return_negative']:
-            sobjs.purge_neg()
+        skymodel_pseudo, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, _, _ = exTract.run(
+            global_sky_pseudo, prepare_extraction=False, model_noise=False, spat_pix=pseudo_dict['spat_img'])
+
 
         # Add the rest to the pseudo_dict
         pseudo_dict['skymodel'] = skymodel_pseudo
@@ -649,22 +650,6 @@ class CoAdd2D:
                pseudo_dict['tilts'], pseudo_dict['waveimg']
 
 
-
-#    def save_masters(self):
-#
-#        # Write out the pseudo master files to disk
-#        master_key_dict = self.stack_dict['master_key_dict']
-#
-#        # TODO: These saving operations are a temporary kludge
-#        # spectrograph is needed for header
-#        waveImage = WaveImage(self.pseudo_dict['waveimg'], PYP_SPEC=self.spectrograph.spectrograph)
-#        wave_filename = masterframe.construct_file_name(WaveImage, master_key_dict['arc'], self.master_dir)
-#        waveImage.to_master_file(wave_filename)
-#
-#        # TODO: Assumes overwrite=True
-#        slit_filename = masterframe.construct_file_name(self.pseudo_dict['slits'], master_key_dict['trace'], self.master_dir)
-#        self.pseudo_dict['slits'].to_master_file(slit_filename) #self.master_dir, master_key_dict['trace'], self.spectrograph.spectrograph)
-#    '''
 
     def snr_report(self, snr_bar, slitid=None):
         """

@@ -272,15 +272,17 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
         fit = fitting.PypeItFit(xval=subpix_grid, yval=corr[subpix_grid.astype(np.int)],
                                 func='polynomial', order=np.atleast_1d(2))
         fit.fit()
-        success = True
         max_fit = -0.5 * fit.fitc[1] / fit.fitc[2]
+        # This will make sure that the shift is not > than mxshft
+        if float(max_fit)-lag0 > mxshft:
+            msgs.warn('Flexure compensation failed for one of your objects')
+            return None
     else:
         fit = fitting.PypeItFit(xval=subpix_grid, yval=0.0*subpix_grid,
                                 func='polynomial', order=np.atleast_1d(2))
         fit.fit()
-        success = False
-        max_fit = 0.0
         msgs.warn('Flexure compensation failed for one of your objects')
+        return None
 
     #Calculate and apply shift in wavelength
     shift = float(max_fit)-lag0
@@ -289,7 +291,7 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
 
     return dict(polyfit=fit, shift=shift, subpix=subpix_grid,
                 corr=corr[subpix_grid.astype(np.int)], sky_spec=obj_skyspec, arx_spec=arx_skyspec,
-                corr_cen=corr.size/2, smooth=smooth_sig_pix, success=success)
+                corr_cen=corr.size/2, smooth=smooth_sig_pix)
 
 
 def flexure_interp(shift, wave):
