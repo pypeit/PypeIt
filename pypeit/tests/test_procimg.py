@@ -172,6 +172,3 @@ def test_lacosmic():
     __crmask = procimg.lacosmic(test_img, saturation=np.full(test_img.shape, 6000.),
                                     varframe=test_var, maxiter=1)
     assert np.array_equal(__crmask, _crmask), 'Saturation array failed.'
-
-
-

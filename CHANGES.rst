@@ -3,6 +3,7 @@
 --------
 
 - Modify tweak_standard for Mosfire/J2
+- Detector structure correction included in flatfield calibration
 
 1.9.0 (31 May 2022)
 -------------------
@@ -10,6 +11,7 @@
 - When using glob to get files in pypeit_setup, added automatic sorting
   so that the default `comb_id` ordering matches the sorted file name.
 - Improve Keck/KCWI automatic frame typing.
+- Implemented Keck/KCWI flux calibration
 - Wavelength templates (OH lines and arc lamps) created for Keck/MOSFIRE
 - Mosaic is now available for Keck/DEIMOS too.
 - Various package data (e.g., reid_arxiv, sensfunc) are no longer
@@ -22,10 +24,10 @@
 - Improved wavelength solution for Gemini-Nort E2V detector
 - Keck/DEIMOS now uses gain/RN values measured periodically by WMKO
 - Add bok_bc 300 grating template
+- Added more flexible quicklook that can handle dithering.
 - Expose exposure time scaling for dark frames as an image processing
   parameter, and set the default behavior to ignore any difference in
   exposure time.  Also fixes a bug in the variance calculation.
-- Added more flexible quicklook that can handle dithering.
 - Refactored object finding
 - Bug fixes in local sky subtraction and extraction
 - Fixed pypeit setup issues due to bad LRIS headers.
@@ -37,6 +39,7 @@
 - Add spectrograph child for VLT X-SHOOTER UVB arm
 - Minor enhancements to `pypeit_identify` GUI
 - Refactoring of `pypeit_show_wvcalib` GUI
+
 
 1.8.1 (23 Feb 2022)
 -------------------
