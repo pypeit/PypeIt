@@ -873,7 +873,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         mod_oscan, _ = rect_slice_with_mask(tmp, tmp_oscan, amp)
         old_ron = stats.sigma_clipped_stats(overscan, sigma=5)[-1]
         new_ron = stats.sigma_clipped_stats(overscan-mod_oscan, sigma=5)[-1]
-        msgs.info(f'Effective readnoise of amplifier {amp} reduced by a factor of {old_ron/new_ron:.2f}x')
+        msgs.info(f'Effective read noise of amplifier {amp} reduced by a factor of {old_ron/new_ron:.2f}x')
 
         # Subtract the model pattern from the full datasec
         outframe[osd_slice] -= model_pattern
