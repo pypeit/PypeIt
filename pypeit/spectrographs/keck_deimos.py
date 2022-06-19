@@ -360,6 +360,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             # lower tilts spat_order and higher spec_order for multislits (i.e., generally not very long slits)
             par['calibrations']['tilts']['spat_order'] = 2  # Default: 3
             par['calibrations']['tilts']['spec_order'] = 5  # Default: 4
+            # pca
+            par['calibrations']['slitedges']['sync_predict'] = 'auto'
 
 
         # Templates
@@ -400,6 +402,25 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['reduce']['findobj']['find_fwhm'] = 7.0 / binning[0]
 
         # Return
+        return par
+
+    def update_edgetracepar(self, par):
+        """
+        This method is used in :func:`pypeit.edgetrace.EdgeTraceSet.maskdesign_matching`
+        to update EdgeTraceSet parameters when the slitmask design matching is not feasible
+        because too few slits are present in the detector.
+
+        Args:
+            par (:class:`pypeit.par.pypeitpar.EdgeTracePar`):
+                The parameters used to guide slit tracing.
+
+        Returns:
+            :class:`pypeit.par.pypeitpar.EdgeTracePar`
+            The modified parameters used to guide slit tracing.
+        """
+
+        par['minimum_slit_gap'] = 0.25
+        par['minimum_slit_length_sci'] = 4.5
         return par
 
     def init_meta(self):
@@ -530,7 +551,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return super().pypeit_file_keys() + ['dateobs', 'utc', 'frameno']
+        return super().pypeit_file_keys() + ['lampstat01', 'dateobs', 'utc', 'frameno']
 
     def subheader_for_spec(self, row_fitstbl, raw_header, extra_header_cards=None,
                            allow_missing=False):

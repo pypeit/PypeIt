@@ -121,6 +121,21 @@ Of course, you will need to provide one or more images
 labeled as *illumflat* :doc:`frametype` in your :doc:`pypeit_file`.
 See below for further details.
 
+Lamps off Flats Subtraction
+---------------------------
+
+When flats taken with the lamps OFF are provided ``PypeIt`` will subtract them form the
+flats taken with the lamps ON, before crearing the Master Flat images. The lamp off
+flats are not automatically identified (except for :doc:`mosfire`), so the users should
+label those as *lampoffflats* :doc:`frametype` in the :doc:`pypeit_file`.
+
+.. note::
+    It is responsibility of the user to ensure that the *lampoffflats* frames in the PypeIt file have
+    the same exposure time of the *trace*, *pixelflat* and *illumflat* frames.
+    The *lampoffflats* frames are always subtracted from the *trace*, *pixelflat* and *illumflat* frames.
+    If distinct frames are desired for *trace*, *pixelflat* and *illumflat*, we currently advise users
+    to simply not use the *lampofflats*.
+
 Apply Spectral Illumination Correction
 --------------------------------------
 
