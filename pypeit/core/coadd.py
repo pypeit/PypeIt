@@ -30,25 +30,26 @@ from pypeit.core import pydl
 from pypeit import data
 
 
-def renormalize_errors_qa(chi, maskchi, sigma_corr, sig_range = 6.0, title='', qafile=None):
+def renormalize_errors_qa(chi, maskchi, sigma_corr, sig_range = 6.0, 
+                          title:str='', qafile:str=None):
     '''
-    Histogram QA plot of your chi distribution.
+    Generate a histogram QA plot of the input chi distribution.
 
     Args:
-        chi (ndarray):
+        chi (`numpy.ndarray`_):
             your chi values
-        maskchi (ndarray, bool):
-            True = good, mask for your chi array
+        maskchi (`numpy.ndarray`_):
+            True = good, mask for your chi array of type bool
         sigma_corr (float):
             corrected sigma
         sig_range (float):
             used to set binsize, default +- 6-sigma
-        title (str):
+        title (str, optional):
             plot title
-        qafile (str or None):
-            output QA file name
+        qafile (str, optional):
+            Write figure to this output QA file, if provided
     '''
-
+    # Prep
     n_bins = 50
     binsize = 2.0*sig_range/n_bins
     bins_histo = -sig_range + np.arange(n_bins)*binsize+binsize/2.0
@@ -57,6 +58,7 @@ def renormalize_errors_qa(chi, maskchi, sigma_corr, sig_range = 6.0, title='', q
     gauss = scipy.stats.norm(loc=0.0,scale=1.0)
     gauss_corr = scipy.stats.norm(loc=0.0,scale=sigma_corr)
 
+    # Plot
     plt.figure(figsize=(12, 8))
     plt.hist(chi[maskchi],bins=bins_histo,density=True,histtype='step', align='mid',color='k',linewidth=3,label='Chi distribution')
     plt.plot(xvals,gauss.pdf(xvals),'c-',lw=3,label='sigma=1')
@@ -85,21 +87,21 @@ def renormalize_errors(chi, mask, clip = 6.0, max_corr = 5.0, title = '', debug=
     from the chi-distribution differ significantly from the noise model which was used to determine chi.
 
     Args:
-        chi (ndarray):
+        chi (`numpy.ndarray`_):
             input chi values
-        mask (ndarray, bool):
-            True = good, mask for your chi array
-        clip (float): optional
+        mask (`numpy.ndarray`_):
+            True = good, mask for your chi array of type bool
+        clip (float, optional): 
             threshold for outliers which will be clipped for the purpose of computing the renormalization factor
-        max_corr (float): optional
+        max_corr (float, optional):
             maximum corrected sigma allowed.
-        title (str): optional
-            title for QA plot, will parsed to renormalize_errors_qa
-        debug (bool): optional
-            whether or not show the QA plot created by renormalize_errors_qa
+        title (str, optional):
+            title for QA plot, passed to renormalize_errors_qa
+        debug (bool, optional):
+            If True, show the QA plot created by renormalize_errors_qa
 
     Returns:
-        (1) sigma_corr (float), corrected new sigma; (2) maskchi
+        tuple: (1) sigma_corr (float), corrected new sigma; (2) maskchi
         (ndarray, bool): new mask (True=good) which indicates the values
         used to compute the correction (i.e it includes clipping)
 
