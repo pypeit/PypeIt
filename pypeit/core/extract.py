@@ -416,8 +416,8 @@ def findfwhm(model, sig_x):
     rwhm:   float
         Value of sig_x at the right width at half maximum
 
-    Notes
-    -----
+    Note
+    ----
     Revision History
         - 11-Mar-2005  Written by J. Hennawi and S. Burles David Schlegel, Princeton.
         - 28-May-2018  Ported to python by J. Hennawi

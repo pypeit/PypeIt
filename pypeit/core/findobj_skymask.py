@@ -59,7 +59,8 @@ def create_skymask(sobjs, thismask, slit_left, slit_righ, box_rad_pix=None, trim
             and second refers to the right.
 
     Returns:
-        `numpy.ndarray`_: Boolean image with shape :math:`(N_{\rm spec}, N_{\rm spat})`
+        `numpy.ndarray`_: 
+            Boolean image with shape :math:`(N_{\rm spec}, N_{\rm spat})`
             (same as thismask) indicating which pixels are usable for
             global sky subtraction.  True = usable for sky subtraction,
             False = should be masked when sky subtracting.
@@ -875,8 +876,8 @@ def get_fwhm(fwhm_in, nsamp, smash_peakflux, spat_fracpos, flux_smash_smth):
             direction has been smashed out). Shape = (nsamp,).
 
     Returns:
-        fwhm_out (float):
-            The fwhm determined from the object flux profile, unleess the fwhm could not be found from the profile,
+        float:
+            The fwhm determined from the object flux profile, unless the fwhm could not be found from the profile,
             in which case the input guess fwhm_in is simply returned.
 
     """
@@ -939,7 +940,8 @@ def get_fwhm(fwhm_in, nsamp, smash_peakflux, spat_fracpos, flux_smash_smth):
     return fwhm_out
 
 
-def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0,
+def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, 
+                 inmask=None, fwhm=3.0,
                  sigclip_smash=5.0, use_user_fwhm=False, boxcar_rad=7.,
                  maxdev=2.0, spec_min_max=None, hand_extract_dict=None, std_trace=None,
                  ncoeff=5, nperslit=None, snr_thresh=10.0, trim_edg=(5,5),
@@ -949,6 +951,9 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
 
     """
     Find the location of objects in a slitmask slit or a echelle order.
+
+    ..todo::
+        This method NEEDS a description of the main recipe
 
     Args:
         image (`numpy.ndarray`_):
@@ -972,17 +977,15 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
             Right boundary of slit/order to be extracted (given as
             floating pt pixels). This a 1-d array with shape (nspec, 1)
             or (nspec)
-        det (:obj:`int`):
-            Dectector number of slit to be extracted.
-        inmask (`numpy.ndarray`_):
+        inmask (`numpy.ndarray`_, optional):
             Floating-point Input mask image.
-        spec_min_max (:obj:`tuple`):
+        spec_min_max (:obj:`tuple`, optional):
             This is tuple (int or float) which defines the minimum and
             maximum of the slit/order in the spectral direction on the
             detector. If None, the values will be determined automatically from the thismask.
             Either element of the tuple can also None, which will then default to using the full min or max over
             which the slit is defined from the thismask.
-        find_min_max (:obj:`tuple`):
+        find_min_max (:obj:`tuple`, optional):
             Tuple of integers that defines the minimum and maximum of your OBJECT
             in the spectral direction on the detector. It is only used for object finding.
             This parameter is helpful if your object only has emission lines or at high redshift
@@ -991,47 +994,46 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
             that spec_min_max indicates the range of the slit/order on the detector, whereas find_min_max indicates
             the range to be used for object finding. If find_min_max is None, or if either member of the tuple is None,
             it will default to the values of spec_min_max
-        fwhm (:obj:`float`):
+        fwhm (:obj:`float`, optional):
             Estimated fwhm of the objects in pixels
-        sigclip_smash: (:obj:`float`):
+        sigclip_smash: (:obj:`float`, optional):
             Sigma clipping threshold used when using astrop.sigma_clippped_stats to compute average slit emission profile
             by averaging the (rectified) image along the spatial direction. Default = 10.0
-
-        use_user_fwhm (:obj:`bool`):
+        use_user_fwhm (:obj:`bool`, optional):
             If True PypeIt will use the spatial profile fwm input by the user (i.e. the fwhm parameter above)
             rather than determine the spatial fwhm from the smashed spatial profile via the automated algorithm.
             Default = False.
         boxcar_rad (:obj:`float`, :obj:`int`):
             Boxcar radius in *pixels* to assign to each detected object and to be used later for boxcar extraction.
-        maxdev (:obj:`float`):
+        maxdev (:obj:`float`, optional):
             Maximum deviation of pixels from polynomial fit to trace
             used to reject bad pixels in trace fitting.
-        hand_extract_dict(:obj:`dict`):
+        hand_extract_dict(:obj:`dict`, optional):
             Dictionary containing information about apertures requested
             by user that should be place by hand in the object list.
             This option is useful for cases like an emission line obect
             that the code fails to find with its significance threshold
-        std_trace (`numpy.ndarray`_):
+        std_trace (`numpy.ndarray`_, optional):
             This is a one dimensional float array with shape = (nspec,) containing the standard star
             trace which is used as a crutch for tracing. If the no
             standard star is provided the code uses the the slit
             boundaries as the crutch.
-        ncoeff (:obj:`int`):
+        ncoeff (:obj:`int`, optional):
             Order of legendre polynomial fits to the trace
-        nperslit (:obj:`int`):
+        nperslit (:obj:`int`, optional):
             Maximum number of objects allowed per slit. The code will
             take the nperslit most significant detections.
-        snr_thresh (:obj:`float`):
+        snr_thresh (:obj:`float`, optional):
             S/N ratio threshold for object detection in the 1d spectral direction smashed out image.
-        extract_maskwidth (:obj:`float`,optional):
+        extract_maskwidth (:obj:`float`, optional):
             This parameter determines the initial size of the region in
             units of fwhm that will be used for local sky subtraction in
             the routine skysub.local_skysub_extract.
-        trim_edg (:obj:`tuple`):
+        trim_edg (:obj:`tuple`, optional):
             Ignore objects within this many pixels of the left and right
             slit boundaries, where the first element refers to the left
             and second refers to the right. This is tuple of 2 integers of floats
-        specobj_dict (:obj:`dict`):
+        specobj_dict (:obj:`dict`, optional):
             Dictionary containing meta-data for the objects that will be
             propgated into the SpecObj objects, i.e. SLITID,
             detector, object type, and pipeline. The default is None, in
@@ -1039,13 +1041,13 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
             
                 specobj_dict = {'SLITID': 999, 'DET': 'DET01',
                                 'OBJTYPE': 'unknown', 'PYPELINE': 'unknown'}
-        show_peaks (:obj:`bool`):
+        show_peaks (:obj:`bool`, optional):
             Whether plotting the QA of peak finding of your object in each order
-        show_fits (:obj:`bool`):
+        show_fits (:obj:`bool`, optional):
             Plot trace fitting for final fits using PCA as crutch
-        show_trace (:obj:`bool`):
+        show_trace (:obj:`bool`, optional):
             Whether display the resulting traces on top of the image
-        debug_all (:obj:`bool`):
+        debug_all (:obj:`bool`, optional):
             Show all the debugging plots?
         qa_title (:obj:`str`, optional):
             Title to be printed in the QA plots
@@ -1053,8 +1055,8 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
             Directory + filename of the object profile QA
 
     Returns:
-        :class:`pypeit.specobjs.SpecObjs`: class containing the
-              information about the objects found on the slit/order
+        :class:`pypeit.specobjs.SpecObjs`: 
+            Class containing the information about the objects found on the slit/order
 
     Note:
         Revision History:
