@@ -144,7 +144,7 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         self.meta['dichroic'] = '' # str -- ie 560 -- Name of the dichroic
         self.meta['filter1'] = dict(ext=0, card='FILTER') # str -- ie J -- Name of the order-sorting filter
         
-        self.meta['mjd'] = float(dict(ext=0, card='JD')) - 2400000.5
+        self.meta['mjd'] = dict(card=None, compound=True)
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         
@@ -177,6 +177,8 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
             binspatial = headarr[0]['CCDBIN1']
             binspec = headarr[0]['CCDBIN2']
             return parse.binning2string(binspec, binspatial)
+        if meta_key == 'mjd':
+            return float(headarr['JD']) - 2400000.5
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -220,6 +222,8 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
                 frame-type :ref:`frame_type_defs`.
             fitstbl (`astropy.table.Table`_):
                 The table with the metadata for one or more frames to check.
+                This table uses the Pypeit-specific metadata keywords, as defined
+                under def init_meta(self).
             exprng (:obj:`list`, optional):
                 Range in the allowed exposure time for a frame of type
                 ``ftype``. See
@@ -231,13 +235,15 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['science', 'standard']:
-            return good_exp & (fitstbl['imagetyp'] == 'OBJECT')
+            return good_exp & (fitstbl['idname'] == 'Object')
         if ftype == 'bias':
-            return good_exp & (fitstbl['imagetyp'] == 'zero')
-        if ftype in ['arc','tilt']:
-            return good_exp & np.array([ilamp in ['Ar','Xe', 'Ne'] for ilamp in fitstbl['lampstat01']]) & (fitstbl['idname'] == 'COMP')
+            return good_exp & (fitstbl['idname'] == 'Bias')
+        if ftype == 'arc':
+            return good_exp & ('Ar' or 'Xe' or 'Ne' in fitstbl['lampstat01']) & ('Arc' or 'arc' in fitstbl['idname'] or fitstbl['target'])
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
+    
+    
     
     def bpm(self, filename, det, shape=None, msbias=None):
         """
