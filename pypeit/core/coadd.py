@@ -2858,14 +2858,24 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
         tilts_stack (`numpy.ndarray`_):
            Stack of the wavelength tilts traces.  Shape is (nimgs,
            nspec, nspat).
-        waveimg_stack (`numpy.ndarray`_):
-           Stack of the wavelength images.  Shape is (nimgs, nspec,
-           nspat).
         thismask_stack (`numpy.ndarray`_):
             Boolean array with the masks indicating which pixels are on
             the slit in question.  `True` values are on the slit;
             `False` values are off the slit.  Shape is (nimgs, nspec,
             nspat).
+        waveimg_stack (`numpy.ndarray`_):
+           Stack of the wavelength images.  Shape is (nimgs, nspec,
+           nspat).
+        wave_grid (`numpy.ndarray`_):
+            Same as `loglam_grid` but in angstroms instead of
+            log(angstroms). (TODO: Check units...)
+        spat_samp_fact (float, optional):
+            Spatial sampling for 2d coadd spatial bins in pixels. A value > 1.0
+            (i.e. bigger pixels) will downsample the images spatially, whereas <
+            1.0 will oversample. Default = 1.0
+        maskdef_dict (:obj:`dict`, optional): Dictionary containing all the maskdef info. The quantities saved
+            are: maskdef_id, maskdef_objpos, maskdef_slitcen, maskdef_designtab. To learn what
+            they are see :class:`~pypeit.slittrace.SlitTraceSet` datamodel.
         weights (`numpy.ndarray`_ or str, optional):
             The weights used when combining the rectified images (see
             :func:`weighted_combine`).  If weights is set to 'uniform' then a
@@ -2874,26 +2884,19 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
             If an array is passed in shape must be (nimgs,), (nimgs, nspec), or
             (nimgs, nspec, nspat).  (TODO: JFH I think the str option should be
             changed here, but am leaving it for now.)
-        spat_samp_fact (float, optional):
-            Spatial sampling for 2d coadd spatial bins in pixels. A value > 1.0
-            (i.e. bigger pixels) will downsample the images spatially, whereas <
-            1.0 will oversample. Default = 1.0
-        loglam_grid (`numpy.ndarray`_, optional):
-            Wavelength grid in log10(wave) onto which the image stacks
-            will be rectified.  The code will automatically choose the
-            subset of this grid encompassing the wavelength coverage of
-            the image stacks provided (see :func:`waveimg_stack`).
-            Either `loglam_grid` or `wave_grid` must be provided.
-        wave_grid (`numpy.ndarray`_, optional):
-            Same as `loglam_grid` but in angstroms instead of
-            log(angstroms). (TODO: Check units...)
-        maskdef_dict (:obj:`dict`, optional): Dictionary containing all the maskdef info. The quantities saved
-            are: maskdef_id, maskdef_objpos, maskdef_slitcen, maskdef_designtab. To learn what
-            they are see :class:`~pypeit.slittrace.SlitTraceSet` datamodel.
+        interp_dspat (bool, optional):
+            Interpolate the dspat images wherever the coadds are masked
+
 
     Returns:
-        tuple: Returns the following (TODO: This needs to be updated):
+        dict: Returns a dict with the following keys:
 
+            - wave_bins: 
+            - dspat_bins: 
+            - wave_mid: 
+            - wave_min: 
+            - wave_max: 
+            - dspat_mid:
             - sciimg: float ndarray shape = (nspec_coadd, nspat_coadd):
               Rectified and coadded science image
             - sciivar: float ndarray shape = (nspec_coadd, nspat_coadd):
@@ -2917,16 +2920,12 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
               The average spatial offsets in pixels from the reference
               trace trace_stack corresponding to the rectified and
               coadded data.
-            - thismask: bool ndarray shape = (nspec_coadd, nspat_coadd):
-              Output mask for rectified and coadded images. True = Good,
-              False=Bad. This image is trivial, and is simply an image
-              of True values the same shape as the rectified and coadded
-              data.
-            - tslits_dict: dict: tslits_dict dictionary containing the
-              information about the slits boundaries. The slit
-              boundaries are trivial and are simply vertical traces at 0
-              and nspat_coadd-1.
-
+            - nspec: int
+            - nspat: int
+            - maskdef_id: int
+            - maskdef_slitcen: int
+            - maskdef_objpos: int
+            - maskdef_designtab: int
     """
     nimgs, nspec, nspat = sciimg_stack.shape
 
@@ -3012,51 +3011,72 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
         if maskdef_dict['maskdef_designtab'] is not None:
             maskdef_designtab = maskdef_dict['maskdef_designtab']
 
-    return dict(wave_bins=wave_bins, dspat_bins=dspat_bins, wave_mid=wave_mid, wave_min=wave_min,
-                wave_max=wave_max, dspat_mid=dspat_mid, sciimg=sciimg, sciivar=sciivar,
-                imgminsky=imgminsky, outmask=outmask, nused=nused, tilts=tilts, waveimg=waveimg,
-                dspat=dspat, nspec=imgminsky.shape[0], nspat=imgminsky.shape[1],
-                maskdef_id=maskdef_id, maskdef_slitcen=new_maskdef_slitcen,
+    return dict(wave_bins=wave_bins, 
+                dspat_bins=dspat_bins, 
+                wave_mid=wave_mid, 
+                wave_min=wave_min,
+                wave_max=wave_max, 
+                dspat_mid=dspat_mid, 
+                sciimg=sciimg, 
+                sciivar=sciivar,
+                imgminsky=imgminsky, 
+                outmask=outmask, 
+                nused=nused, 
+                tilts=tilts, 
+                waveimg=waveimg,
+                dspat=dspat, 
+                nspec=imgminsky.shape[0], 
+                nspat=imgminsky.shape[1],
+                maskdef_id=maskdef_id, 
+                maskdef_slitcen=new_maskdef_slitcen,
                 maskdef_objpos=new_maskdef_objpos,
                 maskdef_designtab=maskdef_designtab)
 
 
-def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, inmask_stack, sci_list, var_list):
+def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, 
+            thismask_stack, inmask_stack, sci_list, var_list):
     """
     Rebin a set of images and propagate variance onto a new spectral and spatial grid. This routine effectively
     "recitifies" images using np.histogram2d which is extremely fast and effectiveluy performs
     nearest grid point interpolation.
 
-    Args:
-        spec_bins: float ndarray, shape = (nspec_rebin)
-           Spectral bins to rebin to.
-        spat_bins: float ndarray, shape = (nspat_rebin)
-           Spatial bins to rebin to.
-        waveimg_stack: float ndarray, shape = (nimgs, nspec, nspat)
-            Stack of nimgs wavelength images with shape = (nspec, nspat) each
-        spatimg_stack: float ndarray, shape = (nimgs, nspec, nspat)
-            Stack of nimgs spatial position images with shape = (nspec, nspat) each
-        thismask_stack: bool ndarray, shape = (nimgs, nspec, nspat)
-            Stack of nimgs images with shape = (nspec, nspat) indicating the locatons on the pixels on an image that
-            are on the slit in question.
-        inmask_stack: bool ndarray, shape = (nimgs, nspec, nspat)
-            Stack of nimgs images with shape = (nspec, nspat) indicating which pixels on an image are masked.
-            True = Good, False = Bad
-        sci_list: list
-            List of  float ndarray images (each being an image stack with shape (nimgs, nspec, nspat))
-            which are to be rebinned onto the new spec_bins, spat_bins
-        var_list: list
-            List of  float ndarray variance images (each being an image stack with shape (nimgs, nspec, nspat))
-            which are to be rebbinned with proper erorr propagation
+    Parameters
+    ----------
+    spec_bins: `numpy.ndarray`
+        Spectral bins to rebin to.
+        float, shape = (nspec_rebin)
+    spat_bins: `numpy.ndarray`
+        Spatial bins to rebin to.
+        float ndarray, shape = (nspat_rebin)
+    waveimg_stack: `numpy.ndarray`
+        Stack of nimgs wavelength images with shape = (nspec, nspat) each
+        float , shape = (nimgs, nspec, nspat)
+    spatimg_stack: `numpy.ndarray`
+        Stack of nimgs spatial position images with shape = (nspec, nspat) each
+        float, shape = (nimgs, nspec, nspat)
+    thismask_stack: `numpy.ndarray`
+        Stack of nimgs images with shape = (nspec, nspat) indicating the locatons on the pixels on an image that
+        are on the slit in question.
+        bool, shape = (nimgs, nspec, nspat)
+    inmask_stack: `numpy.ndarray`
+        Stack of nimgs images with shape = (nspec, nspat) indicating which pixels on an image are masked.
+        True = Good, False = Bad
+        bool ndarray, shape = (nimgs, nspec, nspat)
+    sci_list: list
+        List of  float ndarray images (each being an image stack with shape (nimgs, nspec, nspat))
+        which are to be rebinned onto the new spec_bins, spat_bins
+    var_list: list
+        List of  float ndarray variance images (each being an image stack with shape (nimgs, nspec, nspat))
+        which are to be rebbinned with proper erorr propagation
 
-    Returns:
-        tuple: Returns the following:
-            - sci_list_out: list: The list of ndarray rebinned images
+    Returns
+    -------
+    sci_list_out: list: The list of ndarray rebinned images
               with new shape (nimgs, nspec_rebin, nspat_rebin)
-            - var_list_out: list: The list of ndarray rebinned variance
+    var_list_out: list: The list of ndarray rebinned variance
               images with correct error propagation with shape (nimgs,
               nspec_rebin, nspat_rebin)
-            - norm_rebin_stack: int ndarray, shape (nimgs, nspec_rebin,
+    norm_rebin_stack: int ndarray, shape (nimgs, nspec_rebin,
               nspat_rebin): An image stack indicating the integer
               occupation number of a given pixel. In other words, this
               number would be zero for empty bins, one for bins that
@@ -3064,7 +3084,7 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
               the input inmask_stack into account. The output mask for
               each image can be formed via outmask_rebin_satck =
               (norm_rebin_stack > 0)
-            - nsmp_rebin_stack: int ndarray, shape (nimgs, nspec_rebin,
+    nsmp_rebin_stack: int ndarray, shape (nimgs, nspec_rebin,
               nspat_rebin): An image stack indicating the integer
               occupation number of a given pixel taking only the
               thismask_stack into account, but taking the inmask_stack
@@ -3123,180 +3143,3 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
 
 
     return sci_list_out, var_list_out, norm_rebin_stack.astype(int), nsmp_rebin_stack.astype(int)
-
-
-# TODO: Do we need this function?  It's only used by sync_pair, which is only
-# used by pypeit/scripts/coadd_1dspec.py::coadd1d_filelist, which is only called
-# by a unit test.
-def spectra_to_peaks(spec, maxspat, det, extract='OPT', sigma=2.):
-    """
-    From a set of spectra in a :class:`pypeit.specobjs.Specobjs`
-    generate an array of peaks for cross-correlation
-
-    These are Gaussians with amplitude proportional to the S/N
-    of the spectrum
-
-    Args:
-        spec (:class:`~pypeit.specobjs.Specobjs`):
-            Extracted spectra
-        maxspat (:obj:`int`):
-            Size of the array generated
-        det (:obj:`str`):
-            String identifier for the detector or mosaic
-        extract (:obj:`str`, optional):
-            Type of extraction performed
-        sigma (:obj:`float`, optional):
-            sigma of the Gaussian peaks generated
-
-    Returns:
-        `numpy.ndarray`_: A vector with a series of Gaussians at the locations
-        of the extracted spectra.
-    """
-    # Generate "arc spectra"
-    arc_spec = np.zeros(maxspat)
-    xval = np.arange(maxspat)
-
-    # Add in Gaussian
-    for sobj in spec:
-        # Detector
-        if sobj.DET != det:
-            continue
-        gdi = sobj[extract+'_COUNTS_IVAR'] > 0
-        s2n = np.median(sobj[extract+'_COUNTS'][gdi] * np.sqrt(sobj[extract+'_COUNTS_IVAR'][gdi]))
-        # Add it in
-        arc_spec += s2n * np.exp(-1*(sobj.SPAT_PIXPOS-xval)**2 / (2*sigma**2))
-
-    # Return
-    return arc_spec
-
-def update_sync_dict(sync_dict, in_indx, in_files, in_names, sync_toler=3):
-    """
-    Perform glorious book-keeping on the dict used to sync up
-    spectra from multiple exposures.
-
-    The input sync_dict is modified in place.
-
-    Args:
-        sync_dict (dict):
-        in_indx (int):  Index to sync against.  This is related to SPAT_POS
-        in_files (list):
-            List of filenames to append when we have match
-        in_names:
-            List of names to match to
-        sync_toler (int, optional):
-            A match occurs if SPAT_POS is within sync_toler
-    """
-    if len(in_files) != len(in_names):
-        raise ValueError('Number of files {0} and names {1} do not match.'.format(
-                            len(in_files),len(in_names)))
-    # Check for indx
-    if len(sync_dict) > 0:
-        ikeys = np.array(list(sync_dict.keys()))
-        mtch = np.abs(ikeys-in_indx) < sync_toler
-        nmtch = np.sum(mtch)
-        if nmtch == 0:
-            indx = in_indx
-        elif nmtch == 1:
-            indx = ikeys[mtch][0]
-        else:
-            raise ValueError("Too many matches!")
-    else:
-        indx = in_indx
-
-    # Now update
-    files = np.array(in_files)
-    names = np.array(in_names)
-    keep = np.ones_like(names).astype(bool)
-    if indx in sync_dict.keys():
-        # Avoid writing file1 names twice
-        for ii, ifile in enumerate(in_files):
-            if ifile in sync_dict[indx]['files']:
-                keep[ii] = False
-    else:
-        # Init
-        sync_dict[indx] = {}
-        sync_dict[indx]['files'] = []
-        sync_dict[indx]['names'] = []
-    # Append
-    sync_dict[indx]['files'] += files[keep].tolist()
-    sync_dict[indx]['names'] += names[keep].tolist()
-
-# TODO: Is this function every used outside of
-# pypeit/scripts/coadd_1dspec.py::coadd1d_filelist?  That function doesn't seem
-# to be used anywhere except for a test, so do we need this function?
-def sync_pair(spec1_file, spec2_file, det, sync_dict=None, sync_toler=3, debug=False):
-    """
-    Routine to sync up spectra in a pair of :class:`pypeit.specobjs.Specobjs`
-    objects.
-
-    Args:
-        spec1_file (str):
-        spec2_file (str):
-        det (:obj:`str`):
-            String identifier for the detector or mosaic with the extracted
-            spectra.
-        sync_dict (dict):
-        sync_toler (int):
-        debug:
-
-    Returns:
-        dict:  The dict with the book-keeping
-           - Each key is considered a unique source
-           - It contains a list of the files where it was found
-           - And the PypeIt name for each source, e.g. SPAT0132-SLIT0020-DET01
-
-    """
-
-    if sync_dict is None:
-        sync_dict = {}
-    # Load spectra, restricted by det
-    spec1 = specobjs.SpecObjs.from_fitsfile(spec1_file, det=det)
-    spec2 = specobjs.SpecObjs.from_fitsfile(spec2_file, det=det)
-
-    # Max spat
-    maxspat = int(np.max(np.concatenate([spec1.SPAT_PIXPOS, spec2.SPAT_PIXPOS]))) + 10
-
-    # Test
-    #spec2.SPAT_PIXPOS = spec2.SPAT_PIXPOS - 5.
-
-    # Arcs
-    peaks1 = spectra_to_peaks(spec1, maxspat, det)
-    peaks2 = spectra_to_peaks(spec2, maxspat, det)
-
-    # Cross-correlate
-    shift, cross_corr = wvutils.xcorr_shift(peaks1, peaks2, debug=debug)
-
-    # Loop me now
-    done2 = np.ones(spec2.nobj).astype(bool)
-
-    for sobj1 in spec1:
-        #
-        indx1 = int(sobj1.SPAT_PIXPOS)
-        # Match
-        mtch = np.abs(sobj1.SPAT_PIXPOS-spec2.SPAT_PIXPOS-shift) < sync_toler
-        nmtch = np.sum(mtch)
-        if nmtch == 0:  # No match with sobj2, save only sobj1 for now
-            files = [spec1_file]
-            names = [sobj1.NAME]
-        elif nmtch == 1:  # Matched
-            idx = np.where(mtch)[0][0]
-            sobj2 = spec2[idx]
-            files = [spec1_file, spec2_file]
-            names = [sobj1.NAME, sobj2.NAME]
-            #
-            done2[idx] = True
-
-        else:
-            msgs.error('CODING ERROR: nmtch must be 0 or 1; submit an issue')
-        # Update
-        update_sync_dict(sync_dict, indx1, files, names)
-
-    # Deal with not done
-    if np.any(np.invert(done2)):
-        for sobj2 in spec2[np.invert(done2)]:
-            indx2 = int(sobj2.SPAT_PIXPOS+shift)
-            update_sync_dict(sync_dict, indx2, [spec2_file], [sobj2.NAME])
-
-    # Populate the sync_dict
-    return sync_dict
-
