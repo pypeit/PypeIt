@@ -402,7 +402,7 @@ def findfwhm(model, sig_x):
     ----------
     model : `numpy.ndarray`_  
         Object model profile. float 2-d array with shape [nspec, nspat]
-    sig_x :
+    sig_x : `numpy.ndarray`_
         x-coordinate of the profile
 
     Returns
