@@ -221,22 +221,36 @@ to avoid the vacuum frame::
       [[wavelengths]]
          refframe = observed
 
-After running PypeIt with the standard call, construct a simple flexure file
-which mainly consists of a list of the spec1d files.  Here is the test file:: 
+Second, generate a `Flexure File`_ as described below.
+
+Last, run the `pypeit_deimos_flexure` script::
+
+   pypeit_multislit_flexure file.flex out_root
+
+where out_root is the prefix for the FITS file generated that
+contains the flexure solution for all of the slits.  
+
+.. _flexure_file:
+
+Flexure File
+++++++++++++
+
+After running PypeIt with the standard call, construct a simple 
+`Flexure File`_ which is a type of :ref:`input_files`.
+It has a (required) :ref:`parameter_block` which must specify
+the spectrograph name and a (required) :ref:`data_block`
+that provides the table of files to process.
+
+Here is the test file:: 
 
    # User-defined execution parameters
    [rdx]
    spectrograph = keck_deimos
 
    flexure read
+   filename
    Science/spec1d_DE.20100913.22358-CFHQS1_DEIMOS_20100913T061231.334.fits
    flexure end
 
 As desired, you can modify the 
 :ref:`pypeit_par:FlexurePar Keywords` in the top block.
-Last, run the `pypeit_deimos_flexure` script::
-
-   pypeit_multislit_flexure flexure.file out_root
-
-where out_root is the prefix for the FITS file generated that
-contains the flexure solution for all of the slits.  

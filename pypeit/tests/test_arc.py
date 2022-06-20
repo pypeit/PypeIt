@@ -1,8 +1,6 @@
 """
 Module to run tests on ararclines
 """
-import os
-import numpy as np
 import pytest
 
 from pypeit.core import arc

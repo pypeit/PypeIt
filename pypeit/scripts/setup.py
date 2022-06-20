@@ -82,5 +82,7 @@ class Setup(scriptbase.ScriptBase):
                                     write_manual=args.manual_extraction,
                                     configs=[item.strip() for item in args.cfg_split.split(',')])
 
+        # Return -- allows this to be run by other scripts
+        return ps
 
 

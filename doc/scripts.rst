@@ -1,6 +1,13 @@
+.. include:: include/links.rst
+
+.. _pypeit_scripts:
+
 **************
 PypeIt scripts
 **************
+
+Overview
+++++++++
 
 ``PypeIt`` is packaged with several scripts that should have been installed
 directly into your path (e.g. ``~/anaconda/bin``).

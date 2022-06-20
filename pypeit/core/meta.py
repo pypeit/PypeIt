@@ -47,6 +47,10 @@ def convert_radec(ra, dec):
                 return coords.ra.value, coords.dec.value
             else:
                 return ra.astype(float), dec.astype(float)
+        elif isinstance(ra[0], float):
+            return ra.astype(float), dec.astype(float)
+        else:
+            raise IOError("Bad ra, dec format!!")
     else:
         return ra, dec
 

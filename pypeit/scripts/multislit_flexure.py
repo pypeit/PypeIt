@@ -10,7 +10,8 @@ from IPython import embed
 
 import numpy as np
 
-from pypeit import par, msgs
+from pypeit import msgs
+from pypeit import inputfiles
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.par import pypeitpar
 from pypeit.core import flexure
@@ -35,13 +36,13 @@ def read_flexfile(ifile):
     """
     # Read in the pypeit reduction file
     msgs.info('Loading the flexure file')
-    lines = par.util._read_pypeit_file_lines(ifile)
+    lines = inputfiles.read_pypeit_file_lines(ifile)
     is_config = np.ones(len(lines), dtype=bool)
 
     # Parse the fluxing block
     spec1dfiles = []
     objids_in = []
-    s, e = par.util._find_pypeit_block(lines, 'flexure')
+    s, e = inputfiles.InputFile.find_block(lines, 'flexure')
     if s >= 0 and e < 0:
         msgs.error("Missing 'flexure end' in {0}".format(ifile))
     elif (s < 0) or (s == e):
