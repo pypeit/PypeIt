@@ -113,7 +113,13 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
 
 
 def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
-    """ Calculate shift between object sky spectrum and archive sky spectrum
+    """ Calculate shift between object sky spectrum and 
+    the archive sky spectrum.  Continuua are subtracted from each
+    spectrum and then the archive sky is convolved with a gaussian
+    to match the object sky resolution.
+
+    A standard FFT approach is used fo the cross-correlation.
+    We then fit a low-order polynomial to find the peak in the cross-correlation.
 
     Args:
         obj_skyspec (:class:`linetools.spectra.xspectrum1d.XSpectrum1d`):
@@ -122,12 +128,20 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
             Archived sky spectrum
         arx_lines (tuple): Line information returned by arc.detect_lines for
             the Archived sky spectrum
-        mxshft (float, optional):
+        mxshft (int or float, optional):
             Maximum allowed shift from flexure;  note there are cases that
             have been known to exceed even 30 pixels..
 
     Returns:
-        dict: Contains flexure info
+        dict: Contains flexure info.  Keys are:
+          - polyfit= fit to the cross-correlation
+          - shift= best shift in pixels
+          - subpix= subpixelation of input spectrum
+          - corr= correlation function
+          - sky_spec= object sky spectrum used (rebinned, etc.)
+          - arx_spec= archived sky spectrum used
+          - corr_cen= center of the correlation function
+          - smooth= Degree of smoothing of input spectrum to match archive
     """
 
     # TODO None of these routines should have dependencies on XSpectrum1d!
@@ -289,9 +303,14 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
     msgs.info("Flexure correction of {:g} pixels".format(shift))
     #model = (fit[2]*(subpix_grid**2.))+(fit[1]*subpix_grid)+fit[0]
 
-    return dict(polyfit=fit, shift=shift, subpix=subpix_grid,
-                corr=corr[subpix_grid.astype(np.int)], sky_spec=obj_skyspec, arx_spec=arx_skyspec,
-                corr_cen=corr.size/2, smooth=smooth_sig_pix)
+    return dict(polyfit=fit, 
+                shift=shift, 
+                subpix=subpix_grid,
+                corr=corr[subpix_grid.astype(np.int)], 
+                sky_spec=obj_skyspec, 
+                arx_spec=arx_skyspec,
+                corr_cen=corr.size/2, 
+                smooth=smooth_sig_pix)
 
 
 def flexure_interp(shift, wave):
@@ -495,19 +514,25 @@ def spec_flexure_corrQA(ax, this_flex_dict, cntr, name):
     ax.set_xlabel('Lag')
 
 
-def spec_flexure_qa(slitords, bpm, basename, flex_list, specobjs=None, out_dir=None):
+def spec_flexure_qa(slitords, bpm, basename, flex_list, 
+                    specobjs=None, out_dir=None):
     """
+    Generate QA for the spectral felxutre calculation
 
     Args:
         slitords (`numpy.ndarray`_):
             Array of slit/order numbers
         bpm (`numpy.ndarray`_):
-            True = masked slit
+            Boolean mask; True = masked slit
         basename (str):
+            Used to generate the output file name
         flex_list (list):
-        specobjs: (:class:`pypeit.specobjs.Specobjs`)
+            list of :obj:`dict`s containing the flexure information
+        specobjs: (:class:`pypeit.specobjs.Specobjs`, optional):
             Spectrally extracted objects
-        out_dir:
+        out_dir (str, optonal):
+            Path to the output directory for the QA plots. 
+            If None, the current is used.
 
     """
     plt.rcdefaults()
@@ -653,12 +678,11 @@ def calculate_image_offset(image, im_ref, nfit=3):
             fitting the peak of the cross correlation.
 
     Returns:
-        ra_diff (float):
-            Relative shift (in pixels) of image relative to im_ref (x direction).
+        tuple: Returns two floats, the x and y offset of the image.
+          - ra_diff --  Relative shift (in pixels) of image relative to im_ref (x direction).
             In order to align image with im_ref, ra_diff should be added to the
             x-coordinates of image
-        dec_diff (float):
-            Relative shift (in pixels) of image relative to im_ref (y direction).
+          - dec_diff  -- Relative shift (in pixels) of image relative to im_ref (y direction).
             In order to align image with im_ref, dec_diff should be added to the
             y-coordinates of image
     """
@@ -695,13 +719,20 @@ def sky_em_residuals(wave:np.ndarray, flux:np.ndarray,
     input sky emission lines 
 
     Args:
-        wave (np.ndarray): Wavelengths (in air!)
-        flux (np.ndarray): 
-        ivar (np.ndarray): 
-        sky_waves (np.ndarray): Skyline wavelengths (in air!)
-        plot (bool, optional): Defaults to False.
-        noff (int, optional): Range in Ang to analyze labout emission line. Defaults to 5.
-        nfit_min (int, optional): Minimum number of pixels required to do a fit. Defaults to 20.
+        wave (`numpy.ndarray`_): 
+            Wavelengths (in air!)
+        flux (`numpy.ndarray`_): 
+            Fluxes
+        ivar (`numpy.ndarray`_): 
+            Inverse variance
+        sky_waves (`numpy.ndarray`_): 
+            Skyline wavelengths (in air!)
+        plot (bool, optional): 
+            If true, plot the residuals
+        noff (int, optional): 
+            Range in Ang to analyze labout emission line. Defaults to 5.
+        nfit_min (int, optional): 
+            Minimum number of pixels required to do a fit. Defaults to 20.
 
     Returns:
         tuple: np.ndarray's -- sky line wavelength of good lines, wavelength offset, 
