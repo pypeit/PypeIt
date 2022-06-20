@@ -489,18 +489,21 @@ class Extract:
             trace_spat = 0.5 * (self.slits_left + self.slits_right)
             trace_spec = np.arange(self.slits.nspec)
             slit_specs = []
+            # get boxcar radius
+            box_radius = self.par['reduce']['extraction']['boxcar_radius']
             for ss in range(self.slits.nslits):
                 if not gd_slits[ss]:
                     slit_specs.append(None)
                     continue
                 slit_spat = self.slits.spat_id[ss]
                 thismask = (self.slitmask == slit_spat)
-                box_denom = moment1d(self.waveimg * thismask > 0.0, trace_spat[:, ss], 2, row=trace_spec)[0]
+                inmask = self.sciImg.select_flag(invert=True) & thismask
+                box_denom = moment1d(self.waveimg * inmask > 0.0, trace_spat[:, ss], 2*box_radius, row=trace_spec)[0]
                 wghts = (box_denom + (box_denom == 0.0))
                 # Mask by ivar to deal with bad detector regions and chip gaps
-                slit_sky = moment1d(self.global_sky * thismask * (self.sciImg.ivar>0), trace_spat[:, ss], 2, row=trace_spec)[0] / wghts
+                slit_sky = moment1d(self.global_sky * inmask * (self.sciImg.ivar>0), trace_spat[:, ss], 2*box_radius, row=trace_spec)[0] / wghts
                 # Denom is computed in case the trace goes off the edge of the image
-                slit_wave = moment1d(self.waveimg * thismask, trace_spat[:, ss], 2, row=trace_spec)[0] / wghts
+                slit_wave = moment1d(self.waveimg * inmask, trace_spat[:, ss], 2*box_radius, row=trace_spec)[0] / wghts
                 # TODO :: Need to remove this XSpectrum1D dependency - it is required in:  flexure.spec_flex_shift
                 slit_specs.append(xspectrum1d.XSpectrum1D.from_tuple((slit_wave, slit_sky)))
 
