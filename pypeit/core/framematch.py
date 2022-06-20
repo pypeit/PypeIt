@@ -3,6 +3,8 @@ Routines for matching frames to certain types or each other.
 
 .. include:: ../include/links.rst
 """
+# TODO -- Move this out of core?
+
 from collections import OrderedDict
 
 import numpy as np
