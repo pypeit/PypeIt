@@ -137,22 +137,22 @@ def poly_model_eval(theta, func, model, wave, wave_min, wave_max):
     Routine to evaluate the polynomial fit
 
     Args:
-        theta (float ndarray):
-           coefficient parameter vector
+        theta (`numpy.ndarray`_):
+           coefficient parameter vector of type=float
         func (str):
            polynomial type
         model (str):
            model type, valid model types are 'poly', 'square', or 'exp', corresponding to normal polynomial,
            squared polynomial, or exponentiated polynomial
-        wave (float ndarray):
-           array of wavelength values
-        wave_min:
+        wave (`numpy.ndarray`_):
+           array of wavelength values of type=float
+        wave_min (float):
            minimum wavelength for polynomial fit range
-        wave_max:
+        wave_max (float):
            maximum wavelength for polynomial fit range
 
     Returns:
-        ndarray: Array of evaluated polynomial with same shape as wave
+        `numpy.ndarray`_: Array of evaluated polynomial with same shape as wave
     """
     # Evaluate the polynomial for rescaling
     if 'poly' in model:
@@ -170,7 +170,7 @@ def poly_model_eval(theta, func, model, wave, wave_min, wave_max):
     return ymult
 
 
-def poly_ratio_fitfunc_chi2(theta, thismask, arg_dict):
+def poly_ratio_fitfunc_chi2(theta, gpm, arg_dict):
     """
     Function for computing the chi^2 loss function for solving for the polynomial rescaling of one spectrum to another.
     There are two non-standard things implemented here which increase ther robustness. The first is a non-standard error used for the
@@ -178,10 +178,9 @@ def poly_ratio_fitfunc_chi2(theta, thismask, arg_dict):
     solve_poly_ratio code. The second thing is that the chi is remapped using the scipy huber loss function to
     reduce sensitivity to outliers, ased on the scipy cookbook on robust optimization.
 
-
     Args:
-        theta (ndarray): parameter vector for the polymomial fit
-        thismask (ndarray, bool): mask for the current iteration of the optimization, True=good
+        theta (`numpy.ndarray`_): parameter vector for the polymomial fit
+        gpm (`numpy.ndarray`_): boolean mask for the current iteration of the optimization, True=good
         arg_dict (dict): dictionary containing arguments
 
     Returns:
@@ -205,7 +204,7 @@ def poly_ratio_fitfunc_chi2(theta, thismask, arg_dict):
     ymult = poly_model_eval(theta, func, model, wave, wave_min, wave_max)
 
     flux_scale = ymult*flux_med
-    mask_both = mask & thismask
+    mask_both = mask & gpm
     # This is the formally correct ivar used for the rejection, but not used in the fitting. This appears to yield
     # unstable results
     #totvar = utils.inverse(ivar_ref, positive=True) + ymult**2*utils.inverse(ivar, positive=True)
@@ -233,8 +232,7 @@ def poly_ratio_fitfunc_chi2(theta, thismask, arg_dict):
     #chi2 = np.sum(np.square(chi_vec))
     return loss_function
 
-# TODO: Change thismask to gpm
-def poly_ratio_fitfunc(flux_ref, thismask, arg_dict, init_from_last=None, **kwargs_opt):
+def poly_ratio_fitfunc(flux_ref, gpm, arg_dict, init_from_last=None, **kwargs_opt):
     """
     Function to be optimized by robust_optimize for solve_poly_ratio
     polynomial rescaling of one spectrum to match a reference
@@ -251,7 +249,7 @@ def poly_ratio_fitfunc(flux_ref, thismask, arg_dict, init_from_last=None, **kwar
         flux_ref (`numpy.ndarray`_):
             Reference flux that we are trying to rescale our spectrum
             to match
-        thismask (`numpy.ndarray`_):
+        gpm (`numpy.ndarray`_):
             Boolean array with mask for the current iteration of the
             optimization. True=good
         arg_dict (:obj:`dict`):
@@ -265,7 +263,7 @@ def poly_ratio_fitfunc(flux_ref, thismask, arg_dict, init_from_last=None, **kwar
             optimizer
 
    Returns:
-        Three objects are returned. (1) scipy optimization object,
+        tuple: Three objects are returned. (1) scipy optimization object,
         (2) scale factor to be applied to the data to match the
         reference spectrum flux_ref, (3) error vector to be used for
         the rejection that takes place at each iteration of the
@@ -276,7 +274,7 @@ def poly_ratio_fitfunc(flux_ref, thismask, arg_dict, init_from_last=None, **kwar
     # flux_ref, ivar_ref act like the 'data', the rescaled flux will be the 'model'
 
     guess = arg_dict['guess'] if init_from_last is None else init_from_last.x
-    result = scipy.optimize.minimize(poly_ratio_fitfunc_chi2, guess, args=(thismask, arg_dict),  **kwargs_opt)
+    result = scipy.optimize.minimize(poly_ratio_fitfunc_chi2, guess, args=(gpm, arg_dict),  **kwargs_opt)
     flux = arg_dict['flux']
     ivar = arg_dict['ivar']
     mask = arg_dict['mask']
@@ -289,7 +287,7 @@ def poly_ratio_fitfunc(flux_ref, thismask, arg_dict, init_from_last=None, **kwar
     # Evaluate the polynomial for rescaling
     ymult = poly_model_eval(result.x, func, model, wave, wave_min, wave_max)
     flux_scale = ymult*flux
-    mask_both = mask & thismask
+    mask_both = mask & gpm
     totvar = utils.inverse(ivar_ref) + ymult**2*utils.inverse(ivar)
     ivartot1 = mask_both*utils.inverse(totvar)
     # Now rescale the errors
@@ -299,33 +297,42 @@ def poly_ratio_fitfunc(flux_ref, thismask, arg_dict, init_from_last=None, **kwar
     except KeyError:
         debug = False
 
-    sigma_corr, maskchi = renormalize_errors(chi, mask=thismask, title = 'poly_ratio_fitfunc', debug=debug)
+    sigma_corr, maskchi = renormalize_errors(chi, mask=gpm, title = 'poly_ratio_fitfunc', debug=debug)
     ivartot = ivartot1/sigma_corr**2
 
     return result, flux_scale, ivartot
 
-def median_filt_spec(flux, ivar, mask, med_width):
+def median_filt_spec(flux, ivar, gpm, med_width):
     '''
     Utility routine to median filter a spectrum using the mask and propagating the errors using the
     utils.fast_running_median function.
 
-    Args:
-        flux: ndarray, (nspec,) flux
-        ivar: ndarray, (nspec,) inverse variance
-        mask: ndarray, bool, (nspec,) True = good
-        med_width: width for median filter in pixels
+    Parameters
+    ----------
+    flux : `numpy.ndarray`_
+            flux array with shape (nspec,) 
+    ivar : `numpy.ndarray`_ 
+            inverse variance with shape (nspec,) 
+    gpm : `numpy.ndarray`_ 
+            Boolean mask on the spectrum with shape (nspec,). True = good
+    med_width : float
+            width for median filter in pixels
 
-    Returns:
-        Median filtered flux and corresponding propagated errors
+    Returns
+    -------
+    flux_med : `numpy.ndarray`_
+        Median filtered flux 
+    ivar_med : `numpy.ndarray`_
+        corresponding propagated variance
     '''
 
     flux_med = np.zeros_like(flux)
     ivar_med = np.zeros_like(ivar)
-    flux_med0 = utils.fast_running_median(flux[mask], med_width)
-    flux_med[mask] = flux_med0
+    flux_med0 = utils.fast_running_median(flux[gpm], med_width)
+    flux_med[gpm] = flux_med0
     var = utils.inverse(ivar)
-    var_med0 =  utils.smooth(var[mask], med_width)
-    ivar_med[mask] = utils.inverse(var_med0)
+    var_med0 =  utils.smooth(var[gpm], med_width)
+    ivar_med[gpm] = utils.inverse(var_med0)
     return flux_med, ivar_med
 
 def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, mask_ref = None,
@@ -342,7 +349,9 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     factor. It also operates on median filtered spectra to be more
     robust against outliers
 
-    Args:
+    Parameters
+    ----------
+
         wave: ndarray, (nspec,)
             wavelength. flux, ivar, flux_ref, and ivar_ref must all be on the same wavelength grid
         flux: ndarray, (nspec,)
