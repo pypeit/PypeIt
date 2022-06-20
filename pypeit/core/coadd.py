@@ -396,17 +396,18 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     debug: bool, optional
             If True, show interactive QA plot. default=False
 
-    Returns:
-        tuple: 
-        (1) ymult: ndarray, (nspec,) -- rescaling factor to be
-        multiplied into flux to match flux_ref. 
-        (2) tuple of (result.x, wave_min, wave_max).
-        (3) flux_rescale:
-        ndarray, (nspec,) -- rescaled flux, i.e. ymult multiplied
-        into flux. (4) ivar_rescale: ndarray, (nspec,) -- rescaled
-        inverse variance. (5) outmask: ndarray, bool, (nspec,) --
-        output mask determined from the robust_optimize
-        optimization/rejection iterations. True=Good
+    Returns
+    -------
+    tuple of outputs: tuple
+           (1) ymult: `numpy.ndarray`_, (nspec,) -- rescaling factor to be
+           multiplied into flux to match flux_ref. 
+           (2) tuple of (result.x, wave_min, wave_max).
+           (3) flux_rescale:
+           `numpy.ndarray`_, (nspec,) -- rescaled flux, i.e. ymult multiplied
+           into flux. (4) ivar_rescale: ndarray, (nspec,) -- rescaled
+           inverse variance. (5) outmask: `numpy.ndarray`_, bool, (nspec,) --
+           output mask determined from the robust_optimize
+           optimization/rejection iterations. True=Good
     """
 
     if norder < 1:
