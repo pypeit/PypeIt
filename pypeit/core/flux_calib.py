@@ -51,8 +51,17 @@ def zp_unit_const():
                          ).to('Jy')/(3631 * units.Jy)).value
 
 
-# This function is defined to convert AB magnitudes to cgs unit erg cm^-2 s^-1 A^-1
 def mAB_to_cgs(mAB,wvl):
+    """Convert AB magnitudes to flambda cgs unit erg cm^-2 s^-1 A^-1
+
+    Args:
+        mAB (float or `numpy.ndarray`_): AB magnitudes
+        wvl (float or `numpy.ndarray`_): Corresponding
+            wavelenghs in Angstroms
+
+    Returns:
+        float or `numpy.ndarray`_: flambda flux in cgs units
+    """
     return 10**((-48.6-mAB)/2.5)*3*10**18/wvl**2
 
 
@@ -69,8 +78,9 @@ def blackbody_func(a, teff):
             Effective temperature of the blackbody (in units of K)
 
     Returns:
-        waves : `numpy.ndarray`_ of the wavelengths
-        flam : `numpy.ndarray`_ flux in units of erg/s/cm^2/A
+        tuple: Two objects:
+          - waves -- `numpy.ndarray`_ of the wavelengths
+          - flam -- `numpy.ndarray`_ flux in units of erg/s/cm^2/A
     """
     waves = np.arange(3000.0, 25000.0, 0.1) * units.AA
     temp = teff * units.K
@@ -90,7 +100,9 @@ ZP_UNIT_CONST = zp_unit_const()
 def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     """
     Find a match for the input file to one of the archived
-    standard star files (hopefully).  Priority is by order of search.
+    standard star files (hopefully).  Priority is by order of search:
+
+        ['blackbody', 'xshooter', 'calspec', 'esofil', 'noao', 'ing']
 
     Args:
         ra (float):
@@ -407,18 +419,22 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
 
 def load_extinction_data(longitude, latitude, toler=5. * units.deg):
     """
-    Find the best extinction file to use, based on longitude and latitude
+    Find the best extinction file to use, 
+    based on longitude and latitude
     Loads it and returns a Table
 
     Parameters
     ----------
-    longitude, latitude: Geocentric coordinates in degrees (floats).
+    longitude: float
+        Geocentric longitude coordinate in degrees (floats).
+    latitude: float
+        Geocentric latitude coordinate in degrees (floats).
     toler : Angle, optional
         Tolerance for matching detector to site (5 deg)
 
     Returns
     -------
-    ext_file : Table
+    ext_file : astropy.table.Table
         astropy Table containing the 'wavelength', 'extinct' data for AM=1.
     """
     # Mosaic coord
@@ -453,17 +469,17 @@ def extinction_correction(wave, airmass, extinct):
 
     Parameters
     ----------
-    wave (`numpy.ndarray`_):
+    wave:  `numpy.ndarray`_
         Wavelengths for interpolation. Should be sorted.
         Assumes angstroms.
     airmass : float
         Airmass
     extinct : Table
-        Table of extinction values
+        Table of extinction values 
 
-    Returns:
+    Returns
     -------
-    `numpy.ndarray`_:
+    flux_corr: `numpy.ndarray`_
         Multiplucative flux correction factors
         at the input wavelengths.
         i.e. true_flux = correction_factor*observed_flux
@@ -499,7 +515,10 @@ def extinction_correction(wave, airmass, extinct):
 ### Routines for standard sensfunc started from here
 def find_standard(specobj_list):
     """
-    Take the median boxcar and then the max object as the standard
+    Routine to identify the standard star given a list of spectra
+
+    Take the median boxcar and then take the 
+    max flux object (in BOX_COUNTS) as the standard
 
     Parameters
     ----------
@@ -508,7 +527,7 @@ def find_standard(specobj_list):
     Returns
     -------
     mxix : int
-        Index of the standard star
+        Index of the standard star in the list
 
     """
     # Repackage as necessary (some backwards compatability)
@@ -526,32 +545,11 @@ def find_standard(specobj_list):
     return mxix
 
 
-#def apply_standard_sens(spec_obj, sens_dict, airmass, exptime, extinct_correct=True, telluric_correct = False,
-#                        longitude=None, latitude=None):
-#    """ Apply the sensitivity function to the data
-#    We also correct for extinction.
-#
-#    Parameters
-#    ----------
-#    spec_obj : dict
-#        SpecObj
-#    sens_dict : dict
-#        Sens Function dict
-#    airmass : float
-#        Airmass
-#    exptime : float
-#        Exposure time in seconds
-#    longitude : float
-#        longitude in degree for observatory
-#    latitude: float
-#        latitude in degree for observatory. Used for extinction
-#        correction
-#    """
-
-
-def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, longitude, latitude, ech_orders=None,
-             mask_abs_lines=True, polyorder=4, balm_mask_wid=10.0, nresln=20., resolution=3000.,
-             trans_thresh=0.9,polycorrect=True, polyfunc=False, debug=False):
+def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
+             std_dict, longitude, latitude, ech_orders=None,
+             mask_abs_lines=True, polyorder=4, balm_mask_wid=10.0, nresln=20., 
+             resolution=3000., trans_thresh=0.9,polycorrect=True, 
+             polyfunc=False, debug=False):
     """
     Function to generate the sensitivity function. This function fits
     a bspline to the 2.5*log10(flux_std/flux_counts). The break
@@ -563,7 +561,7 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
     Args:
         wave (`numpy.ndarray`_):
             Wavelength of the star. Shape (nspec,) or (nspec, norders)
-        counts (ndarray):
+        counts (`numpy.ndarray`_):
             Flux (in counts) of the star. Shape (nspec,) or (nspec, norders)
         counts_ivar (`numpy.ndarray`_):
             Inverse variance of the star counts. Shape (nspec,) or (nspec, norders)
@@ -579,24 +577,26 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
             Telescope longitude, used for extinction correction.
         latitude (float):
             Telescope latitude, used for extinction correction
-        ech_orders (int `numpy.ndarray`_):
+        ech_orders (int `numpy.ndarray`_, optional):
             If passed the echelle orders will be added to the meta_table. ech_orders must be a numpy array of integers
             with the shape (norders,) giving the order numbers
-        mask_abs_lines (bool):
+        mask_abs_lines (bool, optional):
             If True, mask stellar absorption lines before fitting sensitivity function. Default = True
-        balm_mask_wid (float):
+        balm_mask_wid (float, optional):
             Parameter describing the width of the mask for or stellar absorption lines (i.e. mask_abs_lines=True). A region
             equal to balm_mask_wid*resln is masked where resln is the estimate for the spectral resolution in pixels
             per resolution element.
-        polycorrect (bool):
+        polycorrect (bool, optional):
             Whether you want to interpolate the sensfunc with polynomial in the stellar absortion line regions before
             fitting with the bspline
-        nresln (float):
+        polyfunc (str, optional):
+            Function for fitting; passed to `fit_zeropoint`
+        nresln (float, optional):
             Parameter governing the spacing of the bspline breakpoints. default = 20.0
-        resolution (float):
+        resolution (float, optional):
             Expected resolution of the standard star spectrum. This should probably be determined from the grating, but is
             currently hard wired. default=3000.0
-        trans_thresh (float):
+        trans_thresh (float, optional):
             Parameter for selecting telluric regions which are masked. Locations below this transmission value are masked.
             If you have significant telluric absorption you should be using telluric.sensnfunc_telluric. default = 0.9
 
@@ -663,20 +663,20 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
     Get the final sensitivity function factor that will be multiplied into a spectrum in units of counts to flux calibrate it.
     This code interpolates the sensitivity function and can also multiply in extinction and telluric corrections.
 
-    FLAM, FLAM_SIG, and FLAM_IVAR are generated
-
     Args:
-        wave (float `numpy.ndarray`_): shape = (nspec,)
-           Senstivity
+        wave (float `numpy.ndarray`_): 
+           Wavelength values. shape = (nspec,)
         wave_zp (float `numpy.ndarray`_):
-           Zerooint wavelength vector shape = (nsens,)
-        zeropoint (float `numpy.ndarray`_): shape = (nsens,)
+           Zeropoint wavelength vector shape = (nsens,)
+        zeropoint (float `numpy.ndarray`_): 
            Zeropoint, i.e. sensitivity function
         exptime (float):
-        tellmodel (float  `numpy.ndarray`_, optional): shape = (nspec,)
+            Exposure time of the standard star
+        tellmodel (float  `numpy.ndarray`_, optional): 
            Apply telluric correction if it is passed it. Note this is deprecated.
+           shape = (nspec,)
         extinct_correct (bool, optional)
-           If True perform an extinction correction. Deafult = False
+           If True perform an extinction correction. Default = False
         airmass (float, optional):
            Airmass used if extinct_correct=True. This is required if extinct_correct=True
         longitude (float, optional):
@@ -686,11 +686,12 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
             latitude in degree for observatory
             Required  for extinction correction
         extrap_sens (bool, optional):
-            Extrapolate the sensitivity function (instead of crashing out)
+            If true, extrapolate the sensitivity function (instead of crashing out)
 
     Returns:
-        sensfunc_factor (`numpy.ndarray`_): shape = (nspec,)
+        `numpy.ndarray`_:  Sensfunc factor values.
             This quantity is defined to be sensfunc_interp/exptime/delta_wave
+            shape = (nspec,)
 
     """
 
@@ -747,9 +748,11 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
     return senstot/exptime/delta_wave
 
 
-def counts2Nlam(wave, counts, counts_ivar, counts_mask, exptime, airmass, longitude, latitude):
+def counts2Nlam(wave, counts, counts_ivar, counts_mask, exptime, 
+                airmass, longitude, latitude):
     """
-    Prepare units of flux calibration and apply extinction correction
+    Convert counts to counts/s/Angstrom
+    Used for flux calibration and to apply extinction correction
 
     Args:
         wave (`numpy.ndarray`_):
@@ -770,9 +773,10 @@ def counts2Nlam(wave, counts, counts_ivar, counts_mask, exptime, airmass, longit
             Telescope latitude, used for extinction correction
 
     Returns:
-        Nlam_star (`numpy.ndarray`_): counts/second/Angstrom
-        Nlam_ivar_star (`numpy.ndarray`_): inverse variance of Nlam_star
-        gpm_star (`numpy.ndarray`_): good pixel mask for Nlam_star
+        tuple: Three items:
+          - Nlam_star (`numpy.ndarray`_) counts/second/Angstrom
+          - Nlam_ivar_star (`numpy.ndarray`_) inverse variance of Nlam_star
+          - gpm_star (`numpy.ndarray`_) good pixel mask for Nlam_star
 
     """
     # Create copy of the arrays to avoid modification and convert to
@@ -793,8 +797,10 @@ def counts2Nlam(wave, counts, counts_ivar, counts_mask, exptime, airmass, longit
 
 
 def fit_zeropoint(wave, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
-                  mask_abs_lines=True, polyorder=4, balm_mask_wid=10.0, nresln=20., resolution=3000.,
-                  trans_thresh=0.9, polycorrect=True, polyfunc=False, debug=False):
+                  mask_abs_lines=True, polyorder=4, balm_mask_wid=10.0, 
+                  nresln=20., resolution=3000.,
+                  trans_thresh=0.9, polycorrect=True, 
+                  polyfunc=False, debug=False):
 
     """
     Function to generate the sensitivity function. This function fits
@@ -813,29 +819,32 @@ def fit_zeropoint(wave, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
             Good pixel mask for Nlam_star
         std_dict (dict):
             Dictionary containing information about the standard star returned by flux_calib.get_standard_spectrum
-        mask_abs_lines (bool):
+        mask_abs_lines (bool, optional):
             If True, mask stellar absorption lines before fitting sensitivity function. Default = True
-        balm_mask_wid (float):
+        balm_mask_wid (float, optional):
             Parameter describing the width of the mask for or stellar absorption lines (i.e. mask_abs_lines=True). A region
             equal to balm_mask_wid*resln is masked where resln is the estimate for the spectral resolution in pixels
             per resolution element.
-        polycorrect: bool
+        polycorrect (bool, optional):
             Whether you want to interpolate the zeropoint with polynomial in the stellar absortion line regions before
             fitting with the bspline
-        nresln (float):
+        nresln (float, optional):
             Parameter governing the spacing of the bspline breakpoints. default = 20.0
-        resolution (float):
+        resolution (float, optional):
             Expected resolution of the standard star spectrum. This should probably be determined from the grating, but is
             currently hard wired. default=3000.0
-        trans_thresh (float):
+        trans_thresh (float, optional):
             Parameter for selecting telluric regions which are masked. Locations below this transmission value are masked.
             If you have significant telluric absorption you should be using telluric.sensnfunc_telluric. default = 0.9
+        polyfunc (bool, optional):
+            If True, the zeropoint was a polynomial and not a bspline
 
     Returns:
-        zeropoint_data (`numpy.ndarray`_): Sensitivity function with same shape as wave (nspec,)
-        zeropoint_data_gpm (`numpy.ndarray`_): Good pixel mask for sensitivity function with same shape as wave (nspec,)
-        zeropoint_fit (`numpy.ndarray`_): Fitted sensitivity function with same shape as wave (nspec,)
-        zeropoint_fit_gpm (`numpy.ndarray`_): Good pixel mask for fitted sensitivity function with same shape as wave (nspec,)
+        tuple: Four items:
+          - zeropoint_data (`numpy.ndarray`_) -- Sensitivity function with same shape as wave (nspec,)
+          - zeropoint_data_gpm (`numpy.ndarray`_) -- Good pixel mask for sensitivity function with same shape as wave (nspec,)
+          - zeropoint_fit (`numpy.ndarray`_) -- Fitted sensitivity function with same shape as wave (nspec,)
+          - zeropoint_fit_gpm (`numpy.ndarray`_) -- Good pixel mask for fitted sensitivity function with same shape as wave (nspec,)
 
     """
 
@@ -882,30 +891,40 @@ def fit_zeropoint(wave, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
     return zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm
 
 
-def get_mask(wave_star,flux_star, ivar_star, mask_star, mask_abs_lines=True, mask_telluric=True, balm_mask_wid=10., trans_thresh=0.9):
+def get_mask(wave_star, flux_star, ivar_star, mask_star, 
+             mask_abs_lines=True, mask_telluric=True, balm_mask_wid=10., 
+             trans_thresh=0.9):
     """
-    Get a couple of masks from your observed standard spectrum.
+    Generate a set of masks from your observed standard spectrum.
+    e.g. Balmer absorption
 
-    Args:
-      wave_star: numpy array
+    Parameters
+    ----------
+    wave_star: `numpy.ndarray`_
         wavelength array of your spectrum
-      flux_star: numpy array
+    flux_star: `numpy.ndarray`_
         flux array of your spectrum
-      ivar_star:
+    ivar_star: `numpy.ndarray`_
         ivar array of your spectrum
-      mask_star: bool
-        whether you need to mask Hydrogen recombination line region. If False, the returned msk_star are all good.
-      mask_tell: bool
+    mask_star: bool, optional
+        whether you need to mask Hydrogen recombination line region. 
+        If False, the returned msk_star are all good.
+    mask_tell: bool, optional
         whether you need to mask telluric region. If False, the returned msk_tell are all good.
-      trans_thresh: float
+    balm_mask_wid: float
+      in units of angstrom
+      Mask parameter for Balmer absorption. A region equal to
+      balm_mask_wid is masked.
+    trans_thresh: float, optional
         parameter for selecting telluric regions.
 
-    Returns:
-      msk_bad: bool type numpy array
+    Returns
+    -------
+    msk_bad: bool `numpy.ndarray`_
         mask for bad pixels.
-      msk_star: bool type numpy array
+    msk_star: bool `numpy.ndarray`_
         mask for recombination lines in star spectrum.
-      msk_tell: bool type numpy array
+    msk_tell: bool `numpy.ndarray`_
         mask for telluric regions.
     """
 
@@ -1012,21 +1031,24 @@ def get_mask(wave_star,flux_star, ivar_star, mask_star, mask_abs_lines=True, mas
 
 def Nlam_to_Flam(wave, zeropoint, zp_min=5.0, zp_max=30.0):
     """
-    The factor that when multiplied into N_lam converts to F_lam, i.e. S_lam where S_lam \equiv F_lam/N_lam
+    The factor that when multiplied into N_lam 
+    converts to F_lam, i.e. S_lam where S_lam \equiv F_lam/N_lam
 
     Parameters
     ----------
-    wave (`numpy.ndarray`_):
+    wave: `numpy.ndarray`_
        Wavelength vector for zeropoint
-    zeropoint (`numpy.ndarray`_):
+    zeropoint: `numpy.ndarray`_
        zeropoint
-    zp_min (float, optional):
+    zp_min: float, optional
        Minimum allowed value of the ZP. For smaller values the S_lam factor is set to zero
-    zp_max (float, optional):
+    zp_max: float, optional
        Maximum allowed value of the ZP. For larger values the S_lam factor is set to zero
 
     Returns
     -------
+    factor: `numpy.ndarray`_
+         S_lam factor
 
     """
     gpm = (wave > 1.0) & (zeropoint > zp_min) & (zeropoint < zp_max)
@@ -1036,19 +1058,20 @@ def Nlam_to_Flam(wave, zeropoint, zp_min=5.0, zp_max=30.0):
 
 def Flam_to_Nlam(wave, zeropoint, zp_min=5.0, zp_max=30.0):
     """
-    The factor that when multiplied into F_lam converts to N_lam, i.e. 1/S_lam where S_lam \equiv F_lam/N_lam
+    The factor that when multiplied into F_lam converts to N_lam, 
+    i.e. 1/S_lam where S_lam \equiv F_lam/N_lam
 
 
     Parameters
     ----------
-    wave (`numpy.ndarray`_):
+    wave: `numpy.ndarray`_
        Wavelength array, float, shape (nspec,)
-    zeropoint (`numpy.ndarray`_):
+    zeropoint: `numpy.ndarray`_
        zeropoint array, float, shape (nspec,)
 
-    Returns:
-    --------
-    `numpy.ndarray`_:
+    Returns
+    -------
+    factor: `numpy.ndarray`_
         Factor that when multiplied into F_lam converts to N_lam
 
     """
@@ -1065,22 +1088,22 @@ def compute_zeropoint(wave, N_lam, N_lam_gpm, flam_std_star, tellmodel=None):
 
     Parameters
     ----------
-    wave (`numpy.ndarray`_):
+    wave: `numpy.ndarray`_
         Wavelength array, float, shape (nspec,)
-    N_lam (`numpy.ndarray`_):
+    N_lam: `numpy.ndarray`_
         N_lam spectrum of standard star, float, shape (nspec,)
-    N_lam_gpm (`numpy.ndarray`_):
+    N_lam_gpm: `numpy.ndarray`_
         N_lam mask, good pixel mask, boolean, shape (nspec,)
-    flam_std_star (`numpy.ndarray`_):
+    flam_std_star: `numpy.ndarray`_
         True standard star spectrum units set of PYPEIT_FLUX_SCALE erg/s/cm^2/sm/Angstrom
-    tellmodel (`numpy.ndarray`_):
+    tellmodel: `numpy.ndarray`_
         Telluric absorption model, optional, shape (nspec,)
 
-    Returns:
-    --------
-    zeropoint (`numpy.ndarray`_):
+    Returns
+    -------
+    zeropoint:  `numpy.ndarray`_
         Spectroscopic zeropoint, float, shape (nspec,)
-    zeropoint_gpm (`numpy.ndarray`_):
+    zeropoint_gpm: `numpy.ndarray`_
         Zeropoint good pixel mask, bool, shape  (nspec,)
     """
 
@@ -1105,17 +1128,18 @@ def zeropoint_to_throughput(wave, zeropoint, eff_aperture):
 
     Parameters
     ----------
-    wave (`numpy.ndarray`_):
+    wave: `numpy.ndarray`_
          Wavelength array shape (nspec,) or (nspec, norders)
-    zeropoint (`numpy.ndarray`_):
+    zeropoint: `numpy.ndarray`_
          Zeropoint array shape (nspec,) or (nspec, norders)
-    eff_aperture (float):
+    eff_aperture: float
          Effective aperture of the telescope in m^2. See spectrograph object
 
     Returns
     -------
-       throughput (`numpy.ndarray`_):
-           Throughput of the spectroscopic setup. Same shape as wave and zeropoint
+    throughput: `numpy.ndarray`_
+        Throughput of the spectroscopic setup. 
+        Same shape as wave and zeropoint
 
     """
 
@@ -1147,8 +1171,6 @@ def zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, z
     axis
     show
 
-    Returns
-    -------
 
     """
 
@@ -1177,8 +1199,10 @@ def zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, z
 
 
 def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=None, mask_tell=None,
-                       maxiter=35, upper=3.0, lower=3.0, func = 'polynomial', polyorder=5, balm_mask_wid=50.,
-                       nresln=20., resolution=2700., polycorrect=True, debug=False, polyfunc=False, show_QA=False):
+                       maxiter=35, upper=3.0, lower=3.0, func = 'polynomial', 
+                       polyorder=5, balm_mask_wid=50.,
+                       nresln=20., resolution=2700., polycorrect=True, 
+                       debug=False, polyfunc=False, show_QA=False):
     """
     Generate a sensitivity function based on observed flux and standard spectrum.
 
@@ -1218,8 +1242,14 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
 
     Returns
     -------
-    zeropoint ( `numpy.ndarray`_):
-      Spectroscopic zeropoint.
+    zeropoint_data: `numpy.ndarray`_ 
+        Sensitivity function with same shape as wave (nspec,)
+    zeropoint_data_gpm: `numpy.ndarray`_
+        Good pixel mask for sensitivity function with same shape as wave (nspec,)
+    zeropoint_fit: `numpy.ndarray`_
+        Fitted sensitivity function with same shape as wave (nspec,)
+    zeropoint_fit_gpm: `numpy.ndarray`_
+        Good pixel mask for fitted sensitivity function with same shape as wave (nspec,)
     """
     if np.any(np.invert(np.isfinite(Nlam_ivar))):
         msgs.warn("NaN are present in the inverse variance")
@@ -1362,7 +1392,7 @@ def load_filter_file(filter):
         filter (str): Name of filter
 
     Returns:
-        `numpy.ndarray`_: wavelength, instrument throughput
+        tuple: wavelength, instrument throughput as a pair of `numpy.ndarray`_
 
 
     # Optical filters
@@ -1423,9 +1453,11 @@ def scale_in_filter(wave, flux, gpm, scale_dict):
 
     Args:
         wave (`numpy.ndarray`_):
+            Wavelength array
         flux (`numpy.ndarray`_):
+            Flux array
         gpm (`numpy.ndarray`_):
-            True is good
+            mask array; True is good
         scale_dict (dict like):
             Usually is a Coadd1DPar() object
             Requires mag_type, filter, filter_mag, and filter_mask
