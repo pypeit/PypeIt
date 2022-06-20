@@ -257,17 +257,20 @@ def poly_ratio_fitfunc(flux_ref, gpm, arg_dict, init_from_last=None, **kwargs_op
             function. See poly_ratio_fitfunc_chi2 for how arguments
             are used. They are mask, flux_med, flux_ref_med,
             ivar_ref_med, wave, wave_min, wave_max, func
-        kwargs_opt:
+        init_from_last (optional):
+            Use this scipy optimization object from a previous iteration as the guess
+        kwargs_opt (:obj:`dict`):
             arguments to be passed to the optimizer, which in this
             case is just vanilla scipy.minimize with the default
             optimizer
 
    Returns:
-        tuple: Three objects are returned. (1) scipy optimization object,
-        (2) scale factor to be applied to the data to match the
-        reference spectrum flux_ref, (3) error vector to be used for
-        the rejection that takes place at each iteration of the
-        robust_optimize optimization
+       tuple: 
+         Three objects are returned. (1) scipy optimization object,
+         (2) scale factor to be applied to the data to match the
+         reference spectrum flux_ref, (3) error vector to be used for
+         the rejection that takes place at each iteration of the
+         robust_optimize optimization
 
     """
 
@@ -351,54 +354,57 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
 
     Parameters
     ----------
-
-        wave: ndarray, (nspec,)
-            wavelength. flux, ivar, flux_ref, and ivar_ref must all be on the same wavelength grid
-        flux: ndarray, (nspec,)
+    wave: `numpy.ndarray`_
+            wavelength array of shape (nspec,). flux, ivar, flux_ref, and ivar_ref must all be on the same wavelength grid
+    flux: `numpy.ndarray`_
             flux that you want to rescale to match flux_ref
-        ivar: ndarray, (nspec,)
+    ivar: `numpy.ndarray`_
             inverse varaiance of the array that you want to rescale to match flux_ref
-        mask: ndarray, bool, (nspec,)
-            mask for spectrum that you want to rescale, True=Good
-        flux_ref: ndarray, (nspec,)
+    flux_ref: `numpy.ndarray`_
             reference flux that you want to rescale flux to match.
-        ivar_ref: ndarray, (nspec,)
+    ivar_ref: `numpy.ndarray`_
             inverse variance for reference flux
-        mask_ref: ndarray, bool (nspec,)
-            mask for reference flux
-        norder: int
+    norder: int
             Order of polynomial rescaling; norder=1 is a linear fit and norder must be >= 1 otherwise the
             code will fault.
-        scale_min: float, default =0.05
-            minimum scaling factor allowed
-        scale_max: float, default=100.0
-            maximum scaling factor allowed
-        func: str, default='legendre'
-            function you want to use,
-        model (str): defaut = 'square'
+    mask: `numpy.ndarray`_, optional
+            boolean mask for spectrum that you want to rescale, True=Good
+    mask_ref: `numpy.ndarray`_, optional
+            boolean mask for reference flux
+    scale_min: float, optional
+            minimum scaling factor allowed. default =0.05
+    scale_max: float, optional
+            maximum scaling factor allowed. default=100.0
+    func: str, optional
+            function you want to use. default='legendre'
+    model: str, optional
             model type, valid model types are 'poly', 'square', or 'exp', corresponding to normal polynomial,
-            squared polynomial, or exponentiated polynomial
-        maxiter: int, default=3
-            maximum number of iterations for robust_optimize
-        sticky: bool, default=True
+            squared polynomial, or exponentiated polynomial. default = 'square'
+    maxiter: int, optional
+            maximum number of iterations for robust_optimize. default=3
+    sticky: bool, optional
             whether you want the rejection to be sticky or not with robust_optimize. See docs for djs_reject for
-            definition of sticky.
-        lower: float, default=3.0
-            lower sigrej rejection threshold for robust_optimize
-        upper: float, default=3.0
-            upper sigrej rejection threshold for robust_optimize
-        median_frac: float default = 0.01,
+            definition of sticky.  default=True
+    lower: float, optional 
+            lower sigrej rejection threshold for robust_optimize. default=3.0
+    upper: float, optional
+            upper sigrej rejection threshold for robust_optimize. default=3.0
+    median_frac: float, optional
             the code rescales median filtered spectra with 'reflect' boundary conditions. The
             with of the median filter will be median_frac*nspec, where nspec is the number of spectral pixels.
-        debug: bool, default=False
-            show interactive QA plot
+            default = 0.01,
+    debug: bool, optional
+            If True, show interactive QA plot. default=False
 
     Returns:
-        tuple: (1) ymult: ndarray, (nspec,) -- rescaling factor to be
-        multiplied into flux to match flux_ref. (2) flux_rescale:
+        tuple: 
+        (1) ymult: ndarray, (nspec,) -- rescaling factor to be
+        multiplied into flux to match flux_ref. 
+        (2) tuple of (result.x, wave_min, wave_max).
+        (3) flux_rescale:
         ndarray, (nspec,) -- rescaled flux, i.e. ymult multiplied
-        into flux. (3) ivar_rescale: ndarray, (nspec,) -- rescaled
-        inverse variance. (4) outmask: ndarray, bool, (nspec,) --
+        into flux. (4) ivar_rescale: ndarray, (nspec,) -- rescaled
+        inverse variance. (5) outmask: ndarray, bool, (nspec,) --
         output mask determined from the robust_optimize
         optimization/rejection iterations. True=Good
     """
@@ -513,11 +519,11 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, gpm_old, sensfunc=False)
             match ``wave_old``.
         sensfunc (:obj:`bool`, optional):
             If True, the quantities ``flux*delta_wave`` and the corresponding
-             ``ivar/delta_wave**2`` will be interpolated and returned instead of
-             ``flux`` and ``ivar``. This is useful for sensitivity function
-             computation where we need flux*(wavelength bin width). Beacause
-             delta_wave is a difference of the wavelength grid, interpolating
-             in the presence of masked data requires special care.
+            ``ivar/delta_wave**2`` will be interpolated and returned instead of
+            ``flux`` and ``ivar``. This is useful for sensitivity function
+            computation where we need flux*(wavelength bin width). Beacause
+            delta_wave is a difference of the wavelength grid, interpolating
+            in the presence of masked data requires special care.
 
     Returns:
         :obj:`tuple`: Returns three `numpy.ndarray`_ objects with the

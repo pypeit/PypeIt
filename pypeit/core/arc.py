@@ -704,12 +704,12 @@ def iter_continuum(spec, gpm=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_
     Routine to determine the continuum and continuum pixels in spectra with peaks.
 
     The general procedure is to:
-       1.  Detect positive "peaks" using :class:`pypeit.core.arc.detect_peaks`
-       1.  Optionally, detect negative "peaks" using :class:`pypeit.core.arc.detect_peaks`
-       1.  Mask these peaks
-       1.  Generate a running medium with sampling width set by `cont_samp`
-       1.  Fit this median continuum with a polynomial of order `npoly` (if set)
-       1.  Evaluate the fit (`npoly` is set) or interpolate the median at all locations
+      -  Detect positive "peaks" using :class:`pypeit.core.arc.detect_peaks`
+      -  Optionally, detect negative "peaks" using :class:`pypeit.core.arc.detect_peaks`
+      -  Mask these peaks
+      -  Generate a running medium with sampling width set by `cont_samp`
+      -  Fit this median continuum with a polynomial of order `npoly` (if set)
+      -  Evaluate the fit (`npoly` is set) or interpolate the median at all locations
 
     Note: This was developed for arc line spectra and may not function will in other
     contexts.
