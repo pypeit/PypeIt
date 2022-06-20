@@ -34,11 +34,24 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
                     spec, min_frac_use=0.05, base_var=None, count_scale=None, noise_floor=None):
 
     """
-    Calculate the spatial FWHM from an object profile. Utility routine for
-    fit_profile
+    Perform optimal extraction for one source in a given
+    slit/order.  This follows Horne
 
     The specobj object is changed in place with the boxcar and optimal
     dictionaries being filled with the extraction parameters.
+    As well as additional sky and noise estimates:
+
+      - spec.OPT_WAVE = wave_opt    # Optimally extracted wavelengths
+      - spec.OPT_COUNTS = flux_opt    # Optimally extracted flux
+      - spec.OPT_COUNTS_IVAR = mivar_opt   # Inverse variance of optimally extracted flux using modelivar image
+      - spec.OPT_COUNTS_SIG = np.sqrt(utils.inverse(mivar_opt))
+      - spec.OPT_COUNTS_NIVAR = nivar_opt  # Optimally extracted noise variance (sky + read noise) only
+      - spec.OPT_MASK = mask_opt    # Mask for optimally extracted flux
+      - spec.OPT_COUNTS_SKY = sky_opt      # Optimally extracted sky
+      - spec.OPT_COUNTS_SIG_DET = base_opt      # Square root of optimally extracted read noise squared
+      - spec.OPT_FRAC_USE = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
+      - spec.OPT_CHI2 = chi2            # Reduced chi2 of the model fit for this spectral pixel
+
 
     Parameters
     ----------
@@ -200,7 +213,7 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
 
 def extract_asym_boxcar(sciimg, left_trace, righ_trace, gpm=None, ivar=None):
     """
-    Perform assymetric boxcar extraction of the flux between two traces.
+    Perform asymmetric boxcar extraction of the flux between two traces.
 
     Parameters
     ----------
@@ -225,7 +238,7 @@ def extract_asym_boxcar(sciimg, left_trace, righ_trace, gpm=None, ivar=None):
     -------
     flux_out : float `numpy.ndarray`_, shape (nspec, napertures)
         Array containing the boxcar extracted flux as a function of spectral position for each aperture.
-    gpm_box : boool `numpy.ndarray`_, shape (nspec, napertures)
+    gpm_box : bool `numpy.ndarray`_, shape (nspec, napertures)
         Good pixel mask for the boxcar extracted flux
     box_npix :   float `numpy.ndarray`_, shape (nspec, napertures)
         Array containing the number of pixels which contributed to the boxcar sum of the flux for each
@@ -268,9 +281,18 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, base_var=None,
     Perform boxcar extraction for a single SpecObj.  The size of the boxcar must
     be available as an attribute of :class:`~pypeit.specobj.SpecObj`.
 
-
     Note that the provided :class:`~pypeit.specobj.SpecObj` (``spec``) is
-    modified in place.
+    modified in place, as shown here:
+    
+      - spec.BOX_WAVE = wave_box  # Box car extracted wavelengths
+      - spec.BOX_COUNTS = flux_box*mask_box # Box car extracted flux
+      - spec.BOX_COUNTS_IVAR = ivar_box*mask_box # Box car extracted inverse variance
+      - spec.BOX_COUNTS_SIG = np.sqrt(utils.inverse(ivar_box*mask_box)) # Box car extracted error
+      - spec.BOX_COUNTS_NIVAR = None if nivar_box is None else nivar_box*mask_box # Box car extracted noise variance
+      - spec.BOX_MASK = mask_box # Box car extracted mask
+      - spec.BOX_COUNTS_SKY = sky_box # Box car extracted sky
+      - spec.BOX_COUNTS_SIG_DET = base_box # Box car extracted read noise
+      - spec.BOX_NPIX = pixtot-pixmsk # Number of pixels used in boxcar sum
 
     Parameters
     ----------
@@ -373,19 +395,26 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, base_var=None,
 
 
 def findfwhm(model, sig_x):
-    """ Calculate the spatial FWHM from an object profile. Utitlit routine for fit_profile
+    """ Calculate the spatial FWHM from an object profile. 
+    Utility routine for fit_profile
 
     Parameters
     ----------
-    model :   numpy float 2-d array [nspec, nspat]
-    x :
+    model : `numpy.ndarray`_  
+        Object model profile. float 2-d array with shape [nspec, nspat]
+    sig_x :
+        x-coordinate of the profile
 
     Returns
     -------
-    peak :  Peak value of the profile model
-    peak_x:  sig_x location where the peak value is obtained
-    lwhm:   Value of sig_x at the left width at half maximum
-    rwhm:   Value of sig_x at the right width at half maximum
+    peak :  float
+        Peak value of the profile model
+    peak_x: float  
+        sig_x location where the peak value is obtained
+    lwhm:   float
+        Value of sig_x at the left width at half maximum
+    rwhm:   float
+        Value of sig_x at the right width at half maximum
 
     Notes
     -----
@@ -413,18 +442,34 @@ def findfwhm(model, sig_x):
     else:
         rwhm = 0.5 * 2.3548
 
-    return (peak, peak_x, lwhm, rwhm)
+    return peak, peak_x, lwhm, rwhm
 
 
 
-def qa_fit_profile(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind = None,
-                   title =' ', xtrunc = 1e6, xlim = None, ylim = None, qafile = None):
+def qa_fit_profile(x_tot, y_tot, model_tot, l_limit = None, 
+                   r_limit=None, ind=None, title=' ', 
+                   xtrunc=1e6, xlim=None, ylim=None):
+    """Generate a QA plot for the fitted profile.
+
+    Args:
+        x_tot (`numpy.ndarray`_): x-coordinate of the profile
+        y_tot (`numpy.ndarray`_): flux of the profile
+        model_tot (`numpy.ndarray`_): model of the profile
+        l_limit (float, optional): If provided, draw a vertical line 
+            at this left position
+        r_limit (float, optional): If provided, draw a vertical line
+            at this right position
+        ind (`numpy.ndarray`_, optional): Subset of the indices
+            of the profile to show
+        title (str, optional): Title to show on plot. Defaults to ' '.
+        xtrunc (_type_, optional): _description_. Defaults to 1e6.
+        xlim (float, optional): xmin, xmax for the plot. Defaults to None.
+        ylim (tuple, optional): ymin, ymax for the plot. Defaults to None.
+    """
 
     # Plotting pre-amble
     plt.close("all")
-    #plt.clf()
-#    plt.rc('text', usetex=True)
-#    plt.rc('font', family='serif')
+
     width = 10.0 # Golden ratio 1.618
     fig, ax = plt.subplots(1, figsize=(width, width/1.618))
 
@@ -512,40 +557,49 @@ def qa_fit_profile(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind =
 
     fig.subplots_adjust(left=0.15, right=0.9, top=0.9, bottom=0.15)
     plt.show()
-    return
+
 
 # TODO JFH Split up the profile part and the QA part for cleaner code
-def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
-                    ind = None, l_limit = None, r_limit=None, xlim = None, xtrunc = 1e6):
+def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, 
+                    show_profile,
+                    ind = None, l_limit = None, r_limit=None, 
+                    xlim = None, xtrunc = 1e6):
 
     """
-    Utility function to return Gaussian object profile in the case of low S/N ratio or too many rejected pixels.
+    Utility function to return Gaussian object profile in the case 
+    of low S/N ratio or too many rejected pixels.
 
-    Args:
-        sigma_x: ndarray (nspec, nspat)
-            Spatial of gaussian
-        norm_obj: ndarray (nspec, nspat)
-            Normalized 2-d spectrum.
-        fwhm: float
-            FWHM parameter for Gaussian profile
-        med_sn2: float
-            Median (S/N)^2 used only for QA
-        obj_string: str
-            String identifying object. Used only for QA.
-        show_profile: bool
-            Is set, qa plot will be shown to screen
-        ind: array, int
-            Good indices in object profile. Used by QA routine.
-        l_limit: float
-            Left limit of profile fit where derivative is evaluated for Gaussian apodization. Used by QA routine.
-        r_limit: float
-            Right limit of profile fit where derivative is evaluated for Gaussian apodization. Used by QA routine.
-        xlim: float
-            Spatial location to trim object profile for plotting in QA routine.
-        xtrunc: float
-            Spatial nsigma to truncate object profile for plotting in QA routine.
+    Parameters
+    ----------
+    sigma_x: `numpy.ndarray`_
+        Spatial profile of gaussian
+        shape=(nspec, nspat)
+    norm_obj: `numpy.ndarray`_
+        Normalized 2-d spectrum.
+        shape=(nspec, nspat)
+    fwhm: float
+        FWHM parameter for Gaussian profile
+    med_sn2: float
+        Median (S/N)^2. Used only for QA
+    obj_string: str
+        String identifying object. Used only for QA.
+    show_profile: bool
+        If True, qa plot will be shown to screen
+    ind: `numpyn.ndarray`_, optional
+        Good indices in object profile. Used by QA routine.
+    l_limit: float, optional
+        Left limit of profile fit where derivative is evaluated for Gaussian apodization. Used by QA routine.
+    r_limit: float, optional
+        Right limit of profile fit where derivative is evaluated for Gaussian apodization. Used by QA routine.
+    xlim: float, optional
+        Spatial location to trim object profile for plotting in QA routine.
+    xtrunc: float, optional
+        Spatial nsigma to truncate object profile for plotting in QA routine.
 
-    Returns:
+    Returns
+    -------
+    profile_model: `numpy.ndarray`_
+        Gaussian profile model
 
     """
 
@@ -564,10 +618,11 @@ def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
     return profile_model
 
 
-def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, fluxivar,
-                inmask=None, thisfwhm=4.0, max_trace_corr=2.0, sn_gauss=4.0, percentile_sn2=70.0,
-                prof_nsigma=None, no_deriv=False, gauss=False, obj_string='',
-                show_profile=False):
+def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, 
+                flux, fluxivar, inmask=None, thisfwhm=4.0, 
+                max_trace_corr=2.0, sn_gauss=4.0, percentile_sn2=70.0,
+                prof_nsigma=None, no_deriv=False, gauss=False, 
+                obj_string='', show_profile=False):
 
     """
     Fit a non-parametric object profile to an object spectrum, unless
@@ -576,30 +631,30 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
 
     Parameters
     ----------
-    image : numpy float 2-d array (nspec, nspat)
+    image : float `numpy.npdarray` 2-d array with shape (nspec, nspat)
         sky-subtracted image
-    ivar : numpy float 2-d array (nspec, nspat)
+    ivar : float `numpy.ndarray`_ 2-d array with shape (nspec, nspat)
         inverse variance of sky-subtracted image
-    waveimg numpy float 2-d array (nspec, nspat)
+    waveimg: float `numpy.ndarray`_ 2-d array with shape (nspec, nspat)
         2-d wavelength map
-    spat_img: float ndarray, shape (nspec, nspat)
+    spat_img: float `numpy.ndarray`_ with shape (nspec, nspat)
         Image containing the spatial location of pixels. If not input,
         it will be computed via spat_img = np.outer(np.ones(nspec), np.arange(nspat))
-    trace_in : numpy 1-d array (nspec,)
+    trace_in : `numpy.ndarray`_ 1-d array with shape (nspec,)
         object trace
-    wave : numpy 1-d array (nspec,)
+    wave : float `numpy.ndarray`_ 1-d array (nspec,)
         extracted wavelength of spectrum
-    flux : numpy 1-d array (nspec,)
+    flux : float `numpy.ndarray`_ 1-d array (nspec,)
         extracted flux of spectrum
-    fluxivar : numpy 1-d array (nspec,)
+    fluxivar : float `numpy.ndarray`_ 1-d array with shape (nspec,)
         inverse variance of extracted flux spectrum
     thisfwhm : float, optional
         fwhm of the object trace
-    max_trace_corr : float [default = 2.0], optional
+    max_trace_corr : float, [default = 2.0], optional
         maximum trace correction to apply
-    sn_gauss : float [default = 3.0], optional
+    sn_gauss : float, [default = 3.0], optional
         S/N ratio below which code just uses a Gaussian
-    percentile_sn2: float [default = 70.0], optional
+    percentile_sn2: float, [default = 70.0], optional
         Estimates the S/N of an object from pixels in the upper percentile_sn2 percentile of wavelength values.
         For example if percentile_sn2 = 70.0 then the upper 30% of spectrals are used.
         This ensures the code can still fit line only objects and/or high redshift quasars which might only have
@@ -608,24 +663,26 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
         object maskwidth determined from object finding algorithm. If = None,
         code defaults to use 3.0*(np.max(thisfwhm) + 1.0)
         THIS PARAMETER IS NOT USED IN THIS METHOD
-    prof_nsigma : float [default = None], optional
+    prof_nsigma : float,  optional
         Number of sigma to include in the profile fitting. This option is only needed for bright objects that are not
         point sources, which allows the profile fitting to fit the high S/N wings (rather than the default behavior
         which truncates exponentially). This allows for extracting all the flux and results in better sky-subtraction
         for bright extended objects.
-    no_deriv : boolean [default = False]
-        disables determination of derivatives and exponential apodization
+    no_deriv : bool, optional 
+        If true, disables determination of derivatives and exponential apodization
+    gauss : bool, optional
+        Force a Gaussian profile, if true
 
     Returns
     -------
-    sset: object
-        bspline object
-    outmask: : :class:`numpy.ndarray`
-        output mask which the same size as xdata
-    yfit  : :class:`numpy.ndarray`
-        result of the bspline fit (same size as xdata)
-    reduced_chi: float
-        value of the reduced chi^2
+    profile_model: `numpy.ndarray`_
+        Profile model with shape (nspec, nspat)
+    xnew: `numpy.ndarray`_
+        New trace of the object
+    fwhmfit: `numpy.ndarray`_
+        Estimated FWHM of the profile, pixel by pixel
+    med_sn2: float
+        Estimated median S/N^2 of the profile
     """
 
     if inmask is None:
@@ -1102,44 +1159,44 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
         qa_fit_profile(sigma_x, norm_obj/(pb + (pb == 0.0)), full_bsp,
                        l_limit = l_limit, r_limit = r_limit, ind = ss[inside], xlim = prof_nsigma, title = title_string)
 
-    return (profile_model, xnew, fwhmfit, med_sn2)
+    return profile_model, xnew, fwhmfit, med_sn2
 
 
 
-def remap_orders(xinit, spec_min_max, inverse=False):
-
-    """
-    This code remaps echelle orders to all extend over the same numer of pixels. It is meant to deal with cases
-    where the echelle orders do not completely span the detector. Initial tests with PCA using this remapping
-    indicate (for vlt_xshooter_nir) that the remapping does not work as well as simply linear extroplating the traces
-    in the PCA. The traces appear to compress better onto a PCA when they are not remapped. So this functionality
-    is experimemtnal and not currently used.
-
-
-    Args:
-        xinit: ndarray, (nspec, norders)
-           Array of input traces that one wants to remap.
-        spec_min_max: ndarray, (2, norders)
-           Array containing the spec_min and spec_max defined for each order
-        inverse: bool, default = False,
-           If True, perform the inverse re-mapping rather than the re-mapping.
-
-    Returns:
-
-    """
-
-    nspec, norders = xinit.shape
-    spec_vec = np.arange(nspec)
-    spec_vec_norm = spec_vec/float(nspec-1)
-    xinit_remap = np.zeros_like(xinit)
-    for iord in range(norders):
-        igood = (spec_vec >= spec_min_max[0,iord]) & (spec_vec <= spec_min_max[1,iord])
-        spec_norm_iord = (spec_vec - spec_vec[igood].min())/(spec_vec[igood].max()  - spec_vec[igood].min())
-        if inverse:
-            xinit_remap[:, iord] = scipy.interpolate.interp1d(spec_vec_norm, xinit[:, iord], kind='linear',
-                                                              bounds_error=False, fill_value='extrapolate')(spec_norm_iord)
-        else:
-            xinit_remap[:,iord] = scipy.interpolate.interp1d(spec_norm_iord[igood], xinit[igood,iord], kind='linear',
-                                                             bounds_error=False, fill_value='extrapolate')(spec_vec_norm)
-    return xinit_remap
+#def remap_orders(xinit, spec_min_max, inverse=False):
+#
+#    """
+#    This code remaps echelle orders to all extend over the same numer of pixels. It is meant to deal with cases
+#    where the echelle orders do not completely span the detector. Initial tests with PCA using this remapping
+#    indicate (for vlt_xshooter_nir) that the remapping does not work as well as simply linear extroplating the traces
+#    in the PCA. The traces appear to compress better onto a PCA when they are not remapped. So this functionality
+#    is experimemtnal and not currently used.
+#
+#
+#    Args:
+#        xinit: ndarray, (nspec, norders)
+#           Array of input traces that one wants to remap.
+#        spec_min_max: ndarray, (2, norders)
+#           Array containing the spec_min and spec_max defined for each order
+#        inverse: bool, default = False,
+#           If True, perform the inverse re-mapping rather than the re-mapping.
+#
+#    Returns:
+#
+#    """
+#
+#    nspec, norders = xinit.shape
+#    spec_vec = np.arange(nspec)
+#    spec_vec_norm = spec_vec/float(nspec-1)
+#    xinit_remap = np.zeros_like(xinit)
+#    for iord in range(norders):
+#        igood = (spec_vec >= spec_min_max[0,iord]) & (spec_vec <= spec_min_max[1,iord])
+#        spec_norm_iord = (spec_vec - spec_vec[igood].min())/(spec_vec[igood].max()  - spec_vec[igood].min())
+#        if inverse:
+#            xinit_remap[:, iord] = scipy.interpolate.interp1d(spec_vec_norm, xinit[:, iord], kind='linear',
+#                                                              bounds_error=False, fill_value='extrapolate')(spec_norm_iord)
+#        else:
+#            xinit_remap[:,iord] = scipy.interpolate.interp1d(spec_norm_iord[igood], xinit[igood,iord], kind='linear',
+#                                                             bounds_error=False, fill_value='extrapolate')(spec_vec_norm)
+#    return xinit_remap
 
