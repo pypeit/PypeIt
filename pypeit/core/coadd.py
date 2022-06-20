@@ -596,8 +596,8 @@ def interp_spec(wave_new, waves, fluxes, ivars, gpms, sensfunc=False):
         Flux vectors.  Shape must match ``waves``.
     ivars : `numpy.ndarray`_
         Inverse variance vectors.  Shape must match ``waves``.
-    gpms : `numpy.ndarray`_, bool
-        Good-pixel masks for each spectrum (True=Good). Shape must match
+    gpms : `numpy.ndarray`_ 
+        Boolean good-pixel masks for each spectrum (True=Good). Shape must match
         ``waves``.
     sensfunc : :obj:`bool`, optional
         If True, the quantities ``flux*delta_wave`` and the corresponding
@@ -609,12 +609,12 @@ def interp_spec(wave_new, waves, fluxes, ivars, gpms, sensfunc=False):
 
     Returns
     -------
-    fluxes_inter : `numpy.ndarray`_,
+    fluxes_inter : `numpy.ndarray`_
         interpolated flux with size and shape matching the new wavelength grid.
-    ivars_inter : `numpy.ndarray`_,
+    ivars_inter : `numpy.ndarray`_
         interpolated inverse variance with size and shape matching the new
         wavelength grid.
-    gpms_inter : `numpy.ndarray`_,
+    gpms_inter : `numpy.ndarray`_
         interpolated good-pixel mask with size and shape matching the new
         wavelength grid.
     """
@@ -656,15 +656,17 @@ def interp_spec(wave_new, waves, fluxes, ivars, gpms, sensfunc=False):
 
 
 def smooth_weights(inarr, gdmsk, sn_smooth_npix):
-    """Smooth the input weights
+    """Smooth the input weights with a Gaussian 1D kernel.
 
     Args:
-        inarr : float ndarray, shape = (nspec,)
-            S/N spectrum to be smoothed
-        gdmsk : float ndarray, shape = (nspec,)
-            Mask of good pixels
-        sn_smooth_npix : float
+        inarr (`numpy.ndarray`_):
+            S/N spectrum to be smoothed. shape = (nspec,)
+        gdmsk (`numpy.ndarray`_):
+            Boolean mask of good pixels. shape = (nspec,)
+        sn_smooth_npix (float):
             Number of pixels used for determining smoothly varying S/N ratio weights.
+            The sigma of the kernel is set by
+            sig_res = max(sn_smooth_npix / 10.0, 3.0)
 
     Returns:
         `numpy.ndarray`_: smoothed version of inarr.
@@ -693,26 +695,27 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
     Calculate the S/N of each input spectrum and create an array of
     (S/N)^2 weights to be used for coadding.
 
-    Args:
-        waves : float ndarray, shape = (nspec,) or (nspec, nexp)
+    Parameters
+    ----------
+    waves : `numpy.ndarray`_
             Reference wavelength grid for all the spectra. If wave is a
             1d array the routine will assume that all spectra are on the
             same wavelength grid. If wave is a 2-d array, it will use
-            the individual
-        fluxes : float ndarray, shape = (nspec, nexp)
+            the individual. shape = (nspec,) or (nspec, nexp)
+    fluxes : `numpy.ndarray`_
             Stack of (nspec, nexp) spectra where nexp = number of
             exposures, and nspec is the length of the spectrum.
-        ivars : float ndarray, shape = (nspec, nexp)
-            Inverse variance noise vectors for the spectra
-        masks : bool ndarray, shape = (nspec, nexp)
-            Mask for stack of spectra. True=Good, False=Bad.
-        sn_smooth_npix : float
+    ivars : `numpy. ndarray`_ 
+            Inverse variance noise vectors for the spectra; shape = (nspec, nexp)
+    masks : `numpy. ndarray`_
+            Mask for stack of spectra. True=Good, False=Bad; shape = (nspec, nexp)
+    sn_smooth_npix : float
             Number of pixels used for determining smoothly varying S/N ratio weights.
-        const_weights : bool
+    const_weights : bool, optional
             Use a constant weights for each spectrum?
-        ivar_weights : bool
+    ivar_weights : bool, optional
             Use inverse variance weighted scheme?
-        relative_weights : bool
+    relative_weights : bool, optional
             Calculate weights by fitting to the ratio of spectra? Note, relative weighting will
             only work well when there is at least one spectrum with a reasonable S/N, and a continuum.
             RJC note - This argument may only be better when the object being used has a strong
@@ -720,14 +723,16 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
             wavelengths, and the weights of all other spectra will be determined relative to the
             reference spectrum. This is particularly useful if you are dealing with highly variable
             spectra (e.g. emission lines) and require a precision better than ~1 per cent.
-        verbose : bool
+    verbose : bool, optional
             Verbosity of print out.
 
-    Returns:
-        tuple: (1) rms_sn : ndarray, shape (nexp) -- Root mean square S/N value
-        for each input spectra; (2) weights : ndarray, shape = (nspec,
-        nexp) -- Weights to be applied to the spectra. These are
-        signal-to-noise squared weights.
+    Returns
+    -------
+    rms_sn : `numpy.ndarray`_
+        Root mean square S/N value for each input spectra; shape (nexp,) 
+    weights : `numpy.ndarray`_ 
+        Weights to be applied to the spectra. These are
+        signal-to-noise squared weights.  shape = (nspec, nexp) 
     """
 
     # Give preference to ivar_weights
@@ -881,40 +886,44 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None
     best if the reference spectrum is chosen to be the higher S/N ratio spectrum, i.e. a preliminary stack that you want
     to scale each exposure to match. Note that the flux and flux_ref need to be on the same wavelength grid!!
 
-    Args:
-        wave: ndarray, (nspec,)
-            wavelengths grid for the spectra
-        flux: ndarray, (nspec,)
-            spectrum that will be rescaled.
-        ivar: ndarray, (nspec,)
+    Parameters
+    ----------
+    flux: `numpy.ndarray`_ 
+            spectrum that will be rescaled. shape=(nspec,)
+    ivar: `numpy.ndarray`_
             inverse variance for the spectrum that will be rescaled.
-        mask: ndarray, bool, (nspec,)
-            mask for the spectrum that will be rescaled. True=Good. If not input, computed from inverse variance
-        flux_ref: ndarray, (nspec,)
-            reference spectrum.
-        ivar_ref: ndarray, (nspec,)
+            Same shape as flux
+    flux_ref: `numpy.ndarray`_
+            reference spectrum. Same shape as flux
+    mask: `numpy.ndarray`_, optional
+            boolean mask for the spectrum that will be rescaled. True=Good. 
+            If not input, computed from inverse variance
+    ivar_ref: `numpy.ndarray`_, optional
             inverse variance of reference spectrum.
-        mask_ref: ndarray, bool, (nspec,)
-            mask for reference spectrum. True=Good. If not input, computed from inverse variance.
-        ref_percentile: float, default=70.0
+    mask_ref: `numpy.ndarray`_, optional
+            Boolean mask for reference spectrum. True=Good. If not input, computed from inverse variance.
+    ref_percentile: float, optional, default=70.0
             Percentile fraction used for selecting the minimum SNR cut from the reference spectrum. Pixels above this
             percentile cut are deemed the "good" pixels and are used to compute the ratio. This must be a number
             between 0 and 100.
-        min_good: float, default = 0.05
+    min_good: float, optional, default = 0.05
             Minimum fraction of good pixels determined as a fraction of the total pixels for estimating the median ratio
-        maxiters: int, defrault = 5,
+    maxiters: int, optional, default = 5
             Maximum number of iterations for astropy.stats.SigmaClip
-        sigrej: float, default = 3.0
+    sigrej: float, optional, default = 3.0
             Rejection threshold for astropy.stats.SigmaClip
-        max_factor: float, default = 10.0,
+    max_factor: float, optional, default = 10.0,
             Maximum allowed value of the returned ratio
-        snr_do_not_rescale (float):, default = 1.0
+    snr_do_not_rescale: float, optional default = 1.0
             If the S/N ratio of the set of pixels (defined by upper ref_percentile in the reference spectrum) in the
             input spectrum have a median value below snr_do_not_rescale, median rescaling will not be attempted
             and the code returns ratio = 1.0. We also use this parameter to define the set of pixels (determined from
             the reference spectrum) to compare for the rescaling.
-    Returns:
-        float: the number that must be multiplied into flux in order to get it to match up with flux_ref
+
+    Returns
+    -------
+    ratio: float 
+        the number that must be multiplied into flux in order to get it to match up with flux_ref
     """
 
     ## Mask for reference spectrum and your spectrum
@@ -966,21 +975,23 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None
 
     return ratio
 
-def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5, max_factor=10., sigrej=3,
-                       debug=False, show=False):
+def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5, 
+                       max_factor=10., sigrej=3, debug=False, show=False):
     '''
-    Function for scaling different orders
+    Function to scaling different orders by the median S/N
+    
 
     Args:
-        waves (ndarray): wavelength array of your spectra with the shape of (nspec, norder)
-        fluxes (ndarray): flux array of your spectra with the shape of (nspec, norder)
-        ivars (ndarray): ivar array of your spectra with the shape of (nspec, norder)
-        masks (ndarray, bool): mask for your spectra with the shape of (nspec, norder)
-        min_good (float): minmum fraction of the total number of good pixels needed for estimate the median ratio
-        maxiters (int or float): maximum iterations for rejecting outliers
-        max_factor (float): maximum scale factor
-        sigrej (float): sigma used for rejecting outliers
-        debug (bool): if True show the QA
+        waves (`numpy.ndarray`_): wavelength array of your spectra with the shape of (nspec, norder)
+        fluxes (`numpy.ndarray`_): flux array of your spectra with the shape of (nspec, norder)
+        ivars (`numpy.ndarray`_): ivar array of your spectra with the shape of (nspec, norder)
+        masks (`numpy.ndarray`_): mask for your spectra with the shape of (nspec, norder)
+        min_good (float, optional): minmum fraction of the total number of good pixels needed for estimate the median ratio
+        maxiters (int or float, optional): maximum iterations for rejecting outliers
+        max_factor (float, optional): maximum scale factor
+        sigrej (float, optional): sigma used for rejecting outliers
+        debug (bool, optional): if True show intermediate QA
+        show (bool, optional): if True show the final QA
 
     Returns:
         tuple: (1) fluxes_new (ndarray): re-scaled fluxes with the shape
