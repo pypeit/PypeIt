@@ -1826,7 +1826,7 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_clip=30
             systematics.
     lower: float, optional, default=3.0
             lower rejection threshold for djs_reject
-    upper: float: optional, default=3.0
+    upper: float, optional, default=3.0
             upper rejection threshold for djs_reject
     maxrej: int, optional, default=None
             maximum number of pixels to reject in each iteration for djs_reject.
@@ -1844,41 +1844,41 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_clip=30
     -------
     wave_stack: `numpy.ndarray`_
         Wavelength grid for stacked
-              spectrum. As discussed above, this is the weighted average
-              of the wavelengths of each spectrum that contriuted to a
-              bin in the input wave_grid wavelength grid. It thus has
-              ngrid elements, whereas wave_grid has ngrid+1 elements to
-              specify the ngrid total number of bins. Note that
-              wave_stack is NOT simply the wave_grid bin centers, since
-              it computes the weighted average. 
-              shape=(ngrid,)
+        spectrum. As discussed above, this is the weighted average
+        of the wavelengths of each spectrum that contriuted to a
+        bin in the input wave_grid wavelength grid. It thus has
+        ngrid elements, whereas wave_grid has ngrid+1 elements to
+        specify the ngrid total number of bins. Note that
+        wave_stack is NOT simply the wave_grid bin centers, since
+        it computes the weighted average. 
+        shape=(ngrid,)
     flux_stack: `numpy.ndarray`_
         Final stacked spectrum on
-              wave_stack wavelength grid
-              shape=(ngrid,)
+        wave_stack wavelength grid
+        shape=(ngrid,)
     ivar_stack: `numpy.ndarray`_
         Inverse variance spectrum
-              on wave_stack wavelength grid. Erors are propagated
-              according to weighting and masking.
-              shape=(ngrid,)
+        on wave_stack wavelength grid. Erors are propagated
+        according to weighting and masking.
+        shape=(ngrid,)
     mask_stack: `numpy.ndarray`_
         Boolean mask for stacked
-              spectrum on wave_stack wavelength grid. True=Good.
-              shape=(ngrid,)
+        spectrum on wave_stack wavelength grid. True=Good.
+        shape=(ngrid,)
     outmask: `numpy.ndarray`_
         Output bool mask with shape=(nspec, nexp)
-              indicating which pixels are rejected in each exposure of
-              the original input spectra after performing all of the
-              iterations of combine/rejection
+        indicating which pixels are rejected in each exposure of
+        the original input spectra after performing all of the
+        iterations of combine/rejection
     nused: `numpy.ndarray`_
         Number of exposures which
-              contributed to each pixel in the wave_stack. Note that
-              this is in general different from nexp because of masking,
-              but also becuse of the sampling specified by wave_grid. In
-              other words, sometimes more spectral pixels in the
-              irregularly gridded input wavelength array waves will land
-              in one bin versus another depending on the sampling.
-              shape=(ngrid,)
+        contributed to each pixel in the wave_stack. Note that
+        this is in general different from nexp because of masking,
+        but also becuse of the sampling specified by wave_grid. In
+        other words, sometimes more spectral pixels in the
+        irregularly gridded input wavelength array waves will land
+        in one bin versus another depending on the sampling.
+        shape=(ngrid,)
 
     """
     thismask = np.copy(masks)
@@ -2121,27 +2121,33 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
 
     Returns
     -------
-    wave_grid_mid: ndarray, (ngrid,): 
+    wave_grid_mid: `numpy.ndarray`_
         Wavelength grid (in Angstrom) evaluated at the bin centers,
-              uniformly-spaced either in lambda or log10-lambda/velocity. See core.wavecal.wvutils.py for more.
-    wave_stack: ndarray, (ngrid,): 
+        uniformly-spaced either in lambda or log10-lambda/velocity. See core.wavecal.wvutils.py for more.
+        shape=(ngrid,)
+    wave_stack: `numpy.ndarray`_
         Wavelength grid for stacked
-              spectrum. As discussed above, this is the weighted average
-              of the wavelengths of each spectrum that contriuted to a
-              bin in the input wave_grid wavelength grid. It thus has
-              ngrid elements, whereas wave_grid has ngrid+1 elements to
-              specify the ngrid total number of bins. Note that
-              wave_stack is NOT simply the wave_grid bin centers, since
-              it computes the weighted average.
-    flux_stack: ndarray, (ngrid,): 
+        spectrum. As discussed above, this is the weighted average
+        of the wavelengths of each spectrum that contriuted to a
+        bin in the input wave_grid wavelength grid. It thus has
+        ngrid elements, whereas wave_grid has ngrid+1 elements to
+        specify the ngrid total number of bins. Note that
+        wave_stack is NOT simply the wave_grid bin centers, since
+        it computes the weighted average.
+        shape=(ngrid,)
+    flux_stack: `numpy.ndarray`_
         Final stacked spectrum on
-              wave_stack wavelength grid
-    ivar_stack: ndarray, (ngrid,): 
+        wave_stack wavelength grid
+        shape=(ngrid,)
+    ivar_stack: `numpy.ndarray`_
         Inverse variance spectrum on wave_stack
-              wavelength grid. Erors are propagated according to
-              weighting and masking.
-    mask_stack: ndarray, bool, (ngrid,): Mask for stacked
-              spectrum on wave_stack wavelength grid. True=Good.
+        wavelength grid. Erors are propagated according to
+        weighting and masking.
+        shape=(ngrid,)
+    mask_stack: `numpy.ndarray`_
+        Boolean mask for stacked
+        spectrum on wave_stack wavelength grid. True=Good.
+        shape=(ngrid,)
     '''
 
     # We cast to float64 because of a bug in np.histogram
@@ -2179,80 +2185,78 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
                    wave_grid_max=None, ref_percentile=70.0, maxiter_scale=5,
                    sigrej_scale=3.0, scale_method='auto', hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
                    const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
-                   maxrej=None, phot_scale_dicts=None,
+                   maxrej=None, 
                    qafile=None, debug=False, debug_scale=False, show_scale=False, show=False):
     """
     Routine for coadding longslit/multi-slit spectra. Calls combspec which is
     the main stacking algorithm.
 
     Args:
-        waves (ndarray):
+        waves (`numpy.ndarray`_):
             Wavelength array  with shape (nspec, nexp) containing the spectra to be coadded.
-        fluxes (ndarray):
+        fluxes (`numpy.ndarray`_):
             Flux array with shape (nspec, nexp) containing the spectra to be coadded.
-        ivars, masks (ndarray):
+        ivars (`numpy.ndarray`_):
             Ivar array with shape (nspec, nexp) containing the spectra to be coadded.
-        masks (ndarray):
+        masks (`numpy.ndarray`_):
             Maks array with shape (nspec, nexp) containing the spectra to be coadded.
         sn_smooth_npix (int): optional
            Number of pixels to median filter by when computing S/N used to decide how to scale and weight spectra. If
            set to None, the code will determine the effective number of good pixels per spectrum
            in the stack that is being co-added and use 10% of this neff.
-        wave_method: str, optional, default=pixel
+        wave_method (str, optional):
            method for generating new wavelength grid with get_wave_grid. Deafult is 'linear' which creates a uniformly
            space grid in lambda. See docuementation on get_wave_grid for description of the options.
-        dwave (float): optional
+        dwave (float, optional): 
            dispersion in units of A in case you want to specify it for get_wave_grid, otherwise the code computes the
            median spacing from the data.
-        dv (float): optional
+        dv (float, optional):
            Dispersion in units of km/s in case you want to specify it in the get_wave_grid  (for the 'velocity' option),
            otherwise a median value is computed from the data.
         spec_samp_fact (float, optional):
             Make the wavelength grid  sampling finer (spec_samp_fact < 1.0) or coarser (spec_samp_fact > 1.0) by this
             sampling factor. This basically multiples the 'native' spectral pixels by spec_samp_fact, i.e. units
             spec_samp_fact are pixels.
-        wave_grid_min (float): optional
+        wave_grid_min (float, optional):
            In case you want to specify the minimum wavelength in your wavelength grid, default=None computes from data.
-        wave_grid_max (float): optional
+        wave_grid_max (float, optional):
            In case you want to specify the maximum wavelength in your wavelength grid, default=None computes from data.
-        maxiter_reject (int): optional
+        maxiter_reject (int, optional):
             maximum number of iterations for stacking and rejection. The code stops iterating either when
             the output mask does not change betweeen successive iterations or when maxiter_reject is reached. Default=5.
-        ref_percentile (float): optional
+        ref_percentile (float, optional):
             percentile fraction cut used for selecting minimum SNR cut for robust_median_ratio. Should be a number between
             0 and 100, default = 70.0
-        maxiter_scale (int): optional
+        maxiter_scale (int, optional):
             Maximum number of iterations performed for rescaling spectra. Default=5.
-        sigrej_scale (float): optional
+        sigrej_scale (float, optional):
             Rejection threshold used for rejecting pixels when rescaling spectra with scale_spec. Default=3.0
-        scale_method (str): optional
+        scale_method (str, optional):
             Options are auto, poly, median, none, or hand. Hand is not well tested.
             User can optionally specify the rescaling method. Default='auto' will let the
             code determine this automitically which works well.
-        hand_scale (ndarray): optional
+        hand_scale (ndarray, optional):
             Array of hand scale factors, not well tested
-        sn_min_polyscale (float): optional, default = 2.0,
+        sn_min_polyscale (float, optional):
             maximum SNR for perforing median scaling
-        sn_min_medscale (float): optional, default = 0.5
+        sn_min_medscale (float, optional):
             minimum SNR for perforing median scaling
-        const_weights (ndarray): optional, shape=(nexp,)
+        const_weights (ndarray, optional):
              Constant weight factors specif
-        maxiter_reject (int): optional, default=5
+        maxiter_reject (int, optional):
             maximum number of iterations for stacking and rejection. The code stops iterating either when
             the output mask does not change betweeen successive iterations or when maxiter_reject is reached.
-        sn_clip (float): optional, default=30.0,
+        sn_clip (float, optional):
             Errors are capped during rejection so that the S/N is never greater than sn_clip. This prevents overly aggressive rejection
             in high S/N ratio spectrum which neverthless differ at a level greater than the implied S/N due to
             systematics.
-        lower (float): optional, default=3.0,
+        lower (float, optional):
             lower rejection threshold for djs_reject
-        upper (float): optional, default=3.0,
+        upper (float, optional):
             upper rejection threshold for djs_reject
-        maxrej (int): optional, default=None,
+        maxrej (int, optional):
             maximum number of pixels to reject in each iteration for djs_reject.
-        phot_scale_dicts (dict): optional
-            Dictionary for rescaling spectra to match photometry. Not yet implemented.
-        nmaskedge (int): optinoal, default=2
+        nmaskedge (int, optional):
             Number of edge pixels to mask. This should be removed/fixed.
         qafile (str): optional, default=None
             Root name for QA, if None, it will be determined from the outfile
@@ -2268,22 +2272,22 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
     Returns:
         :obj:`tuple`: Returns the following:
 
-            - wave_grid_mid: ndarray, (ngrid,): Wavelength grid (in Angstrom)
+            - wave_grid_mid: `numpy.ndarray`_, (ngrid,): Wavelength grid (in Angstrom)
               evaluated at the bin centers, uniformly-spaced either in lambda or
               log10-lambda/velocity.  See core.wavecal.wvutils.py for more.
-            - wave_stack: ndarray, (ngrid,): Wavelength grid for stacked
+            - wave_stack: `numpy.ndarray`_, (ngrid,): Wavelength grid for stacked
               spectrum. As discussed above, this is the weighted average of the
               wavelengths of each spectrum that contriuted to a bin in the input
               wave_grid wavelength grid. It thus has ngrid elements, whereas
               wave_grid has ngrid+1 elements to specify the ngrid total number
               of bins. Note that wave_stack is NOT simply the wave_grid bin
               centers, since it computes the weighted average.
-            - flux_stack: ndarray, (ngrid,): Final stacked spectrum on
+            - flux_stack: `numpy.ndarray`_, (ngrid,): Final stacked spectrum on
               wave_stack wavelength grid
-            - ivar_stack: ndarray, (ngrid,): Inverse variance spectrum on
+            - ivar_stack: `numpy.ndarray`_, (ngrid,): Inverse variance spectrum on
               wave_stack wavelength grid. Erors are propagated according to
               weighting and masking.
-            - mask_stack: ndarray, bool, (ngrid,): Mask for stacked spectrum on
+            - mask_stack: `numpy.ndarray`_, bool, (ngrid,): Mask for stacked spectrum on
               wave_stack wavelength grid. True=Good.
 
     """
@@ -2394,7 +2398,7 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None, wave_met
             systematics.
         lower (float): optional, default=3.0,
             lower rejection threshold for djs_reject
-        upper: float: default=3.0,
+        upper (float: default=3.0,
             upper rejection threshold for djs_reject
         maxrej: int, default=None,
             maximum number of pixels to reject in each iteration for djs_reject.
@@ -2406,8 +2410,6 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None, wave_met
             Minimum fraction of good pixels determined as a fraction of the total pixels for estimating the median ratio
         phot_scale_dicts: dict,
             Dictionary for rescaling spectra to match photometry. Not yet implemented.
-        nmaskedge: int, default=2
-            Number of edge pixels to mask. This should be removed/fixed.
         qafile: str, default=None
             Root name for QA, if None, it will be determined either the outfile
         outfile: str, default=None,
@@ -2652,24 +2654,27 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None, wave_met
            (waves_stack_orders, fluxes_stack_orders, ivars_stack_orders, masks_stack_orders,)
 
 
-## Coadd2d routines follow this point
+# ####################################################################
+# ####################################################################
+# Coadd2d routines follow this point
+# ####################################################################
 
-def det_error_msg(exten, sdet):
-    """
-    Utility routine for printing out an error message associated with choosing detectors.
-
-    Parameters
-    ----------
-    exten : int
-       Extension number
-    sdet :  int
-       Detector number
-
-    """
-    # Print out error message if extension is not found
-    msgs.error("Extension {:s} for requested detector {:s} was not found.\n".format(exten)  +
-               " Maybe you chose the wrong detector to coadd? "
-               "Set with --det= or check file contents with pypeit_show_2dspec Science/spec2d_XXX --list".format(sdet))
+#def det_error_msg(exten, sdet):
+#    """
+#    Utility routine for printing out an error message associated with choosing detectors.
+#
+#    Parameters
+#    ----------
+#    exten : int
+#       Extension number
+#    sdet :  int
+#       Detector number
+#
+#    """
+#    # Print out error message if extension is not found
+#    msgs.error("Extension {:s} for requested detector {:s} was not found.\n".format(exten)  +
+#               " Maybe you chose the wrong detector to coadd? "
+#               "Set with --det= or check file contents with pypeit_show_2dspec Science/spec2d_XXX --list".format(sdet))
 
 
 def get_wave_ind(wave_grid, wave_min, wave_max):
@@ -2678,17 +2683,21 @@ def get_wave_ind(wave_grid, wave_min, wave_max):
 
     ..todo.. Make this doc string Google or numpy but not both
 
-    Args:
-        wave_grid: float ndarray
+    Parameters
+    ----------
+    wave_grid: `numpy.ndarray`_
           Wavelength grid.
-        wave_min: float
+    wave_min: float
           Minimum wavelength covered by the data in question.
-        wave_max: float
+    wave_max: float
           Maximum wavelength covered by the data in question.
 
-    Returns:
-        tuple: Returns (ind_lower, ind_upper), Integer lower and upper
-        indices into the array wave_grid that cover the interval
+    Returns
+    -------
+    ind_lower: int
+        Integer lower 
+    ind_upper: int
+        and upper indices into the array wave_grid that cover the interval
         (wave_min, wave_max)
     """
 
@@ -2717,18 +2726,22 @@ def get_wave_bins(thismask_stack, waveimg_stack, wave_grid):
 
     Parameters
     ----------
-    thismask_stack : array of shape (nimgs, nspec, nspat)
+    thismask_stack : `numpy.ndarray`_
+        shape (nimgs, nspec, nspat)
         Good pixel mask indicating which pixels are on slits
 
-    waveimg_stack :  array of shape (nimgs, nspec, nspat)
+    waveimg_stack : `numpy.ndarray`_
+        shape (nimgs, nspec, nspat)
         Wavelength images for each image in the image stack
 
-    wave_grid : array  shape (ngrid)
+    wave_grid : `numpy.ndarray`_
+        shape (ngrid)
         The wavelength grid created for the 2d coadd
 
     Returns
     -------
-    wave_bins : array shape (ind_upper-ind_lower + 1, )
+    wave_bins : `numpy.ndarray`_
+        array shape (ind_upper-ind_lower + 1, )
         Wavelength bins that are relevant given the illuminated pixels (thismask_stack) and
         wavelength coverage (waveimg_stack) of the image stack
 
@@ -2752,10 +2765,11 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
 
     Parameters
     ----------
-    thismask_stack : array of shape (nimgs, nspec, nspat)
+    thismask_stack : `numpy.ndarray`_
+        shape (nimgs, nspec, nspat)
         Good pixel mask indicating which pixels are on slits.
-
-    trace_stack : array of shape (nspec, nimgs)
+    trace_stack : `numpy.ndarray`_
+        shape (nspec, nimgs)
         Array holding the stack of traces for each image in the stack. This is either the trace of the center of the slit
         or the trace of the object in question that we are stacking about.
     spat_samp_fact (float, optional):
@@ -2764,10 +2778,11 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
 
     Returns
     -------
-    dspat_bins : array of shape (spat_max_int +1 - spat_min_int,)
+    dspat_bins : `numpy.ndarray`_
+        shape (spat_max_int +1 - spat_min_int,)
         Array of spatial bins for rectifying the image.
-
-    dspat_stack : array of shape (nimgs, nspec, nspat)
+    dspat_stack : `numpy.ndarray`_
+        shape (nimgs, nspec, nspat)
         Image stack which has the spatial position of each exposure relative to the trace in the trace_stack for that
         image.
     """
