@@ -3,6 +3,7 @@ Module for MDM/Modspec specific methods.
 
 .. include:: ../include/links.rst
 """
+import array as arr
 import numpy as np
 
 from pypeit import msgs
@@ -20,7 +21,7 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
     name = 'mdm_modspec_echelle'
     telescope = telescopes.KPNOTelescopePar()
     camera = 'Echelle'
-    header_name = 'ModSpec'
+    header_name = 'Modspec'
     pypeline = 'MultiSlit'
     supported = True
     comment = 'MDM Modspec spectrometer'
@@ -134,14 +135,14 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         self.meta['ra'] = dict(ext=0, card='RA')
         self.meta['dec'] = dict(ext=0, card='DEC')
         self.meta['target'] = dict(ext=0, card='OBJECT')
-        self.meta['decker'] = dict(card=None) # str -- ie long_1.0 -- Name of the decker or slit mask 
+        self.meta['decker'] = dict(card=None, compound=True) # str -- ie long_1.0 -- Name of the decker or slit mask 
         self.meta['binning'] = dict(card=None, compound=True)
         
-        self.meta['amp'] = '' # str -- ie SINGLE:B -- Name of the amplifier used to read the detector
-        self.meta['arm'] = '' # str -- ie VIS -- Name of the spectrograph arm used to collect the data
+        ##self.meta['amp'] = '' # str -- ie SINGLE:B -- Name of the amplifier used to read the detector
+        ##self.meta['arm'] = '' # str -- ie VIS -- Name of the spectrograph arm used to collect the data
         self.meta['datasec'] = dict(ext=0, card='DATASEC') # str -- ie [1:256,1:512] -- The science region of the detector
-        self.meta['detector'] = '' # str -- ie CHIP1 -- Name of the detector
-        self.meta['dichroic'] = '' # str -- ie 560 -- Name of the dichroic
+        ##self.meta['detector'] = '' # str -- ie CHIP1 -- Name of the detector
+        ##self.meta['dichroic'] = '' # str -- ie 560 -- Name of the dichroic
         self.meta['filter1'] = dict(ext=0, card='FILTER') # str -- ie J -- Name of the order-sorting filter
         
         self.meta['mjd'] = dict(card=None, compound=True)
@@ -150,8 +151,8 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         
         # Extras for config and frametyping
         # in an example of what this code generates, see https://pypeit.readthedocs.io/en/latest/pypeit_file.html#pypeit-file
-        self.meta['dispname'] = '1200/5100' # str -- ie 830G -- Name of the dispersing element
-        self.meta['dispangle'] = 5100.0 # float -- ie 7500.0 -- Central wavelength for the dispersing element at the observed angle
+        self.meta['dispname'] = dict(card=None, compound=True) # str -- ie 830G -- Name of the dispersing element
+        self.meta['dispangle'] = dict(card=None, compound=True) # float -- ie 7500.0 -- Central wavelength for the dispersing element at the observed angle
         self.meta['idname'] = dict(ext=0, card='IMAGETYP')
        
         # Lamps
@@ -179,6 +180,12 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
             return parse.binning2string(binspec, binspatial)
         if meta_key == 'mjd':
             return float(headarr['JD']) - 2400000.5
+        if meta_key == 'decker':
+            return 'none'
+        if meta_key == 'dispname':
+            return '1200/5100'
+        if meta_key == 'dispangle':
+            return 5100.0
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -239,7 +246,7 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         if ftype == 'bias':
             return good_exp & (fitstbl['idname'] == 'Bias')
         if ftype == 'arc':
-            return good_exp & ('Ar' or 'Xe' or 'Ne' in fitstbl['lampstat01']) & ('Arc' or 'arc' in fitstbl['idname'] or fitstbl['target'])
+            return good_exp & (fitstbl['lampstat01'] == any(['Ar', 'Xe', 'Ne']) and any(['Comp', 'Arc', 'arc']) in any([fitstbl['idname'], fitstbl['target']]))
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
     
