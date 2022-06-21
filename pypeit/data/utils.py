@@ -84,8 +84,9 @@ from pypeit import __version__
 __all__ = ['Paths', 'load_telluric_grid', 'load_thar_spec',
            'load_sky_spectrum', 'get_reid_arxiv_filepath',
            'get_skisim_filepath', 'get_sensfunc_filepath',
-           'get_linelist_filepath', 'fetch_remote_file',
-           'search_cache', 'write_file_to_cache']
+           'get_telgrid_filepath', 'get_linelist_filepath',
+           'fetch_remote_file', 'search_cache',
+           'write_file_to_cache']
 
 
 # Package-Data Paths =========================================================#
@@ -373,11 +374,11 @@ def get_telgrid_filepath(telgrid_file):
     particular reductions, the remote fetch will only occur once per file.
 
     Args:
-        sensfunc_file (str):
-          The base filename of the ``sensfunc`` file to be located
+        telgrid_file (str):
+          The base filename of the ``telgrid`` file to be located
 
     Returns:
-        str: The full path to the ``sensfunc`` file
+        str: The full path to the ``telgrid`` file
     """
     # Full path within the package data structure:
     telgrid_path = os.path.join(Paths.telgrid, telgrid_file)
