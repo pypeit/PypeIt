@@ -65,15 +65,15 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
             parameter to a number greater than zero to enhance the edge detection.
         sigdetect (:obj:`float`, optional):
             Threshold for edge detection.
-        grow_bpm (:int)
+        grow_bpm (int, optional):
             The sobel_sig and edg_img are masked using the bpm. This is done by convolving the bpm with
             a spatial boxcar of width grow_bpm pixels, ensuring that pixels which touched bad pixels are also masked.
 
     Returns:
-        Returns two `numpy.ndarray`_ objects: (1) The image of the
-        significance of the edge detection in sigma and (2) the array
-        isolating the slit edges. In the latter, left edges have a
-        value of -1 and right edges have a value of 1.
+        tuple: Returns two `numpy.ndarray`_ objects -- (1) The image of the
+            significance of the edge detection in sigma and (2) the array
+            isolating the slit edges. In the latter, left edges have a
+            value of -1 and right edges have a value of 1.
     """
     # Checks
     if flux.ndim != 2:
@@ -271,8 +271,9 @@ def count_edge_traces(edge_img):
             and negative numbers follow left slit edges.
     
     Returns:
+        int or tuple:
         Two integers with the number of left and right edges,
-        respectively.
+        respectively.  Or 0 if the minimum input value is 0
     """
     # Avoid returning -0
     nleft = np.amin(edge_img)
@@ -607,9 +608,9 @@ def follow_centroid(flux, start_row, start_cen, ivar=None, bpm=None, fwgt=None, 
             uses the DISCONTINUOUS flag.
 
     Returns:
-        Three numpy arrays are returned: the optimized center, an
-        estimate of the error, and a bad-pixel mask (masked values
-        are True).
+        tuple: Three numpy arrays are returned: the optimized center, an
+            estimate of the error, and a bad-pixel mask (masked values
+            are True).
     """
     if flux.ndim != 2:
         raise ValueError('Input image must be 2D.')
@@ -780,9 +781,9 @@ def masked_centroid(flux, cen, width, ivar=None, bpm=None, fwgt=None, row=None,
             dummy value.
 
     Returns:
-        Returns three `numpy.ndarray`_ objects: the new centers, the
-        center errors, and the measurement flags with a data type
-        depending on `bitmask`.
+        tuple: Returns three `numpy.ndarray`_ objects: the new centers, the
+            center errors, and the measurement flags with a data type
+            depending on `bitmask`.
     """
     # Calculate the moments
     radius = width/2
