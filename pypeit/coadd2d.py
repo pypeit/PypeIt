@@ -249,8 +249,8 @@ class CoAdd2D:
         for i in range(1, self.nexp):
             # update bpm with the info from the other frames
             slits = self.stack_dict['slits_list'][i]
-            reduce_bpm &= (slits.mask > 0) & (np.invert(slits.bitmask.flagged(slits.mask,
-                                                                             flag=slits.bitmask.exclude_for_reducing)))
+            reduce_bpm |= (slits.mask > 0) & (np.invert(slits.bitmask.flagged(slits.mask,
+                                                                              flag=slits.bitmask.exclude_for_reducing)))
         # this are the good slit index according to the bpm mask
         good_slitindx = np.where(np.logical_not(reduce_bpm))[0]
 

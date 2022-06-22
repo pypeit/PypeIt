@@ -38,6 +38,9 @@ class FrameTypeBitMask(BitMask):
                      ('pinhole', 'Pinhole observation used for tracing slit centers'),
                    ('pixelflat', 'Flat-field exposure used for pixel-to-pixel response'),
                    ('illumflat', 'Flat-field exposure used for illumination flat'),
+                   ('lampoffflats', 'Flat-field exposure with lamps off used to remove '
+                                   'persistence from lamp on flat exposures and/or thermal emission '
+                                   'from the telescope and dome'),
                      ('science', 'On-sky observation of a primary target'),
                     ('standard', 'On-sky observation of a flux calibrator'),
                        ('trace', 'High-count exposure used to trace slit positions'),

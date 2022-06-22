@@ -15,7 +15,7 @@ from astropy import wcs, units
 from astropy.io import fits
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, EarthLocation
-
+from scipy.optimize import curve_fit
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit import io
@@ -227,6 +227,9 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['calibrations']['standardframe']['process']['use_pattern'] = True
         par['scienceframe']['process']['use_pattern'] = True
 
+        # Correct the illumflat for pixel-to-pixel sensitivity variations
+        par['calibrations']['illumflatframe']['process']['use_pixelflat'] = True
+
         # Make sure the overscan is subtracted from the dark
         par['calibrations']['darkframe']['process']['use_overscan'] = True
 
@@ -249,6 +252,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['slit_illum_relative'] = True  # Calculate the relative slit illumination
         par['calibrations']['flatfield']['slit_illum_ref_idx'] = 14  # The reference index - this should probably be the same for the science frame
         par['calibrations']['flatfield']['slit_illum_smooth_npix'] = 4  # Sufficiently small value so less structure in relative weights
+        par['calibrations']['flatfield']['fit_2d_det_response'] = True  # Include the 2D detector response in the pixelflat.
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 0.01]
@@ -275,11 +279,15 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         # Make sure that this is reduced as a slit (as opposed to fiber) spectrograph
         par['reduce']['cube']['slit_spec'] = True
+        par['reduce']['cube']['combine'] = False  # Make separate spec3d files from the input spec2d files
 
         # Sky subtraction parameters
         par['reduce']['skysub']['no_poly'] = True
         par['reduce']['skysub']['bspline_spacing'] = 0.6
-        par['reduce']['skysub']['joint_fit'] = True
+        par['reduce']['skysub']['joint_fit'] = False
+
+        # Flux calibration parameters
+        par['sensfunc']['UVIS']['extinct_correct'] = False  # This must be False - the extinction correction is performed when making the datacube
 
         return par
 
@@ -921,4 +929,44 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         spec_bins = np.arange(1+num_wave) - 0.5
         return xbins, ybins, spec_bins
 
+    def fit_2d_det_response(self, det_resp, gpmask):
+        r"""
+        Perform a 2D model fit to the KCWI detector response.
+        A few different setups were inspected (BH2 & BM with different
+        grating angles), and a very similar response pattern was found for all
+        setups, indicating that this structure is something to do with
+        the detector. The starting parameters and functional form are
+        assumed to be sufficient for all setups.
 
+        Args:
+            det_resp (`numpy.ndarray`_):
+                An image of the flatfield structure.
+            gpmask (`numpy.ndarray`_):
+                Good pixel mask (True=good), the same shape as ff_struct.
+
+        Returns:
+            `numpy.ndarray`_: A model fit to the flatfield structure.
+        """
+        msgs.info("Performing a 2D fit to the detector response")
+
+        # Define a 2D sine function, which is a good description of KCWI data
+        def sinfunc2d(x, amp, scl, phase, wavelength, angle):
+            """
+            2D Sine function
+            """
+            xx, yy = x
+            angle *= np.pi / 180.0
+            return 1 + (amp + xx * scl) * np.sin(
+                2 * np.pi * (xx * np.cos(angle) + yy * np.sin(angle)) / wavelength + phase)
+
+        x = np.arange(det_resp.shape[0])
+        y = np.arange(det_resp.shape[1])
+        xx, yy = np.meshgrid(x, y, indexing='ij')
+        # Prepare the starting parameters
+        amp = 0.02  # Roughly a 2% effect
+        scale = 0.0  # Assume the amplitude is constant over the detector
+        wavelength = np.sqrt(det_resp.shape[0] ** 2 + det_resp.shape[1] ** 2) / 31.5  # 31-32 cycles of the pattern from corner to corner
+        phase, angle = 0.0, -45.34  # No phase, and a decent guess at the angle
+        p0 = [amp, scale, phase, wavelength, angle]
+        popt, pcov = curve_fit(sinfunc2d, (xx[gpmask], yy[gpmask]), det_resp[gpmask], p0=p0)
+        return sinfunc2d((xx, yy), *popt)

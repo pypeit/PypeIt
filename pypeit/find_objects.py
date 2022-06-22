@@ -1237,9 +1237,7 @@ class IFUFindObjects(MultiSlitFindObjects):
                                                trim_edg=trim_edg, show_fit=show_fit, show=show,
                                                show_objs=show_objs)
         # If the joint fit or spec/spat sensitivity corrections are not being performed, return the separate slits sky
-        if not self.par['reduce']['skysub']['joint_fit'] and \
-                not self.par['scienceframe']['process']['use_specillum'] and \
-                not self.par['scienceframe']['process']['use_illumflat']:
+        if not self.par['reduce']['skysub']['joint_fit']:
             return global_sky_sep
 
         # Do the spatial scaling first
@@ -1256,8 +1254,7 @@ class IFUFindObjects(MultiSlitFindObjects):
         # TODO maybe would be better to move it inside `illum_profile_spectral`
         self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
 
-        if self.par['scienceframe']['process']['use_specillum']:
-            self.illum_profile_spectral(global_sky_sep, skymask=skymask)
+        self.illum_profile_spectral(global_sky_sep, skymask=skymask)
 
         # Fit to the sky
         if self.par['reduce']['skysub']['joint_fit']:
