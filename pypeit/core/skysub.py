@@ -1348,13 +1348,14 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
 
 
 def read_userregions(skyreg, nslits, maxslitlength):
-    """ Parse the sky regions defined by the user. The text should
-        be a comma separated list of percentages to apply to all slits
-        Example: The following string   :10,35:65,80:
-        would select (in all slits):
-        (1) the leftmost 10% of the slit length,
-        (2) the inner 30% (from 35-65% of the slit length), and
-        (3) the final 20% of the slit length (from 80-100% of the slit length)
+    """ 
+    Parse the sky regions defined by the user. The text should
+    be a comma separated list of percentages to apply to all slits
+    Example: The following string   :10,35:65,80:
+    would select (in all slits):
+      - the leftmost 10% of the slit length,
+      - the inner 30% (from 35-65% of the slit length), and
+      - the final 20% of the slit length (from 80-100% of the slit length)
 
     Parameters
     ----------
