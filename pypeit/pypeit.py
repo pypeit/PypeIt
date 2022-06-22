@@ -290,10 +290,16 @@ class PypeIt:
             # Find the detectors to reduce
 #            detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
 #                                                ndet=self.spectrograph.ndet)
-            detectors = self.spectrograph.select_detectors(subset=self.par['rdx']['detnum'])
+            subset = self.par['rdx']['slitspatnum'] if self.par['rdx']['slitspatnum'] is not None \
+                else self.par['rdx']['detnum']
+            detectors = self.spectrograph.select_detectors(subset=subset)
+            msgs.info(f'Detectors to work on: {detectors}')
+
             calib_dict[calib_grp] = {}
+
             # Loop on Detectors
             for self.det in detectors:
+                msgs.info("Working on detector {0}".format(self.det))
                 # Instantiate Calibrations class
                 self.caliBrate = calibrations.Calibrations.get_instance(
                     self.fitstbl, self.par['calibrations'], self.spectrograph,
@@ -308,6 +314,10 @@ class PypeIt:
                 # Allow skipping the run (e.g. parse_calib_id.py script)
                 if run:
                     self.caliBrate.run_the_steps()
+                    if not self.caliBrate.success:
+                        msgs.warn(f'Calibrations for detector {self.det} were unsuccessful!  The step '
+                                  f'that failed was {self.caliBrate.failed_step}.  Continuing by '
+                                  f'skipping this detector.')
 
                 key = self.caliBrate.master_key_dict['frame']
                 calib_dict[calib_grp][key] = {}
@@ -431,8 +441,11 @@ class PypeIt:
                     science_basename[j] = self.basename
 
                     # TODO come up with sensible naming convention for save_exposure for combined files
-                    self.save_exposure(frames[0], sci_spec2d, sci_sobjs,
-                                       self.basename, history)
+                    if len(sci_spec2d.detectors) > 0:
+                        self.save_exposure(frames[0], sci_spec2d, sci_sobjs, self.basename, history)
+                    else:
+                        msgs.warn('No spec2d and spec1d saved to file because the '
+                                  'calibration/reduction was not successful for all the detectors')
                 else:
                     msgs.warn('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
@@ -553,7 +566,7 @@ class PypeIt:
             objFind_list.append(objFind)
 
         # slitmask stuff
-        if self.par['reduce']['slitmask']['assign_obj']:
+        if len(calibrated_det) > 0 and self.par['reduce']['slitmask']['assign_obj']:
             # get object positions from slitmask design and slitmask offsets for all the detectors
             spat_flexure = np.array([ss.spat_flexure for ss in sciImg_list])
             # Grab platescale with binning

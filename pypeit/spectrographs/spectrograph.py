@@ -179,6 +179,25 @@ class Spectrograph:
         """
         return self.__class__.default_pypeit_par() if inp_par is None else inp_par
 
+    def update_edgetracepar(self, par):
+        """
+        This method is used in :func:`pypeit.edgetrace.EdgeTraceSet.maskdesign_matching`
+        to update EdgeTraceSet parameters when the slitmask design matching is not feasible
+        because too few slits are present in the detector.
+
+        **This method is not defined for all spectrographs.**
+
+        Args:
+            par (:class:`pypeit.par.pypeitpar.EdgeTracePar`):
+                The parameters used to guide slit tracing.
+
+        Returns:
+            :class:`pypeit.par.pypeitpar.EdgeTracePar`
+            The modified parameters used to guide slit tracing.
+        """
+
+        return par
+
     def _check_telescope(self):
         """Check the derived class has properly defined the telescope."""
         if self.telescope is None:
@@ -1245,13 +1264,29 @@ class Spectrograph:
                 Number of wavelength steps.  Given by::
                     int(round((wavemax-wavemin)/delta_wave))
 
-        Args:
+        Returns:
             :obj:`tuple`: Three 1D `numpy.ndarray`_ providing the bins to use
             when constructing a histogram of the spec2d files. The elements
             are :math:`(x,y,\lambda)`.
         """
         msgs.warn("No datacube setup for spectrograph: {0:s}".format(self.name))
         return None
+
+    def fit_2d_det_response(self, det_resp, gpmask):
+        r"""
+        Perform a 2D model fit to the instrument-specific detector response.
+
+        Args:
+            det_resp(`numpy.ndarray`_):
+                An image of the detector response.
+            gpmask (`numpy.ndarray`_):
+                Good pixel mask (True=good), the same shape as ff_struct.
+
+        Returns:
+            `numpy.ndarray`_: A model fit to the detector response.
+        """
+        msgs.warn("2D detector response is not implemented for spectrograph: {0:s}".format(self.name))
+        return np.ones_like(det_resp)
 
     def validate_metadata(self):
         """
