@@ -73,6 +73,7 @@
 .. _astropy.coordinates.EarthLocation: https://docs.astropy.org/en/stable/api/astropy.coordinates.EarthLocation.html
 .. _astropy.stats.SigmaClip: https://docs.astropy.org/en/stable/api/astropy.stats.SigmaClip.html
 .. _astropy.stats.sigma_clipped_stats: https://docs.astropy.org/en/stable/api/astropy.stats.sigma_clipped_stats.html
+.. _astropy.units.Quantity: https://docs.astropy.org/en/stable/api/astropy.units.Quantity.html
 
 .. scikit
 .. _sklearn.decomposition.PCA: https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html
