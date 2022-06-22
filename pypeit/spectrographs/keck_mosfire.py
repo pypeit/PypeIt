@@ -258,6 +258,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         self.meta['ra'] = dict(ext=0, card='RA')
         self.meta['dec'] = dict(ext=0, card='DEC')
         self.meta['target'] = dict(ext=0, card='TARGNAME')
+        self.meta['decker_basename'] = dict(card=None, compound=True)
         self.meta['decker'] = dict(ext=0, card='MASKNAME')
         self.meta['binning'] = dict(ext=0, card=None, default='1,1')
 
@@ -294,6 +295,15 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         Returns:
             object: Metadata value read from the header(s).
         """
+        if meta_key == 'decker_basename':
+            maskname = headarr[0].get('MASKNAME')
+            if 'LONGSLIT' in maskname:
+                return maskname.split('-')[0]
+            elif 'long2pos' in maskname:
+                return maskname.split('_')[0]
+            else:
+                return maskname
+
         if meta_key == 'idname':
             FLATSPEC = headarr[0].get('FLATSPEC')
             PWSTATA7 = headarr[0].get('PWSTATA7')
@@ -347,7 +357,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['decker', 'dispname', 'filter1']
+        return ['decker_basename', 'dispname', 'filter1']
 
     def pypeit_file_keys(self):
         """
@@ -401,7 +411,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             # TODO: This is a kludge.  Allow science frames to also be
             # classified as arcs
             is_arc = fitstbl['idname'] == 'arclamp'
-            is_obj = (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'object')
+            is_obj = (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'object') & (fitstbl['decker'] != 'long2pos_specphot')
             return good_exp & (is_arc | is_obj)
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
