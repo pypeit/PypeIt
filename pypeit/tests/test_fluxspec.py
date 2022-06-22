@@ -266,33 +266,3 @@ def extinction_correction_tester(algorithm):
     os.remove(sens_file)
 
 
-def test_wmko_flux_std():
-
-    outfile = data_path('tmp_sens.fits')
-    if os.path.isfile(outfile):
-        os.remove(outfile)
-
-    # Do it
-    wmko_file = data_path('2017may28_d0528_0088.fits')
-    spectrograph = load_spectrograph('keck_deimos')
-
-    # Load + write
-    spec1dfile = data_path('tmp_spec1d.fits')
-    sobjs = keck_deimos.load_wmko_std_spectrum(wmko_file, outfile=spec1dfile)
-
-    # Sensfunc
-    #  The following mirrors the main() call of sensfunc.py
-    par = spectrograph.default_pypeit_par()
-    par['sensfunc']['algorithm'] = "IR"
-    par['sensfunc']['multi_spec_det'] = [3,7]
-
-    # Instantiate the relevant class for the requested algorithm
-    sensobj = sensfunc.SensFunc.get_instance(spec1dfile, outfile, par['sensfunc'])
-    # Generate the sensfunc
-    sensobj.run()
-    # Write it out to a file
-    sensobj.to_file(outfile)
-
-    os.remove(spec1dfile)
-    os.remove(outfile)
-
