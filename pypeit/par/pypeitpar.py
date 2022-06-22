@@ -1341,7 +1341,9 @@ class CubePar(ParSet):
         dtypes['reference_image'] = str
         descr['reference_image'] = 'White light image of a previously combined datacube. The white light ' \
                                    'image will be used as a reference when calculating the offsets of the ' \
-                                   'input spec2d files.'
+                                   'input spec2d files. Ideally, the reference image should have the same ' \
+                                   'shape as the data to be combined (i.e. set the ra_min, ra_max etc. params ' \
+                                   'so they are identical to the reference image).'
 
         defaults['save_whitelight'] = False
         dtypes['save_whitelight'] = bool

@@ -72,10 +72,11 @@ def blackbody_func(a, teff):
         waves : `numpy.ndarray`_ of the wavelengths
         flam : `numpy.ndarray`_ flux in units of erg/s/cm^2/A
     """
-    waves = np.arange(3000.0, 25000.0, 0.1) * units.AA
+    resln = 0.1  # Resolution to generate the blackbody spectrum
+    waves = np.arange(3000.0, 25000.0, resln) * units.AA
     temp = teff * units.K
-    # Calculate the function
-    flam = ((a*2*constants.h*constants.c**2)/waves**5) / (np.exp((constants.h*constants.c / 
+    # Calculate the function - note: we calculate flux/angstrom, but we generate the wavelength grid on a finer grid, so need to multiply by resln here
+    flam = ((resln*a*2*constants.h*constants.c**2)/waves**5) / (np.exp((constants.h*constants.c /
                 (waves*constants.k_B*temp)).to(units.m/units.m).value)-1.0)
     flam = flam.to(units.erg / units.s / units.cm ** 2 / units.AA).value / PYPEIT_FLUX_SCALE
     return waves.value, flam
@@ -802,16 +803,21 @@ def fit_zeropoint(wave, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
     points spacing, which determines the scale of variation of the
     sensitivity function is determined by the nresln parameter.
 
+    wave, Nlam_star, Nlam_ivar_star, gpm_star, std_dict must either be:
+    (1) a single `numpy.ndarray`_ if a single standard star is being used to compute the zeropoint, or
+    (2) a list of `numpy.ndarray`_ if multiple standard stars are being used  to compute the zeropoint.
+    A mixture of types is not allowed.
+
     Args:
-        wave (`numpy.ndarray`_):
+        wave (`numpy.ndarray`_ or list of `numpy.ndarray`_):
             Wavelength of the star. Shape (nspec,)
-        Nlam_star (`numpy.ndarray`_):
+        Nlam_star (`numpy.ndarray`_ or list of `numpy.ndarray`_):
             counts/second/Angstrom
-        Nlam_ivar_star (`numpy.ndarray`_):
+        Nlam_ivar_star (`numpy.ndarray`_ or list of `numpy.ndarray`_):
             Inverse variance of Nlam_star
-        gpm_star (`numpy.ndarray`_):
+        gpm_star (`numpy.ndarray`_ or list of `numpy.ndarray`_):
             Good pixel mask for Nlam_star
-        std_dict (dict):
+        std_dict (dict or list of dict):
             Dictionary containing information about the standard star returned by flux_calib.get_standard_spectrum
         mask_abs_lines (bool):
             If True, mask stellar absorption lines before fitting sensitivity function. Default = True
@@ -868,7 +874,7 @@ def fit_zeropoint(wave, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
         wave, Nlam_star, Nlam_ivar_star, mask_bad, flux_true, mask_balm=mask_balm,
         mask_tell=mask_tell, maxiter=35, upper=3, lower=3, polyorder=polyorder,
         balm_mask_wid=balm_mask_wid, nresln=nresln, resolution=resolution,
-        polycorrect=polycorrect, polyfunc=polyfunc, debug=debug, show_QA=False)
+        polycorrect=polycorrect, polyfunc=polyfunc, debug=debug)
 
     if debug:
         sensfactor = Nlam_to_Flam(wave, zeropoint_fit)
@@ -1083,8 +1089,9 @@ def compute_zeropoint(wave, N_lam, N_lam_gpm, flam_std_star, tellmodel=None):
     zeropoint_gpm (`numpy.ndarray`_):
         Zeropoint good pixel mask, bool, shape  (nspec,)
     """
-
+    # Set the optional parameters
     tellmodel = np.ones_like(N_lam) if tellmodel is None else tellmodel
+    # Calculate the zeropoint
     S_nu_dimless = np.square(wave)*tellmodel*flam_std_star*utils.inverse(N_lam)
     zeropoint = -2.5*np.log10(S_nu_dimless + (S_nu_dimless <= 0.0)) + ZP_UNIT_CONST
     zeropoint_gpm = N_lam_gpm & np.isfinite(zeropoint) & (N_lam > 0.0) & (S_nu_dimless > 0.0) & \
@@ -1178,7 +1185,7 @@ def zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, z
 
 def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=None, mask_tell=None,
                        maxiter=35, upper=3.0, lower=3.0, func = 'polynomial', polyorder=5, balm_mask_wid=50.,
-                       nresln=20., resolution=2700., polycorrect=True, debug=False, polyfunc=False, show_QA=False):
+                       nresln=20., resolution=2700., polycorrect=True, debug=False, polyfunc=False):
     """
     Generate a sensitivity function based on observed flux and standard spectrum.
 
@@ -1190,13 +1197,13 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
       counts/s/Angstrom as observed
     Nlam_ivar : `numpy.ndarray`_
       inverse variance of counts/s/Angstrom
+    Nlam_gpm : `numpy.ndarray`_
+      mask for bad pixels. True is good.
     flam_true : Quantity array
       standard star true flux (erg/s/cm^2/A)
-    msk_bad : `numpy.ndarray`_
-      mask for bad pixels. True is good.
-    msk_star: `numpy.ndarray`_
+    mask_balm: `numpy.ndarray`_
       mask for hydrogen recombination lines. True is good.
-    msk_tell: `numpy.ndarray`_
+    mask_tell: `numpy.ndarray`_
       mask for telluric regions. True is good.
     maxiter : integer
       maximum number of iterations for polynomial fit
@@ -1221,8 +1228,9 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
     zeropoint ( `numpy.ndarray`_):
       Spectroscopic zeropoint.
     """
-    if np.any(np.invert(np.isfinite(Nlam_ivar))):
+    if np.any(np.logical_not(np.isfinite(Nlam_ivar))):
         msgs.warn("NaN are present in the inverse variance")
+    ivar_bpm = np.logical_not(np.isfinite(Nlam_ivar) & (Nlam_ivar > 0))
 
     # check masks
     if mask_tell is None:
@@ -1230,12 +1238,7 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
     if mask_balm is None:
         mask_balm = np.ones_like(wave, dtype=bool)
 
-    #S_nu_dimless = np.square(wave)*flam_true*utils.inverse(Nlam)*(Nlam > 0.0)
-    #zeropoint_data = -2.5*np.log10(S_nu_dimless) + telluric.zp_unit_const()
-    # zeropoint_gpm is the pixels for which zp is not defined, zeropoint_fitmask includes additional Balmer/Telluric masking for polyfit
-    #zeropoint_gpm = Nlam_gpm & np.isfinite(zeropoint_data) & (Nlam > 0.0) & np.isfinite(flam_true) & (wave > 1.0)
     zeropoint_data, zeropoint_data_gpm = compute_zeropoint(wave, Nlam, Nlam_gpm, flam_true)
-
 
     zeropoint_fitmask = zeropoint_data_gpm & mask_tell & mask_balm
     wave_min = wave[wave > 1.0].min()
@@ -1247,7 +1250,7 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
                                 grow=0, sticky=True, use_mad=True)
 
     zeropoint_poly = pypeitFit.eval(wave)
-    # Robustly characterize the stanarad deviation for the b-spline fitting.
+    # Robustly characterize the standard deviation for the b-spline fitting.
     zp_dev_mean, zp_dev_median, zp_std = stats.sigma_clipped_stats(zeropoint_data - zeropoint_poly, np.invert(zeropoint_fitmask),
                                                                    cenfunc='median', stdfunc=utils.nan_mad_std,
                                                                    maxiters=10, sigma_lower=lower, sigma_upper=upper)
@@ -1259,7 +1262,7 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
     zeropoint_clean = zeropoint_data.copy()
     zeropoint_clean_gpm = zeropoint_data_gpm.copy()
     # Polynomial corrections on Hydrogen Recombination lines
-    if ((np.sum(zeropoint_fitmask) > 0.5 * len(zeropoint_fitmask)) & polycorrect):
+    if (np.sum(zeropoint_fitmask) > 0.5 * len(zeropoint_fitmask)) & polycorrect:
         ## Only correct Hydrogen Recombination lines with polyfit in the telluric free region
         balmer_clean = np.zeros_like(wave, dtype=bool)
         # Commented out the bluest recombination lines since they are weak for spectroscopic standard stars.
@@ -1274,8 +1277,7 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
         msk_clean = ((balmer_clean) | (zeropoint_clean > ZP_MAX) | (zeropoint_clean < ZP_MIN)) & \
                     (zeropoint_poly > ZP_MIN) & (zeropoint_poly < ZP_MAX)
         zeropoint_clean[msk_clean] = zeropoint_poly[msk_clean]
-        gpm = np.isfinite(Nlam_ivar) & (Nlam_ivar > 0)
-        zeropoint_clean[np.invert(gpm)] = zeropoint_poly[np.invert(gpm)]
+        zeropoint_clean[ivar_bpm] = zeropoint_poly[ivar_bpm]
     else:
         ## if half more than half of your spectrum is masked (or polycorrect=False) then do not correct it with polyfit
         msgs.warn('No polynomial corrections performed on Hydrogen Recombination line regions')
@@ -1336,12 +1338,11 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
         plt.show()
 
     if ((np.sum(zeropoint_fitmask) > 0.5 * len(zeropoint_fitmask)) & polycorrect):
-        msk_clean = ((balmer_clean) | (zeropoint_data > ZP_MAX) | (zeropoint_data < ZP_MIN)) & \
+        msk_clean = (balmer_clean | (zeropoint_data > ZP_MAX) | (zeropoint_data < ZP_MIN)) & \
                     (zeropoint_poly > ZP_MIN) & (zeropoint_poly < ZP_MAX)
         zeropoint_bspl_clean = zeropoint_bspl.copy()
         zeropoint_bspl_clean[msk_clean] = zeropoint_poly[msk_clean]
-        msk_badpix = np.isfinite(Nlam_ivar) & (Nlam_ivar>0)
-        zeropoint_bspl_clean[np.invert(msk_badpix)] = zeropoint_poly[np.invert(msk_badpix)]
+        zeropoint_bspl_clean[ivar_bpm] = zeropoint_poly[ivar_bpm]
     else:
         ## if half more than half of your spectrum is masked (or polycorrect=False) then do not correct it with polyfit
         zeropoint_bspl_clean = zeropoint_bspl.copy()
@@ -1353,6 +1354,7 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
 
     # TODO Should we return the bspline fitmask here?
     return zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm
+
 
 def load_filter_file(filter):
     """

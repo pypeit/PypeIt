@@ -11,6 +11,10 @@ from astropy.table import Table
 
 from pypeit.tests.tstutils import data_path
 from pypeit import inputfiles
+from pypeit.core import coadd
+from pypeit.spectrographs.util import load_spectrograph
+from pypeit.core.datacube import coadd_cube
+from pypeit import utils, io
 
 import warnings
 warnings.simplefilter("ignore", UserWarning)
@@ -92,3 +96,39 @@ def test_input_coadd2d_file():
     # Test path
     assert coadd2dFile2.file_paths[0] == paths[0]
     assert coadd2dFile2.filenames[0] == os.path.join(paths[0], data['filename'][0])
+
+
+#@cooked_required
+#def test_coadd_datacube():
+#    """ Test the coaddition of spec2D files into datacubes """
+#    droot = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science')
+#    files = [os.path.join(droot,
+#                          'spec2d_KB.20191219.56886-BB1245p4238_KCWI_20191219T154806.538.fits'),
+#             os.path.join(droot,
+#                          'spec2d_KB.20191219.57662-BB1245p4238_KCWI_20191219T160102.755.fits')]
+#    output_filename = "BB1245p4238_KCWI_20191219.fits"
+#    # Get some options
+#    opts = [io.load_spec2d_opts(None)]*len(files)
+#    # Grab the spectrograph and parset
+#    spec = load_spectrograph("keck_kcwi")
+#    parset = spec.default_pypeit_par()
+#    parset['reduce']['cube']['output_filename'] = output_filename
+#    parset['reduce']['cube']['combine'] = True
+#    parset['reduce']['cube']['astrometric'] = False
+#    parset['reduce']['cube']['grating_corr'] = False
+#    coadd_cube(files, opts, parset=parset, overwrite=True)
+#    # Now test the fluxing
+#    flux_files = [files[0]]
+#    output_fileflux = "BB1245p4238_KCWI_20191219_fluxing.fits"
+#    parset['reduce']['cube']['output_filename'] = output_fileflux
+#    parset['reduce']['cube']['combine'] = False
+#    parset['reduce']['cube']['standard_cube'] = output_filename
+#    parset['reduce']['cube']['astrometric'] = False
+#    parset['reduce']['cube']['grating_corr'] = False
+#    coadd_cube(flux_files, opts, parset=parset, overwrite=True)
+#    # Check the files exist
+#    assert(os.path.exists(output_filename))
+#    assert(os.path.exists(output_fileflux))
+#    # Remove the created files
+#    os.remove(output_filename)
+#    os.remove(output_fileflux)
