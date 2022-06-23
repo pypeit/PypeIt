@@ -19,6 +19,7 @@ from pypeit import msgs, utils
 from pypeit.display import display
 from pypeit.core import skysub, extract, wave, flexure
 from pypeit.core.moment import moment1d
+from pypeit import specobj
 
 from linetools.spectra import xspectrum1d
 
@@ -498,13 +499,22 @@ class Extract:
                 slit_spat = self.slits.spat_id[ss]
                 thismask = (self.slitmask == slit_spat)
                 inmask = self.sciImg.select_flag(invert=True) & thismask
-                box_denom = moment1d(self.waveimg * inmask > 0.0, trace_spat[:, ss], 2*box_radius, row=trace_spec)[0]
-                wghts = (box_denom + (box_denom == 0.0))
-                # Mask by ivar to deal with bad detector regions and chip gaps
-                slit_sky = moment1d(self.global_sky * inmask * (self.sciImg.ivar>0), trace_spat[:, ss], 2*box_radius, row=trace_spec)[0] / wghts
-                # Denom is computed in case the trace goes off the edge of the image
-                slit_wave = moment1d(self.waveimg * inmask, trace_spat[:, ss], 2*box_radius, row=trace_spec)[0] / wghts
+
+                # Dummy spec for extract_boxcar
+                spec = specobj.SpecObj(PYPELINE=self.pypeline,
+                                       SLITID=ss,
+                                       ECH_ORDER=ss, # Use both to cover the bases for naming
+                                       DET=str(self.det))
+                spec.trace_spec = trace_spec
+                spec.TRACE_SPAT = trace_spat[:,ss]
+                spec.BOX_RADIUS = box_radius
+                # Extract
+                extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar, inmask,
+                                       self.waveimg, self.global_sky, spec) 
+                slit_wave, slit_sky = spec.BOX_WAVE, spec.BOX_COUNTS_SKY
+
                 # TODO :: Need to remove this XSpectrum1D dependency - it is required in:  flexure.spec_flex_shift
+                # Pack
                 slit_specs.append(xspectrum1d.XSpectrum1D.from_tuple((slit_wave, slit_sky)))
 
             # Measure flexure
