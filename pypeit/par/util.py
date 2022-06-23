@@ -718,3 +718,37 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
     msgs.info('PypeIt file written to: {0}'.format(pypeit_file))
 
 
+def make_tool_config(filename, cfg_lines, data_lines, block_type):
+    """
+    Creates a configuration file for a pypeit tool, such as pypeit_coadd_1dspec,
+    pypeit_flux_calib, etc.  This is the inverse of parse_tool_config.
+
+    Args:
+        filename (str): 
+            Name of the file to create
+        cfg_lines (list):
+            List of configuration lines to write to the file.
+        data_lines (list): 
+            List of lines to place in the "read" section of the config file.
+        block_type (str):
+            The name for the "read" section in the config file, (e.g. 'spec1d' or 'coadd1d')                           
+    """
+    with open(filename, 'w') as f:
+        f.write('# Auto-generated config file using PypeIt version: {}\n'.format(__version__))
+        f.write('# {0}\n'.format(time.strftime("%Y-%m-%d",time.localtime())))
+        f.write("\n")
+        f.write("# User-defined execution parameters\n")
+        f.write('\n'.join(cfg_lines))
+        f.write('\n')
+        f.write('\n')
+
+        # Data
+        f.write("# Read in the {} data\n".format(block_type))
+        f.write("{} read\n".format(block_type))
+
+        for line in data_lines:
+            f.write(' ' + line +'\n')
+
+        f.write("{} end\n".format(block_type))
+    msgs.info('Config File written to: {0}'.format(filename))
+
