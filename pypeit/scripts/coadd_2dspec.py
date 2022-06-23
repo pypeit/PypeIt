@@ -269,6 +269,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                                                           bpmmask=sci_dict[coadd.detname]['outmask'],
                                                           detector=sci_dict[coadd.detname]['detector'],
                                                           slits=slits,
+                                                          wavesol=None,
                                                           waveimg=sci_dict[coadd.detname]['waveimg'],
                                                           tilts=sci_dict[coadd.detname]['tilts'],
                                                           sci_spat_flexure=None,

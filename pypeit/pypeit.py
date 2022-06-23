@@ -556,6 +556,7 @@ class PypeIt:
             # we also save the successful MasterSlits calibrations because they are used and modified
             # in the slitmask stuff in between the two loops
             calib_slits.append(self.caliBrate.slits)
+            embed()
             # global_sky, skymask and sciImg are needed in the extract loop
             initial_sky, sobjs_obj, sciImg, objFind = self.objfind_one(frames, self.det, bg_frames,
                                                                        std_outfile=std_outfile)
@@ -896,6 +897,7 @@ class PypeIt:
                                         vel_type=self.par['calibrations']['wavelengths']['refframe'],
                                         tilts=tilts,
                                         slits=slits,
+                                        wavesol=self.caliBrate.wv_calib,
                                         maskdef_designtab=maskdef_designtab)
         spec2DObj.process_steps = sciImg.process_steps
 
