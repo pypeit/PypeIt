@@ -179,7 +179,7 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
             binspec = headarr[0]['CCDBIN2']
             return parse.binning2string(binspec, binspatial)
         if meta_key == 'mjd':
-            return float(headarr['JD']) - 2400000.5
+            return parse.Time(headarr[0]['JD'], format='jd').mjd
         if meta_key == 'decker':
             return 'none'
         if meta_key == 'dispname':
@@ -245,9 +245,14 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'Object')
         if ftype == 'bias':
             return good_exp & (fitstbl['idname'] == 'Bias')
-        if ftype == 'arc':
-            return good_exp & (fitstbl['lampstat01'] == any(['Ar', 'Xe', 'Ne']) and any(['Comp', 'Arc', 'arc']) in any([fitstbl['idname'], fitstbl['target']]))
+        if ftype in ['arc', 'tilt']:
+            return good_exp & (fitstbl['idname'] == 'Comp')
+        if ftype in ['pixelflat']:
+            return good_exp & (fitstbl['target'] == 'Internal Flat')
+        if ftype in ['illumflat', 'trace']:
+            return good_exp & (fitstbl['target'] == 'Twilight Flat')
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        #msgs.warn('Cannot determine if frames are of type {0}. Frame idname and target are: {1}, {2}'.format(ftype, fitstbl['idname'], fitstbl['target']))
         return np.zeros(len(fitstbl), dtype=bool)
     
     
