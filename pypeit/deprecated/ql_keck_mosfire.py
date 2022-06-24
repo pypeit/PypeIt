@@ -152,7 +152,7 @@ def reduce_IR(A_files, B_files, caliBrate, spectrograph, det, parset, show=False
                                       vel_type=parset['calibrations']['wavelengths']['refframe'],
                                       tilts=tilts,
                                       slits=copy.deepcopy(caliBrate.slits),
-                                      wavesol=caliBrate.wv_calib,
+                                      wavesol=caliBrate.wv_calib.wave_diagnostics(print_diag=False),
                                       maskdef_designtab=None)
     spec2DObj_A.process_steps = sciImg.process_steps
     all_spec2d = spec2dobj.AllSpec2DObj()
@@ -175,7 +175,7 @@ def reduce_IR(A_files, B_files, caliBrate, spectrograph, det, parset, show=False
                                       vel_type=parset['calibrations']['wavelengths']['refframe'],
                                       tilts=tilts,
                                       slits=copy.deepcopy(caliBrate.slits),
-                                      wavesol=caliBrate.wv_calib,
+                                      wavesol=caliBrate.wv_calib.wave_diagnostics(print_diag=False),
                                       maskdef_designtab=None)
     return spec2DObj_A, spec2DObj_B
 

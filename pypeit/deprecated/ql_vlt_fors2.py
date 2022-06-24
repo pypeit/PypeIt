@@ -147,7 +147,7 @@ def run(files, caliBrate, spectrograph, det, parset, show=False, std_trace=None)
                                     vel_type=parset['calibrations']['wavelengths']['refframe'],
                                     tilts=tilts,
                                     slits=copy.deepcopy(caliBrate.slits),
-                                    wavesol=caliBrate.wv_calib,
+                                    wavesol=caliBrate.wv_calib.wave_diagnostics(print_diag=False),
                                     maskdef_designtab=None)
     spec2DObj.process_steps = sciImg.process_steps
     return spec2DObj
