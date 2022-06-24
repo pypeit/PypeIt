@@ -30,6 +30,6 @@ class ChkWaveCalib(scriptbase.ScriptBase):
         waveCalib = wavecalib.WaveCalib.from_file(args.master_file)
                                                   #, chk_version=(not args.try_old))
         # Do it
-        waveCalib.print_diagnostics()
+        waveCalib.wave_diagnostics(print_diag=True)
 
 

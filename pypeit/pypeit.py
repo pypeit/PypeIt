@@ -897,7 +897,7 @@ class PypeIt:
                                         vel_type=self.par['calibrations']['wavelengths']['refframe'],
                                         tilts=tilts,
                                         slits=slits,
-                                        wavesol=self.caliBrate.wv_calib,
+                                        wavesol=self.caliBrate.wv_calib.wave_diagnostics(print_diag=False),
                                         maskdef_designtab=maskdef_designtab)
         spec2DObj.process_steps = sciImg.process_steps
 

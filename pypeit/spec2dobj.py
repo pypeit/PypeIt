@@ -78,8 +78,8 @@ class Spec2DObj(datamodel.DataContainer):
                  'imgbitm': dict(otype=str, descr='List of BITMASK keys from ImageBitMask'),
                  'slits': dict(otype=slittrace.SlitTraceSet,
                                descr='SlitTraceSet defining the slits'),
-                 'wavesol': dict(otype=wavecalib.WaveCalib,
-                               descr='WaveCalib solutions'),
+                 'wavesol': dict(otype=astropy.table.Table,
+                               descr='Table with WaveCalib diagnostic info'),
                  'maskdef_designtab': dict(otype=astropy.table.Table,
                                            descr='Table with slitmask design and object info'),
                  'sci_spat_flexure': dict(otype=float,
@@ -196,6 +196,9 @@ class Spec2DObj(datamodel.DataContainer):
             # SlitTraceSet
             elif key == 'slits':
                 d.append(dict(slits=self.slits))
+            # Wavecalib
+            elif key == 'wavesol':
+                d.append(dict(wavesol=self.wavesol))
             # maskdef_designtab
             elif key == 'maskdef_designtab':
                 d.append(dict(maskdef_designtab=self.maskdef_designtab))

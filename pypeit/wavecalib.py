@@ -253,9 +253,15 @@ class WaveCalib(datamodel.DataContainer):
         # Return
         return image
 
-    def print_diagnostics(self):
+    def wave_diagnostics(self, print_diag=False):
         """
-        Print a set of diagnostics to the screen
+        Create a table with wavecalib diagnostics
+
+        Args:
+            print_diag (:obj:`bool`, optional):
+                If True, the diagnostic table is print to screen
+        Returns:
+            `astropy.table.Table`_: wavecalib diagnostics table
 
         """
         # Generate a table
@@ -279,8 +285,11 @@ class WaveCalib(datamodel.DataContainer):
         # RMS
         diag['RMS'] = [0 if wvfit.rms is None else wvfit.rms for wvfit in self.wv_fits]
         diag['RMS'].format = '0.3f'
-        # Print it
-        print(diag)
+        if print_diag:
+            # Print it
+            print(diag)
+        else:
+            return diag
 
 
 class BuildWaveCalib:
