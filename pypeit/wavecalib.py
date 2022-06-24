@@ -259,7 +259,7 @@ class WaveCalib(datamodel.DataContainer):
 
         Args:
             print_diag (:obj:`bool`, optional):
-                If True, the diagnostic table is print to screen
+                If True, the diagnostic table is printed to screen
         Returns:
             `astropy.table.Table`_: wavecalib diagnostics table
 
@@ -288,8 +288,7 @@ class WaveCalib(datamodel.DataContainer):
         if print_diag:
             # Print it
             print(diag)
-        else:
-            return diag
+        return diag
 
 
 class BuildWaveCalib:

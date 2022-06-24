@@ -372,10 +372,10 @@ class PypeIt:
 
         # Find the science frames
         is_science = self.fitstbl.find_frames('science')
-        # this will give an error just to alert the user that no reduction
+        # this will give an error to alert the user that no reduction
         # will be run if there are no science/standard frames and `run_pypeit` is run without -c flag
         if not np.any(is_science) and not np.any(is_standard):
-            msgs.error('No frames of type=science provided. Add them to your PypeIt file '
+            msgs.error('No science/standard frames provided. Add them to your PypeIt file '
                        'if this is a standard run! Otherwise run calib_only reduction using -c flag')
 
         # Frame indices
@@ -561,7 +561,6 @@ class PypeIt:
             # we also save the successful MasterSlits calibrations because they are used and modified
             # in the slitmask stuff in between the two loops
             calib_slits.append(self.caliBrate.slits)
-
             # global_sky, skymask and sciImg are needed in the extract loop
             initial_sky, sobjs_obj, sciImg, objFind = self.objfind_one(frames, self.det, bg_frames,
                                                                        std_outfile=std_outfile)
