@@ -965,51 +965,40 @@ def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):
         in_grp = fitstbl.find_calib_group(i)
         grp_science = frame_indx[is_science & in_grp & cut_cfg]
         u_combid = np.unique(fitstbl['comb_id'][grp_science])
-        # This will catch cases when a standard reduction is run and but there are no science frames
-        if u_combid.size == 0:
-            # Fail
-            msg = f'No frames of type=science provided. Add them to your PypeIt file ' \
-                  'if this is a standard run! Otherwise run calib_only reduction using -c flag'
-            pass_calib = False
-            if raise_error:
-                msgs.error(msg)
-            else:
-                msgs.warn(msg)
-        else:
-            for j, comb_id in enumerate(u_combid):
-                frames = np.where(fitstbl['comb_id'] == comb_id)[0]
-                calib_ID = int(fitstbl['calib'][frames[0]])
-                # Arc, tilt, science
-                for ftype in ['arc', 'tilt', 'science', 'trace']:
+        for j, comb_id in enumerate(u_combid):
+            frames = np.where(fitstbl['comb_id'] == comb_id)[0]
+            calib_ID = int(fitstbl['calib'][frames[0]])
+            # Arc, tilt, science
+            for ftype in ['arc', 'tilt', 'science', 'trace']:
+                rows = fitstbl.find_frames(ftype, calib_ID=calib_ID, index=True)
+                if len(rows) == 0:
+                    # Fail
+                    msg = f'No frames of type={ftype} provided. Add them to your PypeIt file ' \
+                          'if this is a standard run!'
+                    pass_calib = False
+                    if raise_error:
+                        msgs.error(msg)
+                    else:
+                        msgs.warn(msg)
+
+            # Explore science frame
+            for key, ftype in zip(['use_biasimage', 'use_darkimage', 'use_pixelflat',
+                                   'use_illumflat'], ['bias', 'dark', 'pixelflat', 'illumflat']):
+                if par['scienceframe']['process'][key]:
                     rows = fitstbl.find_frames(ftype, calib_ID=calib_ID, index=True)
                     if len(rows) == 0:
-                        # Fail
-                        msg = f'No frames of type={ftype} provided. Add them to your PypeIt file ' \
-                              'if this is a standard run!'
+                        # Allow for pixelflat inserted
+                        if ftype == 'pixelflat' \
+                                and par['calibrations']['flatfield']['pixelflat_file'] is not None:
+                            continue
+                        # Otherwise fail
+                        msg = f'No frames of type={ftype} provide for the *{key}* processing ' \
+                              'step. Add them to your PypeIt file!'
                         pass_calib = False
                         if raise_error:
                             msgs.error(msg)
                         else:
                             msgs.warn(msg)
-
-                # Explore science frame
-                for key, ftype in zip(['use_biasimage', 'use_darkimage', 'use_pixelflat',
-                                       'use_illumflat'], ['bias', 'dark', 'pixelflat', 'illumflat']):
-                    if par['scienceframe']['process'][key]:
-                        rows = fitstbl.find_frames(ftype, calib_ID=calib_ID, index=True)
-                        if len(rows) == 0:
-                            # Allow for pixelflat inserted
-                            if ftype == 'pixelflat' \
-                                    and par['calibrations']['flatfield']['pixelflat_file'] is not None:
-                                continue
-                            # Otherwise fail
-                            msg = f'No frames of type={ftype} provide for the *{key}* processing ' \
-                                  'step. Add them to your PypeIt file!'
-                            pass_calib = False
-                            if raise_error:
-                                msgs.error(msg)
-                            else:
-                                msgs.warn(msg)
 
     if pass_calib:
         msgs.info("Congrats!!  You passed the calibrations inspection!!")

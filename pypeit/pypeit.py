@@ -372,6 +372,11 @@ class PypeIt:
 
         # Find the science frames
         is_science = self.fitstbl.find_frames('science')
+        # this will give an error just to alert the user that no reduction
+        # will be run if there are no science/standard frames and `run_pypeit` is run without -c flag
+        if not np.any(is_science) and not np.any(is_standard):
+            msgs.error('No frames of type=science provided. Add them to your PypeIt file '
+                       'if this is a standard run! Otherwise run calib_only reduction using -c flag')
 
         # Frame indices
         frame_indx = np.arange(len(self.fitstbl))
