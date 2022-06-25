@@ -986,30 +986,36 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
             mspec = temp_spec[i0:i0 + nspec]
             mwv = temp_wv[i0:i0 + nspec]
 
+        # Determine the lines FWHM, i.e, approximate spectral resolution
+        #  This may only be recorded and not used by the algorithms
+        _, _, _, wdth, _, best, _, nsig = arc.detect_lines(ispec, sigdetect=10., fwhm=5.)
+        # 1sigma Gaussian widths of the line detections
+        wdth = wdth[best]
+        # significance of each line detected
+        nsig = nsig[best]
+        # Nsigma (significance) threshold. We use only lines that have the highest significance
+        # We start with nsig_thrshd of 500 and iteratively reduce it if there are not more than 6 lines
+        nsig_thrshd = 500.
+        measured_fwhm = None
+        while nsig_thrshd > 10.:
+            if wdth[nsig > nsig_thrshd].size > 6:
+                # compute average `wdth`
+                mean, med, _ = stats.sigma_clipped_stats(wdth[nsig > nsig_thrshd], sigma_lower=2.0, sigma_upper=2.0)
+                # FWHM in pixels
+                #measured_fwhm = np.ceil(med * 2.35482) / binspectral
+                measured_fwhm = (med * 2.35482) / binspectral
+                msgs.info("Measured arc lines FWHM: {} pixels".format(measured_fwhm))
+                break
+            nsig_thrshd -= 5
+
+        # Set FWHM for the methods that follow
         if par['fwhm_fromlines'] is False:
             fwhm = par['fwhm']
+        elif measured_fwhm is None:
+            fwhm = par['fwhm']
+            msgs.warn("Assumed arc lines FWHM: {}".format(fwhm))
         else:
-            # Determine the lines FWHM, i.e, approximate spectral resolution
-            _, _, _, wdth, _, best, _, nsig = arc.detect_lines(ispec, sigdetect=10., fwhm=5.)
-            # 1sigma Gaussian widths of the line detections
-            wdth = wdth[best]
-            # significance of each line detected
-            nsig = nsig[best]
-            # Nsigma (significance) threshold. We use only lines that have the highest significance
-            # We start with nsig_thrshd of 500 and iteratively reduce it if there are not more than 6 lines
-            nsig_thrshd = 500.
-            while nsig_thrshd > 10.:
-                if wdth[nsig > nsig_thrshd].size > 6:
-                    # compute average `wdth`
-                    mean, med, _ = stats.sigma_clipped_stats(wdth[nsig > nsig_thrshd], sigma_lower=2.0, sigma_upper=2.0)
-                    # FWHM in pixels
-                    fwhm = np.ceil(med * 2.35482) / binspectral
-                    msgs.info("Measured arc lines FWHM: {} pixels".format(fwhm))
-                    break
-                nsig_thrshd -= 5
-            else:
-                fwhm = par['fwhm']
-                msgs.warn("Assumed arc lines FWHM: {}".format(fwhm))
+            fwhm = measured_fwhm
 
         # Loop on snippets
         nsub = ispec.size // nsnippet
@@ -1037,8 +1043,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
                                                               nonlinear_counts=nonlinear_counts,
                                                               debug_reid=debug_reid,  # verbose=True,
                                                               match_toler=par['match_toler'],
-                                                              cc_thresh=0.1, fwhm=fwhm)
-            # Deal with IDs
+                                                              cc_thresh=0.1, fwhm=fwhm) # Deal with IDs
             sv_det.append(j0 + detections)
             try:
                 sv_IDs.append(patt_dict['IDs'])
@@ -1071,6 +1076,8 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
             #embed(header='974 of autoid')
             wvcalib[str(slit)] = None
         else:
+            if measured_fwhm is not None: 
+                final_fit['fwhm'] = measured_fwhm
             wvcalib[str(slit)] = copy.deepcopy(final_fit)
     # Finish
     return wvcalib

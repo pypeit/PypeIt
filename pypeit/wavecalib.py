@@ -285,6 +285,9 @@ class WaveCalib(datamodel.DataContainer):
         # RMS
         diag['RMS'] = [0 if wvfit.rms is None else wvfit.rms for wvfit in self.wv_fits]
         diag['RMS'].format = '0.3f'
+        # FWHM
+        diag['fwhm'] = [0. if wvfit.fwhm is None else wvfit.fwhm for wvfit in self.wv_fits]
+        diag['fwhm'].format = '0.1f'
         if print_diag:
             # Print it
             print(diag)
