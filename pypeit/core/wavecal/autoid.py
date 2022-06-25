@@ -1043,7 +1043,8 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
                                                               nonlinear_counts=nonlinear_counts,
                                                               debug_reid=debug_reid,  # verbose=True,
                                                               match_toler=par['match_toler'],
-                                                              cc_thresh=0.1, fwhm=fwhm) # Deal with IDs
+                                                              cc_thresh=0.1, fwhm=fwhm) 
+            # Deal with IDs
             sv_det.append(j0 + detections)
             try:
                 sv_IDs.append(patt_dict['IDs'])
