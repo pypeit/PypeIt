@@ -258,7 +258,6 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         self.meta['ra'] = dict(ext=0, card='RA')
         self.meta['dec'] = dict(ext=0, card='DEC')
         self.meta['target'] = dict(ext=0, card='TARGNAME')
-        self.meta['decker_basename'] = dict(card=None, compound=True)
         self.meta['decker'] = dict(ext=0, card='MASKNAME')
         self.meta['binning'] = dict(ext=0, card=None, default='1,1')
 
@@ -270,6 +269,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         self.meta['idname'] = dict(card=None, compound=True)
         self.meta['frameno'] = dict(ext=0, card='FRAMENUM')
         self.meta['object'] = dict(ext=0, card='OBJECT')
+        self.meta['decker_basename'] = dict(card=None, compound=True)
+        self.meta['slitwid'] = dict(card=None, compound=True, rtol=0.1)
         # Filter
         self.meta['filter1'] = dict(ext=0, card='FILTER')
         # Lamps on/off or Ar/Ne
@@ -303,6 +304,12 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                 return maskname.split('_')[0]
             else:
                 return maskname
+        if meta_key == 'slitwid':
+            maskname = headarr[0].get('MASKNAME')
+            if 'LONGSLIT' in maskname and 'x' in maskname:
+                return maskname.split('(')[0].split('x')[1]
+            else:
+                return None
 
         if meta_key == 'idname':
             FLATSPEC = headarr[0].get('FLATSPEC')
@@ -357,7 +364,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['decker_basename', 'dispname', 'filter1']
+        return ['decker_basename', 'slitwid', 'dispname', 'filter1']
 
     def pypeit_file_keys(self):
         """
@@ -373,7 +380,10 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 #        # pypeit.metadata.PypeItMetaData.set_pypeit_cols
 #        pypeit_keys += [calib', 'comb_id', 'bkg_id']
 #        return pypeit_keys
-        return super().pypeit_file_keys() + [ 'lampstat01', 'dithpat', 'dithpos', 'dithoff', 'frameno']
+        pypeit_keys = super().pypeit_file_keys()
+        pypeit_keys.remove('decker_basename')
+        pypeit_keys.remove('slitwid')
+        return pypeit_keys + ['lampstat01', 'dithpat', 'dithpos', 'dithoff', 'frameno']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
