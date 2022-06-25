@@ -647,6 +647,9 @@ def calculate_image_phase(imref, imshift, gpm_ref=None, gpm_shift=None, maskval=
 
     If gpm_ref, gpm_shift, and maskval are all None, no pixels will be masked
 
+    This routine (optionally) requires skimage to calculate the image phase. If
+    skimage is not installed, a standard (unmasked) cross-correlation is used.
+
 
     Args:
         im_ref (`numpy.ndarray`_):

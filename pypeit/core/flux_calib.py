@@ -73,7 +73,7 @@ def blackbody_func(a, teff):
         flam : `numpy.ndarray`_ flux in units of erg/s/cm^2/A
     """
     resln = 0.1  # Resolution to generate the blackbody spectrum
-    waves = np.arange(3000.0, 25000.0, resln) * units.AA
+    waves = np.arange(3000.0, 26000.0, resln) * units.AA
     temp = teff * units.K
     # Calculate the function - note: we calculate flux/angstrom, but we generate the wavelength grid on a finer grid, so need to multiply by resln here
     flam = ((resln*a*2*constants.h*constants.c**2)/waves**5) / (np.exp((constants.h*constants.c /
@@ -802,11 +802,6 @@ def fit_zeropoint(wave, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
     a bspline to the 2.5*log10(flux_std/flux_counts). The break
     points spacing, which determines the scale of variation of the
     sensitivity function is determined by the nresln parameter.
-
-    wave, Nlam_star, Nlam_ivar_star, gpm_star, std_dict must either be:
-    (1) a single `numpy.ndarray`_ if a single standard star is being used to compute the zeropoint, or
-    (2) a list of `numpy.ndarray`_ if multiple standard stars are being used  to compute the zeropoint.
-    A mixture of types is not allowed.
 
     Args:
         wave (`numpy.ndarray`_ or list of `numpy.ndarray`_):
