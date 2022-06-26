@@ -917,9 +917,9 @@ class PypeItMetaData:
             if self['calib'][i] in ['all', 'None']:
                 # No information, keep going
                 continue
-            # Convert to a list of numbers
+            # Convert to a list of numbers (after recasting to str)
             l = np.amax([ 0 if len(n) == 0 else int(n)
-                                for n in self['calib'][i].replace(':',',').split(',')])
+                                for n in str(self['calib'][i]).replace(':',',').split(',')])
             # Check against current maximum
             ngroups = max(l+1, ngroups)
 
@@ -930,7 +930,7 @@ class PypeItMetaData:
         # Set the calibration bits
         for i in range(len(self)):
             # Convert the string to the group list
-            grp = parse.str2list(self['calib'][i], ngroups)
+            grp = parse.str2list(str(self['calib'][i]), ngroups)
             if grp is None:
                 # No group selected
                 continue
