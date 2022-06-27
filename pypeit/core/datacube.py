@@ -1096,7 +1096,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         files (:obj:`list`):
             List of all spec2D files
         opts (:obj:`dict`):
-            Options associated with each spec2d file
+            coadd2d options associated with each spec2d file
         spectrograph (:obj:`str`, :class:`~pypeit.spectrographs.spectrograph.Spectrograph`, optional):
             The name or instance of the spectrograph used to obtain the data.
             If None, this is pulled from the file header.

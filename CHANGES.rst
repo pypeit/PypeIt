@@ -6,6 +6,8 @@
 - Apply find_min_max when clipping the image for object finding
 - Mask bad detector regions for global sky flexure calculation
 - Detector structure correction included in flatfield calibration
+- Apply find_min_max when clipping the image for object finding
+- Mask bad detector regions for global sky flexure calculation
 - Refactor PypeIt input files
 
 1.9.0 (31 May 2022)
