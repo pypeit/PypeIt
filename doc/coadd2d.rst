@@ -61,6 +61,9 @@ to the :doc:`out_spec2D` files.
 It then includes a (one column) table which
 is a simple list of the :doc:`out_spec2D` files.
 
+You may also include file-specific options in the :ref:`data_block`
+as additional columns.  See :ref:`data_block` for its formatting.
+
 .. _pypeit-coadd-2dspec:
 
 pypeit_coadd_2dspec

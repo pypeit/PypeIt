@@ -86,8 +86,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             spec2d_files = coadd2dFile.filenames
 
             # Continue
-            spectrograph_name, config_lines, spec2d_files, spec2d_opts \
-                    = io.read_spec2d_file(args.file, filetype="coadd2d")
+            #spectrograph_name, config_lines, spec2d_files, spec2d_opts \
+            #        = io.read_spec2d_file(args.file, filetype="coadd2d")
             spectrograph = load_spectrograph(spectrograph_name)
 
             # Parameters

@@ -1,6 +1,7 @@
 """ Class for I/O of PypeIt input files"""
 
 import os
+import glob
 import numpy as np
 from pyparsing import delimited_list
 import yaml
@@ -53,7 +54,7 @@ class InputFile:
     """
     Generic class to load, process, and write PypeIt input files
 
-    In practice, we use one of the children of this clases,
+    In practice, we use one of the children of this class,
     e.g. PypeItFile
 
     Args:
@@ -69,8 +70,8 @@ class InputFile:
             The first key contains the name
     """
     data_block = None  # Defines naming of data block
-    setup_required = False
-    flavor = 'Generic'
+    setup_required = False # Denotes whether the setup block is required
+    flavor = 'Generic' # Type of InputFile
 
     def __init__(self, 
                  config=None, 
@@ -101,7 +102,7 @@ class InputFile:
                 Name of input file
 
         Returns:
-            pypeItFile (:class:`PypeItFile`):
+            :class:`InputFile`: An instance of the InputFile class
         """
         # Read in the pypeit reduction file
         msgs.info('Loading the reduction file')
@@ -113,14 +114,18 @@ class InputFile:
         is_config = np.ones(len(lines), dtype=bool)
 
         # Parse data block
-        s, e = cls.find_block(lines, cls.data_block) #'data')
+        s, e = cls.find_block(lines, cls.data_block) 
         if s >= 0 and e < 0:
             msgs.error(
                 f"Missing '{cls.data_block} end' in {input_file}")
-        if s < 0:
-            msgs.error("You have not specified any data in the data block!")
-        paths, usrtbl = cls._read_data_file_table(lines[s:e])
-        is_config[s-1:e+1] = False
+        if s < 0 and e>0:
+            msgs.error("You have not specified the start of the data block!")
+        # Read it, if it exists
+        if s>0 and e>0:
+            paths, usrtbl = cls._read_data_file_table(lines[s:e])
+            is_config[s-1:e+1] = False
+        else:
+            paths, usrtbl = [], None
 
         # Parse the setup block
         setup_found = False
@@ -151,7 +156,7 @@ class InputFile:
         return slf
 
     def vet(self):
-        """ Check for required bits and pieces of the PypeIt file
+        """ Check for required bits and pieces of the Input file
         besides the input objects themselves
         """
         pass
@@ -172,7 +177,7 @@ class InputFile:
         """Return a list containing the configuration lines
 
         Returns:
-            list: List of the configuration lines held in self.config
+            list or None: List of the configuration lines held in self.config
             or None if self.config is None
         """
         if self.config is None:
@@ -187,7 +192,7 @@ class InputFile:
         See that function for a full description.
 
         Returns:
-            list: List of the full paths to each data file
+            list or None: List of the full paths to each data file
             or None if `filename` is not part of the data table
             or there is no data table!
         """
@@ -197,13 +202,13 @@ class InputFile:
     @staticmethod
     def _parse_setup_lines(lines):
         """
-        Return a list of the setup names and corresponding dict
+        Return a list of the setup names and corresponding Setup dict
 
         Args:
             lines (`numpy.ndarray`_): Setup lines as an array
 
         Returns:
-            tuple: list, dict
+            tuple: list, dict.  List of setup name, setup dict
 
         """
         setups = []
@@ -289,7 +294,7 @@ class InputFile:
                 tbl[key].fill_value = ''
                 tbl[key] = tbl[key].filled()
 
-        # Build the table
+        # Build the table -- Old code
         #  Because we allow (even encourage!) the users to modify entries by hand, 
         #   we have a custom way to parse what is largely a standard fixed_width table
         #nfiles = len(lines) - npaths - 1
@@ -348,7 +353,8 @@ class InputFile:
 
     def path_and_files(self, key:str, skip_blank=False):
         """Generate a list of the filenames with 
-        the full path.  The files must exist and be 
+        the full path from the column of the data Table
+        specified by `key`.  The files must exist and be 
         within one of the paths for this to succeed.
 
         An error is raised if the path+file does not exist
@@ -356,7 +362,7 @@ class InputFile:
         Args:
             key (str): Column of self.data with the filenames of interest
             skip_blank (bool, optional): If True, ignore any
-            entry that is '', 'none' or 'None'. Defaults to False.
+                entry that is '', 'none' or 'None'. Defaults to False.
 
         Returns:
             list: List of the full paths to each data file
@@ -378,8 +384,7 @@ class InputFile:
             # Searching..
             if len(self.file_paths) > 0:
                 for p in self.file_paths:
-                    filename = os.path.join(
-                        p, row[key])
+                    filename = os.path.join(p, row[key])
                     if os.path.isfile(filename):
                         break
             else:
@@ -393,16 +398,16 @@ class InputFile:
         # Return
         return data_files
 
-    def write(self, pypeit_input_file):
+    def write(self, input_file):
         """
-        Write a PypeIt input file to disk
+        Write an Input file to disk
 
         Args:
-            pypeit_input_file (str): Name of PypeIt file to be generated
+            input_file (str): Name of PypeIt file to be generated
         """
 
         # Here we go
-        with open(pypeit_input_file, 'w') as f:
+        with open(input_file, 'w') as f:
             f.write(f'# Auto-generated {self.flavor} input file using PypeIt version: {__version__}\n')
             #f.write('# {0}\n'.format(time.strftime("%a %d %b %Y %H:%M:%S",time.localtime())))
             f.write('# {0}\n'.format(time.strftime("%Y-%m-%d",time.localtime())))
@@ -448,7 +453,7 @@ class InputFile:
                 f.write(f"{self.data_block} end\n")
                 f.write("\n")
 
-        msgs.info(f'{self.flavor} input file written to: {pypeit_input_file}')
+        msgs.info(f'{self.flavor} input file written to: {input_file}')
 
 
 
@@ -493,6 +498,13 @@ class PypeItFile(InputFile):
             frametypes[row['filename']] = row['frametype']
         #
         return frametypes
+
+class SensFile(InputFile):
+    """Child class for the Sensitivity input file
+    """
+    data_block = 'sens'  # Defines naming of data block
+    flavor = 'Sens'  # Defines naming of file
+    setup_required = False
 
 class FluxFile(InputFile):
     """Child class for the Fluxing input file
@@ -648,6 +660,61 @@ class Coadd2DFile(InputFile):
         # Done
         msgs.info('.coadd2d file successfully vetted.')
 
+class CubeFile(InputFile):
+    """Child class for coaddition in 3D
+    """
+    data_block = 'cube'  # Defines naming of data block
+    flavor = 'Cube'  # Defines naming of file
+    setup_required = False
+
+    def vet(self):
+        """ Check for required bits and pieces of the .coadd2d file
+        besides the input objects themselves
+        """
+
+        # Data table
+        for key in ['filename']:
+            if key not in self.data.keys():
+                msgs.error("Add {:s} to your .cube file before using run_pypeit".format(key))
+
+        # Confirm spectrograph is present
+        if 'rdx' not in self.config.keys() or 'spectrograph' not in self.config['rdx'].keys():
+            msgs.error(f"Missing spectrograph in the Parameter block of your .coadd2d file.  Add it!")
+
+        # Done
+        msgs.info('.cube file successfully vetted.')
+
+    def cube_opts(self, params:str):
+        """
+        Parse the options associated with a spec2d block. This code parses only one line of the spec2d block.
+        For multiple spec2d files, this function needs to be called separately. Here is a description of the
+        spec2d options:
+
+        scale_corr     : The name of an alternative spec2d file that is used for the relative spectral scale correction.
+                        This parameter can also be set for all frames with the default command:
+                        [reduce]
+                            [[cube]]
+                                scale_corr = spec2d_alternative.fits
+
+        Parameters
+        ----------
+        params: str, None
+            A string containing the list of spec2d options. The format for params is:
+            option1=argument1 option2=argument2 option3=argument3
+            If any options are not provided, a None result will be inserted. The options
+            must be available from the list below.
+
+        Returns
+        -------
+        cube_opts: dict
+            Dictionary containing cube opts.
+        """
+        # Define the list of allowed parameters
+        opts = dict(scale_corr=None)
+
+        if params is None:
+            return opts
+        # NOT SURE WHAT TO DO HERE :)
 
 class TelluricFile(InputFile):
     """Child class for telluric corrections
@@ -679,3 +746,31 @@ class FlexureFile(InputFile):
 
         # Done
         msgs.info('.flex file successfully vetted.')
+
+class Collate1DFile(InputFile):
+    """Child class for collate 1D script
+    """
+    data_block = 'spec1d'  # Defines naming of data block
+    flavor = 'Collate1D'  # Defines naming of file
+    setup_required = False
+
+    @property
+    def filenames(self):
+        """ List of path + filename's
+
+        Allows for wildcads
+
+        Returns:
+            list or None: List of the full paths to each data file
+            or None if `filename` is not part of the data table
+            or there is no data table!
+        """
+        all_files = []
+        paths = [os.getcwd()] if len(self.file_paths) == 0 else self.file_paths
+        # Paths?
+        for p in paths:
+            for row in self.data['filename']:
+                all_files += glob.glob(os.path.join(p, row))
+
+        # Return
+        return all_files
