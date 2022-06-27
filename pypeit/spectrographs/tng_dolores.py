@@ -82,6 +82,10 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['scienceframe']['exprng'] = [1, None]
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        par['calibrations']['wavelengths']['method'] = 'full_template'
+        par['calibrations']['arcframe']['process']['clip'] = False
+        par['calibrations']['arcframe']['process']['combine'] = 'mean'
+        par['calibrations']['arcframe']['process']['use_continuum'] = True
         return par
 
     
@@ -106,11 +110,12 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         par = self.default_pypeit_par() if inp_par is None else inp_par
 
         if self.get_meta_value(scifile, 'dispname') == 'LR-B':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'tng_dolores_LR-B_arx.fits'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'tng_dolores_LR-B_arx_v2.fits'
             # Add CdI
             par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI']
+            par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI']
         else:
+            par['calibrations']['wavelengths']['method'] = 'holy-grail'
             msg.warn('Check wavelength calibration file.')
 
         # Return
