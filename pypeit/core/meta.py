@@ -149,7 +149,8 @@ def define_additional_meta(nlamps=20):
                        'seq_expno': dict(dtype=int, comment='Number of exposure in observing sequence'),
                        'slitwid': dict(dtype=float, comment='Slit width, sometimes distinct from decker'),
                        'temperature': dict(dtype=float, comment='Temperature (units.K) at observation time'),
-                       'utc': dict(dtype=str, comment='UTC of observation')}
+                       'utc': dict(dtype=str, comment='UTC of observation'),
+                       'mirror': dict(dtype=str, comment='Position of the mirror (e.g. IN or OUT)')}
 
     for kk in range(nlamps):
         additional_meta['lampstat{:02d}'.format(kk+1)] \
