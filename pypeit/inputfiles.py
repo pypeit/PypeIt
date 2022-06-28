@@ -3,7 +3,6 @@
 import os
 import glob
 import numpy as np
-from pyparsing import delimited_list
 import yaml
 import time
 import io
