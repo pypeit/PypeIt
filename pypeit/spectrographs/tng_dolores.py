@@ -126,7 +126,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         """
         self.meta = {}
         # Required (core)
-        self.meta['ra'] = dict(ext=0, card='RA')
+        self.meta['ra'] = dict(ext=0, card=None, compound=True)
         self.meta['dec'] = dict(ext=0, card='DEC')
         self.meta['target'] = dict(ext=0, card='OBJCAT')
         self.meta['decker'] = dict(ext=0, card='SLT_ID')
@@ -160,6 +160,9 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
             time = headarr[0]['DATE-OBS']
             ttime = Time(time, format='isot')
             return ttime.mjd
+        elif meta_key == 'ra':
+            radeg = headarr[0]['RA-RAD']*180.0/np.pi  # Convert radians to decimal degrees
+            return radeg
         msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):

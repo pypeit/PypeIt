@@ -81,7 +81,7 @@ offsets
 This parameter defines the offsets in spatial pixels between the frames to be coadded.
 Here are the options:
 
-- ``offset = None``: ``PypeIt`` will compute the offsets using the 1D extracted spectrum with
+- ``offsets = auto``: ``PypeIt`` will compute the offsets using the 1D extracted spectrum with
   the highest S/N. If such spectrum is not found in each frame that the user wants to coadd,
   ``PypeIt`` will stop with an error. In this case a list of offsets should be provided, or set
   ``offsets = maskdef_offsets`` if available. **This is the default**.
@@ -156,7 +156,7 @@ Our coadd2d file looks like this::
 
 
 In this case, you will notice that there are no ``[coadd2d]`` parameters here. This means that default
-parameters are use: ``offsets = None`` and ``weights = auto``.
+parameters are use: ``offsets = auto`` and ``weights = auto``.
 
 
 LRIS: Run
