@@ -97,6 +97,8 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        # Edges of slit fall off the detector, so assign the edges of the detector as the edges of the slit
+        par['calibrations']['slitedges']['bound_detector'] = True
 
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'mean'
@@ -158,6 +160,9 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         # Lamps
         self.meta['lampstat01'] = dict(ext=0, card='LAMPS')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
+        
+        # Mirror
+        self.meta['mirror'] = dict(ext=0, card='MIRROR')
         
     def compound_meta(self, headarr, meta_key):
         """
@@ -247,10 +252,10 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'Bias')
         if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['idname'] == 'Comp')
-        if ftype in ['pixelflat']:
-            return good_exp & (fitstbl['target'] == 'Internal Flat')
-        if ftype in ['illumflat', 'trace']:
-            return good_exp & (fitstbl['target'] == 'Twilight Flat')
+        if ftype in ['pixelflat']: #Internal Flats
+            return good_exp & (fitstbl['idname'] == 'Flat') & (fitstbl['mirror'] == 'IN')
+        if ftype in ['illumflat', 'trace']: #Twilight Flats
+            return good_exp & (fitstbl['idname'] == 'Flat') & (fitstbl['mirror'] == 'OUT')
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         #msgs.warn('Cannot determine if frames are of type {0}. Frame idname and target are: {1}, {2}'.format(ftype, fitstbl['idname'], fitstbl['target']))
         return np.zeros(len(fitstbl), dtype=bool)
