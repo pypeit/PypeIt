@@ -12,14 +12,11 @@ import sys
 import warnings
 import gzip
 import shutil
-from importlib_metadata import Deprecated
 from packaging import version
 
 from IPython import embed
 
 import numpy
-
-from configobj import ConfigObj
 
 from astropy.io import fits
 from astropy.table import Table
