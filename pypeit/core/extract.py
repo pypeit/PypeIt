@@ -48,7 +48,7 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
         Inverse variance of science frame. Can be a model or deduced from the
         image itself.
     mask : boolean `numpy.ndarray`_, shape (nspec, nspat)
-        Good-pixel mask, indicating which pixels are should or should not be
+        Good-pixel mask, indicating which pixels should or should not be
         used. Good pixels = True, Bad Pixels = False
     waveimg : float `numpy.ndarray`_, shape (nspec, nspat)
         Wavelength image.
@@ -196,6 +196,70 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
     spec.OPT_COUNTS_SIG_DET = base_opt      # Square root of optimally extracted read noise squared
     spec.OPT_FRAC_USE = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
     spec.OPT_CHI2 = chi2            # Reduced chi2 of the model fit for this spectral pixel
+
+
+def extract_asym_boxcar(sciimg, left_trace, righ_trace, gpm=None, ivar=None):
+    """
+    Perform assymetric boxcar extraction of the flux between two traces.
+
+    Parameters
+    ----------
+    sciimg : float `numpy.ndarray`_, shape (nspec, nspat)
+        Science frame for the extraction
+
+    left_trace : float `numpy.ndarray`_, shape (nspec, napertures)
+        Left trace boundary of the extraction region.
+
+    right_trace : float `numpy.ndarray`_, shape (nspec, napertures)
+        Right trace boundary of the extraction region.
+
+    gpm : boolean `numpy.ndarray`_, shape (nspec, nspat)
+        Good-pixel mask, indicating which pixels are should or should not be
+        used. Good pixels = True, Bad Pixels = False. Optional.
+    ivar : float `numpy.ndarray`_, shape (nspec, nspat)
+        Inverse variance of science frame. Can be a model or deduced from the
+        image itself. If ivar is set then this code will return the
+        error on the extraction. Optional
+
+    Returns
+    -------
+    flux_out : float `numpy.ndarray`_, shape (nspec, napertures)
+        Array containing the boxcar extracted flux as a function of spectral position for each aperture.
+    gpm_box : boool `numpy.ndarray`_, shape (nspec, napertures)
+        Good pixel mask for the boxcar extracted flux
+    box_npix :   float `numpy.ndarray`_, shape (nspec, napertures)
+        Array containing the number of pixels which contributed to the boxcar sum of the flux for each
+        spectral position for each aperture.
+    ivar_out : float `numpy.ndarray`_, shape (nspec, napertures)
+        Array containing the inverse variance of the boxcar extracted flux as a function of spectral position
+        for each aperture. This will only be returned if the input parameter ivar is not None.
+
+    """
+    ivar1 = np.ones_like(sciimg) if ivar is None else ivar
+    gpm1 = ivar1 > 0.0 if gpm is None else gpm
+
+    flux_box = moment1d(sciimg*gpm1, (left_trace+righ_trace)/2.0, (righ_trace-left_trace))[0]
+    #box_denom = moment1d(gpm1, (left_trace+righ_trace)/2.0, (righ_trace-left_trace))[0]
+
+    pixtot = moment1d(sciimg*0 + 1.0, (left_trace+righ_trace)/2.0, (righ_trace-left_trace))[0]
+    pixmsk = moment1d(ivar1*gpm1 == 0.0, (left_trace+righ_trace)/2.0, (righ_trace-left_trace))[0]
+
+    # If every pixel is masked then mask the boxcar extraction
+    gpm_box = (pixmsk != pixtot)
+
+    varimg = 1.0 / (ivar1 + (ivar1 == 0.0))
+    var_box = moment1d(varimg * gpm1, (left_trace+righ_trace)/2.0, (righ_trace-left_trace))[0]
+
+    ivar_box = 1.0/(var_box + (var_box == 0.0))
+
+    flux_out = flux_box*gpm_box
+    ivar_out = ivar_box*gpm_box
+    box_npix = pixtot - pixmsk
+
+    if ivar is None:
+        return flux_out, gpm_box, box_npix
+    else:
+        return flux_out, gpm_box, box_npix, ivar_out
 
 
 def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, base_var=None,
@@ -450,7 +514,7 @@ def qa_fit_profile(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind =
     plt.show()
     return
 
-
+# TODO JFH Split up the profile part and the QA part for cleaner code
 def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
                     ind = None, l_limit = None, r_limit=None, xlim = None, xtrunc = 1e6):
 
@@ -491,15 +555,9 @@ def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
     msgs.info(title_string)
     inf = np.isfinite(profile_model) == False
     ninf = np.sum(inf)
-    if (ninf != 0):
+    if ninf != 0:
         msgs.warn("Nan pixel values in object profile... setting them to zero")
         profile_model[inf] = 0.0
-    # JFH Not sure we need this normalization.
-    #nspat = profile_model.shape[1]
-    #norm_spec = np.sum(profile_model, 1)
-    #norm = np.outer(norm_spec, np.ones(nspat))
-    #if np.sum(norm) > 0.0:
-    #    profile_model = profile_model*(norm > 0.0)/(norm + (norm <= 0.0))
     if show_profile:
         qa_fit_profile(sigma_x, norm_obj, profile_model, title = title_string, l_limit = l_limit, r_limit = r_limit,
                        ind=ind, xlim = xlim, xtrunc=xtrunc)
@@ -596,15 +654,27 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     wave_min = waveimg[thismask].min()
     wave_max = waveimg[thismask].max()
 
+    # sigma_x represents the profile argument, i.e. (x-x0)/sigma
+    sigma = np.full(nspec, thisfwhm/2.3548)
+    fwhmfit = sigma*2.3548
+    trace_corr = np.zeros(nspec)
+    sigma_x = dspat/np.outer(sigma, np.ones(nspat)) - np.outer(trace_corr, np.ones(nspat))
+
     # This adds an error floor to the fluxivar_sm, preventing too much rejection at high-S/N (i.e. standard stars)
     # TODO implement the ivar_cap function here in utils.
     sn_cap = 100.0
     fluxivar_sm = utils.clip_ivar(flux_sm, fluxivar_sm0, sn_cap)
-    indsp = (wave >= wave_min) & (wave <= wave_max) & \
-             np.isfinite(flux_sm) & \
-             (flux_sm > -1000.0) & (fluxivar_sm > 0.0)
+    indsp = (wave >= wave_min) & (wave <= wave_max) & np.isfinite(flux_sm) & (flux_sm > -1000.0) & (fluxivar_sm > 0.0)
+    eligible_pixels = np.sum((wave >= wave_min) & (wave <= wave_max))
+    good_pix_frac = 0.05
+    if np.sum(indsp) < good_pix_frac*eligible_pixels:
+        msgs.warn('There are no pixels eligible to be fit for the object profile.' + msgs.newline() +
+                  'There is likely an issue in local_skysub_extract. Returning a Gassuain with fwhm={:5.3f}'.format(thisfwhm))
+        profile_model = return_gaussian(sigma_x, None, thisfwhm, 0.0, obj_string, False)
+        return profile_model, trace_in, fwhmfit, 0.0
+
     b_answer, bmask   = fitting.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp],
-                                     kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
+                                        kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
     b_answer, bmask2  = fitting.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask,
                                      kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
     c_answer, cmask   = fitting.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask2,
@@ -613,7 +683,10 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     try:
         cont_flux, _ = c_answer.value(wave[indsp])
     except:
-        msgs.error("Bad Fitting in extract:fit_profile..")
+        msgs.warn('Problem estimating S/N ratio of spectrum' + msgs.newline() +
+                  'There is likely an issue in local_skysub_extract. Returning a Gassuain with fwhm={:5.3f}'.format(thisfwhm))
+        profile_model = return_gaussian(sigma_x, None, thisfwhm, 0.0, obj_string, False)
+        return profile_model, trace_in, fwhmfit, 0.0
 
     sn2 = (np.fmax(spline_flux*(np.sqrt(np.fmax(fluxivar_sm[indsp], 0))*bmask2),0))**2
     ind_nonzero = (sn2 > 0)
@@ -704,20 +777,15 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     xtemp = (np.cumsum(np.outer(4.0 + np.sqrt(np.fmax(sn2_1, 0.0)),np.ones(nspat)))).reshape((nspec,nspat))
     xtemp = xtemp/xtemp.max()
 
-    sigma = np.full(nspec, thisfwhm/2.3548)
-    fwhmfit = sigma*2.3548
-    trace_corr = np.zeros(nspec)
     msgs.info("Gaussian vs b-spline of width " + "{:6.2f}".format(thisfwhm) + " pixels")
     area = 1.0
-    # sigma_x represents the profile argument, i.e. (x-x0)/sigma
-    sigma_x = dspat/np.outer(sigma, np.ones(nspat)) - np.outer(trace_corr, np.ones(nspat))
 
     # If we have too few pixels to fit a profile or S/N is too low, just use a Gaussian profile
     if((ngood < 10) or (med_sn2 < sn_gauss**2) or (gauss is True)):
         msgs.info("Too few good pixels or S/N <" + "{:5.1f}".format(sn_gauss) + " or gauss flag set")
         msgs.info("Returning Gaussian profile")
         profile_model = return_gaussian(sigma_x, norm_obj, thisfwhm, med_sn2, obj_string,show_profile,ind=good,xtrunc=7.0)
-        return (profile_model, trace_in, fwhmfit, med_sn2)
+        return profile_model, trace_in, fwhmfit, med_sn2
 
     mask = np.full(nspec*nspat, False, dtype=bool)
 

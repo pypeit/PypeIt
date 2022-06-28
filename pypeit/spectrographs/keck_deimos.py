@@ -217,7 +217,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             # get the measurements files
             measure_files = np.array(glob.glob(os.path.join(data.Paths.spectrographs, "keck_deimos/gain_ronoise", "*")))
             # Parse the dates recorded in the name of the files
-            measure_dates = np.array([f.split('.')[2] for f in measure_files])
+            measure_dates = np.array([os.path.basename(f).split('.')[2] for f in measure_files])
             # convert into datetime format
             dtime = np.array([datetime.datetime.strptime(mm, '%Y-%b-%d') for mm in measure_dates])
             # convert to mjd
@@ -225,10 +225,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             # find the closest in time to the raw frame date
             close_idx = np.argmin(np.absolute(mjd_measured - date))
             # get measurements
-            tab_measure = t = Table.read(measure_files[close_idx], format='ascii')
-            measured_det =  tab_measure['col3']
-            measured_gain =  tab_measure['col5']  # [e-/DN]
-            measured_ronoise =  tab_measure['col7']   # [e-]
+            tab_measure = Table.read(measure_files[close_idx], format='ascii')
+            measured_det = tab_measure['col3']
+            measured_gain = tab_measure['col5']  # [e-/DN]
+            measured_ronoise = tab_measure['col7']   # [e-]
             msgs.info(f"We are using DEIMOS gain/RN values based on WMKO estimates on {measure_dates[close_idx]}.")
             # get gain
             detector_dict1['gain'] = measured_gain[measured_det == 1]
@@ -357,6 +357,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             par['reduce']['slitmask']['assign_obj'] = True
             # force extraction of undetected objects
             par['reduce']['slitmask']['extract_missing_objs'] = True
+            # lower tilts spat_order and higher spec_order for multislits (i.e., generally not very long slits)
+            par['calibrations']['tilts']['spat_order'] = 2  # Default: 3
+            par['calibrations']['tilts']['spec_order'] = 5  # Default: 4
+
 
         # Templates
         if self.get_meta_value(headarr, 'dispname') == '600ZD':
@@ -383,7 +387,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # increase order of final fit because better for mosaic (mosaic is the default)
         par['calibrations']['wavelengths']['n_final'] = 6
         # increase sigdetect because better for mosaic (mosaic is the default)
-        par['calibrations']['wavelengths']['sigdetect'] = 20.
+        par['calibrations']['wavelengths']['sigdetect'] = 10.
 
         # Wavelength FWHM
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))

@@ -1,22 +1,43 @@
 
-1.8.2dev
---------
+1.9.1 (13 June 2022)
+--------------------
 
-- When using glob to get files in pypeit_setup, added automatic sorting so that
-  the default `comb_id` ordering matches the sorted file name.
+- Hotfix for bug related to downloading from the `reid_arxiv` when using
+  the `reidentify` wavelength calibration method.
+
+1.9.0 (31 May 2022)
+-------------------
+
+- When using glob to get files in pypeit_setup, added automatic sorting
+  so that the default `comb_id` ordering matches the sorted file name.
 - Improve Keck/KCWI automatic frame typing.
 - Wavelength templates (OH lines and arc lamps) created for Keck/MOSFIRE
 - Mosaic is now available for Keck/DEIMOS too.
-- Various package data (e.g., reid_arxiv, sensfunc) are no longer distributed via
-  PyPI to reduce package size; introduce mechanisms for downloading/caching needed
-  data either at runtime or on demand.
-- Save output wavelength calibration from `pypeit_identify` to the cache for
-  direct reuse in data reduction.
-- The `pypeit_identify` GUI can now toggle between linear and log scaling of the
-  arc spectrum flux.
+- Various package data (e.g., reid_arxiv, sensfunc) are no longer
+  distributed via PyPI to reduce package size; introduce mechanisms for
+  downloading/caching needed data either at runtime or on demand.
+- Save output wavelength calibration from `pypeit_identify` to the cache
+  for direct reuse in data reduction.
+- The `pypeit_identify` GUI can now toggle between linear and log
+  scaling of the arc spectrum flux.
 - Improved wavelength solution for Gemini-Nort E2V detector
 - Keck/DEIMOS now uses gain/RN values measured periodically by WMKO
-
+- Add bok_bc 300 grating template
+- Expose exposure time scaling for dark frames as an image processing
+  parameter, and set the default behavior to ignore any difference in
+  exposure time.  Also fixes a bug in the variance calculation.
+- Added more flexible quicklook that can handle dithering.
+- Refactored object finding
+- Bug fixes in local sky subtraction and extraction
+- Fixed pypeit setup issues due to bad LRIS headers.
+- Added support for VLT FORS2 600z grism.
+- Added enhancements and fixes for Keck lris red Mark4.
+- Fixed a bug in 2d coadding when objects were not being identified.
+  Refactored 2d extraction.
+- Added code to better parse Gemini/GNIRS dither sequences
+- Add spectrograph child for VLT X-SHOOTER UVB arm
+- Minor enhancements to `pypeit_identify` GUI
+- Refactoring of `pypeit_show_wvcalib` GUI
 
 1.8.1 (23 Feb 2022)
 -------------------
@@ -24,6 +45,7 @@
 - various hotfixes
 - Include preliminary support for fluxing with archived SensFunc files
   for DEIMOS.
+
 
 1.8.0 (12 Feb 2022)
 -------------------
@@ -144,6 +166,7 @@
     - improvements in the frame typing
 - Implements new Mark4 detector for Keck/LRISr  (aka keck_lris_red_mark4)
 - QL script for Keck/DEIMOS
+- Implemented flux calibration and grating correction for datacubes.
 
 
 1.6.0 (1 Oct 2021)
