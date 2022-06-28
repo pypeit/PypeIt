@@ -82,7 +82,6 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['scienceframe']['exprng'] = [1, None]
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-        par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['arcframe']['process']['clip'] = False
         par['calibrations']['arcframe']['process']['combine'] = 'mean'
         par['calibrations']['arcframe']['process']['use_continuum'] = True
