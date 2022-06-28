@@ -274,6 +274,7 @@ class WaveCalib(datamodel.DataContainer):
         diag['SpatID'].format = 'd'
         # Central wave, delta wave
         minWave = np.array([0 if wvfit.wave_soln is None else wvfit.wave_soln[0] for wvfit in self.wv_fits])
+        diag['minWave'] = minWave
         diag['minWave'].format = '0.1f'
         diag['Wave_cen'] = [0 if wvfit.cen_wave is None else wvfit.cen_wave for wvfit in self.wv_fits]
         diag['Wave_cen'].format = '0.1f'
@@ -290,7 +291,7 @@ class WaveCalib(datamodel.DataContainer):
                      wvfit in self.wv_fits])
         line_wmax = np.array([0 if wvfit is None or wvfit.pypeitfit is None else wvfit.wave_fit[wvfit.pypeitfit.gpm == 1][-1] for
                      wvfit in self.wv_fits])
-        diag['IDs_Wave_range'] = ['{:10.3f} - {:10.3f}'.format(line_wmin[i], line_wmax[i]) for i in range(self.wv_fits.size)]
+        diag['IDs_Wave_range'] = ['{:9.3f} - {:9.3f}'.format(line_wmin[i], line_wmax[i]) for i in range(self.wv_fits.size)]
         diag['IDs_Wave_range'].format = 's'
         # Fitted ID'd lines coverage
         line_waverange = line_wmax - line_wmin
@@ -540,6 +541,8 @@ class BuildWaveCalib:
             else:
                 # This is for I/O naming
                 item.spat_id = self.slits.spat_id[idx]
+                # add measured fwhm
+                item['fwhm'] = measured_fwhms[idx]
                 tmp.append(item)
         self.wv_calib = WaveCalib(wv_fits=np.asarray(tmp),
                                   arc_spectra=arccen,
