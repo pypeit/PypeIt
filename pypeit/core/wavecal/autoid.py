@@ -894,7 +894,7 @@ def measure_fwhm(spec, binspectral):
 
 
 def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, 
-                  debug_xcorr=False, debug_reid=False,
+                  measured_fwhms=None, debug_xcorr=False, debug_reid=False,
                   x_percentile=50., template_dict=None, debug=False, 
                   nonlinear_counts=1e10):
     """
@@ -924,6 +924,8 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
           Number of snippets to chop the input spectrum into when ID'ing lines
           This deals with differences due to non-linearity between the template
           and input spectrum.
+        measured_fwhms: ndarray, optional
+            Array of FWHM (in pixels) measured from the arc lines. Shape (nslit,)
         x_percentile: float, optional
           Passed to reidentify to reduce the dynamic range of arc line amplitudes
         template_dict (dict, optional): Dict containing tempmlate items, largely for development
@@ -977,6 +979,8 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
         msgs.info("Using sigdetect = {}".format(sigdetect))
         # Grab the observed arc spectrum
         ispec = spec[:,slit]
+        # measured FWHM for this slit
+        measured_fwhm = measured_fwhms[slit]
 
         # Find the shift
         ncomb = temp_spec.size
@@ -1047,7 +1051,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
         #         break
         #     nsig_thrshd -= 5
 
-        measured_fwhm = measure_fwhm(ispec, binspectral)
+        # measured_fwhm = measure_fwhm(ispec, binspectral)
 
         # Set FWHM for the methods that follow
         if par['fwhm_fromlines'] is False:

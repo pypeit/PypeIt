@@ -471,6 +471,16 @@ class BuildWaveCalib:
         # Obtain a list of good slits
         ok_mask_idx = np.where(np.invert(self.wvc_bpm))[0]
 
+        binspec = self.binspectral
+        measured_fwhms = np.zeros(arccen.shape[1])
+        if self.binspectral is None:
+            msgs.warn("binspectral is not specified. We assume it to be 1 when measuring the FWHM of the arc lines")
+            binspec = 1
+        for islit in range(arccen.shape[1]):
+            if islit not in ok_mask_idx:
+                continue
+            measured_fwhms[islit] = autoid.measure_fwhm(arccen[:, islit], binspec)
+
         # Obtain calibration for all slits
         if method == 'simple':
             line_lists = waveio.load_line_lists(self.lamps)
@@ -513,7 +523,7 @@ class BuildWaveCalib:
             if self.slits.maskdef_designtab is not None:
                 msgs.info("Slit widths (arcsec): {}".format(np.round(self.slits.maskdef_designtab['SLITWID'].data,2)))
             final_fit = autoid.full_template(arccen, self.lamps, self.par, ok_mask_idx, self.det,
-                                             self.binspectral,
+                                             self.binspectral, measured_fwhms=measured_fwhms,
                                              nonlinear_counts=self.nonlinear_counts,
                                              nsnippet=self.par['nsnippet'])
                                              #debug=True, debug_reid=True, debug_xcorr=True)
