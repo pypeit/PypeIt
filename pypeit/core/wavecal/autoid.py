@@ -886,7 +886,6 @@ def measure_fwhm(spec, binspectral):
             mean, med, _ = stats.sigma_clipped_stats(wdth[nsig > nsig_thrshd], sigma_lower=2.0, sigma_upper=2.0)
             # FWHM in pixels
             measured_fwhm = np.round((med * 2.35482) / binspectral,1)
-            msgs.info("Measured arc lines FWHM: {} pixels".format(measured_fwhm))
             break
         nsig_thrshd -= 5
 
@@ -1029,38 +1028,16 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
             mspec = temp_spec[i0:i0 + nspec]
             mwv = temp_wv[i0:i0 + nspec]
 
-        # # Determine the lines FWHM, i.e, approximate spectral resolution
-        # #  This may only be recorded and not used by the algorithms
-        # _, _, _, wdth, _, best, _, nsig = arc.detect_lines(ispec, sigdetect=10., fwhm=5.)
-        # # 1sigma Gaussian widths of the line detections
-        # wdth = wdth[best]
-        # # significance of each line detected
-        # nsig = nsig[best]
-        # # Nsigma (significance) threshold. We use only lines that have the highest significance
-        # # We start with nsig_thrshd of 500 and iteratively reduce it if there are not more than 6 lines
-        # nsig_thrshd = 500.
-        # measured_fwhm = None
-        # while nsig_thrshd > 10.:
-        #     if wdth[nsig > nsig_thrshd].size > 6:
-        #         # compute average `wdth`
-        #         mean, med, _ = stats.sigma_clipped_stats(wdth[nsig > nsig_thrshd], sigma_lower=2.0, sigma_upper=2.0)
-        #         # FWHM in pixels
-        #         #measured_fwhm = np.ceil(med * 2.35482) / binspectral
-        #         measured_fwhm = (med * 2.35482) / binspectral
-        #         msgs.info("Measured arc lines FWHM: {} pixels".format(measured_fwhm))
-        #         break
-        #     nsig_thrshd -= 5
-
-        # measured_fwhm = measure_fwhm(ispec, binspectral)
-
         # Set FWHM for the methods that follow
         if par['fwhm_fromlines'] is False:
             fwhm = par['fwhm']
+            msgs.info("User-provided arc lines FWHM: {} pixels".format(fwhm))
         elif measured_fwhm is None:
             fwhm = par['fwhm']
             msgs.warn("Assumed arc lines FWHM: {}".format(fwhm))
         else:
             fwhm = measured_fwhm
+            msgs.info("Measured arc lines FWHM: {} pixels".format(fwhm))
 
         # Loop on snippets
         nsub = ispec.size // nsnippet

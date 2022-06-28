@@ -33,7 +33,6 @@ class ChkWaveCalib(scriptbase.ScriptBase):
         head0 = hdul[0].header
         if 'MSTRTYP' in head0.keys() and head0['MSTRTYP'].strip() == 'WaveCalib':
             file_type = 'MasterWaveCalib'
-        # TODO -- Replace the next elif with checking PYP_CLS in head0 someday
         elif 'PYP_CLS' in head0.keys() and head0['PYP_CLS'].strip() == 'AllSpec2DObj':
             file_type = 'AllSpec2D'
         else:
@@ -50,7 +49,7 @@ class ChkWaveCalib(scriptbase.ScriptBase):
             # Load
             allspec2D = spec2dobj.AllSpec2DObj.from_fits(args.input_file, chk_version=False)
             for det in allspec2D.detectors:
-                print('='*50 + f'{det:^7}' + '='*50)
+                print('='*44 + f'{det:^7}' + '='*44)
                 wave_diag = allspec2D[det].wavesol
                 for colname in ['minWave', 'Wave_cen', 'maxWave', 'IDs_Wave_cov(%)']:
                     wave_diag[colname].format = '0.1f'

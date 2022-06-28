@@ -264,6 +264,22 @@ class WaveCalib(datamodel.DataContainer):
             `astropy.table.Table`_: wavecalib diagnostics table
 
         """
+        # wavelength range of calibrated arc spectra
+        minWave = np.array([0 if wvfit.wave_soln is None else wvfit.wave_soln[0] for wvfit in self.wv_fits])
+        maxWave = np.array([0 if wvfit.wave_soln is None else wvfit.wave_soln[-1] for wvfit in self.wv_fits])
+
+        # wavelength range of fitted ID'd lines
+        lines_wmin = np.array([0 if wvfit is None or wvfit.pypeitfit is None else
+                              wvfit.wave_fit[wvfit.pypeitfit.gpm == 1][0] for wvfit in self.wv_fits])
+        lines_wmax = np.array([0 if wvfit is None or wvfit.pypeitfit is None else
+                              wvfit.wave_fit[wvfit.pypeitfit.gpm == 1][-1] for wvfit in self.wv_fits])
+
+        # wavelength coverage of fitted ID'd lines
+        lines_waverange = lines_wmax - lines_wmin
+        spec_waverange = maxWave - minWave
+        lines_cov = [0 if spec_waverange[i] == 0 else
+                     lines_waverange[i] / spec_waverange[i] * 100 for i in range(self.wv_fits.size)]
+
         # Generate a table
         diag = Table()
         # Slit number
@@ -271,32 +287,19 @@ class WaveCalib(datamodel.DataContainer):
         diag['N.'].format = 'd'
         # spat_id
         diag['SpatID'] = [wvfit.spat_id for wvfit in self.wv_fits]
-        diag['SpatID'].format = 'd'
         # Central wave, delta wave
-        minWave = np.array([0 if wvfit.wave_soln is None else wvfit.wave_soln[0] for wvfit in self.wv_fits])
         diag['minWave'] = minWave
         diag['minWave'].format = '0.1f'
         diag['Wave_cen'] = [0 if wvfit.cen_wave is None else wvfit.cen_wave for wvfit in self.wv_fits]
         diag['Wave_cen'].format = '0.1f'
-        maxWave = np.array([0 if wvfit.wave_soln is None else wvfit.wave_soln[-1] for wvfit in self.wv_fits])
         diag['maxWave'] = maxWave
         diag['maxWave'].format = '0.1f'
         diag['dWave'] = [0 if wvfit.cen_disp is None else wvfit.cen_disp for wvfit in self.wv_fits]
         diag['dWave'].format = '0.3f'
         # Number of good lines
         diag['Nlin'] = [0 if wvfit.pypeitfit is None else np.sum(wvfit.pypeitfit.gpm) for wvfit in self.wv_fits]
-        diag['Nlin'].format = 'd'
-        # Fitted ID'd lines wave range
-        line_wmin = np.array([0 if wvfit is None or wvfit.pypeitfit is None else wvfit.wave_fit[wvfit.pypeitfit.gpm == 1][0] for
-                     wvfit in self.wv_fits])
-        line_wmax = np.array([0 if wvfit is None or wvfit.pypeitfit is None else wvfit.wave_fit[wvfit.pypeitfit.gpm == 1][-1] for
-                     wvfit in self.wv_fits])
-        diag['IDs_Wave_range'] = ['{:9.3f} - {:9.3f}'.format(line_wmin[i], line_wmax[i]) for i in range(self.wv_fits.size)]
-        diag['IDs_Wave_range'].format = 's'
-        # Fitted ID'd lines coverage
-        line_waverange = line_wmax - line_wmin
-        spec_waverange = maxWave - minWave
-        diag['IDs_Wave_cov(%)'] = [0 if spec_waverange[i] == 0 else line_waverange[i]/spec_waverange[i]*100 for i in range(self.wv_fits.size)]
+        diag['IDs_Wave_range'] = ['{:9.3f} - {:9.3f}'.format(lines_wmin[i], lines_wmax[i]) for i in range(self.wv_fits.size)]
+        diag['IDs_Wave_cov(%)'] = lines_cov
         diag['IDs_Wave_cov(%)'].format = '0.1f'
         # RMS
         diag['RMS'] = [0 if wvfit.rms is None else wvfit.rms for wvfit in self.wv_fits]
