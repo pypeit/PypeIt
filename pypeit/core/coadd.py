@@ -705,9 +705,9 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
     fluxes : `numpy.ndarray`_
             Stack of (nspec, nexp) spectra where nexp = number of
             exposures, and nspec is the length of the spectrum.
-    ivars : `numpy. ndarray`_ 
+    ivars : `numpy.ndarray`_ 
             Inverse variance noise vectors for the spectra; shape = (nspec, nexp)
-    masks : `numpy. ndarray`_
+    masks : `numpy.ndarray`_
             Mask for stack of spectra. True=Good, False=Bad; shape = (nspec, nexp)
     sn_smooth_npix : float
             Number of pixels used for determining smoothly varying S/N ratio weights.

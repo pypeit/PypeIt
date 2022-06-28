@@ -207,6 +207,7 @@ or have a feature request, please `submit an issue
    spectrographs
    setup
    pypeit_par
+   input_files
    pypeit_file
    running
    quicklook

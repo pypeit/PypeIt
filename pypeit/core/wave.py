@@ -27,7 +27,7 @@ def geomotion_calculate(radec, time, longitude, latitude, elevation, refframe):
     Correct the wavelength calibration solution to the desired reference frame
 
     Args:
-        radec (`astropy.coordiantes.SkyCoord`_):
+        radec (`astropy.coordinates.SkyCoord`_):
             RA, DEC of source
         time (:obj:`astropy.time.Time`):
             Time of observation
@@ -54,7 +54,7 @@ def geomotion_correct(radec, time, longitude, latitude, elevation, refframe):
     Correct the wavelength of every pixel to a barycentric/heliocentric frame.
 
     Args:
-        radec (`astropy.coordiantes.SkyCoord`_):
+        radec (`astropy.coordinates.SkyCoord`_):
             RA, DEC of source
         time (:obj:`astropy.time.Time`):
             Time of observation

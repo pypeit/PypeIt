@@ -13,7 +13,7 @@ Overview
 ========
 
 To maintain uniformity, ``PypeIt`` uses a standard format
-for all of the input files used by the :doc:`_pypeit_scripts`.  
+for all of the input files used by the :ref:`pypeit_scripts`.  
 This document describes that
 format and its main components.  The specifics of 
 the various input file types (e.g. :doc:`pypeit_file`)

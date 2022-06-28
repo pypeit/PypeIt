@@ -98,7 +98,7 @@ Sensitivity Input File
 ----------------------
 
 This type of :doc:`input_files`
-contains only a :ref:`parameter_block`` 
+contains only a :ref:`parameter_block`
 where you specify ``sensfunc`` parameters.
 
 For example, if you wish to use the MaunaKea telluric grid with your data,

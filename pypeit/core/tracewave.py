@@ -1,4 +1,6 @@
 """ Module for methods related to tracing arc/sky lines across a slit/order
+
+.. include:: ../include/links.rst
 """
 import inspect
 import copy

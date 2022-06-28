@@ -527,13 +527,12 @@ def spec_flexure_qa(slitords, bpm, basename, flex_list,
         basename (str):
             Used to generate the output file name
         flex_list (list):
-            list of :obj:`dict`s containing the flexure information
-        specobjs: (:class:`pypeit.specobjs.Specobjs`, optional):
+            list of :obj:`dict` objects containing the flexure information
+        specobjs (:class:`~pypeit.specobjs.Specobjs`, optional):
             Spectrally extracted objects
         out_dir (str, optonal):
-            Path to the output directory for the QA plots. 
-            If None, the current is used.
-
+            Path to the output directory for the QA plots.  If None, the current
+            is used.
     """
     plt.rcdefaults()
     plt.rcParams['font.family'] = 'times new roman'

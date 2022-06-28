@@ -286,8 +286,8 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
                groupsize=None, groupbadpix=False, grow=0, sticky=True, use_mad=True,
                debug=False):
     """
-    A robust fit is performed to the xarray, yarray pairs
-    ``mask[i] = 1`` are good values, if provided.
+    A robust fit is performed to the xarray, yarray pairs ``mask[i] = 1`` are
+    good values, if provided.
 
     The underlying method(s) are the numpy fitting routines, 
     e.g. polyfit, legfit.
@@ -316,15 +316,15 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
             Same as minx for second independent variable x2.
         maxx2 (float, optional):
             Same as maxx for second independent variable x2.
-        maxiter (:class:`int`, optional):
+        maxiter (:obj:`int`, optional):
             Maximum number of rejection iterations, default 10.  Set
             this to zero to disable rejection and simply do a fit.
-        in_gpm (:class:`numpy.ndarray`_, optional):
+        in_gpm (`numpy.ndarray`_, optional):
             Input mask.  Bad points are marked with a value that
             evaluates to ``False``.  Must have the same number of
-            dimensions as `data`. Points masked as bad "False" in the
-            inmask will also always evaluate to "False" in the outmask
-        invvar (:class:`float` or `numpy.ndarray`_, optional):
+            dimensions as ``data``. Points masked as bad "False" in the
+            inmask will also always evaluate to "False" in the outmask.
+        invvar (:obj:`float`, `numpy.ndarray`_, optional):
             Inverse variance of the data, used to reject points based on
             the values of `upper` and `lower`.  This can either be a
             single float for the entire yarray or a ndarray with the
@@ -337,42 +337,42 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
 
                 chi = (data-model) * np.sqrt(invvar)
 
-        lower (:class:`int` or :class:`float`, optional):
+        lower (:obj:`int` or :obj:`float`, optional):
             If set, reject points with ``data < model - lower * sigma``,
             where ``sigma = 1.0/sqrt(invvar)``.
-        upper (:class:`int` or :class:`float`, optional):
+        upper (:obj:`int` or :obj:`float`, optional):
             If set, reject points with ``data > model + upper * sigma``,
             where ``sigma = 1.0/sqrt(invvar)``.
-        maxdev (:class:`int` or :class:`float`, optional):
+        maxdev (:obj:`int` or :obj:`float`, optional):
             If set, reject points with ``abs(data-model) > maxdev``.  It is
             permitted to set all three of `lower`, `upper` and `maxdev`.
-        maxrej (:class:`int`, :class:`numpy.ndarray`, optional):
+        maxrej (:obj:`int`, :obj:`numpy.ndarray`, optional):
             Maximum number of points to reject in this iteration.  If
             `groupsize` or `groupdim` are set to arrays, this should be
             an array as well.
-        groupdim (:class:`int`, optional):
+        groupdim (:obj:`int`, optional):
             Dimension along which to group the data; set to 1 to group
             along the 1st dimension, 2 for the 2nd dimension, etc.  If
             data has shape ``[100,200]``, then setting ``GROUPDIM=2`` is
             equivalent to grouping the data with ``groupsize=100``.  In
             either case, there are 200 groups, specified by ``[*,i]``. NOT
             WELL TESTED IN PYTHON!
-        groupsize (:class:`int`, optional):
+        groupsize (:obj:`int`, optional):
             If this and maxrej are set, then reject a maximum of maxrej
             points per group of groupsize points.  If groupdim is also
             set, then this specifies sub-groups within that. NOT WELL
             TESTED IN PYTHON!!
-        groupbadpix (:class:`bool`, optional):
+        groupbadpix (:obj:`bool`, optional):
             If set to ``True``, consecutive sets of bad pixels are
             considered groups, overriding the values of `groupsize`.
-        grow (:class:`int`, optional, default = 0):
+        grow (:obj:`int`, optional, default = 0):
             If set to a non-zero integer, N, the N nearest neighbors of
             rejected pixels will also be rejected.
-        sticky (:class:`bool`, optional, default is True):
+        sticky (:obj:`bool`, optional, default is True):
             If set to ``True``, pixels rejected in one iteration remain
             rejected in subsequent iterations, even if the model
             changes. If
-        use_mad (:class:`bool`, optional, default = False):
+        use_mad (:obj:`bool`, optional, default = False):
             It set to ``True``, compute the median of the maximum
             absolute deviation between the data and use this for the
             rejection instead of the default which is to compute the
@@ -504,7 +504,7 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
         upper (:obj:`int`, :obj:`float`, optional):
             If set, reject points with ``data > model + upper * sigma``, where
             ``sigma = 1/sqrt(invvar)``.
-        maxdev (:obj:`int` or :class:`float`, optional):
+        maxdev (:obj:`int` or :obj:`float`, optional):
             If set, reject points with ``abs(data-model) > maxdev``.  It
             is permitted to set all three of `lower`, `upper` and
             `maxdev`.

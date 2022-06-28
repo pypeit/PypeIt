@@ -1,4 +1,8 @@
-""" Class for I/O of PypeIt input files"""
+"""
+Class for I/O of PypeIt input files.
+
+.. include:: ../include/links.rst
+"""
 
 import os
 import numpy as np

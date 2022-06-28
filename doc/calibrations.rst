@@ -12,7 +12,7 @@ to correct the detector and perform wavelength calibration.
 We consider :doc:`fluxing` to be a separate process.
 
 This page links to docs dedicated to specific aspects
-of Calibraions.
+of Calibrations.
 
 Here are main calibration steps (in order
 of execution for multislit and echelle calibrations):
@@ -54,5 +54,5 @@ for calibrations:
 * Add/Suppress bias/dark frame generation. See :doc:`bias_dark`
 * Add/Suppress flexure correction.  See :doc:`flexure`
 * Add/Suppress aspects of flat fielding.  See :doc:`flat_fielding`
-* Associate different calibration frames to different science frames. See :ref:`_2d_combine:Calibrations`
+* Associate different calibration frames to different science frames. See :ref:`2d_combine`
 

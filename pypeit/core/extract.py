@@ -585,7 +585,7 @@ def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string,
         String identifying object. Used only for QA.
     show_profile: bool
         If True, qa plot will be shown to screen
-    ind: `numpyn.ndarray`_, optional
+    ind: `numpy.ndarray`_, optional
         Good indices in object profile. Used by QA routine.
     l_limit: float, optional
         Left limit of profile fit where derivative is evaluated for Gaussian apodization. Used by QA routine.
