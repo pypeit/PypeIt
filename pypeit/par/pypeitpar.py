@@ -291,9 +291,9 @@ class ProcessImagesPar(ParSet):
                                'sinusoidal along one direction, with a frequency that is ' \
                                'constant across the detector.'
 
-        defaults['use_continuum'] = False
-        dtypes['use_continuum'] = bool
-        descr['use_continuum'] = 'Subtract off the continuum level from an image. This parameter should only ' \
+        defaults['subtract_continuum'] = False
+        dtypes['subtract_continuum'] = bool
+        descr['subtract_continuum'] = 'Subtract off the continuum level from an image. This parameter should only ' \
                                  'be set to True to combine arcs with multiple different lamps.' \
                                  'For all other cases, this parameter should probably be False.'
 

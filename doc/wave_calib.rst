@@ -32,14 +32,20 @@ default for your spectrograph (e.g. :doc"`deimos`) but you can
 be certain by adding the following to the :doc:`pypeit_file`
 (for longslit observations)::
 
+.. code-block:: ini
+
     [calibrations]
       [[arcframe]]
         [[[process]]]
           clip = False
-          use_continuum = True
+          subtract_continuum = True
+      [[tiltframe]]
+        [[[process]]]
+          clip = False
+          subtract_continuum = True
 
 For a multislit observation, you should keep clip=False, and
-change use_continuum=True to use_continuum=False.
+change subtract_continuum=True to subtract_continuum=False.
 
 Automated Algorithms
 ====================
