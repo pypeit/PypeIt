@@ -36,10 +36,10 @@ following to the :doc:`pypeit_file`::
       [[arcframe]]
         [[[process]]]
           clip = False
-          continuum = True
+          use_continuum = True
 
 Note that if you are using a multislit instrument, you may
-achieve better results by instead setting continuum=False.
+achieve better results by instead setting use_continuum=False.
 
 Automated Algorithms
 ====================
