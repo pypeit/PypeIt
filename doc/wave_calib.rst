@@ -22,6 +22,22 @@ the `By-Hand Approach`_ including the
 See :doc:`master_wvcalib` for a discussion of the
 main outputs and good/bad examples.
 
+Arc Processing
+==============
+
+If you are combining multiple arc images that have
+differing arc lamps (e.g. one with Ne and another with Hg+He)
+then be sure to process without clipping.  This may
+be the default for your spectrograph (e.g. :doc"`deimos`)
+but you can be certain by adding the following to the
+:doc:`pypeit_file`::
+
+    [calibrations]
+      [[arcframe]]
+        [[[process]]]
+          clip = False
+
+
 Automated Algorithms
 ====================
 
