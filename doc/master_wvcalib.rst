@@ -22,19 +22,26 @@ pypeit_chk_wavecalib
 --------------------
 
 You can print a set of simple diagnostics to the screen
-with the *pypeit_chk_wavecalib* script, e.g. ::
+with the **pypeit_chk_wavecalib** script, e.g. ::
 
-     pypeit_chk_wavecalib Masters/MasterWaveCalib_A_1_03.fits
-     #
-     SpatID minWave Wave_cen maxWave dWave Nlin  RMS
-    ------ ------- -------- ------- ----- ---- -----
-        54  5596.7   6858.8  8236.6 0.680   12 0.573
-       148  3620.1   4946.3  6259.7 0.647   16 0.234
-       230  4105.6   5368.2  6673.7 0.629   33 0.164
-       302  5615.7   6889.9  8234.8 0.685    6 0.002
-       384  3980.9   5242.8  6548.3 0.629   31 0.121
-       482  4081.7   5344.4  6649.7 0.629   34 0.186
-       586  4154.5   5417.4  6722.6 0.629   32 0.120
+     pypeit_chk_wavecalib Masters/MasterWaveCalib_A_1_MSC03.fits
+
+     N. SpatID minWave Wave_cen maxWave dWave Nlin     IDs_Wave_range    IDs_Wave_cov(%)  RMS  fwhm
+    --- ------ ------- -------- ------- ----- ---- --------------------- --------------- ----- ----
+      0     32  6655.8   7604.3  8569.2 0.469   34  6680.120 -  8523.783            96.4 0.049  5.7
+      1     95  6510.2   7458.8  8423.7 0.469   33  6534.687 -  8410.521            98.0 0.053  5.8
+      2    164  6711.0   7659.5  8624.3 0.469   33  6718.897 -  8523.783            94.3 0.035  5.7
+      3    234  6742.5   7691.1  8655.8 0.469   33  6931.379 -  8649.416            89.8 0.044  5.7
+      4    304  6458.2   7406.6  8371.5 0.469   32  6508.325 -  8349.116            96.2 0.045  5.9
+
+- *SpatID* is the ``PypeIt`` slit ID number.
+- *minWave*, *maxWave*, *Wave_cen*, *dWave* are, respectively, the minimum wavelength value, the maximum
+  wavelength value, the central wavelength, and the wavelength dispersion of the calibrated arc spectra.
+  All the values are in Angstrom.
+- *Nlin*, *IDs_Wave_range*, *IDs_Wave_cov(%)* are, respectively, the number, the wavelength range, and the
+  spectral coverage of the identified and fitted arc lines.
+- *RMS* is the RMS of the wavelength solution (in pixels).
+- *fwhm* is the FWHM (in unbinned pixels) of the arc lines, i.e, the approximate spectral resolution.
 
 
 PNGs

@@ -1034,7 +1034,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
             msgs.info("User-provided arc lines FWHM: {} pixels".format(fwhm))
         elif measured_fwhm is None:
             fwhm = par['fwhm']
-            msgs.warn("Assumed arc lines FWHM: {}".format(fwhm))
+            msgs.warn("Assumed arc lines FWHM: {} pixels".format(fwhm))
         else:
             fwhm = measured_fwhm
             msgs.info("Measured arc lines FWHM: {} pixels".format(fwhm))
