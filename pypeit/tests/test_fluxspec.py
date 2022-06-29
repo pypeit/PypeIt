@@ -9,6 +9,7 @@ import pytest
 from IPython import embed
 
 import numpy as np
+import configobj
 
 from astropy.table import Table
 from astropy.io import fits
@@ -130,7 +131,7 @@ def test_flux_calib(tmp_path, monkeypatch):
             print("spec1d_file1.fits | sens_file1.fits", file=f)
             print("spec1d_file2.fits | sens_file2.fits", file=f)
         
-        with pytest.raises(PypeItError, match="You have not specified any data in the data block!"):
+        with pytest.raises(PypeItError, match="You have not specified the data block!"):
             parsed_args = scripts.flux_calib.FluxCalib.parse_args([config_file_missing_flux])
             scripts.flux_calib.FluxCalib.main(parsed_args)
 

@@ -69,6 +69,7 @@ class InputFile:
             The first key contains the name
     """
     data_block = None  # Defines naming of data block
+    datablock_required = False # Denotes whether the data block is required
     setup_required = False # Denotes whether the setup block is required
     flavor = 'Generic' # Type of InputFile
 
@@ -124,6 +125,8 @@ class InputFile:
             paths, usrtbl = cls._read_data_file_table(lines[s:e])
             is_config[s-1:e+1] = False
         else:
+            if cls.datablock_required:
+                msgs.error("You have not specified the data block!")
             paths, usrtbl = [], None
 
         # Parse the setup block
@@ -462,6 +465,7 @@ class PypeItFile(InputFile):
     data_block = 'data'  # Defines naming of data block
     flavor = 'PypeIt'  # Defines naming of file
     setup_required = True
+    datablock_required = True
 
     def vet(self):
         """ Check for required bits and pieces of the PypeIt file
@@ -503,6 +507,7 @@ class SensFile(InputFile):
     """
     data_block = 'sens'  # Defines naming of data block
     flavor = 'Sens'  # Defines naming of file
+    datablock_required = False
     setup_required = False
 
 class FluxFile(InputFile):
@@ -511,6 +516,7 @@ class FluxFile(InputFile):
     data_block = 'flux'  # Defines naming of data block
     flavor = 'Flux'  # Defines naming of file
     setup_required = False
+    datablock_required = True
 
     def vet(self):
         """ Check for required parts of the Fluxing input
@@ -614,6 +620,7 @@ class Coadd1DFile(InputFile):
     data_block = 'coadd1d'  # Defines naming of data block
     flavor = 'Coadd1D'  # Defines naming of file
     setup_required = False
+    datablock_required = True
 
     def vet(self):
         """ Check for required parts of the Fluxing input
@@ -665,6 +672,7 @@ class CubeFile(InputFile):
     data_block = 'cube'  # Defines naming of data block
     flavor = 'Cube'  # Defines naming of file
     setup_required = False
+    datablock_required = True
 
     def vet(self):
         """ Check for required bits and pieces of the .coadd2d file
@@ -752,6 +760,7 @@ class Collate1DFile(InputFile):
     data_block = 'spec1d'  # Defines naming of data block
     flavor = 'Collate1D'  # Defines naming of file
     setup_required = False
+    datablock_required = True
 
     @property
     def filenames(self):
