@@ -302,8 +302,8 @@ First, with one senstivity file and a list of spec1dfiles
 to be fluxed::
 
     flux read
-       filename    |
-       spec1dfile1 | sensfile
+       filename    | sensfile
+       spec1dfile1 | sensfile1
        spec1dfile2 |
           ...      |
           ...      |
@@ -313,7 +313,7 @@ Second, with a (presumably unique) sensitivity file
 for each spec1dfile::
 
     flux read
-       filename    |
+       filename    | sensfile
        spec1dfile1 | sensfile1
        spec1dfile2 | sensfile2
        spec1dfile3 | sensfile3
@@ -333,6 +333,7 @@ Third, if the spectrograph has an archived sensitivity function
 Here is an actual example::
 
     flux read
+      filename | sensfile
       spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T020241.687.fits VLT_FORS2_sens.fits
       spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T021815.356.fits
       spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T023349.816.fits

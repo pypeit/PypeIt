@@ -18,36 +18,6 @@ from pypeit import msgs, __version__
 
 from IPython import embed
 
-def read_pypeit_file_lines(ifile:str):
-    """
-    General parser for a PypeIt input file.
-    Used for many of our input files, including the main PypeIt file.
-
-    - Checks that the file exists.
-    - Reads all the lines in the file
-    - Removes comments, empty lines, and replaces special characters.
-    
-    Applies to settings, setup, and user-level reduction files.
-
-    Args:
-        ifile (str): Name of the file to parse.
-
-    Returns:
-        :obj:`numpy.ndarray`: Returns a list of the valid lines in the
-        files.
-    """
-    # Check the files
-    if not os.path.isfile(ifile):
-        msgs.error('The filename does not exist -' + msgs.newline() + ifile)
-
-    # Read the input lines and replace special characters
-    with open(ifile, 'r') as f:
-        lines = np.array([l.replace('\t', ' ').replace('\n', ' ').strip() \
-                                for l in f.readlines()])
-    # Remove empty or fully commented lines
-    lines = lines[np.array([ len(l) > 0 and l[0] != '#' for l in lines ])]
-    # Remove appended comments and return
-    return np.array([ l.split('#')[0] for l in lines ])
 
 class InputFile:
     """
@@ -62,7 +32,7 @@ class InputFile:
             Converted to a ConfigObj
         file_paths (list):
             List of file paths for the data files
-        data_table (:class:`astropy.table.Table`):
+        data_table (`astropy.table.Table`_):
             Data block
         setup (:obj:`dict`):
             dict defining the Setup
@@ -91,6 +61,38 @@ class InputFile:
 
         # Vet
         self.vet()
+
+    @staticmethod
+    def readlines(ifile:str):
+        """
+        General parser for a PypeIt input file.
+        Used for many of our input files, including the main PypeIt file.
+
+        - Checks that the file exists.
+        - Reads all the lines in the file
+        - Removes comments, empty lines, and replaces special characters.
+        
+        Applies to settings, setup, and user-level reduction files.
+
+        Args:
+            ifile (str): Name of the file to parse.
+
+        Returns:
+            :obj:`numpy.ndarray`: Returns a list of the valid lines in the
+            files.
+        """
+        # Check the files
+        if not os.path.isfile(ifile):
+            msgs.error('The filename does not exist -' + msgs.newline() + ifile)
+
+        # Read the input lines and replace special characters
+        with open(ifile, 'r') as f:
+            lines = np.array([l.replace('\t', ' ').replace('\n', ' ').strip() \
+                                    for l in f.readlines()])
+        # Remove empty or fully commented lines
+        lines = lines[np.array([ len(l) > 0 and l[0] != '#' for l in lines ])]
+        # Remove appended comments and return
+        return np.array([ l.split('#')[0] for l in lines ])
         
     @classmethod
     def from_file(cls, input_file:str): 
@@ -106,7 +108,7 @@ class InputFile:
         """
         # Read in the pypeit reduction file
         msgs.info('Loading the reduction file')
-        lines = read_pypeit_file_lines(input_file)
+        lines = cls.readlines(input_file)
 
         # Used to select the configuration lines: Anything that isn't part
         # of the data or setup blocks is assumed to be part of the
@@ -150,12 +152,10 @@ class InputFile:
         msgs.info(f'{cls.flavor} input file loaded successfully.')
 
         # Instantiate
-        slf = cls(config=list(lines[is_config]), 
+        return cls(config=list(lines[is_config]), 
                   file_paths=paths, 
                   data_table=usrtbl, 
                   setup=sdict)
-
-        return slf
 
     def vet(self):
         """ Check for required bits and pieces of the Input file
@@ -177,20 +177,20 @@ class InputFile:
     @property
     def cfg_lines(self):
         """Return a list containing the configuration lines
+           If no configuration is available (:attr:`config` is 
+           `None`), `None` is returned.
 
         Returns:
-            list or None: List of the configuration lines held in self.config
-            or None if self.config is None
+            :obj:`list`: List of the configuration lines prepared for
+            writing to a file (and other usages).
+
         """
-        if self.config is None:
-            return None
-        else:
-            return self.config.write()
+        return None if self.config is None else self.config.write()
 
     @property
     def filenames(self):
         """ List of path + filename's
-        Wrapper to path_and_files().
+        Wrapper to :func:`~pypeit.inputfiles.InputFile.path_and_files`.
         See that function for a full description.
 
         Returns:
@@ -258,12 +258,6 @@ class InputFile:
         # Allow for multiple paths
         paths = []
         for l in lines:
-            # Original
-            #space_ind = l.index(" ")
-            #if l[:space_ind].strip() != 'path':
-            #    break
-            #paths += [ l[space_ind+1:] ]
-
             # Strip allows for preceding spaces before path
             prs = l.strip().split(" ")
             if prs[0] != 'path':
@@ -558,61 +552,61 @@ class FluxFile(InputFile):
         # Return
         return sens_files
 
-    @classmethod
-    def read_old_fluxfile(cls, ifile):
-        """
-        Read an old style ``PypeIt`` flux file, akin to a standard ``PypeIt`` file.
-
-        The top is a config block that sets ParSet parameters.  
-
-        Args:
-            ifile (:obj:`str`):
-                Name of the flux file
-
-        Returns:
-            pypeit.inputfiles.FluxFile:
-        """
-        # Warn
-        warnings.warn("The old file type is deprecated and this code may disappear", DeprecationWarning)
-
-        # Read in the pypeit reduction file
-        msgs.info('Loading the fluxcalib file')
-        lines = read_pypeit_file_lines(ifile)
-        is_config = np.ones(len(lines), dtype=bool)
-
-        # Parse the fluxing block
-        spec1dfiles = []
-        sensfiles_in = []
-        s, e = InputFile.find_block(lines, 'flux')
-        if s >= 0 and e < 0:
-            msgs.error("Missing 'flux end' in {0}".format(ifile))
-        elif (s < 0) or (s==e):
-            msgs.error("Missing flux block in {0}. Check the input format for the .flux file".format(ifile))
-        else:
-            for ctr, line in enumerate(lines[s:e]):
-                prs = line.split(' ')
-                spec1dfiles.append(prs[0])
-                if len(prs) > 1:
-                    sensfiles_in.append(prs[1])
-            is_config[s-1:e+1] = False
-
-        # data table
-        data = Table()
-        data['filename'] = spec1dfiles
-        # Sensfiles are a fussy matter
-        if len(sensfiles_in) == 0:
-            sensfiles = ['']*len(spec1dfiles)
-        elif len(sensfiles_in) == 1:
-            sensfiles = sensfiles_in*len(spec1dfiles)
-        else:
-            sensfiles = sensfiles_in
-        data['sensfile'] = sensfiles
-
-        # Instantiate
-        slf = cls(config=list(lines[is_config]), 
-                  data_table=data)
-
-        return slf
+#    @classmethod
+#    def read_old_fluxfile(cls, ifile):
+#        """
+#        Read an old style ``PypeIt`` flux file, akin to a standard ``PypeIt`` file.
+#
+#        The top is a config block that sets ParSet parameters.  
+#
+#        Args:
+#            ifile (:obj:`str`):
+#                Name of the flux file
+#
+#        Returns:
+#            pypeit.inputfiles.FluxFile:
+#        """
+#        # Warn
+#        warnings.warn("The old file type is deprecated and this code may disappear", DeprecationWarning)
+#
+#        # Read in the pypeit reduction file
+#        msgs.info('Loading the fluxcalib file')
+#        lines = read_pypeit_file_lines(ifile)
+#        is_config = np.ones(len(lines), dtype=bool)
+#
+#        # Parse the fluxing block
+#        spec1dfiles = []
+#        sensfiles_in = []
+#        s, e = InputFile.find_block(lines, 'flux')
+#        if s >= 0 and e < 0:
+#            msgs.error("Missing 'flux end' in {0}".format(ifile))
+#        elif (s < 0) or (s==e):
+#            msgs.error("Missing flux block in {0}. Check the input format for the .flux file".format(ifile))
+#        else:
+#            for ctr, line in enumerate(lines[s:e]):
+#                prs = line.split(' ')
+#                spec1dfiles.append(prs[0])
+#                if len(prs) > 1:
+#                    sensfiles_in.append(prs[1])
+#            is_config[s-1:e+1] = False
+#
+#        # data table
+#        data = Table()
+#        data['filename'] = spec1dfiles
+#        # Sensfiles are a fussy matter
+#        if len(sensfiles_in) == 0:
+#            sensfiles = ['']*len(spec1dfiles)
+#        elif len(sensfiles_in) == 1:
+#            sensfiles = sensfiles_in*len(spec1dfiles)
+#        else:
+#            sensfiles = sensfiles_in
+#        data['sensfile'] = sensfiles
+#
+#        # Instantiate
+#        slf = cls(config=list(lines[is_config]), 
+#                  data_table=data)
+#
+#        return slf
 
 class Coadd1DFile(InputFile):
     """Child class for coaddition in 1D

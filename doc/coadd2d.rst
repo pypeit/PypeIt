@@ -64,6 +64,20 @@ is a simple list of the :doc:`out_spec2D` files.
 You may also include file-specific options in the :ref:`data_block`
 as additional columns.  See :ref:`data_block` for its formatting.
 
+Deprecated Format
+-----------------
+
+Prior to version 1.9.2, the :ref:`data_block` did not require 
+the column name ``filename`` (and the ``path`` was not permitted).
+It might have looked like this::
+
+    # Data block
+    spec2d read
+    spec2d_b170320_2083-c17_60L._LRISb_2017Mar20T055336.211.fits
+    spec2d end
+
+Edit it accordingly to meet the new standard above.
+
 .. _pypeit-coadd-2dspec:
 
 pypeit_coadd_2dspec

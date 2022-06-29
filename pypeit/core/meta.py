@@ -27,6 +27,7 @@ def convert_radec(ra, dec):
             RA as decimal deg (float) or  hh:mm:ss.s (str)
         dec (str or float or np.ndarray):
             DEC as decimal deg (float) or  +dd:mm:ss.s (str)
+            Must be the same format as ra
 
     Returns:
         tuple:
@@ -41,13 +42,13 @@ def convert_radec(ra, dec):
         else:
             return float(ra), float(dec)
     elif isinstance(ra, np.ndarray):
-        if isinstance(ra[0], str):
+        if np.issubdtype(ra.dtype, str):
             if (('J' in ra[0]) or (':' in ra[0])) or (' ' in ra[0].strip()):
                 coords = coordinates.SkyCoord(ra,dec, unit=(units.hourangle, units.deg))
                 return coords.ra.value, coords.dec.value
             else:
                 return ra.astype(float), dec.astype(float)
-        elif isinstance(ra[0], float):
+        elif np.issubdtype(ra.dtype, np.floating):
             return ra.astype(float), dec.astype(float)
         else:
             raise IOError("Bad ra, dec format!!")
