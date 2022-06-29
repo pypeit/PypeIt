@@ -529,6 +529,7 @@ def dict_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
 def read_spec2d_file(ifile, filetype='coadd2d'):
     """
     Read a PypeIt file of type "filetype", akin to a standard PypeIt file.
+    This module is used by both coadd2d and coadd3d.
 
     .. todo::
 
@@ -559,15 +560,20 @@ def read_spec2d_file(ifile, filetype='coadd2d'):
 
     # Parse the spec2d block
     spec2d_files = []
+    spec2d_opts = []
     s, e = par.util._find_pypeit_block(lines, 'spec2d')
     if s >= 0 and e < 0:
         msgs.error("Missing 'spec2d end' in {0}".format(ifile))
     for line in lines[s:e]:
         prs = line.split(' ')
-        # TODO: This needs to allow for the science directory to be
-        # defined by the user.
+        # TODO: This needs to allow for the science directory to be defined by the user.
         #spec2d_files.append(os.path.join(os.path.basename(prs[0])))
         spec2d_files.append(prs[0])
+        # Load the options associated with the spec2d file
+        opts = None
+        if len(prs) > 1:
+            opts = " ".join(prs[1:])
+        spec2d_opts.append(load_spec2d_opts(opts))
     is_config[s-1:e+1] = False
     # Construct config to get spectrograph
     cfg_lines = list(lines[is_config])
@@ -575,7 +581,55 @@ def read_spec2d_file(ifile, filetype='coadd2d'):
     spectrograph_name = cfg['rdx']['spectrograph']
 
     # Return
-    return spectrograph_name, cfg_lines, spec2d_files
+    return spectrograph_name, cfg_lines, spec2d_files, spec2d_opts
+
+
+def load_spec2d_opts(params):
+    """
+    Parse the options associated with a spec2d block. This code parses only one line of the spec2d block.
+    For multiple spec2d files, this function needs to be called separately. Here is a description of the
+    spec2d options:
+
+    scale_corr     : The name of an alternative spec2d file that is used for the relative spectral scale correction.
+                     This parameter can also be set for all frames with the default command:
+                     [reduce]
+                         [[cube]]
+                             scale_corr = spec2d_alternative.fits
+
+    Parameters
+    ----------
+    params: str, None
+        A string containing the list of spec2d options. The format for params is:
+        option1=argument1 option2=argument2 option3=argument3
+        If any options are not provided, a None result will be inserted. The options
+        must be available from the list below.
+
+    Returns
+    -------
+    spec2d_opts: dict
+        Dictionary containing spec2d opts.
+    """
+    # Setup the complete set of default options
+    spec2d_opts = dict(scale_corr=None)
+    if params is None:
+        return spec2d_opts
+    # Remove commas and all white space before and after an equals sign
+    tmppars = params.replace(","," ").strip()
+    while " =" in tmppars:
+        tmppars = tmppars.replace(" =", "=")
+    while "= " in tmppars:
+        tmppars = tmppars.replace("= ", "=")
+    # Loop through all options an update the dictionary
+    parspl = tmppars.split(" ")
+    for pp in range(len(parspl)):
+        optspl = parspl[pp].split("=")
+        if len(optspl) != 2:
+            msgs.error("Incorrect format for line:"+msgs.newline()+params)
+        if optspl[0] not in spec2d_opts.keys():
+            msgs.error(f"{optspl[0]:s} is not an allowed parameter for the spec2d block")
+        spec2d_opts[optspl[0]] = optspl[1]
+    # Return the updated options
+    return spec2d_opts
 
 
 def read_tellfile(ifile):
