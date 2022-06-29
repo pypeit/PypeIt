@@ -736,6 +736,7 @@ class FlexureFile(InputFile):
     data_block = 'flexure'  # Defines naming of data block
     flavor = 'Flexure'  # Defines naming of file
     setup_required = False
+    datablock_required = True
 
     def vet(self):
         """ Check for required bits and pieces of the .flex file
