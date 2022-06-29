@@ -804,15 +804,15 @@ def fit_zeropoint(wave, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
     sensitivity function is determined by the nresln parameter.
 
     Args:
-        wave (`numpy.ndarray`_ or list of `numpy.ndarray`_):
+        wave (`numpy.ndarray`_):
             Wavelength of the star. Shape (nspec,)
-        Nlam_star (`numpy.ndarray`_ or list of `numpy.ndarray`_):
+        Nlam_star (`numpy.ndarray`_):
             counts/second/Angstrom
-        Nlam_ivar_star (`numpy.ndarray`_ or list of `numpy.ndarray`_):
+        Nlam_ivar_star (`numpy.ndarray`_):
             Inverse variance of Nlam_star
-        gpm_star (`numpy.ndarray`_ or list of `numpy.ndarray`_):
+        gpm_star (`numpy.ndarray`_):
             Good pixel mask for Nlam_star
-        std_dict (dict or list of dict):
+        std_dict (dict):
             Dictionary containing information about the standard star returned by flux_calib.get_standard_spectrum
         mask_abs_lines (bool):
             If True, mask stellar absorption lines before fitting sensitivity function. Default = True
