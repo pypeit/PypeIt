@@ -29,23 +29,25 @@ class CoAddDataCube(scriptbase.ScriptBase):
 
     @staticmethod
     def main(args):
+        # Check that a file has been provided
         if args.file is None:
             msgs.error('You must input a coadd3d file')
-        else:
-            spectrograph_name, config_lines, spec2d_files \
-                    = io.read_spec2d_file(args.file, filetype="coadd3d")
-            spectrograph = load_spectrograph(spectrograph_name)
 
-            # Parameters
-            spectrograph_def_par = spectrograph.default_pypeit_par()
-            parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                                                  merge_with=config_lines)
-            # If detector was passed as an argument override whatever was in the coadd3d file
-            if args.det is not None:
-                msgs.info("Restricting to detector={}".format(args.det))
-                parset['rdx']['detnum'] = int(args.det)
+        # Read in the relevant information from the .coadd3d file
+        spectrograph_name, config_lines, spec2d_files, spec2d_opts \
+                = io.read_spec2d_file(args.file, filetype="coadd3d")
+        spectrograph = load_spectrograph(spectrograph_name)
+
+        # Parameters
+        spectrograph_def_par = spectrograph.default_pypeit_par()
+        parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
+                                              merge_with=config_lines)
+        # If detector was passed as an argument override whatever was in the coadd3d file
+        if args.det is not None:
+            msgs.info("Restricting to detector={}".format(args.det))
+            parset['rdx']['detnum'] = int(args.det)
 
         # Coadd the files
         tstart = time.time()
-        coadd_cube(spec2d_files, parset=parset, overwrite=args.overwrite)
+        coadd_cube(spec2d_files, spec2d_opts, parset=parset, overwrite=args.overwrite)
         msgs.info(utils.get_time_string(time.time()-tstart))

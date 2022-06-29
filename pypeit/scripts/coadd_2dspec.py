@@ -78,7 +78,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         msgs.info('PATH =' + os.getcwd())
         # Load the file
         if args.file is not None:
-            spectrograph_name, config_lines, spec2d_files \
+            spectrograph_name, config_lines, spec2d_files, spec2d_opts \
                     = io.read_spec2d_file(args.file, filetype="coadd2d")
             spectrograph = load_spectrograph(spectrograph_name)
 
