@@ -2,10 +2,10 @@
 Module to run fetching remote package data from GitHub
 """
 
-import pkg_resources
 import requests
 
 from pypeit import data
+from pypeit.core.wavecal import waveio
 from pypeit import __version__ 
 
 
@@ -44,3 +44,9 @@ def test_load_sky_spectrum():
 
     # Load in the most common sky spectrum to ensure this function works 
     data.load_sky_spectrum("paranal_sky.fits")
+
+def test_waveio_load_reid_arxiv():
+
+    # Test the extension logic, given the download/cache system
+    waveio.load_reid_arxiv("vlt_xshooter_vis1x1.fits")
+    waveio.load_reid_arxiv("vlt_xshooter_vis1x1.json")

@@ -1,5 +1,4 @@
-
-1.9.1dev
+1.9.2dev
 --------
 
 - Modify tweak_standard for Mosfire/J2
@@ -9,6 +8,12 @@
 - Apply find_min_max when clipping the image for object finding
 - Mask bad detector regions for global sky flexure calculation
 - Refactor PypeIt input files
+
+1.9.1 (13 June 2022)
+--------------------
+
+- Hotfix for bug related to downloading from the `reid_arxiv` when using
+  the `reidentify` wavelength calibration method.
 
 1.9.0 (31 May 2022)
 -------------------
