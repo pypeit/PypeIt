@@ -666,7 +666,7 @@ class Coadd3DFile(InputFile):
     """Child class for coadding spec2d files into datacubes
     """
     data_block = 'spec2d'  # Defines naming of data block
-    flavor = 'Cube'  # Defines naming of file
+    flavor = 'Coadd3d'  # Defines naming of file
     setup_required = False
     datablock_required = True
 
