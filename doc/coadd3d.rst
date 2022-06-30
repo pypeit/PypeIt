@@ -60,9 +60,9 @@ saved as `BB1245p4238.coadd3d`::
 
     # Read in the data
     spec2d read
-    filename
-    Science/spec2d_KB.20191219.56886-BB1245p4238_KCWI_2019Dec19T154806.538.fits
-    Science/spec2d_KB.20191219.57662-BB1245p4238_KCWI_2019Dec19T160102.755.fits
+                               filename  |  scale_corr
+    Science/spec2d_scienceframe_01.fits  |  Science/spec2d_scalecorr.fits
+    Science/spec2d_scienceframe_02.fits  |  Science/spec2d_scalecorr.fits
     spec2d end
 
 
@@ -72,7 +72,18 @@ If you want to combine all exposures into a single datacube, you need to set `co
 as in the above example, and provide an `output_filename`. This is very useful if you want to
 combine several standard star exposures into a single datacube for flux calibration, for example.
 
-The spec2d block provides a list of :doc:`out_spec2D` files.
+The spec2d block provides a list of :doc:`out_spec2D` files. You can also specify an optional scale correction
+as part of the spec2d block. This relative scale correction ensures that the relative spectral sensitivity of the
+datacube is constant across the field of view. The spec2d file used for the scale_corr column should either be a
+twilight or dome flat reduced as a 'science' frame (see :doc:`keck_kcwi` for a description of what you need to do).
+In order to use this functionality, you should not reduce your science data with a spectral illumination correction.
+In other words, in your :doc:`pypeit_file` file, set the following::
+
+
+    [scienceframe]
+      [[process]]
+        use_specillum = False
+
 
 run
 ---
