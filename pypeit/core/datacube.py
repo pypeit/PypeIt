@@ -1256,13 +1256,13 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
         # Try to load the relative scale image, if something other than the default has been provided
         relScaleImg = relScaleImgDef.copy()
-        if opts[ff]['scale_corr'] is not None:
+        if opts['scale_corr'][ff] is not None:
             try:
-                msgs.info("Loading relative scale image:"+msgs.newline()+opts[ff]['scale_corr'])
-                spec2DObj_scl = spec2dobj.Spec2DObj.from_file(opts[ff]['scale_corr'], detname)
+                msgs.info("Loading relative scale image:"+msgs.newline()+opts['scale_corr'][ff])
+                spec2DObj_scl = spec2dobj.Spec2DObj.from_file(opts['scale_corr'][ff], detname)
                 relScaleImg = spec2DObj_scl.scaleimg
             except:
-                msgs.warn("Could not load scaleimg from spec2d file:" + msgs.newline() + opts[ff]['scale_corr'])
+                msgs.warn("Could not load scaleimg from spec2d file:" + msgs.newline() + opts['scale_corr'][ff])
                 if cubepar['scale_corr'] is not None:
                     msgs.info("Using the default scaleimg from spec2d file:" + msgs.newline() + cubepar['scale_corr'])
                 else:

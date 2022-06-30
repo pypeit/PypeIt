@@ -635,7 +635,8 @@ class Coadd1DFile(InputFile):
             oids = oids*len(self.data)
         # Return
         return oids
-        
+
+
 class Coadd2DFile(InputFile):
     """Child class for coaddition in 2D
     """
@@ -660,10 +661,11 @@ class Coadd2DFile(InputFile):
         # Done
         msgs.info('.coadd2d file successfully vetted.')
 
-class CubeFile(InputFile):
-    """Child class for coaddition in 3D
+
+class Coadd3DFile(InputFile):
+    """Child class for coadding spec2d files into datacubes
     """
-    data_block = 'cube'  # Defines naming of data block
+    data_block = 'spec2d'  # Defines naming of data block
     flavor = 'Cube'  # Defines naming of file
     setup_required = False
     datablock_required = True
@@ -685,11 +687,11 @@ class CubeFile(InputFile):
         # Done
         msgs.info('.cube file successfully vetted.')
 
-    def cube_opts(self, params:str):
+    @property
+    def options(self):
         """
-        Parse the options associated with a spec2d block. This code parses only one line of the spec2d block.
-        For multiple spec2d files, this function needs to be called separately. Here is a description of the
-        spec2d options:
+        Parse the options associated with a cube block.
+        Here is a description of the available options:
 
         scale_corr     : The name of an alternative spec2d file that is used for the relative spectral scale correction.
                         This parameter can also be set for all frames with the default command:
@@ -697,25 +699,23 @@ class CubeFile(InputFile):
                             [[cube]]
                                 scale_corr = spec2d_alternative.fits
 
-        Parameters
-        ----------
-        params: str, None
-            A string containing the list of spec2d options. The format for params is:
-            option1=argument1 option2=argument2 option3=argument3
-            If any options are not provided, a None result will be inserted. The options
-            must be available from the list below.
-
         Returns
         -------
-        cube_opts: dict
-            Dictionary containing cube opts.
+        opts: dict
+            Dictionary containing cube options.
         """
         # Define the list of allowed parameters
         opts = dict(scale_corr=None)
 
-        if params is None:
-            return opts
-        # NOT SURE WHAT TO DO HERE :)
+        # Get the scale correction files
+        scale_corr = self.path_and_files('scale_corr', skip_blank=True)
+        if len(scale_corr) == 1 and len(self.filenames) > 1:
+            scale_corr = scale_corr*len(self.filenames)
+        if len(scale_corr)!=0:
+            opts['scale_corr'] = scale_corr
+        # Return all options
+        return opts
+
 
 class TelluricFile(InputFile):
     """Child class for telluric corrections
@@ -723,6 +723,7 @@ class TelluricFile(InputFile):
     data_block = None  # Defines naming of data block
     flavor = 'Telluric'  # Defines naming of file
     setup_required = False
+
 
 class FlexureFile(InputFile):
     """Child class for flexure corrections
