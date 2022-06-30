@@ -60,6 +60,7 @@ saved as `BB1245p4238.coadd3d`::
 
     # Read in the data
     spec2d read
+    filename
     Science/spec2d_KB.20191219.56886-BB1245p4238_KCWI_2019Dec19T154806.538.fits
     Science/spec2d_KB.20191219.57662-BB1245p4238_KCWI_2019Dec19T160102.755.fits
     spec2d end
