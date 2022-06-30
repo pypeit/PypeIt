@@ -4317,51 +4317,51 @@ class PypeItPar(ParSet):
         # Instantiate the object based on the configuration dictionary
         return cls.from_dict(cfg)
 
-    @classmethod
-    def from_pypeit_file(cls, ifile, evaluate=True):
-        """
-        Construct the parameter set using a pypeit file.
-
-        Warning:  This is a bit risky in that it may well
-        lead to circular imports.  Might be best to avoid
-
-        Args:
-            ifile (str):
-                Name of the pypeit file to read.  Expects to find setup
-                and data blocks in the file.  See docs.
-            evaluate (:obj:`bool`, optional):
-                Evaluate the values in the config object before
-                assigning them in the subsequent parameter sets.  The
-                parameters in the config file are *always* read as
-                strings, so this should almost always be true; however,
-                see the warning below.
-
-        .. warning::
-
-            When `evaluate` is true, the function runs `eval()` on
-            all the entries in the `ConfigObj` dictionary, done using
-            :func:`_recursive_dict_evaluate`.  This has the potential to
-            go haywire if the name of a parameter unintentionally
-            happens to be identical to an imported or system-level
-            function.  Of course, this can be useful by allowing one to
-            define the function to use as a parameter, but it also means
-            one has to be careful with the values that the parameters
-            should be allowed to have.  The current way around this is
-            to provide a list of strings that should be ignored during
-            the evaluation, done using :func:`_eval_ignore`.
-
-        .. todo::
-            Allow the user to add to the ignored strings.
-
-        Returns:
-            :class:`pypeit.par.core.PypeItPar`: The instance of the
-            parameter set.
-        """
-        # Load PypeIt file
-        pypeItFile = PypeItFile.from_file(ifile)
-        # TODO: Need to include instrument-specific defaults somewhere...
-        return cls.from_cfg_lines(
-            merge_with=pypeItFile.cfg_lines, evaluate=evaluate)
+#    @classmethod
+#    def from_pypeit_file(cls, ifile, evaluate=True):
+#        """
+#        Construct the parameter set using a pypeit file.
+#
+#        Warning:  This is a bit risky in that it may well
+#        lead to circular imports.  Might be best to avoid
+#
+#        Args:
+#            ifile (str):
+#                Name of the pypeit file to read.  Expects to find setup
+#                and data blocks in the file.  See docs.
+#            evaluate (:obj:`bool`, optional):
+#                Evaluate the values in the config object before
+#                assigning them in the subsequent parameter sets.  The
+#                parameters in the config file are *always* read as
+#                strings, so this should almost always be true; however,
+#                see the warning below.
+#
+#        .. warning::
+#
+#            When `evaluate` is true, the function runs `eval()` on
+#            all the entries in the `ConfigObj` dictionary, done using
+#            :func:`_recursive_dict_evaluate`.  This has the potential to
+#            go haywire if the name of a parameter unintentionally
+#            happens to be identical to an imported or system-level
+#            function.  Of course, this can be useful by allowing one to
+#            define the function to use as a parameter, but it also means
+#            one has to be careful with the values that the parameters
+#            should be allowed to have.  The current way around this is
+#            to provide a list of strings that should be ignored during
+#            the evaluation, done using :func:`_eval_ignore`.
+#
+#        .. todo::
+#            Allow the user to add to the ignored strings.
+#
+#        Returns:
+#            :class:`pypeit.par.core.PypeItPar`: The instance of the
+#            parameter set.
+#        """
+#        # Load PypeIt file
+#        pypeItFile = PypeItFile.from_file(ifile)
+#        # TODO: Need to include instrument-specific defaults somewhere...
+#        return cls.from_cfg_lines(
+#            merge_with=pypeItFile.cfg_lines, evaluate=evaluate)
 
     @classmethod
     def from_dict(cls, cfg):

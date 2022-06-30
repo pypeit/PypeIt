@@ -410,16 +410,14 @@ def build_parameters(args):
     # First we need to get the list of spec1d files
     if args.input_file is not None:
         collateFile = inputfiles.Collate1DFile.from_file(args.input_file)
-        #(cfg_lines, spec1d_files) = par.util.parse_tool_config(args.input_file, 'spec1d', check_files=True)
-        (cfg_lines, spec1d_files) = (collateFile.cfg_lines, collateFile.filenames)
+        cfg_lines, spec1d_files = collateFile.cfg_lines, collateFile.filenames
 
         # Look for a coadd1d file
-        (input_file_root, input_file_ext) = os.path.splitext(args.input_file)
+        input_file_root, input_file_ext = os.path.splitext(args.input_file)
         coadd1d_config_name = input_file_root + ".coadd1d"
         if os.path.exists(coadd1d_config_name):
             coadd1DFile = inputfiles.Coadd1DFile.from_file(coadd1d_config_name)
             cfg_lines += coadd1DFile.cfg_lines
-            #cfg_lines += par.util.parse_tool_config(coadd1d_config_name, 'coadd1d')[0]
 
     else:
         cfg_lines = None

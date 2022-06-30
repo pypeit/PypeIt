@@ -35,7 +35,7 @@ Here is an example for `keck_lris_blue`::
       detnum = 2
     [reduce]
         [[findobj]]
-            sig_thresh=5.0
+            snr_thresh=5.0
 
     # Data block
     spec2d read
