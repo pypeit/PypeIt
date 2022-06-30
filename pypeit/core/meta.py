@@ -42,13 +42,13 @@ def convert_radec(ra, dec):
         else:
             return float(ra), float(dec)
     elif isinstance(ra, np.ndarray):
-        if np.issubdtype(ra.dtype, str):
+        if isinstance(ra[0], str):
             if (('J' in ra[0]) or (':' in ra[0])) or (' ' in ra[0].strip()):
                 coords = coordinates.SkyCoord(ra,dec, unit=(units.hourangle, units.deg))
                 return coords.ra.value, coords.dec.value
             else:
                 return ra.astype(float), dec.astype(float)
-        elif np.issubdtype(ra.dtype, np.floating):
+        elif isinstance(ra[0], float):
             return ra.astype(float), dec.astype(float)
         else:
             raise IOError("Bad ra, dec format!!")
