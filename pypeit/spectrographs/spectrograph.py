@@ -606,6 +606,19 @@ class Spectrograph:
         """
         return ['dispname', 'dichroic', 'decker']
 
+    def modify_config(self, fitstbl, cfg):
+        """
+
+        Args:
+            fitstbl:
+            cfg:
+
+        Returns:
+
+        """
+
+        return cfg
+
     def valid_configuration_values(self):
         """
         Return a fixed set of valid values for any/all of the configuration

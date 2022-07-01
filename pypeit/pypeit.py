@@ -143,7 +143,6 @@ class PypeIt:
         #   - Interpret automated or user-provided data from the PypeIt
         #   file
         self.fitstbl.finalize_usr_build(frametype, setups[0])
-
         
         # --------------------------------------------------------------
         #   - Write .calib file (For QA naming amongst other things)

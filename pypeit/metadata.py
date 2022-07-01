@@ -798,12 +798,21 @@ class PypeItMetaData:
             if len(set(cfg.keys()) - set(self.keys())) > 0:
                 msgs.error('Configuration {0} defined using unavailable keywords!'.format(k))
 
-        self.table['setup'] = 'None'
+        # define the column 'setup' in self.table
         nrows = len(self)
+        col = table.Column(data=['None'] * nrows, name='setup', dtype='U25')
+        self.table.add_column(col)
         for i in range(nrows):
             for d, cfg in _configs.items():
+                # modify the configuration items only for specific frames. This is instrument dependent.
+                cfg = self.spectrograph.modify_config(self.table[i], cfg)
                 if row_match_config(self.table[i], cfg, self.spectrograph):
-                    self.table['setup'][i] = d
+                    if d in self.table['setup'][i]:
+                        continue
+                    elif self.table['setup'][i] == 'None':
+                        self.table['setup'][i] = d
+                    else:
+                        self.table['setup'][i] += ',{}'.format(d)
 
         # Check if any of the configurations are not set
         not_setup = self.table['setup'] == 'None'
@@ -825,7 +834,7 @@ class PypeItMetaData:
         # For each configuration, determine if any of the frames with
         # the ignored frame types should be assigned to it:
         for cfg_key in _configs.keys():
-            in_cfg = self.table['setup'] == cfg_key
+            in_cfg = np.array([cfg_key in _setup for _setup in self.table['setup']])
             for ftype, metakey in ignore_frames.items():
 
                 # TODO: For now, use this assert to check that the
@@ -837,7 +846,7 @@ class PypeItMetaData:
 
                 # Get the list of frames of this type without a
                 # configuration
-                indx = (self.table['setup'] == 'None') & self.find_frames(ftype)
+                indx = not_setup & self.find_frames(ftype)
                 if not np.any(indx):
                     continue
                 if metakey is None:
@@ -857,7 +866,12 @@ class PypeItMetaData:
                 # Find the frames of this type that match any of the
                 # meta data values
                 indx &= np.isin(self.table[metakey], uniq_meta)
-                self.table['setup'][indx] = cfg_key
+                if np.any([cfg_key in _setup for _setup in self.table['setup'][indx]]):
+                    continue
+                elif np.all([_setup == 'None' for _setup in self.table['setup'][indx]]):
+                    self.table['setup'][indx] = cfg_key
+                else:
+                    self.table['setup'][indx] = [key + ',{}'.format(cfg_key) for key in self.table['setup'][indx]]
 
     def clean_configurations(self):
         """
@@ -1426,7 +1440,7 @@ class PypeItMetaData:
         ff = open(ofile, 'w')
         for setup in cfgs.keys():
             # Get the subtable of frames taken in this configuration
-            indx = self['setup'] == setup
+            indx = np.array([setup in _set for _set in self['setup']])
             if not np.any(indx):
                 continue
             subtbl = self.table[output_cols][indx]
@@ -1612,7 +1626,8 @@ class PypeItMetaData:
             setup_lines = dict_to_lines({'Setup {0}'.format(setup): 
                 utils.yamlify(cfg[setup])}, level=1)
             # Get the paths
-            in_cfg = self['setup'] == setup
+            in_cfg = np.array([setup in _set for _set in self.table['setup']])
+            #in_cfg = self['setup'] == setup
             if not np.any(in_cfg):
                 continue
             paths = np.unique(self['directory'][in_cfg]).tolist()

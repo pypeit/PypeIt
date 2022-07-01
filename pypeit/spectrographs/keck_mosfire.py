@@ -3,6 +3,7 @@ Module for Keck/MOSFIRE specific methods.
 
 .. include:: ../include/links.rst
 """
+import copy
 import os
 import numpy as np
 from astropy.io import fits
@@ -271,6 +272,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         self.meta['object'] = dict(ext=0, card='OBJECT')
         self.meta['decker_basename'] = dict(card=None, compound=True)
         self.meta['slitwid'] = dict(card=None, compound=True, rtol=0.1)
+        # slit length in numbers of CSU, defined only for long slits
+        self.meta['slitlength'] = dict(card=None, compound=True, rtol=0.1)
         # Filter
         self.meta['filter1'] = dict(ext=0, card='FILTER')
         # Lamps on/off or Ar/Ne
@@ -304,6 +307,13 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                 return maskname.split('_')[0]
             else:
                 return maskname
+        if meta_key == 'slitlength':
+            maskname = headarr[0].get('MASKNAME')
+            if 'LONGSLIT' in maskname and 'x' in maskname:
+                return maskname.split('(')[0].split('x')[0].split('-')[1]
+            else:
+                return None
+
         if meta_key == 'slitwid':
             maskname = headarr[0].get('MASKNAME')
             if 'LONGSLIT' in maskname and 'x' in maskname:
@@ -364,7 +374,25 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['decker_basename', 'slitwid', 'dispname', 'filter1']
+        return ['decker_basename', 'slitlength', 'slitwid', 'dispname', 'filter1']
+
+    def modify_config(self, fitstbl, cfg):
+        """
+
+        Args:
+            fitstbl:
+            cfg:
+
+        Returns:
+
+        """
+        if 'LONGSLIT' in fitstbl['decker'] and \
+                'science' not in fitstbl['frametype'] and 'standard' not in fitstbl['frametype'] \
+                and fitstbl['slitlength'] == 46.:
+                cfg2 = copy.deepcopy(cfg)
+                cfg2.pop('slitlength')
+                return cfg2
+        return cfg
 
     def pypeit_file_keys(self):
         """
@@ -383,6 +411,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         pypeit_keys = super().pypeit_file_keys()
         pypeit_keys.remove('decker_basename')
         pypeit_keys.remove('slitwid')
+        pypeit_keys.remove('slitlength')
         return pypeit_keys + ['lampstat01', 'dithpat', 'dithpos', 'dithoff', 'frameno']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
