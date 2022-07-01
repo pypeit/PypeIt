@@ -643,9 +643,11 @@ class Coadd3DFile(InputFile):
 
         # Get the scale correction files
         scale_corr = self.path_and_files('scale_corr', skip_blank=True)
-        if len(scale_corr) == 1 and len(self.filenames) > 1:
+        if scale_corr is None:
+            opts['scale_corr'] = [None]*len(self.filenames)
+        elif len(scale_corr) == 1 and len(self.filenames) > 1:
             scale_corr = scale_corr*len(self.filenames)
-        if len(scale_corr)!=0:
+        elif len(scale_corr) != 0:
             opts['scale_corr'] = scale_corr
         # Return all options
         return opts
