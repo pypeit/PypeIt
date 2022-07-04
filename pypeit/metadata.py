@@ -1385,6 +1385,9 @@ class PypeItMetaData:
             sci_std_idx = np.where(np.any([self.find_frames('science'),
                                            self.find_frames('standard')], axis=0))[0]
             self['comb_id'][sci_std_idx] = np.arange(len(sci_std_idx), dtype=int) + 1
+            # update comb_id and bkg_id with dither pattern specific to the used instrument
+            # if get_comb_group() is not defined in the relevant spectrograph self.table is unchanged
+            self.table = self.spectrograph.get_comb_group(self.table)
 
     def set_user_added_columns(self):
         """

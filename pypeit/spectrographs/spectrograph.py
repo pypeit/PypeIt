@@ -608,13 +608,20 @@ class Spectrograph:
 
     def modify_config(self, fitstbl, cfg):
         """
+        Modify the configuration dictionary for a given frame. This method is used
+        in :func:`pypeit.metadata.PypeItMetaData.set_configurations` to modify in place
+        the configuration requirement to assign a specific frame to the current setup.
+
+        **This method is not defined for all spectrographs.**
 
         Args:
-            fitstbl:
-            cfg:
+            fitstbl(`astropy.table.Table`_):
+                The table with the metadata for one frames.
+            cfg (:obj:`dict`):
+                dictionary with metadata associated to a specific configuration.
 
         Returns:
-
+            :obj:`dict`: modified dictionary with metadata associated to a specific configuration.
         """
 
         return cfg
@@ -673,6 +680,25 @@ class Spectrograph:
             group.
         """
         return {'bias': None, 'dark': None}
+
+    def get_comb_group(self, fitstbl):
+        """
+
+        This method modify comb_id, bkg_id and, and calib metas for a specific instrument.
+        It is used in :func:`pypeit.metadata.PypeItMetaData.set_combination_groups`
+
+
+        **This method is not defined for all spectrographs.**
+
+        Args:
+            fitstbl(`astropy.table.Table`_):
+                The table with the metadata for all the frames.
+
+        Returns:
+            `astropy.table.Table`_: modified fitstbl.
+        """
+
+        return fitstbl
 
     def pypeit_file_keys(self):
         """
