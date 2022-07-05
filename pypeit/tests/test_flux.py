@@ -16,10 +16,6 @@ from pypeit.par.pypeitpar import Coadd1DPar
 from pypeit.pypmsgs import PypeItError
 
 
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
-
 
 
 def test_find_standard():

@@ -14,13 +14,13 @@ from astropy.table import Table
 
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.par import PypeItPar
-from pypeit.par.util import parse_pypeit_file
 from pypeit.metadata import PypeItMetaData
 from pypeit.core import procimg
 from pypeit import msgs
 from pypeit import slittrace
 from pypeit import masterframe
 from pypeit.pypeitsetup import PypeItSetup
+from pypeit.inputfiles import PypeItFile
 
 
 class Utilities:
@@ -74,8 +74,13 @@ class Utilities:
             pypeit_file = self.pypeit_file
         msgs.info("Loading the PypeIt file: {}".format(pypeit_file))
         if self.pypeit_file is not None:
-            self.cfg_lines, self.data_files, self.frametype, self.usrdata, self.setups, self.sdict =\
-                parse_pypeit_file(pypeit_file, runtime=False)
+            self.pypeItFile = PypeItFile.from_file(self.pypeit_file) 
+            # This is a HACK for compatability, but this Class is not widely used
+            self.cfg_lines = self.pypeItFile.cfg_lines 
+            self.data_files = self.pypeItFile.filenames
+            self.frametype = self.pypeItFile.frametypes 
+            self.usrdata = self.pypeItFile.data 
+            self.setups  = self.pypeItFile.setup_name
 
     def check_index(self, iFile):
         if self.iFile is None and iFile is None:
