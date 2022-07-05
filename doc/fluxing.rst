@@ -91,9 +91,19 @@ The algorithm options are:
 --sens
 ++++++
 
-Provide a file to guide the process.  Do this if your changes to
-the defaults are not accommodated by the script inputs.  This file
-contains a Parameter Block where you can specify ``sensfunc`` parameters.
+Provide a `Sensitivity Input File`_
+to guide the process.  Do this if your changes to
+the defaults are not accommodated by the script inputs.  
+
+.. _sensitivity_file:
+
+Sensitivity Input File
+----------------------
+
+This type of :doc:`input_files`
+contains only a :ref:`parameter_block`` 
+where you specify ``sensfunc`` parameters.
+
 For example, if you wish to use the MaunaKea telluric grid with your data,
 you would create a sens file containing:
 
@@ -105,13 +115,14 @@ you would create a sens file containing:
            [[IR]]
               telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
 
+
 IR without a Standard
----------------------
++++++++++++++++++++++
 
 If you wish to generate a sensitivity function on a standard
 star that is not part of the PypeIt database and are working
 in the IR, you can feed the stellar parameters.  Here is an
-example sens file:
+example of the lines for a :ref:`sensitivity_file`.
 
     .. code-block:: ini
 
@@ -124,7 +135,7 @@ Then run on the spec1d file as you would otherwise.
 For an A0 star, we use the Vega spectrum.  Otherwise,
 we use the Kurucz93 stellar SED.
 
-Alternative see `Adding a Standard Star`_.
+Alternatively, see `Adding a Standard Star`_.
 
 
 Sensitivity Function Units and Definitions
@@ -271,48 +282,68 @@ it to one or more :doc:`out_spec1D` files.
 The files are modified in place, filling the OPT_FLAM, BOX_FLAM, etc.
 entries, as described in :doc:`out_spec1D`.
 
+.. _flux_file:
+
 Flux File
 ---------
 
-To flux one or more spec1d files, generate a flux_file with the
-following format::
+To flux one or more spec1d files, one provides a 
+`Flux File`_ with the following format
+with a :ref:`parameter_block` (optional)
+and a :ref:`data_block` (required).
+
+If one wishes to modify the :ref:`pypeit_par:FluxCalibratePar Keywords`,
+add a :ref:`parameter_block` at the top of the file, e.g.::
+
+    [fluxcalib]
+       extrap_sens = True
+
+There are several ways to provide the :ref:`data_block`
+which always begins/ends with *flux read*/*flux end*.
+
+First, with one senstivity file and a list of spec1dfiles
+to be fluxed::
 
     flux read
-       spec1dfile1 sensfile
-       spec1dfile2
-          ...
-          ...
+       filename    | sensfile
+       spec1dfile1 | sensfile1
+       spec1dfile2 |
+          ...      |
+          ...      |
     flux end
 
-    OR
+Second, with a (presumably unique) sensitivity file 
+for each spec1dfile::
 
     flux read
-       spec1dfile1 sensfile1
-       spec1dfile2 sensfile2
-       spec1dfile3 sensfile3
-          ...
+       filename    | sensfile
+       spec1dfile1 | sensfile1
+       spec1dfile2 | sensfile2
+       spec1dfile3 | sensfile3
+          ...      |   ...
+    flux end
+
+Third, if the spectrograph has an archived sensitivity function
+(only DEIMOS to date) then a list of spec1dfiles:: 
+
+    flux read
+       filename    
+       spec1dfile1 
+       spec1dfile2 
+          ...      
     flux end
 
 Here is an actual example::
 
     flux read
-      spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T020241.687.fits VLT_FORS2_sens.fits
+      filename | sensfile
+      spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T020241.687.fits | VLT_FORS2_sens.fits
       spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T021815.356.fits
       spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T023349.816.fits
     flux end
 
-If one wishes to modify the :ref:`pypeit_par:FluxCalibratePar Keywords`,
-add a Parameter block at the top of the file, e.g.::
 
-    [fluxcalib]
-       extrap_sens = True
-
-    flux read
-      spec1d_FORS2.2019-07-12T08:11:41.539-FRB190611Host_FORS2_2019Jul12T081141.539.fits VLT_FORS2_300I_sens.fits
-      spec1d_FORS2.2019-07-12T08:34:55.904-FRB190611Host_FORS2_2019Jul12T083455.904.fits
-    flux end
-
-To aid this setup, we provide the ``pypeit_flux_setup`` script.  
+To aid generating this file, we provide the ``pypeit_flux_setup`` script.  
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
@@ -387,12 +418,6 @@ please do the following steps:
     .. code-block:: console
 
         pypeit_sensfunc your_spec1dfile -o your_output.fits --sens_file keck_lris_sens.txt
-
-
-Problem with bspline knot
--------------------------
-
-.. THERE'S NO TEXT HERE.  CAN SOMEONE DESCRIBE THIS PROBLEM?
 
 
 Adding a Standard Star

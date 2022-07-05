@@ -17,7 +17,7 @@ from astropy.io import fits
 
 from pypeit import par, msgs, io
 from pypeit import coadd2d
-from pypeit import io
+from pypeit import inputfiles
 from pypeit import specobjs
 from pypeit import spec2dobj
 from pypeit.scripts import scriptbase
@@ -78,8 +78,16 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         msgs.info('PATH =' + os.getcwd())
         # Load the file
         if args.file is not None:
-            spectrograph_name, config_lines, spec2d_files, spec2d_opts \
-                    = io.read_spec2d_file(args.file, filetype="coadd2d")
+            # Read
+            coadd2dFile = inputfiles.Coadd2DFile.from_file(args.file)
+            # Parse
+            spectrograph_name = coadd2dFile.config['rdx']['spectrograph'] 
+            config_lines = coadd2dFile.cfg_lines 
+            spec2d_files = coadd2dFile.filenames
+
+            # Continue
+            #spectrograph_name, config_lines, spec2d_files, spec2d_opts \
+            #        = io.read_spec2d_file(args.file, filetype="coadd2d")
             spectrograph = load_spectrograph(spectrograph_name)
 
             # Parameters

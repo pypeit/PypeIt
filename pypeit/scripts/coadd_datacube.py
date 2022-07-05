@@ -9,6 +9,7 @@ import time
 from pypeit import msgs
 from pypeit import par
 from pypeit import io
+from pypeit import inputfiles
 from pypeit import utils
 from pypeit.core.datacube import coadd_cube
 from pypeit.spectrographs.util import load_spectrograph
@@ -34,14 +35,13 @@ class CoAddDataCube(scriptbase.ScriptBase):
             msgs.error('You must input a coadd3d file')
 
         # Read in the relevant information from the .coadd3d file
-        spectrograph_name, config_lines, spec2d_files, spec2d_opts \
-                = io.read_spec2d_file(args.file, filetype="coadd3d")
-        spectrograph = load_spectrograph(spectrograph_name)
+        coadd3dfile = inputfiles.Coadd3DFile.from_file(args.file)
+        spectrograph = load_spectrograph(coadd3dfile.config['rdx']['spectrograph'])
 
         # Parameters
         spectrograph_def_par = spectrograph.default_pypeit_par()
         parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                                              merge_with=config_lines)
+                                              merge_with=coadd3dfile.cfg_lines)
         # If detector was passed as an argument override whatever was in the coadd3d file
         if args.det is not None:
             msgs.info("Restricting to detector={}".format(args.det))
@@ -49,5 +49,5 @@ class CoAddDataCube(scriptbase.ScriptBase):
 
         # Coadd the files
         tstart = time.time()
-        coadd_cube(spec2d_files, spec2d_opts, parset=parset, overwrite=args.overwrite)
+        coadd_cube(coadd3dfile.filenames, coadd3dfile.options, parset=parset, overwrite=args.overwrite)
         msgs.info(utils.get_time_string(time.time()-tstart))
