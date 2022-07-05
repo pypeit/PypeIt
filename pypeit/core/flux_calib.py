@@ -129,7 +129,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
 
     for sset in std_sets:
         path = os.path.join(data.Paths.standards, sset)
-        star_file =  os.path.join(path, f"{sset}_info.txt")
+        star_file = os.path.join(path, f"{sset}_info.txt")
         if not os.path.isfile(star_file):
             msgs.warn(f"File does not exist!: {star_file}")
             continue
@@ -154,16 +154,12 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
                             std_ra=star_coords.ra[_idx].value,
                             std_dec=star_coords.dec[_idx].value)
 
-            if not os.path.isfile(star_file):
-                # TODO: Error or warn?
-                msgs.error("No standard star file found: {:s}".format(star_file))
-
-            # TODO: Does this need to be globbed? Why isn't the file
-            # name exact?
             if sset == "blackbody":
                 msgs.info("Blackbody standard star template will be generated")
                 fil = None
             else:
+                # TODO: Does this need to be globbed? Why isn't the file
+                # name exact?
                 fil = glob.glob(std_dict['cal_file'] + '*')
                 if len(fil) == 0:
                     # TODO: Error or warn?
@@ -171,7 +167,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
                 fil = fil[0]
                 msgs.info("Loading standard star file: {:s}".format(fil))
 
-            # TODO: Put this stuf in a method, like `read_standard`
+            # TODO: Put this stuff in a method, like `read_standard`
             if sset == 'xshooter':
                 # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
                 std_spec = table.Table.read(fil, format='ascii')

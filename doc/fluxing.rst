@@ -58,7 +58,10 @@ Here is a typical call::
     pypeit_sensfunc spec1dfile -o Keck_LRISr_600_7500_sens.fits
 
 This analyzes the standard star spectrum in *spec1dfile* and writes
-the sensitivity file to *Keck_LRISr_600_7500_sens.fits*.
+the sensitivity file to *Keck_LRISr_600_7500_sens.fits*. Note that the
+*spec1dfile* to be used in the above argument is the spec1d file
+associated with the reduced standard star exposure (not the spec1d
+file of the reduced science frame).
 
 Here are the common options used:
 
