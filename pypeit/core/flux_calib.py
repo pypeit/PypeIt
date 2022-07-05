@@ -73,10 +73,10 @@ def blackbody_func(a, teff):
         flam : `numpy.ndarray`_ flux in units of erg/s/cm^2/A
     """
     resln = 0.1  # Resolution to generate the blackbody spectrum
-    waves = np.arange(3000.0, 26000.0, resln) * units.AA
+    waves = np.arange(912.0, 26000.0, resln) * units.AA
     temp = teff * units.K
-    # Calculate the function - note: we calculate flux/angstrom, but we generate the wavelength grid on a finer grid, so need to multiply by resln here
-    flam = ((resln*a*2*constants.h*constants.c**2)/waves**5) / (np.exp((constants.h*constants.c /
+    # Calculate the function
+    flam = ((a*2*constants.h*constants.c**2)/waves**5) / (np.exp((constants.h*constants.c /
                 (waves*constants.k_B*temp)).to(units.m/units.m).value)-1.0)
     flam = flam.to(units.erg / units.s / units.cm ** 2 / units.AA).value / PYPEIT_FLUX_SCALE
     return waves.value, flam
