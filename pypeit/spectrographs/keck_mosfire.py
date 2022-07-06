@@ -414,6 +414,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         """
 
         # find index of fitstbl that contains science and standard frames
+        # where science
         sci_idx = np.array(['science' in _tab for _tab in fitstbl['frametype']])
         # where standard
         std_idx = np.array(['standard' in _tab for _tab in fitstbl['frametype']])
@@ -422,12 +423,12 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         # loop over the science and standard frames
         for idx in sci_std_idx:
             setups = np.unique(fitstbl[idx]['setup'])
-            # loop through the setups
+            # loop over the setups
             for setup in setups:
                 in_cfg = idx & np.array([setup in _set for _set in fitstbl['setup']])
                 if len(fitstbl[in_cfg]) == 1:
                     continue
-                # how many dither patterns are used for the selected science and standard frames?
+                # how many dither patterns are used for the selected science/standard frames?
                 uniq_dithpats = np.unique(fitstbl[in_cfg]['dithpat'])
                 # loop through the dither patterns
                 for dpat in uniq_dithpats:
@@ -439,60 +440,99 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
                     # compute comb_id
                     if len(fitstbl[dpat_idx]) > 1:
-                        starting_combid = np.max(fitstbl['comb_id']) + 2
-                        if dpat in ["Slit Nod", "Mask Nod", "Stare", "ABAB", "ABA'B'"]:
-                            # combid = np.arange(len(fitstbl[dpat_idx])) + starting_combid
-                            combid = np.copy(fitstbl['comb_id'][dpat_idx].data)
-                            bkgid = np.copy(fitstbl['bkg_id'][dpat_idx].data)
-                            # assign bkgid for general A-B sequence
-                            for i in range(len(fitstbl[dpat_idx])):
-                                if i < len(fitstbl[dpat_idx])-1 and \
-                                ((fitstbl[dpat_idx]['dithpos'][i] == "A" and fitstbl[dpat_idx]['dithpos'][i+1] == "B")
-                                 or (fitstbl[dpat_idx]['dithpos'][i] == "A'" and fitstbl[dpat_idx]['dithpos'][i+1] == "B'")):
+                        # get default combid and bkgid
+                        combid = np.copy(fitstbl['comb_id'][dpat_idx].data)
+                        bkgid = np.copy(fitstbl['bkg_id'][dpat_idx].data)
+                        dpos = fitstbl[dpat_idx]['dithpos']
+
+                        if dpat in ["Stare", "Slit Nod", "Mask Nod"] or \
+                                (dpat == "long2pos" and "long2pos" in fitstbl[dpat_idx]['decker']):
+
+                            if dpat == "long2pos" and "long2pos" in fitstbl[dpat_idx]['decker']:
+                                # find the starting index of the BA sequence
+                                dpos_idx = np.where((dpos == "B") & (np.roll(dpos, -1) == "A"))[0]
+                            else:
+                                # find the starting index of the AB sequence
+                                dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B"))[0]
+                            for i in dpos_idx:
+                                # exclude when np.roll counts the 1st element of dpos to be in a
+                                # sequence with the last element
+                                if i < len(dpos)-1:
                                     bkgid[i] = combid[i+1]
-                                elif i > 0 and \
-                                ((fitstbl[dpat_idx]['dithpos'][i] == "B" and fitstbl[dpat_idx]['dithpos'][i-1] == "A") or
-                                 (fitstbl[dpat_idx]['dithpos'][i] == "B'" and fitstbl[dpat_idx]['dithpos'][i-1] == "A'")):
-                                    bkgid[i] = combid[i-1]
-                            # assign bkgid for files that deviate from general A-B sequence
-                            for i in range(len(fitstbl[dpat_idx])):
-                                # if A frame doesn't have bkgid assigned
-                                if bkgid[i] == -1 and \
-                                (fitstbl[dpat_idx]['dithpos'][i] == "A" or fitstbl[dpat_idx]['dithpos'][i] == "A'"):
-                                    # find closest B frame to subtract from this A
-                                    if fitstbl[dpat_idx]['dithpos'][i] == "A":
-                                        pos_idx = fitstbl[dpat_idx]['dithpos'] == "B"
-                                    elif fitstbl[dpat_idx]['dithpos'][i] == "A'":
-                                        pos_idx = fitstbl[dpat_idx]['dithpos'] == "B'"
+                                    bkgid[i + 1] = combid[i]
+                        elif dpat in ["ABAB", "ABA'B'"]:
+                            # find the starting index of the ABAB sequence
+                            if dpat == "ABAB":
+                                dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B") &
+                                                    (np.roll(dpos, -2) == "A") & (np.roll(dpos, -3) == "B"))[0]
+                            if dpat == "ABA'B'":
+                                dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B") &
+                                                    (np.roll(dpos, -2) == "A'") & (np.roll(dpos, -3) == "B'"))[0]
+                            for i in dpos_idx:
+                                if i < len(dpos) - 3:
+                                    bkgid[i] = combid[i+1]
+                                    bkgid[i+1] = combid[i]
+                                    combid[i+2] = combid[i]
+                                    bkgid[i+2] = bkgid[i]
+                                    combid[i+3] = combid[i+1]
+                                    bkgid[i+3] = bkgid[i+1]
+
+                        elif dpat == "ABBA":
+                            # find the starting index of the ABBA sequence
+                            dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B") &
+                                                (np.roll(dpos, -2) == "B") & (np.roll(dpos, -3) == "A"))[0]
+                            for i in dpos_idx:
+                                if i < len(dpos) - 3:
+                                    bkgid[i] = combid[i+1]
+                                    bkgid[i+1] = combid[i]
+                                    combid[i+2] = combid[i+1]
+                                    bkgid[i+2] = bkgid[i+1]
+                                    combid[i+3] = combid[i]
+                                    bkgid[i+3] = bkgid[i]
+
+                        elif dpat == "long2pos" and "long2pos_specphot" in fitstbl[dpat_idx]['decker']:
+                            doff = fitstbl[dpat_idx]['dithoff']
+                            # find the starting index of the BAA sequence
+                            dpos_idx = np.where((dpos == "B") & (np.roll(dpos, -1) == "A") &
+                                                (np.roll(dpos, -2) == "A"))[0]
+                            for i in dpos_idx:
+                                # make sure that that dither offsets are correct
+                                if i < len(dpos)-1 and abs(doff[i]) > 0. and doff[i] == -doff[i+1] and doff[i+2] == 0.:
+                                    bkgid[i] = combid[i+1]
+                                    bkgid[i+1] = combid[i]
+                                    bkgid[i+2] = combid[i+1]
+
+                        # assign bkgid for files that deviate from general a sequence
+                        for i in range(len(fitstbl[dpat_idx])):
+                            # if A frame doesn't have bkgid assigned
+                            if bkgid[i] == -1 and \
+                            (fitstbl[dpat_idx]['dithpos'][i] == "A" or fitstbl[dpat_idx]['dithpos'][i] == "A'"):
+                                # find closest (in mjd) B frame to subtract from this A
+                                if fitstbl[dpat_idx]['dithpos'][i] == "A":
+                                    pos_idx = fitstbl[dpat_idx]['dithpos'] == "B"
+                                elif fitstbl[dpat_idx]['dithpos'][i] == "A'":
+                                    pos_idx = fitstbl[dpat_idx]['dithpos'] == "B'"
+                                if np.any(pos_idx):
                                     close_idx = np.argmin(np.absolute(fitstbl[dpat_idx][pos_idx]['mjd'] - fitstbl[dpat_idx]['mjd'][i]))
                                     bkgid[i] = combid[pos_idx][close_idx]
-                                # if B frame doesn't have bkgid assigned
-                                if bkgid[i] == -1 and \
-                                (fitstbl[dpat_idx]['dithpos'][i] == "B" or fitstbl[dpat_idx]['dithpos'][i] == "B'"):
-                                    # find closest A frame to subtract from this B
-                                    if fitstbl[dpat_idx]['dithpos'][i] == "B":
-                                        pos_idx = np.where(fitstbl[dpat_idx]['dithpos'] == "A")[0]
-                                    elif fitstbl[dpat_idx]['dithpos'][i] == "B'":
-                                        pos_idx = np.where(fitstbl[dpat_idx]['dithpos'] == "A'")[0]
+                            # if B frame doesn't have bkgid assigned
+                            if bkgid[i] == -1 and \
+                            (fitstbl[dpat_idx]['dithpos'][i] == "B" or fitstbl[dpat_idx]['dithpos'][i] == "B'"):
+                                # find closest (in mjd) A frame to subtract from this B
+                                if fitstbl[dpat_idx]['dithpos'][i] == "B":
+                                    pos_idx = np.where(fitstbl[dpat_idx]['dithpos'] == "A")[0]
+                                elif fitstbl[dpat_idx]['dithpos'][i] == "B'":
+                                    pos_idx = np.where(fitstbl[dpat_idx]['dithpos'] == "A'")[0]
+                                if np.any(pos_idx):
                                     close_idx = np.argmin(np.absolute(fitstbl[dpat_idx][pos_idx]['mjd'] - fitstbl[dpat_idx]['mjd'][i]))
                                     bkgid[i] = combid[pos_idx][close_idx]
-                            # assign
-                            fitstbl['bkg_id'][dpat_idx] = bkgid
+                        fitstbl['bkg_id'][dpat_idx] = bkgid
+                        fitstbl['comb_id'][dpat_idx] = combid
 
 
 
 
-                            # combid_A = np.arange(0, len(fitstbl[dpat_idx]['dithpos']), 2) + starting_combid
-                            # combid_B = np.arange(1, len(fitstbl[dpat_idx]['dithpos']), 2) + starting_combid
-                            # # comb_id
-                            # try:
-                            #     fitstbl['comb_id'][Apos] = combid_A
-                            #     fitstbl['comb_id'][Bpos] = combid_B
-                            #     # bkg_id
-                            #     fitstbl['bkg_id'][Apos] = combid_B
-                            #     fitstbl['bkg_id'][Bpos] = combid_A
-                            # except:
-                            #     embed()
+
         return fitstbl
 
     def pypeit_file_keys(self):

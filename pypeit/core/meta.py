@@ -149,7 +149,7 @@ def define_additional_meta(nlamps=20):
                        'pressure': dict(dtype=float, comment='Pressure (units.bar) at observation time'),
                        'seq_expno': dict(dtype=int, comment='Number of exposure in observing sequence'),
                        'slitwid': dict(dtype=float, comment='Slit width, sometimes distinct from decker'),
-                       'slitlength': dict(dtype=float, comment='Slit length, used only doe long slits'),
+                       'slitlength': dict(dtype=float, comment='Slit length, used only for long slits'),
                        'temperature': dict(dtype=float, comment='Temperature (units.K) at observation time'),
                        'utc': dict(dtype=str, comment='UTC of observation')}
 
