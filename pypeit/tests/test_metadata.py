@@ -7,11 +7,12 @@ import pytest
 
 import numpy as np
 
-from pypeit.par.util import parse_pypeit_file
+#from pypeit.par.util import parse_pypeit_file
 from pypeit.tests.tstutils import data_path
 from pypeit.metadata import PypeItMetaData
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.scripts.setup import Setup
+from pypeit.inputfiles import PypeItFile
 
 def test_read_combid():
 
@@ -33,19 +34,20 @@ def test_read_combid():
     shutil.rmtree(setup_dir)
 
     pypeit_file = os.path.join(config_dir, 'shane_kast_blue_A.pypeit')
-    cfg_lines, data_files, frametype, usrdata, setups, _ = parse_pypeit_file(pypeit_file)
+    pypeItFile = PypeItFile.from_file(pypeit_file)
 
     # Get the spectrograph
     spectrograph = None
-    for l in cfg_lines:
+    for l in pypeItFile.cfg_lines:
         if 'spectrograph' in l:
             spectrograph = load_spectrograph(l.split(' ')[-1])
             break
     assert spectrograph is not None, 'Did not appropriately read spectrograph'
 
     # Set the metadata
-    pmd = PypeItMetaData(spectrograph, spectrograph.default_pypeit_par(), files=data_files,
-                         usrdata=usrdata, strict=False)
+    pmd = PypeItMetaData(spectrograph, spectrograph.default_pypeit_par(), 
+                         files=pypeItFile.filenames,
+                         usrdata=pypeItFile.data, strict=False)
 
     indx = pmd['filename'] == 'b27.fits.gz'
     assert pmd['comb_id'][indx] == [1], 'Incorrect combination group ID'
