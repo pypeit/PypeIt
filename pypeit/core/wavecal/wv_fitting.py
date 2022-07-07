@@ -37,7 +37,7 @@ class WaveFit(datamodel.DataContainer):
                  'wave_fit': dict(otype=np.ndarray, atype=np.floating,
                                   descr='Wavelength IDs assigned'),
                  'xnorm': dict(otype=float, descr='Normalization for fit'),
-                 'fwhm': dict(otype=float, descr='Estimate FWHM of arc lines in pixels'),
+                 'fwhm': dict(otype=float, descr='Estimate FWHM of arc lines in binned pixels of the input arc frame'),
                  'ion_bits': dict(otype=np.ndarray, atype=np.integer,
                                   descr='Ion bit values for the Ion names'),
                  'cen_wave': dict(otype=float, descr='Central wavelength'),

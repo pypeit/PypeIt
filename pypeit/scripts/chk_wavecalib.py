@@ -16,7 +16,7 @@ class ChkWaveCalib(scriptbase.ScriptBase):
                                     width=width)
 
         parser.add_argument('input_file', type=str,
-                            help='PypeIt MasterWaveCalib file [e.g. MasterWaveCalib_A_1_01.fits] or spec2D file')
+                            help='PypeIt MasterWaveCalib file [e.g. MasterWaveCalib_A_1_01.fits] or spec2d file')
         #parser.add_argument('--try_old', default=False, action='store_true',
         #                    help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
@@ -36,7 +36,7 @@ class ChkWaveCalib(scriptbase.ScriptBase):
         elif 'PYP_CLS' in head0.keys() and head0['PYP_CLS'].strip() == 'AllSpec2DObj':
             file_type = 'AllSpec2D'
         else:
-            raise IOError("Bad file type input!")
+            raise IOError("Unrecognized file type. Must be a MasterWaveCalib or spec2d file.")
 
         if file_type == 'MasterWaveCalib':
             # Load

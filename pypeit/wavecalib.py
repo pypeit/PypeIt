@@ -475,6 +475,10 @@ class BuildWaveCalib:
         # Obtain a list of good slits
         ok_mask_idx = np.where(np.invert(self.wvc_bpm))[0]
 
+        # print to screen the slit widths if maskdef_designtab is available
+        if self.slits.maskdef_designtab is not None:
+            msgs.info("Slit widths (arcsec): {}".format(np.round(self.slits.maskdef_designtab['SLITWID'].data, 2)))
+
         binspec = self.binspectral
         measured_fwhms = np.zeros(arccen.shape[1])
         if self.binspectral is None:
@@ -516,6 +520,7 @@ class BuildWaveCalib:
             # Now preferred
             # Slit positions
             arcfitter = autoid.ArchiveReid(arccen, self.spectrograph, self.lamps, self.par, ok_mask=ok_mask_idx,
+                                           measured_fwhms=measured_fwhms,
                                            #slit_spat_pos=self.spat_coo,
                                            orders=self.orders,
                                            nonlinear_counts=self.nonlinear_counts)
@@ -524,8 +529,6 @@ class BuildWaveCalib:
             # Now preferred
             if self.binspectral is None:
                 msgs.error("You must specify binspectral for the full_template method!")
-            if self.slits.maskdef_designtab is not None:
-                msgs.info("Slit widths (arcsec): {}".format(np.round(self.slits.maskdef_designtab['SLITWID'].data,2)))
             final_fit = autoid.full_template(arccen, self.lamps, self.par, ok_mask_idx, self.det,
                                              self.binspectral, measured_fwhms=measured_fwhms,
                                              nonlinear_counts=self.nonlinear_counts,
