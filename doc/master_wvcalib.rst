@@ -26,22 +26,24 @@ with the **pypeit_chk_wavecalib** script, e.g. ::
 
      pypeit_chk_wavecalib Masters/MasterWaveCalib_A_1_MSC03.fits
 
-     N. SpatID minWave Wave_cen maxWave dWave Nlin     IDs_Wave_range    IDs_Wave_cov(%)  RMS  fwhm
-    --- ------ ------- -------- ------- ----- ---- --------------------- --------------- ----- ----
-      0     32  6655.8   7604.3  8569.2 0.469   34  6680.120 -  8523.783            96.4 0.049  5.7
-      1     95  6510.2   7458.8  8423.7 0.469   33  6534.687 -  8410.521            98.0 0.053  5.8
-      2    164  6711.0   7659.5  8624.3 0.469   33  6718.897 -  8523.783            94.3 0.035  5.7
-      3    234  6742.5   7691.1  8655.8 0.469   33  6931.379 -  8649.416            89.8 0.044  5.7
-      4    304  6458.2   7406.6  8371.5 0.469   32  6508.325 -  8349.116            96.2 0.045  5.9
+     N. SpatID minWave Wave_cen maxWave dWave Nlin     IDs_Wave_range    IDs_Wave_cov(%) mesured_fwhm  RMS
+    --- ------ ------- -------- ------- ----- ---- --------------------- --------------- ------------ -----
+      0     35  6422.5   7753.8  9053.2 0.325   48  6508.325 -  9047.930            96.5          3.5 0.046
+      1     93  6310.0   7641.4  8940.8 0.325   49  6336.179 -  8931.145            98.6          3.6 0.036
+      2    140  6440.8   7772.1  9071.5 0.325   47  6508.325 -  9047.930            96.5          3.6 0.049
+      3    184  6301.2   7632.6  8932.0 0.325   50  6306.533 -  8931.145            99.8          3.6 0.037
+      4    243  6257.1   7588.5  8887.9 0.325   49  6268.229 -  8821.832            97.1          3.6 0.034
 
-- *SpatID* is the ``PypeIt`` slit ID number.
+- *SpatID* is the spatial position of the slit/order.
 - *minWave*, *maxWave*, *Wave_cen*, *dWave* are, respectively, the minimum wavelength value, the maximum
   wavelength value, the central wavelength, and the wavelength dispersion of the calibrated arc spectra.
   All the values are in Angstrom.
 - *Nlin*, *IDs_Wave_range*, *IDs_Wave_cov(%)* are, respectively, the number, the wavelength range, and the
   spectral coverage of the identified and fitted arc lines.
+- *mesured_fwhm* is the measured arc lines FWHM (in binned pixels of the input arc frame), i.e,
+  the approximate spectral resolution. Note that this not necessarily the ``fwhm`` used to identify the arc
+  lines during the wavelength calibration, see :ref:`wave_calib:FWHM`.
 - *RMS* is the RMS of the wavelength solution (in pixels).
-- *fwhm* is the FWHM (in unbinned pixels) of the arc lines, i.e, the approximate spectral resolution.
 
 
 PNGs

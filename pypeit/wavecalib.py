@@ -301,12 +301,12 @@ class WaveCalib(datamodel.DataContainer):
         diag['IDs_Wave_range'] = ['{:9.3f} - {:9.3f}'.format(lines_wmin[i], lines_wmax[i]) for i in range(self.wv_fits.size)]
         diag['IDs_Wave_cov(%)'] = lines_cov
         diag['IDs_Wave_cov(%)'].format = '0.1f'
+        # FWHM
+        diag['mesured_fwhm'] = [0. if wvfit.fwhm is None else wvfit.fwhm for wvfit in self.wv_fits]
+        diag['mesured_fwhm'].format = '0.1f'
         # RMS
         diag['RMS'] = [0 if wvfit.rms is None else wvfit.rms for wvfit in self.wv_fits]
         diag['RMS'].format = '0.3f'
-        # FWHM
-        diag['fwhm'] = [0. if wvfit.fwhm is None else wvfit.fwhm for wvfit in self.wv_fits]
-        diag['fwhm'].format = '0.1f'
         if print_diag:
             # Print it
             print(diag)
@@ -480,7 +480,7 @@ class BuildWaveCalib:
             msgs.info("Slit widths (arcsec): {}".format(np.round(self.slits.maskdef_designtab['SLITWID'].data, 2)))
 
         # measure the FWHM of the arc lines
-        measured_fwhms = np.zeros(arccen.shape[1])
+        measured_fwhms = np.zeros(arccen.shape[1], dtype=object)
         for islit in range(arccen.shape[1]):
             if islit not in ok_mask_idx:
                 continue
