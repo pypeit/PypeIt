@@ -479,15 +479,12 @@ class BuildWaveCalib:
         if self.slits.maskdef_designtab is not None:
             msgs.info("Slit widths (arcsec): {}".format(np.round(self.slits.maskdef_designtab['SLITWID'].data, 2)))
 
-        binspec = self.binspectral
+        # measure the FWHM of the arc lines
         measured_fwhms = np.zeros(arccen.shape[1])
-        if self.binspectral is None:
-            msgs.warn("binspectral is not specified. We assume it to be 1 when measuring the FWHM of the arc lines")
-            binspec = 1
         for islit in range(arccen.shape[1]):
             if islit not in ok_mask_idx:
                 continue
-            measured_fwhms[islit] = autoid.measure_fwhm(arccen[:, islit], binspec)
+            measured_fwhms[islit] = autoid.measure_fwhm(arccen[:, islit])
 
         # Obtain calibration for all slits
         if method == 'simple':

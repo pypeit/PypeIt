@@ -854,15 +854,13 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     return detections, spec_cont_sub, patt_dict_slit
 
 
-def measure_fwhm(spec, binspectral):
+def measure_fwhm(spec):
     """
     Measure the arc lines FWHM, i.e, approximate spectral resolution
 
     Args:
         spec (`numpy.ndarray`_):
             Arc spectrum from a single slit
-        binspectral (:obj:`int`):
-          Binning of the input arc in the spectral dimension
 
     Returns:
         :obj:`float`: Measured arc lines FWHM in binned pixels of the input arc image
