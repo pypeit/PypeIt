@@ -6,7 +6,7 @@
 import os
 import sys
 
-from IPython import embed
+# from IPython import embed
 
 import numpy as np
 import scipy
@@ -24,10 +24,13 @@ from pypeit import specobjs
 from pypeit import utils
 from pypeit import msgs
 from pypeit import onespec
-from pypeit import datamodel
+# from pypeit import datamodel
 from pypeit.spectrographs.util import load_spectrograph
 
 from pypeit import datamodel
+
+# import my version of telluric
+import telluric.core.telluric as tell_jax
 
 ##############################
 #  Telluric model functions  #
@@ -258,6 +261,7 @@ def conv_telluric(tell_model, dloglam, res):
     # g = Gaussian evaluated at x, sig2pix multiplied in to properly normalize the convolution
     g = (1.0/(np.sqrt(2*np.pi)))*np.exp(-0.5*(x)**2)*sig2pix
     conv_model = scipy.signal.convolve(tell_model,g,mode='same')
+
     return conv_model
 
 def shift_telluric(tell_model, loglam, dloglam, shift, stretch):
@@ -514,6 +518,7 @@ def tellfit(flux, thismask, arg_dict, init_from_last=None):
     else:
         # If this is the first iteration and no object model optimum is presented, use a latin hypercube which is the default
         init = 'latinhypercube'
+
 
     result = scipy.optimize.differential_evolution(tellfit_chi2, bounds, args=(flux, thismask, arg_dict,), seed=rng,
                                                    init = init, updating='immediate', popsize=popsize,
@@ -2319,7 +2324,7 @@ class Telluric(datamodel.DataContainer):
                       + f' with user supplied function: {self.init_obj_model.__name__}')
             self.result_list[iord], ymodel, ivartot, self.outmask_list[iord] \
                     = fitting.robust_optimize(self.flux_arr[self.ind_lower[iord]:self.ind_upper[iord]+1,iord],
-                                              tellfit, self.arg_dict_list[iord],
+                                              tell_jax.tellfit, self.arg_dict_list[iord],
                                               inmask=self.mask_arr[self.ind_lower[iord]:self.ind_upper[iord]+1,iord],
                                               maxiter=self.maxiter, lower=self.lower,
                                               upper=self.upper, sticky=self.sticky)
