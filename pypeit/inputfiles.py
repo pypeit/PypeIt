@@ -1,4 +1,7 @@
-""" Class for I/O of PypeIt input files"""
+""" Class for I/O of PypeIt input files
+
+.. include:: ../include/links.rst
+"""
 
 import os
 import glob
@@ -628,10 +631,11 @@ class Coadd3DFile(InputFile):
         Here is a description of the available options:
 
         scale_corr     : The name of an alternative spec2d file that is used for the relative spectral scale correction.
-                        This parameter can also be set for all frames with the default command:
-                        [reduce]
-                            [[cube]]
-                                scale_corr = spec2d_alternative.fits
+                        This parameter can also be set for all frames with the default command::
+
+                            [reduce]
+                                [[cube]]
+                                    scale_corr = spec2d_alternative.fits
 
         Returns
         -------

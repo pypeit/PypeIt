@@ -198,6 +198,7 @@ for all of the slits in a given :doc:`out_spec2D` or MasterWaveCalib file.
 Here are the standard calls::
 
     pypeit_chk_wavecalib Science/spec2d_DE.20100913.22358-CFHQS1_DEIMOS_20100913T061231.334.fits
+
 or::
 
     pypeit_chk_wavecalib Masters/MasterWaveCalib_A_1_DET07.fits

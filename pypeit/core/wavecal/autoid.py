@@ -1,4 +1,6 @@
 """ Module for finding patterns in arc line spectra
+
+.. include:: ../include/links.rst
 """
 from scipy.ndimage.filters import gaussian_filter
 from scipy.spatial import cKDTree
@@ -902,7 +904,7 @@ def set_fwhm(par, measured_fwhm=None):
             Measured arc lines FWHM in binned pixels of the input arc image
 
     Returns:
-:       obj:`float`: Chosen arc lines FWHM in binned pixels of the input arc image
+       :obj:`float`: Chosen arc lines FWHM in binned pixels of the input arc image
     """
 
     # Set FWHM for the methods that follow
