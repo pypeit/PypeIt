@@ -375,6 +375,11 @@ class PypeIt:
 
         # Find the science frames
         is_science = self.fitstbl.find_frames('science')
+        # this will give an error to alert the user that no reduction
+        # will be run if there are no science/standard frames and `run_pypeit` is run without -c flag
+        if not np.any(is_science) and not np.any(is_standard):
+            msgs.error('No science/standard frames provided. Add them to your PypeIt file '
+                       'if this is a standard run! Otherwise run calib_only reduction using -c flag')
 
         # Frame indices
         frame_indx = np.arange(len(self.fitstbl))
@@ -899,6 +904,7 @@ class PypeIt:
                                         vel_type=self.par['calibrations']['wavelengths']['refframe'],
                                         tilts=tilts,
                                         slits=slits,
+                                        wavesol=self.caliBrate.wv_calib.wave_diagnostics(print_diag=False),
                                         maskdef_designtab=maskdef_designtab)
         spec2DObj.process_steps = sciImg.process_steps
 

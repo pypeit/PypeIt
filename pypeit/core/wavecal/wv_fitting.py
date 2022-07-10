@@ -27,7 +27,7 @@ class WaveFit(datamodel.DataContainer):
       although they can be None (but shouldn't be)
 
     """
-    version = '1.0.0'
+    version = '1.1.0'
 
     datamodel = {'spat_id': dict(otype=(int,np.integer), descr='Spatial position of slit/order for this fit. Required for I/O'),
                  'pypeitfit': dict(otype=fitting.PypeItFit,
@@ -37,6 +37,7 @@ class WaveFit(datamodel.DataContainer):
                  'wave_fit': dict(otype=np.ndarray, atype=np.floating,
                                   descr='Wavelength IDs assigned'),
                  'xnorm': dict(otype=float, descr='Normalization for fit'),
+                 'fwhm': dict(otype=float, descr='Estimate FWHM of arc lines in binned pixels of the input arc frame'),
                  'ion_bits': dict(otype=np.ndarray, atype=np.integer,
                                   descr='Ion bit values for the Ion names'),
                  'cen_wave': dict(otype=float, descr='Central wavelength'),
@@ -59,7 +60,8 @@ class WaveFit(datamodel.DataContainer):
 
     def __init__(self, spat_id, pypeitfit=None, pixel_fit=None, wave_fit=None, ion_bits=None,
                  cen_wave=None, cen_disp=None, spec=None, wave_soln=None,
-                 sigrej=None, shift=None, tcent=None, rms=None, xnorm=None):
+                 sigrej=None, shift=None, tcent=None, rms=None, xnorm=None,
+                 fwhm=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])

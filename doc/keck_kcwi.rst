@@ -150,7 +150,7 @@ See :doc:`skysub` for useful hints to define the sky regions
 using an interactive GUI.
 
 Flux calibration
----------------
+----------------
 
 You should reduce all standard star observations as if they are science
 observations (i.e. in your .pypeit file, make sure the standard star frames

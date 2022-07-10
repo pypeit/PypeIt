@@ -206,6 +206,7 @@ or have a feature request, please `submit an issue
 
    spectrographs
    setup
+   input_files
    pypeit_par
    pypeit_file
    running

@@ -2446,7 +2446,7 @@ class WavelengthSolutionPar(ParSet):
         defaults['fwhm'] = 4.
         dtypes['fwhm'] = [int, float]
         descr['fwhm'] = 'Spectral sampling of the arc lines. This is the FWHM of an arcline in ' \
-                        '*unbinned* pixels.'
+                        'binned pixels of the input arc image'
 
         defaults['fwhm_fromlines'] = False
         dtypes['fwhm_fromlines'] = bool
