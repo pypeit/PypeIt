@@ -19,6 +19,8 @@ from configobj import ConfigObj
 from astropy.io import fits
 from astropy.table import Table
 
+from pypeit import inputfiles
+from pypeit.core import parse
 from pypeit import masterframe
 from pypeit import msgs
 from pypeit import calibrations
@@ -28,14 +30,12 @@ from pypeit import find_objects
 from pypeit import extraction
 from pypeit import spec2dobj
 from pypeit.core import qa
-from pypeit.core import parse
 from pypeit.core import findobj_skymask
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
 from pypeit import utils
 from pypeit.history import History
-from pypeit.par.util import parse_pypeit_file
 from pypeit.par import PypeItPar
 from pypeit.metadata import PypeItMetaData
 from pypeit.manual_extract import ManualExtractionObj
@@ -93,14 +93,12 @@ class PypeIt:
         
         self.msgs_reset()
         
-        # Load
-        cfg_lines, data_files, frametype, usrdata, setups, _ \
-                = parse_pypeit_file(pypeit_file, runtime=True)
+        # Load up PypeIt file
+        self.pypeItFile = inputfiles.PypeItFile.from_file(pypeit_file)
         self.calib_only = calib_only
 
         # Spectrograph
-        cfg = ConfigObj(cfg_lines)
-        spectrograph_name = cfg['rdx']['spectrograph']
+        spectrograph_name = self.pypeItFile.config['rdx']['spectrograph']
         self.spectrograph = load_spectrograph(spectrograph_name)
         msgs.info('Loaded spectrograph {0}'.format(self.spectrograph.name))
 
@@ -109,14 +107,14 @@ class PypeIt:
         #   - Grab a science or standard file for configuration specific parameters
 
         config_specific_file = None
-        for idx, row in enumerate(usrdata):
+        for idx, row in enumerate(self.pypeItFile.data):
             if ('science' in row['frametype']) or ('standard' in row['frametype']):
-                config_specific_file = data_files[idx]
+                config_specific_file = self.pypeItFile.filenames[idx]
         # search for arcs, trace if no scistd was there
         if config_specific_file is None:
-            for idx, row in enumerate(usrdata):
+            for idx, row in enumerate(self.pypeItFile.data):
                 if ('arc' in row['frametype']) or ('trace' in row['frametype']):
-                    config_specific_file = data_files[idx]
+                    config_specific_file = self.pypeItFile.filenames[idx]
         if config_specific_file is not None:
             msgs.info(
                 'Setting configuration-specific parameters using {0}'.format(os.path.split(config_specific_file)[1]))
@@ -124,7 +122,8 @@ class PypeIt:
 
         #   - Build the full set, merging with any user-provided
         #     parameters
-        self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
+        self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, 
+                                            merge_with=self.pypeItFile.cfg_lines)
         msgs.info('Built full PypeIt parameter set.')
 
         # Check the output paths are ready
@@ -138,11 +137,16 @@ class PypeIt:
         # Build the meta data
         #   - Re-initilize based on the file data
         msgs.info('Compiling metadata')
-        self.fitstbl = PypeItMetaData(self.spectrograph, self.par, files=data_files,
-                                      usrdata=usrdata, strict=True)
+        self.fitstbl = PypeItMetaData(self.spectrograph, self.par, 
+                                      files=self.pypeItFile.filenames,
+                                      usrdata=self.pypeItFile.data, 
+                                      strict=True)
         #   - Interpret automated or user-provided data from the PypeIt
         #   file
-        self.fitstbl.finalize_usr_build(frametype, setups[0])
+        self.fitstbl.finalize_usr_build(
+            self.pypeItFile.frametypes, 
+            self.pypeItFile.setup_name)
+
         
         # --------------------------------------------------------------
         #   - Write .calib file (For QA naming amongst other things)
@@ -371,6 +375,11 @@ class PypeIt:
 
         # Find the science frames
         is_science = self.fitstbl.find_frames('science')
+        # this will give an error to alert the user that no reduction
+        # will be run if there are no science/standard frames and `run_pypeit` is run without -c flag
+        if not np.any(is_science) and not np.any(is_standard):
+            msgs.error('No science/standard frames provided. Add them to your PypeIt file '
+                       'if this is a standard run! Otherwise run calib_only reduction using -c flag')
 
         # Frame indices
         frame_indx = np.arange(len(self.fitstbl))
@@ -895,6 +904,7 @@ class PypeIt:
                                         vel_type=self.par['calibrations']['wavelengths']['refframe'],
                                         tilts=tilts,
                                         slits=slits,
+                                        wavesol=self.caliBrate.wv_calib.wave_diagnostics(print_diag=False),
                                         maskdef_designtab=maskdef_designtab)
         spec2DObj.process_steps = sciImg.process_steps
 

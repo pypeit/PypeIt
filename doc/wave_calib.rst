@@ -22,6 +22,31 @@ the `By-Hand Approach`_ including the
 See :doc:`master_wvcalib` for a discussion of the
 main outputs and good/bad examples.
 
+Arc Processing
+==============
+
+If you are combining multiple arc images that have
+different arc lamps (e.g. one with He and another with Hg+Ne)
+then be sure to process without clipping.  This may be the
+default for your spectrograph (e.g. :doc"`deimos`) but you can
+be certain by adding the following to the :doc:`pypeit_file`
+(for longslit observations)::
+
+.. code-block:: ini
+
+    [calibrations]
+      [[arcframe]]
+        [[[process]]]
+          clip = False
+          subtract_continuum = True
+      [[tiltframe]]
+        [[[process]]]
+          clip = False
+          subtract_continuum = True
+
+For a multislit observation, you should keep clip=False, and
+change subtract_continuum=True to subtract_continuum=False.
+
 Automated Algorithms
 ====================
 

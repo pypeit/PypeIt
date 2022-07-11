@@ -16,10 +16,14 @@ from pypeit.par.pypeitpar import Coadd1DPar
 from pypeit.pypmsgs import PypeItError
 
 
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
 
+def test_blackbody():
+    a, teff = 2.65, 10086  # Parameter of J1245+4238
+    wave, flam = flux_calib.blackbody_func(a, teff)
+    flam_scl = flam*flux_calib.BB_SCALE_FACTOR  # In units 10^-17 erg/s/cm2/A
+    res = np.interp(4000.0, wave, flam_scl)
+    # The following value is close to the value shown in the Figure 15 of Suzuki & Fukugita (2018).
+    assert(np.isclose(res, 89.6419630016348))
 
 
 def test_find_standard():

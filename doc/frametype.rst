@@ -45,9 +45,9 @@ description can be listed as follows:
 
 More detailed descriptions are given in the table below.
 
-=============    =============================================================
+================ =============================================================
 Frame Type       Description
-=============    =============================================================
+================ =============================================================
 ``align``        Used to align spatial positions in multiple slits. This frame is particularly useful for slit-based IFU, such as Keck KCWI.
 ``arc``          Spectrum of one or more calibration arc lamps
 ``bias``         Bias frame;  typically a 0s exposure with the shutter closed
@@ -61,7 +61,7 @@ Frame Type       Description
 ``trace``        Spectrum taken to define the slit edges. Often this is an exposure using a flat lamp, but for observations in the very blue, this may be on-sky. The slit length of a trace frame should be the same as the science slit.
 ``tilt``         Exposure used to trace the tilt in the wavelength solution. Often the same file(s) as the arc.
 ``None``         File could not be automatically identified by PypeIt
-=============    =============================================================
+================ =============================================================
 
 It is possible (and even common for arc and flats images) that a frame can be
 assigned more than one frame type.
