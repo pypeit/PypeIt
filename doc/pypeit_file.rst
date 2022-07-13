@@ -18,6 +18,8 @@ first be automatically generated using the :ref:`pypeit_setup`
 script, but it can (and often will be) edited by the user.
 
 This document provides guidance on modifying the file.
+You may also wish to refer to :doc:`input_files` for
+additional information on formatting.
 
 You must have a unique ``PypeIt`` file for each instrument
 configuration, or "setup" (modulo detectors), which is often includes
@@ -28,6 +30,10 @@ associated calibration files to process.
 
 File Format
 ===========
+
+The following describes the standard format for a
+:doc:`pypeit_file`.  Users may also refer to :doc:`input_files`
+for additional details.
 
 Here is an example PypeIt reduction file:
 
@@ -43,7 +49,7 @@ required.
 
 See `Edits to the Parameter Block`_ for common edits and also read
 the :ref:`instr_par` relevant to the instrument used to collect your
-data. Importantly, not that this provides the alterations that are
+data. Importantly, note that this provides the alterations that are
 *always* made to the default parameters for the instrument in
 question; i.e., these are *not* the parameters that you need to
 include in your ``PypeIt`` reduction file. You only need to include
@@ -56,29 +62,33 @@ case that the instrument requires no change to the global default).
 Setup Block
 -----------
 
-The next block, beginning with line ``setup read``, describes the
-instrument configuration. There should only be one setup shown (e.g.,
-``Setup A``), and the parameters provided show the salient metadata
-for that instrument configuration. **You should not edit any of
-this**; it is informational and required. See :doc:`setup`.
+The next block, beginning with line ``setup read`` and
+ending with ``setup end``, describes the
+instrument configuration. There can only be one setup shown 
+(e.g., ``Setup A``), and the parameters provided show the salient 
+metadata for that instrument configuration. 
+**You should not edit any of this**; 
+it is informational and required. See :doc:`setup`
+for further details.
 
-.. _data_block:
 
 Data Block
 ----------
 
-Last is the data block, beginning with the line ``data read``, which
-includes the path(s) to the raw data files and a table describing
-those files. It is common to edit this table as described below.
+Last is the data block, beginning with the line ``data read``
+and ending with ``data end``, which
+includes the path(s) to the raw data files and a table 
+describing those files. It is common to edit this table 
+as described below.
 
-The data block is a fixed-format table as written by the underlying
-`astropy.table.Table`_ object used by :ref:`pypeit_setup`. The |
-symbols need not align but the number per row must be equal.
+The data block is a | deimited table as written by 
+the underlying `astropy.table.Table`_ object used by 
+:ref:`pypeit_setup`. The | symbols need not align. 
 
 .. warning::
 
-    Users should always generate the ``PypeIt`` reduction file using
-    the :ref:`pypeit_setup` script. However, you will often need to
+    Users are recommended to always generate the ``PypeIt`` reduction 
+    file using the :ref:`pypeit_setup` script. However, you will often need to
     edit it because it is virtually impossible to create an automated
     procedure that will work in all cases. The ``PypeIt`` reduction
     file is the ultimate authority in terms of how the data is

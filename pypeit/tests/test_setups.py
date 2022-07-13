@@ -10,22 +10,14 @@ from IPython import embed
 import numpy as np
 
 import pytest
-from configobj import ConfigObj
 
-from pypeit.pypmsgs import PypeItError
-from pypeit.metadata import PypeItMetaData
-from pypeit.par import PypeItPar
-from pypeit.par.util import parse_pypeit_file
 from pypeit.scripts.setup import Setup
-from pypeit.scripts.chk_for_calibs import ChkForCalibs
-from pypeit.spectrographs.util import load_spectrograph
+from pypeit.inputfiles import PypeItFile
 from pypeit.tests.tstutils import data_path
-from pypeit import pypeit
-from pypeit import pypeitsetup
 
 
 def expected_file_extensions():
-    return ['pypeit', 'sorted']
+    return ['sorted']
 
 
 def test_run_setup():
@@ -64,11 +56,12 @@ def test_setup_made_pypeit_file():
     This test depends on the one above
     """
     pypeit_file = data_path('shane_kast_blue_A/shane_kast_blue_A.pypeit')
-    cfg_lines, data_files, frametype, usrdata, setups, setup_dict = parse_pypeit_file(pypeit_file)
+    pypeItFile = PypeItFile.from_file(pypeit_file)
+
     # Test
-    assert len(data_files) == 8
-    assert sorted(frametype['b1.fits.gz'].split(',')) == ['arc', 'tilt']
-    assert setups[0] == 'A'
+    assert len(pypeItFile.filenames) == 8
+    assert sorted(pypeItFile.frametypes['b1.fits.gz'].split(',')) == ['arc', 'tilt']
+    assert pypeItFile.setup_name == 'A'
 
     # Cleanup
     shutil.rmtree(data_path('shane_kast_blue_A'))

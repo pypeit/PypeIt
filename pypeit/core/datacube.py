@@ -19,7 +19,7 @@ import numpy as np
 from pypeit import msgs
 from pypeit import alignframe, datamodel, flatfield, io, masterframe, specobj, spec2dobj, utils
 from pypeit.core.flux_calib import load_extinction_data, extinction_correction, fit_zeropoint, get_standard_spectrum, ZP_UNIT_CONST, PYPEIT_FLUX_SCALE
-from pypeit.core.flexure import calculate_image_offset
+from pypeit.core.flexure import calculate_image_phase
 from pypeit.core import coadd, extract, findobj_skymask, parse, skysub
 from pypeit.core.procimg import grow_mask
 from pypeit.spectrographs.util import load_spectrograph
@@ -42,6 +42,8 @@ class DataCube(datamodel.DataContainer):
             Wavelength array of the spectral blaze function
         blaze_spec (`numpy.ndarray`_):
             The spectral blaze function
+        sensfunc (`numpy.ndarray`_, None):
+            Sensitivity function (nwave,). Only saved if the data are fluxed.
         PYP_SPEC (str):
             Name of the PypeIt Spectrograph
         fluxed (bool):
@@ -58,13 +60,14 @@ class DataCube(datamodel.DataContainer):
             Build from PYP_SPEC
 
     """
-    version = '1.0.2'
+    version = '1.0.3'
 
     datamodel = {'flux': dict(otype=np.ndarray, atype=np.floating, descr='Flux array in units of counts/s/Ang/arcsec^2'
                                                                          'or 10^-17 erg/s/cm^2/Ang/arcsec^2'),
                  'variance': dict(otype=np.ndarray, atype=np.floating, descr='Variance array (matches units of flux)'),
                  'blaze_wave': dict(otype=np.ndarray, atype=np.floating, descr='Wavelength array of the spectral blaze function'),
                  'blaze_spec': dict(otype=np.ndarray, atype=np.floating, descr='The spectral blaze function'),
+                 'sensfunc': dict(otype=np.ndarray, atype=np.floating, descr='Sensitivity function 10^-17 erg/(counts/cm^2)'),
                  'PYP_SPEC': dict(otype=str, descr='PypeIt: Spectrograph name'),
                  'fluxed': dict(otype=bool, descr='Boolean indicating if the datacube is fluxed.')}
 
@@ -88,7 +91,7 @@ class DataCube(datamodel.DataContainer):
         slf.spect_meta = slf.spectrograph.parse_spec_header(slf.head0)
         return slf
 
-    def __init__(self, flux, variance, PYP_SPEC, blaze_wave, blaze_spec, fluxed=None):
+    def __init__(self, flux, variance, PYP_SPEC, blaze_wave, blaze_spec, sensfunc=None, fluxed=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
@@ -270,6 +273,43 @@ def dar_correction(wave_arr, coord, obstime, location, pressure, temperature, re
     return ra_diff, dec_diff
 
 
+def calc_grating_corr(wave_eval, wave_curr, spl_curr, wave_ref, spl_ref, order=2):
+    """ Using spline representations of the blaze profile, calculate the grating correction
+    that should be applied to the current spectrum (suffix 'curr') relative to the reference
+    spectrum (suffix 'ref'). The grating correction is then evaluated at the wavelength
+    array given by 'wave_eval'.
+
+    Args:
+        wave_eval (`numpy.ndarray`_):
+            Wavelength array to evaluate the grating correction
+        wave_curr (`numpy.ndarray`_):
+            Wavelength array used to construct spl_curr
+        spl_curr (`scipy.interpolate.interp1d`_):
+            Spline representation of the current blaze function (based on the illumflat).
+        wave_ref (`numpy.ndarray`_):
+            Wavelength array used to construct spl_ref
+        spl_ref (`scipy.interpolate.interp1d`_):
+            Spline representation of the reference blaze function (based on the illumflat).
+        order (int):
+            Polynomial order used to fit the grating correction.
+
+    Returns:
+        grat_corr (`numpy.ndarray`_): The grating correction to apply
+    """
+    msgs.info("Calculating the grating correction")
+    # Calculate the grating correction
+    grat_corr_tmp = spl_curr(wave_eval) / spl_ref(wave_eval)
+    # Determine the useful overlapping wavelength range
+    minw, maxw = max(np.min(wave_curr), np.min(wave_ref)), max(np.min(wave_curr), np.max(wave_ref))
+    # Perform a low-order polynomial fit to the grating correction (should be close to linear)
+    wave_corr = (wave_eval - minw) / (maxw - minw)  # Scale wavelengths to be of order 0-1
+    wblz = np.where((wave_corr > 0.1) & (wave_corr < 0.9))  # Remove the pixels that are within 10% of the edges
+    coeff_gratcorr = np.polyfit(wave_corr[wblz], grat_corr_tmp[wblz], order)
+    grat_corr = np.polyval(coeff_gratcorr, wave_corr)
+    # Return the estimates grating correction
+    return grat_corr
+
+
 def gaussian2D_cube(tup, intflux, xo, yo, dxdz, dydz, sigma_x, sigma_y, theta, offset):
     """ Fit a 2D Gaussian function to a datacube. This function assumes that each wavelength
     slice of the datacube is well-fit by a 2D Gaussian. The centre of the Gaussian is allowed
@@ -433,7 +473,7 @@ def extract_standard_spec(stdcube, subsample=20, method='boxcar'):
         subsample (int):
             Number of pixels to subpixellate spectrum when creating mask
         method (str):
-            Method used to extract standard star spectrum
+            Method used to extract standard star spectrum. Currently, only 'boxcar' is supported
 
     Returns:
         wave (`numpy.ndarray`_): Wavelength of the star.
@@ -486,20 +526,29 @@ def extract_standard_spec(stdcube, subsample=20, method='boxcar'):
     skyspec *= utils.inverse(nrmsky)
     flxcube -= skyspec.reshape((1, 1, numwave))
 
+    # Subtract the residual sky from the whitelight image
+    sky_val = np.sum(wl_img[:,:,np.newaxis] * smask) / np.sum(smask)
+    wl_img -= sky_val
+
     if method == 'boxcar':
         msgs.info("Extracting a boxcar spectrum of datacube")
+        # Construct an image that contains the fraction of flux included in the
+        # boxcar extraction at each wavelength interval
+        norm_flux = wl_img[:,:,np.newaxis] * mask
+        norm_flux /= np.sum(norm_flux)
         # Extract boxcar
-        cntmask = (varcube > 0.0) * mask
+        cntmask = (varcube > 0.0) * mask  # Good pixels within the masked region around the standard star
+        flxscl = (norm_flux * cntmask).sum(0).sum(0)  # This accounts for the flux that is missing due to masked pixels
         scimask = flxcube * cntmask
         varmask = varcube * cntmask**2
-        cnt_spec = cntmask.sum(0).sum(0) * utils.inverse(mask.sum())
-        nrmcnt = utils.inverse(cnt_spec)
+        nrmcnt = utils.inverse(flxscl)
         box_flux = scimask.sum(0).sum(0) * nrmcnt
         box_var = varmask.sum(0).sum(0) * nrmcnt**2
-        box_gpm = np.ones(box_flux.size, dtype=np.bool)
+        box_gpm = flxscl > 1/3  # Good pixels are those where at least one-third of the standard star flux is measured
         # Setup the return values
         ret_flux, ret_var, ret_gpm = box_flux, box_var, box_gpm
     elif method == 'gauss2d':
+        msgs.error("Use method=boxcar... this method has not been thoroughly tested")
         # Generate a mask
         fitmask = (varcube > 0.0) * mask
         # Setup the coordinates
@@ -543,6 +592,7 @@ def extract_standard_spec(stdcube, subsample=20, method='boxcar'):
         # Setup the return values
         ret_flux, ret_var, ret_gpm = opt_flux, opt_var, opt_gpm
     elif method == 'optimal':
+        msgs.error("Use method=boxcar... this method has not been thoroughly tested")
         # First do a boxcar along one dimension
         msgs.info("Collapsing datacube to a 2D image")
         omask = mask+smask
@@ -584,6 +634,40 @@ def extract_standard_spec(stdcube, subsample=20, method='boxcar'):
     ret_var *= arcsecSQ**2
     # Return the box extraction results
     return wave, ret_flux, utils.inverse(ret_var), ret_gpm
+
+
+def make_good_skymask(slitimg, tilts):
+    """ Mask the spectral edges of each slit (i.e. the pixels near the ends of
+    the detector in the spectral direction). Some extreme values of the tilts are
+    only sampled with a small fraction of the pixels of the slit width. This leads
+    to a bad extrapolation/determination of the sky model.
+
+    Args:
+        slitimg (`numpy.ndarray`_):
+            An image of the slit indicating which slit each pixel belongs to
+        tilts (`numpy.ndarray`_):
+            Spectral tilts.
+
+    Returns:
+        gpm (`numpy.ndarray`_): A mask of the good sky pixels (True = good)
+    """
+    msgs.info("Masking edge pixels where the sky model is poor")
+    # Initialise the GPM
+    gpm = np.zeros(slitimg.shape, dtype=bool)
+    # Find unique slits
+    unq = np.unique(slitimg[slitimg>0])
+    for uu in range(unq.size):
+        # Find the x,y pixels in this slit
+        ww = np.where(slitimg==unq[uu])
+        # Mask the bottom pixels first
+        wb = np.where(ww[0] == 0)[0]
+        wt = np.where(ww[0] == np.max(ww[0]))[0]
+        # Calculate the maximum tilt from the bottom row, and the miminum tilt from the top row
+        maxtlt = np.max(tilts[0,  ww[1][wb]])
+        mintlt = np.min(tilts[-1, ww[1][wt]])
+        # Mask all values below this maximum
+        gpm[ww] = (tilts[ww]>=maxtlt) & (tilts[ww]<=mintlt)  # The signs are correct here.
+    return gpm
 
 
 def make_whitelight_fromcube(cube, wave=None, wavemin=None, wavemax=None):
@@ -907,7 +991,7 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
 
 def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bins,
                       overwrite=False, blaze_wave=None, blaze_spec=None, fluxcal=False,
-                      specname="PYP_SPEC", debug=False):
+                      sensfunc=None, specname="PYP_SPEC", debug=False):
     """
     Save a datacube using the Nearest Grid Point (NGP) algorithm.
 
@@ -932,6 +1016,8 @@ def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bin
             Wavelength array of the spectral blaze function
         blaze_spec (`numpy.ndarray`_):
             Spectral blaze function
+        sensfunc (`numpy.ndarray`_, None):
+            Sensitivity function that has been applied to the datacube
         fluxcal (bool):
             Are the data flux calibrated?
         specname (str):
@@ -967,7 +1053,7 @@ def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bin
         hdu.writeto(outfile_resid, overwrite=overwrite)
 
     msgs.info("Saving datacube as: {0:s}".format(outfile))
-    final_cube = DataCube(datacube.T, var_cube.T, specname, blaze_wave, blaze_spec, fluxed=fluxcal)
+    final_cube = DataCube(datacube.T, var_cube.T, specname, blaze_wave, blaze_spec, sensfunc=sensfunc, fluxed=fluxcal)
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
 
 
@@ -1003,12 +1089,14 @@ def get_output_filename(fil, par_outfile, combine, idx=1):
     return outfile
 
 
-def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
+def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     """ Main routine to coadd spec2D files into a 3D datacube
 
     Args:
         files (:obj:`list`):
             List of all spec2D files
+        opts (:obj:`dict`):
+            coadd2d options associated with each spec2d file
         spectrograph (:obj:`str`, :class:`~pypeit.spectrographs.spectrograph.Spectrograph`, optional):
             The name or instance of the spectrograph used to obtain the data.
             If None, this is pulled from the file header.
@@ -1078,19 +1166,35 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
     blaze_wave, blaze_spec = None, None
     blaze_spline, flux_spline = None, None
     if cubepar['standard_cube'] is not None:
-        if not os.path.exists(cubepar['standard_cube']):
-            msgs.error("Standard cube does not exist:" + msgs.newline() + cubepar['reference_cube'])
         fluxcal = True
         senspar = parset['sensfunc']
+        ss_file = cubepar['standard_cube']
+        if not os.path.exists(ss_file):
+            msgs.error("Standard cube does not exist:" + msgs.newline() + ss_file)
+        msgs.info(f"Loading standard star cube: {ss_file:s}")
         # Load the standard star cube and retrieve its RA + DEC
-        stdcube = fits.open(cubepar['standard_cube'])
+        stdcube = fits.open(ss_file)
         star_ra, star_dec = stdcube[1].header['CRVAL1'], stdcube[1].header['CRVAL2']
-        # Extract the information about the blaze
-        if cubepar['grating_corr']:
-            blaze_wave, blaze_spec = stdcube['BLAZE_WAVE'].data, stdcube['BLAZE_SPEC'].data
-            blaze_spline = interp1d(blaze_wave, blaze_spec, kind='linear', bounds_error=False, fill_value="extrapolate")
+
         # Extract a spectrum of the standard star
         wave, Nlam_star, Nlam_ivar_star, gpm_star = extract_standard_spec(stdcube)
+
+        # Extract the information about the blaze
+        if cubepar['grating_corr']:
+            blaze_wave_curr, blaze_spec_curr = stdcube['BLAZE_WAVE'].data, stdcube['BLAZE_SPEC'].data
+            blaze_spline_curr = interp1d(blaze_wave_curr, blaze_spec_curr,
+                                         kind='linear', bounds_error=False, fill_value="extrapolate")
+            # The first standard star cube is used as the reference blaze spline
+            if blaze_spline is None:
+                blaze_wave, blaze_spec = stdcube['BLAZE_WAVE'].data, stdcube['BLAZE_SPEC'].data
+                blaze_spline = interp1d(blaze_wave, blaze_spec,
+                                        kind='linear', bounds_error=False, fill_value="extrapolate")
+            # Perform a grating correction
+            grat_corr = calc_grating_corr(wave.value, blaze_wave_curr, blaze_spline_curr, blaze_wave, blaze_spline)
+            # Apply the grating correction to the standard star spectrum
+            Nlam_star /= grat_corr
+            Nlam_ivar_star *= grat_corr**2
+
         # Read in some information above the standard star
         std_dict = get_standard_spectrum(star_type=senspar['star_type'],
                                          star_mag=senspar['star_mag'],
@@ -1105,9 +1209,11 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
         wgd = np.where(zeropoint_fit_gpm)
         sens = np.power(10.0, -0.4 * (zeropoint_fit[wgd] - ZP_UNIT_CONST)) / np.square(wave[wgd])
         flux_spline = interp1d(wave[wgd], sens, kind='linear', bounds_error=False, fill_value="extrapolate")
+
+    # If a reference image has been set, check that it exists
     if cubepar['reference_image'] is not None:
         if not os.path.exists(cubepar['reference_image']):
-            msgs.error("Reference cube does not exist:" + msgs.newline() + cubepar['reference_image'])
+            msgs.error("Reference image does not exist:" + msgs.newline() + cubepar['reference_image'])
 
     # Initialise arrays for storage
     all_ra, all_dec, all_wave = np.array([]), np.array([]), np.array([])
@@ -1119,17 +1225,18 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
     weights = np.ones(numfiles)  # Weights to use when combining cubes
     locations = parset['calibrations']['alignment']['locations']
     flat_splines = dict()   # A dictionary containing the splines of the flatfield
-    # Load the scaleimg frame for the scale correction
-    relScaleImg = np.array([1])
+    # Load the default scaleimg frame for the scale correction
+    relScaleImgDef = np.array([1])
     if cubepar['scale_corr'] is not None:
-        msgs.info("Loading scale image for relative spectral illumination correction:" +
+        msgs.info("Loading default scale image for relative spectral illumination correction:" +
                   msgs.newline() + cubepar['scale_corr'])
         try:
             spec2DObj = spec2dobj.Spec2DObj.from_file(cubepar['scale_corr'], detname)
-            relScaleImg = spec2DObj.scaleimg
+            relScaleImgDef = spec2DObj.scaleimg
         except:
             msgs.warn("Could not load scaleimg from spec2d file:" + msgs.newline() + cubepar['scale_corr'] +
-                      "scale correction will not be performed")
+                      "scale correction will not be performed unless you have specified the correct " +
+                      "scale_corr file in the spec2d block")
             cubepar['scale_corr'] = None
     # Load all spec2d files and prepare the data for making a datacube
     for ff, fil in enumerate(files):
@@ -1146,6 +1253,21 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
 
         # Setup for PypeIt imports
         msgs.reset(verbosity=2)
+
+        # Try to load the relative scale image, if something other than the default has been provided
+        relScaleImg = relScaleImgDef.copy()
+        if opts['scale_corr'][ff] is not None:
+            try:
+                msgs.info("Loading relative scale image:"+msgs.newline()+opts['scale_corr'][ff])
+                spec2DObj_scl = spec2dobj.Spec2DObj.from_file(opts['scale_corr'][ff], detname)
+                relScaleImg = spec2DObj_scl.scaleimg
+            except:
+                msgs.warn("Could not load scaleimg from spec2d file:" + msgs.newline() + opts['scale_corr'][ff])
+                if cubepar['scale_corr'] is not None:
+                    msgs.info("Using the default scaleimg from spec2d file:" + msgs.newline() + cubepar['scale_corr'])
+                else:
+                    msgs.warn("Scale correction will not be performed")
+                relScaleImg = relScaleImgDef.copy()
 
         # Extract the information
         relscl = spec2DObj.scaleimg/relScaleImg
@@ -1177,7 +1299,12 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
 
         msgs.info("Constructing slit image")
         slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=flexure)
-        onslit_gpm = (slitid_img_init > 0) & (bpmmask == 0)
+
+        # Remove edges of the spectrum where the sky model is bad
+        sky_is_good = make_good_skymask(slitid_img_init, spec2DObj.tilts)
+
+        # Construct a good pixel mask
+        onslit_gpm = (slitid_img_init > 0) & (bpmmask == 0) & sky_is_good
 
         # Grab the WCS of this frame
         frame_wcs = spec.get_wcs(spec2DObj.head0, slits, detector.platescale, wave0, dwv)
@@ -1199,12 +1326,15 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
         msgs.info("Loading alignments")
         alignfile = masterframe.construct_file_name(alignframe.Alignments, hdr['TRACMKEY'], master_dir=hdr['PYPMFDIR'])
         alignments = None
-        if os.path.exists(alignfile) and cubepar['astrometric']:
-            alignments = alignframe.Alignments.from_file(alignfile)
+        if cubepar['astrometric']:
+            if os.path.exists(alignfile) and cubepar['astrometric']:
+                alignments = alignframe.Alignments.from_file(alignfile)
+            else:
+                msgs.warn("Could not find Master Alignment frame:"+msgs.newline()+alignfile)
+                msgs.warn("Astrometric correction will not be performed")
+                astrometric = False
         else:
-            msgs.warn("Could not find Master Alignment frame:"+msgs.newline()+alignfile)
-            msgs.warn("Astrometric correction will not be performed")
-            astrometric = False
+            msgs.info("Astrometric correction will not be performed")
 
         # Generate an RA/DEC image
         msgs.info("Generating RA/DEC image")
@@ -1265,6 +1395,7 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
             wave_spl = 0.5 * (wavebins[1:] + wavebins[:-1])
             flat_splines[flatfile] = interp1d(wave_spl, spec_spl, kind='linear',
                                               bounds_error=False, fill_value="extrapolate")
+            flat_splines[flatfile+"_wave"] = wave_spl.copy()
             # Check if a reference blaze spline exists (either from a standard star if fluxing or from a previous
             # exposure in this for loop)
             if blaze_spline is None:
@@ -1284,14 +1415,8 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
         # Grating correction
         grat_corr = 1.0
         if cubepar['grating_corr']:
-            msgs.info("Calculating the grating correction")
-            grat_corr_tmp = flat_splines[flatfile](wave_ext[wvsrt]) / blaze_spline(wave_ext[wvsrt])
-            # Fit a low order polynomial to this correction
-            minw, maxw = max(np.min(wave_spl), np.min(blaze_wave)), max(np.min(wave_spl), np.max(blaze_wave))
-            wblz = np.where((wave_ext[wvsrt] > minw) & (wave_ext[wvsrt] < maxw))
-            wave_corr = (wave_ext[wvsrt] - minw) / (maxw - minw)
-            coeff_gratcorr = np.polyfit(wave_corr[wblz], grat_corr_tmp[wblz], 2)
-            grat_corr = np.polyval(coeff_gratcorr, wave_corr)
+            grat_corr = calc_grating_corr(wave_ext[wvsrt], flat_splines[flatfile+"_wave"], flat_splines[flatfile],
+                                          blaze_wave, blaze_spline)
         # Sensitivity function
         sens_func = 1.0
         if fluxcal:
@@ -1376,16 +1501,9 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
         msgs.info("Calculating the spatial translation of each cube relative to user-defined 'reference_image'")
 
     # Calculate the image offsets - check the reference is a zero shift
-    ra_shift_ref, dec_shift_ref = calculate_image_offset(reference_image.copy(), reference_image.copy())
     for ff in range(numfiles):
-        # Don't correlate the reference image with itself
-        if ff == ref_idx:
-            continue
         # Calculate the shift
-        ra_shift, dec_shift = calculate_image_offset(whitelight_imgs[:, :, ff], reference_image.copy())
-        # Convert to reference
-        ra_shift -= ra_shift_ref
-        dec_shift -= dec_shift_ref
+        ra_shift, dec_shift = calculate_image_phase(reference_image.copy(), whitelight_imgs[:, :, ff], maskval=0.0)
         # Convert pixel shift to degress shift
         ra_shift *= dspat/cosdec
         dec_shift *= dspat
@@ -1463,7 +1581,14 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
     pix_coord = masterwcs.wcs_world2pix(all_ra, all_dec, all_wave * 1.0E-10, 0)
     hdr = masterwcs.to_header()
 
+    sensfunc = None
+    if flux_spline is not None:
+        wcs_wav = masterwcs.wcs_pix2world(np.vstack((np.zeros(numwav), np.zeros(numwav), np.arange(numwav))).T, 0)
+        senswave = wcs_wav[:, 2] * 1.0E10
+        sensfunc = flux_spline(senswave)
+
     # Generate a datacube using nearest grid point (NGP)
     msgs.info("Generating data cube")
     generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bins, overwrite=overwrite,
-                      blaze_wave=blaze_wave, blaze_spec=blaze_spec, fluxcal=fluxcal, specname=specname)
+                      blaze_wave=blaze_wave, blaze_spec=blaze_spec, sensfunc=sensfunc, fluxcal=fluxcal,
+                      specname=specname)

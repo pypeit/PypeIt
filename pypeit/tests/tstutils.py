@@ -2,18 +2,21 @@
 Odds and ends in support of tests
 """
 import os
-import copy
 import pytest
+import glob
 
 from IPython import embed
 
 import numpy as np
 from astropy import time
+from astropy.table import Table 
 from pypeit import data
 
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.metadata import PypeItMetaData
+from pypeit import masterframe
+from pypeit.inputfiles import PypeItFile 
 
 # ----------------------------------------------------------------------
 # pytest @decorators setting the tests to perform
@@ -143,3 +146,17 @@ def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype
 
     return fitstbl
 
+
+def make_shane_kast_blue_pypeitfile():
+    """ Generate a PypeItFile class """
+    # Bits needed to generate a PypeIt file
+    confdict = {'rdx': {'spectrograph': 'shane_kast_blue'}}
+
+    data = Table()
+    data['filename'] = [os.path.basename(item) for item in glob.glob(data_path('b2*fits.gz'))]
+    data['frametype'] = ['science']*len(data)
+    file_paths = [data_path('')]
+    setup_dict = {'Setup A': ' '}
+
+    # Return
+    return PypeItFile(confdict, file_paths, data, setup_dict)
