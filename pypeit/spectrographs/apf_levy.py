@@ -96,7 +96,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         """
         # Detector 1
         detector_dict = dict(
-            binning='1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning'),
+            binning='1,1',
             det=1,
             dataext=0,
             specaxis=1,
@@ -108,14 +108,14 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             nonlinear=0.99,
             numamplifiers=1,
             gain=np.asarray([1.031]),
-            ronoise=np.asarray([3.7]),
+            ronoise=np.asarray([3.75]),
             xgap=0.,
             ygap=0.,
             ysize=1.,
             darkcurr=0.0008,
             # These are rows, columns on the raw frame, 1-indexed
             datasec=np.asarray(['[:, 1:2048]']),
-            oscansec=np.asarray(['[:, 2049:2080]'),
+            oscansec=np.asarray(['[:, 2049:2080]']),
         )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -190,7 +190,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
 
         # 'science' category
         if ftype == 'science':
-            return good_exp & (fitstbl['calmirror'] == 'Out')
+            return good_exp & self.is_science(fitstbl)
         if ftype == 'bias':
             return good_exp & (fitstbl['idname'] == 'Bias')
         if ftype == 'dark':
@@ -206,7 +206,21 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
+    def is_science(self, fitstbl):
+        if fitstbl['idname'] == 'WideFlat':
+            return False
+        if fitstbl['idname'] == 'NarrowFlat':
+            return False
+        if fitstbl['idname'] == 'Iodine':
+            return False
+        if fitstbl['idname'] == 'ThAr':
+            return False
+        if fitstbl['idname'] == 'Dark':
+            return False
+        if fitstbl['idname'] == 'Bias':
+            return False
 
+        return True
 
 
 def apf_read_chip(hdu):
