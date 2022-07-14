@@ -163,17 +163,62 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
 
     def configuration_keys(self):
         """
-        Return the metadata keys that define a unique instrument
-        configuration.
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
+        """
+        par = super().default_pypeit_par()
 
-        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
-        identify the unique configurations among the list of frames read
-        for a given reduction.
+        par['calibrations']['slitedges']['edge_thresh'] = 600.
+        par['calibrations']['slitedges']['fit_order'] = 5
+        par['calibrations']['slitedges']['max_shift_adj'] = 0.5
+        par['calibrations']['slitedges']['left_right_pca'] = True
+
+        par['calibrations']['tilts']['tracethresh'] = 20
+        # Bias
+
+
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['lamps'] = ['ThAr']
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.25
+        par['calibrations']['wavelengths']['sigdetect'] = 5.0
+        # Reidentification parameters
+        #par['calibrations']['wavelengths']['method'] = 'reidentify'
+        par['calibrations']['wavelengths']['ech_fix_format'] = True
+        # Echelle parameters
+        par['calibrations']['wavelengths']['echelle'] = True
+        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
+        par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
+        par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+
+
+        # Processing steps
+        turn_off = dict(use_biasimage=False,
+                        use_darkimage=False)
+        par.reset_all_processimages_par(**turn_off)
+        # Do not correct for flexure
+        par['flexure']['spec_method'] = 'skip'
+
+        
+        return par
+
+
+    def get_detector_par(self, det, hdu=None):
+        """
+        Return metadata for the selected detector.
+
+        Args:
+            det (:obj:`int`):
+                1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
-            :obj:`list`: List of keywords of data pulled from file headers
-            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
-            object.
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
         # its a fixed format spectrometer
         # different deckers are used for different kinds of calibrations
