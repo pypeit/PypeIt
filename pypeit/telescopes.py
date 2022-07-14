@@ -56,9 +56,9 @@ class WHTTelescopePar(TelescopePar):
 class APFTelescopePar(TelescopePar):
     def __init__(self):
         super(APFTelescopePar, self).__init__(name='APF',
-                                              longitude=121.642778,
-                                              latitude=37.34138889,
-                                              elevation=1283.0,
+                                              longitude=121.63825,
+                                              latitude=37.3425278,
+                                              elevation=1274.0,
                                               diameter=2.4)
                                 
 class TNGTelescopePar(TelescopePar):
