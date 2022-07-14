@@ -54,8 +54,7 @@ class ParseSlits(scriptbase.ScriptBase):
         head0 = hdul[0].header
         if 'MSTRTYP' in head0.keys() and head0['MSTRTYP'].strip() == 'Slits':
             file_type = 'MasterSlits'
-        # TODO -- Replace the next elif with checking PYP_CLS in head0 someday
-        elif 'DMODCLS' in hdul[1].header and hdul[1].header['DMODCLS'] == 'Spec2DObj':
+        elif 'PYP_CLS' in head0.keys() and head0['PYP_CLS'].strip() == 'AllSpec2DObj':
             file_type = 'AllSpec2D'
         else:
             raise IOError("Bad file type input!")

@@ -113,6 +113,10 @@ keyword in :ref:`pypeit_par:EdgeTracePar Keywords` to `nearest`, e.g.::
       [[slitedges]]
         sync_predict = nearest
 
+Another option is to set `sync_predict = auto`. This will let ``PypeIt``
+determine which mode to use between `pca` and `nearest`. In general,
+``PypeIt`` will first try `pca`, and if that is not possible, it will use `nearest`.
+
 
 
 Missing a Slit

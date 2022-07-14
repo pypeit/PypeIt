@@ -38,6 +38,7 @@ Submodules
    pypeit.flatfield
    pypeit.fluxcalibrate
    pypeit.history
+   pypeit.inputfiles
    pypeit.io
    pypeit.manual_extract
    pypeit.masterframe

@@ -74,7 +74,7 @@ class SensFunc(scriptbase.ScriptBase):
         from astropy.io import fits
 
         from pypeit import msgs
-        from pypeit import io
+        from pypeit import inputfiles
         from pypeit.par import pypeitpar
         from pypeit import sensfunc
         from pypeit.spectrographs.util import load_spectrograph
@@ -104,9 +104,14 @@ class SensFunc(scriptbase.ScriptBase):
         spectrograph_def_par = spectrograph.default_pypeit_par()
 
         # If the .sens file was passed in read it and overwrite default parameters
-        par = spectrograph_def_par if args.sens_file is None else \
-                pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                                                   merge_with=io.read_sensfile(args.sens_file))
+
+        if args.sens_file is not None:
+            sensFile = inputfiles.SensFile.from_file(args.sens_file)
+            # Read sens file
+            par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
+                merge_with=sensFile.cfg_lines)
+        else:
+            par = spectrograph_def_par 
 
         # If algorithm was provided override defaults. Note this does undo .sens
         # file since they cannot both be passed

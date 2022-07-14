@@ -82,20 +82,30 @@ class TellFit(scriptbase.ScriptBase):
         from astropy.io import fits
 
         from pypeit import msgs
-        from pypeit import io
         from pypeit.par import pypeitpar
         from pypeit.spectrographs.util import load_spectrograph
         from pypeit.core import telluric
+        from pypeit import inputfiles
+
+        from IPython import embed
 
         # Determine the spectrograph
         header = fits.getheader(args.spec1dfile)
         spectrograph = load_spectrograph(header['PYP_SPEC'])
         spectrograph_def_par = spectrograph.default_pypeit_par()
 
+        # Load tell file if provided
+        if args.tell_file is not None:
+            tellFile = inputfiles.TelluricFile.from_file(args.tell_file)
+            tcfg_lines = tellFile.cfg_lines
+        else:
+            tcfg_lines = []
+
         # If the .tell file was passed in read it and overwrite default parameters
         par = spectrograph_def_par if args.tell_file is None else \
-                pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                                                   merge_with=io.read_tellfile(args.tell_file))
+                pypeitpar.PypeItPar.from_cfg_lines(
+                    cfg_lines=spectrograph_def_par.to_config(),
+                    merge_with=tcfg_lines)
 
         # If args was provided override defaults. Note this does undo .tell file
         if args.objmodel is not None:

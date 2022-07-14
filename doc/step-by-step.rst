@@ -11,6 +11,9 @@ This doc goes through a full run of ``PypeIt`` on one of the Shane
 Kast*b* datasets in the Development Suite.
 `(see here) <https://wiki.qt.io/Qt_for_Python>`_
 
+For instrument specific recommendations, please see the links at
+the bottom of the :doc:`spectrographs` page.
+
 There is now a doc for :doc:`deimos_howto`. 
 
 Setup

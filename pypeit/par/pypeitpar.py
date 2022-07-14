@@ -73,6 +73,7 @@ from configobj import ConfigObj
 from pypeit.par.parset import ParSet
 from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
+from pypeit.inputfiles import PypeItFile
 
 
 def tuple_force(par):
@@ -218,7 +219,7 @@ class ProcessImagesPar(ParSet):
                  dark_expscale=None,
                  empirical_rn=None, shot_noise=None, noise_floor=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
-                 use_pattern=None, use_continuum=None, spat_flexure_correct=None):
+                 use_pattern=None, subtract_continuum=None, spat_flexure_correct=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -291,11 +292,11 @@ class ProcessImagesPar(ParSet):
                                'sinusoidal along one direction, with a frequency that is ' \
                                'constant across the detector.'
 
-        defaults['use_continuum'] = False
-        dtypes['use_continuum'] = bool
-        descr['use_continuum'] = 'Subtract off the continuum level from an image. This parameter should only ' \
-                                 'be set to True to combine arcs with multiple different lamps.' \
-                                 'For all other cases, this parameter should probably be False.'
+        defaults['subtract_continuum'] = False
+        dtypes['subtract_continuum'] = bool
+        descr['subtract_continuum'] = 'Subtract off the continuum level from an image. This parameter should only ' \
+                                      'be set to True to combine arcs with multiple different lamps. ' \
+                                      'For all other cases, this parameter should probably be False.'
 
         defaults['empirical_rn'] = False
         dtypes['empirical_rn'] = bool
@@ -423,7 +424,7 @@ class ProcessImagesPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'use_continuum', 'use_pattern',
+        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum', 'use_pattern',
                    'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
                    'dark_expscale', 'spat_flexure_correct', 'use_illumflat', 'use_specillum',
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
@@ -560,7 +561,7 @@ class FlatFieldPar(ParSet):
                  tweak_slits_maxfrac=None, rej_sticky=None, slit_trim=None, slit_illum_pad=None,
                  illum_iter=None, illum_rej=None, twod_fit_npoly=None, saturated_slits=None,
                  slit_illum_relative=None, slit_illum_ref_idx=None, slit_illum_smooth_npix=None,
-                 pixelflat_min_wave=None, pixelflat_max_wave=None):
+                 pixelflat_min_wave=None, pixelflat_max_wave=None, fit_2d_det_response=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -703,6 +704,18 @@ class FlatFieldPar(ParSet):
                                           'relative weights is given by ``nspec/slit_illum_smooth_npix``, ' \
                                           'where nspec is the number of spectral pixels.'
 
+        defaults['fit_2d_det_response'] = False
+        dtypes['fit_2d_det_response'] = bool
+        descr['fit_2d_det_response'] = 'Set this variable to True if you want to compute and ' \
+                                       'account for the detector response in the flatfield image. ' \
+                                       'Note that ``detector response`` refers to pixel sensitivity ' \
+                                       'variations that primarily depend on (x,y) detector coordinates. ' \
+                                       'In most cases, the default 2D bspline is sufficient to account ' \
+                                       'for detector response (i.e. set this parameter to False). Note ' \
+                                       'that this correction will _only_ be performed for the spectrographs ' \
+                                       'that have a dedicated response correction implemented. Currently,' \
+                                       'this correction is only implemented for Keck+KCWI.'
+
         # Instantiate the parameter set
         super(FlatFieldPar, self).__init__(list(pars.keys()),
                                            values=list(pars.values()),
@@ -722,7 +735,7 @@ class FlatFieldPar(ParSet):
                    'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
                    'rej_sticky', 'slit_trim', 'slit_illum_pad', 'slit_illum_relative',
                    'illum_iter', 'illum_rej', 'twod_fit_npoly', 'saturated_slits',
-                   'slit_illum_ref_idx', 'slit_illum_smooth_npix']
+                   'slit_illum_ref_idx', 'slit_illum_smooth_npix', 'fit_2d_det_response']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -1328,7 +1341,9 @@ class CubePar(ParSet):
         dtypes['reference_image'] = str
         descr['reference_image'] = 'White light image of a previously combined datacube. The white light ' \
                                    'image will be used as a reference when calculating the offsets of the ' \
-                                   'input spec2d files.'
+                                   'input spec2d files. Ideally, the reference image should have the same ' \
+                                   'shape as the data to be combined (i.e. set the ra_min, ra_max etc. params ' \
+                                   'so they are identical to the reference image).'
 
         defaults['save_whitelight'] = False
         dtypes['save_whitelight'] = bool
@@ -1766,7 +1781,7 @@ class SlitMaskPar(ParSet):
 
 
     """
-    def __init__(self, obj_toler=None, assign_obj=None, nsig_thrshd=None,
+    def __init__(self, obj_toler=None, assign_obj=None, snr_thrshd=None,
                  slitmask_offset=None, use_dither_offset=None, bright_maskdef_id=None, extract_missing_objs=None,
                  missing_objs_fwhm=None, missing_objs_boxcar_rad=None, use_alignbox=None):
 
@@ -1798,11 +1813,11 @@ class SlitMaskPar(ParSet):
         dtypes['use_alignbox'] = bool
         descr['use_alignbox'] = 'Use stars in alignment boxes to compute the slitmask offset. ' \
                                 'If this is set to ``True`` PypeIt will NOT compute ' \
-                                'the offset using `nsig_thrshd` or `bright_maskdef_id`'
+                                'the offset using `snr_thrshd` or `bright_maskdef_id`'
 
-        defaults['nsig_thrshd'] = 50.
-        dtypes['nsig_thrshd'] = [int, float]
-        descr['nsig_thrshd'] = 'Objects detected above this significance threshold will ' \
+        defaults['snr_thrshd'] = 50.
+        dtypes['snr_thrshd'] = [int, float]
+        descr['snr_thrshd'] = 'Objects detected above this S/N threshold will ' \
                                'be used to compute the slitmask offset. This is the default behaviour for DEIMOS ' \
                                ' unless ``slitmask_offset``, ``bright_maskdef_id`` or ``use_alignbox`` is set.'
 
@@ -1810,14 +1825,14 @@ class SlitMaskPar(ParSet):
         dtypes['slitmask_offset'] = [int, float]
         descr['slitmask_offset'] = 'User-provided slitmask offset (pixels) from the position expected by ' \
                                    'the slitmask design. This is optional, and if set PypeIt will NOT compute ' \
-                                   'the offset using `nsig_thrshd` or `bright_maskdef_id`.'
+                                   'the offset using `snr_thrshd` or `bright_maskdef_id`.'
 
         defaults['use_dither_offset'] = False
         dtypes['use_dither_offset'] = bool
         descr['use_dither_offset'] = 'Use the dither offset recorded in the header of science frames as the value ' \
                                      'of the slitmask offset. This is currently only available for Keck MOSFIRE ' \
                                      'reduction and it is set as the default for this instrument. If set PypeIt will ' \
-                                     'NOT compute the offset using `nsig_thrshd` or `bright_maskdef_id`. ' \
+                                     'NOT compute the offset using `snr_thrshd` or `bright_maskdef_id`. ' \
                                      'However, it is ignored if ``slitmask_offset`` is provided. '
 
         defaults['bright_maskdef_id'] = None
@@ -1859,7 +1874,7 @@ class SlitMaskPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['obj_toler', 'assign_obj', 'nsig_thrshd', 'slitmask_offset', 'use_dither_offset',
+        parkeys = ['obj_toler', 'assign_obj', 'snr_thrshd', 'slitmask_offset', 'use_dither_offset',
                    'bright_maskdef_id', 'extract_missing_objs', 'missing_objs_fwhm', 'missing_objs_boxcar_rad',
                    'use_alignbox']
 
@@ -2431,7 +2446,7 @@ class WavelengthSolutionPar(ParSet):
         defaults['fwhm'] = 4.
         dtypes['fwhm'] = [int, float]
         descr['fwhm'] = 'Spectral sampling of the arc lines. This is the FWHM of an arcline in ' \
-                        '*unbinned* pixels.'
+                        'binned pixels of the input arc image'
 
         defaults['fwhm_fromlines'] = False
         dtypes['fwhm_fromlines'] = bool
@@ -2900,8 +2915,10 @@ class EdgeTracePar(ParSet):
         options['sync_predict'] = EdgeTracePar.valid_predict_modes()
         dtypes['sync_predict'] = str
         descr['sync_predict'] = 'Mode to use when predicting the form of the trace to insert.  ' \
-                                'Use `pca` to use the PCA decomposition or `nearest` to ' \
-                                'reproduce the shape of the nearest trace.'
+                                'Use `pca` to use the PCA decomposition, `nearest` to ' \
+                                'reproduce the shape of the nearest trace, or `auto` to let PypeIt ' \
+                                'decide which mode to use between `pca` and `nearest`. In general, ' \
+                                'it will first try `pca`, and if that is not possible, it will use `nearest`.'
 
         defaults['sync_center'] = 'median'
         options['sync_center'] = EdgeTracePar.valid_center_modes()
@@ -3127,7 +3144,7 @@ class EdgeTracePar(ParSet):
     @staticmethod
     def valid_predict_modes():
         """Return the valid trace prediction modes."""
-        return ['pca', 'nearest']
+        return ['pca', 'nearest', 'auto']
 
     @staticmethod
     def valid_center_modes():
@@ -3801,7 +3818,7 @@ class CalibrationsPar(ParSet):
     def __init__(self, master_dir=None, setup=None, bpm_usebias=None, biasframe=None,
                  darkframe=None, arcframe=None, tiltframe=None, pixelflatframe=None,
                  pinholeframe=None, alignframe=None, alignment=None, traceframe=None,
-                 illumflatframe=None, skyframe=None,
+                 illumflatframe=None, lampoffflatsframe=None, skyframe=None,
                  standardframe=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None,
                  raise_chk_error=None):
 
@@ -3873,6 +3890,14 @@ class CalibrationsPar(ParSet):
                                                                             use_specillum=False))
         dtypes['illumflatframe'] = [ ParSet, dict ]
         descr['illumflatframe'] = 'The frames and combination rules for the illumination flat'
+
+        defaults['lampoffflatsframe'] = FrameGroupPar(frametype='lampoffflats',
+                                                     process=ProcessImagesPar(satpix='nothing',
+                                                                              use_pixelflat=False,
+                                                                              use_illumflat=False,
+                                                                              use_specillum=False))
+        dtypes['lampoffflatsframe'] = [ ParSet, dict ]
+        descr['lampoffflatsframe'] = 'The frames and combination rules for the lamp off flats'
 
         defaults['pinholeframe'] = FrameGroupPar(frametype='pinhole')
         dtypes['pinholeframe'] = [ ParSet, dict ]
@@ -3961,7 +3986,7 @@ class CalibrationsPar(ParSet):
         parkeys = [ 'master_dir', 'setup', 'bpm_usebias', 'raise_chk_error']
 
         allkeys = parkeys + ['biasframe', 'darkframe', 'arcframe', 'tiltframe', 'pixelflatframe',
-                             'illumflatframe',
+                             'illumflatframe', 'lampoffflatsframe',
                              'pinholeframe', 'alignframe', 'alignment', 'traceframe', 'standardframe', 'skyframe',
                              'flatfield', 'wavelengths', 'slitedges', 'tilts']
         badkeys = np.array([pk not in allkeys for pk in k])
@@ -3985,6 +4010,8 @@ class CalibrationsPar(ParSet):
         kwargs[pk] = FrameGroupPar.from_dict('pixelflat', cfg[pk]) if pk in k else None
         pk = 'illumflatframe'
         kwargs[pk] = FrameGroupPar.from_dict('illumflat', cfg[pk]) if pk in k else None
+        pk = 'lampoffflatsframe'
+        kwargs[pk] = FrameGroupPar.from_dict('lampoffflats', cfg[pk]) if pk in k else None
         pk = 'pinholeframe'
         kwargs[pk] = FrameGroupPar.from_dict('pinhole', cfg[pk]) if pk in k else None
         pk = 'alignframe'
@@ -4290,45 +4317,51 @@ class PypeItPar(ParSet):
         # Instantiate the object based on the configuration dictionary
         return cls.from_dict(cfg)
 
-    @classmethod
-    def from_pypeit_file(cls, ifile, evaluate=True):
-        """
-        Construct the parameter set using a pypeit file.
-
-        Args:
-            ifile (str):
-                Name of the pypeit file to read.  Expects to find setup
-                and data blocks in the file.  See docs.
-            evaluate (:obj:`bool`, optional):
-                Evaluate the values in the config object before
-                assigning them in the subsequent parameter sets.  The
-                parameters in the config file are *always* read as
-                strings, so this should almost always be true; however,
-                see the warning below.
-
-        .. warning::
-
-            When `evaluate` is true, the function runs `eval()` on
-            all the entries in the `ConfigObj` dictionary, done using
-            :func:`_recursive_dict_evaluate`.  This has the potential to
-            go haywire if the name of a parameter unintentionally
-            happens to be identical to an imported or system-level
-            function.  Of course, this can be useful by allowing one to
-            define the function to use as a parameter, but it also means
-            one has to be careful with the values that the parameters
-            should be allowed to have.  The current way around this is
-            to provide a list of strings that should be ignored during
-            the evaluation, done using :func:`_eval_ignore`.
-
-        .. todo::
-            Allow the user to add to the ignored strings.
-
-        Returns:
-            :class:`pypeit.par.core.PypeItPar`: The instance of the
-            parameter set.
-        """
-        # TODO: Need to include instrument-specific defaults somewhere...
-        return cls.from_cfg_lines(merge_with=util.pypeit_config_lines(ifile), evaluate=evaluate)
+#    @classmethod
+#    def from_pypeit_file(cls, ifile, evaluate=True):
+#        """
+#        Construct the parameter set using a pypeit file.
+#
+#        Warning:  This is a bit risky in that it may well
+#        lead to circular imports.  Might be best to avoid
+#
+#        Args:
+#            ifile (str):
+#                Name of the pypeit file to read.  Expects to find setup
+#                and data blocks in the file.  See docs.
+#            evaluate (:obj:`bool`, optional):
+#                Evaluate the values in the config object before
+#                assigning them in the subsequent parameter sets.  The
+#                parameters in the config file are *always* read as
+#                strings, so this should almost always be true; however,
+#                see the warning below.
+#
+#        .. warning::
+#
+#            When `evaluate` is true, the function runs `eval()` on
+#            all the entries in the `ConfigObj` dictionary, done using
+#            :func:`_recursive_dict_evaluate`.  This has the potential to
+#            go haywire if the name of a parameter unintentionally
+#            happens to be identical to an imported or system-level
+#            function.  Of course, this can be useful by allowing one to
+#            define the function to use as a parameter, but it also means
+#            one has to be careful with the values that the parameters
+#            should be allowed to have.  The current way around this is
+#            to provide a list of strings that should be ignored during
+#            the evaluation, done using :func:`_eval_ignore`.
+#
+#        .. todo::
+#            Allow the user to add to the ignored strings.
+#
+#        Returns:
+#            :class:`pypeit.par.core.PypeItPar`: The instance of the
+#            parameter set.
+#        """
+#        # Load PypeIt file
+#        pypeItFile = PypeItFile.from_file(ifile)
+#        # TODO: Need to include instrument-specific defaults somewhere...
+#        return cls.from_cfg_lines(
+#            merge_with=pypeItFile.cfg_lines, evaluate=evaluate)
 
     @classmethod
     def from_dict(cls, cfg):
