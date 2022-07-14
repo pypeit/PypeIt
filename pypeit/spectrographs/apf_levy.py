@@ -375,6 +375,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
 
         return ord_spat_pos
 
+        return True
 
     def get_rawimage(self, raw_file, det, spectrim=None):
         """ Read the image
