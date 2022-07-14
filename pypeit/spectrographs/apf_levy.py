@@ -165,7 +165,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         if ftype in ['pixelflat']:
             return good_exp & (fitstbl['idname'] == 'WideFlat') 
         if ftype in ['trace']:
-            return good_exp & (fitstbl['idname'] == 'Iodine')
+            return good_exp & (fitstbl['idname'] == 'NarrowFlat')
         if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['idname'] == 'ThAr')
         if ftype == 'science':
