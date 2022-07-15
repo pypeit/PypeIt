@@ -85,7 +85,10 @@ class TellFit(scriptbase.ScriptBase):
         from pypeit import io
         from pypeit.par import pypeitpar
         from pypeit.spectrographs.util import load_spectrograph
-        from pypeit.core import telluric
+        # from pypeit.core import telluric
+
+        # DIEGO'S IMPORT
+        from telluric.core import telluric
 
         # Determine the spectrograph
         header = fits.getheader(args.spec1dfile)
