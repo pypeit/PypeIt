@@ -52,7 +52,7 @@ The additional columns used here (``calib``, ``comb_id``) have the following mea
   of ``comb_id`` will be combined. Note that this is an unweighted co-add (and hence may not be
   necessarily be "optimal" in terms of S/N ratio).
 
-Both should be assigned integer values (or ``all``, see below), and values less than
+Both should be assigned integer values (or ``all``, see below), and ``calib`` should be less than
 or equal to 63.
 Remember that ``bkg_id`` should have a value of -1. See :ref:`a-b_differencing` for the definition
 of this ID.

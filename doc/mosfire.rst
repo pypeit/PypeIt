@@ -34,6 +34,8 @@ Here is an example of the :ref:`pypeit_file:Data Block` of the PypeIt file::
 
     data end
 
+`frametype` is automatically assigned to each frame using the values of various header keywords,
+see :ref:`mosfire_frames_report`.
 The dither pattern, position and offset associated to each fame is reported here, but the `calib`, `comb_id`, `bkg_id`
 columns are not properly set. The user can use the dither information to help guide the edit of these columns.
 

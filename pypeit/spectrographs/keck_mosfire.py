@@ -302,9 +302,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         if meta_key == 'decker_basename':
             maskname = headarr[0].get('MASKNAME')
             if 'LONGSLIT' in maskname:
-                return maskname.split('-')[0]
-            elif 'long2pos' in maskname:
-                return maskname.split('_')[0]
+                return maskname.split('(')[0].split('-')[0]
             else:
                 return maskname
         if meta_key == 'slitlength':
@@ -391,18 +389,24 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         Returns:
             :obj:`dict`: modified dictionary with metadata associated to a specific configuration.
         """
-        if fitstbl['decker'] is not None and 'LONGSLIT' in fitstbl['decker'] and \
-                'science' not in fitstbl['frametype'] and 'standard' not in fitstbl['frametype'] \
-                and fitstbl['slitlength'] == 46.:
-                cfg2 = copy.deepcopy(cfg)
-                cfg2.pop('slitlength')
-                return cfg2
+        if fitstbl['decker'] is not None and cfg['decker_basename'] is not None and 'LONGSLIT' in fitstbl['decker'] \
+                and 'LONGSLIT' in cfg['decker_basename'] and 'science' not in fitstbl['frametype'] and\
+                'standard' not in fitstbl['frametype'] and fitstbl['slitlength'] == 46.:
+            cfg2 = copy.deepcopy(cfg)
+            cfg2.pop('slitlength')
+            return cfg2
+        if fitstbl['decker'] is not None and cfg['decker_basename'] is not None and 'long2pos' in fitstbl['decker'] and \
+                'long2pos' in cfg['decker_basename'] and 'science' not in fitstbl['frametype'] \
+                and 'standard' not in fitstbl['frametype']:
+            cfg2 = copy.deepcopy(cfg)
+            cfg2['decker_basename'] = 'long2pos'
+            return cfg2
         return cfg
 
     def get_comb_group(self, fitstbl):
         """
 
-        This method modify comb_id, bkg_id and, and calib metas for a specific instrument.
+        This method modify comb_id and bkg_id metas for a specific instrument.
         It is used in :func:`pypeit.metadata.PypeItMetaData.set_combination_groups`
 
         Args:
@@ -445,10 +449,20 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                         bkgid = np.copy(fitstbl['bkg_id'][dpat_idx].data)
                         dpos = fitstbl[dpat_idx]['dithpos']
 
-                        if dpat in ["Stare", "Slit Nod", "Mask Nod"] or \
-                                (dpat == "long2pos" and "long2pos" in fitstbl[dpat_idx]['decker']):
+                        if "long2pos_specphot" in fitstbl[dpat_idx]['decker']:
+                            doff = fitstbl[dpat_idx]['dithoff']
+                            # find the starting index of the BAA sequence
+                            dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B") &
+                                                (np.roll(dpos, -2) == "A"))[0]
+                            for i in dpos_idx:
+                                # make sure that that dither offsets are correct
+                                if i < len(dpos)-2 and doff[i] == 0. and abs(doff[i+1]) > 0. and doff[i+1] == -doff[i+2]:
+                                    bkgid[i] = combid[i+1]
+                                    bkgid[i+1] = combid[i+2]
+                                    bkgid[i+2] = combid[i+1]
 
-                            if dpat == "long2pos" and "long2pos" in fitstbl[dpat_idx]['decker']:
+                        elif dpat in ["Stare", "Slit Nod", "Mask Nod"] or "long2pos" in fitstbl[dpat_idx]['decker']:
+                            if "long2pos" in fitstbl[dpat_idx]['decker']:
                                 # find the starting index of the BA sequence
                                 dpos_idx = np.where((dpos == "B") & (np.roll(dpos, -1) == "A"))[0]
                             else:
@@ -459,15 +473,23 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                                 # sequence with the last element
                                 if i < len(dpos)-1:
                                     bkgid[i] = combid[i+1]
-                                    bkgid[i + 1] = combid[i]
-                        elif dpat in ["ABAB", "ABA'B'"]:
+                                    bkgid[i+1] = combid[i]
+
+                        elif dpat == "ABA'B'":
+                            # find the starting index of the ABA'B' sequence
+                            dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B") &
+                                                (np.roll(dpos, -2) == "A'") & (np.roll(dpos, -3) == "B'"))[0]
+                            for i in dpos_idx:
+                                if i < len(dpos) - 3:
+                                    bkgid[i] = combid[i+1]
+                                    bkgid[i+1] = combid[i]
+                                    bkgid[i+2] = bkgid[i+3]
+                                    bkgid[i+3] = bkgid[i+2]
+
+                        elif dpat == "ABAB":
                             # find the starting index of the ABAB sequence
-                            if dpat == "ABAB":
-                                dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B") &
-                                                    (np.roll(dpos, -2) == "A") & (np.roll(dpos, -3) == "B"))[0]
-                            if dpat == "ABA'B'":
-                                dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B") &
-                                                    (np.roll(dpos, -2) == "A'") & (np.roll(dpos, -3) == "B'"))[0]
+                            dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B") &
+                                                (np.roll(dpos, -2) == "A") & (np.roll(dpos, -3) == "B"))[0]
                             for i in dpos_idx:
                                 if i < len(dpos) - 3:
                                     bkgid[i] = combid[i+1]
@@ -489,18 +511,6 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                                     bkgid[i+2] = bkgid[i+1]
                                     combid[i+3] = combid[i]
                                     bkgid[i+3] = bkgid[i]
-
-                        elif dpat == "long2pos" and "long2pos_specphot" in fitstbl[dpat_idx]['decker']:
-                            doff = fitstbl[dpat_idx]['dithoff']
-                            # find the starting index of the BAA sequence
-                            dpos_idx = np.where((dpos == "B") & (np.roll(dpos, -1) == "A") &
-                                                (np.roll(dpos, -2) == "A"))[0]
-                            for i in dpos_idx:
-                                # make sure that that dither offsets are correct
-                                if i < len(dpos)-1 and abs(doff[i]) > 0. and doff[i] == -doff[i+1] and doff[i+2] == 0.:
-                                    bkgid[i] = combid[i+1]
-                                    bkgid[i+1] = combid[i]
-                                    bkgid[i+2] = combid[i+1]
 
                         # assign bkgid for files that deviate from general a sequence
                         for i in range(len(fitstbl[dpat_idx])):
@@ -528,10 +538,6 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                                     bkgid[i] = combid[pos_idx][close_idx]
                         fitstbl['bkg_id'][dpat_idx] = bkgid
                         fitstbl['comb_id'][dpat_idx] = combid
-
-
-
-
 
         return fitstbl
 
@@ -591,7 +597,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             # TODO: This is a kludge.  Allow science frames to also be
             # classified as arcs
             is_arc = fitstbl['idname'] == 'arclamp'
-            is_obj = (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'object') & (fitstbl['decker'] != 'long2pos_specphot')
+            is_obj = (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'object') & ('long2pos_specphot' not in fitstbl['decker'])
             return good_exp & (is_arc | is_obj)
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
