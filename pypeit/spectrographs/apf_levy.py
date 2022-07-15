@@ -141,6 +141,24 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         
         msgs.error("Not ready for this compound meta")
 
+    def configuration_keys(self):
+        """
+        Return the metadata keys that define a unique instrument
+        configuration.
+
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
+        """
+        # its a fixed format spectrometer
+        # different deckers are used for different kinds of calibrations
+        return []
+
     
     def init_meta(self):
         """
