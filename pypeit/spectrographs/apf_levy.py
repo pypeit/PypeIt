@@ -201,7 +201,6 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         # Do not correct for flexure
         par['flexure']['spec_method'] = 'skip'
 
-        
         return par
 
 
@@ -313,7 +312,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'Bias')
         if ftype == 'dark':
             return good_exp & (fitstbl['idname'] == 'Dark')
-        if ftype in ['pixelflat']:
+        if ftype in ['pixelflat','illumflat']:
             # Flats and trace frames are typed together
             return good_exp & (fitstbl['idname'] == 'WideFlat')
         if ftype in ['trace', 'illumflat']:
