@@ -123,6 +123,8 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
         # Lamps
         self.meta['lampstat01'] = dict(ext=0, card='LAMPS')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
+        # Mirror
+        self.meta['mirror'] = dict(ext=0, card='MIRROR')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -195,9 +197,13 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
         if ftype in ['science', 'standard']:
             return good_exp & (fitstbl['idname'] == 'OBJECT')
         if ftype == 'bias':
-            return good_exp & (fitstbl['idname'] == 'zero')
-        if ftype in ['pixelflat', 'trace']:
-            return good_exp & (fitstbl['lampstat01'] == 'Flat') & (fitstbl['idname'] == 'FLAT')
+            return good_exp & (fitstbl['idname'] == 'Bias')
+            ####return good_exp & (fitstbl['idname'] == 'zero')
+        if ftype == 'pixelflat': #Internal Flats
+            return good_exp & (fitstbl['lampstat01'] == 'Flat') & (fitstbl['idname'] == 'FLAT') & (fitstbl['mirror'] == 'IN')
+        if ftype in ['trace', 'illumflat']: #Twilight Flats
+            return good_exp & (fitstbl['idname'] == 'FLAT') & (fitstbl['mirror'] == 'OUT')
+        
         if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
