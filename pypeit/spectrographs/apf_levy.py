@@ -9,8 +9,7 @@ import glob
 from IPython import embed
 
 import numpy as np
-
-from scipy import interpolate
+from astropy.time import Time
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -19,6 +18,7 @@ from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
+from pypeit.images import detector_container
 
 
 class APFLevySpectrograph(spectrograph.Spectrograph):
@@ -75,7 +75,6 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         # Do not correct for flexure
         par['flexure']['spec_method'] = 'skip'
 
-        
         return par
 
 
@@ -195,11 +194,11 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'Bias')
         if ftype == 'dark':
             return good_exp & (fitstbl['idname'] == 'Dark')
-        if ftype in ['pixelflat']:
+        if ftype in ['pixelflat','illumflat']:
             # Flats and trace frames are typed together
             return good_exp & (fitstbl['idname'] == 'WideFlat') 
         if ftype in ['trace']:
-            return good_exp & (fitstbl['idname'] == 'NarrowFlat') 
+            return good_exp & (fitstbl['idname'] == 'Iodine') 
         if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['idname'] == 'ThAr')
 
@@ -207,20 +206,12 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         return np.zeros(len(fitstbl), dtype=bool)
 
     def is_science(self, fitstbl):
-        if fitstbl['idname'] == 'WideFlat':
-            return False
-        if fitstbl['idname'] == 'NarrowFlat':
-            return False
-        if fitstbl['idname'] == 'Iodine':
-            return False
-        if fitstbl['idname'] == 'ThAr':
-            return False
-        if fitstbl['idname'] == 'Dark':
-            return False
-        if fitstbl['idname'] == 'Bias':
-            return False
-
-        return True
+        rv = fitstbl['idname'] != 'WideFlat'
+        
+        for filetype in ['NarrowFlat','ThAr','Dark','Bias','Iodine']:
+            rv = rv & (fitstbl['idname'] != filetype)
+            
+        return rv
 
 
 def apf_read_chip(hdu):
