@@ -120,10 +120,10 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         turn_off = dict(use_biasimage=False, use_overscan=False, use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
 
-        # Require dark images to be subtracted from the flat images used for tracing, pixelflats, and illumflats
-        par['calibrations']['pixelflatframe']['process']['use_darkimage'] = True
-        par['calibrations']['illumflatframe']['process']['use_darkimage'] = True
-        par['calibrations']['traceframe']['process']['use_darkimage'] = True
+        # # Require dark images to be subtracted from the flat images used for tracing, pixelflats, and illumflats
+        # par['calibrations']['pixelflatframe']['process']['use_darkimage'] = True
+        # par['calibrations']['illumflatframe']['process']['use_darkimage'] = True
+        # par['calibrations']['traceframe']['process']['use_darkimage'] = True
         # TODO: `mask_cr` now defaults to True for darks.  Should this be turned off?
 
         # Extraction
@@ -132,10 +132,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
 
         # Object finding
-        par['reduce']['findobj']['find_cont_fit'] = True  # Attempt to fit a continuum to the trace rectified image
-        par['reduce']['findobj']['find_npoly_cont'] = 1  # Continnum order for determining thresholds
-        par['reduce']['findobj']['find_fwhm'] = 10  # Continnum order for determining thresholds
-        par['reduce']['findobj']['cont_sig_thresh'] = 1.0
+        par['reduce']['findobj']['find_fwhm'] = 10
         par['reduce']['findobj']['skip_second_find'] = True
 
 

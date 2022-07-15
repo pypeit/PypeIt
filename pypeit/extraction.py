@@ -19,6 +19,7 @@ from pypeit import msgs, utils
 from pypeit.display import display
 from pypeit.core import skysub, extract, wave, flexure
 from pypeit.core.moment import moment1d
+from pypeit import specobj
 
 from linetools.spectra import xspectrum1d
 
@@ -238,7 +239,7 @@ class Extract:
 #        # For echelle
 #        self.spatial_coo = self.slits.spatial_coordinates(initial=initial, flexure=self.spat_flexure_shift)
 
-    def extract(self, global_sky, sobjs_obj):
+    def extract(self, global_sky, model_noise=None, spat_pix=None):
         """
         Main method to extract spectra from the ScienceImage
 
@@ -247,6 +248,18 @@ class Extract:
                 Sky estimate
             sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
                 List of SpecObj that have been found and traced
+            model_noise (bool):
+                If True, construct and iteratively update a model inverse variance image
+                using :func:`~pypeit.core.procimg.variance_model`. If False, a
+                variance model will not be created and instead the input sciivar will
+                always be taken to be the inverse variance. See :func:`~pypeit.core.skysub.local_skysub_extract`
+                for more info. Default is None, which is to say pypeit will use the bkg_redux attribute to
+                decide whether or not to model the noise.
+            spat_pix (`numpy.ndarray`_):
+                 Image containing the spatial coordinates. This option is used for 2d coadds
+                 where the spat_pix image is generated as a coadd of images. For normal reductions
+                 spat_pix is not required as it is trivially created from the image itself. Default is None.
+
         """
         # This holds the objects, pre-extraction
         # JFH Commenting this out. Not sure why we need this. It overwrites the previous stuff from the init
@@ -278,16 +291,33 @@ class Extract:
             self.outmask = self.sciImg.fullmask
             self.skymodel = global_sky.copy()
         else:  # Local sky subtraction and optimal extraction.
+            model_noise_1 = not self.bkg_redux if model_noise is None else model_noise
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
                 self.local_skysub_extract(global_sky, self.sobjs_obj,
-                                          model_noise=(not self.bkg_redux),
+                                          model_noise=model_noise_1,
+                                          spat_pix = spat_pix,
                                           show_profile=self.extract_show,
                                           show=self.extract_show)
+
+        # Remove sobjs that don't have both OPT_COUNTS and BOX_COUNTS
+        remove_idx = []
+        for idx, sobj in enumerate(self.sobjs):
+            # Find them
+            if sobj.OPT_COUNTS is None and sobj.BOX_COUNTS is None:
+                remove_idx.append(idx)
+                msgs.warn(f'Removing object at pixel {sobj.SPAT_PIXPOS} because '
+                          f'both optimal and boxcar extraction could not be performed')
+            elif sobj.OPT_COUNTS is None:
+                msgs.warn(f'Optimal extraction could not be performed for object at pixel {sobj.SPAT_PIXPOS}')
+
+        # Remove them
+        if len(remove_idx) > 0:
+            self.sobjs.remove_sobj(remove_idx)
 
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
-    def prepare_extraction(self, global_sky):
+    def prepare_extraction(self):
         """ Prepare the masks and wavelength image for extraction.
         """
         # Deal with dynamic calibrations
@@ -307,12 +337,10 @@ class Extract:
         msgs.info("Generating wavelength image")
         self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
 
-        # Set the initial and global sky
-        self.global_sky = global_sky
 
 
 
-    def run(self, global_sky, ra=None, dec=None, obstime=None):
+    def run(self, global_sky, prepare_extraction=True, model_noise=None, spat_pix=None, ra=None, dec=None, obstime=None):
         """
         Primary code flow for PypeIt reductions
 
@@ -323,12 +351,29 @@ class Extract:
                 Global sky model
             sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
                 List of objects found during `run_objfind`
+            prepare_extraction (bool):
+                If True, generate the tilts image and the waveimg using fits that are stored in their
+                respective objects. This allows spatial flexure compensation to optionally be taken into account.
+                This option is set to False for coadd2d, since
+            model_noise (bool):
+                If True, construct and iteratively update a model inverse variance image
+                using :func:`~pypeit.core.procimg.variance_model`. If False, a
+                variance model will not be created and instead the input sciivar will
+                always be taken to be the inverse variance. See :func:`~pypeit.core.skysub.local_skysub_extract`
+                for more info. Default is None, which is to say pypeit will use the bkg_redux attribute to
+                decide whether or not to model the noise.
+            spat_pix (`numpy.ndarray`_):
+                 Image containing the spatial coordinates. This option is used for 2d coadds
+                 where the spat_pix image is generated as a coadd of images. For normal reductions
+                 spat_pix is not required as it is trivially created from the image itself. Default is None.
             ra (:obj:`float`, optional):
                 Required if helio-centric correction is to be applied
             dec (:obj:`float`, optional):
                 Required if helio-centric correction is to be applied
             obstime (:obj:`astropy.time.Time`, optional):
                 Required if helio-centric correction is to be applied
+
+
             return_negative (:obj:`bool`, optional):
                 Do you want to extract the negative objects?
 
@@ -341,8 +386,10 @@ class Extract:
         """
         # Start by preparing some masks and the wavelength image, ready for extraction
         # TODO this should return things to make the control flow less opqaque.
-        self.prepare_extraction(global_sky)
+        if prepare_extraction:
+            self.prepare_extraction()
 
+        self.global_sky = global_sky
 
         # Do we have any positive objects to proceed with?
         if self.nobj_to_extract > 0:
@@ -353,7 +400,7 @@ class Extract:
 
             # Extract + Return
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
-                = self.extract(self.global_sky, self.sobjs_obj)
+                = self.extract(self.global_sky, model_noise=model_noise, spat_pix=spat_pix)
 
             if self.bkg_redux:
                 self.sobjs.make_neg_pos() if self.return_negative else self.sobjs.purge_neg()
@@ -443,18 +490,31 @@ class Extract:
             trace_spat = 0.5 * (self.slits_left + self.slits_right)
             trace_spec = np.arange(self.slits.nspec)
             slit_specs = []
+            # get boxcar radius
+            box_radius = self.par['reduce']['extraction']['boxcar_radius']
             for ss in range(self.slits.nslits):
                 if not gd_slits[ss]:
                     slit_specs.append(None)
                     continue
                 slit_spat = self.slits.spat_id[ss]
                 thismask = (self.slitmask == slit_spat)
-                box_denom = moment1d(self.waveimg * thismask > 0.0, trace_spat[:, ss], 2, row=trace_spec)[0]
-                wghts = (box_denom + (box_denom == 0.0))
-                slit_sky = moment1d(self.global_sky * thismask, trace_spat[:, ss], 2, row=trace_spec)[0] / wghts
-                # Denom is computed in case the trace goes off the edge of the image
-                slit_wave = moment1d(self.waveimg * thismask, trace_spat[:, ss], 2, row=trace_spec)[0] / wghts
+                inmask = self.sciImg.select_flag(invert=True) & thismask
+
+                # Dummy spec for extract_boxcar
+                spec = specobj.SpecObj(PYPELINE=self.pypeline,
+                                       SLITID=ss,
+                                       ECH_ORDER=ss, # Use both to cover the bases for naming
+                                       DET=str(self.det))
+                spec.trace_spec = trace_spec
+                spec.TRACE_SPAT = trace_spat[:,ss]
+                spec.BOX_RADIUS = box_radius
+                # Extract
+                extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar, inmask,
+                                       self.waveimg, self.global_sky, spec) 
+                slit_wave, slit_sky = spec.BOX_WAVE, spec.BOX_COUNTS_SKY
+
                 # TODO :: Need to remove this XSpectrum1D dependency - it is required in:  flexure.spec_flex_shift
+                # Pack
                 slit_specs.append(xspectrum1d.XSpectrum1D.from_tuple((slit_wave, slit_sky)))
 
             # Measure flexure
@@ -764,24 +824,23 @@ class MultiSlitExtract(Extract):
             no_local_sky = self.par['reduce']['skysub']['no_local_sky']
 
             # Local sky subtraction and extraction
-            self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], \
-                self.extractmask[thismask] \
-                    = skysub.local_skysub_extract(self.sciImg.image, self.sciImg.ivar,
-                                                  self.tilts, self.waveimg, self.global_sky,
-                                                  thismask, self.slits_left[:,slit_idx],
-                                                  self.slits_right[:, slit_idx],
-                                                  self.sobjs[thisobj], ingpm=ingpm,
-                                                  spat_pix=spat_pix,
-                                                  model_full_slit=model_full_slit,
-                                                  sigrej=sigrej, model_noise=model_noise,
-                                                  std=self.std_redux, bsp=bsp,
-                                                  force_gauss=force_gauss, sn_gauss=sn_gauss,
-                                                  show_profile=show_profile,
-                                                  use_2dmodel_mask=use_2dmodel_mask,
-                                                  no_local_sky=no_local_sky,
-                                                  base_var=self.sciImg.base_var,
-                                                  count_scale=self.sciImg.img_scale,
-                                                  adderr=self.sciImg.noise_floor)
+            self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], self.extractmask[thismask] \
+                = skysub.local_skysub_extract(self.sciImg.image, self.sciImg.ivar,
+                                              self.tilts, self.waveimg, self.global_sky,
+                                              thismask, self.slits_left[:,slit_idx],
+                                              self.slits_right[:, slit_idx],
+                                              self.sobjs[thisobj], ingpm=ingpm,
+                                              spat_pix=spat_pix,
+                                              model_full_slit=model_full_slit,
+                                              sigrej=sigrej, model_noise=model_noise,
+                                              std=self.std_redux, bsp=bsp,
+                                              force_gauss=force_gauss, sn_gauss=sn_gauss,
+                                              show_profile=show_profile,
+                                              use_2dmodel_mask=use_2dmodel_mask,
+                                              no_local_sky=no_local_sky,
+                                              base_var=self.sciImg.base_var,
+                                              count_scale=self.sciImg.img_scale,
+                                              adderr=self.sciImg.noise_floor)
 
         # Set the bit for pixels which were masked by the extraction.
         # For extractmask, True = Good, False = Bad

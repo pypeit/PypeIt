@@ -15,6 +15,7 @@ from matplotlib import pyplot as plt
 from astropy.table import Table, vstack
 
 from pypeit import msgs
+from pypeit import utils
 from pypeit import specobjs
 from pypeit import slittrace
 from pypeit import extraction
@@ -228,7 +229,7 @@ class CoAdd2D:
         This provides an array of index of slits in the un-coadded frames that are considered good for 2d coadding.
         A bitmask common to all the un-coadded frames is used to determine which slits are good. Also,
         If the `only_slits` parameter is provided only those slits are considered good for 2d coadding.
-        
+
         Args:
             only_slits (:obj:`list`, optional):
                 List of slits to combine. It must be `slitord_id`
@@ -248,8 +249,8 @@ class CoAdd2D:
         for i in range(1, self.nexp):
             # update bpm with the info from the other frames
             slits = self.stack_dict['slits_list'][i]
-            reduce_bpm &= (slits.mask > 0) & (np.invert(slits.bitmask.flagged(slits.mask,
-                                                                             flag=slits.bitmask.exclude_for_reducing)))
+            reduce_bpm |= (slits.mask > 0) & (np.invert(slits.bitmask.flagged(slits.mask,
+                                                                              flag=slits.bitmask.exclude_for_reducing)))
         # this are the good slit index according to the bpm mask
         good_slitindx = np.where(np.logical_not(reduce_bpm))[0]
 
@@ -531,12 +532,17 @@ class CoAdd2D:
 
     def reduce(self, pseudo_dict, show=None, show_peaks=None, basename=None):
         """
-        ..todo.. Please document me
+        Method to run the reduction on coadd2d psuedo images
 
         Args:
-            pseudo_dict:
-            show:
-            show_peaks:
+            pseudo_dict (dict):
+               Dictionary containing coadd2d psuedo images
+            show (bool):
+               If True, show the outputs to ginga and the screen analogous to run_pypeit with the -s option
+            show_peaks (bool):
+               If True, plot the object finding QA to the screen.
+            basename (str):
+               The basename for the spec2d output files.
 
         Returns:
 
@@ -568,7 +574,6 @@ class CoAdd2D:
         manual_obj = None
         if self.par['coadd2d']['manual'] is not None and len(self.par['coadd2d']['manual']) > 0:
             manual_obj = ManualExtractionObj.by_fitstbl_input('None', self.par['coadd2d']['manual'], self.spectrograph)
-
         # Get bpm mask. There should not be any masked slits because we excluded those already
         # before the coadd, but we need to pass a bpm to FindObjects and Extract
         slits = pseudo_dict['slits']
@@ -593,7 +598,7 @@ class CoAdd2D:
             objFind.show('image', image=pseudo_dict['imgminsky']*gpm.astype(float),
                        chname='imgminsky', slits=True, clear=True)
 
-        sobjs_obj, nobj = objFind.find_objects(sciImage.image, show_peaks=show_peaks,
+        sobjs_obj, nobj = objFind.find_objects(sciImage.image, sciImage.ivar, show_peaks=show or show_peaks,
                                                save_objfindQA=True)
 
         # maskdef stuff
@@ -627,14 +632,10 @@ class CoAdd2D:
 
         # Local sky-subtraction
         global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
-        skymodel_pseudo, objmodel_pseudo, \
-            ivarmodel_pseudo, outmask_pseudo, sobjs = exTract.local_skysub_extract(global_sky_pseudo, sobjs_obj,
-                                                                                   spat_pix=pseudo_dict['spat_img'],
-                                                                                   model_noise=False, show_profile=show,
-                                                                                   show=show)
 
-        if self.find_negative and not parcopy['reduce']['extraction']['return_negative']:
-            sobjs.purge_neg()
+        skymodel_pseudo, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, _, _ = exTract.run(
+            global_sky_pseudo, prepare_extraction=False, model_noise=False, spat_pix=pseudo_dict['spat_img'])
+
 
         # Add the rest to the pseudo_dict
         pseudo_dict['skymodel'] = skymodel_pseudo
@@ -649,22 +650,6 @@ class CoAdd2D:
                pseudo_dict['tilts'], pseudo_dict['waveimg']
 
 
-
-#    def save_masters(self):
-#
-#        # Write out the pseudo master files to disk
-#        master_key_dict = self.stack_dict['master_key_dict']
-#
-#        # TODO: These saving operations are a temporary kludge
-#        # spectrograph is needed for header
-#        waveImage = WaveImage(self.pseudo_dict['waveimg'], PYP_SPEC=self.spectrograph.spectrograph)
-#        wave_filename = masterframe.construct_file_name(WaveImage, master_key_dict['arc'], self.master_dir)
-#        waveImage.to_master_file(wave_filename)
-#
-#        # TODO: Assumes overwrite=True
-#        slit_filename = masterframe.construct_file_name(self.pseudo_dict['slits'], master_key_dict['trace'], self.master_dir)
-#        self.pseudo_dict['slits'].to_master_file(slit_filename) #self.master_dir, master_key_dict['trace'], self.spectrograph.spectrograph)
-#    '''
 
     def snr_report(self, snr_bar, slitid=None):
         """
@@ -1111,7 +1096,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
             dspat_bins, dspat_stack = coadd.get_spat_bins(thismask_stack, trace_stack_bri)
 
             sci_list = [self.stack_dict['sciimg_stack'] - self.stack_dict['skymodel_stack']]
-            var_list = []
+            var_list = [utils.inverse(self.stack_dict['sciivar_stack'])]
 
             msgs.info('Rebinning Images')
             sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack = coadd.rebin2d(
@@ -1125,15 +1110,14 @@ class MultiSlitCoAdd2D(CoAdd2D):
             traces_rect = np.zeros((nspec_pseudo, self.nexp))
             sobjs = specobjs.SpecObjs()
             for iexp in range(self.nexp):
-                sobjs_exp = findobj_skymask.objs_in_slit(sci_list_rebin[0][iexp,:,:], thismask, slit_left, slit_righ,
-                                               inmask=inmask[iexp,:,:], has_negative=self.find_negative,
-                                               fwhm=self.par['reduce']['findobj']['find_fwhm'],
-                                               trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
-                                               npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
-                                               maxdev=self.par['reduce']['findobj']['find_maxdev'],
-                                               ncoeff=3, sig_thresh=self.par['reduce']['findobj']['sig_thresh'], nperslit=1,
-                                               find_min_max=self.par['reduce']['findobj']['find_min_max'],
-                                               show_trace=self.debug_offsets, show_peaks=self.debug_offsets)
+                sobjs_exp = findobj_skymask.objs_in_slit(
+                    sci_list_rebin[0][iexp,:,:], utils.inverse(var_list_rebin[0][iexp,:,:]), thismask, slit_left, slit_righ,
+                    inmask=inmask[iexp,:,:], fwhm=self.par['reduce']['findobj']['find_fwhm'],
+                    trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
+                    maxdev=self.par['reduce']['findobj']['find_maxdev'],
+                    ncoeff=3, snr_thresh=self.par['reduce']['findobj']['snr_thresh'], nperslit=1,
+                    find_min_max=self.par['reduce']['findobj']['find_min_max'],
+                    show_trace=self.debug_offsets, show_peaks=self.debug_offsets)
                 sobjs.add_sobj(sobjs_exp)
                 traces_rect[:, iexp] = sobjs_exp.TRACE_SPAT
             # Now deterimine the offsets. Arbitrarily set the zeroth trace to the reference

@@ -10,6 +10,7 @@
                   file must have the following format:
                    
                   flexure read
+                    filename
                     spec1dfile1
                     spec1dfile2
                        ...    

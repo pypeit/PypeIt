@@ -42,6 +42,8 @@ from pypeit.core import meta
 from pypeit.par import pypeitpar
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
+from astropy.io.fits import Header
+
 
 # TODO: Create an EchelleSpectrograph derived class that holds all of
 # the echelle specific methods.
@@ -176,6 +178,25 @@ class Spectrograph:
             adjusted for configuration specific parameter values.
         """
         return self.__class__.default_pypeit_par() if inp_par is None else inp_par
+
+    def update_edgetracepar(self, par):
+        """
+        This method is used in :func:`pypeit.edgetrace.EdgeTraceSet.maskdesign_matching`
+        to update EdgeTraceSet parameters when the slitmask design matching is not feasible
+        because too few slits are present in the detector.
+
+        **This method is not defined for all spectrographs.**
+
+        Args:
+            par (:class:`pypeit.par.pypeitpar.EdgeTracePar`):
+                The parameters used to guide slit tracing.
+
+        Returns:
+            :class:`pypeit.par.pypeitpar.EdgeTracePar`
+            The modified parameters used to guide slit tracing.
+        """
+
+        return par
 
     def _check_telescope(self):
         """Check the derived class has properly defined the telescope."""
@@ -317,6 +338,36 @@ class Spectrograph:
         if detector_par['spatflip']:
             image = np.flip(image, axis=1)
         return image
+
+
+
+    def parse_dither_pattern(self, file_list, ext=None):
+        """
+        Parse headers from a file list to determine the dither pattern.
+
+        Parameters
+        ----------
+        file_list (list of strings):
+            List of files for which dither pattern is desired
+        ext (int, optional):
+            Extension containing the relevant header for these files. Default=None. If None, code uses
+            self.primary_hdrext
+
+        Returns
+        -------
+        dither_pattern, dither_id, offset_arcsec
+
+        dither_pattern (str `numpy.ndarray`_):
+            Array of dither pattern names
+        dither_id (str `numpy.ndarray`_):
+            Array of dither pattern IDs
+        offset_arc (float `numpy.ndarray`_):
+            Array of dither pattern offsets
+        """
+        nfiles = len(file_list)
+        dummy_str_array = np.array(nfiles*[''])
+        dummy_id_array = np.array(nfiles*['A'])
+        return dummy_str_array, dummy_id_array,  np.zeros(nfiles)
 
     # TODO: JFH Are these bad pixel masks in the raw frame, or the
     # flipped/transposed pypeit frame?? KBW: Does the new description of
@@ -477,9 +528,9 @@ class Spectrograph:
         Detectors separated along the dispersion direction should be ordered
         along the first axis of the returned array.  For example, Keck/DEIMOS
         returns:
-        
+
         .. code-block:: python
-        
+
             dets = np.array([['DET01', 'DET02', 'DET03', 'DET04'],
                              ['DET05', 'DET06', 'DET07', 'DET08']])
 
@@ -581,7 +632,7 @@ class Spectrograph:
             if instr_names[0] != self.header_name:
                 msgs.warn(f"Your header's instrument name doesn't match the expected one! {instr_names[0]}, {self.header_name}\n"+
                 f"You may have chosen the wrong PypeIt spectrograph name")
-            
+
 
     def config_independent_frames(self):
         """
@@ -794,7 +845,7 @@ class Spectrograph:
             return np.arange(1, self.ndet+1).tolist()
 
         if isinstance(subset, str):
-            _subset = parse.parse_slitspatnum(subset)[0].tolist() 
+            _subset = parse.parse_slitspatnum(subset)[0].tolist()
         elif isinstance(subset, (int, tuple)):
             _subset = [subset]
         else:
@@ -1010,10 +1061,11 @@ class Spectrograph:
         Return meta data from a given file (or its array of headers).
 
         Args:
-            inp (:obj:`str`, :obj:`list`):
-                Input filename or list of `astropy.io.fits.Header`_ objects.  If
-                None, function simply returns None without issuing any
-                warnings/errors, unless ``required`` is True.
+            inp (:obj:`str`, `astropy.io.fits.Header`_, :obj:`list`):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  If None, function simply
+                returns None without issuing any warnings/errors, unless
+                ``required`` is True.
             meta_key (:obj:`str`, :obj:`list`):
                 A (list of) string(s) with the keywords to read from the file
                 header(s).
@@ -1046,7 +1098,15 @@ class Spectrograph:
         Returns:
             Value recovered for (each) keyword.  Can be None.
         """
-        headarr = self.get_headarr(inp) if isinstance(inp, str) else inp
+        if isinstance(inp, str):
+            headarr = self.get_headarr(inp)
+        elif inp is None or isinstance(inp, list):
+            headarr = inp
+        elif isinstance(inp, Header):
+            headarr = [inp]
+        else:
+            msgs.error('Unrecognized type for input')
+        
         if headarr is None:
             if required:
                 msgs.error(f'Unable to access required metadata value for {meta_key}.  Input is '
@@ -1151,7 +1211,6 @@ class Spectrograph:
                                 kerror = True
                     # Bomb out?
                     if kerror:
-                        #embed(header=utils.embed_header())
                         msgs.error('Required meta "{0}" did not load!'.format(meta_key)
                                    + 'You may have a corrupt header.')
                 else:
@@ -1205,13 +1264,29 @@ class Spectrograph:
                 Number of wavelength steps.  Given by::
                     int(round((wavemax-wavemin)/delta_wave))
 
-        Args:
+        Returns:
             :obj:`tuple`: Three 1D `numpy.ndarray`_ providing the bins to use
             when constructing a histogram of the spec2d files. The elements
             are :math:`(x,y,\lambda)`.
         """
         msgs.warn("No datacube setup for spectrograph: {0:s}".format(self.name))
         return None
+
+    def fit_2d_det_response(self, det_resp, gpmask):
+        r"""
+        Perform a 2D model fit to the instrument-specific detector response.
+
+        Args:
+            det_resp(`numpy.ndarray`_):
+                An image of the detector response.
+            gpmask (`numpy.ndarray`_):
+                Good pixel mask (True=good), the same shape as ff_struct.
+
+        Returns:
+            `numpy.ndarray`_: A model fit to the detector response.
+        """
+        msgs.warn("2D detector response is not implemented for spectrograph: {0:s}".format(self.name))
+        return np.ones_like(det_resp)
 
     def validate_metadata(self):
         """
@@ -1400,8 +1475,16 @@ class Spectrograph:
 
     @property
     def order_spat_pos(self):
-        """
-        Return the expected spatial position of each echelle order.
+        """ Return the expected spatial position of each echelle order.
+
+        This is for fixed-format echelle spectrographs (e.g. X-Shooter)
+        And is measured 1/2 way up the chip (spectral)
+        and in normalized units (0-1)
+
+        Returns:
+            `numpy.ndarray`_: An array with values. 
+            The length of the provided array much 
+            match self.norders
         """
         return None
 
@@ -1409,6 +1492,10 @@ class Spectrograph:
     def orders(self):
         """
         Return the order number for each echelle order.
+
+        Returns:
+            `numpy.ndarray`_: An array with values. 
+            Order number.  Must have lenght of self.norders
         """
         return None
 
@@ -1470,12 +1557,12 @@ class Spectrograph:
     def spec1d_match_spectra(self, sobjs):
         """
         Match up slits in a :class:`~pypeit.specobjs.SpecObjs` object.
-        
+
         This typically done across multiple detectors; see
         :func:`pypeit.specrographs.keck_deimos.spec1d_match_spectra`.
 
         Args:
-            sobjs (:class:`~pypeit.specobjs.SpecObjs`): 
+            sobjs (:class:`~pypeit.specobjs.SpecObjs`):
                 Spec1D objects
 
         Returns:
@@ -1484,32 +1571,6 @@ class Spectrograph:
         """
         msgs.error(f'Method to match slits across detectors not defined for {self.name}')
 
-    # TODO: Shold this be a class method?
-    def parse_dither_pattern(self, file_list, ext=None):
-        """
-        Parse headers from a file list to determine the dither pattern.
-
-        Parameters
-        ----------
-        file_list (list of strings):
-            List of files for which dither pattern is desired
-        ext (int, optional):
-            Extension containing the relevant header for these files. Default=None. If None, code uses
-            self.primary_hdrext
-
-
-        Returns
-        -------
-        dither_pattern, dither_id, offset_arcsec
-
-        dither_pattern (str `numpy.ndarray`_):
-            Array of dither pattern names
-        dither_id (str `numpy.ndarray`_):
-            Array of dither pattern IDs
-        offset_arc (float `numpy.ndarray`_):
-            Array of dither pattern offsets
-        """
-        pass
 
     def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table):
         """
@@ -1570,7 +1631,7 @@ class Spectrograph:
 
         Returns
         -------
-        patt_freqs : `list`_
+        patt_freqs : :obj:`list`
             List of pattern frequencies.
         """
         msgs.info("Pattern noise removal is not implemented for spectrograph {0:s}".format(self.name))

@@ -79,9 +79,9 @@ MOSFIRE (except when the *LONGSLIT* mask is used).
 Seven other parameters control this procedure. Six are for the slitmask offset determination
 and one is for the RA, Dec and object name assignment. They are the following.
 
-- **nsig_thrshd**: objects detected above this significance threshold are used to
+- **snr_thrshd**: objects detected above this S/N threshold are used to
   compute the slitmask offset. This is the default behaviour for DEIMOS unless **slitmask_offset**,
-  **bright_maskdef_id** or **use_alignbox** is set. Default value is **nsig_thrshd=50**.
+  **bright_maskdef_id** or **use_alignbox** is set. Default value is **snr_thrshd=50**.
 
 - **bright_maskdef_id**: ``maskdef_id`` (corresponding to ``dSlitId`` and ``Slit_Number`` in the DEIMOS
   and MOSFIRE slitmask design, respectively) of a slit containing a bright object that will be used
@@ -93,13 +93,13 @@ and one is for the RA, Dec and object name assignment. They are the following.
 
 - **use_alignbox**: flag to use stars in alignment boxes to compute the slitmask offset. This is
   available only for DEIMOS observations and it is set as the default for this instrument.
-  If **use_alignbox = True** PypeIt will NOT compute the offset using **nsig_thrshd** or
+  If **use_alignbox = True** PypeIt will NOT compute the offset using **snr_thrshd** or
   **bright_maskdef_id**.
 
 - **use_dither_offset**: flag to use the dither offset recorded in the header of science frames as the
   value of the slitmask offset. This is currently only available for MOSFIRE reduction and
   it is set as the default for this instrument. If **use_dither_offset = True** PypeIt will NOT compute the
-  offset using `nsig_thrshd` or `bright_maskdef_id`. However, it is ignored if ``slitmask_offset`` is provided.
+  offset using `snr_thrshd` or `bright_maskdef_id`. However, it is ignored if ``slitmask_offset`` is provided.
 
 - **slitmask_offset**: user-provided slitmask offset (pixels) from the position expected
   by the slitmask design. This is optional (default value is **slitmask_offset=None**),

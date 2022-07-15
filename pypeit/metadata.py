@@ -19,13 +19,13 @@ from astropy import table, coordinates, time, units
 
 from pypeit import msgs
 from pypeit import utils
+from pypeit import inputfiles
 from pypeit.core import framematch
 from pypeit.core import flux_calib
 from pypeit.core import parse
 from pypeit.core import meta
 from pypeit.io import dict_to_lines
 from pypeit.par import PypeItPar
-from pypeit.par.util import make_pypeit_file
 from pypeit.bitmask import BitMask
 
 
@@ -203,7 +203,8 @@ class PypeItMetaData:
                 value = self.spectrograph.get_meta_value(headarr, meta_key, 
                                                          required=strict,
                                                          usr_row=usr_row, 
-                        ignore_bad_header = self.par['rdx']['ignore_bad_headers'])
+                        ignore_bad_header = (
+                            self.par['rdx']['ignore_bad_headers'] or strict))
                 if isinstance(value, str) and '#' in value:
                     value = value.replace('#', '')
                     msgs.warn('Removing troublesome # character from {0}.  Returning {1}.'.format(
@@ -321,7 +322,7 @@ class PypeItMetaData:
                 # Allow for str RA, DEC (backwards compatability)
                 if key in ['ra', 'dec'] and not radec_done:
                     ras, decs = meta.convert_radec(usrdata['ra'][~nones].data,
-                                                   usrdata['dec'][~nones].data)
+                                                usrdata['dec'][~nones].data)
                     usrdata['ra'][~nones] = ras.astype(dtype)
                     usrdata['dec'][~nones] = decs.astype(dtype)
                     radec_done = True
@@ -916,9 +917,9 @@ class PypeItMetaData:
             if self['calib'][i] in ['all', 'None']:
                 # No information, keep going
                 continue
-            # Convert to a list of numbers
+            # Convert to a list of numbers (after recasting to str)
             l = np.amax([ 0 if len(n) == 0 else int(n)
-                                for n in self['calib'][i].replace(':',',').split(',')])
+                                for n in str(self['calib'][i]).replace(':',',').split(',')])
             # Check against current maximum
             ngroups = max(l+1, ngroups)
 
@@ -929,7 +930,7 @@ class PypeItMetaData:
         # Set the calibration bits
         for i in range(len(self)):
             # Convert the string to the group list
-            grp = parse.str2list(self['calib'][i], ngroups)
+            grp = parse.str2list(str(self['calib'][i]), ngroups)
             if grp is None:
                 # No group selected
                 continue
@@ -1234,7 +1235,10 @@ class PypeItMetaData:
         # Use the user-defined frame types from the input dictionary
         if user is not None:
             if len(user.keys()) != len(self):
-                raise ValueError('The user-provided dictionary does not match table length.')
+                if len(np.unique(self['filename'].data)) != len(self):
+                    raise ValueError('Your pypeit file has duplicate filenames which is not allowed.')
+                else:
+                    raise ValueError('The user-provided dictionary does not match table length.')
             msgs.info('Using user-provided frame types.')
             for ifile,ftypes in user.items():
                 indx = self['filename'] == ifile
@@ -1436,7 +1440,8 @@ class PypeItMetaData:
             mjd[mjd == None] = -99999.0
             isort = np.argsort(mjd)
             subtbl = subtbl[isort]
-            subtbl.write(ff, format='ascii.fixed_width')
+            # This needs to match the format for writing file blocks in pypeit.inputfiles.InputFile
+            subtbl.write(ff, format='ascii.fixed_width', bookend=False)
         ff.write('##end\n')
         ff.close()
 
@@ -1604,23 +1609,35 @@ class PypeItMetaData:
                 os.makedirs(odir)
             # Create the output file name
             ofiles[j] = os.path.join(odir, '{0}.pypeit'.format(root))
-            # Get the setup lines
-            setup_lines = dict_to_lines({'Setup {0}'.format(setup): 
-                utils.yamlify(cfg[setup])}, level=1)
+
+            # Setup dict
+            setup_dict = {}
+            setup_dict[f'Setup {setup}'] = {}
+            for key in cfg[setup]:
+                setup_dict[f'Setup {setup}'][key] = cfg[setup][key]
+            
             # Get the paths
             in_cfg = self['setup'] == setup
             if not np.any(in_cfg):
                 continue
             paths = np.unique(self['directory'][in_cfg]).tolist()
+
             # Get the data lines
             subtbl = self.table[output_cols][in_cfg]
             subtbl.sort(['frametype','filename'])
-            with io.StringIO() as ff:
-                subtbl.write(ff, format='ascii.fixed_width')
-                data_lines = ff.getvalue().split('\n')[:-1]
-            # Write the file
-            make_pypeit_file(ofiles[j], self.spectrograph.name, [], cfg_lines=cfg_lines,
-                             setup_lines=setup_lines, sorted_files=data_lines, paths=paths)
+            #with io.StringIO() as ff:
+            #    subtbl.write(ff, format='ascii.fixed_width')
+            #    data_lines = ff.getvalue().split('\n')[:-1]
+
+            # Config lines
+            if cfg_lines is None:
+                cfg_lines = ['[rdx]']
+                cfg_lines += ['    spectrograph = {0}'.format(self.spectrograph.name)]
+
+            # Instantiate a PypeItFile
+            pypeItFile = inputfiles.PypeItFile(cfg_lines, paths, subtbl, setup_dict)
+            # Write
+            pypeItFile.write(ofiles[j]) 
 
         # Return
         return ofiles

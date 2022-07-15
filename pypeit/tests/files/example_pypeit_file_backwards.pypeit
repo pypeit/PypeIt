@@ -1,0 +1,40 @@
+# THIS FILE IS FOR TESTING BACKWARDS COMPATABILITY
+# #  OTHERWISE IGNORE IT!!
+# This is a comment line
+
+# User-defined execution parameters
+[rdx]
+    spectrograph = shane_kast_blue
+    sortroot = shane_kast_blue_setup_A
+
+[baseprocess]
+    combine = median
+
+[scienceframe]
+    [[process]]
+        n_lohi = 8, 8
+#[reduce]
+#  [[extraction]]
+#     [[[manual]]]
+#        spat_spec = 120.:1200,134.:1200
+#        det = 1,2
+#        fwhm = 3.,3.
+
+# Setup
+setup read
+ Setup A:
+ --:
+   dichroic: d55
+   disperser: {angle: none, name: 600/4310}
+   slit: {decker: 0.5 arcsec, slitlen: none, slitwid: none}
+ '01': {binning: None, det: 1, namp: 2}
+setup end
+
+# Read in the data
+data read
+ path /Users/westfall/Work/packages/PYPIT/pypit/tests/files/
+|    filename |                   date | frametype |     target | exptime | dispname |     decker |
+|  b1.fits.gz | 2015-05-20T01:35:58.10 |       arc |       Arcs |      30 | 600/4310 | 0.5 arcsec |
+| b27.fits.gz | 2015-05-20T04:57:33.56 |   science | J1217p3905 |    1200 | 600/4310 | 2.0 arcsec |
+data end
+
