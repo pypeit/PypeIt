@@ -45,8 +45,8 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         # See Echelle at 2.4m f/7.5 scale : http://mdm.kpno.noirlab.edu/mdm-ccds.html 
         gain = np.atleast_1d([1.3])      # Hardcoded in the header 
         ronoise = np.atleast_1d([7.90])    # Hardcoded in the header
-        len1 = hdu[0].header['NAXIS1']
-        len2 = hdu[0].header['NAXIS2']
+        len2 = hdu[0].header['NAXIS1']     ## switched with len1
+        len1 = hdu[0].header['NAXIS2']      ## switched with len2
     
         datasec = np.atleast_1d([
             '[{0:d}:{1:d},{2:d}:{3:d}]'.format(1+5, len1-5, 1, len2)])
@@ -66,7 +66,7 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
             det             = 1,
             dataext         = 0,
             specaxis        = 0,        # Native spectrum is along the x-axis
-            specflip        = True,     # DeVeny CCD has blue at the right
+            specflip        = False,     ## ADD COMMENT
             spatflip        = False,
             platescale      = 0.28,     # Arcsec / pixel
             darkcurr        = 0.0,      # Electrons per hour
@@ -110,7 +110,7 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         # Wavelength calibration methods
         par['calibrations']['wavelengths']['method'] = 'full_template' #more reliable than 'holy-grail', but requires an archived wavelength solution for the specific instrument/grating combination. See https://pypeit.readthedocs.io/en/latest/pypeit_par.html#wavelengthsolutionpar-keywords, also https://pypeit.readthedocs.io/en/latest/wave_calib.html#identify and https://pypeit.readthedocs.io/en/latest/master_edges.html and https://pypeit.readthedocs.io/en/latest/master_arc.html
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'XeI', 'NeI']
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'mdm_modspec.fits' #abovementioned archived wavelength solution; need one for Echelle / Modspec
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_mdm_modspec_echelle_20220714T1118.fits' # this is an example; this is based only on Xenon and the minimum files needed to run
         ###|||||| do this one below ||||||###
         par['calibrations']['wavelengths']['sigdetect'] = 5.0 #Sigma threshold above fluctuations for arc-line detection
         
@@ -119,6 +119,8 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures on this telescope
+        par['calibrations']['arcframe']['process']['clip'] = False
+        par['calibrations']['arcframe']['process']['subtract_continuum'] = True
         par['calibrations']['standardframe']['exprng'] = [10, 60]
         par['scienceframe']['exprng'] = [120, 600]
 
