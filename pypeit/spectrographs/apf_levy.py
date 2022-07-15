@@ -241,7 +241,24 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         """
         return 65
 
- 
+    @property
+    def orders(self):
+        """
+        Return the order number for each echelle order.
+        """
+        return np.arange(60, 125)
+
+    @property
+    def order_spat_pos(self):
+        """
+        Return the expected spatial position of each echelle order.
+        """
+        ord_spat_pos = np.array([0.078125, 0.13769531, 0.19189453, 0.24414062, 0.29296875,
+                                 0.34179688, 0.38330078, 0.42724609, 0.46582031, 0.50439453,
+                                 0.54199219, 0.57763672, 0.61279297, 0.6484375 , 0.68457031,
+                                 0.71875   , 0.75439453, 0.79443359, 0.83789062, 0.88671875,
+                                 0.94091797])
+        return ord_spat_pos
 
 
 def apf_read_chip(hdu):
