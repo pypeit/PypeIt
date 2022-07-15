@@ -98,7 +98,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             binning='1,1',
             det=1,
             dataext=0,
-            specaxis=1,
+            specaxis=0,
             specflip=False,
             spatflip=False,
             platescale=0.39,
