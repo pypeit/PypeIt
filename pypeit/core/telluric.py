@@ -29,9 +29,6 @@ from pypeit.spectrographs.util import load_spectrograph
 
 from pypeit import datamodel
 
-# import my version of telluric
-import telluric.core.telluric as tell_jax
-
 ##############################
 #  Telluric model functions  #
 ##############################
@@ -2324,7 +2321,7 @@ class Telluric(datamodel.DataContainer):
                       + f' with user supplied function: {self.init_obj_model.__name__}')
             self.result_list[iord], ymodel, ivartot, self.outmask_list[iord] \
                     = fitting.robust_optimize(self.flux_arr[self.ind_lower[iord]:self.ind_upper[iord]+1,iord],
-                                              tell_jax.tellfit, self.arg_dict_list[iord],
+                                              tellfit, self.arg_dict_list[iord],
                                               inmask=self.mask_arr[self.ind_lower[iord]:self.ind_upper[iord]+1,iord],
                                               maxiter=self.maxiter, lower=self.lower,
                                               upper=self.upper, sticky=self.sticky)
