@@ -233,6 +233,16 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             
         return rv
 
+    @property
+    def norders(self):
+        """
+        Number of orders for this spectograph. Should only defined for
+        echelle spectrographs, and it is undefined for the base class.
+        """
+        return 65
+
+ 
+
 
 def apf_read_chip(hdu):
     """ Read the APF detector
