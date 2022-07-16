@@ -174,6 +174,29 @@ of using the OH lines, this can be done by adding in the :doc:`pypeit_file`::
 
 
 
+Reduction
+=========
+
+A standard run of ``PypeIt``, i.e., :ref:`run-pypeit`, produces 2 reduced spectra per each pair of
+science-background frames. Assuming that the science frame is taken at the dither position "A" and
+the background frame is taken at the the dither position "B", the 2 output spectra would be A-B and B-A.
+To combine these 2 output spectra and obtain a 2D spectrum that shows negative-positive-negative traces,
+the user can run :ref:`pypeit-coadd-2dspec`. See :ref:`coadd2d` and :ref:`coadd2d_howto`.
+
+Note that, during :ref:`run-pypeit`, science frames can be combined (see :ref:`2d_combine`
+and :ref:`a-b_differencing`), but in this case no optimal weighting and drift correction are applied.
+
+long2pos
+--------
+
+Observations taken with a *long2pos* mask are generally used for flux calibration. To maximize the wavelength
+coverage of the observed standard star, 2 spectra are taken in 2 different wavelength regions.
+``PypeIt`` standard reduction and the subsequent run of :ref:`pypeit-coadd-2dspec` for data taken with a
+*long2pos* mask will not combine the 2 wavelength regions, but the user can run :ref:`pypeit_coadd_1dspec`
+to combine the 2 output 1D spectra into a single one.
+
+
+
 
 
 
