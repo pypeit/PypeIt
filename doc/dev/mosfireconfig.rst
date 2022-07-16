@@ -40,7 +40,7 @@ which finds unique combinations of the following keywords:
 ``filter1``          ``FILTER``
 ``slitlength``       No Key
 ``slitwid``          No Key
-===================  ==========
+===================  ===========
 
 ``decker_basename``, ``slitlength``, and ``slitwid`` are defined as follow:
 

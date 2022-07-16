@@ -186,8 +186,8 @@ the user can run :ref:`pypeit-coadd-2dspec`. See :ref:`coadd2d` and :ref:`coadd2
 Note that, during :ref:`run-pypeit`, science frames can be combined (see :ref:`2d_combine`
 and :ref:`a-b_differencing`), but in this case no optimal weighting and drift correction are applied.
 
-long2pos
---------
+long2pos mask
+-------------
 
 Observations taken with a *long2pos* mask are generally used for flux calibration. To maximize the wavelength
 coverage of the observed standard star, 2 spectra are taken in 2 different wavelength regions.
