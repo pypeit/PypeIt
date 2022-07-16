@@ -32,15 +32,15 @@ MOSFIRE configuration identification
 The MOSFIRE instrument configurations are determined by :func:`pypeit.metadata.PypeItMetaData.unique_configurations`,
 which finds unique combinations of the following keywords:
 
-===============     ===========
-``fitstbl`` key     Header Key
-===============     ===========
-``dispname``        ``OBSMODE``
-``decker_basename`` No Key
-``filter1``         ``FILTER``
-``slitlength``      No Key
-``slitwid``         No Key
-===============     ==========
+===================  ===========
+``fitstbl`` key      Header Key
+===================  ===========
+``dispname``         ``OBSMODE``
+``decker_basename``  No Key
+``filter1``          ``FILTER``
+``slitlength``       No Key
+``slitwid``          No Key
+===================  ==========
 
 ``decker_basename``, ``slitlength``, and ``slitwid`` are defined as follow:
 
@@ -64,18 +64,18 @@ the values of the above keywords match the values of the specific unique configu
 
 This process is slightly modified for *LONGSLIT* and *long2pos* masks. It is common observation practise with
 MOSFIRE to use *LONGSLIT* masks that are 46 CSUs long for the calibration of science frames obtained with
-*LONGSLIT* masks with smaller length.
+shorter *LONGSLIT* masks of the same width.
 For this reason, when *LONGSLIT* masks are used, we don't require that the value of ``slitlength`` for the
 calibration frames (arcs, flats) matches the value of the specific unique configuration. This allows to
 associate the same calibration frames (only the ones with *LONGSLIT* masks that are 46 CSUs long) to different
-unique configurations, i.e., where the science/standard frames are obtained with *LONGSLIT* masks of smaller length.
+unique configurations, i.e., where the science/standard frames are obtained with shorter *LONGSLIT*.
 
 Similarly, when *long2pos* masks are reduced, calibration frames taken with masks that have ``MASKNAME``
 equal to "long2pos" are used to calibrated science/standard frames that have ``MASKNAME`` equal to "long2pos_specphot".
 In this case, the default behaviour would identify the calibration frames and the science/standard frames
 as part of different unique configurations. Instead, when *long2pos* masks are used, we modify in place the requirement
 for the calibration frames. Specifically, only when we are assigning the setup identifier to the calibration frames,
-we temporarily change the value of the ``decker_basename`` in the specific unique configuration from
+we temporarily change the required value of ``decker_basename`` in the specific unique configuration from
 "long2pos_specphot" to "long2pos". This allows to identify "long2pos" calibration frames and "long2pos_specphot"
 science/standard frames as part of the same unique configuration.
 
@@ -114,7 +114,7 @@ using the information on the nodding pattern available in the files headers. Spe
 ``dithpos``         ``FRAMEID``
 ===============     ============
 
-which are also present in :ref:`pypeit_file:Data Block`.
+which are also provided in the :ref:`pypeit_file:Data Block`.
 
 If the observations were taken with a "Slit Nod"/"Mask Nod" ``dithpat`` or using the *long2pos* slitmask,
 the :ref:`pypeit_file:Data Block` will look like::
@@ -127,7 +127,7 @@ the :ref:`pypeit_file:Data Block` will look like::
 
 
 where all the science frames have different ``comb_id`` (i.e., no frames will be combined), while the ``bkg_id``
-for the frame at the "B" ``dithpos`` is equal to the ``comb_id`` of the frame at the "A" ``dithpos`` and vice versa.
+for the frame at the "A" ``dithpos`` is equal to the ``comb_id`` of the frame at the "B" ``dithpos`` and vice versa.
 This combination of ``comb_id`` and ``bkg_id`` will create four reduced frames::
 
     MF.20141126.17372.fits - MF.20141126.17526.fits (A-B)
@@ -200,7 +200,7 @@ configuration, all written to a single pypeit file.
 
 To test that ``PypeIt`` can successfully identify multiple configurations among a set of files,
 and can assign ``comb_id`` and ``bkg_id`` to science frames following the information on the
-dither pattern, we have added the `test_setup_keck_mosfire_multiconfig`` test to
+dither pattern, we have added the ``test_setup_keck_mosfire_multiconfig`` test to
 ``${PYPEIT_DEV}/unit_tests/test_setups.py``.
 
 To run this test:
