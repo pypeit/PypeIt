@@ -29,15 +29,16 @@ Here is an example of the :ref:`pypeit_file:Data Block` of the PypeIt file::
     | m120910_0410.fits | pixelflat,illumflat,trace |          7.8 |        45.0 |     Dome Phlatz | H-spectroscopy | MOSFIRE_DRP_MASK |     1,1 |  56180.6945327 | 1.41291034 | 14.5479 |       H |         on |    Stare |  object |     0.0 |     410 |     3 |      -1 |     -1 |
     | m120910_0411.fits | pixelflat,illumflat,trace |          7.8 |        45.0 |     Dome Phlatz | H-spectroscopy | MOSFIRE_DRP_MASK |     1,1 |  56180.6948371 | 1.41291034 | 14.5479 |       H |         on |    Stare |  object |     0.0 |     411 |     3 |      -1 |     -1 |
     | m120910_0412.fits | pixelflat,illumflat,trace |          7.8 |        45.0 |     Dome Phlatz | H-spectroscopy | MOSFIRE_DRP_MASK |     1,1 | 56180.69517159 | 1.41291034 | 14.5479 |       H |         on |    Stare |  object |     0.0 |     412 |     3 |      -1 |     -1 |
-    | m120910_0175.fits |          arc,science,tilt | 344.98215835 | 33.00561651 | MOSFIRE_DRP_MAS | H-spectroscopy | MOSFIRE_DRP_MASK |     1,1 | 56180.53134073 | 1.27528573 | 29.0958 |       H |        off | Mask Nod |       A |     2.5 |     175 |     3 |       3 |     -1 |
-    | m120910_0176.fits |          arc,science,tilt | 344.98372629 | 33.00516929 | MOSFIRE_DRP_MAS | H-spectroscopy | MOSFIRE_DRP_MASK |     1,1 | 56180.53198772 | 1.27866912 | 29.0958 |       H |        off | Mask Nod |       B |    -2.5 |     176 |     3 |      55 |     -1 |
+    | m120910_0175.fits |          arc,science,tilt | 344.98215835 | 33.00561651 | MOSFIRE_DRP_MAS | H-spectroscopy | MOSFIRE_DRP_MASK |     1,1 | 56180.53134073 | 1.27528573 | 29.0958 |       H |        off | Mask Nod |       A |     2.5 |     175 |     3 |      16 |     17 |
+    | m120910_0176.fits |          arc,science,tilt | 344.98372629 | 33.00516929 | MOSFIRE_DRP_MAS | H-spectroscopy | MOSFIRE_DRP_MASK |     1,1 | 56180.53198772 | 1.27866912 | 29.0958 |       H |        off | Mask Nod |       B |    -2.5 |     176 |     3 |      17 |     16 |
 
     data end
 
 `frametype` is automatically assigned to each frame using the values of various header keywords,
 see :ref:`mosfire_frames_report`.
-The dither pattern, position and offset associated to each fame is reported here, but the `calib`, `comb_id`, `bkg_id`
-columns are not properly set. The user can use the dither information to help guide the edit of these columns.
+The dither pattern, position and offset associated to each fame is reported here. ``PypeIt`` tries to automatically
+set the `calib`, `comb_id`, `bkg_id` using the dither information (see :ref:`mosfire_config_report`); however,
+the user can edit these columns according to the preferred reduction.
 
 
 Calibrations
@@ -189,6 +190,7 @@ Here are additional docs related to Keck/MOSFIRE:
    :maxdepth: 1
 
    dev/mosfireframes
+   dev/mosfireconfig
    dev/slitmask_ids
    dev/radec_object
    dev/add_missing_obj

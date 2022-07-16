@@ -120,13 +120,13 @@ To test that ``PypeIt`` can successfully identify multiple
 configurations among a set of files, we have added the
 ``test_setup_keck_deimos_multiconfig`` and
 ``test_setup_keck_deimos_multiconfig_clean`` tests to
-``pypeit/tests/test_setups.py``.
+``${PYPEIT_DEV}/unit_tests/test_setups.py``.
 
 To run these tests:
 
 .. code-block:: bash
 
-    cd pypeit/tests
+    cd ${PYPEIT_DEV}/unit_tests
     pytest test_setup.py::test_setup_keck_deimos_multiconfig -W ignore
     pytest test_setup.py::test_setup_keck_deimos_multiconfig_clean -W ignore
 

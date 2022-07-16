@@ -693,6 +693,13 @@ class PypeItMetaData:
 
         msgs.info('Using metadata to determine unique configurations.')
 
+        # sort self.table
+        mjd = self.table['mjd'].copy()
+        # Deal with possibly None mjds if there were corrupt header cards
+        mjd[mjd == None] = -99999.0
+        isort = np.argsort(mjd)
+        self.table = self.table[isort]
+
         # If the frame types have been set, ignore anything listed in
         # the ignore_frames
         indx = np.arange(len(self))
@@ -1458,12 +1465,15 @@ class PypeItMetaData:
             if not np.any(indx):
                 continue
             subtbl = self.table[output_cols][indx]
-            # calib is a str with a list of values because in some cases (e.g. MOSFIRE) the same calibration files
-            # can be used for different setups. Here we update calib to have only the value relevant for this setup.
-            # find the calib value in this setup that is not a list
-            no_list = np.array([',' not in cc for cc in subtbl['calib']])
-            if np.any(no_list):
-                subtbl['calib'] = subtbl['calib'][no_list][0]
+            if 'calib' in output_cols:
+                # calib can be a str with a list of values because in some cases (e.g. MOSFIRE) the same
+                # calibration files are used for different setups. Here we update calib to have only the
+                # value relevant for this setup.
+                # find the calib value in this setup that is not a list (which is probably a science/standard)
+                no_list = np.array([',' not in cc for cc in subtbl['calib']])
+                if np.any(no_list):
+                    # set the same calib value to the whole setup
+                    subtbl['calib'] = subtbl['calib'][no_list][0]
 
             # Write the file
             ff.write('##########################################################\n')
@@ -1659,12 +1669,15 @@ class PypeItMetaData:
 
             # Get the data lines
             subtbl = self.table[output_cols][in_cfg]
-            # calib is a str with a list of values because in some cases (e.g. MOSFIRE) the same calibration files
-            # can be used for different setups. Here we update calib to have only the value relevant for this setup.
-            # find the calib value in this setup that is not a list
-            no_list = np.array([',' not in cc for cc in subtbl['calib']])
-            if np.any(no_list):
-                subtbl['calib'] = subtbl['calib'][no_list][0]
+            if 'calib' in output_cols:
+                # calib can be a str with a list of values because in some cases (e.g. MOSFIRE) the same
+                # calibration files are used for different setups. Here we update calib to have only the
+                # value relevant for this setup.
+                # find the calib value in this setup that is not a list (which is probably a science/standard)
+                no_list = np.array([',' not in cc for cc in subtbl['calib']])
+                if np.any(no_list):
+                    # set the same calib value to the whole setup
+                    subtbl['calib'] = subtbl['calib'][no_list][0]
             subtbl.sort(['frametype','filename'])
             #with io.StringIO() as ff:
             #    subtbl.write(ff, format='ascii.fixed_width')
