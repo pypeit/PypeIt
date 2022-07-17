@@ -1,0 +1,17 @@
+#!/usr/bin/env python
+#
+# See top-level LICENSE file for Copyright information
+#
+# -*- coding: utf-8 -*-
+
+
+"""
+This script runs PypeIt
+"""
+
+from pypeit.deprecated import ql_keck_mosfire
+import sys
+
+if __name__ == '__main__':
+    sys.exit(ql_keck_mosfire.main(ql_keck_mosfire.parse_args()))
+

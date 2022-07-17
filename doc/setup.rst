@@ -25,22 +25,34 @@ instrument configuration, e.g.:
 
     from pypeit.spectrographs.util import load_spectrograph
     spec = load_spectrograph('keck_deimos')
-    cfg_keys = spec.configuration_keys()
-    for key in cfg_keys:
-        print('{0:>10} {1:>10}'.format(key, str(spec.meta[key]['card']))) 
+    spec.meta_key_map()
 
 which will print::
 
-      dispname   GRATENAM
-        decker   SLMSKNAM
-       binning       None
-     dispangle       None
-           amp    AMPMODE
+    Metadata Key   Header Card
+    ------------   -----------
+              ra            RA
+             dec           DEC
+          target      TARGNAME
+          decker      SLMSKNAM
+         binning          None
+             mjd       MJD-OBS
+         exptime      ELAPTIME
+         airmass       AIRMASS
+        dispname      GRATENAM
+           hatch      HATCHPOS
+       dispangle          None
+          idname       OBSTYPE
+      lampstat01         LAMPS
+         dateobs      DATE-OBS
+             utc           UTC
+            mode       MOSMODE
+             amp       AMPMODE
 
 where the left column provides the ``PypeIt``-specific metadata
 keyword and the right column is the associated instrument-specific
 header card. Any metadata element with a header card set to ``None``
-means that the metadata keyword or value is conditioned on other
+means that the metadata keyword or value is conditioned on multiple
 header values. In this example, the header card that provides the
 central wavelength given the grating angle (``dispangle``) for DEIMOS
 is dependent on the grating used (``dispname``); see
@@ -89,6 +101,35 @@ attention to the setups.
 Below, we describe how ``PypeIt`` automatically determines instrument
 configurations for a set of files and constructs auto-generated
 pypeit files.
+
+.. _pypeit_obslog:
+
+pypeit_obslog
+=============
+
+The ``pypeit_obslog`` script allows you to see a simple listing of the data
+files in a given directory (or directories) and the metadata that ``PypeIt``
+will pull from their headers. As always, the script usage can be displayed by
+calling the script with the ``-h`` option:
+
+.. include:: help/pypeit_obslog.rst
+
+For example, if you've been observing with Keck DEIMOS, you can go into the
+directory with the raw data and execute:
+
+.. code-block:: console
+
+    pypeit_obslog keck_deimos
+
+Or you can point to the directory that you want to list:
+
+.. code-block:: console
+
+    pypeit_obslog keck_deimos -r /path/to/raw/data
+
+The listing is printed to ``stdout``, but you can also specify a file for the
+output. You can also select the metadata by which to sort the output, change
+the columns that are printed, etc.
 
 .. _pypeit_setup:
 
@@ -213,3 +254,9 @@ will need to edit by hand. The two columns added, ``comb_id`` and
 :doc:`A-B_differencing` for the syntax used for the data in these
 columns and how ``PypeIt`` uses them.
 
+
+-m option
++++++++++
+
+If you wish to include a column where you can include
+input for :doc:`manual` then use this additional flag.

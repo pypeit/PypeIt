@@ -16,7 +16,11 @@ in-development; however, the development timescale is undefined.
 For instructions on how to add a new spectrograph see:
 :doc:`new_spectrograph`.
 
+
 .. include:: include/spectrographs_table.rst
+
+
+.. _spec_details:
 
 Instrument-specific Details
 ===========================
@@ -29,10 +33,19 @@ instrument-specific details for running ``PypeIt``.
    :maxdepth: 1
 
    new_spectrograph
+   gemini_flamingos2
    gemini_gmos
+   gemini_gnirs
    deimos
+   mosfire
+   gtc_osiris
    keck_kcwi
    lris
+   lbt_mods
    mage
+   magellan_fire
+   mmt_binospec
+   mmt_mmirs
    shane_kast
    xshooter
+   ntt_efosc2

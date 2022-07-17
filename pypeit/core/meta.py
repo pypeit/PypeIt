@@ -27,6 +27,7 @@ def convert_radec(ra, dec):
             RA as decimal deg (float) or  hh:mm:ss.s (str)
         dec (str or float or np.ndarray):
             DEC as decimal deg (float) or  +dd:mm:ss.s (str)
+            Must be the same format as ra
 
     Returns:
         tuple:
@@ -47,6 +48,10 @@ def convert_radec(ra, dec):
                 return coords.ra.value, coords.dec.value
             else:
                 return ra.astype(float), dec.astype(float)
+        elif isinstance(ra[0], float):
+            return ra.astype(float), dec.astype(float)
+        else:
+            raise IOError("Bad ra, dec format!!")
     else:
         return ra, dec
 
@@ -55,6 +60,8 @@ def define_core_meta():
     """
     Define the core set of meta data that must be defined
     to run PypeIt.
+
+    See the metadata.rst file for further discussion
 
     .. warning::
 
@@ -118,24 +125,36 @@ def define_additional_meta(nlamps=20):
         :obj:`dict`: Describes the additional meta data used in
         pypeit.
     """
-    additional_meta = {'dichroic': dict(dtype=str, comment='Beam splitter'),
-                       'filter1': dict(dtype=str, comment='First filter in optical path'),
-                       'dispangle': dict(dtype=float, comment='Angle of the disperser', rtol=0.),
-                       'hatch': dict(dtype=str, comment='Position of instrument hatch'),
-                       'slitwid': dict(dtype=float, comment='Slit width, sometimes distinct from decker'),
-                       'detector': dict(dtype=str, comment='Name of detector'),
+    # TODO: Can we consolidate dither (only read by vlt_xshooter, and never
+    # used in the code) with the MOSFIRE dith* keywords?
+    additional_meta = {'amp': dict(dtype=str, comment='Amplifier used'),
                        'arm': dict(dtype=str, comment='Name of arm (e.g. NIR for X-Shooter)'),
+                       'calpos': dict(dtype=str, comment='Position of calibration system (KCWI)'),
                        'datasec': dict(dtype=str, comment='Data section (windowing)'),
-                       'dither': dict(dtype=float, comment='Dither amount in arcsec'),
-                       'idname': dict(dtype=str, comment='Instrument supplied frametype (e.g. bias)'),
-                       'obstime': dict(dtype=str, comment='Observation time'),
-                       'pressure': dict(dtype=float, comment='Pressure at obstime'),
-                       'temperature': dict(dtype=float, comment='Temperature at obstime'),
-                       'humidity': dict(dtype=float, comment='Relative humidity (0 to 1) at obstime'),
                        'dateobs': dict(dtype=str, comment='Observation date'),
-                       'utc': dict(dtype=str, comment='UTC of observation'),
+                       'detector': dict(dtype=str, comment='Name of detector'),
+                       'dichroic': dict(dtype=str, comment='Beam splitter'),
+                       'dispangle': dict(dtype=float, comment='Angle of the disperser', rtol=0.),
+                       'cenwave': dict(dtype=float, comment='Central wavelength of the disperser', rtol=0.),
+                       'dither': dict(dtype=float, comment='Dither amount in arcsec'),
+                       'dithpat': dict(dtype=str, comment='Dither pattern'),
+                       'dithpos': dict(dtype=str, comment='Dither position'),
+                       'dithoff': dict(dtype=float, comment='Dither offset'),
+                       'filter1': dict(dtype=str, comment='First filter in optical path'),
+                       'frameno': dict(dtype=str, comment='Frame number provided by instrument software'),
+                       'hatch': dict(dtype=str, comment='Position of instrument hatch'),
+                       'humidity': dict(dtype=float, comment='Relative humidity (0 to 1) at observation time'),
+                       'idname': dict(dtype=str, comment='Instrument supplied frametype (e.g. bias)'),
+                       'instrument': dict(dtype=str, comment='Header supplied instrument name'),
                        'mode': dict(dtype=str, comment='Observing mode'),
-                       'amp': dict(dtype=str, comment='Amplifier used')}
+                       'object': dict(dtype=str, comment='Alternative object name (cf. target)'),
+                       'obstime': dict(dtype=str, comment='Observation time'),
+                       'oscansec': dict(dtype=str, comment='Overscan section (windowing)'),
+                       'pressure': dict(dtype=float, comment='Pressure (units.bar) at observation time'),
+                       'seq_expno': dict(dtype=int, comment='Number of exposure in observing sequence'),
+                       'slitwid': dict(dtype=float, comment='Slit width, sometimes distinct from decker'),
+                       'temperature': dict(dtype=float, comment='Temperature (units.K) at observation time'),
+                       'utc': dict(dtype=str, comment='UTC of observation')}
 
     for kk in range(nlamps):
         additional_meta['lampstat{:02d}'.format(kk+1)] \

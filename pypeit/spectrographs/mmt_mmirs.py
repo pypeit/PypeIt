@@ -4,9 +4,6 @@ Module for MMT MMIRS
 .. include:: ../include/links.rst
 """
 import glob
-from pkg_resources import resource_filename
-
-from IPython import embed
 
 import numpy as np
 from scipy.signal import savgol_filter
@@ -32,6 +29,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
     name = 'mmt_mmirs'
     telescope = telescopes.MMTTelescopePar()
     camera = 'MMIRS'
+    header_name = 'mmirs'
     supported = True
 
     def init_meta(self):
@@ -56,6 +54,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=1, card='DISPERSE')
         self.meta['idname'] = dict(ext=1, card='IMAGETYP')
+        self.meta['instrument'] = dict(ext=1, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -79,15 +78,16 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             return ttime.mjd
         msgs.error("Not ready for this compound meta")
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
@@ -110,7 +110,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             gain            = np.atleast_1d(0.95),
             ronoise         = np.atleast_1d(3.14),
             datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = np.atleast_1d('[:,:]')
+            oscansec        = None, #np.atleast_1d('[:,:]')
             )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -153,6 +153,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['edge_thresh'] = 100.
         par['calibrations']['slitedges']['fit_min_spec_length'] = 0.4
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        par['calibrations']['slitedges']['bound_detector'] = True
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 60]
@@ -162,6 +163,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [30, None]
 
         # dark
+        # TODO: This is now the default.
         par['calibrations']['darkframe']['process']['apply_gain'] = True
 
         # cosmic ray rejection
@@ -170,7 +172,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['grow'] = 0.5
 
         # Science reduction
-        par['reduce']['findobj']['sig_thresh'] = 5.0
+        par['reduce']['findobj']['snr_thresh'] = 5.0
         par['reduce']['skysub']['sky_sigrej'] = 5.0
         par['reduce']['findobj']['find_trim_edge'] = [5,5]
         # Do not correct for flexure
@@ -180,9 +182,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
         # ToDo: replace the telluric grid file for MMT site.
-        par['sensfunc']['IR']['telgridfile'] \
-                = resource_filename('pypeit',
-                                    '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
 
         return par
 
@@ -338,7 +338,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         hdu = io.fits_open(fil[0])
         head1 = fits.getheader(fil[0],1)
 
-        detector_par = self.get_detector_par(hdu, det if det is None else 1)
+        detector_par = self.get_detector_par(det if det is not None else 1, hdu=hdu)
 
         # get the x and y binning factors...
         binning = head1['CCDSUM']
@@ -361,7 +361,8 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         if (head1['FILTER']=='zJ') and (head1['DISPERSE']=='HK'):
             array = array[:int(998/ybin),:]
         rawdatasec_img = np.ones_like(array,dtype='int')
-        oscansec_img = np.ones_like(array,dtype='int')
+        # NOTE: If there is no overscan, must be set to 0s
+        oscansec_img = np.zeros_like(array,dtype='int')
 
         # Need the exposure time
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]

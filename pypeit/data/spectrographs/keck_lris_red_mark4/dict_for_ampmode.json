@@ -1,0 +1,12 @@
+{
+    "HLEFT,VDOWN": "L1",
+    "HLEFT,VSPLIT": "L2L1",
+    "HLEFT,VUP": "L2",
+    "HRIGHT,VDOWN": "U1",
+    "HRIGHT,VSPLIT": "U2U1",
+    "HRIGHT,VUP": "U2",
+    "HSPLIT,VDOWN": "L1U1",
+    "HSPLIT,VSPLIT": "L2U2L1U1",
+    "ALL": "L2U2L1U1",
+    "HSPLIT,VUP": "L2U2"
+}

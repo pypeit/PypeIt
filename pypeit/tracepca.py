@@ -249,8 +249,11 @@ class TracePCA(DataContainer):
                 for i in range(self.npca)]
         return d
 
+    # TODO: Although I don't like doing it, kwargs is here to catch the
+    # extraneous keywords that can be passed to _parse from the base class but
+    # won't be used.
     @classmethod
-    def _parse(cls, hdu, hdu_prefix=None):
+    def _parse(cls, hdu, hdu_prefix=None, **kwargs):
         """
         Parse the data from the provided HDU.
 

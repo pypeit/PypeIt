@@ -1,3 +1,5 @@
+.. _wave_calib:
+
 ======================
 Wavelength Calibration
 ======================
@@ -19,6 +21,31 @@ the `By-Hand Approach`_ including the
 
 See :doc:`master_wvcalib` for a discussion of the
 main outputs and good/bad examples.
+
+Arc Processing
+==============
+
+If you are combining multiple arc images that have
+different arc lamps (e.g. one with He and another with Hg+Ne)
+then be sure to process without clipping.  This may be the
+default for your spectrograph (e.g. :doc"`deimos`) but you can
+be certain by adding the following to the :doc:`pypeit_file`
+(for longslit observations)::
+
+.. code-block:: ini
+
+    [calibrations]
+      [[arcframe]]
+        [[[process]]]
+          clip = False
+          subtract_continuum = True
+      [[tiltframe]]
+        [[[process]]]
+          clip = False
+          subtract_continuum = True
+
+For a multislit observation, you should keep clip=False, and
+change subtract_continuum=True to subtract_continuum=False.
 
 Automated Algorithms
 ====================
@@ -179,20 +206,27 @@ quit the GUI to see if you want to save the solution. Note,
 you can increase this tolerance using the command line option
 `pixtol`, or by setting the `force_save` command line option.
 
-To use this wavelength solution in your reduction, you will
-need to add your solution to the PypeIt database. To do this,
-you will need to move the output file into the master directory,
-which will be similar to the following directory:
+In addition to writing the wavelength solution to the current
+working directory, ``PypeIt`` now also saves the solution in
+the PypeIt cache (identified by spectrograph and the current
+time for uniqueness) and prints a message indicating how to
+use it, such as:
 
-``/directory/to/PypeIt/pypeit/data/arc_lines/reid_arxiv/name_of_your_solution.fits``
+   .. code-block:: console
 
-Once your solution is in the database, you will be able to
-run PypeIt in the standard :ref:`wvcalib-fulltemplate` mode.
-Make sure you add the following line to your pypeit file:
+      [INFO]    :: Your arxiv solution has been written to ./wvarxiv_ldt_deveny_20220426T0958.fits
+      [INFO]    :: Your arxiv solution has also been cached.
+                  To utilize this wavelength solution, insert the
+                  following block in your PypeIt Reduction File:
+                  [calibrations]
+                     [[wavelengths]]
+                        reid_arxiv = wvarxiv_ldt_deveny_20220426T0958.fits
+                        method = full_template
 
-[calibrations]
-  [[wavelengths]]
-    reid_arxiv = name_of_your_solution.fits
+
+Replace the ``reid_arxiv`` filename with the filename output
+on your screen from ``pypeit_identify``, and run PypeIt in the standard
+:ref:`wvcalib-fulltemplate` mode.
 
 We also recommend that you send your solution to the
 PypeIt development (e.g. post it on GitHub or the Users Slack)
@@ -248,6 +282,21 @@ than you may need to modify::
     [calibrations]
       [[wavelengths]]
         fwhm=X.X
+
+in your PypeIt file.
+
+
+Alternatively, PypeIt can compute the arc line FWHM from the arc lines themselves (only the ones with the
+highest detection significance). The FWHM measured in this way will override the value set by `fwhm`, which
+will still be used as first guess and for the :doc:`wavetilts`.
+This is particularly advantageous for multi-slit observations that have slit with different slit widths,
+e.g., DEIMOS LVM slit-masks.
+The keyword that controls this option is called `fwhm_fromlines` and is set to `False` by default. To switch it
+on add::
+
+    [calibrations]
+      [[wavelengths]]
+        fwhm_fromlines = True
 
 in your PypeIt file.
 
@@ -315,6 +364,7 @@ procedure, when possible:
    * For gratings that tilt, one may need to splice together a series
      of arc spectra to cover the full spectral range.
    * See examples in the `templates.py` module.
+   * See :doc:`construct_template`
 
 - Augment the line list
    * We are very conservative about adding new lines to the existing line lists.
@@ -341,9 +391,11 @@ data/arc_lines/reid_arxiv folder):
 ===============  =========================  =============================
 Instrument       Setup                      Name
 ===============  =========================  =============================
-keck_deimos      600ZD grating, all lamps   keck_deimos_600.fits
+keck_deimos      600ZD grating, all lamps   keck_deimos_600ZD.fits
 keck_deimos      830G grating, all lamps    keck_deimos_830G.fits
 keck_deimos      1200G grating, all lamps   keck_deimos_1200G.fits
+keck_deimos      1200B grating, all lamps   keck_deimos_1200B.fits
+keck_deimos      900ZD grating, all lamps   keck_deimos_900ZD.fits
 keck_lris_blue   B300 grism, all lamps      keck_lris_blue_300_d680.fits
 keck_lris_blue   B400 grism, all lamps?     keck_lris_blue_400_d560.fits
 keck_lris_blue   B600 grism, all lamps      keck_lris_blue_600_d560.fits
@@ -372,13 +424,12 @@ This is especially true if the spectrum is partial on the
 detector (e.g. the 830G grating).
 
 
-Additional Reading
-==================
 
 .. toctree::
-   :caption: More reading
+   :caption: Additional Reading
    :maxdepth: 1
 
    flexure
    heliocorr
    wavetilts
+   construct_template

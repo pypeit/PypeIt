@@ -1,5 +1,3 @@
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
-# -*- coding: utf-8 -*-
 """
 Define a utility base class used to hold parameters.
 
@@ -19,7 +17,12 @@ from astropy.io import fits
 
 from pypeit.par import util
 
-class ParSet(object):
+
+# TODO: Include a "mutable" attribute that decides if a parameter can be
+# changed?
+
+
+class ParSet:
     """
     Generic base class to handle and manipulate a list of operational
     parameters.  A glorified dictionary that constrains and types its
@@ -181,7 +184,6 @@ class ParSet(object):
         """
         return self.data[key]
 
-
     def __setitem__(self, key, value):
         """
         Set the value for a key.
@@ -341,7 +343,6 @@ class ParSet(object):
         row_string[-1] = row_string[0]
         return '\n'.join(row_string)+'\n'
 
-
     @staticmethod
     def _data_string(data, use_repr=True, verbatim=False):
         """
@@ -366,9 +367,13 @@ class ParSet(object):
             str: A string representation of the provided ``data``.
         """
         if isinstance(data, str):
-            return data if not verbatim else '``' + data + '``'
-        if hasattr(data, '__len__'):
-            return '[]' if isinstance(data, list) and len(data) == 0 \
+            if verbatim:
+                return '..' if len(data) == 0 else '``' + data + '``'
+            return data
+        if isinstance(data, list):
+            # TODO: When the list is empty, should the return include the
+            # brackets?
+            return '[]' if len(data) == 0 \
                         else ', '.join([ ParSet._data_string(d, use_repr=use_repr,
                                                              verbatim=verbatim) for d in data ])
         return data.__repr__() if use_repr else str(data)
@@ -737,7 +742,6 @@ class ParSet(object):
             output += ['----']
             output += ['']
             output += self.data[k].to_rst_table(parsets_listed=parsets_listed)
-
         return output
 
     def validate_keys(self, required=None, can_be_None=None):

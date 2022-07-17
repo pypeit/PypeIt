@@ -11,6 +11,8 @@ import sys
 import signal
 import warnings
 
+from .version import version
+
 def short_warning(message, category, filename, lineno, file=None, line=None):
     """
     Return the format for a short warning message.
@@ -21,7 +23,7 @@ warnings.formatwarning = short_warning
 
 
 # Set version
-__version__ = '1.3.1dev'
+__version__ = version
 
 # Report current coverage
 __coverage__ = 0.55
@@ -30,11 +32,10 @@ __coverage__ = 0.55
 from pypeit import pypmsgs
 msgs = pypmsgs.Messages()
 
-from pypeit import check_requirements  # THIS IMPORT DOES THE CHECKING.  KEEP IT
-
 # Import the close_qa method so that it can be called when a hard stop
 # is requested by the user
 from pypeit.core.qa import close_qa
+
 
 # Send all signals to messages to be dealt with (i.e. someone hits ctrl+c)
 def signal_handler(signalnum, handler):
@@ -43,9 +44,10 @@ def signal_handler(signalnum, handler):
     """
     if signalnum == 2:
         msgs.info('Ctrl+C was pressed. Ending processes...')
-        close_qa(msgs.pypeit_file)
+        close_qa(msgs.pypeit_file, msgs.qa_path)
         msgs.close()
         sys.exit()
+
 
 signal.signal(signal.SIGINT, signal_handler)
 
@@ -55,10 +57,4 @@ signal.signal(signal.SIGINT, signal_handler)
 #warnings.resetwarnings()
 #warnings.simplefilter('ignore')
 
-# TODO: Need some way of selectively doing this.  Once you import
-# pypeit, this affects the behavior of pyplot for *anything* else you
-# plot in a given session.
-# These lines should be commented unless one is running remotely the Dev Suite (e.g. Kyle)
-#from matplotlib import pyplot
-#pyplot.switch_backend('agg')
 

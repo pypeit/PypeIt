@@ -9,8 +9,6 @@ from IPython import embed
 
 from matplotlib import pyplot as plt
 
-from pkg_resources import resource_filename
-
 from scipy.io import readsav
 from scipy.interpolate import interp1d
 
@@ -20,6 +18,7 @@ from astropy import units
 
 from linetools import utils as ltu
 
+from pypeit import msgs
 from pypeit import utils
 from pypeit import io
 from pypeit import wavecalib
@@ -29,8 +28,8 @@ from pypeit.core.wavecal import wvutils
 from pypeit.core.wavecal import autoid
 from pypeit.core.wavecal import wv_fitting
 from pypeit.core import fitting
+from pypeit import data
 
-from astropy.io import fits
 from pypeit.spectrographs.util import load_spectrograph
 
 # Data Model
@@ -45,20 +44,19 @@ else:
     # print("You may wish to set the PYPEIT_DEV environment variable")
     pass
 
-outpath = resource_filename('pypeit', 'data/arc_lines/reid_arxiv')
-
 
 def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
                    normalize=False, subtract_conti=False, wvspec=None,
                    lowredux=False, ifiles=None, det_cut=None, chk=False,
                    miny=None, overwrite=True, ascii_tbl=False, in_vac=True,
-                   shift_wave=False, binning=None):
+                   shift_wave=False, binning=None, micron=False):
     """
     Generate a full_template for a given instrument
 
     Args:
         in_files (list or str):
             Wavelength solution files, XIDL or PypeIt
+            If PypeIt, they can be a mix of MasterWaveCalib JSON and FITS files
         slits (list):
             Slits in the archive files to use
         wv_cuts (list):
@@ -96,13 +94,16 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
             Requires PypeIt file (old JSON works for now)
         binning (list, optional):
             Allows for multiple binnings for input files
+        micron (bool, optional):
+            If True, assume the in_files archive has a solution in microns, so convert this to Angstroms
+            which is the PypeIt convention. Default=False
     """
     if outdir is None:
-        outdir = outpath
-    if binning is None:
-        binning = [None]*len(in_files)
+        outdir = data.Paths.reid_arxiv
     if ifiles is None:
         ifiles = np.arange(len(in_files))
+    if binning is None:
+        binning = [None]*len(ifiles)
     # Load xidl file
     # Grab it
     # Load and splice
@@ -111,7 +112,9 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
     if not isinstance(in_files, list):
         in_files = [in_files]
         ifiles = [0]*len(slits)
+    # Loop on the files
     for kk, slit in enumerate(slits):
+        # Load up
         if wvspec is None:
             in_file = in_files[ifiles[kk]]
             if lowredux:
@@ -120,8 +123,12 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
                 wv_vac, spec = read_ascii(in_file, in_vac=in_vac)
             else:
                 wv_vac, spec, pypeitFit = pypeit_arcspec(in_file, slit, binspec, binning[kk])
+            if micron:
+                wv_vac = 1e4*wv_vac
         else:
             wv_vac, spec = wvspec['wv_vac'], wvspec['spec']
+        # Diagnostics
+        msgs.info("wvmin, wvmax of {}: {}, {}".format(in_file, wv_vac.min(), wv_vac.max()))
         # Cut
         if len(slits) > 1:
             wvmin, wvmax = grab_wvlim(kk, wv_cuts, len(slits))
@@ -187,9 +194,6 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
         plt.clf()
         ax = plt.gca()
         ax.plot(nwwv, nwspec)
-        # DEBUGGING
-        #wave, flux, bin = waveio.load_template('keck_deimos_1200B.fits', 1)
-        #ax.plot(wave, flux)
         plt.show()
     # Generate the table
     wvutils.write_template(nwwv, nwspec, binspec, outdir, outroot, det_cut=det_cut, overwrite=overwrite)
@@ -234,7 +238,7 @@ def pypeit_arcspec(in_file, slit, binspec, binning=None):
         tuple: np.ndarray, np.ndarray, PypeItFit:  wave, flux, pypeitFitting
 
     """
-    if 'json' in in_file:
+    if '.json' in in_file:
         wv_dict = ltu.loadjson(in_file)
         iwv_calib = wv_dict[str(slit)]
         pypeitFitting = fitting.PypeItFit(fitc=np.array(iwv_calib['fitc']),
@@ -242,7 +246,7 @@ def pypeit_arcspec(in_file, slit, binspec, binning=None):
                                           minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
 
         if binning is not None and binning != binspec:
-            embed(header='Not ready for this yet!')
+            raise NotImplementedError('Cannot rebin yet')
         else:
             x = np.arange(len(iwv_calib['spec']))
 
@@ -250,7 +254,7 @@ def pypeit_arcspec(in_file, slit, binspec, binning=None):
         #wv_vac = utils.func_val(iwv_calib['fitc'], x/iwv_calib['xnorm'], iwv_calib['function'],
         #                   minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
         flux = np.array(iwv_calib['spec']).flatten()
-    elif 'fits' in in_file:
+    elif '.fits' in in_file:
         wvcalib = wavecalib.WaveCalib.from_file(in_file)
         idx = np.where(wvcalib.spat_ids == slit)[0][0]
         flux = wvcalib.arc_spectra[:,idx]
@@ -269,7 +273,6 @@ def pypeit_arcspec(in_file, slit, binspec, binning=None):
 
     # Return
     return wv_vac, flux, pypeitFitting
-
 
 
 def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl, outdir=None):
@@ -300,7 +303,7 @@ def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl, out
     extstr = ""
     while True:
         outroot = '{0:s}_{1:s}_{2:s}{3:s}.fits'.format(specname, gratname, dispangl, extstr)
-        if os.path.exists(os.path.join(outpath, outroot)):
+        if os.path.exists(os.path.join(data.Paths.reid_arxiv, outroot)):
             extstr = "_{0:02d}".format(cntr)
         else:
             break
@@ -426,6 +429,7 @@ def xidl_arcspec(xidl_file, slit):
     # Return
     return wv_vac.value, spec
 
+
 def main(flg):
 
     # Keck LRISb
@@ -534,9 +538,7 @@ def main(flg):
         print("Wrote: {}".format(outfile))
 
     if flg & (2**14):  # Magellan/MagE Plots
-        outpath = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'plots')
-        new_mage_file = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv',
-                                     'magellan_mage.fits')
+        new_mage_file = os.path.join(data.Paths.reid_arxiv, 'magellan_mage.fits')
         # Load
         mage_wave = Table.read(new_mage_file)
         llist = waveio.load_line_lists(['ThAr_MagE'])
@@ -550,18 +552,19 @@ def main(flg):
             # Fit
             final_fit = wv_fitting.fit_slit(fx, patt_dict, detections, llist)
             # Output
-            outfile=os.path.join(outpath, 'MagE_order{:2d}_IDs.pdf'.format(order))
+            outfile=os.path.join(data.Paths.arc_plot,
+                                 f'MagE_order{order:2d}_IDs.pdf')
             autoid.arc_fit_qa(final_fit, outfile=outfile, ids_only=True)
-            print("Wrote: {}".format(outfile))
-            autoid.arc_fit_qa(final_fit, outfile=os.path.join(outpath, 'MagE_order{:2d}_full.pdf'.format(order)))
+            print(f"Wrote: {outfile}")
+            autoid.arc_fit_qa(final_fit, outfile=os.path.join(data.Paths.arc_plot,
+                              f'MagE_order{order:2d}_full.pdf'))
 
     if flg & (2**15):  # VLT/X-Shooter reid_arxiv
         # VIS
-        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
         for iroot, iout in zip(['vlt_xshooter_vis1x1.json', 'vlt_xshooter_nir.json'],
             ['vlt_xshooter_vis1x1.fits', 'vlt_xshooter_nir.fits']):
             # Load
-            old_file = os.path.join(reid_path, iroot)
+            old_file = os.path.join(data.Paths.reid_arxiv, iroot)
             odict, par = waveio.load_reid_arxiv(old_file)
 
             # Do it
@@ -581,13 +584,12 @@ def main(flg):
             tbl['order'] = orders
             tbl.meta['BINSPEC'] = 1
             # Write
-            outfile = os.path.join(reid_path, iout)
+            outfile = os.path.join(data.Paths.reid_arxiv, iout)
             tbl.write(outfile, overwrite=True)
             print("Wrote: {}".format(outfile))
 
     if flg & (2**16):  # VLT/X-Shooter line list
-        line_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'lists')
-        old_file = os.path.join(line_path, 'ThAr_XSHOOTER_VIS_air_lines.dat')
+        old_file = os.path.join(data.Paths.linelist, 'ThAr_XSHOOTER_VIS_air_lines.dat')
         # Load
         air_list = waveio.load_line_list(old_file)
         # Vacuum
@@ -595,16 +597,15 @@ def main(flg):
         vac_list = air_list.copy()
         vac_list['wave'] = vac_wv
         # Write
-        new_file = os.path.join(line_path, 'ThAr_XSHOOTER_VIS_lines.dat')
+        new_file = os.path.join(data.Paths.linelist, 'ThAr_XSHOOTER_VIS_lines.dat')
         vac_list.write(new_file, format='ascii.fixed_width', overwrite=True)
         print("Wrote: {}".format(new_file))
 
     if flg & (2**17):  # NIRES
-        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
         iroot = 'keck_nires.json'
         iout = 'keck_nires.fits'
         # Load
-        old_file = os.path.join(reid_path, iroot)
+        old_file = os.path.join(data.Paths.reid_arxiv, iroot)
         odict, par = waveio.load_reid_arxiv(old_file)
 
         # Do it
@@ -624,17 +625,16 @@ def main(flg):
         tbl['order'] = orders
         tbl.meta['BINSPEC'] = 1
         # Write
-        outfile = os.path.join(reid_path, iout)
+        outfile = os.path.join(data.Paths.reid_arxiv, iout)
         tbl.write(outfile, overwrite=True)
         print("Wrote: {}".format(outfile))
 
 
     if flg & (2**18):  # Gemini/GNIRS
-        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
         iroot = 'gemini_gnirs.json'
         iout = 'gemini_gnirs.fits'
         # Load
-        old_file = os.path.join(reid_path, iroot)
+        old_file = os.path.join(data.Paths.reid_arxiv, iroot)
         odict, par = waveio.load_reid_arxiv(old_file)
 
         # Do it
@@ -654,7 +654,7 @@ def main(flg):
         tbl['order'] = orders
         tbl.meta['BINSPEC'] = 1
         # Write
-        outfile = os.path.join(reid_path, iout)
+        outfile = os.path.join(data.Paths.reid_arxiv, iout)
         tbl.write(outfile, overwrite=True)
         print("Wrote: {}".format(outfile))
 
@@ -669,11 +669,10 @@ def main(flg):
         build_template(wfile, slits, lcut, binspec, outroot, lowredux=False)
 
     if flg & (2**24):  # Magellan/FIRE
-        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
         iroot = 'magellan_fire_echelle.json'
         iout = 'magellan_fire_echelle.fits'
         # Load
-        old_file = os.path.join(reid_path, iroot)
+        old_file = os.path.join(data.Paths.reid_arxiv, iroot)
         odict, par = waveio.load_reid_arxiv(old_file)
 
         # Do it
@@ -694,13 +693,12 @@ def main(flg):
         tbl['order'] = orders
         tbl.meta['BINSPEC'] = 1
         # Write
-        outfile = os.path.join(reid_path, iout)
+        outfile = os.path.join(data.Paths.reid_arxiv, iout)
         tbl.write(outfile, overwrite=True)
         print("Wrote: {}".format(outfile))
 
     if flg & (2**25): # FIRE longslit
         binspec = 1
-        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
         outroot = 'magellan_fire_long.fits'
         xidl_file = os.path.join(os.getenv('FIRE_DIR'), 'LowDispersion', 'NeNeAr_archive_fit.fits')
         spec_file = os.path.join(os.getenv('FIRE_DIR'), 'LowDispersion', 'NeNeAr2.sav')
@@ -709,18 +707,17 @@ def main(flg):
         wv_vac = airtovac(wave * units.AA)
         xidl_dict = readsav(spec_file)
         flux = xidl_dict['arc1d']
-        wvutils.write_template(wv_vac.value, flux, binspec, reid_path, outroot, det_cut=None)
+        wvutils.write_template(wv_vac.value, flux, binspec, data.Paths.reid_arxiv, outroot, det_cut=None)
 
     # Gemini/Flamingos2
     if flg & (2**26):
-        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
         iroot = ['Flamingos2_JH_JH.json','Flamingos2_HK_HK.json']
         outroot=['Flamingos2_JH_JH.fits','Flamingos2_HK_HK.fits']
         binspec = 1
         slits = [0]
         lcut = []
         for ii in range(len(iroot)):
-            wfile = os.path.join(reid_path, iroot[ii])
+            wfile = os.path.join(data.Paths.reid_arxiv, iroot[ii])
             build_template(wfile, slits, lcut, binspec, outroot[ii], lowredux=False)
 
 
@@ -735,73 +732,32 @@ def main(flg):
         build_template(wfile, slits, lcut, binspec, outroot, lowredux=False,
                        chk=True, subtract_conti=True)
 
-    # Keck KCWI
-    if flg & (2 ** 29):
-        # FeAr BH2
-        wfile1 = os.path.join(template_path, 'KCWI', 'BH2', 'Keck_KCWI_BH2_4200.json')
-        outroot = 'keck_kcwi_BH2_4200.fits'
-        binspec = 1
-        slits = [1015]
-        lcut = [4350.0, 8000.0]
-        build_template([wfile1], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
-        # FeAr BM
-        wfile1 = os.path.join(template_path, 'KCWI', 'BM', 'Keck_KCWI_BM_4060.json')
-        wfile2 = os.path.join(template_path, 'KCWI', 'BM', 'Keck_KCWI_BM_4670.json')
-        outroot = 'keck_kcwi_BM.fits'
-        binspec = 1
-        slits = [1026, 1021]
-        lcut = [4350.0, 8000.0]
-        build_template([wfile1, wfile2], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
-
-    # P200 DBSP r
-    if flg & (2 ** 30):
-        # HeNeAr
-        wfile = os.path.join(template_path, 'P200_DBSP', 'R316_7500_D55', 'P200_DBSP_Red.json')
-        outroot = 'p200_dbsp_red_316_7500_d55.fits'
-        binspec = 1
-        slits = [221]
-        lcut = None # only matters if >1 slit
-        build_template([wfile], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
-
-    # P200 DBSP b
-    if flg & (2 ** 31):
-        # FeAr
-        wfile = os.path.join(template_path, 'P200_DBSP', 'B600_4000_D55', 'P200_DBSP_Blue.json')
-        outroot = 'p200_dbsp_blue_600_4000_d55.fits'
-        binspec = 1
-        slits = [231]
-        lcut = None
-        build_template([wfile], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
-
     # MMT/MMIRS
     if flg & (2**32):
-        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
         iroot = ['mmt_mmirs_HK_zJ.json','mmt_mmirs_J_zJ.json','mmt_mmirs_K3000_Kspec.json']
         outroot=['mmt_mmirs_HK_zJ.fits','mmt_mmirs_J_zJ.fits','mmt_mmirs_K3000_Kspec.fits']
         binspec = 1
         slits = [1020,1020,1020]
         lcut = []
         for ii in range(len(iroot)):
-            wfile = os.path.join(reid_path, iroot[ii])
+            wfile = os.path.join(data.Paths.reid_arxiv, iroot[ii])
             build_template(wfile, slits, lcut, binspec, outroot[ii], lowredux=False)
     # LBT/MODS
     if flg & (2**33):
-        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
         iroot = ['lbt_mods1r_red.json','lbt_mods2r_red.json']
         outroot=['lbt_mods1r_red.fits','lbt_mods2r_red.fits']
         binspec = 1
         slits = [[1557],[1573]]
         lcut = []
         for ii in range(len(iroot)):
-            wfile = os.path.join(reid_path, iroot[ii])
+            wfile = os.path.join(data.Paths.reid_arxiv, iroot[ii])
             build_template(wfile, slits[ii], lcut, binspec, outroot[ii], lowredux=False)
     # P200 Triplespec
     if flg & (2**34):
-        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
         iroot = 'p200_triplespec_MasterWaveCalib.fits'
         iout = 'p200_triplespec.fits'
         # Load
-        old_file = os.path.join(reid_path, iroot)
+        old_file = os.path.join(data.Paths.reid_arxiv, iroot)
         par = io.fits_open(old_file)
         pyp_spec = par[0].header['PYP_SPEC']
         spectrograph  = load_spectrograph(pyp_spec)
@@ -820,7 +776,7 @@ def main(flg):
         tbl['order'] = orders
         tbl.meta['BINSPEC'] = 1
         # Write
-        outfile = os.path.join(reid_path, iout)
+        outfile = os.path.join(data.Paths.reid_arxiv, iout)
         tbl.write(outfile, overwrite=True)
         print("Wrote: {}".format(outfile))
 
@@ -875,15 +831,6 @@ if __name__ == '__main__':
 
     # MDM/OSMMOS
     #flg += 2**28
-
-    # Keck KCWI
-    #flg += 2**29
-
-    # P200 DBSP r
-    #flg += 2**30
-
-    # P200 DBSP b
-    #flg += 2**31
 
     # MMT MMIRS
     #flg += 2**32

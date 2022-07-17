@@ -3,6 +3,8 @@
     $ pypeit_lowrdx_skyspec -h
     usage: pypeit_lowrdx_skyspec [-h] lowrdx_sky new_file
     
+    Print info on slits from a spec2D file
+    
     positional arguments:
       lowrdx_sky  LowRedux Sky Spectrum (IDL save file)
       new_file    PYPIT FITS sky spectrum

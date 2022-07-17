@@ -14,15 +14,17 @@ it's only purpose is to generate a KD Tree with the desired patterns.
 # See benchmarks here:
 #   https://jakevdp.github.io/blog/2013/04/29/benchmarking-nearest-neighbor-searches-in-python/
 
+import os
+
 from pypeit.core.wavecal import waveio
 from astropy.table import vstack
-import numba as nb
+#import numba as nb
 from scipy.spatial import cKDTree
 import numpy as np
 import pickle
 
+from pypeit import data
 
-@nb.jit(nopython=True, cache=True)
 def trigon(linelist, numsrch, maxlin):
     """ Generate a series of trigon patterns, given an input list of detections or lines from a linelist
 
@@ -54,8 +56,8 @@ def trigon(linelist, numsrch, maxlin):
             for x in range(l + 1, ll):
                 cnt += 1
 
-    index = np.zeros((cnt, nptn), dtype=nb.types.uint64)
-    pattern = np.zeros((cnt, nptn - 2), dtype=nb.types.float64)
+    index = np.zeros((cnt, nptn), dtype=np.uint64)
+    pattern = np.zeros((cnt, nptn - 2),dtype=float)
 
     # Generate the patterns
     cnt = 0
@@ -74,7 +76,7 @@ def trigon(linelist, numsrch, maxlin):
     return pattern, index
 
 
-@nb.jit(nopython=True, cache=True)
+
 def tetragon(linelist, numsrch, maxlin):
     """ Generate a series of tetragon patterns, given an input list of detections or lines from a linelist
 
@@ -108,8 +110,8 @@ def tetragon(linelist, numsrch, maxlin):
                 for xx in range(x + 1, ll):
                     cnt += 1
 
-    index = np.zeros((cnt, nptn), dtype=nb.types.uint64)
-    pattern = np.zeros((cnt, nptn - 2), dtype=nb.types.float64)
+    index = np.zeros((cnt, nptn), dtype=np.uint64)
+    pattern = np.zeros((cnt, nptn - 2),dtype=float)
 
     # Generate the patterns
     cnt = 0
@@ -131,7 +133,6 @@ def tetragon(linelist, numsrch, maxlin):
     return pattern, index
 
 
-@nb.jit(nopython=True, cache=True)
 def pentagon(linelist, numsrch, maxlin):
     """
     see trigon and tetragon for an example docstring
@@ -152,8 +153,8 @@ def pentagon(linelist, numsrch, maxlin):
                     for xxx in range(xx + 1, ll - 1):
                         cnt += 1
 
-    index = np.zeros((cnt, nptn), dtype=nb.types.uint64)
-    pattern = np.zeros((cnt, nptn - 2), dtype=nb.types.float64)
+    index = np.zeros((cnt, nptn), dtype=np.uint64)
+    pattern = np.zeros((cnt, nptn - 2),dtype=float)
 
     # Generate the patterns
     cnt = 0
@@ -178,7 +179,6 @@ def pentagon(linelist, numsrch, maxlin):
     return pattern, index
 
 
-@nb.jit(nopython=True, cache=True)
 def hexagon(linelist, numsrch, maxlin):
     """
     see trigon and tetragon for an example docstring
@@ -201,8 +201,8 @@ def hexagon(linelist, numsrch, maxlin):
                         for xxxx in range(xxx + 1, ll - 1):
                             cnt += 1
 
-    index = np.zeros((cnt, nptn), dtype=nb.types.uint64)
-    pattern = np.zeros((cnt, nptn - 2), dtype=nb.types.float64)
+    index = np.zeros((cnt, nptn),dtype=np.uint64)
+    pattern = np.zeros((cnt, nptn - 2),dtype=float)
 
     # Generate the patterns
     cnt = 0
@@ -280,7 +280,7 @@ def main(polygon, numsearch=8, maxlinear=100.0, use_unknowns=True, leafsize=30, 
         return None
 
     if outname is None:
-        outname = '../../data/arc_lines/lists/ThAr_patterns_poly{0:d}_search{1:d}.kdtree'.format(polygon, numsearch)
+        outname = os.path.join(data.Paths.linelist, f'ThAr_patterns_poly{polygon}_search{numsearch}.kdtree')
     outindx = outname.replace('.kdtree', '.index')
     print("Generating Tree")
     tree = cKDTree(pattern, leafsize=leafsize)

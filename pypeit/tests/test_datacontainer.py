@@ -4,7 +4,6 @@ Module to run tests on datamodel.DataContainer
 import sys
 import io
 import os
-import shutil
 import inspect
 
 from IPython import embed
@@ -18,7 +17,6 @@ import numpy as np
 from astropy.table import Table
 
 from pypeit.datamodel import DataContainer
-from pypeit.images import pypeitimage
 from pypeit.io import fits_open
 
 #-----------------------------------------------------------------------
@@ -225,16 +223,6 @@ class ComplexInitContainer(DataContainer):
                 raise ValueError('Do not know how to construct out attribute!')
             self.out = self.inp1 + self.inp2 if self.func == 'add' else self.inp1 - self.inp2
 
-#-----------------------------------------------------------------------
-
-def test_fulldatamodel():
-    # Include
-    full_dmodel = pypeitimage.PypeItImage.full_datamodel()
-    assert 'detector' in full_dmodel
-    # Do not include
-    full_dmodel = pypeitimage.PypeItImage.full_datamodel(include_parent=False)
-    assert 'detector' not in full_dmodel
-
 
 def test_single_element_array():
     data = BasicContainer(np.arange(1).astype(float), 'length=10', np.arange(10).astype(float))
@@ -243,6 +231,7 @@ def test_single_element_array():
     #
     _data = BasicContainer.from_hdu(hdu[0])
     assert isinstance(_data.vec1, np.ndarray)
+
 
 def test_basic():
 

@@ -6,6 +6,9 @@
 .. |DOI_latest| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3743493.svg
    :target: https://doi.org/10.5281/zenodo.3743493
 
+.. |JOSS| image:: https://joss.theoj.org/papers/10.21105/joss.02308/status.svg
+   :target: https://doi.org/10.21105/joss.02308
+
 .. |arxiv| image:: https://img.shields.io/badge/arxiv-2005.06505-black
    :target: https://arxiv.org/abs/2005.06505
 
@@ -29,13 +32,19 @@
 .. |github| image:: https://img.shields.io/github/release/fpavogt/fcmaker.svg
    :target: https://github.com/pypeit/PypeIt
 
+.. |pypeit_logo| image:: https://img.shields.io/github/release/fpavogt/fcmaker.svg
+   :target: https://github.com/pypeit/PypeIt
 
 PypeIt |stars| |watch|
 ======================
 
 |pypi| |DOI_latest| |arxiv| |astropy|
 
-**Version**: 1.3.1dev
+.. raw:: html
+
+    <img src="_static/PypeIt_color_white_txt_black_background.png" onerror="this.src='_static/astropy_banner_96.png'; this.onerror=null;" width="485"/>
+
+**Version**: |version|
 
 ``PypeIt`` is a Python package for semi-automated reduction of
 astronomical, spectroscopic data. Its algorithms build on
@@ -60,8 +69,8 @@ Citation
 If you use ``PypeIt`` in your research, please cite the following
 publications (:ref:`bibtex` are provided below):
 
- - `Prochaska et al. (2020) <https://ui.adsabs.harvard.edu/abs/2020arXiv200506505P/abstract>`__: Submitted for publication in JOSS
- - `Prochaska et al. (2020) <https://ui.adsabs.harvard.edu/abs/2020zndo...3743493P/abstract>`__: Zenodo
+ - Prochaska et al. (2020, JOSS): `arXiv <https://ui.adsabs.harvard.edu/abs/2020arXiv200506505P/abstract>`__, `JOSS <https://joss.theoj.org/papers/10.21105/joss.02308>`__
+ - Prochaska et al. (2020, Zenodo): `Zenodo <https://ui.adsabs.harvard.edu/abs/2020zndo...3743493P/abstract>`__
 
 If there is no place to include the relevant citations in the text of
 the publication, please include the following acknowledgement
@@ -71,25 +80,39 @@ the publication, please include the following acknowledgement
 
     This research made use of \ttfamily{PypeIt},\footnote{\url{https://pypeit.readthedocs.io/en/latest/}}
     a Python package for semi-automated reduction of astronomical slit-based spectroscopy
-    \citep{pypeit:joss, pypeit:zenodo}.
+    \citep{pypeit:joss_pub, pypeit:zenodo}.
 
 ----
+
+Funding
++++++++
+
+``PypeIt`` receives direct funding from the following sources:
+
+  * NASA (ADAP-A20-0412)
+  * W.M. Keck Observatory
+  * University of California Observatories
+
+We also rely on important in-kind contributions from individuals at
+Caltech, the Multiple Mirror Observatory, and elsewhere.
 
 What this version provides
 ++++++++++++++++++++++++++
 
 * Support for 20+ :doc:`spectrographs`; see there for the full list, including
   those that are currently in various stages of development.
-
+ 
+  * Bok/B&C
   * Gemini/GNIRS
   * Gemini/GMOS
   * Gemini/FLAMINGOS 2
+  * GTC/OSIRIS
   * Lick/Kast
   * Magellan/MagE
   * Magellan/Fire
   * MDM/OSMOS
-  * Keck/DEIMOS (600ZD, 830G, 1200G)
-  * Keck/KCWI (BM, BH2)
+  * Keck/DEIMOS (600ZD, 830G, 1200G, 1200B, 900ZD)
+  * Keck/KCWI
   * Keck/LRIS
   * Keck/MOSFIRE (Y, J, K gratings tested)
   * Keck/NIRES
@@ -97,9 +120,11 @@ What this version provides
   * LBT/Luci-I
   * LBT/Luci-II
   * LBT/MODS
+  * LDT/DeVeny
   * MDM/OSMOS
   * MMT/MMIRS
   * MMT/binospec
+  * MMT/bluechannel
   * NOT/ALFOSC
   * P200/DBSP
   * P200/TripleSpec
@@ -114,6 +139,7 @@ What this version provides
   * Global and local :doc:`skysub`
   * Optimal (and boxcar) :doc:`extraction`
   * :doc:`A-B_differencing`
+  * Slitmask metadata slurping including RA/DEC (:doc:`deimos` only)
 
 * Documentation
 
@@ -125,6 +151,7 @@ What this version provides
   * :doc:`fluxing`
   * :doc:`manual`
   * :doc:`telluric`
+  * :doc:`2d_combine`
   * :doc:`coadd1d`
   * :doc:`coadd2d`
 
@@ -140,11 +167,10 @@ What this version provides
 What this version is missing (i.e. what we are working on)
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-* Slitmask metadata slurping (e.g. Keck/DEIMOS)
 * Full 2D coadd support
-* Keck/HIRES, Keck/ESI support
 * Additional QA outputs
 * A dashboard to monitor/control ``PypeIt``
+* Keck/HIRES, Keck/ESI support
 
 
 Users
@@ -170,6 +196,7 @@ or have a feature request, please `submit an issue
    installing
    cookbook
    step-by-step
+   known_failure_modes
 
 ----
 
@@ -179,14 +206,27 @@ or have a feature request, please `submit an issue
 
    spectrographs
    setup
+   input_files
    pypeit_par
    pypeit_file
    running
    quicklook
+   2d_combine
    object_finding
    skysub
    extraction
    scripts
+   A-B_differencing
+   nir_example
+
+----
+
+.. toctree::
+   :caption: Processing Details
+   :maxdepth: 1
+
+   image_proc
+   mosaic
 
 ----
 
@@ -204,11 +244,12 @@ or have a feature request, please `submit an issue
    :caption: Further processing
    :maxdepth: 1
 
-   A-B_differencing
    fluxing
    coadd1d
+   telluric
    coadd2d
    coadd3d
+   collate1d
 
 ----
 
@@ -218,6 +259,7 @@ or have a feature request, please `submit an issue
 
    dev/development
    PypeIt API <api/modules>
+   new_spectrograph
 
 Contributors
 ============
@@ -239,6 +281,8 @@ development of ``PypeIt``.
 * Tiffany Hsyu
 * Frederick B. Davies
 * Emanuele Paolo Farina
+* Debora Pelliccia
+* James Reichwein
 
 ----
 
@@ -249,7 +293,7 @@ PypeIt BibTeX Entries
 
 .. code-block:: latex
 
-    @ARTICLE{pypeit:joss,
+    @ARTICLE{pypeit:joss_arXiv,
            author = {{Prochaska}, J. Xavier and {Hennawi}, Joseph F. and {Westfall}, Kyle B. and
              {Cooke}, Ryan J. and {Wang}, Feige and {Hsyu}, Tiffany and
              {Davies}, Frederick B. and {Farina}, Emanuele Paolo},
@@ -265,6 +309,19 @@ PypeIt BibTeX Entries
      primaryClass = {astro-ph.IM},
            adsurl = {https://ui.adsabs.harvard.edu/abs/2020arXiv200506505P},
           adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+    }
+
+    @article{pypeit:joss_pub,
+        doi = {10.21105/joss.02308},
+        url = {https://doi.org/10.21105/joss.02308},
+        year = {2020},
+        publisher = {The Open Journal},
+        volume = {5},
+        number = {56},
+        pages = {2308},
+        author = {J. Xavier Prochaska and Joseph F. Hennawi and Kyle B. Westfall and Ryan J. Cooke and Feige Wang and Tiffany Hsyu and Frederick B. Davies and Emanuele Paolo Farina and Debora Pelliccia},
+        title = {PypeIt: The Python Spectroscopic Data Reduction Pipeline},
+        journal = {Journal of Open Source Software}
     }
 
     @MISC{pypeit:zenodo,
@@ -285,5 +342,3 @@ PypeIt BibTeX Entries
            adsurl = {https://ui.adsabs.harvard.edu/abs/2020zndo...3743493P},
           adsnote = {Provided by the SAO/NASA Astrophysics Data System}
     }
-
-

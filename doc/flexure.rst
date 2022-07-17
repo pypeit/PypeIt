@@ -1,3 +1,6 @@
+
+.. _flexure:
+
 ==================
 Flexure Correction
 ==================
@@ -73,18 +76,35 @@ This will:
 Spectral
 ========
 
-By default, the code will calculate a flexure shift based on the
-extracted sky spectrum (boxcar).
-A cross-correlation between this
-sky spectrum and an archived spectrum is performed to calculate
-a single, pixel shift.  This is then imposed on the wavelength solution
-with simple linear interpolation.
+``PypeIt`` calculates the spectral flexure correction, as a single pixel shift,
+by performing a cross-correlation between an extracted sky spectrum and an archived sky spectrum.
+This is then imposed on the wavelength solution with simple linear interpolation.
+To enable this correction the parameter ``spec_method`` in :ref:`pypeit_par:FlexurePar Keywords`
+should be set to ``boxcar`` or ``slitcen``. The default is ``spec_method = skip``, i.e.,
+no spectral flexure correction, for most spectrographs, except:
 
-The general approach is to compare the sky model
-from the observation with an archived sky model. Generally, by default, the
-Paranal sky spectrum is used, as derived from the SDSS codes. The default is 
+- Gemini/GMOS (N&S)
+- Keck/DEIMOS
+- Keck/KCWI
+- Keck/LRIS (all)
+- LBT/MODS (all)
+- LDT/DeVeny
+- MMT/Binospec
+- NTT/EFOSC2
+- Shane/KAST (all)
+- VLT/FORS2
+
+If ``spec_method = boxcar`` (recommended) the observed sky spectrum flux is boxcar extracted,
+while the spectrum wavelength is taken from the extracted 1D object. If no objects have been
+extracted, set ``spec_method = slitcen``, which uses a spectrum extracted from the center of
+each slit.
+
+For the archived sky spectrum, generally, the Paranal sky spectrum is used by default. However, this is
 different for Kast blue and LRIS blue where sky_kastb_600.fits and sky_LRISb_600.fits
 are respectively used (see `Alternate sky models`_ for all sky models).
+
+Narrow sky emission lines dominate the analysis, but other features
+can affect the cross-correlation.
 
 
 Algorithm
@@ -156,3 +176,81 @@ The models supplied with PypeIt are,
 | sky_LRISr_600_7500_5460_7950.fits |  Description to come                                                              |
 +-----------------------------------+-----------------------------------------------------------------------------------+
 
+.. _pypeit_multislit_flexure:
+
+pypeit_multislit_flexure
+------------------------
+
+We have now implemented a method to calculate a flexure
+correction across multiple detectors, i.e. with an expanded wavelength coverage.
+In contrast to the standard approach which estimates and applies a single 
+pixel shift for the entire spectrum, this technique fits for a linear
+correction with wavelength.
+
+Thus far, it has only been developed and fine-tuned for the 
+1200 line grating of Keck/DEIMOS.  It is unlikely to work very
+well for wavelengths much blueward of 6000Ang (where sky emission
+lines are sparse).
+
+Briefly, this algorithm:
+
+1. Match slits across pairs of red/blue detectors
+
+2. Measure the centroids of select sky lines
+
+3. Fit the flexure solutions, slit by slit
+
+4. Fit a 2D solution to all of the slits
+
+5. Output, including QA
+
+6. The user then needs to read in the output and apply it to their spectra with their own custom code.
+   
+Future work may combine this approach with the standard (e.g. 
+implement cross-correlation with a stretch).
+
+If you wish to adopt this approach (not recommended for most users), there are
+several key steps:
+
+First, modify your :doc:`pypeit_file` to turn off the standard flexure *and*
+to avoid the vacuum frame::
+
+   [flexure]
+      spec_method = skip 
+   [calibrations]
+      [[wavelengths]]
+         refframe = observed
+
+Second, generate a `Flexure File`_ as described below.
+
+Last, run the `pypeit_deimos_flexure` script::
+
+   pypeit_multislit_flexure file.flex out_root
+
+where out_root is the prefix for the FITS file generated that
+contains the flexure solution for all of the slits.  
+
+.. _flexure_file:
+
+Flexure File
+++++++++++++
+
+After running PypeIt with the standard call, construct a simple 
+`Flexure File`_ which is a type of :ref:`input_files`.
+It has a (required) :ref:`parameter_block` which must specify
+the spectrograph name and a (required) :ref:`data_block`
+that provides the table of files to process.
+
+Here is the test file:: 
+
+   # User-defined execution parameters
+   [rdx]
+   spectrograph = keck_deimos
+
+   flexure read
+   filename
+   Science/spec1d_DE.20100913.22358-CFHQS1_DEIMOS_20100913T061231.334.fits
+   flexure end
+
+As desired, you can modify the 
+:ref:`pypeit_par:FlexurePar Keywords` in the top block.

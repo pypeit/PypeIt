@@ -8,7 +8,6 @@ import os
 import numpy as np
 import time
 from IPython import embed
-
 import subprocess
 
 # A note from ejeschke on how to use the canvas add command in ginga: https://github.com/ejeschke/ginga/issues/720
@@ -53,7 +52,7 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
         tmp = sh.get_current_workspace()
     except:
         if allow_new:
-            subprocess.Popen(['ginga', '--modules=RC'])
+            subprocess.Popen(['ginga', '--modules=RC,SlitWavelength'])
 
             # NOTE: time.sleep(3) is now insufficient. The loop below
             # continues to try to connect with the ginga viewer that
@@ -72,7 +71,7 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
                     break
             if i == maxiter-1:
                 msgs.error('Timeout waiting for ginga to start.  If window does not appear, type '
-                           '`ginga --modules=RC` on the command line.  In either case, wait for '
+                           '`ginga --modules=RC,SlitWavelength` on the command line.  In either case, wait for '
                            'the ginga viewer to open and try the pypeit command again.')
             return viewer
 
@@ -80,7 +79,7 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
             raise ValueError
         else:
             msgs.warn('Problem connecting to Ginga.  Launch an RC Ginga viewer and '
-                      'then continue: \n    ginga --modules=RC')
+                      'then continue: \n    ginga --modules=RC,SlitWavelength')
 
     # Return
     return viewer
@@ -101,10 +100,8 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
             name of a fits image that can be read by `astropy.io.fits`.
         chname (:obj:`str`, optional):
             The name of the ginga channel to use.
-        waveimg (:obj:`str`, optional):
-            The name of a FITS image with the relevant WCS coordinates
-            in its header, mainly for wavelength array.  If None, no WCS
-            is used.
+        waveimg (:obj:`numpy.ndarray`, optional):
+            Wavelength image
         bitmask (:class:`pypeit.bitmask.BitMask`, optional):
             The object used to unpack the mask values.  If this is
             provided, mask must also be provided and the expectation is
@@ -141,18 +138,15 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
     if mask is not None and bitmask is None:
         raise ValueError('If providing a mask, must also provide the bitmask.')
 
+    # Instantiate viewer
+    viewer = connect_to_ginga()
     # Read or set the image data.  This will fail if the input is a
     # string and astropy.io.fits cannot read the image.
     img = io.fits_open(inp)[exten].data if isinstance(inp, str) else inp
 
-    # Instantiate viewer
-    viewer = connect_to_ginga()
     if clear:
-        # Clear existing channels
-        shell = viewer.shell()
-        chnames = shell.get_channel_names()
-        for ch in chnames:
-            shell.delete_channel(ch)
+        clear_all()
+
     ch = viewer.channel(chname)
     # Header
     header = {}
@@ -168,18 +162,18 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
         sh.call_global_plugin_method('SlitWavelength', 'load_buffer', args, {})
     else:
         ch.load_np(chname, img, 'fits', header)
-    canvas = viewer.canvas(ch._chname)
 
     # These commands set up the viewer. They can be found at
     # ginga/ginga/ImageView.py
+    canvas = viewer.canvas(ch._chname)
     out = canvas.clear()
-    if cuts is not None:
-        out = ch.cut_levels(cuts[0], cuts[1])
     out = ch.set_color_map('ramp')
     out = ch.set_intensity_map('ramp')
     out = ch.set_color_algorithm('linear')
     out = ch.restore_contrast()
     out = ch.restore_cmap()
+    if cuts is not None:
+        out = ch.cut_levels(float(cuts[0]), float(cuts[1]))
 
     # WCS Match this to other images with this as the reference image?
     if wcs_match:
@@ -187,6 +181,7 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
         shell = viewer.shell()
         out = shell.start_global_plugin('WCSMatch')
         out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname], {})
+
 
     # TODO: I would prefer to change the color map to indicate these
     # pixels rather than overplot points. Because for large numbers of
@@ -250,6 +245,45 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
         canvas.add('constructedcanvas', canvas_list)
 
     return viewer, ch
+
+
+def show_points(viewer, ch, spec, spat, color='cyan', legend=None, legend_spec=None, legend_spat=None):
+    """
+
+
+
+    Parameters
+    ----------
+    viewer (ginga.util.grc.RemoteClient):
+        Ginga RC viewer
+    ch (ginga.util.grc._channel_proxy):
+        Ginga channel
+    spec (list):
+        List of spectral positions on image to plot
+    spat (list):
+        List of spatial positions on image to plot
+    color (str):
+        Color for points
+    legend (str):
+        Label for a legeng
+    legend_spec (float):
+        Spectral pixel loation for legend
+    legend_spat (float):
+        Pixel loation for legend
+
+    """
+    canvas = viewer.canvas(ch._chname)
+    npoints = len(spec)
+    canvas_list = [dict(type='point', args=(float(spat[i]), float(spec[i]), 2),
+                         kwargs=dict(style='plus', color=color)) for i in range(npoints)]
+    if legend is not None:
+        spec_label = np.mean(np.array(spec)) if legend_spec is None else legend_spec
+        spat_label = (np.mean(np.array(spat)) + 30) if legend_spat is None else legend_spat
+        text = [dict(type='text', args=(spat_label, spec_label, legend), kwargs=dict(color=color, fontsize=20))]
+        canvas_list += text
+
+    canvas.add('constructedcanvas', canvas_list)
+
 
 
 # TODO: Should we continue to allow rotate as an option?
@@ -370,8 +404,8 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
             if rotate:
                 xt, yt = yt, xt
                 xb, yb = yb, xb
-            canvas.add(str('text'), xb, yb, str('S{0}'.format(_left_ids[i])), color=str('blue'),
-                       fontsize=20.)
+            canvas.add(str('text'), xb, yb, str('S{0}'.format(_left_ids[i])), color=str('aquamarine'),
+                       fontsize=20., rot_deg=90.)
             #canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('green'), fontsize=20.)
 
     # Plot rights. Points need to be int or float. Use of .tolist() on
@@ -379,7 +413,7 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
     for i in range(nright):
         points = list(zip(y[::pstep].tolist(), _right[::pstep,i].tolist())) if rotate \
                     else list(zip(_right[::pstep,i].tolist(), y[::pstep].tolist()))
-        canvas.add(str('path'), points, color=str('red'))
+        canvas.add(str('path'), points, color=str('magenta'))
         if not synced:
             # Add text
             xt, yt = float(_right_id_loc[top,i]), float(y[top])
@@ -402,12 +436,12 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
             xt, yt = yt, xt
             xb, yb = yb, xb
         # Slit IDs
-        canvas.add(str('text'), xb, yb, str('S{0}'.format(_slit_ids[i])), color=str('blue'),
-                   fontsize=20.)
+        canvas.add(str('text'), xb, yb-400, str('S{0}'.format(_slit_ids[i])), color=str('aquamarine'),
+                   fontsize=20., rot_deg=90.)
         # maskdef_ids
         if _maskdef_ids is not None:
-            canvas.add(str('text'), xb, yb-100, str('{0}'.format(_maskdef_ids[i])), color=str('cyan'),
-                       fontsize=20.)
+            canvas.add(str('text'), xb, yb-250, str('{0}'.format(_maskdef_ids[i])),
+                       color=str('cyan'), fontsize=20., rot_deg=90.)
         # TODO -- Fix indices if you really want to show them
         #canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('green'),
         #           fontsize=20.)
@@ -476,12 +510,16 @@ def clear_canvas(cname):
     canvas.clear()
 
 
-def clear_all():
+def clear_all(allow_new=False):
     """
-    Clear all of the ginga canvasses
+    Clear all of the ginga canvasses.
 
+    Args:
+        allow_new (:obj:`bool`, optional):
+            Allow a subprocess to be called to execute a new ginga viewer if one
+            is not already running.  See :func:`connect_to_ginga`.
     """
-    viewer = connect_to_ginga()
+    viewer = connect_to_ginga(allow_new=allow_new)
     shell = viewer.shell()
     chnames = shell.get_channel_names()
     for ch in chnames:

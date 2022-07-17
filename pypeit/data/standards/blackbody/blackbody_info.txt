@@ -1,0 +1,26 @@
+# This directory contains data files for the blackbody stars
+# presented in Suzuki & Fukugita, 2018, AJ, 156, 219:
+# https://ui.adsabs.harvard.edu/abs/2018AJ....156..219S/abstract
+# The flux distribution over the range 3000 – 25000A can be
+# generated using the "a" and "T" parameters in Table below,
+# combined with Equation 1 from the above paper.
+# NOTE: The flux is generated at runtime, so there are no
+# "Files". The first column is just a placeholder.
+File            Name        RA_2000       DEC_2000      g_MAG  TYPE  T_K   a_x10m23
+J0027m0017.fits  J0027m0017  00:27:39.497  -00:17:41.93  18.90  DB    10662  0.435
+J0048p0017.fits  J0048p0017  00:48:30.324  +00:17:52.80  18.14  DB    10639  0.876
+J0146m0051.fits  J0146m0051  01:46:18.898  -00:51:50.51  18.17  DB    11770  0.672
+J0229m0041.fits  J0229m0041  02:29:36.715  -00:41:13.63  19.07  DB     8901  0.640
+J0832p3709.fits  J0832p3709  08:32:26.568  +37:09:55.48  18.98  DB     7952  1.137
+J0837p5427.fits  J0837p5427  08:37:36.557  +54:27:58.64  18.73  DB     7533  1.703
+J1004p1215.fits  J1004p1215  10:04:49.541  +12:15:59.65  19.18  DB     9773  0.440
+J1045p0157.fits  J1045p0157  10:45:23.866  +01:57:21.96  19.09  DB     8956  0.666
+J1117p4059.fits  J1117p4059  11:17:20.801  +40:59:54.67  18.08  DB    10992  0.844
+J1147p1713.fits  J1147p1713  11:47:22.608  +17:13:25.21  18.65  DB     9962  0.669
+J1245p4238.fits  J1245p4238  12:45:35.626  +42:38:24.58  17.14  DB     9912  2.817
+J1255p1924.fits  J1255p1924  12:55:07.082  +19:24:59.00  18.53  DB     8882  1.157
+J1343p2706.fits  J1343p2706  13:43:05.302  +27:06:23.98  18.93  DB    10678  0.427
+J1417p4941.fits  J1417p4941  14:17:24.329  +49:41:27.85  17.25  DB    10461  2.192
+J1518p0028.fits  J1518p0028  15:18:59.717  +00:28:39.58  19.44  DB     9072  0.458
+J1617p1813.fits  J1617p1813  16:17:04.078  +18:13:11.96  18.78  DB     8568  0.996
+J2302m0030.fits  J2302m0030  23:02:40.032  -00:30:21.60  17.80  DB    10478  1.241

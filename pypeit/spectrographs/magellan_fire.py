@@ -9,8 +9,6 @@ Important Notes:
 
 .. include:: ../include/links.rst
 """
-from pkg_resources import resource_filename
-
 import numpy as np
 
 from pypeit import msgs
@@ -34,6 +32,8 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1
     telescope = telescopes.MagellanTelescopePar()
+    camera = 'FIRE'
+    header_name = 'FIRE'
 
     def init_meta(self):
         """
@@ -57,6 +57,23 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='GRISM')
         self.meta['idname'] = dict(ext=0, card='OBSTYPE')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
+
+
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard ``PypeIt`` file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        pypeit_keys = super().pypeit_file_keys()
+        # TODO: Why are these added here? See
+        # pypeit.metadata.PypeItMetaData.set_pypeit_cols
+        pypeit_keys += ['calib', 'comb_id', 'bkg_id']
+        return pypeit_keys
 
 
 class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
@@ -72,20 +89,20 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
 
     """
     name = 'magellan_fire'
-    camera = 'FIRE'
     pypeline = 'Echelle'
     supported = True
     comment = 'Magellan/FIRE in echelle mode'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
@@ -150,7 +167,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
 
         # Set slits and tilts parameters
         par['calibrations']['tilts']['tracethresh'] = 5
-        par['calibrations']['slitedges']['edge_thresh'] = 10.
+        par['calibrations']['slitedges']['edge_thresh'] = 3.
         par['calibrations']['slitedges']['trace_thresh'] = 10.
         par['calibrations']['slitedges']['fit_order'] = 5
         par['calibrations']['slitedges']['max_shift_adj'] = 0.5
@@ -159,10 +176,13 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         par['calibrations']['slitedges']['pca_order'] = 3
 
         # Model entire slit
-        par['reduce']['extraction']['model_full_slit'] = True # local sky subtraction operates on entire slit
+        par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
+        par['reduce']['findobj']['maxnumber_sci'] = 2  # Slit is narrow so allow one object per order
+        par['reduce']['findobj']['maxnumber_std'] = 1  # Slit is narrow so allow one object per order
 
         # Processing steps
-        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
+                        use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
         # Do not correct for flexure
         par['flexure']['spec_method'] = 'skip'
@@ -176,11 +196,10 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         # Sensitivity function parameters
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['polyorder'] = 8
+        par['sensfunc']['polyorder'] = 5
+        par['sensfunc']['IR']['maxiter'] = 2
         # place holder for telgrid file
-        par['sensfunc']['IR']['telgridfile'] \
-                = resource_filename('pypeit',
-                                    '/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits')
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
 
         return par
 
@@ -314,19 +333,19 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
 
     """
     name = 'magellan_fire_long'
-    camera = 'FIRE'
     supported = True
     comment = 'Magellan/FIRE in long-slit/high-throughput mode'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
@@ -388,14 +407,12 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         par.reset_all_processimages_par(**turn_off)
 
         # Scienceimage parameters
-        par['reduce']['findobj']['sig_thresh'] = 5
+        par['reduce']['findobj']['snr_thresh'] = 5
         #par['reduce']['maxnumber'] = 2
         par['reduce']['findobj']['find_trim_edge'] = [50,50]
         par['flexure']['spec_method'] = 'skip'
 
-        par['sensfunc']['IR']['telgridfile'] \
-                = resource_filename('pypeit',
-                                    '/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits')
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 60]

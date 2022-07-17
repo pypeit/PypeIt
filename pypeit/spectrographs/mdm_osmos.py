@@ -3,10 +3,6 @@ Module for MDM/OSMOS specific methods.
 
 .. include:: ../include/links.rst
 """
-from pkg_resources import resource_filename
-
-from IPython import embed
-
 import numpy as np
 
 from pypeit import msgs
@@ -25,18 +21,20 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
     name = 'mdm_osmos_mdm4k'
     telescope = telescopes.KPNOTelescopePar()
     camera = 'MDM4K'
+    header_name = 'OSMOS'
     supported = True
     comment = 'MDM OSMOS spectrometer'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
@@ -44,7 +42,8 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
         """
         # Detector 1
         detector_dict = dict(
-            binning         =self.get_meta_value(self.get_headarr(hdu), 'binning'),
+            binning         = '1,1' if hdu is None 
+                                    else self.get_meta_value(self.get_headarr(hdu), 'binning'),
             det=1,
             dataext         = 0,
             specaxis        = 1,
@@ -123,6 +122,7 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
         self.meta['idname'] = dict(ext=0, card='IMAGETYP')
         # Lamps
         self.meta['lampstat01'] = dict(ext=0, card='LAMPS')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
         """

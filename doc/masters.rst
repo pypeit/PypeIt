@@ -1,3 +1,6 @@
+
+.. _masters:
+
 =============
 Master Frames
 =============
@@ -24,6 +27,7 @@ Type              Format    Description
 MasterAlign       FITS      Alignment image (IFU)
 MasterArc         FITS      Processed arc spectral image
 MasterBias        FITS      Processed bias image
+MasterDark        FITS      Processed dark image
 MasterEdges       FITS      Several images describing the slit traces
 MasterFlat        FITS      Normalized flat field image
 MasterPinhole     FITS      Pinhole flat image
@@ -51,3 +55,12 @@ Here is how we break it down:
   - The **A** specifies the spectrograph :doc:`setup`
   - The **1** specifies the detector number (one-based indexing)
   - The **01** specifies a bit-wise description of the `calib`
+
+calib_ids
+---------
+
+When pypeit runs successful, a file with a .calib extension is
+generated that offers a summary of the :ref:`master-naming`.
+
+You may generate a similar (and perhaps more readable)
+file using the :ref:`pypeit-parse-calib-id` script.

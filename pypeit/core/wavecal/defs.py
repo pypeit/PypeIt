@@ -4,7 +4,7 @@ from pypeit.bitmask import BitMask
 
 # TODO: This doesn't belong here.
 def instruments():
-    """ 
+    """
     Dict to convert instrument to bitwise flag
 
     .. warning::
@@ -21,10 +21,12 @@ def instruments():
     instr_dict['LRISr'] = 2**0
     instr_dict['LRISb'] = 2**1
     instr_dict['Kastb'] = 2**2
-    instr_dict['Kastr'] = 2**3
+    instr_dict['shane_kast_red'] = 2**3
+    instr_dict['shane_kast_red_ret'] = 2**3
     instr_dict['DEIMOS'] = 2**4
     instr_dict['NIRSPEC'] = 2**5
     instr_dict['GMOS'] = 2**6
+    instr_dict['DBSP'] = 2**7
     #
     return instr_dict
 
@@ -106,7 +108,13 @@ def lines():
     line_dict['FeI'] = 2**21
     line_dict['FeII'] = 2**22
     line_dict['UNKNWN'] = 2**23
-
+    line_dict['Ar_IR_MOSFIRE'] = 2 ** 24
+    line_dict['Ne_IR_MOSFIRE'] = 2 ** 25
+    line_dict['OH_MOSFIRE_Y'] = 2 ** 26
+    line_dict['OH_MOSFIRE_J'] = 2 ** 27
+    line_dict['OH_MOSFIRE_H'] = 2 ** 28
+    line_dict['OH_MOSFIRE_K'] = 2 ** 29
+    line_dict['ThAr_XSHOOTER_UVB'] = 2**30
     #
     return line_dict
 
@@ -131,4 +139,3 @@ def str_len():
     strlen_dict['Source'] = 30
     # Return
     return strlen_dict
-

@@ -70,12 +70,14 @@ following:
  - Full residual image which removes the object too (resid-det##)
 
 Red/green lines indicate slit edges.  Orange lines (if present)
-indicate object traces.
+indicate traces for detected objects. Light blue lines (if present)
+indicate traces for manually extracted objects.
 
 As you mouse around, the x-values shown at the bottom indicate
 the wavelength.
 
-pypeit_chk_2dslits
+
+pypeit_parse_slits
 ------------------
 
 This script prints to the screen a short summary of the slit
@@ -84,7 +86,22 @@ information, detector by detector.
 The script usage can be displayed by calling the script with the
 ``-h`` option:
 
-.. include:: help/pypeit_chk_2dslits.rst
+.. include:: help/pypeit_parse_slits.rst
+
+See :ref:`pypeit_parse_slits` for more info.
+
+pypeit_chk_wavecalib
+--------------------
+
+This script prints to the screen a set of simple wavelength calibration diagnostics
+per each slit, detector by detector.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_chk_wavecalib.rst
+
+See :ref:`pypeit-chk-wavecalib` for more info.
 
 
 Identifying Slits

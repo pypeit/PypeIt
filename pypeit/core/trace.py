@@ -29,7 +29,7 @@ from pypeit.core import moment, pydl, arc
 # TODO: Some of these functions could probably just live in pypeit.edges
 
 def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mode='nearest',
-                      sigdetect=30., grow_bpm=5):
+                      sobel_enhance=0, sigdetect=30., grow_bpm=5):
     r"""
     Find slit edges using the input image.
 
@@ -60,6 +60,9 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
         sobel_mode (:obj:`str`, optional):
             Mode to use with the Sobel filter.  See
             `scipy.ndimage.sobel`_.
+        sobel_enhance (:obj:`int`, optional):
+            If slit edges are not well-defined (e.g. blurred) set this
+            parameter to a number greater than zero to enhance the edge detection.
         sigdetect (:obj:`float`, optional):
             Threshold for edge detection.
         grow_bpm (:int)
@@ -97,6 +100,9 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
 
     # Filter with a Sobel
     filt = ndimage.sobel(sqmstrace, axis=1, mode=sobel_mode)
+    # Enhance blurred edges
+    if sobel_enhance > 0:
+        filt = sobel_enhance * ndimage.uniform_filter1d(filt, size=sobel_enhance, axis=1)
     # Apply the bad-pixel mask
     if bpm is not None:
         # NOTE: Casts to float because filt is float
@@ -476,25 +482,27 @@ def prepare_sobel_for_trace(sobel_sig, bpm=None, boxcar=5, side='left'):
 
     This method:
         - Flips and/or truncates the pixel values based on the edge
-          side to be traced (see `side`).
+          side to be traced (see ``side``).
         - Smooths along rows (spatially)
 
     Args:           
         sobel_sig (`numpy.ndarray`_):
             Image with the significance of the edge detection; see
             :func:`detect_slit_edges`.
+        bpm (`numpy.ndarray`_, optional):
+            Boolean bad-pixel mask (bad pixels are True).  If None, all pixels
+            are considered good.  Must have the same shape as ``sobel_sig``.
         boxcar (:obj:`int`, optional):
-            Boxcar smooth the detection image along rows before
-            recentering the edge centers; see
-            :func:`pypeit.utils.boxcar_smooth_rows`. If `boxcar` is
-            less than 1, no smoothing is performed.
+            Boxcar smooth the detection image along rows before recentering the
+            edge centers; see :func:`~pypeit.utils.boxcar_smooth_rows`. If less
+            than 1, no smoothing is performed.
         side (:obj:`str`, optional):
-            The side that the image will be used to trace. In the
-            Sobel image, positive values are for left traces,
-            negative for right traces. If 'left', the image is
-            clipped at a minimum value of -0.1. If 'right', the image
-            sign is flipped and then clipped at a minimum of -0.1. If
-            None, the image is not flipped or clipped, only smoothed.
+            The side that the image will be used to trace. In the Sobel image,
+            positive values are for left traces, negative for right traces. If
+            ``'left'``, the image is clipped at a minimum value of -0.1. If
+            ``'right'``, the image sign is flipped and then clipped at a minimum
+            of -0.1. If None, the image is not flipped or clipped, only
+            smoothed.
 
     Returns:
         `numpy.ndarray`_: The smoothed image.
@@ -508,7 +516,7 @@ def prepare_sobel_for_trace(sobel_sig, bpm=None, boxcar=5, side='left'):
     # TODO: This 0.1 is drawn out of the ether and different from what is done in peak_trace
     img = sobel_sig if side is None else np.maximum((1 if side == 'left' else -1)*sobel_sig, 0.1)
     # Returned the smoothed image
-    wgt = None if bpm is None else np.invert(bpm)
+    wgt = None if bpm is None else np.logical_not(bpm).astype(float)
     return utils.boxcar_smooth_rows(img, boxcar, wgt=wgt, replace='zero')
 
 
@@ -989,10 +997,11 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
     # NOTE: keck_run_july changes: Added down-weighting of masked parts
     # of the trace.
     # TODO: This feels arbitrary
-#    trace_fit_ivar[_trace_bpm] = 0.1
-    trace_fit_ivar[_trace_bpm] = 0.01
+#    trace_fit_ivar[_trace_bpm] = 0.1**2
+    trace_fit_ivar[_trace_bpm] = 0.01**2
     # JFH Changed this parameter from 0.1 to 0.01 to fix problem with NIRES slit extrapolation. In the future
     # we may need to make this parameter, but don't touch this number unless you know what you are doing.
+    # JXP -- Squared to deal with proper usage of numpy legendre fitting routine
 
     for i in range(niter):
         # First recenter the trace using the previous trace fit/data.

@@ -3,7 +3,6 @@
 import glob
 import os
 import datetime
-from pkg_resources import resource_filename
 from collections import OrderedDict
 
 import numpy as np
@@ -12,16 +11,11 @@ from astropy.table import Table, Column, vstack
 
 import linetools.utils
 
-import pypeit  # For path
 from pypeit import msgs
 from pypeit.core.wavecal import defs
+from pypeit import data
 
 from IPython import embed
-
-# TODO: These should not be declared here
-line_path = resource_filename('pypeit', '/data/arc_lines/lists/')
-nist_path = resource_filename('pypeit','/data/arc_lines/NIST/')
-reid_arxiv_path = resource_filename('pypeit','/data/arc_lines/reid_arxiv/')
 
 
 # TODO -- Move this to the WaveCalib object
@@ -58,13 +52,16 @@ def load_wavelength_calibration(filename):
     return wv_calib
 
 
-def load_template(arxiv_file, det):
+def load_template(arxiv_file, det, wvrng=None):
     """
     Load a full template file from disk
 
     Args:
         arxiv_file: str
         det: int
+        wvrng (list, optional):
+            min, max wavelength range for the arxiv
+
 
     Returns:
         wave: ndarray
@@ -74,18 +71,27 @@ def load_template(arxiv_file, det):
     """
     # Path already included?
     if os.path.basename(arxiv_file) == arxiv_file:
-        calibfile = os.path.join(reid_arxiv_path, arxiv_file)
+        calibfile, _ = data.get_reid_arxiv_filepath(arxiv_file)
     else:
         calibfile = arxiv_file
     # Read me
-    tbl = Table.read(calibfile)
+    tbl = Table.read(calibfile, format='fits')
     # Parse on detector?
     if 'det' in tbl.keys():
         idx = np.where(tbl['det'].data & 2**det)[0]
     else:
         idx = np.arange(len(tbl)).astype(int)
+    tbl_wv = tbl['wave'].data[idx]
+    tbl_fx = tbl['flux'].data[idx] 
+
+    # Cut down?
+    if wvrng is not None:
+        gd_wv = (tbl_wv >= wvrng[0]) & (tbl_wv <= wvrng[1])
+        tbl_wv = tbl_wv[gd_wv]
+        tbl_fx = tbl_fx[gd_wv]
+
     # Return
-    return tbl['wave'].data[idx], tbl['flux'].data[idx], tbl.meta['BINSPEC']
+    return tbl_wv, tbl_fx, tbl.meta['BINSPEC']
 
 
 def load_reid_arxiv(arxiv_file):
@@ -101,9 +107,9 @@ def load_reid_arxiv(arxiv_file):
 
     """
     # ToDO put in some code to allow user specified files rather than everything in the main directory
-    calibfile = os.path.join(reid_arxiv_path, arxiv_file)
+    calibfile, in_cache = data.get_reid_arxiv_filepath(arxiv_file)
     # This is a hack as it will fail if we change the data model yet again for wavelength solutions
-    if calibfile[-4:] == 'json':
+    if calibfile[-4:] == 'json' or in_cache == 'json':
         wv_calib_arxiv = load_wavelength_calibration(calibfile)
         par = wv_calib_arxiv['par'].copy()
         # Pop out par and steps if they were inserted in this calibration dictionary
@@ -115,10 +121,10 @@ def load_reid_arxiv(arxiv_file):
             wv_calib_arxiv.pop('par')
         except KeyError:
             pass
-    elif calibfile[-4:] == 'fits':
+    elif calibfile[-4:] == 'fits' or in_cache == 'fits':
         # The following is a bit of a hack too
         par = None
-        wv_tbl = Table.read(calibfile)
+        wv_tbl = Table.read(calibfile, format='fits')
         wv_calib_arxiv = OrderedDict()
         nrow = wv_tbl['wave'].shape[0]
         for irow in np.arange(nrow):
@@ -147,7 +153,7 @@ def load_by_hand():
     """
     str_len_dict = defs.str_len()
 
-    src_file = resource_filename('pypeit', '/data/arc_lines/sources/by_hand_list.ascii')
+    src_file = os.path.join(data.Paths.arclines, 'sources', 'by_hand_list.ascii')
     # Read
     line_list = Table.read(src_file, format='ascii.fixed_width', comment='#')
     # Add
@@ -182,15 +188,10 @@ def load_line_list(line_file, add_path=False, use_ion=False, NIST=False):
     line_list : Table
 
     """
-    if NIST:
-        path = nist_path
-    else:
-        path = line_path
+    path = data.Paths.nist if NIST else data.Paths.linelist
     if use_ion:
-        if NIST:
-            line_file = path+'{:s}_vacuum.ascii'.format(line_file)
-        else:
-            line_file = path+'{:s}_lines.dat'.format(line_file)
+        list_type = 'vacuum.ascii' if NIST else 'lines.dat'
+        line_file = os.path.join(path, f'{line_file}_{list_type}')
     line_list = Table.read(line_file, format='ascii.fixed_width', comment='#')
     #  NIST?
     if NIST:
@@ -231,18 +232,23 @@ def load_line_list(line_file, add_path=False, use_ion=False, NIST=False):
     return line_list
 
 
-def load_line_lists(lines, unknown=False, skip=False, all=False, NIST=False):
+def load_line_lists(lamps, unknown=False, skip=False, all=False, NIST=False,
+                    restrict_on_instr=None):
     """
     Loads a series of line list files
 
     Parameters
     ----------
     lamps : list
+        List of arc lamps to be used for wavelength calibration.
+        E.g., ['ArI','NeI','KrI','XeI']
     unknown : bool, optional
     skip : bool, optional
         Skip missing line lists (mainly for building)
     NIST : bool, optional
         Load the full NIST linelists
+    restrict_on_instr : str, optional
+        Restrict according to the input spectrograph
 
     Returns
     -------
@@ -251,25 +257,26 @@ def load_line_lists(lines, unknown=False, skip=False, all=False, NIST=False):
     """
     # All?
     if all:
-        line_files = glob.glob(line_path+'*_lines.dat')
-        lines = []
+        line_files = glob.glob(os.path.join(data.Paths.linelist, '*_lines.dat'))
+        lamps = []
         for line_file in line_files:
             i0 = line_file.rfind('/')
             i1 = line_file.rfind('_')
-            lines.append(line_file[i0+1:i1])
+            lamps.append(line_file[i0+1:i1])
 
+    msgs.info(f"Arc lamps used: {', '.join(lamps)}")
     # Read standard files
     lists = []
-    for line in lines:
+    for lamp in lamps:
         if NIST:
-            line_file = nist_path+'{:s}_vacuum.ascii'.format(line)
+            line_file = os.path.join(data.Paths.nist, f'{lamp}_vacuum.ascii')
         else:
-            line_file = line_path+'{:s}_lines.dat'.format(line)
+            line_file = os.path.join(data.Paths.linelist, f'{lamp}_lines.dat')
         if not os.path.isfile(line_file):
             if not skip:
-                line_files = glob.glob(line_path + '*_lines.dat')
+                line_files = glob.glob(os.path.join(data.Paths.linelist, '*_lines.dat'))
                 all_list = [os.path.split(ll)[1].replace("_lines.dat", "") for ll in line_files]
-                msgs.warn("Input line {:s} is not included in arclines".format(line))
+                msgs.warn("Input line {:s} is not included in arclines".format(lamp))
                 msgs.info("Please choose from the following list:" + msgs.newline() +
                           ",".join(all_list))
                 import pdb; pdb.set_trace()
@@ -281,9 +288,15 @@ def load_line_lists(lines, unknown=False, skip=False, all=False, NIST=False):
         return None
     line_lists = vstack(lists, join_type='exact')
 
+    # Restrict on the spectrograph?
+    if restrict_on_instr is not None:
+        instr_dict = defs.instruments()
+        gdI = (line_lists['Instr'] & instr_dict[restrict_on_instr]) > 0
+        line_lists = line_lists[gdI]
+        
     # Unknown
     if unknown:
-        unkn_lines = load_unknown_list(lines)
+        unkn_lines = load_unknown_list(lamps)
         unkn_lines.remove_column('line_flag')  # may wish to have this info
         # Stack
         line_lists = vstack([line_lists, unkn_lines])
@@ -301,7 +314,7 @@ def load_source_table():
     sources : Table
 
     """
-    src_file = pypeit.__path__[0]+'/data/arc_lines/sources/arcline_sources.ascii'
+    src_file = os.path.join(data.Paths.arclines, 'sources', 'arcline_sources.ascii')
     # Load
     sources = Table.read(src_file, format='ascii.fixed_width', comment='#')
     # Return
@@ -341,13 +354,10 @@ def load_tree(polygon=4, numsearch=20):
     """
 
     # TODO: Can we save these as fits files instead?
-    # TODO: Use os.path.join
     # TODO: Please don't use imports within functions
     import pickle
-    filename = pypeit.__path__[0] +\
-               '/data/arc_lines/lists/ThAr_patterns_poly{0:d}_search{1:d}.kdtree'.format(polygon, numsearch)
-    fileindx = pypeit.__path__[0] +\
-               '/data/arc_lines/lists/ThAr_patterns_poly{0:d}_search{1:d}.index.npy'.format(polygon, numsearch)
+    filename = os.path.join(data.Paths.linelist, f'ThAr_patterns_poly{polygon}_search{numsearch}.kdtree')
+    fileindx = os.path.join(data.Paths.linelist, f'ThAr_patterns_poly{polygon}_search{numsearch}.index.npy')
     try:
         file_load = pickle.load(open(filename, 'rb'))
         index = np.load(fileindx)
@@ -378,13 +388,11 @@ def load_nist(ion):
 
     """
     import glob
-    # Root (for development only)
-    root = pypeit.__path__[0]
     # Find file
-    srch_file = root + '/data/arc_lines/NIST/'+ion+'_vacuum.ascii'
+    srch_file = os.path.join(data.Paths.nist, f'{ion}_vacuum.ascii')
     nist_file = glob.glob(srch_file)
     if len(nist_file) == 0:
-        raise IOError("Cannot find NIST file {:s}".format(srch_file))
+        raise IOError(f"Cannot find NIST file {srch_file}")
     # Read
     nist_tbl = Table.read(nist_file[0], format='ascii.fixed_width')
     gdrow = nist_tbl['Observed'] > 0.  # Eliminate dummy lines
@@ -433,9 +441,8 @@ def load_unknown_list(lines, unknwn_file=None, all=False):
     """
     line_dict = defs.lines()
     # Load
-    line_path = pypeit.__path__[0]+'/data/arc_lines/lists/'
     if unknwn_file is None:
-        unknwn_file = line_path+'UNKNWNs.dat'
+        unknwn_file = os.path.join(data.Paths.linelist, 'UNKNWNs.dat')
     line_list = load_line_list(unknwn_file)
     # Cut on input lamps?
     if all:
@@ -491,17 +498,18 @@ def load_unknown_list(lines, unknwn_file=None, all=False):
 #    return spec
 
 
-def write_line_list(tbl, outfile):
+def write_line_list(tbl, outfile, overwrite=True):
     """
     Parameters
     ----------
     tbl
     outfile
+    overwrite (optional), default=True
     """
     # Format
     tbl['wave'].format = '10.4f'
     # Write
     with open(outfile,'w') as f:
-        f.write('# Creation Date: {:s}\n'.format(str(datetime.date.today().strftime('%Y-%b-%d'))))
-        tbl.write(f, format='ascii.fixed_width')
+        f.write('# Creation Date: {:s}\n'.format(str(datetime.date.today().strftime('%Y-%m-%d'))))
+        tbl.write(f, format='ascii.fixed_width', overwrite=overwrite)
 

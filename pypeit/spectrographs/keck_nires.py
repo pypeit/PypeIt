@@ -3,9 +3,6 @@ Module for Keck/NIRES specific methods.
 
 .. include:: ../include/links.rst
 """
-
-from pkg_resources import resource_filename
-
 import numpy as np
 
 from pypeit import msgs
@@ -23,10 +20,26 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
     name = 'keck_nires'
     telescope = telescopes.KeckTelescopePar()
     camera = 'NIRES'
+    header_name = 'NIRES'
     pypeline = 'Echelle'
     supported = True
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
+        """
+        Return metadata for the selected detector.
+
+        Args:
+            det (:obj:`int`):
+                1-indexed detector number.  This is not used because NIRES only
+                has one detector!
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
+
+        Returns:
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
+        """
         # Detector 1
         detector_dict = dict(
             binning='1,1',
@@ -44,10 +57,9 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
             gain            = np.atleast_1d(3.8),
             ronoise         = np.atleast_1d(5.0),
             datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = np.atleast_1d('[980:1024,:]')  # Is this a hack??
+            oscansec        = None, #np.atleast_1d('[980:1024,:]')  # Is this a hack??
             )
-        detector = detector_container.DetectorContainer(**detector_dict)
-        return detector
+        return detector_container.DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -89,7 +101,8 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         #par['calibrations']['tilts']['spec_order'] =  3
 
         # Processing steps
-        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
+                        use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
 
         # Extraction
@@ -113,7 +126,8 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
-        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+        par['sensfunc']['IR']['maxiter'] = 2
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
 
         return par
 
@@ -129,7 +143,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         self.meta['ra'] = dict(ext=0, card='RA')
         self.meta['dec'] = dict(ext=0, card='DEC')
         self.meta['target'] = dict(ext=0, card='OBJECT')
-        self.meta['decker'] = dict(ext=0, card=None, default='default')
+        self.meta['decker'] = dict(ext=0, card=None, default='0.55 slit')
         self.meta['binning'] = dict(ext=0, card=None, default='1,1')
 
         self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
@@ -138,6 +152,8 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='INSTR')
         self.meta['idname'] = dict(ext=0, card='OBSTYPE')
+        self.meta['frameno'] = dict(ext=0, card='FRAMENUM')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
     def configuration_keys(self):
         """
@@ -167,7 +183,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         pypeit_keys = super().pypeit_file_keys()
         # TODO: Why are these added here? See
         # pypeit.metadata.PypeItMetaData.set_pypeit_cols
-        pypeit_keys += ['calib', 'comb_id', 'bkg_id']
+        pypeit_keys += ['frameno', 'calib', 'comb_id', 'bkg_id']
         return pypeit_keys
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
@@ -256,9 +272,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         """
         Return the expected spatial position of each echelle order.
         """
-        ord_spat_pos = np.array([0.22773035, 0.40613574, 0.56009658,
-                                   0.70260714, 0.86335914])
-        return ord_spat_pos
+        return np.array([0.22773035, 0.40613574, 0.56009658, 0.70260714, 0.86335914])
 
     @property
     def orders(self):

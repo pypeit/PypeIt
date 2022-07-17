@@ -1,0 +1,34 @@
+# Incomplete list of the noao standards taken from spec50cal
+# The KPNO spectrophotometric standards at 50 A intervals.
+# The data are from (1) Table V, Spectrophotometric Standards,
+# Massey et al., 1988, ApJ 328, p. 315 (wavelength coverage from 3200 to 8100 A)
+# and (2) Table 3, The Kitt Peak Spectrophotometric Standards: Extension to 1 micron,
+# Massey and Gronwall, 1990, ApJ 358, p. 344. (wavelength coverage from 3200 to 10200 A)
+# Coordinates are updated to J2000 via SIMBAD: 
+# https://stdatu.stsci.edu/cgi-bin/dss_form?target=feige66&resolver=SIMBAD
+#The 'f' files list wavelength ( A ), flux ( ergs/cm/cm/s/A * 10**16 )
+#and flux ( milli-Jy ) and bin (A). The file name consists of a prefix
+#'f' and the star name. 
+#The 'm' files list wavelength ( A ), AB magnitude and bin (A). The file 
+#name consists of a prefix 'm' and the star name.
+
+  File		Name		RA_2000		DEC_2000
+mcygob2no9.dat	CygOB2No.9	20:33:12.00	+41:19:12.0
+meg81.dat	EG81		11:37:26.37	+14:10:14.1
+meg131.dat	EG131		19:20:34.92	-07:40:00.1
+mgd140.dat	GD140		11:37:05.06	+29:47:58.2
+mhd192281.dat	HD192281	20:12:33.12	+40:16:05.4
+mhd217086.dat	HD217086	22:56:47.17	+62:43:37.7
+mhilt600.dat	Hiltner600	06:45:13.37	+02:08:14.7
+mhz14.dat	HZ14		04:41:01.74	+10:59:40.0
+mpg0205134.dat	PG0205+134	02:08:03.49	+13:36:24.4
+mpg0216032.dat	PG0216+032	02:19:18.91	+03:26:51.5
+mpg0310149.dat	PG0310+149	03:13:37.18	+15:06:21.4
+mpg0823546.dat	PG0823+546	08:26:49.64	+54:28:00.3
+mpg0846249.dat	PG0846+249	08:49:05.88	+24:45:08.0
+mpg0934554.dat	PG0934+554	09:38:20.35	+55:05:50.1
+mpg0939262.dat	PG0939+262	09:42:50.63	+26:00:59.8
+mpg1121145.dat	PG1121+145	11:24:15.17	+14:13:46.3
+mpg1545035.dat	PG1545+035	15:48:24.25	+03:22:50.9
+mpg1708602.dat	PG1708+602	17:09:15.89	+60:10:11.1
+mwolf1346.dat	Wolf1346	20:34:21.90	+25:03:51.0

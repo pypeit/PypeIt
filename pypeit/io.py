@@ -14,14 +14,15 @@ import gzip
 import shutil
 from packaging import version
 
-import numpy
+from IPython import embed
 
-from configobj import ConfigObj
+import numpy
 
 from astropy.io import fits
 from astropy.table import Table
 
-from pypeit import par, msgs
+from pypeit import msgs
+from pypeit import par
 
 # These imports are largely just to make the versions available for
 # writing to the header. See `initialize_header`
@@ -31,7 +32,6 @@ import sklearn
 import pypeit
 import time
 
-from IPython import embed
 
 # TODO -- Move this module to core/
 
@@ -100,7 +100,13 @@ def rec_to_fits_type(col_element, single_row=False):
         return '{0}D'.format(n)
 
     # If it makes it here, assume its a string
-    l = int(col_element.dtype.str[col_element.dtype.str.find('U')+1:])
+    s = col_element.dtype.str.find('U')
+    if s < 0:
+        s = col_element.dtype.str.find('S')
+    if s < 0:
+        msgs.error(f'Unable to parse datatype: {col_element.dtype.str}')
+    
+    l = int(col_element.dtype.str[s+1:])
 #    return '{0}A'.format(l) if n==1 else '{0}A{1}'.format(l*n,l)
     return '{0}A'.format(l*n)
 
@@ -421,9 +427,9 @@ def dict_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
             Base-level header to include in the HDU. If None, an
             empty header is used and then added to.
         force_to_bintbl (:obj:`bool`, optional):
-            Force a BinTableHDU to be constructed instead of an
-            ImageHDU when either there are no arrays or tables to
-            write or only a single array is provided.
+            Force construction of a `astropy.io.fits.BinTableHDU`_ instead of an
+            `astropy.io.fits.ImageHDU`_ when either there are no arrays or
+            tables to write or only a single array is provided.
 
     Returns:
         `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_:
@@ -506,63 +512,17 @@ def dict_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
     cols = []
     for key in array_keys:
         _d = numpy.asarray(d[key])
+        # TODO: This barfs if the array to write is a multi-dimensional string
+        # array.  This has a direct effect on saving the MultiSlitFlexure object
+        # if we want to set 'det' to strings.  There is a hack there that
+        # converts between strings and integers for reading and writing the
+        # object...
         cols += [fits.Column(name=key,
                              format=rec_to_fits_type(_d, single_row=single_row),
                              dim=rec_to_fits_col_dim(_d, single_row=single_row),
                              array=numpy.expand_dims(_d, 0) if single_row else _d)]
     return fits.BinTableHDU.from_columns(cols, header=_hdr, name=name)
 
-
-def read_spec2d_file(ifile, filetype='coadd2d'):
-    """
-    Read a PypeIt file of type "filetype", akin to a standard PypeIt file.
-
-    .. todo::
-
-        - Need a better description of this.  Probably for the PypeIt
-          file itself, too!
-
-    The top is a config block that sets ParSet parameters.  The
-    spectrograph is required.
-
-    Args:
-        ifile (:obj:`str`):
-          Name of the config file
-        filetype (:obj:`str`):
-          Type of config file being read (e.g. coadd2d, coadd3d).
-          This is only used for printing messages.
-
-    Returns:
-        tuple: Returns three objects: (1) The name of the spectrograph as
-        a string, (2) the list of configuration lines used to modify the
-        default :class`pypeit.par.pypeitpar.PypeItPar` parameters, and
-        (3) the list of spec2d files to combine.
-    """
-
-    # Read in the pypeit reduction file
-    msgs.info('Loading the {0:s} file'.format(filetype))
-    lines = par.util._read_pypeit_file_lines(ifile)
-    is_config = numpy.ones(len(lines), dtype=bool)
-
-    # Parse the spec2d block
-    spec2d_files = []
-    s, e = par.util._find_pypeit_block(lines, 'spec2d')
-    if s >= 0 and e < 0:
-        msgs.error("Missing 'spec2d end' in {0}".format(ifile))
-    for line in lines[s:e]:
-        prs = line.split(' ')
-        # TODO: This needs to allow for the science directory to be
-        # defined by the user.
-        #spec2d_files.append(os.path.join(os.path.basename(prs[0])))
-        spec2d_files.append(prs[0])
-    is_config[s-1:e+1] = False
-    # Construct config to get spectrograph
-    cfg_lines = list(lines[is_config])
-    cfg = ConfigObj(cfg_lines)
-    spectrograph_name = cfg['rdx']['spectrograph']
-
-    # Return
-    return spectrograph_name, cfg_lines, spec2d_files
 
 
 def write_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
@@ -586,8 +546,10 @@ def write_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
             Name for the HDU extension.
         hdr (`astropy.io.fits.Header`_, optional):
             Header to include in the HDU.
-        force_to_bintbl (bool, optional):
-            Force dict into a BinTableHDU
+        force_to_bintbl (:obj:`bool`, optional):
+            Force construction of a `astropy.io.fits.BinTableHDU`_ instead of an
+            `astropy.io.fits.ImageHDU`_ when either there are no arrays or
+            tables to write or only a single array is provided.
 
     Returns:
         `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_:
@@ -599,6 +561,10 @@ def write_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
             types.
 
     """
+    # Silence the "Keyword name ... is greater than 8 characters ... a HIERARCH
+    #   card will be created" Warnings from [astropy.io.fits.card]
+    warnings.simplefilter('ignore', fits.verify.VerifyWarning)
+
     if isinstance(d, dict):
         return dict_to_hdu(d, name=name, hdr=hdr, force_to_bintbl=force_to_bintbl)
     if isinstance(d, Table):
@@ -685,15 +651,23 @@ def hdu_iter_by_ext(hdu, ext=None, hdu_prefix=None):
     Convert the input to lists that can be iterated through by an
     extension index/name.
 
-    If ``hdu`` is an `astropy.io.fits.HDUList`_ on input, it is
-    simply returned; otherwise, the 2nd returned item is a
-    single-element :obj:`list` with the provided HDU.
+    Importantly, note that the function does **not** alter the provided HDUs.
+    If ``hdu`` is an `astropy.io.fits.HDUList`_ on input, it is simply returned;
+    otherwise, the provided HDU is returned as the only element of a new
+    `astropy.io.fits.HDUList`_ object; however, the HDU is not copied!
+    The returned HDU is always the second item in the returned tuple.
 
-    If ``ext`` is None and ``hdu`` is not an
-    `astropy.io.fits.HDUList`_, the returned list just selects the
-    individual HDU provided (i.e., ``ext = [0]``). If ``ext`` is None
-    and ``hdu`` *is* an `astropy.io.fits.HDUList`_, the returned list
-    of extensions includes all extensions in the provided ``hdu``.
+    If ``ext`` is None and ``hdu`` is an `astropy.io.fits.HDUList`_, the
+    returned list of extensions includes all extensions in the provided ``hdu``.
+    The extensions are selected by their name, if the HDU has one, or by their
+    index number, otherwise.  If ``ext`` is None and ``hdu`` is **not** an
+    `astropy.io.fits.HDUList`_, the returned list of extensions just selects the
+    individual HDU provided, either using an integer or the name of the provided
+    hdu (``hdu.name``), if it has one.
+
+    The ``hdu_prefix`` parameter can be used to downselect the set of extensions
+    to only those extension strings that start with this prefix (for those
+    extensions that can be identified by a string name).
 
     .. warning::
 
@@ -712,9 +686,8 @@ def hdu_iter_by_ext(hdu, ext=None, hdu_prefix=None):
             (``ext``), only include extensions with this prefix.
 
     Returns:
-        :obj:`tuple`: Returns two objects: a :obj:`list` with the
-        extensions to iterate through and either a :obj:`list` or an
-        `astropy.io.fits.HDUList`_ with the list of HDUs.
+        :obj:`tuple`: Returns two objects: a :obj:`list` with the extensions to
+        iterate through and an `astropy.io.fits.HDUList`_ with the list of HDUs.
 
     Raises:
         TypeError:
@@ -744,8 +717,10 @@ def hdu_iter_by_ext(hdu, ext=None, hdu_prefix=None):
 
     # Allow user to provide single HDU
     if isinstance(hdu, (fits.ImageHDU, fits.BinTableHDU)):
-        ext = [0]
-        _hdu = [hdu]
+        if ext is not None:
+            raise ValueError(f'Cannot provide extension for single HDU!')
+        ext = [0 if hdu.name is None else hdu.name]
+        _hdu = fits.HDUList([hdu])
         if hdu_prefix is not None:
             if hdu_prefix not in hdu.name:
                 raise ValueError("Bad hdu_prefix for this HDU!")
@@ -754,19 +729,86 @@ def hdu_iter_by_ext(hdu, ext=None, hdu_prefix=None):
 
     return ext if isinstance(ext, list) else [ext], _hdu
 
+
 def fits_open(filename, **kwargs):
     """
-    Thin wrapper around astropy.io.fits.open that handles empty padding bytes.
+    Thin wrapper around `astropy.io.fits.open`_ that handles empty padding
+    bytes.
 
     Args:
         filename (:obj:`str`):
-            File name for the fits file to open
+            File name for the fits file to open.
+        **kwargs:
+            Passed directly to `astropy.io.fits.open`_.
+
     Returns:
-        hdulist: an :obj:`astropy.io.fits.HDUList` object that contains all the
-        HDUs in the fits file
+        `astropy.io.fits.HDUList`_: List of all the HDUs in the fits file.
+
+    Raises:
+        PypeItError: Raised if the file does not exist.
     """
+    if not os.path.isfile(filename):
+        msgs.error(f'{filename} does not exist!')
     try:
         return fits.open(filename, **kwargs)
     except OSError as e:
-        msgs.warn('Error opening {0}: {1}'.format(filename, str(e)) + '\nTrying again, assuming the error was a header problem.')
-        return fits.open(filename, ignore_missing_end=True, **kwargs)
+        msgs.warn(f'Error opening {filename} ({e}).  Trying again by setting '
+                  'ignore_missing_end=True, assuming the error was a header problem.')
+        try:
+            return fits.open(filename, ignore_missing_end=True, **kwargs)
+        except OSError as e:
+            msgs.error(f'That failed, too!  Astropy is unable to open {filename} and reports the '
+                      f'following error: {e}')
+
+
+def create_symlink(filename, symlink_dir, relative_symlink=False, overwrite=False, quiet=False):
+    """
+    Create a symlink to the input file in the provided directory.
+
+    .. warning::
+
+        If the directory provided by ``symlink_dir`` does not already exist,
+        this function will create it.
+
+    Args:
+        filename (:obj:`str`):
+            The name of the file to symlink.  The name of the symlink is
+            identical to this file name.
+        symlink_dir (:obj:`str`):
+            The directory for the symlink.  If the directory does not already
+            exist, it will be created.
+        relative_symlink (:obj:`bool`, optional):
+            If True, the path to the file is relative to the directory with the
+            symlink.
+        overwrite (:obj:`bool`, optional):
+            Overwrite any existing symlink of the same name.
+        quiet (:obj:`bool`, optional):
+            Suppress output to stdout.
+    """
+    # Check if the file already exists
+    _symlink_dir = os.path.abspath(symlink_dir)
+    olink_dest = os.path.join(_symlink_dir, os.path.basename(filename))
+    if os.path.isfile(olink_dest) or os.path.islink(olink_dest):
+        if overwrite:
+            warnings.warn(f'Symlink will be overwritten: {olink_dest}.')
+            os.remove(olink_dest)
+        else:
+            warnings.warn(f'Symlink already exists: {olink_dest}.')
+            return
+
+    # Make sure the symlink directory exists
+    if not os.path.isdir(_symlink_dir):
+        os.makedirs(_symlink_dir)
+
+    # Set the relative path for the symlink, if requested
+    _filename = os.path.abspath(filename)
+    olink_src = os.path.relpath(_filename, start=os.path.dirname(olink_dest)) \
+                    if relative_symlink else _filename
+    if not quiet:
+        print(f'Creating symlink: {olink_dest}\nLinked to file/dir: {_filename}')
+
+    # Create the symlink
+    os.symlink(olink_src, olink_dest)
+
+
+

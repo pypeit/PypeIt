@@ -27,6 +27,9 @@ class FrameTypeBitMask(BitMask):
         # order as part of its data model. When/if we require python
         # 3.7, we can remove this (and other) OrderedDict usage in favor
         # of just a normal dict.
+
+        # TODO JFH: I don't think we ever use pinhole. Should we remove it.
+        # TODO JFH: We need a background image type
         frame_types = OrderedDict([
                        ('align', 'Trace constant spatial positions along the slit'),
                          ('arc', 'Arc lamp observation used for wavelength calibration'),
@@ -35,10 +38,14 @@ class FrameTypeBitMask(BitMask):
                      ('pinhole', 'Pinhole observation used for tracing slit centers'),
                    ('pixelflat', 'Flat-field exposure used for pixel-to-pixel response'),
                    ('illumflat', 'Flat-field exposure used for illumination flat'),
+                   ('lampoffflats', 'Flat-field exposure with lamps off used to remove '
+                                   'persistence from lamp on flat exposures and/or thermal emission '
+                                   'from the telescope and dome'),
                      ('science', 'On-sky observation of a primary target'),
                     ('standard', 'On-sky observation of a flux calibrator'),
                        ('trace', 'High-count exposure used to trace slit positions'),
-                        ('tilt', 'Exposure used to trace the tilt in the wavelength solution')
+                        ('tilt', 'Exposure used to trace the tilt in the wavelength solution'),
+                         ('sky', 'On-sky observation of the sky used for background subtraction'),
                                   ])
         super(FrameTypeBitMask, self).__init__(list(frame_types.keys()),
                                                descr=list(frame_types.values()))
@@ -75,6 +82,25 @@ class FrameTypeBitMask(BitMask):
                 n = ['None']
             out += [','.join(n)] if join else [n]
         return out[0] if isinstance(type_bits, np.integer) else out
+
+
+def valid_frametype(frametype, quiet=False):
+    """
+    Confirm the provided frame type is known to ``PypeIt``.
+
+    Args:
+        frametype (:obj:`str`):
+            The frame type name.
+        quiet (:obj:`bool`, optional):
+            Suppress output
+
+    Returns:
+        :obj:`bool`: Flag that the frametype name is valid.
+    """
+    good_frametype = frametype in FrameTypeBitMask().keys()
+    if not quiet and not good_frametype:
+        msgs.warn(f'{frametype} is not a valid PypeIt frame type.')
+    return good_frametype
     
 
 def check_frame_exptime(exptime, exprng):

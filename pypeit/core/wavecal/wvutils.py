@@ -7,8 +7,6 @@
 """
 import numpy as np
 import os
-import numba as nb
-
 
 from matplotlib import pyplot as plt
 
@@ -18,8 +16,11 @@ import scipy
 from scipy.optimize import curve_fit
 
 from astropy.table import Table
+from astropy import convolution
+from astropy import constants
 
 from pypeit import msgs
+from pypeit import utils
 from pypeit.core import arc
 
 from IPython import embed
@@ -36,12 +37,71 @@ def parse_param(par, key, slit):
 
     return param
 
+# TODO: Should this code allow the user to skip the smoothing steps and just
+# provide the raw delta_wave vector? I would think there are cases where you
+# want the *exact* pixel width, as opposed to the smoothed version.
+def get_delta_wave(wave, wave_gpm, frac_spec_med_filter=0.03):
+    r"""
+    Compute the change in wavelength per pixel.
+
+    Given an input wavelength vector and an input good pixel mask, the *raw*
+    change in wavelength is defined to be ``delta_wave[i] =
+    wave[i+1]-wave[i]``, with ``delta_wave[-1] = delta_wave[-2]`` to force
+    ``wave`` and ``delta_wave`` to have the same length.
+
+    The method imposes a smoothness on the change in wavelength by (1)
+    running a median filter over the raw values and (2) smoothing
+    ``delta_wave`` with a Gaussian kernel. The boxsize for the median filter
+    is set by ``frac_spec_med_filter``, and the :math:`\sigma` for the
+    Gaussian kernel is either a 10th of that boxsize or 3 pixels (whichever
+    is larger).
+
+    Parameters
+    ---------- 
+    wave : float `numpy.ndarray`_, shape = (nspec,)
+        Array of input wavelengths. Must be 1D.
+    wave_gpm : bool `numpy.ndarray`_, shape = (nspec)
+        Boolean good-pixel mask defining where the ``wave`` values are
+        good.
+    frac_spec_med_filter : :obj:`float`, optional
+        Fraction of the length of the wavelength vector to use to median
+        filter the raw change in wavelength, used to impose a smoothness.
+        Default is 0.03, which means the boxsize for the running median
+        filter will be approximately ``0.03*nspec`` (forced to be an odd
+        number of pixels).
+
+    Returns
+    -------
+    delta_wave : `numpy.ndarray`_, float, shape = (nspec,)
+        A smooth estimate for the change in wavelength for each pixel in the
+        input wavelength vector.
+    """
+    # Check input
+    if wave.ndim != 1:
+        msgs.error('Input wavelength array must be 1D.')
+
+    nspec = wave.size
+    # This needs to be an odd number
+    nspec_med_filter = 2*int(np.round(nspec*frac_spec_med_filter/2.0)) + 1
+    delta_wave = np.zeros_like(wave)
+    wave_diff = np.diff(wave[wave_gpm])
+    wave_diff = np.append(wave_diff, wave_diff[-1])
+    wave_diff_filt = utils.fast_running_median(wave_diff, nspec_med_filter)
+
+    # Smooth with a Gaussian kernel
+    sig_res = np.fmax(nspec_med_filter/10.0, 3.0)
+    gauss_kernel = convolution.Gaussian1DKernel(sig_res)
+    wave_diff_smooth = convolution.convolve(wave_diff_filt, gauss_kernel, boundary='extend')
+    delta_wave[wave_gpm] = wave_diff_smooth
+    return delta_wave
+
+
 def get_sampling(waves, pix_per_R=3.0):
     """
     Computes the median wavelength sampling of wavelength vector(s)
 
     Args:
-        waves (float ndarray): shape = (nspec,) or (nspec, nimgs)
+        waves (float `numpy.ndarray`_): shape = (nspec,) or (nspec, nimgs)
             Array of wavelengths. Can be one or two dimensional where
             the nimgs dimension can represent the orders, exposures, or
             slits
@@ -81,6 +141,141 @@ def get_sampling(waves, pix_per_R=3.0):
     resln_guess = 1.0 / (pix_per_R* dloglam * np.log(10.0))
     pix_per_sigma = 1.0 / resln_guess / (dloglam * np.log(10.0)) / (2.0 * np.sqrt(2.0 * np.log(2)))
     return dwave, dloglam, resln_guess, pix_per_sigma
+
+
+# TODO: the other methods iref should be deprecated or removed
+def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min=None,
+                  wave_grid_max=None, dwave=None, dv=None, dloglam=None, spec_samp_fact=1.0):
+    """
+    Create a new wavelength grid for spectra to be rebinned and coadded.
+
+    Args:
+        waves (`numpy.ndarray`_):
+            Set of N original wavelength arrays.  Shape is (nspec, nexp).
+        masks (`numpy.ndarray`_, optional):
+            Good-pixel mask for wavelengths.  Shape must match waves.
+        wave_method (:obj:`str`, optional):
+            Desired method for creating new wavelength grid:
+
+                * 'iref' -- Use the first wavelength array (default)
+                * 'velocity' -- Grid is uniform in velocity
+                * 'log10'  -- Grid is uniform in log10(wave). This is the same as velocity.
+                * 'linear' -- Constant pixel grid
+                * 'concatenate' -- Meld the input wavelength arrays
+
+        iref (:obj:`int`, optional):
+            Index in waves array for reference spectrum
+        wave_grid_min (:obj:`float`, optional):
+            min wavelength value for the final grid
+        wave_grid_max (:obj:`float`, optional):
+            max wavelength value for the final grid
+        dwave (:obj:`float`, optional):
+            Pixel size in same units as input wavelength array (e.g. Angstroms).
+            If not input, the median pixel size is calculated and used.
+        dv (:obj:`float`, optional):
+            Pixel size in km/s for velocity method.  If not input, the median
+            km/s per pixel is calculated and used
+        dloglam (:obj:`float`, optional):
+            Pixel size in log10(wave) for the log10 method.
+        spec_samp_fact (:obj:`float`, optional):
+            Make the wavelength grid sampling finer (spec_samp_fact < 1.0) or
+            coarser (spec_samp_fact > 1.0) by this sampling factor. This
+            basically multiples the 'native' spectral pixels by
+            ``spec_samp_fact``, i.e. units ``spec_samp_fact`` are pixels.
+
+    Returns:
+        :obj:`tuple`: Returns two `numpy.ndarray`_ objects and a float:
+            - ``wave_grid``: (ndarray, (ngrid +1,)) New wavelength grid, not masked.
+              This is a set of bin edges (rightmost edge for the last bin and leftmost edges for the rest),
+              while wave_grid_mid is a set of bin centers, hence wave_grid has 1 more value than wave_grid_mid.
+            - ``wave_grid_mid``: ndarray, (ngrid,) New wavelength grid evaluated at the centers of
+              the wavelength bins, that is this grid is simply offset from
+              ``wave_grid`` by ``dsamp/2.0``, in either linear space or log10
+              depending on whether linear or (log10 or velocity) was requested.
+              Last bin center is removed since it falls outside wave_grid.
+              For iref or concatenate, the linear wavelength sampling will be
+              calculated.
+            - ``dsamp``: The pixel sampling for wavelength grid created.
+    """
+    c_kms = constants.c.to('km/s').value
+
+    if masks is None:
+        masks = waves > 1.0
+
+    if wave_grid_min is None:
+        wave_grid_min = waves[masks].min()
+    if wave_grid_max is None:
+        wave_grid_max = waves[masks].max()
+
+    dwave_data, dloglam_data, resln_guess, pix_per_sigma = get_sampling(waves)
+
+    # TODO: These tests of the string value should not use 'in', they should use ==
+    if ('velocity' in wave_method) or ('log10' in wave_method):
+        if dv is not None and dloglam is not None:
+            msgs.error('You can only specify dv or dloglam but not both')
+        elif dv is not None:
+            dloglam_pix = dv/c_kms/np.log(10.0)
+        elif dloglam is not None:
+            dloglam_pix = dloglam
+        else:
+            dloglam_pix = dloglam_data
+
+        # Generate wavelength array
+        wave_grid = wavegrid(wave_grid_min, wave_grid_max, dloglam_pix,
+                             spec_samp_fact=spec_samp_fact, log10=True)
+        loglam_grid_mid = np.log10(wave_grid) + dloglam_pix*spec_samp_fact/2.0
+        wave_grid_mid = np.power(10.0, loglam_grid_mid)
+        dsamp = dloglam_pix
+
+    elif 'linear' in wave_method: # Constant Angstrom
+        if dwave is not None:
+            dwave_pix = dwave
+        else:
+            dwave_pix = dwave_data
+        # Generate wavelength array
+        wave_grid = wavegrid(wave_grid_min, wave_grid_max, dwave_pix, spec_samp_fact=spec_samp_fact)
+        wave_grid_mid = wave_grid + dwave_pix*spec_samp_fact/2.0
+        dsamp = dwave_pix
+
+    elif 'concatenate' in wave_method:  # Concatenate
+        # Setup
+        loglam = np.log10(waves) # This deals with padding (0's) just fine, i.e. they get masked..
+        nexp = waves.shape[1]
+        newloglam = loglam[:, iref]  # Deals with mask
+        # Loop
+        for j in range(nexp):
+            if j == iref:
+                continue
+            #
+            iloglam = loglam[:, j]
+            dloglam_0 = (newloglam[1]-newloglam[0])
+            dloglam_n =  (newloglam[-1] - newloglam[-2]) # Assumes sorted
+            if (newloglam[0] - iloglam[0]) > dloglam_0:
+                kmin = np.argmin(np.abs(iloglam - newloglam[0] - dloglam_0))
+                newloglam = np.concatenate([iloglam[:kmin], newloglam])
+            #
+            if (iloglam[-1] - newloglam[-1]) > dloglam_n:
+                kmin = np.argmin(np.abs(iloglam - newloglam[-1] - dloglam_n))
+                newloglam = np.concatenate([newloglam, iloglam[kmin:]])
+        # Finish
+        wave_grid = np.power(10.0,newloglam)
+
+    elif 'iref' in wave_method:
+        wave_tmp = waves[:, iref]
+        wave_grid = wave_tmp[ wave_tmp > 1.0]
+
+    else:
+        msgs.error("Bad method for wavelength grid: {:s}".format(wave_method))
+
+    if ('iref' in wave_method) | ('concatenate' in wave_method):
+        wave_grid_diff = np.diff(wave_grid)
+        wave_grid_diff = np.append(wave_grid_diff, wave_grid_diff[-1])
+        wave_grid_mid = wave_grid + wave_grid_diff / 2.0
+        dsamp = np.median(wave_grid_diff)
+
+    wave_grid_mid = wave_grid_mid[:-1]  # removing the last bin since the midpoint now falls outside of wave_grid rightmost bin
+
+    return wave_grid, wave_grid_mid, dsamp
 
 
 def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,
@@ -179,11 +374,11 @@ def zerolag_shift_stretch(theta, y1, y2):
 
     Parameters
     ----------
-    theta: ndarray
+    theta (float `numpy.ndarray`_):
         Function parameters to optmize over. theta[0] = shift, theta[1] = stretch
-    y1: ndarray, shape = (nspec,)
+    y1 (float `numpy.ndarray`_):  shape = (nspec,)
         First spectrum which acts as the refrence
-    y2: ndarray,  shape = (nspec,)
+    y2 (float `numpy.ndarray`_):  shape = (nspec,)
         Second spectrum which will be transformed by a shift and stretch to match y1
 
     Returns
@@ -289,7 +484,7 @@ def xcorr_shift(inspec1,inspec2, smooth=1.0, percent_ceil=80.0, use_raw_arc=Fals
     if debug:
         # Interpolate for bad lines since the fitting code often returns nan
         plt.figure(figsize=(14, 6))
-        plt.plot(lags, corr_norm, color='black', drawstyle = 'steps-mid', lw=3, label = 'x-corr', linewidth = 1.0)
+        plt.plot(lags, corr_norm, color='black', drawstyle = 'steps-mid', lw=3, label = 'x-corr')
         plt.plot(lag_max[0], corr_max[0],'g+', markersize =6.0, label = 'peak')
         plt.title('Best shift = {:5.3f}'.format(lag_max[0]) + ',  corr_max = {:5.3f}'.format(corr_max[0]))
         plt.legend()
@@ -398,7 +593,6 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
 
     # Do the cross-correlation first and determine the initial shift
     shift_cc, corr_cc = xcorr_shift(y1, y2, smooth = None, percent_ceil = None, use_raw_arc = True, sigdetect = sigdetect, fwhm=fwhm, debug = debug)
-
     if corr_cc < cc_thresh:
         return -1, shift_cc, 1.0, corr_cc, shift_cc, corr_cc
     else:
@@ -443,93 +637,7 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
 
 
 
-@nb.jit(nopython=True, cache=True)
-def hist_wavedisp(waves, disps, dispbin=None, wavebin=None, scale=1.0, debug=False):
-    """
-
-    Generates a flexible 2D histogram of central wavelength and
-    dispersion, where the wavelength grid spacing depends on the
-    dispersion, so that each wavelength bin width roughly corresponds
-    to the sample dispersion, scaled by a factor.
-
-    Parameters
-    ----------
-    waves : ndarray
-        array of central wavelengths (A). Must be the same size as disps.
-    disps : ndarray
-        logarithmic array of dispersions (A/pix). Must be the same size as waves.
-    dispbin : ndarray
-        bin widths for the dispersion dimension
-    wavebin : two-element list
-        minimum and maximum wavelength of the histogram bins
-    scale : float
-        Scale the sampling of the wavelength bin (see description above). Must be >= 1.0
-
-    Returns
-    -------
-    hist_wd : ndarray
-        An array of bin counts
-    cent_w : ndarray
-        The value of the wavelength at the centre of each bin
-    cent_d : ndarray
-        The value of the dispersion at the centre of each bin
-    """
-    if dispbin is None:
-        dispbin = np.linspace(-3.0, 1.0, 1000)
-    if wavebin is None:
-        wavebin = [np.min(waves), np.max(waves)]
-
-    # Convert to linear
-    lin_dispbin = np.power(10.0, dispbin)
-    lin_disps = np.power(10.0, disps)
-
-    # Determine how many elements will be used for the histogram
-    nelem = np.zeros(dispbin.size-1, dtype=nb.types.uint64)
-    for dd in range(dispbin.size-1):
-        dispval = 0.5*(lin_dispbin[dd] + lin_dispbin[dd+1])
-        nelem[dd] = np.int(0.5 + scale*(wavebin[1]-wavebin[0])/dispval)
-
-    # Generate a histogram
-    nhistv = np.sum(nelem)
-    hist_wd = np.zeros(nhistv, dtype=nb.types.uint64)
-    cent_w = np.zeros(nhistv, dtype=nb.types.uint64)
-    cent_d = np.zeros(nhistv, dtype=nb.types.uint64)
-    cntr = 0
-    for dd in range(dispbin.size-1):
-        wbin = np.linspace(wavebin[0], wavebin[1], nelem[dd]+1)
-        wdsp = np.where((lin_disps > lin_dispbin[dd]) & (lin_disps <= lin_dispbin[dd+1]))
-        if wdsp[0].size != 0:
-            hist_wd[cntr:cntr+nelem[dd]], _ = np.histogram(waves[wdsp], bins=wbin)
-            cent_d[cntr:cntr+nelem[dd]] = 0.5 * (lin_dispbin[dd] + lin_dispbin[dd + 1])
-            cent_w[cntr:cntr+nelem[dd]] = 0.5 * (wbin[1:] + wbin[:-1])
-        cntr += nelem[dd]
-
-    """
-    if debug:
-        # Create and plot up the 2D plot
-        nelem_mx = np.max(nelem)
-        hist_wd_plt = np.zeros((nelem_mx, dispbin.size), dtype=nb.types.uint64)
-        wbin_mx = np.linspace(wavebin[0], wavebin[1], nelem_mx)
-        cntr = 0
-        for dd in range(dispbin.size-1):
-            wbin = np.linspace(wavebin[0], wavebin[1], nelem[dd]+1)
-            wdsp = np.where((lin_disps > lin_dispbin[dd]) & (lin_disps <= lin_dispbin[dd+1]))
-            if wdsp[0].size != 0:
-                fval, _ = np.histogram(waves[wdsp], bins=wbin)
-                fspl = interpolate.interp1d(cent_w[cntr:cntr+nelem[dd]], fval, bounds_error=False, fill_value="extrapolate")
-                val = fspl(wbin_mx).astype(nb.types.uint64)
-                hist_wd_plt[:, dd] = val
-            cntr += nelem[dd]
-        plt.clf()
-        plt.imshow(np.log10(np.abs(hist_wd_plt[:, ::-1].T)), extent=[wavebin[0], wavebin[1], dispbin[0], dispbin[-1]], aspect='auto')
-        plt.show()
-        pdb.set_trace()
-    """
-
-    return hist_wd, cent_w, cent_d
-
-
-def wavegrid(wave_min, wave_max, dwave, samp_fact=1.0, log10=False):
+def wavegrid(wave_min, wave_max, dwave, spec_samp_fact=1.0, log10=False):
     """
 
     Utility routine to generate a uniform grid of wavelengths
@@ -541,10 +649,10 @@ def wavegrid(wave_min, wave_max, dwave, samp_fact=1.0, log10=False):
            Maximum wavelength. Must be linear even if log10 is requested.
         dwave (float):
            Delta wavelength interval. Must be linear if log10=False, or log10 if log10=True
-        samp_fact (float):
-           sampling factor to make the wavelength grid finer or coarser.
-           samp_fact > 1.0 oversamples (finer), samp_fact < 1.0
-           undersamples (coarser)
+        spec_samp_fact (float, optional):
+            Make the wavelength grid  sampling finer (spec_samp_fact < 1.0) or coarser (spec_samp_fact > 1.0) by this
+            sampling factor. This basically multiples the 'native' spectral pixels by spec_samp_fact, i.e. units
+            spec_samp_fact are pixels.
 
     Returns:
         `numpy.ndarray`_: Wavelength grid in Angstroms (i.e. log10 even
@@ -552,7 +660,7 @@ def wavegrid(wave_min, wave_max, dwave, samp_fact=1.0, log10=False):
 
     """
 
-    dwave_eff = dwave/samp_fact
+    dwave_eff = dwave*spec_samp_fact
     if log10:
         ngrid = np.ceil((np.log10(wave_max) - np.log10(wave_min))/dwave_eff).astype(int)
         loglam_grid = np.log10(wave_min) + dwave_eff*np.arange(ngrid)

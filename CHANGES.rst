@@ -1,9 +1,418 @@
-
-1.3.1dev
+1.9.2dev
 --------
+
+- Modify tweak_standard for Mosfire/J2
+- Apply find_min_max when clipping the image for object finding
+- Mask bad detector regions for global sky flexure calculation
+- Detector structure correction included in flatfield calibration
+- Apply find_min_max when clipping the image for object finding
+- Mask bad detector regions for global sky flexure calculation
+- Refactor PypeIt input files
+- Added wavelength diagnostics to the spec2d output
+
+1.9.1 (13 June 2022)
+--------------------
+
+- Hotfix for bug related to downloading from the `reid_arxiv` when using
+  the `reidentify` wavelength calibration method.
+
+1.9.0 (31 May 2022)
+-------------------
+
+- When using glob to get files in pypeit_setup, added automatic sorting
+  so that the default `comb_id` ordering matches the sorted file name.
+- Improve Keck/KCWI automatic frame typing.
+- Implemented Keck/KCWI flux calibration
+- Wavelength templates (OH lines and arc lamps) created for Keck/MOSFIRE
+- Mosaic is now available for Keck/DEIMOS too.
+- Various package data (e.g., reid_arxiv, sensfunc) are no longer
+  distributed via PyPI to reduce package size; introduce mechanisms for
+  downloading/caching needed data either at runtime or on demand.
+- Save output wavelength calibration from `pypeit_identify` to the cache
+  for direct reuse in data reduction.
+- The `pypeit_identify` GUI can now toggle between linear and log
+  scaling of the arc spectrum flux.
+- Improved wavelength solution for Gemini-Nort E2V detector
+- Keck/DEIMOS now uses gain/RN values measured periodically by WMKO
+- Add bok_bc 300 grating template
+- Added more flexible quicklook that can handle dithering.
+- Expose exposure time scaling for dark frames as an image processing
+  parameter, and set the default behavior to ignore any difference in
+  exposure time.  Also fixes a bug in the variance calculation.
+- Refactored object finding
+- Bug fixes in local sky subtraction and extraction
+- Fixed pypeit setup issues due to bad LRIS headers.
+- Added support for VLT FORS2 600z grism.
+- Added enhancements and fixes for Keck lris red Mark4.
+- Fixed a bug in 2d coadding when objects were not being identified.
+  Refactored 2d extraction.
+- Added code to better parse Gemini/GNIRS dither sequences
+- Add spectrograph child for VLT X-SHOOTER UVB arm
+- Minor enhancements to `pypeit_identify` GUI
+- Refactoring of `pypeit_show_wvcalib` GUI
+
+
+1.8.1 (23 Feb 2022)
+-------------------
+
+- various hotfixes
+- Include preliminary support for fluxing with archived SensFunc files
+  for DEIMOS.
+
+
+1.8.0 (12 Feb 2022)
+-------------------
+
+- Fixed a bug about how `maskdef_offset` is assigned to each detector
+- Changed default behavior for how PypeIt computes `maskdef_offset` for
+  DEIMOS.  It now uses by default the stars in the alignment boxes.
+- Introduces pypeit_parse_calib_id script
+- Refactor manual extraction
+- Fixed 2Dcoadd spec bugs for central wavelength dithers.
+- GMOS doc updates
+- Add 2D wavelength calibration image to MasterFlat output; include
+  wavelength calibration in pypeit_chk_flat ginga display.
+- Introduce mosaicing
+    - `det` arguments can now be tuples with a list of detectors to
+      combine into a mosaic.  Mosaics can now be defined in the pypeit
+      file using `detnum`; e.g., `detnum=(1,2)` creates a mosaic of
+      detectors 1 and 2.
+    - The tuples must be one among an allowed set defined by each
+      spectrograph class; see `gemini_gmos.py`.
+    - `DETECTOR` extensions in output files can now be either a
+      `DetectorContainer` object or a `Mosaic` object.  Both are now
+      written using `astropy.table.Table` instances.  `Mosaic` objects
+      just have more columns.
+    - The `otype` of `DataContainer` data-model components can now be a
+      tuple of `DataContainer` subclasses indicating that the component
+      has an optional type.
+    - Added the `one_row_table` class attribute to `DataContainer`,
+      which will try to force all the elements of a datamodel into a
+      binary table extension with a single row.
+    - Started propagation of name changes from, e.g., `DET01` to
+      `MSC01`, where the latter indicates the reduction uses the first
+      mosaic option for the spectrograph.  Keys for master calibration
+      frames are now, e.g., `A_1_DET01` instead of `A_1_01`.
+    - Currently only implemented for `gemini_gmos`.
+    - During processing, bias and dark images are left as separate
+      detector images, whereas all other images are mosaiced for further
+      processing.  This means that `RawImage` is now *always* 3D, where
+      `PypeItImage` can be either 2D or 3D.
+    - Added a `det_img` to `PypeItImage` datamodel to keep track of the
+      parent detector for each pixel in a mosaic.
+    - Added a `amp_img` to `PypeItImage` datamodel to keep track of the
+      parent amplifier for each pixel in a mosaic; this is the result of
+      mosaicing the `datasec_img` objects for each detector.
+- Improve performance of L.A.Cosmic algorithm:
+    - Switch to using ndimage.binary_dilation for growing masked regions
+    - Switch to astropy convolution for Laplace convolution
+    - Added faster block replication algorithm
+    - Fix iteration logic
+- Intermediate update to BPM.  Preference given to pulling this from the
+  relevant `PypeItImage` calibration image instead of always building it
+  from scratch.  That latter complicated things for mosaics.
+- First steps toward more robust treatment of saturation.
+- Dark counts used for calculating the shot noise now includes measured
+  dark images if provided
+- `PypeIt` file parameters can now parse sets of tuples; e.g.,
+  `detnum=(1,2),(3,4)` should get parsed as `par['detnum'] = [(1,2),
+  (3,4)]`.
+- `PypeIt.select_detectors` has been moved to `Spectrograph`.
+- Update for `LDT/DeVeny` including support for binned data,
+  `use_header` for reading arc lamps used from frames, and `reid_arxiv`
+  templates for three additional gratings.
+- Slurps in and uses slitmask design for Keck/LRIS (limited usage)
+- Hotfix for `gemini_gmos` mosaic tracing parameters
+- Include sky model in 2nd pass of global sky subtraction (not for IR
+  redux).
+- Skymask is now computed also for the maskdef_extract objects.
+- Added dedicated fwhm and boxcar_radius for maskdef_extract objects.
+- Added pypeit_version to the pypeit file header.
+- Set DEIMOS `find_fwhm` default to 0.8" in binned pixels.
+- Added row-dependent pattern-noise calculation
+- Improvements in `pypeit_coadd_2dspec`:
+    - `maskdef_id` assigned to each slit
+    - Assigning object's name, ra and dec to detected objects is now
+      available
+    - Force extract of undetected objects is now available
+    - `maskdef_offset` can be use as offsets in the coadd
+    - Coadding only a specific sets of slits is now possible with the
+      parset `--only_slits`
+    - If the user inputs a list of offsets, the weights can still be
+      computed if a bright object is found, otherwise uniform weigths
+      will be used
+    - Fixed manual extraction bug
+    - Various improvements in the flow of the code
+    - spec1d*.txt is now produced also for coadd2d
+- Scripts to explore the noise residuals in PypeIt
+- Added Coadd2D HOWTO docs
+    - Fixes a  bug in echelle object finding
+    - Attempt to make the threshold computation for object finding more robust.
+    - Fixed a bug in extraction for echelle spectrographs for IR reductions.
+    - Tuned up preivious refactor of object finding and extraction classes.
+    - Fixed a bug that was introduced in skymask definition.
+    - Fixed a bug where negative objects were not being found for IR reductions of standard stars.
+- Add template wavelength solution for soar_goodman_red 400_SYZY
+
+1.7.0 (19 Nov 2021)
+-------------------
+
+- Introduces pypeit_parse_calib_id script
+- Throw a warning if the chosen spectrograph has a header which does not
+  match expectation
+- Pypeit can now read (currently for Keck DEIMOS only) the list of arc
+  lamps from the header and use it for wavelength calibration.
+- Allow one to restrict the wavelength range of the arxiv template
+- Fixed a bug in HolyGrail that did not allow for sigdetect and rms_wavelength to be
+  slit dependent lists.
+- Set DEIMOS FWHM default to 10 pixels
+- Fixed a bug in HolyGrail that did not allow for sigdetect and
+  rms_wavelength to be slit dependent lists.
+- Improvements for MOSFIRE:
+    - uses slitmask info in the slit edge tracing
+    - associates RA, Dec and Object name to each extracted object
+    - extracts undetected objects using the predicted position from
+      slitmask info
+    - uses dither offeset recorded in the header as default
+      slitmask_offset, but the user can provide the maskdef_id of a slit
+      with a bright object that can trace the offset.
+    - improvements in the frame typing
+- Implements new Mark4 detector for Keck/LRISr  (aka keck_lris_red_mark4)
+- QL script for Keck/DEIMOS
+- Implemented flux calibration and grating correction for datacubes.
+
+
+1.6.0 (1 Oct 2021)
+------------------
+
+- Modifications to reduce header crashes
+- Added `image_proc.rst` doc, which includes a table with the primary parameters
+  that affect the control flow of the image processing.
+- Added exptime and units to the PypeItImage data model.
+- Made bias subtraction available to the dark image processing (i.e., if people
+  request bias subtraction for darks, the bias needs to be passed).  Similarly,
+  added dark to the buildimage calls in get_arc and get_tiltimage.
+- Streamlining of the operations in pypeit.core.flat.flatfield.
+- Digitization noise no longer added to readnoise calculation by default.
+- Include "processing error" in error budget.  Accounts for, e.g., readnoise in
+  dark image, etc.
+- Include error calculation in overscan subtraction.  The error estimate is the
+  standard error in the median, which will be an overestimate for the savgol
+  method.
+- Allow for pinhole and sky frames in buildimage_fromlist.
+- In pypeit.images.rawimage.RawImage:
+    - Conversion from ADU to counts is now the first step for all processing.
+    - Added an `empirical_rn` parameter that allows the users to use the
+      overscan region to estimate the detector readnoise for each image
+      processed, and this estimation of the readnoise is now in its own method.
+    - Subtraction of the dark is now done after the conversion of the image to
+      counts.
+    - Dark subtraction is now always performed using the tabulated values for
+      each detector.  A warning is thrown if the dark frames are provided and
+      the measured dark-current from a dark image is more than 50% different
+      from the tabulated value.
+    - Whether or not you add the shot noise and a noise floor to the variance
+      image are now optional and controlled by parameters in ProcessImagesPar.
+    - Changes to default ProcessImagesPar parameters: use_specillum = False for
+      all frame types; shot_noise = False and noise_floor = 0 for biases; and
+      use_overscan=True, use_biasimage=True, noise_floor=0., and mask_cr=True
+      for darks.  Adjustments propagated to individual spectrographs.
+    - BPM is not recalculated after applying the flat-field correction because
+      it is not longer changed by that function.
+    - The code keeps track of the image scaling via the flat-field correction,
+      and propagates this to the noise model.
+    - Compute and save a "base-level variance" that includes readnoise, dark
+      current, and processing error as part of the PypeItImage datamodel.
+    - Added `base_var` and `img_scale` to the datamodel of PypeItImage, as well
+      as the noise_floor and shot_noise booleans.  All of these are used by
+      pypeit.core.procimg.variance_model to construct the error model.
+    - Added BADSCALE bit to ImageBitMask to track when flat-field corrections
+      are <=0.
+- Added `update_mask` and `select_flag` methods to PypeItImage as convenience
+  methods used to update and extract information from the fullmask bitmask
+  attribute.
+- CombineImage now re-calculates the variance model using the stacked estimate
+  of the counts instead of propagating the estimates from the individual
+  exposures.
+- CombineImage performs a masked median when combine_method = 'median', and the
+  error is the standard error in the median.
+- Simplifies stacking of bits in CombineImage.
+- Calculation of the variance in processed images separated into two functions,
+  pypeit.core.procimg.base_variance and pypeit.core.procimg.variance_model.
+  These replace variance_frame.
+- Added a "detectors" doc, and an automatically generated table with relevant
+  detector parameters (including the dark current) used for instrument.
+- Improved fidelity of bspline timing tests using timeit.
+- Added inverse variance images to MasterBias and MasterDark frames so that they
+  are available for re-use.
+
+1.5.0 (11 Aug 2021)
+-------------------
+
+- Doc updates, including reorganization of the installation doc, fluxing and
+  telluric docs, and automatic construction of the package dependencies.
+- Add new pixelflat_min_wave parameter below which the mspixelflat is set to 1.
+- Add `pypeit_install_telluric` and `pypeit_install_ql_masters` scripts.  The
+  latter creates a symlink to the directory with the QL masters that will be
+  used if the QL_MASTERS environmental variable does not exist.
+- Improved `edgetrace.maskdesign_matching` to always return syncronized traces.
+- Pypeit can now deal with dithered observations (only for DEIMOS for now), by
+  finding the offset of the observed slitmask from the expected position in the design file.
+- There are three options the user can use to find the slitmask offset: bright objects,
+  selected slit, or alignment boxes.
+- Pypeit run object finding for the alignment boxes but it does not extract them.
+- `reduce.run` is now split in two methods: `run_objfind` and `run_extraction`.
+- There are now 2 loops over the detectors in `pypeit.reduce_exposure`: the first
+  one runs calibrations and object finding for all the detectors and the second one
+  runs the extraction. In between the two loops, the slitmask offset is computed.
+- A script (`get_telescope_offset`) to determine the telescope pointing offsets is
+  added to `pypeit/spectrographs/keck_deimos.py`
+- Improve SOAR Goodman fluxing
+
+
+1.4.2 (06 Jul 2021)
+-------------------
+
+- Added a common base class for all scripts
+- Script methods now included in Sphinx documentation
+- Updated `pypeit.scripts.scriptbase.SmartFormatter` to enable wrapping
+  long lines and specify lines with a fixed format using `F|`.
+- Made `pypeit.core.telluric.Telluric` subclass from
+  `pypeit.datamodel.DataContainer`, and added some basic unit tests.
+  This led to some changes in the existing datamodel.
+- Made `pypeit.sensfunc.SensFunc` subclass from
+  `pypeit.datamodel.DataContainer`, and added some basic unit tests.
+  This led to some changes in the existing datamodel.
+- Allowed `pypeit.datamodel.DataContainer` parsing methods to used
+  pseudonyms for HDU extension names and base classes to read the
+  datamodels of subclasses.  Both added new keywords that default to
+  previous behavior.
+- Moved some functions to avoid circular imports
+    - `pypeit.coadd1d.OneSpec` -> `pypeit.onespec.OneSpec`
+    - `pypeit.core.coadd.get_wave_grid` ->
+      `pypeit.core.wavecal.wvutils.get_wave_grid`
+    - `pypeit.core.coadd.sensfunc_weights` ->
+      `pypeit.sensfunc.sensfunc_weights`
+- Add LDT/DeVeny spectrograph
+- Add 6440.25A CdI line (LDT/DeVeny)
+- Modify SOAR to read their (truly) raw files
+- GMOS doc updates
+
+
+1.4.1 (11 Jun 2021)
+-------------------
+
+- Adds SOAR/Goodman red camera
+- Update to Gemini-S telescope info
+- Make PypeIt ISO 8160 (more) compliant
+- Address an Identify bug
+- Add blocking filter to DEIMOS config
+- NOT/Alfosc updates
+- A pair of fixes for shane_kast_red
+- Add NTT EFOSC2 spectrograph
+- Add standard stars CD-34241 and CD-329927 to esofil
+- Add wavelength solution for keck_lris_red 600/10000
+- `pypeit_show_2dspec` shows traces of forced extraction and manual
+  extraction with different colors
+- Updated docs about extraction and DEIMOS
+- Implement multi-detector flexure estimates
+- Fix error in variance for numpy fitting routines
+- Introduce HOWTO for DEIMOS
+- Method for slupring in a standard observed and reduced by WMKO
+
+
+1.4.0 (23 Apr 2021)
+-------------------
+
+- Include a fix for when no edges are detected in `EdgeTraceSet` by
+  adding the `bound_detector` parameter.  Most instruments have a
+  default of `bound_detector = False` meaning that the code will skip
+  processing any detector where no slit edges are found.  Some
+  instuments set the default to be `bound_detector = True` because the
+  slit edges always or often fall off the edge of the detector (i.e.,
+  the detector is fully illuminated).  These instruments are currently
+  `mmt_mmirs`, `mmt_bluechannel`, `not_alfosc`, and `shane_kast`; note
+  that some `gemini_gmos` data in the DevSuite require
+  `bound_detector=True`, as well.
+- Improved wavelength template for DEIMOS gratings: 600ZD, 830G.
+- Added new ArI, KrI, NeI, XeI arc lines.
+- PypeIt can now compute arc line FWHM from the lines themselves. This
+  is controlled by a new parset, ``fwhm_fromlines``, which is set to
+  False by default, except for DEIMOS.
+- Added a development document about the DEIMOS wavelength calibration.
+- Limit reduction to detectors 3 and 7 when DEIMOS LVM mask is used
+  (other detectors are empty)
+- Add `pypeit_obslog` script that simple compiles and prints metadata
+  from a set of fits files needed by pypeit to run.
+- Change `PypeItSetup.from_file_root` to *require* the output path to
+  write the vanilla pypeit file.  If no path is provided, the object is
+  instatiated without creating any output.
+- Fixed bug in sensitivity function code adressing issue #747. Revamped
+  sensitivity function completely to compute zeropoints and throughput.
+  Enhanced sensfunc.py QA.
+- Added MOSFIRE QL script.
+- Added support for VLT/SINFONI K 25mas (0.8x0.8 arcsec FOV) platescale
+- Updated docs for differencing imaging sky subtraction.
+- Added "sky" frametype for difference imaging sky subtraction
+  addressing issue # 1068
+- Improved and sped up sensitivity function telluric codes.
+- Fixed bugs in ArchiveReid automatic wavelength identification.
+- Removed numba dependency.
+- Improved pypeit_view_fits script.
+- Fixed ginga bugs in display.py and added automatic cuts to show_2dspec
+- Added latin hypercube sampler to pypeit.utils which is required for
+  differential evolution optimizations.
+- Improved GMOS R400 wavelength solution
+- Turned off GMOS-S binning restriction
+- Add GTC OSIRIS spectrograph
+- Updates for docs on adding new spectrographs.  And a bok test
+- Added a new ``pypeit_collate_1d`` tool to automatically group 1D
+  Spectra from multiple files by group and coadd them.
+- PypeIt will now add HISTORY keyword entries to FITS files.
+- `use_maskdesign` is turned off for DEIMOS LVM masks
+- a new parameter `use_user_fwhm` is added in `ExtractionPar` to allow
+  the user to set their preferred fwhm
+- Improved `slittrace.assign_maskinfo`
+- PypeIt can now force extractions of DEIMOS non detected objects at the
+  location expected from slitmask design.
+- SpecObj and SlitTrace datamodel versions updated
+
+1.3.3 (24 Feb 2021)
+-------------------
+
+- (Hotfix) Command-line argument bug in `pypeit_coadd_1dspec` script.
+- (Hotfix) Bug fix in `pypeit_obslog` script.
+- (Hotfix) X-Shooter bits
+
+
+1.3.2 (08 Feb 2021)
+-------------------
+
+- (Hotfix) Bug in content type of README file that prevented upload to
+  PyPI
+
+1.3.1 (01 Feb 2021)
+-------------------
 
 - pypeit_chk_wavecalib script
 - Option to limit channels shown for pypeit_show_2dspec
+- sigdetect on in full_template
+- Added new ArI, ArII lines
+- Improved 1Dfit QA
+- Final wavelength template for DEIMOS 900ZD
+- Fix a bug in `pypeit/core/arc.py` and `pypeit/core/wavecal/autoid.py` due
+  to the padding to the arc frames
+- Added a new XeI line
+- Turn off sigma clipping for DEIMOS arc frames.
+- Refactor setup.py to use setup.cfg to define package configuration
+- Refactor version handling to use setuptools_scm to grab version info from git tags
+- Add support for testing within isolated environments via tox
+- Refactor CI to use tox to run tests
+- Add cron-scheduled tests to CI
+- Add tests to CI to cover macos, windows, and conda installations
+- Refactor wrapper scripts in bin/ to be entry_points defined in setup.cfg
+- Deprecate check_requirements now that dependencies are handled by the installation
+
 
 
 1.3.0 (13 Dec 2020)

@@ -6,12 +6,9 @@ import pytest
 
 import numpy as np
 
+from pypeit.tests.tstutils import data_path
 from pypeit.images import detector_container
-from pypeit import io
 
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
 
 # Example (shane_kast_blue)
 def_det = dict(
@@ -38,17 +35,32 @@ def_det = dict(
 
 def test_init():
     detector = detector_container.DetectorContainer(**def_det)
+    assert detector.specaxis == 1
+
+
+def test_name():
+    detector = detector_container.DetectorContainer(**def_det)
+    assert detector.det == detector_container.DetectorContainer.parse_name(detector.name), \
+            'name parsing mismatch'
+
 
 def test_bundle():
     detector = detector_container.DetectorContainer(**def_det)
     data = detector._bundle()
     assert len(data) == 1
 
+
 def test_io():
     detector = detector_container.DetectorContainer(**def_det)
     detector.to_file(data_path('tmp_detector.fits'), overwrite=True)
 
     _new_detector = detector.from_file(data_path('tmp_detector.fits'))
+
+    # Check a few attributes are equal
+    assert detector['dataext'] == _new_detector['dataext'], 'Bad read dataext'
+    assert np.array_equal(detector['gain'], _new_detector['gain']), 'Bad read gain'
+    assert detector['binning'] == _new_detector['binning'], 'Bad read binning'
+    assert np.array_equal(detector['datasec'], _new_detector['datasec']), 'Bad read datasec'
 
     os.remove(data_path('tmp_detector.fits'))
 

@@ -8,18 +8,27 @@
 .. _PEP 257: https://www.python.org/dev/peps/pep-0257
 .. _argparse.Namespace: https://docs.python.org/3/library/argparse.html#argparse.Namespace
 .. _argparse.ArgumentParser: https://docs.python.org/3/library/argparse.html#argparse.ArgumentParser
+.. _argparse.HelpFormatter: https://docs.python.org/3/library/argparse.html#formatter-class
 .. _collections.OrderedDict: https://docs.python.org/3/library/collections.html#collections.OrderedDict
+.. _str.splitlines: https://docs.python.org/3/library/stdtypes.html#str.splitlines
+.. _textwrap.wrap: https://docs.python.org/3/library/textwrap.html#textwrap.wrap
 
 .. numpy
 .. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
 .. _numpy.ma.MaskedArray: http://docs.scipy.org/doc/numpy/reference/maskedarray.baseclass.html
+.. _numpy.ma.median: https://numpy.org/doc/stable/reference/generated/numpy.ma.median.html
 .. _numpy.recarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.recarray.html
 .. _numpy.meshgrid: http://docs.scipy.org/doc/numpy/reference/generated/numpy.meshgrid.html
 .. _numpy.where: http://docs.scipy.org/doc/numpy/reference/generated/numpy.where.html
+.. _numpy.random.Generator: https://numpy.org/doc/stable/reference/random/generator.html
+.. _numpy.squeeze: https://numpy.org/doc/stable/reference/generated/numpy.squeeze.html
 
 .. scipy
+.. _scipy.optimize.curve_fit: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.curve_fit.html
+.. _scipy.optimize.leastsq: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.leastsq.html
 .. _scipy.optimize.least_squares: http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html
 .. _scipy.optimize.OptimizeResult: http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.OptimizeResult.html
+.. _scipy.optimize.differential_evolution: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html
 .. _scipy.interpolate.interp1d: https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.interp1d.html
 .. _scipy.sparse.spmatrix: http://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.spmatrix.html
 .. _scipy.sparse.csr_matrix: http://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.csr_matrix.html
@@ -29,6 +38,8 @@
 .. _scipy.linalg.lu_solve: https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.lu_solve.html
 .. _scipy.ndimage.sobel: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.sobel.html
 .. _scipy.ndimage.convolve: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.convolve.html#scipy.ndimage.convolve
+.. _scipy.ndimage.affine_transform: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.affine_transform.html
+.. _scipy.ndimage.binary_dilation: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.binary_dilation.html
 
 .. matplotlib
 .. _matplotlib.pyplot.imshow: http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.imshow
@@ -59,8 +70,9 @@
 .. _astropy.time.Time: https://docs.astropy.org/en/stable/time/
 .. _astropy.coordinates.SkyCoord: https://docs.astropy.org/en/stable/api/astropy.coordinates.SkyCoord.html
 .. _astropy.coordinates.EarthLocation: https://docs.astropy.org/en/stable/api/astropy.coordinates.EarthLocation.html
+.. _astropy.stats.SigmaClip: https://docs.astropy.org/en/stable/api/astropy.stats.SigmaClip.html
 
-.. scikit-learn
+.. scikit
 .. _sklearn.decomposition.PCA: https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html
 
 .. pydl
@@ -80,9 +92,15 @@
 .. _bumpversion: https://pypi.org/project/bumpversion/
 .. _rclone: https://rclone.org/
 .. _pip: https://pip.pypa.io/en/stable/
+.. _anaconda: https://www.anaconda.com/products/individual
+.. _conda: https://docs.conda.io/projects/conda/en/latest/index.html
+.. _virtualenv: https://virtualenv.pypa.io/en/latest/
 .. _pdb: https://docs.python.org/3/library/pdb.html
 .. _IPython.embed: https://ipython.readthedocs.io/en/stable/api/generated/IPython.terminal.embed.html#function
 .. _pytest: https://docs.pytest.org/en/latest/
+.. _shapely: https://shapely.readthedocs.io/en/stable/manual.html
+.. _scikit-image: https://scikit-image.org/
+.. _bottleneck: https://bottleneck.readthedocs.io/en/latest/
 
 .. ginga
 
@@ -95,6 +113,7 @@
 .. _PypeIt-development-suite: https://github.com/pypeit/PypeIt-development-suite
 .. _documentation: https://pypeit.readthedocs.io/en/latest/
 .. _Submit an issue: https://github.com/pypeit/PypeIt/issues
+.. _PypeIt dev-suite Google Drive: https://drive.google.com/drive/folders/1oh19siB1-F0jjmY-F_jr73eA-TQYEiFW?usp=sharing
 
 .. emails
 .. _Joe Hennawi: joe@physics.ucsb.edu
@@ -102,4 +121,6 @@
 
 .. misc
 .. _SDSS bitmasks: https://www.sdss.org/dr16/algorithms/bitmasks/
+.. _L.A.Cosmic: http://www.astro.yale.edu/dokkum/lacosmic/
+.. _van Dokkum (2001, PASP, 113, 1420): https://ui.adsabs.harvard.edu/abs/2001PASP..113.1420V/abstract
 

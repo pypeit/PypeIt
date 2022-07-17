@@ -1,0 +1,15 @@
+# Creation Date: 2022-Feb-28
+# VACUUM -- MUST BE IN NIST
+| ion |       wave | NIST | Instr | amplitude |                    Source |
+| CdI |  3134.0746 |    1 |     0 |     200.0 | ldt_deveny_300_HgCdAr.fits |
+| CdI |  3261.9951 |    1 |     2 |   11126.0 | lrisb_600_4000_PYPIT.json |
+| CdI |  3404.6287 |    1 |     2 |    2600.0 |        hand_LRISb_600_LRX |
+| CdI |  3467.1923 |    1 |     6 |    1710.0 | lrisb_600_4000_PYPIT.json |
+| CdI |  3611.5375 |    1 |     2 |    2640.0 | lrisb_600_4000_PYPIT.json |
+| CdI |  4414.2288 |    1 |     0 |       3.0 | ldt_deveny_1200_HgCdAr.fits |
+| CdI |  4663.6572 |    1 |     0 |       8.0 | ldt_deveny_1200_HgCdAr.fits |
+| CdI |  4679.4587 |    1 |     4 |    2640.0 |      kastb_600_PYPIT.json |
+| CdI |  4801.2540 |    1 |     6 |   25017.0 | lrisb_600_4000_PYPIT.json |
+| CdI |  5087.2393 |    1 |     6 |   28781.0 | lrisb_600_4000_PYPIT.json |
+| CdI |  5156.0964 |    1 |     0 |       6.0 | ldt_deveny_1200_HgCdAr.fits |
+| CdI |  6440.2490 |    1 |     0 |    2000.0 | ldt_deveny_300_HgCdAr.fits |

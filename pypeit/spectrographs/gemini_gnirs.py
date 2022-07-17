@@ -3,10 +3,6 @@ Module for Gemini/GNIRS specific methods.
 
 .. include:: ../include/links.rst
 """
-from pkg_resources import resource_filename
-
-from IPython import embed
-
 import numpy as np
 
 from pypeit import msgs
@@ -23,19 +19,21 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     ndet = 1
     name = 'gemini_gnirs'
     camera = 'GNIRS'
+    header_name = 'GNIRS'
     telescope = telescopes.GeminiNTelescopePar()
     pypeline = 'Echelle'
     supported = True
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
@@ -57,8 +55,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             numamplifiers   = 1,
             gain            = np.atleast_1d(13.5),
             ronoise         = np.atleast_1d(7.0),
-            datasec         = np.atleast_1d('[:,:]'),#'[1:1024,1:1022]',
-            oscansec        = np.atleast_1d('[:,:]'),#'[1:1024,1:1022]'
+            datasec         = np.atleast_1d('[:,:]'),
+            oscansec        = None,
         )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -83,14 +81,16 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
         # Reduce parameters
-        par['reduce']['findobj']['sig_thresh'] = 5.0          # Object finding threshold
+        #par['reduce']['findobj']['snr_thresh'] = 5.0          # Object finding threshold
         par['reduce']['findobj']['find_trim_edge'] = [2,2]    # Slit is too short to trim 5,5 especially
-        par['reduce']['findobj']['find_cont_fit'] = False     # Don't continuum fit objfind for narrow slits
-        par['reduce']['findobj']['find_npoly_cont'] = 0       # Continnum order for determining thresholds
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['skysub']['global_sky_std']  = False    # Do not perform global sky subtraction for standard stars
         par['reduce']['skysub']['no_poly'] = True             # Do not use polynomial degree of freedom for global skysub
         par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
+        par['reduce']['findobj']['maxnumber_sci'] = 2  # Slit is narrow so allow one object per order
+        par['reduce']['findobj']['maxnumber_std'] = 1  # Slit is narrow so allow one object per order
+        # Standards
+        par['calibrations']['standardframe']['process']['mask_cr'] = False # Do not mask_cr standards
 
         # Do not correct for flexure
         par['flexure']['spec_method'] = 'skip'
@@ -104,9 +104,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 6
-        par['sensfunc']['IR']['telgridfile'] \
-                = resource_filename('pypeit',
-                                    '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
@@ -144,7 +142,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
             # Wavelengths
             par['calibrations']['wavelengths']['rms_threshold'] = 1.0  # Might be grating dependent..
-            par['calibrations']['wavelengths']['sigdetect'] = 5.0
+            par['calibrations']['wavelengths']['sigdetect'] =  [4.0, 5.0, 5.0, 5.0, 5.0, 5.0] #5.0
             par['calibrations']['wavelengths']['lamps'] = ['OH_GNIRS']
             #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
             par['calibrations']['wavelengths']['n_first'] = 2
@@ -223,11 +221,39 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         self.meta['mjd'] = dict(ext=0, card='MJD_OBS')
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+
+        # Dithering
+        self.meta['dithpos'] = dict(ext=0, card='QOFFSET')
+        self.meta['dithoff'] = dict(card=None, compound=True)
+
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='GRATING')
         self.meta['hatch'] = dict(ext=0, card='COVER')
         self.meta['dispangle'] = dict(ext=0, card='GRATTILT', rtol=1e-4)
         self.meta['idname'] = dict(ext=0, card='OBSTYPE')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
+
+    def compound_meta(self, headarr, meta_key):
+        """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
+
+        Args:
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
+
+        Returns:
+            object: Metadata value read from the header(s).
+        """
+        if meta_key == 'dithoff':
+            if headarr[0].get('OBSTYPE') == 'OBJECT':
+                return headarr[0].get('QOFFSET')
+            else:
+                return 0.0
+        else:
+            msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -244,6 +270,17 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             object.
         """
         return ['decker', 'dispname', 'dispangle']
+
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard ``PypeIt`` file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        return super().pypeit_file_keys() + ['dithoff']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

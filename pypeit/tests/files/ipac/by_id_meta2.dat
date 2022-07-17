@@ -1,0 +1,7 @@
+|                    id|                                                          filename|               ra|               dec|     target|pjrogpi|semester|progid|dispname| decker|binning|         mjd|   airmass|exptime|
+|                  char|                                                              char|           double|            double|       char|   char|    char|  char|    char|   char|   char|      double|    double| double|
+|                      |                                                                  |                 |                  |           |       |        |      |        |       |       |            |          |       |
+|                  null|                                                              null|             null|              null|       null|   null|    null|  null|    null|   null|   null|        null|      null|   null|
+ DE.20100913.22358.fits    spec1d_DE.20100913.22358-CFHQS1_DEIMOS_20100913T061231.334.fits           352.304 -3.097083333333333      CFHQS1    None     None   None     830G CFHQS1B     1,1 55452.258696 2.40403914  1800.0 
+ KB.20191219.56886.fits spec2d_KB.20191219.56886-BB1245p4238_KCWI_20191219T154806.538.fits 191.3984583333333  42.64016666666667 BB1245p4238    None    2019B   U190      BH2   Small     1,1 58836.658409       1.15  1200.0 
+ KB.20191219.57662.fits spec2d_KB.20191219.57662-BB1245p4238_KCWI_20191219T160102.755.fits 191.3984583333333  42.64016666666667 BB1245p4238    None    2019B   U190      BH2   Small     1,1 58836.667393       1.13   600.0 

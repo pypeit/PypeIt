@@ -58,9 +58,10 @@ by necessity).
 Organize your Raw data
 ----------------------
 
-While PypeIt can handle one or more nights of data with a mix of gratings, tilts, and masks, you will probably find it easier to isolate one set of files at a time.
-This includes mask by mask for multi-slit observations.
-Here is what we recommend:
+While PypeIt can handle one or more nights of data with a mix of gratings,
+tilts, and masks, you will probably find it easier to isolate one set of files
+at a time.  This includes mask by mask for multi-slit observations.  Here is
+what we recommend:
 
  - Place the science + calibrations in one folder.
  - Copy bias (and dark) frames into each folder as needed.
@@ -72,9 +73,11 @@ works much more slowly on gzipped files.
 1. Setup
 ========
 
-The first script you will run with PypeIt is :ref:`pypeit_setup` which
-examines your raw files and generates a sorted list and (if instructed)
-one :doc:`pypeit_file` per instrument configuration.
+The first scripts you will run with PypeIt are :ref:`pypeit_obslog` and
+:ref:`pypeit_setup`, which examines your raw files and generates a sorted list
+of files.  Specifically, :ref:`pypeit_setup` will (if instructed) create one
+:doc:`pypeit_file` per instrument configuration.  The :doc:`pypeit_file` is a
+required input file for ``PypeIt`` to reduce your data.
 
 Complete instructions are provided in :doc:`setup`.
 
@@ -147,6 +150,8 @@ and science frame, located in the *Science/* folder.
 
   - Examine the 2D spectral images :doc:`out_spec2D`
   - Examine the extracted 1D spectra :doc:`out_spec1D`
+
+If you are missing 1D spectra, this means that PypeIt did not find any objects in the corresponding frame.  You may need to modify some of the parameters in your :doc:`pypeit_file`.
 
 Here are some :doc:`reduction_tips` for tuning parameters
 related to extraction and sky subtraction for your spectra.

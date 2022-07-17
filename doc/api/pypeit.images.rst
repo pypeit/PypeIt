@@ -11,10 +11,9 @@ Submodules
    pypeit.images.combineimage
    pypeit.images.detector_container
    pypeit.images.imagebitmask
+   pypeit.images.mosaic
    pypeit.images.pypeitimage
    pypeit.images.rawimage
-   pypeit.images.sciencecube
-   pypeit.images.scienceimage
 
 Module contents
 ---------------

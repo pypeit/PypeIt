@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """
 Dynamically build the rst documentation for the specobj and spec2dobj objects
 """
@@ -56,7 +54,12 @@ if __name__ == '__main__':
                 data_table[i+1,1] = obj.datamodel[k]['otype'].__name__
             # Array type
             if 'atype' in obj.datamodel[k].keys():
-                data_table[i+1,2] = obj.datamodel[k]['atype'].__name__
+                if isinstance(obj.datamodel[k]['atype'], tuple):
+                    data_table[i+1,2] = ','.join(['.'.join([a.__module__, a.__name__])
+                                                    if a.__module__ == 'numpy' else a.__name__ 
+                                                    for a in obj.datamodel[k]['atype']])
+                else:
+                    data_table[i+1,2] = obj.datamodel[k]['atype'].__name__
             else:
                 data_table[i+1,2] = ' '
             if data_table[i+1,2][-1] == '_':

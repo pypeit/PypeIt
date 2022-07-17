@@ -9,7 +9,7 @@ import numpy as np
 from IPython import embed
 
 from pypeit.display import display
-from pypeit.core import extract
+from pypeit.core import findobj_skymask
 from pypeit import datamodel, msgs
 
 
@@ -86,7 +86,7 @@ class Alignments(datamodel.DataContainer):
         show_alignment(self.alignframe, align_traces=self.traces, slits=slits)
 
 
-class TraceAlignment(object):
+class TraceAlignment:
     """
     Class to guide the determination of the alignment traces
 
@@ -177,7 +177,8 @@ class TraceAlignment(object):
              show_peaks (bool, optional):
                Generate QA showing peaks identified by alignment profile tracing
              show_trace (bool, optional):
-               Generate QA showing traces identified. Requires an open ginga RC modules window
+               Generate QA showing traces identified. Requires an open ginga RC modules window.
+               Launch with ``ginga --modules=RC,SlitWavelength &``
              debug (bool, optional):
                Debug the alignment tracing algorithm
 
@@ -190,17 +191,16 @@ class TraceAlignment(object):
         align_prof = dict({})
         # Go through the slits
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
-            specobj_dict = {'SLITID': slit_idx, 'DET': self.det, 'OBJTYPE': "align_profile",
-                            'PYPELINE': self.spectrograph.pypeline}
+            specobj_dict = {'SLITID': slit_idx, 'DET': self.rawalignimg.detector.name,
+                            'OBJTYPE': "align_profile", 'PYPELINE': self.spectrograph.pypeline}
             msgs.info("Fitting alignment traces in slit {0:d}".format(slit_idx))
-            align_traces, _ = extract.objfind(
-                self.rawalignimg.image, slitid_img_init == slit_spat,
+            align_traces = findobj_skymask.objs_in_slit(
+                self.rawalignimg.image, self.rawalignimg.ivar, slitid_img_init == slit_spat,
                 left[:, slit_idx], right[:, slit_idx],
-                ir_redux=False, ncoeff=self.alignpar['trace_npoly'],
-                specobj_dict=specobj_dict, sig_thresh=self.alignpar['sig_thresh'],
+                ncoeff=self.alignpar['trace_npoly'],
+                specobj_dict=specobj_dict, snr_thresh=self.alignpar['snr_thresh'],
                 show_peaks=show_peaks, show_fits=False,
                 trim_edg=self.alignpar['trim_edge'],
-                cont_fit=False, npoly_cont=0,
                 nperslit=len(self.alignpar['locations']))
             if len(align_traces) != len(self.alignpar['locations']):
                 # Align tracing has failed for this slit
@@ -307,4 +307,7 @@ def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
                 if slt%2 == 0:
                     color = 'magenta'
                 # Display the trace
-                display.show_trace(viewer, channel, align_traces[:, bar, slt], trc_name="", color=color)
+                display.show_trace(viewer, channel, align_traces[:, bar, slt], trc_name="",
+                                   color=color)
+
+

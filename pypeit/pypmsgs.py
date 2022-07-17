@@ -54,7 +54,14 @@ class Messages:
 
         # Initialize other variables
         self._defverb = 1
-        if getpass.getuser() in developers:
+
+        try:
+            user = getpass.getuser()
+        except ModuleNotFoundError:
+            # there appears to be a bug in getpass in windows systems where the pwd module doesn't load
+            user = os.getlogin()
+
+        if user in developers:
             self._defverb = 2
         self._verbosity = self._defverb if verbosity is None else verbosity
 
@@ -64,6 +71,7 @@ class Messages:
         # object itself...
         self.sciexp = None
         self.pypeit_file = None
+        self.qa_path = None
 
         # Initialize the log
         self._log = None
@@ -160,7 +168,7 @@ class Messages:
         '''
         Close the log file before the code exits
         '''
-        close_qa(self.pypeit_file)
+        close_qa(self.pypeit_file, self.qa_path)
         return self.reset_log_file(None)
 
     def error(self, msg):

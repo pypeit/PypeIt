@@ -1,170 +1,378 @@
+
+.. include:: include/links.rst
+
+.. _installing:
+
 ============
 Installation
 ============
 
-This document describes how to install ``PypeIt`` for both users and developers.
+.. warning::
+
+    **Apple Silicon (e.g. M1 or M1 Pro) Users**: We have a solution that works
+    for installation on newer Apple hardware.  It *requires* `conda`_ and a specific
+    miniconda installer. If you're an Apple Silicon Mac user, skip to the :ref:`m1_macs`
+    section for details.
+
+.. DO WE HAVE A RELEVANT LINK FOR THE PYPEIT USERS SLACK?
+
+.. warning::
+
+    Python 3.10 is not yet supported.  
+
+Below, we provide detailed instructions for installing ``PypeIt``.  For
+troubleshooting, please consult our ``PypeIt`` user community via our PypeIt
+Users Slack and/or `submit an issue <https://github.com/pypeit/PypeIt/issues>`__
+on GitHub.
+
+.. contents:: Table of Contents
+    :depth: 1
+    :local:
 
 ----
 
-.. _dependencies:
+.. _user:
 
-Installing Dependencies
-=======================
-
-Installing ``PypeIt`` will not automatically ensure that all the
-dependencies (and their appropriate versions) are installed and
-up-to-date. Below we provide two ways of ensuring that the relevant
-dependencies are available.
-
-The package and version requirements for ``PypeIt`` are:
-
-* `python <http://www.python.org/>`_ version 3.7 or later
-* `numpy <http://www.numpy.org/>`_ version 1.18.0 or later
-* `astropy <http://www.astropy.org/>`_ version 4.0 or later
-* `scipy <http://www.scipy.org/>`_ version 1.4 or later
-* `matplotlib <http://matplotlib.org/>`_  version 3.1 or later
-* `numba <https://numba.pydata.org/>`_ version 0.39.0 or later
-* `PySide2 <https://wiki.qt.io/Qt_for_Python>`_ version 5
-* `pyyaml <https://pyyaml.org/>`_ -- version 5.1
-* `configobj <https://pypi.org/project/configobj/>`_ -- version 5.0.6 or later
-* `scikit-learn <https://scikit-learn.org/stable/>`_ -- version 0.20 or later
-* `IPython <https://ipython.org>`_ -- version 7.2.0 or later
-* `ginga <https://pypi.org/project/ginga/>`_ -- version 3.0 or later
-* `requests <https://requests.readthedocs.io/en/master/>`_ -- version 2.23 or later
-* `packaging <https://pypi.org/project/packaging/>`_ -- version 19.0 or later
-* `linetools <https://pypi.org/project/linetools/>`_ -- version 0.2 or later
-* `extension_helpers <https://pypi.org/project/extension-helpers/>`_ -- version 0.1 or later
-* `shapely <https://pypi.org/project/Shapely/>`_ -- version 1.7 or later; optional, **required for KCWI only**
-* `pytest <https://pypi.org/project/pytest/>`_ -- version 3.0.7 or later; optional, developers only
-
-Developer-only items
---------------------
-
-If you are developing, you may need the following packages:
-
-* `sphinx <https://www.sphinx-doc.org/en/master/>`_ -- version 4.0 or later
-* sphinx_automodapi (pip install only)
-* sphinx_rtd_theme (pip install only)
-
-Create a conda environment (recommended)
-----------------------------------------
-
-We highly recommend using `Anaconda <https://www.anaconda.com/>`_ as
-a package and environment manager. We provide a yaml file that can be
-used to setup a conda environment called ``PypeIt``.  To use this:
-
- #. Download `environment.yml <https://github.com/pypeit/PypeIt/blob/master/environment.yml>`__.
-
- #. Create the conda environment::
-
-        conda env create -f environment.yml
-
- #. Activate it::
-
-        conda activate pypeit
-
- #. Verify that the new environment was installed correctly::
-
-        conda env list
-
-Install via ``pip`` 
--------------------
-
-To install the dependencies using `pip <https://pypi.org/project/pip/>`_:
-
- #. Download `requirements.txt <https://github.com/pypeit/PypeIt/blob/master/pypeit/requirements.txt>`__.
-
- #. Install the dependencies::
-
-        pip install -r requirements.txt
-
-Note that this is a "system-wide" installation, and will
-replace/upgrade any current versions of the packages you already have
-installed.
-
-Dependency Caveats
-------------------
-
-Some users have run into the following complications when installing the
-``PypeIt`` dependencies:
-
- - Installation of ``numba`` has been known to fault because of an issue with
-   the LLVM compiler. For one particular case, the solution was to revert to
-   llvm version 9.0.1 using `Homebrew <https://brew.sh/>`_ and then add
-   environmental variables to your shell rc that point to the reverted
-   directory structure.
- 
- - At the moment, an implicit dependency on PyQt5 remains (in addition to
-   PySide2) because of our dependence on ``linetools``.
-
- - Note that ``shapely`` is listed as an optional dependency, but is only
-   currently used by one method that calculates the spaxel area for KCWI
-   output datacubes.
-
- - For the developer-only (``Sphinx``) packages, download
-   `requirements_doc.txt <https://github.com/pypeit/PypeIt/blob/master/requirements_doc.txt>`_
-   and install with ``pip install -r requirements_doc.txt``.
-
-----
-
-Installing PypeIt
+User Installation
 =================
 
-Please read all of the text in this sub-section before choosing which
-of the two methods described below for how you wish to install
-``PypeIt``. Once you've completed the installation steps, you should
-:ref:`test_installation`.
+.. _environment:
 
-Install using pip
------------------
+Setup a clean python environment
+--------------------------------
 
-If you are not using code on the edge of development, then
-we recommend that you install ``PypeIt`` with ``pip``::
+Both methods discussed below for installing ``PypeIt`` (via `pip`_ or `conda`_)
+also install or upgrade its :ref:`dependencies`.  For this reason, we highly
+(!!) recommended you first set up a clean python environment in which to install
+``PypeIt``.  This mitigates any possible dependency conflicts with other
+packages you use. Note that users of Apple Silicon-based computers must use `conda`_
+because some key dependencies are not yet available via `pip`_.
 
-    pip install pypeit
+You can setup a new python environment using `virtualenv`_:
 
-This has been known to fail on some systems (and we're working to fix
-the issue). If you have problems, instead try::
+.. code-block:: console
 
-    pip install git+https://github.com/pypeit/PypeIt.git
+    virtualenv pypeit
+    source pypeit/bin/activate
 
-If that also fails, please `submit an issue
-<https://github.com/pypeit/PypeIt/issues>`__.
+or `conda`_:
 
-Install from the git source
----------------------------
+.. code-block:: console
 
-If ``pip`` is unsuccessful or if you are planning to use any of the
-``PypeIt`` development branches, then you should install directly
-from GitHub.
+    conda create -n pypeit python=3.9
+    conda activate pypeit
 
- #. Clone the repository::
+See the `Virtualenv documentation <https://virtualenv.pypa.io/en/latest/>`_
+and/or `Managing Environments with Conda
+<https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html>`_
+for more details. See also `virtualenvwrapper
+<https://virtualenvwrapper.readthedocs.io/en/latest/>`_ as an option for more
+easily managing `virtualenv`_ environments. The `conda`_ installation method described below
+creates an environment for you.
 
-        git clone https://github.com/pypeit/PypeIt.git
+Install via ``pip``
+-------------------
 
- #. This will create a ``PypeIt`` directory in your current path. To install::
+To install the latest release of ``PypeIt`` and its required dependencies, execute
+either
 
-        cd PypeIt
-        python setup.py develop
+.. code-block:: console
 
-Installing the code this way ensures that virtually all changes to files in
-the ``PypeIt`` directory take immediate effect the next time you
-import the code.
+    pip install "pypeit[pyqt5]"
+
+to select the ``PyQT5`` QT bindings or
+
+.. code-block:: console
+
+    pip install "pypeit[pyside2]"
+
+to select ``PySide2``; see :ref:`interactive`.
+
+If you are generating datacubes (and performing an astrometric correction), you
+will also need the `scikit-image`_ package. It can be installed by including it
+in the optional dependencies, e.g.:
+
+.. code-block:: console
+
+    pip install "pypeit[pyside2,scikit-image]"
+
+Also, ``PypeIt`` will use the `bottleneck`_ package to speed up a few
+calculations, if it is available.  To include bottleneck in the ``PypeIt``
+installation and take advantage of these speed gains, instead install by
+running, e.g.:
+
+.. code-block:: console
+
+    pip install "pypeit[pyqt5,bottleneck]"
+
+.. note::
+
+    Whether or not it is correct syntax to use the quotes in the commands above
+    depends on your shell.  The above commands are specific to ZShell, whereas
+    you don't need the quotes in Bash.  But, in any case, you should avoid
+    copying these commands from your browser since the unicode for quotation
+    marks may not be correct, leading to errors when they are directly pasted
+    into a terminal window.
+
+Upgrading to a new version via ``pip``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Upgrading ``PypeIt`` should simply be a matter of executing:
+
+.. code-block:: console
+
+    pip install pypeit --upgrade
+
+If this causes problems (e.g., a new ``PypeIt`` script is unavailable or
+you encounter script errors), first try uninstalling (e.g., ``pip uninstall pypeit``)
+and then reinstalling.
+
+Install via ``conda`` (recommended overall and *required for Apple Silicon*)
+----------------------------------------------------------------------------
+
+`conda`_ is a popular and widely-used package and environment manager. We
+provide a yaml file that can be used to setup a conda environment called
+``pypeit`` that contains ``pypeit`` and all of the required dependencies.
+To use this:
+
+    #. Download `environment.yml
+       <https://raw.githubusercontent.com/pypeit/PypeIt/release/environment.yml>`__.
+
+    #. Create the conda environment and install ``pypeit`` into it:
+
+        .. code-block:: console
+
+            conda env create -f environment.yml
+
+    #. Activate it:
+
+        .. code-block:: console
+
+            conda activate pypeit
+
+    #. Verify that the new environment was installed correctly and contains ``pypeit``:
+
+        .. code-block:: console
+
+            conda env list
+
+This environment should now be ready to use and contain the latest official ``pypeit`` release.
+
+Upgrading to a new version via ``conda``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Upgrading ``PypeIt`` within your ``pypeit`` ``conda`` environment should simply be a matter of executing:
+
+.. code-block:: console
+
+    conda update --all
+
+If this causes problems (e.g., a new ``PypeIt`` script is unavailable or
+you encounter script errors), simply remove the conda environment
+(e.g., ``conda env remove pypeit``) and reinstall as above.
+
+.. _m1_macs:
+
+User Installation on Apple Silicon-based Macs
+---------------------------------------------
+
+The `conda`_ installation method described above is currently the *only* reliable way to
+natively install ``pypeit`` on new Macs based on Apple Silicon processors (e.g. M1 and M1 Pro).
+It requires that `conda`_ was installed via a Apple Silicon native installer, though.
+There is now an official `miniconda <https://docs.conda.io/en/latest/miniconda.html>`__ installer
+for Apple Silicon and we recommend using that. The `miniforge <https://github.com/conda-forge/miniforge>`__
+installer for Apple Silicon should also work, but is not as well tested. The full Anaconda installers will
+not work and do not yet support Apple Silicon.
+
+It is also possible to install and run ``pypeit`` using Mac OS's Rosetta emulator. To do so, bring up
+a command-line in emulation mode:
+
+.. code-block:: console
+
+    arch -x86_64 /bin/zsh
+
+Then follow one of the installation methods described above. However, we only recommend this
+approach if there is some unforeseen problem with one of the native miniconda installers. Rosetta
+emulation works exceedingly well, but does incur a 15-30% performance penalty compared to native.
+
+Solutions/Recommendations/Feedback for these installation options are welcome; please `Submit an
+issue`_.
 
 ----
 
-Compiled Code and Plug-ins
-==========================
+.. _data_installation:
+
+Additional Data
+===============
+
+Some data used by ``PypeIt`` are either not kept in the GitHub repository or distributed
+via `pip`_ because of their large size.  These include:
+
+ - Wavelength calibration template (``reid-arxiv``) files for all instruments,
+ - Canned sensitivity function (``sensfunc``) files for Mauna Kea,
+ - Sky transmission data (``skisim``) files,
+ - Atmospheric model grids used for telluric correction and flux calibration, and
+ - Canned data-reduction products used by quick-look scripts.
+
+To ease the downloading and storing of these files, ``PypeIt`` now uses the ``astropy``
+download/cache system to maintain copies of these files in a user-writeable location
+that is independent of the ``PypeIt`` installation.  For most users, this will be
+something like ``~/.pypeit/cache``, but is adjustable via ``astropy``'s `configuration
+system <https://docs.astropy.org/en/stable/config/index.html#astropy-config>`__.  By
+default, ``PypeIt`` will download necessary files at runtime if they are not already
+cached.
+
+Because a fresh install of ``PypeIt`` does not contain all of the ancillary data that
+might be required for data reduction, users planning to run the pipeline without an
+internet connection will need to cache the necessary data files ahead of time.  To ease
+this process, a script ``pypeit_cache_github_data`` is included.  For example, to
+download the needed files for the ``keck_deimos`` spectrograph, you would execute:
+
+      .. code-block:: console
+
+        $ pypeit_cache_github_data keck_deimos
+
+Once cached, the data will be accessed by ``PypeIt`` without requiring an internet
+connection.  This script will also download Atmospheric Model Grids specified in the
+instrument-wide configuration, but may not catch configuration-specific ``telgridfile``
+parameter specifications.  Before trying to run ``PypeIt`` offline, verify that any
+necessary Atmospheric Model Grids are installed; if not, install them using the
+instructions below.
+
+
+.. _install_atmosphere:
+
+Atmospheric Model Grids
+-----------------------
+
+Calculation of the sensitivity functions for IR instruments and general fitting
+of telluric absorption uses a grid of model atmosphere spectra.  These model
+grids range in size from 3.5-7.7 GB.  Each file provides model spectra for
+atmospheric conditions specific to an observatory; however, a model grid is not
+provided for all observatories with spectrographs supported by ``PypeIt``.  If
+you do not find models for your observatory, you can use the Maunakea model as
+an approximation. It includes a large grid of different parameters and should be
+good enough for most purposes.
+
+**NOTE:** Instruments that anticipate needing
+a telluric grid have its filename already included in the ``telgridfile`` `TelluricPar
+keyword <https://pypeit.readthedocs.io/en/latest/pypeit_par.html#telluricpar-keywords>`__.
+The needed model grid will download automatically when required by the code, but
+given the size of these files and your downlink speed, this may take some time.
+To install the grid independent of a reduction, run the ``pypeit_install_telluric``
+script, calling the filename of the grid required.  For example, if you needed the file
+``TelFit_MaunaKea_3100_26100_R200000.fits``, you would execute:
+
+    .. code-block:: console
+
+        $ pypeit_install_telluric TelFit_MaunaKea_3100_26100_R200000.fits
+
+The downloaded file will exist in the ``PypeIt`` cache, and will persist through
+upgrades of your installation via `pip`_ or `conda`_.  To force the update of a
+telluric model grid file to the latest version, simply run ``pypeit_install_telluric``
+with the ``--force_update`` option.
+
+If you require a telluric grid that is not presently hosted in the cloud, the code will
+instruct you to download the file separately from the `PypeIt dev-suite Google Drive`_.
+Users may select any of the files in the Google Drive for their telluric correction,
+download them sepatately, then install them using the ``--local`` option to
+``pypeit_install_telluric``.
+
+
+Raw Data
+--------
+
+Example raw data for all supported spectrographs are used in extensive testing
+of the code base during development; see :ref:`dev-suite`.  General users should
+not need access to these data; however, they may be useful for learning how to
+use ``PypeIt`` before running it on your own data from the same instrument.
+These data are stored in the ``RAW_DATA`` directory in the `PypeIt dev-suite
+Google Drive`_, divided into subdirectories for each instrument and instrument
+setup.  See also the `PypeIt-development-suite`_ GitHub repository, which
+includes a :doc:`pypeit_file` for each instrument and setup used during
+development testing.
+
+
+Quick-Look Master Files
+-----------------------
+
+.. note::
+
+    We continue to work on cleaner installation solutions for these data
+    products, particularly for the quick-look master files.  In the meantime,
+    note that you will likely need to re-run the data-specific installation
+    scripts described below every time you upgrade your installation (via
+    `pip`_ or `conda`_).
+
+Some of the quick-look reductions provided by ``PypeIt`` require canned master
+files to speed up the data-reduction process, as appropriate for a quick-look
+result.  These files are hosted in the ``QL_MASTERS`` directory in the `PypeIt
+dev-suite Google Drive`_.
+
+To install the quick-look master files:
+
+    #. Right-click on the ``QL_MASTERS`` folder in the `PypeIt dev-suite
+       Google Drive`_ and select the "Download" option from the drop-down menu.
+       This will download a zip file containing the full directory contents.
+       Its current size (as of 22 July 2021) is about 35 MB.
+
+    #. Run the ``pypeit_install_ql_masters`` script.  E.g.:
+
+        .. code-block:: console
+
+            $ pypeit_install_ql_masters --zip ~/Downloads/QL_MASTERS-20210722T162355Z-001.zip --odir my_path
+
+The ``pypeit_install_ql_masters`` script will unzip the downloaded file in the
+``my_path`` directory and create a symlink to the extracted directory in the
+``pypeit/data/`` directory of your ``PypeIt`` installation.  The script can
+automatically delete the zip file using the ``--rmzip`` option.  If you already
+have the ``QL_MASTERS`` directory, you can also use the script to simply create
+the symlink using the ``--ql_path`` option.
+
+.. warning::
+
+    The installation script simply creates symlinks to the downloaded data.
+    This means that if you move the original data, the symlinks will become
+    broken **and you will need to rerun the installation script.**
+
+----
+
+.. _notes:
+
+Important Package Notes
+=======================
+
+.. _interactive:
+
+Interactive Tools
+-----------------
+
+Interactive tools in ``PypeIt`` are built using the `QT
+<https://www.qt.io/>`_ windowing toolkit. The ``qtpy`` package is used to
+provide an abstract interface to the two most widely used QT bindings for
+Python (see :ref:`dependencies`):
+
+* `pyqt5 <https://riverbankcomputing.com/software/pyqt/intro>`_
+* `PySide2 <https://wiki.qt.io/Qt_for_Python>`_
+
+At least one of those bindings must be installed for the interative GUIs to
+work. **Do not install both!**  These two packages do not play nicely together.
+We strongly recommend that you use ``pyqt5``, unless you are attracted to the
+more flexible licensing that ``PySide2`` provides.  ``PySide2`` can occasionally
+cause GUIs to crash because of conflicts with other packages in your environment
+that use ``pyqt5`` (all the more reason to isolate your ``PypeIt`` installation
+in its own environment).
 
 C code
 ------
 
-Significant speed gains in ``PypeIt`` can be enabled via compilation
-of the C code version of the b-spline fitting code. Compilation of
-the C code should happen automatically when you execute ``pip
-install`` or ``python setup.py develop``. You can check that the C
-code was compiled successfully by running the ``pypeit_c_enabled``
-script. What you should see is::
+Significant speed gains in ``PypeIt`` can be enabled via compilation of the C
+versions of the b-spline fitting code. Compilation of the C code should happen
+automatically when you install ``PypeIt``.  However, you can check that the C
+code was compiled successfully by running the ``pypeit_c_enabled`` script. What
+you should see is:
+
+.. code-block:: console
 
     $ pypeit_c_enabled
     Successfully imported bspline C utilities.
@@ -175,18 +383,19 @@ Some notes if you have problems installing the C code:
 
     - the code will still run successfully by falling back to slower,
       pure-python implementations
-    - to successfully compile the C code, you may need to update
-      `gcc` and/or `Xcode` for Mac users
-    - for some Mac users, you may also need to update your OS if
-      you're using a particularly old version (e.g., 10.10 Yosemite)
+
+    - to successfully compile the C code, you may need to update ``gcc`` and/or
+      ``Xcode`` for Mac users
+
+    - for some Mac users, you may also need to update your OS if you're using a
+      particularly old version (e.g., 10.10 Yosemite)
 
 ginga Plugins
 -------------
 
-``PypeIt`` now (as of version 1.0.7dev) requires the ``ginga`` viewer
-and uses at least one ``ginga`` plugin to enable specific display
-functionality. No special considerations are needed to have these
-plugins installed; however, you can check that they're enabled by
+``PypeIt`` requires the ``ginga`` viewer and uses at least one ``ginga`` plugin
+to enable specific display functionality. No special considerations are needed
+to have these plugins installed; however, you can check that they're enabled by
 running the following script with the following result::
 
     $ pypeit_chk_plugins
@@ -198,51 +407,187 @@ the missing plugins. If you have a problem, please `submit an issue
 
 ----
 
+.. _dependencies:
+
+Package Dependencies
+====================
+
+All ``PypeIt`` dependencies are installed along with the installation of
+``PypeIt`` itself.  Beware this means that packages in your current environment
+may be updated depending on the ``PypeIt`` version requirements (which is why we
+recommend you :ref:`environment` for ``PypeIt``).  The current version
+requirements for both users and developers are:
+
+.. include:: include/dependencies_table.rst
+
+Dependency Caveats
+------------------
+
+Some users have run into the following complications when installing the
+``PypeIt`` dependencies.  If you run into any more, please `submit an issue
+<https://github.com/pypeit/PypeIt/issues>`__.
+
+.. IS THIS FIRST ITEM STILL TRUE?
+
+- At the moment, an implicit dependency on QT bindings remains (either PyQT5 or
+  PySide2) because of our dependence on ``linetools``.
+
+----
+
+.. _developer_install:
+
+Developer Installation
+======================
+
+We, of course, welcome and encourage community development of ``PypeIt``.
+Please see our :ref:`codeconduct` and the :ref:`development`.
+
+Developer install via ``pip``
+-----------------------------
+
+Install pre-release or development versions of ``PypeIt`` directly from `GitHub
+<https://github.com/pypeit/PypeIt>`_ using ``pip`` as follows. If you already
+have a ``pypeit`` environment setup, run:
+
+.. code-block:: console
+
+    pip install --upgrade "git+https://github.com/pypeit/PypeIt#egg=pypeit"
+
+If you're installing in a clean environment, be sure to include the optional
+dependencies as well:
+
+.. code-block:: console
+
+    pip install --upgrade "git+https://github.com/pypeit/PypeIt#egg=pypeit[pyqt5]"
+
+These commands will install the default branch, ``release``. You can also
+specify a different branch, such as the main ``develop`` branch:
+
+.. code-block:: console
+
+    pip install --upgrade "git+https://github.com/pypeit/PypeIt.git@develop#egg=pypeit[pyqt5]"
+
+Commit hashes, tag names, or git refs can also be specified; see the `VCS
+Support documentation
+<https://pip.pypa.io/en/stable/reference/pip_install/#vcs-support>`_ for details
+and examples.
+
+Developer install from source
+-----------------------------
+
+Developers doing code development will likely want to set up an "editable"
+install that points to a locally checked out copy of the GitHub repository.  We
+highly recommended using ``pip`` to install the repository and to
+:ref:`environment` for code development.
+
+To install from source (after setting up the python enviroment), first clone the
+repository:
+
+.. code-block:: console
+
+    git clone https://github.com/pypeit/PypeIt.git
+
+Then install the code, include the development dependencies:
+
+.. code-block:: console
+
+    cd PypeIt
+    pip install -e ".[dev,pyqt5]"
+
+An "editable" install means that any changes you make in the repository
+directory tree will become immediately available the next time the code is
+imported. Including the ``[dev]`` set of optional dependencies ensures that all
+of the tools you need to test and build ``PypeIt`` are installed. The ``pyqt5``
+installation option instructs the script to use the PyQt5 Qt backend. (Again,
+note that you may or may not need the quotes above depending on your shell, and
+that you should avoid cutting and pasting these commands into a terminal
+window.)
+
+Finally, you may want to add lines to your relevant shell configuration file
+(e.g., ``.zshrc`` or ``.bashrc``) that activate the relevant environment
+whenever you start up a new shell.  For example:
+
+.. code-block:: console
+
+    conda activate pypeit
+
+Otherwise you will need to always type this command at the terminal prompt to
+activate the pypeit environment.
+
+----
+
 .. _test_installation:
 
 Test Your Installation
 ======================
 
-In order to assess whether ``PypeIt`` has been properly installed, we
-suggest you run the following tests:
+Tagged versions of ``PypeIt`` are extensively tested before distribution.
+However, it is worth testing that your installation has been successful, as
+follows.
 
-1. Ensure ``run_pypeit`` works
-------------------------------
+User Tests
+----------
 
-Go to a directory outside of the ``PypeIt`` directory (e.g. your home
-directory) and run the main executable. E.g.,::
+The most basic tests that ``PypeIt`` has been properly installed is to get the
+help dialog for one of its main executables.  I.e., from a terminal widow, type:
 
-	cd
-	run_pypeit -h
+.. code-block:: console
 
-This should fail if any of the requirements are not satisfied; see
-:ref:`dependencies`.
+    run_pypeit -h
 
+A second basic test is to try to import ``PypeIt`` from within a python session.
+For example:
 
-2. Run the ``PypeIt`` unit tests
---------------------------------
+.. code-block:: console
 
-If you cloned the repo (i.e., you did *not* use `pip`) then you can
-run the standard tests by doing::
+    python
+    >>> import pypeit
+
+**To ensure that your installation of either ``pyqt5`` or ``pyside2`` works**,
+you can try to use ``pypeit_show_1dspec`` on one of the test files distributed
+with the package.  Below is a zshell command-line incantation (it's likely the
+same in bash) that will locate a test spec1D file and attempt to use
+:ref:`pypeit_show_1dspec` to show it:
+
+.. code-block:: console
+
+    python -c "from pkg_resources import resource_filename; print(resource_filename('pypeit', 'tests/files/spec1d_r153-J0025-0312_KASTr_20150123T025323.850.fits'))" | xargs -I {} pypeit_show_1dspec {}
+
+If ``pyqt5`` or ``pypside2`` are correctly installed, this should show a test
+spectrum from the Shane/KAST spectrograph.
+
+Developer Tests
+---------------
+
+If you performed a developer installation by cloning the repository into a local
+directory (e.g., ``~/PypeIt``), you can run the standard unit tests within the
+``PypeIt`` environment by executing:
+
+.. code-block:: console
+
+    cd ~/PypeIt
+    pytest
+
+.. WHO AMONG THE CORE DEVELOPERS USE TOX?  WE USE IT FOR CI TESTS, BUT SHOULD WE BE RECOMMENDING IT FOR USERS?
+
+To test within isolated environments and against different versions of various
+dependencies, we recommend using ``tox``:
+
+.. code-block:: console
 
     cd PypeIt
-    python setup.py test
+    tox -e test
 
-Or, alternatively::
+or, e.g.:
 
-    cd PypeIt/pypeit/tests
-    python -m pytest . -W ignore
+.. code-block:: console
 
-Over 100 tests should pass, nearly 100 will be skipped (unless
-you are a developer) and none should fail.
+    tox -e test-astropydev
 
-----
+Run ``tox -a`` to see a list of available test environemts.
 
-Developers
-==========
+In either case, over 100 tests should pass, nearly 100 will be skipped and none
+should fail. The skipped tests only run if the PypeIt development is installed
+and configured; see :ref:`dev-suite`.
 
-For developers, see :ref:`development`.
-
-Also, test scripts for development purposes are available at the
-`PypeIt Development Suite <https://github.com/pypeit/PypeIt-development-suite>`_.
 

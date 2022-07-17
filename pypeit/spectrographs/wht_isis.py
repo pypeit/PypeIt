@@ -3,8 +3,6 @@ Module for WHT/ISIS specific methods.
 
 .. include:: ../include/links.rst
 """
-from pkg_resources import resource_filename
-
 import numpy as np
 
 from pypeit import msgs
@@ -107,22 +105,24 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
     camera = 'ISISb'
     comment = 'Blue camera'
     
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
         # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+        # TODO: Could this be detector dependent??
+        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict = dict(
@@ -160,16 +160,7 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
 
         # JFH Is this correct?
         # Processing steps
-        turn_off = dict(use_overscan=False)
-        par.reset_all_processimages_par(**turn_off)
-
-        # Turn off the overscan
-        #for ftype in par['calibrations'].keys():
-        #    try:
-        #        par['calibrations'][ftype]['process']['overscan'] = 'none'
-        #    except (TypeError, KeyError):
-        #        pass
-        par['scienceframe']['process']['use_overscan'] = False
+        par.reset_all_processimages_par(use_overscan=False)
         # Make a bad pixel mask
         par['calibrations']['bpm_usebias'] = True
         # Set pixel flat combination method
@@ -180,8 +171,6 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
         par['calibrations']['wavelengths']['n_first'] = 3
         par['calibrations']['wavelengths']['n_final'] = 5
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
-        par['calibrations']['wavelengths']['wv_cen'] = 4859.0
-        par['calibrations']['wavelengths']['disp'] = 0.2
         # Do not flux calibrate
         par['fluxcalib'] = None
         # Set the default exposure time ranges for the frame typing
@@ -264,22 +253,24 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
     camera = 'ISISr'
     comment = 'Red camera'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
         # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+        # TODO: Could this be detector dependent??
+        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict = dict(
@@ -316,12 +307,7 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Turn off the overscan
-        for ftype in par['calibrations'].keys():
-            try:
-                par['calibrations'][ftype]['process']['overscan'] = 'none'
-            except (TypeError, KeyError):
-                pass
-        par['scienceframe']['process']['use_overscan'] = False
+        par.reset_all_processimages_par(use_overscan=False)
         # Make a bad pixel mask
         par['calibrations']['bpm_usebias'] = True
         # Set pixel flat combination method
@@ -330,8 +316,6 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'ArII', 'CuI']
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
-        par['calibrations']['wavelengths']['wv_cen'] = 6000.0
-        par['calibrations']['wavelengths']['disp'] = 0.2
         # Do not flux calibrate
         par['fluxcalib'] = None
         # Set the default exposure time ranges for the frame typing

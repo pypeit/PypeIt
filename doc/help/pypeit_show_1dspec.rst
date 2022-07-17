@@ -16,7 +16,7 @@
       --exten EXTEN      FITS extension (default: 1)
       --obj OBJ          Object name in lieu of extension, e.g.
                          SPAT0424-SLIT0000-DET01 (default: None)
-      --extract EXTRACT  Extraction method. Default is OPT. ['BOX', 'OPT']
-                         (default: OPT)
+      --extract EXTRACT  Extraction method. Default is OPT. ['BOX', 'OPT'] (default:
+                         OPT)
       --flux             Show fluxed spectrum? (default: False)
     

@@ -4,7 +4,6 @@ Module for Shane/Kast specific methods.
 .. include:: ../include/links.rst
 """
 import os
-from pkg_resources import resource_filename
 
 from IPython import embed
 
@@ -17,7 +16,7 @@ from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
-from pypeit.core import parse
+from pypeit import data
 
 
 
@@ -41,6 +40,8 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        # Bound the detector with slit edges if no edges are found
+        par['calibrations']['slitedges']['bound_detector'] = True
 
         # Always correct for flexure, starting with default parameters
         par['flexure']['spec_method'] = 'boxcar'
@@ -96,6 +97,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Additional ones, generally for configuration determination or time
         self.meta['dichroic'] = dict(ext=0, card='BSPLIT_N')
+        self.meta['instrument'] = dict(ext=0, card='VERSION')
         lamp_names = [ '1', '2', '3', '4', '5',
                        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
         for kk,lamp_name in enumerate(lamp_names):
@@ -198,16 +200,18 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
     name = 'shane_kast_blue'
     camera = 'KASTb'
     supported = True
+    header_name = 'kastb'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
@@ -215,7 +219,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         """
         # Detector 1
         detector_dict = dict(
-            binning=self.get_meta_value(self.get_headarr(hdu), 'binning'),
+            binning='1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning'),
             det=1,
             dataext=0,
             specaxis=1,
@@ -232,14 +236,11 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
             ygap=0.,
             ysize=1.,
             darkcurr=0.0,
-            datasec=np.asarray(['[:, 1:1024]', '[:, 1025:2048]']),  # These are rows, columns on the raw frame, 1-indexed
+            # These are rows, columns on the raw frame, 1-indexed
+            datasec=np.asarray(['[:, 1:1024]', '[:, 1025:2048]']),
             oscansec=np.asarray(['[:, 2050:2080]', '[:, 2081:2111]']),
         )
-        # suffix='_blue'
-        detector = detector_container.DetectorContainer(**detector_dict)
-
-        # Return
-        return detector
+        return detector_container.DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -252,8 +253,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         """
         par = super().default_pypeit_par()
 
-        par['flexure']['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
-                                                  'sky_kastb_600.fits')
+        par['flexure']['spectrum'] = 'sky_kastb_600.fits'
         # 1D wavelength solution
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20
@@ -327,23 +327,33 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
     name = 'shane_kast_red'
     camera = 'KASTr'
     supported = True
+    header_name = 'kastr'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
+        .. warning::
+
+            Many of the necessary detector parameters are read from the file
+            header, meaning the ``hdu`` argument is effectively **required** for
+            Shane/KASTr.  The optional use of ``hdu`` is only viable for
+            automatically generated documentation.
+
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
         # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+        # TODO: Could this be detector dependent??
+        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict = dict(
@@ -361,7 +371,15 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
             numamplifiers   = 2,
             gain            = np.atleast_1d([1.9, 1.9]),
             ronoise         = np.atleast_1d([3.8, 3.8]),
+            datasec         = None,
+            oscansec        = None
             )
+
+        if hdu is None:
+            return detector_container.DetectorContainer(**detector_dict)
+
+        # TODO: I don't know how to handle the stuff below for the
+        # auto-generated detector table...
 
         # Parse datasec, oscancsec from the header
         header = hdu[0].header
@@ -373,7 +391,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
 
         x1_0 = 1             # Amp 1
         x1_1 = 512 - crval1u
-        x2_0 = x1_1+1        # Amp
+        x2_0 = max(x1_1+1,1)       # Amp 2
         x2_1 = ndata
 
         xo1_1 = x2_1+1
@@ -381,9 +399,21 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         xo2_1 = xo1_2+1
         xo2_2 = xo1_2+nover
 
-        # These are rows, columns on the raw frame, 1-indexed
-        datasec = ['[:,{}:{}]'.format(x1_0, x1_1), '[:,{}:{}]'.format(x2_0,x2_1)]
-        oscansec = ['[:,{}:{}]'.format(xo1_1,xo1_2), '[:,{}:{}]'.format(xo2_1,xo2_2)]
+        # Allow for reading only Amp 2!
+        if x1_1 < 3:
+            msgs.warn("Only Amp 2 data was written.  Ignoring Amp 1")
+            detector_dict['numamplifiers'] = 1
+            detector_dict['gain'] = np.atleast_1d(detector_dict['gain'][0])
+            detector_dict['ronoise'] = np.atleast_1d(detector_dict['ronoise'][0])
+            # These are rows, columns on the raw frame, 1-indexed
+            datasec = ['[:,{}:{}]'.format(x2_0,x2_1)]
+            oscansec = ['[:,{}:{}]'.format(xo2_1,xo2_2)]
+        else:
+            # These are rows, columns on the raw frame, 1-indexed
+            datasec = ['[:,{}:{}]'.format(x1_0, x1_1), 
+                    '[:,{}:{}]'.format(x2_0,x2_1)]
+            oscansec = ['[:,{}:{}]'.format(xo1_1,xo1_2), 
+                        '[:,{}:{}]'.format(xo2_1,xo2_2)]
 
         # Fill it up
         detector_dict['datasec'] = np.atleast_1d(datasec)
@@ -404,6 +434,10 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['NeI','HgI','HeI','ArI']
+
+        # TODO In case someone wants to use the IR algorithm for shane kast this is the telluric file. Note the IR
+        # algorithm is not the default.
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Lick_3100_11100_R10000.fits'
 
         return par
 
@@ -470,9 +504,56 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
             # Add CdI
             par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI', 'CdI']
         else:
-            pass
+            par['calibrations']['wavelengths']['use_instr_flag'] = True
+
         # Return
         return par
+
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table):
+        """
+
+        This routine is for performing instrument/disperser specific tweaks to standard stars so that sensitivity
+        function fits will be well behaved. For example, masking second order light. For instruments that don't
+        require such tweaks it will just return the inputs, but for isntruments that do this function is overloaded
+        with a method that performs the tweaks.
+
+        Parameters
+        ----------
+        wave_in: (float np.ndarray) shape = (nspec,)
+            Input standard star wavelenghts
+        counts_in: (float np.ndarray) shape = (nspec,)
+            Input standard star counts
+        counts_ivar_in: (float np.ndarray) shape = (nspec,)
+            Input inverse variance of standard star counts
+        gpm_in: (bool np.ndarray) shape = (nspec,)
+            Input good pixel mask for standard
+        meta_table: (astropy.table)
+            Table containing meta data that is slupred from the specobjs object. See unpack_object routine in specobjs.py
+            for the contents of this table.
+
+        Returns
+        -------
+        wave_out: (float np.ndarray) shape = (nspec,)
+            Output standard star wavelenghts
+        counts_out: (float np.ndarray) shape = (nspec,)
+            Output standard star counts
+        counts_ivar_out: (float np.ndarray) shape = (nspec,)
+            Output inverse variance of standard star counts
+        gpm_out: (bool np.ndarray) shape = (nspec,)
+            Output good pixel mask for standard
+
+        """
+
+        # Could check the wavelenghts here to do something more robust to header/meta data issues
+        if '600/7500' in meta_table['DISPNAME']:
+            # The blue edge and red edge of the detector have no throughput so mask by hand.
+            edge_region= (wave_in < 5400.0) | (wave_in > 8785.0)
+            gpm_out = gpm_in & np.logical_not(edge_region)
+        else:
+            gpm_out = gpm_in
+
+        return wave_in, counts_in, counts_ivar_in, gpm_out
+
 
 
 
@@ -485,23 +566,26 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
     camera = 'KASTr'
     supported = True
     comment = 'Red reticon'
+    header_name = 'kastr'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
         # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+        # TODO: Could this be detector dependent??
+        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict = dict(
@@ -540,6 +624,7 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI']
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20
         par['calibrations']['wavelengths']['sigdetect'] = 5.
+        par['calibrations']['wavelengths']['use_instr_flag'] = True
 
         return par
 
@@ -576,4 +661,5 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         self.meta['dispname'] = dict(ext=0, card='GRATNG_N')
         self.meta['dispangle'] = dict(ext=0, card='GRTILT_P')
         # Additional (for config)
+
 

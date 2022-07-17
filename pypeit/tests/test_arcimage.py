@@ -25,7 +25,7 @@ def data_path(filename):
 def test_init():
     # Instantiate a simple pypeitImage
     pypeitImage = pypeitimage.PypeItImage(np.ones((1000, 1000)))
-    pypeitImage.fullmask = np.zeros((1000, 1000), dtype=np.int64)
+    pypeitImage.reinit_mask()
     pypeitImage.detector = test_detector.detector_container.DetectorContainer(**test_detector.def_det)
     # Now the arcimage
     arcImage = buildimage.ArcImage.from_pypeitimage(pypeitImage)
@@ -33,17 +33,19 @@ def test_init():
 def test_master_io():
     # Instantiate a simple pypeitImage
     pypeitImage = pypeitimage.PypeItImage(np.ones((1000, 1000)))
-    pypeitImage.fullmask = np.zeros((1000, 1000), dtype=np.int64)
+    pypeitImage.reinit_mask()
     pypeitImage.detector = test_detector.detector_container.DetectorContainer(**test_detector.def_det)
     pypeitImage.PYP_SPEC = 'shane_kast_blue'
     # Now the arcimage
     arcImage = buildimage.ArcImage.from_pypeitimage(pypeitImage)
     # Write
     master_filename = masterframe.construct_file_name(arcImage, 'A_01_22', master_dir=data_path(''))
+    assert master_filename == data_path('MasterArc_A_01_22.fits'), 'Master filename changed'
     arcImage.to_master_file(master_filename)
     # Read
-    _arcImage = buildimage.ArcImage.from_file(data_path('MasterArc_A_01_22.fits'))
+    _arcImage = buildimage.ArcImage.from_file(master_filename)
     assert isinstance(_arcImage.detector, test_detector.detector_container.DetectorContainer)
     # Cleanup
     os.remove(master_filename)
+
 

@@ -1,7 +1,7 @@
 
 import time
 import os
-import pytest
+import timeit
 
 from IPython import embed
 
@@ -12,24 +12,57 @@ from pypeit.tests.tstutils import bspline_ext_required, data_path
 from pypeit.core import fitting
 
 @bspline_ext_required
+def test_model_versions_time():
+    from pypeit.bspline.utilpy import bspline_model as bspline_model_py
+    from pypeit.bspline.utilc import bspline_model as bspline_model_c
+
+    command = "bspline_model(d['x'], d['action'], d['lower'], d['upper'], d['coeff'], \n" \
+              "              d['n'], d['nord'], d['npoly'])"
+    py_setup = "import numpy as np\n" \
+               "from pypeit.tests.tstutils import data_path\n" \
+               "from pypeit.bspline.utilpy import bspline_model\n" \
+               "d = np.load(data_path('bspline_model.npz'))"
+    c_setup = "import numpy as np\n" \
+              "from pypeit.tests.tstutils import data_path\n" \
+              "from pypeit.bspline.utilc import bspline_model\n" \
+              "d = np.load(data_path('bspline_model.npz'))"
+
+    pytime = min(timeit.repeat(stmt=command, setup=py_setup, number=10))
+    ctime = min(timeit.repeat(stmt=command, setup=c_setup, number=10))
+    assert ctime < 2*pytime, 'C is less efficient!'
+
+
+@bspline_ext_required
 def test_model_versions():
     from pypeit.bspline.utilpy import bspline_model as bspline_model_py
     from pypeit.bspline.utilc import bspline_model as bspline_model_c
 
     d = np.load(data_path('bspline_model.npz'))
 
-    pytime = time.perf_counter()
     mod = bspline_model_py(d['x'], d['action'], d['lower'], d['upper'], d['coeff'], d['n'],
                            d['nord'], d['npoly'])
-    pytime = time.perf_counter() - pytime
-
-    ctime = time.perf_counter()
     _mod = bspline_model_c(d['x'], d['action'], d['lower'], d['upper'], d['coeff'], d['n'],
                            d['nord'], d['npoly'])
-    ctime = time.perf_counter() - ctime
 
-    assert ctime < pytime, 'C is less efficient!'
     assert np.allclose(mod, _mod), 'Differences in index'
+
+
+@bspline_ext_required
+def test_intrv_versions_time():
+    command = "intrv(d['nord'], d['breakpoints'], d['x'])"
+
+    py_setup = "import numpy as np\n" \
+               "from pypeit.tests.tstutils import data_path\n" \
+               "from pypeit.bspline.utilpy import intrv\n" \
+               "d = np.load(data_path('intrv.npz'))"
+    c_setup = "import numpy as np\n" \
+              "from pypeit.tests.tstutils import data_path\n" \
+              "from pypeit.bspline.utilc import intrv\n" \
+              "d = np.load(data_path('intrv.npz'))"
+
+    pytime = min(timeit.repeat(stmt=command, setup=py_setup, number=10))
+    ctime = min(timeit.repeat(stmt=command, setup=c_setup, number=10))
+    assert ctime < pytime, 'C is less efficient!'
 
 
 @bspline_ext_required
@@ -39,17 +72,28 @@ def test_intrv_versions():
 
     d = np.load(data_path('intrv.npz'))
 
-    pytime = time.perf_counter()
     indx = intrv_py(d['nord'], d['breakpoints'], d['x'])
-    pytime = time.perf_counter() - pytime
-
-    ctime = time.perf_counter()
     _indx = intrv_c(d['nord'], d['breakpoints'], d['x'])
-    ctime = time.perf_counter() - ctime
-
-    assert ctime < pytime, 'C is less efficient!'
     assert np.allclose(indx, _indx), 'Differences in index'
 
+
+@bspline_ext_required
+def test_solution_array_versions_time():
+    command = "solution_arrays(d['nn'], d['npoly'], d['nord'], d['ydata'], d['action'], " \
+              "                d['ivar'], d['upper'], d['lower'])"
+
+    py_setup = "import numpy as np\n" \
+               "from pypeit.tests.tstutils import data_path\n" \
+               "from pypeit.bspline.utilpy import solution_arrays\n" \
+               "d = np.load(data_path('solution_arrays.npz'))"
+    c_setup = "import numpy as np\n" \
+              "from pypeit.tests.tstutils import data_path\n" \
+              "from pypeit.bspline.utilc import solution_arrays\n" \
+              "d = np.load(data_path('solution_arrays.npz'))"
+
+    pytime = min(timeit.repeat(stmt=command, setup=py_setup, number=10))
+    ctime = min(timeit.repeat(stmt=command, setup=c_setup, number=10))
+    assert ctime < pytime, 'C is less efficient!'
 
 @bspline_ext_required
 def test_solution_array_versions():
@@ -59,19 +103,31 @@ def test_solution_array_versions():
 
     d = np.load(data_path('solution_arrays.npz'))
 
-    pytime = time.perf_counter()
     a, b = sol_py(d['nn'], d['npoly'], d['nord'], d['ydata'], d['action'], d['ivar'],
                   d['upper'], d['lower'])
-    pytime = time.perf_counter()-pytime
-
-    ctime = time.perf_counter()
     _a, _b = sol_c(d['nn'], d['npoly'], d['nord'], d['ydata'], d['action'], d['ivar'],
                    d['upper'], d['lower'])
-    ctime = time.perf_counter()-ctime
 
-    assert ctime < pytime, 'C is less efficient!'
     assert np.allclose(a, _a), 'Differences in alpha'
     assert np.allclose(b, _b), 'Differences in beta'
+
+
+@bspline_ext_required
+def test_cholesky_band_versions_time():
+    command = "cholesky_band(d['l'], mininf=d['mininf'])"
+
+    py_setup = "import numpy as np\n" \
+               "from pypeit.tests.tstutils import data_path\n" \
+               "from pypeit.bspline.utilpy import cholesky_band\n" \
+               "d = np.load(data_path('cholesky_band_l.npz'))"
+    c_setup = "import numpy as np\n" \
+              "from pypeit.tests.tstutils import data_path\n" \
+              "from pypeit.bspline.utilc import cholesky_band\n" \
+              "d = np.load(data_path('cholesky_band_l.npz'))"
+
+    pytime = min(timeit.repeat(stmt=command, setup=py_setup, number=10))
+    ctime = min(timeit.repeat(stmt=command, setup=c_setup, number=10))
+    assert ctime < pytime, 'C is less efficient!'
 
 
 @bspline_ext_required
@@ -84,18 +140,30 @@ def test_cholesky_band_versions():
     d = np.load(data_path('cholesky_band_l.npz'))
 
     # Run python version
-    pytime = time.perf_counter()
     e, l = cholesky_band_py(d['l'], mininf=d['mininf'])
-    pytime = time.perf_counter() - pytime
-
     # Run C version
-    ctime = time.perf_counter()
     e, _l = cholesky_band_c(d['l'], mininf=d['mininf'])
-    ctime = time.perf_counter() - ctime
 
-    # Check time and output arrays
-    assert ctime < pytime, 'C is less efficient!'
+    # Check output arrays
     assert np.allclose(l, _l), 'Differences in cholesky_band'
+
+
+@bspline_ext_required
+def test_cholesky_solve_versions_time():
+    command = "cholesky_solve(d['a'], d['bb'])"
+
+    py_setup = "import numpy as np\n" \
+               "from pypeit.tests.tstutils import data_path\n" \
+               "from pypeit.bspline.utilpy import cholesky_solve\n" \
+               "d = np.load(data_path('cholesky_solve_abb.npz'))"
+    c_setup = "import numpy as np\n" \
+              "from pypeit.tests.tstutils import data_path\n" \
+              "from pypeit.bspline.utilc import cholesky_solve\n" \
+              "d = np.load(data_path('cholesky_solve_abb.npz'))"
+
+    pytime = min(timeit.repeat(stmt=command, setup=py_setup, number=10))
+    ctime = min(timeit.repeat(stmt=command, setup=c_setup, number=10))
+    assert ctime < pytime, 'C is less efficient!'
 
 
 @bspline_ext_required
@@ -108,19 +176,12 @@ def test_cholesky_solve_versions():
     d = np.load(data_path('cholesky_solve_abb.npz'))
 
     # Run python version
-    pytime = time.perf_counter()
     e, b = cholesky_solve_py(d['a'], d['bb'])
-    pytime = time.perf_counter() - pytime
-
     # Run C version
-    ctime = time.perf_counter()
-    t = time.perf_counter()
     e, _b = cholesky_solve_c(d['a'], d['bb'])
-    ctime = time.perf_counter() - ctime
-
-    # Check time and output arrays
-    assert ctime < pytime, 'C is less efficient!'
+    # Check output arrays
     assert np.allclose(b, _b), 'Differences in cholesky_solve'
+
 
 # NOTE: Used to be in test_pydl.py.
 # TODO: Where is the to/from dict functionality used?

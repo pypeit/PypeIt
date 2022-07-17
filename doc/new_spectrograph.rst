@@ -1,3 +1,10 @@
+
+.. Where do we specify the pypeit image orientation convention, etc?  I want to
+   specify somewhere that the exposure time needs to be in seconds.  Do we
+   something like a "PypeIt Conventions" doc?
+
+.. _new_spec:
+
 ****************
 New Spectrograph
 ****************
@@ -29,8 +36,8 @@ modes, like spectrograph arm, that inherit from a common base class. For
 example, :class:`~pypeit.spectrographs.keck_lris.KeckLRISSpectrograph`
 implements many of the methods that are common to both arms (red and blue) of
 the spectrograph. These include methods used to read raw files, used to
-define header cards with required metadata, and used to determine the type of
-frame (arc, dome, bias, etc) based on that metadata. The
+define header cards with required :doc:`metadata`, and used to determine the type of
+frame (arc, dome, bias, etc) based on that :doc:`metadata`. The
 :class:`~pypeit.spectrographs.spectrograph.Spectrograph` instance for each
 LRIS arm inherits these methods common to them both by subclassing from
 :class:`~pypeit.spectrographs.keck_lris.KeckLRISSpectrograph`. If your
@@ -53,6 +60,12 @@ new spectrograph are as follows:
 #. Add the new module to the list imported by
    ``pypeit/spectrographs/__init__.py``.
 
+#. Generate a new Telescope object in (if new)
+   ``pypeit/telescopes.py``.
+
+#. Add telescope name to valid_telescopes in
+   ``pypeit/par/pypeitpar.py``.
+
 #. Set the algorithmic path: the class attribute, ``pypeline``, must be
    ``'MultiSlit'``, ``'Echelle'``, or ``'IFU'``.
 
@@ -64,19 +77,19 @@ new spectrograph are as follows:
    :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.bpm`.
 
 #. Define the link between header keywords read from the raw fits files and
-   the ``PypeIt``-specific metadata keys used throughout the code; see e.g.,
+   the ``PypeIt``-specific :doc:`metadata` keys used throughout the code; see e.g.,
    :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.init_meta`
    and :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.compound_meta`.
 
-#. Define the set of ``PypeIt``-specific metadata keys that are used to
+#. Define the set of ``PypeIt``-specific :doc:`metadata` keys that are used to
    establish a unique instrument configuration; see, e.g.,
    :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.configuration_keys`.
 
 #. Define the method used to determine the frame type of a given file based on
-   its metadata; see, e.g., 
+   its :doc:`metadata`; see, e.g., 
    :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.check_frame_type`.
 
-#. Set the metadata for the instrument detector(s); see, e.g.,
+#. Set the :doc:`metadata` for the instrument detector(s); see, e.g.,
    :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.get_detector_par`.
 
 #. Define the method used to read the raw data.  See
@@ -87,6 +100,13 @@ new spectrograph are as follows:
 #. For echelle spectrographs, there are numerous methods required that provide
    details for the (currently fixed) format of the orders.
 
+#. You may need to generate wavelength solutions for your setups. You can use the
+   :ref:`wave_calib:pypeit_identify` utility, and add this to the PypeIt archive
+   by following the steps outlined in the :doc:`construct_template` documentation.
+
+
+See this `example PR <https://github.com/pypeit/PypeIt/pull/1179>`_ for the SOAR/Goodman spectrograph.
+
 
 Near-IR
 +++++++
@@ -95,4 +115,22 @@ If this is a near-IR instrument, you may wish to turn off calibration steps.
 See :class:`~pypeit.spectrographs.gemini_gnirs.GeminiGNIRSSpectrograph` for
 an example.
 
+Tests
++++++
+
+For a spectrograph to be supported going forth, we require a mininum set
+of tests.  These are:
+
+- A full run of the pipeline for each grating/mode of the spectrograph in the PypeIt Development Suite.
+- A unit test in ``test_load_images.py`` to tickle the I/O.
+
+Docs
+++++
+
+We request that the following docs be updated to advertise the new
+spectrograph:
+
+- The top-level ``README`` file
+- The ``index.rst`` file in ``doc/``
+- Also update the ``CHANGES.rst``
 

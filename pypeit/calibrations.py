@@ -30,7 +30,7 @@ from pypeit import io
 from pypeit import utils
 
 
-class Calibrations(object):
+class Calibrations:
     """
     This class is primarily designed to guide the generation of
     calibration images and objects in PypeIt.
@@ -58,6 +58,8 @@ class Calibrations(object):
         show (:obj:`bool`, optional):
             Show plots of PypeIt's results as the code progesses.
             Requires interaction from the users.
+        slitspat_num (??):
+            ??
 
     .. todo: Fix these
 
@@ -89,7 +91,7 @@ class Calibrations(object):
             :attr:`fitstbl`.
         calib_ID (:obj:`int`):
             calib group ID of the current frame
-        slitspat_num (:obj:`str` or :obj:`list, optional):
+        user_slits (:obj:`list, optional):
             Identifies a slit or slits to restrict the analysis on
             Used in :func:`get_slits` and propagated beyond
 
@@ -98,19 +100,27 @@ class Calibrations(object):
 
     @classmethod
     def get_instance(cls, fitstbl, par, spectrograph, caldir, qadir=None,
-                     reuse_masters=False, show=False, slitspat_num=None):
+                     reuse_masters=False, show=False, user_slits=None):
         """
+        Get the instance of the appropriate subclass of :class:`Calibrations` to
+        use for reducing data from the provided ``spectrograph``.  For argument
+        descriptions, see :class:`Calibrations`.
         """
+        # TODO: This is overly complicated.  Instead:
+#        calibclass = MultiSlitCalibrations if spectrograph.pypeline in ['MultiSlit', 'Echelle'] \
+#                        else IFUCalibrations
+#        return calibclass(fitstbl, par, spectrograph, caldir, qadir=qadir,
+#                          reuse_masters=reuse_masters, show=show, slitspat_num=slitspat_num)
         pypeline = spectrograph.pypeline
         if spectrograph.pypeline == 'Echelle':
             pypeline = 'MultiSlit'
         return next(c for c in cls.__subclasses__()
                     if c.__name__ == (pypeline + 'Calibrations'))(
             fitstbl, par, spectrograph, caldir, qadir=qadir,
-                     reuse_masters=reuse_masters, show=show, slitspat_num=slitspat_num)
+                     reuse_masters=reuse_masters, show=show, user_slits=user_slits)
 
     def __init__(self, fitstbl, par, spectrograph, caldir, qadir=None,
-                 reuse_masters=False, show=False, slitspat_num=None):
+                 reuse_masters=False, show=False, user_slits=None):
 
         # Check the types
         # TODO -- Remove this None option once we have data models for all the Calibrations
@@ -132,7 +142,7 @@ class Calibrations(object):
         self.master_dir = caldir
 
         # Restrict on slits?
-        self.slitspat_num = slitspat_num
+        self.user_slits = user_slits
 
         # QA
         self.qa_path = qadir
@@ -171,37 +181,41 @@ class Calibrations(object):
 
         # Steps
         self.steps = []
+        self.success = False
+        self.failed_step = None
 
     def _prep_calibrations(self, ctype):
         """
-        Parse self.fitstbl for rows matching the calibration type
-        and initialize the self.master_key_dict
+        Parse :attr:`fitstbl` for rows matching the calibration type and
+        initialize the :attr:`master_key_dict`
 
         Args:
-            ctype (str):
+            ctype (:obj:`str`):
                 Calibration type, e.g. 'flat', 'arc', 'bias'
 
         Returns:
-            tuple:  2 objects
-               - list:  List of image files matching input type
-               - str:  master_key
-
+            :obj:`tuple`:  Returns a :obj:`list` of image files matching the
+            input type and a :obj:`str` with the master key.
         """
         # Grab rows and files
         rows = self.fitstbl.find_frames(ctype, calib_ID=self.calib_ID, index=True)
         image_files = self.fitstbl.frame_paths(rows)
         # Return
-        return image_files, self.fitstbl.master_key(rows[0] if len(rows) > 0 else self.frame, det=self.det)
+        return image_files, self.fitstbl.master_key(rows[0] if len(rows) > 0 else self.frame,
+                                                    det=self.det)
 
     def set_config(self, frame, det, par=None):
         """
         Specify the parameters of the Calibrations class and reset all
-        the internals to None. The internal dict is left unmodified.
+        the internals to None.
 
         Args:
-            frame (int): Frame index in the fitstbl
-            det (int): Detector number
-            par (:class:`pypeit.par.pypeitpar.CalibrationsPar`):
+            frame (:obj:`int`):
+                Frame index in the fitstbl
+            det (:obj:`int`):
+                Detector number
+            par (:class:`~pypeit.par.pypeitpar.CalibrationsPar`):
+                Parameters used by the calibration procedures.
 
         """
         # Reset internals to None
@@ -252,7 +266,8 @@ class Calibrations(object):
             msgs.info("Preparing a master {0:s} frame".format(buildimage.ArcImage.master_type))
             self.msarc = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['arcframe'], arc_files,
-                                                        bias=self.msbias, bpm=self.msbpm)
+                                                        bias=self.msbias, bpm=self.msbpm,
+                                                        dark=self.msdark)
             # Save
             self.msarc.to_master_file(masterframe_name)
 
@@ -288,10 +303,11 @@ class Calibrations(object):
             return
         else: # Build
             msgs.info("Preparing a master {0:s} frame".format(buildimage.TiltImage.master_type))
+            # NOTE: Slits passed for the spatial flexure correction
             self.mstilt = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                self.par['tiltframe'],
-                                                tilt_files, bias=self.msbias, bpm=self.msbpm,
-                                                         slits=self.slits)  # For flexure
+                                                         self.par['tiltframe'], tilt_files,
+                                                         bias=self.msbias, bpm=self.msbpm,
+                                                         dark=self.msdark, slits=self.slits)
 
             # Save to Masters
             self.mstilt.to_master_file(masterframe_name)
@@ -332,15 +348,19 @@ class Calibrations(object):
             self.alignments.is_synced(self.slits)
             return self.alignments
 
-        msalign = buildimage.buildimage_fromlist(self.spectrograph, self.det, self.par['alignframe'], align_files,
-                                                 bias=self.msbias, bpm=self.msbpm)
+        msalign = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                 self.par['alignframe'], align_files,
+                                                 bias=self.msbias, bpm=self.msbpm,
+                                                 dark=self.msdark)
 
         # Extract some header info needed by the algorithm
         binning = self.spectrograph.get_meta_value(align_files[0], 'binning')
 
         # Instantiate
-        alignment = alignframe.TraceAlignment(msalign, self.slits, self.spectrograph, self.par['alignment'],
-                                              det=self.det, binning=binning, qa_path=self.qa_path, msbpm=self.msbpm)
+        # TODO: From JFH: Do we need the bpm here?  Check that this was in the previous code.
+        alignment = alignframe.TraceAlignment(msalign, self.slits, self.spectrograph,
+                                              self.par['alignment'], det=self.det, binning=binning,
+                                              qa_path=self.qa_path, msbpm=self.msbpm)
         # Run
         self.alignments = alignment.run(show=self.show)
         # Save to Masters
@@ -392,14 +412,10 @@ class Calibrations(object):
         """
         Load or generate the dark image
 
-        Requirements:
-           master_key, det, par
-
         Returns:
-            :class:`pypeit.images.buildimage.DarkImage`:
-
+            :class:`~pypeit.images.buildimage.DarkImage`: The combined dark
+            image.
         """
-
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
@@ -416,11 +432,19 @@ class Calibrations(object):
         elif len(dark_files) == 0:
             self.msdark = None
         else:
-            # TODO: Should this include the bias?
-            # Build it
+            # TODO: If a bias has been constructed and it will be subtracted
+            # from the science images, it should also be subtracted from this
+            # image.  If it isn't, subtracting the dark will effectively lead to
+            # subtracting the bias twice.
+            # TODO: The order is such that the bpm doesn't exist yet.  But
+            # calling buildimage_fromlist will create the bpm if it isn't
+            # passed.  So calling get_dark then get_bpm unnecessarily creates
+            # the bpm twice.  Is there any reason why creation of the bpm should
+            # come after the dark, or can we change the order?
+            # Build and save it
             self.msdark = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                    self.par['darkframe'], dark_files)
-            # Save it?
+                                                         self.par['darkframe'], dark_files,
+                                                         bias=self.msbias)
             self.msdark.to_master_file(masterframe_name)
 
         # Return
@@ -477,7 +501,8 @@ class Calibrations(object):
         """
         # Check for existing data
         if not self._chk_objs(['msarc', 'msbpm', 'slits', 'wv_calib']):
-            msgs.warn('Must have the arc, bpm, slits, and wv_calib defined to make flats!  Skipping and may crash down the line')
+            msgs.warn('Must have the arc, bpm, slits, and wv_calib defined to make flats!  '
+                      'Skipping and may crash down the line')
             self.flatimages = flatfield.FlatImages()
             return
 
@@ -495,9 +520,12 @@ class Calibrations(object):
         # Prep
         illum_image_files, self.master_key_dict['flat'] = self._prep_calibrations('illumflat')
         pixflat_image_files, self.master_key_dict['flat'] = self._prep_calibrations('pixelflat')
+        # flats lamp off
+        flatLoff_image_files, _ = self._prep_calibrations('lampoffflats')
 
         masterframe_filename = masterframe.construct_file_name(flatfield.FlatImages,
-                                                           self.master_key_dict['flat'], master_dir=self.master_dir)
+                                                           self.master_key_dict['flat'],
+                                                           master_dir=self.master_dir)
         # The following if-elif-else does:
         #   1.  Try to load a MasterFrame (if reuse_masters is True).  If successful, pass it back
         #   2.  Build from scratch
@@ -505,16 +533,15 @@ class Calibrations(object):
 
         # Load MasterFrame?
         if os.path.isfile(masterframe_filename) and self.reuse_masters:
-            flatimages = flatfield.FlatImages.from_file(masterframe_filename)
-            flatimages.is_synced(self.slits)
+            self.flatimages = flatfield.FlatImages.from_file(masterframe_filename)
+            self.flatimages.is_synced(self.slits)
             # Load user defined files
             if self.par['flatfield']['pixelflat_file'] is not None:
                 # Load
                 msgs.info('Using user-defined file: {0}'.format('pixelflat_file'))
                 with io.fits_open(self.par['flatfield']['pixelflat_file']) as hdu:
                     nrm_image = flatfield.FlatImages(pixelflat_norm=hdu[self.det].data)
-                    flatimages = flatfield.merge(flatimages, nrm_image)
-            self.flatimages = flatimages
+                    self.flatimages = flatfield.merge(self.flatimages, nrm_image)
             # update slits
             self.slits.mask_flats(self.flatimages)
             return self.flatimages
@@ -524,22 +551,49 @@ class Calibrations(object):
         # Check if the image files are the same
         pix_is_illum = Counter(illum_image_files) == Counter(pixflat_image_files)
         if len(pixflat_image_files) > 0:
+            msgs.info('Creating Master Pixel Flat using files: ')
+            for f in pixflat_image_files:
+                msgs.prindent(f'{os.path.basename(f)}')
             pixel_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['pixelflatframe'],
                                                         pixflat_image_files, dark=self.msdark,
                                                         bias=self.msbias, bpm=self.msbpm)
+            if len(flatLoff_image_files) > 0:
+                msgs.info('Subtracting lamp off flats using files: ')
+                for f in flatLoff_image_files:
+                    msgs.prindent(f'{os.path.basename(f)}')
+                pixel_flat = pixel_flat.sub(buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                                           self.par['lampoffflatsframe'],
+                                                                           flatLoff_image_files, dark=self.msdark,
+                                                                           bias=self.msbias, bpm=self.msbpm),
+                                            self.par['pixelflatframe']['process'])
             # Initialise the pixel flat
             pixelFlatField = flatfield.FlatField(pixel_flat, self.spectrograph,
-                                                 self.par['flatfield'], self.slits, self.wavetilts, self.wv_calib)
+                                                 self.par['flatfield'], self.slits, self.wavetilts,
+                                                 self.wv_calib)
             # Generate
             pixelflatImages = pixelFlatField.run(show=self.show)
+            # Set flatimages in case we want to apply the pixel-to-pixel sensitivity corrections to the illumflat
+            self.flatimages = pixelflatImages
 
         # Only build illum_flat if the input files are different from the pixel flat
-        if (not pix_is_illum) and len(illum_image_files) > 0:
+        if not pix_is_illum and len(illum_image_files) > 0:
+            msgs.info('Creating Master Illumination Flat using files: ')
+            for f in illum_image_files:
+                msgs.prindent(f'{os.path.basename(f)}')
             illum_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                        self.par['illumflatframe'],
-                                                        illum_image_files, dark=self.msdark,
-                                                        bias=self.msbias, bpm=self.msbpm)
+                                                        self.par['illumflatframe'], illum_image_files,
+                                                        dark=self.msdark, bias=self.msbias,
+                                                        flatimages=self.flatimages, bpm=self.msbpm)
+            if len(flatLoff_image_files) > 0:
+                msgs.info('Subtracting lamp off flats using files: ')
+                for f in flatLoff_image_files:
+                    msgs.prindent(f'{os.path.basename(f)}')
+                illum_flat = illum_flat.sub(buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                                           self.par['lampoffflatsframe'],
+                                                                           flatLoff_image_files, dark=self.msdark,
+                                                                           bias=self.msbias, bpm=self.msbpm),
+                                                                           self.par['illumflatframe']['process'])
             # Initialise the pixel flat
             illumFlatField = flatfield.FlatField(illum_flat, self.spectrograph,
                                                  self.par['flatfield'], self.slits, self.wavetilts,
@@ -553,29 +607,28 @@ class Calibrations(object):
             # This will merge the attributes of pixelflatImages that are not None
             # with the attributes of illflatImages that are not None. Default is
             # to take pixelflatImages.
-            flatimages = flatfield.merge(pixelflatImages, illumflatImages)
+            self.flatimages = flatfield.merge(pixelflatImages, illumflatImages)
         else:
             # No pixel flat, but there might be an illumflat. This will mean that
             # the attributes prefixed with 'pixelflat_' will all be None.
-            flatimages = illumflatImages
+            self.flatimages = illumflatImages
 
         # Save flat images
-        if flatimages is not None:
-            flatimages.to_master_file(masterframe_filename)
+        if self.flatimages is not None:
+            self.flatimages.to_master_file(masterframe_filename)
             # Save slits too, in case they were tweaked
             self.slits.to_master_file()
 
         # 3) Load user-supplied images
-        #  NOTE:  This is the *final* images, not just a stack
-        #  And it will over-ride what is generated below (if generated)
+        # NOTE: These are the *final* images, not just a stack, and it will
+        # over-ride what is generated below (if generated).
         if self.par['flatfield']['pixelflat_file'] is not None:
             # Load
             msgs.info('Using user-defined file: {0}'.format('pixelflat_file'))
             with io.fits_open(self.par['flatfield']['pixelflat_file']) as hdu:
-                flatimages = flatfield.merge(flatimages, flatfield.FlatImages(pixelflat_norm=hdu[self.det].data))
+                self.flatimages = flatfield.merge(self.flatimages,
+                                        flatfield.FlatImages(pixelflat_norm=hdu[self.det].data))
 
-        self.flatimages = flatimages
-        # Return
         return self.flatimages
 
     def get_slits(self):
@@ -599,11 +652,13 @@ class Calibrations(object):
 
         # Prep
         trace_image_files, self.master_key_dict['trace'] = self._prep_calibrations('trace')
+        # flats lamp off
+        flatLoff_image_files, _ = self._prep_calibrations('lampoffflats')
 
         # Reuse master frame?
         slit_masterframe_name = masterframe.construct_file_name(slittrace.SlitTraceSet,
-                                                           self.master_key_dict['trace'],
-                                                           master_dir=self.master_dir)
+                                                                self.master_key_dict['trace'],
+                                                                master_dir=self.master_dir)
         if os.path.isfile(slit_masterframe_name) and self.reuse_masters:
             self.slits = slittrace.SlitTraceSet.from_file(slit_masterframe_name)
             # Reset the bitmask
@@ -611,8 +666,8 @@ class Calibrations(object):
         else:
             # Slits don't exist or we're not resusing them
             edge_masterframe_name = masterframe.construct_file_name(edgetrace.EdgeTraceSet,
-                                                               self.master_key_dict['trace'],
-                                                               master_dir=self.master_dir)
+                                                                    self.master_key_dict['trace'],
+                                                                    master_dir=self.master_dir)
             # Reuse master frame?
             if os.path.isfile(edge_masterframe_name) and self.reuse_masters:
                 self.edges = edgetrace.EdgeTraceSet.from_file(edge_masterframe_name)
@@ -621,13 +676,29 @@ class Calibrations(object):
                 return None
             else:
                 # Build the trace image
+                msgs.info('Creating Master Edges using files: ')
+                for f in trace_image_files:
+                    msgs.prindent(f'{os.path.basename(f)}')
                 self.traceImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                        self.par['traceframe'], trace_image_files,
-                                                        bias=self.msbias, bpm=self.msbpm,
-                                                        dark=self.msdark)
+                                                                 self.par['traceframe'],
+                                                                 trace_image_files,
+                                                                 bias=self.msbias, bpm=self.msbpm,
+                                                                 dark=self.msdark)
+                if len(flatLoff_image_files) > 0:
+                    msgs.info('Subtracting lamp off flats using files: ')
+                    for f in flatLoff_image_files:
+                        msgs.prindent(f'{os.path.basename(f)}')
+                    self.traceImage.sub(buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                                       self.par['lampoffflatsframe'],
+                                                                       flatLoff_image_files, dark=self.msdark,
+                                                                       bias=self.msbias, bpm=self.msbpm),
+                                        self.par['traceframe']['process'])
                 self.edges = edgetrace.EdgeTraceSet(self.traceImage, self.spectrograph,
-                                                    self.par['slitedges'], bpm=self.msbpm,
+                                                    self.par['slitedges'], #bpm=self.msbpm,
                                                     auto=True)
+                if not self.edges.success:
+                    self.success = False
+                    return None
                 self.edges.to_master_file(edge_masterframe_name)
 
                 # Show the result if requested
@@ -641,8 +712,8 @@ class Calibrations(object):
             self.slits.to_master_file(slit_masterframe_name)
 
         # User mask?
-        if self.slitspat_num is not None:
-            self.slits.user_mask(self.det, self.slitspat_num)
+        if self.user_slits is not None:
+            self.slits.user_mask(self.det, self.user_slits)
 
         return self.slits
 
@@ -658,7 +729,8 @@ class Calibrations(object):
         """
         # Check for existing data
         if not self._chk_objs(['msarc', 'msbpm', 'slits']):
-            msgs.warn('Not enough information to load/generate the wavelength calibration. Skipping and may crash down the line')
+            msgs.warn('Not enough information to load/generate the wavelength calibration. '
+                      'Skipping and may crash down the line')
             return None
 
         # Check internals
@@ -684,12 +756,17 @@ class Calibrations(object):
             self.wv_calib.chk_synced(self.slits)
             self.slits.mask_wvcalib(self.wv_calib)
         else:
+            # Determine lamp list to use for wavecalib
+            # Find all the arc frames in this calibration group
+            is_arc = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID)
+            lamps = self.spectrograph.get_lamps(self.fitstbl[is_arc]) \
+                if self.par['wavelengths']['lamps'] == ['use_header'] else self.par['wavelengths']['lamps']
             # Instantiate
             self.waveCalib = wavecalib.BuildWaveCalib(self.msarc, self.slits, self.spectrograph,
-                                             self.par['wavelengths'], binspectral=binspec,
-                                             det=self.det,
-                                             master_key=self.master_key_dict['arc'],  # For QA naming
-                                             qa_path=self.qa_path, msbpm=self.msbpm)
+                                                      self.par['wavelengths'], lamps,
+                                                      binspectral=binspec, det=self.det,
+                                                      master_key=self.master_key_dict['arc'],
+                                                      qa_path=self.qa_path) #, msbpm=self.msbpm)
             self.wv_calib = self.waveCalib.run(skip_QA=(not self.write_qa))
             # Save to Masters
             self.wv_calib.to_master_file(masterframe_name)
@@ -712,7 +789,8 @@ class Calibrations(object):
         # Check for existing data
         #TODO add mstilt_inmask to this list when it gets implemented.
         if not self._chk_objs(['mstilt', 'msbpm', 'slits', 'wv_calib']):
-            msgs.warn('dont have all the objects for tilts.  Skipping and may crash down the line..')
+            msgs.warn('Do not have all the necessary objects for tilts.  Skipping and may crash '
+                      'down the line.')
             return None
 
         # Check internals
@@ -721,7 +799,8 @@ class Calibrations(object):
             msgs.error('Tilt master key not set.  First run get_tiltimage.')
 
         # Load up?
-        masterframe_name = masterframe.construct_file_name(wavetilts.WaveTilts, self.master_key_dict['tilt'],
+        masterframe_name = masterframe.construct_file_name(wavetilts.WaveTilts,
+                                                           self.master_key_dict['tilt'],
                                                            master_dir=self.master_dir)
         if os.path.isfile(masterframe_name) and self.reuse_masters:
             self.wavetilts = wavetilts.WaveTilts.from_file(masterframe_name)
@@ -746,11 +825,14 @@ class Calibrations(object):
 
     def run_the_steps(self):
         """
-        Run full the full recipe of calibration steps
-
+        Run full the full recipe of calibration steps.
         """
+        self.success = True
         for step in self.steps:
-            getattr(self, 'get_{:s}'.format(step))()
+            getattr(self, f'get_{step}')()
+            if not self.success:
+                self.failed_step = f'get_{step}'
+                return
         msgs.info("Calibration complete!")
         msgs.info("#######################################################################")
 
@@ -800,13 +882,14 @@ class Calibrations(object):
 class MultiSlitCalibrations(Calibrations):
     """
     Child of Calibrations class for performing multi-slit (and longslit)
-    calibrations.  See :class:`pypeit.calibrations.Calibrations` for
+    calibrations.  See :class:`~pypeit.calibrations.Calibrations` for
     arguments.
 
     NOTE: Echelle uses this same class.  It had been possible there would be
     a different order of the default_steps
 
-    ..todo:: Rename this child or eliminate altogether
+    .. todo::
+        Rename this child or eliminate altogether
     """
     def __init__(self, fitstbl, par, spectrograph, caldir, **kwargs):
         super(MultiSlitCalibrations, self).__init__(fitstbl, par, spectrograph, caldir, **kwargs)
@@ -815,13 +898,14 @@ class MultiSlitCalibrations(Calibrations):
     @staticmethod
     def default_steps():
         """
-        This defines the steps for calibrations and their order
+        This defines the calibration steps and their order.
 
         Returns:
-            list: Calibration steps, in order of execution
-
+            :obj:`list`: Calibration steps, in order of execution.
         """
-        # Order matters!
+        # Order matters!  And the name must match a viable "get_{step}" method
+        # in Calibrations.
+        # TODO: Does the bpm need to be done after the dark?
         return ['bias', 'dark', 'bpm', 'slits', 'arc', 'tiltimg', 'wv_calib', 'tilts', 'flats']
 
 
@@ -846,7 +930,8 @@ class IFUCalibrations(Calibrations):
 
         """
         # Order matters!
-        return ['bias', 'dark', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'align', 'flats']
+        return ['bias', 'dark', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'align',
+                'flats']
 
 
 def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):
@@ -883,13 +968,13 @@ def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):
         for j, comb_id in enumerate(u_combid):
             frames = np.where(fitstbl['comb_id'] == comb_id)[0]
             calib_ID = int(fitstbl['calib'][frames[0]])
-
             # Arc, tilt, science
             for ftype in ['arc', 'tilt', 'science', 'trace']:
                 rows = fitstbl.find_frames(ftype, calib_ID=calib_ID, index=True)
                 if len(rows) == 0:
                     # Fail
-                    msg = "No frames of type={} provided. Add them to your PypeIt file if this is a standard run!".format(ftype)
+                    msg = f'No frames of type={ftype} provided. Add them to your PypeIt file ' \
+                          'if this is a standard run!'
                     pass_calib = False
                     if raise_error:
                         msgs.error(msg)
@@ -897,16 +982,18 @@ def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):
                         msgs.warn(msg)
 
             # Explore science frame
-            for key, ftype in zip(['use_biasimage', 'use_darkimage', 'use_pixelflat', 'use_illumflat'],
-                                  ['bias', 'dark', 'pixelflat', 'illumflat']):
+            for key, ftype in zip(['use_biasimage', 'use_darkimage', 'use_pixelflat',
+                                   'use_illumflat'], ['bias', 'dark', 'pixelflat', 'illumflat']):
                 if par['scienceframe']['process'][key]:
                     rows = fitstbl.find_frames(ftype, calib_ID=calib_ID, index=True)
                     if len(rows) == 0:
                         # Allow for pixelflat inserted
-                        if ftype == 'pixelflat' and par['calibrations']['flatfield']['pixelflat_file'] is not None:
+                        if ftype == 'pixelflat' \
+                                and par['calibrations']['flatfield']['pixelflat_file'] is not None:
                             continue
                         # Otherwise fail
-                        msg = "No frames of type={} provide for the *{}* processing step. Add them to your PypeIt file!".format(ftype, key)
+                        msg = f'No frames of type={ftype} provide for the *{key}* processing ' \
+                              'step. Add them to your PypeIt file!'
                         pass_calib = False
                         if raise_error:
                             msgs.error(msg)
@@ -916,3 +1003,6 @@ def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):
     if pass_calib:
         msgs.info("Congrats!!  You passed the calibrations inspection!!")
     return pass_calib
+
+
+

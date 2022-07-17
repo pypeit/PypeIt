@@ -3,15 +3,22 @@ Module to run tests on PypeItPar classes
 """
 import os
 
+from IPython import embed
+
 import pytest
 
 from pypeit.par import pypeitpar
-from pypeit.par.util import parse_pypeit_file
+from pypeit.par import util
 from pypeit.spectrographs.util import load_spectrograph
+from pypeit.tests.tstutils import data_path
 
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
+
+def test_eval_tuple():
+    t = ['(1', '2', '3)']
+    assert util.eval_tuple(t) == [(1,2,3)], 'Bad tuple evaluation'
+    t = ['(1', '2)', '(3', '4)']
+    assert util.eval_tuple(t) == [(1,2),(3,4)], 'Bad tuple evaluation'
+
 
 def test_framegroup():
     pypeitpar.FrameGroupPar()
@@ -49,9 +56,6 @@ def test_sensfuncuvis():
 
 def test_telluric():
     pypeitpar.TelluricPar()
-
-def test_manualextraction():
-    pypeitpar.ManualExtractionPar()
 
 # TODO: Valid spectrographs are not longer read by pypeit.pypeitpar; it causes
 # a circular import.
@@ -137,36 +141,14 @@ def test_sync():
     p = pypeitpar.PypeItPar()
     proc = pypeitpar.ProcessImagesPar()
     proc['combine'] = 'median'
-    proc['cr_sigrej'] = 20.5
+#    proc['cr_sigrej'] = 20.5
     p.sync_processing(proc)
     assert p['scienceframe']['process']['combine'] == 'median'
     assert p['calibrations']['biasframe']['process']['combine'] == 'median'
     # Sigma rejection of cosmic rays for arc frames is already turned
     # off by default
-    assert p['calibrations']['arcframe']['process']['cr_sigrej'] < 0
-    assert p['calibrations']['traceframe']['process']['cr_sigrej'] == 20.5
-
-def test_pypeit_file():
-    # Read the PypeIt file
-    cfg, data, frametype, usrdata, setups \
-            = parse_pypeit_file(data_path('example_pypeit_file.pypeit'), file_check=False)
-    # Long-winded way of getting the spectrograph name
-    name = pypeitpar.PypeItPar.from_cfg_lines(merge_with=cfg)['rdx']['spectrograph']
-    # Instantiate the spectrograph
-    spectrograph = load_spectrograph(name)
-    # Get the spectrograph specific configuration
-    spec_cfg = spectrograph.default_pypeit_par().to_config()
-    # Initialize the PypeIt parameters merge in the user config
-    _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spec_cfg, merge_with=cfg)
-    # Test everything was merged correctly
-    # This is a PypeItPar default that's not changed
-    #assert p['calibrations']['pinholeframe']['number'] == 0
-    # These are spectrograph specific defaults
-    assert _p['fluxcalib'] is not None
-    # These are user-level changes
-    assert _p['calibrations']['traceframe']['process']['combine'] == 'median'
-    assert _p['scienceframe']['process']['n_lohi'] == [8, 8]
-    assert _p['reduce']['extraction']['manual'] is not None  # Set this to what it should be eventually
+#    assert p['calibrations']['arcframe']['process']['cr_sigrej'] < 0
+#    assert p['calibrations']['traceframe']['process']['cr_sigrej'] == 20.5
 
 def test_telescope():
     pypeitpar.TelescopePar()

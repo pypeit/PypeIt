@@ -4,31 +4,89 @@ files.
 
 .. include:: ../include/links.rst
 """
-
+import os
 import glob
 import re
 import warnings
-from pkg_resources import resource_filename
 
 from IPython import embed
 
 import numpy as np
 
 from scipy import interpolate
+
 from astropy.io import fits
+from astropy.coordinates import SkyCoord, Angle
+from astropy.table import Table
+from astropy import units, time
+
+import datetime
+
+import linetools
 
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
+from pypeit.core import wave
+from pypeit import specobj, specobjs
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
+from pypeit import data
+from pypeit.images.mosaic import Mosaic
+from pypeit.core.mosaic import build_image_mosaic_transform
 
 from pypeit.utils import index_of_x_eq_y
 
-from pypeit.spectrographs.slitmask import SlitMask
+from pypeit.spectrographs import slitmask 
 from pypeit.spectrographs.opticalmodel import ReflectionGrating, OpticalModel, DetectorMap
+
+
+class DEIMOSMosaicLookUp:
+    """
+    Provides the geometry required to mosaic Keck DEIMOS data.
+    Similar to :class:`~pypeit.spectrographs.gemini_gmos.GeminiGMOSMosaicLookUp`
+
+    """
+    # THESE are the parameters for trasforming the red detectors (below are the ones to trasform the blue detector).
+    # We'll kep these here for now.
+    # geometry = {
+    #     'MSC01': {'default_shape': (8218, 2064),
+    #               'blue_det': {'shift': (0., 0.), 'rotation': 0.},
+    #               'red_det': {'shift': (-11.4, 4116.7), 'rotation':  0.197}},
+    #
+    #     'MSC02': {'default_shape': (8218, 2064),
+    #               'blue_det': {'shift': (0., 0.), 'rotation': 0},
+    #               'red_det': {'shift': (9.6, 4114.9), 'rotation': -0.110}},
+    #
+    #     'MSC03': {'default_shape': (8218, 2064),
+    #               'blue_det': {'shift': (0., 0.), 'rotation': 0},
+    #               'red_det': {'shift': (2.5, 4114.4), 'rotation': -0.02}},
+    #
+    #     'MSC04': {'default_shape': (8218, 2064),
+    #               'blue_det': {'shift': (0., 0.), 'rotation': 0.},
+    #               'red_det': {'shift': (-5.5, 4108.7), 'rotation': 0.0511}},
+    # }
+
+    geometry = {
+        'MSC01': {'default_shape': (8218, 2064),
+                  'blue_det': {'shift': (-2.97, -4116.7), 'rotation': -0.197},
+                  'red_det': {'shift': (0., 0.), 'rotation': 0.}},
+
+        'MSC02': {'default_shape': (8218, 2064),
+                  'blue_det': {'shift': (-1.92, -4114.9), 'rotation': 0.110},
+                  'red_det': {'shift': (0., 0.), 'rotation': 0}},
+
+        'MSC03': {'default_shape': (8218, 2064),
+                  'blue_det': {'shift': (-1.23, -4114.4), 'rotation': 0.02},
+                  'red_det': {'shift': (0., 0.), 'rotation': 0}},
+
+        'MSC04': {'default_shape': (8218, 2064),
+                  'blue_det': {'shift': (1.05, -4108.7), 'rotation': -0.0511},
+                  'red_det': {'shift': (0., 0.), 'rotation': 0.}},
+    }
+
 
 class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
     """
@@ -38,8 +96,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
     name = 'keck_deimos'
     telescope = telescopes.KeckTelescopePar()
     camera = 'DEIMOS'
+    header_name = 'DEIMOS'
     supported = True
-    comment = 'Supported gratings: 600ZD, 830G, 1200G; see :doc:`deimos`'
+    comment = 'Supported gratings: 600ZD, 830G, 900ZD, 1200B, 1200G; see :doc:`deimos`'
 
     def __init__(self):
         super().__init__()
@@ -52,15 +111,16 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         self.amap = None
         self.bmap = None
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
@@ -68,7 +128,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         """
         # Binning
         # TODO: Could this be detector dependent?
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict1 = dict(
@@ -79,7 +139,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.1185,
-            darkcurr        = 4.19,
+            darkcurr        = 3.30, # changed by DP. Taken from WMKO measurements on 2022-Apr-22
             saturation      = 65535., # ADU
             nonlinear       = 0.95,   # Changed by JFH from 0.86 to 0.95
             mincounts       = -1e10,
@@ -92,7 +152,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict2.update(dict(
             det=2,
             dataext=2,
-            darkcurr=3.46,
+            darkcurr=3.60,
             gain=np.atleast_1d(1.188),
             ronoise=np.atleast_1d(2.491),
         ))
@@ -101,7 +161,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict3.update(dict(
             det=3,
             dataext=3,
-            darkcurr=4.03,
+            darkcurr=3.50,
             gain=np.atleast_1d(1.248),
             ronoise=np.atleast_1d(2.618),
         ))
@@ -110,7 +170,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict4.update(dict(
             det=4,
             dataext=4,
-            darkcurr=3.80,
+            darkcurr=3.70,
             gain=np.atleast_1d(1.220),
             ronoise=np.atleast_1d(2.557),
         ))
@@ -119,7 +179,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict5.update(dict(
             det=5,
             dataext=5,
-            darkcurr=4.71,
+            darkcurr=2.70,
             gain=np.atleast_1d(1.184),
             ronoise=np.atleast_1d(2.482),
         ))
@@ -128,7 +188,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict6.update(dict(
             det=6,
             dataext=6,
-            darkcurr=4.28,
+            darkcurr=3.80,
             gain=np.atleast_1d(1.177),
             ronoise=np.atleast_1d(2.469),
         ))
@@ -137,7 +197,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict7.update(dict(
             det=7,
             dataext=7,
-            darkcurr=3.33,
+            darkcurr=3.30,
             gain=np.atleast_1d(1.201),
             ronoise=np.atleast_1d(2.518),
         ))
@@ -146,10 +206,50 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict8.update(dict(
             det=8,
             dataext=8,
-            darkcurr=3.69,
+            darkcurr=3.70,
             gain=np.atleast_1d(1.230),
             ronoise=np.atleast_1d(2.580),
         ))
+
+        if hdu is not None:
+            # raw frame date in mjd
+            date = time.Time(self.get_meta_value(self.get_headarr(hdu), 'mjd'), format='mjd').value
+            # get the measurements files
+            measure_files = np.array(glob.glob(os.path.join(data.Paths.spectrographs, "keck_deimos/gain_ronoise", "*")))
+            # Parse the dates recorded in the name of the files
+            measure_dates = np.array([os.path.basename(f).split('.')[2] for f in measure_files])
+            # convert into datetime format
+            dtime = np.array([datetime.datetime.strptime(mm, '%Y-%b-%d') for mm in measure_dates])
+            # convert to mjd
+            mjd_measured = time.Time(dtime, scale='utc').to_value('mjd')
+            # find the closest in time to the raw frame date
+            close_idx = np.argmin(np.absolute(mjd_measured - date))
+            # get measurements
+            tab_measure = Table.read(measure_files[close_idx], format='ascii')
+            measured_det = tab_measure['col3']
+            measured_gain = tab_measure['col5']  # [e-/DN]
+            measured_ronoise = tab_measure['col7']   # [e-]
+            msgs.info(f"We are using DEIMOS gain/RN values based on WMKO estimates on {measure_dates[close_idx]}.")
+            # get gain
+            detector_dict1['gain'] = measured_gain[measured_det == 1]
+            detector_dict2['gain'] = measured_gain[measured_det == 2]
+            detector_dict3['gain'] = measured_gain[measured_det == 3]
+            detector_dict4['gain'] = measured_gain[measured_det == 4]
+            detector_dict5['gain'] = measured_gain[measured_det == 5]
+            detector_dict6['gain'] = measured_gain[measured_det == 6]
+            detector_dict7['gain'] = measured_gain[measured_det == 7]
+            detector_dict8['gain'] = measured_gain[measured_det == 8]
+
+            # get ronoise
+            detector_dict1['ronoise'] = measured_ronoise[measured_det == 1]
+            detector_dict2['ronoise'] = measured_ronoise[measured_det == 2]
+            detector_dict3['ronoise'] = measured_ronoise[measured_det == 3]
+            detector_dict4['ronoise'] = measured_ronoise[measured_det == 4]
+            detector_dict5['ronoise'] = measured_ronoise[measured_det == 5]
+            detector_dict6['ronoise'] = measured_ronoise[measured_det == 6]
+            detector_dict7['ronoise'] = measured_ronoise[measured_det == 7]
+            detector_dict8['ronoise'] = measured_ronoise[measured_det == 8]
+
         detectors = [detector_dict1, detector_dict2, detector_dict3, detector_dict4,
                      detector_dict5, detector_dict6, detector_dict7, detector_dict8]
         # Return
@@ -166,19 +266,20 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         """
         par = super().default_pypeit_par()
 
+        # mosaic by default
+        par['rdx']['detnum'] = [(1, 5), (2, 6), (3, 7), (4, 8)]
+
         # Spectral flexure correction
         par['flexure']['spec_method'] = 'boxcar'
         # Set wave tilts order
+        par['calibrations']['slitedges']['follow_span'] = 1000
         par['calibrations']['slitedges']['edge_thresh'] = 50.
         par['calibrations']['slitedges']['fit_order'] = 3
         par['calibrations']['slitedges']['minimum_slit_gap'] = 0.25
         par['calibrations']['slitedges']['minimum_slit_length_sci'] = 4.
-#        par['calibrations']['slitedges']['sync_clip'] = False
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
-        #par['calibrations']['wavelengths']['nonlinear_counts'] \
-        #        = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 3
         par['calibrations']['wavelengths']['match_toler'] = 2.5
 
@@ -190,23 +291,19 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['comb_sigrej'] = 10.
 
-        # Set the default exposure time ranges for the frame typing
-#        par['calibrations']['biasframe']['exprng'] = [None, 2]
-#        par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
-#        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
-#        par['calibrations']['pixelflatframe']['exprng'] = [None, 30]
-#        par['calibrations']['traceframe']['exprng'] = [None, 30]
-#        par['scienceframe']['exprng'] = [30, None]
-        
+        # Do not sigmaclip the arc frames
+        par['calibrations']['arcframe']['process']['clip'] = False
+        # Do not sigmaclip the tilt frames
+        par['calibrations']['tiltframe']['process']['clip'] = False
+        # Lower value of tracethresh
+        par['calibrations']['tilts']['tracethresh'] = 10
+
         # LACosmics parameters
         par['scienceframe']['process']['sigclip'] = 4.0
         par['scienceframe']['process']['objlim'] = 1.5
 
         # If telluric is triggered
-        par['sensfunc']['IR']['telgridfile'] \
-                = resource_filename('pypeit',
-                                    '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
-
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
@@ -230,6 +327,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         headarr = self.get_headarr(scifile)
 
+        # When using LVM mask reduce only detectors 3,7
+        if 'LVMslit' in self.get_meta_value(headarr, 'decker'):
+            par['rdx']['detnum'] = [(3,7)]
+
         # Turn PCA off for long slits
         # TODO: I'm a bit worried that this won't catch all
         # long-slits...
@@ -238,22 +339,36 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Turn on the use of mask design
-        if 'Long' not in self.get_meta_value(headarr, 'decker'):
+        if ('Long' not in self.get_meta_value(headarr, 'decker')) and (
+                'LVMslit' not in self.get_meta_value(headarr, 'decker')):
             # TODO -- Move this parameter into SlitMaskPar??
             par['calibrations']['slitedges']['use_maskdesign'] = True
             # Since we use the slitmask info to find the alignment boxes, I don't need `minimum_slit_length_sci`
             par['calibrations']['slitedges']['minimum_slit_length_sci'] = None
             # Sometime the added missing slits at the edge of the detector are to small to be useful.
-            par['calibrations']['slitedges']['minimum_slit_length'] = 2.
+            par['calibrations']['slitedges']['minimum_slit_length'] = 3.
             # Since we use the slitmask info to add and remove traces, 'minimum_slit_gap' may undo the matching effort.
             par['calibrations']['slitedges']['minimum_slit_gap'] = 0.
+            # Lower edge_thresh works better
+            par['calibrations']['slitedges']['edge_thresh'] = 10.
+            # use stars in alignment boxes to compute the slitmask offset (this works the best)
+            par['reduce']['slitmask']['use_alignbox'] = True
+            # Assign RA, DEC, OBJNAME to detected objects
             par['reduce']['slitmask']['assign_obj'] = True
+            # force extraction of undetected objects
+            par['reduce']['slitmask']['extract_missing_objs'] = True
+            # lower tilts spat_order and higher spec_order for multislits (i.e., generally not very long slits)
+            par['calibrations']['tilts']['spat_order'] = 2  # Default: 3
+            par['calibrations']['tilts']['spec_order'] = 5  # Default: 4
+            # pca
+            par['calibrations']['slitedges']['sync_predict'] = 'auto'
+
 
         # Templates
         if self.get_meta_value(headarr, 'dispname') == '600ZD':
             par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_600.fits'
-            par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_600ZD.fits'
+            # par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
         elif self.get_meta_value(headarr, 'dispname') == '830G':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_830G.fits'
@@ -263,12 +378,49 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         elif self.get_meta_value(headarr, 'dispname') == '1200B':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_1200B.fits'
+            # par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
+        elif self.get_meta_value(headarr, 'dispname') == '900ZD':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_900ZD.fits'
+            # par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
+        # Arc lamps list from header
+        par['calibrations']['wavelengths']['lamps'] = ['use_header']
 
-        # FWHM
+        # increase order of final fit because better for mosaic (mosaic is the default)
+        par['calibrations']['wavelengths']['n_final'] = 6
+        # increase sigdetect because better for mosaic (mosaic is the default)
+        par['calibrations']['wavelengths']['sigdetect'] = 10.
+
+        # Wavelength FWHM
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
         par['calibrations']['wavelengths']['fwhm'] = 6.0 / binning[1]
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
+
+        # Objects FWHM
+        # Find objects
+        #  The following corresponds to 0.8"
+        par['reduce']['findobj']['find_fwhm'] = 7.0 / binning[0]
 
         # Return
+        return par
+
+    def update_edgetracepar(self, par):
+        """
+        This method is used in :func:`pypeit.edgetrace.EdgeTraceSet.maskdesign_matching`
+        to update EdgeTraceSet parameters when the slitmask design matching is not feasible
+        because too few slits are present in the detector.
+
+        Args:
+            par (:class:`pypeit.par.pypeitpar.EdgeTracePar`):
+                The parameters used to guide slit tracing.
+
+        Returns:
+            :class:`pypeit.par.pypeitpar.EdgeTracePar`
+            The modified parameters used to guide slit tracing.
+        """
+
+        par['minimum_slit_gap'] = 0.25
+        par['minimum_slit_length_sci'] = 4.5
         return par
 
     def init_meta(self):
@@ -286,7 +438,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         self.meta['decker'] = dict(ext=0, card='SLMSKNAM')
         self.meta['binning'] = dict(card=None, compound=True)
 
-        self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        self.meta['mjd'] = dict(card=None, compound=True)
         self.meta['exptime'] = dict(ext=0, card='ELAPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         self.meta['dispname'] = dict(ext=0, card='GRATENAM')
@@ -302,6 +454,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         self.meta['utc'] = dict(ext=0, card='UTC')
         self.meta['mode'] = dict(ext=0, card='MOSMODE')
         self.meta['amp'] = dict(ext=0, card='AMPMODE')
+        self.meta['object'] = dict(ext=0, card='OBJECT')
+        self.meta['filter1'] = dict(ext=0, card='DWFILNAM')
+        self.meta['frameno'] = dict(ext=0, card='FRAMENO')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -328,6 +484,11 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 return headarr[0]['G4TLTWAV']
             else:
                 msgs.warn('This is probably a problem. Non-standard DEIMOS GRATEPOS={0}.'.format(headarr[0]['GRATEPOS']))
+        elif meta_key == 'mjd':
+            if headarr[0].get('MJD-OBS', None) is not None:
+                return headarr[0]['MJD-OBS']
+            else:
+                return time.Time('{}T{}'.format(headarr[0]['DATE-OBS'], headarr[0]['UTC'])).mjd
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -349,7 +510,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # include dateobs with this. For now, amp is effectively
         # redundant because anything with the wrong amplifier used is
         # removed from the list of valid frames in PypeItMetaData.
-        return ['dispname', 'decker', 'binning', 'dispangle', 'amp']
+        return ['dispname', 'decker', 'binning', 'dispangle', 'amp', 'filter1']
 
     def valid_configuration_values(self):
         """
@@ -390,7 +551,44 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return super().pypeit_file_keys() + ['dateobs', 'utc']
+        return super().pypeit_file_keys() + ['lampstat01', 'dateobs', 'utc', 'frameno']
+
+    def subheader_for_spec(self, row_fitstbl, raw_header, extra_header_cards=None,
+                           allow_missing=False):
+        """
+        Generate a dict that will be added to the Header of spectra files
+        generated by ``PypeIt`` (e.g. :class:`~pypeit.specobjs.SpecObjs`).
+        This version overrides the parent version to include KOA specific header cards.
+
+        Args:
+            row_fitstbl (dict-like):
+                Typically an `astropy.table.Row`_ or
+                `astropy.io.fits.Header`_ with keys defined by
+                :func:`~pypeit.core.meta.define_core_meta`.
+            raw_header (`astropy.io.fits.Header`_):
+                Header that defines the instrument and detector, meaning that
+                the header must contain the ``INSTRUME`` and ``DETECTOR``
+                header cards. If provided, this must also contain the header
+                cards provided by ``extra_header_cards``.
+            extra_header_cards (:obj:`list`, optional):
+                Additional header cards from ``raw_header`` to include in the
+                output dictionary. Can be an empty list or None.
+            allow_missing (:obj:`bool`, optional):
+                Ignore any keywords returned by
+                :func:`~pypeit.core.meta.define_core_meta` are not present in
+                ``row_fitstbl``. Otherwise, raise ``PypeItError``.
+
+        Returns:
+            :obj:`dict`: Dictionary with data to include an output fits
+            header file or table downstream.
+        """
+        koa_header_cards = ['KOAID', 'PROGPI', "PROGID", "SEMESTER", 'GUIDFWHM']
+        if extra_header_cards is not None:
+            extra_header_cards += koa_header_cards
+        else:
+            extra_header_cards = koa_header_cards
+
+        return super().subheader_for_spec(row_fitstbl, raw_header, extra_header_cards, allow_missing)
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -411,7 +609,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             `numpy.ndarray`_: Boolean array with the flags selecting the
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
-        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        good_exp = (framematch.check_frame_exptime(fitstbl['exptime'], exprng)) \
+                        & (fitstbl['mode'] == 'Spectral')
         if ftype == 'science':
             return good_exp & (fitstbl['idname'] == 'Object') & (fitstbl['lampstat01'] == 'Off') \
                         & (fitstbl['hatch'] == 'open')
@@ -423,7 +622,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             is_flat = np.any(np.vstack([(fitstbl['idname'] == n) & (fitstbl['hatch'] == h)
                                     for n,h in zip(['IntFlat', 'DmFlat', 'SkyFlat'],
                                                    ['closed', 'open', 'open'])]), axis=0)
-            return good_exp & is_flat
+            return good_exp & is_flat & (fitstbl['lampstat01'] != 'Off')
         if ftype == 'pinhole':
             # Pinhole frames are never assigned for DEIMOS
             return np.zeros(len(fitstbl), dtype=bool)
@@ -431,7 +630,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'Dark') & (fitstbl['lampstat01'] == 'Off') \
                         & (fitstbl['hatch'] == 'closed')
         if ftype in ['arc', 'tilt']:
-            return good_exp & (fitstbl['idname'] == 'Line') & (fitstbl['hatch'] == 'closed')
+            return good_exp & (fitstbl['idname'] == 'Line') & (fitstbl['hatch'] == 'closed') \
+                        & (fitstbl['lampstat01'] != 'Off')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
@@ -509,15 +709,18 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.
         """
-        # Check for file; allow for extra .gz, etc. suffix
-        # TODO: Why not use os.path.isfile?
-        fil = glob.glob(raw_file + '*')
-        if len(fil) != 1:
-            msgs.error('Found {0} files matching {1}'.format(len(fil), raw_file + '*'))
         # Read
-        msgs.info("Reading DEIMOS file: {:s}".format(fil[0]))
+        msgs.info(f'Attempting to read DEIMOS file: {raw_file}')
+        # NOTE: io.fits_open checks that the file exists
+        hdu = io.fits_open(raw_file)
 
-        hdu = io.fits_open(fil[0])
+        # Validate the entered (list of) detector(s)
+        nimg, _det = self.validate_det(det)
+
+        # Grab the detector or mosaic parameters
+        mosaic = None if nimg == 1 else self.get_mosaic_par(det, hdu=hdu)
+        detectors = [self.get_detector_par(det, hdu=hdu)] if nimg == 1 else mosaic.detectors
+
         if hdu[0].header['AMPMODE'] != 'SINGLE:B':
             msgs.error('PypeIt can only reduce images with AMPMODE == SINGLE:B.')
         if hdu[0].header['MOSMODE'] != 'Spectral':
@@ -528,47 +731,139 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detlsize = hdu[0].header['DETLSIZE']
         x0, x_npix, y0, y_npix = np.array(parse.load_sections(detlsize)).flatten()
 
-        # Create final image
-        if det is None:
-            image = np.zeros((x_npix, y_npix + 4 * postpix))
-            rawdatasec_img = np.zeros_like(image, dtype=int)
-            oscansec_img = np.zeros_like(image, dtype=int)
-
         # get the x and y binning factors...
         binning = hdu[0].header['BINNING']
         if binning != '1,1':
             msgs.error("This binning for DEIMOS might not work.  But it might..")
 
-        # DEIMOS detectors
-        nchip = 8
-
+        # get the chips to read in
+        # DP: I don't know if this needs to still exist. I believe det is never None
         if det is None:
-            chips = range(nchip)
+            chips = range(self.ndet)
         else:
-            chips = [det - 1]  # Indexing starts at 0 here
-        # Loop
-        for tt in chips:
-            data, oscan = deimos_read_1chip(hdu, tt + 1)
+            chips = [d-1 for d in _det]  # Indexing starts at 0 here
 
-            # One detector??
-            if det is not None:
-                image = np.zeros((data.shape[0], data.shape[1] + oscan.shape[1]))
-                rawdatasec_img = np.zeros_like(image, dtype=int)
-                oscansec_img = np.zeros_like(image, dtype=int)
+        # Create final image
+        # DP: Still do not know if this is necessary
+        if det is None:
+            image = np.zeros((nimg, x_npix, y_npix + 4 * postpix))
+            rawdatasec_img = np.zeros_like(image, dtype=int)
+            oscansec_img = np.zeros_like(image, dtype=int)
+        # One detector??
+        else:
+            # get final datasec and oscan size (it's the same for every chip so
+            # it's safe to determine it outsize the loop)
+            data, oscan = deimos_read_1chip(hdu, chips[0] + 1)
+            image = np.zeros((nimg, data.shape[0], data.shape[1] + oscan.shape[1]))
+            rawdatasec_img = np.zeros_like(image, dtype=int)
+            oscansec_img = np.zeros_like(image, dtype=int)
+
+        # Loop over the chips
+        for ii, tt in enumerate(chips):
+            data, oscan = deimos_read_1chip(hdu, tt + 1)
 
             # Indexing
             x1, x2, y1, y2, o_x1, o_x2, o_y1, o_y2 = indexing(tt, postpix, det=det)
 
             # Fill
-            image[y1:y2, x1:x2] = data
-            rawdatasec_img[y1:y2, x1:x2] = 1 # Amp
-            image[o_y1:o_y2, o_x1:o_x2] = oscan
-            oscansec_img[o_y1:o_y2, o_x1:o_x2] = 1 # Amp
+            image[ii, y1:y2, x1:x2] = data
+            rawdatasec_img[ii, y1:y2, x1:x2] = 1 # Amp
+            image[ii, o_y1:o_y2, o_x1:o_x2] = oscan
+            oscansec_img[ii, o_y1:o_y2, o_x1:o_x2] = 1 # Amp
+
+        exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
 
         # Return
-        exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
-        return self.get_detector_par(hdu, det if det is not None else 1), \
-               image, hdu, exptime, rawdatasec_img, oscansec_img
+        # Handle returning both single and multiple images
+        if nimg == 1:
+            return detectors[0], image[0], hdu, exptime, rawdatasec_img[0], oscansec_img[0]
+        return mosaic, image, hdu, exptime, rawdatasec_img, oscansec_img
+
+    def get_mosaic_par(self, mosaic, hdu=None, msc_order=5):
+        """
+        Return the hard-coded parameters needed to construct detector mosaics
+        from unbinned images.
+
+        The parameters expect the images to be trimmed and oriented to follow
+        the ``PypeIt`` shape convention of ``(nspec,nspat)``.  For returned
+        lists, the length of the list is the same as the number of detectors in
+        the mosaic, and they are ordered by the detector number.
+
+        Args:
+            mosaic (:obj:`tuple`):
+                Tuple of detector numbers used to construct the mosaic.  Must be
+                one among the list of possible mosaics as hard-coded by the
+                :func:`allowed_mosaics` function.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent detector parameters are set to a
+                default.  BEWARE: If ``hdu`` is not provided, the binning is
+                assumed to be `1,1`, which will cause faults if applied to
+                binned images!
+            msc_order (:obj:`int`, optional):
+                Order of the interpolation used to construct the mosaic.
+
+        Returns:
+            :class:`~pypeit.images.mosaic.Mosaic`: Object with the mosaic *and*
+            detector parameters.
+        """
+
+        # Validate the entered (list of) detector(s)
+        nimg, _ = self.validate_det(mosaic)
+
+        # Index of mosaic in list of allowed detector combinations
+        mosaic_id = self.allowed_mosaics.index(mosaic)+1
+        detid = f'MSC0{mosaic_id}'
+
+        # Get the detectors
+        detectors = np.array([self.get_detector_par(det, hdu=hdu) for det in mosaic])
+        # Binning *must* be consistent for all detectors
+        if any(d.binning != detectors[0].binning for d in detectors[1:]):
+            msgs.error('Binning is somehow inconsistent between detectors in the mosaic!')
+
+        # Collect the offsets and rotations for *all unbinned* detectors in the
+        # full instrument, ordered by the number of the detector.  Detector
+        # numbers must be sequential and 1-indexed.
+        # See the mosaic documentattion.
+        msc_geometry = DEIMOSMosaicLookUp.geometry
+        expected_shape = msc_geometry[detid]['default_shape']
+        shift = np.array([(msc_geometry[detid]['blue_det']['shift'][0], msc_geometry[detid]['blue_det']['shift'][1]),
+                          (msc_geometry[detid]['red_det']['shift'][0],  msc_geometry[detid]['red_det']['shift'][1])])
+
+        rotation = np.array([msc_geometry[detid]['blue_det']['rotation'], msc_geometry[detid]['red_det']['rotation']])
+
+        # The binning and process image shape must be the same for all images in
+        # the mosaic
+        binning = tuple(int(b) for b in detectors[0].binning.split(','))
+        shape = tuple(n // b for n, b in zip(expected_shape, binning))
+
+        msc_sft = [None]*nimg
+        msc_rot = [None]*nimg
+        msc_tfm = [None]*nimg
+
+        for i in range(nimg):
+            msc_sft[i] = shift[i]
+            msc_rot[i] = rotation[i]
+            msc_tfm[i] = build_image_mosaic_transform(shape, msc_sft[i], msc_rot[i], binning)
+
+        return Mosaic(mosaic_id, detectors, shape, np.array(msc_sft), np.array(msc_rot),
+                      np.array(msc_tfm), msc_order)
+
+    @property
+    def allowed_mosaics(self):
+        """
+        Return the list of allowed detector mosaics.
+
+        Returns:
+            :obj:`list`: List of tuples, where each tuple provides the 1-indexed
+            detector numbers that can be combined into a mosaic and processed by
+            ``PypeIt``.
+        """
+        return [(1,5),(2,6),(3,7),(4,8)]
+
+    @property
+    def default_mosaic(self):
+        return self.allowed_mosaics[0]
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
@@ -597,53 +892,123 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             to 1 and an unmasked value set to 0.  All values are set to
             0.
         """
+        # Validate the entered (list of) detector(s)
+        nimg, _det = self.validate_det(det)
+        _det = list(_det)
+
         # Call the base-class method to generate the empty bpm
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
+        # NOTE: expand_dims does *not* copy the array.  We can edit it directly
+        # because we've created it inside this function.
+        _bpm_img = np.expand_dims(bpm_img, 0) if nimg == 1 else bpm_img
 
-        if det == 1:
-            bpm_img[:,1052:1054] = 1
-        elif det == 2:
-            bpm_img[:,0:4] = 1
-            bpm_img[:,376:381] = 1
-            bpm_img[:,489] = 1
-            bpm_img[:,1333:1335] = 1
-            bpm_img[:,2047] = 1
-        elif det == 3:
-            bpm_img[:,0:4] = 1
-            bpm_img[:,221] = 1
-            bpm_img[:,260] = 1
-            bpm_img[:,366] = 1
-            bpm_img[:,816:819] = 1
-            bpm_img[:,851] = 1
-            bpm_img[:,940] = 1
-            bpm_img[:,1167] = 1
-            bpm_img[:,1280] = 1
-            bpm_img[:,1301:1303] = 1
-            bpm_img[:,1744:1747] = 1
-            bpm_img[:,-4:] = 1
-        elif det == 4:
-            bpm_img[:,0:4] = 1
-            bpm_img[:,47] = 1
-            bpm_img[:,744] = 1
-            bpm_img[:,790:792] = 1
-            bpm_img[:,997:999] = 1
-        elif det == 5:
-            bpm_img[:,25:27] = 1
-            bpm_img[:,128:130] = 1
-            bpm_img[:,1535:1539] = 1
-        elif det == 7:
-            bpm_img[:,426:428] = 1
-            bpm_img[:,676] = 1
-            bpm_img[:,1176:1178] = 1
-        elif det == 8:
-            bpm_img[:,440] = 1
-            bpm_img[:,509:513] = 1
-            bpm_img[:,806] = 1
-            bpm_img[:,931:934] = 1
+        if 1 in _det:
+            i = _det.index(1)
+            _bpm_img[i,:,1052:1054] = 1
+        if 2 in _det:
+            i = _det.index(2)
+            _bpm_img[i,:,0:4] = 1
+            _bpm_img[i,:,376:381] = 1
+            _bpm_img[i,:,489] = 1
+            _bpm_img[i,:,1333:1335] = 1
+            _bpm_img[i,:,2047] = 1
+        if 3 in _det:
+            i = _det.index(3)
+            _bpm_img[i,:,0:4] = 1
+            _bpm_img[i,:,221] = 1
+            _bpm_img[i,:,260] = 1
+            _bpm_img[i,:,366] = 1
+            _bpm_img[i,:,816:819] = 1
+            _bpm_img[i,:,851] = 1
+            _bpm_img[i,:,940] = 1
+            _bpm_img[i,:,1167] = 1
+            _bpm_img[i,:,1280] = 1
+            _bpm_img[i,:,1301:1303] = 1
+            _bpm_img[i,:,1744:1747] = 1
+            _bpm_img[i,:,-4:] = 1
+        if 4 in _det:
+            i = _det.index(4)
+            _bpm_img[i,:,0:4] = 1
+            _bpm_img[i,:,47] = 1
+            _bpm_img[i,:,744] = 1
+            _bpm_img[i,:,790:792] = 1
+            _bpm_img[i,:,997:999] = 1
+        if 5 in _det:
+            i = _det.index(5)
+            _bpm_img[i,:,25:27] = 1
+            _bpm_img[i,:,128:130] = 1
+            _bpm_img[i,:,1535:1539] = 1
+        if 7 in _det:
+            i = _det.index(7)
+            _bpm_img[i,:,426:428] = 1
+            _bpm_img[i,:,676] = 1
+            _bpm_img[i,:,1176:1178] = 1
+        if 8 in _det:
+            i = _det.index(8)
+            _bpm_img[i,:,440] = 1
+            _bpm_img[i,:,509:513] = 1
+            _bpm_img[i,:,806] = 1
+            _bpm_img[i,:,931:934] = 1
 
-        return bpm_img
+        return _bpm_img[0] if nimg == 1 else _bpm_img
 
-    def get_slitmask(self, filename):
+    def get_lamps(self, fitstbl):
+        """
+        Extract the list of arc lamps used from header
+
+        Args:
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more arc frames.
+
+        Returns:
+            lamps (:obj:`list`) : List used arc lamps
+
+        """
+
+        return [f'{lamp}I' for lamp in np.unique(np.concatenate([lname.split() for lname in fitstbl['lampstat01']]))]
+
+    def get_telescope_offset(self, file_list):
+        """
+        For a list of frames compute telescope pointing offset w.r.t. the first frame.
+        Note that the object in the slit will appear moving in the opposite direction (=-tel_off)
+
+        Args:
+            file_list (:obj:`list`): List of frames (including the path) for which telescope offset is desired.
+            Both raw frames and spec2d files can be used.
+
+        Returns:
+            `numpy.ndarray`_: List of telescope offsets (in arcsec) w.r.t. the first frame
+
+        """
+        # file (can be a raw or a spec2d)
+        deimos_files = np.atleast_1d(file_list)
+        # headers for all the files
+        hdrs = np.array([self.get_headarr(file) for file in deimos_files], dtype=object)
+        # mjd for al the files
+        mjds = np.array([self.get_meta_value(aa, 'mjd') for aa in hdrs], dtype=object)
+        # sort
+        sorted_by_mjd = np.argsort(mjds)
+        # telescope coordinates
+        # precision: RA=0.15", Dec=0.1"
+        ras = np.array([self.get_meta_value(aa, 'ra') for aa in hdrs], dtype=object)[sorted_by_mjd]
+        decs = np.array([self.get_meta_value(aa, 'dec') for aa in hdrs], dtype=object)[sorted_by_mjd]
+        coords = SkyCoord(ra=ras, dec=decs, frame='fk5', unit='deg')
+
+        # compute telescope offsets with respect to the first frame
+        tel_off = []
+        for i in range(len(coords)):
+            offset = coords[0].separation(coords[i])
+            pa = coords[0].position_angle(coords[i])
+            # ROTPOSN take into account small changes in the mask PA
+            maskpa = Angle((hdrs[i][0]['ROTPOSN'] + 90.) * units.deg)
+            # tetha = PA in the slitmask reference frame
+            theta = pa - maskpa
+            # telescope offset
+            tel_off.append(offset.arcsec * np.cos(theta))
+
+        return np.array(tel_off)
+
+    def get_slitmask(self, filename:str):
         """
         Parse the slitmask data from a DEIMOS file into :attr:`slitmask`, a
         :class:`~pypeit.spectrographs.slitmask.SlitMask` object.
@@ -657,56 +1022,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             data read from the file. The returned object is the same as
             :attr:`slitmask`.
         """
-        # Open the file
-        hdu = io.fits_open(filename)
-
-        # Build the object data
-        #   - Find the index of the object IDs in the slit-object
-        #     mapping that match the object catalog
-        mapid = hdu['SlitObjMap'].data['ObjectID']
-        catid = hdu['ObjectCat'].data['ObjectID']
-        indx = index_of_x_eq_y(mapid, catid)
-        objname = [item.strip() for item in hdu['ObjectCat'].data['OBJECT']]
-        #   - Pull out the slit ID, object ID, name, object coordinates, top and bottom distance
-        objects = np.array([hdu['SlitObjMap'].data['dSlitId'][indx].astype(int),
-                            catid.astype(int),
-                            hdu['ObjectCat'].data['RA_OBJ'],
-                            hdu['ObjectCat'].data['DEC_OBJ'],
-                            objname,
-                            hdu['SlitObjMap'].data['TopDist'][indx],
-                            hdu['SlitObjMap'].data['BotDist'][indx]]).T
-        #   - Only keep the objects that are in the slit-object mapping
-        objects = objects[mapid[indx] == catid]
-
-        # Match the slit IDs in DesiSlits to those in BluSlits
-        indx = index_of_x_eq_y(hdu['DesiSlits'].data['dSlitId'], hdu['BluSlits'].data['dSlitId'],
-                               strict=True)
-
-        # PA corresponding to positive x on detector (spatial)
-        posx_pa = hdu['MaskDesign'].data['PA_PNT'][0]
-        if posx_pa < 0.:
-            posx_pa += 360.
-
-        # Instantiate the slit mask object and return it
-        self.slitmask = SlitMask(np.array([hdu['BluSlits'].data['slitX1'],
-                                           hdu['BluSlits'].data['slitY1'],
-                                           hdu['BluSlits'].data['slitX2'],
-                                           hdu['BluSlits'].data['slitY2'],
-                                           hdu['BluSlits'].data['slitX3'],
-                                           hdu['BluSlits'].data['slitY3'],
-                                           hdu['BluSlits'].data['slitX4'],
-                                           hdu['BluSlits'].data['slitY4']]).T.reshape(-1,4,2),
-                                 slitid=hdu['BluSlits'].data['dSlitId'],
-                                 align=hdu['DesiSlits'].data['slitTyp'][indx] == 'A',
-                                 science=hdu['DesiSlits'].data['slitTyp'][indx] == 'P',
-                                 onsky=np.array([hdu['DesiSlits'].data['slitRA'][indx],
-                                                 hdu['DesiSlits'].data['slitDec'][indx],
-                                                 hdu['DesiSlits'].data['slitLen'][indx],
-                                                 hdu['DesiSlits'].data['slitWid'][indx],
-                                                 hdu['DesiSlits'].data['slitLPA'][indx]]).T,
-                                 objects=objects,
-                                 #object_names=hdu['ObjectCat'].data['OBJECT'],
-                                 posx_pa=posx_pa)
+        self.slitmask = slitmask.load_keck_deimoslris(filename, self.name)
         return self.slitmask
 
     # TODO: Allow this to accept the relevant row from the PypeItMetaData
@@ -869,11 +1185,11 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Grating slider
         slider = hdu[0].header['GRATEPOS']
 
-        mp_dir = resource_filename('pypeit', 'data/static_calibs/keck_deimos/')
+        mp_dir = os.path.join(data.Paths.static_calibs, 'keck_deimos')
 
         if slider in [3,4]:
-            self.amap = fits.getdata(mp_dir+'amap.s{}.2003mar04.fits'.format(slider))
-            self.bmap = fits.getdata(mp_dir+'bmap.s{}.2003mar04.fits'.format(slider))
+            self.amap = fits.getdata(os.path.join(mp_dir, f'amap.s{slider}.2003mar04.fits'))
+            self.bmap = fits.getdata(os.path.join(mp_dir, f'bmap.s{slider}.2003mar04.fits'))
         else:
             msgs.error('No amap/bmap available for slider {0}. Set `use_maskdesign = False`'.format(slider))
         #TODO: Figure out which amap and bmap to use for slider 2
@@ -1002,6 +1318,283 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Use the detector map to convert to the detector coordinates
         return (x_img, y_img) + self.detector_map.ccd_coordinates(x_img, y_img, in_mm=False)
 
+    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None):
+        """
+        Provides the slit edges positions predicted by the slitmask design using
+        the mask coordinates already converted from mm to pixels by the method
+        `mask_to_pixel_coordinates`.
+
+        If not already instantiated, the :attr:`slitmask`, :attr:`amap`,
+        and :attr:`bmap` attributes are instantiated.  If so, a file must be provided.
+
+        Args:
+            ccdnum (:obj:`int`):
+                Detector number
+            filename (:obj:`str`, optional):
+                The filename to use to (re)instantiate the :attr:`slitmask` and :attr:`grating`.
+                Default is None, i.e., to use previously instantiated attributes.
+            debug (:obj:`bool`, optional):
+                Run in debug mode.
+
+        Returns:
+            :obj:`tuple`: Three `numpy.ndarray`_ and a :class:`~pypeit.spectrographs.slitmask.SlitMask`.
+            Two arrays are the predictions of the slit edges from the slitmask design and
+            one contains the indices to order the slits from left to right in the PypeIt orientation
+
+        """
+        # Re-initiate slitmask and amap and bmap
+        if filename is not None:
+            # Reset the slitmask
+            self.get_slitmask(filename)
+            # Reset the grating
+            self.get_grating(filename)
+            # Load pre- and post-grating maps
+            self.get_amapbmap(filename)
+
+        if self.amap is None and self.bmap is None:
+            msgs.error('Must select amap and bmap; provide a file or use get_amapbmap()')
+
+        if self.slitmask is None:
+            msgs.error('Unable to read slitmask design info. Provide a file.')
+
+        if ccdnum is None:
+            msgs.error('A detector number must be provided')
+
+        # parse ccdnum
+        nimg, _ccdnum = self.validate_det(ccdnum)
+
+        # Match left and right edges separately
+        # Sort slits in mm from the slit-mask design
+        sortindx = np.argsort(self.slitmask.center[:, 0])
+
+        # Left (bottom) and right (top) traces in pixels from optical model (image plane and detector)
+        # bottom
+        omodel_bcoo = self.mask_to_pixel_coordinates(x=self.slitmask.bottom[:, 0], y=self.slitmask.bottom[:, 1])
+        bedge_img, ccd_b, bedge_pix = omodel_bcoo[0], omodel_bcoo[2], omodel_bcoo[3]
+
+        # top
+        omodel_tcoo = self.mask_to_pixel_coordinates(x=self.slitmask.top[:, 0], y=self.slitmask.top[:, 1])
+        tedge_img, ccd_t, tedge_pix = omodel_tcoo[0], omodel_tcoo[2], omodel_tcoo[3]
+
+        # Per each slit we take the median value of the traces over the wavelength direction. These medians will be used
+        # for the cross-correlation with the traces found in the images.
+        omodel_bspat = np.zeros(self.slitmask.nslits)
+        omodel_tspat = np.zeros(self.slitmask.nslits)
+
+        for i in range(omodel_bspat.size):
+            # We "flag" the left and right traces predicted by the optical model that are outside of the
+            # current detector, by giving a value of -1.
+            thisccd_b = np.logical_or(ccd_b[i, :] == _ccdnum[0], ccd_b[i, :] == _ccdnum[1]) if nimg == 2 \
+                else ccd_b[i, :] == _ccdnum[0]
+            thisccd_t = np.logical_or(ccd_t[i, :] == _ccdnum[0], ccd_t[i, :] == _ccdnum[1]) if nimg == 2 \
+                else ccd_t[i, :] == _ccdnum[0]
+            # bottom
+            omodel_bspat[i] = -1 if bedge_pix[i, thisccd_b].shape[0] < 10 else \
+                              np.median(bedge_pix[i, thisccd_b])
+            # top
+            omodel_tspat[i] = -1 if tedge_pix[i, thisccd_t].shape[0] < 10 else \
+                              np.median(tedge_pix[i, thisccd_t])
+
+            # If a left (or right) trace is outside of the detector, the corresponding right (or left) trace
+            # is determined using the pixel position from the image plane.
+            whgood = np.where(tedge_img[i, :] > -1e4)[0]
+            npt_img = whgood.shape[0] // 2
+            # This is hard-coded for DEIMOS, since it refers to the detectors configuration
+            if nimg == 1:
+                whgood = whgood[:npt_img] if _ccdnum[0] <= 4 else whgood[npt_img:]
+            if omodel_bspat[i] == -1 and omodel_tspat[i] >= 0:
+                omodel_bspat[i] = omodel_tspat[i] - np.median((tedge_img - bedge_img)[i, whgood])
+            if omodel_tspat[i] == -1 and omodel_bspat[i] >= 0:
+                omodel_tspat[i] = omodel_bspat[i] + np.median((tedge_img - bedge_img)[i, whgood])
+
+            # If the `omodel_bspat` is greater than `omodel_tspat` we switch the order
+            if omodel_bspat[i] > omodel_tspat[i]:
+                invert_order = omodel_bspat[i]
+                omodel_bspat[i] = omodel_tspat[i]
+                omodel_tspat[i] = invert_order
+
+        # If there are overlapping slits, i.e., omodel_tspat[sortindx][i] > omodel_bspat[sortindx][i+1],
+        # move the overlapping edges to be adjacent instead
+        for i in range(sortindx.size -1):
+            if omodel_tspat[sortindx][i] != -1 and omodel_bspat[sortindx][i+1] != -1 and \
+                    omodel_tspat[sortindx][i] > omodel_bspat[sortindx][i+1]:
+                diff = omodel_tspat[sortindx][i] - omodel_bspat[sortindx][i+1]
+                omodel_tspat[sortindx[i]] -= diff/2.
+                omodel_bspat[sortindx[i+1]] += diff/2. + 0.1
+                # # Re-check If the `omodel_bspat` is greater than `omodel_tspat` and switch the order.
+                # # It may happens if 3 slits are overlapping (true story!)
+                # if omodel_bspat[sortindx[i]] > omodel_tspat[sortindx[i]]:
+                #     invert_order = omodel_bspat[sortindx[i]]
+                #     omodel_bspat[sortindx[i]] = omodel_tspat[sortindx[i]]
+                #     omodel_tspat[sortindx[i]] = invert_order
+
+        # This print a QA table with info on the slits (sorted from left to right) that fall in the current detector.
+        # The only info provided here is `slitid`, which is called `dSlitId` in the DEIMOS design file. I had to remove
+        # `slitindex` because not always matches `SlitName` from the DEIMOS design file.
+        if not debug:
+            num = 0
+            msgs.info('Expected slits on current detector')
+            msgs.info('*' * 18)
+            msgs.info('{0:^6s} {1:^12s}'.format('N.', 'dSlitId'))
+            msgs.info('{0:^6s} {1:^12s}'.format('-' * 5, '-' * 9))
+            for i in range(sortindx.shape[0]):
+                if omodel_bspat[sortindx][i] != -1 or omodel_tspat[sortindx][i] != -1:
+                    msgs.info('{0:^6d} {1:^12d}'.format(num, self.slitmask.slitid[sortindx][i]))
+                    num += 1
+            msgs.info('*' * 18)
+
+        # If instead we run this method in debug mode, we print more info useful for comparison, for example, with
+        # the IDL-based pipeline.
+        if debug:
+            num = 0
+            msgs.info('Expected slits on current detector')
+            msgs.info('*' * 92)
+            msgs.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^14s} {5:^16s} {6:^16s}'.format('N.',
+                                                                                             'dSlitId', 'slitLen(mm)',
+                                                                                             'slitWid(mm)',
+                                                                                             'spat_cen(mm)',
+                                                                                             'omodel_bottom(pix)',
+                                                                                             'omodel_top(pix)'))
+            msgs.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^14s} {5:^16s} {6:^14s}'.format('-' * 4, '-' * 9, '-' * 11,
+                                                                                             '-' * 11, '-' * 13,
+                                                                                             '-' * 18, '-' * 15))
+            for i in range(sortindx.size):
+                if omodel_bspat[sortindx][i] != -1 or omodel_tspat[sortindx][i] != -1:
+                    msgs.info('{0:^5d}{1:^14d} {2:^9.3f} {3:^12.3f} {4:^14.3f}    {5:^16.2f} {6:^14.2f}'
+                              .format(num, self.slitmask.slitid[sortindx][i],
+                                         self.slitmask.length[sortindx][i],
+                                         self.slitmask.width[sortindx][i],
+                                         self.slitmask.center[:, 0][sortindx][i],
+                                         omodel_bspat[sortindx][i], omodel_tspat[sortindx][i]))
+                    num += 1
+            msgs.info('*' * 92)
+
+        return omodel_bspat, omodel_tspat, sortindx, self.slitmask
+
+    def list_detectors(self, mosaic=False):
+        """
+        List the *names* of the detectors in this spectrograph.
+
+        This is primarily used :func:`~pypeit.slittrace.average_maskdef_offset`
+        to measure the mean offset between the measured and expected slit
+        locations.
+
+        Detectors separated along the dispersion direction should be ordered
+        along the first axis of the returned array.  For example, Keck/DEIMOS
+        returns:
+        
+        .. code-block:: python
+        
+            dets = np.array([['DET01', 'DET02', 'DET03', 'DET04'],
+                             ['DET05', 'DET06', 'DET07', 'DET08']])
+
+        such that all the bluest detectors are in ``dets[0]``, and the slits
+        found in detectors 1 and 5 are just from the blue and red counterparts
+        of the same slit.
+
+        Args:
+            mosaic (:obj:`bool`, optional):
+                Is this a mosaic reduction?
+                It is used to determine how to list the detector, i.e., 'DET' or 'MSC'.
+
+        Returns:
+            `numpy.ndarray`_: The list of detectors in a `numpy.ndarray`_.  If
+            the array is 2D, there are detectors separated along the dispersion
+            axis.
+        """
+        if mosaic:
+            return np.array([self.get_det_name(_det) for _det in self.allowed_mosaics])
+        else:
+            return np.array([detector_container.DetectorContainer.get_name(i+1)
+                             for i in range(self.ndet)]).reshape(2,-1)
+
+    def spec1d_match_spectra(self, sobjs):
+        """
+        Match up slits in a SpecObjs file based on coords.  Specific to DEIMOS.
+
+        Args:
+            sobjs (:class:`pypeit.specobjs.SpecObjs`): 
+                Spec1D objects
+
+        Returns:
+            :obj:`tuple`: array of indices for the blue detector, array of
+            indices for the red (matched to the blue).
+        """
+
+        # ***FOR THE MOMENT, REMOVE SERENDIPS
+        good_obj = sobjs.MASKDEF_OBJNAME != 'SERENDIP'
+
+        # MATCH RED TO BLUE VIA RA/DEC
+#        mb = sobjs['DET'] <=4
+#        mr = sobjs['DET'] >4
+        det = np.array([detector_container.DetectorContainer.parse_name(d) for d in sobjs.DET])
+        mb = det <= 4
+        mr = det > 4
+
+        ridx = np.where(mr & good_obj)[0]
+        robjs = sobjs[ridx]
+
+        #rslits = slits[mr]
+        #bslits = slits[mb]
+
+        n=0
+
+        # SEARCH ON BLUE FIRST
+        bmt = []
+        rmt = []
+        for ibobj in np.where(mb & good_obj)[0]:
+
+            sobj = sobjs[ibobj]
+            mtc = sobj.RA == robjs.RA
+            if np.sum(mtc) == 1:
+                irobj = int(ridx[mtc])
+                if not np.isclose(sobj.DEC, sobjs[irobj].DEC):
+                    msgs.error('DEC does not match RA!')
+                bmt.append(ibobj)
+                rmt.append(irobj)
+                # START ARRAY
+                #if (n==0):
+                #    matches = Table([[obj['name']],[robj['name']],[obj['det']],[robj['det']],\
+                #                [obj['objra']],[obj['objdec']],[obj['objname']],[obj['maskdef_id']],[obj['slit']]], \
+                #                names=('bname', 'rname','bdet','rdet', 'objra','objdec','objname','maskdef_id','xpos'))
+                #if (n > 0):
+                #    matches.add_row((obj['name'],robj['name'],obj['det'],robj['det'],\
+                #                     obj['objra'],obj['objdec'],obj['objname'],obj['maskdef_id'],obj['slit']))
+                #n=n+1
+            elif np.sum(mtc)>1:
+                msgs.error("Multiple RA matches?!  No good..")
+
+            # TODO - confirm with Marla this block is NG
+            '''
+            # NO RED MATCH
+            if (np.sum(mtc)==-11): 
+            #if (np.sum(mtc)==0):        
+
+                if (n==0):
+                    matches = Table([[obj['name']],['-1'],[obj['det']],[-1],\
+                                [obj['objra']],[obj['objdec']],[obj['objname']],[obj['maskdef_id']],[obj['slit']]], \
+                                names=('bname', 'rname','bdet','rdet', 'objra','objdec','objname','maskdef_id','xpos'))
+                if (n > 0):
+                    matches.add_row((obj['name'],'-1',obj['det'],-1,\
+                                    obj['objra'],obj['objdec'],obj['objname'],obj['maskdef_id'],obj['slit']))
+                n=n+1
+            '''
+
+
+        # TODO -- Confirm with Marla that this is not used
+        '''
+        # SEARCH RED OBJECTS FOR NON-MATCHES IN BLUE
+        for obj in rslits:
+
+            mtc = (obj['objra'] == bslits['objra'])
+            #if (np.sum(mtc)==0):
+
+            #   matches.add_row(('-1',obj['name'],-1,obj['det'],\
+            #                        obj['objra'],obj['objdec'],obj['objname'],obj['maskdef_id'],obj['slit']))
+            #   n=n+1
+        '''
+
+        return np.array(bmt), np.array(rmt)
 
 class DEIMOSOpticalModel(OpticalModel):
     """
@@ -1242,6 +1835,7 @@ def indexing(itt, postpix, det=None):
     # Return
     return x1, x2, y1, y2, o_x1, o_x2, o_y1, o_y2
 
+
 def deimos_read_1chip(hdu,chipno):
     """ Read one of the DEIMOS detectors
 
@@ -1288,3 +1882,68 @@ def deimos_read_1chip(hdu,chipno):
     return data, oscan
 
 
+def load_wmko_std_spectrum(fits_file:str, outfile=None, pad = False):
+    """Load up a Standard spectrum generated by WMKO IDL scripts
+    of the great Greg Wirth
+
+    The SpecObjs generated is checked that it is ready for fluxing
+
+    Args:
+        fits_file (str): filename
+        outfile ([type], optional): Write the SpecObjs object to a FITS file. Defaults to None.
+
+    Returns:
+        specobjs.SpecObjs: object holding the spectra
+    """
+
+    # Open up
+    hdul = fits.open(fits_file)
+    meta = Table(hdul[1].data)
+    idl_spec = Table(hdul[2].data)
+
+    # Hope this always works..
+    npix = int(len(idl_spec)/2)
+
+    if pad:
+        if int(len(idl_spec)) % 2 != 0:
+            npix = int((len(idl_spec)+1)/2)
+            idl_spec.add_row([0.0, 0.0])
+
+    # Generate vacuum wavelengths
+    idl_vac = wave.airtovac(idl_spec['WAVELENGTH']*units.AA)
+
+    # Generate SpecObj
+    sobj1 = specobj.SpecObj.from_arrays('MultiSlit', idl_vac.value[0:npix],
+                                  idl_spec['COUNTS'].data[0:npix], 
+                                   1./(idl_spec['COUNTS'].data[0:npix]),
+                                   DET='DET03')
+    sobj2 = specobj.SpecObj.from_arrays('MultiSlit', idl_vac.value[npix:],
+                                  idl_spec['COUNTS'].data[npix:], 
+                                   1./(idl_spec['COUNTS'].data[npix:]), 
+                                   DET='DET07')
+
+    # SpecObjs
+    sobjs = specobjs.SpecObjs()
+    sobjs.add_sobj(sobj1)
+    sobjs.add_sobj(sobj2)
+
+    # Fill in header
+    coord = linetools.utils.radec_to_coord((meta['RA'][0], meta['DEC'][0]))
+    sobjs.header = dict(EXPTIME=1., 
+                        AIRMASS=float(meta['AIRMASS']), 
+                        DISPNAME=str(meta['GRATING'][0]), 
+                        PYP_SPEC='keck_deimos', 
+                        PYPELINE='MultiSlit',
+                        RA=coord.ra.deg, 
+                        DEC=coord.dec.deg
+                   )
+
+    # Check
+    assert sobjs.ready_for_fluxing()
+
+    # Write?
+    if outfile is not None:
+        sobjs.write_to_fits(sobjs.header, outfile)
+        print("Wrote: {}".format(outfile))
+
+    return sobjs

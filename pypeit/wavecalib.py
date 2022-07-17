@@ -50,10 +50,11 @@ class WaveCalib(datamodel.DataContainer):
                                 descr='Total number of slits.  This can include masked slits'),
                  'spat_ids': dict(otype=np.ndarray, atype=np.integer, descr='Slit spat_ids. Named distinctly from that in WaveFit '),
                  'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
-                 'strpar': dict(otype=str, descr='Parameters as a string')}
+                 'strpar': dict(otype=str, descr='Parameters as a string'),
+                 'lamps': dict(otype=str, descr='List of arc lamps used for the wavelength calibration')}
 
     def __init__(self, wv_fits=None, nslits=None, spat_ids=None, PYP_SPEC=None,
-                 strpar=None, wv_fit2d=None, arc_spectra=None):
+                 strpar=None, wv_fit2d=None, arc_spectra=None, lamps=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
@@ -114,9 +115,12 @@ class WaveCalib(datamodel.DataContainer):
         # Return
         return _d
 
+    # TODO: Although I don't like doing it, kwargs is here to catch the
+    # extraneous keywords that can be passed to _parse from the base class but
+    # won't be used.
     @classmethod
     def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,
-               hdu_prefix=None):
+               hdu_prefix=None, **kwargs):
         """
         See datamodel.DataContainer for docs
 
@@ -249,31 +253,64 @@ class WaveCalib(datamodel.DataContainer):
         # Return
         return image
 
-    def print_diagnostics(self):
+    def wave_diagnostics(self, print_diag=False):
         """
-        Print a set of diagnostics to the screen
+        Create a table with wavecalib diagnostics
+
+        Args:
+            print_diag (:obj:`bool`, optional):
+                If True, the diagnostic table is printed to screen
+        Returns:
+            `astropy.table.Table`_: wavecalib diagnostics table
 
         """
+        # wavelength range of calibrated arc spectra
+        minWave = np.array([0 if wvfit.wave_soln is None else wvfit.wave_soln[0] for wvfit in self.wv_fits])
+        maxWave = np.array([0 if wvfit.wave_soln is None else wvfit.wave_soln[-1] for wvfit in self.wv_fits])
+
+        # wavelength range of fitted ID'd lines
+        lines_wmin = np.array([0 if wvfit is None or wvfit.pypeitfit is None else
+                              wvfit.wave_fit[wvfit.pypeitfit.gpm == 1][0] for wvfit in self.wv_fits])
+        lines_wmax = np.array([0 if wvfit is None or wvfit.pypeitfit is None else
+                              wvfit.wave_fit[wvfit.pypeitfit.gpm == 1][-1] for wvfit in self.wv_fits])
+
+        # wavelength coverage of fitted ID'd lines
+        lines_waverange = lines_wmax - lines_wmin
+        spec_waverange = maxWave - minWave
+        lines_cov = [0 if spec_waverange[i] == 0 else
+                     lines_waverange[i] / spec_waverange[i] * 100 for i in range(self.wv_fits.size)]
+
         # Generate a table
         diag = Table()
+        # Slit number
+        diag['N.'] = np.arange(self.wv_fits.size)
+        diag['N.'].format = 'd'
         # spat_id
         diag['SpatID'] = [wvfit.spat_id for wvfit in self.wv_fits]
         # Central wave, delta wave
-        diag['minWave'] = [0 if wvfit.wave_soln is None else wvfit.wave_soln[0] for wvfit in self.wv_fits]
+        diag['minWave'] = minWave
         diag['minWave'].format = '0.1f'
         diag['Wave_cen'] = [0 if wvfit.cen_wave is None else wvfit.cen_wave for wvfit in self.wv_fits]
         diag['Wave_cen'].format = '0.1f'
-        diag['maxWave'] = [0 if wvfit.wave_soln is None else wvfit.wave_soln[-1] for wvfit in self.wv_fits]
+        diag['maxWave'] = maxWave
         diag['maxWave'].format = '0.1f'
         diag['dWave'] = [0 if wvfit.cen_disp is None else wvfit.cen_disp for wvfit in self.wv_fits]
         diag['dWave'].format = '0.3f'
         # Number of good lines
         diag['Nlin'] = [0 if wvfit.pypeitfit is None else np.sum(wvfit.pypeitfit.gpm) for wvfit in self.wv_fits]
+        diag['IDs_Wave_range'] = ['{:9.3f} - {:9.3f}'.format(lines_wmin[i], lines_wmax[i]) for i in range(self.wv_fits.size)]
+        diag['IDs_Wave_cov(%)'] = lines_cov
+        diag['IDs_Wave_cov(%)'].format = '0.1f'
+        # FWHM
+        diag['mesured_fwhm'] = [0. if wvfit.fwhm is None else wvfit.fwhm for wvfit in self.wv_fits]
+        diag['mesured_fwhm'].format = '0.1f'
         # RMS
         diag['RMS'] = [0 if wvfit.rms is None else wvfit.rms for wvfit in self.wv_fits]
         diag['RMS'].format = '0.3f'
-        # Print it
-        print(diag)
+        if print_diag:
+            # Print it
+            print(diag)
+        return diag
 
 
 class BuildWaveCalib:
@@ -281,15 +318,15 @@ class BuildWaveCalib:
     Class to guide wavelength calibration
 
     Args:
-        msarc (:class:`pypeit.images.pypeitimage.PypeItImage` or None):
+        msarc (:class:`pypeit.images.pypeitimage.PypeItImage`):
             Arc image, created by the ArcImage class
-        slits (:class:`pypeit.slittrace.SlitTraceSet`, None):
+        slits (:class:`pypeit.slittrace.SlitTraceSet`):
             Slit edges
-        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph` or None):
+        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             The `Spectrograph` instance that sets the
             instrument used to take the observations.  Used to set
             :attr:`spectrograph`.
-        par (:class:`pypeit.par.pypeitpar.WaveSolutionPar` or None):
+        par (:class:`pypeit.par.pypeitpar.WaveSolutionPar`):
             The parameters used for the wavelength solution
             Uses ['calibrations']['wavelengths']
         binspectral (int, optional): Binning of the Arc in the spectral dimension
@@ -321,20 +358,29 @@ class BuildWaveCalib:
 
     frametype = 'wv_calib'
 
-    def __init__(self, msarc, slits, spectrograph, par, binspectral=None, det=1,
+    def __init__(self, msarc, slits, spectrograph, par, lamps, binspectral=None, det=1,
                  qa_path=None, msbpm=None, master_key=None):
 
-        # Required parameters (but can be None)
+        # TODO: This should be a stop-gap to avoid instantiation of this with
+        # any Nones.
+        if None in [msarc, slits, spectrograph, par, lamps]:
+            msgs.error('CODING ERROR: Cannot instantiate BuildWaveCalib with Nones.')
+
+        # Required parameters
         self.msarc = msarc
         self.slits = slits
         self.spectrograph = spectrograph
         self.par = par
+        self.lamps = lamps
 
         # Optional parameters
-        self.bpm = msbpm
-        if self.bpm is None:
-            if msarc is not None:  # Can be None for load;  will remove this for DataContainer
-                self.bpm = msarc.bpm
+        self.bpm = self.msarc.select_flag(flag='BPM') if msbpm is None else msbpm.astype(bool)
+        if self.bpm.shape != self.msarc.shape:
+            msgs.error('Bad-pixel mask is not the same shape as the arc image.')
+#        self.bpm = msbpm
+#        if self.bpm is None and msarc is not None:
+#            # msarc can be None for load;  will remove this for DataContainer
+#            self.bpm = msarc.bpm
         self.binspectral = binspectral
         self.qa_path = qa_path
         self.det = det
@@ -346,8 +392,14 @@ class BuildWaveCalib:
         self.arccen = None  # central arc spectrum
 
         # Get the non-linear count level
-        self.nonlinear_counts = 1e10 if self.spectrograph is None \
-            else self.spectrograph.nonlinear_counts(self.msarc.detector)
+        # TODO: This is currently hacked to deal with Mosaics
+        try:
+            self.nonlinear_counts = self.msarc.detector.nonlinear_counts()
+        except:
+            self.nonlinear_counts = 1e10
+
+#        self.nonlinear_counts = 1e10 if self.spectrograph is None \
+#            else self.spectrograph.nonlinear_counts(self.msarc.detector)
             #else self.spectrograph.nonlinear_counts(self.det)
 
         # --------------------------------------------------------------
@@ -367,8 +419,12 @@ class BuildWaveCalib:
             # Internal mask for failed wv_calib analysis
             # TODO -- Allow for an option to re-attempt those previously flagged as BADWVCALIB?
             self.wvc_bpm = np.invert(mask == 0)
+            ## We want to keep the 'BOXSLIT', which mask value is 2. But we don't want to keep 'BOXSLIT'
+            ## with other bad flag (for which the mask value would be > 2)
+            #self.wvc_bpm = mask > 2
             self.wvc_bpm_init = self.wvc_bpm.copy()
             # Slitmask -- Grabs only unmasked, initial slits
+            #self.slitmask_science = self.slits.slit_img(initial=True, flexure=None, exclude_flag=['BOXSLIT'])
             self.slitmask_science = self.slits.slit_img(initial=True, flexure=None)
             # Resize
             self.shape_science = self.slitmask_science.shape
@@ -419,10 +475,20 @@ class BuildWaveCalib:
         # Obtain a list of good slits
         ok_mask_idx = np.where(np.invert(self.wvc_bpm))[0]
 
+        # print to screen the slit widths if maskdef_designtab is available
+        if self.slits.maskdef_designtab is not None:
+            msgs.info("Slit widths (arcsec): {}".format(np.round(self.slits.maskdef_designtab['SLITWID'].data, 2)))
+
+        # measure the FWHM of the arc lines
+        measured_fwhms = np.zeros(arccen.shape[1], dtype=object)
+        for islit in range(arccen.shape[1]):
+            if islit not in ok_mask_idx:
+                continue
+            measured_fwhms[islit] = autoid.measure_fwhm(arccen[:, islit])
+
         # Obtain calibration for all slits
         if method == 'simple':
-            lines = self.par['lamps']
-            line_lists = waveio.load_line_lists(lines)
+            line_lists = waveio.load_line_lists(self.lamps)
 
             final_fit = arc.simple_calib_driver(line_lists, arccen, ok_mask_idx,
                                                     n_final=self.par['n_final'],
@@ -431,15 +497,18 @@ class BuildWaveCalib:
                                                     IDwaves=self.par['IDwaves'])
         elif method == 'holy-grail':
             # Sometimes works, sometimes fails
-            arcfitter = autoid.HolyGrail(arccen, par=self.par, ok_mask=ok_mask_idx, nonlinear_counts=self.nonlinear_counts)
+            arcfitter = autoid.HolyGrail(arccen, self.lamps, par=self.par, ok_mask=ok_mask_idx,
+                                         nonlinear_counts=self.nonlinear_counts,
+                                         spectrograph=self.spectrograph.name)
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'identify':
+            raise NotImplementedError('method = identify not yet implemented')
             final_fit = {}
             # Manually identify lines
             msgs.info("Initializing the wavelength calibration tool")
-            embed(header='line 222 wavecalib.py')
+            #embed(header='line 222 wavecalib.py')
             for slit_idx in ok_mask_idx:
-                arcfitter = Identify.initialise(arccen, self.slits, slit=slit_idx, par=self.par)
+                arcfitter = Identify.initialise(arccen, self.lamps, self.slits, slit=slit_idx, par=self.par)
                 final_fit[str(slit_idx)] = arcfitter.get_results()
                 arcfitter.store_solution(final_fit[str(slit_idx)], "", self.binspectral,
                                          specname=self.spectrograph.name,
@@ -447,7 +516,8 @@ class BuildWaveCalib:
         elif method == 'reidentify':
             # Now preferred
             # Slit positions
-            arcfitter = autoid.ArchiveReid(arccen, self.spectrograph, self.par, ok_mask=ok_mask_idx,
+            arcfitter = autoid.ArchiveReid(arccen, self.spectrograph, self.lamps, self.par, ok_mask=ok_mask_idx,
+                                           measured_fwhms=measured_fwhms,
                                            #slit_spat_pos=self.spat_coo,
                                            orders=self.orders,
                                            nonlinear_counts=self.nonlinear_counts)
@@ -456,10 +526,11 @@ class BuildWaveCalib:
             # Now preferred
             if self.binspectral is None:
                 msgs.error("You must specify binspectral for the full_template method!")
-            final_fit = autoid.full_template(arccen, self.par, ok_mask_idx, self.det,
-                                             self.binspectral,
+            final_fit = autoid.full_template(arccen, self.lamps, self.par, ok_mask_idx, self.det,
+                                             self.binspectral, measured_fwhms=measured_fwhms,
                                              nonlinear_counts=self.nonlinear_counts,
                                              nsnippet=self.par['nsnippet'])
+                                             #debug=True, debug_reid=True, debug_xcorr=True)
         else:
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
 
@@ -473,13 +544,15 @@ class BuildWaveCalib:
             else:
                 # This is for I/O naming
                 item.spat_id = self.slits.spat_id[idx]
+                # add measured fwhm
+                item['fwhm'] = measured_fwhms[idx]
                 tmp.append(item)
         self.wv_calib = WaveCalib(wv_fits=np.asarray(tmp),
                                   arc_spectra=arccen,
                                   nslits=self.slits.nslits,
                                   spat_ids=self.slits.spat_id,
                                   PYP_SPEC=self.spectrograph.name,
-                                  )
+                                  lamps=','.join(self.lamps))
 
         # Update mask
         self.update_wvmask()
@@ -493,10 +566,7 @@ class BuildWaveCalib:
                 outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', slit=self.slits.slitord_id[slit_idx],
                                              out_dir=self.qa_path)
                 #
-                #autoid.arc_fit_qa(self.wv_calib[str(self.slits.slitord_id[slit_idx])],
-                #                  outfile=outfile)
                 autoid.arc_fit_qa(self.wv_calib.wv_fits[slit_idx],
-                                  #str(self.slits.slitord_id[slit_idx]),
                                   outfile=outfile)
 
 

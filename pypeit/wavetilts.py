@@ -197,13 +197,17 @@ class BuildWaveTilts:
         self.master_key = master_key
         self.spat_flexure = spat_flexure
 
-        # --------------------------------------------------------------
-        # TODO: Build another base class that does these things for both
-        # WaveTilts and WaveCalib?
-
         # Get the non-linear count level
-        self.nonlinear_counts = 1e10 if self.spectrograph is None \
-            else self.spectrograph.nonlinear_counts(self.mstilt.detector)
+        # TODO: This is currently hacked to deal with Mosaics
+        try:
+            self.nonlinear_counts = self.mstilt.detector.nonlinear_counts()
+        except:
+            self.nonlinear_counts = 1e10
+
+#        # Get the non-linear count level
+#        self.nonlinear_counts = 1e10 if self.spectrograph is None \
+#            else self.mstilt.detector.nonlinear_counts()
+##            else self.spectrograph.nonlinear_counts(self.mstilt.detector)
 
         # Set the slitmask and slit boundary related attributes that the
         # code needs for execution. This also deals with arcimages that
@@ -214,11 +218,14 @@ class BuildWaveTilts:
         # Load up all slits
         # TODO -- Discuss further with JFH
         all_left, all_right, mask = self.slits.select_edges(initial=True, flexure=self.spat_flexure)  # Grabs all, initial slits
-        self.tilt_bpm = np.invert(mask == 0)
+        # self.tilt_bpm = np.invert(mask == 0)
+        # At this point of the reduction the only bitmask flags that may have been generated are 'USERIGNORE',
+        # 'SHORTSLIT', 'BOXSLIT' and 'BADWVCALIB'. Here we use only 'USERIGNORE' and 'SHORTSLIT' to create the bpm mask
+        self.tilt_bpm = self.slits.bitmask.flagged(mask, flag=['SHORTSLIT', 'USERIGNORE'])
         self.tilt_bpm_init = self.tilt_bpm.copy()
         # Slitmask
         # TODO -- Discuss further with JFH
-        self.slitmask_science = self.slits.slit_img(initial=True, flexure=self.spat_flexure)  # All unmasked slits
+        self.slitmask_science = self.slits.slit_img(initial=True, flexure=self.spat_flexure, exclude_flag=['BOXSLIT'])  # All unmasked slits
         # Resize
         gpm = (self.mstilt.bpm == 0) if self.mstilt.bpm is not None \
             else np.ones_like(self.slitmask_science, dtype=bool)
@@ -439,7 +446,7 @@ class BuildWaveTilts:
             # TODO: What to do with the following iter_continuum parameters?:
             #       sigthresh, sigrej, niter_cont, cont_samp, cont_frac_fwhm
             arc_continuum[:,i], arc_fitmask[:,i] \
-                    = arc.iter_continuum(self.arccen[:,i], inmask=np.invert(self.arccen_bpm[:,i]),
+                    = arc.iter_continuum(self.arccen[:,i], gpm=np.invert(self.arccen_bpm[:,i]),
                                          fwhm=self.wavepar['fwhm'])
             # TODO: Original version.  Please leave it for now.
 #            arc_fitmask[:,i], coeff \
@@ -588,6 +595,8 @@ class BuildWaveTilts:
         # Loop on all slits
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
             if self.tilt_bpm[slit_idx]:
+                msgs.info('Skipping bad slit {0}/{1}'.format(slit_idx, self.slits.nslits))
+                self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADTILTCALIB')
                 continue
             #msgs.info('Computing tilts for slit {0}/{1}'.format(slit, self.slits.nslits-1))
             msgs.info('Computing tilts for slit {0}/{1}'.format(slit_idx, self.slits.nslits))
@@ -599,6 +608,8 @@ class BuildWaveTilts:
                                       bpm=self.arccen_bpm[:,slit_idx], debug=debug)
 
             if self.lines_spec is None:
+                msgs.warn('Did not recover any lines for slit/order = {:d}'.format(self.slits.slitord_id[slit_idx]) +
+                          '. This slit/order will not reduced!')
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADTILTCALIB')
                 continue
 
@@ -610,6 +621,13 @@ class BuildWaveTilts:
             msgs.info('Trace the tilts')
             self.trace_dict = self.trace_tilts(_mstilt, self.lines_spec, self.lines_spat,
                                                thismask, self.slitcen[:, slit_idx])
+            # IF there are < 2 usable arc lines for tilt tracing, PCA fit does not work and the reduction crushes
+            # TODO investigate why some slits have <2 usable arc lines
+            if np.sum(self.trace_dict['use_tilt']) < 2:
+                msgs.warn('Less than 2 usable arc lines for slit/order = {:d}'.format(self.slits.slitord_id[slit_idx]) +
+                          '. This slit/order will not reduced!')
+                self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADTILTCALIB')
+                continue
 
             # TODO: Show the traces before running the 2D fit
 

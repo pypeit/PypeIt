@@ -1,3 +1,6 @@
+
+.. _flat_fielding:
+
 =============
 Flat Fielding
 =============
@@ -5,7 +8,7 @@ Flat Fielding
 Overview
 ========
 
-This doc describes the `Approach`_ used to perform flatfielding
+This doc describes the `Approach`_ used to perform flat-fielding
 in PypeIt, how one goes about `Modifying the Default Approach`_
 for a given :doc:`spectrographs`, and
 how to guide `Generating the Flat Field Images`_.
@@ -26,7 +29,8 @@ There are two primary components to flat-fielding in PypeIt:
 
 The first accounts for pixel-to-pixel variations in the detector
 while the latter corrects for spatial variations along each slit
-and at its edges.
+and at its edges. There is also a routine to correct for the
+relative spectral illumination of multiple slits.
 
 Application
 -----------
@@ -64,7 +68,9 @@ No Flat Fielding
 
 If you wish to turn off flat fielding entirely during
 data reduction, add the following to
-the :ref:`pypeit_file:Parameter Block`::
+the :ref:`pypeit_file:Parameter Block`:
+
+.. code-block:: ini
 
     [baseprocess]
         use_pixelflat = False
@@ -81,13 +87,17 @@ No Illumination Flat
 
 If you wish to turn off application of the illumination
 flat for all files, add the following to
-the :ref:`pypeit_file:Parameter Block`::
+the :ref:`pypeit_file:Parameter Block`:
+
+.. code-block:: ini
 
     [baseprocess]
         use_illumflat = False
 
 Of course, you can do the same for pixel-level flat fielding.
-Or you can choose to make this choice for only a specific frametype::
+Or you can choose to make this choice for only a specific frametype:
+
+.. code-block:: ini
 
     [calibrations]
         [[standard]]
@@ -98,7 +108,9 @@ Apply Illumination Flat
 -----------------------
 
 For an instrument where applying the illumination flat
-is not the default, you may turn this on with::
+is not the default, you may turn this on with:
+
+.. code-block:: ini
 
     [calibrations]
         [[standard]]
@@ -107,6 +119,49 @@ is not the default, you may turn this on with::
 
 Of course, you will need to provide one or more images
 labeled as *illumflat* :doc:`frametype` in your :doc:`pypeit_file`.
+See below for further details.
+
+Lamps off Flats Subtraction
+---------------------------
+
+When flats taken with the lamps OFF are provided ``PypeIt`` will subtract them form the
+flats taken with the lamps ON, before crearing the Master Flat images. The lamp off
+flats are not automatically identified (except for :doc:`mosfire`), so the users should
+label those as *lampoffflats* :doc:`frametype` in the :doc:`pypeit_file`.
+
+.. note::
+    It is responsibility of the user to ensure that the *lampoffflats* frames in the PypeIt file have
+    the same exposure time of the *trace*, *pixelflat* and *illumflat* frames.
+    The *lampoffflats* frames are always subtracted from the *trace*, *pixelflat* and *illumflat* frames.
+    If distinct frames are desired for *trace*, *pixelflat* and *illumflat*, we currently advise users
+    to simply not use the *lampofflats*.
+
+Apply Spectral Illumination Correction
+--------------------------------------
+
+Spectral illumination corrections are not applied by default.
+The main usage case at the moment is for correcting the relative
+spectral sensitivity of different slits/slices for IFU data. If
+you would like to calculate the relative spectral sensitivity,
+you can do so with this keyword argument:
+
+.. code-block:: ini
+
+    [calibrations]
+        [[flatfield]]
+            slit_illum_relative = True
+
+To apply this correction to science frames, you need to make sure
+the following keyword argument is set as well:
+
+.. code-block:: ini
+
+    [scienceframe]
+        [[process]]
+            use_specillum = True
+
+You will need to provide one or more images labeled as *pixelflat*
+:doc:`frametype` in your :doc:`pypeit_file`.
 See below for further details.
 
 Generating the Flat Field Images
@@ -145,7 +200,9 @@ then you may feed this into PypeIt.  This is the recommended approach
 at present for :ref:`lris:keck_lris_blue`.
 
 And you perform this by modifying the
-:ref:`pypeit_file:Parameter Block`::
+:ref:`pypeit_file:Parameter Block`:
+
+.. code-block:: ini
 
     [calibrations]
         [[flatfield]]
@@ -178,7 +235,9 @@ Occasionally one or more slits are saturated
 (a common case is the :doc:`deimos` LVMCslitC mask)
 and the code exits in flat field generation.  If you
 wish to continue on with the slits that are ok,
-add this to your :doc:`pypeit_file`::
+add this to your :doc:`pypeit_file`:
+
+.. code-block:: ini
 
     [calibrations]
         [[flatfield]]
@@ -187,4 +246,22 @@ add this to your :doc:`pypeit_file`::
 Using *mask* will preclude the slit from any further
 reduction.  Using *continue* will set the flat to unit value
 and extraction will be attempted.
+
+
+Ignoring Extrema
+----------------
+
+If you wish to set the pixelflat to unity below/above a 
+user-specified wavelength, then use *pixelflat_min_wave* or
+*pixelflat_max_wave*, e.g.:
+
+.. code-block:: ini
+
+    [calibrations]
+        [[flatfield]]
+            pixelflat_min_wave = 3750.
+
+This will set the flat to be 1. for pixel with wavelength
+less than 3750Ang in every slit.
+
 
