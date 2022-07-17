@@ -341,7 +341,7 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         # Check for file; allow for extra .gz, etc. suffix
         fil2 = glob.glob(raw_file2 + '*')
         if len(fil2) != 1:
-            msgs.error("Found {:d} files matching {:s}".format(len(fil2)))
+            msgs.error("Found {:d} files matching {:s}".format(len(fil2), raw_file))
 
         # detector par
         hdu = io.fits_open(fil[0])
