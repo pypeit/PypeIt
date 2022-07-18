@@ -25,6 +25,7 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
     pypeline = 'MultiSlit'
     supported = True
     comment = 'MDM Modspec spectrometer'
+    pypeline='MultiSlit'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -261,8 +262,6 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         #msgs.warn('Cannot determine if frames are of type {0}. Frame idname and target are: {1}, {2}'.format(ftype, fitstbl['idname'], fitstbl['target']))
         return np.zeros(len(fitstbl), dtype=bool)
-    
-    
     
     def bpm(self, filename, det, shape=None, msbias=None):
         """

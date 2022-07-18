@@ -446,7 +446,7 @@ class BuildWaveTilts:
             # TODO: What to do with the following iter_continuum parameters?:
             #       sigthresh, sigrej, niter_cont, cont_samp, cont_frac_fwhm
             arc_continuum[:,i], arc_fitmask[:,i] \
-                    = arc.iter_continuum(self.arccen[:,i], inmask=np.invert(self.arccen_bpm[:,i]),
+                    = arc.iter_continuum(self.arccen[:,i], gpm=np.invert(self.arccen_bpm[:,i]),
                                          fwhm=self.wavepar['fwhm'])
             # TODO: Original version.  Please leave it for now.
 #            arc_fitmask[:,i], coeff \

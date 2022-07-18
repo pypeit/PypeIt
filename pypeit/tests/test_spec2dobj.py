@@ -14,8 +14,6 @@ from astropy.io import fits
 from pypeit import spec2dobj
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.tests import tstutils
-from pypeit.tests import test_wavetilts
-from pypeit import wavetilts
 from pypeit import slittrace
 from pypeit import pypmsgs
 
@@ -46,6 +44,7 @@ def init_dict():
                 waveimg = 1000 * np.ones_like(sciimg),
                 bpmmask=np.ones_like(sciimg).astype(int),
                 slits=slits,
+                wavesol=None,
                 maskdef_designtab=None,
                 tilts=np.ones_like(sciimg).astype(float),
                 #tilts=wavetilts.WaveTilts(**test_wavetilts.instant_dict),

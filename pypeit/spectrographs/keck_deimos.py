@@ -225,10 +225,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             # find the closest in time to the raw frame date
             close_idx = np.argmin(np.absolute(mjd_measured - date))
             # get measurements
-            tab_measure = t = Table.read(measure_files[close_idx], format='ascii')
-            measured_det =  tab_measure['col3']
-            measured_gain =  tab_measure['col5']  # [e-/DN]
-            measured_ronoise =  tab_measure['col7']   # [e-]
+            tab_measure = Table.read(measure_files[close_idx], format='ascii')
+            measured_det = tab_measure['col3']
+            measured_gain = tab_measure['col5']  # [e-/DN]
+            measured_ronoise = tab_measure['col7']   # [e-]
             msgs.info(f"We are using DEIMOS gain/RN values based on WMKO estimates on {measure_dates[close_idx]}.")
             # get gain
             detector_dict1['gain'] = measured_gain[measured_det == 1]
@@ -357,6 +357,12 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             par['reduce']['slitmask']['assign_obj'] = True
             # force extraction of undetected objects
             par['reduce']['slitmask']['extract_missing_objs'] = True
+            # lower tilts spat_order and higher spec_order for multislits (i.e., generally not very long slits)
+            par['calibrations']['tilts']['spat_order'] = 2  # Default: 3
+            par['calibrations']['tilts']['spec_order'] = 5  # Default: 4
+            # pca
+            par['calibrations']['slitedges']['sync_predict'] = 'auto'
+
 
         # Templates
         if self.get_meta_value(headarr, 'dispname') == '600ZD':
@@ -383,7 +389,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # increase order of final fit because better for mosaic (mosaic is the default)
         par['calibrations']['wavelengths']['n_final'] = 6
         # increase sigdetect because better for mosaic (mosaic is the default)
-        par['calibrations']['wavelengths']['sigdetect'] = 20.
+        par['calibrations']['wavelengths']['sigdetect'] = 10.
 
         # Wavelength FWHM
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
@@ -396,6 +402,25 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['reduce']['findobj']['find_fwhm'] = 7.0 / binning[0]
 
         # Return
+        return par
+
+    def update_edgetracepar(self, par):
+        """
+        This method is used in :func:`pypeit.edgetrace.EdgeTraceSet.maskdesign_matching`
+        to update EdgeTraceSet parameters when the slitmask design matching is not feasible
+        because too few slits are present in the detector.
+
+        Args:
+            par (:class:`pypeit.par.pypeitpar.EdgeTracePar`):
+                The parameters used to guide slit tracing.
+
+        Returns:
+            :class:`pypeit.par.pypeitpar.EdgeTracePar`
+            The modified parameters used to guide slit tracing.
+        """
+
+        par['minimum_slit_gap'] = 0.25
+        par['minimum_slit_length_sci'] = 4.5
         return par
 
     def init_meta(self):
@@ -526,7 +551,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return super().pypeit_file_keys() + ['dateobs', 'utc', 'frameno']
+        return super().pypeit_file_keys() + ['lampstat01', 'dateobs', 'utc', 'frameno']
 
     def subheader_for_spec(self, row_fitstbl, raw_header, extra_header_cards=None,
                            allow_missing=False):

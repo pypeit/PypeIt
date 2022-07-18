@@ -658,7 +658,7 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
 
         # Shape along at least one axis must match
         if not np.any([dd == do for dd, do in zip(data.shape, overscan.shape)]):
-            msgs.error('Overscan sections do not match amplifier sections for'
+            msgs.error('Overscan sections do not match amplifier sections for '
                        'amplifier {0}'.format(amp))
         compress_axis = 1 if data.shape[0] == overscan.shape[0] else 0
 
@@ -699,12 +699,19 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
     identified in KCWI, but the source of this pattern noise is not currently
     known. The pattern model is generated with a three step process:
 
-    STEP 1: Given a first guess at the frequency, calculate how frequency depends on pixel row (slight linear dependence)
-    STEP 2: Using the frequency model, calculate the amplitude of the signal (usually a constant for all pixel rows)
-    STEP 3: Using the model of the frequency and the amplitude, calculate the phase of the signal for each pixel row.
-            Note that the phase is different for each pixel row.
-    A complete detector model is generated for the pattern noise using the frequency+amplitude+phase, and an estimate
-    of the improved effective read noise is provided.
+        #. Given a first guess at the frequency, calculate how frequency depends
+           on pixel row (slight linear dependence)
+
+        #. Using the frequency model, calculate the amplitude of the signal
+           (usually a constant for all pixel rows)
+
+        #. Using the model of the frequency and the amplitude, calculate the
+           phase of the signal for each pixel row.  Note that the phase is
+           different for each pixel row.
+
+    A complete detector model is generated for the pattern noise using the
+    frequency+amplitude+phase, and an estimate of the improved effective read
+    noise is provided.
 
     Args:
         rawframe (`numpy.ndarray`_):
@@ -866,7 +873,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         mod_oscan, _ = rect_slice_with_mask(tmp, tmp_oscan, amp)
         old_ron = stats.sigma_clipped_stats(overscan, sigma=5)[-1]
         new_ron = stats.sigma_clipped_stats(overscan-mod_oscan, sigma=5)[-1]
-        msgs.info(f'Effective readnoise of amplifier {amp} reduced by a factor of {old_ron/new_ron:.2f}x')
+        msgs.info(f'Effective read noise of amplifier {amp} reduced by a factor of {old_ron/new_ron:.2f}x')
 
         # Subtract the model pattern from the full datasec
         outframe[osd_slice] -= model_pattern
