@@ -108,7 +108,7 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['process']['use_overscan'] = False
         
         # Wavelength calibration methods
-        par['calibrations']['wavelengths']['method'] = 'full_template' #more reliable than 'holy-grail', but requires an archived wavelength solution for the specific instrument/grating combination. See https://pypeit.readthedocs.io/en/latest/pypeit_par.html#wavelengthsolutionpar-keywords, also https://pypeit.readthedocs.io/en/latest/wave_calib.html#identify and https://pypeit.readthedocs.io/en/latest/master_edges.html and https://pypeit.readthedocs.io/en/latest/master_arc.html
+        par['calibrations']['wavelengths']['method'] = 'holy-grail' #more reliable than 'holy-grail', but requires an archived wavelength solution for the specific instrument/grating combination. See https://pypeit.readthedocs.io/en/latest/pypeit_par.html#wavelengthsolutionpar-keywords, also https://pypeit.readthedocs.io/en/latest/wave_calib.html#identify and https://pypeit.readthedocs.io/en/latest/master_edges.html and https://pypeit.readthedocs.io/en/latest/master_arc.html
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'XeI', 'NeI']
         par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_mdm_modspec_echelle_20220714T1118.fits' # this is an example; this is based only on Xenon and the minimum files needed to run
         ###|||||| do this one below ||||||###
@@ -119,8 +119,8 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures on this telescope
-        par['calibrations']['arcframe']['process']['clip'] = False
-        par['calibrations']['arcframe']['process']['subtract_continuum'] = True
+        ## par['calibrations']['arcframe']['process']['clip'] = False
+        ## par['calibrations']['arcframe']['process']['subtract_continuum'] = True
         par['calibrations']['standardframe']['exprng'] = [10, 60]
         par['scienceframe']['exprng'] = [120, 600]
 
