@@ -181,7 +181,8 @@ A standard run of ``PypeIt``, i.e., :ref:`run-pypeit`, produces 2 reduced spectr
 science-background frames. Assuming that the science frame is taken at the dither position "A" and
 the background frame is taken at the the dither position "B", the 2 output spectra would be A-B and B-A.
 To combine these 2 output spectra and obtain a 2D spectrum that shows negative-positive-negative traces,
-the user can run :ref:`pypeit-coadd-2dspec`. See :ref:`coadd2d` and :ref:`coadd2d_howto`.
+the user can run :ref:`pypeit-coadd-2dspec`, which will also extract the combined 1D spectra.
+See :ref:`coadd2d` and :ref:`coadd2d_howto`.
 
 Note that, during :ref:`run-pypeit`, science frames can be combined (see :ref:`2d_combine`
 and :ref:`a-b_differencing`), but in this case no optimal weighting and drift correction are applied.
