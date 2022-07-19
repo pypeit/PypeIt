@@ -224,18 +224,19 @@ The algorithm for this test is as follows:
     2. Use :class:`~pypeit.pypeitsetup.PypeItSetup` to automatically
        identify the configurations for these files.
 
-    3. Check that the code found two configurations and wrote the
+    3. Check that the code found four configurations and wrote the
        pypeit files for each.
 
     4. For each configuration:
 
         a. Read the pypeit file
 
-        b. Check that the name for the setup is correct ('A' or 'B')
+        b. Check that the name for the setup is correct ('A', 'B', 'C', or 'D')
 
-        c. Check that the calibration group is the same for all frames ('0' or '1')
+        c. Check that the calibration group is the same for all frames ('0', '1', '2', '3')
 
-        d. Check that ``comb_id`` and ``bkg_id`` for the science frames are what expected
+        d. Check that ``comb_id`` and ``bkg_id`` for the science frames are what expected. The
+           dither sequences used here are: "ABBA", "long2pos", "ABA'B'", "Mask Nod".
 
 
 Because this test is now included in the ``PypeIt`` :ref:`unit-tests`, these configuration checks

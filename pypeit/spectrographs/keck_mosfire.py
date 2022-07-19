@@ -461,13 +461,19 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                                     bkgid[i+1] = combid[i+2]
                                     bkgid[i+2] = combid[i+1]
 
-                        elif dpat in ["Stare", "Slit Nod", "Mask Nod"] or "long2pos" in fitstbl[dpat_idx]['decker']:
-                            if "long2pos" in fitstbl[dpat_idx]['decker']:
-                                # find the starting index of the BA sequence
-                                dpos_idx = np.where((dpos == "B") & (np.roll(dpos, -1) == "A"))[0]
-                            else:
-                                # find the starting index of the AB sequence
-                                dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B"))[0]
+                        elif "long2pos" in fitstbl[dpat_idx]['decker']:
+                            # find the starting index of the BA sequence
+                            dpos_idx = np.where((dpos == "B") & (np.roll(dpos, -1) == "A"))[0]
+                            for i in dpos_idx:
+                                # exclude when np.roll counts the 1st element of dpos to be in a
+                                # sequence with the last element
+                                if i < len(dpos) - 1:
+                                    bkgid[i] = combid[i + 1]
+                                    bkgid[i + 1] = combid[i]
+
+                        elif dpat in ["Slit Nod", "Mask Nod"]:
+                            # find the starting index of the AB sequence
+                            dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B"))[0]
                             for i in dpos_idx:
                                 # exclude when np.roll counts the 1st element of dpos to be in a
                                 # sequence with the last element
@@ -511,6 +517,40 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                                     bkgid[i+2] = bkgid[i+1]
                                     combid[i+3] = combid[i]
                                     bkgid[i+3] = bkgid[i]
+
+                        # if dpat is "Stare" try to find a sequence using dpos
+                        elif dpat == "Stare":
+                            # find the starting index of a possible ABBA sequence
+                            dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B") &
+                                                (np.roll(dpos, -2) == "B") & (np.roll(dpos, -3) == "A"))[0]
+                            if dpos_idx.size > 0:
+                                for i in dpos_idx:
+                                    if i < len(dpos) - 3:
+                                        bkgid[i] = combid[i+1]
+                                        bkgid[i+1] = combid[i]
+                                        combid[i+2] = combid[i+1]
+                                        bkgid[i+2] = bkgid[i+1]
+                                        combid[i+3] = combid[i]
+                                        bkgid[i+3] = bkgid[i]
+                            # find the starting index of a possible ABA'B' sequence
+                            dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B") &
+                                                (np.roll(dpos, -2) == "A'") & (np.roll(dpos, -3) == "B'"))[0]
+                            if dpos_idx.size > 0:
+                                for i in dpos_idx:
+                                    if i < len(dpos) - 3:
+                                        bkgid[i] = combid[i+1]
+                                        bkgid[i+1] = combid[i]
+                                        bkgid[i+2] = bkgid[i+3]
+                                        bkgid[i+3] = bkgid[i+2]
+                            # find the starting index of a possible AB sequence
+                            dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B"))[0]
+                            if dpos_idx.size > 0:
+                                for i in dpos_idx:
+                                    # exclude when np.roll counts the 1st element of dpos to be in a
+                                    # sequence with the last element
+                                    if i < len(dpos)-1:
+                                        bkgid[i] = combid[i+1]
+                                        bkgid[i+1] = combid[i]
 
                         # assign bkgid for files that deviate from general a sequence
                         for i in range(len(fitstbl[dpat_idx])):
