@@ -35,7 +35,7 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
 
     r"""
     Perform optimal extraction `(Horne 1986) <https://ui.adsabs.harvard.edu/abs/1986PASP...98..609H/abstract>`_
-     for a single :class:`~pypeit.specobjs.SpecObj`.
+    for a single :class:`~pypeit.specobjs.SpecObj`.
 
     The :class:`~pypeit.specobjs.SpecObj` object is changed in place with optimal attributes
     being filled with the extraction parameters, and additional sky and noise estimates being added.
@@ -75,7 +75,7 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
         Must have the same shape as ``sciimg``, :math:`(N_{\rm spec}, N_{\rm spat})`.
     thismask : `numpy.ndarray`_
         Boolean image indicating which pixels are on the slit/order in question.
-         Must have the same shape as ``sciimg``, :math:`(N_{\rm spec}, N_{\rm spat})`.
+        Must have the same shape as ``sciimg``, :math:`(N_{\rm spec}, N_{\rm spat})`.
     oprof : `numpy.ndarray`_
          Floating-point image containing the profile of the object that is
          going to be extracted. Must have the same shape as ``sciimg``,
@@ -421,9 +421,10 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, base_var=None,
 
 def findfwhm(model, sig_x):
     r""" Calculate the spatial FWHM of an object profile.
-    This is utility routine used in `fit_profile`_.
+    This is utility routine is used in :func:`~pypeit.core.extract.fit_profile`.
 
     **Revision History:**
+
         - 11-Mar-2005  Written by J. Hennawi and S. Burles David Schlegel, Princeton.
         - 28-May-2018  Ported to python by J. Hennawi
 
@@ -478,14 +479,14 @@ def qa_fit_profile(x_tot, y_tot, model_tot, l_limit = None,
 
     Args:
         x_tot (`numpy.ndarray`_):
-        Floating-point 2-d array containing the spatial location of the object profile.
-        Shape is :math:`(N_{\rm spec}, N_{\rm spat})`.
+            Floating-point 2-d array containing the spatial location of the object profile.
+            Shape is :math:`(N_{\rm spec}, N_{\rm spat})`.
         y_tot (`numpy.ndarray`_):
-        Floating-point 2-d array containing the flux of the object profile.
-        Shape is :math:`(N_{\rm spec}, N_{\rm spat})`.
+            Floating-point 2-d array containing the flux of the object profile.
+            Shape is :math:`(N_{\rm spec}, N_{\rm spat})`.
         model_tot (`numpy.ndarray`_):
-        Floating-point 2-d array containing the model of the object profile.
-        Shape is :math:`(N_{\rm spec}, N_{\rm spat})`.
+            Floating-point 2-d array containing the model of the object profile.
+            Shape is :math:`(N_{\rm spec}, N_{\rm spat})`.
         l_limit (:obj:`float`, optional):
             If not None, draw a vertical line at this left position.
         r_limit (:obj:`float`, optional):
@@ -703,7 +704,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
     sn_gauss : :obj:`float`, optional
         S/N ratio below which the routine just fit a simple Gaussian. The
         default is 4.0.
-    percentile_sn2: :obj:`float`, [default = 70.0], optional
+    percentile_sn2: :obj:`float`, optional
         Percentile of the S/N values along the spectral direction used to estimate the object median S/N.
         For example if `percentile_sn2` = 70.0 then the upper 30% of the S/N values are used.
         This allows to determine the object median S/N even when the object shows signal only for part of
