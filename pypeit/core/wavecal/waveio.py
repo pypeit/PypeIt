@@ -279,7 +279,7 @@ def load_line_lists(lamps, unknown=False, skip=False, all=False, NIST=False,
                 msgs.warn("Input line {:s} is not included in arclines".format(lamp))
                 msgs.info("Please choose from the following list:" + msgs.newline() +
                           ",".join(all_list))
-                import pdb; pdb.set_trace()
+                embed()
                 raise IOError("Cannot continue without list")
         else:
             lists.append(load_line_list(line_file, NIST=NIST))
