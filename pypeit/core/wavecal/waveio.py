@@ -276,11 +276,10 @@ def load_line_lists(lamps, unknown=False, skip=False, all=False, NIST=False,
             if not skip:
                 line_files = glob.glob(os.path.join(data.Paths.linelist, '*_lines.dat'))
                 all_list = [os.path.split(ll)[1].replace("_lines.dat", "") for ll in line_files]
-                msgs.warn("Input line {:s} is not included in arclines".format(lamp))
+                msgs.error("Input line {:s} is not included in arclines".format(lamp))
                 msgs.info("Please choose from the following list:" + msgs.newline() +
                           ",".join(all_list))
-                embed()
-                raise IOError("Cannot continue without list")
+                msgs.error("Cannot continue without appropriate linelist.")
         else:
             lists.append(load_line_list(line_file, NIST=NIST))
     # Stack
