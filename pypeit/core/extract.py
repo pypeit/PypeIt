@@ -34,57 +34,66 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
                     spec, min_frac_use=0.05, base_var=None, count_scale=None, noise_floor=None):
 
     """
-    Perform optimal extraction for one source in a given
-    slit/order.  This follows Horne
+    Perform optimal extraction `(Horne 1986) <https://ui.adsabs.harvard.edu/abs/1986PASP...98..609H/abstract>`_
+     for a single :class:`~pypeit.specobjs.SpecObj`.
 
-    The specobj object is changed in place with the boxcar and optimal
-    dictionaries being filled with the extraction parameters.
-    As well as additional sky and noise estimates:
+    The :class:`~pypeit.specobjs.SpecObj` object is changed in place with optimal attributes
+    being filled with the extraction parameters, and additional sky and noise estimates being added.
+    The following are the attributes that are filled here:
 
-      - spec.OPT_WAVE = wave_opt    # Optimally extracted wavelengths
-      - spec.OPT_COUNTS = flux_opt    # Optimally extracted flux
-      - spec.OPT_COUNTS_IVAR = mivar_opt   # Inverse variance of optimally extracted flux using modelivar image
-      - spec.OPT_COUNTS_SIG = np.sqrt(utils.inverse(mivar_opt))
-      - spec.OPT_COUNTS_NIVAR = nivar_opt  # Optimally extracted noise variance (sky + read noise) only
-      - spec.OPT_MASK = mask_opt    # Mask for optimally extracted flux
-      - spec.OPT_COUNTS_SKY = sky_opt      # Optimally extracted sky
-      - spec.OPT_COUNTS_SIG_DET = base_opt      # Square root of optimally extracted read noise squared
-      - spec.OPT_FRAC_USE = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
-      - spec.OPT_CHI2 = chi2            # Reduced chi2 of the model fit for this spectral pixel
+      - spec.OPT_WAVE = wave_opt  -->  Optimally extracted wavelengths
+      - spec.OPT_COUNTS = flux_opt  -->  Optimally extracted flux
+      - spec.OPT_COUNTS_IVAR = mivar_opt  -->  Inverse variance of optimally extracted flux using modelivar image
+      - spec.OPT_COUNTS_SIG = np.sqrt(utils.inverse(mivar_opt))  -->  Optimally extracted noise from IVAR
+      - spec.OPT_COUNTS_NIVAR = nivar_opt  -->  Optimally extracted noise variance (sky + read noise) only
+      - spec.OPT_MASK = mask_opt  -->   Mask for optimally extracted flux
+      - spec.OPT_COUNTS_SKY = sky_opt  -->  Optimally extracted sky
+      - spec.OPT_COUNTS_SIG_DET = base_opt  -->  Square root of optimally extracted read noise squared
+      - spec.OPT_FRAC_USE = frac_use  -->  Fraction of pixels in the object profile subimage used for this extraction
+      - spec.OPT_CHI2 = chi2  -->  Reduced chi2 of the model fit for this spectral pixel
 
 
     Parameters
     ----------
-    sciimg : float `numpy.ndarray`_, shape (nspec, nspat)
-        Science frame
-    ivar : float `numpy.ndarray`_, shape (nspec, nspat)
-        Inverse variance of science frame. Can be a model or deduced from the
-        image itself.
-    mask : boolean `numpy.ndarray`_, shape (nspec, nspat)
-        Good-pixel mask, indicating which pixels should or should not be
-        used. Good pixels = True, Bad Pixels = False
-    waveimg : float `numpy.ndarray`_, shape (nspec, nspat)
-        Wavelength image.
-    skyimg : float `numpy.ndarray`_, shape (nspec, nspat)
-        Image containing our model of the sky
-    thismask : boolean `numpy.ndarray`_, shape (nspec, nspat)
-        Image indicating which pixels are on the slit/order in question.
-        True=Good.
-    oprof : float `numpy.ndarray`_, shape (nspec, nspat)
-        Image containing the profile of the object that we are extracting.
+    sciimg : `numpy.ndarray`_
+        Floating-point science image with shape :math:`(N_{\rm spec}, N_{\rm spat})`.
+        The first dimension (:math:`N_{\rm spec}`) is spectral, and second dimension
+        (:math:`N_{\rm spat}`) is spatial.
+    ivar : `numpy.ndarray`_
+        Floating-point inverse variance image for the science image.
+        It can be a model image, or deduced from ``sciimg``. Shape
+        must match ``sciimg``, :math:`(N_{\rm spec}, N_{\rm spat})`.
+    mask : `numpy.ndarray`_
+        Boolean image representing the good-pixel mask for the science image.
+        The pixels that have value of True are good to be used.
+        Must have the same shape as ``sciimg``, :math:`(N_{\rm spec}, N_{\rm spat})`.
+    waveimg : `numpy.ndarray`_
+        Floating-point wavelength image. Must have the same shape as ``sciimg``,
+        :math:`(N_{\rm spec}, N_{\rm spat})`.
+    skyimg : `numpy.ndarray`_
+        Floating-point image containing the modeled sky.
+        Must have the same shape as ``sciimg``, :math:`(N_{\rm spec}, N_{\rm spat})`.
+    thismask : `numpy.ndarray`_
+        Boolean image indicating which pixels are on the slit/order in question.
+         Must have the same shape as ``sciimg``, :math:`(N_{\rm spec}, N_{\rm spat})`.
+    oprof : `numpy.ndarray`_
+         Floating-point image containing the profile of the object that is
+         going to be extracted. Must have the same shape as ``sciimg``,
+         :math:`(N_{\rm spec}, N_{\rm spat})`.
     spec : :class:`~pypeit.specobj.SpecObj`
-        This is the container that holds object, trace, and extraction
-        information for the object in question. This routine operates one object
-        at a time.  **This object is altered in place!**
+        Container that holds object, trace, and extraction
+        information for the object in question. **This object is altered in place!**
+        Note that this routine operates one object at a time.
     min_frac_use : :obj:`float`, optional
-        If the sum of object profile across the spatial direction are less than
-        this value, the optimal extraction of this spectral pixel is masked
-        because the majority of the object profile has been masked.
-    base_var : `numpy.ndarray`_, shape is (nspec, nspat), optional
-        The "base-level" variance in the data set by the detector properties and
-        the image processing steps.  See
-        :func:`~pypeit.core.procimg.base_variance`.
-    count_scale : :obj:`float`, `numpy.ndarray`_, optional
+        Minimum accepted value for the sum of the normalized object profile across the spatial direction.
+        For each spectral pixel, if the majority of the object profile has been masked, i.e.,
+        the sum of the normalized object profile across the spatial direction is less than `min_frac_use`,
+        the optimal extraction will also be masked. The default value is 0.05.
+    base_var : `numpy.ndarray`_, optional
+        Floating-point "base-level" variance image set by the detector properties and
+        the image processing steps. See :func:`~pypeit.core.procimg.base_variance`.
+        Must have the same shape as ``sciimg``, :math:`(N_{\rm spec}, N_{\rm spat})`.
+    count_scale : :obj:`float` or `numpy.ndarray`_, optional
         A scale factor, :math:`s`, that *has already been applied* to the
         provided science image.  For example, if the image has been flat-field
         corrected, this is the inverse of the flat-field counts.  If None, set
@@ -217,35 +226,43 @@ def extract_asym_boxcar(sciimg, left_trace, righ_trace, gpm=None, ivar=None):
 
     Parameters
     ----------
-    sciimg : float `numpy.ndarray`_, shape (nspec, nspat)
-        Science frame for the extraction
-
-    left_trace : float `numpy.ndarray`_, shape (nspec, napertures)
-        Left trace boundary of the extraction region.
-
-    right_trace : float `numpy.ndarray`_, shape (nspec, napertures)
-        Right trace boundary of the extraction region.
-
-    gpm : boolean `numpy.ndarray`_, shape (nspec, nspat)
-        Good-pixel mask, indicating which pixels are should or should not be
-        used. Good pixels = True, Bad Pixels = False. Optional.
-    ivar : float `numpy.ndarray`_, shape (nspec, nspat)
-        Inverse variance of science frame. Can be a model or deduced from the
-        image itself. If ivar is set then this code will return the
-        error on the extraction. Optional
+    sciimg : `numpy.ndarray`_
+        Floating-point science image with shape :math:`(N_{\rm spec}, N_{\rm spat})`.
+        The first dimension (:math:`N_{\rm spec}`) is spectral, and second dimension
+        (:math:`N_{\rm spat}`) is spatial.
+    left_trace, right_trace : `numpy.ndarray`_
+        Left and right trace boundaries of the extraction region for each aperture.
+        They are 2-d floating-point arrays with shape :math:`(N_{\rm spec}, N_{\rm apertures})`.
+    gpm : `numpy.ndarray`_, optional
+        Boolean image representing the good-pixel mask for the science image.
+        The pixels that have value of True are good to be used.
+        Must have the same shape as ``sciimg``, :math:`(N_{\rm spec}, N_{\rm spat})`.
+    ivar : `numpy.ndarray`_, optional
+        Floating-point inverse variance image for the science image.
+        It can be a model image, or deduced from ``sciimg``. Shape
+        must match ``sciimg``, :math:`(N_{\rm spec}, N_{\rm spat})`.
+        If not None, the inverse variance of the boxcar extracted flux
+        will be returned.
 
     Returns
     -------
-    flux_out : float `numpy.ndarray`_, shape (nspec, napertures)
-        Array containing the boxcar extracted flux as a function of spectral position for each aperture.
-    gpm_box : bool `numpy.ndarray`_, shape (nspec, napertures)
-        Good pixel mask for the boxcar extracted flux
-    box_npix :   float `numpy.ndarray`_, shape (nspec, napertures)
-        Array containing the number of pixels which contributed to the boxcar sum of the flux for each
-        spectral position for each aperture.
-    ivar_out : float `numpy.ndarray`_, shape (nspec, napertures)
-        Array containing the inverse variance of the boxcar extracted flux as a function of spectral position
-        for each aperture. This will only be returned if the input parameter ivar is not None.
+    flux_out : `numpy.ndarray`_
+        2-d floating-point array containing, for each aperture, the boxcar
+        extracted flux as a function of spectral position. Shape is
+        :math:`(N_{\rm spec}, N_{\rm apertures})`.
+    gpm_box : `numpy.ndarray`_
+        2-d Boolean-point array representing, for each aperture, the good-pixel
+        mask for the boxcar extracted flux. The pixels that have value of True
+        are good to be used. Shape is :math:`(N_{\rm spec}, N_{\rm apertures})`.
+    box_npix :  `numpy.ndarray`_
+        2-d floating-point array containing, for each aperture, the number of pixels in
+        each spectral position that contributed to the boxcar sum of the flux.
+        Shape is :math:`(N_{\rm spec}, N_{\rm apertures})`.
+    ivar_out : `numpy.ndarray`_
+        2-d floating-point array containing, for each aperture, the inverse variance
+        of the boxcar extracted flux as a function of spectral position. Shape is
+        :math:`(N_{\rm spec}, N_{\rm apertures})`. This is  only be returned if
+        the input parameter `ivar` is not None.
 
     """
     ivar1 = np.ones_like(sciimg) if ivar is None else ivar
@@ -278,45 +295,53 @@ def extract_asym_boxcar(sciimg, left_trace, righ_trace, gpm=None, ivar=None):
 def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, base_var=None,
                    count_scale=None, noise_floor=None):
     """
-    Perform boxcar extraction for a single SpecObj.  The size of the boxcar must
-    be available as an attribute of :class:`~pypeit.specobj.SpecObj`.
+    Perform boxcar extraction for a single :class:`~pypeit.specobjs.SpecObj`.
+    The size of the boxcar must be available as an attribute of the
+    :class:`~pypeit.specobj.SpecObj` object.
 
-    Note that the provided :class:`~pypeit.specobj.SpecObj` (``spec``) is
-    modified in place, as shown here:
+    The :class:`~pypeit.specobjs.SpecObj` object is changed in place with boxcar attributes
+    being filled with the extraction parameters, and additional sky and noise estimates being added.
+    The following are the attributes that are filled here:
     
-      - spec.BOX_WAVE = wave_box  # Box car extracted wavelengths
-      - spec.BOX_COUNTS = flux_box*mask_box # Box car extracted flux
-      - spec.BOX_COUNTS_IVAR = ivar_box*mask_box # Box car extracted inverse variance
-      - spec.BOX_COUNTS_SIG = np.sqrt(utils.inverse(ivar_box*mask_box)) # Box car extracted error
-      - spec.BOX_COUNTS_NIVAR = None if nivar_box is None else nivar_box*mask_box # Box car extracted noise variance
-      - spec.BOX_MASK = mask_box # Box car extracted mask
-      - spec.BOX_COUNTS_SKY = sky_box # Box car extracted sky
-      - spec.BOX_COUNTS_SIG_DET = base_box # Box car extracted read noise
-      - spec.BOX_NPIX = pixtot-pixmsk # Number of pixels used in boxcar sum
+      - spec.BOX_WAVE = wave_box  -->  Box car extracted wavelengths
+      - spec.BOX_COUNTS = flux_box*mask_box  -->  Box car extracted flux
+      - spec.BOX_COUNTS_IVAR = ivar_box*mask_box  -->  Box car extracted inverse variance
+      - spec.BOX_COUNTS_SIG = np.sqrt(utils.inverse(ivar_box*mask_box))  -->  Box car extracted error
+      - spec.BOX_COUNTS_NIVAR = None if nivar_box is None else nivar_box*mask_box  -->  Box car extracted noise variance
+      - spec.BOX_MASK = mask_box  -->  Box car extracted mask
+      - spec.BOX_COUNTS_SKY = sky_box  -->  Box car extracted sky
+      - spec.BOX_COUNTS_SIG_DET = base_box  -->  Box car extracted read noise
+      - spec.BOX_NPIX = pixtot-pixmsk  -->  Number of pixels used in boxcar sum
 
     Parameters
     ----------
-    sciimg : float `numpy.ndarray`_, shape (nspec, nspat)
-        Science frame
-    ivar : float `numpy.ndarray`_, shape (nspec, nspat)
-        Inverse variance of science frame. Can be a model or deduced from the
-        image itself.
-    mask : boolean `numpy.ndarray`_, shape (nspec, nspat)
-        Good-pixel mask, indicating which pixels are should or should not be
-        used. Good pixels = True, Bad Pixels = False
-    waveimg : float `numpy.ndarray`_, shape (nspec, nspat)
-        Wavelength image.
-    skyimg : float `numpy.ndarray`_, shape (nspec, nspat)
-        Image containing our model of the sky
+    sciimg : `numpy.ndarray`_
+        Floating-point science image with shape :math:`(N_{\rm spec}, N_{\rm spat})`.
+        The first dimension (:math:`N_{\rm spec}`) is spectral, and second dimension
+        (:math:`N_{\rm spat}`) is spatial.
+    ivar : `numpy.ndarray`_
+        Floating-point inverse variance image for the science image.
+        It can be a model image, or deduced from ``sciimg``. Shape
+        must match ``sciimg``, :math:`(N_{\rm spec}, N_{\rm spat})`.
+    mask : `numpy.ndarray`_
+        Boolean image representing the good-pixel mask for the science image.
+        The pixels that have value of True are good to be used.
+        Must have the same shape as ``sciimg``, :math:`(N_{\rm spec}, N_{\rm spat})`.
+    waveimg : `numpy.ndarray`_
+        Floating-point wavelength image. Must have the same shape as ``sciimg``,
+        :math:`(N_{\rm spec}, N_{\rm spat})`.
+    skyimg : `numpy.ndarray`_
+        Floating-point image containing the modeled sky.
+        Must have the same shape as ``sciimg``, :math:`(N_{\rm spec}, N_{\rm spat})`.
     spec : :class:`~pypeit.specobj.SpecObj`
-        This is the container that holds object, trace, and extraction
-        information for the object in question. This routine operates one object
-        at a time.  **This object is altered in place!**
-    base_var : `numpy.ndarray`_, shape is (nspec, nspat), optional
-        The "base-level" variance in the data set by the detector properties and
-        the image processing steps.  See
-        :func:`~pypeit.core.procimg.base_variance`.
-    count_scale : :obj:`float`, `numpy.ndarray`_, optional
+        Container that holds object, trace, and extraction
+        information for the object in question. **This object is altered in place!**
+        Note that this routine operates one object at a time.
+    base_var : `numpy.ndarray`_, optional
+        Floating-point "base-level" variance image set by the detector properties and
+        the image processing steps. See :func:`~pypeit.core.procimg.base_variance`.
+        Must have the same shape as ``sciimg``, :math:`(N_{\rm spec}, N_{\rm spat})`.
+    count_scale : :obj:`float` or `numpy.ndarray`_, optional
         A scale factor, :math:`s`, that *has already been applied* to the
         provided science image.  For example, if the image has been flat-field
         corrected, this is the inverse of the flat-field counts.  If None, set
@@ -395,32 +420,32 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, base_var=None,
 
 
 def findfwhm(model, sig_x):
-    """ Calculate the spatial FWHM from an object profile. 
-    Utility routine for fit_profile
+    """ Calculate the spatial FWHM of an object profile.
+    This is utility routine used in `fit_profile`_.
+
+    **Revision History:**
+        - 11-Mar-2005  Written by J. Hennawi and S. Burles David Schlegel, Princeton.
+        - 28-May-2018  Ported to python by J. Hennawi
 
     Parameters
     ----------
     model : `numpy.ndarray`_  
-        Object model profile. float 2-d array with shape [nspec, nspat]
+        Model of the object profile. This is 2-d floating-point
+        array with shape :math:`(N_{\rm spec}, N_{\rm spat})`.
     sig_x : `numpy.ndarray`_
-        x-coordinate of the profile
+        Floating-point 2-d array containing the spatial location of the object profile.
+        Shape is :math:`(N_{\rm spec}, N_{\rm spat})`.
 
     Returns
     -------
-    peak :  float
-        Peak value of the profile model
-    peak_x: float  
-        sig_x location where the peak value is obtained
-    lwhm:   float
-        Value of sig_x at the left width at half maximum
-    rwhm:   float
-        Value of sig_x at the right width at half maximum
-
-    Note
-    ----
-    Revision History
-        - 11-Mar-2005  Written by J. Hennawi and S. Burles David Schlegel, Princeton.
-        - 28-May-2018  Ported to python by J. Hennawi
+    peak : :obj:`float`
+        Peak value of the object profile model.
+    peak_x: :obj:`float`
+        `sig_x` location where the peak value is obtained.
+    lwhm: :obj:`float`
+        Value of `sig_x` at the left width at half maximum.
+    rwhm: :obj:`float`
+        Value of `sig_x` at the right width at half maximum.
     """
 
 
@@ -449,22 +474,34 @@ def findfwhm(model, sig_x):
 def qa_fit_profile(x_tot, y_tot, model_tot, l_limit = None, 
                    r_limit=None, ind=None, title=' ', 
                    xtrunc=1e6, xlim=None, ylim=None):
-    """Generate a QA plot for the fitted profile.
+    """Generate a QA plot for the object fitted profile.
 
     Args:
-        x_tot (`numpy.ndarray`_): x-coordinate of the profile
-        y_tot (`numpy.ndarray`_): flux of the profile
-        model_tot (`numpy.ndarray`_): model of the profile
-        l_limit (float, optional): If provided, draw a vertical line 
-            at this left position
-        r_limit (float, optional): If provided, draw a vertical line
-            at this right position
-        ind (`numpy.ndarray`_, optional): Subset of the indices
-            of the profile to show
-        title (str, optional): Title to show on plot. Defaults to ' '.
-        xtrunc (_type_, optional): _description_. Defaults to 1e6.
-        xlim (float, optional): xmin, xmax for the plot. Defaults to None.
-        ylim (tuple, optional): ymin, ymax for the plot. Defaults to None.
+        x_tot (`numpy.ndarray`_):
+        Floating-point 2-d array containing the spatial location of the object profile.
+        Shape is :math:`(N_{\rm spec}, N_{\rm spat})`.
+        y_tot (`numpy.ndarray`_):
+        Floating-point 2-d array containing the flux of the object profile.
+        Shape is :math:`(N_{\rm spec}, N_{\rm spat})`.
+        model_tot (`numpy.ndarray`_):
+        Floating-point 2-d array containing the model of the object profile.
+        Shape is :math:`(N_{\rm spec}, N_{\rm spat})`.
+        l_limit (:obj:`float`, optional):
+            If not None, draw a vertical line at this left position.
+        r_limit (:obj:`float`, optional):
+            If not None, draw a vertical line at this right position.
+        ind (`numpy.ndarray`_, optional):
+            Integer 1-d array containing the indices of a subset of the object profile to be plot.
+            The default is None.
+        title (:obj:`str`, optional):
+            Title to show on plot. Defaults to ' '.
+        xtrunc (:obj:`float`, optional):
+             Number of sigma to include in the plot of the object profile when generating the QA plot.
+             The default is 1e6.
+        xlim (:obj:`float`, optional):
+            Minimum and maximum x-axis limits for the plot. Defaults is None.
+        ylim (:obj:`tuple`, optional):
+             Minimum and maximum y-axis limits for the plot. Defaults is None.
     """
 
     # Plotting pre-amble
@@ -566,40 +603,41 @@ def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string,
                     xlim = None, xtrunc = 1e6):
 
     """
-    Utility function to return Gaussian object profile in the case 
-    of low S/N ratio or too many rejected pixels.
+    Utility function to return a Gaussian object profile.
 
     Parameters
     ----------
     sigma_x: `numpy.ndarray`_
-        Spatial profile of gaussian
-        shape=(nspec, nspat)
+        Floating-point 2-d array containing the location of the Gaussian profile.
+        Shape is :math:`(N_{\rm spec}, N_{\rm spat})`.
     norm_obj: `numpy.ndarray`_
-        Normalized 2-d spectrum.
-        shape=(nspec, nspat)
-    fwhm: float
-        FWHM parameter for Gaussian profile
-    med_sn2: float
-        Median (S/N)^2. Used only for QA
-    obj_string: str
-        String identifying object. Used only for QA.
-    show_profile: bool
-        If True, qa plot will be shown to screen
+        Floating-point 2-d array containing the normalized spectrum.
+        Shape is :math:`(N_{\rm spec}, N_{\rm spat})`.
+    fwhm: :obj:`float`
+        FWHM value in pixels for the Gaussian profile.
+    med_sn2: :obj:`float`
+        Median (S/N)^2.  Used only to generate the QA plot.
+    obj_string: :obj:`str`
+        String identifying object. Used only to generate the QA plot.
+    show_profile: :obj:`bool`
+        If True, the QA plot will be shown to screen.
     ind: `numpy.ndarray`_, optional
-        Good indices in object profile. Used by QA routine.
-    l_limit: float, optional
-        Left limit of profile fit where derivative is evaluated for Gaussian apodization. Used by QA routine.
-    r_limit: float, optional
-        Right limit of profile fit where derivative is evaluated for Gaussian apodization. Used by QA routine.
-    xlim: float, optional
-        Spatial location to trim object profile for plotting in QA routine.
-    xtrunc: float, optional
-        Spatial nsigma to truncate object profile for plotting in QA routine.
+        Integer 1-d array containing the indices of the good pixels for the object profile.
+        Used only to generate the QA plot. The deafault is None.
+    l_limit, r_limit: :obj:`float`, optional
+        Left and right limits of profile fit where derivative is evaluated for Gaussian apodization.
+        Used only to generate the QA plot. The default is None.
+    xlim: :obj:`float`, optional
+        Minimum and maximum x-axis limits for plotting the object profile when generating the QA plot.
+    xtrunc: :obj:`float`, optional
+        Number of sigma to include in the plot of the object profile when generating the QA plot.
+        The default is 1e6.
 
     Returns
     -------
     profile_model: `numpy.ndarray`_
-        Gaussian profile model
+        Floating-point 2-d array containing the model of the object profile.
+        Shape is :math:`(N_{\rm spec}, N_{\rm spat})`.
 
     """
 
@@ -625,64 +663,79 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
                 obj_string='', show_profile=False):
 
     """
-    Fit a non-parametric object profile to an object spectrum, unless
-    the S/N ratio is low (> sn_gauss) in which fit a simple Gaussian.
-    Port of IDL LOWREDUX long_gprofile.pro
+    Fit a non-parametric object profile to an object spectrum. If the
+    S/N ratio of the object is less than `sn_gauss`, a simple Gaussian
+    will be fitted.
+
+    This routine was ported from the IDL LOWREDUX routine long_gprofile.pro.
 
     Parameters
     ----------
-    image : float `numpy.npdarray` 2-d array with shape (nspec, nspat)
-        sky-subtracted image
-    ivar : float `numpy.ndarray`_ 2-d array with shape (nspec, nspat)
-        inverse variance of sky-subtracted image
-    waveimg: float `numpy.ndarray`_ 2-d array with shape (nspec, nspat)
-        2-d wavelength map
-    spat_img: float `numpy.ndarray`_ with shape (nspec, nspat)
-        Image containing the spatial location of pixels. If not input,
-        it will be computed via spat_img = np.outer(np.ones(nspec), np.arange(nspat))
-    trace_in : `numpy.ndarray`_ 1-d array with shape (nspec,)
-        object trace
-    wave : float `numpy.ndarray`_ 1-d array (nspec,)
-        extracted wavelength of spectrum
-    flux : float `numpy.ndarray`_ 1-d array (nspec,)
-        extracted flux of spectrum
-    fluxivar : float `numpy.ndarray`_ 1-d array with shape (nspec,)
-        inverse variance of extracted flux spectrum
-    thisfwhm : float, optional
-        fwhm of the object trace
-    max_trace_corr : float, [default = 2.0], optional
-        maximum trace correction to apply
-    sn_gauss : float, [default = 3.0], optional
-        S/N ratio below which code just uses a Gaussian
-    percentile_sn2: float, [default = 70.0], optional
-        Estimates the S/N of an object from pixels in the upper percentile_sn2 percentile of wavelength values.
-        For example if percentile_sn2 = 70.0 then the upper 30% of spectrals are used.
-        This ensures the code can still fit line only objects and/or high redshift quasars which might only have
-        signal in reddest part of a spectrum.
-    maskwidth : float [default = None], optional
-        object maskwidth determined from object finding algorithm. If = None,
-        code defaults to use 3.0*(np.max(thisfwhm) + 1.0)
-        THIS PARAMETER IS NOT USED IN THIS METHOD
-    prof_nsigma : float,  optional
-        Number of sigma to include in the profile fitting. This option is only needed for bright objects that are not
-        point sources, which allows the profile fitting to fit the high S/N wings (rather than the default behavior
-        which truncates exponentially). This allows for extracting all the flux and results in better sky-subtraction
-        for bright extended objects.
-    no_deriv : bool, optional 
-        If true, disables determination of derivatives and exponential apodization
-    gauss : bool, optional
-        Force a Gaussian profile, if true
+    image : `numpy.npdarray`_
+        Floating-point sky-subtracted science image with shape
+        :math:`(N_{\rm spec}, N_{\rm spat})`. The first dimension
+        (:math:`N_{\rm spec}`) is spectral, and second dimension
+        (:math:`N_{\rm spat}`) is spatial.
+    ivar : `numpy.ndarray`_
+        Floating-point inverse variance image for the sky-subtracted science image.
+        Shape must match ``image``, :math:`(N_{\rm spec}, N_{\rm spat})`.
+    waveimg: `numpy.ndarray`_
+        Floating-point wavelength image. Must have the same shape as ``image``,
+        :math:`(N_{\rm spec}, N_{\rm spat})`.
+    spat_img: `numpy.ndarray`_
+        Floating-point image containing the spatial location of pixels.
+        Must have the same shape as ``image``, :math:`(N_{\rm spec}, N_{\rm spat})`.
+    trace_in : `numpy.ndarray`_
+        Floating-point 1-d array containing the object trace. Shape is :math:`(N_{\rm spec},)`.
+    wave : `numpy.ndarray`_
+        Floating-point 1-d array containing the extracted wavelength of spectrum.
+        Shape is :math:`(N_{\rm spec},)`.
+    flux : `numpy.ndarray`_
+        Floating-point 1-d array containing the extracted flux of spectrum.
+        Shape is :math:`(N_{\rm spec},)`.
+    fluxivar : `numpy.ndarray`_
+        Floating-point 1-d array containing the inverse variance of extracted
+        flux spectrum. Shape is :math:`(N_{\rm spec},)`.
+    thisfwhm : :obj:`float`, optional
+        FWHM value in pixels of the traced object. The default is 4.0.
+    max_trace_corr : :obj:`float`, optional
+        Maximum correction in pixels to apply to the object trace. The default is 2.0.
+    sn_gauss : :obj:`float`, optional
+        S/N ratio below which the routine just fit a simple Gaussian. The
+        default is 4.0.
+    percentile_sn2: :obj:`float`, [default = 70.0], optional
+        Percentile of the S/N values along the spectral direction used to estimate the object median S/N.
+        For example if `percentile_sn2` = 70.0 then the upper 30% of the S/N values are used.
+        This allows to determine the object median S/N even when the object shows signal only for part of
+        fulle wavelength range. The default is 70.0.
+    prof_nsigma : :obj:`float`,  optional
+        Number of sigma to include in the profile fitting. This value is needed for bright objects that are not
+        point sources, allowing to fit the high S/N wings of the object profile, rather than truncate it
+        exponentially. Setting this value allows to extract all the object flux and provides a better
+        sky-subtraction for bright extended objects. The default is None.
+    no_deriv : :obj:`bool`, optional
+        If True, disables the determination of derivatives and exponential apodization. The default is False.
+    gauss : :obj:`bool`, optional
+        If True, the profile fitting will not be attempted, and a Gaussian profile will be assumed.
+    obj_string: :obj:`str`
+        String identifying the object. Used only to generate the QA plot.
+    show_profile: :obj:`bool`
+        If True, the QA plot will be shown to screen.
 
     Returns
     -------
     profile_model: `numpy.ndarray`_
-        Profile model with shape (nspec, nspat)
+        Floating-point 2-d array containing the model of the object profile.
+        Shape is :math:`(N_{\rm spec}, N_{\rm spat})`.
     xnew: `numpy.ndarray`_
-        New trace of the object
+        Floating-point 1-d array containing the new trace of the object.
+        Shape is :math:`(N_{\rm spec},)`.
     fwhmfit: `numpy.ndarray`_
-        Estimated FWHM of the profile, pixel by pixel
-    med_sn2: float
-        Estimated median S/N^2 of the profile
+        Floating-point 1-d array containing the estimated FWHM in pixels
+        of the object profile along the spectral direction.
+        Shape is :math:`(N_{\rm spec},)`.
+    med_sn2: :obj:`float`
+        Estimated median S/N^2 of the object profile.
     """
 
     if inmask is None:
