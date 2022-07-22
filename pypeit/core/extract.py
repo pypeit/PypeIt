@@ -41,16 +41,16 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
     being filled with the extraction parameters, and additional sky and noise estimates being added.
     The following are the attributes that are filled here:
 
-      - spec.OPT_WAVE = wave_opt  -->  Optimally extracted wavelengths
-      - spec.OPT_COUNTS = flux_opt  -->  Optimally extracted flux
-      - spec.OPT_COUNTS_IVAR = mivar_opt  -->  Inverse variance of optimally extracted flux using modelivar image
-      - spec.OPT_COUNTS_SIG = np.sqrt(utils.inverse(mivar_opt))  -->  Optimally extracted noise from IVAR
-      - spec.OPT_COUNTS_NIVAR = nivar_opt  -->  Optimally extracted noise variance (sky + read noise) only
-      - spec.OPT_MASK = mask_opt  -->   Mask for optimally extracted flux
-      - spec.OPT_COUNTS_SKY = sky_opt  -->  Optimally extracted sky
-      - spec.OPT_COUNTS_SIG_DET = base_opt  -->  Square root of optimally extracted read noise squared
-      - spec.OPT_FRAC_USE = frac_use  -->  Fraction of pixels in the object profile subimage used for this extraction
-      - spec.OPT_CHI2 = chi2  -->  Reduced chi2 of the model fit for this spectral pixel
+      - spec.OPT_WAVE  -->  Optimally extracted wavelengths
+      - spec.OPT_COUNTS  -->  Optimally extracted flux
+      - spec.OPT_COUNTS_IVAR  -->  Inverse variance of optimally extracted flux using modelivar image
+      - spec.OPT_COUNTS_SIG  -->  Optimally extracted noise from IVAR
+      - spec.OPT_COUNTS_NIVAR  -->  Optimally extracted noise variance (sky + read noise) only
+      - spec.OPT_MASK  -->   Mask for optimally extracted flux
+      - spec.OPT_COUNTS_SKY  -->  Optimally extracted sky
+      - spec.OPT_COUNTS_SIG_DET  -->  Square root of optimally extracted read noise squared
+      - spec.OPT_FRAC_USE  -->  Fraction of pixels in the object profile subimage used for this extraction
+      - spec.OPT_CHI2  -->  Reduced chi2 of the model fit for this spectral pixel
 
 
     Parameters
@@ -303,15 +303,15 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, base_var=None,
     being filled with the extraction parameters, and additional sky and noise estimates being added.
     The following are the attributes that are filled here:
     
-      - spec.BOX_WAVE = wave_box  -->  Box car extracted wavelengths
-      - spec.BOX_COUNTS = flux_box*mask_box  -->  Box car extracted flux
-      - spec.BOX_COUNTS_IVAR = ivar_box*mask_box  -->  Box car extracted inverse variance
-      - spec.BOX_COUNTS_SIG = np.sqrt(utils.inverse(ivar_box*mask_box))  -->  Box car extracted error
-      - spec.BOX_COUNTS_NIVAR = None if nivar_box is None else nivar_box*mask_box  -->  Box car extracted noise variance
-      - spec.BOX_MASK = mask_box  -->  Box car extracted mask
-      - spec.BOX_COUNTS_SKY = sky_box  -->  Box car extracted sky
-      - spec.BOX_COUNTS_SIG_DET = base_box  -->  Box car extracted read noise
-      - spec.BOX_NPIX = pixtot-pixmsk  -->  Number of pixels used in boxcar sum
+      - spec.BOX_WAVE  -->  Box car extracted wavelengths
+      - spec.BOX_COUNTS -->  Box car extracted flux
+      - spec.BOX_COUNTS_IVAR -->  Box car extracted inverse variance
+      - spec.BOX_COUNTS_SIG -->  Box car extracted error
+      - spec.BOX_COUNTS_NIVAR -->  Box car extracted noise variance
+      - spec.BOX_MASK -->  Box car extracted mask
+      - spec.BOX_COUNTS_SKY -->  Box car extracted sky
+      - spec.BOX_COUNTS_SIG_DET -->  Box car extracted read noise
+      - spec.BOX_NPIX  -->  Number of pixels used in boxcar sum
 
     Parameters
     ----------
