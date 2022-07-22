@@ -33,7 +33,7 @@ from pypeit.core.moment import moment1d
 def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
                     spec, min_frac_use=0.05, base_var=None, count_scale=None, noise_floor=None):
 
-    """
+    r"""
     Perform optimal extraction `(Horne 1986) <https://ui.adsabs.harvard.edu/abs/1986PASP...98..609H/abstract>`_
      for a single :class:`~pypeit.specobjs.SpecObj`.
 
@@ -221,7 +221,7 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
 
 
 def extract_asym_boxcar(sciimg, left_trace, righ_trace, gpm=None, ivar=None):
-    """
+    r"""
     Perform asymmetric boxcar extraction of the flux between two traces.
 
     Parameters
@@ -294,7 +294,7 @@ def extract_asym_boxcar(sciimg, left_trace, righ_trace, gpm=None, ivar=None):
 
 def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, base_var=None,
                    count_scale=None, noise_floor=None):
-    """
+    r"""
     Perform boxcar extraction for a single :class:`~pypeit.specobjs.SpecObj`.
     The size of the boxcar must be available as an attribute of the
     :class:`~pypeit.specobj.SpecObj` object.
@@ -420,7 +420,7 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, base_var=None,
 
 
 def findfwhm(model, sig_x):
-    """ Calculate the spatial FWHM of an object profile.
+    r""" Calculate the spatial FWHM of an object profile.
     This is utility routine used in `fit_profile`_.
 
     **Revision History:**
@@ -474,7 +474,7 @@ def findfwhm(model, sig_x):
 def qa_fit_profile(x_tot, y_tot, model_tot, l_limit = None, 
                    r_limit=None, ind=None, title=' ', 
                    xtrunc=1e6, xlim=None, ylim=None):
-    """Generate a QA plot for the object fitted profile.
+    r"""Generate a QA plot for the object fitted profile.
 
     Args:
         x_tot (`numpy.ndarray`_):
@@ -602,7 +602,7 @@ def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string,
                     ind = None, l_limit = None, r_limit=None, 
                     xlim = None, xtrunc = 1e6):
 
-    """
+    r"""
     Utility function to return a Gaussian object profile.
 
     Parameters
@@ -662,7 +662,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
                 prof_nsigma=None, no_deriv=False, gauss=False, 
                 obj_string='', show_profile=False):
 
-    """
+    r"""
     Fit a non-parametric object profile to an object spectrum. If the
     S/N ratio of the object is less than `sn_gauss`, a simple Gaussian
     will be fitted.
