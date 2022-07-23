@@ -193,7 +193,8 @@ class Identify:
     @classmethod
     def initialise(cls, arccen, lamps, slits, slit=0, par=None, wv_calib_all=None,
                    wavelim=None, nonlinear_counts=None, test=False,
-                   pxtoler=0.1, fwhm=4., specname="", y_log=True):
+                   pxtoler=0.1, fwhm=4., specname="", y_log=True,
+                   sigdetect=None):
         """Initialise the 'Identify' window for real-time wavelength calibration
 
         .. todo::
@@ -224,7 +225,9 @@ class Identify:
             Passed to arc_lines_from_spec()
             Defaults to 1e10 if None is input
         fwhm : float, optional
-            FWHM of arc lines in pixels
+            FWHM of arc lines in pixels for detection
+        sigdetect : float, optional
+            sigma detection limit for arc lines; defaults to par['sigdetect'] 
         pxtoler : float, optional
             Tolerance in pixels for adding lines with the auto option
         specname : str, optional
@@ -241,6 +244,10 @@ class Identify:
         # Double check that a WavelengthSolutionPar was input
         par = pypeitpar.WavelengthSolutionPar() if par is None else par
 
+        if sigdetect is None:
+            sigdetect = par['sigdetect']
+        print(f"Using {sigdetect} for sigma detection")
+
         # If a wavelength calibration has been performed already, load it:
         msgs.info("Slit ID = {0:d}  (SPAT ID = {1:d})".format(slit, slits.spat_id[slit]))
         wv_calib = wv_calib_all[str(slits.spat_id[slit])] if wv_calib_all is not None else None
@@ -251,7 +258,7 @@ class Identify:
             nonlinear_counts = 1e10
         tdetns, _, _, icut, _ = wvutils.arc_lines_from_spec(thisarc,
                                                             fwhm=fwhm,
-                                                            sigdetect=par['sigdetect'],
+                                                            sigdetect=sigdetect,
                                                             nonlinear_counts=nonlinear_counts)
         detns = tdetns[icut]
 

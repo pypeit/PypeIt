@@ -32,9 +32,9 @@ Submodules
    pypeit.scripts.parse_slits
    pypeit.scripts.qa_html
    pypeit.scripts.ql_keck_deimos
-   pypeit.scripts.ql_keck_mosfire
    pypeit.scripts.ql_keck_nires
    pypeit.scripts.ql_mos
+   pypeit.scripts.ql_multislit
    pypeit.scripts.run_pypeit
    pypeit.scripts.scriptbase
    pypeit.scripts.sensfunc

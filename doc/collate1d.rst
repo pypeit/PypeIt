@@ -133,7 +133,9 @@ followed by a list of spec1d files. An example configuration file is shown below
     #outdir = /work/output
     
     # A list of the spec1d files. Wildcards are allowed.
+    # This follows the input file data block format.
     spec1d read
+    filename
     Science/spec1d*.fits
     spec1d end
 

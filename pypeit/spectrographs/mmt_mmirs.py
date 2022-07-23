@@ -172,7 +172,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['grow'] = 0.5
 
         # Science reduction
-        par['reduce']['findobj']['sig_thresh'] = 5.0
+        par['reduce']['findobj']['snr_thresh'] = 5.0
         par['reduce']['skysub']['sky_sigrej'] = 5.0
         par['reduce']['findobj']['find_trim_edge'] = [5,5]
         # Do not correct for flexure

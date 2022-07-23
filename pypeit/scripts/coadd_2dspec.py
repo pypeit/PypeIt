@@ -17,7 +17,7 @@ from astropy.io import fits
 
 from pypeit import par, msgs, io
 from pypeit import coadd2d
-from pypeit import io
+from pypeit import inputfiles
 from pypeit import specobjs
 from pypeit import spec2dobj
 from pypeit.scripts import scriptbase
@@ -33,7 +33,11 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
         parser.add_argument("--file", type=str, default=None, help="File to guide 2d coadds")
         parser.add_argument('--det', default=None, type=str,
-                            help="Only coadd data from this detector (1-indexed)")
+                            help="1-indexed detector or list of detectors that the user wants to"
+                                 "coadd. If None, all the detectors are coadded. If the spec2d are"
+                                 "mosaiced and the user wants to restrict the coadd to only selected"
+                                 "mosaics, use the parameter detnum in the coadd2d file as done in"
+                                 "run_pypeit")
         parser.add_argument("--obj", type=str, default=None,
                             help="Object name in lieu of extension, e.g if the spec2d files are "
                                  "named 'spec2d_J1234+5678_GNIRS_2017Mar31T085412.181.fits' then "
@@ -74,8 +78,16 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         msgs.info('PATH =' + os.getcwd())
         # Load the file
         if args.file is not None:
-            spectrograph_name, config_lines, spec2d_files \
-                    = io.read_spec2d_file(args.file, filetype="coadd2d")
+            # Read
+            coadd2dFile = inputfiles.Coadd2DFile.from_file(args.file)
+            # Parse
+            spectrograph_name = coadd2dFile.config['rdx']['spectrograph'] 
+            config_lines = coadd2dFile.cfg_lines 
+            spec2d_files = coadd2dFile.filenames
+
+            # Continue
+            #spectrograph_name, config_lines, spec2d_files, spec2d_opts \
+            #        = io.read_spec2d_file(args.file, filetype="coadd2d")
             spectrograph = load_spectrograph(spectrograph_name)
 
             # Parameters
@@ -110,9 +122,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         if args.det is not None:
             msgs.info("Restricting reductions to detector={}".format(args.det))
             # parset['rdx']['detnum'] = par.util.eval_tuple(args.det.split(','))
-            # TODO this needs to be adjusted if we want to pass (as inline command) more than one detector
-            #  and also if we are combining mosaic detectors
-            parset['rdx']['detnum'] = int(args.det)
+            # TODO this needs to be adjusted if we want to pass (as inline command) mosaic detectors
+            parset['rdx']['detnum'] = [int(d) for d in args.det.split(',')]
 
         # Get headers (if possible) and base names
         spec1d_files = [files.replace('spec2d', 'spec1d') for files in spec2d_files]
@@ -137,6 +148,11 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         else:
             basename = args.basename
 
+
+        # TODO Heliocentric for coadd2d needs to be thought through. Currently turning it off.
+        parset['calibrations']['wavelengths']['refframe'] = 'observed'
+        # TODO Flexure correction for coadd2d needs to be thought through. Currently turning it off.
+        parset['flexure']['spec_method'] = 'skip'
         # Write the par to disk
         par_outfile = basename+'_coadd2d.par'
         print("Writing the parameters to {}".format(par_outfile))
@@ -154,8 +170,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         msgs_string += 'Coadding frame sky-subtraced with {:s}'.format(skysub_mode)
         msgs_string += 'Searching for objects that are {:s}'.format(findobj_mode)
         msgs_string += msgs.newline() + 'Combining frames in 2d coadd:' + msgs.newline()
-        for file in spec2d_files:
-            msgs_string += '{0:s}'.format(os.path.basename(file)) + msgs.newline()
+        for f, file in enumerate(spec2d_files):
+            msgs_string += 'Exp {0}: {1:s}'.format(f, os.path.basename(file)) + msgs.newline()
         msgs.info(msgs_string)
 
         # TODO: This needs to be added to the parameter list for rdx
@@ -190,7 +206,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         msgs.info(f'Detectors to work on: {detectors}')
 
         # Only_slits?
-        only_slits = [int(item) for item in args.only_slits.split(',')] if args.only_slits is not None else None
+        if args.only_slits:
+            parset['coadd2d']['only_slits'] = [int(item) for item in args.only_slits.split(',')]
 
         # container for specobjs
         all_specobjs = specobjs.SpecObjs()
@@ -216,7 +233,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
             # TODO Add this stuff to a run method in coadd2d
             # Coadd the slits
-            coadd_dict_list = coadd.coadd(only_slits=only_slits) # TODO implement only_slits later - DONE?
+            coadd_dict_list = coadd.coadd(only_slits=parset['coadd2d']['only_slits'])
             # Create the pseudo images
             pseudo_dict = coadd.create_pseudo_image(coadd_dict_list)
             # Reduce
@@ -260,6 +277,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                                                           bpmmask=sci_dict[coadd.detname]['outmask'],
                                                           detector=sci_dict[coadd.detname]['detector'],
                                                           slits=slits,
+                                                          wavesol=None,
                                                           waveimg=sci_dict[coadd.detname]['waveimg'],
                                                           tilts=sci_dict[coadd.detname]['tilts'],
                                                           sci_spat_flexure=None,

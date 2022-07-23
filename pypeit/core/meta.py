@@ -27,6 +27,7 @@ def convert_radec(ra, dec):
             RA as decimal deg (float) or  hh:mm:ss.s (str)
         dec (str or float or np.ndarray):
             DEC as decimal deg (float) or  +dd:mm:ss.s (str)
+            Must be the same format as ra
 
     Returns:
         tuple:
@@ -47,6 +48,10 @@ def convert_radec(ra, dec):
                 return coords.ra.value, coords.dec.value
             else:
                 return ra.astype(float), dec.astype(float)
+        elif isinstance(ra[0], float):
+            return ra.astype(float), dec.astype(float)
+        else:
+            raise IOError("Bad ra, dec format!!")
     else:
         return ra, dec
 
@@ -130,6 +135,7 @@ def define_additional_meta(nlamps=20):
                        'detector': dict(dtype=str, comment='Name of detector'),
                        'dichroic': dict(dtype=str, comment='Beam splitter'),
                        'dispangle': dict(dtype=float, comment='Angle of the disperser', rtol=0.),
+                       'cenwave': dict(dtype=float, comment='Central wavelength of the disperser', rtol=0.),
                        'dither': dict(dtype=float, comment='Dither amount in arcsec'),
                        'dithpat': dict(dtype=str, comment='Dither pattern'),
                        'dithpos': dict(dtype=str, comment='Dither position'),

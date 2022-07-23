@@ -457,7 +457,8 @@ class SlitTraceSet(datamodel.DataContainer):
         msgs.work("Spatial flexure is not currently implemented for the astrometric alignment")
         # Check if the user has skimage installed
         if skimageTransform is None or alignments is None:
-            msgs.warn("scikit-image is not installed - astrometric correction not implemented")
+            if skimageTransform is None: msgs.warn("scikit-image is not installed - astrometric correction not implemented")
+            else: msgs.warn("Alignments were not provided - astrometric correction not implemented")
             astrometric = False
         # Prepare the parameters
         if not astrometric:
@@ -906,8 +907,9 @@ class SlitTraceSet(datamodel.DataContainer):
             thisobj.FWHM = fwhm  # pixels
             thisobj.BOX_RADIUS = boxcar_rad  # pixels
             thisobj.maskwidth = 4. * fwhm  # matches objfind() in extract.py
+            thisobj.smash_snr = 0.
             thisobj.smash_peakflux = 0.
-            thisobj.THRESHOLD = 0.
+            #thisobj.THRESHOLD = 0.
             # Finishing up
             thisobj.set_name()
             # Mask info
@@ -1038,10 +1040,15 @@ class SlitTraceSet(datamodel.DataContainer):
                 obj_fwhm = 0.
             in_toler = np.abs(separ*plate_scale) < (TOLER + cc_rms + obj_fwhm/2)
             if np.any(in_toler):
-                # Parse the peak fluxes
+                # Find positive peakflux
                 peak_flux = cut_sobjs[idx].smash_peakflux[in_toler]
-                imx_peak = np.argmax(peak_flux)
-                imx_idx = idx[in_toler][imx_peak]
+                pos_peak_flux = np.where(peak_flux>0)[0]
+                if np.any(pos_peak_flux):
+                    # find the object with the smallest separation
+                    closest_idx = np.argmin(np.abs(separ[in_toler][pos_peak_flux]))
+                else:
+                    closest_idx = np.argmin(np.abs(separ[in_toler]))
+                imx_idx = idx[in_toler][closest_idx]
                 # Object in Mask Definition
                 oidx = np.where(obj_maskdef_id == maskid)[0][0]
                 # Assign
@@ -1050,7 +1057,6 @@ class SlitTraceSet(datamodel.DataContainer):
                 sobj.DEC = self.maskdef_designtab['OBJDEC'][oidx]
                 sobj.MASKDEF_OBJNAME = self.maskdef_designtab['OBJNAME'][oidx]
                 sobj.MASKDEF_EXTRACT = False
-                sobj.hand_extract_flag = False
                 # Remove that idx value
                 idx = idx.tolist()
                 idx.remove(imx_idx)
@@ -1067,7 +1073,6 @@ class SlitTraceSet(datamodel.DataContainer):
                 sobj.DEC = new_obj_coord.dec.value
                 sobj.MASKDEF_OBJNAME = 'SERENDIP'
                 sobj.MASKDEF_EXTRACT = False
-                sobj.hand_extract_flag = False
         # Give fake values of RA, DEC, and MASKDEF_OBJNAME for object with maskdef_id=-99.
         noidx = np.where(cut_sobjs.MASKDEF_ID == -99)[0]
         if noidx.size > 0:
@@ -1077,7 +1082,6 @@ class SlitTraceSet(datamodel.DataContainer):
                 sobj.DEC = 0.0
                 sobj.MASKDEF_OBJNAME = 'NONE'
                 sobj.MASKDEF_EXTRACT = False
-                sobj.hand_extract_flag = False
 
         # Return
         return sobjs
@@ -1154,7 +1158,7 @@ class SlitTraceSet(datamodel.DataContainer):
         return
 
     def get_maskdef_offset(self, sobjs, platescale, spat_flexure, slitmask_off, bright_maskdefid,
-                           nsig_thrshd, use_alignbox, dither_off=None):
+                           snr_thrshd, use_alignbox, dither_off=None):
         """
         Determine the Slitmask offset (pixels) from position expected by the slitmask design
 
@@ -1164,7 +1168,7 @@ class SlitTraceSet(datamodel.DataContainer):
             spat_flexure (:obj:`float`): Shifts, in spatial pixels, between this image and SlitTrace
             slitmask_off (:obj:`float`): User provided slitmask offset in pixels
             bright_maskdefid (:obj:`str`): User provided maskdef_id of a bright object to be used to measure offset
-            nsig_thrshd (:obj:`float`): Objects detected above this sigma threshold will be use to
+            snr_thrshd (:obj:`float`): Objects detected above this S/N ratio threshold will be use to
                                         compute the slitmask offset
             use_alignbox (:obj:`bool`): Flag that determines if the alignment boxes are used to measure the offset
             dither_off (:obj:`float`, optional): dither offset recorded in the header of the observations
@@ -1292,25 +1296,25 @@ class SlitTraceSet(datamodel.DataContainer):
                 self.maskdef_offset = 0.0
             return
 
-        # Determine offsets using only detections with the highest significance
-        # objects added in manual extraction have smash_nsig = None
-        nonone = cut_sobjs.smash_nsig != None
+        # Determine offsets using only detections with the highest signal
+        # objects added in manual extraction have smash_snr = None
+        nonone = cut_sobjs.smash_snr != None
         if len(cut_sobjs[nonone]) > 0:
-            highsig_measured = measured[nonone][cut_sobjs[nonone].smash_nsig > nsig_thrshd]
-            highsig_expected = expected[nonone][cut_sobjs[nonone].smash_nsig > nsig_thrshd]
-            if len(highsig_measured) >= 3:
-                off = highsig_measured - highsig_expected
+            highsnr_measured = measured[nonone][cut_sobjs[nonone].smash_snr > snr_thrshd]
+            highsnr_expected = expected[nonone][cut_sobjs[nonone].smash_snr > snr_thrshd]
+            if len(highsnr_measured) >= 3:
+                off = highsnr_measured - highsnr_expected
                 mean, median_off, std = sigma_clipped_stats(off, sigma=2.)
                 self.maskdef_offset = median_off
                 msgs.info(f'Slitmask offset estimated in {self.detname}: '
                           f'{round(self.maskdef_offset, 2)} pixels ('
                           f'{round(self.maskdef_offset*platescale, 2)} arcsec)')
             else:
-                msgs.warn(f'Less than 3 objects detected above {nsig_thrshd} sigma threshold. '
+                msgs.warn(f'Less than 3 objects detected above {snr_thrshd} sigma threshold. '
                           f'Slitmask offset cannot be estimated in {self.detname}.')
                 self.maskdef_offset = 0.0
         else:
-            msgs.warn(f'Less than 3 objects detected above {nsig_thrshd} sigma threshold. '
+            msgs.warn(f'Less than 3 objects detected above {snr_thrshd} sigma threshold. '
                       f'Slitmask offset cannot be estimated in {self.detname}.')
             self.maskdef_offset = 0.0
 
@@ -1490,7 +1494,7 @@ def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure, platesca
             calib_slits[i].get_maskdef_offset(sobjs, platescale[i], spat_flexure[i],
                                               slitmask_par['slitmask_offset'],
                                               slitmask_par['bright_maskdef_id'],
-                                              slitmask_par['nsig_thrshd'],
+                                              slitmask_par['snr_thrshd'],
                                               slitmask_par['use_alignbox'],
                                               dither_off=dither_off)
 

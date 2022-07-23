@@ -127,42 +127,6 @@ output files, with 2 each with extensions of spec1d and
 spec2d.  These can be viewed with :ref:`pypeit_show_1dspec`
 and :ref:`pypeit_show_2dspec`.
 
-pypeit_ql_keck_mosfire
-======================
-
-This script performs a quick A-B reduction of pairs of
-Keck/MOSFIRE spectral images.  Currently only the "Y" filter is supported.
-
-MOSFIRE QL Setup
-++++++++++++++++
-
-Before running this script, you will need to download the quick-look masters.
-See the :ref:`data_installation` section of the :ref:`installing` instructions.
-
-.. _mosfire-options:
-
-MOSFIRE QL Options
-++++++++++++++++++
-
-The script usage can be displayed by calling the script with the
-``-h`` option:
-
-.. include:: help/pypeit_ql_keck_mosfire.rst
-
-MOSFIRE QL Example
-++++++++++++++++++
-
-Here is an example call::
-
-    pypeit_ql_keck_mosfire /data/Keck_MOSFIRE/Raw m191120_0043.fits m191120_0044.fits m191120_0045.fits m191120_0046.fits --spec_samp_fact 2.0 --spat_samp_fact 2.0
-
-.. _mosfire-output:
-
-MOSFIRE QL Output
-+++++++++++++++++
-
-If all goes smoothly, a ginga window will open with the resulting image.
-
 
 .. _pypeit-ql-deimos:
 

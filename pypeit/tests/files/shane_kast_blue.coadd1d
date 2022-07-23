@@ -4,6 +4,7 @@
 
 # Read in the data
 coadd1d read
-  files/spec1d_b27.fits SPAT0176-SLIT0175-DET01
-  files/spec1d_b28.fits SPAT0175-SLIT0175-DET01
+filename | obj_id 
+files/spec1d_b27.fits | SPAT0176-SLIT0175-DET01 
+files/spec1d_b28.fits | SPAT0175-SLIT0175-DET01 
 coadd1d end

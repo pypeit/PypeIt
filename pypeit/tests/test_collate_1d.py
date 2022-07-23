@@ -3,18 +3,14 @@ Module to run tests on collate_1d code.
 """
 
 import pytest
-from collections import namedtuple
 import os, os.path
-import re
 
-from astropy.coordinates import Angle, SkyCoord
 import numpy as np
 import astropy.units as u
 from astropy.io import fits
 from pypeit import specobjs
 from pypeit.spec2dobj import AllSpec2DObj
 from pypeit.core.collate import collate_spectra_by_source, SourceObject
-from pypeit.archive import ArchiveDir
 from pypeit.scripts.collate_1d import find_spec2d_from_spec1d,find_slits_to_exclude, exclude_source_objects
 from pypeit.scripts.collate_1d import flux, coadd, build_coadd_file_name, get_report_metadata, refframe_correction
 from pypeit.spectrographs.util import load_spectrograph
@@ -24,9 +20,6 @@ from pypeit.images.detector_container import DetectorContainer
 from pypeit import fluxcalibrate
 from pypeit import coadd1d
 from pypeit.core import wave
-
-from pypeit.tests.tstutils import data_path, cooked_required
-
 
 
 class MockSpecObj:

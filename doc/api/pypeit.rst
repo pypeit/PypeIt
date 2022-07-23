@@ -31,6 +31,7 @@ Submodules
    pypeit.coadd1d
    pypeit.coadd2d
    pypeit.compiler_version
+   pypeit.compiler_version
    pypeit.datamodel
    pypeit.edgetrace
    pypeit.extraction
@@ -38,6 +39,7 @@ Submodules
    pypeit.flatfield
    pypeit.fluxcalibrate
    pypeit.history
+   pypeit.inputfiles
    pypeit.io
    pypeit.manual_extract
    pypeit.masterframe

@@ -84,6 +84,7 @@ from pypeit import __version__
 __all__ = ['Paths', 'load_telluric_grid', 'load_thar_spec',
            'load_sky_spectrum', 'get_reid_arxiv_filepath',
            'get_skisim_filepath', 'get_sensfunc_filepath',
+           'get_telgrid_filepath',
            'fetch_remote_file', 'write_file_to_cache']
 
 
@@ -130,6 +131,7 @@ class Paths_meta(type):
         # Other
         cls._sky_spec = os.path.join(cls._data, 'sky_spec')
         cls._static_calibs = os.path.join(cls._data, 'static_calibs')
+        cls._spectrographs = os.path.join(cls._data, 'spectrographs')
 
     @property
     def data(cls):
@@ -184,6 +186,9 @@ class Paths_meta(type):
     @property
     def static_calibs(cls):
         return check_isdir(cls._static_calibs)
+    @property
+    def spectrographs(cls):
+        return check_isdir(cls._spectrographs)
 
 
 class Paths(metaclass=Paths_meta):
@@ -221,10 +226,16 @@ def get_reid_arxiv_filepath(arxiv_file):
           The base filename of the ``reid_arxiv`` file to be located
 
     Returns:
-        str: The full path to the ``reid_arxiv`` file
+        tuple: The full path and whether the path is in the cache:
+
+           * reid_path (str): The full path to the ``reid_arxiv`` file
+           * in_cache (bool or str): If the returned path is in the cache,
+                indicate whether it is a "fits" or "json", otherwise
+                return False
     """
     # Full path within the package data structure:
     reid_path = os.path.join(Paths.reid_arxiv, arxiv_file)
+    in_cache = False
 
     # Check if the file does NOT exist in the package directory
     # NOTE: This should be the case for all but from-source installations
@@ -235,9 +246,10 @@ def get_reid_arxiv_filepath(arxiv_file):
                   "the package directory.  Checking cache or downloading the file now.")
 
         reid_path = fetch_remote_file(arxiv_file, "arc_lines/reid_arxiv")
+        in_cache = arxiv_file[-4:]
 
-    # Return the path to the `reid_arxiv` file
-    return reid_path
+    # Return the path to the `reid_arxiv` file, plus whether this is in the cache
+    return reid_path, in_cache
 
 
 def get_skisim_filepath(skisim_file):
@@ -361,11 +373,11 @@ def get_telgrid_filepath(telgrid_file):
     particular reductions, the remote fetch will only occur once per file.
 
     Args:
-        sensfunc_file (str):
-          The base filename of the ``sensfunc`` file to be located
+        telgrid_file (str):
+          The base filename of the ``telgrid`` file to be located
 
     Returns:
-        str: The full path to the ``sensfunc`` file
+        str: The full path to the ``telgrid`` file
     """
     # Full path within the package data structure:
     telgrid_path = os.path.join(Paths.telgrid, telgrid_file)

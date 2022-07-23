@@ -11,6 +11,7 @@ from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
+import astropy.io.fits as fits
 
 
 class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
@@ -61,7 +62,8 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             numamplifiers   = 1,
             gain            = np.atleast_1d([0.95]),
             ronoise         = np.atleast_1d([4.5]),
-            datasec         = np.atleast_1d('[1:4102,52:1880]')
+            datasec         = np.atleast_1d('[1:4102,280:2048]'),
+            oscansec        = np.atleast_1d('[1:4102,6:44]')
             )
         # Detector 2
         detector_dict2 = dict(
@@ -79,7 +81,8 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             numamplifiers   = 1,
             gain            = np.atleast_1d([0.95]),
             ronoise         = np.atleast_1d([4.5]),
-            datasec         = np.atleast_1d('[1:4102,52:1880]')
+            datasec         = np.atleast_1d('[1:4102,52:1920]'),
+            oscansec        = np.atleast_1d('[1:4102,6:40]')
             )
 
         detectors = [detector_dict1, detector_dict2]
@@ -100,9 +103,6 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-        par['calibrations']['slitedges']['edge_thresh'] = 20
-        par['calibrations']['slitedges']['sobel_mode'] = 'constant'
-        par['calibrations']['slitedges']['sobel_enhance'] = 5
         par['calibrations']['slitedges']['bound_detector'] = True
 
         # Set pixel flat combination method
@@ -121,15 +121,10 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['standardframe']['exprng'] = [None, 120]
         # Multiple arcs with different lamps, so can't median combine nor clip, also need to remove continuum
         par['calibrations']['arcframe']['process']['combine'] = 'mean'
-        par['calibrations']['arcframe']['process']['use_continuum'] = True
+        par['calibrations']['arcframe']['process']['subtract_continuum'] = True
         par['calibrations']['tiltframe']['process']['clip'] = False
         par['calibrations']['tiltframe']['process']['combine'] = 'mean'
-        par['calibrations']['tiltframe']['process']['use_continuum'] = True
-
-        # No ovescan region
-        turn_off = dict(use_overscan=False)
-        par.reset_all_processimages_par(**turn_off)
-        par['scienceframe']['process']['use_overscan'] = False
+        par['calibrations']['tiltframe']['process']['subtract_continuum'] = True
 
         return par
 
@@ -248,7 +243,6 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         """
         return {'standard': 'dispname','bias': None, 'dark': None}
 
-
     def config_specific_par(self, scifile, inp_par=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
@@ -273,6 +267,9 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             par['reduce']['findobj']['find_trim_edge'] = [1,1]
             par['calibrations']['slitedges']['sync_predict'] = 'pca'
             par['calibrations']['slitedges']['det_buffer'] = 1
+        elif self.get_meta_value(scifile, 'idname') == 'OsirisLongSlitSpectroscopy':
+            # Do not tweak the slit edges for longslit
+            par['calibrations']['flatfield']['tweak_slits'] = False
 
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == 'R300B':
@@ -336,3 +333,63 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
 
         # Return
         return par
+
+    def bpm(self, filename, det, shape=None, msbias=None):
+        """
+        Generate a default bad-pixel mask.
+
+        Even though they are both optional, either the precise shape for
+        the image (``shape``) or an example file that can be read to get
+        the shape (``filename`` using :func:`get_image_shape`) *must* be
+        provided.
+
+        Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
+            det (:obj:`int`):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
+            msbias (`numpy.ndarray`_, optional):
+                Master bias frame used to identify bad pixels. **This is
+                ignored for KCWI.**
+
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
+        """
+        # Call the base-class method to generate the empty bpm; msbias is always set to None.
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=None)
+
+        # Extract some header info
+        head0 = fits.getheader(filename, ext=0)
+        binning = head0['CCDSUM']
+
+        # Construct a list of the bad columns
+        bc = []
+        if det == 1:
+            # No bad pixel columns on detector 1
+            pass
+        elif det == 2:
+            if binning == '1 1':
+                # The BPM is based on 2x2 binning data, so the 2x2 numbers are just multiplied by two
+                msgs.warn("BPM is likely over-estimated for 1x1 binning")
+                bc = [[220, 222, 3892, 4100],
+                      [952, 954, 2304, 4100]]
+            elif binning == '2 2':
+                bc = [[110, 111, 1946, 2050],
+                      [476, 477, 1154, 2050]]
+        else:
+            msgs.warn("Bad pixel mask is not available for det={0:d} binning={1:s}".format(det, binning))
+            bc = []
+
+        # Apply these bad columns to the mask
+        for bb in range(len(bc)):
+            bpm_img[bc[bb][2]:bc[bb][3] + 1, bc[bb][0]:bc[bb][1] + 1] = 1
+
+        return bpm_img
+
