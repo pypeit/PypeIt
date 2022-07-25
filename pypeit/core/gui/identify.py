@@ -59,7 +59,7 @@ class Identify:
     """
 
     def __init__(self, canvas, axes, spec, specres, detns, line_lists, par, lflag_color,
-                 slit=0, spatid='0', wv_calib=None, pxtoler=None, specname="", y_log=True):
+                 slit=0, spatid='0', wv_calib=None, pxtoler=None, specname="", y_log=True, rescale_resid=False):
         """Controls for the Identify task in PypeIt.
 
         The main goal of this routine is to interactively identify arc lines
@@ -95,6 +95,8 @@ class Identify:
             The name of the spectrograph
         y_log : bool, optional
             Scale the Y-axis logarithmically instead of linearly?  (Default: True)
+        rescale_resid : bool, optional
+            Rescale the residuals plot to include all points?  (Default: False)
         """
         # Store the axes
         self.axes = axes
@@ -106,6 +108,7 @@ class Identify:
         self.plotx = self.specx.copy()
         self.specname = specname
         self.y_log = y_log
+        self.rescale_resid = rescale_resid
         # Detections, linelist, line IDs, and fitting params
         self._slit = slit
         self._spatid = spatid
@@ -194,7 +197,7 @@ class Identify:
     def initialise(cls, arccen, lamps, slits, slit=0, par=None, wv_calib_all=None,
                    wavelim=None, nonlinear_counts=None, test=False,
                    pxtoler=0.1, fwhm=4., specname="", y_log=True,
-                   sigdetect=None):
+                   sigdetect=None, rescale_resid=False):
         """Initialise the 'Identify' window for real-time wavelength calibration
 
         .. todo::
@@ -336,7 +339,7 @@ class Identify:
         # Initialise the identify window and display to screen
         fig.canvas.set_window_title('PypeIt - Identify')
         ident = Identify(fig.canvas, axes, spec, specres, detns, line_lists, par, lflag_color, slit=slit, y_log=y_log,
-                         spatid=str(slits.spat_id[slit]), wv_calib=wv_calib, pxtoler=pxtoler, specname=specname)
+                         spatid=str(slits.spat_id[slit]), wv_calib=wv_calib, pxtoler=pxtoler, specname=specname, rescale_resid=rescale_resid)
 
         if not test:
             plt.show()
@@ -559,9 +562,13 @@ class Identify:
             self.axes['fit'].set_ylim((ymin, ymax))
             self.specres['pixels'].set_color(self.residmap.to_rgba(self._lineflg))
 
-            # Pixel residuals
+            # Pixel residuals -- scaling based on input parameter
             self.specres['resid'].set_offsets(np.c_[pixel_fit, resvals])
-            self.axes['resid'].set_ylim((-1.0, 1.0))
+            if self.rescale_resid:
+                plot_resvals = resvals[np.abs(resvals) < 500]
+                self.axes['resid'].set_ylim((plot_resvals.min(), plot_resvals.max()))
+            else:
+                self.axes['resid'].set_ylim((-1.0, 1.0))
             self.specres['resid'].set_color(self.residmap.to_rgba(self._lineflg))
 
             # Write some statistics on the plot

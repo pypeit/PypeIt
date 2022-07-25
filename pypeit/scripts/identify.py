@@ -34,16 +34,17 @@ class Identify(scriptbase.ScriptBase):
         parser.add_argument('--test', default=False, action='store_true',
                             help="Unit tests?")
         parser.add_argument("--linear", default=False, action="store_true",
-                            help="Show the spectrum in linear scale? (Default: log")
+                            help="Show the spectrum in linear (rather than log) scale?")
         parser.add_argument('--force_save', default=False, action='store_true',
                             help="Save the solutions, despite the RMS")
+        parser.add_argument('--rescale_resid', default=False, action='store_true',
+                            help="Rescale the residual plot to include all points?")
         return parser
 
     @staticmethod
     def main(args):
 
         import os
-        import sys
 
         import numpy as np
         
@@ -102,7 +103,9 @@ class Identify(scriptbase.ScriptBase):
                                         pxtoler=args.pixtol, test=args.test, 
                                         fwhm=args.fwhm,
                                         sigdetect=args.sigdetect,
-                                        specname=spec.name, y_log=not args.linear)
+                                        specname=spec.name,
+                                        y_log=not args.linear,
+                                        rescale_resid=args.rescale_resid)
 
         # Testing?
         if args.test:
