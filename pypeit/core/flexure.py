@@ -25,12 +25,13 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit.display import display
 from pypeit.core import arc
-from pypeit.core import qa
+from pypeit.core import extract
 from pypeit.core import fitting
+from pypeit.core import qa
 from pypeit.datamodel import DataContainer
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
-from pypeit import specobjs
+from pypeit import specobj, specobjs
 from pypeit import data
 
 from IPython import embed
@@ -150,10 +151,10 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
 
     # Calculate resolution (lambda/delta lambda_FWHM)..maybe don't need
     # this? can just use sigmas
-    arx_idx = (arx_cent+0.5).astype(np.int)[arx_w][arx_keep]   # The +0.5 is for rounding
+    arx_idx = (arx_cent+0.5).astype(int)[arx_w][arx_keep]   # The +0.5 is for rounding
     arx_res = arx_skyspec.wavelength.value[arx_idx]/\
               (arx_disp[arx_idx]*(2*np.sqrt(2*np.log(2)))*arx_wid[arx_w][arx_keep])
-    obj_idx = (obj_cent+0.5).astype(np.int)[obj_w][obj_keep]   # The +0.5 is for rounding
+    obj_idx = (obj_cent+0.5).astype(int)[obj_w][obj_keep]   # The +0.5 is for rounding
     obj_res = obj_skyspec.wavelength.value[obj_idx]/ \
               (obj_disp[obj_idx]*(2*np.sqrt(2*np.log(2)))*obj_wid[obj_w][obj_keep])
 
@@ -467,6 +468,84 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
         # Append, this will be an empty dictionary if the flexure failed
         flex_list.append(flex_dict.copy())
 
+    return flex_list
+
+
+def spec_flexure_slit_global(sciImg, waveimg, global_sky, par, slits, slitmask, trace_spat, gd_slits, pypeline, det):
+    # TODO :: Need to think about spatial flexure - is the appropriate spatial flexure already included in trace_spat via left/right slits?
+    trace_spec = np.arange(slits.nspec)
+    slit_specs = []
+    # get boxcar radius
+    box_radius = par['reduce']['extraction']['boxcar_radius']
+    for ss in range(slits.nslits):
+        if not gd_slits[ss]:
+            slit_specs.append(None)
+            continue
+        slit_spat = slits.spat_id[ss]
+        thismask = (slitmask == slit_spat)
+        inmask = sciImg.select_flag(invert=True) & thismask
+
+        # Dummy spec for extract_boxcar
+        spec = specobj.SpecObj(PYPELINE=pypeline,
+                               SLITID=ss,
+                               ECH_ORDER=ss,  # Use both to cover the bases for naming
+                               DET=str(det))
+        spec.trace_spec = trace_spec
+        spec.TRACE_SPAT = trace_spat[:, ss]
+        spec.BOX_RADIUS = box_radius
+        # Extract
+        extract.extract_boxcar(sciImg.image, sciImg.ivar, inmask, waveimg, global_sky, spec)
+        slit_wave, slit_sky = spec.BOX_WAVE, spec.BOX_COUNTS_SKY
+
+        # TODO :: Need to remove this XSpectrum1D dependency - it is required in:  flexure.spec_flex_shift
+        # Pack
+        slit_specs.append(xspectrum1d.XSpectrum1D.from_tuple((slit_wave, slit_sky)))
+
+    # Measure flexure
+    flex_list = spec_flexure_slit(slits, slits.slitord_id, np.logical_not(gd_slits),
+                                  par['flexure']['spectrum'],
+                                  method=par['flexure']['spec_method'],
+                                  mxshft=par['flexure']['spec_maxshift'],
+                                  slit_specs=slit_specs)
+    return flex_list
+
+def spec_flexure_slit_global_old(waveimg, global_sky, slits, slitmid, slit_bpm, sky_file, mxshft=None):
+    """Calculate the spectral flexure for every slit (global) or object (local)
+
+    Args:
+        waveimg (`numpy.ndarray`_):
+            Wavelength image at every pixel
+        global_sky (`numpy.ndarray`_):
+            Global sky image of all slits
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+            Slit trace set
+        slitmid (`numpy.ndarray`_):
+            The spatial centre of each slit as a 2D array, shape = (nspec, nslit)
+        slit_bpm (`numpy.ndarray`_):
+            True = masked slit
+        sky_file (str):
+            Sky file
+        mxshft (int, optional):
+            Passed to flex_shift()
+
+    Returns:
+        :obj:`list`: A list of :obj:`dict` objects containing flexure
+        results of each slit. This is filled with a basically empty
+        dict if the slit is skipped.
+    """
+    msgs.info("Preparing to calculate spectral flexure using the global sky")
+    slit_specs = []
+    specarr = np.arange(slits.nspec)
+    xy = (specarr, np.arange(slits.nspat))
+    wavinterp = interpolate.RegularGridInterpolator(xy, waveimg, method='linear')
+    skyinterp = interpolate.RegularGridInterpolator(xy, global_sky, method='linear')
+    for sl in range(slits.nslits):
+        # TODO :: Need to remove this XSpectrum1D dependency - it is required by flexure routines.
+        idx = np.column_stack((specarr, slitmid[:, sl]))
+        slit_specs.append(xspectrum1d.XSpectrum1D.from_tuple((wavinterp(idx), skyinterp(idx))))
+    # Calculate the flexure of each slit
+    flex_list = spec_flexure_slit(slits, slits.slitord_id, slit_bpm, sky_file,
+                                  method="slitcen", specobjs=None, slit_specs=slit_specs, mxshft=mxshft)
     return flex_list
 
 

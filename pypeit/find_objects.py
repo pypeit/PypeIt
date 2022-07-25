@@ -20,7 +20,7 @@ from pypeit import specobjs
 from pypeit import msgs, utils
 from pypeit import masterframe, flatfield
 from pypeit.display import display
-from pypeit.core import skysub, pixels, qa, parse, flat
+from pypeit.core import skysub, pixels, qa, parse, flat, flexure
 from pypeit.core import procimg
 from pypeit.images import buildimage
 from pypeit.core import findobj_skymask
@@ -1236,6 +1236,18 @@ class IFUFindObjects(MultiSlitFindObjects):
         global_sky_sep = super().global_skysub(skymask=skymask, update_crmask=update_crmask,
                                                trim_edg=trim_edg, show_fit=show_fit, show=show,
                                                show_objs=show_objs)
+        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
+        # Calculate the spectral flexure of each slit
+        method = self.par['flexure']['spec_method']
+        if method in ['slitcen']:
+            trace_spat = 0.5*(self.slits_left + self.slits_right)
+            gd_slits = np.ones(self.slits.nslits, dtype=bool)
+            flex_list = flexure.spec_flexure_slit_global(self.sciImg, self.waveimg, global_sky_sep, self.par,
+                                                         self.slits, self.slitmask, trace_spat, gd_slits,
+                                                         self.pypeline, self.det)
+            for sl in range(self.slits.nslits):
+                msgs.info("Flexure correction of slit {0:d}: {1:.3f} pixels".format(1+sl, flex_list[sl]['shift'][0]))
+                self.slitshift[sl] = flex_list[sl]['shift'][0]
         # If the joint fit or spec/spat sensitivity corrections are not being performed, return the separate slits sky
         if not self.par['reduce']['skysub']['joint_fit']:
             return global_sky_sep
@@ -1252,7 +1264,8 @@ class IFUFindObjects(MultiSlitFindObjects):
         msgs.info("Generating wavelength image")
         # It's needed in `illum_profile_spectral`
         # TODO maybe would be better to move it inside `illum_profile_spectral`
-        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
+        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spec_flexure=self.slitshift,
+                                                   spat_flexure=self.spat_flexure_shift)
 
         self.illum_profile_spectral(global_sky_sep, skymask=skymask)
 
@@ -1268,44 +1281,6 @@ class IFUFindObjects(MultiSlitFindObjects):
                                                trim_edg=trim_edg, show_fit=show_fit,
                                                show=show, show_objs=show_objs,
                                                objs_not_masked=objs_not_masked)
-
-        # TODO remove? This does not seem to be usable
-        # debug = False
-        # if debug:
-        #     embed()
-        #     wavefull = np.linspace(3950, 4450, 10000)
-        #     import matplotlib.pylab as pl
-        #     from matplotlib import pyplot as plt
-        #     colors = pl.cm.jet(np.linspace(0, 1, gdslits.size))
-        #     plt.subplot(121)
-        #     for sl, slit_idx in enumerate(gdslits):
-        #         slit_spat = self.slits.spat_id[slit_idx]
-        #         thismask = self.slitmask == slit_spat
-        #         wav = self.waveimg[thismask]
-        #         flx = global_sky_sep[thismask]
-        #         argsrt = np.argsort(wav)
-        #         spl = interpolate.interp1d(wav[argsrt], flx[argsrt], bounds_error=False)
-        #         if sl == 0:
-        #             ref = spl(wavefull)
-        #             plt.plot(wavefull, ref / np.nanmedian(ref), color=colors[sl], linestyle=':')
-        #         plt.plot(wavefull, spl(wavefull) / ref, color=colors[sl])
-        #     plt.subplot(122)
-        #     for sl, slit_idx in enumerate(gdslits):
-        #         slit_spat = self.slits.spat_id[slit_idx]
-        #         thismask = self.slitmask == slit_spat
-        #         wav = self.waveimg[thismask]
-        #         flx = self.global_sky[thismask]
-        #         argsrt = np.argsort(wav)
-        #         spl = interpolate.interp1d(wav[argsrt], flx[argsrt], bounds_error=False)
-        #         if sl == 0:
-        #             ref = spl(wavefull)
-        #             plt.plot(wavefull, ref / np.nanmedian(ref), color=colors[sl], linestyle=':')
-        #         plt.plot(wavefull, spl(wavefull) / ref, color=colors[sl])
-        #         print(sl, np.median(spl(wavefull) / ref))
-        #         # plt.plot(wavefull, spl(wavefull), color=colors[sl])
-        #
-        #     plt.show()
-
         return global_sky
 
 
