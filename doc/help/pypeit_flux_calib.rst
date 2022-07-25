@@ -10,17 +10,19 @@
                      following format:
                       
                      flux read
-                       spec1dfile1 sensfile
-                       spec1dfile2
+                          filename | sensfile
+                       spec1dfile1 | sensfile1
+                       spec1dfile2 | 
                           ...    
                      flux end
                       
                      OR
                       
                      flux read
-                       spec1dfile1 sensfile1
-                       spec1dfile2 sensfile2
-                       spec1dfile3 sensfile3
+                          filename | sensfile
+                       spec1dfile1 | sensfile1
+                       spec1dfile2 | sensfile2
+                       spec1dfile3 | sensfile3
                           ...    
                      flux end
                       
@@ -29,6 +31,7 @@
                      [fluxcalib]
                        use_archived_sens = True
                      flux read
+                          filename
                        spec1dfile1
                        spec1dfile2
                        spec1dfile3

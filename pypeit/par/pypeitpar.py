@@ -73,6 +73,7 @@ from configobj import ConfigObj
 from pypeit.par.parset import ParSet
 from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
+from pypeit.inputfiles import PypeItFile
 
 
 def tuple_force(par):
@@ -218,7 +219,7 @@ class ProcessImagesPar(ParSet):
                  dark_expscale=None,
                  empirical_rn=None, shot_noise=None, noise_floor=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
-                 use_pattern=None, use_continuum=None, spat_flexure_correct=None):
+                 use_pattern=None, subtract_continuum=None, spat_flexure_correct=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -291,11 +292,11 @@ class ProcessImagesPar(ParSet):
                                'sinusoidal along one direction, with a frequency that is ' \
                                'constant across the detector.'
 
-        defaults['use_continuum'] = False
-        dtypes['use_continuum'] = bool
-        descr['use_continuum'] = 'Subtract off the continuum level from an image. This parameter should only ' \
-                                 'be set to True to combine arcs with multiple different lamps.' \
-                                 'For all other cases, this parameter should probably be False.'
+        defaults['subtract_continuum'] = False
+        dtypes['subtract_continuum'] = bool
+        descr['subtract_continuum'] = 'Subtract off the continuum level from an image. This parameter should only ' \
+                                      'be set to True to combine arcs with multiple different lamps. ' \
+                                      'For all other cases, this parameter should probably be False.'
 
         defaults['empirical_rn'] = False
         dtypes['empirical_rn'] = bool
@@ -423,7 +424,7 @@ class ProcessImagesPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'use_continuum', 'use_pattern',
+        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum', 'use_pattern',
                    'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
                    'dark_expscale', 'spat_flexure_correct', 'use_illumflat', 'use_specillum',
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
@@ -1340,7 +1341,9 @@ class CubePar(ParSet):
         dtypes['reference_image'] = str
         descr['reference_image'] = 'White light image of a previously combined datacube. The white light ' \
                                    'image will be used as a reference when calculating the offsets of the ' \
-                                   'input spec2d files.'
+                                   'input spec2d files. Ideally, the reference image should have the same ' \
+                                   'shape as the data to be combined (i.e. set the ra_min, ra_max etc. params ' \
+                                   'so they are identical to the reference image).'
 
         defaults['save_whitelight'] = False
         dtypes['save_whitelight'] = bool
@@ -2443,7 +2446,7 @@ class WavelengthSolutionPar(ParSet):
         defaults['fwhm'] = 4.
         dtypes['fwhm'] = [int, float]
         descr['fwhm'] = 'Spectral sampling of the arc lines. This is the FWHM of an arcline in ' \
-                        '*unbinned* pixels.'
+                        'binned pixels of the input arc image'
 
         defaults['fwhm_fromlines'] = False
         dtypes['fwhm_fromlines'] = bool
@@ -4342,45 +4345,51 @@ class PypeItPar(ParSet):
         # Instantiate the object based on the configuration dictionary
         return cls.from_dict(cfg)
 
-    @classmethod
-    def from_pypeit_file(cls, ifile, evaluate=True):
-        """
-        Construct the parameter set using a pypeit file.
-
-        Args:
-            ifile (str):
-                Name of the pypeit file to read.  Expects to find setup
-                and data blocks in the file.  See docs.
-            evaluate (:obj:`bool`, optional):
-                Evaluate the values in the config object before
-                assigning them in the subsequent parameter sets.  The
-                parameters in the config file are *always* read as
-                strings, so this should almost always be true; however,
-                see the warning below.
-
-        .. warning::
-
-            When `evaluate` is true, the function runs `eval()` on
-            all the entries in the `ConfigObj` dictionary, done using
-            :func:`_recursive_dict_evaluate`.  This has the potential to
-            go haywire if the name of a parameter unintentionally
-            happens to be identical to an imported or system-level
-            function.  Of course, this can be useful by allowing one to
-            define the function to use as a parameter, but it also means
-            one has to be careful with the values that the parameters
-            should be allowed to have.  The current way around this is
-            to provide a list of strings that should be ignored during
-            the evaluation, done using :func:`_eval_ignore`.
-
-        .. todo::
-            Allow the user to add to the ignored strings.
-
-        Returns:
-            :class:`pypeit.par.core.PypeItPar`: The instance of the
-            parameter set.
-        """
-        # TODO: Need to include instrument-specific defaults somewhere...
-        return cls.from_cfg_lines(merge_with=util.pypeit_config_lines(ifile), evaluate=evaluate)
+#    @classmethod
+#    def from_pypeit_file(cls, ifile, evaluate=True):
+#        """
+#        Construct the parameter set using a pypeit file.
+#
+#        Warning:  This is a bit risky in that it may well
+#        lead to circular imports.  Might be best to avoid
+#
+#        Args:
+#            ifile (str):
+#                Name of the pypeit file to read.  Expects to find setup
+#                and data blocks in the file.  See docs.
+#            evaluate (:obj:`bool`, optional):
+#                Evaluate the values in the config object before
+#                assigning them in the subsequent parameter sets.  The
+#                parameters in the config file are *always* read as
+#                strings, so this should almost always be true; however,
+#                see the warning below.
+#
+#        .. warning::
+#
+#            When `evaluate` is true, the function runs `eval()` on
+#            all the entries in the `ConfigObj` dictionary, done using
+#            :func:`_recursive_dict_evaluate`.  This has the potential to
+#            go haywire if the name of a parameter unintentionally
+#            happens to be identical to an imported or system-level
+#            function.  Of course, this can be useful by allowing one to
+#            define the function to use as a parameter, but it also means
+#            one has to be careful with the values that the parameters
+#            should be allowed to have.  The current way around this is
+#            to provide a list of strings that should be ignored during
+#            the evaluation, done using :func:`_eval_ignore`.
+#
+#        .. todo::
+#            Allow the user to add to the ignored strings.
+#
+#        Returns:
+#            :class:`pypeit.par.core.PypeItPar`: The instance of the
+#            parameter set.
+#        """
+#        # Load PypeIt file
+#        pypeItFile = PypeItFile.from_file(ifile)
+#        # TODO: Need to include instrument-specific defaults somewhere...
+#        return cls.from_cfg_lines(
+#            merge_with=pypeItFile.cfg_lines, evaluate=evaluate)
 
     @classmethod
     def from_dict(cls, cfg):

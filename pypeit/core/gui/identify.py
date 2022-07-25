@@ -250,9 +250,15 @@ class Identify:
 
         # If a wavelength calibration has been performed already, load it:
         msgs.info("Slit ID = {0:d}  (SPAT ID = {1:d})".format(slit, slits.spat_id[slit]))
-        wv_calib = wv_calib_all[str(slits.spat_id[slit])] if wv_calib_all is not None else None
-
-        # Extract the lines that are detected in arccen
+        if wv_calib_all is not None:
+            wv_calib = wv_calib_all.wv_fits[slit]
+            if wv_calib.spat_id != slits.spat_id[slit]:
+                msgs.warn("Wavelength calibration slits did not match!")
+                msgs.info("Best-fitting wavelength solution will not be loaded.")
+                wv_calib = None
+            msgs.info("Loading lamps from master wavelength solution: " + wv_calib_all.lamps)
+            lamps = wv_calib_all.lamps.split(",")
+            # Extract the lines that are detected in arccen
         thisarc = arccen[:, slit]
         if nonlinear_counts is None:
             nonlinear_counts = 1e10
@@ -1282,11 +1288,11 @@ class Identify:
         """Load line IDs
         """
         if wv_calib is not None:
-            for ii in range(wv_calib['pixel_fit'].size):
-                idx = np.argmin(np.abs(self._detns-wv_calib['pixel_fit'][ii]))
-                self._lineids[idx] = wv_calib['wave_fit'][ii]
-                self._lineflg[idx] = int(wv_calib['mask'][ii])
-            self._fitdict['polyorder'] = len(wv_calib['fitc'])-1
+            for ii in range(wv_calib.pixel_fit.size):
+                idx = np.argmin(np.abs(self._detns-wv_calib.pixel_fit[ii]))
+                self._lineids[idx] = wv_calib.wave_fit[ii]
+                self._lineflg[idx] = 2
+            self._fitdict['polyorder'] = wv_calib.pypeitfit.order[0]
             msgs.info("Loaded line IDs")
         elif os.path.exists(fname):
             data = ascii_io.read(fname, format='fixed_width')

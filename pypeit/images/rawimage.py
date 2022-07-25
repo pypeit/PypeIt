@@ -642,7 +642,7 @@ class RawImage:
         self.ivar = self.build_ivar()
 
         #   - Subtract continuum level
-        if self.par['use_continuum']:
+        if self.par['subtract_continuum']:
             # Calculate a simple smooth continuum image, and subtract this from the frame
             self.subtract_continuum()
 

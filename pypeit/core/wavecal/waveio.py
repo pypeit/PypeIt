@@ -71,7 +71,7 @@ def load_template(arxiv_file, det, wvrng=None):
     """
     # Path already included?
     if os.path.basename(arxiv_file) == arxiv_file:
-        calibfile = data.get_reid_arxiv_filepath(arxiv_file)
+        calibfile, _ = data.get_reid_arxiv_filepath(arxiv_file)
     else:
         calibfile = arxiv_file
     # Read me
@@ -107,9 +107,9 @@ def load_reid_arxiv(arxiv_file):
 
     """
     # ToDO put in some code to allow user specified files rather than everything in the main directory
-    calibfile = data.get_reid_arxiv_filepath(arxiv_file)
+    calibfile, in_cache = data.get_reid_arxiv_filepath(arxiv_file)
     # This is a hack as it will fail if we change the data model yet again for wavelength solutions
-    if calibfile[-4:] == 'json':
+    if calibfile[-4:] == 'json' or in_cache == 'json':
         wv_calib_arxiv = load_wavelength_calibration(calibfile)
         par = wv_calib_arxiv['par'].copy()
         # Pop out par and steps if they were inserted in this calibration dictionary
@@ -121,7 +121,7 @@ def load_reid_arxiv(arxiv_file):
             wv_calib_arxiv.pop('par')
         except KeyError:
             pass
-    elif calibfile[-4:] == 'fits':
+    elif calibfile[-4:] == 'fits' or in_cache == 'fits':
         # The following is a bit of a hack too
         par = None
         wv_tbl = Table.read(calibfile, format='fits')
@@ -279,8 +279,7 @@ def load_line_lists(lamps, unknown=False, skip=False, all=False, NIST=False,
                 msgs.warn("Input line {:s} is not included in arclines".format(lamp))
                 msgs.info("Please choose from the following list:" + msgs.newline() +
                           ",".join(all_list))
-                import pdb; pdb.set_trace()
-                raise IOError("Cannot continue without list")
+                msgs.error("Cannot continue without appropriate linelist.")
         else:
             lists.append(load_line_list(line_file, NIST=NIST))
     # Stack

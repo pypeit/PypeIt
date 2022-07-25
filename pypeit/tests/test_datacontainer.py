@@ -4,7 +4,6 @@ Module to run tests on datamodel.DataContainer
 import sys
 import io
 import os
-import shutil
 import inspect
 
 from IPython import embed
@@ -18,7 +17,6 @@ import numpy as np
 from astropy.table import Table
 
 from pypeit.datamodel import DataContainer
-from pypeit.images import pypeitimage
 from pypeit.io import fits_open
 
 #-----------------------------------------------------------------------
