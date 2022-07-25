@@ -1,9 +1,7 @@
 .. code-block:: console
 
     $ pypeit_ql_keck_deimos -h
-    usage: pypeit_ql_keck_deimos [-h] [--redux_path REDUX_PATH] [--root ROOT] [--calibs_only] [--science SCIENCE] [-b BOX_RADIUS] [-d DET] [--ignore_headers] [--user_pixflat USER_PIXFLAT]
-                                 [--maskID MASKID] [--slit_spat SLIT_SPAT]
-                                 full_rawpath
+    usage: pypeit_ql_keck_deimos [-h] [--redux_path REDUX_PATH] [--root ROOT] [--calibs_only] [--science SCIENCE] [-b BOX_RADIUS] [-d DET] [--ignore_headers] [--user_pixflat USER_PIXFLAT] [--maskID MASKID] [--slit_spat SLIT_SPAT] full_rawpath
     
     Script to run PypeIt in QuickLook on a set of Keck/DEIMOS files
     

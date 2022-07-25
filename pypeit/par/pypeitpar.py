@@ -4707,7 +4707,7 @@ class Collate1DPar(ParSet):
         # Directory for modified spec1d files
         defaults['spec1d_outdir'] = None
         dtypes['spec1d_outdir'] = str
-        descr['spec1d_outdir'] = "The path where all modified spec1d files are placed. These are only created if flux calibration or or refframe correction are asked for."
+        descr['spec1d_outdir'] = "The path where all modified spec1d files are placed. These are only created if flux calibration or refframe correction are asked for."
 
         # What slit flags to exclude
         defaults['exclude_slit_trace_bm'] = []

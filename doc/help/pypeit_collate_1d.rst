@@ -3,8 +3,8 @@
     $ pypeit_collate_1d -h
     usage: pypeit_collate_1d [-h] [--spec1d_files [SPEC1D_FILES ...]]
                              [--par_outfile PAR_OUTFILE] [--outdir OUTDIR]
-                             [--tolerance TOLERANCE] [--match MATCH] [--dry_run]
-                             [--ignore_flux] [--flux]
+                             [--spec1d_outdir SPEC1D_OUTDIR] [--tolerance TOLERANCE]
+                             [--match MATCH] [--dry_run] [--ignore_flux] [--flux]
                              [--exclude_slit_bm [EXCLUDE_SLIT_BM ...]]
                              [--exclude_serendip] [--wv_rms_thresh WV_RMS_THRESH]
                              [--refframe {observed,heliocentric,barycentric}]
@@ -21,6 +21,7 @@
                             [collate1d]
                               tolerance             <tolerance>
                               outdir                <directory to place output files>
+                              spec1d_outdir         <directory to place modified spec1ds, if any>
                               exclude_slit_trace_bm <slit types to exclude>
                               exclude_serendip      If set serendipitous objects are skipped.
                               match_using           Whether to match using "pixel" or
@@ -49,6 +50,11 @@
                             Output to save the parameters
       --outdir OUTDIR       The path where all coadded output files and report files
                             will be placed. Defaults to the current directory.
+      --spec1d_outdir SPEC1D_OUTDIR
+                            The path where all modified spec1d files are placed.
+                            These are only created if flux calibration or refframe
+                            correction are asked for. Defaults to overwriting
+                            existing spec1ds.
       --tolerance TOLERANCE
                             The tolerance used when comparing the coordinates of
                             objects. If two objects are within this distance from
