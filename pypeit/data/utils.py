@@ -230,13 +230,11 @@ def get_reid_arxiv_filepath(arxiv_file):
         tuple: The full path and whether the path is in the cache:
 
            * reid_path (str): The full path to the ``reid_arxiv`` file
-           * in_cache (bool or str): If the returned path is in the cache,
-                indicate whether it is a "fits" or "json", otherwise
-                return False
+           * arxiv_fmt (str): The extension of the ``reid_arxiv`` file (format)
     """
     # Full path within the package data structure:
     reid_path = os.path.join(Paths.reid_arxiv, arxiv_file)
-    in_cache = False
+    arxiv_fmt = arxiv_file.split(".")[-1].lower()
 
     # Check if the file does NOT exist in the package directory
     # NOTE: This should be the case for all but from-source installations
@@ -247,10 +245,9 @@ def get_reid_arxiv_filepath(arxiv_file):
                   "the package directory.  Checking cache or downloading the file now.")
 
         reid_path = fetch_remote_file(arxiv_file, "arc_lines/reid_arxiv")
-        in_cache = arxiv_file[-4:]
 
-    # Return the path to the `reid_arxiv` file, plus whether this is in the cache
-    return reid_path, in_cache
+    # Return the path to the `reid_arxiv` file, and the file format
+    return reid_path, arxiv_fmt
 
 
 def get_skisim_filepath(skisim_file):

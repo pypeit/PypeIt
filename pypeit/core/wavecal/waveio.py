@@ -2,13 +2,10 @@
 """
 import glob
 import os
-from collections import OrderedDict
 
-import numpy as np
-
-from astropy.table import Table, vstack
-
+import astropy.table
 import linetools.utils
+import numpy as np
 
 from pypeit import msgs
 from pypeit.core.wavecal import defs
@@ -73,7 +70,7 @@ def load_template(arxiv_file, det, wvrng=None):
     else:
         calibfile = arxiv_file
     # Read me
-    tbl = Table.read(calibfile, format='fits')
+    tbl = astropy.table.Table.read(calibfile, format='fits')
     # Parse on detector?
     if 'det' in tbl.keys():
         idx = np.where(tbl['det'].data & 2**det)[0]
@@ -106,15 +103,10 @@ def load_reid_arxiv(arxiv_file):
     """
     # This function allows users to specify their own `reid_arxiv`, in
     #   particular, the output from `pypeit_identify`.
-    calibfile, in_cache = data.get_reid_arxiv_filepath(arxiv_file)
-
-    # TODO: The `in_cache` bit is an ugly hack... work on finessing this,
-    #       especially in conjunction with dealing with the fact that
-    #       filenames in the cache are hashes of URLs, not proper "*.fits"
-    #       or whatever filenames.
+    calibfile, arxiv_fmt = data.get_reid_arxiv_filepath(arxiv_file)
 
     # This is a hack as it will fail if we change the data model yet again for wavelength solutions
-    if calibfile[-4:] == 'json' or in_cache == 'json':
+    if arxiv_fmt == 'json':
         wv_calib_arxiv = load_wavelength_calibration(calibfile)
         par = wv_calib_arxiv['par'].copy()
         # Pop out par and steps if they were inserted in this calibration dictionary
@@ -126,11 +118,11 @@ def load_reid_arxiv(arxiv_file):
             wv_calib_arxiv.pop('par')
         except KeyError:
             pass
-    elif calibfile[-4:] == 'fits' or in_cache == 'fits':
+    elif arxiv_fmt == 'fits':
         # The following is a bit of a hack too
         par = None
-        wv_tbl = Table.read(calibfile, format='fits')
-        wv_calib_arxiv = OrderedDict()
+        wv_tbl = astropy.table.Table.read(calibfile, format='fits')
+        wv_calib_arxiv = {}
         nrow = wv_tbl['wave'].shape[0]
         for irow in np.arange(nrow):
             wv_calib_arxiv[str(irow)] = {}
@@ -139,7 +131,7 @@ def load_reid_arxiv(arxiv_file):
             wv_calib_arxiv[str(irow)]['order'] = wv_tbl['order'][irow]
 
     else:
-        msgs.error("Not ready for this extension!")
+        msgs.error(f"Not ready for this `reid_arxiv` extension: {arxiv_fmt}")
 
     return wv_calib_arxiv, par
 
@@ -161,7 +153,7 @@ def load_line_list(line_file, use_ion=False):
     """
     line_file = data.get_linelist_filepath(f'{line_file}_lines.dat') if use_ion else \
         data.get_linelist_filepath(line_file)
-    return Table.read(line_file, format='ascii.fixed_width', comment='#')
+    return astropy.table.Table.read(line_file, format='ascii.fixed_width', comment='#')
 
 
 def load_line_lists(lamps, unknown=False, all=False, restrict_on_instr=None):
@@ -202,7 +194,7 @@ def load_line_lists(lamps, unknown=False, all=False, restrict_on_instr=None):
     # Stack
     if len(lists) == 0:
         return None
-    line_lists = vstack(lists, join_type='exact')
+    line_lists = astropy.table.vstack(lists, join_type='exact')
 
     # Restrict on the spectrograph?
     if restrict_on_instr is not None:
@@ -215,7 +207,7 @@ def load_line_lists(lamps, unknown=False, all=False, restrict_on_instr=None):
         unkn_lines = load_unknown_list(lamps)
         unkn_lines.remove_column('line_flag')  # may wish to have this info
         # Stack
-        line_lists = vstack([line_lists, unkn_lines])
+        line_lists = astropy.table.vstack([line_lists, unkn_lines])
 
     # Return
     return line_lists
