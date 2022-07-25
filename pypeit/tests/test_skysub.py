@@ -1,5 +1,5 @@
 """
-Module to run tests on skysub routines
+Module to run tests on skysub routines (mainly for IFU)
 """
 import pytest
 import numpy as np

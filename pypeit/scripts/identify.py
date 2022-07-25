@@ -81,8 +81,9 @@ class Identify(scriptbase.ScriptBase):
         # Check if a solution exists
         solnname = masterframe.construct_file_name(WaveCalib, msarc.master_key,
                                                    master_dir=msarc.master_dir)
-        wv_calib = waveio.load_wavelength_calibration(solnname) \
-                        if os.path.exists(solnname) and args.solution else None
+        # wv_calib = waveio.load_wavelength_calibration(solnname) \
+        wv_calib = WaveCalib.from_file(solnname) \
+            if os.path.exists(solnname) and args.solution else None
 
         # Load the MasterFrame (if it exists and is desired).  Bad-pixel mask
         # set to any flagged pixel in MasterArc.

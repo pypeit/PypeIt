@@ -179,6 +179,25 @@ class Spectrograph:
         """
         return self.__class__.default_pypeit_par() if inp_par is None else inp_par
 
+    def update_edgetracepar(self, par):
+        """
+        This method is used in :func:`pypeit.edgetrace.EdgeTraceSet.maskdesign_matching`
+        to update EdgeTraceSet parameters when the slitmask design matching is not feasible
+        because too few slits are present in the detector.
+
+        **This method is not defined for all spectrographs.**
+
+        Args:
+            par (:class:`pypeit.par.pypeitpar.EdgeTracePar`):
+                The parameters used to guide slit tracing.
+
+        Returns:
+            :class:`pypeit.par.pypeitpar.EdgeTracePar`
+            The modified parameters used to guide slit tracing.
+        """
+
+        return par
+
     def _check_telescope(self):
         """Check the derived class has properly defined the telescope."""
         if self.telescope is None:

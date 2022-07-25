@@ -88,6 +88,21 @@ The script usage can be displayed by calling the script with the
 
 .. include:: help/pypeit_parse_slits.rst
 
+See :ref:`pypeit_parse_slits` for more info.
+
+pypeit_chk_wavecalib
+--------------------
+
+This script prints to the screen a set of simple wavelength calibration diagnostics
+per each slit, detector by detector.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_chk_wavecalib.rst
+
+See :ref:`pypeit-chk-wavecalib` for more info.
+
 
 Identifying Slits
 =================
