@@ -59,7 +59,8 @@ class Identify:
     """
 
     def __init__(self, canvas, axes, spec, specres, detns, line_lists, par, lflag_color,
-                 slit=0, spatid='0', wv_calib=None, pxtoler=None, specname="", y_log=True, rescale_resid=False):
+                 slit=0, spatid='0', wv_calib=None, pxtoler=None, specname="", y_log=True,
+                 rescale_resid=False):
         """Controls for the Identify task in PypeIt.
 
         The main goal of this routine is to interactively identify arc lines
@@ -237,6 +238,8 @@ class Identify:
             The name of the spectrograph
         y_log : bool, optional
             Scale the Y-axis logarithmically instead of linearly?  (Default: True)
+        rescale_resid : bool, optional
+            Rescale the residuals plot to include all points?  (Default: False)
 
         Returns
         -------
@@ -252,16 +255,16 @@ class Identify:
         print(f"Using {sigdetect} for sigma detection")
 
         # If a wavelength calibration has been performed already, load it:
-        msgs.info("Slit ID = {0:d}  (SPAT ID = {1:d})".format(slit, slits.spat_id[slit]))
+        msgs.info(f"Slit ID = {slit}  (SPAT ID = {slits.spat_id[slit]})")
         if wv_calib_all is not None:
             wv_calib = wv_calib_all.wv_fits[slit]
             if wv_calib.spat_id != slits.spat_id[slit]:
                 msgs.warn("Wavelength calibration slits did not match!")
                 msgs.info("Best-fitting wavelength solution will not be loaded.")
                 wv_calib = None
-            msgs.info("Loading lamps from master wavelength solution: " + wv_calib_all.lamps)
+            msgs.info(f"Loading lamps from master wavelength solution: {wv_calib_all.lamps}")
             lamps = wv_calib_all.lamps.split(",")
-            # Extract the lines that are detected in arccen
+        # Extract the lines that are detected in arccen
         thisarc = arccen[:, slit]
         if nonlinear_counts is None:
             nonlinear_counts = 1e10
@@ -344,8 +347,10 @@ class Identify:
         axes = dict(main=ax, fit=axfit, resid=axres, info=axinfo)
         # Initialise the identify window and display to screen
         fig.canvas.set_window_title('PypeIt - Identify')
-        ident = Identify(fig.canvas, axes, spec, specres, detns, line_lists, par, lflag_color, slit=slit, y_log=y_log,
-                         spatid=str(slits.spat_id[slit]), wv_calib=wv_calib, pxtoler=pxtoler, specname=specname, rescale_resid=rescale_resid)
+        ident = Identify(fig.canvas, axes, spec, specres, detns, line_lists, par,
+                         lflag_color, slit=slit, y_log=y_log, wv_calib=wv_calib,
+                         spatid=str(slits.spat_id[slit]), pxtoler=pxtoler,
+                         specname=specname, rescale_resid=rescale_resid)
 
         if not test:
             plt.show()

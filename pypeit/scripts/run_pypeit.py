@@ -50,7 +50,6 @@ class RunPypeIt(scriptbase.ScriptBase):
     @classmethod
     def get_parser(cls, width=None):
         import argparse
-        import pypeit
 
         parser = super().get_parser(description=cls.usage(),
                                     width=width, formatter=argparse.RawDescriptionHelpFormatter)
@@ -88,8 +87,6 @@ class RunPypeIt(scriptbase.ScriptBase):
                                  '-o is used, the outputs for the input detector will be replaced.')
         parser.add_argument('-c', '--calib_only', default=False, action='store_true',
                             help='Only run on calibrations')
-        parser.add_argument('--version', action='version', version=f'PypeIt v{pypeit.__version__}',
-                            help='Print version number and exit')
 
     #    parser.add_argument('-q', '--quick', default=False, help='Quick reduction',
     #                        action='store_true')

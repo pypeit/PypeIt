@@ -1,5 +1,5 @@
 """
-Script to install telluric model grids into the user's pypeit installation.
+Script to install user arc line lists into the PypeIt cache.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
