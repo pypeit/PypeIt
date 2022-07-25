@@ -764,7 +764,7 @@ def make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_i
 
 
 def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
-                               all_ivar=None, whitelightWCS=None, numra=None, numdec=None):
+                               all_ivar=None, whitelightWCS=None, numra=None, numdec=None, trim=1):
     """ Generate a whitelight image using the individual pixels of every input frame
 
     Args:
@@ -795,6 +795,8 @@ def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, al
             Number of RA spaxels in the reference white light image
         numdec (int, optional):
             Number of DEC spaxels in the reference white light image
+        trim (int, optional):
+            Number of pixels to grow around a masked region
 
     Returns:
         tuple : two 3D arrays will be returned, each of shape [N, M, numfiles],
@@ -813,14 +815,13 @@ def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, al
 
         # Generate coordinates
         cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
-        numra = int((np.max(all_ra) - np.min(all_ra)) * cosdec / dspat)
-        numdec = int((np.max(all_dec) - np.min(all_dec)) / dspat)
+        numra = 1+int((np.max(all_ra) - np.min(all_ra)) * cosdec / dspat)
+        numdec = 1+int((np.max(all_dec) - np.min(all_dec)) / dspat)
     else:
         # If a WCS is supplied, the numra and numdec must be specified
         if (numra is None) or (numdec is None):
             msgs.error("A WCS has been supplied to make_whitelight." + msgs.newline() +
                        "numra and numdec must also be specified")
-
     xbins = np.arange(1 + numra) - 1
     ybins = np.arange(1 + numdec) - 1
     spec_bins = np.arange(2) - 1
@@ -828,7 +829,6 @@ def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, al
 
     whitelight_Imgs = np.zeros((numra, numdec, numfiles))
     whitelight_ivar = np.zeros((numra, numdec, numfiles))
-    trim = 3
     for ff in range(numfiles):
         msgs.info("Generating white light image of frame {0:d}/{1:d}".format(ff + 1, numfiles))
         ww = (all_idx == ff)
@@ -839,8 +839,6 @@ def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, al
         nrmCube = (norm > 0) / (norm + (norm == 0))
         whtlght = (wlcube * nrmCube)[:, :, 0]
         # Create a mask of good pixels (trim the edges)
-#        gpm = grow_masked(whtlght == 0, trim, 1) == 0  # A good pixel = 1
-        # TODO: NEED TO CHECK THIS IS OKAY!!
         gpm = grow_mask(whtlght == 0, trim) == 0  # A good pixel = 1
         whtlght *= gpm
         # Set the masked regions to the minimum value
@@ -1485,33 +1483,35 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
     # Register spatial offsets between all frames
     # Check if a reference whitelight image should be used to register the offsets
-    if cubepar["reference_image"] is None:
-        # Generate white light images
-        whitelight_imgs, _, _ = make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat)
-        # ref_idx will be the index of the cube with the highest S/N
-        ref_idx = np.argmax(weights)
-        reference_image = whitelight_imgs[:, :, ref_idx].copy()
-        msgs.info("Calculating spatial translation of each cube relative to cube #{0:d})".format(ref_idx+1))
-    else:
-        ref_idx = -1  # Don't use an index
-        # Load reference information
-        reference_image, whitelight_imgs, wlwcs = \
-            make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
-                                    cubepar['reference_image'])
-        msgs.info("Calculating the spatial translation of each cube relative to user-defined 'reference_image'")
+    numiter=2
+    for dd in range(numiter):
+        msgs.info(f"Iterating on spatial translation - ITERATION #{dd+1}/{numiter}")
+        if cubepar["reference_image"] is None:
+            # Generate white light images
+            whitelight_imgs, _, _ = make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat)
+            # ref_idx will be the index of the cube with the highest S/N
+            ref_idx = np.argmax(weights)
+            reference_image = whitelight_imgs[:, :, ref_idx].copy()
+            msgs.info("Calculating spatial translation of each cube relative to cube #{0:d})".format(ref_idx+1))
+        else:
+            ref_idx = -1  # Don't use an index
+            # Load reference information
+            reference_image, whitelight_imgs, wlwcs = \
+                make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
+                                        cubepar['reference_image'])
+            msgs.info("Calculating the spatial translation of each cube relative to user-defined 'reference_image'")
 
-    # Calculate the image offsets - check the reference is a zero shift
-    for ff in range(numfiles):
-        # Calculate the shift
-        ra_shift, dec_shift = calculate_image_phase(reference_image.copy(), whitelight_imgs[:, :, ff], maskval=0.0)
-        # Convert pixel shift to degress shift
-        ra_shift *= dspat/cosdec
-        dec_shift *= dspat
-        msgs.info("Spatial shift of cube #{0:d}: RA, DEC (arcsec) = {1:+0.3f}, {2:+0.3f}".format(ff+1, ra_shift*3600.0, dec_shift*3600.0))
-        # Apply the shift
-        all_ra[all_idx == ff] += ra_shift
-        all_dec[all_idx == ff] += dec_shift
-
+        # Calculate the image offsets - check the reference is a zero shift
+        for ff in range(numfiles):
+            # Calculate the shift
+            ra_shift, dec_shift = calculate_image_phase(reference_image.copy(), whitelight_imgs[:, :, ff], maskval=0.0)
+            # Convert pixel shift to degress shift
+            ra_shift *= dspat/cosdec
+            dec_shift *= dspat
+            msgs.info("Spatial shift of cube #{0:d}: RA, DEC (arcsec) = {1:+0.3f}, {2:+0.3f}".format(ff+1, ra_shift*3600.0, dec_shift*3600.0))
+            # Apply the shift
+            all_ra[all_idx == ff] += ra_shift
+            all_dec[all_idx == ff] += dec_shift
     # Generate a white light image of *all* data
     msgs.info("Generating global white light image")
     if cubepar["reference_image"] is None:
