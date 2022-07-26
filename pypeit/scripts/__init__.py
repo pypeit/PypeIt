@@ -19,6 +19,7 @@ from pypeit.scripts import compare_sky
 from pypeit.scripts import flux_calib
 from pypeit.scripts import flux_setup
 from pypeit.scripts import identify
+from pypeit.scripts import install_linelist
 from pypeit.scripts import install_ql_masters
 from pypeit.scripts import install_telluric
 from pypeit.scripts import lowrdx_skyspec
@@ -30,6 +31,7 @@ from pypeit.scripts import qa_html
 from pypeit.scripts import ql_keck_deimos
 from pypeit.scripts import ql_keck_nires
 from pypeit.scripts import ql_mos
+from pypeit.scripts import ql_multislit
 from pypeit.scripts import run_pypeit
 from pypeit.scripts import sensfunc
 from pypeit.scripts import setup

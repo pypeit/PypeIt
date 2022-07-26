@@ -513,7 +513,7 @@ def fetch_remote_file(filename, filetype, remote_host='github', install_script=F
             err_msg = (
                 f"Cannot find local arc line list {filename}{msgs.newline()}"
                 f"Use the script `pypeit_install_linelist` to install{msgs.newline()}"
-                f"your custom line list into the cache.  See instructions as{msgs.newline()}"
+                f"your custom line list into the cache.  See instructions at{msgs.newline()}"
                 "https://pypeit.readthedocs.io/en/latest/wave_calib.html#line-lists"
             )
 

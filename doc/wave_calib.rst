@@ -22,15 +22,19 @@ the `By-Hand Approach`_ including the
 See :doc:`master_wvcalib` for a discussion of the
 main outputs and good/bad examples.
 
+If you wish to use your own line lists (*i.e.*, you have reliable
+identifications using your instrument, but those lines are not
+in one of the PypeIt-supplied files), see `Line Lists`_.
+
 Arc Processing
 ==============
 
 If you are combining multiple arc images that have
 different arc lamps (e.g. one with He and another with Hg+Ne)
 then be sure to process without clipping.  This may be the
-default for your spectrograph (e.g. :doc"`deimos`) but you can
+default for your spectrograph (e.g. :doc:`deimos`) but you can
 be certain by adding the following to the :doc:`pypeit_file`
-(for longslit observations)::
+(for longslit observations):
 
 .. code-block:: ini
 
@@ -44,8 +48,115 @@ be certain by adding the following to the :doc:`pypeit_file`
           clip = False
           subtract_continuum = True
 
-For a multislit observation, you should keep clip=False, and
-change subtract_continuum=True to subtract_continuum=False.
+For a multislit observation, you should keep ``clip = False``, and
+change ``subtract_continuum = True`` to ``subtract_continuum = False``.
+
+
+Line Lists
+==========
+
+PypeIt-Included Line Lists
+--------------------------
+
+Without exception, arc line wavelengths are taken from
+the `NIST database <https://physics.nist.gov/PhysRefData/ASD/lines_form.html>`_,
+*in vacuum*. These data are stored as ASCII tables in the
+`"arc_lines" directory <https://github.com/pypeit/PypeIt/tree/release/pypeit/data/arc_lines/lists>`_
+of the repository. Here are the available lamps:
+
+======  ==========  ================
+Lamp    Range (A)   Last updated
+======  ==========  ================
+ArI     3100-11000  7 October 2018
+CdI     3000-6500   28 February 2022
+CuI     4200-6100   4 October 2018
+FeI     3000-10000  26 April 2020
+HeI     3800-6000   21 December 2016
+HgI     2900-12000  28 February 2022
+KrI     4000-10000  3 May 2018
+NeI     5000-12000  3 May 2018
+XeI     4000-12000  3 May 2018
+ZnI     3000-5000   21 December 2016
+ThAr    3000-11000  9 January 2018
+======  ==========  ================
+
+In the case of the ThAr list, all of the lines are taken from
+the NIST database, and are labelled with a 'MURPHY' flag if the
+line also appears in the list of lines identified by
+`Murphy et al. (2007) MNRAS 378 221 <http://adsabs.harvard.edu/abs/2007MNRAS.378..221M>`_
+
+
+User-Supplied Line Lists
+------------------------
+
+Users may now employ their own line lists, especially those including
+instrument-specific arc line detections.  This feature is included
+*caveat emptor*, and users MUST ensure that ALL lists used have wavelength
+measurements **in vacuum**.
+
+A script ``pypeit_install_linelist`` is included that installs a
+user-supplied line list into the PypeIt cache for use.  The script
+usage can be displayed by calling it with the ``-h`` option:
+
+  .. include:: help/pypeit_install_linelist.rst
+
+For example, you might be using the MMT Blue Channel Spectrograph and
+want to use various blue CdI and HgI lines that are not included in
+the lists above.  You would create a new line list file with a name
+like ``HgCdAr_MMT_lines.dat``, then install it in the PypeIt cache
+using the command:
+
+  .. code-block:: bash
+
+    pypeit_install_linelist HgCdAr_MMT_lines.dat
+
+To access this list in your reduction, you would need to include it
+in your lamp list in the PypeIt Reduction File along with the built-in
+lists:
+
+.. code-block:: ini
+
+    [calibrations]
+      [[wavelengths]]
+        lamps = ArI, CdI, HgI, HgCdAr_MMT
+
+.. note::
+
+  PypeIt expects all arc line list filenames to be of the form
+  ``<ion name>_lines.dat``.  When creating a user-supplied list,
+  be sure to include the ``_lines.dat`` portion in the filename,
+  but exclude the ``_lines`` portion when specifying the list
+  either in the PypeIt Reduction File or with the `pypeit_identify`_
+  routine.
+
+
+The format of user-supplied line lists must match that of the built-in
+line lists.  The best course of action is to make a copy of one of the
+official line lists `from GitHub <https://github.com/pypeit/PypeIt/tree/release/pypeit/data/arc_lines/lists>`_,
+and add your new lines, following the formatting of the original file.
+When adding lines, be sure you are using the **vacuum wavelength** from
+the `NIST database tables <https://physics.nist.gov/PhysRefData/ASD/lines_form.html>`_
+(select ``Show Advanced Settings``, then ``Vacuum (all wavelengths)``)
+to ensure your additional lines are on the same scale as included lines
+to minimize redisuals in the wavelength fit.
+
+By way of example, the first few lines of the HgI list are:
+
+.. code-block::
+
+  # Creation Date: 2022-Feb-28
+  # VACUUM -- MUST BE IN NIST
+  | ion |       wave | NIST | Instr | amplitude |                    Source  |
+  | HgI |  2968.1495 |    1 |     0 |      3000 | ldt_deveny_300_HgCdAr.fits |
+  | HgI |  3022.384  |    1 |     0 |      1200 | ldt_deveny_300_HgCdAr.fits |
+  | HgI |  3342.4450 |    1 |     0 |       700 | ldt_deveny_300_HgCdAr.fits |
+  | HgI |  3651.1980 |    1 |     6 |      7408 | lrisb_600_4000_PYPIT.json  |
+  | HgI |  3664.3270 |    1 |     2 |      1042 | lrisb_600_4000_PYPIT.json  |
+
+
+Only the ion and wavelength columns are used by PypeIt for the wavelength
+calibration, but all must be present else the code will crash with an error.
+
 
 Automated Algorithms
 ====================
@@ -277,7 +388,9 @@ expected knowledge of their FWHM (future versions
 should solve for this).  A fiducial value for a
 standard slit is assumed for each instrument but
 if you are using particularly narrow/wide slits
-than you may need to modify::
+than you may need to modify:
+
+.. code-block:: ini
 
     [calibrations]
       [[wavelengths]]
@@ -292,42 +405,15 @@ will still be used as first guess and for the :doc:`wavetilts`.
 This is particularly advantageous for multi-slit observations that have slit with different slit widths,
 e.g., DEIMOS LVM slit-masks.
 The keyword that controls this option is called `fwhm_fromlines` and is set to `False` by default. To switch it
-on add::
+on add:
+
+.. code-block:: ini
 
     [calibrations]
       [[wavelengths]]
         fwhm_fromlines = True
 
 in your PypeIt file.
-
-Line Lists
-==========
-
-Without exception, arc line wavelengths are taken from
-the `NIST database <http://physics.nist.gov/PhysRefData>`_,
-*in vacuum*. These data are stored as ASCII tables in the
-`arclines` repository. Here are the available lamps:
-
-======  ==========  ==============
-Lamp    Range (A)   Last updated
-======  ==========  ==============
-ArI     3000-10000  21 April 2016
-CdI     3000-10000  21 April 2016
-CuI     3000-10000  13 June 2016
-HeI     2900-12000  2 May 2016
-HgI     3000-10000  May 2018
-KrI     4000-12000  May 2018
-NeI     3000-10000  May 2018
-XeI     4000-12000  May 2018
-ZnI     2900-8000   2 May 2016
-ThAr    3000-11000  9 January 2018
-======  ==========  ==============
-
-In the case of the ThAr list, all of the lines are taken from
-the NIST database, and are labelled with a 'MURPHY' flag if the
-line also appears in the list of lines identified by
-`Murphy et al. (2007) MNRAS 378 221 <http://adsabs.harvard.edu/abs/2007MNRAS.378..221M>`_
-
 
 
 Flexure Correction
