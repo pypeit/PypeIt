@@ -30,9 +30,9 @@ Arc Processing
 ==============
 
 If you are combining multiple arc images that have
-different arc lamps (e.g. one with He and another with Hg+Ne)
+different arc lamps (*e.g.*, one with He and another with Hg+Ne)
 then be sure to process without clipping.  This may be the
-default for your spectrograph (e.g. :doc:`deimos`) but you can
+default for your spectrograph (*e.g.*, :doc:`deimos`) but you can
 be certain by adding the following to the :doc:`pypeit_file`
 (for longslit observations):
 
@@ -65,7 +65,7 @@ the `NIST database <https://physics.nist.gov/PhysRefData/ASD/lines_form.html>`_,
 of the repository. Here are the available lamps:
 
 ======  ==========  ================
-Lamp    Range (A)   Last updated
+Lamp    Range (Å)   Last updated
 ======  ==========  ================
 ArI     3100-11000  7 October 2018
 CdI     3000-6500   28 February 2022
@@ -101,14 +101,14 @@ usage can be displayed by calling it with the ``-h`` option:
   .. include:: help/pypeit_install_linelist.rst
 
 For example, you might be using the MMT Blue Channel Spectrograph and
-want to use various blue CdI and HgI lines that are not included in
+want to use various blue mercury and cadmium lines that are not included in
 the lists above.  You would create a new line list file with a name
-like ``HgCdAr_MMT_lines.dat``, then install it in the PypeIt cache
+like ``HgCd_MMT_lines.dat``, then install it in the PypeIt cache
 using the command:
 
   .. code-block:: bash
 
-    pypeit_install_linelist HgCdAr_MMT_lines.dat
+    $ pypeit_install_linelist HgCd_MMT_lines.dat
 
 To access this list in your reduction, you would need to include it
 in your lamp list in the PypeIt Reduction File along with the built-in
@@ -118,7 +118,7 @@ lists:
 
     [calibrations]
       [[wavelengths]]
-        lamps = ArI, CdI, HgI, HgCdAr_MMT
+        lamps = ArI, CdI, HgI, HgCd_MMT
 
 .. note::
 
@@ -127,20 +127,21 @@ lists:
   be sure to include the ``_lines.dat`` portion in the filename,
   but exclude the ``_lines`` portion when specifying the list
   either in the PypeIt Reduction File or with the `pypeit_identify`_
-  routine.
+  routine, as in the example above.
 
 
 The format of user-supplied line lists must match that of the built-in
 line lists.  The best course of action is to make a copy of one of the
 official line lists `from GitHub <https://github.com/pypeit/PypeIt/tree/release/pypeit/data/arc_lines/lists>`_,
-and add your new lines, following the formatting of the original file.
+and then add your new lines following the formatting of the original file.
 When adding lines, be sure you are using the **vacuum wavelength** from
 the `NIST database tables <https://physics.nist.gov/PhysRefData/ASD/lines_form.html>`_
 (select ``Show Advanced Settings``, then ``Vacuum (all wavelengths)``)
-to ensure your additional lines are on the same scale as included lines
-to minimize redisuals in the wavelength fit.
+to ensure your additional lines are on the same scale as PypeIt-included
+lines to minimize redisuals in the wavelength fit.
 
-By way of example, the first few lines of the HgI list are:
+By way of example, the first few lines of the neutral mercury list
+(``HgI_lines.dat``) are:
 
 .. code-block::
 
@@ -162,7 +163,7 @@ Automated Algorithms
 ====================
 
 These notes will describe the algorithms used to perform
-wavelength calibration in 1D (i.e. down the slit/order)
+wavelength calibration in 1D (*i.e.*, down the slit/order)
 with PypeIt.   The basic steps are:
 
  1. Extract 1D arc spectra down the center of each slit/order
@@ -197,8 +198,8 @@ effort once a vetted line-list for the observed lamps has been
 generated.
 
 However, we have found this algorithm is not highly robust
-(e.g. slits fail at ~5-10% rate) and it struggles with
-high dispersion data (e.g. ThAr lamps).  At this stage, we
+(*e.g.*, slits fail at ~5-10% rate) and it struggles with
+high dispersion data (*e.g.*, ThAr lamps).  At this stage, we
 recommend it be used primarily by the Developers to generate
 template spectra.
 
@@ -215,7 +216,7 @@ are used to identify arc lines based on their recorded
 wavelength solutions.
 
 This algorithm is optimal for fixed-format spectrographs
-(e.g. X-Shooter, ESI).
+(*e.g.*, X-Shooter, ESI).
 
 .. _wvcalib-fulltemplate:
 
@@ -225,7 +226,7 @@ Full Template
 This algorithm is similar to `Reidentify`_ with
 two exceptions:  (i) there is only a single template used
 (occasionally one per detector for spectra that span across
-multiple, e.g. DEIMOS); (ii) IDs from
+multiple, *e.g.*, DEIMOS); (ii) IDs from
 the input arc spectrum are generally performed on snippets
 of the full input array.  The motivation for the latter is
 to reduce non-linearities that are not well captured by the
@@ -233,8 +234,8 @@ shift+stretch analysis of `Reidentify`_.
 
 We recommend implementing this method for multi-slit
 observations, long-slit observations where wavelengths
-vary (e.g. grating tilts).  We are likely to implement
-this for echelle observations (e.g. HIRES).
+vary (*e.g.*, grating tilts).  We are likely to implement
+this for echelle observations (*e.g.*, HIRES).
 
 .. _wvcalib-byhand:
 
@@ -245,11 +246,10 @@ Identify
 --------
 
 If you would prefer to manually wavelength calibrate, then
-you can do so with the 'pypeit_identify' task. To launch this task,
-you need to have successfully traced the slit edges (i.e. a
+you can do so with the ``pypeit_identify`` task. To launch this task,
+you need to have successfully traced the slit edges (*i.e.*, a
 :doc:`master_edges` file must exist), and generated a
-:doc:`master_arc`
-calibration frame.
+:doc:`master_arc` calibration frame.
 
 pypeit_identify
 +++++++++++++++
@@ -266,7 +266,7 @@ To launch the GUI, use the following command:
 
 .. code-block:: bash
 
-    pypeit_identify MasterArc_A_1_01.fits MasterSlits_A_1_01.fits.gz
+    $ pypeit_identify MasterArc_A_1_01.fits MasterSlits_A_1_01.fits.gz
 
 basics
 ------
@@ -340,14 +340,14 @@ on your screen from ``pypeit_identify``, and run PypeIt in the standard
 :ref:`wvcalib-fulltemplate` mode.
 
 We also recommend that you send your solution to the
-PypeIt development (e.g. post it on GitHub or the Users Slack)
+PypeIt development (*e.g.*, post it on GitHub or the Users Slack)
 team, so that others can benefit from your wavelength
 calibration solution.
 
 customizing
 -----------
 
-If your arclines are over-sampled (e.g. Gemini/GMOS)
+If your arclines are over-sampled (*e.g.*, Gemini/GMOS)
 you may need to increase the `fwhm` from the default value of 4.
 And also the pixel tolerance `pixtol` for auto ID'ng lines
 from its default of 0.1 pixels.
@@ -388,7 +388,8 @@ expected knowledge of their FWHM (future versions
 should solve for this).  A fiducial value for a
 standard slit is assumed for each instrument but
 if you are using particularly narrow/wide slits
-than you may need to modify:
+then in your PypeIt Reduction File you may need
+to modify:
 
 .. code-block:: ini
 
@@ -396,24 +397,24 @@ than you may need to modify:
       [[wavelengths]]
         fwhm=X.X
 
-in your PypeIt file.
 
-
-Alternatively, PypeIt can compute the arc line FWHM from the arc lines themselves (only the ones with the
-highest detection significance). The FWHM measured in this way will override the value set by `fwhm`, which
+Alternatively, PypeIt can compute the arc line FWHM
+from the arc lines themselves (only the ones with the
+highest detection significance). The FWHM measured in
+this way will override the value set by `fwhm`, which
 will still be used as first guess and for the :doc:`wavetilts`.
-This is particularly advantageous for multi-slit observations that have slit with different slit widths,
-e.g., DEIMOS LVM slit-masks.
-The keyword that controls this option is called `fwhm_fromlines` and is set to `False` by default. To switch it
-on add:
+This is particularly advantageous for multi-slit observations
+that have slit with different slit widths
+(*e.g.*, DEIMOS LVM slit-masks).
+The keyword that controls this option is called ``fwhm_fromlines``
+and is set to ``False`` by default. To switch it on add the
+following to your PypeIt Reduction File:
 
 .. code-block:: ini
 
     [calibrations]
       [[wavelengths]]
         fwhm_fromlines = True
-
-in your PypeIt file.
 
 
 Flexure Correction
@@ -437,7 +438,7 @@ wavelength calibration with PypeIt.  We recommend the following
 procedure, when possible:
 
 - Perform wavelength calibration with a previous pipeline
-   * Record a calibrated, arc spectrum, i.e. wavelength vs. counts
+   * Record a calibrated, arc spectrum (*i.e.*, wavelength vs. counts)
    * In vaccuum or convert from air to vacuum
 
 - If no other DRP exists..
@@ -467,12 +468,12 @@ Full Template Dev
 -----------------
 
 The preferred method for multi-slit calibration is now
-called `full_template` which
+called ``full_template`` which
 cross-matches an input sepctrum against an archived template.  The
 latter must be constructed by a Developer, using the
 core.wavecal.templates.py module.  The following table
 summarizes the existing ones (all of which are in the
-data/arc_lines/reid_arxiv folder):
+``data/arc_lines/reid_arxiv`` folder):
 
 ===============  =========================  =============================
 Instrument       Setup                      Name
@@ -497,17 +498,17 @@ See the Templates Notebook or the core.wavecal.templates.py module
 for further details.
 
 One of the key parameters (and the only one modifiable) for
-`full_template` is the number of snippets to break the input
+``full_template`` is the number of snippets to break the input
 spectrum into for cross-matchging.  The default is 2 and the
 concept is to handle non-linearities by simply reducing the
 length of the spectrum.  For relatively linear dispersers,
-nsinppet=1 may frequently suffice.
+``nsinppet = 1`` may frequently suffice.
 
 For instruments where the spectrum runs across multiple
-detectors in the spectral dimension (e.g. DEIMOS), it may
+detectors in the spectral dimension (*e.g.*, DEIMOS), it may
 be necessary to generate detector specific templates (ugh).
 This is especially true if the spectrum is partial on the
-detector (e.g. the 830G grating).
+detector (*e.g.*, the 830G grating).
 
 
 
