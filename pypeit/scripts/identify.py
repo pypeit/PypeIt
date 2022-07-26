@@ -34,7 +34,7 @@ class Identify(scriptbase.ScriptBase):
         parser.add_argument('--test', default=False, action='store_true',
                             help="Unit tests?")
         parser.add_argument("--linear", default=False, action="store_true",
-                            help="Show the spectrum in linear (rather than log) scale?")
+                            help="Show the spectrum in linear (rather than log) scale")
         parser.add_argument('--force_save', default=False, action='store_true',
                             help="Save the solutions, despite the RMS")
         parser.add_argument('--rescale_resid', default=False, action='store_true',

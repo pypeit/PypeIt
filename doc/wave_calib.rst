@@ -89,10 +89,19 @@ line also appears in the list of lines identified by
 User-Supplied Line Lists
 ------------------------
 
-Users may now employ their own line lists, especially those including
-instrument-specific arc line detections.  This feature is included
-*caveat emptor*, and users MUST ensure that ALL lists used have wavelength
-measurements **in vacuum**.
+Occasionally users reliably find lines in their arc spectra that are
+not included in the lists above.  For experimenting with adding
+particular lines or for instrument-specific arc line detections,
+PypeIt now allows the use of user-supplied arc line lists for
+wavelength calibration.  The ability to use arbitrary line lists is
+included *caveat emptor*, and users MUST ensure that ALL lists used
+have wavelength measurements **in vacuum**.
+
+.. note::
+
+  Users who are confident that their new lines would benefit PypeIt
+  broadly (*i.e.*, beyond this single instrument) should consult with
+  the Developers.
 
 A script ``pypeit_install_linelist`` is included that installs a
 user-supplied line list into the PypeIt cache for use.  The script
@@ -151,8 +160,8 @@ By way of example, the first few lines of the neutral mercury list
   | HgI |  2968.1495 |    1 |     0 |      3000 | ldt_deveny_300_HgCdAr.fits |
   | HgI |  3022.384  |    1 |     0 |      1200 | ldt_deveny_300_HgCdAr.fits |
   | HgI |  3342.4450 |    1 |     0 |       700 | ldt_deveny_300_HgCdAr.fits |
-  | HgI |  3651.1980 |    1 |     6 |      7408 | lrisb_600_4000_PYPIT.json  |
-  | HgI |  3664.3270 |    1 |     2 |      1042 | lrisb_600_4000_PYPIT.json  |
+  | HgI |  3651.1980 |    1 |     6 |      7408 |  lrisb_600_4000_PYPIT.json |
+  | HgI |  3664.3270 |    1 |     2 |      1042 |  lrisb_600_4000_PYPIT.json |
 
 
 Only the ion and wavelength columns are used by PypeIt for the wavelength
