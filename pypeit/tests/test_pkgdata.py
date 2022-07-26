@@ -43,7 +43,12 @@ def test_fetch_github_files():
 def test_filepath_routines():
 
     # Test each of the get_*_filepath() routines to ensure they return a valid file path
-    assert os.path.isfile(data.get_reid_arxiv_filepath("keck_deimos_600ZD.fits"))
+
+    # reid_arxiv (returns tuple):
+    filepath, _ = data.get_reid_arxiv_filepath("keck_deimos_600ZD.fits")
+    assert os.path.isfile(filepath)
+
+    # others (return just the filepath):
     assert os.path.isfile(data.get_skisim_filepath("mktrans_zm_10_10.dat"))
     assert os.path.isfile(data.get_sensfunc_filepath("keck_deimos_600ZD_sensfunc.fits"))
     assert os.path.isfile(data.get_linelist_filepath("ArI_lines.dat"))
