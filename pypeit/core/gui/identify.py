@@ -223,7 +223,7 @@ class Identify:
         wavelim : :obj:`list`, None, optional
             A two element list containing the desired minimum and maximum wavelength of the linelist
         test : bool, optional
-            If True, this is a unit test
+            If True, do not show the plots
         nonlinear_counts : float, optional
             Counts where the arc is presumed to go non-linear
             Passed to arc_lines_from_spec()
@@ -357,6 +357,7 @@ class Identify:
                          spatid=str(slits.spat_id[slit]), pxtoler=pxtoler,
                          specname=specname, rescale_resid=rescale_resid)
 
+        # For testing, do not show the plots
         if not test:
             plt.show()
 
