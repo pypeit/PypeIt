@@ -264,6 +264,11 @@ class Identify:
                 wv_calib = None
             msgs.info(f"Loading lamps from master wavelength solution: {wv_calib_all.lamps}")
             lamps = wv_calib_all.lamps.split(",")
+        # Must specify `wv_calib = None` otherwise
+        else:
+            msgs.warn("No wavelength calibration supplied!")
+            msgs.info("No wavelength solution will be loaded.")
+            wv_calib = None
         # Extract the lines that are detected in arccen
         thisarc = arccen[:, slit]
         if nonlinear_counts is None:

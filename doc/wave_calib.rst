@@ -410,7 +410,7 @@ to modify:
 Alternatively, PypeIt can compute the arc line FWHM
 from the arc lines themselves (only the ones with the
 highest detection significance). The FWHM measured in
-this way will override the value set by `fwhm`, which
+this way will override the value set by ``fwhm``, which
 will still be used as first guess and for the :doc:`wavetilts`.
 This is particularly advantageous for multi-slit observations
 that have slit with different slit widths
