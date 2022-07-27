@@ -30,7 +30,8 @@
       --sigdetect SIGDETECT
                             sigma detection for line finding (default: None)
       --pixtol PIXTOL       Pixel tolerance for Auto IDs (default: 0.1)
-      --test                Unit tests? (default: False)
+      --test                Testing functionality, do not show plots (default:
+                            False)
       --linear              Show the spectrum in linear (rather than log) scale
                             (default: False)
       --force_save          Save the solutions, despite the RMS (default: False)
