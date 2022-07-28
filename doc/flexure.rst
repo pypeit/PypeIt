@@ -106,6 +106,15 @@ are respectively used (see `Alternate sky models`_ for all sky models).
 Narrow sky emission lines dominate the analysis, but other features
 can affect the cross-correlation.
 
+The maximum allowable spectral shift (in pixels) is set using the ``spec_maxshift``
+:ref:`pypeit_par:FlexurePar Keywords`, where the default is 20 pixels.  If a spectrum
+is measured to have a shift greater than this value, the parameter ``excessive_shift``
+determines how the code responds.  The default value "crash" causes the code to stop
+execution with an error.  Optionally, the user may sepecify ``excessive_shift = skip``
+to allow the code to continue executing while skipping the flexure correction (effectively
+setting the flexure shift to zero) or ``excessive_shift = continue`` to utilize the
+large shift value.
+
 
 Algorithm
 ---------
