@@ -285,10 +285,12 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20, excess_shft=
                       f"larger than specified maximum {mxshft} pix.")
 
             if excess_shft == "crash":
-                msgs.error(f"Flexure compensation failed for one of your {msgs.newline()}"
-                           f"objects.  To set shift to zero and continue {msgs.newline()}"
-                           f"with the reduction, set FlexurePar Keyword {msgs.newline()}"
-                           f"excessive_shift = \"continue\".")
+                msgs.error(f"Flexure compensation failed for one of your{msgs.newline()}"
+                           f"objects.  Either adjust the \"spec_maxshift\"{msgs.newline()}"
+                           f"FlexurePar Keyword, or see the flexure documentation{msgs.newline()}"
+                           f"for information on how to bypass this error using the{msgs.keyword()}"
+                           f"\"excessive_shift\" keyword.{msgs.newline()}"
+                           "https://pypeit.readthedocs.io/en/release/flexure.html")
 
             elif excess_shft == "skip":
                 msgs.warn("Flexure compensation failed for one of your objects.")
