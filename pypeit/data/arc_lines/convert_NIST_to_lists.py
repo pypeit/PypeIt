@@ -173,12 +173,12 @@ def main(args=None):
         return
 
     # Write the table to disk
-    outfile = os.path.join(data.Paths.linelist, f'{line}_lines.dat')
+    outfile = data.get_linelist_filepath(f'{line}_lines.dat')
     write_line_list(linelist, outfile)
     return
 
 
-def write_line_list(tbl, outfile):
+def write_line_list(tbl, outfile, overwrite=True):
     """
     Parameters
     ----------
@@ -190,7 +190,7 @@ def write_line_list(tbl, outfile):
     # Write
     with open(outfile, 'w') as f:
         f.write('# Creation Date: {:s}\n'.format(str(datetime.date.today().strftime('%Y-%m-%d'))))
-        tbl.write(f, format='ascii.fixed_width')
+        tbl.write(f, format='ascii.fixed_width', overwrite=overwrite)
 
 
 if __name__ == '__main__':
