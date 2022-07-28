@@ -100,8 +100,9 @@ have wavelength measurements **in vacuum**.
 .. note::
 
   Users who are confident that their new lines would benefit PypeIt
-  broadly (*i.e.*, beyond this single instrument) should consult with
-  the Developers.
+  broadly (*i.e.*, beyond this single instrument) should submit a pull
+  request adding their lines to the appropriate line list file (see
+  :ref:`development`).
 
 A script ``pypeit_install_linelist`` is included that installs a
 user-supplied line list into the PypeIt cache for use.  The script

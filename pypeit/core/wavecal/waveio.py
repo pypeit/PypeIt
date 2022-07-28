@@ -292,7 +292,7 @@ def load_unknown_list(lines, unknwn_file=None, all=False):
         return line_list
 
     # Otherwise
-    msk = np.array([False]*len(line_list))
+    msk = np.zeros(len(line_list), dtype=bool)
     for line in lines:
         line_flag = line_dict[line]
         match = line_list['line_flag'] % (2*line_flag) >= line_flag
