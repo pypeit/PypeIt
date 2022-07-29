@@ -46,14 +46,14 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         # See Echelle at 2.4m f/7.5 scale : http://mdm.kpno.noirlab.edu/mdm-ccds.html 
         gain = np.atleast_1d([1.3])      # Hardcoded in the header 
         ronoise = np.atleast_1d([7.90])    # Hardcoded in the header
-        len2 = hdu[0].header['NAXIS1']     ## switched with len1
-        len1 = hdu[0].header['NAXIS2']      ## switched with len2
+        len1 = hdu[0].header['NAXIS1']     ## switched with len1
+        len2 = hdu[0].header['NAXIS2']      ## switched with len2
     
         datasec = np.atleast_1d([
-            '[{0:d}:{1:d},{2:d}:{3:d}]'.format(1+5, len1-5, 1, len2)])
+            '[{0:d}:{1:d},{2:d}:{3:d}]'.format(1, len2, 1, 300)])
         oscansec = np.atleast_1d([
-            '[{0:d}:{1:d},{2:d}:{3:d}]'.format(1, 1+5, 1, len2),
-            '[{0:d}:{1:d},{2:d}:{3:d}]'.format(len1-5, len1, 1, len2)
+        ##    '[{0:d}:{1:d},{2:d}:{3:d}]'.format(1, 1+5, 1, len2),
+            '[{0:d}:{1:d},{2:d}:{3:d}]'.format(1, len2, 308, len1) ## accounts for overscan now
         ])
         if hdu is None:
             binning = '1,1'                 # Most common use mode
@@ -106,14 +106,17 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['process']['clip'] = True
         par['calibrations']['pixelflatframe']['process']['comb_sigrej'] = 3.0 
         par['calibrations']['pixelflatframe']['process']['n_lohi'] = [1, 1] #[nlow, nhigh]
-        par['calibrations']['pixelflatframe']['process']['use_overscan'] = False
+        par['calibrations']['pixelflatframe']['process']['use_overscan'] = True ## maybe <<<<<< 
         
         # Wavelength calibration methods
-        par['calibrations']['wavelengths']['method'] = 'full_template' #more reliable than 'holy-grail', but requires an archived wavelength solution for the specific instrument/grating combination. See https://pypeit.readthedocs.io/en/latest/pypeit_par.html#wavelengthsolutionpar-keywords, also https://pypeit.readthedocs.io/en/latest/wave_calib.html#identify and https://pypeit.readthedocs.io/en/latest/master_edges.html and https://pypeit.readthedocs.io/en/latest/master_arc.html
+        par['calibrations']['wavelengths']['method'] = 'holy-grail' #more reliable than 'holy-grail', but requires an archived wavelength solution for the specific instrument/grating combination. See https://pypeit.readthedocs.io/en/latest/pypeit_par.html#wavelengthsolutionpar-keywords, also https://pypeit.readthedocs.io/en/latest/wave_calib.html#identify and https://pypeit.readthedocs.io/en/latest/master_edges.html and https://pypeit.readthedocs.io/en/latest/master_arc.html
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'XeI', 'NeI']
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_mdm_modspec_echelle_20220714T1118.fits' # this is an example; this is based only on Xenon and the minimum files needed to run
+        #par['calibrations']['wavelengths']['reid_arxiv'] = 'mdm_modspec_echelle_NeXeAr.fits'
+        ###par['calibrations']['wavelengths']['reid_arxiv'] = 'mdm_modspec_echelle_Ar_REAL.fits'
         ###|||||| do this one below ||||||###
         par['calibrations']['wavelengths']['sigdetect'] = 5.0 #Sigma threshold above fluctuations for arc-line detection
+        par['calibrations']['wavelengths']['ech_fix_format'] = False ## a TEST
+        par['calibrations']['wavelengths']['n_final'] = 15
         
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
@@ -121,7 +124,9 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures on this telescope
         par['calibrations']['arcframe']['process']['clip'] = False
-        par['calibrations']['arcframe']['process']['subtract_continuum'] = True
+        par['calibrations']['arcframe']['process']['subtract_continuum'] = False
+        par['calibrations']['tiltframe']['process']['subtract_continuum'] = False
+        ###|||||| do the above two lines for when you attempt to construct a solution from all 3 arc lamps at once ||||||
         par['calibrations']['standardframe']['exprng'] = [10, 60]
         par['scienceframe']['exprng'] = [120, 600]
 
