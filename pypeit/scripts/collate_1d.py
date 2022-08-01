@@ -342,6 +342,10 @@ def copy_spec1d_to_outdir(spec1d_files, outdir):
     Return:
         list of str: The pathnames of the newly copied files.
     """
+
+    # Make sure the spec1d output directory exists
+    os.makedirs(outdir, exist_ok=True)
+    
     copied_files = []
     for spec1d_file in spec1d_files:
         new_file = os.path.join(outdir, os.path.basename(spec1d_file))
@@ -512,8 +516,8 @@ def build_parameters(args):
     if args.tolerance is not None:
         params['collate1d']['tolerance'] = args.tolerance
 
-    if args.match is not None:
-        params['collate1d']['match_using'] = args.match
+    if args.match_using is not None:
+        params['collate1d']['match_using'] = args.match_using
 
     if args.exclude_slit_bm is not None and len(args.exclude_slit_bm) > 0:
         params['collate1d']['exclude_slit_trace_bm'] = args.exclude_slit_bm
@@ -638,7 +642,7 @@ class Collate1D(scriptbase.ScriptBase):
         parser.add_argument('--outdir', type=str, help=blank_par.descr['outdir'] + " Defaults to the current directory.")
         parser.add_argument('--spec1d_outdir', type=str, help=blank_par.descr['spec1d_outdir'] + " Defaults to overwriting existing spec1ds.")
         parser.add_argument('--tolerance', type=str, help=blank_par.descr['tolerance'])
-        parser.add_argument('--match', type=str, choices=blank_par.options['match_using'],
+        parser.add_argument('--match_using', type=str, choices=blank_par.options['match_using'],
                             help=blank_par.descr['match_using'])
         parser.add_argument('--dry_run', action='store_true', help=blank_par.descr['dry_run'])
         parser.add_argument('--ignore_flux', default=False, action='store_true', help=blank_par.descr['ignore_flux'])
