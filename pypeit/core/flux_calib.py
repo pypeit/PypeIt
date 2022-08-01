@@ -22,8 +22,6 @@ from astropy import table
 from astropy.io import ascii
 from astropy import stats
 
-from linetools.spectra.xspectrum1d import XSpectrum1D
-
 from pypeit import msgs
 from pypeit import utils
 from pypeit import bspline
@@ -32,7 +30,6 @@ from pypeit.wavemodel import conv2res
 from pypeit.core.wavecal import wvutils
 from pypeit.core import fitting
 from pypeit import data
-#from pypeit.core import telluric
 
 
 # TODO: Put these in the relevant functions
@@ -52,15 +49,21 @@ def zp_unit_const():
 
 
 def mAB_to_cgs(mAB,wvl):
-    """Convert AB magnitudes to flambda cgs unit erg cm^-2 s^-1 A^-1
+    """
+    Convert AB magnitudes to flambda cgs unit erg cm^-2 s^-1 A^-1
 
-    Args:
-        mAB (float or `numpy.ndarray`_): AB magnitudes
-        wvl (float or `numpy.ndarray`_): Corresponding
-            wavelenghs in Angstroms
+    Parameters
+    ----------
+    mAB: float or `numpy.ndarray`_
+        AB magnitudes
+    wvl: float or `numpy.ndarray`_
+        Wavelength in Angstrom
 
-    Returns:
-        float or `numpy.ndarray`_: flambda flux in cgs units
+    Returns
+    -------
+    flux density: float or `numpy.ndarray`_
+        f_lambda flux in cgs units
+
     """
     return 10**((-48.6-mAB)/2.5)*3*10**18/wvl**2
 
@@ -71,16 +74,20 @@ def blackbody_func(a, teff):
     See Suzuki & Fukugita, 2018, AJ, 156, 219:
     https://ui.adsabs.harvard.edu/abs/2018AJ....156..219S/abstract
 
-    Args:
-        a (float):
-            flux normalisation factor (dimensionless)
-        teff (float):
-            Effective temperature of the blackbody (in units of K)
+    Parameters
+    ----------
+    a: float
+        flux normalisation factor (dimensionless)
+    teff: float
+        Effective temperature of the blackbody (in units of K)
 
-    Returns:
-        tuple: Two objects:
-          - waves -- `numpy.ndarray`_ of the wavelengths
-          - flam -- `numpy.ndarray`_ flux in units of erg/s/cm^2/A
+    Returns
+    -------
+    waves : `numpy.ndarray`
+        wavelengths
+    flam : `numpy.ndarray`
+        flux in units of erg/s/cm^2/A
+
     """
     waves = np.arange(3000.0, 25000.0, 0.1) * units.AA
     temp = teff * units.K
@@ -102,27 +109,29 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     Find a match for the input file to one of the archived
     standard star files (hopefully).  Priority is by order of search:
 
-        ['blackbody', 'xshooter', 'calspec', 'esofil', 'noao', 'ing']
+        ['xshooter', 'calspec', 'esofil', 'noao', 'ing', 'blackbody']
 
-    Args:
-        ra (float):
-            Object right-ascension in decimal deg
-        dec (float):
-            Object declination in decimal deg
-        toler (:class:`astropy.units.quantity.Quantity`, optional):
-            Tolerance on matching archived standards to input.  Expected
-            to be in arcmin.
-        check (:obj:`bool`, optional):
-            If True, the routine will only check to see if a standard
-            star exists within the input ra, dec, and toler range.
+    Parameters
+    ----------
+    ra: float
+        Object right-ascension in decimal deg
+    dec: float
+        Object declination in decimal deg
+    toler: :class:`astropy.units.quantity.Quantity`, optional
+        Tolerance on matching archived standards to input.  Expected
+        to be in arcmin.
+    check: bool, optional
+        If True, the routine will only check to see if a standard
+        star exists within the input ra, dec, and toler range.
 
-    Returns:
-        dict or bool: If check is True, return True or False depending on
+    Returns
+    -------
+    star_dict: dict, bool or None
+        If check is True, return True or False depending on
         if the object is matched to a library standard star.
         If check is False and no match is found, return None.  Otherwise, return
         a dictionary with the matching standard star with the following
         meta data:
-
             - 'cal_file': str -- Filename table
             - 'name': str -- Star name
             - 'std_ra': float -- RA(J2000)
@@ -130,7 +139,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
 
     """
     # Priority
-    std_sets = ['blackbody', 'xshooter', 'calspec', 'esofil', 'noao', 'ing']
+    std_sets = ['xshooter', 'calspec', 'esofil', 'noao', 'ing', 'blackbody']
 
     # SkyCoord
     obj_coord = coordinates.SkyCoord(ra, dec, unit='deg')
@@ -269,22 +278,22 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
 
 def stellar_model(V, sptype):
     """
-    Parse Kurucz SED given T and g.  Also convert absolute/apparent
-    magnitudes
+    Get the Kurucz stellar model for a given apparent magnitude and spectral type of your standard star.
+    The logg and Teff are from the Schmidt-Kaler (1982) table.
 
     Parameters
     ----------
     V: float
-        Apparent magnitude of the telluric star
+        Apparent magnitude of the standard star
     sptype: str
-        Spectral type of the telluric star
+        Spectral type of the standard star
 
     Returns
     -------
     loglam: `numpy.ndarray`_
         log wavelengths
     flux: `numpy.ndarray`_
-        SED f_lambda (cgs units, I think, probably per Ang)
+        flux density f_lambda (cgs units)
     """
 
     # Grab telluric star parameters
