@@ -22,16 +22,19 @@ class Identify(scriptbase.ScriptBase):
         parser.add_argument('-s', '--solution', default=False, action='store_true',
                             help="Load a wavelength solution from the arc_file (if it exists)")
         parser.add_argument("--wmin", type=float, default=3000.0, help="Minimum wavelength range")
-        parser.add_argument("--wmax", type=float, default=10000.0, help="Maximum wavelength range")
+        parser.add_argument("--wmax", type=float, default=26000.0, help="Maximum wavelength range")
         parser.add_argument("--slit", type=int, default=0,
                             help="Which slit to load for wavelength calibration")
         parser.add_argument("--det", type=int, default=1, help="Detector index")
         parser.add_argument("--rmstol", type=float, default=0.1, help="RMS tolerance")
         parser.add_argument("--fwhm", type=float, default=4., help="FWHM for line finding")
+        parser.add_argument("--sigdetect", type=float, help="sigma detection for line finding")
         parser.add_argument("--pixtol", type=float, default=0.1,
                             help="Pixel tolerance for Auto IDs")
         parser.add_argument('--test', default=False, action='store_true',
                             help="Unit tests?")
+        parser.add_argument("--linear", default=False, action="store_true",
+                            help="Show the spectrum in linear scale? (Default: log")
         parser.add_argument('--force_save', default=False, action='store_true',
                             help="Save the solutions, despite the RMS")
         return parser
@@ -63,8 +66,8 @@ class Identify(scriptbase.ScriptBase):
         # Get the lamp list
         if args.lamps is None:
             lamps = par['lamps']
-            if lamps is None:
-                msgs.error('Cannot determine the lamps')
+            if lamps is None or lamps == ['use_header']:
+                msgs.error('Cannot determine the lamps; use --lamps argument')
         else:
             lamps = args.lamps.split(",")
         par['lamps'] = lamps
@@ -88,10 +91,19 @@ class Identify(scriptbase.ScriptBase):
         arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[args.slit])
 
         # Launch the identify window
+        # TODO -- REMOVE THIS HACK
+        try:
+            nonlinear_counts = msarc.detector.nonlinear_counts()
+        except AttributeError:
+            nonlinear_counts = None
         arcfitter = Identify.initialise(arccen, lamps, slits, slit=int(args.slit), par=par,
                                         wv_calib_all=wv_calib, wavelim=[args.wmin, args.wmax],
-                                        nonlinear_counts=msarc.detector.nonlinear_counts(),
-                                        pxtoler=args.pixtol, test=args.test, fwhm=args.fwhm)
+                                        nonlinear_counts=nonlinear_counts,
+                                        pxtoler=args.pixtol, test=args.test, 
+                                        fwhm=args.fwhm,
+                                        sigdetect=args.sigdetect,
+                                        specname=spec.name, y_log=not args.linear)
+
         # Testing?
         if args.test:
             return arcfitter

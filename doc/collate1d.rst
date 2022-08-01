@@ -109,6 +109,9 @@ followed by a list of spec1d files. An example configuration file is shown below
 
     slit_exclude_flags = BOXSLIT
 
+    # Exclude SERENDIP objects
+    exclude_serendip = False
+
     # Whether to flux calibrate spec1d files using archival senfuncs.
     # Defaults to False
     #flux = False
@@ -118,13 +121,17 @@ followed by a list of spec1d files. An example configuration file is shown below
     # (e.g. OPT_FLAM or BOX_FLAM) is not available the uncalibrated data is coadded.
     #ignore_flux = False
     
-    
+    # Exclude any object with a wavelength wave_rms > than this threshold
+    # wv_rms_thresh = 0.2
+
     # Where to place coadded files and report files. Defaults to
     # current directory.
     #outdir = /work/output
     
     # A list of the spec1d files. Wildcards are allowed.
+    # This follows the input file data block format.
     spec1d read
+    filename
     Science/spec1d*.fits
     spec1d end
 

@@ -54,3 +54,5 @@ for calibrations:
 * Add/Suppress bias/dark frame generation. See :doc:`bias_dark`
 * Add/Suppress flexure correction.  See :doc:`flexure`
 * Add/Suppress aspects of flat fielding.  See :doc:`flat_fielding`
+* Associate different calibration frames to different science frames. See :ref:`2d_combine:Calibrations`
+

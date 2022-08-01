@@ -15,6 +15,7 @@ from matplotlib import pyplot as plt
 from astropy.table import Table, vstack
 
 from pypeit import msgs
+from pypeit import utils
 from pypeit import specobjs
 from pypeit import slittrace
 from pypeit import extraction
@@ -144,8 +145,8 @@ class CoAdd2D:
 
         # Use Cases:
         # offsets
-        #    1) offsets is None -- auto compute offsets from brightest object (if exists)
-        #    2) offsets not None (i.e. a list) - use them
+        #    1) offsets = 'auto' -- auto compute offsets from brightest object (if exists)
+        #    2) offsets not 'auto' (i.e. a list) - use them
         #    -------------- only for Multislit --------------
         #    3) offsets = 'maskdef_offsets' - use `maskdef_offset` saved in SlitTraceSet
         # ===============================================================================
@@ -181,7 +182,7 @@ class CoAdd2D:
         self.pseudo_dict = None
 
         self.objid_bri = None
-        self.slitid_bri  = None
+        self.slitidx_bri = None
         self.snr_bar_bri = None
         self.use_weights = None
         self.wave_grid = None
@@ -228,7 +229,7 @@ class CoAdd2D:
         This provides an array of index of slits in the un-coadded frames that are considered good for 2d coadding.
         A bitmask common to all the un-coadded frames is used to determine which slits are good. Also,
         If the `only_slits` parameter is provided only those slits are considered good for 2d coadding.
-        
+
         Args:
             only_slits (:obj:`list`, optional):
                 List of slits to combine. It must be `slitord_id`
@@ -248,8 +249,8 @@ class CoAdd2D:
         for i in range(1, self.nexp):
             # update bpm with the info from the other frames
             slits = self.stack_dict['slits_list'][i]
-            reduce_bpm &= (slits.mask > 0) & (np.invert(slits.bitmask.flagged(slits.mask,
-                                                                             flag=slits.bitmask.exclude_for_reducing)))
+            reduce_bpm |= (slits.mask > 0) & (np.invert(slits.bitmask.flagged(slits.mask,
+                                                                              flag=slits.bitmask.exclude_for_reducing)))
         # this are the good slit index according to the bpm mask
         good_slitindx = np.where(np.logical_not(reduce_bpm))[0]
 
@@ -309,10 +310,19 @@ class CoAdd2D:
 
         for iexp, sobjs in enumerate(self.stack_dict['specobjs_list']):
             ithis = sobjs.slitorder_objid_indices(slitorderid, objid[iexp])
-            flux_stack[:, iexp] = sobjs[ithis].OPT_COUNTS
-            ivar_stack[:, iexp] = sobjs[ithis].OPT_COUNTS_IVAR
-            wave_stack[:, iexp] = sobjs[ithis].OPT_WAVE
-            mask_stack[:, iexp] = sobjs[ithis].OPT_MASK
+            if not np.any(ithis):
+                msgs.error('Slit/order or OBJID provided not valid. Optimal weights cannot be determined.')
+            # check if OPT_COUNTS is available
+            if sobjs[ithis][0].has_opt_ext():
+                wave_stack[:, iexp], flux_stack[:, iexp], ivar_stack[:, iexp], mask_stack[:, iexp] = sobjs[ithis][0].get_opt_ext()
+            # check if BOX_COUNTS is available
+            elif sobjs[ithis][0].has_box_ext():
+                wave_stack[:, iexp], flux_stack[:, iexp], ivar_stack[:, iexp], mask_stack[:, iexp] = sobjs[ithis][0].get_box_ext()
+                msgs.warn(f'Optimal extraction not available for object '
+                          f'{objid[iexp]} of slit/order {slitorderid} in exp {iexp}. Using box extraction.')
+            else:
+                msgs.error(f'Optimal weights cannot be determined because '
+                           f'flux not available in slit/order = {slitorderid}')
 
         # TODO For now just use the zero as the reference for the wavelengths? Perhaps we should be rebinning the data though?
         rms_sn, weights = coadd.sn_weights(wave_stack, flux_stack, ivar_stack, mask_stack, self.sn_smooth_npix,
@@ -522,12 +532,17 @@ class CoAdd2D:
 
     def reduce(self, pseudo_dict, show=None, show_peaks=None, basename=None):
         """
-        ..todo.. Please document me
+        Method to run the reduction on coadd2d psuedo images
 
         Args:
-            pseudo_dict:
-            show:
-            show_peaks:
+            pseudo_dict (dict):
+               Dictionary containing coadd2d psuedo images
+            show (bool):
+               If True, show the outputs to ginga and the screen analogous to run_pypeit with the -s option
+            show_peaks (bool):
+               If True, plot the object finding QA to the screen.
+            basename (str):
+               The basename for the spec2d output files.
 
         Returns:
 
@@ -555,22 +570,10 @@ class CoAdd2D:
         caliBrate.det = self.det
         caliBrate.binning = self.binning
 
-        # Manual extraction. Select only the manual extractions input by the user that match the current detector
-        manual_dict = None
-        if self.par['coadd2d']['manual'] is not None:
-            manual_string = ','.join(np.atleast_1d(self.par['coadd2d']['manual']))
-            if len(manual_string.strip()) > 0:
-                manual_obj = ManualExtractionObj.by_fitstbl_input('None', manual_string)
-                # manual_obj indx for this det
-                thisdet = np.where(manual_obj.det == sciImage.detector.det)[0]
-                manual_obj.det = manual_obj.det[thisdet]
-                manual_obj.spec = manual_obj.spec[thisdet]
-                manual_obj.spat = manual_obj.spat[thisdet]
-                manual_obj.fwhm = manual_obj.fwhm[thisdet]
-                if manual_obj.det.size > 0:
-                    # TODO: Leaving `neg=False`, the default, consider changing to neg=self.find_negative.
-                    manual_dict = manual_obj.dict_for_objfind(manual_obj.det[0])
-
+        # Manual extraction.
+        manual_obj = None
+        if self.par['coadd2d']['manual'] is not None and len(self.par['coadd2d']['manual']) > 0:
+            manual_obj = ManualExtractionObj.by_fitstbl_input('None', self.par['coadd2d']['manual'], self.spectrograph)
         # Get bpm mask. There should not be any masked slits because we excluded those already
         # before the coadd, but we need to pass a bpm to FindObjects and Extract
         slits = pseudo_dict['slits']
@@ -579,7 +582,7 @@ class CoAdd2D:
 
         # Initiate FindObjects object
         objFind = find_objects.FindObjects.get_instance(sciImage, self.spectrograph, parcopy, caliBrate,
-                                           'science_coadd2d', bkg_redux=self.bkg_redux,
+                                           'science_coadd2d', bkg_redux=self.bkg_redux, manual=manual_obj,
                                            find_negative=self.find_negative, show=show)
 
         # Set the tilts and waveimg attributes from the psuedo_dict here, since we generate these dynamically from fits
@@ -595,8 +598,8 @@ class CoAdd2D:
             objFind.show('image', image=pseudo_dict['imgminsky']*gpm.astype(float),
                        chname='imgminsky', slits=True, clear=True)
 
-        sobjs_obj, nobj = objFind.find_objects(sciImage.image, show_peaks=show_peaks,
-                                               save_objfindQA=True, manual_extract_dict=manual_dict)
+        sobjs_obj, nobj = objFind.find_objects(sciImage.image, sciImage.ivar, show_peaks=show or show_peaks,
+                                               save_objfindQA=True)
 
         # maskdef stuff
         if parcopy['reduce']['slitmask']['assign_obj'] and slits.maskdef_designtab is not None:
@@ -629,14 +632,10 @@ class CoAdd2D:
 
         # Local sky-subtraction
         global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
-        skymodel_pseudo, objmodel_pseudo, \
-            ivarmodel_pseudo, outmask_pseudo, sobjs = exTract.local_skysub_extract(global_sky_pseudo, sobjs_obj,
-                                                                                   spat_pix=pseudo_dict['spat_img'],
-                                                                                   model_noise=False, show_profile=show,
-                                                                                   show=show)
 
-        if self.find_negative:
-            sobjs.purge_neg()
+        skymodel_pseudo, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, _, _ = exTract.run(
+            global_sky_pseudo, prepare_extraction=False, model_noise=False, spat_pix=pseudo_dict['spat_img'])
+
 
         # Add the rest to the pseudo_dict
         pseudo_dict['skymodel'] = skymodel_pseudo
@@ -651,22 +650,6 @@ class CoAdd2D:
                pseudo_dict['tilts'], pseudo_dict['waveimg']
 
 
-
-#    def save_masters(self):
-#
-#        # Write out the pseudo master files to disk
-#        master_key_dict = self.stack_dict['master_key_dict']
-#
-#        # TODO: These saving operations are a temporary kludge
-#        # spectrograph is needed for header
-#        waveImage = WaveImage(self.pseudo_dict['waveimg'], PYP_SPEC=self.spectrograph.spectrograph)
-#        wave_filename = masterframe.construct_file_name(WaveImage, master_key_dict['arc'], self.master_dir)
-#        waveImage.to_master_file(wave_filename)
-#
-#        # TODO: Assumes overwrite=True
-#        slit_filename = masterframe.construct_file_name(self.pseudo_dict['slits'], master_key_dict['trace'], self.master_dir)
-#        self.pseudo_dict['slits'].to_master_file(slit_filename) #self.master_dir, master_key_dict['trace'], self.spectrograph.spectrograph)
-#    '''
 
     def snr_report(self, snr_bar, slitid=None):
         """
@@ -897,24 +880,32 @@ class CoAdd2D:
 
     def compute_offsets(self, offsets):
         """
-         Dummy method to compute offsets and weights. Overloaded by child methods.
-
-        Determine self.offsets, the offset of the frames to be coadded with respect to the first frame
+        Determine self.offsets, the offset of the frames to be coadded with respect to the first frame.
+        This is partially overloaded by the child methods.
 
         Args:
             offsets (:obj:`list` or :obj:`str`):
                 Value that guides the determination of the offsets.
-                It could be a list of offsets, or a string, or None.
+                It could be a list of offsets, or a string.
 
         """
+        msgs.info('Get Offsets')
 
-        pass
+        if self.objid_bri is None and offsets == 'auto':
+            msgs.error('Offsets cannot be computed because no unique reference object '
+                       'with the highest S/N was found. To continue, provide offsets in `Coadd2DPar`')
+
+        # 1) a list of offsets is provided by the user (no matter if we have a bright object or not)
+        if isinstance(offsets, (list, np.ndarray)):
+            msgs.info('Using user input offsets')
+            # use them
+            self.offsets = self.check_input(offsets, type='offsets')
+            self.offsets_report(self.offsets, 'user input')
 
     def compute_weights(self, weights):
         """
-         Dummy method to compute weights. Overloaded by child methods.
-
-        Determine self.use_weights, the weights to be used in the coadd2d
+        Determine self.use_weights, the weights to be used in the coadd2d.
+        This is partially overloaded by the child methods.
 
         Args:
             weights (:obj:`list` or :obj:`str`):
@@ -923,8 +914,26 @@ class CoAdd2D:
                 the brightest trace, if 'uniform' uniform weights will be used.
 
         """
+        msgs.info('Get Weights')
 
-        pass
+        # 1) User input weight
+        if isinstance(weights, (list, np.ndarray)):
+            # use those inputs
+            self.use_weights = self.check_input(weights, type='weights')
+            msgs.info('Using user input weights')
+
+        # 2) No bright object and parset `weights` is 'auto' or 'uniform',
+        # or Yes bright object but the user wants still to use uniform weights
+        elif ((self.objid_bri is None) and (weights in ['auto', 'uniform'])) or \
+                ((self.objid_bri is not None) and (weights == 'uniform')):
+            # use uniform weights
+            self.use_weights = 'uniform'
+            if weights == 'auto':
+                # warn if the user had put `auto` in the parset
+                msgs.warn('Weights cannot be computed because no unique reference object '
+                          'with the highest S/N was found. Using uniform weights instead.')
+            elif weights == 'uniform':
+                msgs.info('Using uniform weights')
 
     def get_brightest_object(self, specobjs_list, spat_ids):
         """
@@ -992,7 +1001,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
     def __init__(self, spec2d_files, spectrograph, par, det=1, offsets=None, weights='auto',
                  spec_samp_fact=1.0, spat_samp_fact=1.0, sn_smooth_npix=None,
                  bkg_redux=False, find_negative=False, show=False, show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
-        super(MultiSlitCoAdd2D, self).__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
+        super().__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
                                                spec_samp_fact=spec_samp_fact, spat_samp_fact=spat_samp_fact,
                                                sn_smooth_npix=sn_smooth_npix, bkg_redux=bkg_redux, find_negative=find_negative, par=par,
                                         show=show, show_peaks=show_peaks, debug_offsets=debug_offsets,
@@ -1005,18 +1014,35 @@ class MultiSlitCoAdd2D(CoAdd2D):
         kwargs_wave['wave_method'] = 'linear' if 'wave_method' not in kwargs_wave else kwargs_wave['wave_method']
         self.wave_grid, self.wave_grid_mid, self.dsamp = self.get_wave_grid(**kwargs_wave)
 
+        # Check if the user-input object to compute offsets and weights exists
+        if self.par['coadd2d']['user_obj'] is not None:
+            if len(self.par['coadd2d']['user_obj']) != 2:
+                msgs.error('Parameter `user_obj` must include both SLITID and OBJID.')
+            else:
+                user_slit, user_objid = self.par['coadd2d']['user_obj']
+                # does it exists?
+                user_obj_exist = []
+                for sobjs in self.stack_dict['specobjs_list']:
+                    user_obj_exist.append(np.any(sobjs.slitorder_objid_indices(user_slit, user_objid)))
+                if not np.all(user_obj_exist):
+                    msgs.error('Object provided through `user_obj` does not exist in all the exposures.')
+
         # find if there is a bright object we could use
-        if len(self.stack_dict['specobjs_list']) > 0:
+        if len(self.stack_dict['specobjs_list']) > 0 and self.par['coadd2d']['user_obj'] is not None:
+            _slitidx_bri = np.where(self.spat_ids == user_slit)[0][0]
+            self.objid_bri, self.slitidx_bri, self.spatid_bri, self.snr_bar_bri = \
+                np.repeat(user_objid, self.nexp), _slitidx_bri, user_slit, None
+        elif len(self.stack_dict['specobjs_list']) > 0 and (offsets == 'auto' or weights == 'auto'):
             self.objid_bri, self.slitidx_bri, self.spatid_bri, self.snr_bar_bri = \
                 self.get_brightest_obj(self.stack_dict['specobjs_list'], self.spat_ids)
         else:
-            self.objid_bri, self.slitidx_bri, self.spatid_bri, self.snr_bar_bri = None, None, None, None
-
-        # get self.offsets
-        self.compute_offsets(offsets)
+            self.objid_bri, self.slitidx_bri, self.spatid_bri, self.snr_bar_bri = (None,)*4
 
         # get self.use_weights
         self.compute_weights(weights)
+
+        # get self.offsets
+        self.compute_offsets(offsets)
 
     # TODO When we run multislit, we actually compute the rebinned images twice. Once here to compute the offsets
     # and another time to weighted_combine the images in compute2d. This could be sped up
@@ -1034,35 +1060,27 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 It could be a list of offsets, or a string, or None. If equal to 'maskdef_offsets' the
                 offsets computed during the slitmask design matching will be used.
         """
+        super().compute_offsets(offsets)
 
-        # If offsets are not provided by the user and there is no a bright object
-        # to be used to compute the offsets, we cannot continue
-        if (self.objid_bri is None) and (offsets is None):
-            msgs.error('Offsets cannot be computed because no unique reference object '
-                       'with the highest S/N was found. To continue, provide offsets in `Coadd2DPar`')
-
-        offsets_method = None
-        # 1) parset `offsets` is = 'maskdef_offsets' (no matter if we have a bright object or not)
+        # 2) parset `offsets` is = 'maskdef_offsets' (no matter if we have a bright object or not)
         if offsets == 'maskdef_offsets':
             if self.maskdef_offset is not None:
                 # the offsets computed during the main reduction (`run_pypeit`) are used
                 msgs.info('Determining offsets using maskdef_offset recoded in SlitTraceSet')
                 self.offsets = self.maskdef_offset[0] - self.maskdef_offset
-                offsets_method = 'maskdef_offset'
+                self.offsets_report(self.offsets, 'maskdef_offset')
             else:
                 # if maskdef_offsets were not computed during the main reduction, we cannot continue
                 msgs.error('No maskdef_offset recoded in SlitTraceSet')
-        # 2) a list of offsets is provided by the user (no matter if we have a bright object or not)
-        elif offsets is not None:
-            msgs.info('Using user input offsets')
-            # use them
-            self.offsets = self.check_input(offsets, type='offsets')
-            offsets_method = 'user input'
-        # 3) parset `offsets` is None but we have a bright object
-        else:
+        # 3) parset `offsets` = 'auto' but we have a bright object
+        elif offsets == 'auto' and self.objid_bri is not None:
             # Compute offsets using the bright object
-            offsets_method = 'highest S/N object found on slitid = {:d}'.format(self.spatid_bri)
-            msgs.info('Determining offsets using brightest object on slit: {:d} with avg SNR={:5.2f}'.format(self.spatid_bri,np.mean(self.snr_bar_bri)))
+            if self.par['coadd2d']['user_obj'] is not None:
+                offsets_method = 'user object on slitid = {:d}'.format(self.spatid_bri)
+            else:
+                offsets_method = 'brightest object found on slit: {:d} with avg SNR={:5.2f}'.format(self.spatid_bri,np.mean(self.snr_bar_bri))
+
+            msgs.info(f'Determining offsets using {offsets_method}')
             thismask_stack = np.abs(self.stack_dict['slitmask_stack'] - self.spatid_bri) <= self.par['coadd2d']['spat_toler']
             trace_stack_bri = np.zeros((self.nspec, self.nexp))
             # TODO Need to think abbout whether we have multiple tslits_dict for each exposure or a single one
@@ -1078,7 +1096,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
             dspat_bins, dspat_stack = coadd.get_spat_bins(thismask_stack, trace_stack_bri)
 
             sci_list = [self.stack_dict['sciimg_stack'] - self.stack_dict['skymodel_stack']]
-            var_list = []
+            var_list = [utils.inverse(self.stack_dict['sciivar_stack'])]
 
             msgs.info('Rebinning Images')
             sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack = coadd.rebin2d(
@@ -1092,15 +1110,14 @@ class MultiSlitCoAdd2D(CoAdd2D):
             traces_rect = np.zeros((nspec_pseudo, self.nexp))
             sobjs = specobjs.SpecObjs()
             for iexp in range(self.nexp):
-                sobjs_exp = findobj_skymask.objs_in_slit(sci_list_rebin[0][iexp,:,:], thismask, slit_left, slit_righ,
-                                               inmask=inmask[iexp,:,:], has_negative=self.find_negative,
-                                               fwhm=self.par['reduce']['findobj']['find_fwhm'],
-                                               trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
-                                               npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
-                                               maxdev=self.par['reduce']['findobj']['find_maxdev'],
-                                               ncoeff=3, sig_thresh=self.par['reduce']['findobj']['sig_thresh'], nperslit=1,
-                                               find_min_max=self.par['reduce']['findobj']['find_min_max'],
-                                               show_trace=self.debug_offsets, show_peaks=self.debug_offsets)
+                sobjs_exp = findobj_skymask.objs_in_slit(
+                    sci_list_rebin[0][iexp,:,:], utils.inverse(var_list_rebin[0][iexp,:,:]), thismask, slit_left, slit_righ,
+                    inmask=inmask[iexp,:,:], fwhm=self.par['reduce']['findobj']['find_fwhm'],
+                    trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
+                    maxdev=self.par['reduce']['findobj']['find_maxdev'],
+                    ncoeff=3, snr_thresh=self.par['reduce']['findobj']['snr_thresh'], nperslit=1,
+                    find_min_max=self.par['reduce']['findobj']['find_min_max'],
+                    show_trace=self.debug_offsets, show_peaks=self.debug_offsets)
                 sobjs.add_sobj(sobjs_exp)
                 traces_rect[:, iexp] = sobjs_exp.TRACE_SPAT
             # Now deterimine the offsets. Arbitrarily set the zeroth trace to the reference
@@ -1115,8 +1132,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 plt.show()
 
             self.offsets = offsets
-
-        self.offsets_report(self.offsets, offsets_method)
+            self.offsets_report(self.offsets, offsets_method)
 
     def compute_weights(self, weights):
         """
@@ -1130,29 +1146,17 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
         """
 
-        # 1) No bright object and parset `weights` is 'auto' or 'uniform',
-        # or Yes bright object but the user wants still to use uniform weights
-        if ((self.objid_bri is None) and (weights in ['auto', 'uniform'])) or \
-                ((self.objid_bri is not None) and (weights == 'uniform')):
-            # use uniform weights
-            self.use_weights = 'uniform'
-            if weights == 'auto':
-                # warn if the user had put `auto` in the parset
-                msgs.warn('Weights cannot be computed because no unique reference object '
-                          'with the highest S/N was found. Using uniform weights instead.')
-            elif weights == 'uniform':
-                msgs.info('Using uniform weights')
-        # 2) Yes bright object and parset `weights` is equal to 'auto'
-        elif (self.objid_bri is not None) and (weights == 'auto'):
+        super().compute_weights(weights)
+
+        # 3) Bright object exists and parset `weights` is equal to 'auto'
+        if (self.objid_bri is not None) and (weights == 'auto'):
             # compute weights using bright object
             _, self.use_weights = self.optimal_weights(self.spatid_bri, self.objid_bri, const_weights=True)
-            msgs.info('Computing weights using a unique reference object with the highest S/N')
-            self.snr_report(self.snr_bar_bri, slitid=self.spatid_bri)
-        # 3) User inputs weights
-        else:
-            # use those inputs
-            self.use_weights = self.check_input(weights, type='weights')
-            msgs.info('Using user input weights')
+            if self.par['coadd2d']['user_obj'] is not None:
+                msgs.info(f'Weights computed using a unique reference object in slit={self.spatid_bri} provided by the user')
+            else:
+                msgs.info(f'Weights computed using a unique reference object in slit={self.spatid_bri} with the highest S/N')
+                self.snr_report(self.snr_bar_bri, slitid=self.spatid_bri)
 
     def get_brightest_obj(self, specobjs_list, spat_ids):
 
@@ -1175,11 +1179,13 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 - snr_bar: ndarray, float, shape (len(list),): Average
                   S/N over all the orders for this object
         """
+        msgs.info('Finding brightest object')
         nexp = len(specobjs_list)
         nspec = specobjs_list[0][0].TRACE_SPAT.shape[0]
         nslits = spat_ids.size
 
-        slit_snr_max = np.full((nslits, nexp), -np.inf)
+        slit_snr_max = np.zeros((nslits, nexp), dtype=float)
+        bpm = np.ones(slit_snr_max.shape, dtype=bool)
         objid_max = np.zeros((nslits, nexp), dtype=int)
         # Loop over each exposure, slit, find the brighest object on that slit for every exposure
         for iexp, sobjs in enumerate(specobjs_list):
@@ -1187,32 +1193,54 @@ class MultiSlitCoAdd2D(CoAdd2D):
             for islit, spat_id in enumerate(spat_ids):
                 ithis = np.abs(sobjs.SLITID - spat_id) <= self.par['coadd2d']['spat_toler']
                 nobj_slit = np.sum(ithis)
-                # ignore objects for which optimal extraction could not be performed (i.e., OPT_COUNTS is None)
-                if np.any(ithis) and np.any(sobjs[ithis].OPT_COUNTS):
+                if np.any(ithis):
                     objid_this = sobjs[ithis].OBJID
                     flux = np.zeros((nspec, nobj_slit))
                     ivar = np.zeros((nspec, nobj_slit))
                     wave = np.zeros((nspec, nobj_slit))
                     mask = np.zeros((nspec, nobj_slit), dtype=bool)
+                    remove_indx = []
                     for iobj, spec in enumerate(sobjs[ithis]):
-                        flux[:, iobj] = spec.OPT_COUNTS
-                        ivar[:, iobj] = spec.OPT_COUNTS_IVAR
-                        wave[:, iobj] = spec.OPT_WAVE
-                        mask[:, iobj] = spec.OPT_MASK
-                    rms_sn, weights = coadd.sn_weights(wave, flux, ivar, mask, None, const_weights=True)
-                    imax = np.argmax(rms_sn)
-                    slit_snr_max[islit, iexp] = rms_sn[imax]
-                    objid_max[islit, iexp] = objid_this[imax]
+                        # check if OPT_COUNTS is available
+                        if spec.has_opt_ext():
+                            wave[:, iobj], flux[:, iobj], ivar[:, iobj], mask[:, iobj] = spec.get_opt_ext()
+                        # check if BOX_COUNTS is available
+                        elif spec.has_box_ext():
+                            wave[:, iobj], flux[:, iobj], ivar[:, iobj], mask[:, iobj] = spec.get_box_ext()
+                            msgs.warn(f'Optimal extraction not available for obj {spec.OBJID} '
+                                      f'in slit {spat_id}. Using box extraction.')
+                        # if both are not available, we remove the object in this slit,
+                        # because otherwise coadd.sn_weights will crash
+                        else:
+                            msgs.warn(f'Optimal and Boxcar extraction not available for obj {spec.OBJID} in slit {spat_id}.')
+                            remove_indx.append(iobj)
+                    # if the number of removed objects is less than the total number of objects in this slit,
+                    # i.e., we still have some objects left, we can proced with computing rms_sn
+                    if len(remove_indx) < nobj_slit:
+                        flux = np.delete(flux, remove_indx,1)
+                        ivar = np.delete(ivar, remove_indx,1)
+                        wave = np.delete(wave, remove_indx,1)
+                        mask = np.delete(mask, remove_indx,1)
+
+                        rms_sn, weights = coadd.sn_weights(wave, flux, ivar, mask, None, const_weights=True)
+                        imax = np.argmax(rms_sn)
+                        slit_snr_max[islit, iexp] = rms_sn[imax]
+                        objid_max[islit, iexp] = objid_this[imax]
+                        bpm[islit, iexp] = False
+
         # Find the highest snr object among all the slits
-        slit_snr = np.mean(slit_snr_max, axis=1)
-        slitid = slit_snr.argmax()
-        snr_bar_mean = slit_snr[slitid]
-        snr_bar = slit_snr_max[slitid, :]
-        objid = objid_max[slitid, :]
-        if (snr_bar_mean == -np.inf):
+        if np.all(bpm):
             msgs.warn('You do not appear to have a unique reference object that was traced as the highest S/N '
-                       'ratio on the same slit of every exposure')
+                      'ratio on the same slit of every exposure')
             return None, None, None, None
+        else:
+            # mask the bpm
+            slit_snr_max_masked = np.ma.array(slit_snr_max, mask=bpm)
+            slit_snr = np.mean(slit_snr_max_masked, axis=1)
+            slitid = np.argmax(slit_snr)
+            snr_bar_mean = slit_snr[slitid]
+            snr_bar = slit_snr_max[slitid, :]
+            objid = objid_max[slitid, :]
         return objid, slitid, spat_ids[slitid], snr_bar
 
     # TODO add an option here to actually use the reference trace for cases where they are on the same slit and it is
@@ -1314,7 +1342,7 @@ class EchelleCoAdd2D(CoAdd2D):
                  spec_samp_fact=1.0, spat_samp_fact=1.0, sn_smooth_npix=None,
                  bkg_redux=False, find_negative=False, show=False, show_peaks=False, debug_offsets=False, debug=False,
                  **kwargs_wave):
-        super(EchelleCoAdd2D, self).__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
+        super().__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
                                              spec_samp_fact=spec_samp_fact, spat_samp_fact=spat_samp_fact,
                                              sn_smooth_npix=sn_smooth_npix, bkg_redux=bkg_redux, find_negative=find_negative,
                                              par=par, show=show, show_peaks=show_peaks, debug_offsets=debug_offsets,
@@ -1324,20 +1352,35 @@ class EchelleCoAdd2D(CoAdd2D):
         kwargs_wave['wave_method'] = 'log10' if 'wave_method' not in kwargs_wave else kwargs_wave['wave_method']
         self.wave_grid, self.wave_grid_mid, self.dsamp = self.get_wave_grid(**kwargs_wave)
 
+        # Check if the user-input object to compute offsets and weights exists
+        if self.par['coadd2d']['user_obj'] is not None:
+            if not isinstance(self.par['coadd2d']['user_obj'], int):
+                msgs.error('Parameter `user_obj` must include only the object OBJID.')
+            else:
+                user_objid = self.par['coadd2d']['user_obj']
+                # does it exists?
+                user_obj_exist = []
+                for sobjs in self.stack_dict['specobjs_list']:
+                    for iord in range(self.nslits_single):
+                        user_obj_exist.append(np.any(sobjs.slitorder_objid_indices(sobjs.ECH_ORDER[iord], user_objid)))
+                if not np.all(user_obj_exist):
+                    msgs.error('Object provided through `user_obj` does not exist in all the exposures.')
+
         # find if there is a bright object we could use
-        if len(self.stack_dict['specobjs_list']) > 0:
-            self.objid_bri, self.slitid_bri, self.snr_bar_bri = \
+        if len(self.stack_dict['specobjs_list']) > 0 and self.par['coadd2d']['user_obj'] is not None:
+            self.objid_bri, self.slitidx_bri, self.snr_bar_bri = np.repeat(user_objid, self.nexp), None, None
+        elif len(self.stack_dict['specobjs_list']) > 0 and (offsets == 'auto' or weights == 'auto'):
+            self.objid_bri, self.slitidx_bri, self.snr_bar_bri = \
                 self.get_brightest_obj(self.stack_dict['specobjs_list'], self.nslits_single)
         else:
-            self.objid_bri, self.slitid_bri, self.snr_bar_bri = None, None, None
-
-        # get self.offsets
-        self.compute_offsets(offsets)
+            self.objid_bri, self.slitidx_bri, self.snr_bar_bri = (None,)*3
 
         # get self.use_weights
         self.compute_weights(weights)
 
-    # TODO move the part of the compute_offsets compute_weights common to MultiSlit and Echelle to the parent class
+        # get self.offsets
+        self.compute_offsets(offsets)
+
     def compute_offsets(self, offsets):
         """
         Determine self.offsets, the offset of the frames to be coadded with respect to the first frame
@@ -1348,31 +1391,21 @@ class EchelleCoAdd2D(CoAdd2D):
                 It could be a list of offsets, or a string, or None.
 
         """
+        super().compute_offsets(offsets)
 
-        # If offsets are not provided by the user and there is no a bright object
-        # to be used to compute the offsets, we cannot continue
-        if (self.objid_bri is None) and (offsets is None):
-            msgs.error('Offsets cannot be computed because no unique reference object '
-                       'with the highest S/N was found. To continue, provide offsets in `Coadd2DPar`')
-
-        offsets_method = None
-        # 1) a list of offsets is provided by the user (no matter if we have a bright object or not)
-        if offsets is not None:
-            msgs.info('Using user input offsets')
-            # use them
-            self.offsets = self.check_input(offsets, type='offsets')
-            # if the user inputs the offsets, `objid_bri` cannot be used to compute the reference stack,
-            # so it needs to be None
+        # adjustment for echelle to case 1): a list of offsets is provided by the user
+        if isinstance(self.offsets, (list, np.ndarray)):
             self.objid_bri = None
-            offsets_method = 'user input'
-        # 2) parset `offsets` is None but we have a bright object
-        else:
+
+        # 2) parset `offsets` = 'auto' but we have a bright object
+        if offsets == 'auto' and self.objid_bri is not None:
             # offsets are not determined, but the bright object is used to construct
             # a reference trace (this is done in coadd using method `reference_trace_stack`)
-            msgs.info('Reference trace about which 2d coadd is performed is computed using the brightest object')
             self.offsets = None
-
-        self.offsets_report(self.offsets, offsets_method)
+            if self.par['coadd2d']['user_obj'] is not None:
+                msgs.info('Reference trace about which 2d coadd is performed is computed using user object')
+            else:
+                msgs.info('Reference trace about which 2d coadd is performed is computed using the brightest object')
 
     def compute_weights(self, weights):
         """
@@ -1385,21 +1418,10 @@ class EchelleCoAdd2D(CoAdd2D):
                 the brightest trace, if 'uniform' uniform weights will be used.
 
         """
+        super().compute_weights(weights)
 
-        # 1) No bright object and parset `weights` is 'auto' or 'uniform',
-        # or Yes bright object but the user wants still to use uniform weights
-        if ((self.objid_bri is None) and (weights in ['auto', 'uniform'])) or \
-                ((self.objid_bri is not None) and (weights == 'uniform')):
-            # use uniform weights
-            self.use_weights = 'uniform'
-            if weights == 'auto':
-                # warn if the user had put `auto` in the parset
-                msgs.warn('Weights cannot be computed because no unique reference object '
-                          'with the highest S/N was found. Using uniform weights instead.')
-            elif weights == 'uniform':
-                msgs.info('Using uniform weights')
-        # 2) Yes bright object and parset `weights` is equal to 'auto'
-        elif (self.objid_bri is not None) and (weights == 'auto'):
+        # 3) Bright object exists and parset `weights` is equal to 'auto'
+        if (self.objid_bri is not None) and (weights == 'auto'):
             # computing a list of weights for all the slitord_ids that we than parse in coadd
             slitord_ids = self.stack_dict['slits_list'][0].slitord_id
             use_weights = []
@@ -1407,13 +1429,11 @@ class EchelleCoAdd2D(CoAdd2D):
                 _, iweights = self.optimal_weights(id, self.objid_bri)
                 use_weights.append(iweights)
             self.use_weights = np.array(use_weights)
-            msgs.info('Computing weights using a unique reference object with the highest S/N')
-            self.snr_report(self.snr_bar_bri)
-        # 3) User inputs weights
-        else:
-            # use those inputs
-            self.use_weights = self.check_input(weights, type='weights')
-            msgs.info('Using user input weights')
+            if self.par['coadd2d']['user_obj'] is not None:
+                msgs.info('Weights computed using a unique reference object provided by the user')
+            else:
+                msgs.info('Weights computed using a unique reference object with the highest S/N')
+                self.snr_report(self.snr_bar_bri)
 
     def get_brightest_obj(self, specobjs_list, nslits):
         """
@@ -1432,31 +1452,46 @@ class EchelleCoAdd2D(CoAdd2D):
                 - snr_bar: ndarray, float, shape (len(list),): Average
                   S/N over all the orders for this object
         """
+        msgs.info('Finding brightest object')
         nexp = len(specobjs_list)
 
         objid = np.zeros(nexp, dtype=int)
         snr_bar = np.zeros(nexp)
         # norders = specobjs_list[0].ech_orderindx.max() + 1
         for iexp, sobjs in enumerate(specobjs_list):
+            msgs.info("Working on exposure {}".format(iexp))
             uni_objid = np.unique(sobjs.ECH_OBJID)
             nobjs = len(uni_objid)
-            order_snr = np.zeros((nslits, nobjs))
+            order_snr = np.zeros((nslits, nobjs), dtype=float)
+            bpm = np.ones((nslits, nobjs), dtype=bool)
             for iord in range(nslits):
                 for iobj in range(nobjs):
                     ind = (sobjs.ECH_ORDERINDX == iord) & (sobjs.ECH_OBJID == uni_objid[iobj])
-                    # ignore objects for which optimal extraction could not be performed (i.e., OPT_COUNTS is None)
-                    if np.any(sobjs[ind][0].OPT_COUNTS):
-                        flux = sobjs[ind][0].OPT_COUNTS
-                        ivar = sobjs[ind][0].OPT_COUNTS_IVAR
-                        wave = sobjs[ind][0].OPT_WAVE
-                        mask = sobjs[ind][0].OPT_MASK
+                    # check if OPT_COUNTS is available
+                    if sobjs[ind][0].has_opt_ext():
+                        wave, flux, ivar, mask = sobjs[ind][0].get_opt_ext()
+                    # check if BOX_COUNTS is available
+                    elif sobjs[ind][0].has_box_ext():
+                        wave, flux, ivar, mask = sobjs[ind][0].get_box_ext()
+                        msgs.warn(f'Optimal extraction not available for object {sobjs[ind][0].ECH_OBJID} '
+                                  f'in order {sobjs[ind][0].ECH_ORDER}. Using box extraction.')
+                    else:
+                        flux = None
+                        msgs.warn(f'Optimal and Boxcar extraction not available for '
+                                  f'object {sobjs[ind][0].ECH_OBJID} in order {sobjs[ind][0].ECH_ORDER}.')
+                        continue
+                    if flux is not None:
                         rms_sn, weights = coadd.sn_weights(wave, flux, ivar, mask, self.sn_smooth_npix, const_weights=True)
                         order_snr[iord, iobj] = rms_sn
+                        bpm[iord, iobj] = False
 
             # Compute the average SNR and find the brightest object
-            snr_bar_vec = np.mean(order_snr, axis=0)
-            objid[iexp] = uni_objid[snr_bar_vec.argmax()]
-            snr_bar[iexp] = snr_bar_vec[snr_bar_vec.argmax()]
+            if not np.all(bpm):
+                # mask the bpm
+                order_snr_masked = np.ma.array(order_snr, mask=bpm)
+                snr_bar_vec = np.mean(order_snr_masked, axis=0)
+                objid[iexp] = uni_objid[snr_bar_vec.argmax()]
+                snr_bar[iexp] = snr_bar_vec[snr_bar_vec.argmax()]
         if 0 in snr_bar:
             msgs.warn('You do not appear to have a unique reference object that was traced as the highest S/N '
                       'ratio for every exposure')
@@ -1502,9 +1537,9 @@ class EchelleCoAdd2D(CoAdd2D):
         """
 
         if offsets is not None and objid is not None:
-            msgs.errror('You can only input offsets or an objid, but not both')
+            msgs.error('You can only input offsets or an objid, but not both')
         nexp = len(offsets) if offsets is not None else len(objid)
-        if offsets is not None:
+        if isinstance(offsets, (list, np.ndarray)):
             return self.offset_slit_cen(slitid, offsets)
         elif objid is not None:
             specobjs_list = self.stack_dict['specobjs_list']

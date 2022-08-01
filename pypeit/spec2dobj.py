@@ -21,6 +21,7 @@ from pypeit import msgs
 from pypeit import io
 from pypeit import datamodel
 from pypeit import slittrace
+from pypeit import wavecalib
 from pypeit.core import parse 
 from pypeit.images import imagebitmask
 from pypeit.images.detector_container import DetectorContainer
@@ -46,7 +47,7 @@ class Spec2DObj(datamodel.DataContainer):
             Primary header if instantiated from a FITS file
 
     """
-    version = '1.0.4'
+    version = '1.0.5'
 
     # TODO 2d data model should be expanded to include:
     # waveimage  --  flexure and heliocentric corrections should be applied to the final waveimage and since this is unique to
@@ -77,6 +78,8 @@ class Spec2DObj(datamodel.DataContainer):
                  'imgbitm': dict(otype=str, descr='List of BITMASK keys from ImageBitMask'),
                  'slits': dict(otype=slittrace.SlitTraceSet,
                                descr='SlitTraceSet defining the slits'),
+                 'wavesol': dict(otype=astropy.table.Table,
+                               descr='Table with WaveCalib diagnostic info'),
                  'maskdef_designtab': dict(otype=astropy.table.Table,
                                            descr='Table with slitmask design and object info'),
                  'sci_spat_flexure': dict(otype=float,
@@ -130,7 +133,7 @@ class Spec2DObj(datamodel.DataContainer):
 
     def __init__(self, sciimg, ivarraw, skymodel, objmodel, ivarmodel,
                  scaleimg, waveimg, bpmmask, detector, sci_spat_flexure, sci_spec_flexure,
-                 vel_type, vel_corr, slits, tilts, maskdef_designtab):
+                 vel_type, vel_corr, slits, wavesol, tilts, maskdef_designtab):
         # Slurp
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
@@ -193,6 +196,9 @@ class Spec2DObj(datamodel.DataContainer):
             # SlitTraceSet
             elif key == 'slits':
                 d.append(dict(slits=self.slits))
+            # Wavecalib
+            elif key == 'wavesol':
+                d.append(dict(wavesol=self.wavesol))
             # maskdef_designtab
             elif key == 'maskdef_designtab':
                 d.append(dict(maskdef_designtab=self.maskdef_designtab))
@@ -463,13 +469,13 @@ class AllSpec2DObj:
         # TODO -- Should this be in the header of the individual HDUs ?
         if master_key_dict is not None:
             if 'bias' in master_key_dict.keys():
-                hdr['BIASMKEY'] = master_key_dict['bias'][:-3]
+                hdr['BIASMKEY'] = master_key_dict['bias']
             if 'arc' in master_key_dict.keys():
-                hdr['ARCMKEY'] = master_key_dict['arc'][:-3]
+                hdr['ARCMKEY'] = master_key_dict['arc']
             if 'trace' in master_key_dict.keys():
-                hdr['TRACMKEY'] = master_key_dict['trace'][:-3]
+                hdr['TRACMKEY'] = master_key_dict['trace']
             if 'flat' in master_key_dict.keys():
-                hdr['FLATMKEY'] = master_key_dict['flat'][:-3]
+                hdr['FLATMKEY'] = master_key_dict['flat']
 
         # Processing steps
         # TODO: Assumes processing steps for all detectors are the same...  Does

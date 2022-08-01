@@ -1,6 +1,13 @@
+.. include:: include/links.rst
+
+.. _pypeit_scripts:
+
 **************
 PypeIt scripts
 **************
+
+Overview
+++++++++
 
 ``PypeIt`` is packaged with several scripts that should have been installed
 directly into your path (e.g. ``~/anaconda/bin``).
@@ -186,7 +193,34 @@ The script usage can be displayed by calling the script with the
 pypeit_chk_wavecalib
 ====================
 
-See :ref:`pypeit-chk-wavecalib` for details.
+This script prints a set of simple wavelength calibration diagnostics
+for all of the slits in a given :doc:`out_spec2D` or MasterWaveCalib file.
+Here are the standard calls::
+
+    pypeit_chk_wavecalib Science/spec2d_DE.20100913.22358-CFHQS1_DEIMOS_20100913T061231.334.fits
+
+or::
+
+    pypeit_chk_wavecalib Masters/MasterWaveCalib_A_1_DET07.fits
+
+See :ref:`pypeit-chk-wavecalib` for more details.
+
+pypeit_show_wvcalib
+===================
+
+Allows the user to plot the calibrated arc spectrum for a given
+slit/order.  This is primariliy useful for generating new wavelength
+solutions.  Here is a standard call::
+
+    pypeit_show_wvcalib MasterWaveCalib_A_1_DET01.fits 17 --is_order  # for magellan_mage
+
+This launches a matplotlib GUI plot of Order=17 for the magellan_mage spectrograph.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_show_wvcalib.rst
+
 
 .. _pypeit_parse_slits:
 

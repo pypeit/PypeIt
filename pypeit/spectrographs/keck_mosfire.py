@@ -3,6 +3,7 @@ Module for Keck/MOSFIRE specific methods.
 
 .. include:: ../include/links.rst
 """
+import os
 import numpy as np
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
@@ -18,6 +19,8 @@ from pypeit.spectrographs.slitmask import SlitMask
 
 from pypeit.utils import index_of_x_eq_y
 
+from IPython import embed
+
 class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/MOSFIRE specific code
@@ -28,7 +31,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
     camera = 'MOSFIRE'
     header_name = 'MOSFIRE'
     supported = True
-    comment = 'Gratings tested: Y, J, K; see :doc:`mosfire`'
+    comment = 'Gratings tested: Y, J, J2, H, K; see :doc:`mosfire`'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -125,6 +128,25 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
         return par
 
+
+
+    def get_ql_master_dir(self, file):
+        """
+        Returns master file directory for quicklook reductions.
+
+        Args:
+            file (str):
+              Image file
+
+        Returns:
+            master_dir (str):
+              Quicklook Master directory
+
+        """
+
+        mosfire_filter = self.get_meta_value(file, 'filter1')
+        return os.path.join(self.name, mosfire_filter)
+
     def config_specific_par(self, scifile, inp_par=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
@@ -145,14 +167,14 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
         headarr = self.get_headarr(scifile)
+        decker = self.get_meta_value(headarr, 'decker')
 
-        if 'LONGSLIT' in self.get_meta_value(headarr, 'decker'):
+        if 'LONGSLIT' in decker:
             # turn PCA off
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
             # if "x" is not in the maskname, the maskname does not include the number of CSU
             # used for the longslit and the length of the longslit cannot be determined
-            if ('LONGSLIT-46x' not in self.get_meta_value(headarr, 'decker')) and \
-                    ('x' in self.get_meta_value(headarr, 'decker')):
+            if ('LONGSLIT-46x' not in decker) and ('x' in decker):
                 # find the spat pixel positions where the longslit starts and ends
                 pix_start, pix_end = self.find_longslit_pos(scifile)
                 # exclude the random slits outside the longslit from slit tracing
@@ -171,13 +193,55 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             par['reduce']['slitmask']['assign_obj'] = True
             # force extraction of undetected objects
             par['reduce']['slitmask']['extract_missing_objs'] = True
-            if 'long2pos' in self.get_meta_value(headarr, 'decker'):
+            if 'long2pos' in decker:
                 # exclude the random slits outside the long2pos from slit tracing
                 pix_start, pix_end = self._long2pos_pos()
                 par['calibrations']['slitedges']['exclude_regions'] = ['1:0:{}'.format(pix_start),
                                                                        '1:{}:2040'.format(pix_end)]
                 # assume that the main target is always detected, i.e., skipping force extraction
                 par['reduce']['slitmask']['extract_missing_objs'] = False
+
+        # wavelength calibration
+        supported_filters = ['Y', 'J', 'J2', 'H', 'K']
+        filter = self.get_meta_value(headarr, 'filter1')
+        # using OH lines
+        if 'long2pos_specphot' not in decker and filter in supported_filters:
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['fwhm_fromlines'] = True
+            par['calibrations']['wavelengths']['sigdetect'] = 10.
+            # templates
+            if filter == 'Y':
+                par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_Y']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_Y.fits'
+            elif filter == 'J':
+                par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_J']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_J.fits'
+            elif filter == 'J2':
+                par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_J']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_J2.fits'
+            elif filter == 'H':
+                par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_H']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_H.fits'
+            elif filter == 'K':
+                par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_K']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_OH_K.fits'
+
+        # using arc lines (we use this as default only for long2pos_specphot mask)
+        elif 'long2pos_specphot' in decker and filter in supported_filters:
+            par['calibrations']['wavelengths']['lamps'] = ['Ar_IR_MOSFIRE', 'Ne_IR_MOSFIRE']
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['fwhm_fromlines'] = True
+            # templates
+            if filter == 'Y':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_Y.fits'
+            elif filter == 'J':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_J.fits'
+            elif filter == 'J2':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_J2.fits'
+            elif filter == 'H':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_H.fits'
+            elif filter == 'K':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_K.fits'
 
         # Return
         return par
@@ -235,7 +299,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             PWSTATA7 = headarr[0].get('PWSTATA7')
             PWSTATA8 = headarr[0].get('PWSTATA8')
             if FLATSPEC == 0 and PWSTATA7 == 0 and PWSTATA8 == 0:
-                if 'Flat:Off' in headarr[0].get('OBJECT') or "lamps off" in headarr[0].get('OBJECT'):
+                if 'Flat' in headarr[0].get('OBJECT'):
                     return 'flatlampoff'
                 else:
                     return 'object'
@@ -325,9 +389,9 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'object')
         if ftype in ['bias', 'dark']:
             return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'dark')
-        if ftype in ['pixelflat', 'trace']:
-            return good_exp & ((fitstbl['idname'] == 'flatlamp') | (fitstbl['idname'] == 'flatlampoff'))
-        if ftype in ['illumflat']:
+        if ftype in ['lampoffflats']:
+            return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'flatlampoff')
+        if ftype in ['illumflat', 'pixelflat', 'trace']:
             # Flats and trace frames are typed together
             return good_exp & (fitstbl['lampstat01'] == 'on') & (fitstbl['idname'] == 'flatlamp')
         if ftype == 'pinhole':
@@ -411,7 +475,6 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         """
 
-
         # Could check the wavelenghts here to do something more robust to header/meta data issues
         if 'Y-spectroscopy' in meta_table['DISPNAME']:
             #wave_out = np.copy(wave_in)
@@ -447,33 +510,41 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             #counts_ivar[apo_pix] = utils.clip_ivar(counts[apo_pix], counts_ivar_in[apo_pix], 10.0, mask=gpm_in[apo_pix])
             wave_blue = 9520.0  # blue wavelength below which there is contamination
             wave_red = 11256.0  # red wavelength above which the spectrum is containated
-            second_order_region= (wave_in < wave_blue) | (wave_in > wave_red)
-            wave = wave_in.copy()
-            counts = counts_in.copy()
-            gpm = gpm_in.copy()
-            counts_ivar = counts_ivar_in.copy()
-            # By setting the wavelengths to zero, we guarantee that the sensitvity function will only be computed
-            # over the valid wavelength region. While we could mask, this would still produce a wave_min and wave_max
-            # for the zeropoint that includes the bad regions, and the polynomial fits will extrapolate crazily there
-            wave[second_order_region] = 0.0
-            counts[second_order_region] = 0.0
-            counts_ivar[second_order_region] = 0.0
-            gpm[second_order_region] = False
-            #if debug:
-            #    from matplotlib import pyplot as plt
-            #    counts_sigma = np.sqrt(utils.inverse(counts_ivar_in))
-            #    plt.plot(wave_in, counts, color='red', alpha=0.7, label='apodized flux')
-            #    plt.plot(wave_in, counts_in, color='black', alpha=0.7, label='flux')
-            #    plt.plot(wave_in, counts_sigma, color='blue', alpha=0.7, label='flux')
-            #    plt.axvline(wave_blue, color='blue')
-            #    plt.axvline(wave_red, color='red')
-            #    plt.legend()
-            #    plt.show()
-            return wave, counts, counts_ivar, gpm
-        else:
-            return wave_in, counts_in, counts_ivar_in, gpm_in
 
-    def list_detectors(self):
+        elif 'J2-spectroscopy' in meta_table['DISPNAME']:
+            wave_blue = 11170.0  # blue wavelength below which there is contamination
+            wave_red = 12600.0  # red wavelength above which the spectrum is containated
+
+        else:
+            # keep everything the same
+            wave_blue = -np.inf
+            wave_red = np.inf
+
+        second_order_region= (wave_in < wave_blue) | (wave_in > wave_red)
+        wave = wave_in.copy()
+        counts = counts_in.copy()
+        gpm = gpm_in.copy()
+        counts_ivar = counts_ivar_in.copy()
+        wave[second_order_region] = 0.0
+        counts[second_order_region] = 0.0
+        counts_ivar[second_order_region] = 0.0
+        # By setting the wavelengths to zero, we guarantee that the sensitvity function will only be computed
+        # over the valid wavelength region. While we could mask, this would still produce a wave_min and wave_max
+        # for the zeropoint that includes the bad regions, and the polynomial fits will extrapolate crazily there
+        gpm[second_order_region] = False
+        #if debug:
+        #    from matplotlib import pyplot as plt
+        #    counts_sigma = np.sqrt(utils.inverse(counts_ivar_in))
+        #    plt.plot(wave_in, counts, color='red', alpha=0.7, label='apodized flux')
+        #    plt.plot(wave_in, counts_in, color='black', alpha=0.7, label='flux')
+        #    plt.plot(wave_in, counts_sigma, color='blue', alpha=0.7, label='flux')
+        #    plt.axvline(wave_blue, color='blue')
+        #    plt.axvline(wave_red, color='red')
+        #    plt.legend()
+        #    plt.show()
+        return wave, counts, counts_ivar, gpm
+
+    def list_detectors(self, mosaic=False):
         """
         List the *names* of the detectors in this spectrograph.
 
@@ -493,6 +564,11 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         such that all the bluest detectors are in ``dets[0]``, and the slits
         found in detectors 1 and 5 are just from the blue and red counterparts
         of the same slit.
+
+        Args:
+            mosaic (:obj:`bool`, optional):
+                Is this a mosaic reduction?
+                It is used to determine how to list the detector, i.e., 'DET' or 'MSC'.
 
         Returns:
             `numpy.ndarray`_: The list of detectors in a `numpy.ndarray`_.  If

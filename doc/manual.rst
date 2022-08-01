@@ -56,11 +56,25 @@ Here are example lines from the DevSuite for a Keck/LRISb reduction::
     | b150910_2070.fits.gz | 2015-09-10T05:43:39 |   science      |          s2 |     600 |     2,2 |      560 | 600/4000 | long_1.0 | 2:234.:1000.:3. |
     | b150910_2083.fits.gz | 2015-09-10T10:03:42 |  standard      |   feige 110 |      60 |     2,2 |      560 | 600/4000 | long_1.0 |        |
 
-The entry " 2:234.:1000.:3." specifices det=2, spat=234.0, spec=1000.0, and
+The entry " 2:234.:1000.:3." specifies det=2, spat=234.0, spec=1000.0, and
 a FWHM=3.0 (pixels).
 
 If you wish to operate on the negative image for an A-B reduction
 (typically near-IR), then specify the detector value as negative.
+
+When running a mosaic reduction (currently only available for :doc:`gemini_gmos` and :doc:`deimos`),
+the part of the manual extraction entry that specifies the detector number needs to indicate the detectors that are
+mosaiced together in the same way as is done when setting the parameter ``detnum`` in the
+:ref:`pypeit_par:ReduxPar Keywords` of the :doc:`pypeit_file`. Here is an example for Keck/DEIMOS::
+
+    | d0225_0054.fits |    science |  241.13283 | 43.2563 |     16045h |    600ZD | 16045h |     1,1 | 58539.623231 |  1.1266414 |  1320.0 | 7899.99072266 | (1,5):68.0:2960.0:3.;(1,5):211.0:3082.0:3.|
+
+Still, if you wish to operate on the negative image, specify the detectors as
+a tuple of negative values, e.g. ``(-1, -5)``.
+
+.. note::
+
+    Multiple manual extraction entries are separated by a semi-colon. See Keck/DEIMOS example above.
 
 Echelle
 -------

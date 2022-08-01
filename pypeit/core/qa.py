@@ -268,7 +268,7 @@ def html_mf_pngs(idval):
             body += '<h2> {:s} {:s} </h2>\n'.format(html_dict[key]['label'], idval)
             for png in pngs:
                 # Remove QA
-                ifnd = png.find('QA/')
+                ifnd = png.find('QA' + os.path.sep)
                 if ifnd < 0:
                     raise ValueError("QA is expected to be in the path!")
                 if html_dict[key]['slit']:  # Kludge to handle multiple slits
@@ -339,6 +339,18 @@ def html_exp_pngs(exp_name, det):
     # Return
     return links, body
 
+
+def gen_qa_dir(qa_path):
+    """ Make the QA directory if it doesn't already exist
+
+    Args:
+        qa_path (str):
+            Path to the QA folder
+    """
+    if not os.path.exists(qa_path):
+        os.makedirs(qa_path)
+
+
 def gen_mf_html(pypeit_file, qa_path):
     """ Generate the HTML for a MasterFrame set
 
@@ -393,6 +405,7 @@ def gen_mf_html(pypeit_file, qa_path):
     #
     print("Wrote: {:s}".format(MF_filename))
 
+
 def gen_exp_html():
     # Find all obj_trace files -- Not fool proof but ok
     obj_files = glob.glob('QA/PNGs/*obj_trace.png')
@@ -424,11 +437,11 @@ def gen_exp_html():
         print("Wrote: {:s}".format(exp_filename))
 
 
-def close_qa(pypeit_file):
+def close_qa(pypeit_file, qa_path):
     if pypeit_file is None:
         return
     try:
-        gen_mf_html(pypeit_file)
+        gen_mf_html(pypeit_file, qa_path)
     except:  # Likely crashed real early
         pass
     else:

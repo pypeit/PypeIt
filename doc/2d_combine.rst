@@ -80,14 +80,14 @@ Example
 =======
 Here is an example of a Pypeit file where the science frames are combined ::
 
-    |                  filename |                 frametype |                 ra |                dec |  target | dispname | decker | binning |          mjd |    airmass | exptime |     dispangle |      amp | filter1 |    dateobs |         utc | calib | comb_id | bkg_id |
-    | DE.20170425.09554.fits.gz |                  arc,tilt |  57.99999999999999 |               45.0 | unknown |    1200G |  dra11 |     1,1 | 57868.110529 | 1.41291034 |     1.0 | 7699.95654297 | SINGLE:B |   OG550 | 2017-04-25 | 02:39:14.41 |   all |      -1 |     -1 |
-    | DE.20170425.09632.fits.gz | pixelflat,illumflat,trace |  57.99999999999999 |               45.0 | unknown |    1200G |  dra11 |     1,1 | 57868.111418 | 1.41291034 |    12.0 | 7699.95654297 | SINGLE:B |   OG550 | 2017-04-25 | 02:40:32.06 |   all |      -1 |     -1 |
-    | DE.20170425.09722.fits.gz | pixelflat,illumflat,trace |  57.99999999999999 |               45.0 | unknown |    1200G |  dra11 |     1,1 | 57868.112443 | 1.41291034 |    12.0 | 7699.95654297 | SINGLE:B |   OG550 | 2017-04-25 | 02:42:02.26 |   all |      -1 |     -1 |
-    | DE.20170425.09803.fits.gz | pixelflat,illumflat,trace |  57.99999999999999 |               45.0 | unknown |    1200G |  dra11 |     1,1 | 57868.113392 | 1.41291034 |    12.0 | 7699.95654297 | SINGLE:B |   OG550 | 2017-04-25 | 02:43:23.16 |   all |      -1 |     -1 |
-    | DE.20170425.50487.fits.gz |                   science | 260.04999999999995 | 57.958444444444446 |   dra11 |    1200G |  dra11 |     1,1 | 57868.584271 |  1.2765523 |  1200.0 | 7699.95654297 | SINGLE:B |   OG550 | 2017-04-25 | 14:01:27.15 |     0 |       1 |     -1 |
-    | DE.20170425.51771.fits.gz |                   science | 260.04999999999995 | 57.958444444444446 |   dra11 |    1200G |  dra11 |     1,1 | 57868.599136 | 1.29137753 |  1200.0 | 7699.95654297 | SINGLE:B |   OG550 | 2017-04-25 | 14:22:51.01 |     0 |       1 |     -1 |
-    | DE.20170425.53065.fits.gz |                   science | 260.04999999999995 | 57.958444444444446 |   dra11 |    1200G |  dra11 |     1,1 |   57868.6141 | 1.31412428 |  1000.0 | 7699.95654297 | SINGLE:B |   OG550 | 2017-04-25 | 14:44:25.52 |     0 |       1 |     -1 |
+        |                  filename |                 frametype | ... | calib | comb_id | bkg_id |
+        | DE.20170425.09554.fits.gz |                  arc,tilt | ... |   all |      -1 |     -1 |
+        | DE.20170425.09632.fits.gz | pixelflat,illumflat,trace | ... |   all |      -1 |     -1 |
+        | DE.20170425.09722.fits.gz | pixelflat,illumflat,trace | ... |   all |      -1 |     -1 |
+        | DE.20170425.09803.fits.gz | pixelflat,illumflat,trace | ... |   all |      -1 |     -1 |
+        | DE.20170425.50487.fits.gz |                   science | ... |     0 |       1 |     -1 |
+        | DE.20170425.51771.fits.gz |                   science | ... |     0 |       1 |     -1 |
+        | DE.20170425.53065.fits.gz |                   science | ... |     0 |       1 |     -1 |
 
 The three science frames are combined together, therefore they are assigned a common value of ``comb_id``.
 Also the ``calib`` value is assigned to be the same for all the science frames. However, in this case it is irrelevant
@@ -95,6 +95,34 @@ since ``calib`` = ``all`` for calibration frames, meaning that all the science f
 set of calibrations. In cases when science frames are also used as calibrations, for examples in near-IR observations
 where the OH lines are used for wavelength and tilt calibration, different values of ``calib`` for science frames
 can be used.
+
+.. note::
+    If the user does not want to combine frames, but wants to associate different calibrations with different science
+    frames, they still need to add the three extra columns (``calib``, ``comb_id`` and ``bkg_id``) in the
+    ref:`pypeit_file:Data Block` of the PypeIt file, or run :ref:`pypeit_setup` with the `-b` flag.
+
+    In this case, ``comb_id`` and ``bkg_id`` should be set to ``-1`` for both calibration and science frames,
+    while ``calib`` for the calibration frames should be set to be equal to the ``calib`` of the science frames
+    that uses them.
+
+    The example above would become::
+
+        |                  filename |                 frametype | ... | calib | comb_id | bkg_id |
+        | DE.20170425.09554.fits.gz |                  arc,tilt | ... |   all |      -1 |     -1 |
+        | DE.20170425.09632.fits.gz | pixelflat,illumflat,trace | ... |   1,2 |      -1 |     -1 |
+        | DE.20170425.09722.fits.gz | pixelflat,illumflat,trace | ... |   1,2 |      -1 |     -1 |
+        | DE.20170425.09803.fits.gz | pixelflat,illumflat,trace | ... |     3 |      -1 |     -1 |
+        | DE.20170425.50487.fits.gz |                   science | ... |     1 |      -1 |     -1 |
+        | DE.20170425.51771.fits.gz |                   science | ... |     2 |      -1 |     -1 |
+        | DE.20170425.53065.fits.gz |                   science | ... |     3 |      -1 |     -1 |
+
+    Here, the science frames will not be combined. The ``arc``, ``tilt`` frame is used for the calibration
+    of every science frame, so it can be set to be ``calib = all`` or ``calib = 1,2,3``. The first two
+    ``illumflat``, ``pixelflat``, and ``trace`` frames are used for the calibration of the first two science
+    frames, while the third ``illumflat``, ``pixelflat``, and ``trace`` frame is used for the calibration of
+    the third science frame.
+
+
 
 
 

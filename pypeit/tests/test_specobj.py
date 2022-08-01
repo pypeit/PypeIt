@@ -10,7 +10,6 @@ import pytest
 
 import numpy as np
 
-from astropy.table import Table
 from astropy.io import fits
 
 from pypeit import specobj
@@ -90,10 +89,10 @@ def test_copy():
     sobj = specobj.SpecObj('MultiSlit', 'DET01', SLITID=0)
     #
     sobj['BOX_WAVE'] = np.arange(100).astype(float)
-    sobj.smash_nsig = 1.
+    sobj.smash_snr = 1.
     # Copy
     sobj2 = specobj.SpecObj.copy(sobj)
-    assert np.isclose(sobj2.smash_nsig, 1.)
+    assert np.isclose(sobj2.smash_snr, 1.)
     # Check
     assert np.array_equal(sobj.BOX_WAVE, sobj2.BOX_WAVE)
 

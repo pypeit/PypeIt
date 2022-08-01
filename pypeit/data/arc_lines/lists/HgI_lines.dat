@@ -1,7 +1,9 @@
-# Creation Date: 2017-Mar-26
-# Creation Date: 2016-Dec-23
-# Creation Date: 2016-Dec-21
+# Creation Date: 2022-Feb-28
+# VACUUM -- MUST BE IN NIST
 | ion |       wave | NIST | Instr | amplitude |                    Source |
+| HgI |  2968.1495 |    1 |     0 |      3000 | ldt_deveny_300_HgCdAr.fits |
+| HgI |  3022.384  |    1 |     0 |      1200 | ldt_deveny_300_HgCdAr.fits |
+| HgI |  3342.4450 |    1 |     0 |       700 | ldt_deveny_300_HgCdAr.fits |
 | HgI |  3651.1980 |    1 |     6 |      7408 | lrisb_600_4000_PYPIT.json |
 | HgI |  3664.3270 |    1 |     2 |      1042 | lrisb_600_4000_PYPIT.json |
 | HgI |  4047.7080 |    1 |     6 |     12902 | lrisb_600_4000_PYPIT.json |
@@ -10,3 +12,4 @@
 | HgI |  5462.2680 |    1 |    15 |     28377 | lrisb_600_4000_PYPIT.json |
 | HgI |  5771.2100 |    1 |     9 |      5510 | lrisr_600_7500_PYPIT.json |
 | HgI |  5792.2760 |    1 |     9 |      6029 | lrisr_600_7500_PYPIT.json |
+| HgI |  10142.53  |    1 |     9 |      6000 |        NIST               |

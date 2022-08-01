@@ -731,6 +731,8 @@ class IRSensFunc(SensFunc):
                                                    self.par['IR']['telgridfile'],
                                                    polyorder=self.par['polyorder'],
                                                    ech_orders=self.meta_spec['ECH_ORDERS'],
+                                                   resln_guess=self.par['IR']['resln_guess'],
+                                                   resln_frac_bounds=self.par['IR']['resln_frac_bounds'],
                                                    sn_clip=self.par['IR']['sn_clip'],
                                                    mask_abs_lines=self.par['mask_abs_lines'],
                                                    maxiter=self.par['IR']['maxiter'],
@@ -784,11 +786,11 @@ class IRSensFunc(SensFunc):
             self.sens['SENS_ZEROPOINT_GPM'][i,s[i]:e[i]] = self.telluric.mask_arr[s[i]:e[i],i]
             self.sens['SENS_COUNTS_PER_ANG'][i,s[i]:e[i]] = self.telluric.flux_arr[s[i]:e[i],i]
             N_lam = self.sens['SENS_COUNTS_PER_ANG'][i,s[i]:e[i]] / self.exptime
-            self.sens['SENS_ZEROPOINT'][i,s[i]:e[i]] \
+            self.sens['SENS_ZEROPOINT'][i,s[i]:e[i]], _ \
                     = flux_calib.compute_zeropoint(self.sens['SENS_WAVE'][i,s[i]:e[i]], N_lam,
                                                    self.sens['SENS_ZEROPOINT_GPM'][i,s[i]:e[i]],
                                                    self.telluric.obj_dict_list[i]['flam_true'],
-                                                   tellmodel=self.telluric.tellmodel_list[i])[0]
+                                                   tellmodel=self.telluric.tellmodel_list[i])
             # TODO: func is always 'legendre' because that is what's set by
             # sensfunc_telluric
             self.sens['SENS_ZEROPOINT_FIT'][i,s[i]:e[i]] \
@@ -859,6 +861,7 @@ class UVISSensFunc(SensFunc):
                                                     self.meta_spec['ECH_ORDERS'],
                                                     polyorder=self.par['polyorder'],
                                                     balm_mask_wid=self.par['UVIS']['balm_mask_wid'],
+                                                    mask_abs_lines=self.par['mask_abs_lines'],
                                                     nresln=self.par['UVIS']['nresln'],
                                                     resolution=self.par['UVIS']['resolution'],
                                                     trans_thresh=self.par['UVIS']['trans_thresh'],

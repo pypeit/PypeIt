@@ -8,7 +8,6 @@ import numpy as np
 
 from pypeit.tests.tstutils import data_path
 from pypeit.images import detector_container
-from pypeit import io
 
 
 # Example (shane_kast_blue)
@@ -36,6 +35,7 @@ def_det = dict(
 
 def test_init():
     detector = detector_container.DetectorContainer(**def_det)
+    assert detector.specaxis == 1
 
 
 def test_name():

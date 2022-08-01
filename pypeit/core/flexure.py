@@ -134,10 +134,8 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
 
     # Determine the brightest emission lines
     msgs.warn("If we use Paranal, cut down on wavelength early on")
-    arx_amp, arx_amp_cont, arx_cent, arx_wid, _, arx_w, arx_yprep, nsig \
-            = arx_lines
-    obj_amp, obj_amp_cont, obj_cent, obj_wid, _, obj_w, obj_yprep, nsig_obj \
-            = arc.detect_lines(obj_skyspec.flux.value)
+    arx_amp, arx_amp_cont, arx_cent, arx_wid, _, arx_w, arx_yprep, nsig = arx_lines
+    obj_amp, obj_amp_cont, obj_cent, obj_wid, _, obj_w, obj_yprep, nsig_obj = arc.detect_lines(obj_skyspec.flux.value)
 
     # Keep only 5 brightest amplitude lines (xxx_keep is array of
     # indices within arx_w of the 5 brightest)
@@ -274,15 +272,17 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
         fit = fitting.PypeItFit(xval=subpix_grid, yval=corr[subpix_grid.astype(np.int)],
                                 func='polynomial', order=np.atleast_1d(2))
         fit.fit()
-        success = True
         max_fit = -0.5 * fit.fitc[1] / fit.fitc[2]
+        # This will make sure that the shift is not > than mxshft
+        if float(max_fit)-lag0 > mxshft:
+            msgs.warn('Flexure compensation failed for one of your objects')
+            return None
     else:
         fit = fitting.PypeItFit(xval=subpix_grid, yval=0.0*subpix_grid,
                                 func='polynomial', order=np.atleast_1d(2))
         fit.fit()
-        success = False
-        max_fit = 0.0
         msgs.warn('Flexure compensation failed for one of your objects')
+        return None
 
     #Calculate and apply shift in wavelength
     shift = float(max_fit)-lag0
@@ -291,7 +291,7 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
 
     return dict(polyfit=fit, shift=shift, subpix=subpix_grid,
                 corr=corr[subpix_grid.astype(np.int)], sky_spec=obj_skyspec, arx_spec=arx_skyspec,
-                corr_cen=corr.size/2, smooth=smooth_sig_pix, success=success)
+                corr_cen=corr.size/2, smooth=smooth_sig_pix)
 
 
 def flexure_interp(shift, wave):
@@ -640,14 +640,91 @@ def spec_flexure_qa(slitords, bpm, basename, flex_list, specobjs=None, out_dir=N
     plt.rcdefaults()
 
 
-def calculate_image_offset(image, im_ref, nfit=3):
+def calculate_image_phase(imref, imshift, gpm_ref=None, gpm_shift=None, maskval=None):
+    """
+    Perform a masked cross-correlation and optical flow calculation to robustly
+    estimate the subpixel shifts of two images.
+
+    If gpm_ref, gpm_shift, and maskval are all None, no pixels will be masked
+
+    This routine (optionally) requires skimage to calculate the image phase. If
+    skimage is not installed, a standard (unmasked) cross-correlation is used.
+
+
+    Args:
+        im_ref (`numpy.ndarray`_):
+            Reference image
+        imshift (`numpy.ndarray`_):
+            Image that we want to measure the shift of (relative to im_ref)
+        gpm_ref (`numpy.ndarray`_):
+            Mask of good pixels (True = good) in the reference image
+        gpm_shift (`numpy.ndarray`_):
+            Mask of good pixels (True = good) in the shifted image
+        maskval (float, optional):
+            If gpm_ref and gpm_shift are both None, a single value can be specified
+            and this value will be masked in both images.
+
+    Returns:
+        ra_diff (float):
+            Relative shift (in pixels) of image relative to im_ref (x direction).
+            In order to align image with im_ref, ra_diff should be added to the
+            x-coordinates of image
+        dec_diff (float):
+            Relative shift (in pixels) of image relative to im_ref (y direction).
+            In order to align image with im_ref, dec_diff should be added to the
+            y-coordinates of image
+
+    """
+    # Do some checks first
+    try:
+        from skimage.registration import optical_flow_tvl1, phase_cross_correlation
+    except ImportError:
+        msgs.warn("scikit-image is not installed. Adopting a basic image cross-correlation")
+        return calculate_image_offset(imref, imshift)
+    if imref.shape != imshift.shape:
+        msgs.warn("Input images shapes are not equal. Adopting a basic image cross-correlation")
+        return calculate_image_offset(imref, imshift)
+    # Set the masks
+    if gpm_ref is None:
+        gpm_ref = np.ones(imref.shape, dtype=bool) if maskval is None else imref != maskval
+    if gpm_shift is None:
+        gpm_shift = np.ones(imshift.shape, dtype=bool) if maskval is None else imshift != maskval
+    # Get a crude estimate of the shift
+    shift = phase_cross_correlation(imref, imshift, reference_mask=gpm_ref, moving_mask=gpm_shift).astype(int)
+    # Extract the overlapping portion of the images
+    exref = imref.copy()
+    exshf = imshift.copy()
+    if shift[0] != 0:
+        if shift[0] < 0:
+            exref = exref[:shift[0], :]
+            exshf = exshf[-shift[0]:, :]
+        else:
+            exref = exref[shift[0]:, :]
+            exshf = exshf[:-shift[0], :]
+    if shift[1] != 0:
+        if shift[1] < 0:
+            exref = exref[:, :shift[1]]
+            exshf = exshf[:, -shift[1]:]
+        else:
+            exref = exref[:, shift[1]:]
+            exshf = exshf[:, :-shift[1]]
+    # Compute the flow vector for a fine correction to the cross-correlation
+    v, u = optical_flow_tvl1(exref, exshf)
+    shift = shift.astype(float)
+    shift[0] -= np.median(v)
+    shift[1] -= np.median(u)
+    # Return the total estimated shift
+    return shift[0], shift[1]
+
+
+def calculate_image_offset(im_ref, image, nfit=3):
     """Calculate the x,y offset between two images
 
     Args:
-        image (`numpy.ndarray`_):
-            Image that we want to measure the shift of (relative to im_ref)
         im_ref (`numpy.ndarray`_):
             Reference image
+        image (`numpy.ndarray`_):
+            Image that we want to measure the shift of (relative to im_ref)
         nfit (int, optional):
             Number of pixels (left and right of the maximum) to include in
             fitting the peak of the cross correlation.
@@ -673,18 +750,25 @@ def calculate_image_offset(image, im_ref, nfit=3):
     # Find the maximum
     amax = np.unravel_index(np.argmax(ccorr), ccorr.shape)
 
-    # Perform a 2D Gaussian fit
-    x = np.arange(amax[0]-nfit, amax[0] + nfit+1)
-    y = np.arange(amax[1]-nfit, amax[1] + nfit+1)
+    # Extract a small region around the maximum, and check the limits
+    xlo, xhi = amax[0]-nfit, amax[0] + nfit+1
+    ylo, yhi = amax[1]-nfit, amax[1] + nfit+1
+    if xlo < 0: xlo = 0
+    if xhi > ccorr.shape[0]-1: xhi = ccorr.shape[0]-1
+    if ylo < 0: ylo = 0
+    if yhi > ccorr.shape[1]-1: yhi = ccorr.shape[1]-1
+    x = np.arange(xlo, xhi)
+    y = np.arange(ylo, yhi)
+    # Setup some initial parameters
     initial_guess = (np.max(ccorr), amax[0], amax[1], 3, 3, 0, 0)
     xx, yy = np.meshgrid(x, y, indexing='ij')
 
-    # Fit the neighborhood of the maximum to calculate the offset
-    popt, _ = opt.curve_fit(fitting.twoD_Gaussian, (xx, yy),
-                            ccorr[amax[0]-nfit:amax[0]+nfit+1, amax[1]-nfit:amax[1]+nfit+1].ravel(),
-                            p0=initial_guess)
+    # Fit the neighborhood of the maximum with a Gaussian to calculate the offset
+    popt, _ = opt.curve_fit(fitting.twoD_Gaussian, (xx, yy), ccorr[xlo:xhi, ylo:yhi].ravel(), p0=initial_guess)
     # Return the RA and DEC shift, in pixels
-    return popt[1] - ccorr.shape[0]//2, popt[2] - ccorr.shape[1]//2
+    xoff = 1 - (ccorr.shape[0] % 2)  # Need to add 1 for even shaped array
+    yoff = 1 - (ccorr.shape[1] % 2)  # Need to add 1 for even shaped array
+    return xoff + popt[1] - ccorr.shape[0]//2, yoff+popt[2] - ccorr.shape[1]//2
 
 
 

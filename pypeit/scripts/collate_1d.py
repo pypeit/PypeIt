@@ -17,7 +17,6 @@ import sys
 
 import numpy as np
 from astropy.coordinates import Angle
-from astropy.io import fits
 from astropy.time import Time
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
@@ -32,6 +31,7 @@ from pypeit.slittrace import SlitTraceBitMask
 from pypeit.spec2dobj import AllSpec2DObj
 from pypeit.sensfilearchive import SensFileArchive
 from pypeit import fluxcalibrate
+from pypeit import inputfiles
 
 
 
@@ -71,7 +71,7 @@ def get_report_metadata(object_header_keys, spec_obj_keys, file_info):
     if not isinstance(file_info, SourceObject):
         return (None, None)
 
-    coaddfile = os.path.basename(file_info.coaddfile)
+    coaddfile = build_coadd_file_name(file_info)
     result_rows = []
     for i in range(len(file_info.spec1d_header_list)):
 
@@ -169,6 +169,12 @@ def exclude_source_objects(source_objects, exclude_map, par):
             excluded_messages.append(msg)
             continue
 
+        if par['collate1d']['wv_rms_thresh'] is not None and sobj.WAVE_RMS > par['collate1d']['wv_rms_thresh']:
+            msg = f'Excluding {sobj.NAME} in {spec1d_file} due to wave_rms {sobj.WAVE_RMS} > threshold {par["collate1d"]["wv_rms_thresh"]}'
+            msgs.info(msg)
+            excluded_messages.append(msg)
+            continue
+
         if sobj.MASKDEF_ID in exclude_map:
             msg = f'Excluding {sobj.NAME} with mask id: {sobj.MASKDEF_ID} in {spec1d_file} because of flags {exclude_map[sobj.MASKDEF_ID]}'
             msgs.info(msg)
@@ -251,7 +257,37 @@ def flux(par, spectrograph, spec1d_files, failed_fluxing_msgs):
     # Return the succesfully fluxed files
     return flux_calibrated_files
 
-def coadd(par, source):
+def build_coadd_file_name(source_object):
+    """Build the output file name for coadding.
+    The filename convention is J<hmsdms+dms>_<instrument name>_<YYYYMMDD>.fits
+    when matching by RA/DEC and SPAT_<spatial position>_<instrument name>_<YYYYMMDD>.fits
+    when matching by pixel position. The date portion may be <YYYYMMDD-YYYMMDD> if the
+    files coadded span more than one date.
+
+    Currently instrument_name is taken from spectrograph.camera
+
+    Returns: 
+        str:  The name of the coadd output file.
+    """
+    mjd_list = [float(h['MJD']) for h in source_object.spec1d_header_list]
+    start_mjd = np.min(mjd_list)
+    end_mjd = np.max(mjd_list)
+
+    start_date_portion = Time(start_mjd, format="mjd").strftime('%Y%m%d')
+    end_date_portion = Time(end_mjd, format="mjd").strftime('%Y%m%d')
+
+    date_portion = f"{start_date_portion}_{end_date_portion}"
+
+    if source_object.match_type == 'ra/dec':
+        coord_portion = 'J' + source_object.coord.to_string('hmsdms', sep='', precision=2).replace(' ', '')
+    else:
+        coord_portion = source_object.spec_obj_list[0]['NAME'].split('_')[0]
+    instrument_name = source_object._spectrograph.camera
+    
+    return f'{coord_portion}_{instrument_name}_{date_portion}.fits'
+
+
+def coadd(par, coaddfile, source):
     """coadd the spectra for a given source.
 
     Args:
@@ -260,24 +296,24 @@ def coadd(par, source):
             which files and spectra to coadd.
     """
     # Set destination file for coadding
-    par['coadd1d']['coaddfile'] = source.coaddfile
+    par['coadd1d']['coaddfile'] = coaddfile
     
     # Determine if we should coadd flux calibrated data
     flux_key = par['coadd1d']['ex_value'] + "_FLAM"
 
     if par['collate1d']['ignore_flux'] is True:
         # Use non fluxed if asked to
-        msgs.info(f"Ignoring flux for {source.coaddfile}.")
+        msgs.info(f"Ignoring flux for {coaddfile}.")
         par['coadd1d']['flux_value'] = False
 
     elif False in [x[flux_key] is not None for x in source.spec_obj_list]:               
         # Do not use fluxed data if one or more objects have not been flux calibrated 
-        msgs.info(f"Not all spec1ds for {source.coaddfile} are flux calibrated, using counts instead.")
+        msgs.info(f"Not all spec1ds for {coaddfile} are flux calibrated, using counts instead.")
         par['coadd1d']['flux_value'] = False
     
     else:
         # Use fluxed data
-        msgs.info(f"Using flux for {source.coaddfile}.")
+        msgs.info(f"Using flux for {coaddfile}.")
         par['coadd1d']['flux_value'] = True
 
 
@@ -290,7 +326,7 @@ def coadd(par, source):
     # Run
     coAdd1d.run()
     # Save to file
-    coAdd1d.save(source.coaddfile)
+    coAdd1d.save(coaddfile)
 
 def find_spec2d_from_spec1d(spec1d_files):
     """
@@ -373,13 +409,15 @@ def build_parameters(args):
     """
     # First we need to get the list of spec1d files
     if args.input_file is not None:
-        (cfg_lines, spec1d_files) = par.util.parse_tool_config(args.input_file, 'spec1d', check_files=True)
+        collateFile = inputfiles.Collate1DFile.from_file(args.input_file)
+        cfg_lines, spec1d_files = collateFile.cfg_lines, collateFile.filenames
 
         # Look for a coadd1d file
-        (input_file_root, input_file_ext) = os.path.splitext(args.input_file)
+        input_file_root, input_file_ext = os.path.splitext(args.input_file)
         coadd1d_config_name = input_file_root + ".coadd1d"
         if os.path.exists(coadd1d_config_name):
-            cfg_lines += par.util.parse_tool_config(coadd1d_config_name, 'coadd1d')[0]
+            coadd1DFile = inputfiles.Coadd1DFile.from_file(coadd1d_config_name)
+            cfg_lines += coadd1DFile.cfg_lines
 
     else:
         cfg_lines = None
@@ -418,6 +456,9 @@ def build_parameters(args):
 
     if args.exclude_serendip:
         params['collate1d']['exclude_serendip'] = True
+
+    if args.wv_rms_thresh is not None:
+        params['collate1d']['wv_rms_thresh'] = args.wv_rms_thresh
 
     if args.dry_run:
         params['collate1d']['dry_run'] = True
@@ -505,6 +546,11 @@ class Collate1D(scriptbase.ScriptBase):
                                  'F|                        "ra/dec"\n'
                                  'F|  dry_run               If set the matches are displayed\n'
                                  'F|                        without any processing\n'
+                                 'F|  flux                  Flux calibrate using archived sensfuncs.\n'
+                                 'F|  ignore_flux           Ignore any flux calibration information in\n'
+                                 'F|                        spec1d files.\n'
+                                 'F|  wv_rms_thresh         If set, any objects with a wavelength rms > than the input\n'
+                                 'F|                        value are skipped, else all wavelength rms values are accepted.\n'
                                  '\n'
                                  'F|spec1d read\n'
                                  'F|<path to spec1d files, wildcards allowed>\n'
@@ -527,6 +573,7 @@ class Collate1D(scriptbase.ScriptBase):
                             help=blank_par.descr['exclude_slit_trace_bm'])
         parser.add_argument('--exclude_serendip', action='store_true',
                             help=blank_par.descr['exclude_serendip'])
+        parser.add_argument("--wv_rms_thresh", type=float, default = None, help=blank_par.descr['wv_rms_thresh'])
         return parser
 
     @staticmethod
@@ -578,8 +625,7 @@ class Collate1D(scriptbase.ScriptBase):
 
         # Build source objects from spec1d file, this list is not collated 
         source_objects = SourceObject.build_source_objects(spec1d_files,
-                                                           par['collate1d']['match_using'],
-                                                           par['collate1d']['outdir'])
+                                                           par['collate1d']['match_using'])
 
         # Filter based on the coadding ex_value, and the exclude_serendip 
         # boolean
@@ -592,21 +638,21 @@ class Collate1D(scriptbase.ScriptBase):
         successful_source_list = []
         failed_source_msgs = []
         for source in source_list:
-
-            msgs.info(f'Creating {source.coaddfile} from the following sources:')
+            coaddfile = os.path.join(par['collate1d']['outdir'], build_coadd_file_name(source))
+            msgs.info(f'Creating {coaddfile} from the following sources:')
             for i in range(len(source.spec_obj_list)):
                 msgs.info(f'    {source.spec1d_file_list[i]}: {source.spec_obj_list[i].NAME} '
                           f'({source.spec_obj_list[i].MASKDEF_OBJNAME})')
 
             if not args.dry_run:
                 try:
-                    coadd(par, source)
+                    coadd(par, coaddfile, source)
                     successful_source_list.append(source)
                 except Exception:
                     formatted_exception = traceback.format_exc()
                     msgs.warn(formatted_exception)
-                    msgs.warn(f"Failed to coadd {source.coaddfile}, skipping")
-                    failed_source_msgs.append(f"Failed to coadd {source.coaddfile}:")
+                    msgs.warn(f"Failed to coadd {coaddfile}, skipping")
+                    failed_source_msgs.append(f"Failed to coadd {coaddfile}:")
                     failed_source_msgs.append(formatted_exception)
 
         # Create collate_report.dat
@@ -622,5 +668,3 @@ class Collate1D(scriptbase.ScriptBase):
         msgs.info(f'Total duration: {total_time}')
 
         return 0
-
-

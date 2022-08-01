@@ -26,8 +26,8 @@ Overview
 
 We provide a very general approach to image processing with hooks to toggle each
 step, as appropriate for different frame types and/or different instruments.
-Generally, we treat pixel values, :math:`p`, in an astronimcal image (in units of ADU) as containing
-the following components:
+Generally, we treat pixel values, :math:`p`, in an astronomical image (in units
+of ADU) as containing the following components:
 
 .. math::
 
@@ -51,13 +51,13 @@ where:
 
 By "relative throughput," we mean the aggregate of relative (to, say, the center
 of the field) telescope+instrument+detector efficiency factors that can be
-measured from flat-field images (see :ref:_flat_fielding), like pixel-to-pixel differences in quantum
-efficiency (known as the pixelflat), spatial variations in slit illumination
-as a result of vignetting or instrument optics (known as the illumflat),
-and variations in slit illumination in the spectral direction (known as specillumflat).  The
-goal of the basic image processing is to solve for :math:`c` in a set of science
-and calibration frames using a set of frames that isolate the detector bias,
-dark current, and relative throughput, to find:
+measured from flat-field images (see :ref:`flat_fielding`), like pixel-to-pixel
+differences in quantum efficiency (known as the "pixelflat"), spatial variations
+in slit illumination as a result of vignetting or instrument optics (known as
+the "illumflat"), and variations in slit illumination in the spectral direction
+(known as "specillumflat").  The goal of the basic image processing is to solve
+for :math:`c` in a set of science and calibration frames using a set of frames
+that isolate the detector bias, dark current, and relative throughput, to find:
 
 .. math::
 
@@ -228,14 +228,22 @@ Dark Subtraction
 In addition to readnoise and gain, our instrument-specific
 :class:`~pypeit.images.detector_container.DetectorContainer` objects also
 provide the expected dark current; see :ref:`detectors`.  The tabulated dark
-current must be in elections per pixel per hour; note that "per pixel" means per
-*unbinned* pixel; dark current in a binned pixel is :math:`N_{\rm bin}` higher
-than in an unbinned pixel.  As of version 1.6.0, this tabulated dark current
-(scaled by the frame exposure time and the binning) is *always* subtracted from
-the observed images (i.e., there is currently no parameter that will turn this
-off).  This is primarily due to how we account for dark current in our image
-variance model (see above); i.e., the :math:`D` term is assumed to be the same
-for all images taken with a given instrument.
+current must be in elections per pixel per *hour*.  Note that:
+
+    - "per pixel" means per *unbinned* pixel; dark current in a binned pixel is
+      :math:`N_{\rm bin}` higher than in an unbinned pixel
+
+    - the tabulated dark current is in e-/pixel/hr, whereas the equation above
+      gives :math:`D` in units of e-/pixel/s.  Within ``PypeIt`` all exposure
+      times are assumed to be in seconds such that the hr-to-second unit
+      conversion is done during the dark subtraction.
+
+As of version 1.6.0, this tabulated dark current (scaled by the frame exposure
+time and the binning) is *always* subtracted from the observed images (i.e.,
+there is currently no parameter that will turn this off).  This is primarily due
+to how we account for dark current in our image variance model (see above);
+i.e., the :math:`D` term is assumed to be the same for all images taken with a
+given instrument.
 
 Importantly, ``PypeIt`` also subtracts this tabulated dark-current value from
 any provided dark frames.  This means that dark frames, combined into the
@@ -249,18 +257,18 @@ If you have collected dark images and wish to subtract them from your science
 frames, include them in your :ref:`pypeit_file` and set ``use_darkimage`` to
 true; see :func:`~pypeit.images.rawimage.RawImage.subtract_dark`.  Note that if
 you bias-subtract the science frames and you plan to also subtract a combined
-dark frame, make sure that you bias-subtract your dark frames!  ``PypeIt``
-automatically scales the sum of the tabulated dark current and the
-``MasterDark`` by the ratio of the exposure times to appropriately subtract the
-counts/s measured by the master dark frame.
+dark frame, make sure that you bias-subtract your dark frames!
 
 .. note::
 
     Nominally, the exposure time for dark images should be identical to the
-    frames they are applied to, meaning that the ratio of exposure times is
-    unity.  Beware how the dark images are processed when this is not the case.
-    Specifically, scaling by the ratio of the exposure times assumes the
-    processed dark frame **only includes dark counts**; i.e., the dark image
+    frames they are applied to.  If they are not, ``PypeIt`` provides a
+    parameter that will allow you to scale dark frame by the ratio of the
+    exposure times to appropriately subtract the counts/s measured by the master
+    dark frame from the science frame (see the ``dark_expscale`` parameter).
+    Take care when using this option!  Also, beware how the dark images are
+    processed.  Specifically, scaling by the ratio of the exposure times assumes
+    the processed dark frame **only includes dark counts**; i.e., the dark image
     cannot include a bias offset.  When the exposure times are different, also
     note that it is important from a noise perspective that the dark exposures
     always be at least as long as your longest exposure time in the same
@@ -291,6 +299,35 @@ variations (``use_pixelflat``), the slit illumination profile
 These multiplicative corrections are all propagated to the image-processing
 error budget.  See :ref:`flat_fielding` for additional discussion.
 
+.. note::
+
+    Currently, to apply the slit-illumination and spectral response corrections,
+    you must also apply the pixel-to-pixel correction. I.e., in order to perform
+    *any* flat-field correction, ``use_pixelflat`` must be true.
+
+Continuum removal
+-----------------
+
+If multiple different arc frames are being combined, a smooth representation of
+the image can be subtracted off by setting the ``use_continuum`` variable to true.
+This variable should *only* be set to true if you intend to combine multiple arcs
+with different lamps.
+
+.. warning::
+
+    If you set this parameter to True, you should also set the following parameters:
+
+.. code-block:: ini
+
+    [calibrations]
+        [[arcframe]]
+            [[[process]]]
+                clip = False
+                combine = mean
+        [[tiltframe]]
+            [[[process]]]
+                clip = False
+                combine = mean
 .. note::
 
     Currently, to apply the slit-illumination and spectral response corrections,

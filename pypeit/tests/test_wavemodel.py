@@ -11,6 +11,8 @@ try:
 except NameError:
     FileExistsError = OSError
 
+# TODO -- Note that the transparency function is not used anywhere
+
 def test_transparency():
     """ Test for creting the ski transmission model. It is basically
     testing if the skisim directory is reachable.

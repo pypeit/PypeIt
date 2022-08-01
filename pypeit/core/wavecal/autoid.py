@@ -1,4 +1,6 @@
 """ Module for finding patterns in arc line spectra
+
+.. include:: ../include/links.rst
 """
 from scipy.ndimage.filters import gaussian_filter
 from scipy.spatial import cKDTree
@@ -69,9 +71,15 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
     fig = plt.figure(figsize=figsize)
     gs = gridspec.GridSpec(nrows,ncols)#, figure = fig)
 
+    # log is True by default, but if a large part of spectrum is < 0, the log plot will look very bad
+    neg_values = np.where(arc_spec < 0)[0]
+    if neg_values.size > 0.3 * len(arc_spec):
+        log = False
+
 
     # Simple spectrum plot
     ax_spec = plt.subplot(gs[:,0])
+    ax_spec.minorticks_on()
     ax_spec.plot(np.arange(len(arc_spec)), arc_spec)
     ymin, ymax = np.min(arc_spec), np.max(arc_spec)
     if log:
@@ -155,6 +163,8 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
     ax_fit.set_ylim((ymin, ymax))
     ax_fit.set_ylabel('Wavelength')
     ax_fit.get_xaxis().set_ticks([]) # Suppress labeling
+    ax_fit.minorticks_on()
+    ax_fit.tick_params(axis="y", which='both', right=True)
 
     # Stats
     wave_soln_fit = waveFit.pypeitfit.eval(waveFit.pixel_fit/waveFit.xnorm)#, 'legendre',minx=fit['fmin'], maxx=fit['fmax'])
@@ -168,6 +178,8 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
     ax_res.set_xlim(xmin, xmax)
     ax_res.set_xlabel('Pixel')
     ax_res.set_ylabel('Residuals (Pix)')
+    ax_res.minorticks_on()
+    ax_res.tick_params(axis="y", which='both', right=True)
 
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
@@ -844,8 +856,73 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     return detections, spec_cont_sub, patt_dict_slit
 
 
+def measure_fwhm(spec):
+    """
+    Measure the arc lines FWHM, i.e, approximate spectral resolution
+
+    Args:
+        spec (`numpy.ndarray`_):
+            Arc spectrum from a single slit
+
+    Returns:
+        :obj:`float`: Measured arc lines FWHM in binned pixels of the input arc image
+    """
+
+    # Determine the lines FWHM, i.e, approximate spectral resolution
+    #  This may only be recorded and not used by the algorithms
+    _, _, _, wdth, _, best, _, nsig = arc.detect_lines(spec, sigdetect=10., fwhm=5.)
+    # 1sigma Gaussian widths of the line detections
+    wdth = wdth[best]
+    # significance of each line detected
+    nsig = nsig[best]
+    # Nsigma (significance) threshold. We use only lines that have the highest significance
+    # We start with nsig_thrshd of 500 and iteratively reduce it if there are not more than 6 lines
+    nsig_thrshd = 500.
+    measured_fwhm = None
+    while nsig_thrshd > 10.:
+        if wdth[nsig > nsig_thrshd].size > 6:
+            # compute average `wdth`
+            mean, med, _ = stats.sigma_clipped_stats(wdth[nsig > nsig_thrshd], sigma_lower=2.0, sigma_upper=2.0)
+            # FWHM in pixels
+            measured_fwhm = np.round(med * 2.35482, 1)
+            break
+        nsig_thrshd -= 5
+
+    return measured_fwhm
+
+
+def set_fwhm(par, measured_fwhm=None):
+    """
+    Set the value of the arc lines FWHM by choosing between the provided parset
+    and the measured_fwhm
+
+    Args:
+        par (:class:`~pypeit.par.pypeitpar.WaveSolutionPar`):
+            Key parameters that drive the behavior of the
+            wavelength-solution algorithms.
+        measured_fwhm (:obj:`float`):
+            Measured arc lines FWHM in binned pixels of the input arc image
+
+    Returns:
+       :obj:`float`: Chosen arc lines FWHM in binned pixels of the input arc image
+    """
+
+    # Set FWHM for the methods that follow
+    if par['fwhm_fromlines'] is False:
+        fwhm = par['fwhm']
+        msgs.info("User-provided arc lines FWHM: {} pixels".format(fwhm))
+    elif measured_fwhm is None:
+        fwhm = par['fwhm']
+        msgs.warn("Assumed arc lines FWHM: {} pixels".format(fwhm))
+    else:
+        fwhm = measured_fwhm
+        msgs.info("Measured arc lines FWHM: {} pixels".format(fwhm))
+
+    return fwhm
+
+
 def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, 
-                  debug_xcorr=False, debug_reid=False,
+                  measured_fwhms=None, debug_xcorr=False, debug_reid=False,
                   x_percentile=50., template_dict=None, debug=False, 
                   nonlinear_counts=1e10):
     """
@@ -875,6 +952,8 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
           Number of snippets to chop the input spectrum into when ID'ing lines
           This deals with differences due to non-linearity between the template
           and input spectrum.
+        measured_fwhms: ndarray, optional
+            Array of FWHM (in pixels) measured from the arc lines. Shape (nslit,)
         x_percentile: float, optional
           Passed to reidentify to reduce the dynamic range of arc line amplitudes
         template_dict (dict, optional): Dict containing tempmlate items, largely for development
@@ -928,6 +1007,8 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
         msgs.info("Using sigdetect = {}".format(sigdetect))
         # Grab the observed arc spectrum
         ispec = spec[:,slit]
+        # get FWHM for this slit
+        fwhm = set_fwhm(par, measured_fwhm=measured_fwhms[slit])
 
         # Find the shift
         ncomb = temp_spec.size
@@ -950,7 +1031,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
             pspec = ispec_cont_sub
             tspec = tspec_cont_sub
         # Cross-correlate
-        shift_cc, corr_cc = wvutils.xcorr_shift(tspec, pspec, debug=debug, fwhm=par['fwhm'], percent_ceil=x_percentile)
+        shift_cc, corr_cc = wvutils.xcorr_shift(tspec, pspec, debug=debug, fwhm=fwhm, percent_ceil=x_percentile)
         #shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec, pspec, debug=debug, percent_ceil=x_percentile)
         msgs.info("Shift = {}; cc = {}".format(shift_cc, corr_cc))
         if debug:
@@ -975,31 +1056,6 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
         else: # Don't pad
             mspec = temp_spec[i0:i0 + nspec]
             mwv = temp_wv[i0:i0 + nspec]
-
-        if par['fwhm_fromlines'] is False:
-            fwhm = par['fwhm']
-        else:
-            # Determine the lines FWHM, i.e, approximate spectral resolution
-            _, _, _, wdth, _, best, _, nsig = arc.detect_lines(ispec, sigdetect=10., fwhm=5.)
-            # 1sigma Gaussian widths of the line detections
-            wdth = wdth[best]
-            # significance of each line detected
-            nsig = nsig[best]
-            # Nsigma (significance) threshold. We use only lines that have the highest significance
-            # We start with nsig_thrshd of 500 and iteratively reduce it if there are not more than 6 lines
-            nsig_thrshd = 500.
-            while nsig_thrshd > 10.:
-                if wdth[nsig > nsig_thrshd].size > 6:
-                    # compute average `wdth`
-                    mean, med, _ = stats.sigma_clipped_stats(wdth[nsig > nsig_thrshd], sigma_lower=2.0, sigma_upper=2.0)
-                    # FWHM in pixels
-                    fwhm = np.ceil(med * 2.35482) / binspectral
-                    msgs.info("Measured arc lines FWHM: {} pixels".format(fwhm))
-                    break
-                nsig_thrshd -= 5
-            else:
-                fwhm = par['fwhm']
-                msgs.warn("Assumed arc lines FWHM: {}".format(fwhm))
 
         # Loop on snippets
         nsub = ispec.size // nsnippet
@@ -1087,6 +1143,8 @@ class ArchiveReid:
     ok_mask : `numpy.ndarray`, optional
         Integer array with the list of valid spectra ``spec`` to use.
         If None, all spectra are used.
+    measured_fwhms: ndarray, optional
+        Array of FWHM (in pixels) measured from the arc lines. Shape (nslit,)
     use_unknowns : bool, default = True, optional
         If True, arc lines that are known to be present in the
         spectra, but have not been attributed to an element+ion, will
@@ -1127,7 +1185,7 @@ class ArchiveReid:
 
     """
     # TODO: Because we're passing orders directly, we no longer need spectrograph...
-    def __init__(self, spec, spectrograph, lamps, par, ok_mask=None, use_unknowns=True, debug_all=False,
+    def __init__(self, spec, spectrograph, lamps, par, ok_mask=None, measured_fwhms=None, use_unknowns=True, debug_all=False,
                  debug_peaks=False, debug_xcorr=False, debug_reid=False, debug_fits=False,
                  orders=None, nonlinear_counts=1e10):
 
@@ -1180,7 +1238,6 @@ class ArchiveReid:
         # Parameters for arc line detction
         self.nonlinear_counts = nonlinear_counts # self.par['nonlinear_counts']
         #self.sigdetect = self.par['sigdetect']  # This is not used and isn't right either
-        self.fwhm = self.par['fwhm']
         # Paramaters that govern reidentification
         self.reid_arxiv = self.par['reid_arxiv']
         self.nreid_min = self.par['nreid_min']
@@ -1259,16 +1316,20 @@ class ArchiveReid:
             # If this is a fixed format echelle, arxiv has exactly the same orders as the data and so
             # we only pass in the relevant arxiv spectrum to make this much faster
             ind_sp = arxiv_orders.index(orders[slit]) if self.ech_fix_format else ind_arxiv
+            if self.ech_fix_format: 
+                msgs.info(f'Order: {orders[slit]}')
             sigdetect = wvutils.parse_param(self.par, 'sigdetect', slit)
             cc_thresh = wvutils.parse_param(self.par, 'cc_thresh', slit)
             rms_threshold = wvutils.parse_param(self.par, 'rms_threshold', slit)
             msgs.info("Using sigdetect =  {}".format(sigdetect))
             msgs.info("Using rms_threshold =  {}".format(rms_threshold))
+            # get FWHM for this slit
+            fwhm = set_fwhm(self.par, measured_fwhm=measured_fwhms[slit])
             self.detections[str(slit)], self.spec_cont_sub[:,slit], self.all_patt_dict[str(slit)] = \
                 reidentify(self.spec[:,slit], self.spec_arxiv[:,ind_sp], self.wave_soln_arxiv[:,ind_sp],
                            self.tot_line_list, self.nreid_min, cc_thresh=cc_thresh, match_toler=self.match_toler,
                            cc_local_thresh=self.cc_local_thresh, nlocal_cc=self.nlocal_cc, nonlinear_counts=self.nonlinear_counts,
-                           sigdetect=sigdetect, fwhm=self.fwhm, debug_peaks=self.debug_peaks, debug_xcorr=self.debug_xcorr,
+                           sigdetect=sigdetect, fwhm=fwhm, debug_peaks=self.debug_peaks, debug_xcorr=self.debug_xcorr,
                            debug_reid=self.debug_reid)
             # Check if an acceptable reidentification solution was found
             if not self.all_patt_dict[str(slit)]['acceptable']:

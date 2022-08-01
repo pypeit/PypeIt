@@ -7,6 +7,7 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
+   pypeit.scripts.cache_github_data
    pypeit.scripts.chk_alignments
    pypeit.scripts.chk_edges
    pypeit.scripts.chk_flats
@@ -31,9 +32,9 @@ Submodules
    pypeit.scripts.parse_slits
    pypeit.scripts.qa_html
    pypeit.scripts.ql_keck_deimos
-   pypeit.scripts.ql_keck_mosfire
    pypeit.scripts.ql_keck_nires
    pypeit.scripts.ql_mos
+   pypeit.scripts.ql_multislit
    pypeit.scripts.run_pypeit
    pypeit.scripts.scriptbase
    pypeit.scripts.sensfunc
