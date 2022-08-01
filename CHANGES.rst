@@ -11,7 +11,6 @@
   using the information on the dither pattern.
 
 
-
 1.10.0 (11 July 2022)
 ---------------------
 
