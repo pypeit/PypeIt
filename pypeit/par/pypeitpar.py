@@ -840,9 +840,9 @@ class FlexurePar(ParSet):
         descr['excessive_shift'] = 'Behavior when the measured spectral flexure shift is ' \
                                    'larger than ``spec_maxshift``.  The options are: ' \
                                    '\'crash\' - Raise an error and halt the data reduction; ' \
-                                   '\'skip\' - Set the flexure shift to zero and continue ' \
-                                   'with the reduction; and \'continue\' - Use the large ' \
-                                   'flexure value whilst issuing a warning.'
+                                   '\'skip\' - Do not extract 1D spectra from this frame, but ' \
+                                   'otherwise continue with the reduction; and \'continue\' - ' \
+                                   'Use the large flexure value whilst issuing a warning.'
 
         # Instantiate the parameter set
         super(FlexurePar, self).__init__(list(pars.keys()),

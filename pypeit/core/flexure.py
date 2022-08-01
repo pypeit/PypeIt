@@ -294,12 +294,9 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20, excess_shft=
 
             elif excess_shft == "skip":
                 msgs.warn("Flexure compensation failed for one of your objects.")
-                msgs.warn("Skipping the flexure correction, shift = 0")
-                # Return the usual dictionary, but with a shift == 0
-                return dict(polyfit=fit, shift=0.0, subpix=subpix_grid,
-                            corr=corr[subpix_grid.astype(np.int)],
-                            sky_spec=obj_skyspec, arx_spec=arx_skyspec,
-                            corr_cen=corr.size/2, smooth=smooth_sig_pix)
+                msgs.warn("Skipping 1D spectral extraction.")
+                # Return the usual dictionary, but with a `shift = np.nan`
+                shift = np.nan
 
             elif excess_shft == "continue":
                 msgs.warn("Applying flexure shift larger than specified max!")
@@ -309,11 +306,12 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20, excess_shft=
                            "not recognized.")
 
     else:
-        fit = fitting.PypeItFit(xval=subpix_grid, yval=0.0*subpix_grid,
-                                func='polynomial', order=np.atleast_1d(2))
-        fit.fit()
-        msgs.warn('Flexure compensation failed for one of your objects')
-        return None
+        # fit = fitting.PypeItFit(xval=subpix_grid, yval=0.0*subpix_grid,
+        #                         func='polynomial', order=np.atleast_1d(2))
+        # fit.fit()
+        msgs.warn(f"Flexure compensation failed (non-finite correlation values){msgs.newline()}"
+                  f"for one of your objects.  Not extracting 1D spectrum.")
+        shift = np.nan
 
     #Calculate and apply shift in wavelength
     # shift = float(max_fit)-lag0
@@ -372,8 +370,10 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
         specobjs (:class:`~pypeit.specobjs.Specobjs`, optional):
             Spectral extractions
         slit_specs (list, optional):
-            A list of linetools.xspectrum1d, one for each slit. The spectra stored in
-            this list are sky spectra, extracted from the center of each slit.
+            A list of linetools.xspectrum1d, one for each slit. The spectra
+            stored in this list are sky spectra, extracted from the center
+            of each slit.  ONLY USED FOR `method = slitcen` OR IF `specobjs`
+            IS `None`.
         mxshft (int, optional):
             Passed to spec_flex_shift()
         excess_shft (str, optional):
@@ -390,8 +390,8 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
     # Determine the method
     slit_cen = True if (specobjs is None) or (method == "slitcen") else False
 
-    # Load Archive. Save the line information to avoid the performance hit from calling it on the archive sky spectrum
-    # multiple times
+    # Load Archive. Save the line information to avoid the performance hit
+    #   from calling it on the archive sky spectrum multiple times
     sky_spectrum = data.load_sky_spectrum(sky_file)
     sky_lines = arc.detect_lines(sky_spectrum.flux.value)
 
@@ -459,23 +459,19 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
                 # Calculate the shift
                 fdict = spec_flex_shift(obj_sky, sky_spectrum, sky_lines,
                                         mxshft=mxshft, excess_shft=excess_shft)
-                punt = False
+
                 if fdict is None:
                     msgs.warn("Flexure shift calculation failed for this spectrum.")
                     if sv_fdict is not None:
                         msgs.warn("Will used saved estimate from a previous slit/object")
                         fdict = copy.deepcopy(sv_fdict)
                     else:
-                        # One does not exist yet
-                        # Save it for later
-                        return_later_sobjs.append([islit, ss])
-                        punt = True
+                        # One does not exist yet -- break out of the FOR loop
+                        break
+                        # # Save it for later
+                        # return_later_sobjs.append([islit, ss])
                 else:
                     sv_fdict = copy.deepcopy(fdict)
-
-                # Punt?
-                if punt:
-                    break
 
                 # Update dict
                 for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec', 'sky_spec']:

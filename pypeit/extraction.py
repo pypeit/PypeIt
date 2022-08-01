@@ -20,6 +20,7 @@ from pypeit.display import display
 from pypeit.core import skysub, extract, wave, flexure
 from pypeit.core.moment import moment1d
 from pypeit import specobj
+from pypeit import specobjs
 
 from linetools.spectra import xspectrum1d
 
@@ -391,25 +392,29 @@ class Extract:
 
         self.global_sky = global_sky
 
+        # Apply a global flexure correction to each slit
+        # provided it's not a standard star
+        if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
+            self.spec_flexure_correct(mode='global')
+
+        # If flexure correction failed and `excessive_shift == skip`, the
+        #   specified shift will be NaN.  Skip object extraction by setting
+        #   self.sobjs_obj to a blank container (i.e., self.nobj_to_extract = 0)
+        if np.logical_not(np.isfinite(self.slitshift)).any():
+            self.sobjs_obj = specobjs.SpecObjs()
+
         # Do we have any positive objects to proceed with?
         if self.nobj_to_extract > 0:
-            # Apply a global flexure correction to each slit
-            # provided it's not a standard star
-            if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
-                self.spec_flexure_correct(mode='global')
-
             # Extract + Return
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
                 = self.extract(self.global_sky, model_noise=model_noise, spat_pix=spat_pix)
 
             if self.bkg_redux:
                 self.sobjs.make_neg_pos() if self.return_negative else self.sobjs.purge_neg()
-        else:  # No objects, pass back what we have
-            # Apply a global flexure correction to each slit
-            # provided it's not a standard star
-            if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
-                self.spec_flexure_correct(mode='global')
-            #Could have negative objects but no positive objects so purge them
+
+        # No objects, pass back what we have
+        else:
+            # Could have negative objects but no positive objects so purge them
             if self.bkg_redux:
                 self.sobjs_obj.make_neg_pos() if self.return_negative else self.sobjs_obj.purge_neg()
             self.skymodel = global_sky 
