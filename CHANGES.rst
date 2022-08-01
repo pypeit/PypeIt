@@ -1,5 +1,8 @@
-1.10.1.dev
-----------
+1.10.1dev
+---------
+
+- Add ability for users to specify custom arc line lists for
+  wavelength calibration, saved in the user's PypeIt cache
 - Now more than one setup can be assigned to the same calibration frame,
   allowing to associate the same calibration frames to different science/standard
   frames, if desired.
