@@ -132,10 +132,10 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
         If check is False and no match is found, return None.  Otherwise, return
         a dictionary with the matching standard star with the following
         meta data:
-            - 'cal_file': str -- Filename table
-            - 'name': str -- Star name
-            - 'std_ra': float -- RA(J2000)
-            - 'std_dec': float -- DEC(J2000)
+            - `cal_file`: str -- Filename table
+            - `name`: str -- Star name
+            - `std_ra`: float -- RA(J2000)
+            - `std_dec`: float -- DEC(J2000)
 
     """
     # Priority
@@ -279,7 +279,9 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
 def stellar_model(V, sptype):
     """
     Get the Kurucz stellar model for a given apparent magnitude and spectral type of your standard star.
-    The logg and Teff are from the Schmidt-Kaler (1982) table.
+    This routine first get the temperature, logg, and bolometric luminosity from the Schmidt-Kaler (1982) table
+    for the given spectral type. It then find the nearest neighbour in the Kurucz stellar atmosphere ATLAS.
+    Finally, the wavelength was converted to Angstrom and the flux density (cgs units) was calculated.
 
     Parameters
     ----------
@@ -372,22 +374,25 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
     """
     Get the standard spetrum using given information of your standard/telluric star.
 
-    Args:
-        star_type (str):
-            Spectral type of your standard/telluric star
-        star_mag (float):
-            Apparent magnitude of the telluric star
-        ra (float, str):
-            Standard right-ascension in decimal degrees (float)
-            -OR-
-            Standard right-ascension in hh:mm:ss string format (e.g.,'05:06:36.6').
-        dec (float, str):
-            Standard declination in decimal degrees (float)
-            -OR-
-            Standard declination in dd:mm:ss string format (e.g., 52:52:01.0')
+    Parameters
+    ----------
+    star_type: str, optional
+        Spectral type of your standard/telluric star
+    star_mag: float, optional
+        Apparent magnitude of the telluric star
+    ra: float or str, optional
+        Standard right-ascension in decimal degrees (float)
+        -OR-
+        Standard right-ascension in hh:mm:ss string format (e.g.,'05:06:36.6').
+    dec: float or str, optional
+        Standard declination in decimal degrees (float)
+        -OR-
+        Standard declination in dd:mm:ss string format (e.g., 52:52:01.0')
 
-    Returns:
-        dict: Dictionary containing the information you provided and the
+    Returns
+    -------
+    std_dict: dict
+        Dictionary containing the information you provided and the
         standard/telluric spectrum.
     """
     # Create star model
@@ -428,22 +433,21 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
 
 def load_extinction_data(longitude, latitude, toler=5. * units.deg):
     """
-    Find the best extinction file to use, 
-    based on longitude and latitude
+    Find the best extinction file to use, based on longitude and latitude.
     Loads it and returns a Table
 
     Parameters
     ----------
     longitude: float
-        Geocentric longitude coordinate in degrees (floats).
+        Geocentric longitude coordinate in degrees.
     latitude: float
-        Geocentric latitude coordinate in degrees (floats).
+        Geocentric latitude coordinate in degrees.
     toler : Angle, optional
         Tolerance for matching detector to site (5 deg)
 
     Returns
     -------
-    ext_file : astropy.table.Table
+    ext_file : `astropy.table.Table`_
         astropy Table containing the 'wavelength', 'extinct' data for AM=1.
     """
     # Mosaic coord
@@ -532,12 +536,12 @@ def find_standard(specobj_list):
     Parameters
     ----------
     specobj_list : list
+        `pypeit.specobj.SpecObj` list
 
     Returns
     -------
     mxix : int
         Index of the standard star in the list
-
     """
     # Repackage as necessary (some backwards compatability)
     # Do it
@@ -567,55 +571,53 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass,
     code can work in different regimes, but NOTE THAT TELLURIC MODE
     IS DEPRECATED, use telluric.sensfunc_telluric instead
 
-    Args:
-        wave (`numpy.ndarray`_):
-            Wavelength of the star. Shape (nspec,) or (nspec, norders)
-        counts (`numpy.ndarray`_):
-            Flux (in counts) of the star. Shape (nspec,) or (nspec, norders)
-        counts_ivar (`numpy.ndarray`_):
-            Inverse variance of the star counts. Shape (nspec,) or (nspec, norders)
-        counts_mask (`numpy.ndarray`_):
-            Good pixel mask for the counts. Shape (nspec,) or (nspec, norders)
-        exptime (float):
-            Exposure time in seconds
-        airmass (float):
-            Airmass
-        std_dict (dict):
-            Dictionary containing information about the standard star returned by flux_calib.get_standard_spectrum
-        longitude (float):
-            Telescope longitude, used for extinction correction.
-        latitude (float):
-            Telescope latitude, used for extinction correction
-        ech_orders (int `numpy.ndarray`_, optional):
-            If passed the echelle orders will be added to the meta_table. ech_orders must be a numpy array of integers
-            with the shape (norders,) giving the order numbers
-        mask_abs_lines (bool, optional):
-            If True, mask stellar absorption lines before fitting sensitivity function. Default = True
-        balm_mask_wid (float, optional):
-            Parameter describing the width of the mask for or stellar absorption lines (i.e. mask_abs_lines=True). A region
-            equal to balm_mask_wid*resln is masked where resln is the estimate for the spectral resolution in pixels
-            per resolution element.
-        polycorrect (bool, optional):
-            Whether you want to interpolate the sensfunc with polynomial in the stellar absortion line regions before
-            fitting with the bspline
-        polyfunc (str, optional):
-            Function for fitting; passed to `fit_zeropoint`
-        nresln (float, optional):
-            Parameter governing the spacing of the bspline breakpoints. default = 20.0
-        resolution (float, optional):
-            Expected resolution of the standard star spectrum. This should probably be determined from the grating, but is
-            currently hard wired. default=3000.0
-        trans_thresh (float, optional):
-            Parameter for selecting telluric regions which are masked. Locations below this transmission value are masked.
-            If you have significant telluric absorption you should be using telluric.sensnfunc_telluric. default = 0.9
+    Parameters
+    ----------
+    wave: `numpy.ndarray`_
+        Wavelength of the star. Shape (nspec,) or (nspec, norders)
+    counts: `numpy.ndarray`_
+        Flux (in counts) of the star. Shape (nspec,) or (nspec, norders)
+    counts_ivar: `numpy.ndarray`_
+        Inverse variance of the star counts. Shape (nspec,) or (nspec, norders)
+    counts_mask: `numpy.ndarray`_
+        Good pixel mask for the counts. Shape (nspec,) or (nspec, norders)
+    exptime: float
+        Exposure time in seconds
+    airmass: float
+        Airmass
+    std_dict: dict
+        Dictionary containing information about the standard star returned by flux_calib.get_standard_spectrum
+    longitude: float
+        Telescope longitude, used for extinction correction.
+    latitude: float
+        Telescope latitude, used for extinction correction
+    ech_orders: int, or `numpy.ndarray`_, optional
+        If passed the echelle orders will be added to the meta_table. ech_orders must be a numpy array of integers
+        with the shape (norders,) giving the order numbers
+    mask_abs_lines: bool, optional
+        If True, mask stellar absorption lines before fitting sensitivity function. Default = True
+    balm_mask_wid: float, optional
+        Parameter describing the width of the mask for or stellar absorption lines (i.e. mask_abs_lines=True). A region
+        equal to balm_mask_wid*resln is masked where resln is the estimate for the spectral resolution in pixels
+        per resolution element.
+    polycorrect: bool, optional
+        Whether you want to interpolate the sensfunc with polynomial in the stellar absortion line regions before
+        fitting with the bspline
+    nresln: float, optional
+        Parameter governing the spacing of the bspline breakpoints. default = 20.0
+    resolution: float, optional
+        Expected resolution of the standard star spectrum. This should probably be determined from the grating, but is
+        currently hard wired. default=3000.0
+    trans_thresh: float, optional
+        Parameter for selecting telluric regions which are masked. Locations below this transmission value are masked.
+        If you have significant telluric absorption you should be using telluric.sensnfunc_telluric. default = 0.9
 
-    Returns:
-        Tuple: Returns:
-
-            - meta_table (astropy.Table) -- Table containing meta data
-              for the sensitivity function
-            - out_table (astropy.Table) -- Table containing the
-              sensitivity function
+    Returns
+    -------
+    meta_table: `astropy.table.Table`_
+        Table containing meta data for the sensitivity function
+    out_table: `astropy.table.Table`_
+        Table containing the sensitivity function
 
     """
 
@@ -672,35 +674,35 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
     Get the final sensitivity function factor that will be multiplied into a spectrum in units of counts to flux calibrate it.
     This code interpolates the sensitivity function and can also multiply in extinction and telluric corrections.
 
-    Args:
-        wave (float `numpy.ndarray`_): 
-           Wavelength values. shape = (nspec,)
-        wave_zp (float `numpy.ndarray`_):
-           Zeropoint wavelength vector shape = (nsens,)
-        zeropoint (float `numpy.ndarray`_): 
-           Zeropoint, i.e. sensitivity function
-        exptime (float):
-            Exposure time of the standard star
-        tellmodel (float  `numpy.ndarray`_, optional): 
-           Apply telluric correction if it is passed it. Note this is deprecated.
-           shape = (nspec,)
-        extinct_correct (bool, optional)
-           If True perform an extinction correction. Default = False
-        airmass (float, optional):
-           Airmass used if extinct_correct=True. This is required if extinct_correct=True
-        longitude (float, optional):
-            longitude in degree for observatory
-            Required for extinction correction
-        latitude:
-            latitude in degree for observatory
-            Required  for extinction correction
-        extrap_sens (bool, optional):
-            If true, extrapolate the sensitivity function (instead of crashing out)
+    Parameters
+    ----------
+    wave: `numpy.ndarray`
+       Wavelength values in units of Angstrom. shape = (nspec,)
+    wave_zp: `numpy.ndarray`
+       Zero point wavelength vector with shape = (nspec,)
+    zeropoint: `numpy.ndarray`
+       Zeropoint, i.e. sensitivity function with shape = (nspec,)
+    exptime: float
+        Exposure time in unit of second
+    tellmodel: `numpy.ndarray`_, optional
+       Apply telluric correction if it is passed it. Note this is deprecated. shape = (nspec,)
+    extinct_correct: bool, optional
+       If True perform an extinction correction. Deafult = False
+    airmass: float, optional
+       Airmass used if extinct_correct=True. This is required if extinct_correct=True
+    longitude: float, optional
+        longitude in degree for observatory
+        Required for extinction correction
+    latitude: float, optional
+        latitude in degree for observatory
+        Required  for extinction correction
+    extrap_sens: bool, optional
+        If true, extrapolate the sensitivity function (instead of crashing out)
 
-    Returns:
-        `numpy.ndarray`_:  Sensfunc factor values.
-            This quantity is defined to be sensfunc_interp/exptime/delta_wave
-            shape = (nspec,)
+    Returns
+    -------
+    sensfunc_factor: `numpy.ndarray`_
+        This quantity is defined to be sensfunc_interp/exptime/delta_wave. shape = (nspec,)
 
     """
 
@@ -1094,7 +1096,6 @@ def compute_zeropoint(wave, N_lam, N_lam_gpm, flam_std_star, tellmodel=None):
     """
     Routine to compute the zeropoint and zeropoint_gpm from the N_lam (counts/s/A) of a standard star
 
-
     Parameters
     ----------
     wave: `numpy.ndarray`_
@@ -1166,21 +1167,26 @@ def zeropoint_to_throughput(wave, zeropoint, eff_aperture):
 
 def zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm, title='Zeropoint QA', axis=None, show=False):
     """
-    QA plot for zeropoint plotting
+    QA plot for zeropoint
 
     Parameters
     ----------
-    wave
-    zeropoint_data
-    zeropoint_data_gpm
-    zeropoint_fit
-    zeropoint_fit_gpm
-    title
-    order
-    axis
-    show
-
-
+    wave: `numpy.ndarray`
+        Wavelength array
+    zeropoint_data: `numpy.ndarray`
+        Zeropoint data array
+    zeropoint_data_gpm: bool `numpy.ndarray`
+        Good pixel mask array for zeropoint_data
+    zeropoint_fit: `numpy.ndarray`
+        Zeropoint fitting array
+    zeropoint_fit_gpm: bool zeropoint_fit
+        Good pixel mask array for zeropoint_fit
+    title: str, optional
+        Title for the QA plot
+    axis: None or matplotlib.pyplot axis, optional
+        axis used for ploting.
+    show: bool, optional
+        Whether to show the QA plot
     """
 
     wv_gpm = wave > 1.0
@@ -1211,43 +1217,45 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
                        maxiter=35, upper=3.0, lower=3.0, func = 'polynomial', 
                        polyorder=5, balm_mask_wid=50.,
                        nresln=20., resolution=2700., polycorrect=True, 
-                       debug=False, polyfunc=False, show_QA=False):
+                       debug=False, polyfunc=False):
     """
     Generate a sensitivity function based on observed flux and standard spectrum.
 
     Parameters
     ----------
     wave : `numpy.ndarray`_
-      wavelength as observed
+        wavelength as observed
     Nlam : `numpy.ndarray`_
-      counts/s/Angstrom as observed
+        counts/s/Angstrom as observed
     Nlam_ivar : `numpy.ndarray`_
-      inverse variance of counts/s/Angstrom
+        inverse variance of counts/s/Angstrom
     flam_true : Quantity array
-      standard star true flux (erg/s/cm^2/A)
-    msk_bad : `numpy.ndarray`_
-      mask for bad pixels. True is good.
-    msk_star: `numpy.ndarray`_
-      mask for hydrogen recombination lines. True is good.
-    msk_tell: `numpy.ndarray`_
-      mask for telluric regions. True is good.
-    maxiter : integer
-      maximum number of iterations for polynomial fit
-    upper : integer
-      number of sigma for rejection in polynomial
-    lower : integer
-      number of sigma for rejection in polynomial
-    polyorder : integer
-      order of polynomial fit
-    balm_mask_wid: float
-      in units of angstrom
-      Mask parameter for Balmer absorption. A region equal to
-      balm_mask_wid is masked.
-    resolution: integer/float.
-      spectra resolution
-      This paramters should be removed in the future. The resolution should be estimated from spectra directly.
-    debug : bool
-      if True shows some dubugging plots
+        standard star true flux (erg/s/cm^2/A)
+    mask_balm: bool `numpy.ndarray`, optional
+        mask for hydrogen recombination lines. True is good.
+    msk_tell: bool `numpy.ndarray`_, optional
+        mask for telluric regions. True is good.
+    maxiter : integer, optional
+        maximum number of iterations for polynomial fit
+    upper : integer, optional
+        number of sigma for rejection in polynomial
+    lower : integer, optional
+        number of sigma for rejection in polynomial
+    func: str
+        function used for the fit.
+    polyorder : integer, optional
+        order of polynomial fit
+    balm_mask_wid: float, optional
+        in units of angstrom
+        Mask parameter for Balmer absorption. A region equal to
+        balm_mask_wid is masked.
+    resolution: integer or float, optional
+        spectra resolution
+        This paramters should be removed in the future. The resolution should be estimated from spectra directly.
+    debug : bool, optional
+        if True shows some dubugging plots
+    polyfunc: bool, optional
+        whether to return the polynomial fitting model or spline model.
 
     Returns
     -------
@@ -1395,37 +1403,21 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
 
 def load_filter_file(filter):
     """
-    Load a system response curve for a given filter
+    Load a system response curve for a given filter.
+    All supported filters can be found at `pypeit.data.filters`_
 
-    Args:
-        filter (str): Name of filter
+    Parameters
+    ----------
+    filter: str
+        Name of filter
 
-    Returns:
-        tuple: wavelength, instrument throughput as a pair of `numpy.ndarray`_
+    Returns
+    -------
+    wave: `numpy.ndarray`_
+        wavelength in units of Angstrom
+    instr: `numpy.ndarray`_
+        filter throughput
 
-
-    # Optical filters
-    BASS_MZLS_filters = ['BASS-MZLS-{}'.format(i) for i in ['G', 'R','Z']]
-    CFHT_filters = ['CFHT-{}'.format(i) for i in ['U', 'G', 'R', 'I', 'Z']]
-    DECAM_filters = ['DECAM-{}'.format(i) for i in ['U', 'G', 'R', 'I', 'Z', 'Y']]
-    HSC_filters = ['HSC-{}'.format(i) for i in ['G', 'R', 'I', 'Z', 'Y']]
-    LSST_filters = ['LSST-{}'.format(i) for i in ['U', 'G', 'R', 'I', 'Z', 'Y']]
-    PS1_filters = ['PS1-{}'.format(i) for i in ['G', 'R', 'I', 'Z', 'Y']]
-    SDSS_filters = ['SDSS-{}'.format(i) for i in ['U', 'G', 'R', 'I', 'Z']]
-
-    # NIR filters
-    UKIDSS_filters = ['UKIRT-{}'.format(i) for i in ['Y', 'J', 'H', 'K']]
-    VISTA_filters = ['VISTA-{}'.format(i) for i in ['Z', 'Y', 'J', 'H', 'K']]
-    TMASS_filters = ['TMASS-{}'.format(i) for i in ['J', 'H', 'K']]
-
-    # Other filters
-    GAIA_filters = ['GAIA-{}'.format(i) for i in ['G', 'B', 'R']]
-    GALEX_filters = ['GALEX-{}'.format(i) for i in ['F', 'N']]
-    WISE_filters = ['WISE-{}'.format(i) for i in ['W1', 'W2', 'W3', 'W4']]
-
-    allowed_options = BASS_MZLS_filters + CFHT_filters + DECAM_filters + HSC_filters \
-                      + LSST_filters + PS1_filters + SDSS_filters + UKIDSS_filters\
-                      + VISTA_filters + TMASS_filters + GAIA_filters + GALEX_filters + WISE_filters
     """
 
     filter_file = os.path.join(data.Paths.filters, 'filter_list.ascii')
@@ -1452,27 +1444,27 @@ def load_filter_file(filter):
 # TODO Replace this stuff wth calls to the astropy speclite package.
 def scale_in_filter(wave, flux, gpm, scale_dict):
     """
-    Scale spectra to input magnitude in given filter
+    Scale spectra to input magnitude in a given filter
 
-    scale_dict has data model:
-      - 'filter' (str): name of filter
-      - 'mag' (float): magnitude
-      - 'mag_type' (str, optional): type of magnitude.  Assumed 'AB'
-      - 'masks' (list, optional): Wavelength ranges to mask in calculation
-
-    Args:
-        wave (`numpy.ndarray`_):
-            Wavelength array
-        flux (`numpy.ndarray`_):
-            Flux array
-        gpm (`numpy.ndarray`_):
-            mask array; True is good
-        scale_dict (dict like):
-            Usually is a Coadd1DPar() object
-            Requires mag_type, filter, filter_mag, and filter_mask
-
-    Returns:
-        float: scale value for the flux, i.e. newflux = flux * scale
+    Parameters
+    ----------
+    wave: `numpy.ndarray`
+        spectral wavelength array
+    flux: `numpy.ndarray`
+        flux density array
+    gpm: bool `numpy.ndarray`
+        Good pixel mask array
+    scale_dict: dict
+        Usually is a Coadd1DPar() object
+        scale_dict has data model:
+          - `filter` (str): name of filter
+          - `mag` (float): magnitude
+          - `mag_type` (str, optional): type of magnitude.  Assumed 'AB'
+          - `masks` (list, optional): Wavelength ranges to mask in calculation
+    Returns
+    -------
+    scale: float
+        scale value for the flux, i.e. newflux = flux * scale
     """
 
     # Mask further?
