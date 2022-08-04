@@ -684,8 +684,8 @@ class Spectrograph:
     def get_comb_group(self, fitstbl):
         """
 
-        This method modify comb_id and bkg_id metas for a specific instrument.
-        It is used in :func:`pypeit.metadata.PypeItMetaData.set_combination_groups`
+        This method is used in :func:`pypeit.metadata.PypeItMetaData.set_combination_groups`,
+        and modifies comb_id and bkg_id metas for a specific instrument.
 
 
         **This method is not defined for all spectrographs.**

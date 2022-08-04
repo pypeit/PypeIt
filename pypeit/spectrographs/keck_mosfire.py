@@ -270,9 +270,14 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         self.meta['idname'] = dict(card=None, compound=True)
         self.meta['frameno'] = dict(ext=0, card='FRAMENUM')
         self.meta['object'] = dict(ext=0, card='OBJECT')
+        # The following 3 metas (decker_basename, slitwid, slitlength) are introduced
+        # only to reduce data (LONGSLIT and long2pos) with calibrations taken with
+        # a different decker ('MASKNAME')
+        # decker_basename is different than decker (MASKNAME) only for 'LONGSLIT' masks
         self.meta['decker_basename'] = dict(card=None, compound=True)
+        # slit width, defined only for 'LONGSLIT' masks
         self.meta['slitwid'] = dict(card=None, compound=True, rtol=0.1)
-        # slit length in numbers of CSU, defined only for long slits
+        # slit length in numbers of CSU, defined only for only for 'LONGSLIT' masks
         self.meta['slitlength'] = dict(card=None, compound=True, rtol=0.1)
         # Filter
         self.meta['filter1'] = dict(ext=0, card='FILTER')
@@ -300,12 +305,16 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'decker_basename':
+            # decker_basename is different than decker (MASKNAME) only for 'LONGSLIT' masks
             maskname = headarr[0].get('MASKNAME')
             if 'LONGSLIT' in maskname:
                 return maskname.split('(')[0].split('-')[0]
             else:
                 return maskname
         if meta_key == 'slitlength':
+            # slitlength is defined only for 'LONGSLIT' masks since this info is generally
+            # included in the slitmask name (MASKNAME) of 'LONGSLIT' masks and
+            # it's useful to associate science frames to calibrations taken with different MASKNAME
             maskname = headarr[0].get('MASKNAME')
             if 'LONGSLIT' in maskname and 'x' in maskname:
                 return maskname.split('(')[0].split('x')[0].split('-')[1]
@@ -313,6 +322,9 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                 return None
 
         if meta_key == 'slitwid':
+            # slitwid is defined only for 'LONGSLIT' masks since this info is generally
+            # included in the slitmask name (MASKNAME) of 'LONGSLIT' masks and
+            # it's useful to associate science frames to calibrations taken with different MASKNAME
             maskname = headarr[0].get('MASKNAME')
             if 'LONGSLIT' in maskname and 'x' in maskname:
                 return maskname.split('(')[0].split('x')[1]
@@ -380,6 +392,19 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         in :func:`pypeit.metadata.PypeItMetaData.set_configurations` to modify in place
         the configuration requirement to assign a specific frame to the current setup.
 
+        This is needed for the reduction of 'LONGSLIT' and 'long2pos' data, which often use
+        calibrations taken with a different decker (MASKNAME).
+
+            - For the 'LONGSLIT' masks, when we are assigning a configuration to a calibration file
+              that was taken with the longest slit available (46 CSUs), since these calibrations are
+              generally used for the reduction of science frames with shorter slits, we remove the
+              configuration requirement on the slit lenght for the current file.
+
+            - For the 'long2pos' masks, when we are assigning a configuration to a calibration file
+              that was taken with the 'long2pos' mask, since these calibrations are generally used
+              for the reduction of science frames taken with 'long2pos_specphot' masks, we modify the
+              configuration requirement on the decker_basename for the current file.
+
         Args:
             fitstbl(`astropy.table.Table`_):
                 The table with the metadata for one frames.
@@ -406,8 +431,21 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
     def get_comb_group(self, fitstbl):
         """
 
-        This method modify comb_id and bkg_id metas for a specific instrument.
-        It is used in :func:`pypeit.metadata.PypeItMetaData.set_combination_groups`
+        This method is used in :func:`pypeit.metadata.PypeItMetaData.set_combination_groups`,
+        and modifies comb_id and bkg_id metas for a specific instrument.
+
+        Specifically here, this method parses the dither pattern of the science/standard
+        frames in a given calibration group and assigns to each of them a comb_id and a
+        bkg_id. The dither pattern used here are: "Slit Nod", "Mask Nod", "ABA'B'",
+        "ABAB", "ABBA", "long2pos_specphot", and "Stare". Note that the frames in the
+        same dither positions (A positions or B positions) of each "ABAB" or "ABBA"
+        sequence are 2D coadded  (without optimal weighting) before the background
+        subtraction, while for the other dither patterns, the frames in the same
+        dither positions are not coadded.
+        For "long2pos_specphot" masks, the comb_id and a bkg_id are assigned such that
+        one of the two frames with spectrum taken using the narrower slit is used as background
+        frame and subtracted from the frame with spectrum taken using the wider slit.
+
 
         Args:
             fitstbl(`astropy.table.Table`_):
