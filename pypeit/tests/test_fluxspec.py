@@ -9,6 +9,10 @@ import pytest
 from IPython import embed
 
 import numpy as np
+import configobj
+
+from astropy.table import Table
+from astropy.io import fits
 
 from pypeit import fluxcalibrate
 from pypeit import sensfunc
@@ -17,6 +21,137 @@ from pypeit.tests.tstutils import data_path
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.spectrographs import keck_deimos
 from pypeit import specobjs, specobj
+from pypeit.tests import tstutils
+from pypeit import inputfiles 
+
+from pypeit import fluxcalibrate
+from pypeit.pypmsgs import PypeItError
+from pypeit import scripts
+
+def test_input_flux_file():
+    """Tests for generating and reading fluxing input files
+    """
+    # Generate an input file
+    flux_input_file = tstutils.data_path('test.flux')
+    if os.path.isfile(flux_input_file):
+        os.remove(flux_input_file)
+
+    cfg_lines = ['[fluxcalib]']
+    cfg_lines += ['  extinct_correct = False # Set to True if your SENSFUNC derived with the UVIS algorithm\n']
+    cfg_lines += ['# Please add your SENSFUNC file name below before running pypeit_flux_calib']
+
+    # These files need to be in tests/files/
+    data = Table()
+    data['filename'] = ['spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits',
+                        'spec1d_cN20170331S0217-pisco_GNIRS_20170331T085933.097.fits']
+    data['sensfile'] = 'sens_cN20170331S0206-HIP62745_GNIRS_20170331T083351.681.fits'
+    # 
+    paths = [tstutils.data_path('')]
+
+    fluxFile = inputfiles.FluxFile(config=cfg_lines, 
+                        file_paths=paths,
+                        data_table=data)
+    # Write
+    fluxFile.write(flux_input_file)
+
+    # Read
+    fluxFile2 = inputfiles.FluxFile.from_file(flux_input_file)
+    assert np.all(fluxFile2.data['filename'] == data['filename'])
+
+    # Test path
+    assert fluxFile2.file_paths[0] == paths[0]
+    assert fluxFile2.filenames[0] == os.path.join(paths[0], data['filename'][0])
+
+    # #################
+    # Tickle the other ways to do sensfiles
+    data3 = Table()
+    data3['filename'] = ['spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits',
+                        'spec1d_cN20170331S0217-pisco_GNIRS_20170331T085933.097.fits']
+    data3['sensfile'] = ['sens_cN20170331S0206-HIP62745_GNIRS_20170331T083351.681.fits',
+                         '']
+
+    fluxFile3 = inputfiles.FluxFile(config=cfg_lines, 
+                        file_paths=paths,
+                        data_table=data3)
+    assert fluxFile3.sensfiles[1] == os.path.join(paths[0], data['sensfile'][0])
+    
+    data4 = Table()
+    data4['filename'] = ['spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits',
+                        'spec1d_cN20170331S0217-pisco_GNIRS_20170331T085933.097.fits']
+    data4['sensfile'] = ''
+
+    fluxFile4 = inputfiles.FluxFile(config=cfg_lines, 
+                        file_paths=paths,
+                        data_table=data4)
+    assert len(fluxFile4.sensfiles) == 0
+
+    # Clean up
+    os.remove(flux_input_file)
+
+def test_flux_calib(tmp_path, monkeypatch):
+    """ Some of these items are also tested in test_fluxspec.py"""
+
+    # Change to the tmp_path so the fluxing.par file is written there
+    os.chdir(tmp_path)
+
+    # Test the flux_calib script (but not fluxing itself)
+    def mock_get_header(*args, **kwargs):
+        return {"DISPNAME": "600ZD",
+                "PYP_SPEC": "keck_deimos" }
+
+    def mock_get_flux_calib_instance(*args, **kwargs):
+        # The flux_calib caller doesn't use the output, it just
+        # depends on the side effect of fluxing
+        return None 
+
+
+    with monkeypatch.context() as m:
+        monkeypatch.setattr(fits, "getheader", mock_get_header)
+        monkeypatch.setattr(fluxcalibrate.FluxCalibrate, "get_instance", mock_get_flux_calib_instance)
+
+        # Test with a flux file missing "flux end"
+
+        config_file_missing_end = str(tmp_path / "test_flux_calib_missing_end.flux")
+
+        with open(config_file_missing_end, "w") as f:
+            print("flux read", file=f)
+            print("filename | sensfile", file=f)
+            print("spec1d_file1.fits | sens_file1.fits", file=f)
+            print("spec1d_file2.fits | sens_file2.fits", file=f)
+
+
+        with pytest.raises(PypeItError, match="Missing 'flux end'"):
+            parsed_args = scripts.flux_calib.FluxCalib.parse_args([config_file_missing_end])
+            scripts.flux_calib.FluxCalib.main(parsed_args)
+
+        # Test with a flux file missing the flux block entirely
+        config_file_missing_flux = str(tmp_path / "test_flux_calib_missing_flux.flux")
+        with open(config_file_missing_flux, "w") as f:
+            print("filename | sensfile", file=f)
+            print("spec1d_file1.fits | sens_file1.fits", file=f)
+            print("spec1d_file2.fits | sens_file2.fits", file=f)
+        
+        with pytest.raises(PypeItError, match="You have not specified the data block!"):
+            parsed_args = scripts.flux_calib.FluxCalib.parse_args([config_file_missing_flux])
+            scripts.flux_calib.FluxCalib.main(parsed_args)
+
+        # Test with no sensfunc, but it's an error because an archive sensfunc
+        # was not requested
+        config_file_no_sens = str(tmp_path / "test_flux_calib_no_sens.flux")
+        with open(config_file_no_sens, "w") as f:
+            print("flux read", file=f)
+            print(f"path {data_path('')}", file=f)
+            print("filename", file=f)
+            print("spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits", file=f)
+            print("spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits", file=f)
+            print("flux end", file=f)
+
+        with pytest.raises(PypeItError, match = 'Invalid format for .flux'):
+            parsed_args = scripts.flux_calib.FluxCalib.parse_args([config_file_no_sens])
+            scripts.flux_calib.FluxCalib.main(parsed_args)
+        
+
+# TODO: Include tests for coadd2d, sensfunc
 
 
 def test_extinction_correction_uvis():

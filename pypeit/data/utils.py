@@ -84,7 +84,9 @@ from pypeit import __version__
 __all__ = ['Paths', 'load_telluric_grid', 'load_thar_spec',
            'load_sky_spectrum', 'get_reid_arxiv_filepath',
            'get_skisim_filepath', 'get_sensfunc_filepath',
-           'fetch_remote_file', 'write_file_to_cache']
+           'get_telgrid_filepath', 'get_linelist_filepath',
+           'fetch_remote_file', 'search_cache',
+           'write_file_to_cache']
 
 
 # Package-Data Paths =========================================================#
@@ -225,10 +227,14 @@ def get_reid_arxiv_filepath(arxiv_file):
           The base filename of the ``reid_arxiv`` file to be located
 
     Returns:
-        str: The full path to the ``reid_arxiv`` file
+        tuple: The full path and whether the path is in the cache:
+
+           * reid_path (str): The full path to the ``reid_arxiv`` file
+           * arxiv_fmt (str): The extension of the ``reid_arxiv`` file (format)
     """
     # Full path within the package data structure:
     reid_path = os.path.join(Paths.reid_arxiv, arxiv_file)
+    arxiv_fmt = arxiv_file.split(".")[-1].lower()
 
     # Check if the file does NOT exist in the package directory
     # NOTE: This should be the case for all but from-source installations
@@ -240,8 +246,8 @@ def get_reid_arxiv_filepath(arxiv_file):
 
         reid_path = fetch_remote_file(arxiv_file, "arc_lines/reid_arxiv")
 
-    # Return the path to the `reid_arxiv` file
-    return reid_path
+    # Return the path to the `reid_arxiv` file, and the file format
+    return reid_path, arxiv_fmt
 
 
 def get_skisim_filepath(skisim_file):
@@ -365,11 +371,11 @@ def get_telgrid_filepath(telgrid_file):
     particular reductions, the remote fetch will only occur once per file.
 
     Args:
-        sensfunc_file (str):
-          The base filename of the ``sensfunc`` file to be located
+        telgrid_file (str):
+          The base filename of the ``telgrid`` file to be located
 
     Returns:
-        str: The full path to the ``sensfunc`` file
+        str: The full path to the ``telgrid`` file
     """
     # Full path within the package data structure:
     telgrid_path = os.path.join(Paths.telgrid, telgrid_file)
@@ -391,6 +397,52 @@ def get_telgrid_filepath(telgrid_file):
 
     # Return the path to the `telgrid` file
     return telgrid_path
+
+
+def get_linelist_filepath(linelist_file):
+    """Return the full path to the ``linelist`` file
+
+    It is desired to allow users to utilize their own arc line lists for
+    wavelength calibration without modifying the distributed version of the
+    package.  We can utilize the ``astropy`` download/cache system added
+    previously to include this functionality.
+
+    Using the script ``pypeit_install_linelist``, custom arc line lists can be
+    installed into the PypeIt cache (nominally ``~/.pypeit/cache``), and are
+    not placed into the package directory itself.
+
+    Given the line list filename, this function checks first for the existance
+    of the file in the package directory, then checks the PypeIt cache.  For
+    all built-in line lists, this function returns the file location within the
+    package directory.  For user-supplied lists that were installed using the
+    script, this function returns the location within the cache.
+
+    The cache keeps a hash of the file URL, which contains the PypeIt version
+    number.  As users update to newer versions, the ``linelist`` files must be
+    reinstalled using the included script.
+
+    Args:
+        linelist_file (str):
+          The base filename of the ``linelist`` file to be located
+
+    Returns:
+        str: The full path to the ``linelist`` file
+    """
+    # Full path within the package data structure:
+    linelist_path = os.path.join(Paths.linelist, linelist_file)
+
+    # Check if the file does NOT exist in the package directory
+    # NOTE: This should only be the case for user-installed line lists
+    if not os.path.isfile(linelist_path):
+
+        linelist_path = fetch_remote_file(linelist_file, "arc_lines/lists")
+
+        # Output an informational message
+        msgs.info(f"Using line list file {linelist_file}{msgs.newline()}"
+                  "that was found in the cache.")
+
+    # Return the path to the `linelist` file
+    return linelist_path
 
 
 # AstroPy download/cache infrastructure ======================================#
@@ -441,8 +493,9 @@ def fetch_remote_file(filename, filetype, remote_host='github', install_script=F
 
     # Get the file from cache, if available, or download from the remote server
     try:
-        return astropy.utils.data.download_file(remote_url, cache="update" if force_update else True,
-                                          sources=sources, timeout=10, pkgname="pypeit")
+        return astropy.utils.data.download_file(remote_url, sources=sources, timeout=10,
+                                                cache="update" if force_update else True,
+                                                pkgname="pypeit")
 
     except urllib.error.URLError as error:
         if remote_host == "s3_cloud" and (requests.head(sources[0]).status_code in
@@ -454,6 +507,14 @@ def fetch_remote_file(filename, filetype, remote_host='github', install_script=F
                 f"the PypeIt Google Drive and install it using the script{msgs.newline()}"
                 f"pypeit_install_telluric --local.  See instructions at{msgs.newline()}"
                 "https://pypeit.readthedocs.io/en/latest/installing.html#additional-data"
+            )
+
+        elif filetype == "arc_lines/lists":
+            err_msg = (
+                f"Cannot find local arc line list {filename}{msgs.newline()}"
+                f"Use the script `pypeit_install_linelist` to install{msgs.newline()}"
+                f"your custom line list into the cache.  See instructions at{msgs.newline()}"
+                "https://pypeit.readthedocs.io/en/latest/wave_calib.html#line-lists"
             )
 
         else:
@@ -468,6 +529,28 @@ def fetch_remote_file(filename, filetype, remote_host='github', install_script=F
 
         # Raise the appropriate error message
         msgs.error(err_msg)
+
+
+def search_cache(pattern_str):
+    """Search the cache for items matching a pattern string
+
+    This function searches the PypeIt cache for files whose URL keys contain
+    the input ``pattern_str``, and returns the local filesystem path to those
+    files.
+
+    Args:
+        pattern_str (str):
+          The filename pattern to match
+
+    Returns:
+        list: The list of local paths for the objects whose normal filenames
+        match the ``pattern_str``.
+    """
+    # Retreive a dictionary of the cache contents
+    cache_dict = astropy.utils.data.cache_contents(pkgname="pypeit")
+
+    # Return just the local filenames for items matching the `pattern_str`
+    return [cache_dict[url] for url in cache_dict if pattern_str in url]
 
 
 def write_file_to_cache(filename, cachename, filetype, remote_host="github"):

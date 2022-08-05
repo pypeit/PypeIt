@@ -1,12 +1,29 @@
+1.10.1dev
+---------
 
-1.9.1dev
---------
+- Add ability for users to specify custom arc line lists for
+  wavelength calibration, saved in the user's PypeIt cache
+
+1.10.0 (11 July 2022)
+---------------------
 
 - Modify tweak_standard for Mosfire/J2
+- Apply find_min_max when clipping the image for object finding
+- Mask bad detector regions for global sky flexure calculation
 - Detector structure correction included in flatfield calibration
 - Apply find_min_max when clipping the image for object finding
 - Mask bad detector regions for global sky flexure calculation
 - Fixed a bug associated with 2d interpolation of waveimg in extraction.
+- Refactor PypeIt input files
+- Added wavelength diagnostics to the spec2d output
+
+
+1.9.1 (13 June 2022)
+--------------------
+
+- Hotfix for bug related to downloading from the `reid_arxiv` when using
+  the `reidentify` wavelength calibration method.
+
 
 1.9.0 (31 May 2022)
 -------------------

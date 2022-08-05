@@ -13,75 +13,76 @@ import numpy as np
 from astropy.io import fits
 from astropy.time import Time
 
-from pypeit import par, msgs
+from pypeit import msgs
+from pypeit import inputfiles
 from pypeit import coadd1d
-from pypeit.core import coadd
+from pypeit import inputfiles
 from pypeit.par import pypeitpar
 from pypeit.scripts import scriptbase
 from pypeit.spectrographs.util import load_spectrograph
 
 
-# TODO: This is basically the exact same code as read_fluxfile in the fluxing
-# script. Consolidate them? Make this a standard method in parse or io.
-def read_coaddfile(ifile):
-    """
-    Read a ``PypeIt`` coadd1d file, akin to a standard PypeIt file.
-
-    The top is a config block that sets ParSet parameters.  The name of the
-    spectrograph is required.
-
-    Args:
-        ifile (:obj:`str`):
-            Name of the coadd file
-
-    Returns:
-        :obj:`tuple`:  Three objects are returned: a :obj:`list` with the
-        configuration entries used to modify the relevant
-        :class:`~pypeit.par.parset.ParSet` parameters, a :obj:`list` the names
-        of spec1d files to be coadded, and a :obj:`list` with the object IDs
-        aligned with each of the spec1d files.
-    """
-    # Read in the pypeit reduction file
-    msgs.info('Loading the coadd1d file')
-    lines = par.util._read_pypeit_file_lines(ifile)
-    is_config = np.ones(len(lines), dtype=bool)
-
-
-    # Parse the fluxing block
-    spec1dfiles = []
-    objids_in = []
-    s, e = par.util._find_pypeit_block(lines, 'coadd1d')
-    if s >= 0 and e < 0:
-        msgs.error("Missing 'coadd1d end' in {0}".format(ifile))
-    elif (s < 0) or (s==e):
-        msgs.error("Missing coadd1d read or [coadd1d] block in in {0}. Check the input format for the .coadd1d file".format(ifile))
-    else:
-        for ctr, line in enumerate(lines[s:e]):
-            prs = line.split(' ')
-            spec1dfiles.append(prs[0])
-            if ctr == 0 and len(prs) != 2:
-                msgs.error('Invalid format for .coadd1d file.' + msgs.newline() +
-                           'You must have specify a spec1dfile and objid on the first line of the coadd1d block')
-            if len(prs) > 1:
-                objids_in.append(prs[1])
-        is_config[s-1:e+1] = False
-
-    # Chck the sizes of the inputs
-    nspec = len(spec1dfiles)
-    if len(objids_in) == 1:
-        objids = nspec*objids_in
-    elif len(objids_in) == nspec:
-        objids = objids_in
-    else:
-        msgs.error('Invalid format for .flux file.' + msgs.newline() +
-                   'You must specify a single objid on the first line of the coadd1d block,' + msgs.newline() +
-                   'or specify am objid for every spec1dfile in the coadd1d block.' + msgs.newline() +
-                   'Run pypeit_coadd_1dspec --help for information on the format')
-    # Construct config to get spectrograph
-    cfg_lines = list(lines[is_config])
-
-    # Return
-    return cfg_lines, spec1dfiles, objids
+## TODO: This is basically the exact same code as read_fluxfile in the fluxing
+## script. Consolidate them? Make this a standard method in parse or io.
+#def read_coaddfile(ifile):
+#    """
+#    Read a ``PypeIt`` coadd1d file, akin to a standard PypeIt file.
+#
+#    The top is a config block that sets ParSet parameters.  The name of the
+#    spectrograph is required.
+#
+#    Args:
+#        ifile (:obj:`str`):
+#            Name of the coadd file
+#
+#    Returns:
+#        :obj:`tuple`:  Three objects are returned: a :obj:`list` with the
+#        configuration entries used to modify the relevant
+#        :class:`~pypeit.par.parset.ParSet` parameters, a :obj:`list` the names
+#        of spec1d files to be coadded, and a :obj:`list` with the object IDs
+#        aligned with each of the spec1d files.
+#    """
+#    # Read in the pypeit reduction file
+#    msgs.info('Loading the coadd1d file')
+#    lines = inputfiles.read_pypeit_file_lines(ifile)
+#    is_config = np.ones(len(lines), dtype=bool)
+#
+#
+#    # Parse the fluxing block
+#    spec1dfiles = []
+#    objids_in = []
+#    s, e = inputfiles.InputFile.find_block(lines, 'coadd1d')
+#    if s >= 0 and e < 0:
+#        msgs.error("Missing 'coadd1d end' in {0}".format(ifile))
+#    elif (s < 0) or (s==e):
+#        msgs.error("Missing coadd1d read or [coadd1d] block in in {0}. Check the input format for the .coadd1d file".format(ifile))
+#    else:
+#        for ctr, line in enumerate(lines[s:e]):
+#            prs = line.split(' ')
+#            spec1dfiles.append(prs[0])
+#            if ctr == 0 and len(prs) != 2:
+#                msgs.error('Invalid format for .coadd1d file.' + msgs.newline() +
+#                           'You must have specify a spec1dfile and objid on the first line of the coadd1d block')
+#            if len(prs) > 1:
+#                objids_in.append(prs[1])
+#        is_config[s-1:e+1] = False
+#
+#    # Chck the sizes of the inputs
+#    nspec = len(spec1dfiles)
+#    if len(objids_in) == 1:
+#        objids = nspec*objids_in
+#    elif len(objids_in) == nspec:
+#        objids = objids_in
+#    else:
+#        msgs.error('Invalid format for .flux file.' + msgs.newline() +
+#                   'You must specify a single objid on the first line of the coadd1d block,' + msgs.newline() +
+#                   'or specify am objid for every spec1dfile in the coadd1d block.' + msgs.newline() +
+#                   'Run pypeit_coadd_1dspec --help for information on the format')
+#    # Construct config to get spectrograph
+#    cfg_lines = list(lines[is_config])
+#
+#    # Return
+#    return cfg_lines, spec1dfiles, objids
 
 
 def build_coadd_file_name(spec1dfiles, spectrograph):
@@ -115,55 +116,6 @@ def build_coadd_file_name(spec1dfiles, spectrograph):
     path = os.path.dirname(os.path.abspath(spec1dfiles[0]))
     return os.path.join(path, f'coadd1d_{target}_{instrument_name}_{date_portion}.fits')
 
-# TODO: I can't find where this function is used.  The only place is see is in
-# test_syncspec.py.  Can we comment it out or remove it?
-def coadd1d_filelist(files, outroot, det, debug=False, show=False):
-    """
-
-    Args:
-        files:
-        outroot:
-        det (:obj:`str`):
-            String identifier for the detector or mosaic with the 1D spectra to
-            coadd.
-        debug:
-        show:
-
-    Returns:
-        :obj:`list`: List of output files written.
-
-    """
-    # Build sync_dict
-    sync_dict = None
-    for ifile in files[1:]:
-        sync_dict = coadd.sync_pair(files[0], ifile, det, sync_dict=sync_dict)
-    #
-    header = fits.getheader(files[0])
-    spectrograph = load_spectrograph(header['PYP_SPEC'])
-    par = spectrograph.default_pypeit_par()
-
-    par['coadd1d']['flux_value'] = False
-
-    sensfile = None
-    outfiles = []
-    # Loop on entries
-    for key in sync_dict:
-
-        coaddfile = outroot+f'-SPAT{key:04d}-{det}.fits'
-
-        coAdd1d = coadd1d.CoAdd1D.get_instance(sync_dict[key]['files'],
-                                               sync_dict[key]['names'],
-                                               spectrograph=spectrograph, par=par['coadd1d'],
-                                               sensfile=sensfile, debug=debug, show=show)
-        # Run
-        coAdd1d.run()
-        # Save to file
-        coAdd1d.save(coaddfile)
-        outfiles.append(coaddfile)
-
-    return outfiles
-
-
 class CoAdd1DSpec(scriptbase.ScriptBase):
 
     @classmethod
@@ -173,27 +125,29 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
 
         parser.add_argument('coadd1d_file', type=str,
                             help="R|File to guide coadding process. This file must have the "
-                                 "following format: \n\n"
+                                 "following format (see docs for further details including the use of paths): \n\n"
                                  "F|[coadd1d]\n"
                                  "F|   coaddfile='output_filename.fits' # Optional\n"
                                  "F|   sensfuncfile = 'sensfunc.fits' # Required only for Echelle\n"
                                  "\n"
                                  "F|   coadd1d read\n"
-                                 "F|     spec1dfile1 objid1\n"
-                                 "F|     spec1dfile2 objid2\n"
-                                 "F|     spec1dfile3 objid3\n"
+                                 "F|        filename | obj_id\n"
+                                 "F|     spec1dfile1 | objid1\n"
+                                 "F|     spec1dfile2 | objid2\n"
+                                 "F|     spec1dfile3 | objid3\n"
                                  "F|        ...    \n"
                                  "F|   coadd1d end\n"
                                  "\n OR the coadd1d read/end block can look like \n\n"
                                  "F|  coadd1d read\n"
-                                 "F|     spec1dfile1 objid \n"
-                                 "F|     spec1dfile2 \n"
-                                 "F|     spec1dfile3 \n"
+                                 "F|        filename | obj_id\n"
+                                 "F|     spec1dfile1 | objid \n"
+                                 "F|     spec1dfile2 | \n"
+                                 "F|     spec1dfile3 | \n"
                                  "F|     ...    \n"
                                  "F|  coadd1d end\n"
                                  "\n"
-                                 "That is the coadd1d block must either be a two column list of "
-                                 "spec1dfiles and objids, or you can specify a single objid for "
+                                 "That is the coadd1d block must be a two column list of "
+                                 "spec1dfiles and objids, but you can specify only a single objid for "
                                  "all spec1dfiles on the first line\n\n"
                                  "Where: \n"
                                  "\n"
@@ -208,7 +162,7 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
                             help="show QA during coadding process")
         parser.add_argument("--par_outfile", default='coadd1d.par',
                             help="Output to save the parameters")
-        parser.add_argument("--test_spec_path", type=str, help="Path for testing")
+        #parser.add_argument("--test_spec_path", type=str, help="Path for testing")
         return parser
 
     @staticmethod
@@ -216,27 +170,21 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
         """ Runs the 1d coadding steps
         """
         # Load the file
-        config_lines, spec1dfiles, objids = read_coaddfile(args.coadd1d_file)
+        #config_lines, spec1dfiles, objids = read_coaddfile(args.coadd1d_file)
+        coadd1dFile = inputfiles.Coadd1DFile.from_file(args.coadd1d_file)
+
         # Append path for testing
-        if args.test_spec_path is not None:
-            spec1dfiles = [os.path.join(args.test_spec_path, ifile) for ifile in spec1dfiles]
+        #if args.test_spec_path is not None:
+        #    spec1dfiles = [os.path.join(args.test_spec_path, ifile) for ifile in spec1dfiles]
+
         # Read in spectrograph from spec1dfile header
-        header = fits.getheader(spec1dfiles[0])
-
-        # NOTE: This was some test code for Travis. Keep it around for now
-        # in case we need to do this again. (KBW)
-    #    try:
-    #        header = fits.getheader(spec1dfiles[0])
-    #    except Exception as e:
-    #        raise Exception('{0}\n {1}\n {2}\n'.format(spec1dfiles[0], os.getcwd(),
-    #                        os.getenv('TRAVIS_BUILD_DIR', default='None'))) from e
-
+        header = fits.getheader(coadd1dFile.filenames[0])
         spectrograph = load_spectrograph(header['PYP_SPEC'])
 
         # Parameters
         spectrograph_def_par = spectrograph.default_pypeit_par()
         par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                                                 merge_with=config_lines)
+                                                 merge_with=coadd1dFile.cfg_lines)
         # Write the par to disk
         print("Writing the parameters to {}".format(args.par_outfile))
         par.to_config(args.par_outfile)
@@ -244,19 +192,21 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
         coaddfile = par['coadd1d']['coaddfile']
 
         # Testing?
-        if args.test_spec_path is not None:
-            if sensfile is not None:
-                sensfile = os.path.join(args.test_spec_path, sensfile)
-            coaddfile = os.path.join(args.test_spec_path, coaddfile)
+        #if args.test_spec_path is not None:
+        #    if sensfile is not None:
+        #        sensfile = os.path.join(args.test_spec_path, sensfile)
+        #    coaddfile = os.path.join(args.test_spec_path, coaddfile)
 
         if spectrograph.pypeline == 'Echelle' and sensfile is None:
             msgs.error('You must specify the sensfuncfile in the .coadd1d file for Echelle coadds')
 
         if coaddfile is None:
-            coaddfile = build_coadd_file_name(spec1dfiles, spectrograph)
+            coaddfile = build_coadd_file_name(coadd1dFile.filenames, spectrograph)
 
         # Instantiate
-        coAdd1d = coadd1d.CoAdd1D.get_instance(spec1dfiles, objids, spectrograph=spectrograph,
+        coAdd1d = coadd1d.CoAdd1D.get_instance(coadd1dFile.filenames, 
+                                               coadd1dFile.objids, 
+                                               spectrograph=spectrograph,
                                                par=par['coadd1d'], sensfile=sensfile,
                                                debug=args.debug, show=args.show)
         # Run

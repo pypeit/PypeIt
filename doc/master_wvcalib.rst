@@ -22,19 +22,28 @@ pypeit_chk_wavecalib
 --------------------
 
 You can print a set of simple diagnostics to the screen
-with the *pypeit_chk_wavecalib* script, e.g. ::
+with the **pypeit_chk_wavecalib** script, e.g. ::
 
-     pypeit_chk_wavecalib Masters/MasterWaveCalib_A_1_03.fits
-     #
-     SpatID minWave Wave_cen maxWave dWave Nlin  RMS
-    ------ ------- -------- ------- ----- ---- -----
-        54  5596.7   6858.8  8236.6 0.680   12 0.573
-       148  3620.1   4946.3  6259.7 0.647   16 0.234
-       230  4105.6   5368.2  6673.7 0.629   33 0.164
-       302  5615.7   6889.9  8234.8 0.685    6 0.002
-       384  3980.9   5242.8  6548.3 0.629   31 0.121
-       482  4081.7   5344.4  6649.7 0.629   34 0.186
-       586  4154.5   5417.4  6722.6 0.629   32 0.120
+     pypeit_chk_wavecalib Masters/MasterWaveCalib_A_1_MSC03.fits
+
+     N. SpatID minWave Wave_cen maxWave dWave Nlin     IDs_Wave_range    IDs_Wave_cov(%) mesured_fwhm  RMS
+    --- ------ ------- -------- ------- ----- ---- --------------------- --------------- ------------ -----
+      0     35  6422.5   7753.8  9053.2 0.325   48  6508.325 -  9047.930            96.5          3.5 0.046
+      1     93  6310.0   7641.4  8940.8 0.325   49  6336.179 -  8931.145            98.6          3.6 0.036
+      2    140  6440.8   7772.1  9071.5 0.325   47  6508.325 -  9047.930            96.5          3.6 0.049
+      3    184  6301.2   7632.6  8932.0 0.325   50  6306.533 -  8931.145            99.8          3.6 0.037
+      4    243  6257.1   7588.5  8887.9 0.325   49  6268.229 -  8821.832            97.1          3.6 0.034
+
+- *SpatID* is the spatial position of the slit/order.
+- *minWave*, *maxWave*, *Wave_cen*, *dWave* are, respectively, the minimum wavelength value, the maximum
+  wavelength value, the central wavelength, and the wavelength dispersion of the calibrated arc spectra.
+  All the values are in Angstrom.
+- *Nlin*, *IDs_Wave_range*, *IDs_Wave_cov(%)* are, respectively, the number, the wavelength range, and the
+  spectral coverage of the identified and fitted arc lines.
+- *mesured_fwhm* is the measured arc lines FWHM (in binned pixels of the input arc frame), i.e,
+  the approximate spectral resolution. Note that this not necessarily the ``fwhm`` used to identify the arc
+  lines during the wavelength calibration, see :ref:`wave_calib:FWHM`.
+- *RMS* is the RMS of the wavelength solution (in pixels).
 
 
 PNGs
