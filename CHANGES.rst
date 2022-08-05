@@ -1,5 +1,11 @@
-1.9.2dev
---------
+1.10.1dev
+---------
+
+- Add ability for users to specify custom arc line lists for
+  wavelength calibration, saved in the user's PypeIt cache
+
+1.10.0 (11 July 2022)
+---------------------
 
 - Modify tweak_standard for Mosfire/J2
 - Apply find_min_max when clipping the image for object finding

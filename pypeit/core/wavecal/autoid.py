@@ -2576,7 +2576,7 @@ class HolyGrail:
                 msgs.info("Wrote: {:s}".format(self._outroot + slittxt + '.json'))
 
                 # Plot
-                tmp_list = vstack([self._line_lists, self._unknwns])
+                tmp_list = np.vstack([self._line_lists, self._unknwns])
                 match_qa(self._spec[:, slit], use_tcent, tmp_list,
                             self._all_patt_dict[str(slit)]['IDs'], self._all_patt_dict[str(slit)]['scores'],
                             outfile=self._outroot + slittxt + '.pdf')
