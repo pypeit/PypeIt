@@ -952,7 +952,7 @@ def load_keck_deimoslris(filename:str, instr:str):
     objname = [item.strip().decode() if isinstance(item, bytes) else item.strip()
                for item in hdu['ObjectCat'].data['OBJECT']]
     # check if each objname is an ascii str (if not BinTableHDU later in the reduction will fail)
-    objname = [name if name.isascii() else 'None' for name in objname]
+    objname = [name if name.isascii() else name.encode('ascii', 'ignore').decode() for name in objname]
     #   - Pull out the slit ID, object ID, name, object coordinates, top and bottom distance
     objects = numpy.array([hdu['SlitObjMap'].data['dSlitId'][indx].astype(int),
                         catid.astype(int),
