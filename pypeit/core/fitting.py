@@ -18,6 +18,7 @@ from pypeit.datamodel import DataContainer
 
 from IPython import embed
 
+
 class PypeItFit(DataContainer):
     # Set the version of this class
     version = '1.0.0'
@@ -100,6 +101,9 @@ class PypeItFit(DataContainer):
     def fit(self):
         """
         Perform the fit
+
+        Returns:
+            int: Flag indicating whether fit was successful (1) or if it failed (0)
         """
 
         # Init
@@ -757,7 +761,6 @@ def guess_gauss(x,y):
     return ampl, cent, sigma, floor
 
 
-
 def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
                       minx=None, maxx=None, miny=None, maxy=None):
     """
@@ -808,7 +811,6 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
     z = z.reshape((vander.shape[0],))
     c = np.linalg.lstsq(vander, z, rcond=None)[0]
     return c.reshape(deg+1), minx, maxx, miny, maxy
-
 
 
 def twoD_Gaussian(tup, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):

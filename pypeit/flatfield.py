@@ -996,12 +996,18 @@ class FlatField:
                 ax.set_title('Illumination Function Fit for slit={:d}'.format(slit_spat))
                 plt.show()
 
+            # Perform a fine correction to the spatial illumination profile
+            spat_illum_fine = 1  # Default value if the fine correction is not performed
+            if exit_status <= 1 and self.flatpar['slit_illum_finecorr']:
+                spat_illum = spat_bspl.value(spat_coo_final[onslit_tweak])[0]
+                spat_illum_fine = self.spatial_fit_finecorr(spat_illum, onslit_tweak, slit_idx, slit_spat, gpm)
+
             # ----------------------------------------------------------
             # Construct the illumination profile with the tweaked edges
             # of the slit
             if exit_status <= 1:
                 # TODO -- JFH -- Check this is ok for flexure!!
-                self.msillumflat[onslit_tweak] = spat_bspl.value(spat_coo_final[onslit_tweak])[0]
+                self.msillumflat[onslit_tweak] = spat_illum_fine * spat_bspl.value(spat_coo_final[onslit_tweak])[0]
                 self.list_of_spat_bsplines[slit_idx] = spat_bspl
                 # No need to proceed further if we just need the illumination profile
                 if spat_illum_only:
@@ -1211,6 +1217,79 @@ class FlatField:
         return exit_status, spat_coo_data, spat_flat_data, spat_bspl, spat_gpm_fit, \
                spat_flat_fit, spat_flat_data_raw
 
+    def spatial_fit_finecorr(self, spat_illum, onslit_tweak, slit_idx, slit_spat, gpm):
+        """
+        Generate a relative scaling image for a slit-based IFU. All
+        slits are scaled relative to a reference slit, specified in
+        the spectrograph settings file.
+
+        Parameters
+        ----------
+        spat_illum : `numpy.ndarray`_
+            An image containing the generated spatial illumination profile for all slits.
+
+        Returns
+        -------
+        spat_finecorr: `numpy.ndarray`_
+            An image containing a fine correction to the spatial illumination profile.
+        """
+        embed()
+        assert False
+        # QA variables
+        nseg = 10
+        colors = plt.cm.jet(np.linspace(0, 1, nseg))
+        spatbins = np.linspace(0, 1, 50)
+        spatmid = 0.5 * (spatbins[1:] + spatbins[:-1])
+
+        normed = self.rawflatimg.image * utils.inverse(spat_illum)
+        ivarnrm = self.rawflatimg.ivar * spat_illum**2
+        left = self.slits.left_tweak[:, slit_idx]
+        right = self.slits.right_tweak[:, slit_idx]
+
+        # TODO :: CURRENTLY figuring out
+        flex = self.wavetilts.spat_flexure
+        tilts = self.wavetilts.fit2tiltimg(onslit_tweak, flexure=flex)
+
+        mid = np.round(0.5 * (left + right)).astype(np.int)
+        nspec = float(normed.shape[0])
+        # Get a spectrum down the centre to normalise the profile to the slit centre
+        nsum = 20
+        nrm_vals = normed[(np.arange(normed.shape[0]), mid + nsum)]
+        for vv in range(-nsum, nsum):
+            nrm_vals += normed[(np.arange(normed.shape[0]), mid + vv)]
+        nrm_vals /= (2 * nsum + 1)
+        ww = np.where(onslit_tweak == slit_spat)
+        normed[ww] *= utils.inverse(nrm_vals[ww[0]])
+        ivarnrm[ww] *= nrm_vals[ww[0]]**2
+        # Prepare fitting coordinates
+        cut = (ww[0], ww[1])
+        xpos = (cut[1] - left[cut[0]]) / (right[cut[0]] - left[cut[0]])
+        # Mask the edges
+        # gpm = np.ones(cut[0].size, dtype=int)
+        # gpm[np.where(xpos < 0.05)] = 0
+        # gpm[np.where(xpos > 0.95)] = 0
+        fullfit = fitting.robust_fit(xpos, normed[cut], np.array([3, 5]), x2=cut[0].astype(float), invvar=ivarnrm[cut],
+                                     in_gpm=gpm[cut], function='legendre2d', upper=3, lower=3, maxdev=1.0,
+                                     minx=0.0, maxx=1.0, minx2=0.0, maxx2=nspec)
+        if fullfit.success != 1:
+            msgs.warn("Fine correction to the spatial illumination failed for slit {0:d}".format(slit_spat))
+        # Prepare QA
+        bins = np.linspace(np.min(ww[0]), np.max(ww[0]), nseg + 1)
+        for bb in range(nseg):
+            wb = np.where((ww[0] > bins[bb]) & (ww[0] < bins[bb + 1]))
+            cut = (ww[0][wb], ww[1][wb])
+            xpos = (cut[1] - left[cut[0]]) / (right[cut[0]] - left[cut[0]])
+            cntr, _ = np.histogram(xpos, bins=spatbins, weights=normed[cut])
+            nrm, _ = np.histogram(xpos, bins=spatbins)
+            cntr *= utils.inverse(nrm)
+            offs = bb * 0.02
+            plt.plot(spatmid, offs + cntr, linestyle='-', color=colors[bb])
+            plt.plot(spatmid, offs + fullfit.eval(spatmid, 0.5 * (bins[bb] + bins[bb + 1]) * np.ones(spatmid.size)),
+                     linestyle='--', color='k')
+        plt.show()
+        # Generate the
+        return spat_finecorr
+
     def extract_structure(self, rawflat_orig):
         """
         Generate a relative scaling image for a slit-based IFU. All
@@ -1412,8 +1491,6 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
     spec_ref = hist * norm
     wave_ref = 0.5 * (wavebins[1:] + wavebins[:-1])
     sn_smooth_npix = wave_ref.size // smooth_npix if (smooth_npix is not None) else wave_ref.size // 10
-    # Smooth the reference spectrum
-    spec_ref = coadd.smooth_weights(spec_ref, (spec_ref != 0), sn_smooth_npix)
 
     # Iterate until convergence
     maxiter = 10
@@ -1435,9 +1512,8 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
             cntr *= spec_ref
             norm = utils.inverse(cntr)
             arr = hist * norm
-            gdmask = (arr != 0)
             # Calculate a smooth version of the relative response
-            relscale = coadd.smooth_weights(arr, gdmask, sn_smooth_npix)
+            relscale = coadd.smooth_weights(arr, (arr != 0), sn_smooth_npix)
             rescale_model = interpolate.interp1d(wave_ref, relscale, kind='linear', bounds_error=False,
                                                  fill_value="extrapolate")(waveimg[onslit_b_init])
             # Store the result
@@ -1467,21 +1543,20 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
             break
     debug = False
     if debug:
+        embed()
         ricp = rawimg.copy()
         for ss in range(slits.spat_id.size):
             onslit_ref_trim = (slitid_img_trim == slits.spat_id[ss]) & gpm & skymask_now
             hist, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins, weights=ricp[onslit_ref_trim]/scaleImg[onslit_ref_trim])
             histScl, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins, weights=scaleImg[onslit_ref_trim])
-            histAlt, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins, weights=scaleImgAlt[onslit_ref_trim])
             cntr, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins)
             cntr = cntr.astype(np.float)
             norm = (cntr != 0) / (cntr + (cntr == 0))
             spec_ref = hist * norm
             scale_ref = histScl * norm
-            scale_refAlt = histAlt * norm
-            #plt.subplot(211)
-            plt.plot(wave_ref, scale_refAlt)
-            #plt.subplot(212)
+            plt.subplot(211)
+            plt.plot(wave_ref, spec_ref)
+            plt.subplot(212)
             plt.plot(wave_ref, scale_ref)
         plt.show()
 
