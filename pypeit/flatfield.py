@@ -314,7 +314,7 @@ class FlatImages(datamodel.DataContainer):
                               (0.8, 1.2)])
         elif frametype == 'illum':
             image_list = zip([illumflat_illum, self.illumflat_raw],
-                             ['illumflat_spat_illum', 'illumflat_raw'],
+                             ['illumflat_spat_illum', 'illumflat_finecorr', 'illumflat_raw'],
                              [(0.9, 1.1), None])
         else:
             # Show everything that's available (anything that is None will not be displayed)
@@ -323,7 +323,7 @@ class FlatImages(datamodel.DataContainer):
                               illumflat_illum, self.illumflat_raw],
                              ['pixelflat_norm', 'pixelflat_spat_illum', 'pixelflat_raw',
                               'pixelflat_model', 'pixelflat_spec_illum',
-                              'illumflat_spat_illum', 'illumflat_raw'],
+                              'illumflat_spat_illum', 'illumflat_finecorr', 'illumflat_raw'],
                              [(0.9, 1.1), (0.9, 1.1), None, None,
                               (0.8, 1.2), (0.9, 1.1), None])
         # Display frames
