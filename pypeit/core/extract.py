@@ -196,7 +196,7 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
     spec.OPT_COUNTS = flux_opt    # Optimally extracted flux
     spec.OPT_COUNTS_IVAR = mivar_opt*np.logical_not(badwvs)   # Inverse variance of optimally extracted flux using modelivar image
     spec.OPT_COUNTS_SIG = np.sqrt(utils.inverse(spec.OPT_COUNTS_IVAR))
-    spec.OPT_COUNTS_NIVAR = nivar_opt*np.logical_not(badwvs)  # Optimally extracted noise variance (sky + read noise) only
+    spec.OPT_COUNTS_NIVAR = None if nivar_opt is None else nivar_opt*np.logical_not(badwvs)  # Optimally extracted noise variance (sky + read noise) only
     spec.OPT_MASK = mask_opt*np.logical_not(badwvs)     # Mask for optimally extracted flux
     spec.OPT_COUNTS_SKY = sky_opt      # Optimally extracted sky
     spec.OPT_COUNTS_SIG_DET = base_opt      # Square root of optimally extracted read noise squared
