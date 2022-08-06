@@ -454,6 +454,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         Returns:
             `astropy.table.Table`_: modified fitstbl.
         """
+        #TODO incorporate parse_dither_pattern() here.
 
         # find index of fitstbl that contains science and standard frames
         # where science
