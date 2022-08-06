@@ -5,13 +5,13 @@ Implements the flat-field class.
 .. include:: ../include/links.rst
 
 """
-import copy
 import inspect
 import numpy as np
 
 from scipy import interpolate
 
 from matplotlib import pyplot as plt
+from matplotlib import gridspec
 
 from IPython import embed
 
@@ -22,6 +22,7 @@ from pypeit import bspline
 from pypeit import datamodel
 from pypeit import masterframe
 from pypeit.display import display
+from pypeit.core import qa
 from pypeit.core import flat
 from pypeit.core import tracewave
 from pypeit.core import basis
@@ -39,7 +40,7 @@ class FlatImages(datamodel.DataContainer):
 
     """
     minimum_version = '1.1.1'
-    version = '1.1.1'
+    version = '1.1.2'
 
     # I/O
     output_to_disk = None  # This writes all items that are not None
@@ -57,7 +58,7 @@ class FlatImages(datamodel.DataContainer):
                  'pixelflat_spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline,
                                                  descr='B-spline models for pixel flat'),
                  'pixelflat_bpm': dict(otype=np.ndarray, atype=np.integer,
-                                       descr='Mirrors SlitTraceSet mask for Flat-specific flags'),
+                                       descr='Mirrors SlitTraceSet mask for flat-specific flags'),
                  'pixelflat_spec_illum': dict(otype=np.ndarray, atype=np.floating,
                                               descr='Relative spectral illumination'),
                  'pixelflat_waveimg': dict(otype=np.ndarray, atype=np.floating,
@@ -67,14 +68,16 @@ class FlatImages(datamodel.DataContainer):
                  'illumflat_spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline,
                                                  descr='B-spline models for illum flat'),
                  'illumflat_bpm': dict(otype=np.ndarray, atype=np.integer,
-                                       descr='Mirrors SlitTraceSet mask for Flat-specific flags'),
+                                       descr='Mirrors SlitTraceSet mask for flat-specific flags'),
+                 'illumflat_finecorr': dict(otype=np.ndarray, atype=np.floating,
+                                       descr='Fine correction to the spatial illumination profile'),
                  'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
                  'spat_id': dict(otype=np.ndarray, atype=np.integer, descr='Slit spat_id')}
 
     def __init__(self, pixelflat_raw=None, pixelflat_norm=None, pixelflat_bpm=None,
                  pixelflat_model=None, pixelflat_spat_bsplines=None, pixelflat_spec_illum=None,
                  pixelflat_waveimg=None, illumflat_raw=None, illumflat_spat_bsplines=None,
-                 illumflat_bpm=None, PYP_SPEC=None, spat_id=None):
+                 illumflat_bpm=None, illumflat_finecorr=None, PYP_SPEC=None, spat_id=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
@@ -375,10 +378,12 @@ class FlatField:
     master_type = 'Flat'
 
     def __init__(self, rawflatimg, spectrograph, flatpar, slits, wavetilts, wv_calib,
-                 spat_illum_only=False):
+                 spat_illum_only=False, qa_path=None, master_key=None):
 
         # Defaults
         self.spectrograph = spectrograph
+        self.master_key = master_key  # Used for QA
+        self.qa_path = qa_path
         # FieldFlattening parameters
         self.flatpar = flatpar
 
@@ -396,6 +401,7 @@ class FlatField:
         self.msillumflat = None     # Illumination flat
         self.flat_model = None      # Model flat
         self.list_of_spat_bsplines = None
+        self.illumflat_finecorr = None
         self.spat_illum_only = spat_illum_only
         self.spec_illum = None      # Relative spectral illumination image
         self.waveimg = None
@@ -487,6 +493,7 @@ class FlatField:
             # Illumination correction only
             return FlatImages(illumflat_raw=self.rawflatimg.image,
                               illumflat_spat_bsplines=np.asarray(self.list_of_spat_bsplines),
+                              illumflat_finecorr=self.illumflat_finecorr,
                               illumflat_bpm=bpmflats, PYP_SPEC=self.spectrograph.name,
                               spat_id=self.slits.spat_id)
         else:
@@ -1233,61 +1240,49 @@ class FlatField:
         spat_finecorr: `numpy.ndarray`_
             An image containing a fine correction to the spatial illumination profile.
         """
-        embed()
-        assert False
-        # QA variables
-        nseg = 10
-        colors = plt.cm.jet(np.linspace(0, 1, nseg))
-        spatbins = np.linspace(0, 1, 50)
-        spatmid = 0.5 * (spatbins[1:] + spatbins[:-1])
-
-        normed = self.rawflatimg.image * utils.inverse(spat_illum)
-        ivarnrm = self.rawflatimg.ivar * spat_illum**2
+        msgs.info("Performing a fine correction to the spatial illumination (slit={0:d})".format(slit_spat))
+        slitimg = (slit_spat+1) * onslit_tweak.astype(int) - 1
+        normed = self.rawflatimg.image.copy()
+        ivarnrm = self.rawflatimg.ivar.copy()
+        normed[onslit_tweak] *= utils.inverse(spat_illum)
+        ivarnrm[onslit_tweak] *= spat_illum**2
         left = self.slits.left_tweak[:, slit_idx]
         right = self.slits.right_tweak[:, slit_idx]
 
-        # TODO :: CURRENTLY figuring out
-        flex = self.wavetilts.spat_flexure
-        tilts = self.wavetilts.fit2tiltimg(onslit_tweak, flexure=flex)
+        tilts = self.wavetilts.fit2tiltimg(slitimg, flexure=self.wavetilts.spat_flexure)
 
         mid = np.round(0.5 * (left + right)).astype(np.int)
-        nspec = float(normed.shape[0])
         # Get a spectrum down the centre to normalise the profile to the slit centre
         nsum = 20
         nrm_vals = normed[(np.arange(normed.shape[0]), mid + nsum)]
         for vv in range(-nsum, nsum):
             nrm_vals += normed[(np.arange(normed.shape[0]), mid + vv)]
         nrm_vals /= (2 * nsum + 1)
-        ww = np.where(onslit_tweak == slit_spat)
+        ww = np.where(onslit_tweak)
         normed[ww] *= utils.inverse(nrm_vals[ww[0]])
         ivarnrm[ww] *= nrm_vals[ww[0]]**2
         # Prepare fitting coordinates
         cut = (ww[0], ww[1])
         xpos = (cut[1] - left[cut[0]]) / (right[cut[0]] - left[cut[0]])
         # Mask the edges
-        # gpm = np.ones(cut[0].size, dtype=int)
-        # gpm[np.where(xpos < 0.05)] = 0
-        # gpm[np.where(xpos > 0.95)] = 0
-        fullfit = fitting.robust_fit(xpos, normed[cut], np.array([3, 5]), x2=cut[0].astype(float), invvar=ivarnrm[cut],
+        gpmfit = gpm[cut]
+        gpmfit[np.where(xpos < 0.05)] = 0
+        gpmfit[np.where(xpos > 0.95)] = 0
+        fullfit = fitting.robust_fit(xpos, normed[cut], np.array([3, 5]), x2=tilts[cut],
                                      in_gpm=gpm[cut], function='legendre2d', upper=3, lower=3, maxdev=1.0,
-                                     minx=0.0, maxx=1.0, minx2=0.0, maxx2=nspec)
+                                     minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
         if fullfit.success != 1:
             msgs.warn("Fine correction to the spatial illumination failed for slit {0:d}".format(slit_spat))
         # Prepare QA
-        bins = np.linspace(np.min(ww[0]), np.max(ww[0]), nseg + 1)
-        for bb in range(nseg):
-            wb = np.where((ww[0] > bins[bb]) & (ww[0] < bins[bb + 1]))
-            cut = (ww[0][wb], ww[1][wb])
-            xpos = (cut[1] - left[cut[0]]) / (right[cut[0]] - left[cut[0]])
-            cntr, _ = np.histogram(xpos, bins=spatbins, weights=normed[cut])
-            nrm, _ = np.histogram(xpos, bins=spatbins)
-            cntr *= utils.inverse(nrm)
-            offs = bb * 0.02
-            plt.plot(spatmid, offs + cntr, linestyle='-', color=colors[bb])
-            plt.plot(spatmid, offs + fullfit.eval(spatmid, 0.5 * (bins[bb] + bins[bb + 1]) * np.ones(spatmid.size)),
-                     linestyle='--', color='k')
-        plt.show()
-        # Generate the
+        outfile = qa.set_qa_filename("Spatillum_FineCorr_"+self.master_key, 'spatillum_finecorr', slit=slit_spat,
+                                     out_dir=self.qa_path)
+        slitlen = int(np.median(right-left))
+        title = "Fine correction to spatial illumination (slit={0:d})".format(slit_spat)
+        spatillum_finecorr_qa(normed, fullfit, left, right, tilts, cut,
+                              outfile=outfile, title=title, half_slen=slitlen//2)
+
+        # Generate the fine correction image
+        spat_finecorr = fullfit.eval(xpos, tilts[cut])
         return spat_finecorr
 
     def extract_structure(self, rawflat_orig):
@@ -1383,6 +1378,86 @@ class FlatField:
                                       model=None, gpmask=gpm, skymask=None, trim=trim,
                                       flexure=self.wavetilts.spat_flexure,
                                       smooth_npix=self.flatpar['slit_illum_smooth_npix'])
+
+
+def spatillum_finecorr_qa(normed, fullfit, left, right, tilts, cut, outfile=None, title=None, half_slen=50):
+    """
+    Plot the QA for the fine correction fits to the spatial illumination profile
+
+    Parameters
+    ----------
+    normed : `numpy.ndarray`_
+        Image data with the coarse spatial illumination profile divided out (normalised in the spectral direction)
+    fullfit : :class:`pypeit.core.fitting.PypeItFit`
+        2D polynomial fit to the spatial profile
+    left : `numpy.ndarray`_
+        Left slit edge
+    right : `numpy.ndarray`_
+        Right slit edge
+    tilts :
+        Spectral tilts
+    cut : tuple
+        A 2-tuple, containing the (x, y) coordinates of the pixels on the slit.
+    outfile : str, optional
+        Output file name
+    title : str, optional
+        A title to be printed on the QA
+    half_slen : int, optional
+        The sampling size for the spatial profile. Should be about half the slit length.
+        In this case, each output pixel shown contains about 2 detector pixels.
+    """
+    msgs.info("Generating QA for spatial illumination fine correction")
+    # Setup some plotting variables
+    nseg = 10  # Number of segments to plot in QA - needs to be large enough so the fine correction is approximately linear in between adjacent segments
+    colors = plt.cm.jet(np.linspace(0, 1, nseg))
+    # Setup the spatial binning
+    spatbins = np.linspace(0, 1, half_slen)
+    spatmid = 0.5 * (spatbins[1:] + spatbins[:-1])
+
+    # Plot
+    plt.figure(figsize=(11, 8.5))
+    plt.clf()
+    # Single panel plot
+    gs = gridspec.GridSpec(1, 1)
+    ax_spec = plt.subplot(gs[0])
+    # Setup the bin edges, and some plotting variables
+    bins = np.linspace(0, 1, nseg + 1)
+    minmod, maxmod, sep = 1.0, 1.0, 0.01
+    for bb in range(nseg):
+        # Histogram the data to be displayed
+        wb = np.where((tilts[cut] > bins[bb]) & (tilts[cut] < bins[bb + 1]))
+        cutQA = (cut[0][wb], cut[1][wb])
+        xposQA = (cutQA[1] - left[cutQA[0]]) / (right[cutQA[0]] - left[cutQA[0]])
+        cntr, _ = np.histogram(xposQA, bins=spatbins, weights=normed[cutQA])
+        nrm, _ = np.histogram(xposQA, bins=spatbins)
+        cntr *= utils.inverse(nrm)
+        # Make the model
+        offs = bb * sep
+        model = offs + fullfit.eval(spatmid, 0.5 * (bins[bb] + bins[bb + 1]) * np.ones(spatmid.size))
+        minmod = minmod if minmod < np.min(model) else np.min(model)
+        maxmod = maxmod if maxmod > np.max(model) else np.max(model)
+        # Plot it!
+        ax_spec.plot(spatmid, offs + cntr, linestyle='-', color=colors[bb])
+        ax_spec.plot(spatmid, model, linestyle='--', color='k')
+    # Axes
+    ax_spec.set_xlim(0.0, 1.0)
+    ax_spec.set_ylim(minmod - sep, maxmod + sep)
+    ax_spec.set_xlabel('Fraction of spatial slit length')
+    ax_spec.minorticks_on()
+    ax_spec.set_ylabel('Spatial illumination (fine correction), curves offset by {0:.3f}'.format(sep))
+    if title is not None:
+        ax_spec.text(0.04, 0.93, title, transform=ax_spec.transAxes,
+                     size='x-large', ha='left')
+    # Finish
+    plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+    if outfile is None:
+        plt.show()
+    else:
+        plt.savefig(outfile, dpi=400)
+        msgs.info("Saved QA:"+msgs.newline()+outfile)
+
+    plt.close()
+    return
 
 
 def show_flats(image_list, wcs_match=True, slits=None, waveimg=None):
