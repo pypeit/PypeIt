@@ -113,7 +113,7 @@ determines how the code responds.  The default value "crash" causes the code to 
 execution with an error.  Optionally, the user may sepecify ``excessive_shift = set_to_zero``
 to allow the code to continue executing while skipping flexure correction (for this object)
 by setting the shift to zero or ``excessive_shift = continue`` to utilize the large shift value.
-This festure is included *caveat emptor*, and the user should carefully examine the
+This feature is included *caveat emptor*, and the user should carefully examine the
 flexure QA PNG images (``QA/PNGs/<objname>_global_<DET>_<SLIT>_spec_flex_corr.png``
 and similar) to be sure excessive flexure shift is not a spurious result of low
 signal-to-noise in the sky background before using the ``continue`` option.
