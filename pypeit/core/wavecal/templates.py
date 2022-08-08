@@ -396,15 +396,17 @@ def xidl_arcspec(xidl_file, slit):
 
     Note:  These are in air
 
-    Args:
-        xidl_file (str):
-        slit (int):
+    Parameters
+    ----------
+    xidl_file : str
+    slit : int
 
-    Returns:
-        wave (np.ndarray):
-            Wavelengths in vacuum for that slit
-        spec (np.ndarray):
-            Arc spectrum for that slit
+    Returns
+    -------
+    wave : np.ndarray
+        Wavelengths in vacuum for that slit
+    spec : np.ndarray
+        Arc spectrum for that slit
 
     """
     xidl_dict = readsav(xidl_file)

@@ -2330,7 +2330,7 @@ class WavelengthSolutionPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, reference=None, method=None, echelle=None, ech_fix_format=None,
+    def __init__(self, reference=None, method=None, echelle=None, #ech_fix_format=None,
                  ech_nspec_coeff=None, ech_norder_coeff=None, ech_sigrej=None, lamps=None,
                  sigdetect=None, fwhm=None, fwhm_fromlines=None, reid_arxiv=None,
                  nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
@@ -2593,8 +2593,8 @@ class WavelengthSolutionPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['reference', 'method', 'echelle', 'ech_fix_format', 'ech_nspec_coeff',
-                   'ech_norder_coeff', 'ech_sigrej', 'lamps', 'sigdetect',
+        parkeys = ['reference', 'method', 'echelle', #'ech_fix_format',
+                   'ech_nspec_coeff', 'ech_norder_coeff', 'ech_sigrej', 'lamps', 'sigdetect',
                    'fwhm', 'fwhm_fromlines', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
@@ -2906,7 +2906,7 @@ class EdgeTracePar(ParSet):
                               'edge for any added edge traces.  Must be positive.'
 
 #        defaults['max_nudge'] = 100
-        dtypes['max_nudge'] = (int, float)
+        dtypes['max_nudge'] = [int, float]
         descr['max_nudge'] = 'If parts of any (predicted) trace fall off the detector edge, ' \
                              'allow them to be nudged away from the detector edge up to and ' \
                              'including this maximum number of pixels.  If None, no limit is ' \

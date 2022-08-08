@@ -2269,12 +2269,17 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None, wave_met
                  maxrej=None, qafile=None, debug_scale=False, debug=False, show_order_stacks=False, show_order_scale=False,
                  show_exp=False, show=False, verbose=False):
     """
-    Driver routine for coadding Echelle spectra. Calls combspec which is the main stacking algorithm. It will deliver
-    three fits files: spec1d_order_XX.fits (stacked individual orders, one order per extension), spec1d_merge_XX.fits
-    (straight combine of stacked individual orders), spec1d_stack_XX.fits (a giant stack of all exposures and all orders).
-    In most cases, you should use spec1d_stack_XX.fits for your scientific analyses since it reject most outliers.
+    Driver routine for coadding Echelle spectra. Calls combspec which is the
+    main stacking algorithm. It will deliver three fits files:
+    spec1d_order_XX.fits (stacked individual orders, one order per extension),
+    spec1d_merge_XX.fits (straight combine of stacked individual orders),
+    spec1d_stack_XX.fits (a giant stack of all exposures and all orders).  In
+    most cases, you should use spec1d_stack_XX.fits for your scientific analyses
+    since it reject most outliers.
 
-    ..todo.. -- Clean up the doc formatting
+    .. todo::
+
+        - Clean up the doc formatting
 
     Args:
         waves (ndarray):
@@ -2308,7 +2313,7 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None, wave_met
            In case you want to specify the minimum wavelength in your wavelength grid, default=None computes from data.
         wave_grid_max (float): optional, default=None
            In case you want to specify the maximum wavelength in your wavelength grid, default=None computes from data.
-       wave_grid_input (`numpy.ndarray`_):
+        wave_grid_input (`numpy.ndarray`_):
             User input wavelength grid to be used with the 'user_input' wave_method. Shape is (nspec_input,)
         ref_percentile (float): default = 70.0
             percentile fraction cut used for selecting minimum SNR cut for robust_median_ratio.

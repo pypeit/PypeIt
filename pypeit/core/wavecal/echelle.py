@@ -1,18 +1,19 @@
+"""
+Module for echelle-specific wavelength calibration functions.
 
+.. include:: ../include/links.rst
+"""
+from IPython import embed
 
-import os
-import sys
 import numpy as np
+from scipy import interpolate
+
 from astropy.io import fits
+from astropy.table import Table
+
 from pypeit import msgs
 from pypeit.core import fitting
 from pypeit.core.wavecal import wvutils
-from scipy import interpolate
-from astropy import constants as const
-from astropy.table import Table
-from IPython import embed
-c_kms = const.c.to('km/s').value
-
 
 
 def predict_ech_order_coverage(angle_fits_params, xd_angle_coeffs, xdisp, xdangle, norders, pad=0):
@@ -160,29 +161,31 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname, angle_fits_file, c
     Identify the orders in the echelle spectrum via cross correlation with the best guess predicted arc based
     on echangle, xdangle, and cross-disperser
 
-    Args:
-        arcspec (numpy.ndarray):
-            Extracted arc spectrum, shape = (nspec, norders)
-        echangle (float):
-            Echelle angle
-        xdangle (float):
-            Cross-disperser angle
-        dispname (str):
-            Cross-disperser. E.g. for Keck HIRES this is either 'UV' or 'RED'
-        angle_fits_file (str):
-            File containing the fits to wavelength solution vs echangle and xdangle
-        composite_arc_file (str):
-            File containing the archived composite arcs for each order.
-        pad (int):
-            Number of orders to pad the coverage by on the blue and red side.
+    Parameters
+    ----------
+    arcspec : `numpy.ndarray`_
+        Extracted arc spectrum, shape = (nspec, norders)
+    echangle : float
+        Echelle angle
+    xdangle : float
+        Cross-disperser angle
+    dispname : str
+        Cross-disperser. E.g. for Keck HIRES this is either 'UV' or 'RED'
+    angle_fits_file : str
+        File containing the fits to wavelength solution vs echangle and xdangle
+    composite_arc_file : str
+        File containing the archived composite arcs for each order.
+    pad : int
+        Number of orders to pad the coverage by on the blue and red side.
 
-    Returns:
-        order_vec (numpy.ndarray):
-            Array of order numbers corresponding to the input arcspec, shape = (norders,)
-        wave_soln_guess (numpy.ndarray):
-            Array containing the predicted wavelength solution, shape = (nspec, norders)
-        arcspec_guess (numpy.ndarray):
-            Array containing the predicted arc spectrum, shape = (nspec, norders)
+    Returns
+    -------
+    order_vec : `numpy.ndarray`_
+        Array of order numbers corresponding to the input arcspec, shape = (norders,)
+    wave_soln_guess : `numpy.ndarray`_
+        Array containing the predicted wavelength solution, shape = (nspec, norders)
+    arcspec_guess : `numpy.ndarray`_
+        Array containing the predicted arc spectrum, shape = (nspec, norders)
 
     """
 
