@@ -5,13 +5,13 @@
                       [-d DETECTOR] [-c]
                       pypeit_file
     
-    ##  [1;37;42mPypeIt : The Python Spectroscopic Data Reduction Pipeline v1.9.2.dev322+gbe682ddb1[0m
+    ##  [1;37;42mPypeIt : The Python Spectroscopic Data Reduction Pipeline v1.8.2.dev482+gf1da42021.d20220523[0m
     ##  
     ##  Available spectrographs include:
     ##   bok_bc, gemini_flamingos1, gemini_flamingos2, gemini_gmos_north_e2v,
     ##   gemini_gmos_north_ham, gemini_gmos_north_ham_ns,
     ##   gemini_gmos_south_ham, gemini_gnirs, gtc_osiris, keck_deimos,
-    ##   keck_hires_red, keck_kcwi, keck_lris_blue, keck_lris_blue_orig,
+    ##   keck_hires, keck_kcwi, keck_lris_blue, keck_lris_blue_orig,
     ##   keck_lris_red, keck_lris_red_mark4, keck_lris_red_orig, keck_mosfire,
     ##   keck_nires, keck_nirspec_low, lbt_luci1, lbt_luci2, lbt_mods1b,
     ##   lbt_mods1r, lbt_mods2b, lbt_mods2r, ldt_deveny, magellan_fire,

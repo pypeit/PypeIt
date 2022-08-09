@@ -130,7 +130,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
 
         # Reidentification parameters
         par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_triplespec.fits'
-        par['calibrations']['wavelengths']['ech_fix_format'] = True
+#        par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4

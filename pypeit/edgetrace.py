@@ -2512,11 +2512,18 @@ class EdgeTraceSet(DataContainer):
         med_slit_length = np.median(slit_length, axis=0)
 
         if dlength_atol is not None:
+            # Check the length of each slit against the median value, flagging
+            # any above the provided *absolute* tolerance (both edges are
+            # flagged)
             indx = np.repeat(np.any(np.absolute(slit_length-med_slit_length[None,:])
                                     > dlength_atol, axis=0), 2)
             self._flag_edges(trace_cen, indx, 'LARGELENGTHCHANGE')
 
         if dlength_rtol is not None:
+            # For slits with larger than 0 lengths (i.e., valid slits), check
+            # their length against the median value, flagging any exhibit a
+            # *relative* change above the provided tolerance (both edges are
+            # flagged)
             indx = np.all(slit_length > 0, axis=0)
             dlen = np.zeros_like(slit_length)
             dlen[:,indx] = np.log(np.absolute(slit_length[:,indx]/med_slit_length[None,indx]))
@@ -2554,11 +2561,16 @@ class EdgeTraceSet(DataContainer):
                 self.edge_msk[:,long] \
                         = self.bitmask.turn_on(self.edge_msk[:,long], 'ABNORMALSLIT_LONG')
 
+        # Get the slits that have been flagged as abnormally short.  This should
+        # be the same as the definition above, it's just redone here to ensure
+        # `short` is defined when `length_rtol` is None.
         short = self.fully_masked_traces(flag='ABNORMALSLIT_SHORT')
         if self.par['overlap'] and np.any(short):
             msgs.info('Assuming slits flagged as abnormally short are actually due to '
                       'overlapping slit edges.')
             rmtrace = np.zeros(self.ntrace, dtype=bool)
+            # Find sets of adjacent short slits and assume they all select
+            # adjacent overlap regions.
             short_slits = utils.contiguous_true(short)
             for slc in short_slits:
                 # Remove the edges just before and after this region of short

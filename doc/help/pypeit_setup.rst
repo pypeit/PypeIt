@@ -15,7 +15,7 @@
                             gemini_flamingos1, gemini_flamingos2,
                             gemini_gmos_north_e2v, gemini_gmos_north_ham,
                             gemini_gmos_north_ham_ns, gemini_gmos_south_ham,
-                            gemini_gnirs, gtc_osiris, keck_deimos, keck_hires_red,
+                            gemini_gnirs, gtc_osiris, keck_deimos, keck_hires,
                             keck_kcwi, keck_lris_blue, keck_lris_blue_orig,
                             keck_lris_red, keck_lris_red_mark4, keck_lris_red_orig,
                             keck_mosfire, keck_nires, keck_nirspec_low, lbt_luci1,
@@ -33,13 +33,13 @@
                             up through the wildcard (.e.g, /data/Kast/b). Use the
                             --extension option to set the types of files to search
                             for. Default is the current working directory. (default:
-                            /Users/dpelliccia/PypeIt/PypeIt/doc)
+                            /Users/westfall/Work/packages/pypeit/doc)
       -e EXTENSION, --extension EXTENSION
                             File extension; compression indicators (e.g. .gz) not
                             required. (default: .fits)
       -d OUTPUT_PATH, --output_path OUTPUT_PATH
                             Path to top-level output directory. (default:
-                            /Users/dpelliccia/PypeIt/PypeIt/doc)
+                            /Users/westfall/Work/packages/pypeit/doc)
       -o, --overwrite       Overwrite any existing files/directories (default:
                             False)
       -c CFG_SPLIT, --cfg_split CFG_SPLIT

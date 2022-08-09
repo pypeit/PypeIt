@@ -858,7 +858,8 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, ok_mask=No
     r"""
     Algorithm to wavelength calibrate echelle data based on a predicted or archived wavelength solution
 
-    Args:
+    Parameters
+    ----------
     spec :  float ndarray shape of (nspec, norders)
         Array of arc spectra for each order for which wavelength solutions are
         desired.
@@ -866,10 +867,8 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, ok_mask=No
         Order numbers for the provided spectra. Used to match against
         the relevant archived spectrum for echelle spectrographs.
         Shape must be :math:`(N_{\rm orders},)`
-
-    spec_arxiv:  float ndarray shape (nspec, narxiv) or (nspec)
+    spec_arxiv :  float ndarray shape (nspec, narxiv) or (nspec)
         Collection of archival arc spectra for which wavelength solution and line identifications are known
-
     wave_soln_arxiv:  float ndarray shape (nspec, narxiv) or (nspec)
         Wavelength solutions for the archival arc spectra spec_arxiv
     lamps : :obj:`list`
