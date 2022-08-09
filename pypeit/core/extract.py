@@ -667,7 +667,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     indsp = (wave >= wave_min) & (wave <= wave_max) & np.isfinite(flux_sm) & (flux_sm > -1000.0) & (fluxivar_sm > 0.0)
     eligible_pixels = np.sum((wave >= wave_min) & (wave <= wave_max))
     good_pix_frac = 0.05
-    if np.sum(indsp) < good_pix_frac*eligible_pixels:
+    if (np.sum(indsp) < good_pix_frac*eligible_pixels) or (eligible_pixels == 0):
         msgs.warn('There are no pixels eligible to be fit for the object profile.' + msgs.newline() +
                   'There is likely an issue in local_skysub_extract. Returning a Gassuain with fwhm={:5.3f}'.format(thisfwhm))
         profile_model = return_gaussian(sigma_x, None, thisfwhm, 0.0, obj_string, False)
