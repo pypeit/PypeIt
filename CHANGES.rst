@@ -3,6 +3,7 @@
 
 - Add ability for users to specify custom arc line lists for
   wavelength calibration, saved in the user's PypeIt cache
+- Added Keck/NIRES frame-typing development doc.
 
 1.10.0 (11 July 2022)
 ---------------------
