@@ -313,19 +313,19 @@ class FlatImages(datamodel.DataContainer):
                              [(0.9, 1.1), (0.9, 1.1), None, None,
                               (0.8, 1.2)])
         elif frametype == 'illum':
-            image_list = zip([illumflat_illum, self.illumflat_raw],
+            image_list = zip([illumflat_illum, self.illumflat_finecorr, self.illumflat_raw],
                              ['illumflat_spat_illum', 'illumflat_finecorr', 'illumflat_raw'],
-                             [(0.9, 1.1), None])
+                             [(0.9, 1.1), (0.95, 1.05), None])
         else:
             # Show everything that's available (anything that is None will not be displayed)
             image_list = zip([self.pixelflat_norm, illumflat_pixel, self.pixelflat_raw,
                               self.pixelflat_model, self.pixelflat_spec_illum,
-                              illumflat_illum, self.illumflat_raw],
+                              illumflat_illum, self.illumflat_finecorr, self.illumflat_raw],
                              ['pixelflat_norm', 'pixelflat_spat_illum', 'pixelflat_raw',
                               'pixelflat_model', 'pixelflat_spec_illum',
                               'illumflat_spat_illum', 'illumflat_finecorr', 'illumflat_raw'],
                              [(0.9, 1.1), (0.9, 1.1), None, None,
-                              (0.8, 1.2), (0.9, 1.1), None])
+                              (0.8, 1.2), (0.9, 1.1), (0.95, 1.05), None])
         # Display frames
         show_flats(image_list, wcs_match=wcs_match, slits=slits, waveimg=self.pixelflat_waveimg)
 
@@ -1007,7 +1007,7 @@ class FlatField:
             spat_illum_fine = 1  # Default value if the fine correction is not performed
             if exit_status <= 1 and self.flatpar['slit_illum_finecorr']:
                 spat_illum = spat_bspl.value(spat_coo_final[onslit_tweak])[0]
-                spat_illum_fine = self.spatial_fit_finecorr(spat_illum, onslit_tweak, slit_idx, slit_spat, gpm)
+                self.spatial_fit_finecorr(spat_illum, onslit_tweak, slit_idx, slit_spat, gpm)
 
             # ----------------------------------------------------------
             # Construct the illumination profile with the tweaked edges
@@ -1234,13 +1234,20 @@ class FlatField:
         ----------
         spat_illum : `numpy.ndarray`_
             An image containing the generated spatial illumination profile for all slits.
-
-        Returns
-        -------
-        spat_finecorr: `numpy.ndarray`_
-            An image containing a fine correction to the spatial illumination profile.
+        onslit_tweak : `numpy.ndarray`_
+            mask indicticating which pixels are on the slit (True = on slit)
+        slit_idx : int
+            Slit number (0-indexed)
+        slit_spat : int
+            Spatial ID of the slit
+        gpm : `numpy.ndarray`_
+            Good pixel mask
         """
         msgs.info("Performing a fine correction to the spatial illumination (slit={0:d})".format(slit_spat))
+        # initialise
+        if self.illumflat_finecorr is None:
+            self.illumflat_finecorr = np.ones_like(self.rawflatimg.image)
+        # Setup
         slitimg = (slit_spat+1) * onslit_tweak.astype(int) - 1
         normed = self.rawflatimg.image.copy()
         ivarnrm = self.rawflatimg.ivar.copy()
@@ -1248,42 +1255,44 @@ class FlatField:
         ivarnrm[onslit_tweak] *= spat_illum**2
         left = self.slits.left_tweak[:, slit_idx]
         right = self.slits.right_tweak[:, slit_idx]
+        slitlen = int(np.median(right - left))
 
-        tilts = self.wavetilts.fit2tiltimg(slitimg, flexure=self.wavetilts.spat_flexure)
-
-        mid = np.round(0.5 * (left + right)).astype(np.int)
-        # Get a spectrum down the centre to normalise the profile to the slit centre
-        nsum = 20
-        nrm_vals = normed[(np.arange(normed.shape[0]), mid + nsum)]
-        for vv in range(-nsum, nsum):
-            nrm_vals += normed[(np.arange(normed.shape[0]), mid + vv)]
-        nrm_vals /= (2 * nsum + 1)
-        ww = np.where(onslit_tweak)
-        normed[ww] *= utils.inverse(nrm_vals[ww[0]])
-        ivarnrm[ww] *= nrm_vals[ww[0]]**2
         # Prepare fitting coordinates
+        tilts = self.wavetilts.fit2tiltimg(slitimg, flexure=self.wavetilts.spat_flexure)
+        ww = np.where(onslit_tweak)
         cut = (ww[0], ww[1])
         xpos = (cut[1] - left[cut[0]]) / (right[cut[0]] - left[cut[0]])
-        # Mask the edges
+
+        # Normalise the image
+        bins = np.linspace(0.0, 1.0, tilts.shape[0])
+        censpec, _ = np.histogram(tilts[cut], bins=bins, weights=normed[cut])
+        nrm, _ = np.histogram(tilts[cut], bins=bins)
+        censpec *= utils.inverse(nrm)
+        tiltspl = interpolate.interp1d(0.5*(bins[1:]+bins[:-1]), censpec, kind='linear',
+                                       bounds_error=False, fill_value='extrapolate')
+        nrm_vals = tiltspl(tilts[ww])
+        normed[ww] *= utils.inverse(nrm_vals)
+        ivarnrm[ww] *= nrm_vals**2
+
+        # Mask the edges and fit
         gpmfit = gpm[cut]
-        gpmfit[np.where(xpos < 0.05)] = 0
-        gpmfit[np.where(xpos > 0.95)] = 0
-        fullfit = fitting.robust_fit(xpos, normed[cut], np.array([3, 5]), x2=tilts[cut],
-                                     in_gpm=gpm[cut], function='legendre2d', upper=3, lower=3, maxdev=1.0,
+        gpmfit[np.where((xpos < 0.05)|(xpos > 0.95))] = False
+        fullfit = fitting.robust_fit(xpos, normed[cut], np.array([3, 6]), x2=tilts[cut],
+                                     in_gpm=gpmfit, function='legendre2d', upper=2, lower=2, maxdev=1.0,
                                      minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
-        if fullfit.success != 1:
+        # Generate the fine correction image and store the result
+        if fullfit.success == 1:
+            self.illumflat_finecorr[onslit_tweak] = fullfit.eval(xpos, tilts[cut])
+        else:
             msgs.warn("Fine correction to the spatial illumination failed for slit {0:d}".format(slit_spat))
+        # TODO BEFORE PR MERGE :: Need to store the coefficients and generate this with spatial flexure
         # Prepare QA
         outfile = qa.set_qa_filename("Spatillum_FineCorr_"+self.master_key, 'spatillum_finecorr', slit=slit_spat,
                                      out_dir=self.qa_path)
-        slitlen = int(np.median(right-left))
         title = "Fine correction to spatial illumination (slit={0:d})".format(slit_spat)
-        spatillum_finecorr_qa(normed, fullfit, left, right, tilts, cut,
+        spatillum_finecorr_qa(normed, self.illumflat_finecorr, left, right, tilts, cut,
                               outfile=outfile, title=title, half_slen=slitlen//2)
-
-        # Generate the fine correction image
-        spat_finecorr = fullfit.eval(xpos, tilts[cut])
-        return spat_finecorr
+        return
 
     def extract_structure(self, rawflat_orig):
         """
@@ -1380,7 +1389,7 @@ class FlatField:
                                       smooth_npix=self.flatpar['slit_illum_smooth_npix'])
 
 
-def spatillum_finecorr_qa(normed, fullfit, left, right, tilts, cut, outfile=None, title=None, half_slen=50):
+def spatillum_finecorr_qa(normed, finecorr, left, right, tilts, cut, outfile=None, title=None, half_slen=50):
     """
     Plot the QA for the fine correction fits to the spatial illumination profile
 
@@ -1388,8 +1397,8 @@ def spatillum_finecorr_qa(normed, fullfit, left, right, tilts, cut, outfile=None
     ----------
     normed : `numpy.ndarray`_
         Image data with the coarse spatial illumination profile divided out (normalised in the spectral direction)
-    fullfit : :class:`pypeit.core.fitting.PypeItFit`
-        2D polynomial fit to the spatial profile
+    finecorr : `numpy.ndarray`_
+        Image containing the fine correction
     left : `numpy.ndarray`_
         Left slit edge
     right : `numpy.ndarray`_
@@ -1429,16 +1438,18 @@ def spatillum_finecorr_qa(normed, fullfit, left, right, tilts, cut, outfile=None
         cutQA = (cut[0][wb], cut[1][wb])
         xposQA = (cutQA[1] - left[cutQA[0]]) / (right[cutQA[0]] - left[cutQA[0]])
         cntr, _ = np.histogram(xposQA, bins=spatbins, weights=normed[cutQA])
+        model, _ = np.histogram(xposQA, bins=spatbins, weights=finecorr[cutQA])
         nrm, _ = np.histogram(xposQA, bins=spatbins)
         cntr *= utils.inverse(nrm)
+        model *= utils.inverse(nrm)
         # Make the model
         offs = bb * sep
-        model = offs + fullfit.eval(spatmid, 0.5 * (bins[bb] + bins[bb + 1]) * np.ones(spatmid.size))
+        model += offs
         minmod = minmod if minmod < np.min(model) else np.min(model)
         maxmod = maxmod if maxmod > np.max(model) else np.max(model)
         # Plot it!
         ax_spec.plot(spatmid, offs + cntr, linestyle='-', color=colors[bb])
-        ax_spec.plot(spatmid, model, linestyle='--', color='k')
+        ax_spec.plot(spatmid, model, linestyle='-', color=colors[bb], alpha=0.5, linewidth=3)
     # Axes
     ax_spec.set_xlim(0.0, 1.0)
     ax_spec.set_ylim(minmod - sep, maxmod + sep)
