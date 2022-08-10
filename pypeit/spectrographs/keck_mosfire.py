@@ -270,11 +270,11 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         self.meta['idname'] = dict(card=None, compound=True)
         self.meta['frameno'] = dict(ext=0, card='FRAMENUM')
         self.meta['object'] = dict(ext=0, card='OBJECT')
-        # The following 3 metas (decker_basename, slitwid, slitlength) are introduced
+        # The following 3 metas (decker_secondary, slitwid, slitlength) are introduced
         # only to reduce data (LONGSLIT and long2pos) with calibrations taken with
         # a different decker ('MASKNAME')
-        # decker_basename is different than decker (MASKNAME) only for 'LONGSLIT' masks
-        self.meta['decker_basename'] = dict(card=None, compound=True)
+        # decker_secondary is different than decker (MASKNAME) only for 'LONGSLIT' masks
+        self.meta['decker_secondary'] = dict(card=None, compound=True)
         # slit width, defined only for 'LONGSLIT' masks
         self.meta['slitwid'] = dict(card=None, compound=True, rtol=0.1)
         # slit length in numbers of CSU, defined only for only for 'LONGSLIT' masks
@@ -304,8 +304,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         Returns:
             object: Metadata value read from the header(s).
         """
-        if meta_key == 'decker_basename':
-            # decker_basename is different than decker (MASKNAME) only for 'LONGSLIT' masks
+        if meta_key == 'decker_secondary':
+            # decker_secondary is different than decker (MASKNAME) only for 'LONGSLIT' masks
             maskname = headarr[0].get('MASKNAME')
             if 'LONGSLIT' in maskname:
                 return maskname.split('(')[0].split('-')[0]
@@ -384,7 +384,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['decker_basename', 'slitlength', 'slitwid', 'dispname', 'filter1']
+        return ['decker_secondary', 'slitlength', 'slitwid', 'dispname', 'filter1']
 
     def modify_config(self, fitstbl, cfg):
         """
@@ -403,7 +403,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             - For the 'long2pos' masks, when we are assigning a configuration to a calibration file
               that was taken with the 'long2pos' mask, since these calibrations are generally used
               for the reduction of science frames taken with 'long2pos_specphot' masks, we modify the
-              configuration requirement on the decker_basename for the current file.
+              configuration requirement on the decker_secondary for the current file.
 
         Args:
             fitstbl(`astropy.table.Table`_):
@@ -414,17 +414,17 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         Returns:
             :obj:`dict`: modified dictionary with metadata associated to a specific configuration.
         """
-        if fitstbl['decker'] is not None and cfg['decker_basename'] is not None and 'LONGSLIT' in fitstbl['decker'] \
-                and 'LONGSLIT' in cfg['decker_basename'] and 'science' not in fitstbl['frametype'] and\
+        if fitstbl['decker'] is not None and cfg['decker_secondary'] is not None and 'LONGSLIT' in fitstbl['decker'] \
+                and 'LONGSLIT' in cfg['decker_secondary'] and 'science' not in fitstbl['frametype'] and\
                 'standard' not in fitstbl['frametype'] and fitstbl['slitlength'] == 46.:
             cfg2 = copy.deepcopy(cfg)
             cfg2.pop('slitlength')
             return cfg2
-        if fitstbl['decker'] is not None and cfg['decker_basename'] is not None and 'long2pos' in fitstbl['decker'] and \
-                'long2pos' in cfg['decker_basename'] and 'science' not in fitstbl['frametype'] \
+        if fitstbl['decker'] is not None and cfg['decker_secondary'] is not None and 'long2pos' in fitstbl['decker'] and \
+                'long2pos' in cfg['decker_secondary'] and 'science' not in fitstbl['frametype'] \
                 and 'standard' not in fitstbl['frametype']:
             cfg2 = copy.deepcopy(cfg)
-            cfg2['decker_basename'] = 'long2pos'
+            cfg2['decker_secondary'] = 'long2pos'
             return cfg2
         return cfg
 
@@ -635,7 +635,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 #        pypeit_keys += [calib', 'comb_id', 'bkg_id']
 #        return pypeit_keys
         pypeit_keys = super().pypeit_file_keys()
-        pypeit_keys.remove('decker_basename')
+        pypeit_keys.remove('decker_secondary')
         pypeit_keys.remove('slitwid')
         pypeit_keys.remove('slitlength')
         return pypeit_keys + ['lampstat01', 'dithpat', 'dithpos', 'dithoff', 'frameno']

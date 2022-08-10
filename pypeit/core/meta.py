@@ -132,8 +132,13 @@ def define_additional_meta(nlamps=20):
                        'calpos': dict(dtype=str, comment='Position of calibration system (KCWI)'),
                        'datasec': dict(dtype=str, comment='Data section (windowing)'),
                        'dateobs': dict(dtype=str, comment='Observation date'),
-                       'decker_basename': dict(dtype=str, comment='Slit/mask/decker basename. '
-                                                                  'This differs from decker'),
+                       'decker_secondary': dict(dtype=str, comment='Partial Slitmask/decker name. '
+                                                                  'It differs from decker. This is curently '
+                                                                  'only needed for the reduction of some '
+                                                                  'MOSFIRE masks, which use calibrations '
+                                                                  'taken with a partially different decker '
+                                                                  'name than the one used for the associated '
+                                                                  'science frames.'),
                        'detector': dict(dtype=str, comment='Name of detector'),
                        'dichroic': dict(dtype=str, comment='Beam splitter'),
                        'dispangle': dict(dtype=float, comment='Angle of the disperser', rtol=0.),
