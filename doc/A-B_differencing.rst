@@ -41,7 +41,7 @@ have the following meanings/definitions:
 
 
 
-All of these should be assigned integer values (or ``all``, see below), and values less than or equal to 63.
+All of these should be assigned integer values (or ``all``, see below), and ``calib`` should be less than or equal to 63.
 
 
 Calibrations

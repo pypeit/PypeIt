@@ -132,6 +132,13 @@ def define_additional_meta(nlamps=20):
                        'calpos': dict(dtype=str, comment='Position of calibration system (KCWI)'),
                        'datasec': dict(dtype=str, comment='Data section (windowing)'),
                        'dateobs': dict(dtype=str, comment='Observation date'),
+                       'decker_secondary': dict(dtype=str, comment='Partial Slitmask/decker name. '
+                                                                  'It differs from decker. This is curently '
+                                                                  'only needed for the reduction of some '
+                                                                  'MOSFIRE masks, which use calibrations '
+                                                                  'taken with a partially different decker '
+                                                                  'name than the one used for the associated '
+                                                                  'science frames.'),
                        'detector': dict(dtype=str, comment='Name of detector'),
                        'dichroic': dict(dtype=str, comment='Beam splitter'),
                        'dispangle': dict(dtype=float, comment='Angle of the disperser', rtol=0.),
@@ -153,6 +160,7 @@ def define_additional_meta(nlamps=20):
                        'pressure': dict(dtype=float, comment='Pressure (units.bar) at observation time'),
                        'seq_expno': dict(dtype=int, comment='Number of exposure in observing sequence'),
                        'slitwid': dict(dtype=float, comment='Slit width, sometimes distinct from decker'),
+                       'slitlength': dict(dtype=float, comment='Slit length, used only for long slits'),
                        'temperature': dict(dtype=float, comment='Temperature (units.K) at observation time'),
                        'utc': dict(dtype=str, comment='UTC of observation')}
 
