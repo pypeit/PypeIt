@@ -3,10 +3,13 @@
 
 - Add ability for users to specify custom arc line lists for
   wavelength calibration, saved in the user's PypeIt cache
+- Add MDM/Modspec spectrograph
 
 1.10.0 (11 July 2022)
 ---------------------
 
+1.9.2dev
+--------
 - Modify tweak_standard for Mosfire/J2
 - Apply find_min_max when clipping the image for object finding
 - Mask bad detector regions for global sky flexure calculation
@@ -1414,7 +1417,7 @@
 - Other odds and ends including code flow doc
 - Introduce pypit/par and pypit/config directories
 - Introduce PypitPar as an initial step toward refactoring the front end
-- Move spectrograph specific code into spectographs/ folder
+- Move spectrograph specific code into spectrographs/ folder
 - Introduces the Spectrographs class
 - Introduces the Calibrations class with Notebook
 - Bug fix in view_fits script
