@@ -1523,11 +1523,11 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, tilts, cut, outfile=Non
     vmin, vmax = np.min(fcor_cut), np.max(fcor_cut)
 
     # Plot
-    cutrat = norm_cut.shape[1]/norm_cut.shape[0]
-    plt.figure(figsize=(11, 4.5 + 3*cutrat*11))
+    cutrat = 8.5*norm_cut.shape[1]/norm_cut.shape[0]  # 11 is the height of the figure on the next line
+    plt.figure(figsize=(5 + 3.25*cutrat, 8.5))
     plt.clf()
     # Single panel plot
-    gs = gridspec.GridSpec(1, 4, width_ratios=[4.0,cutrat*11,cutrat*11,cutrat*11])
+    gs = gridspec.GridSpec(1, 5, height_ratios=[1], width_ratios=[4.0, cutrat, cutrat, cutrat, cutrat*0.25])
     ax_spec = plt.subplot(gs[0])
     # Setup the bin edges, and some plotting variables
     bins = np.linspace(0, 1, nseg + 1)
@@ -1557,8 +1557,8 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, tilts, cut, outfile=Non
     ax_spec.minorticks_on()
     ax_spec.set_ylabel('Spatial illumination (fine correction), curves offset by {0:.3f}'.format(sep))
     if title is not None:
-        ax_spec.text(0.04, 0.93, title, transform=ax_spec.transAxes,
-                     size='x-large', ha='left')
+        ax_spec.text(0.04, 1.01, title, transform=ax_spec.transAxes,
+                     size='x-large', ha='left', va='bottom', fontsize='medium')
     # Plot the image, model, and residual
     ax_normed = plt.subplot(gs[1])
     ax_normed.imshow(norm_cut, vmin=vmin, vmax=vmax)
@@ -1569,11 +1569,17 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, tilts, cut, outfile=Non
     ax_fincor.set_title("model")
     ax_fincor.axis('off')
     ax_resid = plt.subplot(gs[3])
-    ax_resid.imshow(norm_cut-fcor_cut, vmin=vmin-1, vmax=vmax-1)
+    # Express the deviations as a percentage
+    im = ax_resid.imshow((norm_cut-fcor_cut)*100, vmin=(vmin-1)*100, vmax=(vmax-1)*100)
     ax_resid.set_title("diff")
     ax_resid.axis('off')
+    # Add a colorbar
+    cax = plt.subplot(gs[4])
+    cbar = plt.colorbar(im, cax=cax)#, fraction=0.046, pad=0.04)
+    cbar.set_label('Percentage deviation', rotation=270, labelpad=10)
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+    plt.subplots_adjust(wspace=0, hspace=0, left=0.08, right=0.93, bottom=0.05, top=0.94)
     if outfile is None:
         plt.show()
     else:
