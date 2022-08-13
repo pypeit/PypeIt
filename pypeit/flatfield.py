@@ -1561,17 +1561,17 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, tilts, cut, outfile=Non
                      size='x-large', ha='left', va='bottom', fontsize='medium')
     # Plot the image, model, and residual
     ax_normed = plt.subplot(gs[1])
-    ax_normed.imshow(norm_cut, vmin=vmin, vmax=vmax)
-    ax_normed.set_title("data")
+    ax_normed.imshow(np.flipud(norm_cut), vmin=vmin, vmax=vmax)
+    ax_normed.set_title("data", fontsize='small')
     ax_normed.axis('off')
     ax_fincor = plt.subplot(gs[2])
-    ax_fincor.imshow(fcor_cut, vmin=vmin, vmax=vmax)
-    ax_fincor.set_title("model")
+    ax_fincor.imshow(np.flipud(fcor_cut), vmin=vmin, vmax=vmax)
+    ax_fincor.set_title("model", fontsize='small')
     ax_fincor.axis('off')
     ax_resid = plt.subplot(gs[3])
     # Express the deviations as a percentage
-    im = ax_resid.imshow((norm_cut-fcor_cut)*100, vmin=(vmin-1)*100, vmax=(vmax-1)*100)
-    ax_resid.set_title("diff")
+    im = ax_resid.imshow(np.flipud(norm_cut-fcor_cut)*100, vmin=(vmin-1)*100, vmax=(vmax-1)*100)
+    ax_resid.set_title("diff", fontsize='small')
     ax_resid.axis('off')
     # Add a colorbar
     cax = plt.subplot(gs[4])
@@ -1579,7 +1579,7 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, tilts, cut, outfile=Non
     cbar.set_label('Percentage deviation', rotation=270, labelpad=10)
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-    plt.subplots_adjust(wspace=0, hspace=0, left=0.08, right=0.93, bottom=0.05, top=0.94)
+    plt.subplots_adjust(wspace=0.03, hspace=0, left=0.12, right=0.9, bottom=0.05, top=0.94)
     if outfile is None:
         plt.show()
     else:
