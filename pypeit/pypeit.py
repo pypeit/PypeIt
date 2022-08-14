@@ -375,6 +375,11 @@ class PypeIt:
 
         # Find the science frames
         is_science = self.fitstbl.find_frames('science')
+        # this will give an error to alert the user that no reduction
+        # will be run if there are no science/standard frames and `run_pypeit` is run without -c flag
+        if not np.any(is_science) and not np.any(is_standard):
+            msgs.error('No science/standard frames provided. Add them to your PypeIt file '
+                       'if this is a standard run! Otherwise run calib_only reduction using -c flag')
 
         # Frame indices
         frame_indx = np.arange(len(self.fitstbl))
@@ -393,7 +398,9 @@ class PypeIt:
             u_combid_std= np.unique(self.fitstbl['comb_id'][grp_standards])
             for j, comb_id in enumerate(u_combid_std):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
-                bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
+                # Find all frames whose comb_id matches the current frames bkg_id (same as for science frames).
+                bg_frames = np.where((self.fitstbl['comb_id'] == self.fitstbl['bkg_id'][frames][0]) &
+                                     (self.fitstbl['comb_id'] >= 0))[0]
                 if not self.outfile_exists(frames[0]) or self.overwrite:
                     # Build history to document what contributd to the reduced
                     # exposure
@@ -906,6 +913,7 @@ class PypeIt:
                                         vel_type=self.par['calibrations']['wavelengths']['refframe'],
                                         tilts=self.exTract.tilts,
                                         slits=slits,
+                                        wavesol=self.caliBrate.wv_calib.wave_diagnostics(print_diag=False),
                                         maskdef_designtab=maskdef_designtab)
         spec2DObj.process_steps = sciImg.process_steps
 

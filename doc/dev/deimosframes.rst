@@ -90,11 +90,11 @@ Requirement PD-1 states: "As a user, I want the pipeline to
 automatically classify my calibrations."
 
 ``PypeIt`` meets this requirement as demonstrated by the test at
-``pypeit/tests/test_frametype.py``.  To run the test:
+``${PYPEIT_DEV}/unit_tests/test_frametype.py``.  To run the test:
 
 .. code-block:: bash
 
-    cd pypeit/tests
+    cd ${PYPEIT_DEV}/unit_tests
     pytest test_frametype.py::test_deimos -W ignore
 
 The test requires that you have downloaded the ``PypeIt``
