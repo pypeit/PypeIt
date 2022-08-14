@@ -1187,11 +1187,11 @@ class IFUFindObjects(MultiSlitFindObjects):
             msgs.info("Performing iterative joint sky subtraction - ITERATION {0:d}/{1:d}".format(nn+1, numiter))
             # TODO trim_edg is in the parset so it should be passed in here via trim_edg=tuple(self.par['reduce']['trim_edge']),
             global_sky[thismask] = skysub.global_skysub(self.sciImg.image, model_ivar, tilt_wave,
-                                                             thismask, self.slits_left, self.slits_right, inmask=inmask,
-                                                             sigrej=sigrej, trim_edg=trim_edg,
-                                                             bsp=self.par['reduce']['skysub']['bspline_spacing'],
-                                                             no_poly=self.par['reduce']['skysub']['no_poly'],
-                                                             pos_mask=(not self.bkg_redux) and not objs_not_masked, show_fit=show_fit)
+                                                        thismask, self.slits_left, self.slits_right, inmask=inmask,
+                                                        sigrej=sigrej, trim_edg=trim_edg,
+                                                        bsp=self.par['reduce']['skysub']['bspline_spacing'],
+                                                        no_poly=self.par['reduce']['skysub']['no_poly'],
+                                                        pos_mask=(not self.bkg_redux) and not objs_not_masked, show_fit=show_fit)
             # Update the ivar image used in the sky fit
             msgs.info("Updating sky noise model")
             # Choose the highest counts out of sky and object
@@ -1201,12 +1201,8 @@ class IFUFindObjects(MultiSlitFindObjects):
             var = procimg.variance_model(self.sciImg.base_var[thismask], counts=counts[thismask],
                                          count_scale=_scale, noise_floor=adderr)
             model_ivar[thismask] = utils.inverse(var)
-            # var = np.abs(self.global_sky - np.sqrt(2.0) * np.sqrt(self.sciImg.rn2img)) + self.sciImg.rn2img
-            # var = var + adderr ** 2 * (np.abs(self.global_sky)) ** 2
-            # model_ivar = utils.inverse(var)
             # Redo the relative spectral illumination correction with the improved sky model
-            if self.par['scienceframe']['process']['use_specillum']:
-                self.illum_profile_spectral(global_sky, skymask=thismask)
+            self.illum_profile_spectral(global_sky, skymask=thismask)
 
         if update_crmask:
             # Find CRs with sky subtraction
@@ -1246,8 +1242,9 @@ class IFUFindObjects(MultiSlitFindObjects):
                                                          self.slits, self.slitmask, trace_spat, gd_slits,
                                                          self.pypeline, self.det)
             for sl in range(self.slits.nslits):
-                msgs.info("Flexure correction of slit {0:d}: {1:.3f} pixels".format(1+sl, flex_list[sl]['shift'][0]))
                 self.slitshift[sl] = flex_list[sl]['shift'][0]
+                msgs.info("Flexure correction of slit {0:d}: {1:.3f} pixels".format(1+sl, self.slitshift[sl]))
+
         # If the joint fit or spec/spat sensitivity corrections are not being performed, return the separate slits sky
         if not self.par['reduce']['skysub']['joint_fit']:
             return global_sky_sep
@@ -1260,28 +1257,16 @@ class IFUFindObjects(MultiSlitFindObjects):
         #     global_sky_sep = Reduce.global_skysub(self, skymask=skymask, update_crmask=update_crmask, trim_edg=trim_edg,
         #                                           show_fit=show_fit, show=show, show_objs=show_objs)
 
-        # Wavelengths (on unmasked slits)
-        msgs.info("Generating wavelength image")
-        # It's needed in `illum_profile_spectral`
-        # TODO maybe would be better to move it inside `illum_profile_spectral`
+        # Recalculate the wavelength image, and the global sky taking into account the spectral flexure
+        msgs.info("Regenerating wavelength image")
         self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spec_flexure=self.slitshift,
                                                    spat_flexure=self.spat_flexure_shift)
 
         self.illum_profile_spectral(global_sky_sep, skymask=skymask)
 
-        # Fit to the sky
-        if self.par['reduce']['skysub']['joint_fit']:
-            # Use sky information in all slits to perform a joint sky fit
-            global_sky = self.joint_skysub(skymask=skymask, update_crmask=update_crmask, trim_edg=trim_edg,
-                                           show_fit=show_fit, show=show, show_objs=show_objs,
-                                           objs_not_masked=objs_not_masked)
-        else:
-            # Re-run global skysub on individual slits, with the science frame now scaled
-            global_sky = super().global_skysub(skymask=skymask, update_crmask=update_crmask,
-                                               trim_edg=trim_edg, show_fit=show_fit,
-                                               show=show, show_objs=show_objs,
-                                               objs_not_masked=objs_not_masked)
+        # Use sky information in all slits to perform a joint sky fit
+        global_sky = self.joint_skysub(skymask=skymask, update_crmask=update_crmask, trim_edg=trim_edg,
+                                       show_fit=show_fit, show=show, show_objs=show_objs,
+                                       objs_not_masked=objs_not_masked)
+
         return global_sky
-
-
-
