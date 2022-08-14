@@ -541,6 +541,7 @@ def spec_flexure_slit_global(sciImg, waveimg, global_sky, par, slits, slitmask, 
                                   par['flexure']['spectrum'],
                                   method=par['flexure']['spec_method'],
                                   mxshft=par['flexure']['spec_maxshift'],
+                                  excess_shft=par['flexure']['excessive_shift'],
                                   slit_specs=slit_specs)
     return flex_list
 
