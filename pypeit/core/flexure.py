@@ -509,45 +509,6 @@ def spec_flexure_slit_global(sciImg, waveimg, global_sky, par, slits, slitmask, 
                                   slit_specs=slit_specs)
     return flex_list
 
-def spec_flexure_slit_global_old(waveimg, global_sky, slits, slitmid, slit_bpm, sky_file, mxshft=None):
-    """Calculate the spectral flexure for every slit (global) or object (local)
-
-    Args:
-        waveimg (`numpy.ndarray`_):
-            Wavelength image at every pixel
-        global_sky (`numpy.ndarray`_):
-            Global sky image of all slits
-        slits (:class:`~pypeit.slittrace.SlitTraceSet`):
-            Slit trace set
-        slitmid (`numpy.ndarray`_):
-            The spatial centre of each slit as a 2D array, shape = (nspec, nslit)
-        slit_bpm (`numpy.ndarray`_):
-            True = masked slit
-        sky_file (str):
-            Sky file
-        mxshft (int, optional):
-            Passed to flex_shift()
-
-    Returns:
-        :obj:`list`: A list of :obj:`dict` objects containing flexure
-        results of each slit. This is filled with a basically empty
-        dict if the slit is skipped.
-    """
-    msgs.info("Preparing to calculate spectral flexure using the global sky")
-    slit_specs = []
-    specarr = np.arange(slits.nspec)
-    xy = (specarr, np.arange(slits.nspat))
-    wavinterp = interpolate.RegularGridInterpolator(xy, waveimg, method='linear')
-    skyinterp = interpolate.RegularGridInterpolator(xy, global_sky, method='linear')
-    for sl in range(slits.nslits):
-        # TODO :: Need to remove this XSpectrum1D dependency - it is required by flexure routines.
-        idx = np.column_stack((specarr, slitmid[:, sl]))
-        slit_specs.append(xspectrum1d.XSpectrum1D.from_tuple((wavinterp(idx), skyinterp(idx))))
-    # Calculate the flexure of each slit
-    flex_list = spec_flexure_slit(slits, slits.slitord_id, slit_bpm, sky_file,
-                                  method="slitcen", specobjs=None, slit_specs=slit_specs, mxshft=mxshft)
-    return flex_list
-
 
 def spec_flexure_corrQA(ax, this_flex_dict, cntr, name):
     # Fit
