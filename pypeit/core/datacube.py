@@ -1220,6 +1220,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     dspat = None if cubepar['spatial_delta'] is None else cubepar['spatial_delta']/3600.0  # binning size on the sky (/3600 to convert to degrees)
     dwv = cubepar['wave_delta']       # binning size in wavelength direction (in Angstroms)
     wave_ref = None
+    mnmx_wv = None  # Will be used to store the minimum and maximum wavelengths of every slit and frame.
     weights = np.ones(numfiles)  # Weights to use when combining cubes
     locations = parset['calibrations']['alignment']['locations']
     flat_splines = dict()   # A dictionary containing the splines of the flatfield
@@ -1268,7 +1269,9 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                 relScaleImg = relScaleImgDef.copy()
 
         # Extract the information
-        relscl = spec2DObj.scaleimg/relScaleImg
+        relscl = 1.0
+        if cubepar['scale_corr'] is not None or opts['scale_corr'][ff] is not None:
+            relscl = spec2DObj.scaleimg/relScaleImg
         sciimg = (spec2DObj.sciimg-spec2DObj.skymodel)*relscl  # Subtract sky
         ivar = spec2DObj.ivarraw / relscl**2
         waveimg = spec2DObj.waveimg
@@ -1297,6 +1300,16 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
         msgs.info("Constructing slit image")
         slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=flexure)
+
+        # Obtain the minimum and maximum wavelength of all slits
+        if mnmx_wv is None:
+            mnmx_wv = np.zeros((1, slits.nslits, 2))
+        else:
+            mnmx_wv = np.append(mnmx_wv, np.zeros((1, slits.nslits, 2)), axis=0)
+        for slit_idx, slit_spat in enumerate(slits.spat_id):
+            onslit_init = (slitid_img_init == slit_spat)
+            mnmx_wv[ff, slit_idx, 0] = np.min(waveimg[onslit_init])
+            mnmx_wv[ff, slit_idx, 1] = np.max(waveimg[onslit_init])
 
         # Remove edges of the spectrum where the sky model is bad
         sky_is_good = make_good_skymask(slitid_img_init, spec2DObj.tilts)
@@ -1376,7 +1389,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             msgs.info("Calculating relative sensitivity for grating correction")
             flatimages = flatfield.FlatImages.from_file(flatfile)
             flatframe = flatimages.illumflat_raw/flatimages.fit2illumflat(slits, frametype='illum', initial=True,
-                                                                          flexure_shift=flexure)
+                                                                          spat_flexure=flexure)
             # Calculate the relative scale
             scale_model = flatfield.illum_profile_spectral(flatframe, waveimg, slits,
                                                            slit_illum_ref_idx=flatpar['slit_illum_ref_idx'], model=None,
@@ -1487,8 +1500,15 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     for dd in range(numiter):
         msgs.info(f"Iterating on spatial translation - ITERATION #{dd+1}/{numiter}")
         if cubepar["reference_image"] is None:
+            # Find the wavelength range where all frames overlap
+            min_wl, max_wl = np.max(mnmx_wv[:,:,0]), np.min(mnmx_wv[:,:,1])  # This is the max blue wavelength and the min red wavelength
             # Generate white light images
-            whitelight_imgs, _, _ = make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat)
+            if min_wl < max_wl:
+                ww = np.where((all_wave > min_wl) & (all_wave < max_wl))
+            else:
+                msgs.warn("Datacubes do not completely overlap in wavelength. Offsets may be unreliable...")
+                ww = np.where((all_wave > 0) & (all_wave < 99999999))
+            whitelight_imgs, _, _ = make_whitelight_frompixels(all_ra[ww], all_dec[ww], all_wave[ww], all_sci[ww], all_wghts[ww], all_idx[ww], dspat)
             # ref_idx will be the index of the cube with the highest S/N
             ref_idx = np.argmax(weights)
             reference_image = whitelight_imgs[:, :, ref_idx].copy()
@@ -1500,7 +1520,6 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                 make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
                                         cubepar['reference_image'])
             msgs.info("Calculating the spatial translation of each cube relative to user-defined 'reference_image'")
-
         # Calculate the image offsets - check the reference is a zero shift
         for ff in range(numfiles):
             # Calculate the shift
@@ -1515,8 +1534,16 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     # Generate a white light image of *all* data
     msgs.info("Generating global white light image")
     if cubepar["reference_image"] is None:
-        whitelight_img, _, wlwcs = make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts,
-                                                              np.zeros(all_ra.size), dspat)
+        # Find the wavelength range where all frames overlap
+        min_wl, max_wl = np.max(mnmx_wv[:, :, 0]), np.min(mnmx_wv[:, :, 1])  # This is the max blue wavelength and the min red wavelength
+        if min_wl < max_wl:
+            ww = np.where((all_wave > min_wl) & (all_wave < max_wl))
+            msgs.info("Whitelight image covers the wavelength range {0:.2f} A - {1:.2f} A".format(min_wl, max_wl))
+        else:
+            msgs.warn("Datacubes do not completely overlap in wavelength. Offsets may be unreliable...")
+            ww = np.where((all_wave > 0) & (all_wave < 99999999))
+        whitelight_img, _, wlwcs = make_whitelight_frompixels(all_ra[ww], all_dec[ww], all_wave[ww], all_sci[ww],
+                                                              all_wghts[ww], np.zeros(ww[0].size), dspat)
     else:
         _, whitelight_img, wlwcs = \
             make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, np.zeros(all_ra.size),
