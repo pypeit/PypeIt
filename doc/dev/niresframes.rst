@@ -81,7 +81,7 @@ test is as follows:
     #. Find all the directories in the :ref:`dev-suite` with Keck
        NIRES data.
 
-    #. For each directory (i.e., instrument setup; current there is only one):
+    #. For each directory (i.e., instrument setup; currently there is only one):
 
         #. Make sure there is a "by-hand" version of the pypeit file for this
            setup where a human (one of the pypeit developers) has ensured the
