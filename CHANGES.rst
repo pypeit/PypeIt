@@ -4,6 +4,12 @@
 - Add ability for users to specify custom arc line lists for
   wavelength calibration, saved in the user's PypeIt cache
 - Added Keck/NIRES frame-typing development doc.
+- Now more than one setup can be assigned to the same calibration frame,
+  allowing to associate the same calibration frames to different science/standard
+  frames, if desired.
+- Correctly associate calibrations with science data for MOSFIRE longslit and long2pos masks.
+- Automatically assign `comb_id` and `bkg_id` to MOSFIRE science data,
+  using the information on the dither pattern.
 
 1.10.0 (11 July 2022)
 ---------------------
@@ -14,14 +20,17 @@
 - Detector structure correction included in flatfield calibration
 - Apply find_min_max when clipping the image for object finding
 - Mask bad detector regions for global sky flexure calculation
+- Fixed a bug associated with 2d interpolation of waveimg in extraction.
 - Refactor PypeIt input files
 - Added wavelength diagnostics to the spec2d output
+
 
 1.9.1 (13 June 2022)
 --------------------
 
 - Hotfix for bug related to downloading from the `reid_arxiv` when using
   the `reidentify` wavelength calibration method.
+
 
 1.9.0 (31 May 2022)
 -------------------
