@@ -326,7 +326,7 @@ def refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_msgs):
                                                    spectrograph.telescope['elevation'],
                                                    refframe)
             # Apply correction to objects
-            msgs.info(f'Applying {refframe} correction = {vel} km/s')
+            msgs.info(f'Applying {refframe} correction to {spec1d} object {sobj["NAME"]} = {vel} km/s, {vel_corr}')
             sobj.apply_helio(vel_corr, refframe)
             corrected_at_least_one = True
         if corrected_at_least_one:
