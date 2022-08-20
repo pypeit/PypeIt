@@ -628,6 +628,17 @@ class BuildWaveTilts:
                           '. This slit/order will not reduced!')
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADTILTCALIB')
                 continue
+            # Check the spectral coverage of the usable arc lines for tilts. If the coverage is small,
+            # it will affect the wavelength range in waveimg (i.e, self.wv_calib.build_waveimg()) and
+            # crash the reduction later on.
+            # Here we mask slits that computed the tilts with arc lines coverage is <60%
+            use_tilt_spec_cov = (self.trace_dict['tilts_spec'][:, self.trace_dict['use_tilt']].max() -
+                                 self.trace_dict['tilts_spec'][:, self.trace_dict['use_tilt']].min()) / self.arccen.shape[0]
+            if use_tilt_spec_cov < 0.1:
+                msgs.warn(f'The spectral coverage of the usable arc lines is {use_tilt_spec_cov:.3f} (less than 10%).' +
+                          ' This slit/order will not reduced!')
+                self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADTILTCALIB')
+                continue
 
             # TODO: Show the traces before running the 2D fit
 
