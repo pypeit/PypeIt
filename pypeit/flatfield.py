@@ -1509,6 +1509,9 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, tilts, cut, outfile=Non
         The sampling size for the spatial profile. Should be about half the slit length.
         In this case, each output pixel shown contains about 2 detector pixels.
     """
+    plt.rcdefaults()
+    plt.rcParams['font.family'] = 'times new roman'
+
     msgs.info("Generating QA for spatial illumination fine correction")
     # Setup some plotting variables
     nseg = 10  # Number of segments to plot in QA - needs to be large enough so the fine correction is approximately linear in between adjacent segments
@@ -1587,6 +1590,7 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, tilts, cut, outfile=Non
         msgs.info("Saved QA:"+msgs.newline()+outfile)
 
     plt.close()
+    plt.rcdefaults()
     return
 
 
