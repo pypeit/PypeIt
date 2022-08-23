@@ -1561,7 +1561,7 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, tilts, cut, outfile=Non
     ax_spec.set_ylabel('Spatial illumination (fine correction), curves offset by {0:.3f}'.format(sep))
     if title is not None:
         ax_spec.text(0.04, 1.01, title, transform=ax_spec.transAxes,
-                     size='x-large', ha='left', va='bottom', fontsize='medium')
+                     ha='left', va='bottom', fontsize='medium')
     # Plot the image, model, and residual
     ax_normed = plt.subplot(gs[1])
     ax_normed.imshow(np.flipud(norm_cut), vmin=vmin, vmax=vmax)
