@@ -3,13 +3,13 @@
 
 - Add ability for users to specify custom arc line lists for
   wavelength calibration, saved in the user's PypeIt cache
+- Added Keck/NIRES frame-typing development doc.
 - Now more than one setup can be assigned to the same calibration frame,
   allowing to associate the same calibration frames to different science/standard
   frames, if desired.
 - Correctly associate calibrations with science data for MOSFIRE longslit and long2pos masks.
 - Automatically assign `comb_id` and `bkg_id` to MOSFIRE science data,
   using the information on the dither pattern.
-
 
 1.10.0 (11 July 2022)
 ---------------------

@@ -36,16 +36,16 @@ which finds unique combinations of the following keywords:
 ``fitstbl`` key      Header Key
 ===================  ===========
 ``dispname``         ``OBSMODE``
-``decker_basename``  No Key
+``decker_secondary`` No Key
 ``filter1``          ``FILTER``
 ``slitlength``       No Key
 ``slitwid``          No Key
 ===================  ===========
 
-``decker_basename``, ``slitlength``, and ``slitwid`` are defined as follow:
+``decker_secondary``, ``slitlength``, and ``slitwid`` are defined as follow:
 
-    - ``decker_basename`` is by default equal to the header key ``MASKNAME``. However, when "LONGSLIT" is included
-      in ``MASKNAME``, ``decker_basename`` is equal to "LONGSLIT".
+    - ``decker_secondary`` is by default equal to the header key ``MASKNAME``. However, when "LONGSLIT" is included
+      in ``MASKNAME``, ``decker_secondary`` is equal to "LONGSLIT".
     - ``slitlength`` is the length of the slit, expressed in number of CSUs (Configurable Slit Units). This value is
       included in the header key ``MASKNAME`` for *LONGSLIT* mask. Therefore, ``slitlength`` is
       available only for *LONGSLIT* mask, and is ``None`` for *multi-object* and *long2pos* masks.
@@ -75,7 +75,7 @@ equal to "long2pos" are used to calibrated science/standard frames that have ``M
 In this case, the default behaviour would identify the calibration frames and the science/standard frames
 as part of different unique configurations. Instead, when *long2pos* masks are used, we modify in place the requirement
 for the calibration frames. Specifically, only when we are assigning the setup identifier to the calibration frames,
-we temporarily change the required value of ``decker_basename`` in the specific unique configuration from
+we temporarily change the required value of ``decker_secondary`` in the specific unique configuration from
 "long2pos_specphot" to "long2pos". This allows to identify "long2pos" calibration frames and "long2pos_specphot"
 science/standard frames as part of the same unique configuration.
 
