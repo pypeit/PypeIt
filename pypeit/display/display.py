@@ -287,8 +287,8 @@ def show_points(viewer, ch, spec, spat, color='cyan', legend=None, legend_spec=N
 
 
 # TODO: Should we continue to allow rotate as an option?
-def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=None, maskdef_ids=None, rotate=False,
-               pstep=50, clear=False, synced=True):
+def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=None, maskdef_ids=None, spec_vals = None,
+               rotate=False, pstep=50, clear=False, synced=True):
     r"""
     Overplot slits on the image in Ginga in the given channel
 
@@ -298,14 +298,19 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
         ch (ginga.util.grc._channel_proxy):
             Ginga channel
         left (`numpy.ndarray`_):
-            Array with left slit edges. Shape must be :math:`(N_{\rm
+            Array with spatial position of left slit edges. Shape must be :math:`(N_{\rm
             spec},)` or :math:`(N_{\rm spec}, N_{\rm l-edge})`, and
             can be different from ``right`` unless ``synced`` is
             True.
         right (`numpy.ndarray`_):
-            Array with right slit edges. Shape must be :math:`(N_{\rm
+            Array with spatial position of right slit edges. Shape must be :math:`(N_{\rm
             spec},)` or :math:`(N_{\rm spec}, N_{\rm r-edge})`, and
             can be different from ``left`` unless ``synced`` is True.
+        spec_vals (`numpy.ndarray`_, optional):
+            Array with spectral position of left and right slit edges. Shape must be :math:`(N_{\rm
+            spec},)` or :math:`(N_{\rm spec}, N_{\rm r-edge})`. Currently it is only possible to input
+            a single set of spec_vals for both ``left`` and ``right`` edges. If not passed in
+            the default of np.arange(:math:`(N_{\rm spec},)`) will be used.
         slit_ids (:obj:`int`, array-like, optional):
             PypeIt ID numbers for the slits. If None, IDs run from -1 to
             :math:`-N_{\rm slits}`. If not None, shape must be
@@ -351,6 +356,13 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
         # TODO: Any reason to remove this restriction?
         msgs.error('Input left and right edges have different spectral lengths.')
 
+    # Spectral pixel location
+    if spec_vals is not None:
+        y = spec_vals.reshape(-1,1) if spec_vals.ndim == 1 else spec_vals
+    else:
+        y = np.arange(nspec).astype(float)
+        y = y.reshape(-1,1) if left.ndim == 1 else y
+
     # Check input
     if synced:
         if left.shape != right.shape:
@@ -384,8 +396,6 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
     if clear:
         canvas.clear()
 
-    # Spectral pixel location
-    y = np.arange(nspec).astype(float)
 
     # Label positions
     top = int(2*nspec/3.)
@@ -394,13 +404,13 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
     # Plot lefts. Points need to be int or float. Use of .tolist() on
     # each array insures this
     for i in range(nleft):
-        points = list(zip(y[::pstep].tolist(), _left[::pstep,i].tolist())) if rotate \
-                    else list(zip(_left[::pstep,i].tolist(), y[::pstep].tolist()))
+        points = list(zip(y[::pstep, i].tolist(), _left[::pstep,i].tolist())) if rotate \
+                    else list(zip(_left[::pstep,i].tolist(), y[::pstep, i].tolist()))
         canvas.add(str('path'), points, color=str('green'))
         if not synced:
             # Add text
-            xt, yt = float(_left_id_loc[top,i]), float(y[top])
-            xb, yb = float(_left_id_loc[bot,i]), float(y[bot])
+            xt, yt = float(_left_id_loc[top,i]), float(y[top, i])
+            xb, yb = float(_left_id_loc[bot,i]), float(y[bot, i])
             if rotate:
                 xt, yt = yt, xt
                 xb, yb = yb, xb
@@ -411,8 +421,8 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
     # Plot rights. Points need to be int or float. Use of .tolist() on
     # each array insures this
     for i in range(nright):
-        points = list(zip(y[::pstep].tolist(), _right[::pstep,i].tolist())) if rotate \
-                    else list(zip(_right[::pstep,i].tolist(), y[::pstep].tolist()))
+        points = list(zip(y[::pstep, i].tolist(), _right[::pstep,i].tolist())) if rotate \
+                    else list(zip(_right[::pstep,i].tolist(), y[::pstep, i].tolist()))
         canvas.add(str('path'), points, color=str('magenta'))
         if not synced:
             # Add text
@@ -430,8 +440,8 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
     if not synced:
         return
     for i in range(nslits):
-        xt, yt = float(_slit_id_loc[top,i]), float(y[top])
-        xb, yb = float(_slit_id_loc[bot,i]), float(y[bot])
+        xt, yt = float(_slit_id_loc[top,i]), float(y[top,i])
+        xb, yb = float(_slit_id_loc[bot,i]), float(y[bot,i])
         if rotate:
             xt, yt = yt, xt
             xb, yb = yb, xb
@@ -457,7 +467,7 @@ def show_trace(viewer, ch, trace, trc_name='Trace', color='blue', clear=False,
         ch (ginga.util.grc._channel_proxy):
             Ginga channel
         trace (np.ndarray):
-            x-positions on the detector
+            Spatial positions on the detector. Shape = (nspec,)
         trc_name (str, optional):
             Trace name
         color (str, optional):
