@@ -1306,7 +1306,8 @@ class CubePar(ParSet):
     def __init__(self, slit_spec=None, relative_weights=None, combine=None, output_filename=None,
                  standard_cube=None, reference_image=None, save_whitelight=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
-                 spatial_delta=None, wave_delta=None, astrometric=None, grating_corr=None, scale_corr=None):
+                 spatial_delta=None, wave_delta=None, astrometric=None, grating_corr=None, scale_corr=None,
+                 skysub_frame=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1425,10 +1426,20 @@ class CubePar(ParSet):
         defaults['scale_corr'] = None
         dtypes['scale_corr'] = str
         descr['scale_corr'] = 'This option performs a small correction for the relative spectral illumination ' \
-                              'scale of different spec2D files. specify the relative path+file to the spec2D ' \
+                              'scale of different spec2D files. Specify the relative path+file to the spec2D ' \
                               'file that you would like to use for the relative scaling. If you want to perform ' \
                               'this correction, it is best to use the spec2d file with the highest S/N sky spectrum. ' \
                               'You should choose the same frame for both the standards and science frames.'
+
+        defaults['skysub_frame'] = 'image'
+        dtypes['skysub_frame'] = str
+        descr['skysub_frame'] = 'Set the sky subtraction to be implemented. The default behaviour is to subtract ' \
+                              'the sky using the model that that is derived from each individual image (i.e. set ' \
+                              'this parameter to "image"). To turn of sky subtraction completely, set this ' \
+                              'parameter to "None". Finally, if you want to use a different frame for the sky ' \
+                              'subtraction, specify the relative path+file to the spec2D file that you would like ' \
+                              'to use for the sky subtraction. The model fit to the sky of the specified frame will ' \
+                              'be used. Note, the sky and science frames do not need to have the same exposure time.'
 
         # Instantiate the parameter set
         super(CubePar, self).__init__(list(pars.keys()),
@@ -1447,7 +1458,7 @@ class CubePar(ParSet):
         parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'reference_image',
                    'save_whitelight', 'ra_min', 'ra_max', 'dec_min', 'dec_max', 'wave_min', 'wave_max',
                    'spatial_delta', 'wave_delta', 'relative_weights', 'combine', 'astrometric', 'grating_corr',
-                   'scale_corr']
+                   'scale_corr', 'skysub_frame']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
