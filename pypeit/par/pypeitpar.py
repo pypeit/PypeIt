@@ -1434,12 +1434,13 @@ class CubePar(ParSet):
         defaults['skysub_frame'] = 'image'
         dtypes['skysub_frame'] = str
         descr['skysub_frame'] = 'Set the sky subtraction to be implemented. The default behaviour is to subtract ' \
-                              'the sky using the model that that is derived from each individual image (i.e. set ' \
-                              'this parameter to "image"). To turn of sky subtraction completely, set this ' \
-                              'parameter to "None". Finally, if you want to use a different frame for the sky ' \
-                              'subtraction, specify the relative path+file to the spec2D file that you would like ' \
-                              'to use for the sky subtraction. The model fit to the sky of the specified frame will ' \
-                              'be used. Note, the sky and science frames do not need to have the same exposure time.'
+                                'the sky using the model that that is derived from each individual image (i.e. set ' \
+                                'this parameter to "image"). To turn of sky subtraction completely, set this ' \
+                                'parameter to "none" (all lowercase). Finally, if you want to use a different frame ' \
+                                'for the sky subtraction, specify the relative path+file to the spec2D file that you ' \
+                                'would like to use for the sky subtraction. The model fit to the sky of the specified ' \
+                                'frame will be used. Note, the sky and science frames do not need to have the same ' \
+                                'exposure time.'
 
         # Instantiate the parameter set
         super(CubePar, self).__init__(list(pars.keys()),

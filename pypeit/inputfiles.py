@@ -360,7 +360,7 @@ class InputFile:
                 break
         return start, end
 
-    def path_and_files(self, key:str, skip_blank=False):
+    def path_and_files(self, key:str, skip_blank=False, check_exists=True):
         """Generate a list of the filenames with 
         the full path from the column of the data Table
         specified by `key`.  The files must exist and be 
@@ -370,6 +370,8 @@ class InputFile:
             key (str): Column of self.data with the filenames of interest
             skip_blank (bool, optional): If True, ignore any
                 entry that is '', 'none' or 'None'. Defaults to False.
+            check_exists (bool, optional): If False, PypeIt will not
+            check if 'key' exists as a file. Defaults to True.
 
         Returns:
             list: List of the full paths to each data file
@@ -402,7 +404,7 @@ class InputFile:
                 filename = row[key]
 
             # Check we got a good hit
-            if not os.path.isfile(filename): 
+            if check_exists and not os.path.isfile(filename):
                 msgs.error(f"{row[key]} does not exist in one of the provided paths.  Modify your input {self.flavor} file")
             data_files.append(filename)
 
@@ -661,14 +663,14 @@ class Coadd3DFile(InputFile):
             opts['scale_corr'] = scale_corr
 
         # Get the scale correction files
-        skysub_frame = self.path_and_files('skysub_frame', skip_blank=False)
+        skysub_frame = self.path_and_files('skysub_frame', skip_blank=False, check_exists=False)
         if skysub_frame is None:
             opts['skysub_frame'] = ["default"]*len(self.filenames)
         elif len(skysub_frame) == 1 and len(self.filenames) > 1:
             opts['skysub_frame'] = skysub_frame*len(self.filenames)
         elif len(skysub_frame) != 0:
             opts['skysub_frame'] = skysub_frame
-        print(opts, skysub_frame)
+
         # Return all options
         return opts
 
