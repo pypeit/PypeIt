@@ -1320,7 +1320,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                     this_skysub = opts['skysub_frame'][ff]  # User specified spec2d for sky subtraction
                 except:
                     msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + opts['skysub_frame'][ff])
-        if this_skysub == "None":
+        if this_skysub == "none":
             msgs.info("Sky subtraction will not be performed.")
         else:
             msgs.info("Using the following frame for sky subtraction:"+msgs.newline()+this_skysub)
