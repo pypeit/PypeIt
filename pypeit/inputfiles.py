@@ -636,6 +636,12 @@ class Coadd3DFile(InputFile):
                             [reduce]
                                 [[cube]]
                                     scale_corr = spec2d_alternative.fits
+        skysub_frame   : The name of an alternative spec2d file that is used for the sky subtraction.
+                        This parameter can also be set for all frames with the default command::
+
+                            [reduce]
+                                [[cube]]
+                                    skysub_frame = spec2d_alternative.fits
 
         Returns
         -------
@@ -643,16 +649,26 @@ class Coadd3DFile(InputFile):
             Dictionary containing cube options.
         """
         # Define the list of allowed parameters
-        opts = dict(scale_corr=None)
+        opts = dict(scale_corr=None, skysub_frame=None)
 
         # Get the scale correction files
         scale_corr = self.path_and_files('scale_corr', skip_blank=True)
         if scale_corr is None:
             opts['scale_corr'] = [None]*len(self.filenames)
         elif len(scale_corr) == 1 and len(self.filenames) > 1:
-            scale_corr = scale_corr*len(self.filenames)
+            opts['scale_corr'] = scale_corr*len(self.filenames)
         elif len(scale_corr) != 0:
             opts['scale_corr'] = scale_corr
+
+        # Get the scale correction files
+        skysub_frame = self.path_and_files('skysub_frame', skip_blank=False)
+        if skysub_frame is None:
+            opts['skysub_frame'] = ["default"]*len(self.filenames)
+        elif len(skysub_frame) == 1 and len(self.filenames) > 1:
+            opts['skysub_frame'] = skysub_frame*len(self.filenames)
+        elif len(skysub_frame) != 0:
+            opts['skysub_frame'] = skysub_frame
+        print(opts, skysub_frame)
         # Return all options
         return opts
 

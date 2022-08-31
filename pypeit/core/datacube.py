@@ -1239,15 +1239,18 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                       "scale_corr file in the spec2d block")
             cubepar['scale_corr'] = None
     # Load the default sky frame to be used for sky subtraction
+    skysub_default = "image"
     skysubImgDef = None  # This is the default behaviour (to use the "image" for the sky subtraction)
     if cubepar['skysub_frame'] is None:
+        skysub_default = "None"
         skysubImgDef = np.array([0.0])  # Do not perform sky subtraction
     elif cubepar['skysub_frame'].lower() != "image":
         msgs.info("Loading default image for sky subtraction:" +
                   msgs.newline() + cubepar['skysub_frame'])
         try:
             spec2DObj = spec2dobj.Spec2DObj.from_file(cubepar['skysub_frame'], detname)
-            skysub_exptime = fits.open(fil)[0].header['EXPTIME']
+            skysub_exptime = fits.open(cubepar['skysub_frame'])[0].header['EXPTIME']
+            skysub_default = cubepar['skysub_frame']
             skysubImgDef = spec2DObj.skymodel/skysub_exptime  # Sky counts/second
         except:
             msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + cubepar['skysub_frame'])
@@ -1282,25 +1285,41 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                     msgs.warn("Scale correction will not be performed")
                 relScaleImg = relScaleImgDef.copy()
 
-        # Set the default behaviour is a global skysub frame has been specified
-        if skysubImgDef is None:
+        # Set the default behaviour if a global skysub frame has been specified
+        this_skysub = skysub_default
+        if skysub_default == "image":
             skysubImg = spec2DObj.skymodel
         else:
             skysubImg = skysubImgDef.copy() * exptime
         # See if there's any changes from the default behaviour
         if opts['skysub_frame'][ff] is not None:
-            if opts['skysub_frame'][ff].lower() == 'image':
+            if opts['skysub_frame'][ff].lower() == 'default':
+                if skysub_default == "image":
+                    skysubImg = spec2DObj.skymodel
+                    this_skysub = "image"  # Use the current spec2d for sky subtraction
+                else:
+                    skysubImg = skysubImgDef.copy() * exptime
+                    this_skysub = skysub_default  # Use the global value for sky subtraction
+            elif opts['skysub_frame'][ff].lower() == 'image':
                 skysubImg = spec2DObj.skymodel
+                this_skysub = "image"  # Use the current spec2d for sky subtraction
             elif opts['skysub_frame'][ff].lower() is None:
                 skysubImg = np.array([0.0])
+                this_skysub = "None"  # Don't do sky subtraction
             else:
                 try:
+                    # Load a user specified frame for sky subtraction
                     msgs.info("Loading skysub frame:"+msgs.newline()+opts['skysub_frame'][ff])
                     spec2DObj_sky = spec2dobj.Spec2DObj.from_file(opts['skysub_frame'][ff], detname)
-                    skysub_exptime = fits.open(fil)[0].header['EXPTIME']
+                    skysub_exptime = fits.open(opts['skysub_frame'][ff])[0].header['EXPTIME']
                     skysubImg = spec2DObj_sky.skymodel * exptime / skysub_exptime  # Sky counts
+                    this_skysub = opts['skysub_frame'][ff]  # User specified spec2d for sky subtraction
                 except:
                     msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + opts['skysub_frame'][ff])
+        if this_skysub == "None":
+            msgs.info("Sky subtraction will not be performed.")
+        else:
+            msgs.info("Using the following frame for sky subtraction:"+msgs.newline()+this_skysub)
 
         # Extract the information
         relscl = spec2DObj.scaleimg/relScaleImg
