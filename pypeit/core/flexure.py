@@ -281,7 +281,8 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20, excess_shft=
 
         shift = float(max_fit) - lag0
         # Deal with the case of shifts greater than ``mxshft``
-        # We need to compare the absolute value of shift to ``mxshft``
+        # We need to compare the absolute value of shift to ``mxshft``, since shift can be
+        # positive or negative, while ``mxshft`` is generally only positive
         # We use the floor of shift to avoid to trigger the error/warning for differences <1pixel
         if np.floor(abs(shift)).astype(int) > mxshft:
             msgs.warn(f"Computed shift {shift:.1f} pix is "
