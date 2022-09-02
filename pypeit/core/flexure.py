@@ -407,7 +407,7 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
 
     # Loop over slits, and then over objects
     for islit in range(nslits):
-        msgs.info("Working on spectral flexure of slit: {:d}".format(islit))
+        msgs.info(f"Working on spectral flexure of slit: {slits.spat_id[islit]}")
 
         # Reset
         flex_dict = dict(polyfit=[], shift=[], subpix=[], corr=[],
@@ -448,7 +448,7 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
                     continue
                 if sobj['BOX_WAVE'] is None: #len(specobj._data.keys()) == 1:  # Nothing extracted; only the trace exists
                     continue
-                msgs.info(f"Working on flexure for object # {sobj.OBJID} in slit # {islit}")
+                msgs.info(f"Working on flexure for object # {sobj.OBJID} in slit {slits.spat_id[islit]}")
 
                 # Using boxcar
                 sky_wave = sobj.BOX_WAVE
