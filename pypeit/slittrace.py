@@ -483,6 +483,10 @@ class SlitTraceSet(datamodel.DataContainer):
         for slit_idx, spatid in enumerate(self.spat_id):
             onslit = (slitid_img_init == spatid)
             onslit_init = np.where(onslit)
+            if self.mask[slit_idx] != 0:
+                msgs.error("Slit {0:d} ({1:d}/{2:d}) is masked. Cannot generate RA/DEC image.".format(spatid,
+                                                                                                      slit_idx+1,
+                                                                                                      self.spat_id.size))
             if astrometric:
                 # Calculate the typical pixel difference in the spatial direction
                 medpixdiff = np.median(np.diff(alignments.traces[:, :, slit_idx], axis=1))
