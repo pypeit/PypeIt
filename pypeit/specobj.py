@@ -494,9 +494,8 @@ class SpecObj(datamodel.DataContainer):
             wave = self[attr+'_WAVE']
             # Interpolate the sensitivity function onto the wavelength grid of the data
             sens_factor = flux_calib.get_sensfunc_factor(
-                wave, wave_zp, zeropoint, exptime, tellmodel=tellmodel, extinct_correct=extinct_correct,
-                                airmass=airmass, longitude=longitude, latitude=latitude, extrap_sens=extrap_sens)
-
+                wave, wave_zp, zeropoint, exptime, tellmodel=tellmodel, extinct_correct=extinct_correct, airmass=airmass,
+                longitude=longitude, latitude=latitude, extrap_sens=extrap_sens)
             flam = self[attr+'_COUNTS']*sens_factor
             flam_sig = sens_factor/np.sqrt(self[attr+'_COUNTS_IVAR'])
             flam_ivar = self[attr+'_COUNTS_IVAR']/sens_factor**2

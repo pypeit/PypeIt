@@ -12,6 +12,7 @@ Version History
 *Version*   *Author*           *Date*      ``PypeIt``
 =========   ================   =========== ===========
 1.0         Debora Pelliccia   24 Oct 2021 1.6.1.dev
+1.1         Debora Pelliccia   12 Jul 2021 1.9.2.dev
 =========   ================   =========== ===========
 
 ----
@@ -42,6 +43,7 @@ in the :class:`~pypeit.metadata.PypeItMetaData` object are:
        ``OBJECT``         ``object``
        ``FILTER``         ``filter1``
          No key           ``idname``
+      ``MASKNAME``        ``decker``
     ================   =================
 
 ``idname`` is defined using a combination of header keys, including ``PWSTATA7`` and ``PWSTATA8`` (see below).
@@ -49,22 +51,21 @@ in the :class:`~pypeit.metadata.PypeItMetaData` object are:
 
 The criteria used to select each frame type are as follows:
 
-=============   =====================   ============   ============   ============   ============   =============   =============================================
-Frame           ``idname``              ``TRUITIME``   ``FLATSPEC``   ``PWSTATA7``   ``PWSTATA8``   ``FILTER``      ``OBJECT``
-=============   =====================   ============   ============   ============   ============   =============   =============================================
-``science``     ``'object'``              ``>20s``        ``0``          ``0``          ``0``       ``!= 'Dark'``   ``not include 'Flat:Off' or 'lamps off'``
-``standard``    ``'object'``              ``<20s``        ``0``          ``0``          ``0``       ``!= 'Dark'``   ``not include 'Flat:Off' or 'lamps off'``
-``dark``        ``'dark'``                Not used        ``0``         Not used       Not used      ``'Dark'``     Not used
-``pixelflat``   ``'flatlamp'``            Not used        ``1``          ``0``          ``0``       ``!= 'Dark'``   Not used
-``pixelflat``   ``'flatlampoff'``         Not used        ``0``          ``0``          ``0``       ``!= 'Dark'``   ``include 'Flat:Off' or 'lamps off'``
-``trace``       ``'flatlamp'``            Not used        ``1``          ``0``          ``0``       ``!= 'Dark'``   Not used
-``trace``       ``'flatlampoff'``         Not used        ``0``          ``0``          ``0``       ``!= 'Dark'``   ``include 'Flat:Off' or 'lamps off'``
-``illumflat``   ``'flatlamp'``            Not used        ``1``          ``0``          ``0``       ``!= 'Dark'``   Not used
-``arc``         ``'arclamp'``             Not used        ``0``          ``1``          ``1``       ``!= 'Dark'``   Not used
-``arc``         ``'object'``              Not used        ``0``          ``0``          ``0``       ``!= 'Dark'``   ``not include 'Flat:Off' or 'lamps off'``
-``tilt``        ``'arclamp'``             Not used        ``0``          ``1``          ``1``       ``!= 'Dark'``   Not used
-``tilt``        ``'object'``              Not used        ``0``          ``0``          ``0``       ``!= 'Dark'``   ``not include 'Flat:Off' or 'lamps off'``
-=============   =====================   ============   ============   ============   ============   =============   =============================================
+================   =====================   ============   ============   ============   ============   =============   ======================   ===================================
+Frame              ``idname``              ``TRUITIME``   ``FLATSPEC``   ``PWSTATA7``   ``PWSTATA8``   ``FILTER``      ``OBJECT``               ``MASKNAME``
+================   =====================   ============   ============   ============   ============   =============   ======================   ===================================
+``science``        ``'object'``              ``>20s``        ``0``          ``0``          ``0``       ``!= 'Dark'``   ``not include 'Flat'``   Not used
+``standard``       ``'object'``              ``<20s``        ``0``          ``0``          ``0``       ``!= 'Dark'``   ``not include 'Flat'``   Not used
+``dark``           ``'dark'``                Not used        ``0``         Not used       Not used      ``'Dark'``     Not used                 Not used
+``pixelflat``      ``'flatlamp'``            Not used        ``1``          ``0``          ``0``       ``!= 'Dark'``   Not used                 Not used
+``trace``          ``'flatlamp'``            Not used        ``1``          ``0``          ``0``       ``!= 'Dark'``   Not used                 Not used
+``illumflat``      ``'flatlamp'``            Not used        ``1``          ``0``          ``0``       ``!= 'Dark'``   Not used                 Not used
+``lampoffflats``   ``'flatlampoff'``         Not used        ``0``          ``0``          ``0``       ``!= 'Dark'``   ``include 'Flat'``       Not used
+``arc``            ``'arclamp'``             Not used        ``0``          ``1``          ``1``       ``!= 'Dark'``   Not used                 Not used
+``arc``            ``'object'``              Not used        ``0``          ``0``          ``0``       ``!= 'Dark'``   ``not include 'Flat'``   ``not include 'long2pos_specphot'``
+``tilt``           ``'arclamp'``             Not used        ``0``          ``1``          ``1``       ``!= 'Dark'``   Not used                 Not used
+``tilt``           ``'object'``              Not used        ``0``          ``0``          ``0``       ``!= 'Dark'``   ``not include 'Flat'``   ``not include 'long2pos_specphot'``
+================   =====================   ============   ============   ============   ============   =============   ======================   ===================================
 
 Note that, by default, the exposure time (``TRUITIME``) is only used
 to distinguish between ``science`` and ``standard`` frames; the criteria
@@ -73,8 +74,8 @@ parameter in the :ref:`pypeit_file`; see also :ref:`frame_types`.
 
 Importantly, note that a MOSFIRE frame is never given a ``pinhole``
 type. Also note that the criteria used to select ``arc`` and ``tilt``
-frames are identical. The same is true for ``pixelflat`` and ``trace``,
-while ``illumflat`` frame type is not given to ``'flatlampoff'`` frames.
+frames are identical. The same is true for ``pixelflat``, ``trace``,
+and ``illumflat`` frames.
 
 
 Testing
@@ -84,11 +85,11 @@ Testing
     automatically classify my calibrations."
 
 ``PypeIt`` meets this requirement as demonstrated by the test at
-``pypeit/tests/test_frametype.py``.  To run the test:
+``${PYPEIT_DEV}/unit_tests/test_frametype.py``.  To run the test:
 
 .. code-block:: bash
 
-    cd pypeit/tests
+    cd ${PYPEIT_DEV}/unit_tests
     pytest test_frametype.py::test_mosfire -W ignore
 
 The test requires that you have downloaded the ``PypeIt``

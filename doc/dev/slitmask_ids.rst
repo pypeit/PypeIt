@@ -132,11 +132,11 @@ Testing
 - LRIS -- DevSuite only thus far
 
 ``PypeIt`` meets these requirements as demonstrated by the three tests at
-``pypeit/tests/test_maskdesign_matching.py``.  To run the tests:
+``${PYPEIT_DEV}/unit_tests/test_maskdesign_matching.py``.  To run the tests:
 
 .. code-block:: bash
 
-    cd pypeit/tests
+    cd ${PYPEIT_DEV}/unit_tests
     pytest test_maskdesign_matching.py::test_maskdef_id -W ignore
     pytest test_maskdesign_matching.py::test_add_missing_slits -W ignore
     pytest test_maskdesign_matching.py::test_overlapped_slits -W ignore
