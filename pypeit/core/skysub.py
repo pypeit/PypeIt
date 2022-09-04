@@ -951,7 +951,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
 
     # If requested display the model fits for this slit
     if show_resids:
-        viewer, ch = display.show_image((sciimg - skyimage - objimage) * np.sqrt(modelivar) * thismask)
+        viewer, ch = display.show_image((sciimg - skyimage - objimage) * np.sqrt(modelivar) * thismask, chname='residuals')
         # TODO add error checking here to see if ginga exists
         canvas = viewer.canvas(ch._chname)
         out1 = canvas.clear()
