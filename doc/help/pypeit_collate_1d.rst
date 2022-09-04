@@ -3,10 +3,11 @@
     $ pypeit_collate_1d -h
     usage: pypeit_collate_1d [-h] [--spec1d_files [SPEC1D_FILES ...]]
                              [--par_outfile PAR_OUTFILE] [--outdir OUTDIR]
-                             [--tolerance TOLERANCE] [--match MATCH] [--dry_run]
-                             [--ignore_flux] [--flux]
-                             [--exclude_slit_bm [EXCLUDE_SLIT_BM ...]]
+                             [--spec1d_outdir SPEC1D_OUTDIR] [--tolerance TOLERANCE]
+                             [--match_using MATCH_USING] [--dry_run] [--ignore_flux]
+                             [--flux] [--exclude_slit_bm [EXCLUDE_SLIT_BM ...]]
                              [--exclude_serendip] [--wv_rms_thresh WV_RMS_THRESH]
+                             [--refframe {observed,heliocentric,barycentric}]
                              [input_file]
     
     Flux/Coadd multiple 1d spectra from multiple nights and prepare a directory for
@@ -20,6 +21,7 @@
                             [collate1d]
                               tolerance             <tolerance>
                               outdir                <directory to place output files>
+                              spec1d_outdir         <directory to place modified spec1ds, if any>
                               exclude_slit_trace_bm <slit types to exclude>
                               exclude_serendip      If set serendipitous objects are skipped.
                               match_using           Whether to match using "pixel" or
@@ -31,6 +33,8 @@
                                                     spec1d files.
                               wv_rms_thresh         If set, any objects with a wavelength rms > than the input
                                                     value are skipped, else all wavelength rms values are accepted.
+                              refframe              Perform reference frame correction prior to coadding.
+                                                    Options are ['observed', 'heliocentric', 'barycentric']. Defaults to None.
                              
                             spec1d read
                             <path to spec1d files, wildcards allowed>
@@ -46,6 +50,11 @@
                             Output to save the parameters
       --outdir OUTDIR       The path where all coadded output files and report files
                             will be placed. Defaults to the current directory.
+      --spec1d_outdir SPEC1D_OUTDIR
+                            The path where all modified spec1d files are placed.
+                            These are only created if flux calibration or refframe
+                            correction are asked for. Defaults to overwriting
+                            existing spec1ds.
       --tolerance TOLERANCE
                             The tolerance used when comparing the coordinates of
                             objects. If two objects are within this distance from
@@ -55,7 +64,8 @@
                             units supported by astropy.coordinates.Angle can be
                             used(e.g. '0.003d' or '0h1m30s'). If match_using is
                             'pixel' this is a float.
-      --match MATCH         Determines how 1D spectra are matched as being the same
+      --match_using MATCH_USING
+                            Determines how 1D spectra are matched as being the same
                             object. Must be either 'pixel' or 'ra/dec'.
       --dry_run             If set, the script will display the matching File and
                             Object Ids but will not flux, coadd or archive.
@@ -72,4 +82,7 @@
                             If set, any objects with a wavelength RMS > this value
                             are skipped, else all wavelength RMS values are
                             accepted.
+      --refframe {observed,heliocentric,barycentric}
+                            Perform reference frame correction prior to coadding.
+                            Options are: observed, heliocentric, barycentric
     
