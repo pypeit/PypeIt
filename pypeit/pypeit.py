@@ -575,6 +575,7 @@ class PypeIt:
             sciImg_list.append(sciImg)
             objFind_list.append(objFind)
 
+
         # slitmask stuff
         if len(calibrated_det) > 0 and self.par['reduce']['slitmask']['assign_obj']:
             # get object positions from slitmask design and slitmask offsets for all the detectors
@@ -823,6 +824,11 @@ class PypeIt:
                 = self.get_sci_metadata(frames[0], det)
         # Is this a standard star?
         self.std_redux = 'standard' in self.objtype
+
+        ## TODO JFH I think all of this about determining the final global sky should be moved out of this method
+        ## and preferably into the FindObjects class. I see why we are doing it like this since for multislit we need
+        # to find all of the objects first using slitmask meta data,  but this comes at the expense of a much more complicated
+        # control sctucture.
 
         # Update the skymask
         skymask = objFind.create_skymask(sobjs_obj)

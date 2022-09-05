@@ -170,3 +170,12 @@ class LDTTelescopePar(TelescopePar):
                                               diameter=4.3,
                                               eff_aperture=12.85)
 
+
+# TODO provisional values
+class JWSTTelescopePar(TelescopePar):
+    def __init__(self):
+        super(JWSTTelescopePar, self).__init__(name='JWST',
+                                              longitude=0.0,
+                                              latitude=0.0,
+                                              elevation=0.0,
+                                              diameter=6.5)
