@@ -15,7 +15,7 @@ from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
-
+from IPython import embed
 
 class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
     """
@@ -50,20 +50,6 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
-        if hdu is None:
-            binning = '1,1'
-            gain = None
-            ronoise = None
-            darkcurr = None
-            datasec = None
-            oscansec = None
-        else:
-            binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
-            gain = np.atleast_1d(hdu[0].header['GAIN'])
-            ronoise = np.atleast_1d(hdu[0].header['RDNOISE'])
-            darkcurr = hdu[0].header['DARKCUR']
-            datasec = np.atleast_1d(hdu[0].header['DATASEC'])
-            oscansec = np.atleast_1d(hdu[0].header['BIASSEC'])
 
         # Detector 1, i.e. NRS1 from
         # https://jwst-docs.stsci.edu/jwst-near-infrared-spectrograph/nirspec-instrumentation/nirspec-detectors/nirspec-detector-performance
@@ -83,8 +69,8 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
             nonlinear=0.95,  # need to look up and update
             mincounts=-1e10,
             numamplifiers=1,
-            gain=0.996,
-            ronoise=5.17,
+            gain=np.atleast_1d(0.996),
+            ronoise=np.atleast_1d(5.17),
             datasec=None,
             oscansec=None
         )
@@ -96,11 +82,10 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
             dataext=0,
             darkcurr=0.0057,
             saturation=60400.,
-            gain=1.137,
-            ronoise=6.60,
+            gain=np.atleast_1d(1.137),
+            ronoise=np.atleast_1d(6.60),
         ))
         detector_dicts = [detector_dict1, detector_dict2]
-
         detector = detector_container.DetectorContainer(**detector_dicts[det-1])
         return detector
 

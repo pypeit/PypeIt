@@ -168,6 +168,11 @@ class PypeItImage(datamodel.DataContainer):
         # Return
         return slf
 
+    # JFH This API or the documentation should make it clear what is actually required to perform operations with these
+    # image objects. A list of 20 optional arguments all instantiated to None is not a useful API since it conveys no
+    # informationa bout what is required vs what is optional. I know this is a feature (flaw) of these
+    # data containers, but it really  needs to be addressed. Just separate the object init from the container
+    # init.
     def __init__(self, image=None, ivar=None, nimg=None, amp_img=None, det_img=None, rn2img=None,
                  base_var=None, img_scale=None, bpm=None, crmask=None, fullmask=None,
                  detector=None, spat_flexure=None, PYP_SPEC=None, units=None, exptime=None,

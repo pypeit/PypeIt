@@ -309,8 +309,8 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
         spec_vals (`numpy.ndarray`_, optional):
             Array with spectral position of left and right slit edges. Shape must be :math:`(N_{\rm
             spec},)` or :math:`(N_{\rm spec}, N_{\rm r-edge})`. Currently it is only possible to input
-            a single set of spec_vals for both ``left`` and ``right`` edges. If not passed in
-            the default of np.arange(:math:`(N_{\rm spec},)`) will be used.
+            a single set of spec_vals for both ``left`` and ``right`` edges, but not possible to pass distinct
+            spec_vals for left and right. If not passed in the default of np.arange(:math:`(N_{\rm spec},)`) will be used.
         slit_ids (:obj:`int`, array-like, optional):
             PypeIt ID numbers for the slits. If None, IDs run from -1 to
             :math:`-N_{\rm slits}`. If not None, shape must be
@@ -360,8 +360,7 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
     if spec_vals is not None:
         y = spec_vals.reshape(-1,1) if spec_vals.ndim == 1 else spec_vals
     else:
-        y = np.arange(nspec).astype(float)
-        y = y.reshape(-1,1) if left.ndim == 1 else y
+        y = np.repeat(np.arange(nspec).astype(float)[:, np.newaxis], nright, axis=1)
 
     # Check input
     if synced:
@@ -405,7 +404,7 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
     # each array insures this
     for i in range(nleft):
         points = list(zip(y[::pstep, i].tolist(), _left[::pstep,i].tolist())) if rotate \
-                    else list(zip(_left[::pstep,i].tolist(), y[::pstep, i].tolist()))
+            else list(zip(_left[::pstep,i].tolist(), y[::pstep, i].tolist()))
         canvas.add(str('path'), points, color=str('green'))
         if not synced:
             # Add text

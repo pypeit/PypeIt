@@ -277,7 +277,7 @@ class FindObjects:
 #        # For echelle
 #        self.spatial_coo = self.slits.spatial_coordinates(initial=initial, flexure=self.spat_flexure_shift)
 
-    def run(self, std_trace=None, show_peaks=False):
+    def run(self, std_trace=None, show_peaks=False, tilts=None):
         """
         Primary code flow for object finding in PypeIt reductions
 
@@ -300,16 +300,20 @@ class FindObjects:
 
         # Deal with dynamic calibrations
         # Tilts
-        self.waveTilts.is_synced(self.slits)
-        #   Deal with Flexure
-        if self.par['calibrations']['tiltframe']['process']['spat_flexure_correct']:
-            _spat_flexure = 0. if self.spat_flexure_shift is None else self.spat_flexure_shift
-            # If they both shifted the same, there will be no reason to shift the tilts
-            tilt_flexure_shift = _spat_flexure - self.waveTilts.spat_flexure
+        if tilts is None:
+            self.waveTilts.is_synced(self.slits)
+            #   Deal with Flexure
+            if self.par['calibrations']['tiltframe']['process']['spat_flexure_correct']:
+                _spat_flexure = 0. if self.spat_flexure_shift is None else self.spat_flexure_shift
+                # If they both shifted the same, there will be no reason to shift the tilts
+                tilt_flexure_shift = _spat_flexure - self.waveTilts.spat_flexure
+            else:
+                tilt_flexure_shift = self.spat_flexure_shift
+            msgs.info("Generating tilts image")
+            self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
         else:
-            tilt_flexure_shift = self.spat_flexure_shift
-        msgs.info("Generating tilts image")
-        self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
+            self.tilts = tilts
+
 
         # Check if the user wants to use a pre-defined sky regions file.
         skymask0, usersky = self.load_skyregions(None)
@@ -341,6 +345,8 @@ class FindObjects:
                                                      show_peaks=show_peaks)
         else:
             msgs.info("Skipping 2nd run of finding objects")
+
+        # TODO I think the final global should go here as well from the pypeit.py class lines 837
 
         return initial_sky, sobjs_obj
 
