@@ -66,7 +66,8 @@ class Extract:
 
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, bkg_redux=False,
+    def get_instance(cls, sciImg, slits, sobjs_obj, spectrograph, par, objtype,
+                     waveTilts=None, tilts=None, wv_calib=None, waveimg=None, bkg_redux=False,
                      return_negative=False, std_redux=False, show=False, basename=None):
         """
         Instantiate the Reduce subclass appropriate for the provided
@@ -78,15 +79,26 @@ class Extract:
         Args:
             sciImg (:class:`~pypeit.images.scienceimage.ScienceImage`):
                 Image to reduce.
+            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+                Slit trace set object
             sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
                 Objects found but not yet extracted
             spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             par (pypeit.par.pyepeitpar.PypeItPar):
-            caliBrate (:class:`pypeit.calibrations.Calibrations`):
+                Parameter set for Extract
             objtype (:obj:`str`):
                 Specifies object being reduced 'science' 'standard'
                 'science_coadd2d'.  This is used only to determine the
                 spat_flexure_shift and ech_order for coadd2d.
+            waveTilts (:class:`~pypeit.wavetilts.WaveTilts`, optional):
+                This is waveTilts object which is optional, but either waveTilts or tilts must
+                be provided.
+            tilts (`numpy.ndarray`_, optional):
+                Tilts image. Either a tilts image or waveTilts object (above) must be provided.
+            wv_calib (:class:`~pypeit.wavetilts.WaveCalib`, optional):
+                This is the waveCalib object which is optional, but either wv_calib or waveimg must be provided.
+            waveimg (`numpy.ndarray`_, optional):
+                Wave image. Either a wave image or wv_calib object (above) must be provided
             bkg_redux (:obj:`bool`, optional):
                 If True, the sciImg has been subtracted by
                 a background image (e.g. standard treatment in the IR)
@@ -110,12 +122,13 @@ class Extract:
         """
         return next(c for c in utils.all_subclasses(Extract)
                     if c.__name__ == (spectrograph.pypeline + 'Extract'))(
-                            sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, 
-                            bkg_redux=bkg_redux, return_negative=return_negative, std_redux=std_redux, show=show,
-                            basename=basename)
+            sciImg, slits, sobjs_obj, spectrograph, par, objtype, waveTilts=waveTilts, tilts=tilts,
+            wv_calib=wv_calib, waveimg=waveimg, bkg_redux=bkg_redux, return_negative=return_negative,
+            std_redux=std_redux, show=show, basename=basename)
 
-    def __init__(self, sciImg, sobjs_obj, spectrograph, par, caliBrate,
-                 objtype, bkg_redux=False, return_negative=False, std_redux=False, show=False,
+    def __init__(self, sciImg, slits, sobjs_obj, spectrograph, par, objtype,
+                 waveTilts=None, tilts=None, wv_calib=None, waveimg=None,
+                 bkg_redux=False, return_negative=False, std_redux=False, show=False,
                  basename=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
@@ -126,7 +139,7 @@ class Extract:
         self.spectrograph = spectrograph
         self.objtype = objtype
         self.par = par
-        self.caliBrate = caliBrate
+        #self.caliBrate = caliBrate
         self.basename = basename
         # Parse
         # Slit pieces
@@ -146,7 +159,7 @@ class Extract:
 
         # Initialise the slits
         msgs.info("Initialising slits")
-        self.initialise_slits()
+        self.initialise_slits(slits)
 
         # Internal bpm mask
         self.extract_bpm = (self.slits.mask > 0) & (np.invert(self.slits.bitmask.flagged(
@@ -154,16 +167,16 @@ class Extract:
         self.extract_bpm_init = self.extract_bpm.copy()
 
         # These may be None (i.e. COADD2D)
-        self.waveTilts = caliBrate.wavetilts
-        self.wv_calib = caliBrate.wv_calib
+        #self.waveTilts = caliBrate.wavetilts
+        #self.wv_calib = caliBrate.wv_calib
 
         # Load up other input items
         self.bkg_redux = bkg_redux
         self.return_negative=return_negative
 
         self.std_redux = std_redux
-        self.det = caliBrate.det
-        self.binning = caliBrate.binning
+        self.det = sciImg.det
+        self.binning = sciImg.binning
         self.pypeline = spectrograph.pypeline
         self.extract_show = show
 
@@ -180,6 +193,40 @@ class Extract:
         self.sobjs = None  # Final extracted object list with trace corrections applied
         self.slitshift = np.zeros(self.slits.nslits)  # Global spectral flexure slit shifts (in pixels) that are applied to all slits.
         self.vel_corr = None
+
+        # Deal with dynamically generated calibrations, i.e. the tilts. If the tilts are not input generate
+        # them from the  fits in caliBrate, otherwise use the input tilts
+        if waveTilts is None and tilts is None:
+            msgs.error("Must provide either waveTilts or tilts to FindObjects")
+        elif waveTilts is not None and tilts is not None:
+            msgs.error("Cannot provide both waveTilts and tilts to FindObjects")
+        elif waveTilts is not None and tilts is None:
+            self.waveTilts = waveTilts
+            self.waveTilts.is_synced(self.slits)
+            #   Deal with Flexure
+            if self.par['calibrations']['tiltframe']['process']['spat_flexure_correct']:
+                _spat_flexure = 0. if self.spat_flexure_shift is None else self.spat_flexure_shift
+                # If they both shifted the same, there will be no reason to shift the tilts
+                tilt_flexure_shift = _spat_flexure - self.waveTilts.spat_flexure
+            else:
+                tilt_flexure_shift = self.spat_flexure_shift
+            msgs.info("Generating tilts image from fit in waveTilts")
+            self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
+        elif waveTilts is None and tilts is not None:
+            msgs.info("Using user input tilts image")
+            self.tilts = tilts
+
+        # Now generate the wavelength image
+        msgs.info("Generating wavelength image")
+        if wv_calib is None and waveimg is None:
+            msgs.error("Must provide either wv_calib or waveimg to Extract")
+        if wv_calib is not None and waveimg is not None:
+            msgs.error("Cannot provide both wv_calib and waveimg to Extract")
+        if wv_calib is not None and waveimg is None:
+            self.wv_calib = wv_calib
+            self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
+        elif wv_calib is None and waveimg is not None:
+            self.waveimg=waveimg
 
         # remove objects found in `BOXSLIT` (we don't want to extract those)
         remove_idx = []
@@ -213,7 +260,7 @@ class Extract:
         """
         return None
 
-    def initialise_slits(self, initial=False):
+    def initialise_slits(self, slits, initial=False):
         """
         Gather all the :class:`SlitTraceSet` attributes
         that we'll use here in :class:`Extract`
@@ -224,7 +271,7 @@ class Extract:
                 tweaked slits are used.
         """
         # Slits
-        self.slits = self.caliBrate.slits
+        self.slits = slits
         # Select the edges to use
         self.slits_left, self.slits_right, _ \
             = self.slits.select_edges(initial=initial, flexure=self.spat_flexure_shift)
@@ -317,30 +364,8 @@ class Extract:
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
-    def prepare_extraction(self):
-        """ Prepare the masks and wavelength image for extraction.
-        """
-        # Deal with dynamic calibrations
-        # Tilts
-        self.waveTilts.is_synced(self.slits)
-        #   Deal with Flexure
-        if self.par['calibrations']['tiltframe']['process']['spat_flexure_correct']:
-            _spat_flexure = 0. if self.spat_flexure_shift is None else self.spat_flexure_shift
-            # If they both shifted the same, there will be no reason to shift the tilts
-            tilt_flexure_shift = _spat_flexure - self.waveTilts.spat_flexure
-        else:
-            tilt_flexure_shift = self.spat_flexure_shift
-        msgs.info("Generating tilts image")
-        self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
 
-        # Wavelengths (on unmasked slits)
-        msgs.info("Generating wavelength image")
-        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
-
-
-
-
-    def run(self, global_sky, prepare_extraction=True, model_noise=None, spat_pix=None, ra=None, dec=None, obstime=None):
+    def run(self, global_sky, model_noise=None, spat_pix=None, ra=None, dec=None, obstime=None):
         """
         Primary code flow for PypeIt reductions
 
@@ -351,10 +376,6 @@ class Extract:
                 Global sky model
             sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
                 List of objects found during `run_objfind`
-            prepare_extraction (bool):
-                If True, generate the tilts image and the waveimg using fits that are stored in their
-                respective objects. This allows spatial flexure compensation to optionally be taken into account.
-                This option is set to False for coadd2d, since
             model_noise (bool):
                 If True, construct and iteratively update a model inverse variance image
                 using :func:`~pypeit.core.procimg.variance_model`. If False, a
@@ -384,10 +405,6 @@ class Extract:
                See main doc string for description
 
         """
-        # Start by preparing some masks and the wavelength image, ready for extraction
-        # TODO this should return things to make the control flow less opqaque.
-        if prepare_extraction:
-            self.prepare_extraction()
 
         self.global_sky = global_sky
 
@@ -725,8 +742,8 @@ class MultiSlitExtract(Extract):
     See parent doc string for Args and Attributes
 
     """
-    def __init__(self, sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, **kwargs):
-        super().__init__(sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, **kwargs)
+    def __init__(self, sciImg, slits, sobjs_obj, spectrograph, par, objtype, **kwargs):
+        super().__init__(sciImg, slits, sobjs_obj, spectrograph, par, objtype, **kwargs)
 
 
     @property
@@ -868,8 +885,8 @@ class EchelleExtract(Extract):
     See parent doc string for Args and Attributes
 
     """
-    def __init__(self, sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, **kwargs):
-        super(EchelleExtract, self).__init__(sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, **kwargs)
+    def __init__(self, sciImg, slits, sobjs_obj, spectrograph, par, objtype, **kwargs):
+        super(EchelleExtract, self).__init__(sciImg, slits, sobjs_obj, spectrograph, par, objtype, **kwargs)
 
         # JFH For 2d coadds the orders are no longer located at the standard locations
         self.order_vec = spectrograph.orders if 'coadd2d' in self.objtype \
@@ -978,8 +995,8 @@ class IFUExtract(MultiSlitExtract):
     See parent doc string for Args and Attributes
 
     """
-    def __init__(self, sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, **kwargs):
-        super(IFUExtract, self).__init__(sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, **kwargs)
-        self.initialise_slits(initial=True)
+    def __init__(self, sciImg, slits, sobjs_obj, spectrograph, par, objtype, **kwargs):
+        super(IFUExtract, self).__init__(sciImg, slits, sobjs_obj, spectrograph, par, objtype, **kwargs)
+        self.initialise_slits(slits, initial=True)
 
 

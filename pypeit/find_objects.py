@@ -1045,6 +1045,7 @@ class IFUFindObjects(MultiSlitFindObjects):
             self.sciImg.update_mask('BADSCALE', indx=_bpm)
         self.sciImg.ivar = utils.inverse(varImg)
 
+    # TODO This function is not used, remove?
     def illum_profile_spatial(self, skymask=None, trim_edg=(0, 0), debug=False):
         """
         Calculate the residual spatial illumination profile using the sky regions.
@@ -1095,6 +1096,7 @@ class IFUFindObjects(MultiSlitFindObjects):
 
             # Make the model histogram
             xspl = np.linspace(0.0, 1.0, 10 * int(slitlength))  # Sub sample each pixel with 10 subpixels
+            # TODO: caliBrate is no longer a dependency. If you need these b-splines pass them in.
             modspl = self.caliBrate.flatimages.illumflat_spat_bsplines[sl].value(xspl)[0]
             gradspl = interpolate.interp1d(xspl, np.gradient(modspl) / modspl, kind='linear', bounds_error=False,
                                            fill_value='extrapolate')
@@ -1167,6 +1169,7 @@ class IFUFindObjects(MultiSlitFindObjects):
         ref_idx = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
         smooth_npix = self.par['calibrations']['flatfield']['slit_illum_smooth_npix']
         gpm = self.sciImg.select_flag(invert=True)
+        # TODO why is this being done with waveimg instead of the tilts? Is profile really dependent on wavelength?
         scaleImg = flatfield.illum_profile_spectral(self.sciImg.image.copy(), self.waveimg, self.slits,
                                                     slit_illum_ref_idx=ref_idx, model=global_sky, gpmask=gpm,
                                                     skymask=skymask, trim=trim, flexure=self.spat_flexure_shift,

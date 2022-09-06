@@ -577,21 +577,22 @@ class CoAdd2D:
         # Get bpm mask. There should not be any masked slits because we excluded those already
         # before the coadd, but we need to pass a bpm to FindObjects and Extract
         slits = pseudo_dict['slits']
-        pseudo_reduce_bpm = (slits.mask > 0) & (np.invert(slits.bitmask.flagged(slits.mask,
-                                                                         flag=slits.bitmask.exclude_for_reducing)))
+        #pseudo_reduce_bpm = (slits.mask > 0) & (np.invert(slits.bitmask.flagged(slits.mask,
+        #                                                                 flag=slits.bitmask.exclude_for_reducing)))
 
         # Initiate FindObjects object
-        objFind = find_objects.FindObjects.get_instance(sciImage, self.spectrograph, parcopy, caliBrate,
-                                           'science_coadd2d', bkg_redux=self.bkg_redux, manual=manual_obj,
-                                           find_negative=self.find_negative, show=show)
+        objFind = find_objects.FindObjects.get_instance(sciImage, pseudo_dict['slits'], self.spectrograph, parcopy,
+                                                        'science_coadd2d', tilts=pseudo_dict['tilts'],
+                                                        bkg_redux=self.bkg_redux, manual=manual_obj,
+                                                        find_negative=self.find_negative, basename=basename, show=show)
 
         # Set the tilts and waveimg attributes from the psuedo_dict here, since we generate these dynamically from fits
         # normally, but this is not possible for coadds
-        objFind.tilts = pseudo_dict['tilts']
-        objFind.waveimg = pseudo_dict['waveimg']
-        objFind.binning = self.binning
-        objFind.basename = basename
-        objFind.reduce_bpm = pseudo_reduce_bpm
+        #objFind.tilts = pseudo_dict['tilts']
+        #objFind.waveimg = pseudo_dict['waveimg']
+        #objFind.binning = self.binning
+        #objFind.basename = basename
+        #objFind.reduce_bpm = pseudo_reduce_bpm
 
         if show:
             gpm = sciImage.select_flag(invert=True)
@@ -619,22 +620,23 @@ class CoAdd2D:
                                                        parcopy['reduce']['slitmask']['missing_objs_boxcar_rad']/platescale)
 
         # Initiate Extract object
-        exTract = extraction.Extract.get_instance(sciImage, sobjs_obj, self.spectrograph, parcopy, caliBrate,
-                                                  'science_coadd2d', bkg_redux=self.bkg_redux, show=show)
+        exTract = extraction.Extract.get_instance(sciImage, pseudo_dict['slits'], sobjs_obj, self.spectrograph, parcopy,
+                                                  'science_coadd2d', tilts=pseudo_dict['tilts'], waveimg=pseudo_dict['waveimg'],
+                                                  bkg_redux=self.bkg_redux, basename=basename, show=show)
 
         # Set the tilts and waveimg attributes from the psuedo_dict here, since we generate these dynamically from fits
         # normally, but this is not possible for coadds
-        exTract.tilts = pseudo_dict['tilts']
-        exTract.waveimg = pseudo_dict['waveimg']
-        exTract.binning = self.binning
-        exTract.basename = basename
-        exTract.reduce_bpm = pseudo_reduce_bpm
+        #exTract.tilts = pseudo_dict['tilts']
+        #exTract.waveimg = pseudo_dict['waveimg']
+        #exTract.binning = self.binning
+        #exTract.basename = basename
+        #exTract.reduce_bpm = pseudo_reduce_bpm
 
         # Local sky-subtraction
         global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
 
         skymodel_pseudo, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, _, _ = exTract.run(
-            global_sky_pseudo, prepare_extraction=False, model_noise=False, spat_pix=pseudo_dict['spat_img'])
+            global_sky_pseudo, model_noise=False, spat_pix=pseudo_dict['spat_img'])
 
 
         # Add the rest to the pseudo_dict

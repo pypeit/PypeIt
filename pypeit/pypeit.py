@@ -773,9 +773,8 @@ class PypeIt:
         # Instantiate Reduce object
         # Required for pypeline specific object
         # At instantiaton, the fullmask in self.sciImg is modified
-        objFind = find_objects.FindObjects.get_instance(sciImg, self.spectrograph,
-                                                        self.par, self.caliBrate,
-                                                        self.objtype,
+        objFind = find_objects.FindObjects.get_instance(sciImg, self.caliBrate.slits, self.spectrograph,
+                                                        self.par, self.objtype, waveTilts=self.caliBrate.waveTilts,
                                                         bkg_redux=self.bkg_redux,
                                                         manual=manual_obj,
                                                         find_negative=self.find_negative,
@@ -855,13 +854,10 @@ class PypeIt:
         # At instantiaton, the fullmask in self.sciImg is modified
         # TODO Are we repeating steps in the init for FindObjects and Extract??
         self.exTract = extraction.Extract.get_instance(
-            sciImg, sobjs_obj, self.spectrograph, 
-            self.par, self.caliBrate, self.objtype, 
-            bkg_redux=self.bkg_redux,
-            return_negative=self.par['reduce']['extraction']['return_negative'],
-            std_redux=self.std_redux,
-            show=self.show,
-            basename=self.basename)
+            sciImg, self.caliBrate.slits, sobjs_obj, self.spectrograph,
+            self.par, self.objtype, waveTilts=self.caliBrate.waveTilts, wv_calib=self.caliBrate.wv_calib,
+            bkg_redux=self.bkg_redux, return_negative=self.par['reduce']['extraction']['return_negative'],
+            std_redux=self.std_redux, basename=self.basename, show=self.show)
 
         if not self.par['reduce']['extraction']['skip_extraction']:
             skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, \
@@ -869,7 +865,7 @@ class PypeIt:
                                          dec=self.fitstbl["dec"][frames[0]], obstime=self.obstime)
         else:
             # Although exrtaction is not performed, still need to prepare some masks and the tilts
-            self.exTract.prepare_extraction()
+            #self.exTract.prepare_extraction()
             # Since the extraction was not performed, fill the arrays with the best available information
             skymodel = final_global_sky
             objmodel = np.zeros_like(self.exTract.sciImg.image)
