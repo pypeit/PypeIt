@@ -175,8 +175,8 @@ class Extract:
         self.return_negative=return_negative
 
         self.std_redux = std_redux
-        self.det = sciImg.det
-        self.binning = sciImg.binning
+        self.det = sciImg.detector.det
+        self.binning = sciImg.detector.binning
         self.pypeline = spectrograph.pypeline
         self.extract_show = show
 

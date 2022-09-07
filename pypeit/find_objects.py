@@ -185,12 +185,12 @@ class FindObjects:
         self.std_redux = std_redux
         # This can be a single integer for a single detector or a tuple for
         # multiple detectors placed in a mosaic.
-        self.det = self.sciImg.det
+        self.det = self.sciImg.detector.det
         # This is the string name of the detector or mosaic used when saving the
         # processed data to PypeIt's main output files
         self.detname = self.spectrograph.get_det_name(self.det)
 
-        self.binning = self.sciImg.binning #caliBrate.binning
+        self.binning = self.sciImg.detector.binning #caliBrate.binning
         self.pypeline = spectrograph.pypeline
         self.findobj_show = show
 

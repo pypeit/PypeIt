@@ -774,7 +774,7 @@ class PypeIt:
         # Required for pypeline specific object
         # At instantiaton, the fullmask in self.sciImg is modified
         objFind = find_objects.FindObjects.get_instance(sciImg, self.caliBrate.slits, self.spectrograph,
-                                                        self.par, self.objtype, waveTilts=self.caliBrate.waveTilts,
+                                                        self.par, self.objtype, waveTilts=self.caliBrate.wavetilts,
                                                         bkg_redux=self.bkg_redux,
                                                         manual=manual_obj,
                                                         find_negative=self.find_negative,
@@ -855,7 +855,7 @@ class PypeIt:
         # TODO Are we repeating steps in the init for FindObjects and Extract??
         self.exTract = extraction.Extract.get_instance(
             sciImg, self.caliBrate.slits, sobjs_obj, self.spectrograph,
-            self.par, self.objtype, waveTilts=self.caliBrate.waveTilts, wv_calib=self.caliBrate.wv_calib,
+            self.par, self.objtype, waveTilts=self.caliBrate.wavetilts, wv_calib=self.caliBrate.wv_calib,
             bkg_redux=self.bkg_redux, return_negative=self.par['reduce']['extraction']['return_negative'],
             std_redux=self.std_redux, basename=self.basename, show=self.show)
 
