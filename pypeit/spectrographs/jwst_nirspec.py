@@ -129,52 +129,29 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         """
         par = super().default_pypeit_par()
 
-        # Wavelengths
-        # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.5
-        par['calibrations']['wavelengths']['sigdetect'] = 5.
-        par['calibrations']['wavelengths']['fwhm'] = 5.0
-        # HeNeAr is by far most commonly used, though ThAr is used for some situations.
-        par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII', 'HeI', 'NeI']
-        par['calibrations']['wavelengths']['method'] = 'holy-grail'
 
-        # Processing steps
-        turn_off = dict(use_biasimage=False, use_darkimage=False)
-        par.reset_all_processimages_par(**turn_off)
+        # Reduce
+        par['reduce']['trim_edge'] = [0,0]
+
+        # Object finding
+        par['reduce']['findobj']['find_trim_edge'] = [0,0]
+        par['reduce']['findobj']['maxnumber_sci'] = 2
+        par['reduce']['findobj']['snr_thresh'] = 10.0
+        par['reduce']['findobj']['trace_npoly'] = 5
+
+        # Sky-subtraction
+        par['reduce']['skysub']['bspline_spacing'] = 2.5
 
         # Extraction
-        par['reduce']['skysub']['bspline_spacing'] = 0.8
+        par['reduce']['extraction']['model_full_slit'] = True
         par['reduce']['extraction']['sn_gauss'] = 4.0
-        ## Do not perform global sky subtraction for standard stars
-        par['reduce']['skysub']['global_sky_std'] = False
+        par['reduce']['extraction']['boxcar_radius'] = 0.8 # How big is a slitlet??
 
-        # cosmic ray rejection parameters for science frames
+        # Cosmic ray rejection parameters for science frames
         par['scienceframe']['process']['sigclip'] = 5.0
         par['scienceframe']['process']['objlim'] = 2.0
 
-        # Set the default exposure time ranges for the frame typing
 
-        # Appropriate exposure times for Blue Channel can vary a lot depending
-        # on grating and wavelength. E.g. 300 and 500 line gratings need very
-        # short exposures for flats to avoid saturation, but the 1200 and 832
-        # can use much longer exposures due to the higher resolution and the
-        # continuum lamp not being very bright in the blue/near-UV.
-        par['calibrations']['pixelflatframe']['exprng'] = [None, 100]
-        par['calibrations']['traceframe']['exprng'] = [None, 100]
-        par['calibrations']['standardframe']['exprng'] = [None, 600]
-        par['calibrations']['arcframe']['exprng'] = [10, None]
-        par['calibrations']['darkframe']['exprng'] = [300, None]
-
-        # less than 30 sec implies conditions are bright enough for scattered
-        # light to be significant which affects the illumination of the slit.
-        par['calibrations']['illumflatframe']['exprng'] = [30, None]
-
-        # Need to specify this for long-slit data
-        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-        par['calibrations']['slitedges']['bound_detector'] = True
-
-        # Sensitivity function parameters
-        par['sensfunc']['polyorder'] = 7
 
         return par
 

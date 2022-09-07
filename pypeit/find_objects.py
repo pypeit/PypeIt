@@ -83,6 +83,9 @@ class FindObjects:
 
     __metaclass__ = ABCMeta
 
+    # TODO Consider removing objtype argument and simply have an optional parameter which regulates the flexure
+    # behavior which is all objtype seems to do. But we should consider consistency with Extract.
+
     # Superclass factory method generates the subclass instance
     @classmethod
     def get_instance(cls, sciImg, slits, spectrograph, par, objtype, waveTilts=None, tilts=None, sky_region_file=None,
