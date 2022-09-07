@@ -337,9 +337,6 @@ class Extract:
         msgs.info("Generating wavelength image")
         self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
 
-
-
-
     def run(self, global_sky, prepare_extraction=True, model_noise=None, spat_pix=None, ra=None, dec=None, obstime=None):
         """
         Primary code flow for PypeIt reductions
@@ -391,25 +388,30 @@ class Extract:
 
         self.global_sky = global_sky
 
-        # Do we have any positive objects to proceed with?
-        if self.nobj_to_extract > 0:
-            # Apply a global flexure correction to each slit
-            # provided it's not a standard star
-            if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
-                self.spec_flexure_correct(mode='global')
+        # Apply a global flexure correction to each slit
+        # provided it's not a standard star
+        if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
+            self.spec_flexure_correct(mode='global')
+            for iobj in range(self.sobjs_obj.nobj):
+                islit = self.slits.spatid_to_zero(self.sobjs_obj[iobj].SLITID)
+                self.sobjs_obj[iobj].update_flex_shift(self.slitshift[islit], flex_type='global')
 
+        # Do we have any detected objects to extract?
+        if self.nobj_to_extract > 0:
             # Extract + Return
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
                 = self.extract(self.global_sky, model_noise=model_noise, spat_pix=spat_pix)
-
             if self.bkg_redux:
+                # purge negative objects if not return_negative otherwise keep them
                 self.sobjs.make_neg_pos() if self.return_negative else self.sobjs.purge_neg()
+
+            # Correct for local spectral flexure
+            if self.par['flexure']['spec_method'] not in ['skip', 'slitcen'] and not self.std_redux:
+                # Apply a refined estimate of the flexure to objects
+                self.spec_flexure_correct(mode='local', sobjs=self.sobjs)
+
         else:  # No objects, pass back what we have
-            # Apply a global flexure correction to each slit
-            # provided it's not a standard star
-            if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
-                self.spec_flexure_correct(mode='global')
-            #Could have negative objects but no positive objects so purge them
+            # Could have negative objects but no positive objects so purge them if not return_negative
             if self.bkg_redux:
                 self.sobjs_obj.make_neg_pos() if self.return_negative else self.sobjs_obj.purge_neg()
             self.skymodel = global_sky 
@@ -423,18 +425,18 @@ class Extract:
             # empty specobjs object from object finding
             self.sobjs = self.sobjs_obj
 
-        # If a global spectral flexure has been applied to all slits, store this correction as metadata in each specobj
-        if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
-            for iobj in range(self.sobjs.nobj):
-                islit = self.slits.spatid_to_zero(self.sobjs[iobj].SLITID)
-                self.sobjs[iobj].update_flex_shift(self.slitshift[islit], flex_type='global')
+        # # If a global spectral flexure has been applied to all slits, store this correction as metadata in each specobj
+        # if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
+        #     for iobj in range(self.sobjs.nobj):
+        #         islit = self.slits.spatid_to_zero(self.sobjs[iobj].SLITID)
+        #         self.sobjs[iobj].update_flex_shift(self.slitshift[islit], flex_type='global')
 
-        # Correct for local spectral flexure
-        if self.sobjs.nobj == 0:
-            msgs.warn('No objects to extract!')
-        elif self.par['flexure']['spec_method'] not in ['skip', 'slitcen'] and not self.std_redux:
-            # Apply a refined estimate of the flexure to objects, and then apply reference frame correction to objects
-            self.spec_flexure_correct(mode='local', sobjs=self.sobjs)
+        # # Correct for local spectral flexure
+        # if self.sobjs.nobj == 0:
+        #     msgs.warn('No objects to extract!')
+        # elif self.par['flexure']['spec_method'] not in ['skip', 'slitcen'] and not self.std_redux:
+        #     # Apply a refined estimate of the flexure to objects, and then apply reference frame correction to objects
+        #     self.spec_flexure_correct(mode='local', sobjs=self.sobjs)
 
         # Apply a reference frame correction to each object and the waveimg
         self.refframe_correct(ra, dec, obstime, sobjs=self.sobjs)
