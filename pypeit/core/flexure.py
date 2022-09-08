@@ -24,6 +24,7 @@ from linetools.spectra import xspectrum1d
 from pypeit import msgs
 from pypeit import utils
 from pypeit.display import display
+from pypeit.core.wavecal import autoid
 from pypeit.core import arc
 from pypeit.core import qa
 from pypeit.core import fitting
@@ -112,7 +113,7 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
     return lag_max[0]
 
 
-def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20, excess_shft="crash"):
+def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm=None, mxshft=20, excess_shft="crash"):
     """ Calculate shift between object sky spectrum and archive sky spectrum
 
     Args:
@@ -137,54 +138,13 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20, excess_shft=
 
     # TODO None of these routines should have dependencies on XSpectrum1d!
 
-    # Determine the brightest emission lines
     msgs.warn("If we use Paranal, cut down on wavelength early on")
-    arx_amp, arx_amp_cont, arx_cent, arx_wid, _, arx_w, arx_yprep, nsig = arx_lines
-    obj_amp, obj_amp_cont, obj_cent, obj_wid, _, obj_w, obj_yprep, nsig_obj = arc.detect_lines(obj_skyspec.flux.value)
 
-    # Keep only 5 brightest amplitude lines (xxx_keep is array of
-    # indices within arx_w of the 5 brightest)
-    arx_keep = np.argsort(arx_amp[arx_w])[-5:]
-    obj_keep = np.argsort(obj_amp[obj_w])[-5:]
+    # get gaussian sigma (pixels) for smoothing
+    smooth_sig_pix = get_sigma_gauss_smooth(arx_skyspec, obj_skyspec, arx_fwhm_pix, spec_fwhm=spec_fwhm)
 
-    # Calculate wavelength (Angstrom per pixel)
-    arx_disp = np.append(arx_skyspec.wavelength.value[1]-arx_skyspec.wavelength.value[0],
-                         arx_skyspec.wavelength.value[1:]-arx_skyspec.wavelength.value[:-1])
-    obj_disp = np.append(obj_skyspec.wavelength.value[1]-obj_skyspec.wavelength.value[0],
-                         obj_skyspec.wavelength.value[1:]-obj_skyspec.wavelength.value[:-1])
-
-    # Calculate resolution (lambda/delta lambda_FWHM)..maybe don't need
-    # this? can just use sigmas
-    arx_idx = (arx_cent+0.5).astype(np.int)[arx_w][arx_keep]   # The +0.5 is for rounding
-    arx_res = arx_skyspec.wavelength.value[arx_idx]/\
-              (arx_disp[arx_idx]*(2*np.sqrt(2*np.log(2)))*arx_wid[arx_w][arx_keep])
-    obj_idx = (obj_cent+0.5).astype(np.int)[obj_w][obj_keep]   # The +0.5 is for rounding
-    obj_res = obj_skyspec.wavelength.value[obj_idx]/ \
-              (obj_disp[obj_idx]*(2*np.sqrt(2*np.log(2)))*obj_wid[obj_w][obj_keep])
-
-    if not np.all(np.isfinite(obj_res)):
-        msgs.warn('Failed to measure the resolution of the object spectrum, likely due to error '
-                   'in the wavelength image.')
-        return None
-    msgs.info("Resolution of Archive={0} and Observation={1}".format(np.median(arx_res),
-                                                                     np.median(obj_res)))
-
-    # Determine sigma of gaussian for smoothing
-    arx_sig2 = np.power(arx_disp[arx_idx]*arx_wid[arx_w][arx_keep], 2)
-    obj_sig2 = np.power(obj_disp[obj_idx]*obj_wid[obj_w][obj_keep], 2)
-
-    arx_med_sig2 = np.median(arx_sig2)
-    obj_med_sig2 = np.median(obj_sig2)
-
-    if obj_med_sig2 >= arx_med_sig2:
-        smooth_sig = np.sqrt(obj_med_sig2-arx_med_sig2)  # Ang
-        smooth_sig_pix = smooth_sig / np.median(arx_disp[arx_idx])
-        arx_skyspec = arx_skyspec.gauss_smooth(smooth_sig_pix*2*np.sqrt(2*np.log(2)))
-    else:
-        msgs.warn("Prefer archival sky spectrum to have higher resolution")
-        smooth_sig_pix = 0.
-        msgs.warn("New Sky has higher resolution than Archive.  Not smoothing")
-        #smooth_sig = np.sqrt(arx_med_sig**2-obj_med_sig**2)
+    if smooth_sig_pix > 0:
+        arx_skyspec = arx_skyspec.gauss_smooth(smooth_sig_pix * 2 * np.sqrt(2 * np.log(2)))
 
     #Determine region of wavelength overlap
     min_wave = max(np.amin(arx_skyspec.wavelength.value), np.amin(obj_skyspec.wavelength.value))
@@ -326,6 +286,49 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20, excess_shft=
                 corr_cen=corr.size/2, smooth=smooth_sig_pix)
 
 
+def get_sigma_gauss_smooth(arx_skyspec, obj_skyspec, arx_fwhm_pix, spec_fwhm=None):
+    # determine object spectral FWHM (in Angstrom) using obj_skyspec if spec_fwhm is None
+    if spec_fwhm is None:
+        # pixels
+        spec_fwhm_pix = autoid.measure_fwhm(obj_skyspec.flux.value)
+        msgs.info('Measuring spectral FWHM using the boxcar extracted sky spectrum.')
+        if spec_fwhm_pix is None:
+            msgs.warn('Failed to measure the spectral FWHM using the boxcar extracted sky spectrum. '
+                      'Not enough sky lines detected.')
+            return None
+        else:
+            # object sky spectral dispersion (Angstrom/pixel)
+            obj_disp = np.append(obj_skyspec.wavelength.value[1] - obj_skyspec.wavelength.value[0],
+                                 obj_skyspec.wavelength.value[1:]-obj_skyspec.wavelength.value[:-1])
+            # Angstrom
+            spec_fwhm = spec_fwhm_pix * np.median(obj_disp)
+
+    # determine arxiv sky spectral FWHM (in Angstrom)
+    # arxiv sky spectral dispersion (Angstrom/pixel)
+    arx_disp = np.median(np.append(arx_skyspec.wavelength.value[1]-arx_skyspec.wavelength.value[0],
+                         arx_skyspec.wavelength.value[1:]-arx_skyspec.wavelength.value[:-1]))
+    arx_fwhm = arx_fwhm_pix * arx_disp
+
+    msgs.info(f"Resolution (FWHM) of Archive={arx_fwhm:.2f} Ang and Observation={spec_fwhm:.2f} Ang")
+
+    # Determine sigma of gaussian for smoothing
+    # object sky spectral sigma (Angstrom)
+    obj_med_sig2 = np.power(spec_fwhm / (2 * np.sqrt(2 * np.log(2))), 2)
+    # arxiv sky spectral sigma (Angstrom)
+    arx_med_sig2 = np.power(arx_fwhm / (2 * np.sqrt(2 * np.log(2))), 2)
+
+    if obj_med_sig2 >= arx_med_sig2:
+        smooth_sig = np.sqrt(obj_med_sig2-arx_med_sig2)  # Ang
+        smooth_sig_pix = smooth_sig / arx_disp
+    else:
+        msgs.warn("Prefer archival sky spectrum to have higher resolution")
+        smooth_sig_pix = 0.
+        msgs.warn("New Sky has higher resolution than Archive.  Not smoothing")
+        #smooth_sig = np.sqrt(arx_med_sig**2-obj_med_sig**2)
+
+    return smooth_sig_pix
+
+
 def flexure_interp(shift, wave):
     """
     Perform interpolation on wave given a shift in pixels
@@ -349,7 +352,7 @@ def flexure_interp(shift, wave):
 
 
 def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", specobjs=None,
-                      slit_specs=None, mxshft=None, excess_shft="crash"):
+                      slit_specs=None, wv_calib=None, mxshft=None, excess_shft="crash"):
     """Calculate the spectral flexure for every slit (global) or object (local)
 
     Args:
@@ -391,10 +394,14 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
     # Determine the method
     slit_cen = True if (specobjs is None) or (method == "slitcen") else False
 
-    # Load Archive. Save the line information to avoid the performance hit from calling it on the archive sky spectrum
+    # Load Archive. Save the fwhm to avoid the performance hit from calling it on the archive sky spectrum
     # multiple times
     sky_spectrum = data.load_sky_spectrum(sky_file)
-    sky_lines = arc.detect_lines(sky_spectrum.flux.value)
+    # get arxiv sky spectrum resolution (FWHM in pixels)
+    arx_fwhm_pix = autoid.measure_fwhm(sky_spectrum.flux.value)
+    if arx_fwhm_pix is None:
+        msgs.error('Failed to measure the spectral FWHM of the archived sky spectrum. '
+                   'Not enough sky lines detected.')
 
     nslits = slits.nslits
     gpm = np.logical_not(slit_bpm)
@@ -419,14 +426,18 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
             flex_list.append(flex_dict.copy())
             continue
 
+        # get spectral FWHM (in Angstrom) if available
+        iwv = np.where(wv_calib.spat_ids == slits.spat_id[islit])[0][0]
+        spec_fwhm = wv_calib.wv_fits[iwv].cen_disp*wv_calib.wv_fits[iwv].fwhm if wv_calib.wv_fits is not None else None
+
         # Down the center of the slit (spec_method = slitcen)
         if slit_cen:
             sky_wave = slit_specs[islit].wavelength.value
             sky_flux = slit_specs[islit].flux.value
 
             # Calculate the shift
-            fdict = spec_flex_shift(slit_specs[islit], sky_spectrum, sky_lines,
-                                    mxshft=mxshft, excess_shft=excess_shft)
+            fdict = spec_flex_shift(slit_specs[islit], sky_spectrum, arx_fwhm_pix,
+                                    mxshft=mxshft, excess_shft=excess_shft, spec_fwhm=spec_fwhm)
             # Failed?
             if fdict is not None:
                 # Update dict
@@ -458,8 +469,8 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
                 obj_sky = xspectrum1d.XSpectrum1D.from_tuple((sky_wave, sky_flux))
 
                 # Calculate the shift
-                fdict = spec_flex_shift(obj_sky, sky_spectrum, sky_lines,
-                                        mxshft=mxshft, excess_shft=excess_shft)
+                fdict = spec_flex_shift(obj_sky, sky_spectrum, arx_fwhm_pix,
+                                        mxshft=mxshft, excess_shft=excess_shft, spec_fwhm=spec_fwhm)
                 punt = False
                 if fdict is None:
                     msgs.warn("Flexure shift calculation failed for this spectrum.")

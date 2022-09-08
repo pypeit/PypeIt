@@ -884,7 +884,7 @@ def measure_fwhm(spec):
             # compute average `wdth`
             mean, med, _ = stats.sigma_clipped_stats(wdth[nsig > nsig_thrshd], sigma_lower=2.0, sigma_upper=2.0)
             # FWHM in pixels
-            measured_fwhm = np.round(med * 2.35482, 1)
+            measured_fwhm = med * (2 * np.sqrt(2 * np.log(2)))
             break
         nsig_thrshd -= 5
 
@@ -910,13 +910,13 @@ def set_fwhm(par, measured_fwhm=None):
     # Set FWHM for the methods that follow
     if par['fwhm_fromlines'] is False:
         fwhm = par['fwhm']
-        msgs.info("User-provided arc lines FWHM: {} pixels".format(fwhm))
+        msgs.info(f"User-provided arc lines FWHM: {fwhm:.1f} pixels")
     elif measured_fwhm is None:
         fwhm = par['fwhm']
-        msgs.warn("Assumed arc lines FWHM: {} pixels".format(fwhm))
+        msgs.warn(f"Assumed arc lines FWHM: {fwhm:.1f} pixels")
     else:
         fwhm = measured_fwhm
-        msgs.info("Measured arc lines FWHM: {} pixels".format(fwhm))
+        msgs.info(f"Measured arc lines FWHM: {fwhm:.1f} pixels")
 
     return fwhm
 

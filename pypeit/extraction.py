@@ -526,7 +526,7 @@ class Extract:
                                                   method=self.par['flexure']['spec_method'],
                                                   mxshft=self.par['flexure']['spec_maxshift'],
                                                   excess_shft=self.par['flexure']['excessive_shift'],
-                                                  specobjs=sobjs, slit_specs=slit_specs)
+                                                  specobjs=sobjs, slit_specs=slit_specs, wv_calib=self.wv_calib)
             # Store the slit shifts that were applied to each slit
             # These corrections are later needed so the specobjs metadata contains the total spectral flexure
             self.slitshift = np.zeros(self.slits.nslits)
@@ -547,7 +547,7 @@ class Extract:
                                                   method=self.par['flexure']['spec_method'],
                                                   mxshft=self.par['flexure']['spec_maxshift'],
                                                   excess_shft=self.par['flexure']['excessive_shift'],
-                                                  specobjs=sobjs, slit_specs=None)
+                                                  specobjs=sobjs, slit_specs=None, wv_calib=self.wv_calib)
             # Apply flexure to objects
             for islit in range(self.slits.nslits):
                 i_slitord = self.slits.slitord_id[islit]
