@@ -89,7 +89,8 @@ class FindObjects:
     # Superclass factory method generates the subclass instance
     @classmethod
     def get_instance(cls, sciImg, slits, spectrograph, par, objtype, waveTilts=None, tilts=None, sky_region_file=None,
-                     bkg_redux=False, find_negative=False, std_redux=False, show=False, basename=None, manual=None):
+                     bkg_redux=False, find_negative=False, std_redux=False, show=False, clear_ginga=True,
+                     basename=None, manual=None):
         """
         Instantiate the Reduce subclass appropriate for the provided
         spectrograph.
@@ -131,15 +132,14 @@ class FindObjects:
                     if c.__name__ == (spectrograph.pypeline + 'FindObjects'))(
             sciImg, slits, spectrograph, par, objtype, waveTilts=waveTilts, tilts=tilts,
             sky_region_file=sky_region_file, bkg_redux=bkg_redux,
-            find_negative=find_negative, std_redux=std_redux, show=show,
+            find_negative=find_negative, std_redux=std_redux, show=show, clear_ginga=clear_ginga,
             basename=basename, manual=manual)
 
     def __init__(self, sciImg, slits, spectrograph, par, objtype, waveTilts=None, tilts=None, sky_region_file=None,
-                 bkg_redux=False, find_negative=False, std_redux=False, show=False,
+                 bkg_redux=False, find_negative=False, std_redux=False, show=False, clear_ginga=True,
                  basename=None, manual=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
-
         # Instantiation attributes for this object
         self.sciImg = sciImg
         self.spectrograph = spectrograph
@@ -236,7 +236,7 @@ class FindObjects:
 
         # Show?
         if self.findobj_show:
-            self.show('image', image=sciImg.image, chname='processed', slits=True, clear=True)
+            self.show('image', image=sciImg.image, chname='processed', slits=True, clear=clear_ginga)
 
 
     def create_skymask(self, sobjs_obj):

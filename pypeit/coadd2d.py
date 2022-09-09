@@ -550,6 +550,8 @@ class CoAdd2D:
 
         show = self.show if show is None else show
         show_peaks = self.show_peaks if show_peaks is None else show_peaks
+        # TODO I think this is incorrect. I don't know how to instanatiate this class from an existing mask
+        # because everthying is hidden behind exceedingly complicated bitmasks.
         sciImage = pypeitimage.PypeItImage(image=pseudo_dict['imgminsky'],
                                            ivar=pseudo_dict['sciivar'],
                                            bpm=np.zeros_like(pseudo_dict['inmask'].astype(int)),  # Dummy bpm

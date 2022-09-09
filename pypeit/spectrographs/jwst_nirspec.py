@@ -138,6 +138,8 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         par['reduce']['findobj']['maxnumber_sci'] = 2
         par['reduce']['findobj']['snr_thresh'] = 10.0
         par['reduce']['findobj']['trace_npoly'] = 5
+        par['reduce']['findobj']['snr_thresh'] = 10.0
+        par['reduce']['findobj']['find_fwhm'] = 2.0
 
         # Sky-subtraction
         par['reduce']['skysub']['bspline_spacing'] = 2.5
@@ -150,6 +152,9 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         # Cosmic ray rejection parameters for science frames
         par['scienceframe']['process']['sigclip'] = 5.0
         par['scienceframe']['process']['objlim'] = 2.0
+
+        # Skip reference frame correction for now.
+        par['calibrations']['wavelengths']['refframe'] = 'observed'
 
 
 
