@@ -81,7 +81,7 @@ class Extract:
             sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
                 Objects found but not yet extracted
             spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
-            par (pypeit.par.pyepeitpar.PypeItPar):
+            par (pypeit.par.pypeitpar.PypeItPar):
             caliBrate (:class:`pypeit.calibrations.Calibrations`):
             objtype (:obj:`str`):
                 Specifies object being reduced 'science' 'standard'
