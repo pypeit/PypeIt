@@ -15,6 +15,7 @@ from pypeit import specobj
 from pypeit import specobjs
 from pypeit.tests.tstutils import dummy_fitstbl
 from pypeit import telescopes
+
 mjd = 57783.269661
 RA = '07:06:23.45'
 DEC = '+30:20:50.5'
