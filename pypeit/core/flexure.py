@@ -450,7 +450,11 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
 
         # If no objects on this slit append an empty dictionary
         if islit not in gdslits:
-            flex_list.append(flex_dict.copy())
+            # Update dict
+            for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec', 'sky_spec']:
+                # insert None at the location of the object that failed the calculation
+                flex_dict[key].append(None)
+            flex_dict['method'].append(None)
             continue
 
         # get spectral FWHM (in Angstrom) if available
@@ -474,6 +478,13 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
                 sky_wave_new = flexure_interp(fdict['shift'], sky_wave)
                 flex_dict['sky_spec'].append(xspectrum1d.XSpectrum1D.from_tuple((sky_wave_new, sky_flux)))
                 flex_dict['method'].append("slitcen")
+            else:
+                msgs.warn(f'Flexure corrections cannot be performed for slit # {slits.spat_id[islit]}')
+                # Update dict
+                for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec', 'sky_spec']:
+                    # insert None at the location of the object that failed the calculation
+                    flex_dict[key].append(None)
+                flex_dict['method'].append(None)
 
         # Along the boxcar extraction (spec_method = boxcar)
         else:
@@ -489,7 +500,7 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
                     continue
                 if sobj['BOX_WAVE'] is None: #len(specobj._data.keys()) == 1:  # Nothing extracted; only the trace exists
                     continue
-                msgs.info(f"Working on flexure for object # {sobj.OBJID} in slit {slits.spat_id[islit]}")
+                msgs.info(f"Working on flexure for object # {ss} in slit {slits.spat_id[islit]}")
 
                 # Using boxcar
                 sky_wave = sobj.BOX_WAVE
@@ -523,18 +534,25 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
             # Check if we need to go back
             if len(return_later_sobjs) > 0:
                 msgs.warn(f'Flexure shift calculation failed for {len(return_later_sobjs)} '
-                          f'objects in slit {slits.spat_id[islit]}')
-                if sv_fdict is None:
-                    msgs.warn('No previously saved flexure shift estimates available. '
-                              'Flexure corrections cannot be performed for these objects')
-                else:
-                    for obj_idx in return_later_sobjs:
+                          f'object(s) in slit {slits.spat_id[islit]}')
+                for obj_idx in return_later_sobjs:
+                    # Do we have a previously saved value?
+                    if sv_fdict is None:
+                        msgs.warn(f'No previously saved flexure shift estimate available. '
+                                  f'Flexure corrections cannot be performed for object # {obj_idx}')
+                        # Update dict
+                        for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec', 'sky_spec']:
+                            # insert None at the location of the object that failed the calculation
+                            flex_dict[key].insert(obj_idx, None)
+                        flex_dict['method'].insert(obj_idx, None)
+                    else:
                         # Copy me
                         fdict = copy.deepcopy(sv_fdict)
                         msgs.info(f"Previously saved flexure shift estimate of {fdict['shift']:.3f} pixels "
-                                  f"used for object # {obj_idx} in slit {slits.spat_id[islit]}")
+                                  f"used for object # {obj_idx}")
                         # Update dict
                         for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec', 'sky_spec']:
+                            # insert the saved value at the location of the object that failed the calculation
                             flex_dict[key].insert(obj_idx, fdict[key])
                         flex_dict['method'].insert(obj_idx, "boxcar")
 
@@ -547,26 +565,32 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
 def spec_flexure_corrQA(ax, this_flex_dict, cntr, name):
     # Fit
     fit = this_flex_dict['polyfit'][cntr]
-    xval = np.linspace(-10., 10, 100) + this_flex_dict['corr_cen'][cntr]  # + flex_dict['shift'][o]
-    # model = (fit[2]*(xval**2.))+(fit[1]*xval)+fit[0]
-    model = fit.eval(xval)
-    # model = utils.func_val(fit, xval, 'polynomial')
-    mxmod = np.max(model)
-    ylim_min = np.min(model / mxmod) if np.isfinite(np.min(model / mxmod)) else 0.0
-    ylim = [ylim_min, 1.3]
-    ax.plot(xval - this_flex_dict['corr_cen'][cntr], model / mxmod, 'k-')
-    # Measurements
-    ax.scatter(this_flex_dict['subpix'][cntr] - this_flex_dict['corr_cen'][cntr],
-               this_flex_dict['corr'][cntr] / mxmod, marker='o')
-    # Final shift
-    ax.plot([this_flex_dict['shift'][cntr]] * 2, ylim, 'g:')
-    # Label
-    ax.text(0.5, 0.25, name, transform=ax.transAxes, size='large', ha='center')
-    ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(this_flex_dict['shift'][cntr]),
-            transform=ax.transAxes, size='large', ha='center')  # , bbox={'facecolor':'white'})
-    # Axes
-    ax.set_ylim(ylim)
-    ax.set_xlabel('Lag')
+    if fit is not None:
+        xval = np.linspace(-10., 10, 100) + this_flex_dict['corr_cen'][cntr]  # + flex_dict['shift'][o]
+        # model = (fit[2]*(xval**2.))+(fit[1]*xval)+fit[0]
+        model = fit.eval(xval)
+        # model = utils.func_val(fit, xval, 'polynomial')
+        mxmod = np.max(model)
+        ylim_min = np.min(model / mxmod) if np.isfinite(np.min(model / mxmod)) else 0.0
+        ylim = [ylim_min, 1.3]
+        ax.plot(xval - this_flex_dict['corr_cen'][cntr], model / mxmod, 'k-')
+        # Measurements
+        ax.scatter(this_flex_dict['subpix'][cntr] - this_flex_dict['corr_cen'][cntr],
+                   this_flex_dict['corr'][cntr] / mxmod, marker='o')
+        # Final shift
+        ax.plot([this_flex_dict['shift'][cntr]] * 2, ylim, 'g:')
+        # Label
+        ax.text(0.5, 0.25, name, transform=ax.transAxes, size='large', ha='center')
+        ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(this_flex_dict['shift'][cntr]),
+                transform=ax.transAxes, size='large', ha='center')  # , bbox={'facecolor':'white'})
+        # Axes
+        ax.set_ylim(ylim)
+        ax.set_xlabel('Lag')
+    else:
+        ax.text(0.5, 0.25, name, transform=ax.transAxes, size='large', ha='center')
+        ax.text(0.5, 0.15, 'flex_shift calculation failed', transform=ax.transAxes, size='large', ha='center')
+        # Axes
+        ax.set_xlabel('Lag')
 
 
 def spec_flexure_qa(slitords, bpm, basename, flex_list, specobjs=None, out_dir=None):
@@ -602,6 +626,11 @@ def spec_flexure_qa(slitords, bpm, basename, flex_list, specobjs=None, out_dir=N
         # Slit/order number
         slitord = slitords[islit]
 
+        this_flex_dict = flex_list[islit]
+        # Check that the default was overwritten
+        if len(this_flex_dict['shift']) == 0 or this_flex_dict['shift'] is None:
+            continue
+
         # Parse and Setup
         if slit_cen:
             nobj = 1
@@ -613,11 +642,6 @@ def spec_flexure_qa(slitords, bpm, basename, flex_list, specobjs=None, out_dir=N
             if nobj == 0:
                 continue
             ncol = min(3, nobj)
-        this_flex_dict = flex_list[islit]
-
-        # Check that the default was overwritten
-        if len(this_flex_dict['shift']) == 0:
-            continue
 
         nrow = nobj // ncol + ((nobj % ncol) > 0)
         # Outfile, one QA file per slit
@@ -625,20 +649,18 @@ def spec_flexure_qa(slitords, bpm, basename, flex_list, specobjs=None, out_dir=N
         plt.figure(figsize=(8, 5.0))
         plt.clf()
         gs = gridspec.GridSpec(nrow, ncol)
-        # TODO -- This cntr is crummy and needs to be replaced by a DataContainer
-        #  for flex_dict and flex_list
-        cntr = 0
         # Correlation QA
         if slit_cen:
             ax = plt.subplot(gs[0, 0])
-            spec_flexure_corrQA(ax, this_flex_dict, cntr, 'Slit Center')
+            spec_flexure_corrQA(ax, this_flex_dict, 0, 'Slit Center')
         else:
-            for specobj in this_specobjs:
+            iplt = 0
+            for ss, specobj in enumerate(this_specobjs):
                 if specobj is None or (specobj.BOX_WAVE is None and specobj.OPT_WAVE is None):
                     continue
-                ax = plt.subplot(gs[cntr//ncol, cntr % ncol])
-                spec_flexure_corrQA(ax, this_flex_dict, cntr, '{:s}'.format(specobj.NAME))
-                cntr += 1
+                ax = plt.subplot(gs[iplt//ncol, iplt % ncol])
+                spec_flexure_corrQA(ax, this_flex_dict, ss, '{:s}'.format(specobj.NAME))
+                iplt += 1
         # Finish
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
         plt.savefig(outfile, dpi=400)
@@ -648,6 +670,7 @@ def spec_flexure_qa(slitords, bpm, basename, flex_list, specobjs=None, out_dir=N
         if slit_cen:
             iobj = 0
         else:
+            # only show the first object in this slit
             iobj = 0
             specobj = this_specobjs[iobj]
 
@@ -678,9 +701,9 @@ def spec_flexure_qa(slitords, bpm, basename, flex_list, specobjs=None, out_dir=N
         nrow, ncol = 2, 3
         gs = gridspec.GridSpec(nrow, ncol)
         if slit_cen:
-            plt.suptitle('Sky Comparison for Slit Center', y=1.05)
+            plt.suptitle('Sky Comparison for Slit Center', y=0.99)
         else:
-            plt.suptitle('Sky Comparison for {:s}'.format(specobj.NAME), y=1.05)
+            plt.suptitle('Sky Comparison for {:s}'.format(specobj.NAME), y=0.99)
 
         for ii, igdsky in enumerate(gdsky):
             skyline = sky_lines[igdsky]
@@ -706,10 +729,10 @@ def spec_flexure_qa(slitords, bpm, basename, flex_list, specobjs=None, out_dir=N
                    handletextpad=0.3, fontsize='small', numpoints=1)
 
         # Finish
+        plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
         plt.savefig(outfile, dpi=400)
         plt.close()
         msgs.info("Wrote spectral flexure QA: {}".format(outfile))
-        #plt.close()
 
     plt.rcdefaults()
 

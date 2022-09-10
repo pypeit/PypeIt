@@ -425,19 +425,6 @@ class Extract:
             # empty specobjs object from object finding
             self.sobjs = self.sobjs_obj
 
-        # # If a global spectral flexure has been applied to all slits, store this correction as metadata in each specobj
-        # if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
-        #     for iobj in range(self.sobjs.nobj):
-        #         islit = self.slits.spatid_to_zero(self.sobjs[iobj].SLITID)
-        #         self.sobjs[iobj].update_flex_shift(self.slitshift[islit], flex_type='global')
-
-        # # Correct for local spectral flexure
-        # if self.sobjs.nobj == 0:
-        #     msgs.warn('No objects to extract!')
-        # elif self.par['flexure']['spec_method'] not in ['skip', 'slitcen'] and not self.std_redux:
-        #     # Apply a refined estimate of the flexure to objects, and then apply reference frame correction to objects
-        #     self.spec_flexure_correct(mode='local', sobjs=self.sobjs)
-
         # Apply a reference frame correction to each object and the waveimg
         self.refframe_correct(ra, dec, obstime, sobjs=self.sobjs)
 
@@ -485,6 +472,9 @@ class Extract:
         elif mode not in ["local", "global"]:
             msgs.error("mode must be 'global' or 'local'. Assuming 'global'.")
 
+        # initialize flex_list
+        flex_list = None
+
         # Prepare a list of slit spectra, if required.
         if mode == "global":
             gd_slits = np.logical_not(self.extract_bpm)
@@ -531,9 +521,8 @@ class Extract:
             # These corrections are later needed so the specobjs metadata contains the total spectral flexure
             self.slitshift = np.zeros(self.slits.nslits)
             for islit in range(self.slits.nslits):
-                if (not gd_slits[islit]) or len(flex_list[islit]['shift']) == 0:
-                    continue
-                self.slitshift[islit] = flex_list[islit]['shift'][0]
+                if gd_slits[islit] and len(flex_list[islit]['shift']) > 0 and flex_list[islit]['shift'] is not None:
+                    self.slitshift[islit] = flex_list[islit]['shift'][0]
             # Apply flexure to the new wavelength solution
             msgs.info("Regenerating wavelength image")
             self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits,
@@ -555,21 +544,21 @@ class Extract:
                 this_specobjs = sobjs[indx]
                 this_flex_dict = flex_list[islit]
                 # Loop through objects
-                cntr = 0
                 for ss, sobj in enumerate(this_specobjs):
                     if sobj is None or sobj['BOX_WAVE'] is None:  # Nothing extracted; only the trace exists
                         continue
                     # Interpolate
-                    new_sky = sobj.apply_spectral_flexure(this_flex_dict['shift'][cntr],
-                                                          this_flex_dict['sky_spec'][cntr])
-                    flex_list[islit]['sky_spec'][cntr] = new_sky.copy()
-                    cntr += 1
+                    if this_flex_dict['shift'][ss] is not None:
+                        new_sky = sobj.apply_spectral_flexure(this_flex_dict['shift'][ss],
+                                                              this_flex_dict['sky_spec'][ss])
+                        flex_list[islit]['sky_spec'][ss] = new_sky.copy()
 
         # Save QA
-        basename = f'{self.basename}_{mode}_{self.spectrograph.get_det_name(self.det)}'
-        out_dir = os.path.join(self.par['rdx']['redux_path'], 'QA')
-        flexure.spec_flexure_qa(self.slits.slitord_id, self.extract_bpm, basename, flex_list,
-                                specobjs=sobjs, out_dir=out_dir)
+        if flex_list is not None:
+            basename = f'{self.basename}_{mode}_{self.spectrograph.get_det_name(self.det)}'
+            out_dir = os.path.join(self.par['rdx']['redux_path'], 'QA')
+            flexure.spec_flexure_qa(self.slits.slitord_id, self.extract_bpm, basename, flex_list,
+                                    specobjs=sobjs, out_dir=out_dir)
 
     def refframe_correct(self, ra, dec, obstime, sobjs=None):
         """ Correct the calibrated wavelength to the user-supplied reference frame
