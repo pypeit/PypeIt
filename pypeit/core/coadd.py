@@ -2657,12 +2657,14 @@ def get_wave_bins(thismask_stack, waveimg_stack, wave_grid):
 
     Parameters
     ----------
-    thismask_stack : array of shape (nimgs, nspec, nspat)
-        Good pixel mask indicating which pixels are on slits
-
-    waveimg_stack :  array of shape (nimgs, nspec, nspat)
-        Wavelength images for each image in the image stack
-
+    thismask_stack (list):
+        List of boolean arrays containing the masks indicating which pixels are on
+        the slit in question.  `True` values are on the slit;
+        `False` values are off the slit.  Length of the list is nimgs.   Shapes of the individual elements in the list
+        are (nspec, nspat),  but each image can have a different shape.
+    waveimg_stack (list):
+        List of the wavelength images, each of which is a float `numpy.ndarray`_. Length of the list is nimgs.
+        Shapes of the individual elements in the list are (nspec, nspat),  but each image can have a different shape.
     wave_grid : array  shape (ngrid)
         The wavelength grid created for the 2d coadd
 
@@ -2676,9 +2678,15 @@ def get_wave_bins(thismask_stack, waveimg_stack, wave_grid):
 
     # Determine the wavelength grid that we will use for the current slit/order
     # TODO This cut on waveimg_stack should not be necessary
-    wavemask = thismask_stack & (waveimg_stack > 1.0)
-    wave_lower = waveimg_stack[wavemask].min()
-    wave_upper = waveimg_stack[wavemask].max()
+    wave_lower = np.inf
+    wave_upper = -np.inf
+    for thismask, waveimg in zip(thismask_stack, waveimg_stack):
+        wavemask = thismask & (waveimg > 1.0)
+        wave_min = waveimg[wavemask].min()
+        wave_max = waveimg[wavemask].max()
+        wave_lower = wave_min if wave_min < wave_lower else wave_lower
+        wave_upper = wave_max if wave_max > wave_upper else wave_upper
+
     ind_lower, ind_upper = get_wave_ind(wave_grid, wave_lower, wave_upper)
     return wave_grid[ind_lower:ind_upper + 1]
 
@@ -2692,12 +2700,21 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
 
     Parameters
     ----------
-    thismask_stack : array of shape (nimgs, nspec, nspat)
-        Good pixel mask indicating which pixels are on slits.
+    thismask_stack (list):
+        List of boolean arrays containing the masks indicating which pixels are on
+        the slit in question.  `True` values are on the slit;
+        `False` values are off the slit.  Length of the list is nimgs.   Shapes of the individual elements in the list
+        are (nspec, nspat),  but each image can have a different shape.
+    ref_trace_stack (list):
+        List of reference traces about which the images are rectified and coadded.  If the images were not dithered then
+        this reference trace can simply be the center of the slit:
 
-    trace_stack : array of shape (nspec, nimgs)
-        Array holding the stack of traces for each image in the stack. This is either the trace of the center of the slit
-        or the trace of the object in question that we are stacking about.
+            slitcen = (slit_left + slit_righ)/2
+
+        If the images were dithered, then this object can either be the slitcen appropriately shifted with the dither pattern,
+        or it could be the trace of the object of interest in each exposure determined by running PypeIt on the individual
+        images.  Shape is (nspec, nimgs).
+
     spat_samp_fact (float, optional):
         Spatial sampling for 2d coadd spatial bins in pixels. A value > 1.0 (i.e. bigger pixels)
         will downsample the images spatially, whereas < 1.0 will oversample. Default = 1.0
@@ -2712,30 +2729,24 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
         image.
     """
 
-    nimgs, nspec, nspat = thismask_stack.shape
-    # Create the slit_cen_stack and determine the minimum and maximum
-    # spatial offsets that we need to cover to determine the spatial
-    # bins
-    spat_img = np.repeat(np.arange(nspat)[np.newaxis,:], nspec, axis=0)
-    dspat_stack = np.zeros_like(thismask_stack,dtype=float)
+    nimgs = len(thismask_stack)
+    dspat_stack = []
     spat_min = np.inf
     spat_max = -np.inf
-    for img in range(nimgs):
-        # center of the slit replicated spatially
-        slit_cen_img = np.repeat(trace_stack[:, img][:,np.newaxis], nspat, axis=1)
-        dspat_iexp = (spat_img - slit_cen_img)/spat_samp_fact
-        dspat_stack[img, :, :] = dspat_iexp
-        thismask_now = thismask_stack[img, :, :]
-        # Find the minimum and maximum relative spatial position in pixels that occurs on any of the images, as this
-        # is the domain that our stack needs to cover.
-        spat_min = np.fmin(spat_min, dspat_iexp[thismask_now].min())
-        spat_max = np.fmax(spat_max, dspat_iexp[thismask_now].max())
+    for thismask, trace in zip(thismask_stack, trace_stack):
+        nspec, nspat = thismask.shape
+        spat_img = np.repeat(np.arange(nspat)[np.newaxis, :], nspec, axis=0)
+        slit_cen_img = np.repeat(trace[:,np.newaxis], nspat, axis=1)
+        dspat_iexp = (spat_img - slit_cen_img) / spat_samp_fact
+        dspat_stack.append(dspat_iexp)
+        spat_min_iexp = dspat_iexp[thismask].min()
+        spat_max_iexp = dspat_iexp[thismask].max()
+        spat_min = spat_min_iexp if spat_min_iexp < spat_min else spat_min
+        spat_max = spat_max_iexp if spat_max_iexp > spat_max else spat_max
 
-    spat_min_all = np.floor(spat_min)
-    spat_max_all = np.ceil(spat_max)
-    #nspat_pix = int(np.ceil((spat_max_all-spat_min_all + 1.0))
-    #dspat_bins = spat_min_all + spat_samp_fact*np.arange(nspat_pix)
-    dspat_bins = np.arange(spat_min_all, spat_max_all + 1.0, 1.0,dtype=float)
+    spat_min_int = np.floor(spat_min)
+    spat_max_int = np.ceil(spat_max)
+    dspat_bins = np.arange(spat_min_int, spat_max_int + 1.0, 1.0,dtype=float)
     return dspat_bins, dspat_stack
 
 
@@ -2757,8 +2768,8 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
         These docs appear out-of-date
 
     Args:
-        ref_trace_stack (`numpy.ndarray`_):
-            Stack of reference traces about which the images are
+        ref_trace_stack (list):
+            List of reference traces about which the images are
             rectified and coadded.  If the images were not dithered then
             this reference trace can simply be the center of the slit::
 
@@ -2769,36 +2780,41 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
             or it could be the trace of the object of interest in each
             exposure determined by running PypeIt on the individual
             images.  Shape is (nspec, nimgs).
-        sciimg_stack (`numpy.ndarray`_):
-            Stack of science images.  Shape is (nimgs, nspec, nspat).
-        sciivar_stack (`numpy.ndarray`_):
-            Stack of inverse variance images.  Shape is (nimgs, nspec,
-            nspat).
-        skymodel_stack (`numpy.ndarray`_):
-            Stack of the model sky.  Shape is (nimgs, nspec, nspat).
-        inmask_stack (`numpy.ndarray`_):
-            Boolean array with the input masks for each image; `True`
-            values are *good*, `False` values are *bad*.  Shape is
-            (nimgs, nspec, nspat).
-        tilts_stack (`numpy.ndarray`_):
-           Stack of the wavelength tilts traces.  Shape is (nimgs,
-           nspec, nspat).
-        waveimg_stack (`numpy.ndarray`_):
-           Stack of the wavelength images.  Shape is (nimgs, nspec,
-           nspat).
-        thismask_stack (`numpy.ndarray`_):
-            Boolean array with the masks indicating which pixels are on
+        sciimg_stack (list):
+            List of science images, each of which is a float `numpy.ndarray`_. Length of the list is nimgs.
+            Shapes of the individual elements in the list are (nspec, nspat),  but each image can have a different shape.
+        sciivar_stack (list):
+            List of inverse variance images, each of which is a float `numpy.ndarray`_.  Length of the list is nimgs.
+            Shapes of the individual elements in the list are (nspec, nspat),  but each image can have a different shape.
+        skymodel_stack (list):
+            List of the model sky images, , each of which is a float `numpy.ndarray`_. Length of the list is nimgs.
+            Shapes of the individual elements in the list are (nspec, nspat),  but each image can have a different shape.
+        inmask_stack (list):
+            List of input good pixel masks (i.e. `True` values are *good*, `False` values are *bad*.), each of which
+            is a boolean `numpy.ndarray`_. Length of the list is nimgs.  Shapes of the individual elements in the list
+            are (nspec, nspat),  but each image can have a different shape.
+        tilts_stack (list):
+            List of the tilt images, , each of which is a float `numpy.ndarray`_. Length of the list is nimgs.
+            Shapes of the individual elements in the list are (nspec, nspat),  but each image can have a different shape.
+        waveimg_stack (list):
+            List of the wavelength images, , each of which is a float `numpy.ndarray`_. Length of the list is nimgs.
+            Shapes of the individual elements in the list are (nspec, nspat),  but each image can have a different shape.
+        thismask_stack (list):
+            List of boolean arrays containing the masks indicating which pixels are on
             the slit in question.  `True` values are on the slit;
-            `False` values are off the slit.  Shape is (nimgs, nspec,
-            nspat).
-        weights (`numpy.ndarray`_ or str, optional):
+            `False` values are off the slit.  Length of the list is nimgs.   Shapes of the individual elements in the list
+            are (nspec, nspat),  but each image can have a different shape.
+        weights (list or str, optional):
             The weights used when combining the rectified images (see
             :func:`weighted_combine`).  If weights is set to 'uniform' then a
             uniform weighting is used.  Weights are broadast to the correct size
             of the image stacks (see :func:`broadcast_weights`), as necessary.
-            If an array is passed in shape must be (nimgs,), (nimgs, nspec), or
-            (nimgs, nspec, nspat).  (TODO: JFH I think the str option should be
-            changed here, but am leaving it for now.)
+            If a list is passed it must have a length of nimgs. The individual elements
+            of the list can either be floats, indiciating the weight to be used for each image, or
+            arrays with  shape = (nspec,) or shape = (nspec, nspat), indicating pixel weights
+            for the individual images. Weights are broadast to the correct size
+            of the image stacks (see :func:`broadcast_weights`), as necessary.
+            (TODO: JFH I think the str option should be changed here, but am leaving it for now.)
         spat_samp_fact (float, optional):
             Spatial sampling for 2d coadd spatial bins in pixels. A value > 1.0
             (i.e. bigger pixels) will downsample the images spatially, whereas <
@@ -2858,23 +2874,29 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
               and nspat_coadd-1.
 
     """
-    nimgs, nspec, nspat = sciimg_stack.shape
+    #nimgs, nspec, nspat = sciimg_stack.shape
 
     # TODO -- If weights is a numpy.ndarray, how can this not crash?
     #   Maybe the doc string above is inaccurate?
+
+    nimgs =len(sciimg_stack)
     if isinstance(weights,str) and weights == 'uniform':
         msgs.info('No weights were provided. Using uniform weights.')
         weights = np.ones(nimgs)/float(nimgs)
 
-    weights_stack = combine.broadcast_weights(weights, sciimg_stack.shape)
+    shape_list = [sciimg.shape for sciimg in sciimg_stack]
+    weights_stack = combine.broadcast_lists_of_weights(weights, shape_list)
 
     # Determine the wavelength grid that we will use for the current slit/order
     wave_bins = get_wave_bins(thismask_stack, waveimg_stack, wave_grid)
     dspat_bins, dspat_stack = get_spat_bins(thismask_stack, ref_trace_stack, spat_samp_fact=spat_samp_fact)
 
-    sci_list = [weights_stack, sciimg_stack, sciimg_stack - skymodel_stack, tilts_stack,
+    skysub_stack = [sciimg - skymodel for sciimg, skymodel in zip(sciimg_stack, skymodel_stack)]
+    sci_list = [weights_stack, sciimg_stack, skysub_stack, tilts_stack,
                 waveimg_stack, dspat_stack]
-    var_list = [utils.inverse(sciivar_stack)]
+
+    var_list = [[utils.inverse(sciivar) for sciivar in sciivar_stack]]
+
 
     sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack \
             = rebin2d(wave_bins, dspat_bins, waveimg_stack, dspat_stack, thismask_stack,
@@ -2973,11 +2995,16 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
             Stack of nimgs images with shape = (nspec, nspat) indicating which pixels on an image are masked.
             True = Good, False = Bad
         sci_list: list
-            List of  float ndarray images (each being an image stack with shape (nimgs, nspec, nspat))
-            which are to be rebinned onto the new spec_bins, spat_bins
+            Nested list of images, i.e. list of lists of images, where sci_list[i][j] is a shape = (nspec, nspat) where
+            the shape can be different for each image. The ith index is the image type, i.e. sciimg, skysub, tilts, waveimg,
+            the jth index is the exposure or image number, i.e. nimgs. These images are to be rebinned onto
+            the commong grid.
         var_list: list
-            List of  float ndarray variance images (each being an image stack with shape (nimgs, nspec, nspat))
-            which are to be rebbinned with proper erorr propagation
+            Nested list of variance images, i.e. list of lists of images. The format is the same as for sci_list, but
+            note that sci_list and var_list can have different lengths. Since this routine performs a NGP rebinning,
+            it effectively comptues the average of a science image landing on a pixel. This means that the science
+            is weighted by the 1/norm_rebin_stack, and hence variances must be weighted by that factor squared,
+            which his why they must be input here as a separate list.
 
     Returns:
         tuple: Returns the following:
@@ -3005,9 +3032,8 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
               thismask_stack), but not the masking (inmask_stack).
     """
 
-    shape = combine.img_list_error_check(sci_list, var_list)
-    nimgs = shape[0]
     # allocate the output mages
+    nimgs = len(sci_list[0])
     nspec_rebin = spec_bins.size - 1
     nspat_rebin = spat_bins.size - 1
     shape_out = (nimgs, nspec_rebin, nspat_rebin)
@@ -3020,19 +3046,19 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
     for jj in range(len(var_list)):
         var_list_out.append(np.zeros(shape_out))
 
-    for img in range(nimgs):
+    for img, (waveimg, spatimg, thismask, inmask) in enumerate(zip(waveimg_stack, spatimg_stack, thismask_stack, inmask_stack)):
+
+        spec_rebin_this = waveimg[thismask]
+        spat_rebin_this = spatimg[thismask]
+
         # This fist image is purely for bookeeping purposes to determine the number of times each pixel
         # could have been sampled
-        thismask = thismask_stack[img, :, :]
-        spec_rebin_this = waveimg_stack[img, :, :][thismask]
-        spat_rebin_this = spatimg_stack[img, :, :][thismask]
-
         nsmp_rebin_stack[img, :, :], spec_edges, spat_edges = np.histogram2d(spec_rebin_this, spat_rebin_this,
                                                                bins=[spec_bins, spat_bins], density=False)
 
-        finmask = thismask & inmask_stack[img,:,:]
-        spec_rebin = waveimg_stack[img, :, :][finmask]
-        spat_rebin = spatimg_stack[img, :, :][finmask]
+        finmask = thismask & inmask
+        spec_rebin = waveimg[finmask]
+        spat_rebin = spatimg[finmask]
         norm_img, spec_edges, spat_edges = np.histogram2d(spec_rebin, spat_rebin,
                                                           bins=[spec_bins, spat_bins], density=False)
         norm_rebin_stack[img, :, :] = norm_img
@@ -3041,14 +3067,14 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
         for indx, sci in enumerate(sci_list):
             weigh_sci, spec_edges, spat_edges = np.histogram2d(spec_rebin, spat_rebin,
                                                                bins=[spec_bins, spat_bins], density=False,
-                                                               weights=sci[img,:,:][finmask])
+                                                               weights=sci[img][finmask])
             sci_list_out[indx][img, :, :] = (norm_img > 0.0) * weigh_sci/(norm_img + (norm_img == 0.0))
 
         # Rebin the variance images, note the norm_img**2 factor for correct error propagation
         for indx, var in enumerate(var_list):
             weigh_var, spec_edges, spat_edges = np.histogram2d(spec_rebin, spat_rebin,
                                                                bins=[spec_bins, spat_bins], density=False,
-                                                               weights=var[img, :, :][finmask])
+                                                               weights=var[img][finmask])
             var_list_out[indx][img, :, :] = (norm_img > 0.0)*weigh_var/(norm_img + (norm_img == 0.0))**2
 
 
