@@ -521,7 +521,7 @@ class Extract:
             # These corrections are later needed so the specobjs metadata contains the total spectral flexure
             self.slitshift = np.zeros(self.slits.nslits)
             for islit in range(self.slits.nslits):
-                if gd_slits[islit] and len(flex_list[islit]['shift']) > 0 and flex_list[islit]['shift'] is not None:
+                if gd_slits[islit] and len(flex_list[islit]['shift']) > 0:
                     self.slitshift[islit] = flex_list[islit]['shift'][0]
             # Apply flexure to the new wavelength solution
             msgs.info("Regenerating wavelength image")

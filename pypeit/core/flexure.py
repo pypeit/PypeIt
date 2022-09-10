@@ -439,22 +439,21 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
     # Initialise the flexure list for each slit
     flex_list = []
 
+    # empty dict
+    empty_flex_dict = dict(polyfit=[], shift=[], subpix=[], corr=[],
+                           corr_cen=[], spec_file=sky_file, smooth=[],
+                           arx_spec=[], sky_spec=[], method=[])
+
     # Loop over slits, and then over objects
     for islit in range(nslits):
         msgs.info(f"Working on spectral flexure of slit: {slits.spat_id[islit]}")
 
         # Reset
-        flex_dict = dict(polyfit=[], shift=[], subpix=[], corr=[],
-                         corr_cen=[], spec_file=sky_file, smooth=[],
-                         arx_spec=[], sky_spec=[], method=[])
+        flex_dict = copy.deepcopy(empty_flex_dict)
 
         # If no objects on this slit append an empty dictionary
         if islit not in gdslits:
-            # Update dict
-            for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec', 'sky_spec']:
-                # insert None at the location of the object that failed the calculation
-                flex_dict[key].append(None)
-            flex_dict['method'].append(None)
+            flex_list.append(empty_flex_dict.copy())
             continue
 
         # get spectral FWHM (in Angstrom) if available
@@ -480,25 +479,28 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
                 flex_dict['method'].append("slitcen")
             else:
                 msgs.warn(f'Flexure corrections cannot be performed for slit # {slits.spat_id[islit]}')
-                # Update dict
-                for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec', 'sky_spec']:
-                    # insert None at the location of the object that failed the calculation
-                    flex_dict[key].append(None)
-                flex_dict['method'].append(None)
 
         # Along the boxcar extraction (spec_method = boxcar)
         else:
             i_slitord = slitord[islit]
             indx = specobjs.slitorder_indices(i_slitord)
             this_specobjs = specobjs[indx]
+            if len(this_specobjs) == 0:
+                msgs.info('No object extracted in this slit.')
+                flex_list.append(empty_flex_dict.copy())
+                continue
 
             # Loop through objects
             # Slit/objects to come back to
             return_later_sobjs = []
             for ss, sobj in enumerate(this_specobjs):
-                if sobj is None:
-                    continue
-                if sobj['BOX_WAVE'] is None: #len(specobj._data.keys()) == 1:  # Nothing extracted; only the trace exists
+                if sobj is None or sobj['BOX_WAVE'] is None: # Nothing extracted; only the trace exists
+                    msgs.info(f'Object # {ss} was not extracted.')
+                    # Update dict
+                    for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec', 'sky_spec']:
+                        # insert None at the location of the object that failed the calculation
+                        flex_dict[key].append(None)
+                    flex_dict['method'].append(None)
                     continue
                 msgs.info(f"Working on flexure for object # {ss} in slit {slits.spat_id[islit]}")
 
@@ -556,7 +558,7 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
                             flex_dict[key].insert(obj_idx, fdict[key])
                         flex_dict['method'].insert(obj_idx, "boxcar")
 
-        # Append, this will be an empty dictionary if the flexure failed
+        # Append, this will be an empty dictionary if the flexure failed for the whole slit
         flex_list.append(flex_dict.copy())
 
     return flex_list
