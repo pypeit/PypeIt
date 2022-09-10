@@ -2815,6 +2815,11 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
         maskdef_dict (:obj:`dict`, optional): Dictionary containing all the maskdef info. The quantities saved
             are: maskdef_id, maskdef_objpos, maskdef_slitcen, maskdef_designtab. To learn what
             they are see :class:`~pypeit.slittrace.SlitTraceSet` datamodel.
+        interp_dspat : bool, optional
+           Interpolate in the spatial coordinate image to faciliate running
+           through core.extract.local_skysub_extract. This can be slow.   Default=True.
+
+
 
     Returns:
         tuple: Returns the following (TODO: This needs to be updated):

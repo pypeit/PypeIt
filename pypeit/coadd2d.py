@@ -530,7 +530,7 @@ class CoAdd2D:
                     waveimg=waveimg_pseudo, spat_img=spat_img_pseudo, slits=slits_pseudo,
                     wave_mask=wave_mask, wave_mid=wave_mid, wave_min=wave_min, wave_max=wave_max)
 
-    def reduce(self, pseudo_dict, show=None, show_peaks=None, basename=None):
+    def reduce(self, pseudo_dict, show=False, show_peaks=False, basename=None, global_sky_subtract=False):
         """
         Method to run the reduction on coadd2d psuedo images
 
@@ -601,8 +601,13 @@ class CoAdd2D:
             objFind.show('image', image=pseudo_dict['imgminsky']*gpm.astype(float),
                        chname='imgminsky', slits=True, clear=True)
 
-        sobjs_obj, nobj = objFind.find_objects(sciImage.image, sciImage.ivar, show_peaks=show or show_peaks,
-                                               save_objfindQA=True)
+        if global_sky_subtract:
+            global_sky_pseudo, sobjs_obj = objFind.run(show_peaks=show or show_peaks)
+        else:
+            # No global sky is the default for co-adds if they are already sky-subtracted, so  we go straight to local
+            sobjs_obj, nobj = objFind.find_objects(sciImage.image, sciImage.ivar, show_peaks=show or show_peaks,
+                                                   save_objfindQA=True)
+            global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky'])
 
         # maskdef stuff
         if parcopy['reduce']['slitmask']['assign_obj'] and slits.maskdef_designtab is not None:
@@ -635,7 +640,7 @@ class CoAdd2D:
         #exTract.reduce_bpm = pseudo_reduce_bpm
 
         # Local sky-subtraction
-        global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
+        #global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
 
         skymodel_pseudo, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, _, _ = exTract.run(
             global_sky_pseudo, model_noise=False, spat_pix=pseudo_dict['spat_img'])
@@ -786,6 +791,7 @@ class CoAdd2D:
         wave_grid, wave_grid_mid, dsamp = wvutils.get_wave_grid(waves, masks=gpm,
                                                                 spec_samp_fact=self.spec_samp_fact,
                                                                 **kwargs_wave)
+
         return wave_grid, wave_grid_mid, dsamp
 
     def load_coadd2d_stacks(self, spec2d, chk_version=False):
@@ -808,6 +814,8 @@ class CoAdd2D:
 
         # Grab the files
         #head2d_list = []
+
+
         specobjs_list = []
         slits_list = []
         nfiles =len(spec2d)
