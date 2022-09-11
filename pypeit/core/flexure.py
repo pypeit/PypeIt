@@ -630,7 +630,8 @@ def spec_flexure_qa(slitords, bpm, basename, flex_list, specobjs=None, out_dir=N
 
         this_flex_dict = flex_list[islit]
         # Check that the default was overwritten
-        if len(this_flex_dict['shift']) == 0 or this_flex_dict['shift'] is None:
+        if len(this_flex_dict['shift']) == 0 or \
+                (len(this_flex_dict['shift']) > 0 and np.all([ss is None for ss in this_flex_dict['shift']])):
             continue
 
         # Parse and Setup
@@ -672,8 +673,8 @@ def spec_flexure_qa(slitords, bpm, basename, flex_list, specobjs=None, out_dir=N
         if slit_cen:
             iobj = 0
         else:
-            # only show the first object in this slit
-            iobj = 0
+            # only show the first object in this slit that does not have None shift
+            iobj = np.where([ss is not None for ss in this_flex_dict['shift']])[0][0]
             specobj = this_specobjs[iobj]
 
         # Repackage
