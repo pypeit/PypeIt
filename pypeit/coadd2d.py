@@ -204,10 +204,10 @@ class CoAdd2D:
         self.nslits_single = nslits_list[0]
 
         # Check that nspec is the same for all the exposures
-        nspec_list = [slits.nspec for slits in self.stack_dict['slits_list']]
-        if not len(set(nspec_list)) == 1:
-            msgs.error('Not all of your exposures have the same spectral dimension. Check your inputs')
-        self.nspec = self.stack_dict['slits_list'][0].nspec
+        self.nspec_array = np.array([slits.nspec for slits in self.stack_dict['slits_list']])
+        #if not len(set(nspec_list)) == 1:
+        #    msgs.error('Not all of your exposures have the same spectral dimension. Check your inputs')
+        self.nspec_max = self.nspec_array.max()
 
         # Check that binning is the same for all the exposures
         binspec_list = [slits.binspec for slits in self.stack_dict['slits_list']]
@@ -221,8 +221,8 @@ class CoAdd2D:
 
         self.spat_ids = self.stack_dict['slits_list'][0].spat_id
 
-        # If smoothing is not input, smooth by 10% of the spectral dimension
-        self.sn_smooth_npix = sn_smooth_npix if sn_smooth_npix is not None else 0.1*self.nspec
+        # If smoothing is not input, smooth by 10% of the maximum spectral dimension
+        self.sn_smooth_npix = sn_smooth_npix if sn_smooth_npix is not None else 0.1*self.nspec_max
 
     def good_slitindx(self, only_slits=None):
         """
@@ -758,14 +758,14 @@ class CoAdd2D:
         #  This all seems a bit hacky
         if self.par['coadd2d']['use_slits4wvgrid'] or nobjs_tot==0:
             nslits_tot = np.sum([slits.nslits for slits in self.stack_dict['slits_list']])
-            waves = np.zeros((self.nspec, nslits_tot*3))
+            waves = np.zeros((self.nspec_max, nslits_tot*3))
             gpm = np.zeros_like(waves, dtype=bool)
             box_radius = 3.
             indx = 0
             # Loop on the exposures
-            for waveimg, slitmask, slits in zip(self.stack_dict['waveimg_stack'],
+            for iexp, (waveimg, slitmask, slits) in enumerate(zip(self.stack_dict['waveimg_stack'],
                                                 self.stack_dict['slitmask_stack'],
-                                                self.stack_dict['slits_list']):
+                                                self.stack_dict['slits_list'])):
                 slits_left, slits_righ, _ = slits.select_edges()
                 row = np.arange(slits_left.shape[0])
                 # Loop on the slits
@@ -777,19 +777,19 @@ class CoAdd2D:
                     box_denom = moment1d(waveimg * mask > 0.0, trace_spat, 2 * box_radius, row=row)[0]
                     wave_box = moment1d(waveimg * mask, trace_spat, 2 * box_radius,
                                     row=row)[0] / (box_denom + (box_denom == 0.0))
-                    waves[:, indx:indx+3] = wave_box
+                    waves[:self.nspec_array[iexp], indx:indx+3] = wave_box
                     # TODO -- This looks a bit risky
-                    gpm[:, indx: indx+3] = wave_box > 0.
+                    gpm[:self.nspec_array[iexp], indx: indx+3] = wave_box > 0.
                     indx += 3
         else:
-            waves = np.zeros((self.nspec, nobjs_tot))
+            waves = np.zeros((self.nspec_max, nobjs_tot))
             gpm = np.zeros_like(waves, dtype=bool)
             indx = 0
-            for spec_this in self.stack_dict['specobjs_list']:
+            for iexp, spec_this in enumerate(self.stack_dict['specobjs_list']):
                 for spec in spec_this:
-                    waves[:, indx] = spec.OPT_WAVE
+                    waves[:self.nspec_array[iexp], indx] = spec.OPT_WAVE
                     # TODO -- OPT_MASK is likely to become a bpm with int values
-                    gpm[:, indx] = spec.OPT_MASK
+                    gpm[:self.nspec_array[iexp], indx] = spec.OPT_MASK
                     indx += 1
 
         wave_grid, wave_grid_mid, dsamp = wvutils.get_wave_grid(waves, masks=gpm,
@@ -1212,7 +1212,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
         """
         msgs.info('Finding brightest object')
         nexp = len(specobjs_list)
-        nspec = specobjs_list[0][0].TRACE_SPAT.shape[0]
+        #nspec = specobjs_list[0][0].TRACE_SPAT.shape[0]
         nslits = spat_ids.size
 
         slit_snr_max = np.zeros((nslits, nexp), dtype=float)
@@ -1221,15 +1221,16 @@ class MultiSlitCoAdd2D(CoAdd2D):
         # Loop over each exposure, slit, find the brighest object on that slit for every exposure
         for iexp, sobjs in enumerate(specobjs_list):
             msgs.info("Working on exposure {}".format(iexp))
+            nspec_now = self.nspec_array[iexp]
             for islit, spat_id in enumerate(spat_ids):
                 ithis = np.abs(sobjs.SLITID - spat_id) <= self.par['coadd2d']['spat_toler']
                 nobj_slit = np.sum(ithis)
                 if np.any(ithis):
                     objid_this = sobjs[ithis].OBJID
-                    flux = np.zeros((nspec, nobj_slit))
-                    ivar = np.zeros((nspec, nobj_slit))
-                    wave = np.zeros((nspec, nobj_slit))
-                    mask = np.zeros((nspec, nobj_slit), dtype=bool)
+                    flux = np.zeros((nspec_now, nobj_slit))
+                    ivar = np.zeros((nspec_now, nobj_slit))
+                    wave = np.zeros((nspec_now, nobj_slit))
+                    mask = np.zeros((nspec_now, nobj_slit), dtype=bool)
                     remove_indx = []
                     for iobj, spec in enumerate(sobjs[ithis]):
                         # check if OPT_COUNTS is available
@@ -1327,7 +1328,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
             # But here we take only the value at the mid point
 
             # TODO JFH now that we allow different image sizes with lists is this correct?
-            maskdef_slitcen_pixpos = self.stack_dict['slits_list'][0].maskdef_slitcen[self.nspec//2, slit_idx] + self.maskdef_offset
+            maskdef_slitcen_pixpos = self.stack_dict['slits_list'][0].maskdef_slitcen[self.nspec_array[0]//2, slit_idx] + self.maskdef_offset
             # binned maskdef_slitcenters position with respect to the center of the slit in ref_trace_stack
             # this value should be the same for each exposure, but in case there are differences we take the mean value
 

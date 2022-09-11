@@ -549,8 +549,9 @@ class FindObjects:
                 bsp=self.par['reduce']['skysub']['bspline_spacing'],
                 trim_edg=tuple(self.par['reduce']['trim_edge']),
                 no_poly=self.par['reduce']['skysub']['no_poly'],
-                pos_mask=(not self.bkg_redux) and not objs_not_masked, show_fit=show_fit)
-
+                pos_mask=(not self.bkg_redux) and not objs_not_masked,
+                max_mask_frac=self.par['reduce']['skysub']['max_mask_frac'],
+                show_fit=show_fit)
             # Mask if something went wrong
             if np.sum(global_sky[thismask]) == 0.:
                 msgs.warn("Bad fit to sky.  Rejecting slit: {:d}".format(slit_spat))
@@ -1212,11 +1213,13 @@ class IFUFindObjects(MultiSlitFindObjects):
             msgs.info("Performing iterative joint sky subtraction - ITERATION {0:d}/{1:d}".format(nn+1, numiter))
             # TODO trim_edg is in the parset so it should be passed in here via trim_edg=tuple(self.par['reduce']['trim_edge']),
             global_sky[thismask] = skysub.global_skysub(self.sciImg.image, model_ivar, tilt_wave,
-                                                             thismask, self.slits_left, self.slits_right, inmask=inmask,
-                                                             sigrej=sigrej, trim_edg=trim_edg,
-                                                             bsp=self.par['reduce']['skysub']['bspline_spacing'],
-                                                             no_poly=self.par['reduce']['skysub']['no_poly'],
-                                                             pos_mask=(not self.bkg_redux) and not objs_not_masked, show_fit=show_fit)
+                                                        thismask, self.slits_left, self.slits_right, inmask=inmask,
+                                                        sigrej=sigrej, trim_edg=trim_edg,
+                                                        bsp=self.par['reduce']['skysub']['bspline_spacing'],
+                                                        no_poly=self.par['reduce']['skysub']['no_poly'],
+                                                        pos_mask=(not self.bkg_redux) and not objs_not_masked,
+                                                        max_mask_frac=self.par['reduce']['skysub']['max_mask_frac'],
+                                                        show_fit=show_fit)
             # Update the ivar image used in the sky fit
             msgs.info("Updating sky noise model")
             # Choose the highest counts out of sky and object

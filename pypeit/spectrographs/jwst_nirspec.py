@@ -21,7 +21,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle MMT/Blue Channel specific code
     """
-    ndet = 1
+    ndet = 2
     name = 'jwst_nirspec'
     header_name = 'jwst_nirspec'
     telescope = telescopes.JWSTTelescopePar()
@@ -143,6 +143,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
 
         # Sky-subtraction
         par['reduce']['skysub']['bspline_spacing'] = 3.0
+        par['reduce']['skysub']['max_mask_frac'] = 0.95
         par['reduce']['skysub']['mask_by_boxcar'] = True
 
         # Extraction

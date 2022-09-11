@@ -3620,7 +3620,7 @@ class SkySubPar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, bspline_spacing=None, sky_sigrej=None, global_sky_std=None, no_poly=None,
+    def __init__(self, bspline_spacing=None, sky_sigrej=None, max_mask_frac=None, global_sky_std=None, no_poly=None,
                  user_regions=None, joint_fit=None, load_mask=None, mask_by_boxcar=None,
                  no_local_sky=None):
         # Grab the parameter names and values from the function
@@ -3645,6 +3645,11 @@ class SkySubPar(ParSet):
         dtypes['sky_sigrej'] = float
         descr['sky_sigrej'] = 'Rejection parameter for local sky subtraction'
 
+        defaults['max_mask_frac'] = 0.80
+        dtypes['max_mask_frac'] = float
+        descr['max_mask_frac'] = 'Maximum fraction of total pixels that can be masked by the input masks. If more than ' \
+                                 'this threshold is masked, the pypeit will not perform global sky subtraction and ' \
+                                 'mask the slit/order'
 
 
         defaults['global_sky_std'] = True
@@ -3701,7 +3706,7 @@ class SkySubPar(ParSet):
         k = np.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['bspline_spacing', 'sky_sigrej', 'global_sky_std', 'no_poly',
+        parkeys = ['bspline_spacing', 'sky_sigrej', 'max_mask_frac', 'global_sky_std', 'no_poly',
                    'user_regions', 'load_mask', 'joint_fit', 'mask_by_boxcar',
                    'no_local_sky']
 

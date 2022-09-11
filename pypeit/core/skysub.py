@@ -47,7 +47,7 @@ def skysub_npoly(thismask):
 
 
 def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=None, bsp=0.6, sigrej=3.0, maxiter=35,
-                  trim_edg=(3,3), pos_mask=True, show_fit=False, no_poly=False, npoly=None):
+                  trim_edg=(3,3), pos_mask=True, max_mask_frac=0.80, show_fit=False, no_poly=False, npoly=None):
     """
     Perform global sky subtraction on an input slit
 
@@ -86,6 +86,9 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
             requires that the counts are positive which will not be the
             case for i.e. an A-B image. Thus the routine will fail if
             pos_mask is not set to False.
+        max_mask_frac: float, default max_bad_pixel_frac = 0.80
+            Maximum fraction of total pixels that can be masked by the input masks. If more than this
+            threshold is masked the code will return zeros and throw a warning.
 
         show_fit: boolean, default show_fit = False
             Plot a fit of the sky pixels and model fit to the screen.
@@ -121,8 +124,8 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
     # Sky pixels for fitting
     gpm = thismask & (ivar > 0.0) & inmask & np.logical_not(edgmask)
     bad_pixel_frac = np.sum(thismask & np.logical_not(gpm))/np.sum(thismask)
-    if bad_pixel_frac > 0.8:
-        msgs.warn('This slit/order has {:5.3f}% of the pixels masked, which exceeds the threshold of 80%. '.format(bad_pixel_frac*100.0)
+    if bad_pixel_frac > max_mask_frac:
+        msgs.warn('This slit/order has {:5.3f}% of the pixels masked, which exceeds the threshold of {:f}%. '.format(100.0*bad_pixel_frac, 100.0*max_mask_frac)
                   + msgs.newline() + 'There is likely a problem with this slit. Giving up on global sky-subtraction.')
         return np.zeros(np.sum(thismask))
 
