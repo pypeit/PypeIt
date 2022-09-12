@@ -64,10 +64,11 @@ class WHTTelescopePar(TelescopePar):
                                 
 class APFTelescopePar(TelescopePar):
     def __init__(self):
+        loc = EarthLocation.of_site('Lick Observatory')
         super(APFTelescopePar, self).__init__(name='APF',
-                                              longitude=-121.642778,
-                                              latitude=37.34138889,
-                                              elevation=1283.0,
+                                              longitude=loc.lon.to(units.deg).value,
+                                              latitude=loc.lat.to(units.deg).value,
+                                              elevation=loc.height.to(units.m).value,
                                               diameter=2.4)
                                 
 class TNGTelescopePar(TelescopePar):
