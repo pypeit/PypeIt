@@ -533,7 +533,7 @@ class CoAdd2D:
                     waveimg=waveimg_pseudo, spat_img=spat_img_pseudo, slits=slits_pseudo,
                     wave_mask=wave_mask, wave_mid=wave_mid, wave_min=wave_min, wave_max=wave_max)
 
-    def reduce(self, pseudo_dict, show=False, show_peaks=False, basename=None, global_sky_subtract=False):
+    def reduce(self, pseudo_dict, show=False, clear_ginga=True, show_peaks=False, show_skysub_fit=False, basename=None, global_sky_subtract=False):
         """
         Method to run the reduction on coadd2d psuedo images
 
@@ -589,7 +589,8 @@ class CoAdd2D:
         objFind = find_objects.FindObjects.get_instance(sciImage, pseudo_dict['slits'], self.spectrograph, parcopy,
                                                         'science_coadd2d', tilts=pseudo_dict['tilts'],
                                                         bkg_redux=self.bkg_redux, manual=manual_obj,
-                                                        find_negative=self.find_negative, basename=basename, show=show)
+                                                        find_negative=self.find_negative, basename=basename,
+                                                        clear_ginga=clear_ginga, show=show)
 
         # Set the tilts and waveimg attributes from the psuedo_dict here, since we generate these dynamically from fits
         # normally, but this is not possible for coadds
@@ -601,11 +602,10 @@ class CoAdd2D:
 
         if show:
             gpm = sciImage.select_flag(invert=True)
-            objFind.show('image', image=pseudo_dict['imgminsky']*gpm.astype(float),
-                       chname='imgminsky', slits=True, clear=True)
+            objFind.show('image', image=pseudo_dict['imgminsky']*gpm.astype(float), chname='imgminsky', slits=True)
 
         if global_sky_subtract:
-            global_sky_pseudo, sobjs_obj = objFind.run(show_peaks=show or show_peaks)
+            global_sky_pseudo, sobjs_obj = objFind.run(show_peaks=show or show_peaks, show_skysub_fit=show_skysub_fit)
         else:
             # No global sky is the default for co-adds if they are already sky-subtracted, so  we go straight to local
             sobjs_obj, nobj = objFind.find_objects(sciImage.image, sciImage.ivar, show_peaks=show or show_peaks,

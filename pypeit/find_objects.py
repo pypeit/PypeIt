@@ -304,7 +304,7 @@ class FindObjects:
 #        # For echelle
 #        self.spatial_coo = self.slits.spatial_coordinates(initial=initial, flexure=self.spat_flexure_shift)
 
-    def run(self, std_trace=None, show_peaks=False):
+    def run(self, std_trace=None, show_peaks=False, show_skysub_fit=False):
         """
         Primary code flow for object finding in PypeIt reductions
 
@@ -329,7 +329,8 @@ class FindObjects:
         skymask0, usersky = self.load_skyregions(None, self.sky_region_file)
         # Perform a first pass sky-subtraction without masking any objects. Should  we make this no_poly=True to
         # have fewer degrees of freedom in the with with-object global sky fits??
-        initial_sky0 = self.global_skysub(skymask=skymask0, update_crmask=False, objs_not_masked=True).copy()
+        initial_sky0 = self.global_skysub(skymask=skymask0, update_crmask=False, objs_not_masked=True,
+                                          show_fit=show_skysub_fit).copy()
         # First pass object finding
         sobjs_obj, self.nobj = \
             self.find_objects(self.sciImg.image-initial_sky0, self.sciImg.ivar, std_trace=std_trace,
@@ -346,7 +347,7 @@ class FindObjects:
             initial_sky = initial_sky0
         else:
             # Global sky subtract now using the skymask defined by object positions
-            initial_sky = self.global_skysub(skymask=skymask_init).copy()
+            initial_sky = self.global_skysub(skymask=skymask_init, show_fit=show_skysub_fit).copy()
 
         # Second pass object finding on sky-subtracted image
         if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):

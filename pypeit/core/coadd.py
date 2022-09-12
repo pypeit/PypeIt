@@ -2964,13 +2964,20 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
         if maskdef_dict['maskdef_designtab'] is not None:
             maskdef_designtab = maskdef_dict['maskdef_designtab']
 
+    # TODO The rebin_stacks are indluded now for debugging but keeping them all may blow up memory usage so consider
+    # removing
     return dict(wave_bins=wave_bins, dspat_bins=dspat_bins, wave_mid=wave_mid, wave_min=wave_min,
                 wave_max=wave_max, dspat_mid=dspat_mid, sciimg=sciimg, sciivar=sciivar,
                 imgminsky=imgminsky, outmask=outmask, nused=nused, tilts=tilts, waveimg=waveimg,
                 dspat=dspat, nspec=imgminsky.shape[0], nspat=imgminsky.shape[1],
-                maskdef_id=maskdef_id, maskdef_slitcen=new_maskdef_slitcen,
-                maskdef_objpos=new_maskdef_objpos,
+                maskdef_id=maskdef_id, maskdef_slitcen=new_maskdef_slitcen, maskdef_objpos=new_maskdef_objpos,
                 maskdef_designtab=maskdef_designtab)
+#                rebin_weights_stack=sci_list_rebin[0], rebin_sciimg_stack=sci_list_rebin[1],
+#                rebin_imgminsky_stack=sci_list_rebin[2], rebin_tilts_stack=sci_list_rebin[3],
+#                rebin_waveimg_stack=sci_list_rebin[4], rebin_dspat_stack=sci_list_rebin[5],
+#                rebin_var_stack=var_list_rebin[0], rebin_nsmp_stack=nsmp_rebin_stack,
+
+
 
 
 def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, inmask_stack, sci_list, var_list):
@@ -3076,7 +3083,6 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
                                                                bins=[spec_bins, spat_bins], density=False,
                                                                weights=var[img][finmask])
             var_list_out[indx][img, :, :] = (norm_img > 0.0)*weigh_var/(norm_img + (norm_img == 0.0))**2
-
 
     return sci_list_out, var_list_out, norm_rebin_stack.astype(int), nsmp_rebin_stack.astype(int)
 
