@@ -102,12 +102,19 @@ class FindObjects:
             sciImg (:class:`~pypeit.images.scienceimage.ScienceImage`):
                 Image to reduce.
             spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+                PypeIt Sspectrograph class
             par (:class:`~pypeit.par.pyepeitpar.PypeItPar`):
-            caliBrate (:class:`~pypeit.calibrations.Calibrations`):
+                Reduction parameters class
             objtype (:obj:`str`):
                 Specifies object being reduced 'science' 'standard'
                 'science_coadd2d'.  This is used only to determine the
                 spat_flexure_shift and ech_order for coadd2d.
+            waveTilts ():
+                blah
+            tilts ():
+                blah
+            sky_region_file (str):
+                Name fo the Master sky region file created by the user
             bkg_redux (:obj:`bool`, optional):
                 If True, the sciImg has been subtracted by
                 a background image (e.g. standard treatment in the IR)
@@ -145,7 +152,6 @@ class FindObjects:
         self.spectrograph = spectrograph
         self.objtype = objtype
         self.par = par
-        #self.caliBrate = caliBrate
         self.scaleimg = np.array([1.0], dtype=np.float)  # np.array([1]) applies no scale
         self.basename = basename
         self.manual = manual
@@ -213,7 +219,7 @@ class FindObjects:
         self.vel_corr = None
 
         # Deal with dynamically generated calibrations, i.e. the tilts. If the tilts are not input generate
-        # them from the  fits in caliBrate, otherwise use the input tilts
+        # them from the fits in caliBrate, otherwise use the input tilts
         if waveTilts is None and tilts is None:
             msgs.error("Must provide either waveTilts or tilts to FindObjects")
         elif waveTilts is not None and tilts is not None:
@@ -577,50 +583,41 @@ class FindObjects:
         # Return
         return global_sky
 
-    def load_skyregions(self, skymask_init, sky_region_file):
+    def load_skyregions(self, sky_region_file, skymask_init=None):
         """
         Load or generate the sky regions
 
         Parameters
         ----------
-        skymask_init :  `numpy.ndarray`_
+        sky_region_file (str):
+            Name of the sky regions file
+        skymask_init :  (`numpy.ndarray`_, optional)
             A boolean array of sky pixels (True is pixel is a sky region)
 
         Returns
         -------
-        skymask_init :  `numpy.ndarray`_
+        skymask :  `numpy.ndarray`_
             A boolean array of sky pixels (True is pixel is a sky region)
         usersky : bool
             If the user has defined the sky, set this variable to True (otherwise False).
         """
 
-        # TODO Clean up this control flow and provide docs. The input variable and output variable should not
-        # have the same name. Throw error messages if both skymask_init and sky_region_file are provided or are None.
+        # TODO Clean up this control flow and provide docs.
+        # Perform some checks
+        if sky_region_file is None and skymask_init is None:
+            msgs.error("You must set the initial skymask, or provide a Master SkyRegions file")
+        if self.par['reduce']['skysub']['load_mask'] and not os.path.exists(sky_region_file):
+            msgs.warn("Master SkyRegions file does not exist. Create a Master SkyRegions frame, or set:")
+            msgs.pypeitpar(['reduce', 'skysub', 'load_mask = False'])
+            msgs.error("Unable to reduce data without SkyRegions")
         usersky = False
+        skymask = skymask_init.copy()
         if self.par['reduce']['skysub']['load_mask']:
-            # Check if a master Sky Regions file exists for this science frame
-            file_base = os.path.basename(self.sciImg.files[0])
-            prefix = os.path.splitext(file_base)
-            if prefix[1] == ".gz":
-                sciName = os.path.splitext(prefix[0])[0]
-            else:
-                sciName = prefix[0]
-
-            # TODO Calibrate is no longer a dependency so this file needs to be input as an option at instantiation.
-            # Setup the master frame name
-            #master_dir = self.caliBrate.master_dir
-            #master_key = self.caliBrate.fitstbl.master_key(0, det=self.det) + "_" + sciName
-
-            #sky_region_file = masterframe.construct_file_name(buildimage.SkyRegions,
-            #                                          master_key=master_key,
-            #
-            #    master_dir=master_dir)
-
-            # Check if a file exists
+             # Check if a file exists
             if os.path.exists(sky_region_file):
-                msgs.info("Loading SkyRegions file for: {0:s} --".format(sciName) + msgs.newline() + sky_region_file)
+                msgs.info("Loading SkyRegions file: " + msgs.newline() + sky_region_file)
                 skyreg = buildimage.SkyRegions.from_file(sky_region_file)
-                skymask_init = skyreg.image.astype(np.bool)
+                skymask = skyreg.image.astype(np.bool)
                 usersky = True
             else:
                 msgs.warn("SkyRegions file not found:" + msgs.newline() + sky_region_file)
@@ -635,10 +632,10 @@ class FindObjects:
             # Get the regions
             status, regions = skysub.read_userregions(skyregtxt, self.slits.nslits, maxslitlength)
             # Generate image
-            skymask_init = skysub.generate_mask(self.pypeline, regions, self.slits, self.slits_left,
+            skymask = skysub.generate_mask(self.pypeline, regions, self.slits, self.slits_left,
                                                 self.slits_right, spat_flexure=self.spat_flexure_shift)
             usersky = True
-        return skymask_init, usersky
+        return skymask, usersky
 
     def show(self, attr, image=None, global_sky=None, showmask=False, sobjs=None,
              chname=None, slits=False,clear=False):

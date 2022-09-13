@@ -765,6 +765,20 @@ class PypeIt:
                 slits=self.caliBrate.slits,  # For flexure correction
                 ignore_saturation=False), frame_par['process'])
 
+        # Check if the user has manually created a Master sky regions
+        if self.par['reduce']['skysub']['load_mask']:
+            # Check if a master Sky Regions file exists for this science frame
+            file_base = os.path.basename(sciImg.files[0])
+            prefix = os.path.splitext(file_base)
+            if prefix[1] == ".gz":
+                sciName = os.path.splitext(prefix[0])[0]
+            else:
+                sciName = prefix[0]
+
+            master_dir = self.caliBrate.master_dir
+            master_key = self.caliBrate.fitstbl.master_key(0, det=self.det) + "_" + sciName
+            sky_region_file = masterframe.construct_file_name(buildimage.SkyRegions, master_key, master_dir=master_dir)
+
         # Deal with manual extraction
         row = self.fitstbl[frames[0]]
         manual_obj = ManualExtractionObj.by_fitstbl_input(
@@ -774,7 +788,10 @@ class PypeIt:
         # Required for pypeline specific object
         # At instantiaton, the fullmask in self.sciImg is modified
         objFind = find_objects.FindObjects.get_instance(sciImg, self.caliBrate.slits, self.spectrograph,
-                                                        self.par, self.objtype, waveTilts=self.caliBrate.wavetilts,
+                                                        self.par, self.objtype,
+                                                        waveTilts=self.caliBrate.wavetilts,
+                                                        tilts=blah,
+                                                        sky_region_file=sky_region_file,
                                                         bkg_redux=self.bkg_redux,
                                                         manual=manual_obj,
                                                         find_negative=self.find_negative,
