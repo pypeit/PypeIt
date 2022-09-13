@@ -245,14 +245,16 @@ def reduce(files, caliBrate, spectrograph, parset, bkg_files=None, show=False, s
                                                            ignore_saturation=False), parset['scienceframe']['process'])
 
     # DP: Should find_negative be True here? JFH: For quicklook yes!
-    objFind = find_objects.FindObjects.get_instance(sciImg, spectrograph, parset, caliBrate, 'science',
+    objFind = find_objects.FindObjects.get_instance(sciImg, caliBrate.slits, spectrograph, parset, 'science',
+                                                    waveTilts=caliBrate.wavetilts,
                                                     bkg_redux=bkg_redux, find_negative=bkg_redux, show=show)
 
     global_sky, sobjs_obj = objFind.run(std_trace=std_trace, show_peaks=show)
 
     # Instantiate Extract object
-    extract = extraction.Extract.get_instance(sciImg, sobjs_obj, spectrograph, parset, caliBrate,
-                                              'science', bkg_redux=bkg_redux, return_negative=bkg_redux, show=show)
+    extract = extraction.Extract.get_instance(sciImg, caliBrate.slits, sobjs_obj, spectrograph, parset, 'science',
+                                              waveTilts=caliBrate.wavetilts, wv_calib=caliBrate.wv_calib,
+                                              bkg_redux=bkg_redux, return_negative=bkg_redux, show=show)
     skymodel, objmodel, ivarmodel, outmask, sobjs, waveimg, tilts = extract.run(global_sky, sobjs_obj)
 
     # TODO -- Do this upstream

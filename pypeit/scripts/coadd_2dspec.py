@@ -185,6 +185,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             os.makedirs(master_dir)
 
         # Instantiate the sci_dict
+        # TODO Why do we need this sci_dict at all?? JFH
         sci_dict = OrderedDict()  # This needs to be ordered
         sci_dict['meta'] = {}
         sci_dict['meta']['vel_corr'] = 0.

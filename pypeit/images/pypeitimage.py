@@ -52,6 +52,7 @@ class PypeItImage(datamodel.DataContainer):
             Image count scaling applied (e.g., 1/flat-field)
         bpm (`numpy.ndarray`_, optional):
             Bad pixel mask
+        # TODO This docs need to indicate the types of things. Are crmask fullmask etc. boolean or ints?
         crmask (`numpy.ndarray`_, optional):
             CR mask image
         fullmask (`numpy.ndarray`_, optional):
@@ -172,7 +173,8 @@ class PypeItImage(datamodel.DataContainer):
     # image objects. A list of 20 optional arguments all instantiated to None is not a useful API since it conveys no
     # informationa bout what is required vs what is optional. I know this is a feature (flaw) of these
     # data containers, but it really  needs to be addressed. Just separate the object init from the container
-    # init.
+    # init. I cannot figure out how to instantiate this object from a set of inputs, which is a basic functionality of
+    # this class.
     def __init__(self, image=None, ivar=None, nimg=None, amp_img=None, det_img=None, rn2img=None,
                  base_var=None, img_scale=None, bpm=None, crmask=None, fullmask=None,
                  detector=None, spat_flexure=None, PYP_SPEC=None, units=None, exptime=None,
