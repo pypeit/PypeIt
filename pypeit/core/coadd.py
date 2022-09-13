@@ -1982,7 +1982,8 @@ def scale_spec_stack(wave_grid, waves, fluxes, ivars, masks, sn, weights, ref_pe
 
 
 def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
-             wave_method='linear', dwave=None, dv=None, dloglam=None, spec_samp_fact=1.0, wave_grid_min=None, wave_grid_max=None,
+             wave_method='linear', dwave=None, dv=None, dloglam=None, spec_samp_fact=1.0, wave_grid_min=None,
+             wave_grid_max=None, wave_grid_input=None,
              ref_percentile=70.0, maxiter_scale=5,
              sigrej_scale=3.0, scale_method='auto', hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
              const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
@@ -2024,7 +2025,7 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
         sigrej_scale: float, default=3.0
             Rejection threshold used for rejecting pixels when rescaling spectra with scale_spec.
         scale_method: str:
-            Options are poly, median, none, or hand. Hand is not well tested.
+            Options are auto, poly, median, none, or hand. Hand is not well tested.
             User can optionally specify the rescaling method. Default is 'auto' will let the
             code determine this automitically which works well.
         hand_scale: ndarray,
@@ -2082,6 +2083,10 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
               weighting and masking.
             - mask_stack: ndarray, bool, (ngrid,): Mask for stacked
               spectrum on wave_stack wavelength grid. True=Good.
+            - outmask: ndarray, bool, (nspec, nexp): Output mask
+              indicating which pixels are rejected in each exposure of
+              the original input spectra after performing all of the
+              iterations of combine/rejection
     '''
 
     # We cast to float64 because of a bug in np.histogram
@@ -2090,10 +2095,10 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
     ivars = np.float64(ivars)
 
     # Generate a giant wave_grid
-    wave_grid, wave_grid_mid, _ = wvutils.get_wave_grid(waves, masks = masks, wave_method=wave_method,
+    wave_grid, wave_grid_mid, _ = wvutils.get_wave_grid(waves=waves, masks = masks, wave_method=wave_method,
                                             wave_grid_min=wave_grid_min,
                                             wave_grid_max=wave_grid_max, dwave=dwave, dv=dv,
-                                            dloglam=dloglam, spec_samp_fact=spec_samp_fact)
+                                            dloglam=dloglam, spec_samp_fact=spec_samp_fact, wave_grid_input=wave_grid_input)
 
     # Evaluate the sn_weights. This is done once at the beginning
     rms_sn, weights = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights, verbose=verbose)
@@ -2111,12 +2116,12 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
     if show:
         coadd_qa(wave_stack, flux_stack, ivar_stack, nused, mask=mask_stack, title='Stacked spectrum', qafile=qafile)
 
-    return wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack
+    return wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack, outmask
 
 #TODO: Make this read in a generalized file format, either specobjs or output of a previous coaddd.
 def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
                    wave_method='linear', dwave=None, dv=None, dloglam=None, spec_samp_fact=1.0, wave_grid_min=None,
-                   wave_grid_max=None, ref_percentile=70.0, maxiter_scale=5,
+                   wave_grid_max=None, wave_grid_input=None, ref_percentile=70.0, maxiter_scale=5,
                    sigrej_scale=3.0, scale_method='auto', hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
                    const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
                    maxrej=None, phot_scale_dicts=None,
@@ -2155,6 +2160,8 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
            In case you want to specify the minimum wavelength in your wavelength grid, default=None computes from data.
         wave_grid_max (float): optional
            In case you want to specify the maximum wavelength in your wavelength grid, default=None computes from data.
+        wave_grid_input (`numpy.ndarray`_):
+            User input wavelength grid to be used with the 'user_input' wave_method. Shape is (nspec_input,)
         maxiter_reject (int): optional
             maximum number of iterations for stacking and rejection. The code stops iterating either when
             the output mask does not change betweeen successive iterations or when maxiter_reject is reached. Default=5.
@@ -2235,9 +2242,10 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
         sn_smooth_npix = int(np.round(0.1*nspec_eff))
         msgs.info('Using a sn_smooth_npix={:d} to decide how to scale and weight your spectra'.format(sn_smooth_npix))
 
-    wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack = combspec(
+    wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack, outmask = combspec(
         waves, fluxes,ivars, masks, wave_method=wave_method, dwave=dwave, dv=dv, dloglam=dloglam,
-        spec_samp_fact=spec_samp_fact, wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max, ref_percentile=ref_percentile,
+        spec_samp_fact=spec_samp_fact, wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max,
+        wave_grid_input=wave_grid_input, ref_percentile=ref_percentile,
         maxiter_scale=maxiter_scale, sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
         sn_min_medscale=sn_min_medscale, sn_min_polyscale=sn_min_polyscale, sn_smooth_npix=sn_smooth_npix,
         const_weights=const_weights, maxiter_reject=maxiter_reject, sn_clip=sn_clip, lower=lower, upper=upper,
@@ -2255,18 +2263,23 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
 #def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method='log10',
 def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None, wave_method='log10',
                  dwave=None, dv=None, dloglam=None, spec_samp_fact=1.0, wave_grid_min=None, wave_grid_max=None,
-                 ref_percentile=70.0, maxiter_scale=5, niter_order_scale=3, sigrej_scale=3.0, scale_method='auto',
-                 hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
+                 wave_grid_input=None,  ref_percentile=70.0, maxiter_scale=5, niter_order_scale=3, sigrej_scale=3.0,
+                 scale_method='auto', hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
                  sn_smooth_npix=None, const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
                  maxrej=None, qafile=None, debug_scale=False, debug=False, show_order_stacks=False, show_order_scale=False,
                  show_exp=False, show=False, verbose=False):
     """
-    Driver routine for coadding Echelle spectra. Calls combspec which is the main stacking algorithm. It will deliver
-    three fits files: spec1d_order_XX.fits (stacked individual orders, one order per extension), spec1d_merge_XX.fits
-    (straight combine of stacked individual orders), spec1d_stack_XX.fits (a giant stack of all exposures and all orders).
-    In most cases, you should use spec1d_stack_XX.fits for your scientific analyses since it reject most outliers.
+    Driver routine for coadding Echelle spectra. Calls combspec which is the
+    main stacking algorithm. It will deliver three fits files:
+    spec1d_order_XX.fits (stacked individual orders, one order per extension),
+    spec1d_merge_XX.fits (straight combine of stacked individual orders),
+    spec1d_stack_XX.fits (a giant stack of all exposures and all orders).  In
+    most cases, you should use spec1d_stack_XX.fits for your scientific analyses
+    since it reject most outliers.
 
-    ..todo.. -- Clean up the doc formatting
+    .. todo::
+
+        - Clean up the doc formatting
 
     Args:
         waves (ndarray):
@@ -2300,6 +2313,8 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None, wave_met
            In case you want to specify the minimum wavelength in your wavelength grid, default=None computes from data.
         wave_grid_max (float): optional, default=None
            In case you want to specify the maximum wavelength in your wavelength grid, default=None computes from data.
+        wave_grid_input (`numpy.ndarray`_):
+            User input wavelength grid to be used with the 'user_input' wave_method. Shape is (nspec_input,)
         ref_percentile (float): default = 70.0
             percentile fraction cut used for selecting minimum SNR cut for robust_median_ratio.
         maxiter_scale (int): optional, default=5
@@ -2420,10 +2435,11 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None, wave_met
     scales = np.zeros_like(waves)
 
     # Generate a giant wave_grid
-    wave_grid, wave_grid_mid, _ = wvutils.get_wave_grid(waves, masks=masks, wave_method=wave_method,
+    wave_grid, wave_grid_mid, _ = wvutils.get_wave_grid(waves=waves, masks=masks, wave_method=wave_method,
                                             wave_grid_min=wave_grid_min,
                                             wave_grid_max=wave_grid_max, dwave=dwave, dv=dv,
-                                            dloglam=dloglam, spec_samp_fact=spec_samp_fact)
+                                            dloglam=dloglam, spec_samp_fact=spec_samp_fact,
+                                            wave_grid_input=wave_grid_input)
 
     # Evaluate the sn_weights. This is done once at the beginning
     rms_sn, weights_sn = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights, verbose=verbose)

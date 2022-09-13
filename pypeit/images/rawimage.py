@@ -665,6 +665,7 @@ class RawImage:
 
         # Mask(s)
         if self.par['mask_cr']:
+            # TODO: CR rejection of the darks was failing for HIRES for some reason...
             pypeitImage.build_crmask(self.par)
 
         pypeitImage.build_mask(saturation='default', mincounts='default')

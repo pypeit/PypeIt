@@ -109,6 +109,12 @@ class Spectrograph:
     spectrograph.
     """
 
+    ech_fixed_format = None
+    """
+    If an echelle spectrograph, this will be set to a boolean indicating whether it is a fixed format or tiltable 
+    echelle. 
+    """
+
     supported = False
     """
     Flag that ``PypeIt`` code base has been sufficiently tested with data
@@ -139,6 +145,8 @@ class Spectrograph:
         # Generate and check the instrument-specific metadata definition
         self.init_meta()
         self.validate_metadata()
+        if self.pypeline == 'Echelle' and self.ech_fixed_format is None:
+            msgs.error('ech_fixed_format must be set for echelle spectrographs')
 
         # TODO: Is there a better way to do this?
         # Validate the instance by checking that the class has defined the

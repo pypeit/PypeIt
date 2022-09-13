@@ -808,7 +808,7 @@ def iter_continuum(spec, gpm=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_
 def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thresh=None,
                  cont_subtract=True, cont_frac_fwhm=1.0, max_frac_fwhm=3.0,
                  min_pkdist_frac_fwhm=0.75, cont_samp=30, nonlinear_counts=1e10, niter_cont=3,
-                 nfind=None, bpm=None, verbose=False, debug=False, debug_peak_find=False):
+                 nfind=None, bpm=None, verbose=False, debug=False, debug_peak_find=False, debug_cont=False):
     """
     Identify peaks in arc spectrum  significant lines for analysis.
 
@@ -890,6 +890,10 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     debug: bool, default = False
        Make plots showing results of peak finding and final arc lines that are used.
 
+    debug_cont: bool, default = False
+       Make plots showing results of continuum fitting
+
+
     Returns
     -------
     tampl : `numpy.ndarray`_
@@ -933,7 +937,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
 
     if cont_subtract:
         cont_now, cont_mask = iter_continuum(censpec, gpm=np.logical_not(bpm_out), fwhm=fwhm, niter_cont=niter_cont,
-                                             cont_samp=cont_samp, cont_frac_fwhm=cont_frac_fwhm)
+                                             cont_samp=cont_samp, cont_frac_fwhm=cont_frac_fwhm, debug=debug_cont)
     else:
         cont_mask = np.ones(censpec.size, dtype=bool)
         cont_now = np.zeros_like(censpec)
