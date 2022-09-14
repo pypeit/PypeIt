@@ -1680,7 +1680,7 @@ class SensfuncUVISPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, balm_mask_wid=None, std_file=None, std_obj_id=None, sensfunc=None, extinct_correct=None,
-                 telluric_correct=None, telluric=None, polycorrect=None,
+                 extinct_file=None, telluric_correct=None, telluric=None, polycorrect=None,
                  polyfunc=None, nresln=None, resolution=None, trans_thresh=None):
 
         # Grab the parameter names and values from the function
@@ -1715,19 +1715,29 @@ class SensfuncUVISPar(ParSet):
 
         defaults['extinct_correct'] = True
         dtypes['extinct_correct'] = bool
-        descr['extinct_correct'] = 'If extinct_correct=True the code will use an atmospheric extinction model to ' \
+        descr['extinct_correct'] = 'If ``extinct_correct=True`` the code will use an atmospheric extinction model to ' \
                                    'extinction correct the data below 10000A. Note that this correction makes no ' \
                                    'sense if one is telluric correcting and this shold be set to False'
 
+        defaults['extinct_file'] = 'closest'
+        dtypes['extinct_file'] = str
+        descr['extinct_file'] = 'If ``extinct_file=\'closest\'`` the code will select the PypeIt-included extinction ' \
+                                'file for the closest observatory (within 5º, geographic coordinates) to the telescope ' \
+                                'identified in ``std_file`` (see :ref:`extinction_correction` for the list of currently '\
+                                'included files).  If constructing a sesitivity function for a telescope not within 5º ' \
+                                'of a listed observatory, this parameter may be set to the name of one of the listed ' \
+                                'extinction files.  Alternatively, a custom extinction file may be installed in the ' \
+                                'PypeIt cache using the ``pypeit_install_extinctfile`` script; this parameter may then ' \
+                                'be set to the name of the custom extinction file.'
 
         defaults['telluric_correct'] = False
         dtypes['telluric_correct'] = bool
-        descr['telluric_correct'] = "If telluric_correct=True the code will grab the sens_dict['telluric'] tag from the " \
+        descr['telluric_correct'] = "If ``telluric_correct=True`` the code will grab the sens_dict['telluric'] tag from the " \
                                     "sensfunc dictionary and apply it to the data."
 
         defaults['telluric'] = False
         dtypes['telluric'] = bool
-        descr['telluric'] = 'If telluric=True the code creates a synthetic standard star spectrum using the Kurucz models, ' \
+        descr['telluric'] = 'If ``telluric=True`` the code creates a synthetic standard star spectrum using the Kurucz models, ' \
             'the sens func is created setting nresln=1.5 it contains the correction for telluric lines.'
 
         defaults['polycorrect'] = True
@@ -1765,7 +1775,7 @@ class SensfuncUVISPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['balm_mask_wid',  'sensfunc', 'extinct_correct', 'telluric_correct', 'std_file',
+        parkeys = ['balm_mask_wid',  'sensfunc', 'extinct_correct', 'extinct_file', 'telluric_correct', 'std_file',
                    'std_obj_id', 'telluric', 'polyfunc','polycorrect', 'nresln', 'resolution', 'trans_thresh']
 
         badkeys = np.array([pk not in parkeys for pk in k])

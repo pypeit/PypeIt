@@ -137,6 +137,19 @@ we use the Kurucz93 stellar SED.
 
 Alternatively, see `Adding a Standard Star`_.
 
+.. _extinction_correction:
+
+Extinction Correction
+=====================
+
+Blah blah blah, something about extinction...  Include something about
+submitting a PR if the extinction curve is something helpful for other
+users.
+
+.. include:: ../pypeit/data/extinction/README
+   :literal:
+
+
 
 Sensitivity Function Units and Definitions
 ==========================================

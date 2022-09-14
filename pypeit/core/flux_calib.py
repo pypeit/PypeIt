@@ -402,7 +402,8 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
     return std_dict
 
 
-def load_extinction_data(longitude, latitude, toler=5. * units.deg):
+def load_extinction_data(longitude, latitude, extinctfilepar,
+                         toler=5. * units.deg):
     """
     Find the best extinction file to use, based on longitude and latitude
     Loads it and returns a Table
@@ -410,6 +411,9 @@ def load_extinction_data(longitude, latitude, toler=5. * units.deg):
     Parameters
     ----------
     longitude, latitude: Geocentric coordinates in degrees (floats).
+    extinctfilepar : (str)
+        The sensfunc['extinct_file'] parameter, used to determine
+        which extinction file to load.
     toler : Angle, optional
         Tolerance for matching detector to site (5 deg)
 
@@ -418,30 +422,40 @@ def load_extinction_data(longitude, latitude, toler=5. * units.deg):
     ext_file : Table
         astropy Table containing the 'wavelength', 'extinct' data for AM=1.
     """
-    # Mosaic coord
-    mosaic_coord = coordinates.SkyCoord(longitude, latitude, frame='gcrs', unit=units.deg)
-    # Read list
-    extinct_summ = os.path.join(data.Paths.extinction, 'README')
-    extinct_files = table.Table.read(extinct_summ, comment='#', format='ascii')
-    # Coords
-    ext_coord = coordinates.SkyCoord(extinct_files['Lon'], extinct_files['Lat'], frame='gcrs',
-                                     unit=units.deg)
-    # Match
-    idx, d2d, d3d = coordinates.match_coordinates_sky(mosaic_coord, ext_coord, nthneighbor=1)
-    if d2d < toler:
-        extinct_file = extinct_files[int(idx)]['File']
-        msgs.info("Using {:s} for extinction corrections.".format(extinct_file))
+    # Default Behavior
+    if extinctfilepar == 'closest':
+        # Observation coordinates
+        obs_coord = coordinates.SkyCoord(longitude, latitude, frame='gcrs', unit=units.deg)
+        # Read list
+        extinct_summ = os.path.join(data.Paths.extinction, 'README')
+        extinct_files = table.Table.read(extinct_summ, comment='#', format='ascii')
+        # Coords
+        ext_coord = coordinates.SkyCoord(extinct_files['Lon'], extinct_files['Lat'], frame='gcrs',
+                                        unit=units.deg)
+        # Match
+        idx, d2d, _ = coordinates.match_coordinates_sky(obs_coord, ext_coord, nthneighbor=1)
+        if d2d < toler:
+            extinct_file = extinct_files[int(idx)]['File']
+            msgs.info(f"Using {extinct_file} for extinction corrections.")
+        else:
+            # Crash with a helpful error message
+            
+            msgs.warn("No file found for extinction corrections.  Applying none")
+            msgs.warn("You should generate a site-specific file")
+            return None
+
+    # User-Supplied Extinction File
     else:
-        msgs.warn("No file found for extinction corrections.  Applying none")
-        msgs.warn("You should generate a site-specific file")
-        return None
+        extinct_file = extinctfilepar
+
     # Read
-    extinct = table.Table.read(os.path.join(data.Paths.extinction, extinct_file),
+    extinct = table.Table.read(data.get_extinctfile_filepath(extinct_file),
                                comment='#', format='ascii', names=('iwave', 'mag_ext'))
     wave = table.Column(np.array(extinct['iwave']) * units.AA, name='wave')
     extinct.add_column(wave)
     # Return
     return extinct[['wave', 'mag_ext']]
+
 
 def extinction_correction(wave, airmass, extinct):
     """
