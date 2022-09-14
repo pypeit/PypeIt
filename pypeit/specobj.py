@@ -457,7 +457,7 @@ class SpecObj(datamodel.DataContainer):
 
     # TODO This should be a wrapper calling a core algorithm.
     def apply_flux_calib(self, wave_zp, zeropoint, exptime, tellmodel=None, extinct_correct=False,
-                         airmass=None, longitude=None, latitude=None, extrap_sens=False):
+                         airmass=None, longitude=None, latitude=None, extinctfilepar=None, extrap_sens=False):
         """
         Apply a sensitivity function to our spectrum
 
@@ -481,6 +481,9 @@ class SpecObj(datamodel.DataContainer):
             latitude:
                 latitude in degree for observatory
                 Used for extinction correction
+            extinctfilepar (str):
+                [sensfunc][UVIS][extinct_file] parameter
+                Used for extinction correction
             extrap_sens (bool, optional):
                 Extrapolate the sensitivity function (instead of crashing out)
 
@@ -495,7 +498,7 @@ class SpecObj(datamodel.DataContainer):
             # Interpolate the sensitivity function onto the wavelength grid of the data
             sens_factor = flux_calib.get_sensfunc_factor(
                 wave, wave_zp, zeropoint, exptime, tellmodel=tellmodel, extinct_correct=extinct_correct, airmass=airmass,
-                longitude=longitude, latitude=latitude, extrap_sens=extrap_sens)
+                longitude=longitude, latitude=latitude, extinctfilepar=extinctfilepar, extrap_sens=extrap_sens)
             flam = self[attr+'_COUNTS']*sens_factor
             flam_sig = sens_factor/np.sqrt(self[attr+'_COUNTS_IVAR'])
             flam_ivar = self[attr+'_COUNTS_IVAR']/sens_factor**2

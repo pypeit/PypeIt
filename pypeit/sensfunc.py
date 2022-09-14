@@ -859,6 +859,7 @@ class UVISSensFunc(SensFunc):
                                                     self.meta_spec['AIRMASS'], self.std_dict,
                                                     self.meta_spec['LONGITUDE'],
                                                     self.meta_spec['LATITUDE'],
+                                                    self.par['UVIS']['extinct_file'],
                                                     self.meta_spec['ECH_ORDERS'],
                                                     polyorder=self.par['polyorder'],
                                                     balm_mask_wid=self.par['UVIS']['balm_mask_wid'],

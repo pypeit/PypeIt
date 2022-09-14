@@ -1408,7 +1408,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         longitude = spec.telescope['longitude']
         latitude = spec.telescope['latitude']
         airmass = spec2DObj.head0[spec.meta['airmass']['card']]
-        extinct = load_extinction_data(longitude, latitude)
+        extinct = load_extinction_data(longitude, latitude, senspar['UVIS']['extinct_file'])
         # extinction_correction requires the wavelength is sorted
         wvsrt = np.argsort(wave_ext)
         ext_corr = extinction_correction(wave_ext[wvsrt] * units.AA, airmass, extinct)
