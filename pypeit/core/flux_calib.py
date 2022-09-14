@@ -439,10 +439,14 @@ def load_extinction_data(longitude, latitude, extinctfilepar,
             msgs.info(f"Using {extinct_file} for extinction corrections.")
         else:
             # Crash with a helpful error message
-            
-            msgs.warn("No file found for extinction corrections.  Applying none")
-            msgs.warn("You should generate a site-specific file")
-            return None
+            msgs.warn(f"No observatory extinction file was found within {toler}{msgs.newline()}"
+                      f"of observation at lon = {longitude:.1f} lat = {latitude:.1f}{msgs.newline()}"
+                      f"You may select an included extinction file (e.g., KPNO) for use by{msgs.newline()}"
+                      "adding the following to the Sensitivity Input File:")
+            msgs.pypeitpar(['sensfunc','UVIS','extinct_file = kpnoextinct.dat'])
+            msgs.error(f"See instructions at{msgs.newline()}"
+                       f"https://pypeit.readthedocs.io/en/latest/fluxing.html#extinction-correction{msgs.newline()}"
+                       "for using extinction files and how to install a user-supplied file, if desired.")
 
     # User-Supplied Extinction File
     else:
