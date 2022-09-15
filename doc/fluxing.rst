@@ -220,6 +220,12 @@ the flux calibration process:
             [fluxcalib]
               extinct_file = <name_of_file>
 
+These steps may be used to either specify one of the ``PypeIt``-included
+extinction files listed above or to employ a user-supplied extinction file
+(possibly for an observatory not on the list).  The latter may be installed
+in the user's PypeIt cache using the script ``pypeit_install_extinctfile``,
+whose usage is described in :ref:`install_scripts`.
+
 The above steps are meant as a scaffold during development of new instruments
 in ``PypeIt``, and users are encouraged to submit a pull request to the main
 repository with new extinction files for other observatories.
