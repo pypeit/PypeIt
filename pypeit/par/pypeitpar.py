@@ -1504,9 +1504,9 @@ class FluxCalibratePar(ParSet):
         defaults['extinct_file'] = 'closest'
         dtypes['extinct_file'] = str
         descr['extinct_file'] = 'If ``extinct_file=\'closest\'`` the code will select the PypeIt-included extinction ' \
-                                'file for the closest observatory (within 5º, geographic coordinates) to the telescope ' \
+                                'file for the closest observatory (within 5 deg, geographic coordinates) to the telescope ' \
                                 'identified in ``std_file`` (see :ref:`extinction_correction` for the list of currently '\
-                                'included files).  If constructing a sesitivity function for a telescope not within 5º ' \
+                                'included files).  If constructing a sesitivity function for a telescope not within 5 deg ' \
                                 'of a listed observatory, this parameter may be set to the name of one of the listed ' \
                                 'extinction files.  Alternatively, a custom extinction file may be installed in the ' \
                                 'PypeIt cache using the ``pypeit_install_extinctfile`` script; this parameter may then ' \
@@ -1733,9 +1733,9 @@ class SensfuncUVISPar(ParSet):
         defaults['extinct_file'] = 'closest'
         dtypes['extinct_file'] = str
         descr['extinct_file'] = 'If ``extinct_file=\'closest\'`` the code will select the PypeIt-included extinction ' \
-                                'file for the closest observatory (within 5º, geographic coordinates) to the telescope ' \
+                                'file for the closest observatory (within 5 deg, geographic coordinates) to the telescope ' \
                                 'identified in ``std_file`` (see :ref:`extinction_correction` for the list of currently '\
-                                'included files).  If constructing a sesitivity function for a telescope not within 5º ' \
+                                'included files).  If constructing a sesitivity function for a telescope not within 5 deg ' \
                                 'of a listed observatory, this parameter may be set to the name of one of the listed ' \
                                 'extinction files.  Alternatively, a custom extinction file may be installed in the ' \
                                 'PypeIt cache using the ``pypeit_install_extinctfile`` script; this parameter may then ' \

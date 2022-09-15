@@ -193,7 +193,7 @@ The extinction correction is applied twice in the flux calibration process:
 are closest to those of the telescope associated with the spectrograph being used
 for the reduction.  For most users, this is an automatic selection and nothing
 further need be done.  If, however, you are working with a telescope situated
-more than 5º (geographic coordinates) from one of the listed observatories, the
+more than 5 deg (geographic coordinates) from one of the listed observatories, the
 code will crash unless you specify a particular extinction file to use or install
 a custom extinction file in the PypeIt cache.
 
