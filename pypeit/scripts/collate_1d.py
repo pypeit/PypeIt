@@ -33,6 +33,7 @@ from pypeit.sensfilearchive import SensFileArchive
 from pypeit import fluxcalibrate
 from pypeit.specobjs import SpecObjs
 from pypeit import inputfiles
+from pypeit.scripts.utils import set_verbosity_and_logfile
 
 
 
@@ -654,10 +655,16 @@ class Collate1D(scriptbase.ScriptBase):
         parser.add_argument("--wv_rms_thresh", type=float, default = None, help=blank_par.descr['wv_rms_thresh'])
         parser.add_argument("--refframe", type=str, default = None, choices = pypeitpar.WavelengthSolutionPar.valid_reference_frames(),
                             help=blank_par.descr['refframe'])
+        parser.add_argument('-v', '--verbosity', type=int, default=1,
+                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
+                                 'Level 2 writes a log with filename collate_1d_YYYYMMDD-HHMM.log')
         return parser
 
     @staticmethod
     def main(args):
+
+        # Set the verbosity, and create a logfile if verbosity == 2
+        set_verbosity_and_logfile('collate_1d', args.verbosity)
 
         start_time = datetime.now()
         (par, spectrograph, spec1d_files) = build_parameters(args)

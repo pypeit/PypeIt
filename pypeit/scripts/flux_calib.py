@@ -4,11 +4,7 @@ Script for fluxing PYPEIT 1d spectra
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import os
-
 from IPython import embed
-
-import numpy as np
 
 from astropy.io import fits
 
@@ -18,6 +14,7 @@ from pypeit.spectrographs.util import load_spectrograph
 from pypeit import fluxcalibrate
 from pypeit.par import pypeitpar
 from pypeit.scripts import scriptbase
+from pypeit.scripts.utils import set_verbosity_and_logfile
 from pypeit.sensfilearchive import SensFileArchive
 
 
@@ -65,6 +62,10 @@ class FluxCalib(scriptbase.ScriptBase):
                             help="show debug plots?")
         parser.add_argument("--par_outfile", default='fluxing.par', action="store_true",
                             help="Output to save the parameters")
+        parser.add_argument('-v', '--verbosity', type=int, default=1,
+                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
+                                 'Level 2 writes a log with filename flux_calib_YYYYMMDD-HHMM.log')
+
 #        parser.add_argument("--plot", default=False, action="store_true",
 #                            help="Show the sensitivity function?")
         return parser
@@ -73,6 +74,9 @@ class FluxCalib(scriptbase.ScriptBase):
     def main(args):
         """ Runs fluxing steps
         """
+        # Set the verbosity, and create a logfile if verbosity == 2
+        set_verbosity_and_logfile('flux_calib', args.verbosity)
+
         # Load the file
         fluxFile = inputfiles.FluxFile.from_file(args.flux_file)
 

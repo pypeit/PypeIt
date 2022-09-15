@@ -49,6 +49,9 @@ class TraceEdges(scriptbase.ScriptBase):
                             help='Run in debug mode.')
         parser.add_argument('--show', default=False, action='store_true',
                             help='Show the stages of trace refinements (only for the new code).')
+        parser.add_argument('-v', '--verbosity', type=int, default=1,
+                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
+                                 'Level 2 writes a log with filename trace_edges_YYYYMMDD-HHMM.log')
 
         return parser
 
@@ -64,8 +67,12 @@ class TraceEdges(scriptbase.ScriptBase):
         from pypeit.pypeit import PypeIt
         from pypeit.images import buildimage
         from pypeit import masterframe
+        from pypeit.scripts.utils import set_verbosity_and_logfile
 
         from IPython import embed
+
+        # Set the verbosity, and create a logfile if verbosity == 2
+        set_verbosity_and_logfile('trace_edges', args.verbosity)
 
         if args.pypeit_file is not None:
             pypeit_file = args.pypeit_file
