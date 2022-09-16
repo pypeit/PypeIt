@@ -250,8 +250,8 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm=None, mxsh
         # Deal with the case of shifts greater than ``mxshft``
         # We need to compare the absolute value of shift to ``mxshft``, since shift can be
         # positive or negative, while ``mxshft`` is generally only positive
-        # We use the floor of shift to avoid to trigger the error/warning for differences <1pixel
-        if np.floor(abs(shift)).astype(int) > mxshft:
+        # We use the int of abs(shift) to avoid to trigger the error/warning for differences <1pixel
+        if int(abs(shift)) > mxshft:
             msgs.warn(f"Computed shift {shift:.1f} pix is "
                       f"larger than specified maximum {mxshft} pix.")
 
@@ -321,15 +321,13 @@ def get_fwhm_gauss_smooth(arx_skyspec, obj_skyspec, arx_fwhm_pix, spec_fwhm=None
             return None
         else:
             # object sky spectral dispersion (Angstrom/pixel)
-            obj_disp = np.median(np.append(obj_skyspec.wavelength.value[1] - obj_skyspec.wavelength.value[0],
-                                 obj_skyspec.wavelength.value[1:]-obj_skyspec.wavelength.value[:-1]))
+            obj_disp = np.median(np.diff(obj_skyspec.wavelength.value))
             # Angstrom
             spec_fwhm = spec_fwhm_pix * obj_disp
 
     # determine arxiv sky spectral FWHM (in Angstrom)
     # arxiv sky spectral dispersion (Angstrom/pixel)
-    arx_disp = np.median(np.append(arx_skyspec.wavelength.value[1]-arx_skyspec.wavelength.value[0],
-                         arx_skyspec.wavelength.value[1:]-arx_skyspec.wavelength.value[:-1]))
+    arx_disp = np.median(np.diff(arx_skyspec.wavelength.value))
     arx_fwhm = arx_fwhm_pix * arx_disp
 
     msgs.info(f"Resolution (FWHM) of Archive={arx_fwhm:.2f} Ang and Observation={spec_fwhm:.2f} Ang")
@@ -345,13 +343,12 @@ def get_fwhm_gauss_smooth(arx_skyspec, obj_skyspec, arx_fwhm_pix, spec_fwhm=None
     arx_med_fwhm2 = np.power(arx_fwhm, 2)
 
     if obj_med_fwhm2 >= arx_med_fwhm2:
-        smooth_sig = np.sqrt(obj_med_fwhm2-arx_med_fwhm2)  # Ang
-        smooth_fwhm_pix = smooth_sig / arx_disp
+        smooth_fwhm = np.sqrt(obj_med_fwhm2-arx_med_fwhm2)  # Ang
+        smooth_fwhm_pix = smooth_fwhm / arx_disp
     else:
         msgs.warn("Prefer archival sky spectrum to have higher resolution")
         smooth_fwhm_pix = 0.
         msgs.warn("New Sky has higher resolution than Archive.  Not smoothing")
-        #smooth_sig = np.sqrt(arx_med_sig**2-obj_med_sig**2)
 
     return smooth_fwhm_pix
 
