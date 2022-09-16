@@ -318,7 +318,7 @@ class FlatImages(datamodel.DataContainer):
 
     def fit2illumflat_fine(self, slits, tilts=None, initial=False, spat_flexure=None, frametype='illum'):
         """
-        Main algorithm to build the wavelength image
+        Main algorithm to build an image of the fine correction to the spatial illumination profile.
 
         Only applied to good slits, which means any non-flagged or flagged
          in the exclude_for_reducing list

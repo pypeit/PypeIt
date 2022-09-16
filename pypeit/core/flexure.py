@@ -508,6 +508,37 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
 
 
 def spec_flexure_slit_global(sciImg, waveimg, global_sky, par, slits, slitmask, trace_spat, gd_slits, pypeline, det):
+    """Calculate the spectral flexure for every slit
+
+    Args:
+        sciImg  (:class:`~pypeit.images.pypeitimage.PypeItImage`):
+            Science image.
+        waveimg (`numpy.ndarray`_):
+            Wavelength image - shape (nspec, nspat)
+        global_sky (`numpy.ndarray`_):
+            2D array of the global_sky fit - shape (nspec, nspat)
+        par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
+            Parameters of the reduction.
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+            Slit trace set
+        slitmask (`numpy.ndarray`_):
+            An image with the slit index identified for each pixel (returned from slittrace.slit_img).
+        trace_spat (`numpy.ndarray`_):
+            Spatial pixel values (usually the center of each slit) where the sky spectrum will be extracted.
+            The shape of this array should be (nspec, nslits)
+        gd_slits (`numpy.ndarray`_):
+            True = good slit
+        pypeline (:obj:`str`):
+            Name of the ``PypeIt`` pipeline method.  Allowed options are
+            MultiSlit, Echelle, or IFU.
+        det (:obj:`str`):
+            The name of the detector or mosaic from which the spectrum will be
+            extracted.  For example, DET01.
+    Returns:
+        :obj:`list`: A list of :obj:`dict` objects containing flexure
+        results of each slit. This is filled with a basically empty
+        dict if the slit is skipped.
+    """
     # TODO :: Need to think about spatial flexure - is the appropriate spatial flexure already included in trace_spat via left/right slits?
     trace_spec = np.arange(slits.nspec)
     slit_specs = []
