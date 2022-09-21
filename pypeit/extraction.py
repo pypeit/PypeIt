@@ -477,6 +477,7 @@ class Extract:
 
         # Prepare a list of slit spectra, if required.
         if mode == "global":
+            msgs.info('Performing global spectral flexure correction')
             gd_slits = np.logical_not(self.extract_bpm)
             # TODO :: Need to think about spatial flexure - is the appropriate spatial flexure already included in trace_spat via left/right slits?
             trace_spat = 0.5 * (self.slits_left + self.slits_right)
@@ -529,6 +530,7 @@ class Extract:
                                                        spat_flexure=self.spat_flexure_shift,
                                                        spec_flexure=self.slitshift)
         elif mode == "local":
+            msgs.info('Performing local spectral flexure correction')
             # Measure flexure:
             # If mode == local: specobjs != None and slitspecs = None
             flex_list = flexure.spec_flexure_slit(self.slits, self.slits.slitord_id, self.extract_bpm,
@@ -548,7 +550,7 @@ class Extract:
                     if sobj is None or sobj['BOX_WAVE'] is None:  # Nothing extracted; only the trace exists
                         continue
                     # Interpolate
-                    if this_flex_dict['shift'][ss] is not None:
+                    if len(this_flex_dict['shift']) > 0 and this_flex_dict['shift'][ss] is not None:
                         new_sky = sobj.apply_spectral_flexure(this_flex_dict['shift'][ss],
                                                               this_flex_dict['sky_spec'][ss])
                         flex_list[islit]['sky_spec'][ss] = new_sky.copy()
