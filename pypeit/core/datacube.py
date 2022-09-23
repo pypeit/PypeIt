@@ -1126,6 +1126,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         parset = spec.default_pypeit_par()
     cubepar = parset['reduce']['cube']
     flatpar = parset['calibrations']['flatfield']
+    senspar = parset['sensfunc']
 
     # Get the detector number and string representation
     det = 1 if parset['rdx']['detnum'] is None else parset['rdx']['detnum']
@@ -1167,7 +1168,6 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     blaze_spline, flux_spline = None, None
     if cubepar['standard_cube'] is not None:
         fluxcal = True
-        senspar = parset['sensfunc']
         ss_file = cubepar['standard_cube']
         if not os.path.exists(ss_file):
             msgs.error("Standard cube does not exist:" + msgs.newline() + ss_file)
