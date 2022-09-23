@@ -29,3 +29,20 @@ def test_flex_shift():
     flex_dict = flexure.spec_flex_shift(obj_spec, arx_spec, arx_lines, mxshft=60)
 
     assert np.abs(flex_dict['shift'] - 43.7) < 0.1
+
+
+def test_flex_image():
+    """ Test the image alignment """
+    # Generate some fake data
+    sz = 100
+    xx, yy = np.meshgrid(np.arange(sz),np.arange(sz))
+    img = np.exp(-0.5*((sz/2-xx)**2 - (sz/2-yy)**2)/16)
+    # Check odd/even image sizes to make sure the offset is always zero for identical input images
+    xshft, yshft = flexure.calculate_image_offset(img, img)
+    assert(np.abs(xshft) < 1.0e-6 and np.abs(yshft) < 1.0e-6)
+    xshft, yshft = flexure.calculate_image_offset(img[:, :-1], img[:, :-1])
+    assert(np.abs(xshft) < 1.0e-6 and np.abs(yshft) < 1.0e-6)
+    xshft, yshft = flexure.calculate_image_offset(img[:-1, :], img[:-1, :])
+    assert(np.abs(xshft) < 1.0e-6 and np.abs(yshft) < 1.0e-6)
+    xshft, yshft = flexure.calculate_image_offset(img[:-1, :-1], img[:-1, :-1])
+    assert(np.abs(xshft) < 1.0e-6 and np.abs(yshft) < 1.0e-6)

@@ -549,6 +549,8 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
             # The blue edge and red edge of the detector have no throughput so mask by hand.
             edge_region= (wave_in < 5400.0) | (wave_in > 8785.0)
             gpm_out = gpm_in & np.logical_not(edge_region)
+        else:
+            gpm_out = gpm_in
 
         return wave_in, counts_in, counts_ivar_in, gpm_out
 

@@ -84,7 +84,10 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             spectrograph_name = coadd2dFile.config['rdx']['spectrograph'] 
             config_lines = coadd2dFile.cfg_lines 
             spec2d_files = coadd2dFile.filenames
+
             # Continue
+            #spectrograph_name, config_lines, spec2d_files, spec2d_opts \
+            #        = io.read_spec2d_file(args.file, filetype="coadd2d")
             spectrograph = load_spectrograph(spectrograph_name)
 
             # Parameters
@@ -274,6 +277,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                                                           bpmmask=sci_dict[coadd.detname]['outmask'],
                                                           detector=sci_dict[coadd.detname]['detector'],
                                                           slits=slits,
+                                                          wavesol=None,
                                                           waveimg=sci_dict[coadd.detname]['waveimg'],
                                                           tilts=sci_dict[coadd.detname]['tilts'],
                                                           sci_spat_flexure=None,

@@ -171,7 +171,6 @@ def get_science_setup(pargs, spectrograph_name:str):
     pypeit_files = glob.glob(os.path.join(pargs.redux_path, 'keck_deimos_*', 'keck_deimos_calib_*.pypeit'))
     mtch = []
     for pypeit_file in pypeit_files:
-        print(pypeit_file)
         # Read
         pypeitFile = inputfiles.PypeItFile.from_file(pypeit_file)
 
@@ -200,23 +199,6 @@ def run_on_science(pargs, calib_pypeit_file, ps_sci):
     # Parse science file info
     science_file = os.path.join(pargs.full_rawpath, pargs.science)
     science_pypeit = calib_pypeit_file.replace('calib', 'science')
-
-    '''
-    # Load up and slurp PypeIt file
-    ps = PypeItSetup.from_pypeit_file(calib_pypeit_file)
-    # Parse science file info
-    # Add to file list, it not present
-    if science_file not in ps.file_list:
-        ps.file_list += [science_file]
-        # Add to usrdata 
-        new_row = {}
-        for key in ps.usrdata.keys():
-            new_row[key] = ps_sci.fitstbl[key][0]
-        ps.usrdata.add_row(new_row)
-
-    # Build
-    _ = ps.build_fitstbl()
-    '''
 
     calibPypeItFile = inputfiles.PypeItFile.from_file(calib_pypeit_file)
 

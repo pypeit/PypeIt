@@ -60,18 +60,30 @@ saved as `BB1245p4238.coadd3d`::
 
     # Read in the data
     spec2d read
-    Science/spec2d_KB.20191219.56886-BB1245p4238_KCWI_2019Dec19T154806.538.fits
-    Science/spec2d_KB.20191219.57662-BB1245p4238_KCWI_2019Dec19T160102.755.fits
+                               filename  |  scale_corr
+    Science/spec2d_scienceframe_01.fits  |  Science/spec2d_scalecorr.fits
+    Science/spec2d_scienceframe_02.fits  |  Science/spec2d_scalecorr.fits
     spec2d end
 
 
-The opening block sets parameters for the reduction steps. Note, by default, this script
+The opening block sets parameters for the reduction steps. Note, by default, `pypeit_coadd_datacube`_
 will convert all spec2d files into a spec3d file (i.e. individual datacubes for each exposure).
 If you want to combine all exposures into a single datacube, you need to set `combine = True`,
 as in the above example, and provide an `output_filename`. This is very useful if you want to
-combine several standard star exposures into a single datacube for flux calibration.
+combine several standard star exposures into a single datacube for flux calibration, for example.
 
-The spec2d block provides a list of :doc:`out_spec2D` files.
+The spec2d block provides a list of :doc:`out_spec2D` files. You can also specify an optional scale correction
+as part of the spec2d block. This relative scale correction ensures that the relative spectral sensitivity of the
+datacube is constant across the field of view. The spec2d file used for the scale_corr column should either be a
+twilight or dome flat reduced as a 'science' frame (see :doc:`keck_kcwi` for a description of what you need to do).
+In order to use this functionality, you should not reduce your science data with a spectral illumination correction.
+In other words, in your :doc:`pypeit_file` file, set the following::
+
+
+    [scienceframe]
+      [[process]]
+        use_specillum = False
+
 
 run
 ---
@@ -98,17 +110,18 @@ Grating correction
 
 The grating correction is needed if any of the data are recorded
 with even a very slightly different setup (e.g. data taken on two
-different nights with the same _intended_ wavelength coverage,
-but the grating angle of the two nights where slightly different).
+different nights with the same *intended* wavelength coverage,
+but the grating angle of the two nights were slightly different).
 This is also needed if your standard star observations were taken
 with a slightly different setup. This correction requires that you
-have taken calibrations with the two different setups. By default,
-the grating correction will be applied, but it can be disabled by
-setting the following keyword argument in your coadd3d file::
+have taken calibrations (i.e. flatfields) with the two different
+setups. By default, the grating correction will be applied, but it
+can be disabled by setting the following keyword argument in your
+coadd3d file::
 
     [reduce]
       [[cube]]
-        astrometric = False
+        grating_corr = False
 
 
 Astrometric correction
@@ -163,7 +176,7 @@ reference_cube.fits is generated.
 Note that PypeIt is not currently setup to stitch together
 cubes covering different wavelength range, but it can coadd
 multiple spec2D files into a single datacube if the wavelength
-setup overlaps, and the spatial positions are similar.
+setup overlaps, and the spatial positions are very similar.
 
 Difficulties with combining multiple datacubes
 ==============================================
@@ -172,8 +185,8 @@ PypeIt is able to combine standard star frames for flux calibration, and
 should not have any difficulty with this. If your science observations are
 designed so that there is very little overlap between exposures, you should
 not expect the automatic combination algorithm to perform well. Instead, you
-should output individual data cubes and manually combine the cubes with
-purpose-built software.
+should output individual data cubes and manually combine the cubes with some
+other purpose-built software.
 
 Current Coadd3D Data Model
 ==========================

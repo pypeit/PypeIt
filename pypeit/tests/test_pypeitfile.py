@@ -9,20 +9,26 @@ from pypeit.inputfiles import PypeItFile
 from pypeit.tests.tstutils import data_path
 
 # Bits needed to generate a PypeIt file
-confdict = {'rdx': {'spectrograph': 'keck_hires'}}
 
-data = Table()
-data['filename'] = ['b1.fits.gz', 'b27.fits.gz']
-data['frametype'] = ['arc', 'science']
-data['exptime'] = [1., 10.]
+def pieces_of_pypeitfile():
+    confdict = {'rdx': {'spectrograph': 'keck_hires'}}
 
-file_paths = [data_path('')]
+    data = Table()
+    data['filename'] = ['b1.fits.gz', 'b27.fits.gz']
+    data['frametype'] = ['arc', 'science']
+    data['exptime'] = [1., 10.]
 
-setup_dict = {'Setup A': ' '}
+    file_paths = [data_path('')]
+
+    setup_dict = {'Setup A': ' '}
+
+    # Return
+    return confdict, data, file_paths, setup_dict
 
 # TESTS
 def test_instantiate():
     # Test of instantiation
+    confdict, data, file_paths, setup_dict = pieces_of_pypeitfile()
     pypeItFile = PypeItFile(confdict, file_paths, 
                                        data, setup_dict)
     # Data files                                    
@@ -55,6 +61,7 @@ def test_write_pypeit_file():
         os.remove(outfile)
 
     # Instantiate
+    confdict, data, file_paths, setup_dict = pieces_of_pypeitfile()
     pypeItFile = PypeItFile(confdict, file_paths, 
                                        data, setup_dict)
     # Write

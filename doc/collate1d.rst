@@ -116,6 +116,10 @@ followed by a list of spec1d files. An example configuration file is shown below
     # Defaults to False
     #flux = False
 
+    # Whether to perform reference frame correciton on spec1d files.
+    # Options can be None, observed,heliocentric,barycentric. Defaults to None.
+    #refframe = heliocentric
+
     # Whether to ignore existing flux calibrated data in the spec1ds.
     # Defaults to False. Even when this is False, if the flux calibration data 
     # (e.g. OPT_FLAM or BOX_FLAM) is not available the uncalibrated data is coadded.
@@ -129,7 +133,9 @@ followed by a list of spec1d files. An example configuration file is shown below
     #outdir = /work/output
     
     # A list of the spec1d files. Wildcards are allowed.
+    # This follows the input file data block format.
     spec1d read
+    filename
     Science/spec1d*.fits
     spec1d end
 
@@ -152,8 +158,18 @@ command line or set the ``ignore_flux = True`` in the configuration file.
 
 Alternatively ``pypeit_collate_1d`` can perform flux calibration itself using archived sensitivity functions.
 To do so pass ``--flux`` to the command line or set ``flux = True`` in the configuration file.
-Doing so will overwrite any flux calibration data already in the spec1d files.
+if ``spec1d_outdir`` is set on the command line or in a configuration file the new spec1d will be written
+to that directory. Otherwise this will overwrite any flux calibration data already in the spec1d files.
 Currently archived sensitivity functions are experimental and only supported for DEIMOS.
+
+Reference Frame correciton
+--------------------------
+For data that was reduced without reference frame correction (i.e. refframe in :ref:`pypeit_par:WavelengthSolutionPar Keywords`
+was set to "observed" in the .pypeit file), ``pypeit_collate_1d`` can perform this correction before coadding
+the files. To do so pass either ``refframe heliocentric`` or ``refframe barycentric`` via the command line
+or a configuration file. This correction will only be performed on spec1d files that have not already been
+corrected.  If ``spec1d_outdir`` is specified, the corrected spec1d files will be written to that location.
+Otherwise the existing spec1d fils will be modified.
 
 Reporting
 ---------

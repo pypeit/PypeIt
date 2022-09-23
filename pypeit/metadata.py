@@ -693,6 +693,13 @@ class PypeItMetaData:
 
         msgs.info('Using metadata to determine unique configurations.')
 
+        # sort self.table
+        mjd = self.table['mjd'].copy()
+        # Deal with possibly None mjds if there were corrupt header cards
+        mjd[mjd == None] = -99999.0
+        isort = np.argsort(mjd)
+        self.table = self.table[isort]
+
         # If the frame types have been set, ignore anything listed in
         # the ignore_frames
         indx = np.arange(len(self))
@@ -798,12 +805,21 @@ class PypeItMetaData:
             if len(set(cfg.keys()) - set(self.keys())) > 0:
                 msgs.error('Configuration {0} defined using unavailable keywords!'.format(k))
 
-        self.table['setup'] = 'None'
+        # define the column 'setup' in self.table
         nrows = len(self)
+        col = table.Column(data=['None'] * nrows, name='setup', dtype='U25')
+        self.table.add_column(col)
         for i in range(nrows):
             for d, cfg in _configs.items():
+                # modify the configuration items only for specific frames. This is instrument dependent.
+                cfg = self.spectrograph.modify_config(self.table[i], cfg)
                 if row_match_config(self.table[i], cfg, self.spectrograph):
-                    self.table['setup'][i] = d
+                    if d in self.table['setup'][i]:
+                        continue
+                    elif self.table['setup'][i] == 'None':
+                        self.table['setup'][i] = d
+                    else:
+                        self.table['setup'][i] += ',{}'.format(d)
 
         # Check if any of the configurations are not set
         not_setup = self.table['setup'] == 'None'
@@ -825,7 +841,7 @@ class PypeItMetaData:
         # For each configuration, determine if any of the frames with
         # the ignored frame types should be assigned to it:
         for cfg_key in _configs.keys():
-            in_cfg = self.table['setup'] == cfg_key
+            in_cfg = np.array([cfg_key in _setup for _setup in self.table['setup']])
             for ftype, metakey in ignore_frames.items():
 
                 # TODO: For now, use this assert to check that the
@@ -837,7 +853,7 @@ class PypeItMetaData:
 
                 # Get the list of frames of this type without a
                 # configuration
-                indx = (self.table['setup'] == 'None') & self.find_frames(ftype)
+                indx = not_setup & self.find_frames(ftype)
                 if not np.any(indx):
                     continue
                 if metakey is None:
@@ -857,7 +873,16 @@ class PypeItMetaData:
                 # Find the frames of this type that match any of the
                 # meta data values
                 indx &= np.isin(self.table[metakey], uniq_meta)
-                self.table['setup'][indx] = cfg_key
+                # assign
+                new_cfg_key = np.full(len(self.table['setup'][indx]), 'None', dtype=object)
+                for c in range(len(self.table['setup'][indx])):
+                    if cfg_key in self.table['setup'][indx][c]:
+                        new_cfg_key[c] = self.table['setup'][indx][c]
+                    if self.table['setup'][indx][c] == 'None':
+                        new_cfg_key[c] = cfg_key
+                    else:
+                        new_cfg_key[c] = self.table['setup'][indx][c] + ',{}'.format(cfg_key)
+                self.table['setup'][indx] = new_cfg_key
 
     def clean_configurations(self):
         """
@@ -917,9 +942,9 @@ class PypeItMetaData:
             if self['calib'][i] in ['all', 'None']:
                 # No information, keep going
                 continue
-            # Convert to a list of numbers
+            # Convert to a list of numbers (after recasting to str)
             l = np.amax([ 0 if len(n) == 0 else int(n)
-                                for n in self['calib'][i].replace(':',',').split(',')])
+                                for n in str(self['calib'][i]).replace(':',',').split(',')])
             # Check against current maximum
             ngroups = max(l+1, ngroups)
 
@@ -930,7 +955,7 @@ class PypeItMetaData:
         # Set the calibration bits
         for i in range(len(self)):
             # Convert the string to the group list
-            grp = parse.str2list(self['calib'][i], ngroups)
+            grp = parse.str2list(str(self['calib'][i]), ngroups)
             if grp is None:
                 # No group selected
                 continue
@@ -1016,7 +1041,7 @@ class PypeItMetaData:
         # group
         if 'setup' not in self.keys():
             msgs.error('Must have defined \'setup\' column first; try running set_configurations.')
-        configs = np.unique(self['setup'].data).tolist()
+        configs = np.unique(np.concatenate([_setup.split(',') for _setup in self['setup'].data])).tolist()
         if 'None' in configs:
             configs.remove('None')      # Ignore frames with undefined configurations
         n_cfg = len(configs)
@@ -1028,8 +1053,15 @@ class PypeItMetaData:
         # any changes to the strings will be truncated at 4 characters.
         self.table['calib'] = np.full(len(self), 'None', dtype=object)
         for i in range(n_cfg):
-            self['calib'][(self['setup'] == configs[i]) & (self['framebit'] > 0)] = str(i)
-        
+            in_cfg = np.array([configs[i] in _set for _set in self.table['setup']]) & (self['framebit'] > 0)
+            icalibs = np.full(len(self['calib'][in_cfg]), 'None', dtype=object)
+            for c in range(len(self['calib'][in_cfg])):
+                if self['calib'][in_cfg][c] == 'None':
+                    icalibs[c] = str(i)
+                else:
+                    icalibs[c] = self['calib'][in_cfg][c] + ',{}'.format(i)
+            self['calib'][in_cfg] = icalibs
+
         # Allow some frame types to be used in all calibration groups
         # (like biases and darks)
         if global_frames is not None:
@@ -1360,6 +1392,9 @@ class PypeItMetaData:
             sci_std_idx = np.where(np.any([self.find_frames('science'),
                                            self.find_frames('standard')], axis=0))[0]
             self['comb_id'][sci_std_idx] = np.arange(len(sci_std_idx), dtype=int) + 1
+            # update comb_id and bkg_id with dither pattern specific to the used instrument
+            # if get_comb_group() is not defined in the relevant spectrograph self.table is unchanged
+            self.table = self.spectrograph.get_comb_group(self.table)
 
     def set_user_added_columns(self):
         """
@@ -1426,10 +1461,20 @@ class PypeItMetaData:
         ff = open(ofile, 'w')
         for setup in cfgs.keys():
             # Get the subtable of frames taken in this configuration
-            indx = self['setup'] == setup
+            indx = np.array([setup in _set for _set in self['setup']])
             if not np.any(indx):
                 continue
             subtbl = self.table[output_cols][indx]
+            if 'calib' in output_cols:
+                # calib can be a str with a list of values because in some cases (e.g. MOSFIRE) the same
+                # calibration files are used for different setups. Here we update calib to have only the
+                # value relevant for this setup.
+                # find the calib value in this setup that is not a list (which is probably a science/standard)
+                no_list = np.array([',' not in cc for cc in subtbl['calib']])
+                if np.any(no_list):
+                    # set the same calib value to the whole setup
+                    subtbl['calib'] = subtbl['calib'][no_list][0]
+
             # Write the file
             ff.write('##########################################################\n')
             ff.write('Setup {:s}\n'.format(setup))
@@ -1617,13 +1662,22 @@ class PypeItMetaData:
                 setup_dict[f'Setup {setup}'][key] = cfg[setup][key]
             
             # Get the paths
-            in_cfg = self['setup'] == setup
+            in_cfg = np.array([setup in _set for _set in self.table['setup']])
             if not np.any(in_cfg):
                 continue
             paths = np.unique(self['directory'][in_cfg]).tolist()
 
             # Get the data lines
             subtbl = self.table[output_cols][in_cfg]
+            if 'calib' in output_cols:
+                # calib can be a str with a list of values because in some cases (e.g. MOSFIRE) the same
+                # calibration files are used for different setups. Here we update calib to have only the
+                # value relevant for this setup.
+                # find the calib value in this setup that is not a list (which is probably a science/standard)
+                no_list = np.array([',' not in cc for cc in subtbl['calib']])
+                if np.any(no_list):
+                    # set the same calib value to the whole setup
+                    subtbl['calib'] = subtbl['calib'][no_list][0]
             subtbl.sort(['frametype','filename'])
             #with io.StringIO() as ff:
             #    subtbl.write(ff, format='ascii.fixed_width')

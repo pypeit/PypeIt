@@ -292,7 +292,7 @@ def html_mf_pngs(idval):
             body += '<h2> {:s} {:s} </h2>\n'.format(html_dict[key]['label'], idval)
             for png in pngs:
                 # Remove QA
-                ifnd = png.find('QA/')
+                ifnd = png.find('QA' + os.path.sep)
                 if ifnd < 0:
                     raise ValueError("QA is expected to be in the path!")
                 if html_dict[key]['slit']:  # Kludge to handle multiple slits

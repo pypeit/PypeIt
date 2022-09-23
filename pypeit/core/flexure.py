@@ -112,14 +112,8 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
     return lag_max[0]
 
 
-def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
-    """ Calculate shift between object sky spectrum and 
-    the archive sky spectrum.  Continuua are subtracted from each
-    spectrum and then the archive sky is convolved with a gaussian
-    to match the object sky resolution.
-
-    A standard FFT approach is used fo the cross-correlation.
-    We then fit a low-order polynomial to find the peak in the cross-correlation.
+def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20, excess_shft="crash"):
+    """ Calculate shift between object sky spectrum and archive sky spectrum
 
     Args:
         obj_skyspec (:class:`linetools.spectra.xspectrum1d.XSpectrum1d`):
@@ -131,6 +125,11 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
         mxshft (int or float, optional):
             Maximum allowed shift from flexure;  note there are cases that
             have been known to exceed even 30 pixels..
+        excess_shft (str, optional):
+            Behavior of the code when a measured flexure exceeds ``mxshft``.
+            Options are "crash", "set_to_zero", and "continue", where
+            "set_to_zero" sets the shift to zero and moves on, and
+            "continue" simply uses the large flexure shift value.
 
     Returns:
         dict: Contains flexure info.  Keys are:
@@ -287,10 +286,34 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
                                 func='polynomial', order=np.atleast_1d(2))
         fit.fit()
         max_fit = -0.5 * fit.fitc[1] / fit.fitc[2]
-        # This will make sure that the shift is not > than mxshft
-        if float(max_fit)-lag0 > mxshft:
-            msgs.warn('Flexure compensation failed for one of your objects')
-            return None
+
+        # Deal with the case of shifts greater than ``mxshft``
+        shift = float(max_fit)-lag0
+        if shift > mxshft:
+            msgs.warn(f"Computed shift {shift:.1f} pix is "
+                      f"larger than specified maximum {mxshft} pix.")
+
+            if excess_shft == "crash":
+                msgs.error(f"Flexure compensation failed for one of your{msgs.newline()}"
+                           f"objects.  Either adjust the \"spec_maxshift\"{msgs.newline()}"
+                           f"FlexurePar Keyword, or see the flexure documentation{msgs.newline()}"
+                           f"for information on how to bypass this error using the{msgs.newline()}"
+                           f"\"excessive_shift\" keyword.{msgs.newline()}"
+                           "https://pypeit.readthedocs.io/en/release/flexure.html")
+
+            elif excess_shft == "set_to_zero":
+                msgs.warn("Flexure compensation failed for one of your objects.")
+                msgs.warn("Setting the flexure correction shift to 0 pixels.")
+                # Return the usual dictionary, but with a shift == 0
+                shift = 0.0
+
+            elif excess_shft == "continue":
+                msgs.warn("Applying flexure shift larger than specified max!")
+
+            else:
+                msgs.error(f"FlexurePar Keyword excessive_shift = \"{excess_shft}\" "
+                           "not recognized.")
+
     else:
         fit = fitting.PypeItFit(xval=subpix_grid, yval=0.0*subpix_grid,
                                 func='polynomial', order=np.atleast_1d(2))
@@ -299,8 +322,8 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
         return None
 
     #Calculate and apply shift in wavelength
-    shift = float(max_fit)-lag0
-    msgs.info("Flexure correction of {:g} pixels".format(shift))
+    # shift = float(max_fit)-lag0
+    msgs.info(f"Flexure correction of {shift:.3f} pixels")
     #model = (fit[2]*(subpix_grid**2.))+(fit[1]*subpix_grid)+fit[0]
 
     return dict(polyfit=fit, 
@@ -336,7 +359,7 @@ def flexure_interp(shift, wave):
 
 
 def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", specobjs=None,
-                      slit_specs=None, mxshft=None):
+                      slit_specs=None, mxshft=None, excess_shft="crash"):
     """Calculate the spectral flexure for every slit (global) or object (local)
 
     Args:
@@ -363,7 +386,9 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
             A list of linetools.xspectrum1d, one for each slit. The spectra stored in
             this list are sky spectra, extracted from the center of each slit.
         mxshft (int, optional):
-            Passed to flex_shift()
+            Passed to spec_flex_shift()
+        excess_shft (str, optional):
+            Passed to spec_flex_shift()
 
     Returns:
         :obj:`list`: A list of :obj:`dict` objects containing flexure
@@ -404,12 +429,14 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
             flex_list.append(flex_dict.copy())
             continue
 
+        # Down the center of the slit (spec_method = slitcen)
         if slit_cen:
             sky_wave = slit_specs[islit].wavelength.value
             sky_flux = slit_specs[islit].flux.value
 
             # Calculate the shift
-            fdict = spec_flex_shift(slit_specs[islit], sky_spectrum, sky_lines, mxshft=mxshft)
+            fdict = spec_flex_shift(slit_specs[islit], sky_spectrum, sky_lines,
+                                    mxshft=mxshft, excess_shft=excess_shft)
             # Failed?
             if fdict is not None:
                 # Update dict
@@ -419,6 +446,8 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
                 sky_wave_new = flexure_interp(fdict['shift'], sky_wave)
                 flex_dict['sky_spec'].append(xspectrum1d.XSpectrum1D.from_tuple((sky_wave_new, sky_flux)))
                 flex_dict['method'].append("slitcen")
+
+        # Along the boxcar extraction (spec_method = boxcar)
         else:
             i_slitord = slitord[islit]
             indx = specobjs.slitorder_indices(i_slitord)
@@ -429,7 +458,7 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
                     continue
                 if sobj['BOX_WAVE'] is None: #len(specobj._data.keys()) == 1:  # Nothing extracted; only the trace exists
                     continue
-                msgs.info("Working on flexure for object # {:d}".format(sobj.OBJID) + "in slit # {:d}".format(islit))
+                msgs.info(f"Working on flexure for object # {sobj.OBJID} in slit # {islit}")
 
                 # Using boxcar
                 sky_wave = sobj.BOX_WAVE
@@ -439,7 +468,8 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
                 obj_sky = xspectrum1d.XSpectrum1D.from_tuple((sky_wave, sky_flux))
 
                 # Calculate the shift
-                fdict = spec_flex_shift(obj_sky, sky_spectrum, sky_lines, mxshft=mxshft)
+                fdict = spec_flex_shift(obj_sky, sky_spectrum, sky_lines,
+                                        mxshft=mxshft, excess_shft=excess_shft)
                 punt = False
                 if fdict is None:
                     msgs.warn("Flexure shift calculation failed for this spectrum.")
@@ -664,14 +694,91 @@ def spec_flexure_qa(slitords, bpm, basename, flex_list,
     plt.rcdefaults()
 
 
-def calculate_image_offset(image, im_ref, nfit=3):
+def calculate_image_phase(imref, imshift, gpm_ref=None, gpm_shift=None, maskval=None):
+    """
+    Perform a masked cross-correlation and optical flow calculation to robustly
+    estimate the subpixel shifts of two images.
+
+    If gpm_ref, gpm_shift, and maskval are all None, no pixels will be masked
+
+    This routine (optionally) requires skimage to calculate the image phase. If
+    skimage is not installed, a standard (unmasked) cross-correlation is used.
+
+
+    Args:
+        im_ref (`numpy.ndarray`_):
+            Reference image
+        imshift (`numpy.ndarray`_):
+            Image that we want to measure the shift of (relative to im_ref)
+        gpm_ref (`numpy.ndarray`_):
+            Mask of good pixels (True = good) in the reference image
+        gpm_shift (`numpy.ndarray`_):
+            Mask of good pixels (True = good) in the shifted image
+        maskval (float, optional):
+            If gpm_ref and gpm_shift are both None, a single value can be specified
+            and this value will be masked in both images.
+
+    Returns:
+        ra_diff (float):
+            Relative shift (in pixels) of image relative to im_ref (x direction).
+            In order to align image with im_ref, ra_diff should be added to the
+            x-coordinates of image
+        dec_diff (float):
+            Relative shift (in pixels) of image relative to im_ref (y direction).
+            In order to align image with im_ref, dec_diff should be added to the
+            y-coordinates of image
+
+    """
+    # Do some checks first
+    try:
+        from skimage.registration import optical_flow_tvl1, phase_cross_correlation
+    except ImportError:
+        msgs.warn("scikit-image is not installed. Adopting a basic image cross-correlation")
+        return calculate_image_offset(imref, imshift)
+    if imref.shape != imshift.shape:
+        msgs.warn("Input images shapes are not equal. Adopting a basic image cross-correlation")
+        return calculate_image_offset(imref, imshift)
+    # Set the masks
+    if gpm_ref is None:
+        gpm_ref = np.ones(imref.shape, dtype=bool) if maskval is None else imref != maskval
+    if gpm_shift is None:
+        gpm_shift = np.ones(imshift.shape, dtype=bool) if maskval is None else imshift != maskval
+    # Get a crude estimate of the shift
+    shift = phase_cross_correlation(imref, imshift, reference_mask=gpm_ref, moving_mask=gpm_shift).astype(int)
+    # Extract the overlapping portion of the images
+    exref = imref.copy()
+    exshf = imshift.copy()
+    if shift[0] != 0:
+        if shift[0] < 0:
+            exref = exref[:shift[0], :]
+            exshf = exshf[-shift[0]:, :]
+        else:
+            exref = exref[shift[0]:, :]
+            exshf = exshf[:-shift[0], :]
+    if shift[1] != 0:
+        if shift[1] < 0:
+            exref = exref[:, :shift[1]]
+            exshf = exshf[:, -shift[1]:]
+        else:
+            exref = exref[:, shift[1]:]
+            exshf = exshf[:, :-shift[1]]
+    # Compute the flow vector for a fine correction to the cross-correlation
+    v, u = optical_flow_tvl1(exref, exshf)
+    shift = shift.astype(float)
+    shift[0] -= np.median(v)
+    shift[1] -= np.median(u)
+    # Return the total estimated shift
+    return shift[0], shift[1]
+
+
+def calculate_image_offset(im_ref, image, nfit=3):
     """Calculate the x,y offset between two images
 
     Args:
-        image (`numpy.ndarray`_):
-            Image that we want to measure the shift of (relative to im_ref)
         im_ref (`numpy.ndarray`_):
             Reference image
+        image (`numpy.ndarray`_):
+            Image that we want to measure the shift of (relative to im_ref)
         nfit (int, optional):
             Number of pixels (left and right of the maximum) to include in
             fitting the peak of the cross correlation.
@@ -696,18 +803,25 @@ def calculate_image_offset(image, im_ref, nfit=3):
     # Find the maximum
     amax = np.unravel_index(np.argmax(ccorr), ccorr.shape)
 
-    # Perform a 2D Gaussian fit
-    x = np.arange(amax[0]-nfit, amax[0] + nfit+1)
-    y = np.arange(amax[1]-nfit, amax[1] + nfit+1)
+    # Extract a small region around the maximum, and check the limits
+    xlo, xhi = amax[0]-nfit, amax[0] + nfit+1
+    ylo, yhi = amax[1]-nfit, amax[1] + nfit+1
+    if xlo < 0: xlo = 0
+    if xhi > ccorr.shape[0]-1: xhi = ccorr.shape[0]-1
+    if ylo < 0: ylo = 0
+    if yhi > ccorr.shape[1]-1: yhi = ccorr.shape[1]-1
+    x = np.arange(xlo, xhi)
+    y = np.arange(ylo, yhi)
+    # Setup some initial parameters
     initial_guess = (np.max(ccorr), amax[0], amax[1], 3, 3, 0, 0)
     xx, yy = np.meshgrid(x, y, indexing='ij')
 
-    # Fit the neighborhood of the maximum to calculate the offset
-    popt, _ = opt.curve_fit(fitting.twoD_Gaussian, (xx, yy),
-                            ccorr[amax[0]-nfit:amax[0]+nfit+1, amax[1]-nfit:amax[1]+nfit+1].ravel(),
-                            p0=initial_guess)
+    # Fit the neighborhood of the maximum with a Gaussian to calculate the offset
+    popt, _ = opt.curve_fit(fitting.twoD_Gaussian, (xx, yy), ccorr[xlo:xhi, ylo:yhi].ravel(), p0=initial_guess)
     # Return the RA and DEC shift, in pixels
-    return popt[1] - ccorr.shape[0]//2, popt[2] - ccorr.shape[1]//2
+    xoff = 1 - (ccorr.shape[0] % 2)  # Need to add 1 for even shaped array
+    yoff = 1 - (ccorr.shape[1] % 2)  # Need to add 1 for even shaped array
+    return xoff + popt[1] - ccorr.shape[0]//2, yoff+popt[2] - ccorr.shape[1]//2
 
 
 

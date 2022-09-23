@@ -12,7 +12,7 @@ import numpy as np
 
 from pypeit import flatfield
 from pypeit import bspline
-
+from pypeit.spectrographs.util import load_spectrograph
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
@@ -60,3 +60,19 @@ def test_flatimages():
             assert flatImages[key] == _flatImages[key]
 
     os.remove(outfile)
+
+def test_fit_det_response():
+    spec = load_spectrograph('keck_kcwi')
+    # Generate a good pixel mask
+    frsize = 4100
+    gpm = np.ones((frsize,frsize), dtype=np.bool)
+    # Generate a fake image
+    sinemodel = lambda xx, yy, amp, scl, phase, wavelength, angle: 1 + (amp + xx * scl) * np.sin(
+                2 * np.pi * (xx * np.cos(angle*np.pi / 180.0) + yy * np.sin(angle*np.pi / 180.0)) / wavelength + phase)
+    x = np.arange(frsize)
+    y = np.arange(frsize)
+    xx, yy = np.meshgrid(x, y, indexing='ij')
+    amp, scale, wavelength, phase, angle = 0.02, 0.0, 1.41*frsize/31.5, 0.0, -45.34
+    img = sinemodel(xx, yy, amp, scale, phase, wavelength, angle)
+    model = spec.fit_2d_det_response(img, gpm)
+    assert np.allclose(img, model, atol=0.001), 'structure fitting failed.'

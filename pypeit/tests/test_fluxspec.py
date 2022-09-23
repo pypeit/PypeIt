@@ -9,6 +9,7 @@ import pytest
 from IPython import embed
 
 import numpy as np
+import configobj
 
 from astropy.table import Table
 from astropy.io import fits
@@ -130,55 +131,10 @@ def test_flux_calib(tmp_path, monkeypatch):
             print("spec1d_file1.fits | sens_file1.fits", file=f)
             print("spec1d_file2.fits | sens_file2.fits", file=f)
         
-        with pytest.raises(PypeItError, match="You have not specified any data!"):
+        with pytest.raises(PypeItError, match="You have not specified the data block!"):
             parsed_args = scripts.flux_calib.FluxCalib.parse_args([config_file_missing_flux])
             scripts.flux_calib.FluxCalib.main(parsed_args)
 
-#        #####
-#        THESE ARE NEARLY REPLICATED ABOVE 
-#        #####
-#        # Test 1 sens file with multiple spec1ds
-#        config_file_one_to_many = str(tmp_path / "test_flux_calib_1_to_many.flux")
-#        with open(config_file_one_to_many, "w") as f:
-#            print("flux read", file=f)
-#            print("| filename | sensfile |", file=f)
-#            print("| spec1d_file1.fits | sens_file1.fits |", file=f)
-#            print("| spec1d_file2.fits |                 |", file=f)
-#            print("| spec1d_file3.fits |                 |", file=f)
-#            print("flux end", file=f)
-#
-#        parsed_args = scripts.flux_calib.FluxCalib.parse_args([config_file_one_to_many])
-#        assert scripts.flux_calib.FluxCalib.main(parsed_args) == 0
-#
-#        # Test 1 sens file per spec1d
-#        config_file_one_to_one = str(tmp_path / "test_flux_calib_one_to_one.flux")
-#        with open(config_file_one_to_one, "w") as f:
-#            print("flux read", file=f)
-#            print("| filename | sensfile |", file=f)
-#            print("| spec1d_file1.fits | sens_file1.fits |", file=f)
-#            print("| spec1d_file2.fits | sens_file2.fits |", file=f)
-#            print("| spec1d_file3.fits | sens_file3.fits |", file=f)
-#            print("flux end", file=f)
-#
-#        parsed_args = scripts.flux_calib.FluxCalib.parse_args([config_file_one_to_one])
-#        assert scripts.flux_calib.FluxCalib.main(parsed_args) == 0
-#        
-#        # Test with no sensfunc, but using an archived sensfunc
-#        config_file_use_arxiv = str(tmp_path / "test_flux_calib_use_arxiv.flux")
-#        with open(config_file_use_arxiv, "w") as f:
-#            print("[fluxcalib]", file=f)
-#            print(" use_archived_sens = True", file=f)
-#            print("flux read", file=f)
-#            print("| filename | sensfile |", file=f)
-#            print("| spec1d_file1.fits | |", file=f)
-#            print("| spec1d_file2.fits | |", file=f)
-#            print("| spec1d_file3.fits | |", file=f)
-#            print("flux end", file=f)
-#
-#        parsed_args = scripts.flux_calib.FluxCalib.parse_args([config_file_use_arxiv])
-#        assert scripts.flux_calib.FluxCalib.main(parsed_args) == 0
-       
-        
         # Test with no sensfunc, but it's an error because an archive sensfunc
         # was not requested
         config_file_no_sens = str(tmp_path / "test_flux_calib_no_sens.flux")
@@ -265,34 +221,4 @@ def extinction_correction_tester(algorithm):
     os.remove(spec1d_file)
     os.remove(sens_file)
 
-
-def test_wmko_flux_std():
-
-    outfile = data_path('tmp_sens.fits')
-    if os.path.isfile(outfile):
-        os.remove(outfile)
-
-    # Do it
-    wmko_file = data_path('2017may28_d0528_0088.fits')
-    spectrograph = load_spectrograph('keck_deimos')
-
-    # Load + write
-    spec1dfile = data_path('tmp_spec1d.fits')
-    sobjs = keck_deimos.load_wmko_std_spectrum(wmko_file, outfile=spec1dfile)
-
-    # Sensfunc
-    #  The following mirrors the main() call of sensfunc.py
-    par = spectrograph.default_pypeit_par()
-    par['sensfunc']['algorithm'] = "IR"
-    par['sensfunc']['multi_spec_det'] = [3,7]
-
-    # Instantiate the relevant class for the requested algorithm
-    sensobj = sensfunc.SensFunc.get_instance(spec1dfile, outfile, par['sensfunc'])
-    # Generate the sensfunc
-    sensobj.run()
-    # Write it out to a file
-    sensobj.to_file(outfile)
-
-    os.remove(spec1dfile)
-    os.remove(outfile)
 
