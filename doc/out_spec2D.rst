@@ -12,10 +12,10 @@ Spec2D Output
 Overview
 ========
 
-During the data-reduction process, ``PypeIt`` creates a series of 2D
-spectral images prior to extraction of 1D spectra. And, of course,
-several of these 2D images may have greater value for analysis than
-the 1D spectra.
+During the data-reduction process, ``PypeIt`` creates a series of 2D spectral
+images prior to extraction of 1D spectra. And, of course, several of these 2D
+images may have greater value for analysis than the 1D spectra.  For the
+extracted 1D spectra, see :ref:`spec-1d-output`.
 
 For each on-source exposure, ``PypeIt`` outputs a series of these
 images in a single, multi-extension fits file, separated by detector.
@@ -28,9 +28,11 @@ The 2D spectra files have names like::
 
     spec2d_b27-J1217p3905_KASTb_2015May20T045733.560.fits
 
-The model is::
+The naming convention is:
 
-    Prefix_frame-objname_spectrograph_timestamp.fits
+.. code-block:: console
+
+    {prefix}_{frame}-{objname}_{spectrograph}_{timestamp}.fits
 
 Inspecting
 ==========

@@ -1,6 +1,8 @@
 
 .. include:: include/links.rst
 
+.. _spec-1d-output:
+
 =============
 Spec1D Output 
 =============
@@ -30,10 +32,11 @@ The 1D spectra files have names like::
 
     spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits
 
-The model is::
+The naming convention is:
 
-    Prefix_frame-objname_spectrograph_timestamp.fits
+.. code-block:: console
 
+    {prefix}_{frame}-{objname}_{spectrograph}_{timestamp}.fits
 
 Objects
 -------
