@@ -117,6 +117,7 @@
 .. _documentation: https://pypeit.readthedocs.io/en/latest/
 .. _Submit an issue: https://github.com/pypeit/PypeIt/issues
 .. _PypeIt dev-suite Google Drive: https://drive.google.com/drive/folders/1oh19siB1-F0jjmY-F_jr73eA-TQYEiFW?usp=sharing
+.. _pypeit.data.filters: https://github.com/pypeit/PypeIt/tree/release/pypeit/data/filters
 
 .. emails
 .. _Joe Hennawi: joe@physics.ucsb.edu

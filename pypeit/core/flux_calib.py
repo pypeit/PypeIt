@@ -107,35 +107,40 @@ ZP_UNIT_CONST = zp_unit_const()
 def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     """
     Find a match for the input file to one of the archived
-    standard star files (hopefully).  Priority is by order of search:
+    standard star files (hopefully).
+    
+    Priority is set by the following search order:
+
+    .. code-block:: python
 
         ['xshooter', 'calspec', 'esofil', 'noao', 'ing', 'blackbody']
 
     Parameters
     ----------
-    ra: float
+    ra : float
         Object right-ascension in decimal deg
-    dec: float
+    dec : float
         Object declination in decimal deg
-    toler: :class:`astropy.units.quantity.Quantity`, optional
+    toler : :class:`astropy.units.quantity.Quantity`, optional
         Tolerance on matching archived standards to input.  Expected
         to be in arcmin.
-    check: bool, optional
+    check : bool, optional
         If True, the routine will only check to see if a standard
         star exists within the input ra, dec, and toler range.
 
     Returns
     -------
-    star_dict: dict, bool or None
-        If check is True, return True or False depending on
-        if the object is matched to a library standard star.
-        If check is False and no match is found, return None.  Otherwise, return
-        a dictionary with the matching standard star with the following
-        meta data:
-            - `cal_file`: str -- Filename table
-            - `name`: str -- Star name
-            - `std_ra`: float -- RA(J2000)
-            - `std_dec`: float -- DEC(J2000)
+    star_dict : dict, bool or None
+
+        If ``check`` is True, return True or False depending on if the object is
+        matched to a library standard star.  If ``check`` is False and no match
+        is found, return None.  Otherwise, return a dictionary with the matching
+        standard star with the following meta data:
+
+            - ``cal_file``: str -- Filename table
+            - ``name``: str -- Star name
+            - ``std_ra``: float -- RA(J2000)
+            - ``std_dec``: float -- DEC(J2000)
 
     """
     # Priority
@@ -1448,23 +1453,19 @@ def scale_in_filter(wave, flux, gpm, scale_dict):
 
     Parameters
     ----------
-    wave: `numpy.ndarray`
+    wave : `numpy.ndarray`_
         spectral wavelength array
-    flux: `numpy.ndarray`
+    flux : `numpy.ndarray`_
         flux density array
-    gpm: bool `numpy.ndarray`
+    gpm : boolean `numpy.ndarray`_
         Good pixel mask array
-    scale_dict: dict
-        Usually is a Coadd1DPar() object
-        scale_dict has data model:
-          - `filter` (str): name of filter
-          - `mag` (float): magnitude
-          - `mag_type` (str, optional): type of magnitude.  Assumed 'AB'
-          - `masks` (list, optional): Wavelength ranges to mask in calculation
+    scale_dict : :class:`~pypeit.par.pypeitpar.Coadd1DPar`
+        Object with filter and magnitude data.
+
     Returns
     -------
-    scale: float
-        scale value for the flux, i.e. newflux = flux * scale
+    scale : float
+        scale value for the flux, i.e. ``newflux = flux * scale``
     """
 
     # Mask further?

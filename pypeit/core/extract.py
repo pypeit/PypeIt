@@ -672,7 +672,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
 
     Parameters
     ----------
-    image : `numpy.npdarray`_
+    image : `numpy.ndarray`_
         Floating-point sky-subtracted science image with shape
         :math:`(N_{\rm spec}, N_{\rm spat})`. The first dimension
         (:math:`N_{\rm spec}`) is spectral, and second dimension
