@@ -12,7 +12,7 @@ to correct the detector and perform wavelength calibration.
 We consider :doc:`fluxing` to be a separate process.
 
 This page links to docs dedicated to specific aspects
-of Calibraions.
+of Calibrations.
 
 Here are main calibration steps (in order
 of execution for multislit and echelle calibrations):

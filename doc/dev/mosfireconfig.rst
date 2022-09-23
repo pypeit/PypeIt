@@ -32,15 +32,15 @@ MOSFIRE configuration identification
 The MOSFIRE instrument configurations are determined by :func:`pypeit.metadata.PypeItMetaData.unique_configurations`,
 which finds unique combinations of the following keywords:
 
-===================  ===========
-``fitstbl`` key      Header Key
-===================  ===========
-``dispname``         ``OBSMODE``
-``decker_secondary`` No Key
-``filter1``          ``FILTER``
-``slitlength``       No Key
-``slitwid``          No Key
-===================  ===========
+====================  ===========
+``fitstbl`` key       Header Key
+====================  ===========
+``dispname``          ``OBSMODE``
+``decker_secondary``  No Key
+``filter1``           ``FILTER``
+``slitlength``        No Key
+``slitwid``           No Key
+====================  ===========
 
 ``decker_secondary``, ``slitlength``, and ``slitwid`` are defined as follow:
 
