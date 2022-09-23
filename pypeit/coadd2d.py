@@ -455,12 +455,8 @@ class CoAdd2D:
             imgminsky_pseudo[ispec, ispat] = coadd_dict['imgminsky']
             sciivar_pseudo[ispec, ispat] = coadd_dict['sciivar']
             this_waveimg = coadd_dict['waveimg']
-            this_wave_gpm = this_waveimg > 1.0
             waveimg_pseudo[ispec, ispat] = this_waveimg
-            wave_min = np.min(this_waveimg[this_wave_gpm])
-            wave_max = np.max(this_waveimg[this_wave_gpm])
-            tilts_pseudo[ispec, ispat] = (this_waveimg - wave_min)/(wave_max - wave_min)
-            #tilts_pseudo[ispec, ispat] = coadd_dict['tilts']
+            tilts_pseudo[ispec, ispat] = (this_waveimg - coadd_dict['wave_min'][0])/(coadd_dict['wave_max'][-1] - coadd_dict['wave_min'][0])
             # spat_img_pseudo is the sub-pixel image position on the rebinned pseudo image
             inmask_pseudo[ispec, ispat] = coadd_dict['outmask']
             image_temp = (coadd_dict['dspat'] - coadd_dict['dspat_mid'][0] + spat_left)*coadd_dict['outmask']
