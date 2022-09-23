@@ -5326,9 +5326,8 @@ Alterations to the default parameters are::
       spec_method = boxcar
   [sensfunc]
       algorithm = IR
-      polyorder = 8
       [[IR]]
-          telgridfile = TelFit_Paranal_NIR_9800_25000_R25000.fits
+          telgridfile = TelFit_Paranal_VIS_4900_11100_R25000.fits
 
 VLT SINFONI (``vlt_sinfoni``)
 -----------------------------
