@@ -69,7 +69,7 @@ def test_run_pypeit():
     assert abs(-0.03 - specObjs[0].FLEX_SHIFT_TOTAL) < 0.1  # difference must be less than 0.1 pixels
 
     # Helio
-    assert abs(specObjs[0].VEL_CORR - 0.9999261685542624) < 1.0E-10
+    assert abs(specObjs[0].VEL_CORR - 0.9999251762866389) < 1.0E-10
 
     # Now re-use those master files
     pargs = RunPypeIt.parse_args([pyp_file, '-o', '-r', configdir])

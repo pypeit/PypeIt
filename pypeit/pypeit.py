@@ -398,7 +398,9 @@ class PypeIt:
             u_combid_std= np.unique(self.fitstbl['comb_id'][grp_standards])
             for j, comb_id in enumerate(u_combid_std):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
-                bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
+                # Find all frames whose comb_id matches the current frames bkg_id (same as for science frames).
+                bg_frames = np.where((self.fitstbl['comb_id'] == self.fitstbl['bkg_id'][frames][0]) &
+                                     (self.fitstbl['comb_id'] >= 0))[0]
                 if not self.outfile_exists(frames[0]) or self.overwrite:
                     # Build history to document what contributd to the reduced
                     # exposure

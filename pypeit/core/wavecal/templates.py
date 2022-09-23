@@ -589,7 +589,7 @@ def main(flg):
             print("Wrote: {}".format(outfile))
 
     if flg & (2**16):  # VLT/X-Shooter line list
-        old_file = os.path.join(data.Paths.linelist, 'ThAr_XSHOOTER_VIS_air_lines.dat')
+        old_file = data.get_linelist_filepath('ThAr_XSHOOTER_VIS_air_lines.dat')
         # Load
         air_list = waveio.load_line_list(old_file)
         # Vacuum
@@ -597,7 +597,7 @@ def main(flg):
         vac_list = air_list.copy()
         vac_list['wave'] = vac_wv
         # Write
-        new_file = os.path.join(data.Paths.linelist, 'ThAr_XSHOOTER_VIS_lines.dat')
+        new_file = data.get_linelist_filepath('ThAr_XSHOOTER_VIS_lines.dat')
         vac_list.write(new_file, format='ascii.fixed_width', overwrite=True)
         print("Wrote: {}".format(new_file))
 

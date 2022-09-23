@@ -797,7 +797,7 @@ class FlexurePar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, spec_method=None, spec_maxshift=None, spectrum=None,
-                 multi_min_SN=None):
+                 multi_min_SN=None, excessive_shift=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -834,6 +834,16 @@ class FlexurePar(ParSet):
         dtypes['multi_min_SN'] = [int, float]
         descr['multi_min_SN'] = 'Minimum S/N for analyzing sky spectrum for flexure'
 
+        defaults['excessive_shift'] = 'crash'
+        options['excessive_shift'] = FlexurePar.valid_excessive_shift_methods()
+        dtypes['excessive_shift'] = str
+        descr['excessive_shift'] = 'Behavior when the measured spectral flexure shift is ' \
+                                   'larger than ``spec_maxshift``.  The options are: ' \
+                                   '\'crash\' - Raise an error and halt the data reduction; ' \
+                                   '\'set_to_zero\' - Set the flexure shift to zero and continue ' \
+                                   'with the reduction; and \'continue\' - Use the large ' \
+                                   'flexure value whilst issuing a warning.'
+
         # Instantiate the parameter set
         super(FlexurePar, self).__init__(list(pars.keys()),
                                          values=list(pars.values()),
@@ -848,7 +858,7 @@ class FlexurePar(ParSet):
 
         k = np.array([*cfg.keys()])
         parkeys = ['spec_method', 'spec_maxshift', 'spectrum',
-                   'multi_min_SN']
+                   'multi_min_SN', 'excessive_shift']
 #                   'spat_frametypes']
 
         badkeys = np.array([pk not in parkeys for pk in k])
@@ -866,6 +876,13 @@ class FlexurePar(ParSet):
         Return the valid flat-field methods
         """
         return ['boxcar', 'slitcen', 'skip']
+
+    @staticmethod
+    def valid_excessive_shift_methods():
+        """
+        Return the valid options for dealing with excessive flexure shift.
+        """
+        return ['crash', 'set_to_zero', 'continue']
 
     def validate(self):
         """
@@ -4658,7 +4675,7 @@ class Collate1DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, tolerance=None, dry_run=None, ignore_flux=None, flux=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, wv_rms_thresh=None, outdir=None):
+    def __init__(self, tolerance=None, dry_run=None, ignore_flux=None, flux=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, wv_rms_thresh=None, outdir=None, spec1d_outdir=None, refframe=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -4673,7 +4690,7 @@ class Collate1DPar(ParSet):
         descr = OrderedDict.fromkeys(pars.keys())
 
         # Threshold for grouping by object
-        defaults['tolerance'] = '3.0'
+        defaults['tolerance'] = '1.0'
         dtypes['tolerance'] = [str, float]
         descr['tolerance'] = "The tolerance used when comparing the coordinates of objects. If two " \
                              "objects are within this distance from each other, they " \
@@ -4704,6 +4721,11 @@ class Collate1DPar(ParSet):
         dtypes['outdir'] = str
         descr['outdir'] = "The path where all coadded output files and report files will be placed."
 
+        # Directory for modified spec1d files
+        defaults['spec1d_outdir'] = None
+        dtypes['spec1d_outdir'] = str
+        descr['spec1d_outdir'] = "The path where all modified spec1d files are placed. These are only created if flux calibration or refframe correction are asked for."
+
         # What slit flags to exclude
         defaults['exclude_slit_trace_bm'] = []
         dtypes['exclude_slit_trace_bm'] = [list, str]
@@ -4725,6 +4747,12 @@ class Collate1DPar(ParSet):
         dtypes['match_using'] = str
         descr['match_using'] = "Determines how 1D spectra are matched as being the same object. Must be either 'pixel' or 'ra/dec'."
 
+        defaults['refframe'] = None
+        options['refframe'] = WavelengthSolutionPar.valid_reference_frames()
+        dtypes['refframe'] = str
+        descr['refframe'] = 'Perform reference frame correction prior to coadding. ' \
+                         'Options are: {0}'.format(', '.join(options['refframe']))
+
         # Instantiate the parameter set
         super(Collate1DPar, self).__init__(list(pars.keys()),
                                            values=list(pars.values()),
@@ -4736,7 +4764,7 @@ class Collate1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = [*cfg.keys()]
-        parkeys = ['tolerance', 'dry_run', 'ignore_flux', 'flux', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir', 'wv_rms_thresh']
+        parkeys = ['tolerance', 'dry_run', 'ignore_flux', 'flux', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir', 'spec1d_outdir', 'wv_rms_thresh', 'refframe']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

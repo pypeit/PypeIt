@@ -175,10 +175,16 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
                                    np.nansum(thismask_sub[oprof_good,:]*oprof_sub[oprof_good,:]**2, axis=1)
         oprof_bad = badwvs & ((oprof_smash <= 0.0) | (np.isfinite(oprof_smash) == False) | (wave_opt <= 0.0) | (np.isfinite(wave_opt) == False))
         if oprof_bad.any():
+            # If there are no good profile wavelengths, use boxcar wavelengths for these pixels
+            # get boxcar_radius
+            box_radius = spec.BOX_RADIUS
+            box_denom_no_mask = moment1d(waveimg > 0.0, spec.TRACE_SPAT, 2 * box_radius, row=spec.trace_spec)[0]
+            wave_no_mask = moment1d(waveimg, spec.TRACE_SPAT, 2 * box_radius, row=spec.trace_spec)[0] / (
+                        box_denom_no_mask + (box_denom_no_mask == 0.0))
+            wave_opt[oprof_bad] = wave_no_mask[oprof_bad]
             # For pixels with completely bad profile values, interpolate from trace.
-            f_wave = scipy.interpolate.RectBivariateSpline(spec_vec,spat_vec, waveimg*thismask)
-            wave_opt[oprof_bad] = f_wave(spec.trace_spec[oprof_bad], spec.TRACE_SPAT[oprof_bad],
-                                         grid=False)
+            #f_wave = scipy.interpolate.RectBivariateSpline(spec_vec,spat_vec, waveimg*thismask)
+            #wave_opt[oprof_bad] = f_wave(spec.trace_spec[oprof_bad], spec.TRACE_SPAT[oprof_bad],grid=False)
 
     flux_model = np.outer(flux_opt,np.ones(nsub))*oprof_sub
     chi2_num = np.nansum((img_sub - flux_model)**2*ivar_sub*mask_sub,axis=1)
@@ -188,10 +194,10 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
     # Fill in the optimally extraction tags
     spec.OPT_WAVE = wave_opt    # Optimally extracted wavelengths
     spec.OPT_COUNTS = flux_opt    # Optimally extracted flux
-    spec.OPT_COUNTS_IVAR = mivar_opt   # Inverse variance of optimally extracted flux using modelivar image
-    spec.OPT_COUNTS_SIG = np.sqrt(utils.inverse(mivar_opt))
-    spec.OPT_COUNTS_NIVAR = nivar_opt  # Optimally extracted noise variance (sky + read noise) only
-    spec.OPT_MASK = mask_opt    # Mask for optimally extracted flux
+    spec.OPT_COUNTS_IVAR = mivar_opt*np.logical_not(badwvs)   # Inverse variance of optimally extracted flux using modelivar image
+    spec.OPT_COUNTS_SIG = np.sqrt(utils.inverse(spec.OPT_COUNTS_IVAR))
+    spec.OPT_COUNTS_NIVAR = None if nivar_opt is None else nivar_opt*np.logical_not(badwvs)  # Optimally extracted noise variance (sky + read noise) only
+    spec.OPT_MASK = mask_opt*np.logical_not(badwvs)     # Mask for optimally extracted flux
     spec.OPT_COUNTS_SKY = sky_opt      # Optimally extracted sky
     spec.OPT_COUNTS_SIG_DET = base_opt      # Square root of optimally extracted read noise squared
     spec.OPT_FRAC_USE = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
@@ -353,8 +359,11 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, base_var=None,
     bad_box = (wave_box <= 0.0) | np.invert(np.isfinite(wave_box)) | (box_denom == 0.0)
     # interpolate bad wavelengths over masked pixels
     if bad_box.any():
-        f_wave = scipy.interpolate.RectBivariateSpline(spec_vec, spat_vec, waveimg)
-        wave_box[bad_box] = f_wave(spec.trace_spec[bad_box], spec.TRACE_SPAT[bad_box], grid=False)
+        box_denom_no_mask = moment1d(waveimg > 0.0, spec.TRACE_SPAT, 2 * box_radius, row=spec.trace_spec)[0]
+        wave_no_mask = moment1d(waveimg, spec.TRACE_SPAT, 2 * box_radius, row=spec.trace_spec)[0] / (box_denom_no_mask + (box_denom_no_mask == 0.0))
+        wave_box[bad_box] = wave_no_mask[bad_box]
+        #f_wave = scipy.interpolate.RectBivariateSpline(spec_vec, spat_vec, waveimg)
+        #wave_box[bad_box] = f_wave(spec.trace_spec[bad_box], spec.TRACE_SPAT[bad_box], grid=False)
 
     ivar_box = 1.0/(var_box + (var_box == 0.0))
     nivar_box = None if nvar_box is None else 1.0/(nvar_box + (nvar_box == 0.0))
@@ -362,13 +371,14 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, base_var=None,
     # Fill em up!
     spec.BOX_WAVE = wave_box
     spec.BOX_COUNTS = flux_box*mask_box
-    spec.BOX_COUNTS_IVAR = ivar_box*mask_box
-    spec.BOX_COUNTS_SIG = np.sqrt(utils.inverse(ivar_box*mask_box))
-    spec.BOX_COUNTS_NIVAR = None if nivar_box is None else nivar_box*mask_box
-    spec.BOX_MASK = mask_box
+    spec.BOX_COUNTS_IVAR = ivar_box*mask_box*np.logical_not(bad_box)
+    spec.BOX_COUNTS_SIG = np.sqrt(utils.inverse( spec.BOX_COUNTS_IVAR))
+    spec.BOX_COUNTS_NIVAR = None if nivar_box is None else nivar_box*mask_box*np.logical_not(bad_box)
+    spec.BOX_MASK = mask_box*np.logical_not(bad_box)
     spec.BOX_COUNTS_SKY = sky_box
     spec.BOX_COUNTS_SIG_DET = base_box
     # TODO - Confirm this should be float, not int
+    # JFH: Yes it should be a float becuase moment1d can operate on sub-pixels
     spec.BOX_NPIX = pixtot-pixmsk
 
 
@@ -667,7 +677,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     indsp = (wave >= wave_min) & (wave <= wave_max) & np.isfinite(flux_sm) & (flux_sm > -1000.0) & (fluxivar_sm > 0.0)
     eligible_pixels = np.sum((wave >= wave_min) & (wave <= wave_max))
     good_pix_frac = 0.05
-    if np.sum(indsp) < good_pix_frac*eligible_pixels:
+    if (np.sum(indsp) < good_pix_frac*eligible_pixels) or (eligible_pixels == 0):
         msgs.warn('There are no pixels eligible to be fit for the object profile.' + msgs.newline() +
                   'There is likely an issue in local_skysub_extract. Returning a Gassuain with fwhm={:5.3f}'.format(thisfwhm))
         profile_model = return_gaussian(sigma_x, None, thisfwhm, 0.0, obj_string, False)
