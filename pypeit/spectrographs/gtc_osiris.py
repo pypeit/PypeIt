@@ -121,10 +121,10 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['standardframe']['exprng'] = [None, 120]
         # Multiple arcs with different lamps, so can't median combine nor clip, also need to remove continuum
         par['calibrations']['arcframe']['process']['combine'] = 'mean'
-        par['calibrations']['arcframe']['process']['use_continuum'] = True
+        par['calibrations']['arcframe']['process']['subtract_continuum'] = True
         par['calibrations']['tiltframe']['process']['clip'] = False
         par['calibrations']['tiltframe']['process']['combine'] = 'mean'
-        par['calibrations']['tiltframe']['process']['use_continuum'] = True
+        par['calibrations']['tiltframe']['process']['subtract_continuum'] = True
 
         return par
 

@@ -58,7 +58,10 @@ Here is a typical call::
     pypeit_sensfunc spec1dfile -o Keck_LRISr_600_7500_sens.fits
 
 This analyzes the standard star spectrum in *spec1dfile* and writes
-the sensitivity file to *Keck_LRISr_600_7500_sens.fits*.
+the sensitivity file to *Keck_LRISr_600_7500_sens.fits*. Note that the
+*spec1dfile* to be used in the above argument is the spec1d file
+associated with the reduced standard star exposure (not the spec1d
+file of the reduced science frame).
 
 Here are the common options used:
 
@@ -302,8 +305,8 @@ First, with one senstivity file and a list of spec1dfiles
 to be fluxed::
 
     flux read
-       filename    |
-       spec1dfile1 | sensfile
+       filename    | sensfile
+       spec1dfile1 | sensfile1
        spec1dfile2 |
           ...      |
           ...      |
@@ -313,7 +316,7 @@ Second, with a (presumably unique) sensitivity file
 for each spec1dfile::
 
     flux read
-       filename    |
+       filename    | sensfile
        spec1dfile1 | sensfile1
        spec1dfile2 | sensfile2
        spec1dfile3 | sensfile3
@@ -333,7 +336,8 @@ Third, if the spectrograph has an archived sensitivity function
 Here is an actual example::
 
     flux read
-      spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T020241.687.fits VLT_FORS2_sens.fits
+      filename | sensfile
+      spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T020241.687.fits | VLT_FORS2_sens.fits
       spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T021815.356.fits
       spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T023349.816.fits
     flux end

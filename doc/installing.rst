@@ -136,7 +136,7 @@ provide a yaml file that can be used to setup a conda environment called
 To use this:
 
     #. Download `environment.yml
-       <https://github.com/pypeit/PypeIt/blob/release/environment.yml>`__.
+       <https://raw.githubusercontent.com/pypeit/PypeIt/release/environment.yml>`__.
 
     #. Create the conda environment and install ``pypeit`` into it:
 

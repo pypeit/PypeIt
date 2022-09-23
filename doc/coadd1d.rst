@@ -63,7 +63,7 @@ for coadd1d.
 Data Block
 ----------
 
-A :ref:`data_block` if required to indicate the spectra
+A :ref:`data_block` is required to indicate the spectra
 to be combined.   It always begins/ends with *coadd1d read*/*coadd1d end*.
 
 One should then include the ``path`` to the :doc:`out_spec1D` files

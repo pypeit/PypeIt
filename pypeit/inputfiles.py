@@ -1,14 +1,13 @@
-"""
-Class for I/O of PypeIt input files.
+""" Class for I/O of PypeIt input files
 
 .. include:: ../include/links.rst
 """
 
 import os
+import glob
 import numpy as np
-from pyparsing import delimited_list
 import yaml
-import time
+from datetime import datetime
 import io
 import warnings
 
@@ -22,42 +21,12 @@ from pypeit import msgs, __version__
 
 from IPython import embed
 
-def read_pypeit_file_lines(ifile:str):
-    """
-    General parser for a PypeIt input file.
-    Used for many of our input files, including the main PypeIt file.
-
-    - Checks that the file exists.
-    - Reads all the lines in the file
-    - Removes comments, empty lines, and replaces special characters.
-    
-    Applies to settings, setup, and user-level reduction files.
-
-    Args:
-        ifile (str): Name of the file to parse.
-
-    Returns:
-        :obj:`numpy.ndarray`: Returns a list of the valid lines in the
-        files.
-    """
-    # Check the files
-    if not os.path.isfile(ifile):
-        msgs.error('The filename does not exist -' + msgs.newline() + ifile)
-
-    # Read the input lines and replace special characters
-    with open(ifile, 'r') as f:
-        lines = np.array([l.replace('\t', ' ').replace('\n', ' ').strip() \
-                                for l in f.readlines()])
-    # Remove empty or fully commented lines
-    lines = lines[np.array([ len(l) > 0 and l[0] != '#' for l in lines ])]
-    # Remove appended comments and return
-    return np.array([ l.split('#')[0] for l in lines ])
 
 class InputFile:
     """
     Generic class to load, process, and write PypeIt input files
 
-    In practice, we use one of the children of this clases,
+    In practice, we use one of the children of this class,
     e.g. PypeItFile
 
     Args:
@@ -66,15 +35,20 @@ class InputFile:
             Converted to a ConfigObj
         file_paths (list):
             List of file paths for the data files
-        data_table (:class:`astropy.table.Table`):
+        data_table (`astropy.table.Table`_):
             Data block
         setup (:obj:`dict`):
             dict defining the Setup
             The first key contains the name
     """
+    flavor = 'Generic' # Type of InputFile
+
+    # Data block items
+    required_columns = []
     data_block = None  # Defines naming of data block
-    setup_required = False
-    flavor = 'Generic'
+    datablock_required = False # Denotes whether the data block is required
+    
+    setup_required = False # Denotes whether the setup block is required
 
     def __init__(self, 
                  config=None, 
@@ -94,6 +68,38 @@ class InputFile:
 
         # Vet
         self.vet()
+
+    @staticmethod
+    def readlines(ifile:str):
+        """
+        General parser for a PypeIt input file.
+        Used for many of our input files, including the main PypeIt file.
+
+        - Checks that the file exists.
+        - Reads all the lines in the file
+        - Removes comments, empty lines, and replaces special characters.
+        
+        Applies to settings, setup, and user-level reduction files.
+
+        Args:
+            ifile (str): Name of the file to parse.
+
+        Returns:
+            :obj:`numpy.ndarray`: Returns a list of the valid lines in the
+            files.
+        """
+        # Check the files
+        if not os.path.isfile(ifile):
+            msgs.error('The filename does not exist -' + msgs.newline() + ifile)
+
+        # Read the input lines and replace special characters
+        with open(ifile, 'r') as f:
+            lines = np.array([l.replace('\t', ' ').replace('\n', ' ').strip() \
+                                    for l in f.readlines()])
+        # Remove empty or fully commented lines
+        lines = lines[np.array([ len(l) > 0 and l[0] != '#' for l in lines ])]
+        # Remove appended comments and return
+        return np.array([ l.split('#')[0] for l in lines ])
         
     @classmethod
     def from_file(cls, input_file:str): 
@@ -105,11 +111,11 @@ class InputFile:
                 Name of input file
 
         Returns:
-            pypeItFile (:class:`PypeItFile`):
+            :class:`InputFile`: An instance of the InputFile class
         """
         # Read in the pypeit reduction file
         msgs.info('Loading the reduction file')
-        lines = read_pypeit_file_lines(input_file)
+        lines = cls.readlines(input_file)
 
         # Used to select the configuration lines: Anything that isn't part
         # of the data or setup blocks is assumed to be part of the
@@ -117,14 +123,20 @@ class InputFile:
         is_config = np.ones(len(lines), dtype=bool)
 
         # Parse data block
-        s, e = cls.find_block(lines, cls.data_block) #'data')
+        s, e = cls.find_block(lines, cls.data_block) 
         if s >= 0 and e < 0:
             msgs.error(
                 f"Missing '{cls.data_block} end' in {input_file}")
-        if s < 0:
-            msgs.error("You have not specified any data in the data block!")
-        paths, usrtbl = cls._read_data_file_table(lines[s:e])
-        is_config[s-1:e+1] = False
+        if s < 0 and e>0:
+            msgs.error("You have not specified the start of the data block!")
+        # Read it, if it exists
+        if s>0 and e>0:
+            paths, usrtbl = cls._read_data_file_table(lines[s:e])
+            is_config[s-1:e+1] = False
+        else:
+            if cls.datablock_required:
+                msgs.error("You have not specified the data block!")
+            paths, usrtbl = [], None
 
         # Parse the setup block
         setup_found = False
@@ -147,18 +159,19 @@ class InputFile:
         msgs.info(f'{cls.flavor} input file loaded successfully.')
 
         # Instantiate
-        slf = cls(config=list(lines[is_config]), 
+        return cls(config=list(lines[is_config]), 
                   file_paths=paths, 
                   data_table=usrtbl, 
                   setup=sdict)
 
-        return slf
-
     def vet(self):
-        """ Check for required bits and pieces of the PypeIt file
+        """ Check for required bits and pieces of the Input file
         besides the input objects themselves
         """
-        pass
+        # Data table
+        for key in self.required_columns:
+            if key not in self.data.keys():
+                msgs.error(f'Add {key} to the Data block of your {self.flavor} file before running.')
 
 
     @property
@@ -174,24 +187,24 @@ class InputFile:
     @property
     def cfg_lines(self):
         """Return a list containing the configuration lines
+           If no configuration is available (:attr:`config` is 
+           `None`), `None` is returned.
 
         Returns:
-            list: List of the configuration lines held in self.config
-            or None if self.config is None
+            :obj:`list`: List of the configuration lines prepared for
+            writing to a file (and other usages).
+
         """
-        if self.config is None:
-            return None
-        else:
-            return self.config.write()
+        return None if self.config is None else self.config.write()
 
     @property
     def filenames(self):
         """ List of path + filename's
-        Wrapper to path_and_files().
+        Wrapper to :func:`~pypeit.inputfiles.InputFile.path_and_files`.
         See that function for a full description.
 
         Returns:
-            list: List of the full paths to each data file
+            list or None: List of the full paths to each data file
             or None if `filename` is not part of the data table
             or there is no data table!
         """
@@ -201,13 +214,13 @@ class InputFile:
     @staticmethod
     def _parse_setup_lines(lines):
         """
-        Return a list of the setup names and corresponding dict
+        Return a list of the setup names and corresponding Setup dict
 
         Args:
             lines (`numpy.ndarray`_): Setup lines as an array
 
         Returns:
-            tuple: list, dict
+            tuple: list, dict.  List of setup name, setup dict
 
         """
         setups = []
@@ -255,12 +268,6 @@ class InputFile:
         # Allow for multiple paths
         paths = []
         for l in lines:
-            # Original
-            #space_ind = l.index(" ")
-            #if l[:space_ind].strip() != 'path':
-            #    break
-            #paths += [ l[space_ind+1:] ]
-
             # Strip allows for preceding spaces before path
             prs = l.strip().split(" ")
             if prs[0] != 'path':
@@ -273,12 +280,15 @@ class InputFile:
         tbl = ascii.read(lines[npaths:].tolist(), 
                          header_start=0, 
                          data_start=1, 
-                         delimiter='|', format='basic')
+                         delimiter='|', 
+                         format='basic')
 
         # Backwards compatability (i.e. the leading |)
         if list(tbl.keys())[0] == 'col0':
-            msgs.warn("Your PypeIt file was written in the old format")
-            msgs.warn("We intend to maintain backwards compatability, but best to conform to the new format...")
+            message = 'Your PypeIt file has leading | characters in the data table, which is the old '\
+                'format.  Please update your file to remove leading and trailing | characters '\
+                'because their inclusion will be deprecated.'
+            warnings.warn(message, DeprecationWarning)
             tbl.remove_column('col0')
             tbl.remove_column('_1')
 
@@ -293,7 +303,7 @@ class InputFile:
                 tbl[key].fill_value = ''
                 tbl[key] = tbl[key].filled()
 
-        # Build the table
+        # Build the table -- Old code
         #  Because we allow (even encourage!) the users to modify entries by hand, 
         #   we have a custom way to parse what is largely a standard fixed_width table
         #nfiles = len(lines) - npaths - 1
@@ -318,12 +328,12 @@ class InputFile:
         """
         Find a specific block of lines
 
-        These must be wrapped within "block read" and "block end", e.g.
+        These must be wrapped within ``block read`` and ``block end``, e.g.::
 
-        setup read
-        Setup A: 
-        blah blah
-        setup end
+            setup read
+            Setup A: 
+            ...
+            setup end
 
         Args:
             lines (:obj:`list`):
@@ -333,7 +343,7 @@ class InputFile:
 
         Returns:
             int, int: Starting,ending line of the block;  
-                -1 if not present
+            -1 if not present
 
         """
         start = -1
@@ -352,20 +362,23 @@ class InputFile:
 
     def path_and_files(self, key:str, skip_blank=False):
         """Generate a list of the filenames with 
-        the full path.  The files must exist and be 
+        the full path from the column of the data Table
+        specified by `key`.  The files must exist and be 
         within one of the paths for this to succeed.
-
-        An error is raised if the path+file does not exist
 
         Args:
             key (str): Column of self.data with the filenames of interest
             skip_blank (bool, optional): If True, ignore any
-            entry that is '', 'none' or 'None'. Defaults to False.
+                entry that is '', 'none' or 'None'. Defaults to False.
 
         Returns:
             list: List of the full paths to each data file
             or None if `filename` is not part of the data table
             or there is no data table!
+
+        Raises:
+            PypeItError:
+                Raised if the path+file does not exist
 
         """
         if self.data is None or key not in self.data.keys():
@@ -382,8 +395,7 @@ class InputFile:
             # Searching..
             if len(self.file_paths) > 0:
                 for p in self.file_paths:
-                    filename = os.path.join(
-                        p, row[key])
+                    filename = os.path.join(p, row[key])
                     if os.path.isfile(filename):
                         break
             else:
@@ -397,19 +409,19 @@ class InputFile:
         # Return
         return data_files
 
-    def write(self, pypeit_input_file):
+    def write(self, input_file):
         """
-        Write a PypeIt input file to disk
+        Write an Input file to disk
 
         Args:
-            pypeit_input_file (str): Name of PypeIt file to be generated
+            input_file (str): Name of PypeIt file to be generated
         """
 
         # Here we go
-        with open(pypeit_input_file, 'w') as f:
+        with open(input_file, 'w') as f:
             f.write(f'# Auto-generated {self.flavor} input file using PypeIt version: {__version__}\n')
-            #f.write('# {0}\n'.format(time.strftime("%a %d %b %Y %H:%M:%S",time.localtime())))
-            f.write('# {0}\n'.format(time.strftime("%Y-%m-%d",time.localtime())))
+            #f.write('# {0}\n'.format(time.strftime("%Y-%m-%d",time.localtime())))
+            f.write('# UTC {0}\n'.format(datetime.utcnow().isoformat(timespec='milliseconds')))
             f.write("\n")
 
             # Parameter block
@@ -452,26 +464,26 @@ class InputFile:
                 f.write(f"{self.data_block} end\n")
                 f.write("\n")
 
-        msgs.info(f'{self.flavor} input file written to: {pypeit_input_file}')
+        msgs.info(f'{self.flavor} input file written to: {input_file}')
 
 
 
 class PypeItFile(InputFile):
     """Child class for the PypeIt file
     """
-    data_block = 'data'  # Defines naming of data block
     flavor = 'PypeIt'  # Defines naming of file
+
+    required_columns = ['filename', 'frametype']
+    data_block = 'data'  # Defines naming of data block
+    datablock_required = True
+
     setup_required = True
 
     def vet(self):
         """ Check for required bits and pieces of the PypeIt file
         besides the input objects themselves
         """
-
-        # Data table
-        for key in ['filename', 'frametype']:
-            if key not in self.data.keys():
-                msgs.error("Add {:s} to your PypeIt file before using run_pypeit".format(key))
+        super().vet()
 
         # Confirm spectrograph is present
         if 'rdx' not in self.config.keys() or 'spectrograph' not in self.config['rdx'].keys():
@@ -479,7 +491,8 @@ class PypeItFile(InputFile):
 
         # Setup
         setup_keys = list(self.setup)
-        assert 'Setup' in setup_keys[0]
+        if 'Setup' not in setup_keys[0]:
+            msgs.error("Setup does not appear in your setup block! Add it")
 
         # Done
         msgs.info('PypeIt file successfully vetted.')
@@ -492,11 +505,15 @@ class PypeItFile(InputFile):
         Returns:
             dict: 
         """
-        frametypes = {}
-        for row in self.data:
-            frametypes[row['filename']] = row['frametype']
-        #
-        return frametypes
+        return {row['filename']:row['frametype'] for row in self.data}
+
+class SensFile(InputFile):
+    """Child class for the Sensitivity input file
+    """
+    data_block = 'sens'  # Defines naming of data block
+    flavor = 'Sens'  # Defines naming of file
+    datablock_required = False
+    setup_required = False
 
 class FluxFile(InputFile):
     """Child class for the Fluxing input file
@@ -504,15 +521,14 @@ class FluxFile(InputFile):
     data_block = 'flux'  # Defines naming of data block
     flavor = 'Flux'  # Defines naming of file
     setup_required = False
+    datablock_required = True
+    required_columns = ['filename']
 
     def vet(self):
         """ Check for required parts of the Fluxing input
         file and handle the various options for sensfile
         """
-        # Data table
-        for key in ['filename']:
-            if key not in self.data.keys():
-                msgs.error("Add {:s} to your .flux file before using run_pypeit".format(key))
+        super().vet()
 
         # Add a dummy sensfile column?
         #  This is allowed if using an archived sensitivity function
@@ -528,9 +544,6 @@ class FluxFile(InputFile):
         within one of the paths (or the current
         folder with not other paths specified) for this to succeed.
 
-        Raises:
-            ValueError: _description_
-
         Returns:
             list: List of full path to each data file
             or None if `filename` is not part of the data table
@@ -545,77 +558,14 @@ class FluxFile(InputFile):
         # Return
         return sens_files
 
-    @classmethod
-    def read_old_fluxfile(cls, ifile):
-        """
-        Read an old style ``PypeIt`` flux file, akin to a standard ``PypeIt`` file.
-
-        The top is a config block that sets ParSet parameters.  
-
-        Args:
-            ifile (:obj:`str`):
-                Name of the flux file
-
-        Returns:
-            pypeit.inputfiles.FluxFile:
-        """
-        # Warn
-        warnings.warn("The old file type is deprecated and this code may disappear", DeprecationWarning)
-
-        # Read in the pypeit reduction file
-        msgs.info('Loading the fluxcalib file')
-        lines = read_pypeit_file_lines(ifile)
-        is_config = np.ones(len(lines), dtype=bool)
-
-        # Parse the fluxing block
-        spec1dfiles = []
-        sensfiles_in = []
-        s, e = InputFile.find_block(lines, 'flux')
-        if s >= 0 and e < 0:
-            msgs.error("Missing 'flux end' in {0}".format(ifile))
-        elif (s < 0) or (s==e):
-            msgs.error("Missing flux block in {0}. Check the input format for the .flux file".format(ifile))
-        else:
-            for ctr, line in enumerate(lines[s:e]):
-                prs = line.split(' ')
-                spec1dfiles.append(prs[0])
-                if len(prs) > 1:
-                    sensfiles_in.append(prs[1])
-            is_config[s-1:e+1] = False
-
-        # data table
-        data = Table()
-        data['filename'] = spec1dfiles
-        # Sensfiles are a fussy matter
-        if len(sensfiles_in) == 0:
-            sensfiles = ['']*len(spec1dfiles)
-        elif len(sensfiles_in) == 1:
-            sensfiles = sensfiles_in*len(spec1dfiles)
-        else:
-            sensfiles = sensfiles_in
-        data['sensfile'] = sensfiles
-
-        # Instantiate
-        slf = cls(config=list(lines[is_config]), 
-                  data_table=data)
-
-        return slf
-
 class Coadd1DFile(InputFile):
     """Child class for coaddition in 1D
     """
     data_block = 'coadd1d'  # Defines naming of data block
     flavor = 'Coadd1D'  # Defines naming of file
     setup_required = False
-
-    def vet(self):
-        """ Check for required parts of the Fluxing input
-        file and handle the various options for sensfile
-        """
-        # Data table
-        for key in ['filename', 'obj_id']:
-            if key not in self.data.keys():
-                msgs.error("Add {:s} to your .coadd1d file before using run_pypeit".format(key))
+    datablock_required = True
+    required_columns = ['filename', 'obj_id']
 
     @property
     def objids(self):
@@ -627,23 +577,22 @@ class Coadd1DFile(InputFile):
             oids = oids*len(self.data)
         # Return
         return oids
-        
+
+
 class Coadd2DFile(InputFile):
     """Child class for coaddition in 2D
     """
     data_block = 'spec2d'  # Defines naming of data block
     flavor = 'Coadd2D'  # Defines naming of file
     setup_required = False
+    datablock_required = True
+    required_columns = ['filename'] 
 
     def vet(self):
         """ Check for required bits and pieces of the .coadd2d file
         besides the input objects themselves
         """
-
-        # Data table
-        for key in ['filename']:
-            if key not in self.data.keys():
-                msgs.error("Add {:s} to your .coadd2d file before using run_pypeit".format(key))
+        super().vet()
 
         # Confirm spectrograph is present
         if 'rdx' not in self.config.keys() or 'spectrograph' not in self.config['rdx'].keys():
@@ -653,12 +602,69 @@ class Coadd2DFile(InputFile):
         msgs.info('.coadd2d file successfully vetted.')
 
 
+class Coadd3DFile(InputFile):
+    """Child class for coadding spec2d files into datacubes
+    """
+    data_block = 'spec2d'  # Defines naming of data block
+    flavor = 'Coadd3d'  # Defines naming of file
+    setup_required = False
+    datablock_required = True
+    required_columns = ['filename'] 
+
+    def vet(self):
+        """ Check for required bits and pieces of the .coadd2d file
+        besides the input objects themselves
+        """
+        super().vet()
+
+        # Confirm spectrograph is present
+        if 'rdx' not in self.config.keys() or 'spectrograph' not in self.config['rdx'].keys():
+            msgs.error(f"Missing spectrograph in the Parameter block of your .coadd2d file.  Add it!")
+
+        # Done
+        msgs.info('.cube file successfully vetted.')
+
+    @property
+    def options(self):
+        """
+        Parse the options associated with a cube block.
+        Here is a description of the available options:
+
+        scale_corr     : The name of an alternative spec2d file that is used for the relative spectral scale correction.
+                        This parameter can also be set for all frames with the default command::
+
+                            [reduce]
+                                [[cube]]
+                                    scale_corr = spec2d_alternative.fits
+
+        Returns
+        -------
+        opts: dict
+            Dictionary containing cube options.
+        """
+        # Define the list of allowed parameters
+        opts = dict(scale_corr=None)
+
+        # Get the scale correction files
+        scale_corr = self.path_and_files('scale_corr', skip_blank=True)
+        if scale_corr is None:
+            opts['scale_corr'] = [None]*len(self.filenames)
+        elif len(scale_corr) == 1 and len(self.filenames) > 1:
+            scale_corr = scale_corr*len(self.filenames)
+        elif len(scale_corr) != 0:
+            opts['scale_corr'] = scale_corr
+        # Return all options
+        return opts
+
+
 class TelluricFile(InputFile):
     """Child class for telluric corrections
     """
     data_block = None  # Defines naming of data block
     flavor = 'Telluric'  # Defines naming of file
     setup_required = False
+    datablock_required = False
+
 
 class FlexureFile(InputFile):
     """Child class for flexure corrections
@@ -666,16 +672,14 @@ class FlexureFile(InputFile):
     data_block = 'flexure'  # Defines naming of data block
     flavor = 'Flexure'  # Defines naming of file
     setup_required = False
+    datablock_required = True
+    required_columns = ['filename']
 
     def vet(self):
         """ Check for required bits and pieces of the .flex file
         besides the input objects themselves
         """
-
-        # Data table
-        for key in ['filename']:
-            if key not in self.data.keys():
-                msgs.error("Add {:s} to your .flex file before using run_pypeit".format(key))
+        super().vet()
 
         # Confirm spectrograph is present
         if 'rdx' not in self.config.keys() or 'spectrograph' not in self.config['rdx'].keys():
@@ -683,3 +687,33 @@ class FlexureFile(InputFile):
 
         # Done
         msgs.info('.flex file successfully vetted.')
+
+class Collate1DFile(InputFile):
+    """Child class for collate 1D script
+    """
+    data_block = 'spec1d'  # Defines naming of data block
+    flavor = 'Collate1D'  # Defines naming of file
+    setup_required = False
+    datablock_required = True
+    required_columns = ['filename']
+
+    @property
+    def filenames(self):
+        """ List of path + filename's
+
+        Allows for wildcads
+
+        Returns:
+            list or None: List of the full paths to each data file
+            or None if `filename` is not part of the data table
+            or there is no data table!
+        """
+        all_files = []
+        paths = [os.getcwd()] if len(self.file_paths) == 0 else self.file_paths
+        # Paths?
+        for p in paths:
+            for row in self.data['filename']:
+                all_files += glob.glob(os.path.join(p, row))
+
+        # Return
+        return all_files

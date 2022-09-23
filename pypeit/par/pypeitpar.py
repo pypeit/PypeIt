@@ -219,7 +219,7 @@ class ProcessImagesPar(ParSet):
                  dark_expscale=None,
                  empirical_rn=None, shot_noise=None, noise_floor=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
-                 use_pattern=None, use_continuum=None, spat_flexure_correct=None):
+                 use_pattern=None, subtract_continuum=None, spat_flexure_correct=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -292,11 +292,11 @@ class ProcessImagesPar(ParSet):
                                'sinusoidal along one direction, with a frequency that is ' \
                                'constant across the detector.'
 
-        defaults['use_continuum'] = False
-        dtypes['use_continuum'] = bool
-        descr['use_continuum'] = 'Subtract off the continuum level from an image. This parameter should only ' \
-                                 'be set to True to combine arcs with multiple different lamps.' \
-                                 'For all other cases, this parameter should probably be False.'
+        defaults['subtract_continuum'] = False
+        dtypes['subtract_continuum'] = bool
+        descr['subtract_continuum'] = 'Subtract off the continuum level from an image. This parameter should only ' \
+                                      'be set to True to combine arcs with multiple different lamps. ' \
+                                      'For all other cases, this parameter should probably be False.'
 
         defaults['empirical_rn'] = False
         dtypes['empirical_rn'] = bool
@@ -424,7 +424,7 @@ class ProcessImagesPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'use_continuum', 'use_pattern',
+        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum', 'use_pattern',
                    'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
                    'dark_expscale', 'spat_flexure_correct', 'use_illumflat', 'use_specillum',
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
@@ -561,7 +561,7 @@ class FlatFieldPar(ParSet):
                  tweak_slits_maxfrac=None, rej_sticky=None, slit_trim=None, slit_illum_pad=None,
                  illum_iter=None, illum_rej=None, twod_fit_npoly=None, saturated_slits=None,
                  slit_illum_relative=None, slit_illum_ref_idx=None, slit_illum_smooth_npix=None,
-                 pixelflat_min_wave=None, pixelflat_max_wave=None):
+                 pixelflat_min_wave=None, pixelflat_max_wave=None, fit_2d_det_response=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -704,6 +704,18 @@ class FlatFieldPar(ParSet):
                                           'relative weights is given by ``nspec/slit_illum_smooth_npix``, ' \
                                           'where nspec is the number of spectral pixels.'
 
+        defaults['fit_2d_det_response'] = False
+        dtypes['fit_2d_det_response'] = bool
+        descr['fit_2d_det_response'] = 'Set this variable to True if you want to compute and ' \
+                                       'account for the detector response in the flatfield image. ' \
+                                       'Note that ``detector response`` refers to pixel sensitivity ' \
+                                       'variations that primarily depend on (x,y) detector coordinates. ' \
+                                       'In most cases, the default 2D bspline is sufficient to account ' \
+                                       'for detector response (i.e. set this parameter to False). Note ' \
+                                       'that this correction will _only_ be performed for the spectrographs ' \
+                                       'that have a dedicated response correction implemented. Currently,' \
+                                       'this correction is only implemented for Keck+KCWI.'
+
         # Instantiate the parameter set
         super(FlatFieldPar, self).__init__(list(pars.keys()),
                                            values=list(pars.values()),
@@ -723,7 +735,7 @@ class FlatFieldPar(ParSet):
                    'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
                    'rej_sticky', 'slit_trim', 'slit_illum_pad', 'slit_illum_relative',
                    'illum_iter', 'illum_rej', 'twod_fit_npoly', 'saturated_slits',
-                   'slit_illum_ref_idx', 'slit_illum_smooth_npix']
+                   'slit_illum_ref_idx', 'slit_illum_smooth_npix', 'fit_2d_det_response']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -785,7 +797,7 @@ class FlexurePar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, spec_method=None, spec_maxshift=None, spectrum=None,
-                 multi_min_SN=None):
+                 multi_min_SN=None, excessive_shift=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -822,6 +834,16 @@ class FlexurePar(ParSet):
         dtypes['multi_min_SN'] = [int, float]
         descr['multi_min_SN'] = 'Minimum S/N for analyzing sky spectrum for flexure'
 
+        defaults['excessive_shift'] = 'crash'
+        options['excessive_shift'] = FlexurePar.valid_excessive_shift_methods()
+        dtypes['excessive_shift'] = str
+        descr['excessive_shift'] = 'Behavior when the measured spectral flexure shift is ' \
+                                   'larger than ``spec_maxshift``.  The options are: ' \
+                                   '\'crash\' - Raise an error and halt the data reduction; ' \
+                                   '\'set_to_zero\' - Set the flexure shift to zero and continue ' \
+                                   'with the reduction; and \'continue\' - Use the large ' \
+                                   'flexure value whilst issuing a warning.'
+
         # Instantiate the parameter set
         super(FlexurePar, self).__init__(list(pars.keys()),
                                          values=list(pars.values()),
@@ -836,7 +858,7 @@ class FlexurePar(ParSet):
 
         k = np.array([*cfg.keys()])
         parkeys = ['spec_method', 'spec_maxshift', 'spectrum',
-                   'multi_min_SN']
+                   'multi_min_SN', 'excessive_shift']
 #                   'spat_frametypes']
 
         badkeys = np.array([pk not in parkeys for pk in k])
@@ -854,6 +876,13 @@ class FlexurePar(ParSet):
         Return the valid flat-field methods
         """
         return ['boxcar', 'slitcen', 'skip']
+
+    @staticmethod
+    def valid_excessive_shift_methods():
+        """
+        Return the valid options for dealing with excessive flexure shift.
+        """
+        return ['crash', 'set_to_zero', 'continue']
 
     def validate(self):
         """
@@ -1329,7 +1358,9 @@ class CubePar(ParSet):
         dtypes['reference_image'] = str
         descr['reference_image'] = 'White light image of a previously combined datacube. The white light ' \
                                    'image will be used as a reference when calculating the offsets of the ' \
-                                   'input spec2d files.'
+                                   'input spec2d files. Ideally, the reference image should have the same ' \
+                                   'shape as the data to be combined (i.e. set the ra_min, ra_max etc. params ' \
+                                   'so they are identical to the reference image).'
 
         defaults['save_whitelight'] = False
         dtypes['save_whitelight'] = bool
@@ -2432,7 +2463,7 @@ class WavelengthSolutionPar(ParSet):
         defaults['fwhm'] = 4.
         dtypes['fwhm'] = [int, float]
         descr['fwhm'] = 'Spectral sampling of the arc lines. This is the FWHM of an arcline in ' \
-                        '*unbinned* pixels.'
+                        'binned pixels of the input arc image'
 
         defaults['fwhm_fromlines'] = False
         dtypes['fwhm_fromlines'] = bool
@@ -2899,8 +2930,10 @@ class EdgeTracePar(ParSet):
         options['sync_predict'] = EdgeTracePar.valid_predict_modes()
         dtypes['sync_predict'] = str
         descr['sync_predict'] = 'Mode to use when predicting the form of the trace to insert.  ' \
-                                'Use `pca` to use the PCA decomposition or `nearest` to ' \
-                                'reproduce the shape of the nearest trace.'
+                                'Use `pca` to use the PCA decomposition, `nearest` to ' \
+                                'reproduce the shape of the nearest trace, or `auto` to let PypeIt ' \
+                                'decide which mode to use between `pca` and `nearest`. In general, ' \
+                                'it will first try `pca`, and if that is not possible, it will use `nearest`.'
 
         defaults['sync_center'] = 'median'
         options['sync_center'] = EdgeTracePar.valid_center_modes()
@@ -3126,7 +3159,7 @@ class EdgeTracePar(ParSet):
     @staticmethod
     def valid_predict_modes():
         """Return the valid trace prediction modes."""
-        return ['pca', 'nearest']
+        return ['pca', 'nearest', 'auto']
 
     @staticmethod
     def valid_center_modes():
@@ -4299,51 +4332,51 @@ class PypeItPar(ParSet):
         # Instantiate the object based on the configuration dictionary
         return cls.from_dict(cfg)
 
-    @classmethod
-    def from_pypeit_file(cls, ifile, evaluate=True):
-        """
-        Construct the parameter set using a pypeit file.
-
-        Warning:  This is a bit risky in that it may well
-        lead to circular imports.  Might be best to avoid
-
-        Args:
-            ifile (str):
-                Name of the pypeit file to read.  Expects to find setup
-                and data blocks in the file.  See docs.
-            evaluate (:obj:`bool`, optional):
-                Evaluate the values in the config object before
-                assigning them in the subsequent parameter sets.  The
-                parameters in the config file are *always* read as
-                strings, so this should almost always be true; however,
-                see the warning below.
-
-        .. warning::
-
-            When `evaluate` is true, the function runs `eval()` on
-            all the entries in the `ConfigObj` dictionary, done using
-            :func:`_recursive_dict_evaluate`.  This has the potential to
-            go haywire if the name of a parameter unintentionally
-            happens to be identical to an imported or system-level
-            function.  Of course, this can be useful by allowing one to
-            define the function to use as a parameter, but it also means
-            one has to be careful with the values that the parameters
-            should be allowed to have.  The current way around this is
-            to provide a list of strings that should be ignored during
-            the evaluation, done using :func:`_eval_ignore`.
-
-        .. todo::
-            Allow the user to add to the ignored strings.
-
-        Returns:
-            :class:`pypeit.par.core.PypeItPar`: The instance of the
-            parameter set.
-        """
-        # Load PypeIt file
-        pypeItFile = PypeItFile.from_file(ifile)
-        # TODO: Need to include instrument-specific defaults somewhere...
-        return cls.from_cfg_lines(
-            merge_with=pypeItFile.cfg_lines, evaluate=evaluate)
+#    @classmethod
+#    def from_pypeit_file(cls, ifile, evaluate=True):
+#        """
+#        Construct the parameter set using a pypeit file.
+#
+#        Warning:  This is a bit risky in that it may well
+#        lead to circular imports.  Might be best to avoid
+#
+#        Args:
+#            ifile (str):
+#                Name of the pypeit file to read.  Expects to find setup
+#                and data blocks in the file.  See docs.
+#            evaluate (:obj:`bool`, optional):
+#                Evaluate the values in the config object before
+#                assigning them in the subsequent parameter sets.  The
+#                parameters in the config file are *always* read as
+#                strings, so this should almost always be true; however,
+#                see the warning below.
+#
+#        .. warning::
+#
+#            When `evaluate` is true, the function runs `eval()` on
+#            all the entries in the `ConfigObj` dictionary, done using
+#            :func:`_recursive_dict_evaluate`.  This has the potential to
+#            go haywire if the name of a parameter unintentionally
+#            happens to be identical to an imported or system-level
+#            function.  Of course, this can be useful by allowing one to
+#            define the function to use as a parameter, but it also means
+#            one has to be careful with the values that the parameters
+#            should be allowed to have.  The current way around this is
+#            to provide a list of strings that should be ignored during
+#            the evaluation, done using :func:`_eval_ignore`.
+#
+#        .. todo::
+#            Allow the user to add to the ignored strings.
+#
+#        Returns:
+#            :class:`pypeit.par.core.PypeItPar`: The instance of the
+#            parameter set.
+#        """
+#        # Load PypeIt file
+#        pypeItFile = PypeItFile.from_file(ifile)
+#        # TODO: Need to include instrument-specific defaults somewhere...
+#        return cls.from_cfg_lines(
+#            merge_with=pypeItFile.cfg_lines, evaluate=evaluate)
 
     @classmethod
     def from_dict(cls, cfg):
@@ -4640,7 +4673,7 @@ class Collate1DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, tolerance=None, dry_run=None, ignore_flux=None, flux=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, wv_rms_thresh=None, outdir=None):
+    def __init__(self, tolerance=None, dry_run=None, ignore_flux=None, flux=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, wv_rms_thresh=None, outdir=None, spec1d_outdir=None, refframe=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -4655,7 +4688,7 @@ class Collate1DPar(ParSet):
         descr = OrderedDict.fromkeys(pars.keys())
 
         # Threshold for grouping by object
-        defaults['tolerance'] = '3.0'
+        defaults['tolerance'] = '1.0'
         dtypes['tolerance'] = [str, float]
         descr['tolerance'] = "The tolerance used when comparing the coordinates of objects. If two " \
                              "objects are within this distance from each other, they " \
@@ -4686,6 +4719,11 @@ class Collate1DPar(ParSet):
         dtypes['outdir'] = str
         descr['outdir'] = "The path where all coadded output files and report files will be placed."
 
+        # Directory for modified spec1d files
+        defaults['spec1d_outdir'] = None
+        dtypes['spec1d_outdir'] = str
+        descr['spec1d_outdir'] = "The path where all modified spec1d files are placed. These are only created if flux calibration or refframe correction are asked for."
+
         # What slit flags to exclude
         defaults['exclude_slit_trace_bm'] = []
         dtypes['exclude_slit_trace_bm'] = [list, str]
@@ -4707,6 +4745,12 @@ class Collate1DPar(ParSet):
         dtypes['match_using'] = str
         descr['match_using'] = "Determines how 1D spectra are matched as being the same object. Must be either 'pixel' or 'ra/dec'."
 
+        defaults['refframe'] = None
+        options['refframe'] = WavelengthSolutionPar.valid_reference_frames()
+        dtypes['refframe'] = str
+        descr['refframe'] = 'Perform reference frame correction prior to coadding. ' \
+                         'Options are: {0}'.format(', '.join(options['refframe']))
+
         # Instantiate the parameter set
         super(Collate1DPar, self).__init__(list(pars.keys()),
                                            values=list(pars.values()),
@@ -4718,7 +4762,7 @@ class Collate1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = [*cfg.keys()]
-        parkeys = ['tolerance', 'dry_run', 'ignore_flux', 'flux', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir', 'wv_rms_thresh']
+        parkeys = ['tolerance', 'dry_run', 'ignore_flux', 'flux', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir', 'spec1d_outdir', 'wv_rms_thresh', 'refframe']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

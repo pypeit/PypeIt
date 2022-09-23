@@ -44,6 +44,7 @@ def init_dict():
                 waveimg = 1000 * np.ones_like(sciimg),
                 bpmmask=np.ones_like(sciimg).astype(int),
                 slits=slits,
+                wavesol=None,
                 maskdef_designtab=None,
                 tilts=np.ones_like(sciimg).astype(float),
                 #tilts=wavetilts.WaveTilts(**test_wavetilts.instant_dict),

@@ -1223,14 +1223,14 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
 
 
     # Apply find_min_max_out
-    gpm_sigclip = np.ones_like(image_rect, dtype=bool)
-    # Smash out the spectral direction masking outlying pixels. We use this mask gpm_sigclip below
-    data = np.ma.MaskedArray(image_rect[find_min_max_out[0]:find_min_max_out[1],:], 
-                             mask=np.logical_not(gpm_rect[find_min_max_out[0]:find_min_max_out[1],:]))
-    sigclip = stats.SigmaClip(sigma=sigclip_smash, maxiters=25, cenfunc='median', stdfunc=utils.nan_mad_std)
+    find_min_max_gpm = np.zeros_like(image_rect, dtype=bool)
+    find_min_max_gpm[find_min_max_out[0]: find_min_max_out[1], :] = True
+    data = np.ma.MaskedArray(
+        image_rect, mask=np.logical_not(gpm_rect & find_min_max_gpm)) # the total gpm = gpm_rect & find_min_max_gpm
+    sigclip = stats.SigmaClip(sigma=sigclip_smash, maxiters=25, cenfunc='median', 
+                              stdfunc=utils.nan_mad_std)
     data_clipped, lower, upper = sigclip(data, axis=0, masked=True, return_bounds=True)
-    gpm_sigclip_cut = np.logical_not(data_clipped.mask)  # gpm_smash = True are good values
-    gpm_sigclip[find_min_max_out[0]:find_min_max_out[1],:] = gpm_sigclip_cut
+    gpm_sigclip = np.logical_not(data_clipped.mask)
 
 
     # Compute the average flux over the set of pixels that are not masked by gpm_sigclip

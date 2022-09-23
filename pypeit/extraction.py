@@ -19,6 +19,7 @@ from pypeit import msgs, utils
 from pypeit.display import display
 from pypeit.core import skysub, extract, wave, flexure
 from pypeit.core.moment import moment1d
+from pypeit import specobj
 
 from linetools.spectra import xspectrum1d
 
@@ -489,19 +490,31 @@ class Extract:
             trace_spat = 0.5 * (self.slits_left + self.slits_right)
             trace_spec = np.arange(self.slits.nspec)
             slit_specs = []
+            # get boxcar radius
+            box_radius = self.par['reduce']['extraction']['boxcar_radius']
             for ss in range(self.slits.nslits):
                 if not gd_slits[ss]:
                     slit_specs.append(None)
                     continue
                 slit_spat = self.slits.spat_id[ss]
                 thismask = (self.slitmask == slit_spat)
-                box_denom = moment1d(self.waveimg * thismask > 0.0, trace_spat[:, ss], 2, row=trace_spec)[0]
-                wghts = (box_denom + (box_denom == 0.0))
-                # Mask by ivar to deal with bad detector regions and chip gaps
-                slit_sky = moment1d(self.global_sky * thismask * (self.sciImg.ivar>0), trace_spat[:, ss], 2, row=trace_spec)[0] / wghts
-                # Denom is computed in case the trace goes off the edge of the image
-                slit_wave = moment1d(self.waveimg * thismask, trace_spat[:, ss], 2, row=trace_spec)[0] / wghts
+                inmask = self.sciImg.select_flag(invert=True) & thismask
+
+                # Dummy spec for extract_boxcar
+                spec = specobj.SpecObj(PYPELINE=self.pypeline,
+                                       SLITID=ss,
+                                       ECH_ORDER=ss, # Use both to cover the bases for naming
+                                       DET=str(self.det))
+                spec.trace_spec = trace_spec
+                spec.TRACE_SPAT = trace_spat[:,ss]
+                spec.BOX_RADIUS = box_radius
+                # Extract
+                extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar, inmask,
+                                       self.waveimg, self.global_sky, spec) 
+                slit_wave, slit_sky = spec.BOX_WAVE, spec.BOX_COUNTS_SKY
+
                 # TODO :: Need to remove this XSpectrum1D dependency - it is required in:  flexure.spec_flex_shift
+                # Pack
                 slit_specs.append(xspectrum1d.XSpectrum1D.from_tuple((slit_wave, slit_sky)))
 
             # Measure flexure
@@ -510,6 +523,7 @@ class Extract:
                                                   self.par['flexure']['spectrum'],
                                                   method=self.par['flexure']['spec_method'],
                                                   mxshft=self.par['flexure']['spec_maxshift'],
+                                                  excess_shft=self.par['flexure']['excessive_shift'],
                                                   specobjs=sobjs, slit_specs=slit_specs)
             # Store the slit shifts that were applied to each slit
             # These corrections are later needed so the specobjs metadata contains the total spectral flexure
@@ -530,6 +544,7 @@ class Extract:
                                                   self.par['flexure']['spectrum'],
                                                   method=self.par['flexure']['spec_method'],
                                                   mxshft=self.par['flexure']['spec_maxshift'],
+                                                  excess_shft=self.par['flexure']['excessive_shift'],
                                                   specobjs=sobjs, slit_specs=None)
             # Apply flexure to objects
             for islit in range(self.slits.nslits):

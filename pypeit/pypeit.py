@@ -293,10 +293,16 @@ class PypeIt:
             # Find the detectors to reduce
 #            detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
 #                                                ndet=self.spectrograph.ndet)
-            detectors = self.spectrograph.select_detectors(subset=self.par['rdx']['detnum'])
+            subset = self.par['rdx']['slitspatnum'] if self.par['rdx']['slitspatnum'] is not None \
+                else self.par['rdx']['detnum']
+            detectors = self.spectrograph.select_detectors(subset=subset)
+            msgs.info(f'Detectors to work on: {detectors}')
+
             calib_dict[calib_grp] = {}
+
             # Loop on Detectors
             for self.det in detectors:
+                msgs.info("Working on detector {0}".format(self.det))
                 # Instantiate Calibrations class
                 self.caliBrate = calibrations.Calibrations.get_instance(
                     self.fitstbl, self.par['calibrations'], self.spectrograph,
@@ -311,6 +317,10 @@ class PypeIt:
                 # Allow skipping the run (e.g. parse_calib_id.py script)
                 if run:
                     self.caliBrate.run_the_steps()
+                    if not self.caliBrate.success:
+                        msgs.warn(f'Calibrations for detector {self.det} were unsuccessful!  The step '
+                                  f'that failed was {self.caliBrate.failed_step}.  Continuing by '
+                                  f'skipping this detector.')
 
                 key = self.caliBrate.master_key_dict['frame']
                 calib_dict[calib_grp][key] = {}
@@ -365,6 +375,11 @@ class PypeIt:
 
         # Find the science frames
         is_science = self.fitstbl.find_frames('science')
+        # this will give an error to alert the user that no reduction
+        # will be run if there are no science/standard frames and `run_pypeit` is run without -c flag
+        if not np.any(is_science) and not np.any(is_standard):
+            msgs.error('No science/standard frames provided. Add them to your PypeIt file '
+                       'if this is a standard run! Otherwise run calib_only reduction using -c flag')
 
         # Frame indices
         frame_indx = np.arange(len(self.fitstbl))
@@ -383,7 +398,9 @@ class PypeIt:
             u_combid_std= np.unique(self.fitstbl['comb_id'][grp_standards])
             for j, comb_id in enumerate(u_combid_std):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
-                bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
+                # Find all frames whose comb_id matches the current frames bkg_id (same as for science frames).
+                bg_frames = np.where((self.fitstbl['comb_id'] == self.fitstbl['bkg_id'][frames][0]) &
+                                     (self.fitstbl['comb_id'] >= 0))[0]
                 if not self.outfile_exists(frames[0]) or self.overwrite:
                     # Build history to document what contributd to the reduced
                     # exposure
@@ -434,8 +451,11 @@ class PypeIt:
                     science_basename[j] = self.basename
 
                     # TODO come up with sensible naming convention for save_exposure for combined files
-                    self.save_exposure(frames[0], sci_spec2d, sci_sobjs,
-                                       self.basename, history)
+                    if len(sci_spec2d.detectors) > 0:
+                        self.save_exposure(frames[0], sci_spec2d, sci_sobjs, self.basename, history)
+                    else:
+                        msgs.warn('No spec2d and spec1d saved to file because the '
+                                  'calibration/reduction was not successful for all the detectors')
                 else:
                     msgs.warn('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
@@ -556,7 +576,7 @@ class PypeIt:
             objFind_list.append(objFind)
 
         # slitmask stuff
-        if self.par['reduce']['slitmask']['assign_obj']:
+        if len(calibrated_det) > 0 and self.par['reduce']['slitmask']['assign_obj']:
             # get object positions from slitmask design and slitmask offsets for all the detectors
             spat_flexure = np.array([ss.spat_flexure for ss in sciImg_list])
             # Grab platescale with binning
@@ -886,6 +906,7 @@ class PypeIt:
                                         vel_type=self.par['calibrations']['wavelengths']['refframe'],
                                         tilts=tilts,
                                         slits=slits,
+                                        wavesol=self.caliBrate.wv_calib.wave_diagnostics(print_diag=False),
                                         maskdef_designtab=maskdef_designtab)
         spec2DObj.process_steps = sciImg.process_steps
 

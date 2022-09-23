@@ -13,7 +13,7 @@ Overview
 ========
 
 To maintain uniformity, ``PypeIt`` uses a standard format
-for all of the input files used by the :ref:`pypeit_scripts`.  
+for all of the input files used by the :doc:`scripts`.  
 This document describes that
 format and its main components.  The specifics of 
 the various input file types (e.g. :doc:`pypeit_file`)
@@ -134,9 +134,12 @@ That would look like::
     spec2d_b170320_2091-c17_60L._LRISb_2017Mar20T085223.894.fits
     spec2d end
 
-Many files have a multi-column table with | delimiters, e.g.:
+Here, the column name (``filename``) is trivial and a bit awkward,
+but it is also *required*.
 
-.. code-block:: console
+Many files use a multi-column table with | delimiters, e.g.:
+
+.. code-block:: ini
 
     # Data block
     coadd1d read
