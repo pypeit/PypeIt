@@ -2765,10 +2765,10 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
     dspat_bins = np.arange(spat_min_int, spat_max_int + 1.0, 1.0,dtype=float)
     return dspat_bins, dspat_stack
 
-
+# TODO JFH I would like to modify this to take a stakc or coordinate or spatial
+#  position image instead of a stack of reference traces
 def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack,
-                    inmask_stack, tilts_stack,
-                    thismask_stack, waveimg_stack,
+                    inmask_stack, thismask_stack, waveimg_stack,
                     wave_grid, spat_samp_fact=1.0, maskdef_dict=None,
                     weights='uniform', interp_dspat=True):
     """
@@ -2809,9 +2809,6 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
             List of input good pixel masks (i.e. `True` values are *good*, `False` values are *bad*.), each of which
             is a boolean `numpy.ndarray`_. Length of the list is nimgs.  Shapes of the individual elements in the list
             are (nspec, nspat),  but each image can have a different shape.
-        tilts_stack (list):
-            List of the tilt images, , each of which is a float `numpy.ndarray`_. Length of the list is nimgs.
-            Shapes of the individual elements in the list are (nspec, nspat),  but each image can have a different shape.
         waveimg_stack (list):
             List of the wavelength images, , each of which is a float `numpy.ndarray`_. Length of the list is nimgs.
             Shapes of the individual elements in the list are (nspec, nspat),  but each image can have a different shape.
@@ -2869,9 +2866,6 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
             - nused: int ndarray shape = (nspec_coadd, nspat_coadd):
               Image of integers indicating the number of images from the
               image stack that contributed to each pixel
-            - tilts: float ndarray shape = (nspec_coadd, nspat_coadd):
-              The averaged tilts image corresponding to the rectified
-              and coadded data.
             - waveimg: float ndarray shape = (nspec_coadd, nspat_coadd):
               The averaged wavelength image corresponding to the
               rectified and coadded data.
@@ -2908,8 +2902,9 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     dspat_bins, dspat_stack = get_spat_bins(thismask_stack, ref_trace_stack, spat_samp_fact=spat_samp_fact)
 
     skysub_stack = [sciimg - skymodel for sciimg, skymodel in zip(sciimg_stack, skymodel_stack)]
-    sci_list = [weights_stack, sciimg_stack, skysub_stack, tilts_stack,
-                waveimg_stack, dspat_stack]
+    #sci_list = [weights_stack, sciimg_stack, skysub_stack, tilts_stack,
+    #            waveimg_stack, dspat_stack]
+    sci_list = [weights_stack, sciimg_stack, skysub_stack, waveimg_stack, dspat_stack]
 
     var_list = [[utils.inverse(sciivar) for sciivar in sciivar_stack]]
 
@@ -2928,7 +2923,8 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
                                norm_rebin_stack != 0, sigma_clip=True,
                                sigma_clip_stack=sci_list_rebin[2], sigrej=sigrej,
                                maxiters=maxiters)
-    sciimg, imgminsky, tilts, waveimg, dspat = sci_list_out
+    #sciimg, imgminsky, tilts, waveimg, dspat = sci_list_out
+    sciimg, imgminsky, waveimg, dspat = sci_list_out
     sciivar = utils.inverse(var_list_out[0])
 
     # Compute the midpoints vectors, and lower/upper bins of the rectified image in spectral and spatial directions
@@ -2966,6 +2962,8 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
         dspat[np.invert(outmask)] = dspat_img_fake[np.invert(outmask)]
 
     # initiate maskdef parameters
+    # TODO I don't think this maskdef code belongs here. It should be rather be moved to the coadd2d class. This
+    # is a core method that coadds images without any references to mask design tables
     maskdef_id = None
     maskdef_designtab = None
     new_maskdef_objpos = None
@@ -2984,7 +2982,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     # removing
     return dict(wave_bins=wave_bins, dspat_bins=dspat_bins, wave_mid=wave_mid, wave_min=wave_min,
                 wave_max=wave_max, dspat_mid=dspat_mid, sciimg=sciimg, sciivar=sciivar,
-                imgminsky=imgminsky, outmask=outmask, nused=nused, tilts=tilts, waveimg=waveimg,
+                imgminsky=imgminsky, outmask=outmask, nused=nused, waveimg=waveimg, # tilts=tilts,
                 dspat=dspat, nspec=imgminsky.shape[0], nspat=imgminsky.shape[1],
                 maskdef_id=maskdef_id, maskdef_slitcen=new_maskdef_slitcen, maskdef_objpos=new_maskdef_objpos,
                 maskdef_designtab=maskdef_designtab)

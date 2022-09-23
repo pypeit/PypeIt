@@ -382,7 +382,7 @@ class CoAdd2D:
                                                self.stack_dict['sciivar_stack'],
                                                self.stack_dict['skymodel_stack'],
                                                mask_stack,
-                                               self.stack_dict['tilts_stack'],
+#                                               self.stack_dict['tilts_stack'],
                                                thismask_stack,
                                                self.stack_dict['waveimg_stack'],
                                                self.wave_grid, self.spat_samp_fact,
@@ -454,8 +454,13 @@ class CoAdd2D:
             ispat = slice(spat_left,spat_righ)
             imgminsky_pseudo[ispec, ispat] = coadd_dict['imgminsky']
             sciivar_pseudo[ispec, ispat] = coadd_dict['sciivar']
-            waveimg_pseudo[ispec, ispat] = coadd_dict['waveimg']
-            tilts_pseudo[ispec, ispat] = coadd_dict['tilts']
+            this_waveimg = coadd_dict['waveimg']
+            this_wave_gpm = this_waveimg > 1.0
+            waveimg_pseudo[ispec, ispat] = this_waveimg
+            wave_min = np.min(this_waveimg[this_wave_gpm])
+            wave_max = np.max(this_waveimg[this_wave_gpm])
+            tilts_pseudo[ispec, ispat] = (this_waveimg - wave_min)/(wave_max - wave_min)
+            #tilts_pseudo[ispec, ispat] = coadd_dict['tilts']
             # spat_img_pseudo is the sub-pixel image position on the rebinned pseudo image
             inmask_pseudo[ispec, ispat] = coadd_dict['outmask']
             image_temp = (coadd_dict['dspat'] - coadd_dict['dspat_mid'][0] + spat_left)*coadd_dict['outmask']
@@ -826,7 +831,7 @@ class CoAdd2D:
         sciivar_stack = []
         mask_stack = []
         slitmask_stack = []
-        tilts_stack = []
+        #tilts_stack = []
         # Object stacks
         specobjs_list = []
         slits_list = []
@@ -858,7 +863,7 @@ class CoAdd2D:
             sciivar_stack.append(s2dobj.ivarmodel)
             mask_stack.append(s2dobj.bpmmask)
             slitmask_stack.append(s2dobj.slits.slit_img(flexure=s2dobj.sci_spat_flexure))
-            tilts_stack.append(s2dobj.tilts)
+            #tilts_stack.append(s2dobj.tilts)
 
         #    if ifile == 0:
         #        sciimg_stack = np.zeros((nfiles,) + s2dobj.sciimg.shape, dtype=float)
@@ -884,13 +889,14 @@ class CoAdd2D:
                     slitmask_stack=slitmask_stack,
                     sciimg_stack=sciimg_stack, sciivar_stack=sciivar_stack,
                     skymodel_stack=skymodel_stack, mask_stack=mask_stack,
-                    tilts_stack=tilts_stack, waveimg_stack=waveimg_stack,
+                    waveimg_stack=waveimg_stack,
                     redux_path=redux_path,
                     detectors=detectors_list,
                     spectrograph=self.spectrograph.name,
                     pypeline=self.spectrograph.pypeline,
                     maskdef_designtab_list=maskdef_designtab_list,
                     spat_flexure_list=spat_flexure_list)
+    #                    tilts_stack=tilts_stack, waveimg_stack=waveimg_stack,
 
     def check_input(self, input, type='weights'):
         """
