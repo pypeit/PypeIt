@@ -277,7 +277,7 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm=None, mxsh
             elif excess_shft == "continue":
                 msgs.warn("Applying flexure shift larger than specified max!")
 
-            elif excess_shft == "use_another_value":
+            elif excess_shft == "use_median":
                 msgs.warn("Will try to use a flexure shift from other slit/object. "
                           "If not available, flexure correction will not be applied.")
                 return None
