@@ -208,7 +208,6 @@ or have a feature request, please `submit an issue
    setup
    input_files
    pypeit_par
-   input_files
    pypeit_file
    running
    quicklook
