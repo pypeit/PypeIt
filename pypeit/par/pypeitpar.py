@@ -834,15 +834,18 @@ class FlexurePar(ParSet):
         dtypes['multi_min_SN'] = [int, float]
         descr['multi_min_SN'] = 'Minimum S/N for analyzing sky spectrum for flexure'
 
-        defaults['excessive_shift'] = 'crash'
+        defaults['excessive_shift'] = 'use_median'
         options['excessive_shift'] = FlexurePar.valid_excessive_shift_methods()
         dtypes['excessive_shift'] = str
         descr['excessive_shift'] = 'Behavior when the measured spectral flexure shift is ' \
                                    'larger than ``spec_maxshift``.  The options are: ' \
                                    '\'crash\' - Raise an error and halt the data reduction; ' \
                                    '\'set_to_zero\' - Set the flexure shift to zero and continue ' \
-                                   'with the reduction; and \'continue\' - Use the large ' \
-                                   'flexure value whilst issuing a warning.'
+                                   'with the reduction; \'continue\' - Use the large ' \
+                                   'flexure value whilst issuing a warning; and \'use_median\' - ' \
+                                   'Use the median flexure shift among all the objects in the same slit ' \
+                                   '(if more than one object is detected) or among all ' \
+                                   'the other slits; if not available, the flexure correction will not be applied.'
 
         # Instantiate the parameter set
         super(FlexurePar, self).__init__(list(pars.keys()),
@@ -882,7 +885,7 @@ class FlexurePar(ParSet):
         """
         Return the valid options for dealing with excessive flexure shift.
         """
-        return ['crash', 'set_to_zero', 'continue']
+        return ['crash', 'set_to_zero', 'continue', 'use_median']
 
     def validate(self):
         """
