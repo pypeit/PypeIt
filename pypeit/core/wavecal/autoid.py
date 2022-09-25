@@ -1031,8 +1031,7 @@ def report_final(nslits, all_patt_dict, detections, wv_calib, ok_mask, bad_slits
         bad_slits (ndarray, bool):
             List of slits that are bad
 
-    Returns:
-        Prints out a report to the screen
+
 
     """
     for slit in range(nslits):

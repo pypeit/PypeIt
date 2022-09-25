@@ -30,7 +30,7 @@ from pypeit.core.mosaic import build_image_mosaic_transform
 
 class HIRESMosaicLookUp:
     """
-    Provides the geometry required to mosaic Keck DEIMOS data.
+    Provides the geometry required to mosaic Keck HIRES data.
     Similar to :class:`~pypeit.spectrographs.gemini_gmos.GeminiGMOSMosaicLookUp`
 
     """
@@ -60,7 +60,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
     supported = True
 
 
-    # Place holder taken from X-shooter VIS
+    # TODO: Place holder parameter set taken from X-shooter VIS for now.
     @classmethod
     def default_pypeit_par(cls):
         """
@@ -74,14 +74,11 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
         par['rdx']['detnum'] = [(1,2,3)]
 
-        # Adjustments to parameters for VIS
+        # Adjustments to parameters for Keck HIRES
         turn_on = dict(use_biasimage=False, use_overscan=True, overscan_method='median',
                        use_darkimage=False, use_illumflat=False, use_pixelflat=False,
                        use_specillum=False)
         par.reset_all_processimages_par(**turn_on)
-        # X-SHOOTER arcs/tilts are also have different binning with bias
-        # frames, so don't use bias frames. Don't use the biases for any
-        # calibrations since it appears to be a different amplifier readout
         par['calibrations']['traceframe']['process']['overscan_method'] = 'median'
 
         # Right now we are using the overscan and not biases becuase the
@@ -123,7 +120,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['method'] = 'echelle'
         # TODO: the arxived solution is for 1x1 binning. It needs to be
         # generalized for different binning!
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_vis1x1.fits'
+        #par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_vis1x1.fits'
         par['calibrations']['wavelengths']['cc_thresh'] = 0.50
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
 #        par['calibrations']['wavelengths']['ech_fix_format'] = True
@@ -472,7 +469,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         """
         Return the list of allowed detector mosaics.
 
-        Gemini GMOS only allows for mosaicing all three detectors.
+        Keck/HIRES only allows for mosaicing all three detectors.
 
         Returns:
             :obj:`list`: List of tuples, where each tuple provides the 1-indexed
@@ -519,6 +516,8 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             nonlinear       = 0.86,
             mincounts       = -1e10,
             numamplifiers   = 1,
+            # TODO THese are place holders at present. Getting these numbers right requires parsing headers to determine
+            # which readout mode is being used.
             gain            = np.atleast_1d([1.]),
             ronoise         = np.atleast_1d([3.]),
             )
@@ -553,174 +552,6 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         # Return
         return detector
 
-# TODO: This spectrograph is way out of date
-#    def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
-#        """
-#        Wrapper to the raw image reader for HIRES
-#
-#        Args:
-#            raw_file (:obj:`str`):
-#                filename
-#            det (:obj:`int`, optional):
-#              Desired detector.  Despite default value, cannot be
-#              ``None`` (todo: set a sensible default).
-#            **null_kwargs:
-#              Captured and never used
-#
-#        Returns:
-#            tuple: Raw image and header
-#
-#        """
-#        raw_img, head0, _ = read_hires(raw_file, det=det)
-#
-#        return raw_img, head0
-#
-#    def get_image_section(self, inp=None, det=1, section='datasec'):
-#        """
-#        Return a string representation of a slice defining a section of
-#        the detector image.
-#
-#        Overwrites base class function to use :func:`read_hires` to get
-#        the image sections.
-#
-#        .. todo ::
-#            - It is really ineffiecient.  Can we parse
-#              :func:`read_hires` into something that can give you the
-#              image section directly?
-#
-#        This is done separately for the data section and the overscan
-#        section in case one is defined as a header keyword and the other
-#        is defined directly.
-#
-#        Args:
-#            inp (:obj:`str`, `astropy.io.fits.Header`_, optional):
-#                String providing the file name to read, or the relevant
-#                header object.  Default is None, meaning that the
-#                detector attribute must provide the image section
-#                itself, not the header keyword.
-#            det (:obj:`int`, optional):
-#                1-indexed detector number.
-#            section (:obj:`str`, optional):
-#                The section to return.  Should be either 'datasec' or
-#                'oscansec', according to the
-#                :class:`pypeitpar.DetectorPar` keywords.
-#
-#        Returns:
-#            tuple: Returns three objects: (1) A list of string
-#            representations for the image sections, one string per
-#            amplifier.  The sections are *always* returned in PypeIt
-#            order: spectral then spatial.  (2) Boolean indicating if the
-#            slices are one indexed.  (3) Boolean indicating if the
-#            slices should include the last pixel.  The latter two are
-#            always returned as True following the FITS convention.
-#        """
-#        # Read the file
-#        if inp is None:
-#            msgs.error('Must provide Keck HIRES file to get image section.')
-#        elif not os.path.isfile(inp):
-#            msgs.error('File {0} does not exist!'.format(inp))
-#        temp, head0, secs = read_hires(inp, det)
-#        if section == 'datasec':
-#            return secs[0], False, False
-#        elif section == 'oscansec':
-#            return secs[1], False, False
-#        else:
-#            raise ValueError('Unrecognized keyword: {0}'.format(section))
-#
-#     def get_datasec_img(self, filename, det=1, force=True):
-#         """
-#         Create an image identifying the amplifier used to read each pixel.
-#
-#         Args:
-#             filename (str):
-#                 Name of the file from which to read the image size.
-#             det (:obj:`int`, optional):
-#                 Detector number (1-indexed)
-#             force (:obj:`bool`, optional):
-#                 Force the image to be remade
-#
-#         Returns:
-#             `numpy.ndarray`: Integer array identifying the amplifier
-#             used to read each pixel.
-#         """
-#         if self.datasec_img is None or force:
-#             # Check the detector is defined
-#             self._check_detector()
-#             # Get the image shape
-#             raw_naxis = self.get_raw_image_shape(filename, det=det)
-#
-#             # Binning is not required because read_hires accounts for it
-# #            binning = self.get_meta_value(filename, 'binning')
-#
-#             data_sections, one_indexed, include_end, transpose \
-#                     = self.get_image_section(filename, det, section='datasec')
-#
-#             # Initialize the image (0 means no amplifier)
-#             self.datasec_img = np.zeros(raw_naxis, dtype=int)
-#             for i in range(self.detector[det-1]['numamplifiers']):
-#                 # Convert the data section from a string to a slice
-#                 datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
-#                                           include_end=include_end, require_dim=2,
-#                                           transpose=transpose) #, binning=binning)
-#                 # Assign the amplifier
-#                 self.datasec_img[datasec] = i+1
-#         return self.datasec_img
-
-# This is deprecated.
-# class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
-#     """
-#     Child to handle KECK/HIRES-R specific code
-#
-#     .. warning::
-#         Spectrograph not yet supported
-#     """
-#     name = 'keck_hires_red'
-#     camera = 'HIRES_R'
-#
-#     @classmethod
-#     def default_pypeit_par(cls):
-#         """
-#         Return the default parameters to use for this instrument.
-#
-#         Returns:
-#             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-#             all of ``PypeIt`` methods.
-#         """
-#         par = super().default_pypeit_par()
-#
-#         # Adjustments to slit and tilts for NIR
-#         par['calibrations']['slitedges']['edge_thresh'] = 600.
-#         par['calibrations']['slitedges']['fit_order'] = 5
-#         par['calibrations']['slitedges']['max_shift_adj'] = 0.5
-#         par['calibrations']['slitedges']['left_right_pca'] = True
-#
-#         par['calibrations']['tilts']['tracethresh'] = 20
-#         # Bias
-#         par['calibrations']['biasframe']['useframe'] = 'bias'
-#
-#         # 1D wavelength solution
-#         par['calibrations']['wavelengths']['lamps'] = ['ThAr']
-#         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-#         par['calibrations']['wavelengths']['rms_threshold'] = 0.25
-#         par['calibrations']['wavelengths']['sigdetect'] = 5.0
-#         # Reidentification parameters
-#         #par['calibrations']['wavelengths']['method'] = 'reidentify'
-#         #par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_nir.json'
-#         par['calibrations']['wavelengths']['ech_fix_format'] = True
-#         # Echelle parameters
-#         par['calibrations']['wavelengths']['echelle'] = True
-#         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
-#         par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
-#         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
-#
-#         # Always correct for flexure, starting with default parameters
-#         par['flexure'] = pypeitpar.FlexurePar()
-#         par['scienceframe']['process']['sigclip'] = 20.0
-#         par['scienceframe']['process']['satpix'] ='nothing'
-#         par['calibrations']['standardframe']['exprng'] = [None, 600]
-#         par['scienceframe']['exprng'] = [600, None]
-#
-#         return par
 
 
 
@@ -805,174 +636,3 @@ def hires_read_1chip(hdu,chipno):
 
     # Return
     return data, oscan
-
-# THIS is deprecated
-#def read_hires(hdu, det=None, spectrim=20):
-#    """
-#    Read a raw HIRES data frame (one or more detectors).
-#
-#    Data are unpacked from the multi-extension HDU.  Function is
-#    based :func:`pypeit.spectrographs.keck_lris.read_lris`, which
-#    was based on the IDL procedure ``readmhdufits.pro``.
-#    
-#    Parameters
-#    ----------
-#    raw_file : str
-#        Filename
-#    spectrim: int, optional
-#       Number of unbinned pixels to trim off spectral direction because top side of detector is not illuiminated.
-#       Default is 20.
-#
-#
-#
-#    Returns
-#    -------
-#    image : ndarray
-#        Raw image including overscan
-#    header : FITS header
-#    rawdatasec_img : `numpy.ndarray`_
-#        Data (Science) section of the detector as provided by setting the
-#        (1-indexed) number of the amplifier used to read each detector pixel.
-#        Pixels unassociated with any amplifier are set to 0.
-#    oscansec_img : `numpy.ndarray`_
-#        Overscan section of the detector as provided by setting the
-#        (1-indexed) number of the amplifier used to read each detector pixel.
-#        Pixels unassociated with any amplifier are set to 0.
-#    hdu : List of HUDs
-#
-#    """
-#
-#    head0 = hdu[0].header
-#
-#    # Get post, pre-pix values
-#    precol = head0['PRECOL']
-#    postpix = head0['POSTPIX']
-#    preline = head0['PRELINE']
-#    postline = head0['POSTLINE']
-#    detlsize = head0['DETLSIZE']
-#    x0, x_npix, y0, y_npix = np.array(parse.load_sections(detlsize)).flatten()
-#
-#    # Create final image
-#    if det is None:
-#        image = np.zeros((x_npix,y_npix+4*postpix))
-#
-#    # Setup for datasec, oscansec
-#    dsec = []
-#    osec = []
-#
-#    # get the x and y binning factors...
-#    binning = head0['BINNING']
-#    if binning != '3,1':
-#        msgs.warn("This binning for HIRES might not work.  But it might..")
-#
-#
-#    binspatial, binspec = parse.parse_binning(head0['BINNING'])
-#
-#    # HIRES detectors
-#    nchip = 3
-#
-#
-#    if det is None:
-#        chips = range(nchip)
-#    else:
-#        chips = [det-1] # Indexing starts at 0 here
-#    # Loop
-#    for tt in chips:
-#        data, oscan = hires_read_1chip(hdu, tt+1)
-#
-#        # One detector??
-#        if det is not None:
-#            image = np.zeros((data.shape[0],data.shape[1]+oscan.shape[1]))
-#
-#        # Indexing
-#        x1, x2, y1, y2, o_x1, o_x2, o_y1, o_y2 = indexing(tt, postpix, det=det,xbin=binspatial, ybin=binspec)
-#
-#        # Fill
-#        image[y1:y2, x1:x2] = data
-#        image[o_y1:o_y2, o_x1:o_x2] = oscan
-#
-#        # Rawdatasec
-#        rawdatasec_img = np.zeros_like(image, dtype=int)
-#        rawdatasec_img[y1:y2-spectrim//binspec, x1:x2] = 1
-#        oscansec_img = np.zeros_like(image, dtype=int)
-#        oscansec_img[o_y1:o_y2-spectrim//binspec, o_x1:o_x2] = 1
-#
-#        # Sections
-#        #idsec = '[{:d}:{:d},{:d}:{:d}]'.format(y1, y2, x1, x2)
-#        #iosec = '[{:d}:{:d},{:d}:{:d}]'.format(o_y1, o_y2, o_x1, o_x2)
-#        #dsec.append(idsec)
-#        #osec.append(iosec)
-#
-#    # Return
-#    return image, head0, rawdatasec_img, oscansec_img, hdu
-#
-#
-#def grab_arctempl_dict(arc_meta:dict, det, ORDRS=None):
-#    # Read template file
-#    templ_table_file = os.path.join(
-#        resource_filename('pypeit', 'data'), 'arc_lines',
-#        'hires', 'hires_templ.dat')
-#    tbl = Table.read(templ_table_file, format='ascii')
-#    
-#    gd = tbl['XDISP'] == arc_meta['dispname']
-#    cut_tbl = tbl[gd]
-#
-#    # Unpack for convenience
-#    chip = cut_tbl['Chip']
-#    echa = cut_tbl['ECH']
-#    xda = cut_tbl['XDAng']
-#
-#    # Match
-#    # ;; Closest XDANGL irrespective of binning
-#    if ORDRS is None:
-#        # Tolerances on ECHA and XDA
-#        tols = [[0.05, 0.2], [0.05, 0.4], [0.1, 0.4]]
-#        for tol in tols:
-#            #; Best = EDANGL LT 0.05 and XDANGL LT 0.2
-#            mtch = np.where((np.abs(arc_meta['echangle']-echa) < tol[0]) &
-#                   (np.abs(arc_meta['xdangle']-xda) < tol[1]) &
-#                   (det == chip) )[0]
-#            if len(mtch) > 0:
-#                break
-#        if len(mtch) == 0:
-#            mtch = np.where(det == chip)[0]
-#    else: 
-#        msgs.error("NEED TO PORT THE IDL CODE BELOW")
-#    '''
-#      ;; Specified orders
-#      gdo = where(min(ordrs) GE ordi AND $
-#                  max(ordrs) LE ordf, ngdo)
-#      if ngdo EQ 0 then begin
-#         mtch = where(hires.cross EQ xdisp, nmt)
-#         gdo = where(min(ordrs) GE ordi[mtch] AND $
-#                     (max(ordrs) < maxo) LE ordf[mtch], ngdo)
-#         if ngdo EQ 0 then begin
-#            print, 'hires_arctempl:  No archived wavelengths fitting your' + $
-#                   'setup.  Contact JXP ASAP (xavier@ucolick.org)!'
-#            stop
-#         endif
-#         mtch = mtch[gdo]
-#      endif else mtch = gdo 
-#    '''
-#
-#    #; Closet ECHANGL
-#    imn = np.argmin(np.abs(arc_meta['echangle']-echa[mtch]))
-#    allx = np.where(np.abs(echa[mtch]-echa[mtch[imn]]) < 0.001)[0]
-#
-#    if len(allx) != 1: #;; Close XDANGL
-#        imne = np.argmin(np.abs(arc_meta['xdangle']-xda[mtch[allx]]))
-#        idx = mtch[allx[imne]]
-#    else:
-#        idx = mtch[allx[0]]
-#
-#    # Return the filename (without path)
-#    # Return
-#    return dict(cut_tbl[idx])
-#
-#def load_hires_template(template_file:str):
-#    dat_dict = readsav(template_file)
-#
-#    # Chop down to good orders
-#    n_orders = len(dat_dict['guess_ordr'])
-#    # Return
-#    return dat_dict['guess_ordr'][::-1], dat_dict['sv_aspec'][:n_orders,:][::-1, :].T

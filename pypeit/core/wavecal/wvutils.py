@@ -15,7 +15,7 @@ from scipy.signal import resample
 import scipy
 from scipy.optimize import curve_fit
 
-import astropy
+import astropy.stats
 from astropy.table import Table
 from astropy import convolution
 from astropy import constants
@@ -151,7 +151,7 @@ def get_wave_grid(waves=None, masks=None, wave_method='linear', iref=0, wave_gri
     Create a new wavelength grid for spectra to be rebinned and coadded.
 
     Args:
-        waves (`numpy.ndarray`_):
+        waves (`numpy.ndarray`_, optional):
             Set of N original wavelength arrays.  Shape is (nspec, nexp).
             Required unless wave_method='user_input' in which case it need not be passed in.
         masks (`numpy.ndarray`_, optional):
@@ -185,7 +185,7 @@ def get_wave_grid(waves=None, masks=None, wave_method='linear', iref=0, wave_gri
             coarser (spec_samp_fact > 1.0) by this sampling factor. This
             basically multiples the 'native' spectral pixels by
             ``spec_samp_fact``, i.e. units ``spec_samp_fact`` are pixels.
-        wave_grid_input (`numpy.ndarray`_):
+        wave_grid_input (`numpy.ndarray`_, optional):
             User input wavelength grid to be used with the 'user_input' wave_method. Shape is (nspec_input,)
 
     Returns:
@@ -204,7 +204,7 @@ def get_wave_grid(waves=None, masks=None, wave_method='linear', iref=0, wave_gri
     """
     c_kms = constants.c.to('km/s').value
 
-    if 'user_input' in wave_method:
+    if wave_method == 'user_input':
         wave_grid = wave_grid_input
     else:
         if masks is None:
@@ -218,7 +218,7 @@ def get_wave_grid(waves=None, masks=None, wave_method='linear', iref=0, wave_gri
         dwave_data, dloglam_data, resln_guess, pix_per_sigma = get_sampling(waves)
 
         # TODO: These tests of the string value should not use 'in', they should use ==
-        if ('velocity' in wave_method) or ('log10' in wave_method):
+        if wave_method in ['velocity', 'log10']:
             if dv is not None and dloglam is not None:
                 msgs.error('You can only specify dv or dloglam but not both')
             elif dv is not None:
@@ -232,7 +232,7 @@ def get_wave_grid(waves=None, masks=None, wave_method='linear', iref=0, wave_gri
             wave_grid, wave_grid_mid, dsamp = wavegrid(wave_grid_min, wave_grid_max, dloglam_pix,
                                  spec_samp_fact=spec_samp_fact, log10=True)
 
-        elif 'linear' in wave_method: # Constant Angstrom
+        elif wave_method == 'linear': # Constant Angstrom
             if dwave is not None:
                 dwave_pix = dwave
             else:
@@ -240,7 +240,7 @@ def get_wave_grid(waves=None, masks=None, wave_method='linear', iref=0, wave_gri
             # Generate wavelength array
             wave_grid, wave_grid_mid, dsamp = wavegrid(wave_grid_min, wave_grid_max, dwave_pix, spec_samp_fact=spec_samp_fact)
 
-        elif 'concatenate' in wave_method:  # Concatenate
+        elif wave_method == 'concatenate':  # Concatenate
             # Setup
             loglam = np.log10(waves) # This deals with padding (0's) just fine, i.e. they get masked..
             nexp = waves.shape[1]
@@ -263,14 +263,15 @@ def get_wave_grid(waves=None, masks=None, wave_method='linear', iref=0, wave_gri
             # Finish
             wave_grid = np.power(10.0,newloglam)
 
-        elif 'iref' in wave_method:
+        elif wave_method == 'iref': # Use the iref index wavelength array
             wave_tmp = waves[:, iref]
             wave_grid = wave_tmp[ wave_tmp > 1.0]
 
         else:
             msgs.error("Bad method for wavelength grid: {:s}".format(wave_method))
 
-    if ('iref' in wave_method) | ('concatenate' in wave_method) | ('user_input' in wave_method):
+
+    if wave_method in ['iref', 'concatenate', 'user_input']:
         wave_grid_diff = np.diff(wave_grid)
         wave_grid_diff = np.append(wave_grid_diff, wave_grid_diff[-1])
         wave_grid_mid = wave_grid + wave_grid_diff / 2.0
@@ -407,6 +408,7 @@ def zerolag_shift_stretch(theta, y1, y2):
 
 def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False, sigdetect = 10.0, fwhm = 4.0,
                      large_scale_fwhm_fact=20.0, large_scale_sigrej=20.0):
+
     """  Utility routine to smooth and apply a ceiling to spectra
 
     Args:
@@ -414,21 +416,23 @@ def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False, si
           Input spectrum, shape = (nspec,)
         smooth (int):
           Number of pixels to smooth by
-        percent_ceil (float):
+        percent_ceil (float, optional):
           Upper percentile threshold for thresholding positive and negative values
-        use_raw_arc (bool):
+        use_raw_arc (bool, optional):
           If True, use the raw arc and do not continuum subtract. Default = False
-        sigdetect (float):
+        sigdetect (float, optional):
           Peak finding threshold which is used if continuum subtraction will occur (i.e. if use_raw_arc = False)
-        fwhm (float):
+        fwhm (float, optional):
           Fwhm of arc lines for peak finding if continuum subtraction will occur (i.e. if use_raw_arc = False)
-        large_scale_fwhm_fact (float):
+        large_scale_fwhm_fact (float, optional):
           Number of fwhms to use as the width of the running median to take out large scale features from saturated
           lines.
-        large_scale_percentile (float):
+        large_scale_percentile (float, optional):
           Percentile of large_scale_smoothed arc to set as the threshold above which the arc is masked to zero.
 
     Returns:
+        y1_out (ndarray):
+          Spectrum with smoothing and ceiling applied, shape = (nspec,)
 
     """
 
@@ -650,45 +654,45 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
     # TODO JFH Is this a good idea? Stretch fitting seems to recover better values
     if corr_cc < -np.inf: # < cc_thresh:
         return -1, shift_cc, 1.0, corr_cc, shift_cc, corr_cc
+
+    bounds = [(shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]), stretch_mnmx]
+    # TODO Can we make the differential evolution run faster?
+    result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), tol=toler,
+                                                   bounds=bounds, disp=False, polish=True, seed=seed)
+    corr_de = -result.fun
+    shift_de = result.x[0]
+    stretch_de = result.x[1]
+    if not result.success:
+        msgs.warn('Fit for shift and stretch did not converge!')
+
+    if(corr_de < corr_cc):
+        # Occasionally the differential evolution crapps out and returns a value worse that the CC value. In these cases just use the cc value
+        msgs.warn('Shift/Stretch optimizer performed worse than simple x-correlation.' +
+                  'Returning simple x-correlation shift and no stretch:' + msgs.newline() +
+                  '   Optimizer: corr={:5.3f}, shift={:5.3f}, stretch={:7.5f}'.format(corr_de, shift_de,stretch_de) + msgs.newline() +
+                  '     X-corr : corr={:5.3f}, shift={:5.3f}'.format(corr_cc,shift_cc))
+        corr_out = corr_cc
+        shift_out = shift_cc
+        stretch_out = 1.0
+        result_out = 1
     else:
-        bounds = [(shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]), stretch_mnmx]
-        # TODO Can we make the differential evolution run faster?
-        result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), tol=toler,
-                                                       bounds=bounds, disp=False, polish=True, seed=seed)
-        corr_de = -result.fun
-        shift_de = result.x[0]
-        stretch_de = result.x[1]
-        if not result.success:
-            msgs.warn('Fit for shift and stretch did not converge!')
+        corr_out = corr_de
+        shift_out = shift_de
+        stretch_out = stretch_de
+        result_out = int(result.success)
 
-        if(corr_de < corr_cc):
-            # Occasionally the differential evolution crapps out and returns a value worse that the CC value. In these cases just use the cc value
-            msgs.warn('Shift/Stretch optimizer performed worse than simple x-correlation.' +
-                      'Returning simple x-correlation shift and no stretch:' + msgs.newline() +
-                      '   Optimizer: corr={:5.3f}, shift={:5.3f}, stretch={:7.5f}'.format(corr_de, shift_de,stretch_de) + msgs.newline() +
-                      '     X-corr : corr={:5.3f}, shift={:5.3f}'.format(corr_cc,shift_cc))
-            corr_out = corr_cc
-            shift_out = shift_cc
-            stretch_out = 1.0
-            result_out = 1
-        else:
-            corr_out = corr_de
-            shift_out = shift_de
-            stretch_out = stretch_de
-            result_out = int(result.success)
+    if debug:
+        x1 = np.arange(nspec)
+        y2_trans = shift_and_stretch(y2, shift_out, stretch_out)
+        plt.figure(figsize=(14, 6))
+        plt.plot(x1,y1, 'k-', drawstyle='steps', label ='inspec1, input spectrum')
+        plt.plot(x1,y2_trans, 'r-', drawstyle='steps', label = 'inspec2, reference shift & stretch')
+        plt.title('shift= {:5.3f}'.format(shift_out) +
+                  ',  stretch = {:7.5f}'.format(stretch_out) + ', corr = {:5.3f}'.format(corr_out))
+        plt.legend()
+        plt.show()
 
-        if debug:
-            x1 = np.arange(nspec)
-            y2_trans = shift_and_stretch(y2, shift_out, stretch_out)
-            plt.figure(figsize=(14, 6))
-            plt.plot(x1,y1, 'k-', drawstyle='steps', label ='inspec1, input spectrum')
-            plt.plot(x1,y2_trans, 'r-', drawstyle='steps', label = 'inspec2, reference shift & stretch')
-            plt.title('shift= {:5.3f}'.format(shift_out) +
-                      ',  stretch = {:7.5f}'.format(stretch_out) + ', corr = {:5.3f}'.format(corr_out))
-            plt.legend()
-            plt.show()
-
-        return result_out, shift_out, stretch_out, corr_out, shift_cc, corr_cc
+    return result_out, shift_out, stretch_out, corr_out, shift_cc, corr_cc
 
 
 

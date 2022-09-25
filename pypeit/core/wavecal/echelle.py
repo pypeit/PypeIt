@@ -28,7 +28,7 @@ def predict_ech_order_coverage(angle_fits_params, xd_angle_coeffs, xdisp, xdangl
             Table holding the arxiv data
         xdisp (str):
             Corss disperser. For HIRES this is either 'UV' or 'RED'
-        xdangle (float):\
+        xdangle (float):
             Cross-disperser angle.
         norders (int):
             Number of orders identified on the detector
@@ -40,6 +40,7 @@ def predict_ech_order_coverage(angle_fits_params, xd_angle_coeffs, xdisp, xdangl
             Array of order numbers for the predicted coverage.
     """
 
+    # Evaluate the fits for reddest order vs xdanalge which using hte values stored in the angle_fits_params
     xd_min, xd_max = angle_fits_params['xd_xmin'], angle_fits_params['xd_xmax']
     idisp = angle_fits_params['xdisp_vec'] == xdisp
     reddest_order_fit = int(np.round(
@@ -75,19 +76,16 @@ def predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, ech_angle, order_
 
     norders = order_vec.size
     wave_soln_guess = np.zeros((nspec, norders))
-    n_final = angle_fits_params['ech_n_final']
-
-    order_min, order_max = angle_fits_params['order_min'], angle_fits_params['order_max']
 
     xnspecmin1 = float(nspec - 1)
     xnspec = np.arange(nspec)/xnspecmin1
 
     for iord, order in enumerate(order_vec):
         # Index of the order in the total order vector used cataloguing the fits in the coeff arxiv
-        indx = order - order_min
-        coeff_predict = np.zeros(n_final + 1)
+        indx = order - angle_fits_params['order_min']
+        coeff_predict = np.zeros(angle_fits_params['ech_n_final'] + 1)
         # Evaluate the coefficients for this order and the current ech_angle
-        for ic in range(n_final + 1):
+        for ic in range(angle_fits_params['ech_n_final'] + 1):
             coeff_predict[ic] = fitting.evaluate_fit(
                 ech_angle_coeffs[indx, ic, :], angle_fits_params['ech_func'],
                 ech_angle, minx=angle_fits_params['ech_xmin'], maxx=angle_fits_params['ech_xmax'])
@@ -191,6 +189,7 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname, angle_fits_file, c
 
     nspec, norders = arcspec.shape
 
+    # Predict the echelle order coverage and wavelength solution
     order_vec_guess, wave_soln_guess_pad, arcspec_guess_pad = predict_ech_arcspec(
         angle_fits_file, composite_arc_file, echangle, xdangle, dispname, nspec, norders, pad=pad)
     norders_guess = order_vec_guess.size
@@ -199,6 +198,7 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname, angle_fits_file, c
     arccen_pad = np.zeros((nspec, norders_guess))
     arccen_pad[:nspec, :norders] = arcspec
 
+    # Cross correlate the data with the predicted arc spectrum
     shift_cc, corr_cc = wvutils.xcorr_shift(arccen_pad.flatten('F'), arcspec_guess_pad.flatten('F'),
                                             smooth=5.0, percent_ceil=80.0, sigdetect=10.0, fwhm=4.0, debug=debug)
     x_ordr_shift = shift_cc / nspec

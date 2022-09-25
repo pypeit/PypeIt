@@ -2015,6 +2015,8 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
            In case you want to specify the minimum wavelength in your wavelength grid, default=None computes from data.
         wave_grid_max: float, default=None
            In case you want to specify the maximum wavelength in your wavelength grid, default=None computes from data.
+        wave_grid_input: (float ndarray, optional)
+           User input wavelength grid. If provided the code will use this wavelength grid for the coadd. Shape (ngrid,)
         maxiter_reject: int, default=5
             maximum number of iterations for stacking and rejection. The code stops iterating either when
             the output mask does not change betweeen successive iterations or when maxiter_reject is reached.

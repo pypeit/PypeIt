@@ -734,11 +734,6 @@ class BuildWaveCalib:
         # Extract an arc down each slit
         self.arccen, self.wvc_bpm = self.extract_arcs()
 
-        # If this is not a fixed format echelle, determine the order numbers from the arc
-        #if self.spectrograph.pypeline == 'Echelle' and not self.spectrograph.ech_fixed_format:
-        #    self.orders, ordr_shift, spec_shift = self.get_echelle_orders()
-        #    self.slits.slitord_id = self.orders
-
         # Fill up the calibrations and generate QA
         self.wv_calib = self.build_wv_calib(self.arccen, self.par['method'], skip_QA=skip_QA)
 
@@ -762,45 +757,6 @@ class BuildWaveCalib:
         self.wv_calib['strpar'] = json.dumps(j_par)#, sort_keys=True, indent=4, separators=(',', ': '))
 
         return self.wv_calib
-
-    def get_echelle_orders(self, pad=3):
-        """
-
-        Args:
-            arccen:
-
-        Returns:
-
-        """
-        nspec, norders = self.arccen.shape
-
-        angle_fits_file = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms', 'hires_wvcalib',
-                                       'wvcalib_angle_fits.fits')
-        composite_arc_file = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms', 'hires_wvcalib',
-                                          'HIRES_composite_arc.fits')
-
-        order_vec_guess, wave_soln_guess, arcspec_guess = echelle.predict_ech_arcspec(
-            angle_fits_file, composite_arc_file, self.meta_dict['echangle'], self.meta_dict['xdangle'],
-            self.meta_dict['dispname'], nspec, norders, pad=pad)
-        norders_guess = order_vec_guess.size
-
-        #arctempl_dict = grab_arctempl_dict(self.meta_dict, self.det)
-        #arctempl_file = os.path.join(os.getenv('HIRES_CALIBS'), 'ARCS', arctempl_dict['Name'])
-        #guess_order, archive_arc = load_hires_template(arctempl_file)
-
-        # Since we padded the guess we need to pad the data to the same size
-        arccen_pad = np.zeros((nspec, norders_guess))
-        arccen_pad[:nspec, :norders] = self.arccen
-
-        shift_cc, corr_cc = wvutils.xcorr_shift(arccen_pad.flatten('F'), arcspec_guess.flatten('F'),
-                                                smooth=5.0, percent_ceil=80.0, sigdetect=10.0, fwhm=4.0, debug=True)
-        x_ordr_shift = shift_cc/nspec
-        msgs.info('Shift between predicted and true reddest order: {:.3f}'.format(x_ordr_shift + pad))
-        ordr_shift = int(np.round(shift_cc/nspec))
-        spec_shift = int(np.round(shift_cc - ordr_shift * nspec))
-
-        order_vec = order_vec_guess[-1] - ordr_shift + np.arange(norders)[::-1]
-        return order_vec, ordr_shift, spec_shift
 
 
 
