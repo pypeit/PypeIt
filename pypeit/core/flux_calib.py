@@ -678,11 +678,11 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
 
     Parameters
     ----------
-    wave: `numpy.ndarray`
+    wave: `numpy.ndarray`_
        Wavelength values in units of Angstrom. shape = (nspec,)
-    wave_zp: `numpy.ndarray`
+    wave_zp: `numpy.ndarray`_
        Zero point wavelength vector with shape = (nspec,)
-    zeropoint: `numpy.ndarray`
+    zeropoint: `numpy.ndarray`_
        Zeropoint, i.e. sensitivity function with shape = (nspec,)
     exptime: float
         Exposure time in unit of second
@@ -853,7 +853,8 @@ def fit_zeropoint(wave, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
             If True, the zeropoint was a polynomial and not a bspline
 
     Returns:
-        tuple: Four items:
+        tuple: 
+
           - zeropoint_data (`numpy.ndarray`_) -- Sensitivity function with same shape as wave (nspec,)
           - zeropoint_data_gpm (`numpy.ndarray`_) -- Good pixel mask for sensitivity function with same shape as wave (nspec,)
           - zeropoint_fit (`numpy.ndarray`_) -- Fitted sensitivity function with same shape as wave (nspec,)
@@ -1174,13 +1175,13 @@ def zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, z
 
     Parameters
     ----------
-    wave: `numpy.ndarray`
+    wave: `numpy.ndarray`_
         Wavelength array
-    zeropoint_data: `numpy.ndarray`
+    zeropoint_data: `numpy.ndarray`_
         Zeropoint data array
-    zeropoint_data_gpm: bool `numpy.ndarray`
+    zeropoint_data_gpm: bool `numpy.ndarray`_
         Good pixel mask array for zeropoint_data
-    zeropoint_fit: `numpy.ndarray`
+    zeropoint_fit: `numpy.ndarray`_
         Zeropoint fitting array
     zeropoint_fit_gpm: bool zeropoint_fit
         Good pixel mask array for zeropoint_fit

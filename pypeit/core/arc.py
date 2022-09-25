@@ -442,7 +442,7 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0, nonlinear_cou
     arcimg : `numpy.ndarray`_
             Image to extract the arc from. This should be an arcimage
             or perhaps a frame with night sky lines.
-    gpm (`numpy.ndarray`_, optional
+    gpm : `numpy.ndarray`_, optional
             Input mask image with same shape as arcimg. Convention
             True = good and False = bad. If None, all pixels are
             considered good.
@@ -669,7 +669,7 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
 
 def plot_detect_peaks(x, mph, mpd, threshold, edge, valley, ax, ind):
     """Plot results of the :class:`pypeit.core.arc.detect_peaks` function, see its help
-    for a descriptio nof the variables.
+    for a description of the variables.
 
     Only used for debugging
     """
@@ -704,14 +704,15 @@ def iter_continuum(spec, gpm=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_
     Routine to determine the continuum and continuum pixels in spectra with peaks.
 
     The general procedure is to:
+
       -  Detect positive "peaks" using :class:`pypeit.core.arc.detect_peaks`
       -  Optionally, detect negative "peaks" using :class:`pypeit.core.arc.detect_peaks`
       -  Mask these peaks
-      -  Generate a running medium with sampling width set by `cont_samp`
+      -  Generate a running median with sampling width set by `cont_samp`
       -  Fit this median continuum with a polynomial of order `npoly` (if set)
       -  Evaluate the fit (`npoly` is set) or interpolate the median at all locations
 
-    Note: This was developed for arc line spectra and may not function will in other
+    Note: This was developed for arc line spectra and may not function well in other
     contexts.
 
     Parameters
@@ -855,6 +856,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
                  nfind=None, bpm=None, verbose=False, debug=False, debug_peak_find=False):
     """
     Identify peaks in an input arc spectrum that satisfy a series of criteria:
+
       - Sufficient signal (set by sigdetect)
       - Peak amplitude < nonlinear_counts
       - Peak amplitude > input_thresh (optional)

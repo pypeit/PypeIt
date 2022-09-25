@@ -80,7 +80,7 @@ def renormalize_errors_qa(chi, maskchi, sigma_corr, sig_range = 6.0,
 
 def renormalize_errors(chi, mask, clip = 6.0, max_corr = 5.0, title = '', debug=False):
     """
-    Function for renormalizing errors. The distribbution of input chi (defined by chi = (data - model)/sigma) values is
+    Function for renormalizing errors. The distribution of input chi (defined by chi = (data - model)/sigma) values is
     analyzed, and a correction factor to the standard deviation sigma_corr is returned. This should be multiplied into
     the errors. In this way, a rejection threshold of i.e. 3-sigma, will always correspond to roughly the same percentile.
     This renormalization guarantees that rejection is not too agressive in cases where the empirical errors determined
@@ -102,7 +102,7 @@ def renormalize_errors(chi, mask, clip = 6.0, max_corr = 5.0, title = '', debug=
 
     Returns:
         tuple: (1) sigma_corr (float), corrected new sigma; (2) maskchi
-        (ndarray, bool): new mask (True=good) which indicates the values
+        (`numpy.ndarray`_, bool): new mask (True=good) which indicates the values
         used to compute the correction (i.e it includes clipping)
 
     """
@@ -986,7 +986,7 @@ def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5,
         fluxes (`numpy.ndarray`_): flux array of your spectra with the shape of (nspec, norder)
         ivars (`numpy.ndarray`_): ivar array of your spectra with the shape of (nspec, norder)
         masks (`numpy.ndarray`_): mask for your spectra with the shape of (nspec, norder)
-        min_good (float, optional): minmum fraction of the total number of good pixels needed for estimate the median ratio
+        min_good (float, optional): minimum fraction of the total number of good pixels needed for estimate the median ratio
         maxiters (int or float, optional): maximum iterations for rejecting outliers
         max_factor (float, optional): maximum scale factor
         sigrej (float, optional): sigma used for rejecting outliers
@@ -1122,7 +1122,7 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
     mask_ref: `numpy.ndarray`_
             Boolean mask for reference spectrum. True=Good. If not input, computed from inverse variance.
     min_good: float, optional, default = 0.05
-            minmum fraction of the total number of good pixels needed for estimate the median ratio
+            minimum fraction of the total number of good pixels needed for estimate the median ratio
     maxiters: int, optional
             maximum number of iterations for rejecting outliers used
             by the robust_median_ratio routine if median rescaling is
@@ -1157,7 +1157,7 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
     Multiple items: tuple
         (1) flux_scale: ndarray (nspec,) scaled spectrum; (2)
         ivar_scale: ndarray (nspec,) inverse variance for scaled
-        spectrum; (3) scale: ndarray (nspec,) scale factor applied to
+        spectrum; (3) scale: `numpy.ndarray`_ (nspec,) scale factor applied to
         the spectrum and inverse variance; (4) scale_method: str, method
         that was used to scale the spectra.
     """
@@ -1680,7 +1680,7 @@ def coadd_qa(wave, flux, ivar, nused, mask=None, tell=None,
 def update_errors(fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_stack, 
                   sn_clip=30.0, title='', debug=False):
     '''
-    Deterimine corrections to errors using the residuals of each exposure about a preliminary stack. This routine is
+    Determine corrections to errors using the residuals of each exposure about a preliminary stack. This routine is
     used as part of the iterative masking/stacking loop to determine the corrections to the errors used to reject pixels
     for the next iteration of the stack. The routine returns a set of corrections for each of the exposures that is input.
 
@@ -1714,7 +1714,7 @@ def update_errors(fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_stack,
             If True, show QA plots useful for debuggin.
 
     Returns:
-        tuple: Returns the following:
+        tuple: 
             - rejivars: `numpy.ndarray`_, (nspec, nexp): Updated inverse
               variances to be used in rejection
             - sigma_corrs, `numpy.ndarray`_, (nexp): Array of correction factors
@@ -1982,7 +1982,7 @@ def scale_spec_stack(wave_grid, waves, fluxes, ivars, masks, sn, weights,
         percentile fraction cut used for selecting minimum SNR cut for robust_median_ratio
     maxiter_scale: int, optional, default=5
         Maximum number of iterations performed for rescaling spectra.
-    scale_method: method, str, optional, default='auto' 
+    scale_method: str, optional, default='auto' 
         Options are auto, poly, median, none, or hand. Hand is not well tested.
         User can optionally specify the rescaling method. Default is to let the
         code determine this automitically which works well.
@@ -2238,14 +2238,14 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
             Options are auto, poly, median, none, or hand. Hand is not well tested.
             User can optionally specify the rescaling method. Default='auto' will let the
             code determine this automitically which works well.
-        hand_scale (ndarray, optional):
+        hand_scale (`numpy.ndarray`_, optional):
             Array of hand scale factors, not well tested
         sn_min_polyscale (float, optional):
             maximum SNR for perforing median scaling
         sn_min_medscale (float, optional):
             minimum SNR for perforing median scaling
-        const_weights (ndarray, optional):
-             Constant weight factors specif
+        const_weights (`numpy.ndarray`_, optional):
+             Constant weight factors specified
         maxiter_reject (int, optional):
             maximum number of iterations for stacking and rejection. The code stops iterating either when
             the output mask does not change betweeen successive iterations or when maxiter_reject is reached.
@@ -2261,19 +2261,19 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
             maximum number of pixels to reject in each iteration for djs_reject.
         nmaskedge (int, optional):
             Number of edge pixels to mask. This should be removed/fixed.
-        qafile (str): optional, default=None
+        qafile (str, optional): optional, default=None
             Root name for QA, if None, it will be determined from the outfile
-        outfile (str): optional, default=None,
+        outfile (str, optional): optional, default=None,
             Root name for QA, if None, it will come from the target name from the fits header.
-        debug (bool): optinoal, default=False,
+        debug (bool, optional): optinoal, default=False,
             Show all QA plots useful for debugging. Note there are lots of QA plots, so only set this to True if you want to inspect them all.
-        debug_scale (bool): optional, default=False
+        debug_scale (bool, optional): optional, default=False
             show interactive QA plots for the rescaling of the spectra
-        show (bool): optional, default=False,
+        show (bool, optional): optional, default=False,
              Show key QA plots or not
 
     Returns:
-        :obj:`tuple`: Returns the following:
+        :obj:`tuple`:
 
             - wave_grid_mid: `numpy.ndarray`_, (ngrid,): Wavelength grid (in Angstrom)
               evaluated at the bin centers, uniformly-spaced either in lambda or
@@ -2646,24 +2646,6 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None,
 # Coadd2d routines follow this point
 # ####################################################################
 
-#def det_error_msg(exten, sdet):
-#    """
-#    Utility routine for printing out an error message associated with choosing detectors.
-#
-#    Parameters
-#    ----------
-#    exten : int
-#       Extension number
-#    sdet :  int
-#       Detector number
-#
-#    """
-#    # Print out error message if extension is not found
-#    msgs.error("Extension {:s} for requested detector {:s} was not found.\n".format(exten)  +
-#               " Maybe you chose the wrong detector to coadd? "
-#               "Set with --det= or check file contents with pypeit_show_2dspec Science/spec2d_XXX --list".format(sdet))
-
-
 def get_wave_ind(wave_grid, wave_min, wave_max):
     """
     Utility routine used by coadd2d to determine the starting and ending indices of a wavelength grid.
@@ -3021,7 +3003,7 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack,
             thismask_stack, inmask_stack, sci_list, var_list):
     """
     Rebin a set of images and propagate variance onto a new spectral and spatial grid. This routine effectively
-    "recitifies" images using np.histogram2d which is extremely fast and effectiveluy performs
+    "recitifies" images using np.histogram2d which is extremely fast and effectively performs
     nearest grid point interpolation.
 
     Parameters
@@ -3055,13 +3037,13 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack,
 
     Returns
     -------
-    sci_list_out: list: The list of ndarray rebinned images
+    sci_list_out: list. The list of ndarray rebinned images
               with new shape (nimgs, nspec_rebin, nspat_rebin)
-    var_list_out: list: The list of ndarray rebinned variance
+    var_list_out: list. The list of ndarray rebinned variance
               images with correct error propagation with shape (nimgs,
               nspec_rebin, nspat_rebin)
     norm_rebin_stack: int ndarray, shape (nimgs, nspec_rebin,
-              nspat_rebin): An image stack indicating the integer
+              nspat_rebin). An image stack indicating the integer
               occupation number of a given pixel. In other words, this
               number would be zero for empty bins, one for bins that
               were populated by a single pixel, etc. This image takes
@@ -3069,7 +3051,7 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack,
               each image can be formed via outmask_rebin_satck =
               (norm_rebin_stack > 0)
     nsmp_rebin_stack: int ndarray, shape (nimgs, nspec_rebin,
-              nspat_rebin): An image stack indicating the integer
+              nspat_rebin). An image stack indicating the integer
               occupation number of a given pixel taking only the
               thismask_stack into account, but taking the inmask_stack
               into account. This image is mainly constructed for

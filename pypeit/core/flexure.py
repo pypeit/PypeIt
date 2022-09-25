@@ -133,6 +133,7 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20, excess_shft=
 
     Returns:
         dict: Contains flexure info.  Keys are:
+
           - polyfit= fit to the cross-correlation
           - shift= best shift in pixels
           - subpix= subpixelation of input spectrum
@@ -547,7 +548,7 @@ def spec_flexure_corrQA(ax, this_flex_dict, cntr, name):
 def spec_flexure_qa(slitords, bpm, basename, flex_list, 
                     specobjs=None, out_dir=None):
     """
-    Generate QA for the spectral felxutre calculation
+    Generate QA for the spectral flexure calculation
 
     Args:
         slitords (`numpy.ndarray`_):
@@ -848,7 +849,7 @@ def sky_em_residuals(wave:np.ndarray, flux:np.ndarray,
             Minimum number of pixels required to do a fit. Defaults to 20.
 
     Returns:
-        tuple: np.ndarray's -- sky line wavelength of good lines, wavelength offset, 
+        tuple of `numpy.ndarray`_ -- sky line wavelength of good lines, wavelength offset, 
             error in wavelength offset, sky line width,
             error in sky line width
     """
