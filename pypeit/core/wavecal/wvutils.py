@@ -374,7 +374,7 @@ def zerolag_shift_stretch(theta, y1, y2):
 
     """
     Utility function which is run by the differential evolution
-    optimizer in scipy. These is the fucntion we optimize.  It is the
+    optimizer in scipy. This is the fucntion we optimize.  It is the
     zero lag cross-correlation coefficient of spectrum with a shift and
     stretch applied.
 
@@ -396,13 +396,14 @@ def zerolag_shift_stretch(theta, y1, y2):
 
     """
 
-
     shift, stretch = theta
     y2_corr = shift_and_stretch(y2, shift, stretch)
     # Zero lag correlation
     corr_zero = np.sum(y1*y2_corr)
     corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2_corr*y2_corr))
     corr_norm = corr_zero/corr_denom
+    if corr_denom == 0.0:
+        msgs.error('The shifted and stretched spectrum is zero everywhere. Cross-correlation cannot be performed. There is likely a bug somewhere')
     return -corr_norm
 
 
@@ -441,7 +442,7 @@ def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False, si
 
     # Run line detection to get the continuum subtracted arc
     tampl1, tampl1_cont, tcent1, twid1, centerr1, w1, arc1, nsig1 = arc.detect_lines(inspec1, sigdetect=sigdetect, fwhm=fwhm)
-    if use_raw_arc == True:
+    if use_raw_arc:
         ampl = tampl1
         use_arc = inspec1
     else:
@@ -464,14 +465,18 @@ def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False, si
 
     # Mask out large scale features
     y1_ls = utils.fast_running_median(y1, fwhm * large_scale_fwhm_fact)
-    mean, med, stddev = astropy.stats.sigma_clipped_stats(y1_ls[y1_ls != 0.0], sigma_lower=3.0, sigma_upper=3.0, cenfunc='median',
-                                                          stdfunc=utils.nan_mad_std)
-    if (mean != 0.0) & (med != 0.0) & (stddev != 0.0):
-        y1_ls_bpm = (y1_ls > (med + large_scale_sigrej*stddev)) | ((y1_ls < (med - large_scale_sigrej*stddev)))
+    mean, med, stddev = astropy.stats.sigma_clipped_stats(
+        y1_ls[y1_ls != 0.0], sigma_lower=3.0, sigma_upper=3.0, cenfunc='median', stdfunc=utils.nan_mad_std)
+    y1_ls_hi = np.percentile(y1_ls[y1_ls != 0.0], 100.0*scipy.stats.norm.cdf(1.0))
+    y1_ls_lo = np.percentile(y1_ls[y1_ls != 0.0], 100.0*scipy.stats.norm.cdf(-1.0))
+    stddev_percentile = (y1_ls_hi - y1_ls_lo)/2.0
+    if (mean != 0.0) & (med != 0.0) & (stddev_percentile != 0.0):
+        y1_ls_bpm = (y1_ls > (med + large_scale_sigrej*stddev_percentile)) | ((y1_ls < (med - large_scale_sigrej*stddev_percentile)))
     else:
         y1_ls_bpm = np.zeros_like(y1_ls, dtype=bool)
 
     y1_out = y1*np.logical_not(y1_ls_bpm)
+
 
     return y1_out
 
@@ -609,7 +614,7 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
     Returns
     -------
     success: int
-        A flag indicating the exist status.  Values are:
+        A flag indicating the exit status.  Values are:
 
           - success = 1, shift and stretch performed via sucessful
             optimization
@@ -657,8 +662,7 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
 
     bounds = [(shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]), stretch_mnmx]
     # TODO Can we make the differential evolution run faster?
-    result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), tol=toler,
-                                                   bounds=bounds, disp=False, polish=True, seed=seed)
+    result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), tol=toler, bounds=bounds, disp=False, polish=True, seed=seed)
     corr_de = -result.fun
     shift_de = result.x[0]
     stretch_de = result.x[1]
