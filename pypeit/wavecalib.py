@@ -544,7 +544,7 @@ class BuildWaveCalib:
             # Identify the echelle orders
             order_vec, wave_soln_arxiv, arcspec_arxiv = echelle.identify_ech_orders(
                 arccen, self.meta_dict['echangle'], self.meta_dict['xdangle'], self.meta_dict['dispname'],
-                angle_fits_file, composite_arc_file, pad=3, debug=True)
+                angle_fits_file, composite_arc_file, pad=3, debug=False)
             # Put the order numbers in the slit object
             self.slits.ech_order = order_vec
             # TODO:

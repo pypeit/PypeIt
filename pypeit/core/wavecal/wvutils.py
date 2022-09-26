@@ -407,85 +407,79 @@ def zerolag_shift_stretch(theta, y1, y2):
     return -corr_norm
 
 
-def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False, sigdetect = 10.0, fwhm = 4.0,
-                     large_scale_fwhm_fact=20.0, large_scale_sigrej=20.0):
+def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_raw_arc=False, fwhm = 4.0):
 
-    """  Utility routine to smooth and apply a ceiling to spectra
+    """  Utility routine to create an synthetic arc spectrum for cross-correlation using the location of the peaks in
+    the input spectrum.
 
     Args:
         inspec1 (ndarray):
           Input spectrum, shape = (nspec,)
-        smooth (int):
-          Number of pixels to smooth by
-        percent_ceil (float, optional):
-          Upper percentile threshold for thresholding positive and negative values
+        sigdetect (float, optional, default=3.0):
+          Peak finding threshold for lines that will be used to create the synthetic xcorr_arc
+        sig_ceil (float, optional, default = 10.0):
+          Significance threshold for peaks that will be used to determine the line amplitude clipping threshold.
+          For peaks with significance > sig_ceil, the code will find the amplitude corresponding to
+          perecent_ceil, and this will be the clipping threshold.
+        percent_ceil (float, optional, default=50.0):
+          Upper percentile threshold for thresholding positive and negative values. If set to None, no thresholding
+          will be performed.
         use_raw_arc (bool, optional):
-          If True, use the raw arc and do not continuum subtract. Default = False
-        sigdetect (float, optional):
-          Peak finding threshold which is used if continuum subtraction will occur (i.e. if use_raw_arc = False)
+          If True, use amplitudes from the raw arc, i.e. do not continuum subtract. Default = False
         fwhm (float, optional):
-          Fwhm of arc lines for peak finding if continuum subtraction will occur (i.e. if use_raw_arc = False)
-        large_scale_fwhm_fact (float, optional):
-          Number of fwhms to use as the width of the running median to take out large scale features from saturated
-          lines.
-        large_scale_percentile (float, optional):
-          Percentile of large_scale_smoothed arc to set as the threshold above which the arc is masked to zero.
+          Fwhm of arc lines. Used for peak finding and to assign a fwhm in the xcorr_arc.
 
     Returns:
-        y1_out (ndarray):
-          Spectrum with smoothing and ceiling applied, shape = (nspec,)
+        xcorr_arc (ndarray):
+          Synthetic arc spectrum to be used for cross-correlations, shape = (nspec,)
 
     """
 
-    # ToDO can we improve the logic here. Technically if use_raw_arc = True and perecent_ceil=None
-    # we don't need to peak find or continuum subtract, but this makes the code pretty uggly.
 
-    # Run line detection to get the continuum subtracted arc
+    # Run line detection to get the locations and amplitudes of the lines
     tampl1, tampl1_cont, tcent1, twid1, centerr1, w1, arc1, nsig1 = arc.detect_lines(inspec1, sigdetect=sigdetect, fwhm=fwhm)
-    if use_raw_arc:
-        ampl = tampl1
-        use_arc = inspec1
-    else:
-        ampl = tampl1_cont
-        use_arc = arc1
+
+    ampl = tampl1 if use_raw_arc else tampl1_cont
 
     if percent_ceil is not None and (ampl.size > 0):
         # If this is set, set a ceiling on the greater > 10sigma peaks
-        ceil_upper = np.percentile(ampl[ampl >= 0.0], percent_ceil) if np.any(ampl >= 0.0) else 0.0
-        # Set a lower ceiling on negative fluctuations
-        ceil_lower = np.percentile(ampl[ampl < 0.0], percent_ceil) if np.any(ampl < 0.0) else 0.0
-        spec1 = np.clip(use_arc, ceil_lower, ceil_upper)
+        ampl_pos = (ampl >= 0.0) & (nsig1 > sig_ceil)
+        ceil_upper = np.percentile(ampl[ampl_pos], percent_ceil) if np.any(ampl_pos) else np.inf
     else:
-        spec1 = np.copy(use_arc)
+        ceil_upper = np.inf
 
-    if smooth is not None:
-        y1 = scipy.ndimage.filters.gaussian_filter(spec1, smooth)
-    else:
-        y1 = np.copy(spec1)
+    ampl_clip = np.clip(ampl, None, ceil_upper)
 
-    # Mask out large scale features
-    y1_ls = utils.fast_running_median(y1, fwhm * large_scale_fwhm_fact)
-    mean, med, stddev = astropy.stats.sigma_clipped_stats(
-        y1_ls[y1_ls != 0.0], sigma_lower=3.0, sigma_upper=3.0, cenfunc='median', stdfunc=utils.nan_mad_std)
-    y1_ls_hi = np.percentile(y1_ls[y1_ls != 0.0], 100.0*scipy.stats.norm.cdf(1.0))
-    y1_ls_lo = np.percentile(y1_ls[y1_ls != 0.0], 100.0*scipy.stats.norm.cdf(-1.0))
-    stddev_percentile = (y1_ls_hi - y1_ls_lo)/2.0
-    if (mean != 0.0) & (med != 0.0) & (stddev_percentile != 0.0):
-        y1_ls_bpm = (y1_ls > (med + large_scale_sigrej*stddev_percentile)) | ((y1_ls < (med - large_scale_sigrej*stddev_percentile)))
-    else:
-        y1_ls_bpm = np.zeros_like(y1_ls, dtype=bool)
+    # Make a fake arc by plopping down Gaussians at the location of every centroided line we found
+    xcorr_arc = np.zeros_like(inspec1)
+    spec_vec = np.arange(inspec1.size)
+    for ind in range(ampl_clip.size):
+        # If just the width is a bad, use the width implied by the fwhm
+        #sigma = twid1[ind] if twid1[ind] != -999.0 else fwhm/2.35
+        sigma = fwhm/2.35
+        if tcent1[ind] == -999.0:
+            continue
+        else:
+            xcorr_arc += ampl_clip[ind]*np.exp(-0.5*((spec_vec - tcent1[ind])/sigma)**2)
 
-    y1_out = y1*np.logical_not(y1_ls_bpm)
+    #for ind in w1:
+    #    # If just the width is a bad, use the width implied by the fwhm
+    #    xcorr_arc += ampl_clip[ind]*np.exp(-0.5*((spec_vec - tcent1[ind])/twid1[ind])**2)
+
+    #plt.plot(xcorr_arc, drawstyle='steps-mid', color='black', label='xcorr_arc')
+    #plt.plot(inspec1, drawstyle='steps-mid', color='green', label='input spectrum')
+    #plt.show()
+
+    return xcorr_arc
 
 
-    return y1_out
 
 
 
 # ToDO can we speed this code up? I've heard numpy.correlate is faster. Someone should investigate optimization. Also we don't need to compute
 # all these lags.
-def xcorr_shift(inspec1,inspec2, smooth=1.0, percent_ceil=80.0, use_raw_arc=False, sigdetect=10.0, fwhm=4.0,
-                do_smooth_ceil=True, debug=False):
+def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetect=5.0, sig_ceil=10.0, fwhm=4.0,
+                do_xcorr_arc=True, debug=False):
 
     """ Determine the shift inspec2 relative to inspec1.  This routine computes the shift by finding the maximum of the
     the cross-correlation coefficient. The convention for the shift is that positive shift means inspec2 is shifted to the right
@@ -497,9 +491,12 @@ def xcorr_shift(inspec1,inspec2, smooth=1.0, percent_ceil=80.0, use_raw_arc=Fals
         inspec2 : ndarray
             Spectrum for which the shift and stretch are computed such
             that it will match inspec1
-        smooth: float, default=1.0
-            Gaussian smoothing in pixels applied to both spectra for the
-            computations. Default is 5.0
+        sigdetect (float, optional, default=3.0):
+          Peak finding threshold for lines that will be used to create the synthetic xcorr_arc
+        sig_ceil (float, optional, default = 10.0):
+          Significance threshold for peaks that will be used to determine the line amplitude clipping threshold.
+          For peaks with significance > sig_ceil, the code will find the amplitude corresponding to
+          perecent_ceil, and this will be the clipping threshold.
         percent_ceil: float, default=90.0
             Apply a ceiling to the input spectra at the percent_ceil
             percentile level of the distribution of peak amplitudes.
@@ -510,9 +507,9 @@ def xcorr_shift(inspec1,inspec2, smooth=1.0, percent_ceil=80.0, use_raw_arc=Fals
         use_raw_arc: bool, default = False
             If this parameter is True the raw arc will be used rather
             than the continuum subtracted arc
-        do_smooth_ceil: bool, default = True
-            If this parameter is True the arc will be clipped, smoothed, and large scale features will be removed.
-            If the arc has already been processed by smooth_ceil_cont, then set this to False
+        do_xcorr_arc: bool, default = True
+            If this parameter is True, peak finding will be performed and a synthetic arc will be created to be used for
+            the cross-correlations.  If a synthetic arc has already been created by get_xcorr_arc, then set this to False
 
         debug: boolean, default = False
 
@@ -525,9 +522,9 @@ def xcorr_shift(inspec1,inspec2, smooth=1.0, percent_ceil=80.0, use_raw_arc=Fals
 
     """
 
-    if do_smooth_ceil:
-        y1 = smooth_ceil_cont(inspec1,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc, sigdetect = sigdetect, fwhm = fwhm)
-        y2 = smooth_ceil_cont(inspec2,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc, sigdetect = sigdetect, fwhm = fwhm)
+    if do_xcorr_arc:
+        y1 = get_xcorr_arc(inspec1, percent_ceil=percent_ceil, use_raw_arc=use_raw_arc, sigdetect=sigdetect, sig_ceil=sig_ceil, fwhm=fwhm)
+        y2 = get_xcorr_arc(inspec2, percent_ceil=percent_ceil, use_raw_arc=use_raw_arc, sigdetect=sigdetect, sig_ceil=sig_ceil, fwhm=fwhm)
     else:
         y1, y2 = inspec1, inspec2
 
@@ -553,9 +550,9 @@ def xcorr_shift(inspec1,inspec2, smooth=1.0, percent_ceil=80.0, use_raw_arc=Fals
 
     return lag_max[0], corr_max[0]
 
-def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ceil=80.0, use_raw_arc=False,
-                        shift_mnmx=(-0.05,0.05), stretch_mnmx=(0.95,1.05), sigdetect = 10.0, fwhm = 4.0,debug=False,
-                        toler=1e-5, seed = None):
+def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use_raw_arc=False,
+                        shift_mnmx=(-0.2,0.2), stretch_mnmx=(0.95,1.05), sigdetect = 5.0, sig_ceil=10.0,
+                        fwhm = 4.0, debug=False, toler=1e-5, seed = None):
 
     """ Determine the shift and stretch of inspec2 relative to inspec1.  This routine computes an initial
     guess for the shift via maximimizing the cross-correlation. It then performs a two parameter search for the shift and stretch
@@ -582,9 +579,13 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
         default cc_thresh =-1.0 means shift/stretch is always attempted
         since the cross correlation coeficcient cannot be less than
         -1.0.
-    smooth: float, default
-        Gaussian smoothing in pixels applied to both spectra for the computations. Default is 5.0
-    percent_ceil: float, default=90.0
+    sigdetect (float, optional, default=3.0):
+        Peak finding threshold for lines that will be used to create the synthetic xcorr_arc
+    sig_ceil (float, optional, default = 10.0):
+        Significance threshold for peaks that will be used to determine the line amplitude clipping threshold.
+        For peaks with significance > sig_ceil, the code will find the amplitude corresponding to
+        perecent_ceil, and this will be the clipping threshold.
+    percent_ceil: float, default=80.0
         Apply a ceiling to the input spectra at the percent_ceil
         percentile level of the distribution of peak amplitudes.  This
         prevents extremely strong lines from completely dominating the
@@ -649,20 +650,25 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
 
     """
 
+
     nspec = inspec1.size
 
-    y1 = smooth_ceil_cont(inspec1,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc, sigdetect = sigdetect, fwhm = fwhm)
-    y2 = smooth_ceil_cont(inspec2,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc, sigdetect = sigdetect, fwhm = fwhm)
+    y1 = get_xcorr_arc(inspec1, percent_ceil=percent_ceil, use_raw_arc=use_raw_arc, sigdetect=sigdetect,
+                       sig_ceil=sig_ceil, fwhm=fwhm)
+    y2 = get_xcorr_arc(inspec2, percent_ceil=percent_ceil, use_raw_arc=use_raw_arc, sigdetect=sigdetect,
+                       sig_ceil=sig_ceil, fwhm=fwhm)
+
 
     # Do the cross-correlation first and determine the initial shift
-    shift_cc, corr_cc = xcorr_shift(y1, y2, smooth = None, percent_ceil = None, do_smooth_ceil=False, sigdetect = sigdetect, fwhm=fwhm, debug = debug)
+    shift_cc, corr_cc = xcorr_shift(y1, y2, percent_ceil = None, do_xcorr_arc=False, sigdetect = sigdetect, fwhm=fwhm, debug = debug)
     # TODO JFH Is this a good idea? Stretch fitting seems to recover better values
-    if corr_cc < -np.inf: # < cc_thresh:
-        return -1, shift_cc, 1.0, corr_cc, shift_cc, corr_cc
+    #if corr_cc < -np.inf: # < cc_thresh:
+    #    return -1, shift_cc, 1.0, corr_cc, shift_cc, corr_cc
 
     bounds = [(shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]), stretch_mnmx]
+    x0_guess = np.array([shift_cc, 1.0])
     # TODO Can we make the differential evolution run faster?
-    result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), tol=toler, bounds=bounds, disp=False, polish=True, seed=seed)
+    result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), x0=x0_guess, tol=toler, bounds=bounds, disp=False, polish=True, seed=seed)
     corr_de = -result.fun
     shift_de = result.x[0]
     stretch_de = result.x[1]
@@ -689,8 +695,8 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
         x1 = np.arange(nspec)
         y2_trans = shift_and_stretch(y2, shift_out, stretch_out)
         plt.figure(figsize=(14, 6))
-        plt.plot(x1,y1, 'k-', drawstyle='steps', label ='inspec1, input spectrum')
-        plt.plot(x1,y2_trans, 'r-', drawstyle='steps', label = 'inspec2, reference shift & stretch')
+        plt.plot(x1,y1/y1.max(), 'k-', drawstyle='steps', label ='inspec1, input spectrum')
+        plt.plot(x1,y2_trans/y2_trans.max(), 'r-', drawstyle='steps', label = 'inspec2, reference shift & stretch')
         plt.title('shift= {:5.3f}'.format(shift_out) +
                   ',  stretch = {:7.5f}'.format(stretch_out) + ', corr = {:5.3f}'.format(corr_out))
         plt.legend()

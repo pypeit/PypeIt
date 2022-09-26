@@ -199,8 +199,9 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname, angle_fits_file, c
     arccen_pad[:nspec, :norders] = arcspec
 
     # Cross correlate the data with the predicted arc spectrum
-    shift_cc, corr_cc = wvutils.xcorr_shift(arccen_pad.flatten('F'), arcspec_guess_pad.flatten('F'),
-                                            smooth=5.0, percent_ceil=80.0, sigdetect=10.0, fwhm=4.0, debug=debug)
+    # TODO Does it make sense for xcorr_shift to continuum subtract here?
+    shift_cc, corr_cc = wvutils.xcorr_shift(arccen_pad.flatten('F'), arcspec_guess_pad.flatten('F'), percent_ceil=50.0,
+                                            sigdetect=5.0, sig_ceil=10.0, fwhm=4.0, debug=debug)
     x_ordr_shift = shift_cc / nspec
     ordr_shift = int(np.round(shift_cc / nspec))
     spec_shift = int(np.round(shift_cc - ordr_shift * nspec))

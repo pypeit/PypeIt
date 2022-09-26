@@ -912,7 +912,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
       The continuum sutracted arc used to find detections.
     nsig : `numpy.ndarray`_
       The significance of each line detected relative to the 1sigma
-      variation in the continuum subtracted arc in the the line free
+      variation in the continuum subtracted arc in the  line free
       region. Bad lines are assigned a significance of -1, since they
       don't have an amplitude fit
     """
@@ -982,7 +982,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
                 & (np.abs(tcent-pixt) < fwhm*0.75)
 
     # Get the indices of the good measurements
-    ww = np.where(good)
+    ww = np.where(good)[0]
     # Compute the significance of each line, set the significance of bad lines to be -1
     nsig = (tampl - med)/stddev
 
@@ -999,7 +999,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
             tcent = tcent[ikeep]
             twid = twid[ikeep]
             centerr = centerr[ikeep]
-            ww = np.where(good[ikeep])
+            ww = np.where(good[ikeep])[0]
             nsig = nsig[ikeep]
             good = good[ikeep]
 
