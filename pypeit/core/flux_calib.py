@@ -402,7 +402,8 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
     return std_dict
 
 
-def load_extinction_data(longitude, latitude, toler=5. * units.deg):
+def load_extinction_data(longitude, latitude, extinctfilepar,
+                         toler=5. * units.deg):
     """
     Find the best extinction file to use, based on longitude and latitude
     Loads it and returns a Table
@@ -410,6 +411,9 @@ def load_extinction_data(longitude, latitude, toler=5. * units.deg):
     Parameters
     ----------
     longitude, latitude: Geocentric coordinates in degrees (floats).
+    extinctfilepar : (str)
+        The sensfunc['extinct_file'] parameter, used to determine
+        which extinction file to load.
     toler : Angle, optional
         Tolerance for matching detector to site (5 deg)
 
@@ -418,30 +422,48 @@ def load_extinction_data(longitude, latitude, toler=5. * units.deg):
     ext_file : Table
         astropy Table containing the 'wavelength', 'extinct' data for AM=1.
     """
-    # Mosaic coord
-    mosaic_coord = coordinates.SkyCoord(longitude, latitude, frame='gcrs', unit=units.deg)
-    # Read list
-    extinct_summ = os.path.join(data.Paths.extinction, 'README')
-    extinct_files = table.Table.read(extinct_summ, comment='#', format='ascii')
-    # Coords
-    ext_coord = coordinates.SkyCoord(extinct_files['Lon'], extinct_files['Lat'], frame='gcrs',
-                                     unit=units.deg)
-    # Match
-    idx, d2d, d3d = coordinates.match_coordinates_sky(mosaic_coord, ext_coord, nthneighbor=1)
-    if d2d < toler:
-        extinct_file = extinct_files[int(idx)]['File']
-        msgs.info("Using {:s} for extinction corrections.".format(extinct_file))
+    # Default Behavior
+    if extinctfilepar == 'closest':
+        # Observation coordinates
+        obs_coord = coordinates.SkyCoord(longitude, latitude, frame='gcrs', unit=units.deg)
+        # Read list
+        extinct_summ = os.path.join(data.Paths.extinction, 'README')
+        extinct_files = table.Table.read(extinct_summ, comment='#', format='ascii')
+        # Coords
+        ext_coord = coordinates.SkyCoord(extinct_files['Lon'], extinct_files['Lat'], frame='gcrs',
+                                        unit=units.deg)
+        # Match
+        idx, d2d, _ = coordinates.match_coordinates_sky(obs_coord, ext_coord, nthneighbor=1)
+        if d2d < toler:
+            extinct_file = extinct_files[int(idx)]['File']
+            msgs.info(f"Using {extinct_file} for extinction corrections.")
+        else:
+            # Crash with a helpful error message
+            msgs.warn(f"No observatory extinction file was found within {toler}{msgs.newline()}"
+                      f"of observation at lon = {longitude:.1f} lat = {latitude:.1f}  You may{msgs.newline()}"
+                      f"select an included extinction file (e.g., KPNO) for use by{msgs.newline()}"
+                      f"adding the following to the Sensitivity Input File{msgs.newline()}"
+                      "(for pypeit_sensfunc):")
+            msgs.pypeitpar(['sensfunc', 'UVIS', 'extinct_file = kpnoextinct.dat'])
+            msgs.warn("or the following to the Flux File (for pypeit_flux_calib):")
+            msgs.pypeitpar(['fluxcalib', 'extinct_file = kpnoextinct.dat'])
+            msgs.error(f"See instructions at{msgs.newline()}"
+                       f"https://pypeit.readthedocs.io/en/latest/fluxing.html#extinction-correction{msgs.newline()}"
+                       f"for using extinction files and how to install a user-supplied{msgs.newline()}"
+                       "file, if desired.")
+
+    # User-Supplied Extinction File
     else:
-        msgs.warn("No file found for extinction corrections.  Applying none")
-        msgs.warn("You should generate a site-specific file")
-        return None
+        extinct_file = extinctfilepar
+
     # Read
-    extinct = table.Table.read(os.path.join(data.Paths.extinction, extinct_file),
+    extinct = table.Table.read(data.get_extinctfile_filepath(extinct_file),
                                comment='#', format='ascii', names=('iwave', 'mag_ext'))
     wave = table.Column(np.array(extinct['iwave']) * units.AA, name='wave')
     extinct.add_column(wave)
     # Return
     return extinct[['wave', 'mag_ext']]
+
 
 def extinction_correction(wave, airmass, extinct):
     """
@@ -546,7 +568,7 @@ def find_standard(specobj_list):
 #    """
 
 
-def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, longitude, latitude, ech_orders=None,
+def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, longitude, latitude, extinctfilepar, ech_orders=None,
              mask_abs_lines=True, polyorder=4, balm_mask_wid=10.0, nresln=20., resolution=3000.,
              trans_thresh=0.9,polycorrect=True, polyfunc=False, debug=False):
     """
@@ -576,6 +598,9 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
             Telescope longitude, used for extinction correction.
         latitude (float):
             Telescope latitude, used for extinction correction
+        extinctfilepar (str):
+            [sensfunc][UVIS][extinct_file] parameter
+            Used for extinction correction
         ech_orders (int `numpy.ndarray`_):
             If passed the echelle orders will be added to the meta_table. ech_orders must be a numpy array of integers
             with the shape (norders,) giving the order numbers
@@ -619,7 +644,7 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
     for iord in range(norders):
         # Prepare some arrays for the zero point fit
         Nlam_star, Nlam_star_ivar, gpm_star = counts2Nlam(wave_arr[:, iord], counts_arr[:, iord], ivar_arr[:, iord],
-                                                             mask_arr[:,iord], exptime, airmass, longitude, latitude)
+                                                             mask_arr[:,iord], exptime, airmass, longitude, latitude, extinctfilepar)
         # Fit the zeropoint
         zeropoint_data[:, iord], zeropoint_data_gpm[:, iord], zeropoint_fit[:, iord], zeropoint_fit_gpm[:, iord], =\
             fit_zeropoint(wave_arr[:,iord], Nlam_star, Nlam_star_ivar, gpm_star, std_dict,
@@ -655,7 +680,7 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
     return meta_table, out_table
 
 def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extinct_correct=False,
-                         airmass=None, longitude=None, latitude=None, extrap_sens=False):
+                         airmass=None, longitude=None, latitude=None, extinctfilepar=None, extrap_sens=False):
     """
     Get the final sensitivity function factor that will be multiplied into a spectrum in units of counts to flux calibrate it.
     This code interpolates the sensitivity function and can also multiply in extinction and telluric corrections.
@@ -682,6 +707,9 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
         latitude:
             latitude in degree for observatory
             Required  for extinction correction
+        extinctfilepar (str):
+                [sensfunc][UVIS][extinct_file] parameter
+                Used for extinction correction
         extrap_sens (bool, optional):
             Extrapolate the sensitivity function (instead of crashing out)
 
@@ -733,7 +761,7 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
         # Apply Extinction if optical bands
         msgs.info("Applying extinction correction")
         msgs.warn("Extinction correction applyed only if the spectra covers <10000Ang.")
-        extinct = load_extinction_data(longitude, latitude)
+        extinct = load_extinction_data(longitude, latitude, extinctfilepar)
         ext_corr = extinction_correction(wave * units.AA, airmass, extinct)
         senstot = sensfunc_obs * ext_corr
     else:
@@ -744,7 +772,7 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
     return senstot/exptime/delta_wave
 
 
-def counts2Nlam(wave, counts, counts_ivar, counts_mask, exptime, airmass, longitude, latitude):
+def counts2Nlam(wave, counts, counts_ivar, counts_mask, exptime, airmass, longitude, latitude, extinctfilepar):
     """
     Prepare units of flux calibration and apply extinction correction
 
@@ -765,6 +793,10 @@ def counts2Nlam(wave, counts, counts_ivar, counts_mask, exptime, airmass, longit
             Telescope longitude, used for extinction correction.
         latitude (float):
             Telescope latitude, used for extinction correction
+        extinctfilepar (str):
+            [sensfunc][UVIS][extinct_file] parameter
+            Used for extinction correction
+
 
     Returns:
         Nlam_star (`numpy.ndarray`_): counts/second/Angstrom
@@ -780,7 +812,7 @@ def counts2Nlam(wave, counts, counts_ivar, counts_mask, exptime, airmass, longit
 
     # Extinction correction
     msgs.info("Applying extinction correction")
-    extinct = load_extinction_data(longitude,latitude)
+    extinct = load_extinction_data(longitude,latitude, extinctfilepar)
     ext_corr = extinction_correction(wave * units.AA, airmass, extinct)
     # Correct for extinction
     Nlam_star = Nlam_star * ext_corr
