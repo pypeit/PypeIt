@@ -6,7 +6,6 @@ that can be used with the PypeIt scripts.
 .. include:: ../include/links.rst
 """
 
-import datetime
 import os
 import numpy as np
 from configobj import ConfigObj
@@ -214,31 +213,3 @@ def get_slits(mkey, mdir):
                                                             master_key=mkey,
                                                             master_dir=mdir)
     return slittrace.SlitTraceSet.from_file(slit_masterframe_name)
-
-
-def set_verbosity_and_logfile(scriptname, verbosity):
-    """
-    Set the verbosity level and (optionally) logfile for a script run.
-
-    PypeIt scripts (with the exception of run_pypeit) default to verbosity
-    level = 1.  For certain scripts, having a more verbose output (with an
-    accompanying log file) would be helpful for debugging purposes.  This
-    function provides the ability to set the ``msgs`` verbosity and create
-    a log file for those certain scripts.
-
-    Log filenames have the form scriptname_YYYYMMDD_HHMM.log to differentiate
-    between different runs of the script.  Timestamp is UT.
-
-    Args:
-        scriptname (:obj:`str`, optional):
-            The name of the calling script for use in the logfile
-        verbosity (:obj:`int`, optional):
-            The requested verbosity, passed in from the argument parser.
-            Verbosity level between 0 [none] and 2 [all]
-    """
-    # Create a UT timestamp (to the minute) for the log filename
-    timestamp = datetime.datetime.utcnow().strftime("%Y%m%d-%H%M")
-    # Create a logfile only if verbosity == 2
-    logname = f"{scriptname}_{timestamp}.log" if verbosity == 2 else None
-    # Set the verbosity in msgs
-    msgs.reset(log=logname, verbosity=verbosity)

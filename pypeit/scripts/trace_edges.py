@@ -61,18 +61,18 @@ class TraceEdges(scriptbase.ScriptBase):
         import time
         import os
         import numpy as np
+        from pypeit import msgs
         from pypeit.spectrographs.util import load_spectrograph
         from pypeit import edgetrace
         from pypeit import slittrace
         from pypeit.pypeit import PypeIt
         from pypeit.images import buildimage
         from pypeit import masterframe
-        from pypeit.scripts.utils import set_verbosity_and_logfile
 
         from IPython import embed
 
         # Set the verbosity, and create a logfile if verbosity == 2
-        set_verbosity_and_logfile('trace_edges', args.verbosity)
+        msgs.set_verbosity_and_logfile('trace_edges', args.verbosity)
 
         if args.pypeit_file is not None:
             pypeit_file = args.pypeit_file

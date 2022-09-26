@@ -14,7 +14,6 @@ from pypeit.spectrographs.util import load_spectrograph
 from pypeit import fluxcalibrate
 from pypeit.par import pypeitpar
 from pypeit.scripts import scriptbase
-from pypeit.scripts.utils import set_verbosity_and_logfile
 from pypeit.sensfilearchive import SensFileArchive
 
 
@@ -75,7 +74,7 @@ class FluxCalib(scriptbase.ScriptBase):
         """ Runs fluxing steps
         """
         # Set the verbosity, and create a logfile if verbosity == 2
-        set_verbosity_and_logfile('flux_calib', args.verbosity)
+        msgs.set_verbosity_and_logfile('flux_calib', args.verbosity)
 
         # Load the file
         fluxFile = inputfiles.FluxFile.from_file(args.flux_file)

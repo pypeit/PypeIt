@@ -8,13 +8,11 @@ from IFU instruments into a 3D cube with a defined WCS.
 import time
 from pypeit import msgs
 from pypeit import par
-from pypeit import io
 from pypeit import inputfiles
 from pypeit import utils
 from pypeit.core.datacube import coadd_cube
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.scripts import scriptbase
-from pypeit.scripts.utils import set_verbosity_and_logfile
 
 
 class CoAddDataCube(scriptbase.ScriptBase):
@@ -35,7 +33,7 @@ class CoAddDataCube(scriptbase.ScriptBase):
     @staticmethod
     def main(args):
         # Set the verbosity, and create a logfile if verbosity == 2
-        set_verbosity_and_logfile('coadd_datacube', args.verbosity)
+        msgs.set_verbosity_and_logfile('coadd_datacube', args.verbosity)
 
         # Check that a file has been provided
         if args.file is None:

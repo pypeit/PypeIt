@@ -19,7 +19,6 @@ from pypeit import coadd1d
 from pypeit import inputfiles
 from pypeit.par import pypeitpar
 from pypeit.scripts import scriptbase
-from pypeit.scripts.utils import set_verbosity_and_logfile
 from pypeit.spectrographs.util import load_spectrograph
 
 
@@ -174,7 +173,7 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
         """ Runs the 1d coadding steps
         """
         # Set the verbosity, and create a logfile if verbosity == 2
-        set_verbosity_and_logfile('coadd_1dspec', args.verbosity)
+        msgs.set_verbosity_and_logfile('coadd_1dspec', args.verbosity)
 
         # Load the file
         #config_lines, spec1dfiles, objids = read_coaddfile(args.coadd1d_file)

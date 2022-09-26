@@ -79,10 +79,9 @@ class SensFunc(scriptbase.ScriptBase):
         from pypeit.par import pypeitpar
         from pypeit import sensfunc
         from pypeit.spectrographs.util import load_spectrograph
-        from pypeit.scripts.utils import set_verbosity_and_logfile
 
         # Set the verbosity, and create a logfile if verbosity == 2
-        set_verbosity_and_logfile('sensfunc', args.verbosity)
+        msgs.set_verbosity_and_logfile('sensfunc', args.verbosity)
 
         # Check parameter inputs
         if args.algorithm is not None and args.sens_file is not None:

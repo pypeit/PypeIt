@@ -21,7 +21,6 @@ from pypeit import inputfiles
 from pypeit import specobjs
 from pypeit import spec2dobj
 from pypeit.scripts import scriptbase
-from pypeit.scripts.utils import set_verbosity_and_logfile
 from pypeit.spectrographs.util import load_spectrograph
 
 
@@ -80,7 +79,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         """ Executes 2d coadding
         """
         # Set the verbosity, and create a logfile if verbosity == 2
-        set_verbosity_and_logfile('coadd_2dspec', args.verbosity)
+        msgs.set_verbosity_and_logfile('coadd_2dspec', args.verbosity)
 
         msgs.info('PATH =' + os.getcwd())
         # Load the file

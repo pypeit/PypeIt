@@ -33,7 +33,6 @@ from pypeit.sensfilearchive import SensFileArchive
 from pypeit import fluxcalibrate
 from pypeit.specobjs import SpecObjs
 from pypeit import inputfiles
-from pypeit.scripts.utils import set_verbosity_and_logfile
 
 
 
@@ -664,7 +663,7 @@ class Collate1D(scriptbase.ScriptBase):
     def main(args):
 
         # Set the verbosity, and create a logfile if verbosity == 2
-        set_verbosity_and_logfile('collate_1d', args.verbosity)
+        msgs.set_verbosity_and_logfile('collate_1d', args.verbosity)
 
         start_time = datetime.now()
         (par, spectrograph, spec1d_files) = build_parameters(args)
