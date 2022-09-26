@@ -19,4 +19,5 @@ development of ``PypeIt``.
    radec_object
    deimos_wavecalib
    add_missing_obj
+   niresframes
 
