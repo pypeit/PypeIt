@@ -307,14 +307,9 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm=None, mxsh
     msgs.info(f"Flexure correction of {shift:.3f} pixels")
     #model = (fit[2]*(subpix_grid**2.))+(fit[1]*subpix_grid)+fit[0]
 
-    return dict(polyfit=fit, 
-                shift=shift, 
-                subpix=subpix_grid,
-                corr=corr[subpix_grid.astype(np.int)], 
-                sky_spec=obj_skyspec, 
-                arx_spec=arx_skyspec,
-                corr_cen=corr.size/2, 
-                smooth=smooth_sig_pix)
+    return dict(polyfit=fit, shift=shift, subpix=subpix_grid,
+                corr=corr[subpix_grid.astype(np.int)], sky_spec=obj_skyspec, arx_spec=arx_skyspec,
+                corr_cen=corr.size/2, smooth=smooth_fwhm_pix, method=method)
 
 
 def get_fwhm_gauss_smooth(arx_skyspec, obj_skyspec, arx_fwhm_pix, spec_fwhm=None):
