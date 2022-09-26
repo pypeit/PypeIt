@@ -15,7 +15,7 @@ the individual detectors; see :ref:`mosaic`.
 
 Unless otherwise stated, the relevant parameters governing basic image
 processing are kept by :class:`~pypeit.par.pypeitpar.ProcessImagesPar`; see
-:ref:`pypeitpar`.  Importantly, however, changing the default parameters for
+:ref:`parameters`.  Importantly, however, changing the default parameters for
 some frame types will lead to faults; see :ref:`proc_algorithm` and
 :ref:`workflow`.
 
@@ -394,7 +394,7 @@ the ``PypeIt`` convention.
     :class:`~pypeit.spectrographs.spectrograph.Spectrograph` subclass can alter
     these defaults as needed for the typical approach that should be taken for
     data from that instrument, and users can make further alterations as needed
-    for their specific data via the :doc:`pypeit_file`.  See :ref:`pypeitpar`.
+    for their specific data via the :doc:`pypeit_file`.  See :ref:`parameters`.
 
 .. include:: include/imgproc_defaults_table.rst
 

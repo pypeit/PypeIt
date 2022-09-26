@@ -22,7 +22,8 @@ from pypeit.spectrographs import available_spectrographs
 
 
 def link_string(p):
-    return '`{0} Keywords`_'.format(type(p).__name__)
+    return f':ref:`{type(p).__name__.lower()}`'
+#    return '`{0} Keywords`_'.format(type(p).__name__)
 
 
 def par_hierarchy(p, indent_level=0, key=''):
@@ -69,7 +70,7 @@ if __name__ == '__main__':
     lines += p.to_rst_table()
     lines += ['']
 
-    lines += [' .. _instr_par:']
+    lines += ['.. _instr_par:']
     lines += ['']
 
     lines += ['Instrument-Specific Default Configuration']
@@ -87,7 +88,9 @@ if __name__ == '__main__':
         s = load_spectrograph(spec)
         lines += [ ' '.join([s.telescope['name'], s.camera, '(``{0}``)'.format(s.name)]) ]
         lines += [ '-'*len(lines[-1]) ]
-        lines += [ 'Alterations to the default parameters are::' ]
+        lines += [ 'Alterations to the default parameters are:' ]
+        lines += ['']
+        lines += ['.. code-block:: ini']
         lines += ['']
         sl = s.default_pypeit_par().to_config(include_descr=False, exclude_defaults=True)
         lines += [ '  ' + l for l in sl ]

@@ -13,18 +13,16 @@ Wavelength calibration is performed using arc lamp spectra
 or the night sky lines, dependent on the instrument.
 In all cases, the solution is provided in vacuum.
 
-This doc describes the wavelength calibration
-`Automated Algorithms`_
-the `By-Hand Approach`_ including the
-`pypeit_identify`_ script,
-`Common Failure Modes`_, and more.
+This doc describes the wavelength calibration :ref:`wvcalib-algorithms` the
+:ref:`wvcalib-algorithms` including the :ref:`pypeit_identify` script,
+:ref:`wvcalib-failures`, and more.
 
 See :doc:`master_wvcalib` for a discussion of the
 main outputs and good/bad examples.
 
 If you wish to use your own line lists (*i.e.*, you have reliable
 identifications using your instrument, but those lines are not
-in one of the PypeIt-supplied files), see `Line Lists`_.
+in one of the PypeIt-supplied files), see :ref:`wvcalib-linelists`.
 
 Arc Processing
 ==============
@@ -51,6 +49,7 @@ be certain by adding the following to the :doc:`pypeit_file`
 For a multislit observation, you should keep ``clip = False``, and
 change ``subtract_continuum = True`` to ``subtract_continuum = False``.
 
+.. _wvcalib-linelists:
 
 Line Lists
 ==========
@@ -168,6 +167,7 @@ By way of example, the first few lines of the neutral mercury list
 Only the ion and wavelength columns are used by PypeIt for the wavelength
 calibration, but all must be present else the code will crash with an error.
 
+.. _wvcalib-algorithms:
 
 Automated Algorithms
 ====================
@@ -212,6 +212,8 @@ However, we have found this algorithm is not highly robust
 high dispersion data (*e.g.*, ThAr lamps).  At this stage, we
 recommend it be used primarily by the Developers to generate
 template spectra.
+
+.. _wvcalib-reidentify:
 
 Reidentify
 ----------
@@ -260,6 +262,8 @@ you can do so with the ``pypeit_identify`` task. To launch this task,
 you need to have successfully traced the slit edges (*i.e.*, a
 :doc:`master_edges` file must exist), and generated a
 :doc:`master_arc` calibration frame.
+
+.. _pypeit_identify:
 
 pypeit_identify
 +++++++++++++++
@@ -364,6 +368,7 @@ from its default of 0.1 pixels.
 And the `rmstol`, if you wish to save the solution to disk!
 
 
+.. _wvcalib-failures:
 
 Common Failure Modes
 ====================
@@ -386,9 +391,11 @@ Items to Modify
 ===============
 
 There are several parameters in the Wavelength Calibration
-:ref:`pypeit_par:WavelengthSolutionPar Keywords` that one
+:ref:`wavelengthsolutionpar` that one
 needs to occasionally customize for your specific observations.
 We describe the most common below.
+
+.. _wvcalib-fwhm:
 
 FWHM
 ----

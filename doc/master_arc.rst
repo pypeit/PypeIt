@@ -5,12 +5,12 @@ MasterArc
 Overview
 ========
 
-This file describes the data model for the `MasterArc`_ image.
+This file describes the data model for the MasterArc image.
 It is generally a simple combination of all input arc frames.
 
 The image is written to disk as a multi-extension FITS file
-prefixed by `MasterArc`_ in the Masters/ folder.
-See :ref:`masters:Masters Naming` for the naming convention.
+prefixed by MasterArc in the Masters/ folder.
+See :ref:`master-naming` for the naming convention.
 
 
 Inspecting

@@ -76,7 +76,7 @@ those edges are placed adjacent to one other.
 Application
 -----------
 
-To perform the slitmask ID assignment, the **use_maskdesign** flag in :ref:`pypeit_par:EdgeTracePar Keywords`
+To perform the slitmask ID assignment, the **use_maskdesign** flag in :ref:`edgetracepar`
 must be **True**.  This is the default for DEIMOS (except when the *LongMirr* or the *LVM* mask is used) and
 MOSFIRE (except when the *LONGSLIT* mask is used).
 
@@ -95,7 +95,7 @@ file into the necessary information. See their
 `GitHub page <https://github.com/jsulli27/tilsotua>`_
 for more.
 
-Three other :ref:`pypeit_par:EdgeTracePar Keywords` control the slitmask ID assignment;
+Three other :ref:`edgetracepar` control the slitmask ID assignment;
 these are: **maskdesign_maxsep**, **maskdesign_sigrej**, **maskdesign_step**.
 
 
@@ -151,13 +151,13 @@ and is as follows:
 
     1. Load the information relative to the specific instrument (DEIMOS, MOSFIRE).
 
-    2. Load the :ref:`pypeit_par:Instrument-Specific Default Configuration` parameters and select the detector.
+    2. Load the :ref:`instr_par` parameters and select the detector.
 
     3. Build a trace image using three flat-field images from a specific dataset in the :ref:`dev-suite`.
 
     4. Update the instrument configuration parameters to include configurations specific for the
        used instrument setup. Among others, this step sets the **use_maskdesign** flag in 
-       :ref:`pypeit_par:EdgeTracePar Keywords` to *True*.
+       :ref:`edgetracepar` to *True*.
 
     5. Run the slit tracing procedure using :class:`~pypeit.edgetrace.EdgeTraceSet`, during which
        the slitmask ID assignment is performed, and record the ``maskdef_id`` associated to each slit
@@ -176,13 +176,13 @@ and is as follows:
 
     1. Load the information relative to the specific instrument (DEIMOS, MOSFIRE).
 
-    2. Load the :ref:`pypeit_par:Instrument-Specific Default Configuration` parameters and select the detector.
+    2. Load the :ref:`instr_par` parameters and select the detector.
 
     3. Build a trace image using three flat-field images from a specific dataset in the :ref:`dev-suite`.
 
     4. Update the instrument configuration parameters to include configurations specific for the
        used instrument setup. Among others, this step sets the **use_maskdesign** flag in
-       :ref:`pypeit_par:EdgeTracePar Keywords` to **True**.
+       :ref:`edgetracepar` to **True**.
 
     5. Run step-by-step (lines 72-100) the slit tracing procedure performed by :class:`~pypeit.edgetrace.EdgeTraceSet`.
        This enable to add an extra step, where we remove 4 edges (lines 112-118) that were found

@@ -26,9 +26,9 @@ a leading ``#`` and are always ignored.
 
 The main three components of a ``PypeIt`` input file are:
 
-    - `Parameter Block`_
-    - `Setup Block`_
-    - `Data Block`_
+    - :ref:`input-files-parameter-block`
+    - :ref:`input-files-setup-block`
+    - :ref:`input-files-data-block`
 
 The individual file types make use of one or more of
 these components as needed.  Their ordering is not 
@@ -37,7 +37,7 @@ order above.
 
 We now described each in turn.
 
-.. _parameter_block:
+.. _input-files-parameter-block:
 
 Parameter Block
 ===============
@@ -53,11 +53,11 @@ arguments, provided in a series of lines.
 Here is an example of the `Parameter Block`_ for a 
 :doc:`pypeit_file`:
 
-.. code-block:: console
+.. code-block:: ini
 
     # User-defined execution parameters
     [rdx]
-    spectrograph = shane_kast_blue
+        spectrograph = shane_kast_blue
     [calibrations]
         [[slitedges]]
         edge_thresh = 100
@@ -65,6 +65,8 @@ Here is an example of the `Parameter Block`_ for a
 The formatting is dict-like, with each level of the dict 
 set by the key in ``[]`` and the eventual key/item pair
 marked by assignment.
+
+.. _input-files-setup-block:
 
 Setup Block
 ===========
@@ -74,7 +76,7 @@ As it is only required and used with the :doc:`pypeit_file`
 we refer to its documentation of the :ref:`setup_block`
 for full details.
 
-.. _data_block:
+.. _input-files-data-block:
 
 Data Block
 ==========
@@ -110,7 +112,7 @@ to the files.  Each line should start with *path* and
 then is followed by a relative or absolute path.  We 
 *strongly* recommend using the absolute path.
 
-The ``paths`` portion of the `Data Block`_ is not used by 
+The ``paths`` portion of the :ref:`input-files-data-block` is not used by 
 many of the :doc:`input_files` but is required 
 for the :doc:`pypeit_file`.
 
@@ -161,3 +163,4 @@ docs on the main set of :doc:`input_files`:
     - :ref:`coadd1d_file`
     - :ref:`coadd2d_file`
     - :ref:`flexure_file`
+

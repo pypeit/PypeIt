@@ -2,7 +2,7 @@
 
 .. _configobj: http://configobj.readthedocs.io/en/latest/
 
-.. _pypeitpar:
+.. _parameters:
 
 =================
 PypeIt Parameters
@@ -26,8 +26,7 @@ Importantly, each instrument served provides its own default values for
 :func:`pypeit.spectrographs.shane_kast.ShaneKastSpectrograph.default_pypeit_par`.
 Only those parameters that the user wishes to be different from the
 default *as set by their specified instrument* need to be changed via
-the :ref:`pypeit_file`.  The `Instrument-Specific Default
-Configuration`_ are listed below.
+the :ref:`pypeit_file`.  The :ref:`instr_par` are listed below.
 
 .. warning::
 
@@ -53,9 +52,11 @@ read.  All PypeIt files begin with the lines that set the spectrograph::
 The nesting of the PypeIt parameters is as illustrated in the `Current
 PypeItPar Parameter Hierarchy`_ section below.  Here are a few examples
 of how to change various parameters; for additional examples see the
-`Instrument-Specific Default Configuration`_ section.
+:ref:`instr_par` section.
 
- * To change the threshold used for detecting slit/order edges, add::
+ * To change the threshold used for detecting slit/order edges, add:
+
+   .. code-block:: ini
 
     [calibrations]
         [[slitedges]]
@@ -63,7 +64,9 @@ of how to change various parameters; for additional examples see the
 
  * To change the exposure time range used to identify an arc and
    flat-field frames and to increase the LA Cosmic sigma-clipping
-   threshold for arc frames, add::
+   threshold for arc frames, add:
+
+   .. code-block:: ini
 
     [calibrations]
         [[arcframe]]
@@ -84,7 +87,9 @@ frame-type-specific alterations can still be made and will overwrite the
 base-level processing parameters.  For example, to change the
 sigma-clipping level used by the LA Cosmic routine to default to 3.0 but
 to use a value of 6.0 for arc frames, you can add the following to your
-PypeIt file::
+PypeIt file:
+
+.. code-block:: ini
 
     [baseprocess]
         sigclip = 3.0
@@ -97,106 +102,108 @@ PypeIt file::
 Current PypeItPar Parameter Hierarchy
 +++++++++++++++++++++++++++++++++++++
 
-`PypeItPar Keywords`_
+:ref:`pypeitpar`
 
-    ``[rdx]``: `ReduxPar Keywords`_
+    ``[rdx]``: :ref:`reduxpar`
 
-    ``[calibrations]``: `CalibrationsPar Keywords`_
+    ``[calibrations]``: :ref:`calibrationspar`
 
-        ``[[biasframe]]``: `FrameGroupPar Keywords`_
+        ``[[biasframe]]``: :ref:`framegrouppar`
 
-            ``[[[process]]]``: `ProcessImagesPar Keywords`_
+            ``[[[process]]]``: :ref:`processimagespar`
 
-        ``[[darkframe]]``: `FrameGroupPar Keywords`_
+        ``[[darkframe]]``: :ref:`framegrouppar`
 
-            ``[[[process]]]``: `ProcessImagesPar Keywords`_
+            ``[[[process]]]``: :ref:`processimagespar`
 
-        ``[[arcframe]]``: `FrameGroupPar Keywords`_
+        ``[[arcframe]]``: :ref:`framegrouppar`
 
-            ``[[[process]]]``: `ProcessImagesPar Keywords`_
+            ``[[[process]]]``: :ref:`processimagespar`
 
-        ``[[tiltframe]]``: `FrameGroupPar Keywords`_
+        ``[[tiltframe]]``: :ref:`framegrouppar`
 
-            ``[[[process]]]``: `ProcessImagesPar Keywords`_
+            ``[[[process]]]``: :ref:`processimagespar`
 
-        ``[[pixelflatframe]]``: `FrameGroupPar Keywords`_
+        ``[[pixelflatframe]]``: :ref:`framegrouppar`
 
-            ``[[[process]]]``: `ProcessImagesPar Keywords`_
+            ``[[[process]]]``: :ref:`processimagespar`
 
-        ``[[pinholeframe]]``: `FrameGroupPar Keywords`_
+        ``[[pinholeframe]]``: :ref:`framegrouppar`
 
-            ``[[[process]]]``: `ProcessImagesPar Keywords`_
+            ``[[[process]]]``: :ref:`processimagespar`
 
-        ``[[alignframe]]``: `FrameGroupPar Keywords`_
+        ``[[alignframe]]``: :ref:`framegrouppar`
 
-            ``[[[process]]]``: `ProcessImagesPar Keywords`_
+            ``[[[process]]]``: :ref:`processimagespar`
 
-        ``[[alignment]]``: `AlignPar Keywords`_
+        ``[[alignment]]``: :ref:`alignpar`
 
-        ``[[traceframe]]``: `FrameGroupPar Keywords`_
+        ``[[traceframe]]``: :ref:`framegrouppar`
 
-            ``[[[process]]]``: `ProcessImagesPar Keywords`_
+            ``[[[process]]]``: :ref:`processimagespar`
 
-        ``[[illumflatframe]]``: `FrameGroupPar Keywords`_
+        ``[[illumflatframe]]``: :ref:`framegrouppar`
 
-            ``[[[process]]]``: `ProcessImagesPar Keywords`_
+            ``[[[process]]]``: :ref:`processimagespar`
 
-        ``[[lampoffflatsframe]]``: `FrameGroupPar Keywords`_
+        ``[[lampoffflatsframe]]``: :ref:`framegrouppar`
 
-            ``[[[process]]]``: `ProcessImagesPar Keywords`_
+            ``[[[process]]]``: :ref:`processimagespar`
 
-        ``[[skyframe]]``: `FrameGroupPar Keywords`_
+        ``[[skyframe]]``: :ref:`framegrouppar`
 
-            ``[[[process]]]``: `ProcessImagesPar Keywords`_
+            ``[[[process]]]``: :ref:`processimagespar`
 
-        ``[[standardframe]]``: `FrameGroupPar Keywords`_
+        ``[[standardframe]]``: :ref:`framegrouppar`
 
-            ``[[[process]]]``: `ProcessImagesPar Keywords`_
+            ``[[[process]]]``: :ref:`processimagespar`
 
-        ``[[flatfield]]``: `FlatFieldPar Keywords`_
+        ``[[flatfield]]``: :ref:`flatfieldpar`
 
-        ``[[wavelengths]]``: `WavelengthSolutionPar Keywords`_
+        ``[[wavelengths]]``: :ref:`wavelengthsolutionpar`
 
-        ``[[slitedges]]``: `EdgeTracePar Keywords`_
+        ``[[slitedges]]``: :ref:`edgetracepar`
 
-        ``[[tilts]]``: `WaveTiltsPar Keywords`_
+        ``[[tilts]]``: :ref:`wavetiltspar`
 
-    ``[scienceframe]``: `FrameGroupPar Keywords`_
+    ``[scienceframe]``: :ref:`framegrouppar`
 
-        ``[[process]]``: `ProcessImagesPar Keywords`_
+        ``[[process]]``: :ref:`processimagespar`
 
-    ``[reduce]``: `ReducePar Keywords`_
+    ``[reduce]``: :ref:`reducepar`
 
-        ``[[findobj]]``: `FindObjPar Keywords`_
+        ``[[findobj]]``: :ref:`findobjpar`
 
-        ``[[skysub]]``: `SkySubPar Keywords`_
+        ``[[skysub]]``: :ref:`skysubpar`
 
-        ``[[extraction]]``: `ExtractionPar Keywords`_
+        ``[[extraction]]``: :ref:`extractionpar`
 
-        ``[[cube]]``: `CubePar Keywords`_
+        ``[[cube]]``: :ref:`cubepar`
 
-        ``[[slitmask]]``: `SlitMaskPar Keywords`_
+        ``[[slitmask]]``: :ref:`slitmaskpar`
 
-    ``[flexure]``: `FlexurePar Keywords`_
+    ``[flexure]``: :ref:`flexurepar`
 
-    ``[fluxcalib]``: `FluxCalibratePar Keywords`_
+    ``[fluxcalib]``: :ref:`fluxcalibratepar`
 
-    ``[coadd1d]``: `Coadd1DPar Keywords`_
+    ``[coadd1d]``: :ref:`coadd1dpar`
 
-    ``[coadd2d]``: `Coadd2DPar Keywords`_
+    ``[coadd2d]``: :ref:`coadd2dpar`
 
-    ``[sensfunc]``: `SensFuncPar Keywords`_
+    ``[sensfunc]``: :ref:`sensfuncpar`
 
-        ``[[UVIS]]``: `SensfuncUVISPar Keywords`_
+        ``[[UVIS]]``: :ref:`sensfuncuvispar`
 
-        ``[[IR]]``: `TelluricPar Keywords`_
+        ``[[IR]]``: :ref:`telluricpar`
 
-    ``[telluric]``: `TelluricPar Keywords`_
+    ``[telluric]``: :ref:`telluricpar`
 
-    ``[collate1d]``: `Collate1DPar Keywords`_
+    ``[collate1d]``: :ref:`collate1dpar`
 
 
 ----
+
+.. _pypeitpar:
 
 PypeItPar Keywords
 ------------------
@@ -221,6 +228,8 @@ Key               Type                                            Options  Defau
 
 
 ----
+
+.. _calibrationspar:
 
 CalibrationsPar Keywords
 ------------------------
@@ -256,6 +265,8 @@ Key                    Type                                                 Opti
 
 ----
 
+.. _alignpar:
+
 AlignPar Keywords
 -----------------
 
@@ -272,6 +283,8 @@ Key              Type           Options  Default        Description
 
 
 ----
+
+.. _flatfieldpar:
 
 FlatFieldPar Keywords
 ---------------------
@@ -306,6 +319,8 @@ Key                         Type               Options                          
 
 
 ----
+
+.. _edgetracepar:
 
 EdgeTracePar Keywords
 ---------------------
@@ -377,6 +392,8 @@ Key                          Type              Options                          
 
 ----
 
+.. _wavetiltspar:
+
 WaveTiltsPar Keywords
 ---------------------
 
@@ -403,6 +420,8 @@ Key                  Type                       Options  Default         Descrip
 
 
 ----
+
+.. _wavelengthsolutionpar:
 
 WavelengthSolutionPar Keywords
 ------------------------------
@@ -448,6 +467,8 @@ Key                   Type                       Options                        
 
 ----
 
+.. _coadd1dpar:
+
 Coadd1DPar Keywords
 -------------------
 
@@ -488,6 +509,8 @@ Key                   Type        Options  Default     Description
 
 ----
 
+.. _coadd2dpar:
+
 Coadd2DPar Keywords
 -------------------
 
@@ -507,6 +530,8 @@ Key                   Type       Options  Default   Description
 
 
 ----
+
+.. _collate1dpar:
 
 Collate1DPar Keywords
 ---------------------
@@ -532,6 +557,8 @@ Key                        Type        Options  Default                         
 
 ----
 
+.. _flexurepar:
+
 FlexurePar Keywords
 -------------------
 
@@ -550,6 +577,8 @@ Key                  Type        Options                                   Defau
 
 ----
 
+.. _fluxcalibratepar:
+
 FluxCalibratePar Keywords
 -------------------------
 
@@ -565,6 +594,8 @@ Key                    Type  Options  Default  Description
 
 
 ----
+
+.. _reduxpar:
 
 ReduxPar Keywords
 -----------------
@@ -589,6 +620,8 @@ Key                     Type            Options  Default                        
 
 ----
 
+.. _reducepar:
+
 ReducePar Keywords
 ------------------
 
@@ -607,6 +640,8 @@ Key             Type                                         Options  Default   
 
 
 ----
+
+.. _cubepar:
 
 CubePar Keywords
 ----------------
@@ -639,6 +674,8 @@ Key                   Type   Options  Default  Description
 
 ----
 
+.. _extractionpar:
+
 ExtractionPar Keywords
 ----------------------
 
@@ -660,6 +697,8 @@ Key                   Type        Options  Default  Description
 
 
 ----
+
+.. _findobjpar:
 
 FindObjPar Keywords
 -------------------
@@ -689,6 +728,8 @@ Key                          Type        Options  Default  Description
 
 ----
 
+.. _skysubpar:
+
 SkySubPar Keywords
 ------------------
 
@@ -710,6 +751,8 @@ Key                  Type        Options  Default  Description
 
 
 ----
+
+.. _slitmaskpar:
 
 SlitMaskPar Keywords
 --------------------
@@ -734,6 +777,8 @@ Key                          Type        Options  Default  Description
 
 ----
 
+.. _framegrouppar:
+
 FrameGroupPar Keywords
 ----------------------
 
@@ -750,6 +795,8 @@ Key            Type                                            Options          
 
 
 ----
+
+.. _processimagespar:
 
 ProcessImagesPar Keywords
 -------------------------
@@ -794,6 +841,8 @@ Key                       Type        Options                                 De
 
 ----
 
+.. _sensfuncpar:
+
 SensFuncPar Keywords
 --------------------
 
@@ -820,6 +869,8 @@ Key                 Type                                           Options      
 
 ----
 
+.. _sensfuncuvispar:
+
 SensfuncUVISPar Keywords
 ------------------------
 
@@ -844,6 +895,8 @@ Key                   Type        Options  Default  Description
 
 
 ----
+
+.. _telluricpar:
 
 TelluricPar Keywords
 --------------------
@@ -895,7 +948,7 @@ Key                      Type                Options  Default                   
 
 
 
- .. _instr_par:
+.. _instr_par:
 
 Instrument-Specific Default Configuration
 +++++++++++++++++++++++++++++++++++++++++
@@ -908,7 +961,9 @@ these in the PypeIt file, you would be reproducing the effect of the
 
 BOK BC (``bok_bc``)
 -------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = bok_bc
@@ -1028,7 +1083,9 @@ Alterations to the default parameters are::
 
 GEMINI-S FLAMINGOS (``gemini_flamingos1``)
 ------------------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = gemini_flamingos1
@@ -1144,7 +1201,9 @@ Alterations to the default parameters are::
 
 GEMINI-S FLAMINGOS (``gemini_flamingos2``)
 ------------------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = gemini_flamingos2
@@ -1268,7 +1327,9 @@ Alterations to the default parameters are::
 
 GEMINI-N GMOS-N (``gemini_gmos_north_e2v``)
 -------------------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = gemini_gmos_north_e2v
@@ -1347,7 +1408,9 @@ Alterations to the default parameters are::
 
 GEMINI-N GMOS-N (``gemini_gmos_north_ham``)
 -------------------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = gemini_gmos_north_ham
@@ -1426,7 +1489,9 @@ Alterations to the default parameters are::
 
 GEMINI-N GMOS-N (``gemini_gmos_north_ham_ns``)
 ----------------------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = gemini_gmos_north_ham_ns
@@ -1505,7 +1570,9 @@ Alterations to the default parameters are::
 
 GEMINI-S GMOS-S (``gemini_gmos_south_ham``)
 -------------------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = gemini_gmos_south_ham
@@ -1589,7 +1656,9 @@ Alterations to the default parameters are::
 
 GEMINI-N GNIRS (``gemini_gnirs``)
 ---------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = gemini_gnirs
@@ -1705,7 +1774,9 @@ Alterations to the default parameters are::
 
 GTC OSIRIS (``gtc_osiris``)
 ---------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = gtc_osiris
@@ -1786,7 +1857,9 @@ Alterations to the default parameters are::
 
 KECK DEIMOS (``keck_deimos``)
 -----------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = keck_deimos
@@ -1888,7 +1961,9 @@ Alterations to the default parameters are::
 
 KECK HIRES_R (``keck_hires_red``)
 ---------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = keck_hires_red
@@ -1966,7 +2041,9 @@ Alterations to the default parameters are::
 
 KECK KCWI (``keck_kcwi``)
 -------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = keck_kcwi
@@ -2062,7 +2139,9 @@ Alterations to the default parameters are::
 
 KECK LRISb (``keck_lris_blue``)
 -------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = keck_lris_blue
@@ -2156,7 +2235,9 @@ Alterations to the default parameters are::
 
 KECK LRISb (``keck_lris_blue_orig``)
 ------------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = keck_lris_blue_orig
@@ -2250,7 +2331,9 @@ Alterations to the default parameters are::
 
 KECK LRISr (``keck_lris_red``)
 ------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = keck_lris_red
@@ -2352,7 +2435,9 @@ Alterations to the default parameters are::
 
 KECK LRISr (``keck_lris_red_mark4``)
 ------------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = keck_lris_red_mark4
@@ -2454,7 +2539,9 @@ Alterations to the default parameters are::
 
 KECK LRISr (``keck_lris_red_orig``)
 -----------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = keck_lris_red_orig
@@ -2556,7 +2643,9 @@ Alterations to the default parameters are::
 
 KECK MOSFIRE (``keck_mosfire``)
 -------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = keck_mosfire
@@ -2672,7 +2761,9 @@ Alterations to the default parameters are::
 
 KECK NIRES (``keck_nires``)
 ---------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = keck_nires
@@ -2801,7 +2892,9 @@ Alterations to the default parameters are::
 
 KECK NIRSPEC (``keck_nirspec_low``)
 -----------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = keck_nirspec_low
@@ -2919,7 +3012,9 @@ Alterations to the default parameters are::
 
 LBT LUCI1 (``lbt_luci1``)
 -------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = lbt_luci1
@@ -3028,7 +3123,9 @@ Alterations to the default parameters are::
 
 LBT LUCI2 (``lbt_luci2``)
 -------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = lbt_luci2
@@ -3140,7 +3237,9 @@ Alterations to the default parameters are::
 
 LBT MODS1B (``lbt_mods1b``)
 ---------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = lbt_mods1b
@@ -3226,7 +3325,9 @@ Alterations to the default parameters are::
 
 LBT MODS1R (``lbt_mods1r``)
 ---------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = lbt_mods1r
@@ -3314,7 +3415,9 @@ Alterations to the default parameters are::
 
 LBT MODS2B (``lbt_mods2b``)
 ---------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = lbt_mods2b
@@ -3400,7 +3503,9 @@ Alterations to the default parameters are::
 
 LBT MODS2R (``lbt_mods2r``)
 ---------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = lbt_mods2r
@@ -3488,7 +3593,9 @@ Alterations to the default parameters are::
 
 LDT DeVeny (``ldt_deveny``)
 ---------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = ldt_deveny
@@ -3582,7 +3689,9 @@ Alterations to the default parameters are::
 
 MAGELLAN FIRE (``magellan_fire``)
 ---------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = magellan_fire
@@ -3714,7 +3823,9 @@ Alterations to the default parameters are::
 
 MAGELLAN FIRE (``magellan_fire_long``)
 --------------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = magellan_fire_long
@@ -3833,7 +3944,9 @@ Alterations to the default parameters are::
 
 MAGELLAN MagE (``magellan_mage``)
 ---------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = magellan_mage
@@ -3926,7 +4039,9 @@ Alterations to the default parameters are::
 
 KPNO MDM4K (``mdm_osmos_mdm4k``)
 --------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = mdm_osmos_mdm4k
@@ -4004,7 +4119,9 @@ Alterations to the default parameters are::
 
 MMT BINOSPEC (``mmt_binospec``)
 -------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = mmt_binospec
@@ -4108,7 +4225,9 @@ Alterations to the default parameters are::
 
 MMT Blue_Channel (``mmt_bluechannel``)
 --------------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = mmt_bluechannel
@@ -4207,7 +4326,9 @@ Alterations to the default parameters are::
 
 MMT MMIRS (``mmt_mmirs``)
 -------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = mmt_mmirs
@@ -4334,7 +4455,9 @@ Alterations to the default parameters are::
 
 NOT ALFOSC (``not_alfosc``)
 ---------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = not_alfosc
@@ -4426,7 +4549,9 @@ Alterations to the default parameters are::
 
 NTT EFOSC2 (``ntt_efosc2``)
 ---------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = ntt_efosc2
@@ -4509,7 +4634,9 @@ Alterations to the default parameters are::
 
 P200 DBSPb (``p200_dbsp_blue``)
 -------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = p200_dbsp_blue
@@ -4593,7 +4720,9 @@ Alterations to the default parameters are::
 
 P200 DBSPr (``p200_dbsp_red``)
 ------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = p200_dbsp_red
@@ -4680,7 +4809,9 @@ Alterations to the default parameters are::
 
 P200 TSPEC (``p200_tspec``)
 ---------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = p200_tspec
@@ -4813,7 +4944,9 @@ Alterations to the default parameters are::
 
 SHANE KASTb (``shane_kast_blue``)
 ---------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = shane_kast_blue
@@ -4902,7 +5035,9 @@ Alterations to the default parameters are::
 
 SHANE KASTr (``shane_kast_red``)
 --------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = shane_kast_red
@@ -4985,7 +5120,9 @@ Alterations to the default parameters are::
 
 SHANE KASTr (``shane_kast_red_ret``)
 ------------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = shane_kast_red_ret
@@ -5067,7 +5204,9 @@ Alterations to the default parameters are::
 
 SOAR red (``soar_goodman_red``)
 -------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = soar_goodman_red
@@ -5160,7 +5299,9 @@ Alterations to the default parameters are::
 
 TNG DOLORES (``tng_dolores``)
 -----------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = tng_dolores
@@ -5235,7 +5376,9 @@ Alterations to the default parameters are::
 
 VLT FORS2 (``vlt_fors2``)
 -------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = vlt_fors2
@@ -5331,7 +5474,9 @@ Alterations to the default parameters are::
 
 VLT SINFONI (``vlt_sinfoni``)
 -----------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = vlt_sinfoni
@@ -5460,7 +5605,9 @@ Alterations to the default parameters are::
 
 VLT XShooter_NIR (``vlt_xshooter_nir``)
 ---------------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = vlt_xshooter_nir
@@ -5599,7 +5746,9 @@ Alterations to the default parameters are::
 
 VLT XShooter_UVB (``vlt_xshooter_uvb``)
 ---------------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = vlt_xshooter_uvb
@@ -5720,7 +5869,9 @@ Alterations to the default parameters are::
 
 VLT XShooter_VIS (``vlt_xshooter_vis``)
 ---------------------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = vlt_xshooter_vis
@@ -5852,7 +6003,9 @@ Alterations to the default parameters are::
 
 WHT ISISb (``wht_isis_blue``)
 -----------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = wht_isis_blue
@@ -5947,7 +6100,9 @@ Alterations to the default parameters are::
 
 WHT ISISr (``wht_isis_red``)
 ----------------------------
-Alterations to the default parameters are::
+Alterations to the default parameters are:
+
+.. code-block:: ini
 
   [rdx]
       spectrograph = wht_isis_red

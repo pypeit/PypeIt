@@ -38,8 +38,7 @@ these will be combined to generate a bias image.  And this image
 will be written to disk as a :doc:`master_bias`. See those docs
 on how to inspect the image and what to look for.
 
-The :ref:`pypeit_par:ProcessImagesPar Keywords`
-defaults are to:
+The :ref:`processimagespar` defaults are to:
 
 - Skip cosmic ray rejection in the individual frames (*mask_cr=False*)
 - Not apply a gain correction (*apply_gain = False*)
@@ -52,19 +51,23 @@ Application
 +++++++++++
 
 To perform bias image subtraction, the **use_biasimage**
-flag in :ref:`pypeit_par:ProcessImagesPar Keywords` must
+flag in :ref:`processimagespar` must
 be *True*.  This is the default for all optical spectrographs.
 
 If you wish to turn this option off (e.g. because you have
 not taken any bias images), then add the following to
-the :doc:`pypeit_file` :ref:`pypeit_file:Parameter Block`::
+the :doc:`pypeit_file` :ref:`parameter_block`:
+
+.. code-block:: ini
 
     [baseprocess]
         use_biasimage = False
 
 Alternatively, you can turn this option on by setting to *True*,
 although you should **not** do so for the bias images themselves.
-This is the recommended incantation::
+This is the recommended incantation:
+
+.. code-block:: ini
 
     [baseprocess]
         use_biasimage = True
@@ -85,7 +88,9 @@ reduced accordingly.  And the bias image corrected value will be
 implemented.
 
 If you wish to ignore the overscan, add the following to
-the :doc:`pypeit_file` :ref:`pypeit_file:Parameter Block`::
+the :doc:`pypeit_file` :ref:`parameter_block`:
+
+.. code-block:: ini
 
     [baseprocess]
         use_overscan = False

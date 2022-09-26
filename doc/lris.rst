@@ -22,7 +22,7 @@ and spatial effects.
 See the :doc:`flexure` notes if you wish
 to turn either of these off.
 
-.. _LRISb:
+.. _lrisb:
 
 keck_lris_blue
 ==============
@@ -30,7 +30,7 @@ keck_lris_blue
 LRISb Default Settings
 ++++++++++++++++++++++
 
-See :ref:`pypeit_par:Instrument-Specific Default Configuration` for
+See :ref:`instr_par` for
 a listing of modifications to the default settings.
 
 Taking Calibrations for LRISb
@@ -134,7 +134,7 @@ slits defined by PypeIt as described in :doc:`master_edges`.
 If the defined slit(s) does not cover the portion of
 the illuminated detector where your source falls, you
 can manually define the slit position as described
-in :ref:`slit_tracing:Missing A Slit`.
+in :ref:`slit-tracing-missing-slit`.
 
 
 Here is an example for the PypeIt file::
@@ -172,15 +172,37 @@ Here are the steps to do so:
 #. Obtain the mask design files. The design files can be in one of two forms:
 
     #. The AUTOSLIT-generated mask design files (those with the ".file3" extension). 
-    #. FITS files of the mask designs from UCO/Lick: As of 2022 Jan 27th, when the AUTOSLIT mask design files (ascii files that end with ".file3" by default) are fed to the slitmask database, a FITS file is generated with the milling blueprint. The FITS files have HDUs akin to DEIMOS raw files (sans the raw image of course). Please contact Steve Allen of UCO/Lick (UCSC) to procure these files.
-    
-#. Process the design files with `TILSOTUA <https://github.com/jsulli27/tilsotua>`_ : The design files contain the milling blueprint (the `BluSlits` table).  When using the ".file3" design files, TILSOTUA creates FITS files based on the UCO/Lick template. The FITS mask design files have empty `DesiSlits`, `ObjectCat` and `SlitObjMap` binary tables. DEIMOS users may be familiar with these tables from their raw frames. TILSOTUA populates these tables using its `xytowcs` function (in `LRIS_Mask_Coords_to_WCS.py`). One provides the code with two parameters: `input_file_name` is either the FITS or ".file3" mask design file (be sure the name includes the extension), and `output_file_base` is the prefix for the the four files that get created by the code. The calling sequence is:: 
-    
-    xytowcs(input_file_name,output_file_base)
 
-#. Append TILSOTUA's output to your raw trace files: Once the user is satisfied with the processed FITS file from TILSOTUA, append the binary tables to the trace FITS files. The user must first verify that TILSOTUA has indeed processed the files correctly. This implies:
+    #. FITS files of the mask designs from UCO/Lick: As of 2022 Jan 27th, when
+       the AUTOSLIT mask design files (ascii files that end with ".file3" by
+       default) are fed to the slitmask database, a FITS file is generated with
+       the milling blueprint. The FITS files have HDUs akin to DEIMOS raw files
+       (sans the raw image of course). Please contact Steve Allen of UCO/Lick
+       (UCSC) to procure these files.
+    
+#. Process the design files with `TILSOTUA
+   <https://github.com/jsulli27/tilsotua>`_ : The design files contain the
+   milling blueprint (the `BluSlits` table).  When using the ".file3" design
+   files, TILSOTUA creates FITS files based on the UCO/Lick template. The FITS
+   mask design files have empty `DesiSlits`, `ObjectCat` and `SlitObjMap` binary
+   tables. DEIMOS users may be familiar with these tables from their raw frames.
+   TILSOTUA populates these tables using its `xytowcs` function (in
+   `LRIS_Mask_Coords_to_WCS.py`). One provides the code with two parameters:
+   `input_file_name` is either the FITS or ".file3" mask design file (be sure
+   the name includes the extension), and `output_file_base` is the prefix for
+   the the four files that get created by the code. The calling sequence is:
+
+   .. code-block:: python
+    
+        xytowcs(input_file_name,output_file_base)
+
+#. Append TILSOTUA's output to your raw trace files: Once the user is satisfied
+   with the processed FITS file from TILSOTUA, append the binary tables to the
+   trace FITS files. The user must first verify that TILSOTUA has indeed
+   processed the files correctly. This implies:
 
     #. TILSOTUA has correctly identified the alignment stars (see the QA plot it generates).
+
     #. TILSOTUA has estimated the `TopDist` and `BotDist` in the `SlitObjMap` table correctly.
 
 If processed correctly, PypeIt should now fully utilize its 

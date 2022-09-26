@@ -75,14 +75,14 @@ slit edges, there are two ways it can proceed:
     further processing of the detector and move on to the next one. If you
     already know the detectors that should be skipped, you can use the pypeit
     file to *select* the detectors that should be processed (see the
-    ``detnum`` parameter in :ref:`pypeit_par:ReduxPar Keywords`)::
+    ``detnum`` parameter in :ref:`reduxpar`)::
 
         [rdx]
             detnum = 2,3,4
 
  2. You can force ``PypeIt`` to add left and right edges that bound the
     spatial extent of the detector using the ``bound_detector`` parameter in
-    :ref:`pypeit_par:EdgeTracePar Keywords`. This is required for instruments
+    :ref:`edgetracepar`. This is required for instruments
     where the entire detector is illuminated so that the slit edges are
     projected off the detector, or for situations where the detector is
     windowed (Shane Kast) in such a way that the slit edges are not covered
@@ -107,7 +107,9 @@ Slit PCA fails
 The default tracing uses a PCA analysis that requires a minimum
 number of slits to succeed.  If there aren't enough, you should
 revert back to the `nearest` mode by setting the `sync_predict`
-keyword in :ref:`pypeit_par:EdgeTracePar Keywords` to `nearest`, e.g.::
+keyword in :ref:`edgetracepar` to `nearest`, e.g.:
+
+.. code-block:: ini
 
     [calibrations]
       [[slitedges]]
@@ -118,6 +120,7 @@ determine which mode to use between `pca` and `nearest`. In general,
 ``PypeIt`` will first try `pca`, and if that is not possible, it will use `nearest`.
 
 
+.. _slit-tracing-missing-slit:
 
 Missing a Slit
 --------------
@@ -125,7 +128,7 @@ Missing a Slit
 It is common for some spectrographs for the code to miss
 one or more slits.  This may be mitigated by modifying the
 `edge_thresh` or `minimum_slit_length` keywords of
-:ref:`pypeit_par:EdgeTracePar Keywords`.
+:ref:`edgetracepar`.
 
 Otherwise, the code may be instructed to add slits at user-input
 locations.  The syntax is is a list of lists, with
@@ -146,7 +149,7 @@ Too many Slits
 The code may identify stray light or some other spurious
 feature as a slit.  This might be mitigated by increasing
 the value of `edge_thresh` in
-:ref:`pypeit_par:EdgeTracePar Keywords`.  Indeed, this
+:ref:`edgetracepar`.  Indeed, this
 is required for longslit observations
 with the red camera of :doc:`lris`.
 

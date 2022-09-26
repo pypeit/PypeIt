@@ -11,7 +11,7 @@ This file describes the data model for the `MasterWaveCalib`_.
 
 The images are written to disk as a multi-extension FITS file
 prefixed by `MasterWaveCalib`_ in the Masters/ folder.
-See :ref:`masters:Masters Naming` for the naming convention.
+See :ref:`master-naming` for the naming convention.
 
 Inspecting
 ==========
@@ -42,7 +42,7 @@ with the **pypeit_chk_wavecalib** script, e.g. ::
   spectral coverage of the identified and fitted arc lines.
 - *mesured_fwhm* is the measured arc lines FWHM (in binned pixels of the input arc frame), i.e,
   the approximate spectral resolution. Note that this not necessarily the ``fwhm`` used to identify the arc
-  lines during the wavelength calibration, see :ref:`wave_calib:FWHM`.
+  lines during the wavelength calibration, see :ref:`wvcalib-fwhm`.
 - *RMS* is the RMS of the wavelength solution (in pixels).
 
 

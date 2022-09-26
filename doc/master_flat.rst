@@ -5,13 +5,13 @@ MasterFlat
 Overview
 ========
 
-This file describes the data model for the `MasterFlat`_.
+This file describes the data model for the MasterFlat.
 It is a series of images starting from
 the combination of all input *pixelflat* frames.
 
 The images are written to disk as a multi-extension FITS file
-prefixed by `MasterFlat`_ in the Masters/ folder.
-See :ref:`masters:Masters Naming` for the naming convention.
+prefixed by MasterFlat in the Masters/ folder.
+See :ref:`master-naming` for the naming convention.
 
 
 Inspecting

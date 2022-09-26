@@ -3,9 +3,9 @@
 
 .. _known_failure_modes:
 
-=============
-Failure Modes
-=============
+===================
+Known Failure Modes
+===================
 
 Overview
 ========

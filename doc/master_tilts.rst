@@ -10,7 +10,7 @@ This file describes the data model for the `MasterTilts`_.
 
 The images are written to disk as a multi-extension FITS file
 prefixed by `MasterTilts`_ in the Masters/ folder.
-See :ref:`masters:Masters Naming` for the naming convention.
+See :ref:`master-naming` for the naming convention.
 
 
 Inspecting

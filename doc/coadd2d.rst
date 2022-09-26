@@ -52,7 +52,7 @@ The opening :ref:`parameter_block` sets information
 and parameters for the reduction steps.
 The ``spectrograph`` name is **required**.
 
-See :ref:`pypeit_par:Coadd2DPar Keywords` for a list of the
+See :ref:`coadd2dpar` for a list of the
 options specific to coadd2d including :doc:`manual`. 
 
 The :ref:`data_block` always begins/ends with *spec2d read*/*spec2d end*.

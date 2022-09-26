@@ -43,6 +43,8 @@ If you are using an IR instrument or choose the IR mode (see below)
 then you will need to have grabbed the telluric files.
 See :ref:`install_atmosphere`.
 
+.. _pypeit_sensfunc:
+
 pypeit_sensfunc
 ---------------
 
@@ -107,13 +109,13 @@ where you specify ``sensfunc`` parameters.
 For example, if you wish to use the MaunaKea telluric grid with your data,
 you would create a sens file containing:
 
-    .. code-block:: ini
+.. code-block:: ini
 
-        # User-defined execution parameters
-        [sensfunc]
-           algorithm = IR
-           [[IR]]
-              telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
+    # User-defined execution parameters
+    [sensfunc]
+        algorithm = IR
+        [[IR]]
+            telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
 
 
 IR without a Standard
@@ -217,7 +219,7 @@ In practice, ``PypeIt`` fits and stores the spectroscopic zerpoints and uses the
 equation above to compute :math:`F_\lambda` from :math:`N_\lambda` and
 vice-versa.
 
-The sensitivity function script, :ref:`fluxing:pypeit_sensfunc`, produces a QA
+The sensitivity function script, :ref:`pypeit_sensfunc`, produces a QA
 plot showing the the zeropoint fit, as shown below. For echelle observations
 this zeropoint QA is shown for each order.
 
@@ -269,7 +271,7 @@ standard-star and science observations. In future versions, we hope to implement
 a better treatment of slit losses. For the time being, we recommend that users
 that require very accurate flux calibration force ``PypeIt`` flux-calibrated
 spectra to agree with photometry. This can be done using the `filter` parameter
-option for 1D coadding (see :ref:`pypeit_par:Coadd1DPar Keywords`), which can be
+option for 1D coadding (see :ref:`coadd1dpar`), which can be
 set in the ``.coadd1d`` file, which is used to guide 1D coaddition with the
 ``pypeit_coadd1d`` script (see :ref:`coadd1d`).
 
@@ -292,7 +294,7 @@ To flux one or more spec1d files, one provides a
 with a :ref:`parameter_block` (optional)
 and a :ref:`data_block` (required).
 
-If one wishes to modify the :ref:`pypeit_par:FluxCalibratePar Keywords`,
+If one wishes to modify the :ref:`fluxcalibratepar`,
 add a :ref:`parameter_block` at the top of the file, e.g.::
 
     [fluxcalib]

@@ -21,11 +21,11 @@ The code has a simple yet relatively robust method to cross-correlate
 the slits against any input image to determine a rigid, spatial offset.
 This algorithm is performed for any frametype with
 **spat_flexure_correct** set to *True* in the `process` block
-of :ref:`pypeit_par:ProcessImagesPar Keywords`.
+of :ref:`processimagespar`.
 
 We have made our own determinations for which instruments
 to enable this as the default. Inspect the
-:ref:`pypeit_par:Instrument-Specific Default Configuration`
+:ref:`instr_par`
 list to see if your instrument is included.
 
 Depending on what frametypes you choose to correct, the
@@ -79,7 +79,7 @@ Spectral
 ``PypeIt`` calculates the spectral flexure correction, as a single pixel shift,
 by performing a cross-correlation between an extracted sky spectrum and an archived sky spectrum.
 This is then imposed on the wavelength solution with simple linear interpolation.
-To enable this correction the parameter ``spec_method`` in :ref:`pypeit_par:FlexurePar Keywords`
+To enable this correction the parameter ``spec_method`` in :ref:`flexurepar`
 should be set to ``boxcar`` or ``slitcen``. The default is ``spec_method = skip``, i.e.,
 no spectral flexure correction, for most spectrographs, except:
 
@@ -107,7 +107,7 @@ Narrow sky emission lines dominate the analysis, but other features
 can affect the cross-correlation.
 
 The maximum allowable spectral shift (in pixels) is set using the ``spec_maxshift``
-:ref:`pypeit_par:FlexurePar Keywords`, where the default is 20 pixels.  If a spectrum
+:ref:`flexurepar`, where the default is 20 pixels.  If a spectrum
 is measured to have a shift greater than this value, the parameter ``excessive_shift``
 determines how the code responds.  The default value "crash" causes the code to stop
 execution with an error.  Optionally, the user may sepecify ``excessive_shift = set_to_zero``
@@ -225,7 +225,9 @@ If you wish to adopt this approach (not recommended for most users), there are
 several key steps:
 
 First, modify your :doc:`pypeit_file` to turn off the standard flexure *and*
-to avoid the vacuum frame::
+to avoid the vacuum frame:
+
+.. code-block:: ini
 
    [flexure]
       spec_method = skip 
@@ -265,4 +267,4 @@ Here is the test file::
    flexure end
 
 As desired, you can modify the 
-:ref:`pypeit_par:FlexurePar Keywords` in the top block.
+:ref:`flexurepar` in the top block.

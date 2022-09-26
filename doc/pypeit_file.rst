@@ -39,6 +39,8 @@ Here is an example PypeIt reduction file:
 
 .. include:: include/shane_kast_blue_A.pypeit.rst
 
+.. _parameter_block:
+
 Parameter Block
 ---------------
 
@@ -71,6 +73,8 @@ metadata for that instrument configuration.
 it is informational and required. See :doc:`setup`
 for further details.
 
+
+.. _data_block:
 
 Data Block
 ----------

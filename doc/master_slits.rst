@@ -14,7 +14,7 @@ This file describes the MasterSlits object.
 It contains the main information on the traced slit edges, organized into left-right slit pairs.
 
 
-See below for the `Current SlitTrace Data Model`_.
+See below for the :ref:`master-naming`.
 This is written to disk as a multi-extension FITS file prefixed by
 MasterSlits in the Masters/ folder.
 See the :ref:`master-naming` docs for more.
@@ -47,7 +47,7 @@ This will show a table that looks like this:
         457     699080  350.76593017578125 .. 379.9788398742676   514.4993572235107 .. 544.0507583618164  355.0206685112119 .. 384.23357820969824    513.3126446738094 .. 542.864045812115     432.632643699646 .. 462.014799118042         0     0    -inf     inf
 
 In addition, if reducing :doc:`deimos` or :doc:`mosfire` data and slit-mask design matching is performed
-(see :ref:`deimos:Slit-mask design matching` for DEIMOS and :ref:`mosfire:Edge Tracing` for MOSFIRE), a second
+(see :ref:`deimos-mask-matching` for DEIMOS and :ref:`mosfire-edge-tracing` for MOSFIRE), a second
 `astropy.io.fits.BinTableHDU`_ is written to disk.
 
 .. code-block:: python
@@ -63,14 +63,15 @@ In addition, if reducing :doc:`deimos` or :doc:`mosfire` data and slit-mask desi
           3      2048  272.8930130004883  370.9837417602539     322 699091   286.1885530241663   384.710234625776 358.65265564 42.34461342 11.529000282287598     1.0     0.0     0 733797    358.65265 42.34467778 3104468   20.24           I       5.996       5.533
           4      2048 374.71178817749023    538.83056640625     457 699080  387.93013336193303  552.8797949320767 358.68945391 42.34933141 19.270000457763672     1.0     0.0     0 733786    358.68945 42.34819167 3103868   22.44           I       5.533      13.737
 
-See `Current SlitTrace Data Model`_ for a description of the columns.
+See :ref:`slittrace-datamodel` for a description of the columns.
 
+.. _slittrace-datamodel:
 
 Current SlitTrace Data Model
 ============================
 
-Internally, the MasterSlits object is held in :class:`pypeit.slittrace.SlitTraceSet`,
-which is a :class:`pypeit.datamodel.DataContainer`.
+Internally, the MasterSlits object is held in :class:`~pypeit.slittrace.SlitTraceSet`,
+which is a :class:`~pypeit.datamodel.DataContainer`.
 
 
 Here is its datamodel, which is written as an `astropy.io.fits.BinTableHDU`_.

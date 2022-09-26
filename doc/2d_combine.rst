@@ -23,7 +23,7 @@ PypeIt file
 Data Block
 ----------
 After running :ref:`pypeit_setup`, the user should update the
-:ref:`pypeit_file:Data Block` in the PypeIt file to add three extra
+:ref:`data_block` in the PypeIt file to add three extra
 columns, and name them ``calib``, ``comb_id`` and ``bkg_id``.
 This can also be obtained by running :ref:`pypeit_setup` and adding the `-b` option.
 The columns ``calib`` and ``comb_id`` should be edited according to the desired reduction,
@@ -31,7 +31,7 @@ while ``bkg_id`` is not used here and its value should be set to -1.
 
 Parameter Block
 ---------------
-The combining process is guided by the parameters in :ref:`pypeit_par:ProcessImagesPar Keywords`.
+The combining process is guided by the parameters in :ref:`processimagespar`.
 Currently, there are only 2 available methods to combine multiple frames: ``median`` and  ``weightmean``.
 The default is ``weightmean``, which computes an average image using uniform weighting.
 The user can change this parameter in the PypeIt file in the following way ::
@@ -60,17 +60,19 @@ of this ID.
 Science frames
 ==============
 
-Each science frame in the :ref:`pypeit_file:Data Block` should have an assigned ``calib`` ID value,
+Each science frame in the :ref:`data_block` should have an assigned ``calib`` ID value,
 and it should be a integer number <= 63. Science frames that are combined together can have the
 same ``calib`` value if they use the same set calibrations.
 
 To combine the science frames, ``comb_id`` should be set for each frame, such that frames with the same
 value of ``comb_id`` will be combined.
 
+.. _2d_combine_calibs:
+
 Calibrations
 ============
 
-Each calibration frame in the :ref:`pypeit_file:Data Block` should have the same ``calib`` ID value of
+Each calibration frame in the :ref:`data_block` should have the same ``calib`` ID value of
 the science data that uses it, or be set to ``all`` if used by all of the science frames
 in the Pypeit file.
 
@@ -97,9 +99,10 @@ where the OH lines are used for wavelength and tilt calibration, different value
 can be used.
 
 .. note::
+
     If the user does not want to combine frames, but wants to associate different calibrations with different science
     frames, they still need to add the three extra columns (``calib``, ``comb_id`` and ``bkg_id``) in the
-    ref:`pypeit_file:Data Block` of the PypeIt file, or run :ref:`pypeit_setup` with the `-b` flag.
+    :ref:`data_block` of the PypeIt file, or run :ref:`pypeit_setup` with the `-b` flag.
 
     In this case, ``comb_id`` and ``bkg_id`` should be set to ``-1`` for both calibration and science frames,
     while ``calib`` for the calibration frames should be set to be equal to the ``calib`` of the science frames

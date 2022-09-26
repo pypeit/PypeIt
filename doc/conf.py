@@ -50,7 +50,7 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
-    'sphinx.ext.autosectionlabel',
+#    'sphinx.ext.autosectionlabel',
 ]
 
 # Nicer math rendering than sphinx default?

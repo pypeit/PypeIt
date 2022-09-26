@@ -13,7 +13,7 @@ one or more science frames.
 
 The image is written to disk as a multi-extension FITS file
 prefixed by `MasterTilt`_ in the Masters/ folder.
-See :ref:`masters:Masters Naming` for the naming convention.
+See :ref:`master-naming` for the naming convention.
 
 
 Inspecting

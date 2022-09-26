@@ -74,7 +74,7 @@ steps:
 Parameters
 ==========
 
-This reduction step is guided by the :ref:`pypeit_par:FindObjPar Keywords`.
+This reduction step is guided by the :ref:`findobjpar`.
 
 These are parameters one may modify to improve performance.
 While we have tried to tune these for each spectrograph, 

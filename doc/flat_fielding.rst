@@ -59,7 +59,7 @@ If you wish to modify the default either for a custom approach
 or because you lack the necessary calibration data, you will
 need to modify the :doc:`pypeit_file` and specifically the
 **use_pixelflat** and **use_illumflat** parameters in the
-:ref:`pypeit_par:ProcessImagesPar Keywords`.
+:ref:`processimagespar`.
 
 We now provide a few typical examples.
 
@@ -68,7 +68,7 @@ No Flat Fielding
 
 If you wish to turn off flat fielding entirely during
 data reduction, add the following to
-the :ref:`pypeit_file:Parameter Block`:
+the :ref:`parameter_block`:
 
 .. code-block:: ini
 
@@ -77,8 +77,7 @@ the :ref:`pypeit_file:Parameter Block`:
         use_illumflat = False
 
 Note that if you provide flat field images in the
-:doc:`pypeit_file`
-:ref:`pypeit_file:Data Block`,
+:ref:`data_block`,
 then these will still be processed
 during reduction.  But they will not be used.
 
@@ -87,7 +86,7 @@ No Illumination Flat
 
 If you wish to turn off application of the illumination
 flat for all files, add the following to
-the :ref:`pypeit_file:Parameter Block`:
+the :ref:`parameter_block`:
 
 .. code-block:: ini
 
@@ -177,12 +176,12 @@ need to provide the matching flat field images in your
 
 In short, if **use_pixelflat** is set for *any* of your images,
 at least one of the data files in the
-:doc:`pypeit_file` :ref:`pypeit_file:Data Block` must
+:doc:`pypeit_file` :ref:`data_block` must
 be labelled as *pixelflat* (unless you `Feed a PixelFlat`_).
 
 And, if **use_illumflat** is set for *any* of your images,
 at least one of the data files in the
-:doc:`pypeit_file` :ref:`pypeit_file:Data Block` must
+:doc:`pypeit_file` :ref:`data_block` must
 be labelled as *illumflat*.
 
 In some cases, it may be desirable to use a different set of
@@ -197,10 +196,10 @@ If you have generated your own pixel flat (or were provided one)
 and it is trimmed and oriented
 in the PypeIt frame (spectral vertical, blue at the bottom),
 then you may feed this into PypeIt.  This is the recommended approach
-at present for :ref:`lris:keck_lris_blue`.
+at present for :ref:`lrisb`.
 
 And you perform this by modifying the
-:ref:`pypeit_file:Parameter Block`:
+:ref:`parameter_block`:
 
 .. code-block:: ini
 
@@ -208,9 +207,7 @@ And you perform this by modifying the
         [[flatfield]]
             pixelflat_file = /Users/joe/python/PypeIt-development-suite/CALIBS/PYPEIT_LRISb_pixflat_B600_2x2_17sep2009.fits.gz
 
-None of the frames in the
-:doc:`pypeit_file` :ref:`pypeit_file:Data Block`
-should be labelled as *pixelflat*.
+None of the frames in the :ref:`data_block` should be labelled as *pixelflat*.
 
 Algorithms
 ----------
@@ -222,11 +219,13 @@ Tuning
 
 If you wish to tune the algorithms used to generate the
 pixel flat and/or illumination flat, you will want to
-modify the :ref:`pypeit_par:FlatFieldPar Keywords`.
+modify the :ref:`flatfieldpar`.
 
 JFH+KBW to provide expert advice on that here.
 
 Below we list common modifications.
+
+.. _flat-field-saturated-slits:
 
 Saturated Slits
 ---------------

@@ -18,7 +18,7 @@ part of the data reduction process.
 The current defaults use the Optimal extraction
 and fluxed data.
 
-See below for the `Current Coadd1D Data Model`_.
+See below for the :ref:`coadd1d_datamodel`.
 
 .. _coadd1d_file:
 
@@ -231,6 +231,7 @@ The ``iref`` option uses the grid of one of the spectra that you are coadding as
 
 If your data contains exposures that are dithered a lot, ``iref`` will probably give you similar noise fluctuations, so using a linear grid with wider spacing may give you a better result.  To change the spacing of the wavelength grid, you can modify ``samp_fact`` in the [coadd1d] block of your `coadd1d file`_.  The default value is 1.0.  Setting ``samp_fact`` > 1.0 over-samples (finer grid), while setting ``samp_fact`` < 1.0 under-samples (coarser grid).
 
+.. _coadd1d_datamodel:
 
 Current Coadd1D Data Model
 ==========================

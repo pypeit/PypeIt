@@ -19,8 +19,7 @@ of extraction, calibration, etc. which yield various data
 products. Additionally, a `.txt` file with `Extraction Information`_ for
 each extracted 1D spectrum is also produced.
 
-.. _spec1d-output-arrays:
-
+.. _spec1d-naming:
 
 Naming
 ======
@@ -51,6 +50,7 @@ For example::
 
     SPAT0176-SLIT0185-DET01
 
+.. _spec1d-extraction:
 
 Extraction
 ==========
@@ -117,7 +117,7 @@ This prints a list to the screen of all the objects extracted.  An example::
     EXT0000012 = SPAT0093-SLIT0000-DET02
     EXT0000013 = SPAT0130-SLIT0001-DET02
 
-This indicates the extension of the object with this :ref:`out_spec1D:Naming`.
+This indicates the extension of the object with this :ref:`spec1d-naming`.
 
 --exten
 +++++++
@@ -133,7 +133,7 @@ Plot this object.
 --extract
 +++++++++
 
-Choice of :ref:`out_spec1D:Extraction` method
+Choice of :ref:`spec1d-extraction` method
 
 --flux
 ++++++
@@ -169,6 +169,8 @@ where:
 In addition, if reducing :doc:`deimos` or :doc:`mosfire` data and slit-mask design matching is performed,
 ``maskdef_id``, ``objname``, ``objra``, ``objdec``, and ``maskdef_extract``  are also provided
 for each spectrum (see :ref:`radec_object_report`).
+
+.. _spec1D-datamodel:
 
 Current Data Model
 ==================

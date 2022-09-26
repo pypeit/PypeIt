@@ -70,7 +70,7 @@ new spectrograph are as follows:
    ``'MultiSlit'``, ``'Echelle'``, or ``'IFU'``.
 
 #. Set the default parameters ``PypeIt`` uses during the reduction; see
-   :ref:`pypeitpar`, and, e.g.,
+   :ref:`parameters`, and, e.g.,
    :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.default_pypeit_par`.
 
 #. Include a default bad-pixel mask; see, e.g.,
@@ -101,7 +101,7 @@ new spectrograph are as follows:
    details for the (currently fixed) format of the orders.
 
 #. You may need to generate wavelength solutions for your setups. You can use the
-   :ref:`wave_calib:pypeit_identify` utility, and add this to the PypeIt archive
+   :ref:`pypeit_identify` utility, and add this to the PypeIt archive
    by following the steps outlined in the :doc:`construct_template` documentation.
 
 

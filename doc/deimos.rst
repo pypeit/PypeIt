@@ -1,4 +1,5 @@
 .. include:: include/links.rst
+
 ***********
 Keck DEIMOS
 ***********
@@ -40,7 +41,7 @@ MOSAIC
 ``PypeIt``, by default, uses a mosaic approach for the reduction. It basically constructs a mosaic
 of the blue and red detector data and reduces it, instead of processing the detector data individually.
 ``PypeIt`` generates four mosaics, one per each blue-red detector pair. The mosaic reduction is switched
-on by setting the parameter ``detnum`` in :ref:`pypeit_par:ReduxPar Keywords` to be a list of
+on by setting the parameter ``detnum`` in :ref:`reduxpar` to be a list of
 tuples of the detector indices that are mosaiced together. For DEIMOS, it looks like:
 
 .. code-block:: ini
@@ -84,12 +85,14 @@ try::
 It is possible, however, that our new implementation of using
 the slitmask design file has alleviated this issue.
 
+.. _deimos-mask-matching:
+
 Slit-mask design matching
 -------------------------
 ``PypeIt`` is able to match the traced slit to the slit-mask design information
 contained as meta data in the DEIMOS observations. This functionality at the moment is
 implemented only for DEIMOS and MOSFIRE and is switched on by setting **use_maskdesign** flag in
-:ref:`pypeit_par:EdgeTracePar Keywords` to *True*.  This is, already, the default for DEIMOS,
+:ref:`edgetracepar` to *True*.  This is, already, the default for DEIMOS,
 except when the *LongMirr* or the *LVM* mask is used.
 
 ``PypeIt`` also assigns to each extracted 1D spectrum the corresponding RA, Dec and object name
@@ -97,7 +100,7 @@ information from the slitmask design, and forces the extraction of undetected ob
 expected from the slitmask design. See `Additional Reading`_ .
 
 When the extraction of undetected objects is performed, the user can input a value of the FWHM for the
-optimal extraction by setting the parameter **missing_objs_fwhm** in :ref:`pypeit_par:SlitMaskPar Keywords`.
+optimal extraction by setting the parameter **missing_objs_fwhm** in :ref:`slitmaskpar`.
 If **missing_objs_fwhm = None** (which is the default) ``PypeIt`` will use the median FWHM of all the
 detected objects.
 
@@ -107,7 +110,7 @@ Wavelength Calibration
 ``PypeIt`` is able (currently only for DEIMOS) to read from the header of the arc frames which
 lamps were ON during the observations and to set those to be the list of lamps to be used
 for the wavelength calibration. This functionality is switched on by setting ``lamps = use_header``
-in :ref:`pypeit_par:WavelengthSolutionPar Keywords`. This is already set by default for DEIMOS.
+in :ref:`wavelengthsolutionpar`. This is already set by default for DEIMOS.
 
 It may happen, occasionally, that some lamps are not recorded in the header even if they were ON
 during the observations. This could be the case if a specific script, called `calib_blue`
@@ -128,7 +131,7 @@ Flat Fielding
 When using the *LVMslitC* mask, it is common for the
 widest slits to have saturated flat fields.  If so, the
 code will exit during flat fielding. You can skip over them
-as described in :ref:`flat_fielding:Saturated Slits`.
+as described in :ref:`flat-field-saturated-slits`.
 
 
 Fluxing
@@ -143,7 +146,7 @@ Flexure
 
 For most users, the standard flexure correction will be sufficient.
 For RV users, you may wish to use the
-:ref:`flexure:pypeit_multislit_flexure` script which also means
+:ref:`pypeit_multislit_flexure` script which also means
 initially reducing the data without the standard corrections.
 See those docs for further details and note it has only been
 tested for the 1200 line grating and with redder wavelengths.
@@ -166,3 +169,4 @@ Here are additional docs related to Keck/DEIMOS:
    dev/deimos_wavecalib
    dev/add_missing_obj
    deimos_howto
+

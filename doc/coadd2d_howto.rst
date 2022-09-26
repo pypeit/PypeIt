@@ -61,8 +61,8 @@ Parameter Block
 
 The parameter block includes the parameters used to guide the 2D coadding and the reduction (i.e.,
 object finding and extraction) of the coadded spectra. The parameters for the reduction are the same
-as the ones used during the main ``PypeIt`` run, see :ref:`pypeit_par:ReducePar Keywords`.
-The full set of parameters for the 2D coadding can be found here :ref:`pypeit_par:Coadd2DPar Keywords`.
+as the ones used during the main ``PypeIt`` run, see :ref:`reducepar`.
+The full set of parameters for the 2D coadding can be found here :ref:`coadd2dpar`.
 
 
 The coadd2d parameter ``manual`` provides the location of the objects that the user want to manually extract.
@@ -95,7 +95,7 @@ Here are the options:
 .. note::
    The ``offsets = maskdef_offsets`` option is only available for multi-slit observations and
    currently only for Keck/DEIMOS and Keck/MOSFIRE.
-   Set the parameters :ref:`pypeit_par:SlitMaskPar Keywords` in the :ref:`pypeit_file` during
+   Set the parameters :ref:`slitmaskpar` in the :ref:`pypeit_file` during
    the main ``PypeIt`` run to determine how ``maskdef_offsets`` are computed. See :ref:`radec_object_report`
    for more info.
 
@@ -358,7 +358,7 @@ DEIMOS: Inspecting spec1d output
 --------------------------------
 
 A summary of all the extracted sources can be found in the `spec1d_DE.20170425.50487-DE.20170425.53065-dra11.txt`
-file in the `Science_coadd` folder. See :ref:`deimos_howto:Spec1D` for an example of this file with the
+file in the `Science_coadd` folder. See :ref:`deimos_howto_spec1d` for an example of this file with the
 explanation for some columns.
 
 The spec1d can also be inspected with the script ``pypeit_chk_noise_1dspec``, which show the spec1D for

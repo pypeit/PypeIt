@@ -65,7 +65,7 @@ If you wish to operate on the negative image for an A-B reduction
 When running a mosaic reduction (currently only available for :doc:`gemini_gmos` and :doc:`deimos`),
 the part of the manual extraction entry that specifies the detector number needs to indicate the detectors that are
 mosaiced together in the same way as is done when setting the parameter ``detnum`` in the
-:ref:`pypeit_par:ReduxPar Keywords` of the :doc:`pypeit_file`. Here is an example for Keck/DEIMOS::
+:ref:`reduxpar` of the :doc:`pypeit_file`. Here is an example for Keck/DEIMOS::
 
     | d0225_0054.fits |    science |  241.13283 | 43.2563 |     16045h |    600ZD | 16045h |     1,1 | 58539.623231 |  1.1266414 |  1320.0 | 7899.99072266 | (1,5):68.0:2960.0:3.;(1,5):211.0:3082.0:3.|
 

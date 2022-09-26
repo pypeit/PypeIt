@@ -316,6 +316,8 @@ The night sky and emission lines have been subtracted.
 
 See :doc:`out_spec2D` for further details.
 
+.. _deimos_howto_spec1d:
+
 Spec1D
 ++++++
 

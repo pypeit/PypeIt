@@ -17,7 +17,7 @@ PypeIt file
 ===========
 
 When running :ref:`pypeit_setup` for most near-IR spectrographs, the
-:ref:`pypeit_file:Data Block` in the PypeIt file will include three extra 
+:ref:`data_block` in the PypeIt file will include three extra 
 parameters (``calib``, ``comb_id``, and ``bkg_id``), which should be edited 
 according to the desired reduction. This can also
 be obtained running :ref:`pypeit_setup` by adding the `-b` option.
@@ -47,14 +47,14 @@ All of these should be assigned integer values (or ``all``, see below), and ``ca
 Calibrations
 ============
 
-Each calibration frame in the :ref:`pypeit_file:Data Block` should have the same ``calib`` ID value of
+Each calibration frame in the :ref:`data_block` should have the same ``calib`` ID value of
 the science data that uses it, or be set to ``all`` if used by all of the science and standard frames in the pypeit
 file.
 
 For the calibration frames ``comb_id`` and ``bkg_id`` are irrelevant and their value
 should be set to ``-1``.
 
-Here is an example of a :ref:`pypeit_file:Data Block` for the ``illumflat``, ``pixelflat``, and ``trace`` frames::
+Here is an example of a :ref:`data_block` for the ``illumflat``, ``pixelflat``, and ``trace`` frames::
 
     |          filename |                  frametype | ... | calib | comb_id | bkg_id |
     | m190627_0037.fits |  illumflat,pixelflat,trace | ... |   all |      -1 |     -1 |
@@ -74,7 +74,7 @@ Image Differencing
 The user needs to edit ``comb_id``, and ``bkg_id`` in order to
 control how PypeIt combines and subtracts the spectroscopic data.
 
-Here is an example of a portion of the :ref:`pypeit_file:Data Block` for the science files for a hypothetical
+Here is an example of a portion of the :ref:`data_block` for the science files for a hypothetical
 sequence which we could represent as an ABAB dither pattern::
 
     |          filename |        frametype | ... | calib | comb_id | bkg_id |

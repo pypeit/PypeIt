@@ -12,7 +12,7 @@ Overview
 
 This document describes how PypeIt performs sky subtraction.
 
-See :ref:`pypeit_par:SkySubPar Keywords` for the complete
+See :ref:`skysubpar` for the complete
 list of options related to sky subtraction.
 
 Global
@@ -29,7 +29,9 @@ set threshold in the profile are masked.
 
 One can enforce more aggressive masking by
 setting *mask_by_boxcar* which will mask each object by the
-*boxcar_radius* set in :ref:`pypeit_par:ExtractionPar Keywords`::
+*boxcar_radius* set in :ref:`extractionpar`:
+
+.. code-block:: ini
 
     [reduce]
        [[extraction]]
@@ -41,13 +43,14 @@ setting *mask_by_boxcar* which will mask each object by the
 Local
 =====
 
-Assuming you perform :ref:`extraction:Optimal` extraction,
+Assuming you perform :ref:`extraction-optimal` extraction,
 the default is to refine the sky subtraction in tandem.
 
 To turn this off (e.g. recommended for bright extended emission
 lines on faint galaxy continua), set
-*no_local_sky* in :ref:`pypeit_par:SkySubPar Keywords`::
+*no_local_sky* in :ref:`skysubpar`:
 
+.. code-block:: ini
 
     [reduce]
        [[skysub]]
@@ -64,7 +67,9 @@ the sky regions. The first option is to define the locations
 on the slits where there is sky in your .pypeit file. The
 command is a comma separated list of regions that represent
 the locations on the slit (0 is the left edge, 100 is the
-right edge)::
+right edge):
+
+.. code-block:: ini
 
     [reduce]
       [[skysub]]
@@ -124,3 +129,5 @@ NOTE: If you manually create a sky regions file - this will be
 used by default in PypeIt. You should either delete or rename
 the MasterSkyRegions file if you later want to use the automatic
 PypeIt algorithm.
+
+
