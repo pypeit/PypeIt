@@ -21,9 +21,8 @@ Installation
     Python 3.10 is not yet supported.  
 
 Below, we provide detailed instructions for installing ``PypeIt``.  For
-troubleshooting, please consult our ``PypeIt`` user community via our PypeIt
-Users Slack and/or `submit an issue <https://github.com/pypeit/PypeIt/issues>`__
-on GitHub.
+troubleshooting, please consult the ``PypeIt`` :ref:`community` and/or `submit
+an issue <https://github.com/pypeit/PypeIt/issues>`__ on GitHub.
 
 .. contents:: Table of Contents
     :depth: 1
