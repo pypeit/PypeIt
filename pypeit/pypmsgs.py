@@ -114,11 +114,11 @@ class Messages:
             devmsg = ''
         return devmsg
 
-    def _print(self, premsg, msg, last=True):
+    def _print(self, premsg, msg, last=True, printDevMsg=True):
         """
         Print to standard error and the log file
         """
-        devmsg = self._devmsg()
+        devmsg = self._devmsg() if printDevMsg else ''
         _msg = premsg+devmsg+msg
         if self._verbosity != 0:
             print(_msg, file=sys.stderr)
@@ -232,6 +232,31 @@ class Messages:
             premsgp = self._start + self._black_CL + '[WORK IN ]::' + self._end + '\n'
             premsgs = self._start + self._yellow_CL + '[PROGRESS]::' + self._end + ' '
             self._print(premsgp+premsgs, msg)
+
+    def pypeitpar(self, msglist):
+        """
+        Print a message with the pypeit par formatting.
+
+        Parameters
+        ----------
+        msglist: list of str
+          A list containing the pypeit parameters. The last element of the list
+          must be the argument and the variable. For example, to print:
+
+          [sensfunc]
+            [[UVIS]]
+              polycorrect = False
+
+        you should set msglist = ['sensfunc', 'UVIS', 'polycorrect = False']
+        """
+        premsg = '             '
+        for ll, lin in enumerate(msglist):
+            thismsg = ll*'  '
+            if ll == len(msglist)-1:
+                thismsg += lin
+            else:
+                thismsg += (ll+1) * '[' + lin + (ll+1) * ']'
+            self._print(premsg, thismsg, printDevMsg=False)
 
     def prindent(self, msg):
         """

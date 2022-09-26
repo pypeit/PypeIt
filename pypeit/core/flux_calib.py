@@ -433,17 +433,18 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
     return std_dict
 
 
-def load_extinction_data(longitude, latitude, toler=5. * units.deg):
+def load_extinction_data(longitude, latitude, extinctfilepar,
+                         toler=5. * units.deg):
     """
     Find the best extinction file to use, based on longitude and latitude.
     Loads it and returns a Table
 
     Parameters
     ----------
-    longitude: float
-        Geocentric longitude coordinate in degrees.
-    latitude: float
-        Geocentric latitude coordinate in degrees.
+    longitude, latitude: Geocentric coordinates in degrees (floats).
+    extinctfilepar : (str)
+        The sensfunc['extinct_file'] parameter, used to determine
+        which extinction file to load.
     toler : Angle, optional
         Tolerance for matching detector to site (5 deg)
 
@@ -452,30 +453,48 @@ def load_extinction_data(longitude, latitude, toler=5. * units.deg):
     ext_file : `astropy.table.Table`_
         astropy Table containing the 'wavelength', 'extinct' data for AM=1.
     """
-    # Mosaic coord
-    mosaic_coord = coordinates.SkyCoord(longitude, latitude, frame='gcrs', unit=units.deg)
-    # Read list
-    extinct_summ = os.path.join(data.Paths.extinction, 'README')
-    extinct_files = table.Table.read(extinct_summ, comment='#', format='ascii')
-    # Coords
-    ext_coord = coordinates.SkyCoord(extinct_files['Lon'], extinct_files['Lat'], frame='gcrs',
-                                     unit=units.deg)
-    # Match
-    idx, d2d, d3d = coordinates.match_coordinates_sky(mosaic_coord, ext_coord, nthneighbor=1)
-    if d2d < toler:
-        extinct_file = extinct_files[int(idx)]['File']
-        msgs.info("Using {:s} for extinction corrections.".format(extinct_file))
+    # Default Behavior
+    if extinctfilepar == 'closest':
+        # Observation coordinates
+        obs_coord = coordinates.SkyCoord(longitude, latitude, frame='gcrs', unit=units.deg)
+        # Read list
+        extinct_summ = os.path.join(data.Paths.extinction, 'README')
+        extinct_files = table.Table.read(extinct_summ, comment='#', format='ascii')
+        # Coords
+        ext_coord = coordinates.SkyCoord(extinct_files['Lon'], extinct_files['Lat'], frame='gcrs',
+                                        unit=units.deg)
+        # Match
+        idx, d2d, _ = coordinates.match_coordinates_sky(obs_coord, ext_coord, nthneighbor=1)
+        if d2d < toler:
+            extinct_file = extinct_files[int(idx)]['File']
+            msgs.info(f"Using {extinct_file} for extinction corrections.")
+        else:
+            # Crash with a helpful error message
+            msgs.warn(f"No observatory extinction file was found within {toler}{msgs.newline()}"
+                      f"of observation at lon = {longitude:.1f} lat = {latitude:.1f}  You may{msgs.newline()}"
+                      f"select an included extinction file (e.g., KPNO) for use by{msgs.newline()}"
+                      f"adding the following to the Sensitivity Input File{msgs.newline()}"
+                      "(for pypeit_sensfunc):")
+            msgs.pypeitpar(['sensfunc', 'UVIS', 'extinct_file = kpnoextinct.dat'])
+            msgs.warn("or the following to the Flux File (for pypeit_flux_calib):")
+            msgs.pypeitpar(['fluxcalib', 'extinct_file = kpnoextinct.dat'])
+            msgs.error(f"See instructions at{msgs.newline()}"
+                       f"https://pypeit.readthedocs.io/en/latest/fluxing.html#extinction-correction{msgs.newline()}"
+                       f"for using extinction files and how to install a user-supplied{msgs.newline()}"
+                       "file, if desired.")
+
+    # User-Supplied Extinction File
     else:
-        msgs.warn("No file found for extinction corrections.  Applying none")
-        msgs.warn("You should generate a site-specific file")
-        return None
+        extinct_file = extinctfilepar
+
     # Read
-    extinct = table.Table.read(os.path.join(data.Paths.extinction, extinct_file),
+    extinct = table.Table.read(data.get_extinctfile_filepath(extinct_file),
                                comment='#', format='ascii', names=('iwave', 'mag_ext'))
     wave = table.Column(np.array(extinct['iwave']) * units.AA, name='wave')
     extinct.add_column(wave)
     # Return
     return extinct[['wave', 'mag_ext']]
+
 
 def extinction_correction(wave, airmass, extinct):
     """
@@ -560,11 +579,32 @@ def find_standard(specobj_list):
     return mxix
 
 
-def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
-             std_dict, longitude, latitude, ech_orders=None,
-             mask_abs_lines=True, polyorder=4, balm_mask_wid=10.0, nresln=20., 
-             resolution=3000., trans_thresh=0.9,polycorrect=True, 
-             polyfunc=False, debug=False):
+#def apply_standard_sens(spec_obj, sens_dict, airmass, exptime, extinct_correct=True, telluric_correct = False,
+#                        longitude=None, latitude=None):
+#    """ Apply the sensitivity function to the data
+#    We also correct for extinction.
+#
+#    Parameters
+#    ----------
+#    spec_obj : dict
+#        SpecObj
+#    sens_dict : dict
+#        Sens Function dict
+#    airmass : float
+#        Airmass
+#    exptime : float
+#        Exposure time in seconds
+#    longitude : float
+#        longitude in degree for observatory
+#    latitude: float
+#        latitude in degree for observatory. Used for extinction
+#        correction
+#    """
+
+
+def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, longitude, latitude, extinctfilepar, ech_orders=None,
+             mask_abs_lines=True, polyorder=4, balm_mask_wid=10.0, nresln=20., resolution=3000.,
+             trans_thresh=0.9,polycorrect=True, polyfunc=False, debug=False):
     """
     Function to generate the sensitivity function. This function fits
     a bspline to the 2.5*log10(flux_std/flux_counts). The break
@@ -573,46 +613,51 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass,
     code can work in different regimes, but NOTE THAT TELLURIC MODE
     IS DEPRECATED, use telluric.sensfunc_telluric instead
 
-    Parameters
-    ----------
-    wave: `numpy.ndarray`_
-        Wavelength of the star. Shape (nspec,) or (nspec, norders)
-    counts: `numpy.ndarray`_
-        Flux (in counts) of the star. Shape (nspec,) or (nspec, norders)
-    counts_ivar: `numpy.ndarray`_
-        Inverse variance of the star counts. Shape (nspec,) or (nspec, norders)
-    counts_mask: `numpy.ndarray`_
-        Good pixel mask for the counts. Shape (nspec,) or (nspec, norders)
-    exptime: float
-        Exposure time in seconds
-    airmass: float
-        Airmass
-    std_dict: dict
-        Dictionary containing information about the standard star returned by flux_calib.get_standard_spectrum
-    longitude: float
-        Telescope longitude, used for extinction correction.
-    latitude: float
-        Telescope latitude, used for extinction correction
-    ech_orders: int, or `numpy.ndarray`_, optional
-        If passed the echelle orders will be added to the meta_table. ech_orders must be a numpy array of integers
-        with the shape (norders,) giving the order numbers
-    mask_abs_lines: bool, optional
-        If True, mask stellar absorption lines before fitting sensitivity function. Default = True
-    balm_mask_wid: float, optional
-        Parameter describing the width of the mask for or stellar absorption lines (i.e. mask_abs_lines=True). A region
-        equal to balm_mask_wid*resln is masked where resln is the estimate for the spectral resolution in pixels
-        per resolution element.
-    polycorrect: bool, optional
-        Whether you want to interpolate the sensfunc with polynomial in the stellar absortion line regions before
-        fitting with the bspline
-    nresln: float, optional
-        Parameter governing the spacing of the bspline breakpoints. default = 20.0
-    resolution: float, optional
-        Expected resolution of the standard star spectrum. This should probably be determined from the grating, but is
-        currently hard wired. default=3000.0
-    trans_thresh: float, optional
-        Parameter for selecting telluric regions which are masked. Locations below this transmission value are masked.
-        If you have significant telluric absorption you should be using telluric.sensnfunc_telluric. default = 0.9
+    Args:
+        wave (`numpy.ndarray`_):
+            Wavelength of the star. Shape (nspec,) or (nspec, norders)
+        counts (ndarray):
+            Flux (in counts) of the star. Shape (nspec,) or (nspec, norders)
+        counts_ivar (`numpy.ndarray`_):
+            Inverse variance of the star counts. Shape (nspec,) or (nspec, norders)
+        counts_mask (`numpy.ndarray`_):
+            Good pixel mask for the counts. Shape (nspec,) or (nspec, norders)
+        exptime (float):
+            Exposure time in seconds
+        airmass (float):
+            Airmass
+        std_dict (dict):
+            Dictionary containing information about the standard star returned by flux_calib.get_standard_spectrum
+        longitude (float):
+            Telescope longitude, used for extinction correction.
+        latitude (float):
+            Telescope latitude, used for extinction correction
+        extinctfilepar (str):
+            [sensfunc][UVIS][extinct_file] parameter
+            Used for extinction correction
+        ech_orders (int `numpy.ndarray`_):
+            If passed the echelle orders will be added to the meta_table. ech_orders must be a numpy array of integers
+            with the shape (norders,) giving the order numbers
+        mask_abs_lines (bool):
+            If True, mask stellar absorption lines before fitting sensitivity function. Default = True
+        balm_mask_wid (float):
+            Parameter describing the width of the mask for or stellar absorption lines (i.e. mask_abs_lines=True). A region
+            equal to balm_mask_wid*resln is masked where resln is the estimate for the spectral resolution in pixels
+            per resolution element.
+        polycorrect (bool):
+            Whether you want to interpolate the sensfunc with polynomial in the stellar absortion line regions before
+            fitting with the bspline
+        nresln (float):
+            Parameter governing the spacing of the bspline breakpoints. default = 20.0
+        resolution (float):
+            Expected resolution of the standard star spectrum. This should probably be determined from the grating, but is
+            currently hard wired. default=3000.0
+        trans_thresh (float):
+            Parameter for selecting telluric regions which are masked. Locations below this transmission value are masked.
+            If you have significant telluric absorption you should be using telluric.sensnfunc_telluric. default = 0.9
+
+    Returns:
+        Tuple: Returns:
 
     Returns
     -------
@@ -635,7 +680,7 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass,
     for iord in range(norders):
         # Prepare some arrays for the zero point fit
         Nlam_star, Nlam_star_ivar, gpm_star = counts2Nlam(wave_arr[:, iord], counts_arr[:, iord], ivar_arr[:, iord],
-                                                             mask_arr[:,iord], exptime, airmass, longitude, latitude)
+                                                             mask_arr[:,iord], exptime, airmass, longitude, latitude, extinctfilepar)
         # Fit the zeropoint
         zeropoint_data[:, iord], zeropoint_data_gpm[:, iord], zeropoint_fit[:, iord], zeropoint_fit_gpm[:, iord], =\
             fit_zeropoint(wave_arr[:,iord], Nlam_star, Nlam_star_ivar, gpm_star, std_dict,
@@ -671,35 +716,38 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass,
     return meta_table, out_table
 
 def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extinct_correct=False,
-                         airmass=None, longitude=None, latitude=None, extrap_sens=False):
+                         airmass=None, longitude=None, latitude=None, extinctfilepar=None, extrap_sens=False):
     """
     Get the final sensitivity function factor that will be multiplied into a spectrum in units of counts to flux calibrate it.
     This code interpolates the sensitivity function and can also multiply in extinction and telluric corrections.
 
-    Parameters
-    ----------
-    wave: `numpy.ndarray`_
-       Wavelength values in units of Angstrom. shape = (nspec,)
-    wave_zp: `numpy.ndarray`_
-       Zero point wavelength vector with shape = (nspec,)
-    zeropoint: `numpy.ndarray`_
-       Zeropoint, i.e. sensitivity function with shape = (nspec,)
-    exptime: float
-        Exposure time in unit of second
-    tellmodel: `numpy.ndarray`_, optional
-       Apply telluric correction if it is passed it. Note this is deprecated. shape = (nspec,)
-    extinct_correct: bool, optional
-       If True perform an extinction correction. Deafult = False
-    airmass: float, optional
-       Airmass used if extinct_correct=True. This is required if extinct_correct=True
-    longitude: float, optional
-        longitude in degree for observatory
-        Required for extinction correction
-    latitude: float, optional
-        latitude in degree for observatory
-        Required  for extinction correction
-    extrap_sens: bool, optional
-        If true, extrapolate the sensitivity function (instead of crashing out)
+    FLAM, FLAM_SIG, and FLAM_IVAR are generated
+
+    Args:
+        wave (float `numpy.ndarray`_): shape = (nspec,)
+           Senstivity
+        wave_zp (float `numpy.ndarray`_):
+           Zerooint wavelength vector shape = (nsens,)
+        zeropoint (float `numpy.ndarray`_): shape = (nsens,)
+           Zeropoint, i.e. sensitivity function
+        exptime (float):
+        tellmodel (float  `numpy.ndarray`_, optional): shape = (nspec,)
+           Apply telluric correction if it is passed it. Note this is deprecated.
+        extinct_correct (bool, optional)
+           If True perform an extinction correction. Deafult = False
+        airmass (float, optional):
+           Airmass used if extinct_correct=True. This is required if extinct_correct=True
+        longitude (float, optional):
+            longitude in degree for observatory
+            Required for extinction correction
+        latitude:
+            latitude in degree for observatory
+            Required  for extinction correction
+        extinctfilepar (str):
+                [sensfunc][UVIS][extinct_file] parameter
+                Used for extinction correction
+        extrap_sens (bool, optional):
+            Extrapolate the sensitivity function (instead of crashing out)
 
     Returns
     -------
@@ -750,7 +798,7 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
         # Apply Extinction if optical bands
         msgs.info("Applying extinction correction")
         msgs.warn("Extinction correction applyed only if the spectra covers <10000Ang.")
-        extinct = load_extinction_data(longitude, latitude)
+        extinct = load_extinction_data(longitude, latitude, extinctfilepar)
         ext_corr = extinction_correction(wave * units.AA, airmass, extinct)
         senstot = sensfunc_obs * ext_corr
     else:
@@ -761,8 +809,7 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
     return senstot/exptime/delta_wave
 
 
-def counts2Nlam(wave, counts, counts_ivar, counts_mask, exptime, 
-                airmass, longitude, latitude):
+def counts2Nlam(wave, counts, counts_ivar, counts_mask, exptime, airmass, longitude, latitude, extinctfilepar):
     """
     Convert counts to counts/s/Angstrom
     Used for flux calibration and to apply extinction correction
@@ -784,6 +831,10 @@ def counts2Nlam(wave, counts, counts_ivar, counts_mask, exptime,
             Telescope longitude, used for extinction correction.
         latitude (float):
             Telescope latitude, used for extinction correction
+        extinctfilepar (str):
+            [sensfunc][UVIS][extinct_file] parameter
+            Used for extinction correction
+
 
     Returns:
         tuple: Three items:
@@ -800,7 +851,7 @@ def counts2Nlam(wave, counts, counts_ivar, counts_mask, exptime,
 
     # Extinction correction
     msgs.info("Applying extinction correction")
-    extinct = load_extinction_data(longitude,latitude)
+    extinct = load_extinction_data(longitude,latitude, extinctfilepar)
     ext_corr = extinction_correction(wave * units.AA, airmass, extinct)
     # Correct for extinction
     Nlam_star = Nlam_star * ext_corr
