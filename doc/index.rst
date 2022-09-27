@@ -14,7 +14,16 @@
 ----
 
 .. toctree::
-   :caption: Basics
+   :caption: Quickstart & Tutorials
+   :maxdepth: 1
+
+   cookbook
+   step-by-step
+
+----
+
+.. toctree::
+   :caption: Essentials
    :maxdepth: 1
 
    setup
@@ -22,15 +31,6 @@
    outputs
    calibrations
    qa
-
-----
-
-.. toctree::
-   :caption: Tutorials
-   :maxdepth: 1
-
-   cookbook
-   step-by-step
 
 ----
 
@@ -55,6 +55,8 @@
    nir_example
 
 ----
+
+.. _further_processing:
 
 .. toctree::
    :caption: Further processing

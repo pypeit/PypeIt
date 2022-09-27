@@ -71,8 +71,8 @@ provided by our `online documentation
 data reduction expertise and astronomers with no prior experience of data
 reduction. It is highly configurable and designed to be applied to any standard
 slit-imaging spectrograph, and can accommodate long-slit, multi-slit, as well as
-cross-dispersed echelle spectra.  The full list of spectrogaphs supported for
-PypeIt data reduction is provided `here
+cross-dispersed echelle spectra.  **The spectrogaphs that 
+PypeIt can be with are listed** `here
 <https://pypeit.readthedocs.io/en/release/spectrographs.html>`__.
 
 In addition to our primary code base, we maintain an extensive `PypeIt

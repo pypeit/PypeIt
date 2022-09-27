@@ -14,6 +14,7 @@
 .. _textwrap.wrap: https://docs.python.org/3/library/textwrap.html#textwrap.wrap
 
 .. numpy
+.. _numpy: https://numpy.org/
 .. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
 .. _numpy.ma.MaskedArray: http://docs.scipy.org/doc/numpy/reference/maskedarray.baseclass.html
 .. _numpy.ma.median: https://numpy.org/doc/stable/reference/generated/numpy.ma.median.html

@@ -16,6 +16,8 @@ It assumes (but does not require):
 2. You have inspected the spectra wish to improve aspects of them.
 
 
+.. _object_finding_tips:
+
 Object Finding
 ==============
 
