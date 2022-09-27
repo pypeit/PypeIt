@@ -13,6 +13,7 @@ development of ``PypeIt``.
    
    deimosframes
    mosfireframes
+   niresframes
    slitmask_ids
    deimosconfig
    mosfireconfig

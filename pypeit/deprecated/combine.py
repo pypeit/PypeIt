@@ -202,3 +202,31 @@ def comb_frames(frames_arr, saturation=None,
     # Make sure the returned array is the correct type
     comb_frame = np.array(comb_frame, dtype=np.float)
     return comb_frame
+
+
+def masked_weightmean(a, maskvalue):
+    """
+    .. todo::
+        Document this!
+    """
+    num = np.ma.MaskedArray(a.copy(), mask=(a==maskvalue))
+    num[np.invert(num.mask) & (num <= 1.0)] = 0.0
+    num = np.ma.sum(np.ma.sqrt(num)*num, axis=2)
+    den = np.ma.MaskedArray(a.copy(), mask=(a==maskvalue))
+    den[np.invert(den.mask) & (den <= 1.0)] = 1.0
+    den = np.ma.sum(np.sqrt(den), axis=2)
+    return np.ma.divide(num, den).filled(maskvalue)
+
+
+def maxnonsat(array, saturated):
+    """
+    .. todo::
+        Document this!
+    """
+    minimum = np.amin(np.clip(array, None, saturated), axis=2)
+    _array = np.ma.MaskedArray(array, mask=np.invert((array > 0.0) & (array<saturated)))
+    maximum = np.ma.amax(_array, axis=2)
+    maximum[maximum.mask] = minimum[maximum.mask]
+    return maximum.data
+
+
