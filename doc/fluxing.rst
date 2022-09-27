@@ -98,7 +98,7 @@ In practice, ``PypeIt`` fits and stores the spectroscopic zerpoints and uses the
 equation above to compute :math:`F_\lambda` from :math:`N_\lambda` and
 vice-versa.
 
-The sensitivity function script, :ref:`fluxing:pypeit_sensfunc`, produces a QA
+The sensitivity function script, :ref:`pypeit_sensfunc`, produces a QA
 plot showing the the zeropoint fit, as shown below. For echelle observations
 this zeropoint QA is shown for each order.
 
@@ -151,7 +151,7 @@ standard-star and science observations. In future versions, we hope to implement
 a better treatment of slit losses. For the time being, we recommend that users
 that require very accurate flux calibration force ``PypeIt`` flux-calibrated
 spectra to agree with photometry. This can be done using the `filter` parameter
-option for 1D coadding (see :ref:`pypeit_par:Coadd1DPar Keywords`), which can be
+option for 1D coadding (see :ref:`coadd1dpar`), which can be
 set in the ``.coadd1d`` file, which is used to guide 1D coaddition with the
 ``pypeit_coadd1d`` script (see :ref:`coadd1d`).
 
@@ -365,7 +365,7 @@ Alternatively, see `Adding a Standard Star`_.
 Applying the PypeIt Sensitivity Function
 ========================================
 
-Once you have generated a `Sensitivity Function`_, you may apply
+Once you have generated a :ref:`Sensitivity Function<sensitivity_function>`, you may apply
 it to one or more :doc:`out_spec1D` files.
 The files are modified in place, filling the OPT_FLAM, BOX_FLAM, etc.
 entries, as described in :doc:`out_spec1D`.
