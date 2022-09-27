@@ -20,6 +20,7 @@ from pypeit import msgs
 from pypeit import specobjs
 from pypeit import utils
 from pypeit import io
+from pypeit.core import coadd
 from pypeit.core import flux_calib
 from pypeit.core import telluric
 from pypeit.core import fitting
@@ -686,7 +687,7 @@ class SensFunc(datamodel.DataContainer):
                 weights_stack[:,iord,iexp] = utils.inverse(sensfunc_iord)
 
         if debug:
-            weights_qa(waves_stack, weights_stack, (waves_stack > 1.0), title='sensfunc_weights')
+            coadd.weights_qa(waves_stack, weights_stack, (waves_stack > 1.0), title='sensfunc_weights')
 
         if waves.ndim == 2:
             weights_stack = np.reshape(weights_stack, (nspec, norder))
@@ -858,6 +859,7 @@ class UVISSensFunc(SensFunc):
                                                     self.meta_spec['AIRMASS'], self.std_dict,
                                                     self.meta_spec['LONGITUDE'],
                                                     self.meta_spec['LATITUDE'],
+                                                    self.par['UVIS']['extinct_file'],
                                                     self.meta_spec['ECH_ORDERS'],
                                                     polyorder=self.par['polyorder'],
                                                     balm_mask_wid=self.par['UVIS']['balm_mask_wid'],

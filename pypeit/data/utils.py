@@ -85,6 +85,7 @@ __all__ = ['Paths', 'load_telluric_grid', 'load_thar_spec',
            'load_sky_spectrum', 'get_reid_arxiv_filepath',
            'get_skisim_filepath', 'get_sensfunc_filepath',
            'get_telgrid_filepath', 'get_linelist_filepath',
+           'get_extinctfile_filepath',
            'fetch_remote_file', 'search_cache',
            'write_file_to_cache']
 
@@ -445,6 +446,39 @@ def get_linelist_filepath(linelist_file):
     return linelist_path
 
 
+def get_extinctfile_filepath(extinction_file):
+    """Return the full path to the ``extinction`` file
+
+    Unlike other get_*_filepath() functions, the extinction files are included
+    with the PyPI distribution since they are small text files.  The purpose
+    of this function is to be able to load in user-installed extinction files
+    from observatories not already included.  Users may self-install such
+    files using the ``pypeit_install_extinctfile`` script.
+
+    Args:
+        extinction_file (str):
+          The base filename of the ``extinction`` file to be located
+
+    Returns:
+        str: The full path to the ``extinction`` file
+    """
+    # Full path within the package data structure:
+    extinction_path = os.path.join(Paths.extinction, extinction_file)
+
+    # Check if the file does NOT exist in the package directory
+    # NOTE: This should be the case only for user-installed extinction files
+    if not os.path.isfile(extinction_path):
+
+        extinction_path = fetch_remote_file(extinction_file, "extinction")
+
+        # Output an informational message
+        msgs.info(f"Using extinction file {extinction_file}{msgs.newline()}"
+                  "that was found in the cache.")
+
+    # Return the path to the `extinction` file
+    return extinction_path
+
+
 # AstroPy download/cache infrastructure ======================================#
 def fetch_remote_file(filename, filetype, remote_host='github', install_script=False,
                       force_update=False, full_url=None):
@@ -515,6 +549,14 @@ def fetch_remote_file(filename, filetype, remote_host='github', install_script=F
                 f"Use the script `pypeit_install_linelist` to install{msgs.newline()}"
                 f"your custom line list into the cache.  See instructions at{msgs.newline()}"
                 "https://pypeit.readthedocs.io/en/latest/wave_calib.html#line-lists"
+            )
+
+        elif filetype == "extinction":
+            err_msg = (
+                f"Cannot find local extinction file {filename}{msgs.newline()}"
+                f"Use the script `pypeit_install_extinctfile` to install{msgs.newline()}"
+                f"your custom extinction file into the cache.  See instructions at{msgs.newline()}"
+                "https://pypeit.readthedocs.io/en/latest/fluxing.html#extinction-correction"
             )
 
         else:
