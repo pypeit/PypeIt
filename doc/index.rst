@@ -2,85 +2,6 @@
 
 ----
 
-.. toctree::
-   :caption: Welcome!
-   :maxdepth: 1
-
-   codeconduct
-   installing
-   whatsnew
-   known_failure_modes
-
-----
-
-.. toctree::
-   :caption: Quickstart & Tutorials
-   :maxdepth: 1
-
-   cookbook
-   tutorials/tutorials
-
-----
-
-.. toctree::
-   :caption: Essentials
-   :maxdepth: 1
-
-   setup
-   datareduction
-   outputs
-   calibrations
-   qa
-
-----
-
-.. toctree::
-   :caption: Details
-   :maxdepth: 1
-
-   spectrographs/spectrographs
-   input_files
-   pypeit_par
-   pypeit_file
-   running
-   image_proc
-   mosaic
-   quicklook
-   2d_combine
-   object_finding
-   skysub
-   extraction
-   scripts
-   A-B_differencing
-   nir_example
-
-----
-
-.. _further_processing:
-
-.. toctree::
-   :caption: Further processing
-   :maxdepth: 1
-
-   fluxing
-   coadd1d
-   telluric
-   coadd2d
-   coadd3d
-   collate1d
-
-----
-
-.. toctree::
-   :caption: For developers
-   :maxdepth: 1
-
-   dev/development
-   PypeIt API <api/modules>
-   spectrographs/new_spectrograph
-
-----
-
 .. _bibtex:
 
 PypeIt BibTeX Entries
@@ -138,4 +59,79 @@ PypeIt BibTeX Entries
           adsnote = {Provided by the SAO/NASA Astrophysics Data System}
     }
 
+.. toctree::
+   :caption: Welcome!
+   :maxdepth: 1
+   :hidden:
+
+   codeconduct
+   installing
+   whatsnew
+   known_failure_modes
+
+.. toctree::
+   :caption: Quickstart & Tutorials
+   :maxdepth: 1
+   :hidden:
+
+   cookbook
+   tutorials/tutorials
+   quicklook
+
+.. toctree::
+   :caption: Essentials
+   :maxdepth: 1
+   :hidden:
+
+   setup
+   running
+   outputs
+   calibrations
+   qa
+
+.. toctree::
+   :caption: Processing Details
+   :maxdepth: 1
+   :hidden:
+
+   image_proc
+   2d_combine
+   object_finding
+   skysub
+   extraction
+   A-B_differencing
+
+.. toctree::
+   :caption: Further processing
+   :maxdepth: 1
+   :hidden:
+
+   telluric
+   fluxing
+   coadd1d
+   coadd2d
+   coadd3d
+   collate1d
+
+.. toctree::
+   :caption: Reference
+   :maxdepth: 1
+   :hidden:
+
+   input_files
+   pypeit_file
+   spectrographs/spectrographs
+   mosaic
+   pypeit_par
+   scripts
+   bitmasks
+
+.. toctree::
+   :caption: For developers
+   :maxdepth: 1
+   :hidden:
+
+   dev/development
+   PypeIt API <api/modules>
+   spectrographs/new_spectrograph
 

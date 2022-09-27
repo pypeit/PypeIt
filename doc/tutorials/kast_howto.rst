@@ -1,10 +1,10 @@
 
 .. include:: ../include/links.rst
 
-.. _step_by_step:
+.. _kast_howto:
 
 ================
-Shane Kast HOWTO
+Shane-Kast HOWTO
 ================
 
 Overview

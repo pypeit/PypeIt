@@ -71,8 +71,9 @@ PypeIt is designed to be used by both advanced spectroscopists with prior data
 reduction expertise and astronomers with no prior experience of data reduction.
 It is highly configurable and designed to be applied to any standard
 slit-imaging spectrograph, and can accommodate long-slit, multi-slit, as well as
-cross-dispersed echelle spectra.  **The spectrogaphs that PypeIt can be with are
-listed** `here <https://pypeit.readthedocs.io/en/release/spectrographs.html>`__.
+cross-dispersed echelle spectra.  **The spectrogaphs that PypeIt can be used
+with are listed** `here
+<https://pypeit.readthedocs.io/en/release/spectrographs.html>`__.
 
 In addition to our primary code base, we maintain an extensive `PypeIt
 Development Suite <https://github.com/pypeit/PypeIt-development-suite>`__

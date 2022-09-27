@@ -1,5 +1,5 @@
 *********************
-Quick Look Reductions
+Quick-Look Reductions
 *********************
 
 Overview

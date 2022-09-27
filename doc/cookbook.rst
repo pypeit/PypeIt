@@ -239,7 +239,7 @@ related to extraction and sky subtraction for your spectra.
 ======================================
 
 PypeIt separates the "basic" data reduction steps performed by :ref:`run-pypeit`
-from a series of :ref:`further_processing` steps that can be performed using
+from a series of further processing steps that can be performed using
 separate scripts.  One of these is flux-calibration, or :doc:`fluxing`.
 
 :doc:`fluxing` is a a two-stage process: (1) generate a
@@ -250,7 +250,7 @@ sensitivity function and (2) apply it to your spectra.
 7. Co-add multiple exposures/datasets (optional)
 ================================================
 
-Another set of :ref:`further_processing` steps include coadding data.
+Another set of further processing steps include coadding data.
 
 To coadd extracted spectra, see :doc:`coadd1d`.
 

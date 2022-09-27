@@ -109,7 +109,7 @@ more slitmask design information. See :ref:`master_slits` for a description of t
 and for a way to visualize them.
 
 Moreover, the ``maskdef_id`` assigned to each slit can be found, after a full reduction with ``PypeIt``
-(see :ref:`step_by_step`), by running ``pypeit_parse_slits Science/spec2d_XXX.fits``, which lists all
+(see, e.g., :ref:`deimos_howto`), by running ``pypeit_parse_slits Science/spec2d_XXX.fits``, which lists all
 the slits with their associated ``maskdef_id``.
 
 

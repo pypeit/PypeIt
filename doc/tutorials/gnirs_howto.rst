@@ -1,8 +1,9 @@
-.. _nir-example:
 
-***********
-NIR Example
-***********
+.. _gnirs_howto:
+
+==================
+Gemini-GNIRS HOWTO
+==================
 
 Overview
 ========
@@ -95,7 +96,7 @@ the calibration image in question. The best strategy for choosing these frames a
 calib ids depends on the exposure time, dither pattern, and the instrument in question.
 The example PypeIt file block below is for an ABBA sequence with GNIRS. To better understand how to
 set the calib ids, it may help to eview how to set the `comb_id` and `bkg_id` for an ABBA sequence,
-as described :doc:`A-B_differencing`. Below we are instructing PypeIt to average two A images together
+as described :doc:`../A-B_differencing`. Below we are instructing PypeIt to average two A images together
 as the science and subtract from this the average of two B images, which will generate one set of
 spec2d and spec1d outputs. We do the same thing for the B images, i.e. combine them and subtract from them the combine
 of the A images. This entire ABBA sequence has the same OH lines. If we really want a distinct
