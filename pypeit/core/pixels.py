@@ -11,49 +11,6 @@ import numpy as np
 from pypeit import msgs
 
 
-#def gen_pixloc(frame_shape, xgap=0, ygap=0, ysize=1., gen=True):
-#    """
-#    Generate an array of physical pixel coordinates
-#
-#    Parameters
-#    ----------
-#    frame : ndarray
-#      uniformly illuminated and normalized flat field frame
-#    xgap : int (optional)
-#    ygap : int (optional)
-#    ysize : float (optional)
-#    gen : bool, optional
-#      Only allows True right now
-#
-#    Returns
-#    -------
-#    locations : ndarray
-#      A 3D array containing the x center, y center, x width and y width of each pixel.
-#      The returned array has a shape:   frame.shape + (4,)
-#    """
-#    msgs.info("Deriving physical pixel locations on the detector")
-#    locations = np.zeros((frame_shape[0],frame_shape[1],4))
-#    if gen:
-#        msgs.info("Pixel gap in the dispersion direction = {0:4.3f}".format(xgap))
-#        msgs.info("Pixel size in the dispersion direction = {0:4.3f}".format(1.0))
-#        xs = np.arange(frame_shape[0]*1.0)*xgap
-#        xt = 0.5 + np.arange(frame_shape[0]*1.0) + xs
-#        msgs.info("Pixel gap in the spatial direction = {0:4.3f}".format(ygap))
-#        msgs.info("Pixel size in the spatial direction = {0:4.3f}".format(ysize))
-#        ys = np.arange(frame_shape[1])*ygap*ysize
-#        yt = ysize*(0.5 + np.arange(frame_shape[1]*1.0)) + ys
-#        xloc, yloc = np.meshgrid(xt, yt)
-##		xwid, ywid = np.meshgrid(xs,ys)
-#        msgs.info("Saving pixel locations")
-#        locations[:,:,0] = xloc.T
-#        locations[:,:,1] = yloc.T
-#        locations[:,:,2] = 1.0
-#        locations[:,:,3] = ysize
-#    else:
-#        msgs.error("Have not yet included an algorithm to automatically generate pixel locations")
-#    return locations
-
-
 def phys_to_pix(array, pixlocn, axis):
     """
     Generate an array of physical pixel coordinates

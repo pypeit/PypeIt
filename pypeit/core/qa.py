@@ -238,7 +238,8 @@ def html_mf_pngs(idval):
           Master key of the calibration set
 
     Returns:
-        tuple: Two str objects:
+        tuple: 
+
           - links -- HTML links to the PNGs
           - body -- HTML edits for the main body
 

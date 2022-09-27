@@ -109,8 +109,11 @@ can affect the cross-correlation.
 The maximum allowable spectral shift (in pixels) is set using the ``spec_maxshift``
 :ref:`flexurepar`, where the default is 20 pixels.  If a spectrum
 is measured to have a shift greater than this value, the parameter ``excessive_shift``
-determines how the code responds.  The default value "crash" causes the code to stop
-execution with an error.  Optionally, the user may sepecify ``excessive_shift = set_to_zero``
+determines how the code responds.  The default value "use_median" allows the code to use
+the median flexure shift among all the objects in the same slit (if more than one object is detected)
+or among all the other slits. If a median value is not available, the flexure correction
+will not be applied to this spectrum. Optionally, the user may specify ``excessive_shift = crash``
+to cause the code to stop execution with an error or ``excessive_shift = set_to_zero``
 to allow the code to continue executing while skipping flexure correction (for this object)
 by setting the shift to zero or ``excessive_shift = continue`` to utilize the large shift value.
 This feature is included *caveat emptor*, and the user should carefully examine the

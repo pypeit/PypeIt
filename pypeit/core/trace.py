@@ -608,7 +608,7 @@ def follow_centroid(flux, start_row, start_cen, ivar=None, bpm=None, fwgt=None, 
             uses the DISCONTINUOUS flag.
 
     Returns:
-        tuple: Three numpy arrays are returned: the optimized center, an
+        tuple: Three numpy arrays are returned. the optimized center, an
             estimate of the error, and a bad-pixel mask (masked values
             are True).
     """
@@ -781,7 +781,7 @@ def masked_centroid(flux, cen, width, ivar=None, bpm=None, fwgt=None, row=None,
             dummy value.
 
     Returns:
-        tuple: Returns three `numpy.ndarray`_ objects: the new centers, the
+        tuple: Returns three `numpy.ndarray`_ objects. the new centers, the
             center errors, and the measurement flags with a data type
             depending on `bitmask`.
     """

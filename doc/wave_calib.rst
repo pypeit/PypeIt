@@ -84,6 +84,7 @@ the NIST database, and are labelled with a 'MURPHY' flag if the
 line also appears in the list of lines identified by
 `Murphy et al. (2007) MNRAS 378 221 <http://adsabs.harvard.edu/abs/2007MNRAS.378..221M>`_
 
+.. _user_linelists:
 
 User-Supplied Line Lists
 ------------------------

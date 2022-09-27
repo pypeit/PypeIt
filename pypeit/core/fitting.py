@@ -243,11 +243,11 @@ def evaluate_fit(fitc, func, x, x2=None, minx=None,
         minx (float, optional):
             Minimum x value for the fit used to normalise the x values
         maxx (float, optional):
-            Minimum x value for the fit used to normalise the x values
+            Maximum x value for the fit used to normalise the x values
         minx2 (float, optional):
             Minimum x value for the fit used to normalise the x2 values
         maxx2 (float, optional):
-            Minimum x value for the fit used to normalise the x2 values
+            Maximum x value for the fit used to normalise the x2 values
 
     Returns:
         `numpy.ndarray`_:  Evaluated fit at the x (and x2) locations
@@ -329,7 +329,7 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
             the values of `upper` and `lower`.  This can either be a
             single float for the entire yarray or a ndarray with the
             same shape as the yarray.
-        weights (`numpy.ndarray`_): shape same as xarray and yarray
+        weights (`numpy.ndarray`_, optional): shape same as xarray and yarray
             If input the code will do a weighted fit. If not input, the
             code will use invvar as the weights. If both invvar and
             weights are input. The fit will be done with weights, but
@@ -546,7 +546,7 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
             Optional parameters passed to the optimizer.
 
     Returns:
-        tuple: Three objects are returned:
+        tuple: 
             - The object returned by the `scipy.optimize` function used
               by the fitter.  See `fitfunc`.
             - A `numpy.ndarray`_ with the model value fit to `ydata` and
@@ -655,9 +655,9 @@ def fit_gauss(x_out, y_out, guesses=None, w_out=None, nparam=3, maxfev=0):
     Fit a 3 or 4 parameter gaussian
 
     Args:
-        x_out (`numpy.ndarray_`):
+        x_out (`numpy.ndarray`_):
             x values to be fit
-        y_out (`numpy.ndarray_`):
+        y_out (`numpy.ndarray`_):
             y values to be fit
         guesses (tuple, optional):
             ampl, cent, sigma, [floor] guesses for the Gaussian; each as floats
@@ -697,21 +697,6 @@ def fit_gauss(x_out, y_out, guesses=None, w_out=None, nparam=3, maxfev=0):
     return curve_fit(func, x_out, y_out, p0=p0, sigma=sig_y, maxfev=maxfev)
 
 
-#def gauss_2deg(x,ampl,sigm):
-#    """
-#    Simple 2 parameter Gaussian (amplitude, sigma)
-#
-#    Args:
-#        x
-#        ampl
-#        sigm
-#
-#    Returns:
-#        float or ndarray: Evaluated Gausssian
-#    """
-#    return ampl*np.exp(-1.*x**2/2./sigm**2)
-
-
 def gauss_3deg(x,ampl,cent,sigm):
     """  Generate a simple 3-parameter Gaussian
 
@@ -741,23 +726,6 @@ def gauss_4deg(x,b, ampl,cent,sigm):
         float or `numpy.ndarray`_: Evaluated Gausssian
     """
     return b + ampl*np.exp(-1.*(cent-x)**2/2/sigm**2)
-
-
-#def gauss_5deg(x,m, b, ampl,cent,sigm):
-#    """  Simple 3 parameter Gaussian
-#
-#    Args:
-#        x
-#        m (float): Slope of floor
-#        b (float): Floor
-#        ampl (float): Amplitude
-#        cent (float): Centroid
-#        sigm (float): sigma
-#
-#    Returns:
-#        float or ndarray: Evaluated Gausssian
-#    """
-#    return b + m*x + ampl*np.exp(-1.*(cent-x)**2/2/sigm**2)
 
 
 def guess_gauss(x,y):
@@ -805,14 +773,14 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
         minx (float, optional):
             Minimum x value for the fit used to normalise the x values
         maxx (float, optional):
-            Minimum x value for the fit used to normalise the x values
+            Maximum x value for the fit used to normalise the x values
         miny (float, optional):
             Minimum value for the fit used to normalise the y values
         maxy (float, optional):
-            Minimum value for the fit used to normalise the y values
+            Maximum value for the fit used to normalise the y values
 
     Returns:
-        tuple: Five objects are returned:
+        tuple: 
             - The coefficients of the polynomial fit as a `numpy.ndarray`_
             - minx, maxx, miny, maxy: min and max values for the fit as :obj:`float`
 

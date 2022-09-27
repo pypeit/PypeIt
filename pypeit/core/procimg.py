@@ -1064,57 +1064,6 @@ def replace_column_linear(img, left, right):
                             * (np.arange(right-left)+1)[None,:] + img[:,left-1][:,None]
 
 
-#def old_replace_columns(img, bad_cols, replace_with='mean'):
-#    """ Replace bad columns with values from the neighbors
-#
-#    Parameters
-#    ----------
-#    img : ndarray
-#    bad_cols: ndarray (bool, 1D, shape[1] of img)
-#      True = bad column
-#      False = ok column
-#    replace_with : str, optional
-#      Option for replacement
-#       mean -- Use the mean of the closest left/right columns
-#
-#    Returns
-#    -------
-#    img2 : ndarray
-#      Copy of the input image with the bad columns replaced
-#    """
-#    # Prep
-#    img2 = img.copy()
-#    # Find the starting/ends of the bad column sets
-#    tmp = np.zeros(img.shape[1], dtype=int)
-#    tmp[bad_cols] = 1
-#    tmp2 = tmp - np.roll(tmp,1)
-#    # Deal with first column
-#    if bad_cols[0]:
-#        tmp2[0]=1
-#    # Deal with last column
-#    if bad_cols[-1]:
-#        tmp2[-1]=-1
-#    ledges = np.where(tmp2 == 1)[0]
-#    redges = np.where(tmp2 == -1)[0]
-#    # Last column?
-#    if tmp2[-1] == 1:
-#        redges = np.concatenate([redges, np.array([bad_cols.size-1])])
-#    # Loop on em
-#    for kk, ledge in enumerate(ledges):
-#        lval = img[:,redges[kk]+1] if ledge == 0 else img[:,ledge-1]
-#        rval = img[:, redges[kk]]
-#        # First columns?
-#        # Replace
-#        if replace_with == 'mean':
-#            mval = (lval+rval)/2.
-#            for ii in range(ledge, redges[kk]+1):
-#                img2[:,ii] = mval
-#        else:
-#            msgs.error("Bad option to replace_columns")
-#    # Return
-#    return img2
-
-
 def trim_frame(frame, mask):
     """
     Trim the masked regions from a frame.

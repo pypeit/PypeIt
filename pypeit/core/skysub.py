@@ -57,25 +57,25 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ,
     THIS NEEDS MORE DESCRIPTION
 
     Args:
-        image (`numpy.ndarray_`): 
+        image (`numpy.ndarray`_): 
             Frame to be sky subtracted.
             float ndarray, shape (nspec, nspat)
-        ivar (`numpy.ndarray_`): 
+        ivar (`numpy.ndarray`_): 
             Inverse variance image.
             float ndarray, shape (nspec, nspat)
-        tilts (`numpy.ndarray_`): 
+        tilts (`numpy.ndarray`_): 
             Tilts indicating how wavelengths move across the slit.
             float ndarray, shape (nspec, nspat)
-        thismask  (`numpy.ndarray_`): 
+        thismask  (`numpy.ndarray`_): 
             Specifies pixels in the slit in question.
             boolean array, shape (nspec, nspat)
-        slit_left (`numpy.ndarray_`): 
+        slit_left (`numpy.ndarray`_): 
             Left slit boundary in floating point pixels.
             shape (nspec, 1) or (nspec)
-        slit_righ (`numpy.ndarray_`): 
+        slit_righ (`numpy.ndarray`_): 
             Right slit boundary in floating point pixels.
             shape (nspec, 1) or (nspec)
-        inmask (`numpy.ndarray_`): 
+        inmask (`numpy.ndarray`_): 
             boolean ndarray, shape (nspec, nspat)
             Input mask for pixels not to be included in sky subtraction
             fits. True = Good (not masked), False = Bad (masked)
