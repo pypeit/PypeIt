@@ -58,7 +58,7 @@ No Slits
 It is possible that the edge-tracing algorithm will not find *any* slit
 edges. This may be because the edges fall off the detector, that there truly
 is no data in a given detector of a multi-detector instrument (e.g.,
-:doc:`lris`), or the threshold for edge detection has been set too high. An
+:doc:`spectrographs/lris`), or the threshold for edge detection has been set too high. An
 inability to find slit edges can be common for long-slit observations, but
 occurs occasionally for multi-slit. If you know that a given detector should
 have well-defined slit edges, try adjusting the ``edge_thresh`` parameter
@@ -151,7 +151,7 @@ feature as a slit.  This might be mitigated by increasing
 the value of `edge_thresh` in
 :ref:`edgetracepar`.  Indeed, this
 is required for longslit observations
-with the red camera of :doc:`lris`.
+with the red camera of :doc:`spectrographs/lris`.
 
 Otherwise, the code may be instructed to remove slits at user-input
 locations. The syntax is a list of lists,

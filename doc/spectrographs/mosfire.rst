@@ -18,7 +18,7 @@ To setup the :ref:`pypeit_file`, run::
 
 where -b indicates that the data use sky subtraction and the columns  `calib`, `comb_id`, `bkg_id`
 are added to the :ref:`data_block`. See :ref:`pypeit_setup` and
-:doc:`A-B_differencing` for the syntax used for the data in these columns and how ``PypeIt`` uses them.
+:doc:`../A-B_differencing` for the syntax used for the data in these columns and how ``PypeIt`` uses them.
 
 Here is an example of the :ref:`data_block` of the PypeIt file::
 
@@ -66,7 +66,7 @@ See `Additional Reading`_ .
 
 By default, ``PypeIt`` uses the dither offset recorded in the header of the science frames to find the
 objects in the slits. However, a better approach would be to let ``PypeIt`` compute the offset using
-a bright object in one of the slits in the slit-mask. To do so, the user should provide in the :doc:`pypeit_file`
+a bright object in one of the slits in the slit-mask. To do so, the user should provide in the :doc:`../pypeit_file`
 the ``maskdef_id`` (corresponding to "Slit_Number" in the MOSFIRE slit-mask design) of the slit containing the
 bright object. Here is an example::
 
@@ -93,7 +93,7 @@ or the code to crash.
 ``PypeIt`` is able to exclude those random slits from the slit tracing process.
 The parameter that controls the exclusion of detector regions from the slit edge tracing is **exclude_regions**
 in :ref:`edgetracepar`. By default, ``PypeIt`` excludes the regions where the random slits are
-for a `long2pos` mask, but if the users want to modify that, they can do it in the :doc:`pypeit_file` in the
+for a `long2pos` mask, but if the users want to modify that, they can do it in the :doc:`../pypeit_file` in the
 following way::
 
     [calibrations]
@@ -116,7 +116,7 @@ Similarly to `long2pos`, `LONGSLIT` masks with a single slit that is shorter tha
 detector will have random slits that fill the mask. By default, ``PypeIt`` is capable of excluding
 from the edge tracing process the regions where the random slits are for a `LONGSLIT` mask. However,
 if the automatic selection of the regions to exclude does not look right, the users can still modify that
-adding the **exclude_regions** parameter in the :doc:`pypeit_file` (as shown above), making sure that the
+adding the **exclude_regions** parameter in the :doc:`../pypeit_file` (as shown above), making sure that the
 flag **bound_detector** is set to **True**.
 
 Flat Fielding
@@ -165,7 +165,7 @@ five additional templates using arcs lines (Ar, Ne) are also available:
 Arc frames must be provided.
 
 If there are other cases in which the user prefers to perform the wavelength calibration using the arc frames, instead
-of using the OH lines, this can be done by adding in the :doc:`pypeit_file`::
+of using the OH lines, this can be done by adding in the :doc:`../pypeit_file`::
 
     [calibrations]
        [[wavelengths]]
@@ -206,9 +206,9 @@ Here are additional docs related to Keck/MOSFIRE:
 .. toctree::
    :maxdepth: 1
 
-   dev/mosfireframes
-   dev/mosfireconfig
-   dev/slitmask_ids
-   dev/radec_object
-   dev/add_missing_obj
+   ../dev/mosfireframes
+   ../dev/mosfireconfig
+   ../dev/slitmask_ids
+   ../dev/radec_object
+   ../dev/add_missing_obj
 

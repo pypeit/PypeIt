@@ -82,7 +82,7 @@ keck_deimos (multislit with one slit isolated)::
 
     pypeit_ql_mos keck_deimos /home/xavier/scratch/QL/2020-03-29-DEIMOS-TestData DE.20100913.56927.fits DE.20100913.57161.fits DE.20100913.22358.fits -d 7 --slit_spat 1132
 
-It is possible all of the MOS :doc:`spectrographs` will work.
+It is possible all of the MOS :doc:`spectrographs/spectrographs` will work.
 Give it a shot!
 
 pypeit_ql_keck_nires
@@ -133,7 +133,7 @@ and :ref:`pypeit_show_2dspec`.
 pypeit_ql_deimos
 ================
 
-This scripts enables quicklook reductions on :doc:`deimos` data.
+This scripts enables quicklook reductions on :doc:`spectrographs/deimos` data.
 
 For the user at WMKO, the general procedure is two steps:
   (1) run the script on your afternoon calibrations;

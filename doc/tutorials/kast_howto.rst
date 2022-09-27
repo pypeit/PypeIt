@@ -14,7 +14,7 @@ This doc goes through a full run of PypeIt on one of the Shane Kast *blue*
 datasets in the `PypeIt Development Suite`_.
 
 For instrument specific recommendations, please see the links at
-the bottom of the :doc:`../spectrographs` page.
+the bottom of the :doc:`../spectrographs/spectrographs` page.
 
 For additional tutorials, see :ref:`tutorials`.
 

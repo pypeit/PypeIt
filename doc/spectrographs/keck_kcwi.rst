@@ -1,5 +1,5 @@
 
-.. include:: include/links.rst
+.. include:: ../include/links.rst
 
 .. _keck_kcwi:
 
@@ -66,7 +66,7 @@ PypeIt uses alignment frames to perform an astrometric correction.
 For KCWI, these are referred to as "Cont Bars" frames. This correction
 is small, and if you do not have alignment frames for KCWI you should
 turn off the astrometric correction when combining your data with the
-pypeit_coadd_datacube routine (see :doc:`coadd3d` for the
+pypeit_coadd_datacube routine (see :doc:`../coadd3d` for the
 documentation) using the command::
 
     [reduce]
@@ -89,7 +89,7 @@ pattern. We have a robust algorithm to remove this pattern in both
 noise can be reduced by a factor of 1.5-1.6. This pattern
 is removed by default, but if you would prefer to turn this
 off, you can do so by adding the following in your
-:doc:`pypeit_file`::
+:doc:`../pypeit_file`::
 
     [scienceframe]
       [[process]]
@@ -107,10 +107,10 @@ At this stage, we recommend that you take sky flats to measure
 the relative spectral sensitivity of the different slices. It's possible
 that a short exposure of the moon will work equally well. You could also
 use dome flats if you can get sufficient blue counts. You should create
-a :doc:`pypeit_file` that is separate from your science observations, and
+a :doc:`../pypeit_file` that is separate from your science observations, and
 reduce this sky flat frame as if it were a science frame (i.e. label it
-as a science frame in this :doc:`pypeit_file`). You should then add the
-following lines to the top of the :doc:`pypeit_file`::
+as a science frame in this :doc:`../pypeit_file`). You should then add the
+following lines to the top of the :doc:`../pypeit_file`::
 
     [reduce]
       [[skysub]]
@@ -123,7 +123,7 @@ to use the entire slice to determine the sky and relative scale. This process
 only calculates the relative scale correction. To apply it to your science
 frames, this scale correction is applied when you make the datacube. The
 command to apply this scale correction to your science frames in your
-:doc:`coadd3d` file::
+:doc:`../coadd3d` file::
 
     [reduce]
       [[skysub]]
@@ -146,7 +146,7 @@ appears on the slices.
 Sky subtraction
 ---------------
 
-See :doc:`skysub` for useful hints to define the sky regions
+See :doc:`../skysub` for useful hints to define the sky regions
 using an interactive GUI.
 
 Flux calibration
@@ -163,5 +163,6 @@ Producing datacubes
 PypeIt does not produce datacubes as a standard product of
 the reduction process. Instead, PypeIt delivers fully processed
 2D frames, which can be combined into a single datacube using
-the pypeit_coadd_datacube routine (see :doc:`coadd3d` for the
+the pypeit_coadd_datacube routine (see :doc:`../coadd3d` for the
 documentation).
+

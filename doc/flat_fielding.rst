@@ -10,7 +10,7 @@ Overview
 
 This doc describes the `Approach`_ used to perform flat-fielding
 in PypeIt, how one goes about `Modifying the Default Approach`_
-for a given :doc:`spectrographs`, and
+for a given :doc:`spectrographs/spectrographs`, and
 how to guide `Generating the Flat Field Images`_.
 
 Note that :doc:`slit_tracing` is frequently performed with
@@ -37,7 +37,7 @@ Application
 
 The code can implement any, none or all of the corrections
 described above.  We have set a default approach for each
-of the :doc:`spectrographs` based on our expertise and
+of the :doc:`spectrographs/spectrographs` based on our expertise and
 the data in the `Development Suite <https://github.com/pypeit/PypeIt-development-suite>`_.
 
 Of course, for the correction to be applied the user
@@ -125,7 +125,7 @@ Lamps off Flats Subtraction
 
 When flats taken with the lamps OFF are provided ``PypeIt`` will subtract them form the
 flats taken with the lamps ON, before crearing the Master Flat images. The lamp off
-flats are not automatically identified (except for :doc:`mosfire`), so the users should
+flats are not automatically identified (except for :doc:`spectrographs/mosfire`), so the users should
 label those as *lampoffflats* :doc:`frametype` in the :doc:`pypeit_file`.
 
 .. note::
@@ -231,7 +231,7 @@ Saturated Slits
 ---------------
 
 Occasionally one or more slits are saturated
-(a common case is the :doc:`deimos` LVMCslitC mask)
+(a common case is the :doc:`spectrographs/deimos` LVMCslitC mask)
 and the code exits in flat field generation.  If you
 wish to continue on with the slits that are ok,
 add this to your :doc:`pypeit_file`:

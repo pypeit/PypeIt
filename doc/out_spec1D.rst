@@ -166,7 +166,7 @@ where:
 - ``wv_rms`` is the RMS in pixels of the wavelength solution.
 
 
-In addition, if reducing :doc:`deimos` or :doc:`mosfire` data and slit-mask design matching is performed,
+In addition, if reducing :doc:`spectrographs/deimos` or :doc:`spectrographs/mosfire` data and slit-mask design matching is performed,
 ``maskdef_id``, ``objname``, ``objra``, ``objdec``, and ``maskdef_extract``  are also provided
 for each spectrum (see :ref:`radec_object_report`).
 

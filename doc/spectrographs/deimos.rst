@@ -1,4 +1,4 @@
-.. include:: include/links.rst
+.. include:: ../include/links.rst
 
 ***********
 Keck DEIMOS
@@ -162,11 +162,11 @@ Here are additional docs related to Keck/DEIMOS:
 .. toctree::
    :maxdepth: 1
 
-   dev/deimosframes
-   dev/deimosconfig
-   dev/slitmask_ids
-   dev/radec_object
-   dev/deimos_wavecalib
-   dev/add_missing_obj
-   tutorials/deimos_howto
+   ../dev/deimosframes
+   ../dev/deimosconfig
+   ../dev/slitmask_ids
+   ../dev/radec_object
+   ../dev/deimos_wavecalib
+   ../dev/add_missing_obj
+   ../tutorials/deimos_howto
 

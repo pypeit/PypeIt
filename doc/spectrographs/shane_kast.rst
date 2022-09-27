@@ -18,7 +18,7 @@ The default uses an archived wavelength solution
 with the Ne lamp *on*.
 
 If you did not use the Ne lamp, you should make the following
-modification to your :doc:`pypeit_file`::
+modification to your :doc:`../pypeit_file`::
 
     [calibrations]
        [[wavelengths]]

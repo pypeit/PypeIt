@@ -75,7 +75,7 @@ combine several standard star exposures into a single datacube for flux calibrat
 The spec2d block provides a list of :doc:`out_spec2D` files. You can also specify an optional scale correction
 as part of the spec2d block. This relative scale correction ensures that the relative spectral sensitivity of the
 datacube is constant across the field of view. The spec2d file used for the scale_corr column should either be a
-twilight or dome flat reduced as a 'science' frame (see :doc:`keck_kcwi` for a description of what you need to do).
+twilight or dome flat reduced as a 'science' frame (see :doc:`spectrographs/keck_kcwi` for a description of what you need to do).
 In order to use this functionality, you should not reduce your science data with a spectral illumination correction.
 In other words, in your :doc:`pypeit_file` file, set the following::
 

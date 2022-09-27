@@ -38,7 +38,7 @@
    :caption: Details
    :maxdepth: 1
 
-   spectrographs
+   spectrographs/spectrographs
    input_files
    pypeit_par
    pypeit_file
@@ -77,7 +77,7 @@
 
    dev/development
    PypeIt API <api/modules>
-   new_spectrograph
+   spectrographs/new_spectrograph
 
 ----
 

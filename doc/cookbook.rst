@@ -22,7 +22,7 @@ should adhere to the following approach.  Note that:
 
   - And *setup* and *configuration* too.
 
-  - Specific advice on :doc:`spectrographs` is provided in their own doc page
+  - Specific advice on :doc:`spectrographs/spectrographs` is provided in their own doc page
     (although not every supported spectrograph has stand-alone documentation)
 
   - Invariably something will be out of date.  When you see an egregious
@@ -31,11 +31,11 @@ should adhere to the following approach.  Note that:
 Finally, note that before you keep going, you should have already done the following:
 
     #. **Check that PypeIt can reduce your observations:**  See the list of
-       supported :doc:`spectrographs`.
+       supported :doc:`spectrographs/spectrographs`.
 
     #. **Grab a buff computer:**  We recommend one with at least 16Gb of RAM,
        but this limit is very instrument specific.  In particular, even 32Gb may
-       not be enough for many-detector instruments (e.g., :doc:`deimos`).
+       not be enough for many-detector instruments (e.g., :doc:`spectrographs/deimos`).
        Multi-processors are good too, although only a portion of the code runs
        in parallel (essentially only what, e.g., individual `numpy`_ operations
        will do natively).

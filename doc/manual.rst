@@ -62,7 +62,7 @@ a FWHM=3.0 (pixels).
 If you wish to operate on the negative image for an A-B reduction
 (typically near-IR), then specify the detector value as negative.
 
-When running a mosaic reduction (currently only available for :doc:`gemini_gmos` and :doc:`deimos`),
+When running a mosaic reduction (currently only available for :doc:`spectrographs/gemini_gmos` and :doc:`spectrographs/deimos`),
 the part of the manual extraction entry that specifies the detector number needs to indicate the detectors that are
 mosaiced together in the same way as is done when setting the parameter ``detnum`` in the
 :ref:`reduxpar` of the :doc:`pypeit_file`. Here is an example for Keck/DEIMOS::

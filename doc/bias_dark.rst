@@ -15,7 +15,7 @@ and how to generate the images.
 Bias Subtraction
 ================
 
-All of the optical :doc:`spectrographs` supported by
+All of the optical :doc:`spectrographs/spectrographs` supported by
 PypeIt have a non-zero bias level.  This must be subtracted
 prior to reduction.
 
@@ -79,7 +79,7 @@ This is the recommended incantation:
 Overscan Subtraction
 --------------------
 
-The default for all optical :doc:`spectrographs` is to
+The default for all optical :doc:`spectrographs/spectrographs` is to
 estimate the bias level from the overscan region and
 subtract this from raw image.
 
@@ -95,7 +95,7 @@ the :doc:`pypeit_file` :ref:`parameter_block`:
     [baseprocess]
         use_overscan = False
 
-This should be the default set for :doc:`spectrographs` with near-IR
+This should be the default set for :doc:`spectrographs/spectrographs` with near-IR
 detectors.
 
 Dark Subtraction

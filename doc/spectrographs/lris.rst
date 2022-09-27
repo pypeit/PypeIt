@@ -19,7 +19,7 @@ There is substantial flexure in the LRIS instrument and
 the default settings attemps to characterize both the spectral
 and spatial effects.
 
-See the :doc:`flexure` notes if you wish
+See the :doc:`../flexure` notes if you wish
 to turn either of these off.
 
 .. _lrisb:
@@ -57,7 +57,7 @@ you may wish to use an archival.
 `This link <https://drive.google.com/drive/folders/1YmDgCgXrsRbkuH_Pc_MLShWVdSrMkoFP?usp=sharing>`_
 has the existing ones staged by the PypeIt team.
 
-And then set the following in your :doc:`pypeit_file`::
+And then set the following in your :doc:`../pypeit_file`::
 
     [calibrations]
       [[flatfield]]
@@ -129,7 +129,7 @@ for detector 2.  This may occur if the counts from the flat field
 are too low (e.g., using internal flats rather than twilight
 flats with a higher signal in the blue).
 Therefore, if you use internal flats, be careful to inspect the
-slits defined by PypeIt as described in :doc:`master_edges`.
+slits defined by PypeIt as described in :doc:`../master_edges`.
 
 If the defined slit(s) does not cover the portion of
 the illuminated detector where your source falls, you

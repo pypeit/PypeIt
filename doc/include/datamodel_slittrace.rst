@@ -4,7 +4,7 @@ Version: 1.1.4
 Obj Key                Obj Type           Array Type  Description                                                                                                                                                                         
 =====================  =================  ==========  ===========================================================================================================================
 ``spat_id``            ndarray            int         Slit ID number from SPAT measured at half way point.
-``maskdef_id``         ndarray            int         Slit ID number from slitmask design (implemented only for :doc:`deimos` and :doc:`mosfire`).
+``maskdef_id``         ndarray            int         Slit ID number from slitmask design (implemented only for :doc:`spectrographs/deimos` and :doc:`spectrographs/mosfire`).
 ``left_init``          ndarray            float       Spatial coordinates (pixel indices) of all left edges, one per slit.
 ``right_init``         ndarray            float       Spatial coordinates (pixel indices) of all right edges, one per slit.
 ``left_tweak``         ndarray            float       Spatial coordinates (pixel indices) of all left edges, one per slit.  These traces have been adjusted by the flat-field.
@@ -16,7 +16,7 @@ Obj Key                Obj Type           Array Type  Description
 ``specmax``            ndarray            float       Maximum spectral position allowed for each slit/order.
 =====================  =================  ==========  ===========================================================================================================================
 
-Additional `astropy.io.fits.BinTableHDU`_ for :doc:`deimos` and :doc:`mosfire` reduction.
+Additional `astropy.io.fits.BinTableHDU`_ for :doc:`spectrographs/deimos` and :doc:`spectrographs/mosfire` reduction.
 
 =====================  =================  ==========  =================================================================================
 Obj Key                Obj Type           Array Type  Description

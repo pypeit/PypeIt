@@ -19,7 +19,7 @@ This is to:
 
 Here is a listing of all the of MasterFrame files that
 can be generated.  The ones that are made depend on the
-:doc:`spectrographs` and the calibrations files provided.
+:doc:`spectrographs/spectrographs` and the calibrations files provided.
 
 ================= ========= ===========================================
 Type              Format    Description

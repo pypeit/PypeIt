@@ -11,7 +11,7 @@ New Spectrograph
 
 Here are notes on how to add a new spectrograph from scratch or to add a new
 mode. To do so, you should install ``PypeIt`` following the development path;
-see :doc:`installing` and :doc:`dev/development`.
+see :doc:`../installing` and :doc:`../dev/development`.
 
 Entirely New
 ============
@@ -36,8 +36,8 @@ modes, like spectrograph arm, that inherit from a common base class. For
 example, :class:`~pypeit.spectrographs.keck_lris.KeckLRISSpectrograph`
 implements many of the methods that are common to both arms (red and blue) of
 the spectrograph. These include methods used to read raw files, used to
-define header cards with required :doc:`metadata`, and used to determine the type of
-frame (arc, dome, bias, etc) based on that :doc:`metadata`. The
+define header cards with required :doc:`../metadata`, and used to determine the type of
+frame (arc, dome, bias, etc) based on that :doc:`../metadata`. The
 :class:`~pypeit.spectrographs.spectrograph.Spectrograph` instance for each
 LRIS arm inherits these methods common to them both by subclassing from
 :class:`~pypeit.spectrographs.keck_lris.KeckLRISSpectrograph`. If your
@@ -77,19 +77,19 @@ new spectrograph are as follows:
    :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.bpm`.
 
 #. Define the link between header keywords read from the raw fits files and
-   the ``PypeIt``-specific :doc:`metadata` keys used throughout the code; see e.g.,
+   the ``PypeIt``-specific :doc:`../metadata` keys used throughout the code; see e.g.,
    :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.init_meta`
    and :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.compound_meta`.
 
-#. Define the set of ``PypeIt``-specific :doc:`metadata` keys that are used to
+#. Define the set of ``PypeIt``-specific :doc:`../metadata` keys that are used to
    establish a unique instrument configuration; see, e.g.,
    :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.configuration_keys`.
 
 #. Define the method used to determine the frame type of a given file based on
-   its :doc:`metadata`; see, e.g., 
+   its :doc:`../metadata`; see, e.g., 
    :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.check_frame_type`.
 
-#. Set the :doc:`metadata` for the instrument detector(s); see, e.g.,
+#. Set the :doc:`../metadata` for the instrument detector(s); see, e.g.,
    :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.get_detector_par`.
 
 #. Define the method used to read the raw data.  See
@@ -102,7 +102,7 @@ new spectrograph are as follows:
 
 #. You may need to generate wavelength solutions for your setups. You can use the
    :ref:`pypeit_identify` utility, and add this to the PypeIt archive
-   by following the steps outlined in the :doc:`construct_template` documentation.
+   by following the steps outlined in the :doc:`../construct_template` documentation.
 
 
 See this `example PR <https://github.com/pypeit/PypeIt/pull/1179>`_ for the SOAR/Goodman spectrograph.
@@ -130,7 +130,9 @@ Docs
 We request that the following docs be updated to advertise the new
 spectrograph:
 
-- The top-level ``README`` file
-- The ``index.rst`` file in ``doc/``
-- Also update the ``CHANGES.rst``
+- Update the top-level ``CHANGES.rst``
+
+- If specific advice is important/useful, add an instrument specific doc to the
+  ``doc/spectrographs`` directory and link the doc in the
+  ``doc/specrographs/spectrographs.rst`` doc.
 

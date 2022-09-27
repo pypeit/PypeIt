@@ -100,7 +100,7 @@ the underlying `astropy.table.Table`_ object used by
     work because these edits will override *anything* derived from
     the FITS headers!
 
-Most :doc:`spectrographs` require at least one file with each
+Most :doc:`spectrographs/spectrographs` require at least one file with each
 of the following :doc:`frametype`:
 
     - ``arc``: Wavelength calibration

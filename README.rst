@@ -60,20 +60,19 @@ PypeIt |forks| |stars|
 
 |DOI_latest| |JOSS| |arxiv|
 
-``PypeIt`` is a Python package for semi-automated reduction of astronomical,
+PypeIt is a Python package for semi-automated reduction of astronomical,
 spectroscopic data. Its algorithms build on decades-long development of previous
 data reduction pipelines by the developers. The reduction procedure - including
 a complete list of the input parameters and available functionality - is
 provided by our `online documentation
 <https://pypeit.readthedocs.io/en/release/>`__.
 
-``PypeIt`` is designed to be used by both advanced spectroscopists with prior
-data reduction expertise and astronomers with no prior experience of data
-reduction. It is highly configurable and designed to be applied to any standard
+PypeIt is designed to be used by both advanced spectroscopists with prior data
+reduction expertise and astronomers with no prior experience of data reduction.
+It is highly configurable and designed to be applied to any standard
 slit-imaging spectrograph, and can accommodate long-slit, multi-slit, as well as
-cross-dispersed echelle spectra.  **The spectrogaphs that 
-PypeIt can be with are listed** `here
-<https://pypeit.readthedocs.io/en/release/spectrographs.html>`__.
+cross-dispersed echelle spectra.  **The spectrogaphs that PypeIt can be with are
+listed** `here <https://pypeit.readthedocs.io/en/release/spectrographs.html>`__.
 
 In addition to our primary code base, we maintain an extensive `PypeIt
 Development Suite <https://github.com/pypeit/PypeIt-development-suite>`__
@@ -108,7 +107,7 @@ Slack) or have a feature request, please `submit an issue
 Citation
 ++++++++
 
-If you use ``PypeIt`` in your research, please cite the following publications
+If you use PypeIt in your research, please cite the following publications
 (we provide the relevant `BibTeX entries
 <https://pypeit.readthedocs.io/en/release/index.html#pypeit-bibtex-entries>`__
 for your convenience):
@@ -132,7 +131,7 @@ the publication, please include the following acknowledgement
 Funding
 +++++++
 
-``PypeIt`` receives direct funding from the following sources:
+PypeIt receives direct funding from the following sources:
 
   * NASA ADAP (A20-0412, 20-1018)
   * W.M. Keck Observatory
@@ -146,7 +145,7 @@ Caltech, the Multiple Mirror Observatory, and elsewhere.
 Developers
 ++++++++++
 
-``PypeIt`` is an open-source, community developed package.  Astronomers are
+PypeIt is an open-source, community developed package.  Astronomers are
 encouraged to join the project and should review our `Code of Conduct
 <https://pypeit.readthedocs.io/en/release/codeconduct.html>`__ and `Development
 Guidelines <https://pypeit.readthedocs.io/en/release/dev/development.html>`__.
@@ -154,7 +153,7 @@ We would also appreciate if you contact the lead developers (JXP, JFH) before
 beginning development activities.
 
 The following persons have contributed substantially to the
-development of ``PypeIt``.
+development of PypeIt.
 
 * J Xavier Prochaska (JXP)
 * Joseph F. Hennawi (JFH)
