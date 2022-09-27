@@ -1,26 +1,28 @@
+
+.. include:: ../include/links.rst
+
 .. _step_by_step:
 
-====================
-Step by Step Example
-====================
+================
+Shane Kast HOWTO
+================
 
 Overview
 ========
 
-This doc goes through a full run of ``PypeIt`` on one of the Shane
-Kast*b* datasets in the Development Suite.
-`(see here) <https://wiki.qt.io/Qt_for_Python>`_
+This doc goes through a full run of PypeIt on one of the Shane Kast *blue*
+datasets in the `PypeIt Development Suite`_.
 
 For instrument specific recommendations, please see the links at
-the bottom of the :doc:`spectrographs` page.
+the bottom of the :doc:`../spectrographs` page.
 
-There is now a doc for :doc:`deimos_howto`. 
+For additional tutorials, see :ref:`tutorials`.
 
 Setup
 =====
 
-Organize data
--------------
+Organize the data
+-----------------
 
 Place all of the files in a single folder. Mine is named
 ``/home/xavier/Projects/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55``
@@ -38,23 +40,27 @@ Place all of the files in a single folder. Mine is named
 Run ``pypeit_setup``
 --------------------
 
-The first script you will run with ``PypeIt`` is :ref:`pypeit_setup` which
+The first script you will run with PypeIt is :ref:`pypeit_setup`, which
 examines your raw files and generates a sorted list and (when instructed)
-one :doc:`pypeit_file` per instrument configuration.
+one :doc:`../pypeit_file` per instrument configuration.
 
-Complete instructions are provided in :doc:`setup`.
+Complete instructions are provided in :doc:`../setup`.
 
-Here is my call for these data::
+Here is my call for these data:
+
+.. code-block:: bash
 
     cd folder_for_reducing   # this is usually *not* the raw data folder
-    pypeit_setup -r RAW_PATH/b -s shane_kast_blue -c A
+    pypeit_setup -r ${RAW_PATH}/b -s shane_kast_blue -c A
 
-This creates a :doc:`pypeit_file` in the folder named
-*shane_kast_blue_A* beneath where the script was run.
-Note that RAW_PATH should be the *full* path, i.e. including a /
+This creates a :doc:`../pypeit_file` in the folder named
+``shane_kast_blue_A`` beneath where the script was run.
+Note that ``$RAW_PATH`` should be the *full* path, i.e. including a /
 at the start.
 
-It looks like this::
+It looks like this:
+
+.. code-block:: ini
 
     # Auto-generated PypeIt file
     # Wed 12 Aug 2020 10:00:54
@@ -116,23 +122,25 @@ frametypes to be incorrectly assigned owing to limited
 or erroneous headers.
 
 In this example, however, all of the frametypes were accurately assigned
-in the :doc:`pypeit_file`,
+in the :doc:`../pypeit_file`,
 so there are no edits to be made.
 
 Main Run
 ========
 
-Once the :doc:`pypeit_file` is ready, the main call is
-simply::
+Once the :doc:`../pypeit_file` is ready, the main call is
+simply:
+
+.. code-block:: bash
 
     cd shane_kast_blue_A
     run_pypeit shane_kast_blue_A.pypeit -o
 
-The "-o" specifies to over-write any existing science
-output files.  As there are none, it is superflous but we
+The ``-o`` specifies to over-write any existing science
+output files.  As there are none, it is superfluous but we
 recommend (almost) always using it.
 
-The :doc:`running` doc describes the process in some
+The :doc:`../running` doc describes the process in some
 more detail.
 
 Inspecting Files
@@ -143,78 +151,83 @@ As the code runs, a series of files are written to the disk.
 Calibrations
 ------------
 
-The first set are :doc:`calibrations`.
+The first set are :doc:`../calibrations`.
 What follows are a series of screen shots
-and :doc:`qa` PNGs produced by *PypeIt*.
+and :doc:`../qa` PNGs produced by PypeIt.
 
 
 Bias
 ++++
 
 Here is a screen shot of a portion of the bias image as viewed
-with *ginga*::
+with `ginga`_:
+
+.. code-block:: bash
 
     ginga Masters/MasterBias_A_1_01.fits
-
 
 As typical of most bias images, it is featureless
 (effectively noise from the readout).
 
-.. image:: figures/kastb_bias_image.png
+.. image:: ../figures/kastb_bias_image.png
 
-See :doc:`master_bias` for further details.
+See :doc:`../master_bias` for further details.
 
 Arc
 +++
 
 Here is a screen shot of a portion of the arc image as viewed
-with *ginga*::
+with `ginga`_:
+
+.. code-block:: bash
 
     ginga Masters/MasterArc_A_1_01.fits
 
 As typical of most arc images, one sees a series
-of arc lines, here oriented horizontally (as always in *PypeIt*).
+of arc lines, here oriented horizontally (as always in PypeIt).
 
-.. image:: figures/kastb_arc_image.png
+.. image:: ../figures/kastb_arc_image.png
 
-See :doc:`master_arc` for further details.
+See :doc:`../master_arc` for further details.
 
 
 Slit Edges
 ++++++++++
 
-The code will automatically assign edges to each slit on the
-detector.  For this example, which used the starndard long
-slit of the Kast instrument, there is only one slit.
+The code will automatically assign edges to each slit on the detector.  For this
+example, which used the standard long-slit of the Kast instrument, there is only
+one slit.
 
-Here is a screen shot from the first tab in the *ginga*
+Here is a screen shot from the first tab in the `ginga`_
 window after using
-the :ref:`pypeit_chk_edges` script, with this explicit call::
+the :ref:`pypeit_chk_edges` script, with this explicit call:
+
+.. code-block:: bash
 
     pypeit_chk_edges Masters/MasterEdges_A_1_01.fits.gz
 
-.. image:: figures/kastb_edges_image.png
+.. image:: ../figures/kastb_edges_image.png
 
 The data is the combined flat images and the green/red
 lines indicate the left/right slit edges.  The S174 label
 indicates the slit name.
 
-See :doc:`master_edges` for further details.
+See :doc:`../master_edges` for further details.
 
 
 Wavelengths
 +++++++++++
 
-One should inspect the :doc:`qa` for the wavelength
-calibration.  These are PNGs in the QA/PNG/ folder.
+One should inspect the :doc:`../qa` for the wavelength
+calibration.  These are PNGs in the ``QA/PNG/`` folder.
 
 1D
 ::
 
 Here is an example of the 1D fits, written to
-the QA/PNGs/Arc_1dfit_A_1_01_S0175.png file:
+the ``QA/PNGs/Arc_1dfit_A_1_01_S0175.png`` file:
 
-.. image:: figures/kastb_arc1d.png
+.. image:: ../figures/kastb_arc1d.png
 
 What you hope to see in this QA is:
 
@@ -222,36 +235,38 @@ What you hope to see in this QA is:
  - In the upper right, an RMS < 0.1 pixels
  - In the lower right, a random scatter about 0 residuals
 
-See :doc:`master_wvcalib` for further details.
+See :doc:`../master_wvcalib` for further details.
 
 2D
 ::
 
 There are several QA files written for the 2D fits.
-Here is QA/PNGs/Arc_tilts_2d_A_1_01_S0175.png:
+Here is ``QA/PNGs/Arc_tilts_2d_A_1_01_S0175.png``:
 
-.. image:: figures/kastb_arc2d.png
+.. image:: ../figures/kastb_arc2d.png
 
 Each horizontal line of black dots is an arc line.
 Red points were rejected in the 2D fitting.  Provided
 most were not rejected, the fit should be good.
 An RMS<0.1 is also desired.
 
-See :doc:`master_wvcalib` for further details.
+See :doc:`../master_wvcalib` for further details.
 
 Flatfield
 +++++++++
 
-The code produces flat field images for correcting
+The code produces flat-field images for correcting
 pixel-to-pixel variations and illumination of the detector.
 
-Here is a screen shot from the first tab in the *ginga*
+Here is a screen shot from the first tab in the `ginga`_
 window (pixflat_norm) after using
-:ref:`pypeit_chk_flats`, with this explicit call::
+:ref:`pypeit_chk_flats`, with this explicit call:
+
+.. code-block:: bash
 
     pypeit_chk_flats Masters/MasterFlat_A_1_01.fits
 
-.. image:: figures/kastb_flat.png
+.. image:: ../figures/kastb_flat.png
 
 One notes the pixel-to-pixel variations;  these are
 at the percent level.
@@ -260,59 +275,65 @@ are also plotted (green/red lines).
 The region of the detector beyond these images
 has been set to unit value.
 
-See :doc:`master_flat` for further details.
+See :doc:`../master_flat` for further details.
 
 Spectra
 -------
 
 Eventually (be patient), the code will start
 generating 2D and 1D spectra outputs.  One per standard
-and science frame, located in the *Science/* folder.
+and science frame, located in the ``Science/`` folder.
 
 Spec2D
 ++++++
 
-Here is a screen shot from the third tab in the *ginga*
+Here is a screen shot from the third tab in the `ginga`_
 window (sky_resid-det01) after using
-:ref:`pypeit_show_2dspec`, with this explicit call::
+:ref:`pypeit_show_2dspec`, with this explicit call:
+
+.. code-block:: bash
 
     pypeit_show_2dspec Science/spec2d_b27-J1217p3905_KASTb_2015may20T045733.560.fits
 
-.. image:: figures/kastb_spec2d.png
+.. image:: ../figures/kastb_spec2d.png
 
-The green/red lines are the slit edges.
-The white line down the center is the object.
-The orange line shows the *PypeIt* trace
-of the object and the orange text is the
-*PypeIt* assigned name.
+The green/red lines are the slit edges (in more recent versions of the code, we
+changed the red lines to magenta).  The white line down the center is the
+object.  The orange line shows the PypeIt trace of the object and the orange
+text is the PypeIt assigned name.
 The night sky and emission lines have been subtracted.
 
-See :doc:`out_spec2D` for further details.
+See :doc:`../out_spec2D` for further details.
 
 Spec1D
 ++++++
 
 Here is a screen shot from the GUI showing the
 1D spectrum after using
-:ref:`pypeit_show_1dspec`, with this explicit call::
+:ref:`pypeit_show_1dspec`, with this explicit call:
+
+.. code-block:: bash
 
     pypeit_show_1dspec Science/spec1d_b27-J1217p3905_KASTb_2015may20T045733.560.fits
 
-.. image:: figures/kastb_spec1d.png
+.. image:: ../figures/kastb_spec1d.png
 
 This uses the
 `XSpecGUI <https://linetools.readthedocs.io/en/latest/xspecgui.html>`_
-from the *linetools* package.
+from the `linetools`_ package.
 
-See :doc:`out_spec1D` for further details.
+See :doc:`../out_spec1D` for further details.
 
 Fluxing
 =======
 
 Now that we have a reduced standard star spectrum, we can
 use that to generate a sensitivity file.  Here is the
-call for this example, which I run in the Science/ folder::
+call for this example, which I run in the ``Science/`` folder:
+
+.. code-block:: bash
 
     pypeit_sensfunc spec1d_b24-Feige66_KASTb_2015may20T041246.960.fits -o Kastb_feige66_sens.fits
 
-See :doc:`fluxing` for further details.
+See :doc:`../fluxing` for further details.
+

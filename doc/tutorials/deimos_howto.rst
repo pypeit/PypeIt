@@ -1,3 +1,6 @@
+
+.. include:: ../include/links.rst
+
 .. _deimos_howto:
 
 ============
@@ -7,7 +10,7 @@ DEIMOS HOWTO
 Overview
 ========
 
-This doc goes through a full run of ``PypeIt`` on a multi-slit
+This doc goes through a full run of PypeIt on a multi-slit
 observation with Keck/DEIMOS.
 The following was performed on a Macbook Pro with 8 GB RAM 
 (we recommend 32GB+ for DEIMOS) and took ~45min for the
@@ -43,18 +46,18 @@ all of the calibrations for each.
 Run ``pypeit_setup``
 --------------------
 
-The first script you will run with ``PypeIt`` is :ref:`pypeit_setup` which
+The first script you will run with PypeIt is :ref:`pypeit_setup` which
 examines your raw files and generates a sorted list and (when instructed)
-one :doc:`pypeit_file` per instrument configuration.
+one :doc:`../pypeit_file` per instrument configuration.
 
-Complete instructions are provided in :doc:`setup`.
+Complete instructions are provided in :doc:`../setup`.
 
 Here is my call for these data::
 
     cd folder_for_reducing   # this is usually *not* the raw data folder
     pypeit_setup -r RAW_PATH/DE. -s keck_deimos -c A
 
-This creates a :doc:`pypeit_file` in the folder named
+This creates a :doc:`../pypeit_file` in the folder named
 *keck_deimos_A* beneath where the script was run.
 Note that RAW_PATH should be the *full* path, i.e. including a /
 at the start.  
@@ -104,7 +107,7 @@ looks like this::
 
 
 In this example, all of the frametypes were accurately assigned
-in the :doc:`pypeit_file`, so there are no edits to be made.
+in the :doc:`../pypeit_file`, so there are no edits to be made.
 This should generally be the case for DEIMOS. 
 However, if frame types are not assigned correctly, 
 you can edit them following these instructions on
@@ -136,7 +139,7 @@ For more than one detector, use a list for `detnum`
 Main Run
 ========
 
-Once the :doc:`pypeit_file` is ready, the main call is
+Once the :doc:`../pypeit_file` is ready, the main call is
 simply::
 
     cd keck_deimos_A
@@ -146,7 +149,7 @@ The "-o" specifies to over-write any existing science
 output files.  As there are none, it is superflous but we
 recommend (almost) always using it.
 
-The :doc:`running` doc describes the process in some
+The :doc:`../running` doc describes the process in some
 more detail.
 
 Inspecting Files
@@ -157,9 +160,9 @@ As the code runs, a series of files are written to the disk.
 Calibrations
 ------------
 
-The first set are :doc:`calibrations`.
+The first set are :doc:`../calibrations`.
 What follows are a series of screen shots
-and :doc:`qa` PNGs produced by *PypeIt*.
+and :doc:`../qa` PNGs produced by PypeIt.
 
 
 Slit Edges
@@ -167,16 +170,16 @@ Slit Edges
 
 The code will automatically assign edges to each slit on the
 detector.  This includes using inform from the slitmask design
-recorded in the FITS file, as described in :doc:`dev/slitmask_ids`
+recorded in the FITS file, as described in :doc:`../dev/slitmask_ids`
 
-Here is a zoom-in screen shot from the first tab in the *ginga*
+Here is a zoom-in screen shot from the first tab in the `ginga`_
 window after using
 the :ref:`pypeit_chk_edges` script, with this explicit call
-(be patient with *ginga*)::
+(be patient with `ginga`_)::
 
     pypeit_chk_edges Masters/MasterEdges_A_1_07.fits.gz
 
-.. image:: figures/deimos_edges_image.png
+.. image:: ../figures/deimos_edges_image.png
 
 Note the 07 in the filename refers to the detector 7.
 
@@ -185,27 +188,27 @@ lines indicate the left/right slit edges.  The dark blue
 labels are the internal slit identifiers of PypeIt.
 The cyan numbers are the user-assigned ID values of the slits.
 
-See :doc:`master_edges` for further details.
+See :doc:`../master_edges` for further details.
 
 Arc
 +++
 
 Here is a screen shot of most of the arc image as viewed
-with *ginga*::
+with `ginga`_::
 
     ginga Masters/MasterArc_A_1_07.fits
 
 As typical of most arc images, one sees a series
 of arc lines, here oriented approximately horizontally. 
 
-.. image:: figures/deimos_arc_image.png
+.. image:: ../figures/deimos_arc_image.png
 
-See :doc:`master_arc` for further details.
+See :doc:`../master_arc` for further details.
 
 Wavelengths
 +++++++++++
 
-One should inspect the :doc:`qa` for the wavelength
+One should inspect the :doc:`../qa` for the wavelength
 calibration.  These are PNGs in the QA/PNG/ folder.
 
 Note:  there are multiple files generated for every slit.
@@ -218,7 +221,7 @@ through them by opening the HTML file under QA/.
 Here is an example of the 1D fits, written to
 the QA/PNGs/Arc_1dfit_A_1_07_S0758.png file:
 
-.. image:: figures/deimos_arc1d.png
+.. image:: ../figures/deimos_arc1d.png
 
 What you hope to see in this QA is:
 
@@ -226,7 +229,7 @@ What you hope to see in this QA is:
  - In the upper right, an RMS < 0.1 pixels
  - In the lower right, a random scatter about 0 residuals
 
-See :doc:`master_wvcalib` for further details.
+See :doc:`../master_wvcalib` for further details.
 
 
 2D
@@ -235,14 +238,14 @@ See :doc:`master_wvcalib` for further details.
 There are several QA files written for the 2D fits.
 Here is QA/PNGs/Arc_tilts_2d_A_1_07_S0758.png:
 
-.. image:: figures/deimos_arc2d.png
+.. image:: ../figures/deimos_arc2d.png
 
 Each horizontal line of black dots is an arc line.
 Red points were rejected in the 2D fitting.  Provided
 most were not rejected, the fit should be good.
 An RMS<0.1 is also desired for this fit.
 
-See :doc:`master_wvcalib` for further details.
+See :doc:`../master_wvcalib` for further details.
 
 Flatfield
 +++++++++
@@ -250,13 +253,13 @@ Flatfield
 The code produces flat field images for correcting
 pixel-to-pixel variations and illumination of the detector.
 
-Here is a zoom-in screen shot from the first tab in the *ginga*
+Here is a zoom-in screen shot from the first tab in the `ginga`_
 window (pixflat_norm) after using
 :ref:`pypeit_chk_flats`, with this explicit call::
 
     pypeit_chk_flats Masters/MasterFlat_A_1_07.fits
 
-.. image:: figures/deimos_flat.png
+.. image:: ../figures/deimos_flat.png
 
 One notes the pixel-to-pixel variations;  these are
 at the percent level.
@@ -265,7 +268,7 @@ are also plotted (green/red lines).
 The regions of the detector beyond the slit
 boundaries have been set to unit value.
 
-See :doc:`master_flat` for further details.
+See :doc:`../master_flat` for further details.
 
 Spectra
 -------
@@ -293,28 +296,28 @@ successfully reduced.
 Visual inspection
 :::::::::::::::::
 
-Here is a screen shot from the third tab in the *ginga*
+Here is a screen shot from the third tab in the `ginga`_
 window (sky_resid-det07) after using
 :ref:`pypeit_show_2dspec`, with this explicit call::
 
     pypeit_show_2dspec Science/spec2d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits --det 7
 
-.. image:: figures/deimos_spec2d.png
+.. image:: ../figures/deimos_spec2d.png
 
 For DEIMOS masks with many slits, the display time is substantial.
 You may prefer to limit viewing only a subset of the `channels`
 with the `--channels` option.
 
 The green/red lines are the slit edges.
-The orange line shows the *PypeIt* trace
+The orange line shows the PypeIt trace
 of the object and the orange text is the
-*PypeIt* assigned name.  Yellow lines indicate
+PypeIt assigned name.  Yellow lines indicate
 sources that were auto-magically extracted 
 based on the mask design (i.e. they had insufficient
 S/N for detection).
 The night sky and emission lines have been subtracted.
 
-See :doc:`out_spec2D` for further details.
+See :doc:`../out_spec2D` for further details.
 
 .. _deimos_howto_spec1d:
 
@@ -351,14 +354,14 @@ Last, here is a screen shot from the GUI showing the
 
    pypeit_show_1dspec spec1d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits --exten 23
 
-.. image:: figures/deimos_spec1d.png
+.. image:: ../figures/deimos_spec1d.png
 
 This uses the
 `XSpecGUI <https://linetools.readthedocs.io/en/latest/xspecgui.html>`_
 from the *linetools* package.  The black line is the flux and the
 red line is the estimated error.
 
-See :doc:`out_spec1D` for further details.
+See :doc:`../out_spec1D` for further details.
 
 Fluxing
 =======
@@ -384,10 +387,10 @@ The results can be viewed by passing *--flux* to pypeit_show_1dspec::
 
     pypeit_show_1dspec Science/spec1d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits --exten 23 --flux
 
-.. image:: figures/deimos_spec1d_flux.png
+.. image:: ../figures/deimos_spec1d_flux.png
 
 The archived sensitivity functions for DEIMOS are currently experimental and should be used with caution.
-See :doc:`fluxing` for more details on flux calibration with ``PypeIt``.
+See :doc:`../fluxing` for more details on flux calibration with PypeIt.
 
 Flexure
 =======

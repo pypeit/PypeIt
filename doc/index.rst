@@ -18,7 +18,7 @@
    :maxdepth: 1
 
    cookbook
-   step-by-step
+   tutorials/tutorials
 
 ----
 

@@ -168,5 +168,5 @@ Here are additional docs related to Keck/DEIMOS:
    dev/radec_object
    dev/deimos_wavecalib
    dev/add_missing_obj
-   deimos_howto
+   tutorials/deimos_howto
 

@@ -166,7 +166,7 @@ Google TeamDrive, please request it on the Users Slack.
 
 To test PypeIt using the data from the Google Drive:
 
- * Clone the `PypeIt-development-suite`_ repository:
+ * Clone the `PypeIt Development Suite`_ repository:
 
    .. code-block:: bash
 
@@ -232,16 +232,16 @@ To add new tests to the development suite
        organized into setup directories under a directory named for the
        instrument.
 
-    #. Add new a pypeit to the `PypeIt-development-suite`_ repo under
+    #. Add new a pypeit to the `PypeIt Development Suite`_ repo under
        ``pypeit_files``. The file name be lower case and named after the
        instrument and setup, for example: ``keck_deimos_1200g_m_7750.pypeit``.
 
     #. If desired, add any files for ``pypeit_sensfunc``, ``pypeit_flux_calib``,
        ``pypeit_coadd_1dspec``, ``pypeit_coadd_2dspec`` to the
-       `PypeIt-development-suite`_ repo under ``sensfunc_files``,
+       `PypeIt Development Suite`_ repo under ``sensfunc_files``,
        ``fluxing_files``, ``coadd1d_files``, ``coadd2d_files``, respectively.
 
-    #. Edit ``test_setups.py`` in the `PypeIt-development-suite`_ under
+    #. Edit ``test_setups.py`` in the `PypeIt Development Suite`_ under
        ``test_scripts``. Follow the instructions at the top of that file.
 
     #. Run the full development test suite to completion. Once all tests pass,
@@ -424,7 +424,7 @@ are as follows:
    is to support for the long term, this instrument *must* be added to the
    `Development Suite`_.  That means raw data should be added to the Google
    Drive and a relevant test should be added to the ``$PYPEIT_DEV/pypeit_test``
-   script (via a PR to the `PypeIt-development-suite`_) such that the new
+   script (via a PR to the `PypeIt Development Suite`_) such that the new
    instrument is included in list of instruments tested by executing
    ``./pypeit_test develop``).
 

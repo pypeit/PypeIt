@@ -287,7 +287,7 @@ not need access to these data; however, they may be useful for learning how to
 use ``PypeIt`` before running it on your own data from the same instrument.
 These data are stored in the ``RAW_DATA`` directory in the `PypeIt dev-suite
 Google Drive`_, divided into subdirectories for each instrument and instrument
-setup.  See also the `PypeIt-development-suite`_ GitHub repository, which
+setup.  See also the `PypeIt Development Suite`_ GitHub repository, which
 includes a :doc:`pypeit_file` for each instrument and setup used during
 development testing.
 

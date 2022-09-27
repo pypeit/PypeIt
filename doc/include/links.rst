@@ -84,6 +84,7 @@
 .. _pydl.pydlutils.yanny: http://pydl.readthedocs.io/en/stable/api/pydl.pydlutils.yanny.yanny.html
 
 .. linetools
+.. _linetools: https://linetools.readthedocs.io/en/latest/
 .. _linetools.spectra.xspectrum1d.XSpectrum1D: https://linetools.readthedocs.io/en/latest/xspectrum1d.html
 
 .. sphinx
@@ -114,7 +115,7 @@
 
 .. pypeit
 .. _repo: https://github.com/pypeit/PypeIt
-.. _PypeIt-development-suite: https://github.com/pypeit/PypeIt-development-suite
+.. _PypeIt Development Suite: https://github.com/pypeit/PypeIt-development-suite
 .. _documentation: https://pypeit.readthedocs.io/en/latest/
 .. _Submit an issue: https://github.com/pypeit/PypeIt/issues
 .. _PypeIt dev-suite Google Drive: https://drive.google.com/drive/folders/1oh19siB1-F0jjmY-F_jr73eA-TQYEiFW?usp=sharing

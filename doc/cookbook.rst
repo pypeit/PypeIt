@@ -28,7 +28,7 @@ should adhere to the following approach.  Note that:
   - Invariably something will be out of date.  When you see an egregious
     example, please holler on GitHub or Slack
 
-Finally, not that before you keep going, you should have already done the following:
+Finally, note that before you keep going, you should have already done the following:
 
     #. **Check that PypeIt can reduce your observations:**  See the list of
        supported :doc:`spectrographs`.
