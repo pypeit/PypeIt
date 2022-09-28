@@ -472,6 +472,7 @@ class PypeItSetup:
 
         if obslog:
             log_file = pypeit_file.replace('.pypeit', '.obslog')
+            log_file = os.path.join(_output_path, os.path.split(log_file)[1])
             header = ['Auto-generated PypeIt Observing Log',
                       '{0}'.format(time.strftime("%a %d %b %Y %H:%M:%S", time.localtime()))]
             self.fitstbl.write(output=log_file, columns='pypeit', sort_col='mjd',

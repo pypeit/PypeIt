@@ -21,14 +21,13 @@ from the fits file headers, as defined specifically for each spectrograph. To
 list *all* of the metadata pulled from each data file and how it maps to the
 keywords in the data file headers, run, e.g.:
 
-.. code-block:: python
+.. code-block:: bash
 
-    from pypeit.spectrographs.util import load_spectrograph
-    spec = load_spectrograph('keck_deimos')
-    spec.meta_key_map()
+    pypeit_obslog keck_deimos -k
 
-(see :func:`~pypeit.spectrographs.spectrograph.meta_key_map`).  For Keck/DEIMOS,
-this prints:
+(see :ref:`pypeit_obslog` and
+:func:`~pypeit.spectrographs.spectrograph.meta_key_map`).  For Keck/DEIMOS, this
+prints:
 
 .. include:: include/deimos_meta_key_map.rst
 
@@ -125,16 +124,19 @@ The listing is printed to ``stdout``, but you can also specify a file for the
 output. You can also select the metadata by which to sort the output, change
 the columns that are printed, etc.
 
+By default, the columns provided in the output table are identical to the
+columns in the :ref:`data_block` of a :ref:`pypeit_file`; to print columns with
+all the metadata collected, add ``-c all`` to the command line.
+
 .. _pypeit_setup:
 
 pypeit_setup
 ============
 
-PypeIt includes the :ref:`pypeit_setup` script that one executes
-to prepare for the data reduction by automatically associating fits
-files to specific :ref:`frame_types` and collecting groups of frames
-collected in a unique instrument configuration. The script usage can
-be displayed by calling the script with the ``-h`` option:
+``pypeit_setup`` is the script one executes to prepare for the data reduction by
+automatically associating fits files to specific :ref:`frame_types` and
+collecting groups of frames taken using unique instrument configurations. The
+script usage can be displayed by calling the script with the ``-h`` option:
 
 .. include:: help/pypeit_setup.rst
 
@@ -144,8 +146,9 @@ reduction.
 0. Prepare
 ----------
 
-Change your working directory to the one where you wish the reduced
-data products to appear. Any directory will do.
+Change your working directory to the one where you wish the reduced data
+products to appear. Any directory will do; however, you likely *don't* want this
+to be the same directory that holds the raw data.
 
 1. First Execution
 ------------------
@@ -156,8 +159,9 @@ We recommend you first execute ``pypeit_setup`` like this::
 
 where the two command-line options are *required* and provide:
 
-  - ``-s``: Sets the spectrograph to be reduce. This is camera
-    specific.
+  - ``-s``: Sets the spectrograph to be reduce. This is camera specific (e.g.,
+    you need to reduce LRIS red data separately from LRIS blue data).
+
   - ``-r``: Sets the full path to the raw data and the root prefix of
     the FITS files
 
@@ -175,15 +179,16 @@ directories as follows::
 2. Inspect the outputs
 ----------------------
 
-The call above creates two files in a ``setup_files/`` folder:
+The call above creates two files in the ``setup_files/`` folder, created where
+you executed ``pypeit_setup``:
 
-  - ``{spectrograph}_{date}.pypeit``: This is a dummy file that can
-    be ignored.
-  - ``{spectrograph}_{date}.sorted``: This shows the unique
-    configurations and the list of frames associated with each
-    configuration as determine by the automated procedures in
-    PypeIt. Each unique configuration is given a capital letter
+  - ``{spectrograph}.sorted``: This shows the unique configurations and the list
+    of frames associated with each configuration as determine by the automated
+    procedures in PypeIt. Each unique configuration is given a capital letter
     identifier (e.g., A,B,C,D...).
+
+  - ``{spectrograph}.obslog``: This provides the default log file, identical to
+    the result of running :ref:`pypeit_obslog`.
 
 Here is an example ``.sorted`` file for some example Keck DEIMOS data:
 
