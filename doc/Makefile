@@ -56,7 +56,7 @@ clean:
 	rm -rf $(LOCALFILES)
 
 apirst:
-	SPHINX_APIDOC_OPTIONS=$(SPHINXAPIOPT) $(SPHINXAPI) --separate -o ./api ../pypeit ../pypeit/tests/* ../pypeit/deprecated/* ../pypeit/version.py
+	SPHINX_APIDOC_OPTIONS=$(SPHINXAPIOPT) $(SPHINXAPI) --separate -o ./api ../pypeit ../pypeit/tests/* ../pypeit/deprecated/* ../pypeit/version.py ../pypeit/compiler_version*
 	python3 ./scripts/build_dependency_rst.py
 	python3 ./scripts/build_detector_table.py
 	python3 ./scripts/build_imgproc_defaults.py
