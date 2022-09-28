@@ -72,7 +72,7 @@ class TraceEdges(scriptbase.ScriptBase):
         from IPython import embed
 
         # Set the verbosity, and create a logfile if verbosity == 2
-        msgs.set_verbosity_and_logfile('trace_edges', args.verbosity)
+        msgs.set_logfile_and_verbosity('trace_edges', args.verbosity)
 
         if args.pypeit_file is not None:
             pypeit_file = args.pypeit_file

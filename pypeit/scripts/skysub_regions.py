@@ -46,7 +46,7 @@ class SkySubRegions(scriptbase.ScriptBase):
         from pypeit.images import buildimage
 
         # Set the verbosity, and create a logfile if verbosity == 2
-        msgs.set_verbosity_and_logfile('skysub_regions', args.verbosity)
+        msgs.set_logfile_and_verbosity('skysub_regions', args.verbosity)
 
         # Generate a utilities class
         info = utils.Utilities(None, pypeit_file=args.file, det=args.det)

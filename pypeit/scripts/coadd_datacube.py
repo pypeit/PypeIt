@@ -33,7 +33,7 @@ class CoAddDataCube(scriptbase.ScriptBase):
     @staticmethod
     def main(args):
         # Set the verbosity, and create a logfile if verbosity == 2
-        msgs.set_verbosity_and_logfile('coadd_datacube', args.verbosity)
+        msgs.set_logfile_and_verbosity('coadd_datacube', args.verbosity)
 
         # Check that a file has been provided
         if args.file is None:

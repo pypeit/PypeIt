@@ -336,9 +336,9 @@ class Messages:
         self._black_YL = ''
         self._yellow_BK = ''
 
-    def set_verbosity_and_logfile(self, scriptname, verbosity):
+    def set_logfile_and_verbosity(self, scriptname, verbosity):
         """
-        Set the verbosity level and (optionally) logfile for a script run.
+        Set the logfile name and verbosity level for a script run.
 
         PypeIt scripts (with the exception of run_pypeit) default to verbosity
         level = 1.  For certain scripts, having a more verbose output (with an

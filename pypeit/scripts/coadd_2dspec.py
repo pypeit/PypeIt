@@ -79,7 +79,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         """ Executes 2d coadding
         """
         # Set the verbosity, and create a logfile if verbosity == 2
-        msgs.set_verbosity_and_logfile('coadd_2dspec', args.verbosity)
+        msgs.set_logfile_and_verbosity('coadd_2dspec', args.verbosity)
 
         msgs.info('PATH =' + os.getcwd())
         # Load the file

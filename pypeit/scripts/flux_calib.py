@@ -74,7 +74,7 @@ class FluxCalib(scriptbase.ScriptBase):
         """ Runs fluxing steps
         """
         # Set the verbosity, and create a logfile if verbosity == 2
-        msgs.set_verbosity_and_logfile('flux_calib', args.verbosity)
+        msgs.set_logfile_and_verbosity('flux_calib', args.verbosity)
 
         # Load the file
         fluxFile = inputfiles.FluxFile.from_file(args.flux_file)

@@ -663,7 +663,7 @@ class Collate1D(scriptbase.ScriptBase):
     def main(args):
 
         # Set the verbosity, and create a logfile if verbosity == 2
-        msgs.set_verbosity_and_logfile('collate_1d', args.verbosity)
+        msgs.set_logfile_and_verbosity('collate_1d', args.verbosity)
 
         start_time = datetime.now()
         (par, spectrograph, spec1d_files) = build_parameters(args)

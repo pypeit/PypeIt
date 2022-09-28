@@ -92,7 +92,7 @@ class TellFit(scriptbase.ScriptBase):
         from pypeit import inputfiles
 
         # Set the verbosity, and create a logfile if verbosity == 2
-        msgs.set_verbosity_and_logfile('tellfit', args.verbosity)
+        msgs.set_logfile_and_verbosity('tellfit', args.verbosity)
 
         # Determine the spectrograph
         header = fits.getheader(args.spec1dfile)
