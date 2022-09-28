@@ -2664,9 +2664,7 @@ class WavelengthSolutionPar(ParSet):
         """
         Return the valid wavelength solution methods.
         """
-        # TODO: Remove from this list anything that is not valid!
-        return ['simple', 'holy-grail', 'identify', 'reidentify',
-                'full_template']
+        return ['holy-grail', 'identify', 'reidentify', 'full_template']
 
     @staticmethod
     def valid_lamps():

@@ -487,15 +487,7 @@ class BuildWaveCalib:
             measured_fwhms[islit] = autoid.measure_fwhm(arccen[:, islit])
 
         # Obtain calibration for all slits
-        if method == 'simple':
-            line_lists = waveio.load_line_lists(self.lamps)
-
-            final_fit = arc.simple_calib_driver(line_lists, arccen, ok_mask_idx,
-                                                    n_final=self.par['n_final'],
-                                                    sigdetect=self.par['sigdetect'],
-                                                    IDpixels=self.par['IDpixels'],
-                                                    IDwaves=self.par['IDwaves'])
-        elif method == 'holy-grail':
+        if method == 'holy-grail':
             # Sometimes works, sometimes fails
             arcfitter = autoid.HolyGrail(arccen, self.lamps, par=self.par, ok_mask=ok_mask_idx,
                                          nonlinear_counts=self.nonlinear_counts,
