@@ -68,7 +68,7 @@ correlation lags per object
 is shown and the adopted shift is listed.  Here is
 an example:
 
-.. figure:: qa/flex_corr_armlsd.jpg
+.. figure:: figures/qa/flex_corr_armlsd.jpg
    :align: center
 
 
@@ -78,6 +78,6 @@ from the data compared against an archived sky spectrum.
 These should coincide well in wavelength.
 Here is an example:
 
-.. figure:: qa/flex_sky_armlsd.jpg
+.. figure:: figures/qa/flex_sky_armlsd.jpg
    :align: center
 

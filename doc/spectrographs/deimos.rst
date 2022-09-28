@@ -35,6 +35,8 @@ data are listed here: :ref:`instr_par`.
 These are tuned to the standard calibration
 set taken with DEIMOS.
 
+.. _deimos_mosaic:
+
 MOSAIC
 ======
 

@@ -13,11 +13,6 @@ Overview
 This doc goes through a full run of PypeIt on one of the Shane Kast *blue*
 datasets in the `PypeIt Development Suite`_.
 
-For instrument specific recommendations, please see the links at
-the bottom of the :doc:`../spectrographs/spectrographs` page.
-
-For additional tutorials, see :ref:`tutorials`.
-
 Setup
 =====
 
@@ -58,72 +53,14 @@ This creates a :doc:`../pypeit_file` in the folder named
 Note that ``$RAW_PATH`` should be the *full* path, i.e. including a /
 at the start.
 
-It looks like this:
+The ``shane_kast_blue_A.pypeit`` files looks like this:
 
-.. code-block:: ini
+.. include:: ../include/shane_kast_blue_A.pypeit.rst
 
-    # Auto-generated PypeIt file
-    # Wed 12 Aug 2020 10:00:54
-
-    # User-defined execution parameters
-    [rdx]
-    spectrograph = shane_kast_blue
-
-    # Setup
-    setup read
-     Setup A:
-       --:
-         binning: 1,1
-         dichroic: d55
-         disperser:
-           angle: none
-           name: 600/4310
-         slit:
-           decker: 2.0 arcsec
-           slitlen: none
-           slitwid: none
-    setup end
-
-    # Read in the data
-    data read
-     path /home/xavier/Projects/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55
-    |    filename |                 frametype |                 ra |                dec |     target | dispname |     decker | binning |                mjd |        airmass | exptime | dichroic |
-    |  b1.fits.gz |                  arc,tilt | 140.44166666666663 |  37.43222222222222 |       Arcs | 600/4310 | 0.5 arcsec |     1,1 |  57162.06664467593 |            1.0 |    30.0 |      d55 |
-    | b14.fits.gz |                      bias | 172.34291666666664 |  36.86833333333333 |       Bias | 600/4310 | 2.0 arcsec |     1,1 |  57162.15420034722 |            1.0 |     0.0 |      d55 |
-    | b15.fits.gz |                      bias | 172.41833333333332 |  36.94444444444444 |       Bias | 600/4310 | 2.0 arcsec |     1,1 |  57162.15440162037 |            1.0 |     0.0 |      d55 |
-    | b16.fits.gz |                      bias | 172.49124999999995 |  36.97833333333333 |       Bias | 600/4310 | 2.0 arcsec |     1,1 |    57162.154603125 |            1.0 |     0.0 |      d55 |
-    | b17.fits.gz |                      bias |  172.5645833333333 |  37.04694444444444 |       Bias | 600/4310 | 2.0 arcsec |     1,1 |  57162.15480474537 |            1.0 |     0.0 |      d55 |
-    | b18.fits.gz |                      bias | 172.63708333333332 |  37.11555555555556 |       Bias | 600/4310 | 2.0 arcsec |     1,1 |  57162.15500949074 |            1.0 |     0.0 |      d55 |
-    | b19.fits.gz |                      bias | 172.71166666666664 |  37.18611111111111 |       Bias | 600/4310 | 2.0 arcsec |     1,1 |  57162.15521145833 |            1.0 |     0.0 |      d55 |
-    | b20.fits.gz |                      bias | 172.78416666666666 | 37.254444444444445 |       Bias | 600/4310 | 2.0 arcsec |     1,1 |  57162.15541377315 |            1.0 |     0.0 |      d55 |
-    | b21.fits.gz |                      bias | 172.85708333333332 |  37.32361111111111 |       Bias | 600/4310 | 2.0 arcsec |     1,1 |  57162.15561504629 |            1.0 |     0.0 |      d55 |
-    | b22.fits.gz |                      bias |             172.93 |            37.3925 |       Bias | 600/4310 | 2.0 arcsec |     1,1 |  57162.15581597222 |            1.0 |     0.0 |      d55 |
-    | b23.fits.gz |                      bias | 173.00166666666667 |            37.4225 |       Bias | 600/4310 | 2.0 arcsec |     1,1 | 57162.156018981485 |            1.0 |     0.0 |      d55 |
-    | b10.fits.gz | pixelflat,illumflat,trace | 144.82041666666666 |  37.43222222222222 |  Dome Flat | 600/4310 | 2.0 arcsec |     1,1 |  57162.07859895833 |            1.0 |    15.0 |      d55 |
-    | b11.fits.gz | pixelflat,illumflat,trace |            144.955 |  37.43222222222222 |  Dome Flat | 600/4310 | 2.0 arcsec |     1,1 |  57162.07897476852 |            1.0 |    15.0 |      d55 |
-    | b12.fits.gz | pixelflat,illumflat,trace |  145.0908333333333 |  37.43222222222222 |  Dome Flat | 600/4310 | 2.0 arcsec |     1,1 | 57162.079351388886 |            1.0 |    15.0 |      d55 |
-    | b13.fits.gz | pixelflat,illumflat,trace | 145.22791666666666 |  37.43222222222222 |  Dome Flat | 600/4310 | 2.0 arcsec |     1,1 | 57162.079728240744 |            1.0 |    15.0 |      d55 |
-    |  b2.fits.gz | pixelflat,illumflat,trace | 143.36208333333335 |  37.43222222222222 |  Dome Flat | 600/4310 | 2.0 arcsec |     1,1 |  57162.07473645834 |            1.0 |    30.0 |      d55 |
-    |  b3.fits.gz | pixelflat,illumflat,trace | 143.86791666666667 |  37.43222222222222 |  Dome Flat | 600/4310 | 2.0 arcsec |     1,1 |  57162.07596400463 |            1.0 |    15.0 |      d55 |
-    |  b4.fits.gz | pixelflat,illumflat,trace | 144.00458333333333 |  37.43222222222222 |  Dome Flat | 600/4310 | 2.0 arcsec |     1,1 | 57162.076341782406 |            1.0 |    15.0 |      d55 |
-    |  b5.fits.gz | pixelflat,illumflat,trace | 144.14041666666665 |  37.43222222222222 |  Dome Flat | 600/4310 | 2.0 arcsec |     1,1 |  57162.07671956019 |            1.0 |    15.0 |      d55 |
-    |  b6.fits.gz | pixelflat,illumflat,trace | 144.27708333333334 |  37.43222222222222 |  Dome Flat | 600/4310 | 2.0 arcsec |     1,1 | 57162.077096064815 |            1.0 |    15.0 |      d55 |
-    |  b7.fits.gz | pixelflat,illumflat,trace | 144.41291666666666 |  37.43222222222222 |  Dome Flat | 600/4310 | 2.0 arcsec |     1,1 |  57162.07747175926 |            1.0 |    15.0 |      d55 |
-    |  b8.fits.gz | pixelflat,illumflat,trace | 144.54874999999996 |  37.43222222222222 |  Dome Flat | 600/4310 | 2.0 arcsec |     1,1 | 57162.077847569446 |            1.0 |    15.0 |      d55 |
-    |  b9.fits.gz | pixelflat,illumflat,trace |  144.6845833333333 |  37.43222222222222 |  Dome Flat | 600/4310 | 2.0 arcsec |     1,1 | 57162.078222916665 |            1.0 |    15.0 |      d55 |
-    | b27.fits.gz |                   science | 184.40291666666664 |  39.01111111111111 | J1217p3905 | 600/4310 | 2.0 arcsec |     1,1 |  57162.20663842592 |            1.0 |  1200.0 |      d55 |
-    | b28.fits.gz |                   science | 184.40416666666664 |  39.01111111111111 | J1217p3905 | 600/4310 | 2.0 arcsec |     1,1 |  57162.22085034722 |            1.0 |  1200.0 |      d55 |
-    | b24.fits.gz |                  standard | 189.47833333333332 |  24.99638888888889 |   Feige 66 | 600/4310 | 2.0 arcsec |     1,1 |  57162.17554351852 | 1.039999961853 |    30.0 |      d55 |
-    data end
-
-
-For some instruments (especially Kast), it is common for 
-frametypes to be incorrectly assigned owing to limited
-or erroneous headers.
-
-In this example, however, all of the frametypes were accurately assigned
-in the :doc:`../pypeit_file`,
-so there are no edits to be made.
+For some instruments (especially Kast), it is common for frametypes to be
+incorrectly assigned owing to limited or erroneous headers.  However, in this
+example, all of the frametypes were accurately assigned in the
+:doc:`../pypeit_file`, so there are no edits to be made.
 
 Main Run
 ========
@@ -136,9 +73,8 @@ simply:
     cd shane_kast_blue_A
     run_pypeit shane_kast_blue_A.pypeit -o
 
-The ``-o`` specifies to over-write any existing science
-output files.  As there are none, it is superfluous but we
-recommend (almost) always using it.
+The ``-o`` indicates that any existing output files should be overwritten.  As
+there are none, it is superfluous but we recommend (almost) always using it.
 
 The :doc:`../running` doc describes the process in some
 more detail.
@@ -209,7 +145,7 @@ the :ref:`pypeit_chk_edges` script, with this explicit call:
 .. image:: ../figures/kastb_edges_image.png
 
 The data is the combined flat images and the green/red
-lines indicate the left/right slit edges.  The S174 label
+lines indicate the left/right slit edges (green/magenta in more recent versions).  The S174 label
 indicates the slit name.
 
 See :doc:`../calibrations/master_edges` for further details.
@@ -245,10 +181,11 @@ Here is ``QA/PNGs/Arc_tilts_2d_A_1_01_S0175.png``:
 
 .. image:: ../figures/kastb_arc2d.png
 
-Each horizontal line of black dots is an arc line.
-Red points were rejected in the 2D fitting.  Provided
-most were not rejected, the fit should be good.
-An RMS<0.1 is also desired.
+Each horizontal line of circles traces the arc line centroid as a function of
+spatial position along the slit length.  These data are used to fit the tilt in
+the spectral position.  "Good" measurements included in the parametric trace are
+shown as black points; rejected points are shown in red.  Provided most were not
+rejected, the fit should be good.  An RMS<0.1 is also desired.
 
 See :doc:`../calibrations/master_wvcalib` for further details.
 
@@ -259,7 +196,7 @@ The code produces flat-field images for correcting
 pixel-to-pixel variations and illumination of the detector.
 
 Here is a screen shot from the first tab in the `ginga`_
-window (pixflat_norm) after using
+window (``pixflat_norm``) after using
 :ref:`pypeit_chk_flats`, with this explicit call:
 
 .. code-block:: bash
@@ -271,7 +208,7 @@ window (pixflat_norm) after using
 One notes the pixel-to-pixel variations;  these are
 at the percent level.
 The slit edges defined by the code
-are also plotted (green/red lines).
+are also plotted (green/red lines; green/magenta in more recent versions).
 The region of the detector beyond these images
 has been set to unit value.
 
@@ -288,7 +225,7 @@ Spec2D
 ++++++
 
 Here is a screen shot from the third tab in the `ginga`_
-window (sky_resid-det01) after using
+window (``sky_resid-det01``) after using
 :ref:`pypeit_show_2dspec`, with this explicit call:
 
 .. code-block:: bash
@@ -297,11 +234,10 @@ window (sky_resid-det01) after using
 
 .. image:: ../figures/kastb_spec2d.png
 
-The green/red lines are the slit edges (in more recent versions of the code, we
-changed the red lines to magenta).  The white line down the center is the
-object.  The orange line shows the PypeIt trace of the object and the orange
-text is the PypeIt assigned name.
-The night sky and emission lines have been subtracted.
+The green/red lines are the slit edges (green/magenta in more recent versions).
+The brighter pixels down the center of the slit is the object.  The orange line
+shows the PypeIt trace of the object and the orange text is the PypeIt assigned
+name.  The night sky and emission lines have been subtracted.
 
 See :doc:`../out_spec2D` for further details.
 

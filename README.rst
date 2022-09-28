@@ -60,7 +60,7 @@ PypeIt |forks| |stars|
 
 |DOI_latest| |JOSS| |arxiv|
 
-PypeIt is a Python package for semi-automated reduction of astronomical,
+PypeIt is a Python package for semi-automated reduction of astronomical
 spectroscopic data. Its algorithms build on decades-long development of previous
 data reduction pipelines by the developers. The reduction procedure - including
 a complete list of the input parameters and available functionality - is
@@ -70,15 +70,15 @@ provided by our `online documentation
 PypeIt is designed to be used by both advanced spectroscopists with prior data
 reduction expertise and astronomers with no prior experience of data reduction.
 It is highly configurable and designed to be applied to any standard
-slit-imaging spectrograph, and can accommodate long-slit, multi-slit, as well as
+slit-imaging spectrograph, including long-slit, multi-slit, as well as
 cross-dispersed echelle spectra.  **The spectrogaphs that PypeIt can be used
 with are listed** `here
 <https://pypeit.readthedocs.io/en/release/spectrographs.html>`__.
 
-In addition to our primary code base, we maintain an extensive `PypeIt
-Development Suite <https://github.com/pypeit/PypeIt-development-suite>`__
-primarily used to perform multiple layers of code testing, from basic unit tests
-to full end-to-end tests of all our main scripts.
+In addition to our primary code base, we maintain an extensive `development
+suite <https://github.com/pypeit/PypeIt-development-suite>`__ primarily used to
+perform multiple layers of code testing, from basic unit tests to full
+end-to-end tests of all our command-line scripts.
 
 ----
 

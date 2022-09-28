@@ -9,24 +9,26 @@ Cookbook
 
 Here, we provide a quick-start cookbook that should help you run PypeIt on a
 batch of data.  There are alternate ways to run these steps, but non-experts
-should adhere to the following approach.  Note that:
+should adhere to the following approach.
+
+Note that:
 
   - This cookbook provides minimal detail, but serves as a basic introduction to
     the primary steps used to reduce your data with PypeIt.  We guide you to
     other parts of our documentation that explain specific functionality in more
     detail.
 
-  - If your spectrograph is an echelle, every place you read *slit* think *order*
+  - If your spectrograph is an echelle, every place you read "*slit*" think "*order*".
 
-  - We also tend to use *spectrograph* and *instrument* interchangeably
+  - We also tend to use "*spectrograph*" and "*instrument*" interchangeably.
 
-  - And *setup* and *configuration* too.
+  - And "*setup*" and "*configuration*", too.
 
   - Specific advice on :doc:`spectrographs/spectrographs` is provided in their own doc page
-    (although not every supported spectrograph has stand-alone documentation)
+    (although not every supported spectrograph has stand-alone documentation).
 
   - Invariably something will be out of date.  When you see an egregious
-    example, please holler on GitHub or Slack
+    example, please holler on GitHub or Slack.
 
 Finally, note that before you keep going, you should have already done the following:
 
@@ -62,8 +64,8 @@ what we recommend:
  - Copy bias (and dark) frames into each folder as needed.
  - We will refer to that folder as ``RAWDIR``
 
-The raw images can be gzip-compressed although the Python FITS reader
-works much more slowly on gzipped files.
+The raw images can be gzip-compressed, although this means opening files will be
+slower.
 
 A word on calibration data
 --------------------------
@@ -73,7 +75,8 @@ good set of calibrations, e.g.
 
   - Bias frames (optional)
   - Flats without saturation
-  - Arcs with most/all of the lamps on (and without substantial saturation)
+  - Arcs with most/all of the lamps on, without substantial saturation, and with
+    a set of well separated lines that span the full spectral range of your data
   - Slitmasks designed without overlapping slits
   - Sensible detector binning and windowing
 
@@ -239,8 +242,9 @@ related to extraction and sky subtraction for your spectra.
 ======================================
 
 PypeIt separates the "basic" data reduction steps performed by :ref:`run-pypeit`
-from a series of further processing steps that can be performed using
-separate scripts.  One of these is flux-calibration, or :doc:`fluxing`.
+from a series of further processing steps that can be performed using a separate
+set of command-line scripts.  One of these is flux-calibration, or
+:doc:`fluxing`.
 
 :doc:`fluxing` is a a two-stage process: (1) generate a
 sensitivity function and (2) apply it to your spectra.
