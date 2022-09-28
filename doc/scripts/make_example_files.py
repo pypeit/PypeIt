@@ -3,6 +3,7 @@ Dynamically build example files included in the documentation.
 """
 
 from pathlib import Path
+import sys
 import os
 import time
 import shutil 
@@ -136,6 +137,32 @@ def make_example_sorted_file():
 
     os.remove(sfile)
 
+def make_meta_examples():
+
+    ofile = Path(resource_filename('pypeit', '')).resolve().parent \
+                / 'doc' / 'include' / 'deimos_meta_key_map.rst'
+    otmp = ofile.parent / 'tmp_meta'
+    if otmp.exists():
+        otmp.unlink()
+
+    stdout = sys.__stdout__
+    with open(otmp, 'w') as sys.stdout:
+        from pypeit.spectrographs.util import load_spectrograph
+        spec = load_spectrograph('keck_deimos')
+        spec.meta_key_map()
+    sys.stdout = stdout
+
+    with open(ofile, 'w') as f:
+        with open(otmp, 'r') as p:
+            lines = p.readlines()
+        f.write('.. code-block:: console\n')
+        f.write('\n')
+        for l in lines:
+            f.write('    '+l)
+        f.write('\n\n')
+
+    if otmp.exists():
+        otmp.unlink()
 
 if __name__ == '__main__':
     t = time.perf_counter()
@@ -147,6 +174,8 @@ if __name__ == '__main__':
     make_example_gnirs_pypeit_files()
     print('Making keck_deimos.sorted.rst')
     make_example_sorted_file()
+    print('Make meta examples')
+    make_meta_examples()
     print('Elapsed time: {0} seconds'.format(time.perf_counter() - t))
 
 
