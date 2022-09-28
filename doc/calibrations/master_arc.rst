@@ -32,7 +32,7 @@ so that vertical is the spectral dimension with blue at the bottom.
 Here is an screen shot of a `ginga` view
 for an example from the `shane_kast_red` spectrograph.
 
-.. image:: figures/arc_image.png
+.. image:: ../figures/arc_image.png
 
 Yup, an arc.
 
@@ -54,5 +54,5 @@ which is a :class:`pypeit.images.pypeitimage.PypeItImage` and
 
 The datamodel written to disk is:
 
-.. include:: include/datamodel_arcimage.rst
+.. include:: ../include/datamodel_arcimage.rst
 

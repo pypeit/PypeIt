@@ -23,7 +23,7 @@ the key `MasterFlat`_ outputs.
 The script usage can be displayed by calling the script with the
 ``-h`` option:
 
-.. include:: help/pypeit_chk_flats.rst
+.. include:: ../help/pypeit_chk_flats.rst
 
 .. _pypeit_chk_flats:
 
@@ -101,5 +101,5 @@ which is a :class:`pypeit.datamodel.DataContainer`.
 
 The datamodel written to disk is:
 
-.. include:: include/datamodel_flatimages.rst
+.. include:: ../include/datamodel_flatimages.rst
 

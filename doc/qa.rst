@@ -41,7 +41,7 @@ date of the processing.
 Wavelength Fit QA
 -----------------
 
-See :doc:`master_wvcalib` for a discussion of this QA.
+See :doc:`calibrations/master_wvcalib` for a discussion of this QA.
 
 
 Wavelength Tilts QA
@@ -50,7 +50,7 @@ Wavelength Tilts QA
 There are generally a series of PNG files describing the analysis of the
 tilts of the arc lines.
 
-See :doc:`master_tilts` for a discussion of this QA.
+See :doc:`calibrations/master_tilts` for a discussion of this QA.
 
 
 Exposure QA

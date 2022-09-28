@@ -2,8 +2,8 @@
 
 .. _development:
 
-PypeIt Development Procedures and Guidelines
-============================================
+Development Procedures and Guidelines
+=====================================
 
 We encourage anyone to help us develop the ``PypeIt`` code base to better
 suit your needs and to improve its algorithms.  If you do so, please

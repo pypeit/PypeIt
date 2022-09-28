@@ -167,6 +167,7 @@ html_theme = 'sphinx_rtd_theme'
 # documentation.
 html_theme_options = {
     'logo_only': True,
+    'prev_next_buttons_location': None
 }
 
 # Add any paths that contain custom themes here, relative to this directory.

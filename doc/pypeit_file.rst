@@ -126,12 +126,12 @@ Here are additional docs on common edits that ``PypeIt`` users make:
    :caption: More reading
    :maxdepth: 1
 
-   calibrations
+   calibrations/calibrations
    frametype
-   bias_dark
-   flat_fielding
-   wave_calib
-   slit_tracing
+   calibrations/bias_dark
+   calibrations/flat_fielding
+   calibrations/wave_calib
+   calibrations/slit_tracing
    object_finding
    reduction_tips
 

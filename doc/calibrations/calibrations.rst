@@ -9,7 +9,7 @@ This doc briefly summarizes the main calibrations performed
 by PypeIt.  As per standard spectroscopic
 reduction, there are a series of calibrations files generated
 to correct the detector and perform wavelength calibration.
-We consider :doc:`fluxing` to be a separate process.
+We consider :doc:`../fluxing` to be a separate process.
 
 This page links to docs dedicated to specific aspects
 of Calibrations.
@@ -17,11 +17,14 @@ of Calibrations.
 Here are main calibration steps (in order
 of execution for multislit and echelle calibrations):
 
-* :doc:`bias_dark`
-* :doc:`slit_tracing`
-* :doc:`flexure`
-* :doc:`wave_calib`
-* :doc:`flat_fielding`
+.. toctree::
+   :maxdepth: 1
+
+   bias_dark
+   slit_tracing
+   flexure
+   wave_calib
+   flat_fielding
 
 Products
 ========
@@ -38,6 +41,7 @@ instrument):
    master_align
    master_arc
    master_bias
+   master_dark
    master_edges
    master_slits
    master_flat

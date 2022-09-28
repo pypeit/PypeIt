@@ -5,10 +5,9 @@
 Outputs
 =======
 
-``PypeIt``, despite a pipeline for data *reduction*, is capable of generating an
+PypeIt, despite a pipeline for data *reduction*, is capable of generating an
 inordinate amount of data products.  These pages document the various data
-products and the means to control the output.  A full description of the naming
-system is described :doc:`here </naming>`.
+products and the means to control the output.
 
 Contents
 ========
@@ -16,21 +15,11 @@ Contents
 .. toctree:: 
    :maxdepth: 1 
 
-   Naming <naming>
-   master_bias
-   master_dark
-   master_align
-   master_arc
-   master_tilt
-   master_edges
-   master_slits
-   master_wvcalib
-   master_tilts
-   master_flat
+   naming
+   calibrations/calibrations
    out_spec1D
    out_spec2D
    out_masks
-   detectors
    history
 
 .. _standard-products:

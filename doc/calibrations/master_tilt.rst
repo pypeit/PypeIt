@@ -35,7 +35,7 @@ so that vertical is the spectral dimension with blue at the bottom.
 Here is an screen shot of a `ginga` view
 for an example from the `shane_kast_red` spectrograph.
 
-.. image:: figures/arc_image.png
+.. image:: ../figures/arc_image.png
 
 Actually, I cheated. This is an :doc:`master_arc` image.
 But, they are identical for this instrument.
@@ -57,5 +57,5 @@ which is a :class:`pypeit.images.pypeitimage.PypeItImage` and
 :class:`pypeit.datamodel.DataContainer`.
 The datamodel written to disk is:
 
-.. include:: include/datamodel_tiltimage.rst
+.. include:: ../include/datamodel_tiltimage.rst
 

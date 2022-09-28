@@ -59,7 +59,7 @@ This will:
 Tilts only
 ----------
 
-Here the modification to your :doc:`pypeit_file` is like::
+Here the modification to your :doc:`../pypeit_file` is like::
 
     [calibrations]
       [[tiltframe]]
@@ -159,7 +159,7 @@ in the PypeIt archive.
 The script usage can be displayed by calling the script with the
 ``-h`` option:
 
-.. include:: help/pypeit_compare_sky.rst
+.. include:: ../help/pypeit_compare_sky.rst
 
 As noted above, the Paranal sky model is the default reference.
 Presently, we are finding that the sky spectrum at Mauna Kea (measured
@@ -227,7 +227,7 @@ implement cross-correlation with a stretch).
 If you wish to adopt this approach (not recommended for most users), there are
 several key steps:
 
-First, modify your :doc:`pypeit_file` to turn off the standard flexure *and*
+First, modify your :doc:`../pypeit_file` to turn off the standard flexure *and*
 to avoid the vacuum frame:
 
 .. code-block:: ini

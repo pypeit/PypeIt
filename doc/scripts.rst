@@ -2,9 +2,9 @@
 
 .. _pypeit_scripts:
 
-**************
-PypeIt scripts
-**************
+====================
+Command-line Scripts
+====================
 
 Overview
 ++++++++

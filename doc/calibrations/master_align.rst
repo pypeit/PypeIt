@@ -30,7 +30,7 @@ so that vertical is the spectral dimension with blue at the bottom.
 Here is an screen shot of a `ginga` view for an example from
 the `keck_kcwi` spectrograph.
 
-.. image:: figures/align_image.png
+.. image:: ../figures/align_image.png
 
 The alignment traces are color-coded by the slit number (i.e. the
 color alternates between orange and purple for each slit). In the
@@ -57,5 +57,5 @@ which is a :class:`pypeit.images.pypeitimage.PypeItImage` and
 
 The datamodel written to disk is:
 
-.. include:: include/datamodel_alignments.rst
+.. include:: ../include/datamodel_alignments.rst
 

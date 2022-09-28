@@ -4,9 +4,9 @@
 
 .. _parameters:
 
-=================
-PypeIt Parameters
-=================
+=====================
+User-level Parameters
+=====================
 
 PypeIt allows you to customize its execution without having to change the
 code directly.

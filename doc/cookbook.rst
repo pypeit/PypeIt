@@ -3,9 +3,9 @@
 
 .. _cookbook:
 
-===============
-PypeIt Cookbook
-===============
+========
+Cookbook
+========
 
 Here, we provide a quick-start cookbook that should help you run PypeIt on a
 batch of data.  There are alternate ways to run these steps, but non-experts
@@ -192,10 +192,10 @@ assessment plots in the ``${RDXDIR}/keck_deimos_A/QA`` directory.
 4. Examine the calibrations
 ===========================
 
-*For more detail, see* :doc:`calibrations`, :doc:`masters`, and :ref:`master-naming`.
+*For more detail, see* :doc:`calibrations/calibrations`, :doc:`calibrations/masters`, and :ref:`master-naming`.
 
 As the code runs, when a new calibration is generated the default is to write it
-to disk as a :doc:`masters` file.  Quality assessment plots for some of these
+to disk as a :doc:`calibrations/masters` file.  Quality assessment plots for some of these
 are written to the :doc:`qa` folder for inspection.  We encourage you to inspect
 these calibration outputs as they come, both the files themselves and the QA
 plots.
@@ -204,13 +204,13 @@ Here is the order they tend to be created
 with a separate doc for how to view each, what they should
 look like, and how to troubleshoot:
 
-  - View the :doc:`master_bias` image (if you produced one)
-  - View the :doc:`master_arc` image
-  - Check slit edges with the :doc:`master_edges` file
-  - View the :doc:`master_tilt` image
-  - Check the 1D wavelength solution in the :doc:`master_wvcalib` output
-  - Check the 2D wavelength solution in the :doc:`master_tilts` output
-  - Check the :doc:`master_flat` images
+  - View the :doc:`calibrations/master_bias` image (if you produced one)
+  - View the :doc:`calibrations/master_arc` image
+  - Check slit edges with the :doc:`calibrations/master_edges` file
+  - View the :doc:`calibrations/master_tilt` image
+  - Check the 1D wavelength solution in the :doc:`calibrations/master_wvcalib` output
+  - Check the 2D wavelength solution in the :doc:`calibrations/master_tilts` output
+  - Check the :doc:`calibrations/master_flat` images
 
 Note that only a subset of these files may be made, depending on your
 spectrograph and the calibration files available.

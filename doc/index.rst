@@ -79,15 +79,14 @@ PypeIt BibTeX Entries
    quicklook
 
 .. toctree::
-   :caption: Essentials
+   :caption: Core Data Processing
    :maxdepth: 1
    :hidden:
 
    setup
    running
    outputs
-   calibrations
-   qa
+   QA <qa>
 
 .. toctree::
    :caption: Processing Details
@@ -102,7 +101,7 @@ PypeIt BibTeX Entries
    A-B_differencing
 
 .. toctree::
-   :caption: Further processing
+   :caption: Further Processing
    :maxdepth: 1
    :hidden:
 
@@ -121,17 +120,19 @@ PypeIt BibTeX Entries
    input_files
    pypeit_file
    spectrographs/spectrographs
+   detectors
    mosaic
    pypeit_par
    scripts
    bitmasks
+   naming
 
 .. toctree::
-   :caption: For developers
+   :caption: For Developers
    :maxdepth: 1
    :hidden:
 
-   dev/development
-   PypeIt API <api/modules>
-   spectrographs/new_spectrograph
+   Development Guidelines <dev/development>
+   API <api/modules>
+   Adding a New Spectrograph <spectrographs/new_spectrograph>
 

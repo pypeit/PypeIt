@@ -27,7 +27,7 @@ It should resemble any one of your input bias frames aside from:
 
 Here is an example for the :ref:`keck-lris-red` spectrograph.
 
-.. image:: figures/bias_image.png
+.. image:: ../figures/bias_image.png
 
 Pretty boring, as expected.
 Note that this is only 1 of the 2 detectors for this spectrograph.
@@ -49,5 +49,5 @@ which is a :class:`pypeit.images.pypeitimage.PypeItImage` and
 :class:`pypeit.datamodel.DataContainer`.
 The datamodel written to disk is:
 
-.. include:: include/datamodel_biasimage.rst
+.. include:: ../include/datamodel_biasimage.rst
 

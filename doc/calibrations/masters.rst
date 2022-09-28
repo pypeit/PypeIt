@@ -19,7 +19,7 @@ This is to:
 
 Here is a listing of all the of MasterFrame files that
 can be generated.  The ones that are made depend on the
-:doc:`spectrographs/spectrographs` and the calibrations files provided.
+:doc:`../spectrographs/spectrographs` and the calibrations files provided.
 
 ================= ========= ===========================================
 Type              Format    Description
@@ -52,7 +52,7 @@ Here is an example of one::
 Here is how we break it down:
 
   - The prefix is as described in the Table above
-  - The **A** specifies the spectrograph :doc:`setup`
+  - The **A** specifies the spectrograph :doc:`../setup`
   - The **1** specifies the detector number (one-based indexing)
   - The **01** specifies a bit-wise description of the `calib`
 

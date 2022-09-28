@@ -151,7 +151,7 @@ As the code runs, a series of files are written to the disk.
 Calibrations
 ------------
 
-The first set are :doc:`../calibrations`.
+The first set are :doc:`../calibrations/calibrations`.
 What follows are a series of screen shots
 and :doc:`../qa` PNGs produced by PypeIt.
 
@@ -171,7 +171,7 @@ As typical of most bias images, it is featureless
 
 .. image:: ../figures/kastb_bias_image.png
 
-See :doc:`../master_bias` for further details.
+See :doc:`../calibrations/master_bias` for further details.
 
 Arc
 +++
@@ -188,7 +188,7 @@ of arc lines, here oriented horizontally (as always in PypeIt).
 
 .. image:: ../figures/kastb_arc_image.png
 
-See :doc:`../master_arc` for further details.
+See :doc:`../calibrations/master_arc` for further details.
 
 
 Slit Edges
@@ -212,7 +212,7 @@ The data is the combined flat images and the green/red
 lines indicate the left/right slit edges.  The S174 label
 indicates the slit name.
 
-See :doc:`../master_edges` for further details.
+See :doc:`../calibrations/master_edges` for further details.
 
 
 Wavelengths
@@ -235,7 +235,7 @@ What you hope to see in this QA is:
  - In the upper right, an RMS < 0.1 pixels
  - In the lower right, a random scatter about 0 residuals
 
-See :doc:`../master_wvcalib` for further details.
+See :doc:`../calibrations/master_wvcalib` for further details.
 
 2D
 ::
@@ -250,7 +250,7 @@ Red points were rejected in the 2D fitting.  Provided
 most were not rejected, the fit should be good.
 An RMS<0.1 is also desired.
 
-See :doc:`../master_wvcalib` for further details.
+See :doc:`../calibrations/master_wvcalib` for further details.
 
 Flatfield
 +++++++++
@@ -275,7 +275,7 @@ are also plotted (green/red lines).
 The region of the detector beyond these images
 has been set to unit value.
 
-See :doc:`../master_flat` for further details.
+See :doc:`../calibrations/master_flat` for further details.
 
 Spectra
 -------

@@ -1,10 +1,10 @@
 Version: 1.1.4
 
-=====================  =================  ==========  ===========================================================================================================================
+=====================  =================  ==========  ==============================================================================================================================
 Obj Key                Obj Type           Array Type  Description                                                                                                                                                                         
-=====================  =================  ==========  ===========================================================================================================================
+=====================  =================  ==========  ==============================================================================================================================
 ``spat_id``            ndarray            int         Slit ID number from SPAT measured at half way point.
-``maskdef_id``         ndarray            int         Slit ID number from slitmask design (implemented only for :doc:`spectrographs/deimos` and :doc:`spectrographs/mosfire`).
+``maskdef_id``         ndarray            int         Slit ID number from slitmask design (implemented only for :doc:`../spectrographs/deimos` and :doc:`../spectrographs/mosfire`).
 ``left_init``          ndarray            float       Spatial coordinates (pixel indices) of all left edges, one per slit.
 ``right_init``         ndarray            float       Spatial coordinates (pixel indices) of all right edges, one per slit.
 ``left_tweak``         ndarray            float       Spatial coordinates (pixel indices) of all left edges, one per slit.  These traces have been adjusted by the flat-field.
@@ -14,9 +14,9 @@ Obj Key                Obj Type           Array Type  Description
 ``mask``               ndarray            int         Bit mask for slits (fully good slits have 0 value).
 ``specmin``            ndarray            float       Minimum spectral position allowed for each slit/order.
 ``specmax``            ndarray            float       Maximum spectral position allowed for each slit/order.
-=====================  =================  ==========  ===========================================================================================================================
+=====================  =================  ==========  ==============================================================================================================================
 
-Additional `astropy.io.fits.BinTableHDU`_ for :doc:`spectrographs/deimos` and :doc:`spectrographs/mosfire` reduction.
+Additional `astropy.io.fits.BinTableHDU`_ for :doc:`../spectrographs/deimos` and :doc:`../spectrographs/mosfire` reduction.
 
 =====================  =================  ==========  =================================================================================
 Obj Key                Obj Type           Array Type  Description
@@ -44,3 +44,4 @@ Obj Key                Obj Type           Array Type  Description
 ``OBJ_TOPDIST``        ndarray            float       Projected position of the object w.r.t. the top edge of the slit (arcsec).
 ``OBJ_BOTDIST``        ndarray            float       Projected position of the object w.r.t. the bottom edge of the slit (arcsec).
 =====================  =================  ==========  =================================================================================
+

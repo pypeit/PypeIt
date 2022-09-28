@@ -10,7 +10,7 @@ Overview
 
 This doc describes the `Approach`_ used to perform flat-fielding
 in PypeIt, how one goes about `Modifying the Default Approach`_
-for a given :doc:`spectrographs/spectrographs`, and
+for a given :doc:`../spectrographs/spectrographs`, and
 how to guide `Generating the Flat Field Images`_.
 
 Note that :doc:`slit_tracing` is frequently performed with
@@ -37,11 +37,11 @@ Application
 
 The code can implement any, none or all of the corrections
 described above.  We have set a default approach for each
-of the :doc:`spectrographs/spectrographs` based on our expertise and
+of the :doc:`../spectrographs/spectrographs` based on our expertise and
 the data in the `Development Suite <https://github.com/pypeit/PypeIt-development-suite>`_.
 
 Of course, for the correction to be applied the user
-must supply the required images in the :doc:`pypeit_file`.
+must supply the required images in the :doc:`../pypeit_file`.
 We discuss that process in greater detail in
 `Generating the Flat Field Images`_.
 
@@ -53,11 +53,11 @@ For most, the code will apply both the pixel-level
 and illumination corrections.
 
 And for most if not all spectrographs, these are only applied
-to the *science* and *standard* :doc:`frametype`.
+to the *science* and *standard* :doc:`../frametype`.
 
 If you wish to modify the default either for a custom approach
 or because you lack the necessary calibration data, you will
-need to modify the :doc:`pypeit_file` and specifically the
+need to modify the :doc:`../pypeit_file` and specifically the
 **use_pixelflat** and **use_illumflat** parameters in the
 :ref:`processimagespar`.
 
@@ -117,7 +117,7 @@ is not the default, you may turn this on with:
                 use_illumflat = True
 
 Of course, you will need to provide one or more images
-labeled as *illumflat* :doc:`frametype` in your :doc:`pypeit_file`.
+labeled as *illumflat* :doc:`../frametype` in your :doc:`../pypeit_file`.
 See below for further details.
 
 Lamps off Flats Subtraction
@@ -125,8 +125,8 @@ Lamps off Flats Subtraction
 
 When flats taken with the lamps OFF are provided ``PypeIt`` will subtract them form the
 flats taken with the lamps ON, before crearing the Master Flat images. The lamp off
-flats are not automatically identified (except for :doc:`spectrographs/mosfire`), so the users should
-label those as *lampoffflats* :doc:`frametype` in the :doc:`pypeit_file`.
+flats are not automatically identified (except for :doc:`../spectrographs/mosfire`), so the users should
+label those as *lampoffflats* :doc:`../frametype` in the :doc:`../pypeit_file`.
 
 .. note::
     It is responsibility of the user to ensure that the *lampoffflats* frames in the PypeIt file have
@@ -160,7 +160,7 @@ the following keyword argument is set as well:
             use_specillum = True
 
 You will need to provide one or more images labeled as *pixelflat*
-:doc:`frametype` in your :doc:`pypeit_file`.
+:doc:`../frametype` in your :doc:`../pypeit_file`.
 See below for further details.
 
 Generating the Flat Field Images
@@ -171,17 +171,17 @@ Input files
 
 If you wish to apply one or more of the `Corrections`_ you will
 need to provide the matching flat field images in your
-:doc:`pypeit_file` and specify them with the appropriate
-:doc:`frametype`.
+:doc:`../pypeit_file` and specify them with the appropriate
+:doc:`../frametype`.
 
 In short, if **use_pixelflat** is set for *any* of your images,
 at least one of the data files in the
-:doc:`pypeit_file` :ref:`data_block` must
+:doc:`../pypeit_file` :ref:`data_block` must
 be labelled as *pixelflat* (unless you `Feed a PixelFlat`_).
 
 And, if **use_illumflat** is set for *any* of your images,
 at least one of the data files in the
-:doc:`pypeit_file` :ref:`data_block` must
+:doc:`../pypeit_file` :ref:`data_block` must
 be labelled as *illumflat*.
 
 In some cases, it may be desirable to use a different set of
@@ -231,10 +231,10 @@ Saturated Slits
 ---------------
 
 Occasionally one or more slits are saturated
-(a common case is the :doc:`spectrographs/deimos` LVMCslitC mask)
+(a common case is the :doc:`../spectrographs/deimos` LVMCslitC mask)
 and the code exits in flat field generation.  If you
 wish to continue on with the slits that are ok,
-add this to your :doc:`pypeit_file`:
+add this to your :doc:`../pypeit_file`:
 
 .. code-block:: ini
 

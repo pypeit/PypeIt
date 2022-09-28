@@ -28,7 +28,7 @@ by PypeIt is with the `pypeit_chk_edges`_ script.
 The script usage can be displayed by calling the script with the
 ``-h`` option:
 
-.. include:: help/pypeit_chk_edges.rst
+.. include:: ../help/pypeit_chk_edges.rst
 
 .. _pypeit_chk_edges:
 
@@ -55,7 +55,7 @@ You may then run the script::
 
 Here is an zoom-in screen shot for the :ref:`keck-lris-red` spectrograph.
 
-.. image:: figures/slit_edges_ginga.png
+.. image:: ../figures/slit_edges_ginga.png
 
 A few things to note from this good-performing example:
 

@@ -15,7 +15,7 @@ and how to generate the images.
 Bias Subtraction
 ================
 
-All of the optical :doc:`spectrographs/spectrographs` supported by
+All of the optical :doc:`../spectrographs/spectrographs` supported by
 PypeIt have a non-zero bias level.  This must be subtracted
 prior to reduction.
 
@@ -26,14 +26,14 @@ Bias Image
 ----------
 
 If the user supplies set of bias images in the
-:doc:`pypeit_file` *and* specifies their usage,
+:doc:`../pypeit_file` *and* specifies their usage,
 this image will be subtracted from the raw image
 during reduction.
 
 Generation
 ++++++++++
 
-If one or more bias frames are provided in the :doc:`pypeit_file`,
+If one or more bias frames are provided in the :doc:`../pypeit_file`,
 these will be combined to generate a bias image.  And this image
 will be written to disk as a :doc:`master_bias`. See those docs
 on how to inspect the image and what to look for.
@@ -56,7 +56,7 @@ be *True*.  This is the default for all optical spectrographs.
 
 If you wish to turn this option off (e.g. because you have
 not taken any bias images), then add the following to
-the :doc:`pypeit_file` :ref:`parameter_block`:
+the :doc:`../pypeit_file` :ref:`parameter_block`:
 
 .. code-block:: ini
 
@@ -79,7 +79,7 @@ This is the recommended incantation:
 Overscan Subtraction
 --------------------
 
-The default for all optical :doc:`spectrographs/spectrographs` is to
+The default for all optical :doc:`../spectrographs/spectrographs` is to
 estimate the bias level from the overscan region and
 subtract this from raw image.
 
@@ -88,14 +88,14 @@ reduced accordingly.  And the bias image corrected value will be
 implemented.
 
 If you wish to ignore the overscan, add the following to
-the :doc:`pypeit_file` :ref:`parameter_block`:
+the :doc:`../pypeit_file` :ref:`parameter_block`:
 
 .. code-block:: ini
 
     [baseprocess]
         use_overscan = False
 
-This should be the default set for :doc:`spectrographs/spectrographs` with near-IR
+This should be the default set for :doc:`../spectrographs/spectrographs` with near-IR
 detectors.
 
 Dark Subtraction
@@ -114,7 +114,7 @@ The generation of a dark image has the following defaults:
 - Do not apply a gain correction (*apply_gain = False*)
 - Combine images with a weighted mean (*combine = weightmean*)
 
-To apply a dark, you will need to specify the :doc:`frametype`
+To apply a dark, you will need to specify the :doc:`../frametype`
 accordingly.  Here is an example for the VLT/X-SHOOTER NIR arm::
 
     [calibrations]
@@ -129,4 +129,4 @@ accordingly.  Here is an example for the VLT/X-SHOOTER NIR arm::
             use_darkimage = True
 
 This will subtract the dark image generated from the flat
-and trace :doc:`frametype`.
+and trace :doc:`../frametype`.

@@ -43,5 +43,5 @@ which is a :class:`pypeit.images.pypeitimage.PypeItImage` and
 :class:`pypeit.datamodel.DataContainer`.
 The datamodel written to disk is:
 
-.. include:: include/datamodel_darkimage.rst
+.. include:: ../include/datamodel_darkimage.rst
 

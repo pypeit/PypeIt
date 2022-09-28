@@ -2,9 +2,9 @@
 
 .. _detectors:
 
-===================
-Detector Parameters
-===================
+=======================
+Detector Specifications
+=======================
 
 Basically anytime a raw image is loaded by ``PypeIt``, it also instantiates a
 :class:`~pypeit.images.detector_container.DetectorContainer` object to hold

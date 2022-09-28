@@ -5,9 +5,9 @@
 
 .. _input_files:
 
-==================
-PypeIt Input Files
-==================
+=================
+Input File Format
+=================
 
 Overview
 ========

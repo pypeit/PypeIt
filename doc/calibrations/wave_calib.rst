@@ -30,8 +30,8 @@ Arc Processing
 If you are combining multiple arc images that have
 different arc lamps (*e.g.*, one with He and another with Hg+Ne)
 then be sure to process without clipping.  This may be the
-default for your spectrograph (*e.g.*, :doc:`spectrographs/deimos`) but you can
-be certain by adding the following to the :doc:`pypeit_file`
+default for your spectrograph (*e.g.*, :doc:`../spectrographs/deimos`) but you can
+be certain by adding the following to the :doc:`../pypeit_file`
 (for longslit observations):
 
 .. code-block:: ini
@@ -108,7 +108,7 @@ A script ``pypeit_install_linelist`` is included that installs a
 user-supplied line list into the PypeIt cache for use.  The script
 usage can be displayed by calling it with the ``-h`` option:
 
-  .. include:: help/pypeit_install_linelist.rst
+  .. include:: ../help/pypeit_install_linelist.rst
 
 For example, you might be using the MMT Blue Channel Spectrograph and
 want to use various blue mercury and cadmium lines that are not included in
@@ -275,7 +275,7 @@ usage
 The script usage can be displayed by calling the script with the
 ``-h`` option:
 
-.. include:: help/pypeit_identify.rst
+.. include:: ../help/pypeit_identify.rst
 
 To launch the GUI, use the following command:
 

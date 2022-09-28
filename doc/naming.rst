@@ -1,8 +1,8 @@
 .. highlight:: rest
 
-*************
-Output Naming
-*************
+==================
+Naming Conventions
+==================
 
 There is no standard for naming data reduction output products in
 Astronomy, nor even common practices.  PypeIt follows its own schema.
