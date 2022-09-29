@@ -6,6 +6,9 @@
 Internals
 *********
 
+THIS IS OUT OF DATE!!
+
+
 Overview
 ========
 
@@ -19,7 +22,7 @@ Objects
 filesort
 --------
 
-This *dict* whose keys are the various :doc:`frametype` used
+This *dict* whose keys are the various :doc:`../frametype` used
 in PypeIt and the items are arrays of the indices of the frames
 with that type.
 

@@ -362,7 +362,8 @@ class PypeIt:
         """
         Main driver of the entire reduction
 
-        Calibration and extraction via a series of calls to reduce_exposure()
+        Calibration and extraction via a series of calls to
+        :func:`reduce_exposure`.
 
         """
         # Validate the parameter set

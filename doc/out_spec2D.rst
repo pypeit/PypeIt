@@ -62,7 +62,6 @@ Here is a typical call:
 
     pypeit_show_2dspec Science/spec2d_c17_60L._LRISb_2017Mar20T055336.211.fits
 
-
 This opens 4 tabs in the `ginga`_ display, one for each of the
 following:
 
@@ -78,6 +77,15 @@ indicate traces for manually extracted objects.
 As you mouse around, the x-values shown at the bottom indicate
 the wavelength.
 
+.. warning::
+
+    If you get an obscure error when executing the above command, it may be that
+    you're trying to view a file created by a previous version of PypeIt.  As
+    the code develops, we sometimes change the datamodel of different output
+    files, which are often not backward compatible.  If you run into this error,
+    try reverting to the relevant PypeIt version (the version used to create the
+    file is typically written to the ``VERSPYP`` header keyword) or re-reduce
+    the data with the new PypeIt version.
 
 pypeit_parse_slits
 ------------------

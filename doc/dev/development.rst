@@ -617,17 +617,16 @@ J. Xavier Prochaska, Joseph Hennawi.
 Additional Developer Links
 --------------------------
 
-.. Should move these rst files into the dev directory!
-
 Here are some developer-specific docs:
 
 .. toctree::
    :maxdepth: 1
 
-   ../flow
-   ../internals
-   ../metadata
-   ../new_script
+   flow
+   internals
+   metadata
+   new_script
+   new_spectrograph
    reports
    conda_forge
    build_archived_sensfuncs

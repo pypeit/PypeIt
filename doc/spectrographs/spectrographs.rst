@@ -14,7 +14,7 @@ well-vetted by PypeIt developers. "Unsupported" spectrographs are
 in-development; however, the development timescale is undefined.
 
 For instructions on how to add a new spectrograph see:
-:doc:`new_spectrograph`.
+:doc:`../dev/new_spectrograph`.
 
 
 .. include:: ../include/spectrographs_table.rst

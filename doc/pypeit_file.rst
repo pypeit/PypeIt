@@ -79,6 +79,8 @@ for further details.
 Data Block
 ----------
 
+.. DESCRIBE CALIBRATION GROUPS HERE?
+
 Last is the data block, beginning with the line ``data read``
 and ending with ``data end``, which
 includes the path(s) to the raw data files and a table 

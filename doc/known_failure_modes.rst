@@ -11,10 +11,10 @@ Overview
 ========
 
 This doc attempts to capture known failure modes of
-PypeIt and potential mitigations.  These are intended to be 
+PypeIt and potential mitigation strategies.  These are intended to be 
 distinct from common user error.
 
-.. bad-headers:
+.. _bad-headers:
 
 Bad Headers
 ===========

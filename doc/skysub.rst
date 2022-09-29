@@ -15,6 +15,8 @@ This document describes how PypeIt performs sky subtraction.
 See :ref:`skysubpar` for the complete
 list of options related to sky subtraction.
 
+.. _skysub-global:
+
 Global
 ======
 

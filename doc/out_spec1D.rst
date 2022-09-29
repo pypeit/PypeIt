@@ -93,6 +93,16 @@ Here is a typical call::
 This should launch an `XSpecGUI <https://linetools.readthedocs.io/en/latest/xspecgui.html>`_
 on your screen from the *linetools* package.
 
+.. warning::
+
+    If you get an obscure error when executing the above command, it may be that
+    you're trying to view a file created by a previous version of PypeIt.  As
+    the code develops, we sometimes change the datamodel of different output
+    files, which are often not backward compatible.  If you run into this error,
+    try reverting to the relevant PypeIt version (the version used to create the
+    file is typically written to the ``VERSPYP`` header keyword) or re-reduce
+    the data with the new PypeIt version.
+
 Options
 -------
 

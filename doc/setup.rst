@@ -10,11 +10,20 @@ Setup
 Overview
 ========
 
-The :doc:`pypeit_file` is *the* critical component to any successful
-run of PypeIt, and :ref:`pypeit_setup` provides an automated
-means of generating this file based on a set of fits files. Below, we
-describe how PypeIt defines unique instrument configurations
-("setups") and sorts data in preparation for the data reduction.
+The :doc:`pypeit_file` is *the* critical component to any successful run of
+PypeIt, and :ref:`pypeit_setup` provides an automated means of generating this
+file based on a set of fits files.
+
+Below, we describe how PypeIt defines unique instrument configurations
+("setups") and sorts data in preparation for the data reduction.  Then we
+describe our recommended method for generating the :ref:`pypeit_file`, which
+includes multiple executions of :ref:`pypeit_setup`.  We also describe another
+preparatory script, :ref:`pypeit_obslog`, which provides a simple listing of the
+available data files; however, use of this script is optional in terms of setup
+for reducing your data.
+
+Use of Metadata to Identify Instrument Configurations
+=====================================================
 
 PypeIt distinguishes between instrument configurations using metadata pulled
 from the fits file headers, as defined specifically for each spectrograph. To
@@ -26,7 +35,7 @@ keywords in the data file headers, run, e.g.:
     pypeit_obslog keck_deimos -k
 
 (see :ref:`pypeit_obslog` and
-:func:`~pypeit.spectrographs.spectrograph.meta_key_map`).  For Keck/DEIMOS, this
+:func:`~pypeit.spectrographs.spectrograph.Spectrograph.meta_key_map`).  For Keck/DEIMOS, this
 prints:
 
 .. include:: include/deimos_meta_key_map.rst
@@ -38,7 +47,7 @@ means that the metadata keyword or value is conditioned on multiple
 header values. In this example, the header card that provides the
 central wavelength given the grating angle (``dispangle``) for DEIMOS
 is dependent on the grating used (``dispname``); see
-:func:`~pypeit.spectrographs.keck_deimos.compound_meta`.
+:func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.compound_meta`.
 
 A subset of this metadata is used to determine the unique instrument
 configurations used and associate all of the data files to the relevant
@@ -50,9 +59,9 @@ beam-splitting dichroic (``dichroic``), and/or the on-chip binning
 set by the ``configuration_keys`` method; for DEIMOS, see
 :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.configuration_keys`.
 
-As of PypeIt version ``1.10.1dev``, the following table provides the list of
-metadata used to define the instrument configuration for *any* supported
-spectrograph.
+The following table provides the list of metadata used to define the instrument
+configuration for *any* supported spectrograph (as of PypeIt version
+``1.10.1dev``):
 
 ====================  ======= =============== ===================================================================
 Metadata Key          Type    Example         Description
@@ -81,8 +90,8 @@ identified by a capital letter, e.g., **A**. When executing
 :ref:`run-pypeit`, however, the instrument configuration is set by
 the :ref:`setup_block` in the :ref:`pypeit_file` and not redetermined
 by the fits files. The latter allows the user flexibility to override
-PypeIt's automated configuration settings. **Currently, each
-:ref:`pypeit_file` should only provide data from one instrument
+PypeIt's automated configuration settings. **Currently, each**
+:ref:`pypeit_file` **should only provide data from one instrument
 configuration.**
 
 If you tend to observe with one instrument configuration and with a
@@ -254,9 +263,9 @@ will need to edit by hand. The two columns added, ``comb_id`` and
 columns and how PypeIt uses them; see also a worked example in the
 :ref:`gnirs_howto`.
 
-
 -m option
 +++++++++
 
 If you wish to include a column where you can include
 input for :doc:`manual` then use this additional flag.
+

@@ -84,7 +84,7 @@ PypeIt BibTeX Entries
    :hidden:
 
    setup
-   running
+   Execution <running>
    outputs
    QA <qa>
 
@@ -124,6 +124,7 @@ PypeIt BibTeX Entries
    mosaic
    pypeit_par
    scripts
+   calibrations/calibrations
    bitmasks
    naming
 
@@ -133,6 +134,6 @@ PypeIt BibTeX Entries
    :hidden:
 
    Development Guidelines <dev/development>
+   Adding a New Spectrograph <dev/new_spectrograph>
    API <api/modules>
-   Adding a New Spectrograph <spectrographs/new_spectrograph>
 

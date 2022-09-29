@@ -1,7 +1,7 @@
 .. code-block:: console
 
     $ run_pypeit -h
-    usage: run_pypeit [-h] [-v VERBOSITY] [-t] [-r REDUX_PATH] [-m] [-s] [-o]
+    usage: run_pypeit [-h] [-v VERBOSITY] [-r REDUX_PATH] [-m] [-s] [-o]
                       [-d DETECTOR] [-c]
                       pypeit_file
     
@@ -29,8 +29,6 @@
       -h, --help            show this help message and exit
       -v VERBOSITY, --verbosity VERBOSITY
                             Verbosity level between 0 [none] and 2 [all]
-      -t, --hdrframetype    Use file headers and the instument-specific keywords to
-                            determine the type of each frame
       -r REDUX_PATH, --redux_path REDUX_PATH
                             Path to directory for the reduction. Only advised for
                             testing
