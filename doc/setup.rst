@@ -216,7 +216,7 @@ Importantly, you should use the ``sorted`` file to decide which
 configuration (as selected by its letter) you wish to reduce. Also
 note that PypeIt cannot interpret any edits you make to this
 file; all user-level edits to the frame-typing, association of frames
-with given configurations, etc., must be done via the :doc:`pypeit_file`.
+with given configurations, etc., *must* be done via the :doc:`pypeit_file`.
 
 3. Second execution: Write the pypeit file for one or more setups
 -----------------------------------------------------------------
@@ -251,7 +251,8 @@ simply adds the relevant columns to the :ref:`pypeit_file` that you
 will need to edit by hand. The two columns added, ``comb_id`` and
 ``bkg_id``, are added by default for most near-IR spectrographs. See
 :doc:`A-B_differencing` for the syntax used for the data in these
-columns and how PypeIt uses them.
+columns and how PypeIt uses them; see also a worked example in the
+:ref:`gnirs_howto`.
 
 
 -m option
