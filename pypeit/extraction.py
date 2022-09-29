@@ -18,10 +18,6 @@ from linetools import utils as ltu
 from pypeit import msgs, utils
 from pypeit.display import display
 from pypeit.core import skysub, extract, wave, flexure
-from pypeit.core.moment import moment1d
-from pypeit import specobj
-
-from linetools.spectra import xspectrum1d
 
 from IPython import embed
 
@@ -468,49 +464,9 @@ class Extract:
             msgs.info('Performing global spectral flexure correction')
             gd_slits = np.logical_not(self.extract_bpm)
             trace_spat = 0.5 * (self.slits_left + self.slits_right)
-            ######## DEBORAS VERSION
-            trace_spec = np.arange(self.slits.nspec)
-            slit_specs = []
-            # get boxcar radius
-            box_radius = self.par['reduce']['extraction']['boxcar_radius']
-            for ss in range(self.slits.nslits):
-                if not gd_slits[ss]:
-                    slit_specs.append(None)
-                    continue
-                slit_spat = self.slits.spat_id[ss]
-                thismask = (self.slitmask == slit_spat)
-                inmask = self.sciImg.select_flag(invert=True) & thismask
-
-                # Dummy spec for extract_boxcar
-                spec = specobj.SpecObj(PYPELINE=self.pypeline,
-                                       SLITID=ss,
-                                       ECH_ORDER=ss, # Use both to cover the bases for naming
-                                       DET=str(self.det))
-                spec.trace_spec = trace_spec
-                spec.TRACE_SPAT = trace_spat[:,ss]
-                spec.BOX_RADIUS = box_radius
-                # Extract
-                extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar, inmask,
-                                       self.waveimg, self.global_sky, spec) 
-                slit_wave, slit_sky = spec.BOX_WAVE, spec.BOX_COUNTS_SKY
-
-                # TODO :: Need to remove this XSpectrum1D dependency - it is required in:  flexure.spec_flex_shift
-                # Pack
-                slit_specs.append(xspectrum1d.XSpectrum1D.from_tuple((slit_wave, slit_sky)))
-
-            # Measure flexure
-            # If mode == global: specobjs = None and slitspecs != None
-            flex_list = flexure.spec_flexure_slit(self.slits, self.slits.slitord_id, self.extract_bpm,
-                                                  self.par['flexure']['spectrum'],
-                                                  method=self.par['flexure']['spec_method'],
-                                                  mxshft=self.par['flexure']['spec_maxshift'],
-                                                  excess_shft=self.par['flexure']['excessive_shift'],
-                                                  specobjs=sobjs, slit_specs=slit_specs, wv_calib=self.wv_calib)
-            ####### RYANS VERSION
             flex_list = flexure.spec_flexure_slit_global(self.sciImg, self.waveimg, self.global_sky, self.par,
                                                          self.slits, self.slitmask, trace_spat, gd_slits,
-                                                         self.pypeline, self.det)
-            #######
+                                                         self.wv_calib, self.pypeline, self.det)
             # Store the slit shifts that were applied to each slit
             # These corrections are later needed so the specobjs metadata contains the total spectral flexure
             self.slitshift = np.zeros(self.slits.nslits)

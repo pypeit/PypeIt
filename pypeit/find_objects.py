@@ -1240,7 +1240,7 @@ class IFUFindObjects(MultiSlitFindObjects):
             gd_slits = np.ones(self.slits.nslits, dtype=bool)
             flex_list = flexure.spec_flexure_slit_global(self.sciImg, self.waveimg, global_sky_sep, self.par,
                                                          self.slits, self.slitmask, trace_spat, gd_slits,
-                                                         self.pypeline, self.det)
+                                                         self.wv_calib, self.pypeline, self.det)
             for sl in range(self.slits.nslits):
                 self.slitshift[sl] = flex_list[sl]['shift'][0]
                 msgs.info("Flexure correction of slit {0:d}: {1:.3f} pixels".format(1+sl, self.slitshift[sl]))
