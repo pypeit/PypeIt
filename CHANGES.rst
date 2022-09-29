@@ -10,6 +10,9 @@
 - Correctly associate calibrations with science data for MOSFIRE longslit and long2pos masks.
 - Automatically assign `comb_id` and `bkg_id` to MOSFIRE science data,
   using the information on the dither pattern.
+- Allow verbosity specification for various post-processing command-line scripts.
+- Allow for the specification of a specific UVIS extinction file for sensitivity
+  function computation and flux calibration.
 
 1.10.0 (11 July 2022)
 ---------------------

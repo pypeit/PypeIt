@@ -17,6 +17,8 @@ from IPython import embed
 # to QA directory, even if the user sets something else...
 def set_qa_filename(root, method, det=None, slit=None, prefix=None, out_dir=None):
     """
+    Generate the filename for the QA file from the input parameters.
+    
     Parameters
     ----------
     root : str
@@ -125,6 +127,7 @@ def get_dimen(x, maxp=25):
 
 def gen_timestamp():
     """ Generate a simple time stamp including the current user
+
     Returns
     -------
     timestamp : str
@@ -142,12 +145,17 @@ def gen_timestamp():
 
 def html_header(title):
     """
+    Generate a simple HTML header
+    
     Parameters
     ----------
-    title : str, optional
+    title : str
+        Title for the header
 
     Returns
     -------
+    head : str
+        An HTML header as a long string
 
     """
     head = '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -176,12 +184,19 @@ def html_header(title):
     return head
 
 def html_end(f, body, links=None):
-    """ Fill in the HTML file and end it
+    """ Fill in the HTML file with a proper ending
+
     Parameters
     ----------
     f : file
     body : str
     links : str, optional
+
+    Returns
+    -------
+    end : str
+        The text written to the end of the HTML file
+    
     """
     # Write links
     if links is not None:
@@ -199,6 +214,16 @@ def html_end(f, body, links=None):
 
 
 def html_init(f, title):
+    """
+    Initialize the HTML file
+
+    Args:
+        f (fileobj): file object to write to
+        title (str): title
+
+    Returns:
+        str: Initial HTML text incluing the header and links
+    """
     head = html_header(title)
     f.write(head)
     # Init links
@@ -215,10 +240,10 @@ def html_mf_pngs(idval):
           Master key of the calibration set
 
     Returns:
-        links: str
-          HTML links to the PNGs
-        body: str
-          HTML edits for the main body
+        tuple: 
+
+          - links -- HTML links to the PNGs
+          - body -- HTML edits for the main body
 
     """
     links = ''
@@ -290,6 +315,8 @@ def html_mf_pngs(idval):
 
 def html_exp_pngs(exp_name, det):
     """
+    Generate HTML for Exposure PNGs
+
     Parameters
     ----------
     exp_name : str
@@ -409,6 +436,8 @@ def gen_mf_html(pypeit_file, qa_path):
 
 
 def gen_exp_html():
+    """ Generate the HTML for an Exposure set
+    """
     # Find all obj_trace files -- Not fool proof but ok
     obj_files = glob.glob('QA/PNGs/*obj_trace.png')
     # Parse for names
@@ -440,6 +469,12 @@ def gen_exp_html():
 
 
 def close_qa(pypeit_file, qa_path):
+    """Tie off QA under a crash
+
+    Args:
+        pypeit_file (_type_): _description_
+        qa_path (_type_): _description_
+    """
     if pypeit_file is None:
         return
     try:

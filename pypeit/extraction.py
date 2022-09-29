@@ -18,6 +18,10 @@ from linetools import utils as ltu
 from pypeit import msgs, utils
 from pypeit.display import display
 from pypeit.core import skysub, extract, wave, flexure
+from pypeit.core.moment import moment1d
+from pypeit import specobj
+
+from linetools.spectra import xspectrum1d
 
 from IPython import embed
 
@@ -77,7 +81,7 @@ class Extract:
             sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
                 Objects found but not yet extracted
             spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
-            par (pypeit.par.pyepeitpar.PypeItPar):
+            par (pypeit.par.pypeitpar.PypeItPar):
             caliBrate (:class:`pypeit.calibrations.Calibrations`):
             objtype (:obj:`str`):
                 Specifies object being reduced 'science' 'standard'
@@ -344,6 +348,10 @@ class Extract:
         # provided it's not a standard star
         if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
             self.spec_flexure_correct(mode='global')
+            if self.nobj_to_extract > 0:
+                for iobj in range(self.sobjs_obj.nobj):
+                    islit = self.slits.spatid_to_zero(self.sobjs_obj[iobj].SLITID)
+                    self.sobjs_obj[iobj].update_flex_shift(self.slitshift[islit], flex_type='global')
 
 
     def run(self, global_sky, prepare_extraction=True, model_noise=None, spat_pix=None):
@@ -383,16 +391,22 @@ class Extract:
         if prepare_extraction:
             self.prepare_extraction(global_sky)
 
-        # Do we have any positive objects to proceed with?
+        # Do we have any positive objects to extract?
         if self.nobj_to_extract > 0:
             # Extract + Return
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
                 = self.extract(self.global_sky, model_noise=model_noise, spat_pix=spat_pix)
-
             if self.bkg_redux:
+                # purge negative objects if not return_negative otherwise keep them
                 self.sobjs.make_neg_pos() if self.return_negative else self.sobjs.purge_neg()
+
+            # Correct for local spectral flexure
+            if self.par['flexure']['spec_method'] not in ['skip', 'slitcen'] and not self.std_redux:
+                # Apply a refined estimate of the flexure to objects
+                self.spec_flexure_correct(mode='local', sobjs=self.sobjs)
+
         else:  # No objects, pass back what we have
-            #Could have negative objects but no positive objects so purge them
+            # Could have negative objects but no positive objects so purge them if not return_negative
             if self.bkg_redux:
                 self.sobjs_obj.make_neg_pos() if self.return_negative else self.sobjs_obj.purge_neg()
             self.skymodel = global_sky 
@@ -405,19 +419,6 @@ class Extract:
             self.outmask = self.sciImg.fullmask
             # empty specobjs object from object finding
             self.sobjs = self.sobjs_obj
-
-        # If a global spectral flexure has been applied to all slits, store this correction as metadata in each specobj
-        if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
-            for iobj in range(self.sobjs.nobj):
-                islit = self.slits.spatid_to_zero(self.sobjs[iobj].SLITID)
-                self.sobjs[iobj].update_flex_shift(self.slitshift[islit], flex_type='global')
-
-        # Correct for local spectral flexure
-        if self.sobjs.nobj == 0:
-            msgs.warn('No objects to extract!')
-        elif self.par['flexure']['spec_method'] not in ['skip', 'slitcen'] and not self.std_redux:
-            # Apply a refined estimate of the flexure to objects, and then apply reference frame correction to objects
-            self.spec_flexure_correct(mode='local', sobjs=self.sobjs)
 
         # Update the mask
         # TODO avoid modifying arguments to a class or function in place. If slits is mutable, it should be a return
@@ -459,26 +460,70 @@ class Extract:
         elif mode not in ["local", "global"]:
             msgs.error("mode must be 'global' or 'local'. Assuming 'global'.")
 
+        # initialize flex_list
+        flex_list = None
+
         # Prepare a list of slit spectra, if required.
         if mode == "global":
+            msgs.info('Performing global spectral flexure correction')
             gd_slits = np.logical_not(self.extract_bpm)
             trace_spat = 0.5 * (self.slits_left + self.slits_right)
+            ######## DEBORAS VERSION
+            trace_spec = np.arange(self.slits.nspec)
+            slit_specs = []
+            # get boxcar radius
+            box_radius = self.par['reduce']['extraction']['boxcar_radius']
+            for ss in range(self.slits.nslits):
+                if not gd_slits[ss]:
+                    slit_specs.append(None)
+                    continue
+                slit_spat = self.slits.spat_id[ss]
+                thismask = (self.slitmask == slit_spat)
+                inmask = self.sciImg.select_flag(invert=True) & thismask
+
+                # Dummy spec for extract_boxcar
+                spec = specobj.SpecObj(PYPELINE=self.pypeline,
+                                       SLITID=ss,
+                                       ECH_ORDER=ss, # Use both to cover the bases for naming
+                                       DET=str(self.det))
+                spec.trace_spec = trace_spec
+                spec.TRACE_SPAT = trace_spat[:,ss]
+                spec.BOX_RADIUS = box_radius
+                # Extract
+                extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar, inmask,
+                                       self.waveimg, self.global_sky, spec) 
+                slit_wave, slit_sky = spec.BOX_WAVE, spec.BOX_COUNTS_SKY
+
+                # TODO :: Need to remove this XSpectrum1D dependency - it is required in:  flexure.spec_flex_shift
+                # Pack
+                slit_specs.append(xspectrum1d.XSpectrum1D.from_tuple((slit_wave, slit_sky)))
+
+            # Measure flexure
+            # If mode == global: specobjs = None and slitspecs != None
+            flex_list = flexure.spec_flexure_slit(self.slits, self.slits.slitord_id, self.extract_bpm,
+                                                  self.par['flexure']['spectrum'],
+                                                  method=self.par['flexure']['spec_method'],
+                                                  mxshft=self.par['flexure']['spec_maxshift'],
+                                                  excess_shft=self.par['flexure']['excessive_shift'],
+                                                  specobjs=sobjs, slit_specs=slit_specs, wv_calib=self.wv_calib)
+            ####### RYANS VERSION
             flex_list = flexure.spec_flexure_slit_global(self.sciImg, self.waveimg, self.global_sky, self.par,
                                                          self.slits, self.slitmask, trace_spat, gd_slits,
                                                          self.pypeline, self.det)
+            #######
             # Store the slit shifts that were applied to each slit
             # These corrections are later needed so the specobjs metadata contains the total spectral flexure
             self.slitshift = np.zeros(self.slits.nslits)
             for islit in range(self.slits.nslits):
-                if (not gd_slits[islit]) or len(flex_list[islit]['shift']) == 0:
-                    continue
-                self.slitshift[islit] = flex_list[islit]['shift'][0]
+                if gd_slits[islit] and len(flex_list[islit]['shift']) > 0:
+                    self.slitshift[islit] = flex_list[islit]['shift'][0]
             # Apply flexure to the new wavelength solution
             msgs.info("Regenerating wavelength image")
             self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits,
                                                        spat_flexure=self.spat_flexure_shift,
                                                        spec_flexure=self.slitshift)
         elif mode == "local":
+            msgs.info('Performing local spectral flexure correction')
             # Measure flexure:
             # If mode == local: specobjs != None and slitspecs = None
             flex_list = flexure.spec_flexure_slit(self.slits, self.slits.slitord_id, self.extract_bpm,
@@ -486,7 +531,7 @@ class Extract:
                                                   method=self.par['flexure']['spec_method'],
                                                   mxshft=self.par['flexure']['spec_maxshift'],
                                                   excess_shft=self.par['flexure']['excessive_shift'],
-                                                  specobjs=sobjs, slit_specs=None)
+                                                  specobjs=sobjs, slit_specs=None, wv_calib=self.wv_calib)
             # Apply flexure to objects
             for islit in range(self.slits.nslits):
                 i_slitord = self.slits.slitord_id[islit]
@@ -494,21 +539,21 @@ class Extract:
                 this_specobjs = sobjs[indx]
                 this_flex_dict = flex_list[islit]
                 # Loop through objects
-                cntr = 0
                 for ss, sobj in enumerate(this_specobjs):
                     if sobj is None or sobj['BOX_WAVE'] is None:  # Nothing extracted; only the trace exists
                         continue
                     # Interpolate
-                    new_sky = sobj.apply_spectral_flexure(this_flex_dict['shift'][cntr],
-                                                          this_flex_dict['sky_spec'][cntr])
-                    flex_list[islit]['sky_spec'][cntr] = new_sky.copy()
-                    cntr += 1
+                    if len(this_flex_dict['shift']) > 0 and this_flex_dict['shift'][ss] is not None:
+                        new_sky = sobj.apply_spectral_flexure(this_flex_dict['shift'][ss],
+                                                              this_flex_dict['sky_spec'][ss])
+                        flex_list[islit]['sky_spec'][ss] = new_sky.copy()
 
         # Save QA
-        basename = f'{self.basename}_{mode}_{self.spectrograph.get_det_name(self.det)}'
-        out_dir = os.path.join(self.par['rdx']['redux_path'], 'QA')
-        flexure.spec_flexure_qa(self.slits.slitord_id, self.extract_bpm, basename, flex_list,
-                                specobjs=sobjs, out_dir=out_dir)
+        if flex_list is not None:
+            basename = f'{self.basename}_{mode}_{self.spectrograph.get_det_name(self.det)}'
+            out_dir = os.path.join(self.par['rdx']['redux_path'], 'QA')
+            flexure.spec_flexure_qa(self.slits.slitord_id, self.extract_bpm, basename, flex_list,
+                                    specobjs=sobjs, out_dir=out_dir)
 
     def refframe_correct(self, ra, dec, obstime, sobjs=None):
         """ Correct the calibrated wavelength to the user-supplied reference frame
