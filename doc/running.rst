@@ -156,12 +156,15 @@ From the outer-most to the inner-most loop, the data reduction iterates through:
 
     #. and the set of spectrograph :ref:`detectors<detectors>` or :ref:`mosaic`.
 
-For each detector or detector mosaic, PypeIt first:
+For each detector or detector mosaic, PypeIt:
 
-    #. processes the relevant calibration frames
+    #. processes the relevant :doc:`calibration<calibrations/calibrations>`
+       frames
 
     #. performs a first round of estimating a global sky model (see
        :ref:`skysub-global`) and :ref:`object_finding`
+
+All frames undergo :ref:`image_proc` before more frame-specific processing.
 
 For instruments with appropriate slit-mask metadata (e.g., Keck/DEIMOS), PypeIt
 will then attempt to match the detected objects to the expected locations of the

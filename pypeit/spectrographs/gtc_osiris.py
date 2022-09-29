@@ -22,6 +22,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
     name = 'gtc_osiris'
     telescope = telescopes.GTCTelescopePar()
     camera = 'OSIRIS'
+    url = 'http://www.gtc.iac.es/instruments/osiris/'
     header_name = 'OSIRIS'
     supported = True
     comment = 'See :doc:`gtc_osiris`'

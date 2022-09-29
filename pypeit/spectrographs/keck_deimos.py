@@ -96,6 +96,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
     name = 'keck_deimos'
     telescope = telescopes.KeckTelescopePar()
     camera = 'DEIMOS'
+    url = 'https://www2.keck.hawaii.edu/inst/deimos/'
     header_name = 'DEIMOS'
     supported = True
     comment = 'Supported gratings: 600ZD, 830G, 900ZD, 1200B, 1200G; see :doc:`deimos`'
