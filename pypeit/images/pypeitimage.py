@@ -172,7 +172,7 @@ class PypeItImage(datamodel.DataContainer):
 
     # JFH This API or the documentation should make it clear what is actually required to perform operations with these
     # image objects. A list of 20 optional arguments all instantiated to None is not a useful API since it conveys no
-    # informationa bout what is required vs what is optional. I know this is a feature (flaw) of these
+    # informationa about what is required vs what is optional. I know this is a feature (flaw) of these
     # data containers, but it really  needs to be addressed. Just separate the object init from the container
     # init. I cannot figure out how to instantiate this object from a set of inputs, which is a basic functionality of
     # this class.
@@ -697,7 +697,8 @@ class PypeItImage(datamodel.DataContainer):
         new_sciImg = PypeItImage(image=newimg, ivar=new_ivar, bpm=self.bpm, rn2img=new_rn2,
                                  detector=self.detector)
         # Files
-        new_sciImg.files = self.files + other.files
+        if self.files is not None and other.files is not None:
+            new_sciImg.files = self.files + other.files
 
         #TODO: KW properly handle adding the bits
         #crmask_diff = new_sciImg.build_crmask(par) if par['mask_cr'] else np.zeros_like(other.image, dtype=bool)
