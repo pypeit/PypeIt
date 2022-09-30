@@ -62,6 +62,9 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                                  "spat_samp_fact are pixels.")
         parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
         parser.add_argument("--only_slits", type=str, default=None, help="Only coadd the following slits")
+        parser.add_argument('-v', '--verbosity', type=int, default=1,
+                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
+                                 'Level 2 writes a log with filename coadd_2dspec_YYYYMMDD-HHMM.log')
 
         #parser.add_argument("--wave_method", type=str, default=None,
         #                    help="Wavelength method for wavelength grid. If not set, code will "
@@ -75,6 +78,9 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
     def main(args):
         """ Executes 2d coadding
         """
+        # Set the verbosity, and create a logfile if verbosity == 2
+        msgs.set_logfile_and_verbosity('coadd_2dspec', args.verbosity)
+
         msgs.info('PATH =' + os.getcwd())
         # Load the file
         if args.file is not None:

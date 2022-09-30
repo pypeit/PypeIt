@@ -23,9 +23,9 @@ def convert_radec(ra, dec):
     then they will be converted to floats
 
     Args:
-        ra (str or float or np.ndarray):
+        ra (str or float or `numpy.ndarray`_):
             RA as decimal deg (float) or  hh:mm:ss.s (str)
-        dec (str or float or np.ndarray):
+        dec (str or float or `numpy.ndarray`_):
             DEC as decimal deg (float) or  +dd:mm:ss.s (str)
             Must be the same format as ra
 
