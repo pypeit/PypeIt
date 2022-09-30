@@ -12,33 +12,6 @@ from pypeit import utils
 from IPython import embed
 
 
-def masked_weightmean(a, maskvalue):
-    """
-    .. todo::
-        Document this!
-    """
-    num = np.ma.MaskedArray(a.copy(), mask=(a==maskvalue))
-    num[np.invert(num.mask) & (num <= 1.0)] = 0.0
-    num = np.ma.sum(np.ma.sqrt(num)*num, axis=2)
-    den = np.ma.MaskedArray(a.copy(), mask=(a==maskvalue))
-    den[np.invert(den.mask) & (den <= 1.0)] = 1.0
-    den = np.ma.sum(np.sqrt(den), axis=2)
-    return np.ma.divide(num, den).filled(maskvalue)
-
-
-def maxnonsat(array, saturated):
-    """
-    .. todo::
-        Document this!
-    """
-    minimum = np.amin(np.clip(array, None, saturated), axis=2)
-    _array = np.ma.MaskedArray(array, mask=np.invert((array > 0.0) & (array<saturated)))
-    maximum = np.ma.amax(_array, axis=2)
-    maximum[maximum.mask] = minimum[maximum.mask]
-    return maximum.data
-
-
-
 # TODO make weights optional and do uniform weighting without.
 def weighted_combine(weights, sci_list, var_list, inmask_stack,
                      sigma_clip=False, sigma_clip_stack=None, sigrej=None, maxiters=5):
@@ -197,14 +170,15 @@ def img_list_error_check(sci_list, var_list):
     routine checks that the images sizes are correct and routines the shape of the image stacks.
     Args:
         sci_list: list
-            List of  float ndarray images (each being an image stack with shape (nimgs, nspec, nspat))
+            List of  float `numpy.ndarray`_ images (each being an image stack with shape (nimgs, nspec, nspat))
             which are to be combined with the  weights, inmask_stack, and possibly sigma clipping
         var_list: list
-            List of  float ndarray variance images (each being an image stack with shape (nimgs, nspec, nspat))
+            List of  float `numpy.ndarray`_ variance images (each being an image stack with shape (nimgs, nspec, nspat))
             which are to be combined with proper erorr propagation, i.e.
             using the  weights**2, inmask_stack, and possibly sigma clipping
     Returns:
-        tuple: The shapes of the image stacks, (nimgs, nspec, nspat)
+        tuple: The shapes of the image stacks -- (nimgs, nspec, nspat)
+
     """
     shape_sci_list = []
     for img in sci_list:
@@ -232,39 +206,28 @@ def img_list_error_check(sci_list, var_list):
     return shape
 
 
-#
-#    Args:
-#        sci_list: list
-#            Nested list of images, i.e. list of lists of images, where sci_list[i][j] is a shape = (nspec, nspat) where
-#            the shape can be different for each image. The ith index is the image type, i.e. sciimg, skysub, tilts, waveimg,
-#            the jth index is the exposure or image number, i.e. nimgs. These images are to be combined by weighted_combine
-#            using the  weights, inmask_stack, and possibly sigma clipping
-#        var_list: list
-#            Nested list of variance images, i.e. list of lists of images, providing the variance of the
-#            images in the sci_list. The errors will be propagated by weighted_combined appropriately weighting by
-#            weights**2, inmask_stack, and possibly sigma clipping.
-#
-#
-#    Returns:
-#        tuple: The shape of the images in the stacks, (nimgs, nspec, nspat)
-
 
 def broadcast_weights(weights, shape):
     """
     Utility routine to broadcast weights to be the size of image stacks specified by shape
+
     Args:
-        weights (ndarray):
+        weights (`numpy.ndarray`_):
             Weights to use. Options for the shape of weights are:
                 - (nimgs,) -- a single weight per image in the stack
                 - (nimgs, nspec) -- wavelength dependent weights per
                   image
                 - (nimgs, nspec, nspat) -- weights already have the
                   shape of the image stack and are simply returned
-        shape: tuple of integers
+        shape (tuple):
             Shape of the image stacks for weighted coadding. This is either (nimgs, nspec) for 1d extracted spectra or
             (nimgs, nspec, nspat) for 2d spectrum images
+
     Returns:
-        np.ndarray:
+        `numpy.ndarray`_:
+            Weights for the stack images with output shape
+            described in the Args above.
+
     """
     # Create the weights stack images from the wavelength dependent weights, i.e. propagate these
     # weights to the spatial direction

@@ -140,7 +140,16 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm=None, mxsh
             In this routine, 'method' is only passed to final dict.
 
     Returns:
-        dict: Contains flexure info
+        dict: Contains flexure info.  Keys are:
+
+          - polyfit= fit to the cross-correlation
+          - shift= best shift in pixels
+          - subpix= subpixelation of input spectrum
+          - corr= correlation function
+          - sky_spec= object sky spectrum used (rebinned, etc.)
+          - arx_spec= archived sky spectrum used
+          - corr_cen= center of the correlation function
+          - smooth= Degree of smoothing of input spectrum to match archive
     """
 
     # TODO None of these routines should have dependencies on XSpectrum1d!
@@ -771,20 +780,25 @@ def spec_flexure_corrQA(ax, this_flex_dict, cntr, name):
         ax.set_xlabel('Lag')
 
 
-def spec_flexure_qa(slitords, bpm, basename, flex_list, specobjs=None, out_dir=None):
+def spec_flexure_qa(slitords, bpm, basename, flex_list, 
+                    specobjs=None, out_dir=None):
     """
+    Generate QA for the spectral flexure calculation
 
     Args:
         slitords (`numpy.ndarray`_):
             Array of slit/order numbers
         bpm (`numpy.ndarray`_):
-            True = masked slit
+            Boolean mask; True = masked slit
         basename (str):
+            Used to generate the output file name
         flex_list (list):
-        specobjs: (:class:`pypeit.specobjs.Specobjs`)
+            list of :obj:`dict` objects containing the flexure information
+        specobjs (:class:`~pypeit.specobjs.Specobjs`, optional):
             Spectrally extracted objects
-        out_dir:
-
+        out_dir (str, optonal):
+            Path to the output directory for the QA plots.  If None, the current
+            is used.
     """
     plt.rcdefaults()
     plt.rcParams['font.family'] = 'times new roman'
@@ -1006,12 +1020,11 @@ def calculate_image_offset(im_ref, image, nfit=3):
             fitting the peak of the cross correlation.
 
     Returns:
-        ra_diff (float):
-            Relative shift (in pixels) of image relative to im_ref (x direction).
+        tuple: Returns two floats, the x and y offset of the image.
+          - ra_diff --  Relative shift (in pixels) of image relative to im_ref (x direction).
             In order to align image with im_ref, ra_diff should be added to the
             x-coordinates of image
-        dec_diff (float):
-            Relative shift (in pixels) of image relative to im_ref (y direction).
+          - dec_diff  -- Relative shift (in pixels) of image relative to im_ref (y direction).
             In order to align image with im_ref, dec_diff should be added to the
             y-coordinates of image
     """
@@ -1055,16 +1068,23 @@ def sky_em_residuals(wave:np.ndarray, flux:np.ndarray,
     input sky emission lines 
 
     Args:
-        wave (np.ndarray): Wavelengths (in air!)
-        flux (np.ndarray): 
-        ivar (np.ndarray): 
-        sky_waves (np.ndarray): Skyline wavelengths (in air!)
-        plot (bool, optional): Defaults to False.
-        noff (int, optional): Range in Ang to analyze labout emission line. Defaults to 5.
-        nfit_min (int, optional): Minimum number of pixels required to do a fit. Defaults to 20.
+        wave (`numpy.ndarray`_): 
+            Wavelengths (in air!)
+        flux (`numpy.ndarray`_): 
+            Fluxes
+        ivar (`numpy.ndarray`_): 
+            Inverse variance
+        sky_waves (`numpy.ndarray`_): 
+            Skyline wavelengths (in air!)
+        plot (bool, optional): 
+            If true, plot the residuals
+        noff (int, optional): 
+            Range in Ang to analyze labout emission line. Defaults to 5.
+        nfit_min (int, optional): 
+            Minimum number of pixels required to do a fit. Defaults to 20.
 
     Returns:
-        tuple: np.ndarray's -- sky line wavelength of good lines, wavelength offset, 
+        tuple of `numpy.ndarray`_ -- sky line wavelength of good lines, wavelength offset, 
             error in wavelength offset, sky line width,
             error in sky line width
     """

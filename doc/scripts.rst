@@ -14,6 +14,8 @@ directly into your path (e.g. ``~/anaconda/bin``).
 
 **If you are developing a new script, see** :ref:`new_script`.
 
+.. _install_scripts:
+
 Installation Scripts
 ++++++++++++++++++++
 
@@ -21,8 +23,8 @@ pypeit_install_telluric
 =======================
 
 After downloading the atmospheric model grids for use in fitting telluric
-absorption, this script "installs" the files by creating symlinks to them within
-the ``PypeIt`` code base.  See :ref:`data_installation`.
+absorption, this script installs the files in the user's PypeIt cache.
+See :ref:`data_installation`.
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
@@ -40,6 +42,30 @@ The script usage can be displayed by calling the script with the
 ``-h`` option:
 
 .. include:: help/pypeit_install_ql_masters.rst
+
+pypeit_install_linelist
+=======================
+
+If an instrument-specific arc line list that is not already included in the
+``PypeIt`` respository is needed for a particular reduction, this script may
+be used to install a user-generated line list file in the user's PypeIt cache.
+See :ref:`user_linelists`.
+
+The script usage can be displayed by calling the script with the ``-h`` option:
+
+.. include:: help/pypeit_install_linelist.rst
+
+pypeit_install_extinctfile
+==========================
+
+In the event of doing flux calibration for data from an observatory without an
+included extinction file in the ``PypeIt`` repository, this script may be used to
+install a user-supplied extinction file in the user's PypeIt cache.  See
+:ref:`extinction_correction`.
+
+The script usage can be displayed by calling the script with the ``-h`` option:
+
+.. include:: help/pypeit_install_extinctfile.rst
 
 
 Pipeline Scripts
