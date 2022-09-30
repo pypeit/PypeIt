@@ -1899,8 +1899,8 @@ Alterations to the default parameters are::
       detnum = (1, 2, 3)
   [calibrations]
       [[biasframe]]
+          useframe = bias
           [[[process]]]
-              overscan_method = median
               combine = median
               use_biasimage = False
               shot_noise = False
@@ -1908,124 +1908,66 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              overscan_method = median
               mask_cr = True
-              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              overscan_method = median
-              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              overscan_method = median
-              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
           [[[process]]]
-              overscan_method = median
               satpix = nothing
-              use_biasimage = False
-              use_pixelflat = False
-              use_illumflat = False
-      [[pinholeframe]]
-          [[[process]]]
-              overscan_method = median
-              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
-              overscan_method = median
               satpix = nothing
-              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           [[[process]]]
-              overscan_method = median
-              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[illumflatframe]]
           [[[process]]]
-              overscan_method = median
               satpix = nothing
-              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
-              overscan_method = median
               satpix = nothing
-              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[skyframe]]
           [[[process]]]
-              overscan_method = median
               mask_cr = True
-              use_biasimage = False
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
       [[standardframe]]
+          exprng = None, 600
           [[[process]]]
-              overscan_method = median
               mask_cr = True
-              use_biasimage = False
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
-      [[flatfield]]
-          tweak_slits_thresh = 0.9
       [[wavelengths]]
-          method = echelle
           echelle = True
           ech_sigrej = 3.0
           lamps = ThAr
-          fwhm = 8.0
-          reid_arxiv = vlt_xshooter_vis1x1.fits
-          cc_thresh = 0.5
-          cc_local_thresh = 0.5
-          rms_threshold = 0.5
+          rms_threshold = 0.25
       [[slitedges]]
-          edge_thresh = 8.0
+          edge_thresh = 600.0
           max_shift_adj = 0.5
-          fit_order = 8
           left_right_pca = True
-          trace_thresh = 10.0
-          max_nudge = 0.0
-          dlength_range = 0.25
-          length_range = 0.3
-          overlap = True
-      [[tilts]]
-          tracethresh = 15
-          spec_order = 5
   [scienceframe]
+      exprng = 600, None
       [[process]]
-          overscan_method = median
+          satpix = nothing
           mask_cr = True
-          use_biasimage = False
+          sigclip = 20.0
           noise_floor = 0.01
-          use_pixelflat = False
-          use_illumflat = False
-  [reduce]
-      [[findobj]]
-          find_trim_edge = 3, 3
-      [[skysub]]
-          global_sky_std = False
-      [[extraction]]
-          model_full_slit = True
-  [sensfunc]
-      algorithm = IR
-      polyorder = 11
-      [[IR]]
-          telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
 
 KECK KCWI (``keck_kcwi``)
 -------------------------
@@ -5399,8 +5341,9 @@ Alterations to the default parameters are::
       spec_method = boxcar
   [sensfunc]
       algorithm = IR
+      polyorder = 8
       [[IR]]
-          telgridfile = TelFit_Paranal_VIS_4900_11100_R25000.fits
+          telgridfile = TelFit_Paranal_NIR_9800_25000_R25000.fits
 
 VLT SINFONI (``vlt_sinfoni``)
 -----------------------------
