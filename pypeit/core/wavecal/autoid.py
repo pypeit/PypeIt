@@ -1031,8 +1031,7 @@ def report_final(nslits, all_patt_dict, detections, wv_calib, ok_mask, bad_slits
         bad_slits (ndarray, bool):
             List of slits that are bad
 
-    Returns:
-        Prints out a report to the screen
+
 
     """
     for slit in range(nslits):
@@ -1116,7 +1115,7 @@ class ArchiveReid:
         Order numbers for the provided spectra. Used to match against
         the relevant archived spectrum for echelle spectrographs.
         Shape must be :math:`(N_{\rm spec},)` and these *must* be
-        provided if ``par['ech_fix_format']`` is True.
+        provided if ech_fixed_format is True.
     nonlinear_counts: float, default = 1e10
         For arc line detection: Arc lines above this saturation
         threshold are not used in wavelength solution fits because
@@ -1191,7 +1190,7 @@ class ArchiveReid:
         self.nlocal_cc = self.par['nlocal_cc']
         self.cc_thresh = self.par['cc_thresh']
         self.cc_local_thresh = self.par['cc_local_thresh']
-        self.ech_fix_format = self.par['ech_fix_format']
+        #self.ech_fix_format = self.par['ech_fix_format']
 
         # Paramters that govern wavelength solution fitting
         self.match_toler = self.par['match_toler']
@@ -1241,7 +1240,7 @@ class ArchiveReid:
             self.spec_arxiv[:, iarxiv] = self.wv_calib_arxiv[str(iarxiv)]['spec']
             self.wave_soln_arxiv[:, iarxiv] = self.wv_calib_arxiv[str(iarxiv)]['wave_soln']
         # arxiv orders (echelle only)
-        if self.ech_fix_format:
+        if ech_fixed_format:
             arxiv_orders = []
             for iarxiv in range(narxiv):
                 arxiv_orders.append(self.wv_calib_arxiv[str(iarxiv)]['order'])
@@ -1262,8 +1261,8 @@ class ArchiveReid:
             msgs.info('Reidentifying and fitting slit # {0:d}/{1:d}'.format(slit,self.nslits-1))
             # If this is a fixed format echelle, arxiv has exactly the same orders as the data and so
             # we only pass in the relevant arxiv spectrum to make this much faster
-            ind_sp = arxiv_orders.index(orders[slit]) if self.ech_fix_format else ind_arxiv
-            if self.ech_fix_format: 
+            ind_sp = arxiv_orders.index(orders[slit]) if ech_fixed_format else ind_arxiv
+            if ech_fixed_format:
                 msgs.info(f'Order: {orders[slit]}')
             sigdetect = wvutils.parse_param(self.par, 'sigdetect', slit)
             cc_thresh = wvutils.parse_param(self.par, 'cc_thresh', slit)
