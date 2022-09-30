@@ -129,4 +129,6 @@
 .. _SDSS bitmasks: https://www.sdss.org/dr16/algorithms/bitmasks/
 .. _L.A.Cosmic: http://www.astro.yale.edu/dokkum/lacosmic/
 .. _van Dokkum (2001, PASP, 113, 1420): https://ui.adsabs.harvard.edu/abs/2001PASP..113.1420V/abstract
+.. _LowRedux: http://www.ucolick.org/~xavier/LowRedux/
+
 

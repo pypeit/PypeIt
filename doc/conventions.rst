@@ -1,112 +1,100 @@
-.. highlight:: rest
+
+.. include:: include/links.rst
 
 ==================
-Naming Conventions
+PypeIt Conventions
 ==================
 
-There is no standard for naming data reduction output products in
-Astronomy, nor even common practices.  PypeIt follows its own schema.
+Overview
+========
 
-A naming system must provide unique names (to avoid overwriting files)
-but one also desires a format that is both compact and informative.
-Our approach is a compromise between these competing requirements/desires.
+This document briefly summarizes a set of conventions (generally) adopted by PypeIt.
 
-Source Files
-============
+Image Orientation
+=================
 
-This section describes the components of file naming
-for observed sources (including standard stars).
+One of the first things PypeIt does during :ref:`image_proc` is re-orient the
+detector images so that they are consistent across all :ref:`instruments`.  This
+is important to the generality and simplicity of the low-level code base.
 
-.. _prefix:
+The PypeIt convention is to orient images such that spectra run along the first
+axis of an image --- from blue wavelengths at small pixel coordinates to red
+wavelengths at large pixel coordinates --- and the spatial or cross-dispersion
+direction runss along the second axis --- with echelle orders running from the
+highest order at small pixel coordinates to the lowest order at large pixel
+coordinates.  That is, the shape of the images is always (roughly) the number of
+spectral pixels by the number of spatial pixels, often referred to in our
+documentation as ``(nspec,nspat)``.
 
-Prefix
-------
+Regardless of the native orientation of the images, *all* images produced by
+PypeIt will have this orientation.
 
-The file type is indicated by its prefix, a short label.
-The following Table lists all formats for the 
-:ref:`outputs` of PypeIt.
-We describe each and include the likely suffix(es). 
+On-chip Identifiers
+===================
 
-=======   ===========================================  ======
-Prefix    Format                                       Suffix
-=======   ===========================================  ======
-spec1D    multi-extension FITS; one binary FITS table  .fits
-          per extracted object
-spec2D    multi-extension FITS; one 2D array per       .fits
-          spectral image
-qa        Series of figures assessing data reduction   .pdf
-          and data quality
-=======   ===========================================  ======
+Generally, PypeIt constructs identifiers using combinations of the spatial pixel
+number, spectral pixel number, and detector or mosaic number.
 
-Instrument
-----------
+For example, slits in multi-slit reductions are identified by their spatial
+position at a reference spectral position, rounded to the nearest pixel number;
+e.g, ``slit_id = 241`` means that the center of the slit is at spatial pixel
+241.
 
-The second label indicates the instrument.  Here are the
-set of currently supported instruments in PypeIt: 
+Object identifiers in multislit data are named after the spatial pixel nearest
+their center, the slit identifier, and the detector; e.g.,
+``SPAT0242-SLIT0241-DET07``.
 
-.. PUT THESE IN include/links.rst
+.. add an echelle example
 
-.. _KastWebSite: http://mthamilton.ucolick.org/techdocs/instruments/kast/
-.. _LRISWebSite: https://www2.keck.hawaii.edu/inst/lris/
-.. _LowRedux: http://www.ucolick.org/~xavier/LowRedux/
+Calibration Frames
+==================
 
-=====   ============= ======================= =======================
-Instr   Telescope     Short Description       Web Page
-=====   ============= ======================= =======================
-kastb   Lick Shane 3m blue camera of the Kast KastWebSite_
-                      dual-spectrometer 
-kastr   Lick Shane 3m red camera of the Kast  KastWebSite_
-                      dual-spectrometer  
-lrisb   Keck I        blue camera of the LRIS LRISWebSite_
-                      spectrometer
-=====   ============= ======================= =======================
+All reduced calibration frames are held in the ``Masters`` directory and given
+the file name prefix ``Master`` (e.g., ``MasterArc``).  They are also assigned a
+unique identifier that is a combination of their setup, calibration group, and
+detector (e.g., ``A_1_DET01``).  The naming convention for master calibration
+frames is described in more detail :ref:`here <masters>`.
+
+.. _science_frame_naming:
+
+Science Frames
+==============
+
+All reduced science frames are held in the ``Science`` directory and have file
+names that follow the format ``{prefix}_{fileroot}-{target}_{camera}_{date}.*``:
+
+    - ``prefix`` provides the type of output file and is either ``spec1d`` or
+      ``spec2d``.
+
+    - ``fileroot`` is the file name (or first file in the relevant combination
+      group) stripped of the file suffixes (e.g., ``DE.20100913.22358`` for file
+      ``DE.20100913.22358.fits.gz``).
+
+    - ``target`` is the name of the observed target pulled from the file header
+      with any spaces are removed
+
+    - ``camera`` is the name of the spectrograph camera; see :ref:`instruments`.
+
+    - ``date`` is the UT date of the observation pulled from the file header
+
+An example file produced by reducing a Keck/DEIMOS frame has the file name
+``spec1d_DE.20100913.22358-CFHQS1_DEIMOS_20100913T061231.334.fits``.
 
 Date and Time
 -------------
 
-By including the UT observing date and time to the nearest second, we 
-believe the filename is now unique.  The UT date + time are drawn from
-the Header and refer to the start of the observation, if there
-are multiple time stamps.  Other DRPs (e.g. LowRedux_)
-have tended to use the Frame number as the unique identifier.
+By including the UT observing date and time
+in the science frame file names, we ensure the 
+uniqueness of the file name.  The UT date + time are drawn from
+the header and refer to the start of the observation, if there
+are multiple time stamps.  Other DRPs (e.g. `LowRedux`_)
+have tended to use the frame number as the unique identifier.
 We have broken with that tradition: (1) to better follow 
 archival naming conventions; (2) because of concerns that
 some facilities may not include the frame number in the header;
 (3) some users may intentionally or accidentally generate multiple
 raw files with the same frame number.  
 
-The adopted format is::
+The adopted format is ``{year}{month}{day}T{hour}{min}{sec}`` where the seconds
+are allowed to have multiple decimal places; for example, ``20100913T061231.334``.
 
-	YYYYMMMDDTHHMMSS
-	e.g. 2015nov11T231402
-
-A typical filename may then appear as::
-
-	spec1D_lrisb_2011nov11T231402.fits
-
-Source Identifiers
-------------------
-
-PypeIt reduces each detector separately and associates identified
-slits and objects to that detector.  Therefore, sources are 
-uniquely identified by a combination of these `source-id-values` (out of date!).  
-If requested, the Spec1D files
-can be exploded to yield one FITS file per source.  In this
-case, the filenames are appended by the source identifiers::
-
-	_DetID_SlitID_ObjID
-
-
-A complete filename may then appear as::
-
-	spec1D_lrisb_2011nov11T231402_02_783_423.fits
-
-For sanity sake, files that are exploded in this manner are 
-placed into their own folders named by the instrument and timestamp.
-
-
-Calibration Files
-=================
-
-The following section describes the components of file naming
-for calibrations.

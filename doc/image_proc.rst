@@ -6,7 +6,7 @@
 Basic Image Processing
 ======================
 
-Here we describe the basic image processing steps performed by ``PypeIt``,
+Here we describe the basic image processing steps performed by PypeIt,
 specifically their order, salient details, and how to toggle specific steps
 using the :ref:`pypeit_file`.  This description is meant to be general to *all*
 spectrographs.  For instrument-specific advice, see :ref:`spec_details`.  Also
@@ -145,7 +145,7 @@ for each amplifier, which are provided for each amplifier by the
 each detector in each :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
 subclass.  If a readnoise value is set to :math:`\leq 0`, the readnoise is
 estimated by the variance in the overscan regions of the image being processed;
-see :func:`~pypeit.images.rawimage.RawImage.estimate_readnoise`; use of the
+see :func:`~pypeit.images.rawimage.RawImage.estimate_readnoise`.  Use of the
 readnoise estimate regardless of the value provided by the
 :class:`~pypeit.images.detector_container.DetectorContainer` object can also be
 explicitly requested by setting the ``empirical_rn`` parameter to true.
@@ -157,8 +157,8 @@ taking the second moment of a uniform distribution from -1/2 to 1/2 to find
 :math:`\sqrt{1/12}` ADU [1]_ [2]_, which is typically negligible (i.e., when the
 gain is on the same order as the readnoise).  And, in most cases, digitization
 noise will have been included in the estimate of the readnoise.  For this
-reason, digitization noise is *not* explicitly included in the ``PypeIt``
-variance model, and its inclusion cannot be turned on using a ``PypeIt``
+reason, digitization noise is *not* explicitly included in the PypeIt
+variance model, and its inclusion cannot be turned on using a PypeIt
 parameter.  If you need to add digitization noise for your instrument, please
 `Submit an issue`_.
 
@@ -186,15 +186,15 @@ crops the image to only include the primary data region; see
 :func:`~pypeit.core.procimg.trim_frame`.  Trimming will be performed if the
 ``trim`` parameter is true.
 
-The ``PypeIt`` convention is to orient images for spectra to run along the first
-axis of an image --- from blue wavelengths at small pixel coordinates to red
-wavelengths at large pixel coordinates --- and the spatial or cross-dispersion
-direction to be along the second axis --- with echelle orders running from the
-highest order at small pixel coordinates to the lowest order at large pixel
-coordinates.  That is, the shape of the images is always (roughly) the number of
-spectral pixels by the number of spatial pixels, often referred to in our
-documentation as ``(nspec,nspat)``.  The operations required to flip/transpose
-the image arrays to match the ``PypeIt`` convention are dictated by
+One of the :doc:`conventions` is to orient images for spectra to run along the
+first axis of an image --- from blue wavelengths at small pixel coordinates to
+red wavelengths at large pixel coordinates --- and the spatial or
+cross-dispersion direction to be along the second axis --- with echelle orders
+running from the highest order at small pixel coordinates to the lowest order at
+large pixel coordinates.  That is, the shape of the images is always (roughly)
+the number of spectral pixels by the number of spatial pixels, often referred to
+in our documentation as ``(nspec,nspat)``.  The operations required to
+flip/transpose the image arrays to match the PypeIt convention are dictated by
 instrument-specific :class:`~pypeit.images.detector_container.DetectorContainer`
 parameters and performed by
 :func:`~pypeit.spectrograph.spectrographs.Spectrograph.orient_image`.  Image
@@ -204,7 +204,7 @@ orientation will be performed if the ``orient`` parameter is true.
 
     **Never** turn off image trimming or image orientation.  All processed
     images are expected to have been trimmed and re-oriented according to the
-    ``PypeIt`` convention.  It will break the code if you turn these options
+    PypeIt convention.  It will break the code if you turn these options
     off.
 
 Bias Subtraction
@@ -234,7 +234,7 @@ current must be in elections per pixel per *hour*.  Note that:
       :math:`N_{\rm bin}` higher than in an unbinned pixel
 
     - the tabulated dark current is in e-/pixel/hr, whereas the equation above
-      gives :math:`D` in units of e-/pixel/s.  Within ``PypeIt`` all exposure
+      gives :math:`D` in units of e-/pixel/s.  Within PypeIt all exposure
       times are assumed to be in seconds such that the hr-to-second unit
       conversion is done during the dark subtraction.
 
@@ -245,10 +245,10 @@ to how we account for dark current in our image variance model (see above);
 i.e., the :math:`D` term is assumed to be the same for all images taken with a
 given instrument.
 
-Importantly, ``PypeIt`` also subtracts this tabulated dark-current value from
+Importantly, PypeIt also subtracts this tabulated dark-current value from
 any provided dark frames.  This means that dark frames, combined into the
 ``MasterDark``, are used to correct for the 2D, pixel-to-pixel deviation in the
-measured dark current with respect to the tabulated value.  These deviations are
+measured dark current *with respect to the tabulated value.*  These deviations are
 expected to be small compared to the tabulated dark current value, and a warning
 is thrown if the median difference between the measured and tabulated dark
 current is larger than 50%.
@@ -262,8 +262,8 @@ dark frame, make sure that you bias-subtract your dark frames!
 .. note::
 
     Nominally, the exposure time for dark images should be identical to the
-    frames they are applied to.  If they are not, ``PypeIt`` provides a
-    parameter that will allow you to scale dark frame by the ratio of the
+    frames they are applied to.  If they are not, PypeIt provides a
+    parameter that will allow you to scale the dark frame counts by the ratio of the
     exposure times to appropriately subtract the counts/s measured by the master
     dark frame from the science frame (see the ``dark_expscale`` parameter).
     Take care when using this option!  Also, beware how the dark images are
@@ -272,13 +272,12 @@ dark frame, make sure that you bias-subtract your dark frames!
     cannot include a bias offset.  When the exposure times are different, also
     note that it is important from a noise perspective that the dark exposures
     always be at least as long as your longest exposure time in the same
-    calibration group.  Calibration groups are discussed by :ref:`setup_doc`,
-    :ref:`a-b_differencing`, and :ref:`2d_combine`.
+    :ref:`calibration group<calibration-groups>`.
 
 Build Detector Mosaic
 ---------------------
 
-If requested and applicable for the instrument data being reduced, ``PypeIt``
+If requested and applicable for the instrument data being reduced, PypeIt
 then uses hard-coded detector geometries to construct a mosaic of the image data
 from multiple detectors.  See more information regarding the :ref:`mosaic`.
 
@@ -328,11 +327,6 @@ with different lamps.
             [[[process]]]
                 clip = False
                 combine = mean
-.. note::
-
-    Currently, to apply the slit-illumination and spectral response corrections,
-    you must also apply the pixel-to-pixel correction. I.e., in order to perform
-    *any* flat-field correction, ``use_pixelflat`` must be true.
 
 Counting Statistics and Noise Floor
 -----------------------------------
@@ -345,7 +339,7 @@ throughout the processing steps.  The two final components are:
        include the shot-noise calculation (including the dark frames).
 
     #. For the on-sky observations (sky, standard, and science frames),
-       ``PypeIt`` imposes a per-pixel noise floor by adding a fractional count
+       PypeIt imposes a per-pixel noise floor by adding a fractional count
        to the error-budget.  Specifically, the quantity :math:`(\epsilon\ c)^2`
        (see the :ref:`overview`) is added to the variance image, where
        :math:`\epsilon` is set by ``noise_floor`` and :math:`c` is the rescaled
@@ -360,13 +354,27 @@ Cosmic Ray Identification and Masking
 .. TODO: SHOULDN'T THIS BE DONE **BEFORE** FLAT-FIELDING?  Is there a
    reference/description of what's done to remove the false positives?
 
-``PypeIt`` will identify and mask cosmic rays, if the ``mask_cr`` parameter is
-true.  ``PypeIt`` uses a combination of the L.A. Cosmic Ray rejection algorithm
+PypeIt will identify and mask cosmic rays, if the ``mask_cr`` parameter is
+true.  PypeIt uses a combination of the L.A. Cosmic Ray rejection algorithm
 [3]_ and some follow-up filtering to identify and remove false positives.  The
 most relevant parameters in the algorithm are editable via the
 :ref:`pypeit_file`; see
 :func:`~pypeit.images.pypeitimage.PypeItImage.build_crmask` and
 :func:`~pypeit.core.procimg.lacosmic`.
+
+Image Combination
+-----------------
+
+Once all of the above processing steps have been performed on each frame, frames
+of the same type within the same :ref:`calibration group<calibration-groups>`
+are combined according to the method set by the ``combine`` keyword; see
+:class:`~pypeit.images.combineimage.CombineImage`.
+
+Masking
+=======
+
+PypeIt uses bitmasks to flag pixels for various reasons.  See
+:ref:`out_masks` for a description of these masks and how to use/parse them.
 
 .. _workflow:
 
@@ -379,14 +387,14 @@ the algorithm above, and the second column gives its default value, independent
 of the frame type.  The subsequent columns give generic changes to those defaults
 made for each frame type; empty cells in these columns mean the parameter has
 the default value.  The frame type order is the order in which they're processed
-within the ``PypeIt`` workflow (modulo subtle differences between when the
+within the PypeIt workflow (modulo subtle differences between when the
 arc+tilt images are processed compared to the slit trace images when reducing
 IFU data vs. multi-slit/echelle data).  When making changes to the workflow via
 the parameters, make sure to consider that the order of operations, as
 illustrated by this table, go from top to bottom and left to right.  Also beware
-that some changes will lead to faults or silent bugs.  In particular, ``PypeIt``
+that some changes will lead to faults or silent bugs.  In particular, PypeIt
 always expects processed images to have been trimmed and re-oriented to match
-the ``PypeIt`` convention.
+the :doc:`conventions`.
 
 .. note::
 
@@ -409,11 +417,58 @@ the ``PypeIt`` convention.
     is up to the user to make sure that the processing of images is appropriate
     across all frame types.
 
-Masking
-=======
+Example Changes
+---------------
 
-``PypeIt`` uses bitmasks to flag pixels for various reasons.  See
-:ref:`out_masks` for a description of these masks and how to use/parse them.
+All changes to the basic image processing workflow are made via the
+:ref:`parameter_block` in each :ref:`pypeit_file`.  To make changes to the
+processing of *all* frame types, see :ref:`here<baseprocess>`.
+
+Here are a few typical examples of workflow changes:
+
+#. Turn off bias subtraction for all images:
+
+   .. code-block:: ini
+
+        [baseprocess]
+            use_biasimage = False
+
+#. Turn on bias subtraction for all frames *except* the bias frames:
+
+   .. code-block:: ini
+
+        [baseprocess]
+            use_biasimage = True
+        [calibrations]
+            [[biasframe]]
+                [[[process]]]
+                    use_biasimage = False
+
+#. Turn off overscan subtraction (the default for
+   :doc:`../spectrographs/spectrographs` with near-IR detectors):
+
+   .. code-block:: ini
+
+        [baseprocess]
+            use_overscan = False
+
+#. Turn on dark subtraction for the flat and trace frames:
+
+   .. code-block:: ini
+
+        [calibrations]
+            [[pixelflatframe]]
+                [[[process]]]
+                    use_darkimage = True
+            [[illumflatframe]]
+                [[[process]]]
+                    use_darkimage = True
+            [[traceframe]]
+                [[[process]]]
+                    use_darkimage = True
+
+
+
 
 
 .. [1] `Newberry (1991, PASP, 103, 122) <https://ui.adsabs.harvard.edu/abs/1991PASP..103..122N/abstract>`_

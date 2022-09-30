@@ -117,16 +117,17 @@ PypeIt BibTeX Entries
    :maxdepth: 1
    :hidden:
 
+   conventions
    input_files
    pypeit_file
    spectrographs/spectrographs
    detectors
    mosaic
+   frametype
    pypeit_par
    scripts
    calibrations/calibrations
    bitmasks
-   naming
 
 .. toctree::
    :caption: For Developers

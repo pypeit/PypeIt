@@ -44,6 +44,8 @@ MasterWaveCalib   FITS      Solution of 1D wavelength calibration
 Masters Naming
 ==============
 
+THIS IS OUT OF DATE!!
+
 The naming convention for MasterFrames is a bit obscure.
 Here is an example of one::
 

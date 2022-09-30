@@ -1,8 +1,8 @@
 .. _2d_combine:
 
-=========================
-Combine Science Exposures
-=========================
+===========================
+Combining Science Exposures
+===========================
 
 Overview
 ========

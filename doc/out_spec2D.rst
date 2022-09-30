@@ -1,4 +1,6 @@
 
+:orphan:
+
 .. include:: include/links.rst
 
 .. _spec-2d-output:

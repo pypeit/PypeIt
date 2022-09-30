@@ -104,6 +104,8 @@ Below, we describe how PypeIt automatically determines instrument
 configurations for a set of files and constructs auto-generated
 pypeit files.
 
+----
+
 .. _pypeit_obslog:
 
 pypeit_obslog
@@ -136,6 +138,8 @@ the columns that are printed, etc.
 By default, the columns provided in the output table are identical to the
 columns in the :ref:`data_block` of a :ref:`pypeit_file`; to print columns with
 all the metadata collected, add ``-c all`` to the command line.
+
+----
 
 .. _pypeit_setup:
 
@@ -251,21 +255,36 @@ the A configuration is::
 This example will generate a new folder named ``keck_lris_blue_A``
 and within it will be a file named ``keck_lris_blue_A.pypeit``.
 
+----
+
+Options
+-------
+
+Consider your need for the following additional options:
+
 -b option
 +++++++++
 
-If you wish to specify pairs (or groups) of files to use for
-background subtraction (e.g. A-B), then include the `-b` option. This
-simply adds the relevant columns to the :ref:`pypeit_file` that you
-will need to edit by hand. The two columns added, ``comb_id`` and
-``bkg_id``, are added by default for most near-IR spectrographs. See
-:doc:`A-B_differencing` for the syntax used for the data in these
-columns and how PypeIt uses them; see also a worked example in the
-:ref:`gnirs_howto`.
+You should consider using the ``-b`` option if you need to specify:
+
+- the calibration frames that should be used with each science frame (the same
+  can be achieved by dividing your dataset into multiple ``.pypeit`` files that
+  all use the same calibrations),
+
+- groups of science frames that should be combined, and/or
+
+- groups of frames that should be treated as background frames in an on-off
+  (e.g., ABBA) observation sequence.
+
+This simply adds the relevant columns to the :ref:`pypeit_file` that you *must 
+edit by hand*: ``calib``, ``comb_id``, and ``bkg_id``.  These columns are added
+by default for most near-IR spectrographs.  See :ref:`calibrations` and
+:doc:`A-B_differencing` for the syntax used for the data in these columns and
+how PypeIt uses them; see also a worked example in the :ref:`gnirs_howto`.
 
 -m option
 +++++++++
 
 If you wish to include a column where you can include
-input for :doc:`manual` then use this additional flag.
+input for :doc:`manual`, use the ``-m`` option.
 
