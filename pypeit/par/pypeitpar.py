@@ -3652,7 +3652,7 @@ class SkySubPar(ParSet):
 
     def __init__(self, bspline_spacing=None, sky_sigrej=None, global_sky_std=None, no_poly=None,
                  user_regions=None, joint_fit=None, load_mask=None, mask_by_boxcar=None,
-                 no_local_sky=None):
+                 no_local_sky=None, max_mask_frac=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -3717,6 +3717,12 @@ class SkySubPar(ParSet):
         descr['joint_fit'] = 'Perform a simultaneous joint fit to sky regions using all available slits. ' \
                              'Currently, this parameter is only used for IFU data reduction.'
 
+        defaults['max_mask_frac'] = 0.80
+        dtypes['max_mask_frac'] = float
+        descr['max_mask_frac'] = 'Maximum fraction of total pixels on a slit that can be masked by the input masks. ' \
+                                 'If more than this threshold is masked the code will return zeros and throw a warning.'
+
+
         # Instantiate the parameter set
         super(SkySubPar, self).__init__(list(pars.keys()),
                                         values=list(pars.values()),
@@ -3733,7 +3739,7 @@ class SkySubPar(ParSet):
         # Basic keywords
         parkeys = ['bspline_spacing', 'sky_sigrej', 'global_sky_std', 'no_poly',
                    'user_regions', 'load_mask', 'joint_fit', 'mask_by_boxcar',
-                   'no_local_sky']
+                   'no_local_sky', 'max_mask_frac']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
