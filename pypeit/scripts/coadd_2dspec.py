@@ -159,6 +159,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         parset['calibrations']['wavelengths']['refframe'] = 'observed'
         # TODO Flexure correction for coadd2d needs to be thought through. Currently turning it off.
         parset['flexure']['spec_method'] = 'skip'
+        # TODO This is currently the default for 2d coadds, but we need a way to toggle it on/off
+        parset['reduce']['findobj']['skip_skysub'] = True
         # Write the par to disk
         par_outfile = basename+'_coadd2d.par'
         print("Writing the parameters to {}".format(par_outfile))

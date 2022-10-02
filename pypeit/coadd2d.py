@@ -605,13 +605,13 @@ class CoAdd2D:
             gpm = sciImage.select_flag(invert=True)
             objFind.show('image', image=pseudo_dict['imgminsky']*gpm.astype(float), chname='imgminsky', slits=True)
 
-        if global_sky_subtract:
-            global_sky_pseudo, sobjs_obj = objFind.run(show_peaks=show or show_peaks, show_skysub_fit=show_skysub_fit)
-        else:
-            # No global sky is the default for co-adds if they are already sky-subtracted, so  we go straight to local
-            sobjs_obj, nobj = objFind.find_objects(sciImage.image, sciImage.ivar, show_peaks=show or show_peaks,
-                                                   save_objfindQA=True)
-            global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky'])
+        #if global_sky_subtract:
+        global_sky_pseudo, sobjs_obj = objFind.run(show_peaks=show or show_peaks, show_skysub_fit=show_skysub_fit)
+        #else:
+        #    # No global sky is the default for co-adds if they are already sky-subtracted, so  we go straight to local
+        #    sobjs_obj, nobj = objFind.find_objects(sciImage.image, sciImage.ivar, show_peaks=show or show_peaks,
+        #                                           save_objfindQA=True)
+        #    global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky'])
 
         # maskdef stuff
         if parcopy['reduce']['slitmask']['assign_obj'] and slits.maskdef_designtab is not None:

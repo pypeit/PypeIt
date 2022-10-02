@@ -3608,6 +3608,14 @@ class FindObjPar(ParSet):
                                      'reductions which perform difference imaging, since there we fit sky-residuals rather ' \
                                      'than the sky itself, so there is no noise model to update. '
 
+        defaults['skip_skysub'] = False
+        dtypes['skip_skysub'] = bool
+        descr['skip_skysub'] = 'If True, do not sky subtract when performing object finding. This should be set to ' \
+                               'True for example when running on data that is already sky-subtracted. ' \
+                               'Note that for near-IR difference imaging one still wants to remove sky-residuals via ' \
+                               'sky-subtraction, and so this is typically set to False'
+
+
 
         defaults['find_negative'] = None
         dtypes['find_negative'] = bool
