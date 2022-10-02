@@ -418,6 +418,7 @@ class CoAdd2D:
         imgminsky_pseudo = np.zeros(shape_pseudo)
         sciivar_pseudo = np.zeros(shape_pseudo)
         waveimg_pseudo = np.zeros(shape_pseudo)
+        waveimg_mid_pseudo = np.zeros(shape_pseudo)
         tilts_pseudo = np.zeros(shape_pseudo)
         spat_img_pseudo = np.zeros(shape_pseudo)
         nused_pseudo = np.zeros(shape_pseudo, dtype=int)
@@ -465,6 +466,14 @@ class CoAdd2D:
             wave_min[ispec, islit] = coadd_dict['wave_min']
             wave_max[ispec, islit] = coadd_dict['wave_max']
             wave_mid[ispec, islit] = coadd_dict['wave_mid']
+            # waveimg_mid_pseudo image containing the bin centers that the data was rebinned onto
+            waveimg_mid_pseudo[ispec, ispat] = np.repeat(wave_mid[ispec, islit][:, np.newaxis], nspat_vec[islit], axis=1)
+            # Patch locations where the waveimg is zero with the midpoints of the grid. This prevents discontinuities
+            # in the wavelength image. This means howver that the 2d wavelength image has wavelengths with
+            # two different meanings, i.e. where unmasked they are averaged rebinned wavelengths, but where masked
+            # it is the original grid.
+            waveimg_pseudo[ispec, ispat][np.logical_not(inmask_pseudo[ispec, ispat])] = \
+                waveimg_mid_pseudo[ispec, ispat][np.logical_not(inmask_pseudo[ispec, ispat])]
             wave_mask[ispec, islit] = True
             # Fill in the rest of the wave_mid with the corresponding points in the wave_grid
             #wave_this = wave_mid[wave_mask[:,islit], islit]
@@ -531,7 +540,7 @@ class CoAdd2D:
 
         return dict(nspec=nspec_pseudo, nspat=nspat_pseudo, imgminsky=imgminsky_pseudo,
                     sciivar=sciivar_pseudo, inmask=inmask_pseudo, tilts=tilts_pseudo,
-                    waveimg=waveimg_pseudo, spat_img=spat_img_pseudo, slits=slits_pseudo,
+                    waveimg=waveimg_pseudo, waveimg_mid=waveimg_mid_pseudo, spat_img=spat_img_pseudo, slits=slits_pseudo,
                     wave_mask=wave_mask, wave_mid=wave_mid, wave_min=wave_min, wave_max=wave_max)
 
     def reduce(self, pseudo_dict, show=False, clear_ginga=True, show_peaks=False, show_skysub_fit=False, basename=None, global_sky_subtract=False):
@@ -592,26 +601,11 @@ class CoAdd2D:
                                                         bkg_redux=self.bkg_redux, manual=manual_obj,
                                                         find_negative=self.find_negative, basename=basename,
                                                         clear_ginga=clear_ginga, show=show)
-
-        # Set the tilts and waveimg attributes from the psuedo_dict here, since we generate these dynamically from fits
-        # normally, but this is not possible for coadds
-        #objFind.tilts = pseudo_dict['tilts']
-        #objFind.waveimg = pseudo_dict['waveimg']
-        #objFind.binning = self.binning
-        #objFind.basename = basename
-        #objFind.reduce_bpm = pseudo_reduce_bpm
-
         if show:
             gpm = sciImage.select_flag(invert=True)
             objFind.show('image', image=pseudo_dict['imgminsky']*gpm.astype(float), chname='imgminsky', slits=True)
 
-        #if global_sky_subtract:
         global_sky_pseudo, sobjs_obj = objFind.run(show_peaks=show or show_peaks, show_skysub_fit=show_skysub_fit)
-        #else:
-        #    # No global sky is the default for co-adds if they are already sky-subtracted, so  we go straight to local
-        #    sobjs_obj, nobj = objFind.find_objects(sciImage.image, sciImage.ivar, show_peaks=show or show_peaks,
-        #                                           save_objfindQA=True)
-        #    global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky'])
 
         # maskdef stuff
         if parcopy['reduce']['slitmask']['assign_obj'] and slits.maskdef_designtab is not None:
