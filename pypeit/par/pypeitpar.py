@@ -2711,7 +2711,7 @@ class EdgeTracePar(ParSet):
                  sync_predict=None, sync_center=None, gap_offset=None, sync_to_edge=None,
                  bound_detector=None, minimum_slit_length=None, minimum_slit_length_sci=None,
                  length_range=None, minimum_slit_gap=None, clip=None, order_match=None,
-                 order_offset=None, use_maskdesign=None, maskdesign_maxsep=None,
+                 order_offset=None, overlap=None, use_maskdesign=None, maskdesign_maxsep=None,
                  maskdesign_step=None, maskdesign_sigrej=None, pad=None, add_slits=None,
                  add_predict=None, rm_slits=None):
 
@@ -2944,7 +2944,7 @@ class EdgeTracePar(ParSet):
                               'edge for any added edge traces.  Must be positive.'
 
 #        defaults['max_nudge'] = 100
-        dtypes['max_nudge'] = int
+        dtypes['max_nudge'] = [int, float]
         descr['max_nudge'] = 'If parts of any (predicted) trace fall off the detector edge, ' \
                              'allow them to be nudged away from the detector edge up to and ' \
                              'including this maximum number of pixels.  If None, no limit is ' \
@@ -2992,6 +2992,23 @@ class EdgeTracePar(ParSet):
                                   'ends gracefully. Note that setting ``bound_detector`` to ' \
                                   'True is needed for some long-slit data where the slit ' \
                                   'edges are, in fact, beyond the edges of the detector.'
+
+        dtypes['minimum_slit_dlength'] = [int, float]
+        descr['minimum_slit_dlength'] = 'Minimum *change* in the slit length (arcsec) as a ' \
+                                        'function of wavelength in arcsec.  This is mostly ' \
+                                        'meant to catch cases when the polynomial fit to the ' \
+                                        'detected edges becomes ill-conditioned (e.g., when ' \
+                                        'the slits run off the edge of the detector) and leads ' \
+                                        'to wild traces.  If reducing the order of the ' \
+                                        'polynomial (``fit_order``) does not help, try using ' \
+                                        'this to remove poorly constrained slits.'
+
+        dtypes['dlength_range'] = [int, float]
+        descr['dlength_range'] = 'Similar to ``minimum_slit_dlength``, but constrains the ' \
+                                 '*fractional* change in the slit length as a function of ' \
+                                 'wavelength.  For example, a value of 0.2 means that slit ' \
+                                 'length should not vary more than 20%' \
+                                 'as a function of wavelength.  '
 
 #        defaults['minimum_slit_length'] = 6.
         dtypes['minimum_slit_length'] = [int, float]
@@ -3055,6 +3072,15 @@ class EdgeTracePar(ParSet):
                                 '``self.slit_spatial_center() + offset``. Must be in the ' \
                                 'fraction of the detector spatial scale. If None, no offset ' \
                                 'is applied.'
+
+        defaults['overlap'] = False
+        dtypes['overlap'] = bool
+        descr['overlap'] = 'Assume slits identified as abnormally short are actually due to ' \
+                           'overlaps between adjacent slits/orders.  If set to True, you *must* ' \
+                           'have also used ``length_range`` to identify left-right edge pairs ' \
+                           'that have an abnormally short separation.  For those short slits, ' \
+                           'the code attempts to convert the short slits into slit gaps.  This ' \
+                           'is particularly useful for blue orders in Keck-HIRES data.'
 
         defaults['use_maskdesign'] = False
         dtypes['use_maskdesign'] = bool
@@ -3145,7 +3171,8 @@ class EdgeTracePar(ParSet):
     def from_dict(cls, cfg):
         # TODO Please provide docs
         k = np.array([*cfg.keys()])
-        parkeys = ['filt_iter', 'sobel_mode', 'edge_thresh', 'sobel_enhance', 'exclude_regions', 'follow_span', 'det_min_spec_length',
+        parkeys = ['filt_iter', 'sobel_mode', 'edge_thresh', 'sobel_enhance', 'exclude_regions',
+                   'follow_span', 'det_min_spec_length',
                    'max_shift_abs', 'max_shift_adj', 'max_spat_error', 'match_tol', 'fit_function',
                    'fit_order', 'fit_maxdev', 'fit_maxiter', 'fit_niter', 'fit_min_spec_length',
                    'auto_pca', 'left_right_pca', 'pca_min_edges', 'pca_n', 'pca_var_percent',
@@ -3153,11 +3180,11 @@ class EdgeTracePar(ParSet):
                    'smash_range', 'edge_detect_clip', 'trace_median_frac', 'trace_thresh',
                    'fwhm_uniform', 'niter_uniform', 'fwhm_gaussian', 'niter_gaussian',
                    'det_buffer', 'max_nudge', 'sync_predict', 'sync_center', 'gap_offset',
-                   'sync_to_edge', 'bound_detector', 'minimum_slit_length',
-                   'minimum_slit_length_sci', 'length_range', 'minimum_slit_gap', 'clip',
-                   'order_match', 'order_offset', 'use_maskdesign', 'maskdesign_maxsep',
-                   'maskdesign_step', 'maskdesign_sigrej', 'pad', 'add_slits', 'add_predict',
-                   'rm_slits']
+                   'sync_to_edge', 'bound_detector', 'minimum_slit_dlength', 'dlength_range',
+                   'minimum_slit_length', 'minimum_slit_length_sci', 'length_range',
+                   'minimum_slit_gap', 'clip', 'order_match', 'order_offset', 'overlap',
+                   'use_maskdesign', 'maskdesign_maxsep', 'maskdesign_step', 'maskdesign_sigrej',
+                   'pad', 'add_slits', 'add_predict', 'rm_slits']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -3487,8 +3514,8 @@ class FindObjPar(ParSet):
     def __init__(self, trace_npoly=None, snr_thresh=None, find_trim_edge=None,
                  find_maxdev=None, find_extrap_npoly=None, maxnumber_sci=None, maxnumber_std=None,
                  find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None,
-                 ech_find_nabove_min_snr=None, skip_second_find=None, skip_final_global=None, skip_skysub=None,
-                 find_negative=None, find_min_max=None):
+                 ech_find_nabove_min_snr=None, skip_second_find=None, skip_final_global=None, find_negative=None,
+                 find_min_max=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -3581,9 +3608,6 @@ class FindObjPar(ParSet):
                                      'reductions which perform difference imaging, since there we fit sky-residuals rather ' \
                                      'than the sky itself, so there is no noise model to update. '
 
-        defaults['skip_skysub'] = False
-        dtypes['skip_skysub'] = bool
-        descr['skip_skysub'] = 'Do not perform sky subtraction during object finding'
 
         defaults['find_negative'] = None
         dtypes['find_negative'] = bool
@@ -3621,7 +3645,7 @@ class FindObjPar(ParSet):
                    'find_extrap_npoly', 'maxnumber_sci', 'maxnumber_std',
                    'find_maxdev', 'find_fwhm', 'ech_find_max_snr',
                    'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find', 'skip_final_global',
-                   'skip_skysub', 'find_negative', 'find_min_max']
+                   'find_negative', 'find_min_max']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -3645,7 +3669,7 @@ class SkySubPar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, bspline_spacing=None, sky_sigrej=None, max_mask_frac=None, global_sky_std=None, no_poly=None,
+    def __init__(self, bspline_spacing=None, sky_sigrej=None, global_sky_std=None, no_poly=None,
                  user_regions=None, joint_fit=None, load_mask=None, mask_by_boxcar=None,
                  no_local_sky=None):
         # Grab the parameter names and values from the function
@@ -3670,11 +3694,6 @@ class SkySubPar(ParSet):
         dtypes['sky_sigrej'] = float
         descr['sky_sigrej'] = 'Rejection parameter for local sky subtraction'
 
-        defaults['max_mask_frac'] = 0.80
-        dtypes['max_mask_frac'] = float
-        descr['max_mask_frac'] = 'Maximum fraction of total pixels that can be masked by the input masks. If more than ' \
-                                 'this threshold is masked, the pypeit will not perform global sky subtraction and ' \
-                                 'mask the slit/order'
 
 
         defaults['global_sky_std'] = True
@@ -3731,7 +3750,7 @@ class SkySubPar(ParSet):
         k = np.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['bspline_spacing', 'sky_sigrej', 'max_mask_frac', 'global_sky_std', 'no_poly',
+        parkeys = ['bspline_spacing', 'sky_sigrej', 'global_sky_std', 'no_poly',
                    'user_regions', 'load_mask', 'joint_fit', 'mask_by_boxcar',
                    'no_local_sky']
 
@@ -4671,7 +4690,7 @@ class TelescopePar(ParSet):
         Return the valid telescopes.
         """
         return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT', 'MAGELLAN', 'LBT', 'MMT', 
-                'KPNO', 'NOT', 'P200', 'BOK', 'GTC', 'SOAR', 'NTT', 'LDT', 'JWST']
+                'KPNO', 'NOT', 'P200', 'BOK', 'GTC', 'SOAR', 'NTT', 'LDT']
 
     def validate(self):
         pass
