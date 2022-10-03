@@ -362,7 +362,7 @@ class Extract:
             prepare_extraction (bool):
                 If True, generate the tilts image and the waveimg using fits that are stored in their
                 respective objects. This allows spatial flexure compensation to optionally be taken into account.
-                This option is set to False for coadd2d, since
+                This option is set to False for coadd2d, since TODO :: <unfinished docstring>
             model_noise (bool):
                 If True, construct and iteratively update a model inverse variance image
                 using :func:`~pypeit.core.procimg.variance_model`. If False, a
@@ -383,7 +383,7 @@ class Extract:
 
         """
         # Start by preparing some masks and the wavelength image, ready for extraction
-        # TODO this should return things to make the control flow less opqaque.
+        # TODO this should return things to make the control flow less opaque.
         if prepare_extraction:
             self.prepare_extraction(global_sky)
 

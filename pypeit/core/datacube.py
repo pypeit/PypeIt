@@ -786,8 +786,8 @@ def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, al
         dspat (float):
             The size of each spaxel on the sky (in degrees)
         all_ivar (`numpy.ndarray`_, optional):
-            Inverse variance of each pixel from all spec2d files. If provided,
-            inverse variance images will be calculated and return for each white light image.
+            1D flattened array containing of the inverse variance of each pixel from all spec2d files.
+            If provided, inverse variance images will be calculated and returned for each white light image.
         whitelightWCS (`astropy.wcs.wcs.WCS`_, optional):
             The WCS of a reference white light image. If supplied, you must also
             supply numra and numdec.
