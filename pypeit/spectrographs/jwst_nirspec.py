@@ -151,7 +151,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         par['reduce']['extraction']['model_full_slit'] = True
         par['reduce']['extraction']['sn_gauss'] = 6.0
         par['reduce']['extraction']['boxcar_radius'] = 0.2 # extent in calwebb is 0.55" source and on NIRSpec website
-
+        par['reduce']['extraction']['use_2dmodel_mask'] = False # Don't use 2d mask in local skysub
 
         # Cosmic ray rejection parameters for science frames
         par['scienceframe']['process']['sigclip'] = 5.0
