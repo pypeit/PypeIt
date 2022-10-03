@@ -250,35 +250,49 @@ class FlatImages(datamodel.DataContainer):
                 msgs.warn("pixelflat has no BPM - using the illumflat BPM")
                 return self.illumflat_bpm
 
-    def get_spat_bsplines(self, frametype='illum'):
+    def get_spat_bsplines(self, frametype='illum', finecorr=False):
         """
         Grab a list of bspline fits
 
         Args:
             frametype (str):
+                frametype to use (can be 'illum' or 'pixel')
+            finecorr (bool):
+                Return the fine correction bsplines (finecorr=True), or the zeroth order correction (finecorr=False)
 
         Returns:
-            list:
+            list, None:
+                Either a list of spatial bsplines if exists, of None if they don't exist.
 
         """
-        # Check if both spat bsplines are none
-        if self.pixelflat_spat_bsplines is None and self.illumflat_spat_bsplines is None:
-            msgs.error("FlatImages contains no spatial bspline fit")
+        # Decide if the finecorrection splines are needed, or the zeroth order correction
+        if finecorr:
+            fctxt = "fine correction to the "
+            pixel_bsplines = self.pixelflat_finecorr
+            illum_bsplines = self.illumflat_finecorr
+        else:
+            fctxt = ""
+            pixel_bsplines = self.pixelflat_spat_bsplines
+            illum_bsplines = self.illumflat_spat_bsplines
+        # Ensure that at least one has been generated
+        if pixel_bsplines is None and illum_bsplines is None:
+            msgs.warn(f"FlatImages contains no {fctxt}spatial bspline fit")
+            return None
         # Now return the requested case, checking for None
         if frametype == 'illum':
-            if self.illumflat_spat_bsplines is not None:
-                return self.illumflat_spat_bsplines
+            if illum_bsplines is not None:
+                return illum_bsplines
             else:
-                msgs.warn("illumflat has no spatial bspline fit - using the pixelflat")
-                return self.pixelflat_spat_bsplines
+                msgs.warn(f"illumflat has no {fctxt}spatial bspline fit - using the pixelflat")
+                return pixel_bsplines
         else:
-            if self.pixelflat_spat_bsplines is not None:
-                return self.pixelflat_spat_bsplines
+            if pixel_bsplines is not None:
+                return pixel_bsplines
             else:
-                msgs.warn("pixelflat has no spatial bspline fit - using the illumflat")
-                return self.illumflat_spat_bsplines
+                msgs.warn(f"pixelflat has no {fctxt}spatial bspline fit - using the illumflat")
+                return illum_bsplines
 
-    def fit2illumflat(self, slits, frametype='illum', initial=False, spat_flexure=None):
+    def fit2illumflat(self, slits, frametype='illum', finecorr=False, initial=False, spat_flexure=None):
         """
 
         Args:
@@ -287,6 +301,8 @@ class FlatImages(datamodel.DataContainer):
             frametype (str, optional):
                 The frame type should be 'illum' to return the illumflat version,
                 or 'pixel' to return the pixelflat version.
+            finecorr (bool):
+                Return the fine correction bsplines (finecorr=True), or the zeroth order correction (finecorr=False)
             initial (bool, optional):
                 If True, the initial slit edges will be used
             spat_flexure (float, optional):
@@ -295,9 +311,19 @@ class FlatImages(datamodel.DataContainer):
         Returns:
             `numpy.ndarray`_: An image of the spatial illumination profile for all slits.
         """
+        # Check spatial flexure type
+        if (spat_flexure is not None) and (not isinstance(spat_flexure, float)):
+            msgs.error("Spatial flexure must be None or float")
+        # Initialise the returned array
         illumflat = np.ones(self.shape())
         # Load spatial bsplines
-        spat_bsplines = self.get_spat_bsplines(frametype=frametype)
+        spat_bsplines = self.get_spat_bsplines(frametype=frametype, finecorr=finecorr)
+        # Check that the bsplines exist
+        if spat_bsplines is None:
+            if finecorr:
+                return np.ones(self.shape())
+            else:
+                msgs.error("Cannot continue without spatial bsplines")
 
         # Loop
         for slit_idx in range(slits.nslits):
@@ -312,54 +338,13 @@ class FlatImages(datamodel.DataContainer):
                                                       initial=initial,
                                                       slitid_img=_slitid_img,
                                                       flexure_shift=spat_flexure)
-            illumflat[onslit] = spat_bsplines[slit_idx].value(spat_coo[onslit])[0]
+            if finecorr:
+                spec_coo = np.where(onslit)[0] / (slits.nspec - 1)
+                illumflat[onslit] = spat_bsplines[slit_idx].eval(spat_coo[onslit], spec_coo)
+            else:
+                illumflat[onslit] = spat_bsplines[slit_idx].value(spat_coo[onslit])[0]
         # TODO -- Update the internal one?  Or remove it altogether??
         return illumflat
-
-    def fit2illumflat_fine(self, slits, tilts=None, initial=False, spat_flexure=None, frametype='illum'):
-        """
-        Main algorithm to build an image of the fine correction to the spatial illumination profile.
-
-        Only applied to good slits, which means any non-flagged or flagged
-         in the exclude_for_reducing list
-
-        Args:
-            slits (:class:`pypeit.slittrace.SlitTraceSet`):
-                Definition of the slits.
-            tilts (`numpy.ndarray`_, optional):
-                Wavelength tilts image. Tilts are needed in case a sky flat was
-                used to generate the illumflat spatial profile.
-            initial (bool, optional):
-                If True, the initial slit edges will be used.
-            spat_flexure (float, optional):
-                Spatial flexure correction in pixels.
-            frametype (str, optional):
-                The frame type should be 'illum' to return the illumflat version,
-                or 'pixel' to return the pixelflat version.
-
-        Returns:
-            `numpy.ndarray`_: The fine correction to the spatial illumination profile.
-        """
-        # Check spatial flexure type
-        if (spat_flexure is not None) and (not isinstance(spat_flexure, float)):
-            msgs.error("Spatial flexure must be None or float")
-        # Initialise the illumflat fine correction
-        flat_finecorr = np.ones(self.shape())
-        # Get the slit properties
-        _slitid_img = slits.slit_img(flexure=spat_flexure, initial=initial)
-        left, right, _ = slits.select_edges(initial=initial, flexure=spat_flexure)
-        # Loop through all slits
-        for slit_idx, slit_spat in enumerate(slits.spat_id):
-            onslit_tweak = _slitid_img == slit_spat
-            ww = np.where(onslit_tweak)
-            cut = (ww[0], ww[1])
-            xpos = (cut[1] - left[cut[0],slit_idx]) / (right[cut[0],slit_idx] - left[cut[0],slit_idx])
-            ypos = tilts[cut] if tilts is not None else cut[0]/(slits.nspec-1)
-            if frametype == 'pixel' or self.illumflat_finecorr is None:
-                flat_finecorr[onslit_tweak] = self.pixelflat_finecorr[slit_idx].eval(xpos, ypos)
-            else:
-                flat_finecorr[onslit_tweak] = self.illumflat_finecorr[slit_idx].eval(xpos, ypos)
-        return flat_finecorr
 
     def show(self, frametype='all', slits=None, wcs_match=True):
         """
@@ -388,12 +373,12 @@ class FlatImages(datamodel.DataContainer):
                 msgs.warn('Could not load slits to show with flat-field images. Did you provide the master info??')
         if slits is not None:
             slits.mask_flats(self)
-            illumflat_pixel = self.fit2illumflat(slits, frametype='pixel')
-            pixelflat_finecorr = self.fit2illumflat_fine(slits, frametype='pixel')
+            illumflat_pixel = self.fit2illumflat(slits, frametype='pixel', finecorr=False)
+            pixelflat_finecorr = self.fit2illumflat(slits, frametype='pixel', finecorr=True)
             if self.illumflat_spat_bsplines is not None:
-                illumflat_illum = self.fit2illumflat(slits, frametype='illum')
+                illumflat_illum = self.fit2illumflat(slits, frametype='illum', finecorr=False)
             if self.illumflat_finecorr is not None:
-                illumflat_finecorr = self.fit2illumflat_fine(slits, frametype='illum')
+                illumflat_finecorr = self.fit2illumflat(slits, frametype='illum', finecorr=True)
 
         # Decide which frames should be displayed
         if frametype == 'pixel':
@@ -1350,41 +1335,45 @@ class FlatField:
         slitlen = int(np.median(right - left))
 
         # Prepare fitting coordinates
-        tilts = self.wavetilts.fit2tiltimg(slitimg, flexure=self.wavetilts.spat_flexure)
         ww = np.where(onslit_tweak)
         cut = (ww[0], ww[1])
-        xpos = (cut[1] - left[cut[0]]) / (right[cut[0]] - left[cut[0]])
+        ypos = cut[0] / (self.slits.nspec - 1)
+        xpos_img = self.slits.spatial_coordinate_image(slitidx=slit_idx,
+                                                       initial=True,
+                                                       slitid_img=slitimg,
+                                                       flexure_shift=self.wavetilts.spat_flexure)
+        xpos = xpos_img[cut]
 
         # Normalise the image
-        bins = np.linspace(0.0, 1.0, tilts.shape[0])
-        censpec, _ = np.histogram(tilts[cut], bins=bins, weights=normed[cut])
-        nrm, _ = np.histogram(tilts[cut], bins=bins)
+        delta = 0.5/self.slits.nspec  # include the endpoints
+        bins = np.linspace(0.0-delta, 1.0+delta, self.slits.nspec+1)
+        censpec, _ = np.histogram(ypos, bins=bins, weights=normed[cut])
+        nrm, _ = np.histogram(ypos, bins=bins)
         censpec *= utils.inverse(nrm)
         tiltspl = interpolate.interp1d(0.5*(bins[1:]+bins[:-1]), censpec, kind='linear',
                                        bounds_error=False, fill_value='extrapolate')
-        nrm_vals = tiltspl(tilts[ww])
+        nrm_vals = tiltspl(ypos)
         normed[ww] *= utils.inverse(nrm_vals)
         ivarnrm[ww] *= nrm_vals**2
 
         # Mask the edges and fit
         gpmfit = gpm[cut]
         gpmfit[np.where((xpos < 0.05)|(xpos > 0.95))] = False
-        fullfit = fitting.robust_fit(xpos, normed[cut], np.array([3, 6]), x2=tilts[cut],
+        fullfit = fitting.robust_fit(xpos, normed[cut], np.array([3, 6]), x2=ypos,
                                      in_gpm=gpmfit, function='legendre2d', upper=2, lower=2, maxdev=1.0,
                                      minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
         self.list_of_finecorr_fits[slit_idx] = fullfit
         # Generate the fine correction image and store the result
         if fullfit.success == 1:
-            illumflat_finecorr[onslit_tweak] = fullfit.eval(xpos, tilts[cut])
+            illumflat_finecorr[onslit_tweak] = fullfit.eval(xpos, ypos)
         else:
             msgs.warn("Fine correction to the spatial illumination failed for slit {0:d}".format(slit_spat))
-        # TODO BEFORE PR MERGE :: Need to store the coefficients and generate this with spatial flexure
         # Prepare QA
         outfile = qa.set_qa_filename("Spatillum_FineCorr_"+self.master_key, 'spatillum_finecorr', slit=slit_spat,
                                      out_dir=self.qa_path)
         title = "Fine correction to spatial illumination (slit={0:d})".format(slit_spat)
         normed[np.logical_not(onslit_tweak)] = 1  # For the QA, make everything off the slit equal to 1
-        spatillum_finecorr_qa(normed, illumflat_finecorr, left, right, tilts, cut,
+        spatillum_finecorr_qa(normed, illumflat_finecorr, left, right, ypos, cut,
                               outfile=outfile, title=title, half_slen=slitlen//2)
         return
 
@@ -1483,7 +1472,7 @@ class FlatField:
                                       smooth_npix=self.flatpar['slit_illum_smooth_npix'])
 
 
-def spatillum_finecorr_qa(normed, finecorr, left, right, tilts, cut, outfile=None, title=None, half_slen=50):
+def spatillum_finecorr_qa(normed, finecorr, left, right, ypos, cut, outfile=None, title=None, half_slen=50):
     """
     Plot the QA for the fine correction fits to the spatial illumination profile
 
@@ -1497,8 +1486,8 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, tilts, cut, outfile=Non
         Left slit edge
     right : `numpy.ndarray`_
         Right slit edge
-    tilts :
-        Spectral tilts
+    ypos : `numpy.ndarray`_
+        Spectral coordinate (from 0 to 1, where 0=blue wavelength, 1=red wavelength)
     cut : tuple
         A 2-tuple, containing the (x, y) coordinates of the pixels on the slit.
     outfile : str, optional
@@ -1537,7 +1526,7 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, tilts, cut, outfile=Non
     minmod, maxmod, sep = 1.0, 1.0, 0.01
     for bb in range(nseg):
         # Histogram the data to be displayed
-        wb = np.where((tilts[cut] > bins[bb]) & (tilts[cut] < bins[bb + 1]))
+        wb = np.where((ypos > bins[bb]) & (ypos < bins[bb + 1]))
         cutQA = (cut[0][wb], cut[1][wb])
         xposQA = (cutQA[1] - left[cutQA[0]]) / (right[cutQA[0]] - left[cutQA[0]])
         cntr, _ = np.histogram(xposQA, bins=spatbins, weights=normed[cutQA])
