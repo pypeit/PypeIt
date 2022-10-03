@@ -16,6 +16,8 @@ Although fluxing is certainly a calibration step, this is *not* performed as a
 standard part of PypeIt's main data reduction procedure, :ref:`run-pypeit`.
 Instead it is treated as a post-processing procedure; see :doc:`../fluxing`.
 
+----
+
 .. _calibration-groups:
 
 Calibration Groups
@@ -64,6 +66,8 @@ used for the calibration of the third science frame.
     after :ref:`image_proc` **without** accounting for any shifts in the
     wavelength calibration or slit traces), see :ref:`2d_combine`.
 
+----
+
 Calibration Steps
 =================
 
@@ -73,7 +77,6 @@ The primary calibration procedures are, in the order they're performed:
    :maxdepth: 1
 
    ../image_proc
-   bias_dark
    slit_tracing
    flexure
    wave_calib

@@ -76,6 +76,8 @@ of how to change various parameters; for additional examples see the
         [[pixelflatframe]]
             exprng = 11,30
 
+.. _baseprocess:
+
 How to change the image processing parameters for all frame types
 =================================================================
 
