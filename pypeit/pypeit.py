@@ -900,7 +900,7 @@ class PypeIt:
                                         objmodel=objmodel,
                                         ivarmodel=ivarmodel,
                                         scaleimg=scaleImg,
-                                        waveimg=waveimg,
+                                        waveimg=waveImg,
                                         bpmmask=outmask,
                                         detector=sciImg.detector,
                                         sci_spat_flexure=sciImg.spat_flexure,
