@@ -425,8 +425,8 @@ class Extract:
             self.slits.mask[reduce_masked] = self.slits.bitmask.turn_on(
                 self.slits.mask[reduce_masked], 'BADREDUCE')
 
-            # Return
-            return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, self.waveimg, self.tilts
+        # Return
+        return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, self.waveimg, self.tilts
 
     def local_skysub_extract(self, global_sky, sobjs, model_noise=True, spat_pix=None,
                              show_profile=False, show_resids=False, show=False):
