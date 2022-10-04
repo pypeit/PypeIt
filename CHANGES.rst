@@ -14,6 +14,11 @@
 - Allow for the specification of a specific UVIS extinction file for sensitivity
   function computation and flux calibration.
 - Adding Keck/HIRES functionality.
+- Restructred coadd2d in order to work with images that have different
+sizes.
+- Restructured extraction and find_objects classes to work
+better with 2d coadds.
+- Started modifications and support for JWST.
 
 1.10.0 (11 July 2022)
 ---------------------
