@@ -141,6 +141,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         par['reduce']['findobj']['snr_thresh'] = 10.0
         par['reduce']['findobj']['find_fwhm'] = 2.0
 
+
         # Sky-subtraction
         par['reduce']['skysub']['bspline_spacing'] = 5.0 # JWST sky is smooth
         par['reduce']['skysub']['max_mask_frac'] = 0.95
