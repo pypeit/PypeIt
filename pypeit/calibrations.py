@@ -570,7 +570,8 @@ class Calibrations:
             # Initialise the pixel flat
             pixelFlatField = flatfield.FlatField(pixel_flat, self.spectrograph,
                                                  self.par['flatfield'], self.slits, self.wavetilts,
-                                                 self.wv_calib)
+                                                 self.wv_calib, qa_path=self.qa_path,
+                                                 master_key=self.master_key_dict['flat'])
             # Generate
             pixelflatImages = pixelFlatField.run(show=self.show)
             # Set flatimages in case we want to apply the pixel-to-pixel sensitivity corrections to the illumflat
@@ -597,7 +598,8 @@ class Calibrations:
             # Initialise the pixel flat
             illumFlatField = flatfield.FlatField(illum_flat, self.spectrograph,
                                                  self.par['flatfield'], self.slits, self.wavetilts,
-                                                 self.wv_calib, spat_illum_only=True)
+                                                 self.wv_calib, spat_illum_only=True, qa_path=self.qa_path,
+                                                 master_key=self.master_key_dict['flat'])
             # Generate
             illumflatImages = illumFlatField.run(show=self.show)
 

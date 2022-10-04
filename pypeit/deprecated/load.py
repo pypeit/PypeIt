@@ -21,7 +21,6 @@ from pypeit.core import parse
 
 
 
-# TODO I don't think we need this routine
 def load_ext_to_array(hdulist, ext_id, ex_value='OPT', flux_value=True, nmaskedge=None):
     '''
     It will be called by load_1dspec_to_array.

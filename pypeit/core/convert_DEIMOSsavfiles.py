@@ -9,15 +9,17 @@ from pypeit import data
 def sav_to_fits(savfile):
     """
     Simple method to convert the DEIMOS .sav files, which contain the
-    optical model maps, to .fits files.
+    optical model maps, to .fits files.  The new file has the
+    same name with a .fits extension.
+
     ToDO: This is specific for keck_deimos `static_calib` data, since the path
     is explicitly mentioned. If needed, this method could be generalized.
-    TODO: move it to `pypeit.io`.
-    Args:
-        savfile: path to the .sav file
 
-    Returns:
-        Save the content of the .sav file into a .fits file in `data/static_calibs/keck_deimos/`
+    TODO: move it to `pypeit.io`.
+
+    Args:
+        savfile (str): full path to the .sav file
+
 
     """
     savfile_name = os.path.splitext(os.path.basename(savfile))[0]

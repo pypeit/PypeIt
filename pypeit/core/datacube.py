@@ -764,7 +764,7 @@ def make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_i
 
 
 def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
-                               all_ivar=None, whitelightWCS=None, numra=None, numdec=None):
+                               all_ivar=None, whitelightWCS=None, numra=None, numdec=None, trim=1):
     """ Generate a whitelight image using the individual pixels of every input frame
 
     Args:
@@ -786,8 +786,8 @@ def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, al
         dspat (float):
             The size of each spaxel on the sky (in degrees)
         all_ivar (`numpy.ndarray`_, optional):
-            Inverse variance of each pixel from all spec2d files. If provided,
-            inverse variance images will be calculated and return for each white light image.
+            1D flattened array containing of the inverse variance of each pixel from all spec2d files.
+            If provided, inverse variance images will be calculated and returned for each white light image.
         whitelightWCS (`astropy.wcs.wcs.WCS`_, optional):
             The WCS of a reference white light image. If supplied, you must also
             supply numra and numdec.
@@ -795,6 +795,8 @@ def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, al
             Number of RA spaxels in the reference white light image
         numdec (int, optional):
             Number of DEC spaxels in the reference white light image
+        trim (int, optional):
+            Number of pixels to grow around a masked region
 
     Returns:
         tuple : two 3D arrays will be returned, each of shape [N, M, numfiles],
@@ -813,14 +815,13 @@ def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, al
 
         # Generate coordinates
         cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
-        numra = int((np.max(all_ra) - np.min(all_ra)) * cosdec / dspat)
-        numdec = int((np.max(all_dec) - np.min(all_dec)) / dspat)
+        numra = 1+int((np.max(all_ra) - np.min(all_ra)) * cosdec / dspat)
+        numdec = 1+int((np.max(all_dec) - np.min(all_dec)) / dspat)
     else:
         # If a WCS is supplied, the numra and numdec must be specified
         if (numra is None) or (numdec is None):
             msgs.error("A WCS has been supplied to make_whitelight." + msgs.newline() +
                        "numra and numdec must also be specified")
-
     xbins = np.arange(1 + numra) - 1
     ybins = np.arange(1 + numdec) - 1
     spec_bins = np.arange(2) - 1
@@ -828,7 +829,6 @@ def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, al
 
     whitelight_Imgs = np.zeros((numra, numdec, numfiles))
     whitelight_ivar = np.zeros((numra, numdec, numfiles))
-    trim = 3
     for ff in range(numfiles):
         msgs.info("Generating white light image of frame {0:d}/{1:d}".format(ff + 1, numfiles))
         ww = (all_idx == ff)
@@ -839,8 +839,6 @@ def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, al
         nrmCube = (norm > 0) / (norm + (norm == 0))
         whtlght = (wlcube * nrmCube)[:, :, 0]
         # Create a mask of good pixels (trim the edges)
-#        gpm = grow_masked(whtlght == 0, trim, 1) == 0  # A good pixel = 1
-        # TODO: NEED TO CHECK THIS IS OKAY!!
         gpm = grow_mask(whtlght == 0, trim) == 0  # A good pixel = 1
         whtlght *= gpm
         # Set the masked regions to the minimum value
@@ -1126,6 +1124,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         parset = spec.default_pypeit_par()
     cubepar = parset['reduce']['cube']
     flatpar = parset['calibrations']['flatfield']
+    senspar = parset['sensfunc']
 
     # Get the detector number and string representation
     det = 1 if parset['rdx']['detnum'] is None else parset['rdx']['detnum']
@@ -1167,7 +1166,6 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     blaze_spline, flux_spline = None, None
     if cubepar['standard_cube'] is not None:
         fluxcal = True
-        senspar = parset['sensfunc']
         ss_file = cubepar['standard_cube']
         if not os.path.exists(ss_file):
             msgs.error("Standard cube does not exist:" + msgs.newline() + ss_file)
@@ -1222,6 +1220,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     dspat = None if cubepar['spatial_delta'] is None else cubepar['spatial_delta']/3600.0  # binning size on the sky (/3600 to convert to degrees)
     dwv = cubepar['wave_delta']       # binning size in wavelength direction (in Angstroms)
     wave_ref = None
+    mnmx_wv = None  # Will be used to store the minimum and maximum wavelengths of every slit and frame.
     weights = np.ones(numfiles)  # Weights to use when combining cubes
     locations = parset['calibrations']['alignment']['locations']
     flat_splines = dict()   # A dictionary containing the splines of the flatfield
@@ -1326,7 +1325,9 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             msgs.info("Using the following frame for sky subtraction:"+msgs.newline()+this_skysub)
 
         # Extract the information
-        relscl = spec2DObj.scaleimg/relScaleImg
+        relscl = 1.0
+        if cubepar['scale_corr'] is not None or opts['scale_corr'][ff] is not None:
+            relscl = spec2DObj.scaleimg/relScaleImg
         sciimg = (spec2DObj.sciimg-skysubImg)*relscl  # Subtract sky
         ivar = spec2DObj.ivarraw / relscl**2
         waveimg = spec2DObj.waveimg
@@ -1355,6 +1356,16 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
         msgs.info("Constructing slit image")
         slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=flexure)
+
+        # Obtain the minimum and maximum wavelength of all slits
+        if mnmx_wv is None:
+            mnmx_wv = np.zeros((1, slits.nslits, 2))
+        else:
+            mnmx_wv = np.append(mnmx_wv, np.zeros((1, slits.nslits, 2)), axis=0)
+        for slit_idx, slit_spat in enumerate(slits.spat_id):
+            onslit_init = (slitid_img_init == slit_spat)
+            mnmx_wv[ff, slit_idx, 0] = np.min(waveimg[onslit_init])
+            mnmx_wv[ff, slit_idx, 1] = np.max(waveimg[onslit_init])
 
         # Remove edges of the spectrum where the sky model is bad
         sky_is_good = make_good_skymask(slitid_img_init, spec2DObj.tilts)
@@ -1434,7 +1445,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             msgs.info("Calculating relative sensitivity for grating correction")
             flatimages = flatfield.FlatImages.from_file(flatfile)
             flatframe = flatimages.illumflat_raw/flatimages.fit2illumflat(slits, frametype='illum', initial=True,
-                                                                          flexure_shift=flexure)
+                                                                          spat_flexure=flexure)
             # Calculate the relative scale
             scale_model = flatfield.illum_profile_spectral(flatframe, waveimg, slits,
                                                            slit_illum_ref_idx=flatpar['slit_illum_ref_idx'], model=None,
@@ -1464,7 +1475,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         longitude = spec.telescope['longitude']
         latitude = spec.telescope['latitude']
         airmass = spec2DObj.head0[spec.meta['airmass']['card']]
-        extinct = load_extinction_data(longitude, latitude)
+        extinct = load_extinction_data(longitude, latitude, senspar['UVIS']['extinct_file'])
         # extinction_correction requires the wavelength is sorted
         wvsrt = np.argsort(wave_ext)
         ext_corr = extinction_correction(wave_ext[wvsrt] * units.AA, airmass, extinct)
@@ -1541,38 +1552,54 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
     # Register spatial offsets between all frames
     # Check if a reference whitelight image should be used to register the offsets
-    if cubepar["reference_image"] is None:
-        # Generate white light images
-        whitelight_imgs, _, _ = make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat)
-        # ref_idx will be the index of the cube with the highest S/N
-        ref_idx = np.argmax(weights)
-        reference_image = whitelight_imgs[:, :, ref_idx].copy()
-        msgs.info("Calculating spatial translation of each cube relative to cube #{0:d})".format(ref_idx+1))
-    else:
-        ref_idx = -1  # Don't use an index
-        # Load reference information
-        reference_image, whitelight_imgs, wlwcs = \
-            make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
-                                    cubepar['reference_image'])
-        msgs.info("Calculating the spatial translation of each cube relative to user-defined 'reference_image'")
-
-    # Calculate the image offsets - check the reference is a zero shift
-    for ff in range(numfiles):
-        # Calculate the shift
-        ra_shift, dec_shift = calculate_image_phase(reference_image.copy(), whitelight_imgs[:, :, ff], maskval=0.0)
-        # Convert pixel shift to degress shift
-        ra_shift *= dspat/cosdec
-        dec_shift *= dspat
-        msgs.info("Spatial shift of cube #{0:d}: RA, DEC (arcsec) = {1:+0.3f}, {2:+0.3f}".format(ff+1, ra_shift*3600.0, dec_shift*3600.0))
-        # Apply the shift
-        all_ra[all_idx == ff] += ra_shift
-        all_dec[all_idx == ff] += dec_shift
-
+    numiter=2
+    for dd in range(numiter):
+        msgs.info(f"Iterating on spatial translation - ITERATION #{dd+1}/{numiter}")
+        if cubepar["reference_image"] is None:
+            # Find the wavelength range where all frames overlap
+            min_wl, max_wl = np.max(mnmx_wv[:,:,0]), np.min(mnmx_wv[:,:,1])  # This is the max blue wavelength and the min red wavelength
+            # Generate white light images
+            if min_wl < max_wl:
+                ww = np.where((all_wave > min_wl) & (all_wave < max_wl))
+            else:
+                msgs.warn("Datacubes do not completely overlap in wavelength. Offsets may be unreliable...")
+                ww = np.where((all_wave > 0) & (all_wave < 99999999))
+            whitelight_imgs, _, _ = make_whitelight_frompixels(all_ra[ww], all_dec[ww], all_wave[ww], all_sci[ww], all_wghts[ww], all_idx[ww], dspat)
+            # ref_idx will be the index of the cube with the highest S/N
+            ref_idx = np.argmax(weights)
+            reference_image = whitelight_imgs[:, :, ref_idx].copy()
+            msgs.info("Calculating spatial translation of each cube relative to cube #{0:d})".format(ref_idx+1))
+        else:
+            ref_idx = -1  # Don't use an index
+            # Load reference information
+            reference_image, whitelight_imgs, wlwcs = \
+                make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
+                                        cubepar['reference_image'])
+            msgs.info("Calculating the spatial translation of each cube relative to user-defined 'reference_image'")
+        # Calculate the image offsets - check the reference is a zero shift
+        for ff in range(numfiles):
+            # Calculate the shift
+            ra_shift, dec_shift = calculate_image_phase(reference_image.copy(), whitelight_imgs[:, :, ff], maskval=0.0)
+            # Convert pixel shift to degress shift
+            ra_shift *= dspat/cosdec
+            dec_shift *= dspat
+            msgs.info("Spatial shift of cube #{0:d}: RA, DEC (arcsec) = {1:+0.3f}, {2:+0.3f}".format(ff+1, ra_shift*3600.0, dec_shift*3600.0))
+            # Apply the shift
+            all_ra[all_idx == ff] += ra_shift
+            all_dec[all_idx == ff] += dec_shift
     # Generate a white light image of *all* data
     msgs.info("Generating global white light image")
     if cubepar["reference_image"] is None:
-        whitelight_img, _, wlwcs = make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts,
-                                                              np.zeros(all_ra.size), dspat)
+        # Find the wavelength range where all frames overlap
+        min_wl, max_wl = np.max(mnmx_wv[:, :, 0]), np.min(mnmx_wv[:, :, 1])  # This is the max blue wavelength and the min red wavelength
+        if min_wl < max_wl:
+            ww = np.where((all_wave > min_wl) & (all_wave < max_wl))
+            msgs.info("Whitelight image covers the wavelength range {0:.2f} A - {1:.2f} A".format(min_wl, max_wl))
+        else:
+            msgs.warn("Datacubes do not completely overlap in wavelength. Offsets may be unreliable...")
+            ww = np.where((all_wave > 0) & (all_wave < 99999999))
+        whitelight_img, _, wlwcs = make_whitelight_frompixels(all_ra[ww], all_dec[ww], all_wave[ww], all_sci[ww],
+                                                              all_wghts[ww], np.zeros(ww[0].size), dspat)
     else:
         _, whitelight_img, wlwcs = \
             make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, np.zeros(all_ra.size),
