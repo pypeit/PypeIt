@@ -13,6 +13,9 @@
 - Allow verbosity specification for various post-processing command-line scripts.
 - Allow for the specification of a specific UVIS extinction file for sensitivity
   function computation and flux calibration.
+- Added spectral flexure and reference frame corrections for IFU data
+- Allow separate sky frame to be used for sky subtraction with IFU data
+
 
 1.10.0 (11 July 2022)
 ---------------------
