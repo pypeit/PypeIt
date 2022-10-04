@@ -859,13 +859,7 @@ class PypeIt:
 
         if not self.par['reduce']['extraction']['skip_extraction']:
             # Perform the extraction
-            self.exTract.run(final_global_sky)
-            # Retrieve relevant information
-            skymodel = self.exTract.skymodel
-            objmodel = self.exTract.objmodel
-            ivarmodel = self.exTract.ivarmodel
-            outmask = self.exTract.outmask
-            sobjs = self.exTract.sobjs
+            skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, tilts = self.exTract.run(final_global_sky)
             # Apply a reference frame correction to each object and the waveimg
             self.exTract.refframe_correct(self.fitstbl["ra"][frames[0]], self.fitstbl["dec"][frames[0]], self.obstime,
                                           sobjs=self.exTract.sobjs)
@@ -879,6 +873,8 @@ class PypeIt:
             ivarmodel = np.copy(self.exTract.sciImg.ivar)
             outmask = self.exTract.sciImg.fullmask
             sobjs = sobjs_obj
+            waveImg = self.exTract.waveimg
+            tilts = self.exTract.tilts
 
         # TODO -- Do this upstream
         # Tack on detector and wavelength RMS
@@ -904,14 +900,14 @@ class PypeIt:
                                         objmodel=objmodel,
                                         ivarmodel=ivarmodel,
                                         scaleimg=scaleImg,
-                                        waveimg=self.exTract.waveimg,
+                                        waveimg=waveimg,
                                         bpmmask=outmask,
                                         detector=sciImg.detector,
                                         sci_spat_flexure=sciImg.spat_flexure,
                                         sci_spec_flexure=spec_flex_table,
                                         vel_corr=self.exTract.vel_corr,
                                         vel_type=self.par['calibrations']['wavelengths']['refframe'],
-                                        tilts=self.exTract.tilts,
+                                        tilts=tilts,
                                         slits=slits,
                                         wavesol=self.caliBrate.wv_calib.wave_diagnostics(print_diag=False),
                                         maskdef_designtab=maskdef_designtab)
