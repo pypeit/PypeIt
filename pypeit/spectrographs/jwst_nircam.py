@@ -51,10 +51,10 @@ class JWSTNIRCamSpectrograph(spectrograph.Spectrograph):
             Object with the detector metadata.
         """
 
-        # TODO Fill in values for NIRCAM, this is currently NIRSPEC
+        # TODO Fill in values for NIRCAM
 
-        # Detector 1, i.e. NRS1 from
-        # https://jwst-docs.stsci.edu/jwst-near-infrared-spectrograph/nirspec-instrumentation/nirspec-detectors/nirspec-detector-performance
+        # Detector 1, i.e. A5
+        # https://jwst-docs.stsci.edu/jwst-near-infrared-camera/nircam-instrumentation/nircam-detector-overview/nircam-detector-performance
         detector_dict1 = dict(
             binning='1,1',
             det=1,
@@ -65,14 +65,14 @@ class JWSTNIRCamSpectrograph(spectrograph.Spectrograph):
             xgap=0.,
             ygap=0.,
             ysize=1.,
-            platescale=0.1,
-            darkcurr=0.0092,
-            saturation=55100.,
+            platescale=0.063,
+            darkcurr=0.0335, # electron/s
+            saturation=59200.,
             nonlinear=0.95,  # need to look up and update
             mincounts=-1e10,
             numamplifiers=1,
-            gain=np.atleast_1d(0.996),
-            ronoise=np.atleast_1d(5.17),
+            gain=np.atleast_1d(1.84),
+            ronoise=np.atleast_1d(8.55), # This is in 1000s, its complicated
             datasec=None,
             oscansec=None
         )
@@ -82,10 +82,10 @@ class JWSTNIRCamSpectrograph(spectrograph.Spectrograph):
         detector_dict2.update(dict(
             det=2,
             dataext=0,
-            darkcurr=0.0057,
-            saturation=60400.,
-            gain=np.atleast_1d(1.137),
-            ronoise=np.atleast_1d(6.60),
+            darkcurr=0.035,
+            saturation=58500.,
+            gain=np.atleast_1d(1.80),
+            ronoise=np.atleast_1d(8.57),
         ))
         detector_dicts = [detector_dict1, detector_dict2]
         detector = detector_container.DetectorContainer(**detector_dicts[det-1])
@@ -145,15 +145,15 @@ class JWSTNIRCamSpectrograph(spectrograph.Spectrograph):
 
 
         # Sky-subtraction
-        par['reduce']['skysub']['bspline_spacing'] = 5.0 # JWST sky is smooth
+        par['reduce']['skysub']['bspline_spacing'] = 1.2 # JWST sky is smooth
         par['reduce']['skysub']['max_mask_frac'] = 0.95
-        par['reduce']['skysub']['mask_by_boxcar'] = True
+        par['reduce']['skysub']['mask_by_boxcar'] = False
         par['reduce']['skysub']['sky_sigrej'] = 4.0
 
         # Extraction
         par['reduce']['extraction']['model_full_slit'] = True
         par['reduce']['extraction']['sn_gauss'] = 6.0
-        par['reduce']['extraction']['boxcar_radius'] = 0.2 # extent in calwebb is 0.55" source and on NIRSpec website
+        par['reduce']['extraction']['boxcar_radius'] = 0.25 # extent in calwebb is 0.55" source and on NIRSpec website
         par['reduce']['extraction']['use_2dmodel_mask'] = False # Don't use 2d mask in local skysub
 
         # Cosmic ray rejection parameters for science frames

@@ -706,7 +706,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
     outmask : `numpy.ndarray`_
         Model mask where ``thismask`` is true.
     """
-
     # Check input
     if model_noise and base_var is None:
         msgs.error('Must provide base_var to iteratively update and improve the noise model.')
@@ -940,8 +939,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                     nrej = outmask.flat[isub[igood1]].sum()
                     msgs.info(
                         'Iteration = {:d}'.format(iiter) + ', rejected {:d}'.format(nrej) + ' of ' + '{:d}'.format(
-                            igood1.sum()) + 'fit pixels')
-
+                            igood1.sum()) + ' fit pixels')
             elif no_local_sky:
                 pass
             else:
