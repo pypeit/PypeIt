@@ -164,8 +164,6 @@ class JWSTNIRCamSpectrograph(spectrograph.Spectrograph):
         # Skip reference frame correction for now.
         par['calibrations']['wavelengths']['refframe'] = 'observed'
 
-
-
         return par
 
 
