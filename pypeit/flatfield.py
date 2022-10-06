@@ -1342,8 +1342,8 @@ class FlatField:
         slitlen = int(np.median(this_right - this_left))
 
         # Prepare fitting coordinates
-        ww = np.where(onslit_tweak & np.logical_not(self.rawflatimg.fullmask))
-        cut = (ww[0], ww[1])
+        wgud = np.where(onslit_tweak & np.logical_not(self.rawflatimg.fullmask))
+        cut = (wgud[0], wgud[1])
         ypos = cut[0] / (self.slits.nspec - 1)
         xpos_img = self.slits.spatial_coordinate_image(slitidx=slit_idx,
                                                        initial=True,
@@ -1360,8 +1360,8 @@ class FlatField:
         tiltspl = interpolate.interp1d(0.5*(bins[1:]+bins[:-1]), censpec, kind='linear',
                                        bounds_error=False, fill_value='extrapolate')
         nrm_vals = tiltspl(ypos)
-        normed[ww] *= utils.inverse(nrm_vals)
-        ivarnrm[ww] *= nrm_vals**2
+        normed[wgud] *= utils.inverse(nrm_vals)
+        ivarnrm[wgud] *= nrm_vals**2
 
         # Mask the edges and fit
         gpmfit = gpm[cut]
@@ -1373,7 +1373,7 @@ class FlatField:
         # Generate the fine correction image and store the result
         if fullfit.success == 1:
             self.list_of_finecorr_fits[slit_idx] = fullfit
-            illumflat_finecorr[onslit_tweak] = fullfit.eval(xpos, ypos)
+            illumflat_finecorr[wgud] = fullfit.eval(xpos, ypos)
         else:
             msgs.warn("Fine correction to the spatial illumination failed for slit {0:d}".format(slit_spat))
             return
