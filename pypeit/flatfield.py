@@ -213,17 +213,13 @@ class FlatImages(datamodel.DataContainer):
                             allfit.append(fitting.PypeItFit.from_hdu(hdu[k]))
                     d[key] = np.array(allfit)
                 except Exception as e:
-                    embed()
                     msgs.warn('Error in finecorr extension read:\n {0}: {1}'.format(
                                 e.__class__.__name__, str(e)))
                     # Assume this is because the type failed
                     type_passed = False
                 else:
-                    try:
-                        version_passed &= np.all([d[key][i].version == fitting.PypeItFit.version
-                                                  for i in range(nspat)])
-                    except:
-                        embed()
+                    version_passed &= np.all([d[key][i].version == fitting.PypeItFit.version
+                                              for i in range(nspat)])
                     parsed_hdus += ext_fcor
         return d, version_passed, type_passed, parsed_hdus
 
@@ -1340,9 +1336,10 @@ class FlatField:
         ivarnrm = self.rawflatimg.ivar.copy()
         normed[onslit_tweak] *= utils.inverse(spat_illum)
         ivarnrm[onslit_tweak] *= spat_illum**2
-        left = self.slits.left_tweak[:, slit_idx]
-        right = self.slits.right_tweak[:, slit_idx]
-        slitlen = int(np.median(right - left))
+        left, right, msk = self.slits.select_edges(initial=True, flexure=self.wavetilts.spat_flexure)
+        this_left = left[:, slit_idx]
+        this_right = right[:, slit_idx]
+        slitlen = int(np.median(this_right - this_left))
 
         # Prepare fitting coordinates
         ww = np.where(onslit_tweak)
@@ -1385,7 +1382,7 @@ class FlatField:
                                      out_dir=self.qa_path)
         title = "Fine correction to spatial illumination (slit={0:d})".format(slit_spat)
         normed[np.logical_not(onslit_tweak)] = 1  # For the QA, make everything off the slit equal to 1
-        spatillum_finecorr_qa(normed, illumflat_finecorr, left, right, ypos, cut,
+        spatillum_finecorr_qa(normed, illumflat_finecorr, this_left, this_right, ypos, cut,
                               outfile=outfile, title=title, half_slen=slitlen//2)
         return
 
