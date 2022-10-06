@@ -205,7 +205,13 @@ class FlatImages(datamodel.DataContainer):
             if np.all(indx):
                 key = '{0}_finecorr'.format(flattype)
                 try:
-                    d[key] = np.array([fitting.PypeItFit.from_hdu(hdu[k]) for k in ext_fcor])
+                    allfit = []
+                    for k in ext_fcor:
+                        if hdu[k].data.size == 0:
+                            allfit.append(fitting.PypeItFit(None))
+                        else:
+                            allfit.append(fitting.PypeItFit.from_hdu(hdu[k]))
+                    d[key] = np.array(allfit)
                 except Exception as e:
                     msgs.warn('Error in finecorr extension read:\n {0}: {1}'.format(
                                 e.__class__.__name__, str(e)))
@@ -1336,7 +1342,7 @@ class FlatField:
         slitlen = int(np.median(this_right - this_left))
 
         # Prepare fitting coordinates
-        ww = np.where(onslit_tweak)
+        ww = np.where(onslit_tweak & np.logical_not(self.rawflatimg.fullmask))
         cut = (ww[0], ww[1])
         ypos = cut[0] / (self.slits.nspec - 1)
         xpos_img = self.slits.spatial_coordinate_image(slitidx=slit_idx,
@@ -1360,15 +1366,17 @@ class FlatField:
         # Mask the edges and fit
         gpmfit = gpm[cut]
         gpmfit[np.where((xpos < 0.05)|(xpos > 0.95))] = False
-        fullfit = fitting.robust_fit(xpos, normed[cut], np.array([3, 6]), x2=ypos,
+        fullfit = fitting.robust_fit(xpos, normed[cut], np.array([3, 6]), x2=ypos, weights=normed[cut],
                                      in_gpm=gpmfit, function='legendre2d', upper=2, lower=2, maxdev=1.0,
                                      minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
-        self.list_of_finecorr_fits[slit_idx] = fullfit
+
         # Generate the fine correction image and store the result
         if fullfit.success == 1:
+            self.list_of_finecorr_fits[slit_idx] = fullfit
             illumflat_finecorr[onslit_tweak] = fullfit.eval(xpos, ypos)
         else:
             msgs.warn("Fine correction to the spatial illumination failed for slit {0:d}".format(slit_spat))
+            return
         # Prepare QA
         outfile = qa.set_qa_filename("Spatillum_FineCorr_"+self.master_key, 'spatillum_finecorr', slit=slit_spat,
                                      out_dir=self.qa_path)
