@@ -1342,7 +1342,7 @@ class FlatField:
         slitlen = int(np.median(this_right - this_left))
 
         # Prepare fitting coordinates
-        ww = np.where(onslit_tweak)
+        ww = np.where(onslit_tweak & np.logical_not(self.rawflatimg.fullmask))
         cut = (ww[0], ww[1])
         ypos = cut[0] / (self.slits.nspec - 1)
         xpos_img = self.slits.spatial_coordinate_image(slitidx=slit_idx,
