@@ -115,7 +115,7 @@ class FindObjects:
             tilts (`numpy.ndarray`_, optional):
                 Tilts frame produced by waveTilts.fit2tiltimg() for given a spatial flexure.
                 Only waveTilts or tilts is needed (not both)
-            sky_region_file (str):
+            sky_region_file (str, optional):
                 Name fo the Master sky region file created by the user
             bkg_redux (:obj:`bool`, optional):
                 If True, the sciImg has been subtracted by
@@ -609,7 +609,7 @@ class FindObjects:
         Returns
         -------
         skymask :  `numpy.ndarray`_
-            A boolean array of sky pixels (True is pixel is a sky region)
+            A boolean array of sky pixels (True is a pixel that corresponds to a sky region)
         usersky : bool
             If the user has defined the sky, set this variable to True (otherwise False).
         """
@@ -625,7 +625,7 @@ class FindObjects:
         usersky = False
         skymask = skymask_init.copy()
         if self.par['reduce']['skysub']['load_mask']:
-             # Check if a file exists
+            # Check if a file exists
             if os.path.exists(sky_region_file):
                 msgs.info("Loading SkyRegions file: " + msgs.newline() + sky_region_file)
                 skyreg = buildimage.SkyRegions.from_file(sky_region_file)
