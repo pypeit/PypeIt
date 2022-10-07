@@ -313,12 +313,8 @@ class Extract:
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
-    def prepare_extraction(self, global_sky):
+    def prepare_extraction(self):
         """ Prepare the masks and wavelength image for extraction.
-
-        Args:
-            global_sky (`numpy.ndarray`_):
-                Global sky model
         """
         # Deal with dynamic calibrations
         # Tilts
@@ -336,9 +332,6 @@ class Extract:
         # Wavelengths (on unmasked slits)
         msgs.info("Generating wavelength image")
         self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
-
-        # Set the global sky
-        self.global_sky = global_sky
 
         # Apply a global flexure correction to each slit
         # provided it's not a standard star
@@ -382,10 +375,13 @@ class Extract:
                See main doc string for description
 
         """
+        # Set the global sky
+        self.global_sky = global_sky
+
         # Start by preparing some masks and the wavelength image, ready for extraction
         # TODO this should return things to make the control flow less opaque.
         if prepare_extraction:
-            self.prepare_extraction(global_sky)
+            self.prepare_extraction()
 
         # Do we have any positive objects to extract?
         if self.nobj_to_extract > 0:
