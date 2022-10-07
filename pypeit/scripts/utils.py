@@ -213,6 +213,3 @@ def get_slits(mkey, mdir):
                                                             master_key=mkey,
                                                             master_dir=mdir)
     return slittrace.SlitTraceSet.from_file(slit_masterframe_name)
-
-
-

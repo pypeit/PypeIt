@@ -119,13 +119,16 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures
         par['calibrations']['arcframe']['process']['clip'] = False
-        par['calibrations']['standardframe']['exprng'] = [None, 120]
+        par['calibrations']['standardframe']['exprng'] = [None, 180]
         # Multiple arcs with different lamps, so can't median combine nor clip, also need to remove continuum
         par['calibrations']['arcframe']['process']['combine'] = 'mean'
         par['calibrations']['arcframe']['process']['subtract_continuum'] = True
         par['calibrations']['tiltframe']['process']['clip'] = False
         par['calibrations']['tiltframe']['process']['combine'] = 'mean'
         par['calibrations']['tiltframe']['process']['subtract_continuum'] = True
+
+        #Only extract one object per standard frame
+        par['reduce']['findobj']['maxnumber_std']=1
 
         return par
 
@@ -278,21 +281,25 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             # par['calibrations']['wavelengths']['disp'] = 4.96
             par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R300B.fits'
+            par['reduce']['findobj']['find_min_max']=[750,2051]
         elif self.get_meta_value(scifile, 'dispname') == 'R300R':
             # par['calibrations']['wavelengths']['wv_cen'] = 6635.
             # par['calibrations']['wavelengths']['disp'] = 7.74
             par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R300R.fits'
+            par['reduce']['findobj']['find_min_max']=[750,2051]
         elif self.get_meta_value(scifile, 'dispname') == 'R500B':
             # par['calibrations']['wavelengths']['wv_cen'] = 4745.
             # par['calibrations']['wavelengths']['disp'] = 3.54
             par['calibrations']['wavelengths']['lamps'] = ['HgI,NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500B.fits'
+            par['reduce']['findobj']['find_min_max']=[500,2051]
         elif self.get_meta_value(scifile, 'dispname') == 'R500R':
             # par['calibrations']['wavelengths']['wv_cen'] = 7165.
             # par['calibrations']['wavelengths']['disp'] = 4.88
             par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500R.fits'
+            par['reduce']['findobj']['find_min_max']=[450,2051]
         elif self.get_meta_value(scifile, 'dispname') == 'R1000B':
             # par['calibrations']['wavelengths']['wv_cen'] = 5455.
             # par['calibrations']['wavelengths']['disp'] = 2.12
@@ -393,4 +400,3 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             bpm_img[bc[bb][2]:bc[bb][3] + 1, bc[bb][0]:bc[bb][1] + 1] = 1
 
         return bpm_img
-
