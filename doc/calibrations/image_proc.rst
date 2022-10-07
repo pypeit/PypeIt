@@ -1,4 +1,4 @@
-.. include:: include/links.rst
+.. include:: ../include/links.rst
 
 .. _image_proc:
 
@@ -186,7 +186,7 @@ crops the image to only include the primary data region; see
 :func:`~pypeit.core.procimg.trim_frame`.  Trimming will be performed if the
 ``trim`` parameter is true.
 
-One of the :doc:`conventions` is to orient images for spectra to run along the
+One of the :doc:`../conventions` is to orient images for spectra to run along the
 first axis of an image --- from blue wavelengths at small pixel coordinates to
 red wavelengths at large pixel coordinates --- and the spatial or
 cross-dispersion direction to be along the second axis --- with echelle orders
@@ -394,7 +394,7 @@ the parameters, make sure to consider that the order of operations, as
 illustrated by this table, go from top to bottom and left to right.  Also beware
 that some changes will lead to faults or silent bugs.  In particular, PypeIt
 always expects processed images to have been trimmed and re-oriented to match
-the :doc:`conventions`.
+the :doc:`../conventions`.
 
 .. note::
 
@@ -402,9 +402,9 @@ the :doc:`conventions`.
     :class:`~pypeit.spectrographs.spectrograph.Spectrograph` subclass can alter
     these defaults as needed for the typical approach that should be taken for
     data from that instrument, and users can make further alterations as needed
-    for their specific data via the :doc:`pypeit_file`.  See :ref:`parameters`.
+    for their specific data via the :ref:`pypeit_file`.  See :ref:`parameters`.
 
-.. include:: include/imgproc_defaults_table.rst
+.. include:: ../include/imgproc_defaults_table.rst
 
 .. warning::
 

@@ -13,8 +13,8 @@ Wavelength calibration is performed using arc lamp spectra
 or the night sky lines, dependent on the instrument.
 In all cases, the solution is provided in vacuum.
 
-This doc describes the wavelength calibration :ref:`wvcalib-algorithms` the
-:ref:`wvcalib-algorithms` including the :ref:`pypeit_identify` script,
+This doc describes the wavelength calibration :ref:`wvcalib-algorithms`, the
+:ref:`wvcalib-byhand` including the :ref:`pypeit_identify` script,
 :ref:`wvcalib-failures`, and more.
 
 See :doc:`master_wvcalib` for a discussion of the
@@ -30,21 +30,21 @@ Arc Processing
 If you are combining multiple arc images that have
 different arc lamps (*e.g.*, one with He and another with Hg+Ne)
 then be sure to process without clipping.  This may be the
-default for your spectrograph (*e.g.*, :doc:`../spectrographs/deimos`) but you can
+default for your spectrograph (*e.g.*, :doc:`../spectrographs/deimos`), but you can
 be certain by adding the following to the :doc:`../pypeit_file`
 (for longslit observations):
 
 .. code-block:: ini
 
     [calibrations]
-      [[arcframe]]
-        [[[process]]]
-          clip = False
-          subtract_continuum = True
-      [[tiltframe]]
-        [[[process]]]
-          clip = False
-          subtract_continuum = True
+        [[arcframe]]
+            [[[process]]]
+                clip = False
+                subtract_continuum = True
+        [[tiltframe]]
+            [[[process]]]
+                clip = False
+                subtract_continuum = True
 
 For a multislit observation, you should keep ``clip = False``, and
 change ``subtract_continuum = True`` to ``subtract_continuum = False``.
@@ -80,7 +80,7 @@ ThAr    3000-11000  9 January 2018
 ======  ==========  ================
 
 In the case of the ThAr list, all of the lines are taken from
-the NIST database, and are labelled with a 'MURPHY' flag if the
+the NIST database, and they are labeled with a 'MURPHY' flag if the
 line also appears in the list of lines identified by
 `Murphy et al. (2007) MNRAS 378 221 <http://adsabs.harvard.edu/abs/2007MNRAS.378..221M>`_
 
@@ -92,9 +92,9 @@ User-Supplied Line Lists
 Occasionally users reliably find lines in their arc spectra that are
 not included in the lists above.  For experimenting with adding
 particular lines or for instrument-specific arc line detections,
-PypeIt now allows the use of user-supplied arc line lists for
+PypeIt allows the use of user-supplied arc line lists for
 wavelength calibration.  The ability to use arbitrary line lists is
-included *caveat emptor*, and users MUST ensure that ALL lists used
+included *caveat emptor*, and users **MUST** ensure that **ALL** lists used
 have wavelength measurements **in vacuum**.
 
 .. note::
@@ -108,7 +108,7 @@ A script ``pypeit_install_linelist`` is included that installs a
 user-supplied line list into the PypeIt cache for use.  The script
 usage can be displayed by calling it with the ``-h`` option:
 
-  .. include:: ../help/pypeit_install_linelist.rst
+.. include:: ../help/pypeit_install_linelist.rst
 
 For example, you might be using the MMT Blue Channel Spectrograph and
 want to use various blue mercury and cadmium lines that are not included in
@@ -116,7 +116,7 @@ the lists above.  You would create a new line list file with a name
 like ``HgCd_MMT_lines.dat``, then install it in the PypeIt cache
 using the command:
 
-  .. code-block:: bash
+.. code-block:: bash
 
     $ pypeit_install_linelist HgCd_MMT_lines.dat
 
@@ -127,17 +127,16 @@ lists:
 .. code-block:: ini
 
     [calibrations]
-      [[wavelengths]]
-        lamps = ArI, CdI, HgI, HgCd_MMT
+        [[wavelengths]]
+            lamps = ArI, CdI, HgI, HgCd_MMT
 
 .. note::
 
-  PypeIt expects all arc line list filenames to be of the form
-  ``<ion name>_lines.dat``.  When creating a user-supplied list,
-  be sure to include the ``_lines.dat`` portion in the filename,
-  but exclude the ``_lines`` portion when specifying the list
-  either in the PypeIt Reduction File or with the `pypeit_identify`_
-  routine, as in the example above.
+    PypeIt expects all arc line list filenames to be of the form ``<ion
+    name>_lines.dat``.  When creating a user-supplied list, be sure to include
+    the ``_lines.dat`` portion in the filename, but exclude the ``_lines``
+    portion when specifying the list either in the :ref:`pypeit_file` or with
+    the :ref:`pypeit_identify` routine, as in the example above.
 
 
 The format of user-supplied line lists must match that of the built-in

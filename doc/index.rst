@@ -93,7 +93,7 @@ PypeIt BibTeX Entries
    :maxdepth: 1
    :hidden:
 
-   image_proc
+   calibrations/calibrations
    2d_combine
    object_finding
    skysub

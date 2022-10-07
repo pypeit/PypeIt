@@ -76,7 +76,7 @@ The primary calibration procedures are, in the order they're performed:
 .. toctree::
    :maxdepth: 1
 
-   ../image_proc
+   image_proc
    slit_tracing
    flexure
    wave_calib

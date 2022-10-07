@@ -1843,7 +1843,7 @@ Alterations to the default parameters are:
               mask_cr = True
               noise_floor = 0.01
       [[standardframe]]
-          exprng = None, 120
+          exprng = None, 180
           [[[process]]]
               mask_cr = True
               noise_floor = 0.01
@@ -1858,6 +1858,9 @@ Alterations to the default parameters are:
       [[process]]
           mask_cr = True
           noise_floor = 0.01
+  [reduce]
+      [[findobj]]
+          maxnumber_std = 1
 
 KECK DEIMOS (``keck_deimos``)
 -----------------------------
