@@ -39,7 +39,6 @@ class FindObjects:
             Image to reduce.
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
         par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
-        caliBrate (:class:`~pypeit.calibrations.Calibrations`):
         objtype (:obj:`str`):
            Specifies object being reduced 'science' 'standard' 'science_coadd2d'
         bkg_redux (:obj:`bool`, optional):
@@ -185,10 +184,6 @@ class FindObjects:
                         self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing)))
         self.reduce_bpm_init = self.reduce_bpm.copy()
 
-        # These may be None (i.e. COADD2D)
-        #self.waveTilts = caliBrate.wavetilts
-        #self.wv_calib = caliBrate.wv_calib
-
         # Load up other input items
         self.bkg_redux = bkg_redux
         self.find_negative = find_negative
@@ -201,7 +196,7 @@ class FindObjects:
         # processed data to PypeIt's main output files
         self.detname = self.spectrograph.get_det_name(self.det)
 
-        self.binning = self.sciImg.detector.binning #caliBrate.binning
+        self.binning = self.sciImg.detector.binning
         self.pypeline = spectrograph.pypeline
         self.findobj_show = show
 
@@ -220,8 +215,7 @@ class FindObjects:
         self.slitshift = np.zeros(self.slits.nslits)  # Global spectral flexure slit shifts (in pixels) that are applied to all slits.
         self.vel_corr = None
 
-        # Deal with dynamically generated calibrations, i.e. the tilts. If the tilts are not input generate
-        # them from the fits in caliBrate, otherwise use the input tilts
+        # Deal with dynamically generated calibrations, i.e. the tilts.
         if waveTilts is None and tilts is None:
             msgs.error("Must provide either waveTilts or tilts to FindObjects")
         elif waveTilts is not None and tilts is not None:
@@ -1057,115 +1051,115 @@ class IFUFindObjects(MultiSlitFindObjects):
             self.sciImg.update_mask('BADSCALE', indx=_bpm)
         self.sciImg.ivar = utils.inverse(varImg)
 
-    # TODO This function is not used, remove?
-    def illum_profile_spatial(self, skymask=None, trim_edg=(0, 0), debug=False):
-        """
-        Calculate the residual spatial illumination profile using the sky regions.
-
-        The redisual is calculated using the differential:
-
-        .. code-block:: python
-
-            correction = amplitude * (1 + spatial_shift * (dy/dx)/y)
-
-        where ``y`` is the spatial profile determined from illumflat, and
-        spatial_shift is the residual spatial flexure shift in units of pixels.
-
-         Args:
-            skymask (`numpy.ndarray`_):
-                Mask of sky regions where the spatial illumination will be determined
-            trim_edg (:obj:`tuple`):
-                A tuple of two ints indicated how much of the slit edges should be
-                trimmed when fitting to the spatial profile.
-            debug (:obj:`bool`):
-                Show debugging plots?
-        """
-
-        msgs.info("Performing spatial sensitivity correction")
-        # Setup some helpful parameters
-        skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
-        hist_trim = 0  # Trim the edges of the histogram to take into account edge effects
-        gpm = self.sciImg.select_flag(invert=True)
-        slitid_img_init = self.slits.slit_img(pad=0, initial=True, flexure=self.spat_flexure_shift)
-        spatScaleImg = np.ones_like(self.sciImg.image)
-        # For each slit, grab the spatial coordinates and a spline
-        # representation of the spatial profile from the illumflat
-        rawimg = self.sciImg.image.copy()
-        numbins = int(np.max(self.slits.get_slitlengths(initial=True, median=True)))
-        spatbins = np.linspace(0.0, 1.0, numbins + 1)
-        spat_slit = 0.5 * (spatbins[1:] + spatbins[:-1])
-        slitlength = np.median(self.slits.get_slitlengths(median=True))
-        coeff_fit = np.zeros((self.slits.nslits, 2))
-        for sl, slitnum in enumerate(self.slits.spat_id):
-            msgs.info("Deriving spatial correction for slit {0:d}/{1:d}".format(sl + 1, self.slits.spat_id.size))
-            # Get the initial slit locations
-            onslit_b_init = (slitid_img_init == slitnum)
-
-            # Synthesize ximg, and edgmask from slit boundaries. Doing this outside this
-            # routine would save time. But this is pretty fast, so we just do it here to make the interface simpler.
-            spatcoord, edgmask = pixels.ximg_and_edgemask(self.slits_left[:, sl], self.slits_right[:, sl],
-                                                          onslit_b_init, trim_edg=trim_edg)
-
-            # Make the model histogram
-            xspl = np.linspace(0.0, 1.0, 10 * int(slitlength))  # Sub sample each pixel with 10 subpixels
-            # TODO: caliBrate is no longer a dependency. If you need these b-splines pass them in.
-            modspl = self.caliBrate.flatimages.illumflat_spat_bsplines[sl].value(xspl)[0]
-            gradspl = interpolate.interp1d(xspl, np.gradient(modspl) / modspl, kind='linear', bounds_error=False,
-                                           fill_value='extrapolate')
-
-            # Ignore skymask
-            coord_msk = onslit_b_init & gpm
-            hist, _ = np.histogram(spatcoord[coord_msk], bins=spatbins, weights=rawimg[coord_msk])
-            cntr, _ = np.histogram(spatcoord[coord_msk], bins=spatbins)
-            hist_slit_all = hist / (cntr + (cntr == 0))
-            histmod, _ = np.histogram(spatcoord[coord_msk], bins=spatbins, weights=gradspl(spatcoord[coord_msk]))
-            hist_model = histmod / (cntr + (cntr == 0))
-
-            # Repeat with skymask
-            coord_msk = onslit_b_init & gpm & skymask_now
-            hist, _ = np.histogram(spatcoord[coord_msk], bins=spatbins, weights=rawimg[coord_msk])
-            cntr, _ = np.histogram(spatcoord[coord_msk], bins=spatbins)
-            hist_slit = hist / (cntr + (cntr == 0))
-
-            # Prepare for fit - take the non-zero elements and trim slit edges
-            if hist_trim == 0:
-                ww = (hist_slit != 0)
-                xfit = spat_slit[ww]
-                yfit = hist_slit_all[ww]
-                mfit = hist_model[ww]
-            else:
-                ww = (hist_slit[hist_trim:-hist_trim] != 0)
-                xfit = spat_slit[hist_trim:-hist_trim][ww]
-                yfit = hist_slit_all[hist_trim:-hist_trim][ww]
-                mfit = hist_model[hist_trim:-hist_trim][ww]
-
-            # Fit the function
-            spat_func = lambda par, ydata, model: par[0]*(1 + par[1] * model) - ydata
-            res_lsq = least_squares(spat_func, [np.median(yfit), 0.0], args=(yfit, mfit))
-            spatnorm = spat_func(res_lsq.x, 0.0, gradspl(spatcoord[onslit_b_init]))
-            spatnorm /= spat_func(res_lsq.x, 0.0, gradspl(0.5))
-            # Set the scaling factor
-            spatScaleImg[onslit_b_init] = spatnorm
-            coeff_fit[sl, :] = res_lsq.x
-
-        if debug:
-            from matplotlib import pyplot as plt
-            xplt = np.arange(24)
-            plt.subplot(121)
-            plt.plot(xplt[0::2], coeff_fit[::2, 0], 'rx')
-            plt.plot(xplt[1::2], coeff_fit[1::2, 0], 'bx')
-            plt.subplot(122)
-            plt.plot(xplt[0::2], coeff_fit[::2, 1]/10, 'rx')
-            plt.plot(xplt[1::2], coeff_fit[1::2, 1]/10, 'bx')
-            plt.show()
-            plt.imshow(spatScaleImg, vmin=0.99, vmax=1.01)
-            plt.show()
-            plt.subplot(133)
-            plt.plot(xplt[0::2], coeff_fit[::2, 2], 'rx')
-            plt.plot(xplt[1::2], coeff_fit[1::2, 2], 'bx')
-            plt.show()
-        # Apply the relative scale correction
-        self.apply_relative_scale(spatScaleImg)
+    # TODO :: THIS FUNCTION IS NOT CURRENTLY USED, BUT RJC REQUESTS TO KEEP THIS CODE HERE FOR THE TIME BEING.
+    # def illum_profile_spatial(self, skymask=None, trim_edg=(0, 0), debug=False):
+    #     """
+    #     Calculate the residual spatial illumination profile using the sky regions.
+    #
+    #     The redisual is calculated using the differential:
+    #
+    #     .. code-block:: python
+    #
+    #         correction = amplitude * (1 + spatial_shift * (dy/dx)/y)
+    #
+    #     where ``y`` is the spatial profile determined from illumflat, and
+    #     spatial_shift is the residual spatial flexure shift in units of pixels.
+    #
+    #      Args:
+    #         skymask (`numpy.ndarray`_):
+    #             Mask of sky regions where the spatial illumination will be determined
+    #         trim_edg (:obj:`tuple`):
+    #             A tuple of two ints indicated how much of the slit edges should be
+    #             trimmed when fitting to the spatial profile.
+    #         debug (:obj:`bool`):
+    #             Show debugging plots?
+    #     """
+    #
+    #     msgs.info("Performing spatial sensitivity correction")
+    #     # Setup some helpful parameters
+    #     skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
+    #     hist_trim = 0  # Trim the edges of the histogram to take into account edge effects
+    #     gpm = self.sciImg.select_flag(invert=True)
+    #     slitid_img_init = self.slits.slit_img(pad=0, initial=True, flexure=self.spat_flexure_shift)
+    #     spatScaleImg = np.ones_like(self.sciImg.image)
+    #     # For each slit, grab the spatial coordinates and a spline
+    #     # representation of the spatial profile from the illumflat
+    #     rawimg = self.sciImg.image.copy()
+    #     numbins = int(np.max(self.slits.get_slitlengths(initial=True, median=True)))
+    #     spatbins = np.linspace(0.0, 1.0, numbins + 1)
+    #     spat_slit = 0.5 * (spatbins[1:] + spatbins[:-1])
+    #     slitlength = np.median(self.slits.get_slitlengths(median=True))
+    #     coeff_fit = np.zeros((self.slits.nslits, 2))
+    #     for sl, slitnum in enumerate(self.slits.spat_id):
+    #         msgs.info("Deriving spatial correction for slit {0:d}/{1:d}".format(sl + 1, self.slits.spat_id.size))
+    #         # Get the initial slit locations
+    #         onslit_b_init = (slitid_img_init == slitnum)
+    #
+    #         # Synthesize ximg, and edgmask from slit boundaries. Doing this outside this
+    #         # routine would save time. But this is pretty fast, so we just do it here to make the interface simpler.
+    #         spatcoord, edgmask = pixels.ximg_and_edgemask(self.slits_left[:, sl], self.slits_right[:, sl],
+    #                                                       onslit_b_init, trim_edg=trim_edg)
+    #
+    #         # Make the model histogram
+    #         xspl = np.linspace(0.0, 1.0, 10 * int(slitlength))  # Sub sample each pixel with 10 subpixels
+    #         # TODO: caliBrate is no longer a dependency. If you need these b-splines pass them in.
+    #         modspl = self.caliBrate.flatimages.illumflat_spat_bsplines[sl].value(xspl)[0]
+    #         gradspl = interpolate.interp1d(xspl, np.gradient(modspl) / modspl, kind='linear', bounds_error=False,
+    #                                        fill_value='extrapolate')
+    #
+    #         # Ignore skymask
+    #         coord_msk = onslit_b_init & gpm
+    #         hist, _ = np.histogram(spatcoord[coord_msk], bins=spatbins, weights=rawimg[coord_msk])
+    #         cntr, _ = np.histogram(spatcoord[coord_msk], bins=spatbins)
+    #         hist_slit_all = hist / (cntr + (cntr == 0))
+    #         histmod, _ = np.histogram(spatcoord[coord_msk], bins=spatbins, weights=gradspl(spatcoord[coord_msk]))
+    #         hist_model = histmod / (cntr + (cntr == 0))
+    #
+    #         # Repeat with skymask
+    #         coord_msk = onslit_b_init & gpm & skymask_now
+    #         hist, _ = np.histogram(spatcoord[coord_msk], bins=spatbins, weights=rawimg[coord_msk])
+    #         cntr, _ = np.histogram(spatcoord[coord_msk], bins=spatbins)
+    #         hist_slit = hist / (cntr + (cntr == 0))
+    #
+    #         # Prepare for fit - take the non-zero elements and trim slit edges
+    #         if hist_trim == 0:
+    #             ww = (hist_slit != 0)
+    #             xfit = spat_slit[ww]
+    #             yfit = hist_slit_all[ww]
+    #             mfit = hist_model[ww]
+    #         else:
+    #             ww = (hist_slit[hist_trim:-hist_trim] != 0)
+    #             xfit = spat_slit[hist_trim:-hist_trim][ww]
+    #             yfit = hist_slit_all[hist_trim:-hist_trim][ww]
+    #             mfit = hist_model[hist_trim:-hist_trim][ww]
+    #
+    #         # Fit the function
+    #         spat_func = lambda par, ydata, model: par[0]*(1 + par[1] * model) - ydata
+    #         res_lsq = least_squares(spat_func, [np.median(yfit), 0.0], args=(yfit, mfit))
+    #         spatnorm = spat_func(res_lsq.x, 0.0, gradspl(spatcoord[onslit_b_init]))
+    #         spatnorm /= spat_func(res_lsq.x, 0.0, gradspl(0.5))
+    #         # Set the scaling factor
+    #         spatScaleImg[onslit_b_init] = spatnorm
+    #         coeff_fit[sl, :] = res_lsq.x
+    #
+    #     if debug:
+    #         from matplotlib import pyplot as plt
+    #         xplt = np.arange(24)
+    #         plt.subplot(121)
+    #         plt.plot(xplt[0::2], coeff_fit[::2, 0], 'rx')
+    #         plt.plot(xplt[1::2], coeff_fit[1::2, 0], 'bx')
+    #         plt.subplot(122)
+    #         plt.plot(xplt[0::2], coeff_fit[::2, 1]/10, 'rx')
+    #         plt.plot(xplt[1::2], coeff_fit[1::2, 1]/10, 'bx')
+    #         plt.show()
+    #         plt.imshow(spatScaleImg, vmin=0.99, vmax=1.01)
+    #         plt.show()
+    #         plt.subplot(133)
+    #         plt.plot(xplt[0::2], coeff_fit[::2, 2], 'rx')
+    #         plt.plot(xplt[1::2], coeff_fit[1::2, 2], 'bx')
+    #         plt.show()
+    #     # Apply the relative scale correction
+    #     self.apply_relative_scale(spatScaleImg)
 
     def illum_profile_spectral(self, global_sky, skymask=None):
         """Calculate the residual spectral illumination profile using the sky regions.
