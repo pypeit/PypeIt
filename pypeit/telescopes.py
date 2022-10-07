@@ -184,7 +184,7 @@ class BokTelescopePar(TelescopePar):
 
 class LDTTelescopePar(TelescopePar):
     def __init__(self):
-        loc = EarthLocation.of_site('Lowell Observatory')
+        loc = EarthLocation.of_site('Discovery Channel Telescope')
         super(LDTTelescopePar, self).__init__(name='LDT',
                                               longitude=loc.lon.to(units.deg).value,
                                               latitude=loc.lat.to(units.deg).value,

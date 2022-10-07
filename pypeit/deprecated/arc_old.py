@@ -692,3 +692,166 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, det_arxiv, line_list, nr
     patt_dict_slit['sigdetect'] = sigdetect
 
 
+# MOVE TO DEPRECATED
+def simple_calib_driver(llist, censpec, ok_mask, n_final=5, get_poly=False,
+                        sigdetect=10.,
+                        IDpixels=None, IDwaves=None, nonlinear_counts=1e10):
+    wv_calib = {}
+    for slit in ok_mask:
+        iwv_calib = simple_calib(llist, censpec[:, slit], n_final=n_final,
+                                 get_poly=get_poly, IDpixels=IDpixels, IDwaves=IDwaves,
+                                 nonlinear_counts=nonlinear_counts, sigdetect=sigdetect)
+        wv_calib[str(slit)] = iwv_calib.copy()
+    return wv_calib
+
+
+def simple_calib(llist, censpec, n_final=5, get_poly=False,
+                 IDpixels=None, IDwaves=None, debug=False, sigdetect=10.,
+                 nonlinear_counts=1e10):
+    """Simple calibration algorithm for longslit wavelengths
+
+    Parameters
+    ----------
+    llist : `astropy.table.Table`_
+    censpec : `numpy.ndarray`_
+    get_poly : bool, optional
+      Pause to record the polynomial pix = b0 + b1*lambda + b2*lambda**2
+    IDpixels : list
+    IDwaves : list
+
+    Returns
+    -------
+    final_fit : dict
+      Dict of fit info
+    """
+
+    # Extract the arc
+    msgs.work("Detecting lines..")
+    #tampl, tcent, twid, _, w, yprep, nsig = detect_lines(censpec, nfitpix=nfitpix,
+    #                                                     sigdetect=sigdetect,
+    #                                                     nonlinear_counts = aparm['nonlinear_counts'])
+    tcent, ecent, cut_tcent, icut, spec_cont_sub = wvutils.arc_lines_from_spec(
+        censpec, sigdetect=sigdetect, nonlinear_counts=nonlinear_counts)#, debug = debug_peaks)
+
+    # Cut down to the good ones
+    tcent = tcent[icut]
+
+    # IDs were input by hand
+    # Check that there are at least 4 values
+    pixels = np.array(IDpixels) # settings.argflag['arc']['calibrate']['IDpixels'])
+    if np.sum(pixels > 0.) < 4:
+        msgs.error("Need to give at least 4 pixel values!")
+    #
+    msgs.info("Using input lines to seed the wavelength solution")
+    # Calculate median offset
+    mdiff = [np.min(np.abs(tcent-pix)) for pix in pixels]
+             #settings.argflag['arc']['calibrate']['IDpixels']]
+    med_poff = np.median(np.array(mdiff))
+    msgs.info("Will apply a median offset of {:g} pixels".format(med_poff))
+
+    # Match input lines to observed spectrum
+    nid = pixels.size
+    idx_str = np.ones(nid).astype(int)
+    ids = np.zeros(nid)
+    idsion = np.array(['     ']*nid)
+    gd_str = np.arange(nid).astype(int)
+    for jj,pix in enumerate(pixels):
+        diff = np.abs(tcent-pix-med_poff)
+        if np.min(diff) > 2.:
+            msgs.error("No match with input pixel {:g}!".format(pix))
+        else:
+            imn = np.argmin(diff)
+        # Set
+        idx_str[jj] = imn
+        # Take wavelength from linelist instead of input value
+        wdiff = np.abs(llist['wave']-IDwaves[jj]) # settings.argflag['arc']['calibrate']['IDwaves'][jj])
+        imnw = np.argmin(wdiff)
+        if wdiff[imnw] > 0.015:  # Arbitrary tolerance
+            msgs.error("Input IDwaves={:g} is not in the linelist.  Fix".format(
+                IDwaves[jj]))
+                    #settings.argflag['arc']['calibrate']['IDwaves'][jj]))
+        else:
+            ids[jj] = llist['wave'][imnw]
+            #idsion[jj] = llist['Ion'][imnw]
+            msgs.info("Identifying arc line: {:s} {:g}".format(idsion[jj],ids[jj]))
+
+    # Debug
+    disp = (ids[-1]-ids[0])/(tcent[idx_str[-1]]-tcent[idx_str[0]])
+    final_fit = wv_fitting.iterative_fitting(censpec, tcent, idx_str, ids,
+                                          llist, disp, verbose=False, n_final=n_final)
+    # Return
+    return final_fit
+
+
+def order_saturation(satmask, ordcen, ordwid):
+    """
+    .. todo::
+        Document this!
+    """
+    sz_y, sz_x = satmask.shape
+    sz_o = ordcen.shape[1]
+
+    xmin = ordcen - ordwid
+    xmax = ordcen + ordwid + 1
+    xmin[xmin < 0] = 0
+    xmax[xmax >= sz_x] = sz_x
+
+    ordsat = np.zeros((sz_y, sz_o), dtype=int)
+    for o in range(sz_o):
+        for y in range(sz_y):
+            ordsat[y,o] = (xmax[y,o] > xmin[y,o]) & np.any(satmask[y,xmin[y,o]:xmax[y,o]] == 1)
+
+    return ordsat
+
+
+def search_for_saturation_edge(a, x, y, sy, dx, satdown, satlevel, mask):
+    sx = dx
+    localx = a[x+sx,y+sy]
+    while True:
+        mask[x+sx,y+sy] = True
+        sx += dx
+        if x+sx > a.shape[0]-1 or x+sx < 0:
+            break
+        if a[x+sx,y+sy] >= localx/satdown and a[x+sx,y+sy]<satlevel:
+            break
+        localx = a[x+sx,y+sy]
+    return mask
+
+
+def determine_saturation_region(a, x, y, sy, dy, satdown, satlevel, mask):
+    localy = a[x,y+sy]
+    while True:
+        mask[x,y+sy] = True
+        mask = search_for_saturation_edge(a, x, y, sy, 1, satdown, satlevel, mask)
+        mask = search_for_saturation_edge(a, x, y, sy, -1, satdown, satlevel, mask)
+
+        sy += dy
+        if y+sy > a.shape[1]-1 or y+sy < 0:
+            return mask
+        if a[x,y+sy] >= localy/satdown and a[x,y+sy] < satlevel:
+            return mask
+        localy = a[x,y+sy]
+
+
+def saturation_mask(a, satlevel):
+    """
+    ... todo::
+        Document this!
+    """
+    mask = np.zeros(a.shape, dtype=bool)
+    a_is_saturated = a >= satlevel
+    if not np.any(a_is_saturated):
+        return mask.astype(int)
+
+    satdown = 1.001
+    sz_x, sz_y = a.shape
+
+    for y in range (0,sz_y):
+        for x in range(0,sz_x):
+            if a_is_saturated[x,y] and not mask[x,y]:
+                mask[x,y] = True
+                mask = determine_saturation_region(a, x, y, 0, 1, satdown, satlevel, mask)
+                mask = determine_saturation_region(a, x, y, -1, -1, satdown, satlevel, mask)
+
+    return mask.astype(int)
+

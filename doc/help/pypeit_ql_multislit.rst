@@ -16,7 +16,7 @@
                             gemini_flamingos1, gemini_flamingos2,
                             gemini_gmos_north_e2v, gemini_gmos_north_ham,
                             gemini_gmos_north_ham_ns, gemini_gmos_south_ham,
-                            gemini_gnirs, gtc_osiris, keck_deimos, keck_hires_red,
+                            gemini_gnirs, gtc_osiris, keck_deimos, keck_hires,
                             keck_kcwi, keck_lris_blue, keck_lris_blue_orig,
                             keck_lris_red, keck_lris_red_mark4, keck_lris_red_orig,
                             keck_mosfire, keck_nires, keck_nirspec_low, lbt_luci1,
@@ -62,7 +62,7 @@
                             (negative) B image to the left. (default: None)
       --redux_path REDUX_PATH
                             Location where reduction outputs should be stored.
-                            (default: /Users/tbowers/d1/codes/PypeIt/doc)
+                            (default: /Users/westfall/Work/packages/pypeit/doc)
       --master_dir MASTER_DIR
                             Location of PypeIt Master files used for the reduction.
                             (default: None)

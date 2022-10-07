@@ -834,15 +834,18 @@ class FlexurePar(ParSet):
         dtypes['multi_min_SN'] = [int, float]
         descr['multi_min_SN'] = 'Minimum S/N for analyzing sky spectrum for flexure'
 
-        defaults['excessive_shift'] = 'crash'
+        defaults['excessive_shift'] = 'use_median'
         options['excessive_shift'] = FlexurePar.valid_excessive_shift_methods()
         dtypes['excessive_shift'] = str
         descr['excessive_shift'] = 'Behavior when the measured spectral flexure shift is ' \
                                    'larger than ``spec_maxshift``.  The options are: ' \
                                    '\'crash\' - Raise an error and halt the data reduction; ' \
                                    '\'set_to_zero\' - Set the flexure shift to zero and continue ' \
-                                   'with the reduction; and \'continue\' - Use the large ' \
-                                   'flexure value whilst issuing a warning.'
+                                   'with the reduction; \'continue\' - Use the large ' \
+                                   'flexure value whilst issuing a warning; and \'use_median\' - ' \
+                                   'Use the median flexure shift among all the objects in the same slit ' \
+                                   '(if more than one object is detected) or among all ' \
+                                   'the other slits; if not available, the flexure correction will not be applied.'
 
         # Instantiate the parameter set
         super(FlexurePar, self).__init__(list(pars.keys()),
@@ -882,7 +885,7 @@ class FlexurePar(ParSet):
         """
         Return the valid options for dealing with excessive flexure shift.
         """
-        return ['crash', 'set_to_zero', 'continue']
+        return ['crash', 'set_to_zero', 'continue', 'use_median']
 
     def validate(self):
         """
@@ -1470,7 +1473,7 @@ class FluxCalibratePar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, extinct_correct=None, extrap_sens=None, use_archived_sens = False):
+    def __init__(self, extinct_correct=None, extinct_file=None, extrap_sens=None, use_archived_sens = False):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1485,7 +1488,7 @@ class FluxCalibratePar(ParSet):
 
         defaults['extrap_sens'] = False
         dtypes['extrap_sens'] = bool
-        descr['extrap_sens'] = "If False (default), the code will barf if one tries to use " \
+        descr['extrap_sens'] = "If False (default), the code will crash if one tries to use " \
                                "sensfunc at wavelengths outside its defined domain. By changing the " \
                                "par['sensfunc']['extrap_blu'] and par['sensfunc']['extrap_red'] this domain " \
                                "can be extended. If True the code will blindly extrapolate."
@@ -1495,11 +1498,22 @@ class FluxCalibratePar(ParSet):
         dtypes['extinct_correct'] = bool
         descr['extinct_correct'] = 'The default behavior for atmospheric extinction corrections is that if UVIS algorithm is used ' \
                                    '(which does not correct for telluric absorption) than an atmospheric extinction model ' \
-                                   'is used to correct for extinction below 10000A, whereas if the IR algorithm is used, then ' \
-                                   'no extinction correction is applied since the atmosphere is modeled directly. To follow these' \
-                                   'defaults based on the algorithm this parameter should be set to extinct_correct=None. If instead this' \
-                                   ' parameter is set, this overide this default behavior. In other words, it will force an extinction correction' \
-                                   'if extinct_correct=True, and will not perform an extinction correction if extinct_correct=False.' \
+                                   'is used to correct for extinction below 10,000A, whereas if the IR algorithm is used, then ' \
+                                   'no extinction correction is applied since the atmosphere is modeled directly. To follow these ' \
+                                   'defaults based on the algorithm this parameter should be set to ``extinct_correct=None``. If instead this ' \
+                                   'parameter is set, this overide this default behavior. In other words, it will force an extinction correction ' \
+                                   'if ``extinct_correct=True``, and will not perform an extinction correction if ``extinct_correct=False``.' \
+
+        defaults['extinct_file'] = 'closest'
+        dtypes['extinct_file'] = str
+        descr['extinct_file'] = 'If ``extinct_file=\'closest\'`` the code will select the PypeIt-included extinction ' \
+                                'file for the closest observatory (within 5 deg, geographic coordinates) to the telescope ' \
+                                'identified in ``std_file`` (see :ref:`extinction_correction` for the list of currently '\
+                                'included files).  If constructing a sesitivity function for a telescope not within 5 deg ' \
+                                'of a listed observatory, this parameter may be set to the name of one of the listed ' \
+                                'extinction files.  Alternatively, a custom extinction file may be installed in the ' \
+                                'PypeIt cache using the ``pypeit_install_extinctfile`` script; this parameter may then ' \
+                                'be set to the name of the custom extinction file.'
 
         defaults['use_archived_sens'] = False
         dtypes['use_archived_sens'] = bool
@@ -1516,7 +1530,7 @@ class FluxCalibratePar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['extinct_correct', 'extrap_sens', 'use_archived_sens']
+        parkeys = ['extinct_correct', 'extinct_file', 'extrap_sens', 'use_archived_sens']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -1680,7 +1694,7 @@ class SensfuncUVISPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, balm_mask_wid=None, std_file=None, std_obj_id=None, sensfunc=None, extinct_correct=None,
-                 telluric_correct=None, telluric=None, polycorrect=None,
+                 extinct_file=None, telluric_correct=None, telluric=None, polycorrect=None,
                  polyfunc=None, nresln=None, resolution=None, trans_thresh=None):
 
         # Grab the parameter names and values from the function
@@ -1715,19 +1729,29 @@ class SensfuncUVISPar(ParSet):
 
         defaults['extinct_correct'] = True
         dtypes['extinct_correct'] = bool
-        descr['extinct_correct'] = 'If extinct_correct=True the code will use an atmospheric extinction model to ' \
+        descr['extinct_correct'] = 'If ``extinct_correct=True`` the code will use an atmospheric extinction model to ' \
                                    'extinction correct the data below 10000A. Note that this correction makes no ' \
                                    'sense if one is telluric correcting and this shold be set to False'
 
+        defaults['extinct_file'] = 'closest'
+        dtypes['extinct_file'] = str
+        descr['extinct_file'] = 'If ``extinct_file=\'closest\'`` the code will select the PypeIt-included extinction ' \
+                                'file for the closest observatory (within 5 deg, geographic coordinates) to the telescope ' \
+                                'identified in ``std_file`` (see :ref:`extinction_correction` for the list of currently '\
+                                'included files).  If constructing a sesitivity function for a telescope not within 5 deg ' \
+                                'of a listed observatory, this parameter may be set to the name of one of the listed ' \
+                                'extinction files.  Alternatively, a custom extinction file may be installed in the ' \
+                                'PypeIt cache using the ``pypeit_install_extinctfile`` script; this parameter may then ' \
+                                'be set to the name of the custom extinction file.'
 
         defaults['telluric_correct'] = False
         dtypes['telluric_correct'] = bool
-        descr['telluric_correct'] = "If telluric_correct=True the code will grab the sens_dict['telluric'] tag from the " \
+        descr['telluric_correct'] = "If ``telluric_correct=True`` the code will grab the sens_dict['telluric'] tag from the " \
                                     "sensfunc dictionary and apply it to the data."
 
         defaults['telluric'] = False
         dtypes['telluric'] = bool
-        descr['telluric'] = 'If telluric=True the code creates a synthetic standard star spectrum using the Kurucz models, ' \
+        descr['telluric'] = 'If ``telluric=True`` the code creates a synthetic standard star spectrum using the Kurucz models, ' \
             'the sens func is created setting nresln=1.5 it contains the correction for telluric lines.'
 
         defaults['polycorrect'] = True
@@ -1765,7 +1789,7 @@ class SensfuncUVISPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['balm_mask_wid',  'sensfunc', 'extinct_correct', 'telluric_correct', 'std_file',
+        parkeys = ['balm_mask_wid',  'sensfunc', 'extinct_correct', 'extinct_file', 'telluric_correct', 'std_file',
                    'std_obj_id', 'telluric', 'polyfunc','polycorrect', 'nresln', 'resolution', 'trans_thresh']
 
         badkeys = np.array([pk not in parkeys for pk in k])
@@ -2640,9 +2664,7 @@ class WavelengthSolutionPar(ParSet):
         """
         Return the valid wavelength solution methods.
         """
-        # TODO: Remove from this list anything that is not valid!
-        return ['simple', 'holy-grail', 'identify', 'reidentify',
-                'full_template']
+        return ['holy-grail', 'identify', 'reidentify', 'full_template']
 
     @staticmethod
     def valid_lamps():
@@ -2922,7 +2944,7 @@ class EdgeTracePar(ParSet):
                               'edge for any added edge traces.  Must be positive.'
 
 #        defaults['max_nudge'] = 100
-        dtypes['max_nudge'] = int
+        dtypes['max_nudge'] = [int, float]
         descr['max_nudge'] = 'If parts of any (predicted) trace fall off the detector edge, ' \
                              'allow them to be nudged away from the detector edge up to and ' \
                              'including this maximum number of pixels.  If None, no limit is ' \
@@ -2970,7 +2992,7 @@ class EdgeTracePar(ParSet):
                                   'ends gracefully. Note that setting ``bound_detector`` to ' \
                                   'True is needed for some long-slit data where the slit ' \
                                   'edges are, in fact, beyond the edges of the detector.'
-        
+
 #        defaults['minimum_slit_length'] = 6.
         dtypes['minimum_slit_length'] = [int, float]
         descr['minimum_slit_length'] = 'Minimum slit length in arcsec.  Slit lengths are ' \
@@ -3465,8 +3487,8 @@ class FindObjPar(ParSet):
     def __init__(self, trace_npoly=None, snr_thresh=None, find_trim_edge=None,
                  find_maxdev=None, find_extrap_npoly=None, maxnumber_sci=None, maxnumber_std=None,
                  find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None,
-                 ech_find_nabove_min_snr=None, skip_second_find=None, skip_final_global=None, find_negative=None,
-                 find_min_max=None):
+                 ech_find_nabove_min_snr=None, skip_second_find=None, skip_final_global=None, skip_skysub=None,
+                 find_negative=None, find_min_max=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -3559,6 +3581,14 @@ class FindObjPar(ParSet):
                                      'reductions which perform difference imaging, since there we fit sky-residuals rather ' \
                                      'than the sky itself, so there is no noise model to update. '
 
+        defaults['skip_skysub'] = False
+        dtypes['skip_skysub'] = bool
+        descr['skip_skysub'] = 'If True, do not sky subtract when performing object finding. This should be set to ' \
+                               'True for example when running on data that is already sky-subtracted. ' \
+                               'Note that for near-IR difference imaging one still wants to remove sky-residuals via ' \
+                               'sky-subtraction, and so this is typically set to False'
+
+
 
         defaults['find_negative'] = None
         dtypes['find_negative'] = bool
@@ -3596,7 +3626,7 @@ class FindObjPar(ParSet):
                    'find_extrap_npoly', 'maxnumber_sci', 'maxnumber_std',
                    'find_maxdev', 'find_fwhm', 'ech_find_max_snr',
                    'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find', 'skip_final_global',
-                   'find_negative', 'find_min_max']
+                   'skip_skysub', 'find_negative', 'find_min_max']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -3622,7 +3652,7 @@ class SkySubPar(ParSet):
 
     def __init__(self, bspline_spacing=None, sky_sigrej=None, global_sky_std=None, no_poly=None,
                  user_regions=None, joint_fit=None, load_mask=None, mask_by_boxcar=None,
-                 no_local_sky=None):
+                 no_local_sky=None, max_mask_frac=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -3687,6 +3717,12 @@ class SkySubPar(ParSet):
         descr['joint_fit'] = 'Perform a simultaneous joint fit to sky regions using all available slits. ' \
                              'Currently, this parameter is only used for IFU data reduction.'
 
+        defaults['max_mask_frac'] = 0.80
+        dtypes['max_mask_frac'] = float
+        descr['max_mask_frac'] = 'Maximum fraction of total pixels on a slit that can be masked by the input masks. ' \
+                                 'If more than this threshold is masked the code will return zeros and throw a warning.'
+
+
         # Instantiate the parameter set
         super(SkySubPar, self).__init__(list(pars.keys()),
                                         values=list(pars.values()),
@@ -3703,7 +3739,7 @@ class SkySubPar(ParSet):
         # Basic keywords
         parkeys = ['bspline_spacing', 'sky_sigrej', 'global_sky_std', 'no_poly',
                    'user_regions', 'load_mask', 'joint_fit', 'mask_by_boxcar',
-                   'no_local_sky']
+                   'no_local_sky', 'max_mask_frac']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

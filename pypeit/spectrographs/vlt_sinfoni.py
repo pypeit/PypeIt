@@ -84,6 +84,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         #par['calibrations']['wavelengths']['method'] = 'holy-grail'
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_sinfoni_K.fits'
+        par['calibrations']['wavelengths']['nsnippet'] = 1
 
         # Reidentification parameters
         par['calibrations']['slitedges']['edge_thresh'] = 50.

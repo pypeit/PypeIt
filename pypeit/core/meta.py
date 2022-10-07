@@ -23,9 +23,9 @@ def convert_radec(ra, dec):
     then they will be converted to floats
 
     Args:
-        ra (str or float or np.ndarray):
+        ra (str or float or `numpy.ndarray`_):
             RA as decimal deg (float) or  hh:mm:ss.s (str)
-        dec (str or float or np.ndarray):
+        dec (str or float or `numpy.ndarray`_):
             DEC as decimal deg (float) or  +dd:mm:ss.s (str)
             Must be the same format as ra
 
@@ -147,6 +147,7 @@ def define_additional_meta(nlamps=20):
                        'dithpat': dict(dtype=str, comment='Dither pattern'),
                        'dithpos': dict(dtype=str, comment='Dither position'),
                        'dithoff': dict(dtype=float, comment='Dither offset'),
+                       'echangle':dict(dtype=float, comment='Echelle angle'),
                        'filter1': dict(dtype=str, comment='First filter in optical path'),
                        'frameno': dict(dtype=str, comment='Frame number provided by instrument software'),
                        'hatch': dict(dtype=str, comment='Position of instrument hatch'),
@@ -162,7 +163,10 @@ def define_additional_meta(nlamps=20):
                        'slitwid': dict(dtype=float, comment='Slit width, sometimes distinct from decker'),
                        'slitlength': dict(dtype=float, comment='Slit length, used only for long slits'),
                        'temperature': dict(dtype=float, comment='Temperature (units.K) at observation time'),
-                       'utc': dict(dtype=str, comment='UTC of observation')}
+                       'utc': dict(dtype=str, comment='UTC of observation'),
+                       'xd': dict(dtype=float, comment='Cross disperser (e.g. red or blue for HIRES)'),
+                       'xdangle':dict(dtype=float, comment='Cross disperser angle'),
+                       }
 
     for kk in range(nlamps):
         additional_meta['lampstat{:02d}'.format(kk+1)] \

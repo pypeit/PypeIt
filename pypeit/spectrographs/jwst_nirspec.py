@@ -21,7 +21,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle MMT/Blue Channel specific code
     """
-    ndet = 1
+    ndet = 2
     name = 'jwst_nirspec'
     header_name = 'jwst_nirspec'
     telescope = telescopes.JWSTTelescopePar()
@@ -141,19 +141,23 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         par['reduce']['findobj']['snr_thresh'] = 10.0
         par['reduce']['findobj']['find_fwhm'] = 2.0
 
+
         # Sky-subtraction
-        par['reduce']['skysub']['bspline_spacing'] = 3.0
+        par['reduce']['skysub']['bspline_spacing'] = 5.0 # JWST sky is smooth
+        par['reduce']['skysub']['max_mask_frac'] = 0.95
         par['reduce']['skysub']['mask_by_boxcar'] = True
+        par['reduce']['skysub']['sky_sigrej'] = 4.0
 
         # Extraction
         par['reduce']['extraction']['model_full_slit'] = True
-        par['reduce']['extraction']['sn_gauss'] = 5.0
+        par['reduce']['extraction']['sn_gauss'] = 6.0
         par['reduce']['extraction']['boxcar_radius'] = 0.2 # extent in calwebb is 0.55" source and on NIRSpec website
-
+        par['reduce']['extraction']['use_2dmodel_mask'] = False # Don't use 2d mask in local skysub
 
         # Cosmic ray rejection parameters for science frames
         par['scienceframe']['process']['sigclip'] = 5.0
         par['scienceframe']['process']['objlim'] = 2.0
+        par['scienceframe']['process']['mask_cr'] = False # Turn off for now since we coadd.
 
         # Skip reference frame correction for now.
         par['calibrations']['wavelengths']['refframe'] = 'observed'

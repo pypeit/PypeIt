@@ -310,7 +310,7 @@ class FindObjects:
 #        # For echelle
 #        self.spatial_coo = self.slits.spatial_coordinates(initial=initial, flexure=self.spat_flexure_shift)
 
-    def run(self, std_trace=None, show_peaks=False):
+    def run(self, std_trace=None, show_peaks=False, show_skysub_fit=False):
         """
         Primary code flow for object finding in PypeIt reductions
 
@@ -331,40 +331,49 @@ class FindObjects:
             List of objects found
         """
 
-        # Check if the user wants to use a pre-defined sky regions file.
-        skymask0, usersky = self.load_skyregions(None, self.sky_region_file)
-        # Perform a first pass sky-subtraction without masking any objects. Should  we make this no_poly=True to
-        # have fewer degrees of freedom in the with with-object global sky fits??
-        initial_sky0 = self.global_skysub(skymask=skymask0, update_crmask=False, objs_not_masked=True).copy()
-        # First pass object finding
-        sobjs_obj, self.nobj = \
-            self.find_objects(self.sciImg.image-initial_sky0, self.sciImg.ivar, std_trace=std_trace,
-                              show_peaks=show_peaks,
-                              show=self.findobj_show and not self.std_redux,
-                              save_objfindQA=self.par['reduce']['findobj']['skip_second_find'] | self.std_redux)
-        # create skymask using first pass sobjs_obj
-        skymask_init = self.create_skymask(sobjs_obj)
-        # Check if the user wants to overwrite the skymask with a pre-defined sky regions file.
-        skymask_init, usersky = self.load_skyregions(skymask_init, self.sky_region_file)
-
-        # If no objects were found and user did not define sky regions, don't redo global sky subtraction
-        if self.nobj == 0 and not usersky:
-            initial_sky = initial_sky0
-        else:
-            # Global sky subtract now using the skymask defined by object positions
-            initial_sky = self.global_skysub(skymask=skymask_init).copy()
-
-        # Second pass object finding on sky-subtracted image
-        if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
-            sobjs_obj, self.nobj = self.find_objects(self.sciImg.image - initial_sky, self.sciImg.ivar,
+        if self.par['reduce']['findobj']['skip_skysub']:
+            sobjs_obj, self.nobj = self.find_objects(self.sciImg.image, self.sciImg.ivar,
                                                      std_trace=std_trace, show=self.findobj_show,
                                                      show_peaks=show_peaks)
+            return np.zeros_like(self.sciImg.image), sobjs_obj
         else:
-            msgs.info("Skipping 2nd run of finding objects")
+            # Check if the user wants to use a pre-defined sky regions file.
+            skymask0, usersky = self.load_skyregions(None, self.sky_region_file)
+            # Perform a first pass sky-subtraction without masking any objects. Should  we make this no_poly=True to
+            # have fewer degrees of freedom in the with with-object global sky fits??
+            initial_sky0 = self.global_skysub(skymask=skymask0, update_crmask=False, objs_not_masked=True,
+                                              show_fit=show_skysub_fit).copy()
+            # First pass object finding
+            sobjs_obj, self.nobj = \
+                self.find_objects(self.sciImg.image-initial_sky0, self.sciImg.ivar, std_trace=std_trace,
+                                  show_peaks=show_peaks,
+                                  show=self.findobj_show and not self.std_redux,
+                                  save_objfindQA=self.par['reduce']['findobj']['skip_second_find'] | self.std_redux)
+            # create skymask using first pass sobjs_obj
+            skymask_init = self.create_skymask(sobjs_obj)
+            # Check if the user wants to overwrite the skymask with a pre-defined sky regions file.
+            skymask_init, usersky = self.load_skyregions(skymask_init, self.sky_region_file)
 
-        # TODO I think the final global should go here as well from the pypeit.py class lines 837
+            # If no objects were found and user did not define sky regions, don't redo global sky subtraction
+            if self.nobj == 0 and not usersky:
+                initial_sky = initial_sky0
+            else:
+                # Global sky subtract now using the skymask defined by object positions
+                initial_sky = self.global_skysub(skymask=skymask_init, show_fit=show_skysub_fit).copy()
 
-        return initial_sky, sobjs_obj
+            # Second pass object finding on sky-subtracted image
+            if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
+                sobjs_obj, self.nobj = self.find_objects(self.sciImg.image - initial_sky, self.sciImg.ivar,
+                                                         std_trace=std_trace, show=self.findobj_show,
+                                                         show_peaks=show_peaks)
+            else:
+                msgs.info("Skipping 2nd run of finding objects")
+
+            # TODO I think the final global should go here as well from the pypeit.py class lines 837
+
+            return initial_sky, sobjs_obj
+
+
 
     def find_objects(self, image, ivar, std_trace=None,
                      show_peaks=False, show_fits=False,
@@ -555,8 +564,9 @@ class FindObjects:
                 bsp=self.par['reduce']['skysub']['bspline_spacing'],
                 trim_edg=tuple(self.par['reduce']['trim_edge']),
                 no_poly=self.par['reduce']['skysub']['no_poly'],
-                pos_mask=(not self.bkg_redux) and not objs_not_masked, show_fit=show_fit)
-
+                pos_mask=(not self.bkg_redux) and not objs_not_masked,
+                max_mask_frac=self.par['reduce']['skysub']['max_mask_frac'],
+                show_fit=show_fit)
             # Mask if something went wrong
             if np.sum(global_sky[thismask]) == 0.:
                 msgs.warn("Bad fit to sky.  Rejecting slit: {:d}".format(slit_spat))
@@ -1209,11 +1219,13 @@ class IFUFindObjects(MultiSlitFindObjects):
             msgs.info("Performing iterative joint sky subtraction - ITERATION {0:d}/{1:d}".format(nn+1, numiter))
             # TODO trim_edg is in the parset so it should be passed in here via trim_edg=tuple(self.par['reduce']['trim_edge']),
             global_sky[thismask] = skysub.global_skysub(self.sciImg.image, model_ivar, tilt_wave,
-                                                             thismask, self.slits_left, self.slits_right, inmask=inmask,
-                                                             sigrej=sigrej, trim_edg=trim_edg,
-                                                             bsp=self.par['reduce']['skysub']['bspline_spacing'],
-                                                             no_poly=self.par['reduce']['skysub']['no_poly'],
-                                                             pos_mask=(not self.bkg_redux) and not objs_not_masked, show_fit=show_fit)
+                                                        thismask, self.slits_left, self.slits_right, inmask=inmask,
+                                                        sigrej=sigrej, trim_edg=trim_edg,
+                                                        bsp=self.par['reduce']['skysub']['bspline_spacing'],
+                                                        no_poly=self.par['reduce']['skysub']['no_poly'],
+                                                        pos_mask=(not self.bkg_redux) and not objs_not_masked,
+                                                        max_mask_frac=self.par['reduce']['skysub']['max_mask_frac'],
+                                                        show_fit=show_fit)
             # Update the ivar image used in the sky fit
             msgs.info("Updating sky noise model")
             # Choose the highest counts out of sky and object

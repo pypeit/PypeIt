@@ -3,9 +3,12 @@
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import numpy as np
 import os
 import inspect
+
+from IPython import embed
+
+import numpy as np
 
 from pypeit import msgs
 from pypeit.images import imagebitmask
@@ -16,8 +19,6 @@ from pypeit.display import display
 from pypeit import datamodel
 from pypeit import utils
 from pypeit import masterframe
-
-from IPython import embed
 
 
 class PypeItImage(datamodel.DataContainer):
@@ -171,7 +172,7 @@ class PypeItImage(datamodel.DataContainer):
 
     # JFH This API or the documentation should make it clear what is actually required to perform operations with these
     # image objects. A list of 20 optional arguments all instantiated to None is not a useful API since it conveys no
-    # informationa bout what is required vs what is optional. I know this is a feature (flaw) of these
+    # informationa about what is required vs what is optional. I know this is a feature (flaw) of these
     # data containers, but it really  needs to be addressed. Just separate the object init from the container
     # init. I cannot figure out how to instantiate this object from a set of inputs, which is a basic functionality of
     # this class.
@@ -341,16 +342,15 @@ class PypeItImage(datamodel.DataContainer):
 
         # If the object has multiple images, need to flag each image individually
         if self.is_multidetector:
-            self.crmask = [None] * self.shape[0]
+            self.crmask = np.empty(self.shape, dtype=bool)
             for i in range(self.shape[0]):
                 self.crmask[i] = procimg.lacosmic(use_img[i], saturation=saturation[i],
                                                   nonlinear=nonlinear[i], bpm=_bpm[i],
-                                                  varframe=var, maxiter=par['lamaxiter'],
+                                                  varframe=var[i], maxiter=par['lamaxiter'],
                                                   grow=par['grow'],
                                                   remove_compact_obj=par['rmcompact'],
                                                   sigclip=par['sigclip'], sigfrac=par['sigfrac'],
                                                   objlim=par['objlim'])
-            self.crmask = np.array(self.crmask)
             return self.crmask.copy()
 
         # Run LA Cosmic to get the cosmic ray mask and return a copy of the
@@ -697,13 +697,15 @@ class PypeItImage(datamodel.DataContainer):
         new_sciImg = PypeItImage(image=newimg, ivar=new_ivar, bpm=self.bpm, rn2img=new_rn2,
                                  detector=self.detector)
         # Files
-        new_sciImg.files = self.files + other.files
+        if self.files is not None and other.files is not None:
+            new_sciImg.files = self.files + other.files
 
         #TODO: KW properly handle adding the bits
         #crmask_diff = new_sciImg.build_crmask(par) if par['mask_cr'] else np.zeros_like(other.image, dtype=bool)
         # crmask_eff assumes evertything masked in the outmask_comb is a CR in the individual images
         # JFH changed to below because this was not respecting the desire not to mask_crs
-        new_sciImg.crmask = (new_sciImg.build_crmask(par) | np.logical_not(outmask_comb)) if par['mask_cr'] else np.logical_not(outmask_comb)
+        new_sciImg.crmask = (new_sciImg.build_crmask(par) | np.logical_not(outmask_comb)) \
+                                if par['mask_cr'] else np.logical_not(outmask_comb)
         #new_sciImg.crmask = crmask_diff | np.logical_not(outmask_comb)
         # Note that the following uses the saturation and mincounts held in self.detector
         new_sciImg.build_mask()

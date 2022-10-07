@@ -24,6 +24,7 @@ from linetools.spectra import xspectrum1d
 from pypeit import msgs
 from pypeit import utils
 from pypeit.display import display
+from pypeit.core.wavecal import autoid
 from pypeit.core import arc
 from pypeit.core import qa
 from pypeit.core import fitting
@@ -112,7 +113,8 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
     return lag_max[0]
 
 
-def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20, excess_shft="crash"):
+def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm=None, mxshft=20, excess_shft="crash",
+                    method="boxcar"):
     """ Calculate shift between object sky spectrum and archive sky spectrum
 
     Args:
@@ -120,71 +122,50 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20, excess_shft=
             Spectrum of the sky related to our object
         arx_skyspec (:class:`linetools.spectra.xspectrum1d.XSpectrum1d`):
             Archived sky spectrum
-        arx_lines (tuple): Line information returned by arc.detect_lines for
-            the Archived sky spectrum
-        mxshft (float, optional):
+        arx_fwhm_pix (:obj:`float`):
+            Spectral FWHM (in pixels) of the archived sky spectrum.
+        spec_fwhm (:obj:`float`, optional):
+            Spectral FWHM (in pixels) of the sky spectrum related to our object/slit.
+        mxshft (:obj:`float`, optional):
             Maximum allowed shift from flexure;  note there are cases that
             have been known to exceed even 30 pixels..
-        excess_shft (str, optional):
+        excess_shft (:obj:`str`, optional):
             Behavior of the code when a measured flexure exceeds ``mxshft``.
             Options are "crash", "set_to_zero", and "continue", where
             "set_to_zero" sets the shift to zero and moves on, and
             "continue" simply uses the large flexure shift value.
+        method (:obj:`str`, optional):
+            Which method is used for the spectral flexure correction.
+            Two methods are available: 'boxcar' and 'slitcen' (see spec_flexure_slit()).
+            In this routine, 'method' is only passed to final dict.
 
     Returns:
-        dict: Contains flexure info
+        dict: Contains flexure info.  Keys are:
+
+          - polyfit= fit to the cross-correlation
+          - shift= best shift in pixels
+          - subpix= subpixelation of input spectrum
+          - corr= correlation function
+          - sky_spec= object sky spectrum used (rebinned, etc.)
+          - arx_spec= archived sky spectrum used
+          - corr_cen= center of the correlation function
+          - smooth= Degree of smoothing of input spectrum to match archive
     """
 
     # TODO None of these routines should have dependencies on XSpectrum1d!
 
-    # Determine the brightest emission lines
     msgs.warn("If we use Paranal, cut down on wavelength early on")
-    arx_amp, arx_amp_cont, arx_cent, arx_wid, _, arx_w, arx_yprep, nsig = arx_lines
-    obj_amp, obj_amp_cont, obj_cent, obj_wid, _, obj_w, obj_yprep, nsig_obj = arc.detect_lines(obj_skyspec.flux.value)
 
-    # Keep only 5 brightest amplitude lines (xxx_keep is array of
-    # indices within arx_w of the 5 brightest)
-    arx_keep = np.argsort(arx_amp[arx_w])[-5:]
-    obj_keep = np.argsort(obj_amp[obj_w])[-5:]
+    # get gaussian sigma (pixels) for smoothing
+    smooth_fwhm_pix = get_fwhm_gauss_smooth(arx_skyspec, obj_skyspec, arx_fwhm_pix, spec_fwhm=spec_fwhm)
 
-    # Calculate wavelength (Angstrom per pixel)
-    arx_disp = np.append(arx_skyspec.wavelength.value[1]-arx_skyspec.wavelength.value[0],
-                         arx_skyspec.wavelength.value[1:]-arx_skyspec.wavelength.value[:-1])
-    obj_disp = np.append(obj_skyspec.wavelength.value[1]-obj_skyspec.wavelength.value[0],
-                         obj_skyspec.wavelength.value[1:]-obj_skyspec.wavelength.value[:-1])
-
-    # Calculate resolution (lambda/delta lambda_FWHM)..maybe don't need
-    # this? can just use sigmas
-    arx_idx = (arx_cent+0.5).astype(np.int)[arx_w][arx_keep]   # The +0.5 is for rounding
-    arx_res = arx_skyspec.wavelength.value[arx_idx]/\
-              (arx_disp[arx_idx]*(2*np.sqrt(2*np.log(2)))*arx_wid[arx_w][arx_keep])
-    obj_idx = (obj_cent+0.5).astype(np.int)[obj_w][obj_keep]   # The +0.5 is for rounding
-    obj_res = obj_skyspec.wavelength.value[obj_idx]/ \
-              (obj_disp[obj_idx]*(2*np.sqrt(2*np.log(2)))*obj_wid[obj_w][obj_keep])
-
-    if not np.all(np.isfinite(obj_res)):
-        msgs.warn('Failed to measure the resolution of the object spectrum, likely due to error '
-                   'in the wavelength image.')
+    if smooth_fwhm_pix is None:
+        # smooth_fwhm_pix is None if spec_fwhm<0, i.e., the wavelength calibration is bad
+        msgs.warn('No flexure correction could be computed for this slit/object')
         return None
-    msgs.info("Resolution of Archive={0} and Observation={1}".format(np.median(arx_res),
-                                                                     np.median(obj_res)))
 
-    # Determine sigma of gaussian for smoothing
-    arx_sig2 = np.power(arx_disp[arx_idx]*arx_wid[arx_w][arx_keep], 2)
-    obj_sig2 = np.power(obj_disp[obj_idx]*obj_wid[obj_w][obj_keep], 2)
-
-    arx_med_sig2 = np.median(arx_sig2)
-    obj_med_sig2 = np.median(obj_sig2)
-
-    if obj_med_sig2 >= arx_med_sig2:
-        smooth_sig = np.sqrt(obj_med_sig2-arx_med_sig2)  # Ang
-        smooth_sig_pix = smooth_sig / np.median(arx_disp[arx_idx])
-        arx_skyspec = arx_skyspec.gauss_smooth(smooth_sig_pix*2*np.sqrt(2*np.log(2)))
-    else:
-        msgs.warn("Prefer archival sky spectrum to have higher resolution")
-        smooth_sig_pix = 0.
-        msgs.warn("New Sky has higher resolution than Archive.  Not smoothing")
-        #smooth_sig = np.sqrt(arx_med_sig**2-obj_med_sig**2)
+    if smooth_fwhm_pix > 0:
+        arx_skyspec = arx_skyspec.gauss_smooth(smooth_fwhm_pix)
 
     #Determine region of wavelength overlap
     min_wave = max(np.amin(arx_skyspec.wavelength.value), np.amin(obj_skyspec.wavelength.value))
@@ -279,9 +260,12 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20, excess_shft=
         fit.fit()
         max_fit = -0.5 * fit.fitc[1] / fit.fitc[2]
 
+        shift = float(max_fit) - lag0
         # Deal with the case of shifts greater than ``mxshft``
-        shift = float(max_fit)-lag0
-        if shift > mxshft:
+        # We need to compare the absolute value of shift to ``mxshft``, since shift can be
+        # positive or negative, while ``mxshft`` is generally only positive
+        # We use the int of abs(shift) to avoid to trigger the error/warning for differences <1pixel
+        if int(abs(shift)) > mxshft:
             msgs.warn(f"Computed shift {shift:.1f} pix is "
                       f"larger than specified maximum {mxshft} pix.")
 
@@ -302,6 +286,11 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20, excess_shft=
             elif excess_shft == "continue":
                 msgs.warn("Applying flexure shift larger than specified max!")
 
+            elif excess_shft == "use_median":
+                msgs.warn("Will try to use a flexure shift from other slit/object. "
+                          "If not available, flexure correction will not be applied.")
+                return None
+
             else:
                 msgs.error(f"FlexurePar Keyword excessive_shift = \"{excess_shft}\" "
                            "not recognized.")
@@ -320,7 +309,67 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20, excess_shft=
 
     return dict(polyfit=fit, shift=shift, subpix=subpix_grid,
                 corr=corr[subpix_grid.astype(np.int)], sky_spec=obj_skyspec, arx_spec=arx_skyspec,
-                corr_cen=corr.size/2, smooth=smooth_sig_pix)
+                corr_cen=corr.size/2, smooth=smooth_fwhm_pix, method=method)
+
+
+def get_fwhm_gauss_smooth(arx_skyspec, obj_skyspec, arx_fwhm_pix, spec_fwhm=None):
+    """
+
+    Args:
+        arx_skyspec (:class:`linetools.spectra.xspectrum1d.XSpectrum1d`):
+            Archived sky spectrum.
+        obj_skyspec (:class:`linetools.spectra.xspectrum1d.XSpectrum1d`):
+            Spectrum of the sky related to our object.
+        arx_fwhm_pix (:obj:`float`):
+            Spectral FWHM (in pixels) of the archived sky spectrum.
+        spec_fwhm (:obj:`float`, optional):
+            Spectral FWHM (in pixels) of the sky spectrum related to our object.
+
+    Returns:
+        :obj:`float`: FWHM of the smoothing Gaussian in pixels.
+    """
+    # determine object spectral FWHM (in Angstrom) using obj_skyspec
+    # if spec_fwhm (typically from wave calibration) is None
+    if spec_fwhm is None:
+        # pixels
+        spec_fwhm_pix = autoid.measure_fwhm(obj_skyspec.flux.value, sigdetect=4., fwhm=4.)
+        msgs.info('Measuring spectral FWHM using the boxcar extracted sky spectrum.')
+        if spec_fwhm_pix is None:
+            msgs.warn('Failed to measure the spectral FWHM using the boxcar extracted sky spectrum. '
+                      'Not enough sky lines detected.')
+            return None
+        else:
+            # object sky spectral dispersion (Angstrom/pixel)
+            obj_disp = np.median(np.diff(obj_skyspec.wavelength.value))
+            # Angstrom
+            spec_fwhm = spec_fwhm_pix * obj_disp
+
+    # determine arxiv sky spectral FWHM (in Angstrom)
+    # arxiv sky spectral dispersion (Angstrom/pixel)
+    arx_disp = np.median(np.diff(arx_skyspec.wavelength.value))
+    arx_fwhm = arx_fwhm_pix * arx_disp
+
+    msgs.info(f"Resolution (FWHM) of Archive={arx_fwhm:.2f} Ang and Observation={spec_fwhm:.2f} Ang")
+
+    if spec_fwhm <= 0:
+        msgs.warn('Negative spectral FWHM, likely due to a bad wavelength calibration.')
+        return None
+
+    # Determine fwhm of the smoothing gaussian
+    # object sky spectral fwhm (Angstrom)
+    obj_med_fwhm2 = np.power(spec_fwhm, 2)
+    # arxiv sky spectral fwhm (Angstrom)
+    arx_med_fwhm2 = np.power(arx_fwhm, 2)
+
+    if obj_med_fwhm2 >= arx_med_fwhm2:
+        smooth_fwhm = np.sqrt(obj_med_fwhm2-arx_med_fwhm2)  # Ang
+        smooth_fwhm_pix = smooth_fwhm / arx_disp
+    else:
+        msgs.warn("Prefer archival sky spectrum to have higher resolution")
+        smooth_fwhm_pix = 0.
+        msgs.warn("New Sky has higher resolution than Archive.  Not smoothing")
+
+    return smooth_fwhm_pix
 
 
 def flexure_interp(shift, wave):
@@ -345,8 +394,198 @@ def flexure_interp(shift, wave):
     return twave
 
 
+def spec_flex_shift_global(slit_specs, islit, sky_spectrum, arx_fwhm_pix, empty_flex_dict,
+                           return_later_slits, flex_list, keys_to_update, spec_fwhm=None,
+                           mxshft=20, excess_shft="crash", method='slitcen'):
+    """ Calculate flexure shifts using the sky spectrum extracted at the center of the slit
+
+    Args:
+        slit_specs (:obj:`list`):
+            A list of `linetools.xspectrum1d`, one for each slit. The spectra stored in
+            this list are sky spectra, extracted from the center of each slit.
+        islit (:obj:`int`):
+            Index of the slit where the sky spectrum related to our object is.
+        sky_spectrum (:class:`linetools.spectra.xspectrum1d.XSpectrum1d`):
+            Archived sky spectrum.
+        arx_fwhm_pix (:obj:`float`):
+            Spectral FWHM (in pixels) of the archived sky spectrum.
+        empty_flex_dict (:obj:`dict`):
+            Empty dictionary to be filled with flexure results.
+        return_later_slits (:obj:`list`):
+            List of slit indexes that failed the shift calcultion and we want to come back to
+            to assign a value from a different slit.
+        flex_list (:obj:`list`):
+            A list of :obj:`dict` objects containing flexure results of each slit.
+        keys_to_update (:obj:`list`):
+            List of flexure dictionary keys that we need to update.
+        spec_fwhm (:obj:`float`, optional):
+            Spectral FWHM (in pixels) of the sky spectrum related to our object.
+        mxshft (:obj:`int`, optional):
+            Maximum allowed shift from flexure. Passed to spec_flex_shift().
+        excess_shft (:obj:`str`, optional):
+            Behavior of the code when a measured flexure exceeds ``mxshft``.
+            Passed to spec_flex_shift()
+        method (:obj:`str`, optional):
+            Which method is used for the spectral flexure correction.
+            Two methods are available: 'boxcar' and 'slitcen' (see spec_flexure_slit()).
+            Passed to spec_flex_shift().
+
+    Returns:
+        :obj:`list`: A list of :obj:`dict` objects containing flexure
+        results of each slit. This is filled with a basically empty
+        dict if the shift calculation failed for the relevant slit.
+
+    """
+
+    # Reset the flexure dictionary
+    flex_dict = copy.deepcopy(empty_flex_dict)
+
+    # Calculate the shift
+    fdict = spec_flex_shift(slit_specs[islit], sky_spectrum, arx_fwhm_pix, mxshft=mxshft, excess_shft=excess_shft,
+                            spec_fwhm=spec_fwhm, method=method)
+
+    # Was it successful?
+    if fdict is not None:
+        # Update dict
+        for key in keys_to_update[:-1]:
+            flex_dict[key].append(fdict[key])
+        # Interpolate
+        sky_wave_new = flexure_interp(fdict['shift'], slit_specs[islit].wavelength.value)
+        flex_dict['sky_spec'].append(xspectrum1d.XSpectrum1D.from_tuple((sky_wave_new, slit_specs[islit].flux.value)))
+    else:
+        # No success, come back to it later
+        return_later_slits.append(islit)
+        msgs.warn("Flexure shift calculation failed for this slit.")
+        msgs.info("Will come back to this slit to attempt "
+                  "to use saved estimates from other slits")
+
+    # Append flex_dict, which will be an empty dictionary if the flexure failed for the all the slits
+    flex_list.append(flex_dict.copy())
+    return flex_list
+
+
+def spec_flex_shift_local(slits, slitord, specobjs, islit, sky_spectrum, arx_fwhm_pix, empty_flex_dict,
+                          return_later_slits, flex_list, keys_to_update, spec_fwhm=None, mxshft=20,
+                          excess_shft="crash", method='boxcar'):
+    """ Calculate flexure shifts using the sky spectrum boxcar-extracted at the location of the detected objects
+
+    Args:
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+            Slit trace set.
+        slitord (`numpy.ndarray`_):
+            Array of slit/order numbers.
+        specobjs (:class:`~pypeit.specobjs.Specobjs`, optional):
+            Spectral extractions.
+        islit (:obj:`int`):
+            Index of the slit where the sky spectrum related to our object is.
+        sky_spectrum (:class:`linetools.spectra.xspectrum1d.XSpectrum1d`):
+            Archived sky spectrum.
+        arx_fwhm_pix (:obj:`float`):
+            Spectral FWHM (in pixels) of the archived sky spectrum.
+        empty_flex_dict (:obj:`dict`):
+            Empty dictionary to be filled with flexure results.
+        return_later_slits (:obj:`list`):
+            List of slit indexes that failed the shift calcultion and we want to come back to
+            to assign a value from a different slit.
+        flex_list (:obj:`list`):
+            A list of :obj:`dict` objects containing flexure results of each slit.
+        keys_to_update (:obj:`list`):
+            List of flexure dictionary keys that we need to update.
+        spec_fwhm (:obj:`float`, optional):
+            Spectral FWHM (in pixels) of the sky spectrum related to our object.
+        mxshft (:obj:`int`, optional):
+            Maximum allowed shift from flexure. Passed to spec_flex_shift().
+        excess_shft (:obj:`str`, optional):
+            Behavior of the code when a measured flexure exceeds ``mxshft``.
+            Passed to spec_flex_shift()
+        method (:obj:`str`, optional):
+            Which method is used for the spectral flexure correction.
+            Two methods are available: 'boxcar' and 'slitcen' (see spec_flexure_slit()).
+            Passed to spec_flex_shift().
+    Returns:
+        :obj:`list`: A list of :obj:`dict` objects containing flexure
+        results of each slit. This is filled with a basically empty
+        dict if the shift calculation failed for the relevant slit.
+    """
+
+    # Reset the flexure dictionary
+    flex_dict = copy.deepcopy(empty_flex_dict)
+
+    # get objects in this slit
+    i_slitord = slitord[islit]
+    indx = specobjs.slitorder_indices(i_slitord)
+    this_specobjs = specobjs[indx]
+
+    # if no objects in this slit, append an empty dict
+    if len(this_specobjs) == 0:
+        msgs.info('No object extracted in this slit.')
+        flex_list.append(empty_flex_dict.copy())
+        return flex_list
+
+    # Objects in this slit that failed and we want to come back to
+    # to assign values from other objects in the same slit (if available)
+    return_later_sobjs = []
+    # Loop through objects
+    for ss, sobj in enumerate(this_specobjs):
+        if sobj is None or sobj['BOX_WAVE'] is None:  # Nothing extracted; only the trace exists
+            msgs.info(f'Object # {ss} was not extracted.')
+            # Update dict
+            for key in keys_to_update:
+                # append None
+                flex_dict[key].append(None)
+            continue
+        msgs.info(f"Working on spectral flexure for object # {ss} in slit {slits.spat_id[islit]}")
+
+        # get 1D spectrum for this object
+        obj_sky = xspectrum1d.XSpectrum1D.from_tuple((sobj.BOX_WAVE, sobj.BOX_COUNTS_SKY))
+
+        # Calculate the shift
+        fdict = spec_flex_shift(obj_sky, sky_spectrum, arx_fwhm_pix, mxshft=mxshft, excess_shft=excess_shft,
+                                spec_fwhm=spec_fwhm, method=method)
+
+        if fdict is not None:
+            # Update dict
+            for key in keys_to_update:
+                flex_dict[key].append(fdict[key])
+        else:
+            # No success, come back to it later
+            return_later_sobjs.append(ss)
+            msgs.warn("Flexure shift calculation failed for this spectrum.")
+            msgs.info("Will come back to this spectrum to attempt "
+                      "to use saved estimates from other slits/objects")
+
+    # Check if we need to go back
+    if (len(return_later_sobjs) > 0) and (len(flex_dict['shift']) > 0):
+        msgs.warn(f'Flexure shift calculation failed for {len(return_later_sobjs)} '
+                  f'object(s) in slit {slits.spat_id[islit]}')
+        # get the median shift among all objects in this slit
+        idx_med_shift = np.where(flex_dict['shift'] == np.median(flex_dict['shift']))[0][0]
+        msgs.info(f"Median value of the measured flexure shifts in this slit, equal to "
+                  f"{flex_dict['shift'][idx_med_shift]:.3f} pixels, will be used")
+
+        # assign the median shift to the failed objects
+        for obj_idx in return_later_sobjs:
+            # Update dict
+            for key in keys_to_update[:-1]:
+                # insert the median value at the location of the object that failed the calculation
+                flex_dict[key].insert(obj_idx, flex_dict[key][idx_med_shift])
+            # Interpolate
+            sky_wave_new = flexure_interp(flex_dict['shift'][obj_idx], this_specobjs[obj_idx].BOX_WAVE)
+            flex_dict['sky_spec'].insert(obj_idx, xspectrum1d.XSpectrum1D.from_tuple(
+                (sky_wave_new, this_specobjs[obj_idx].BOX_COUNTS_SKY)))
+
+    # if flexure failed for every objects in this slit, save for later to use value from other slits
+    elif (len(return_later_sobjs) > 0) and (len(flex_dict['shift']) == 0):
+        return_later_slits.append(islit)
+
+    # Append flex_dict, which will be an empty dictionary if the flexure failed for the whole slit
+    flex_list.append(flex_dict.copy())
+
+    return flex_list
+
+
 def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", specobjs=None,
-                      slit_specs=None, mxshft=None, excess_shft="crash"):
+                      slit_specs=None, wv_calib=None, mxshft=None, excess_shft="crash"):
     """Calculate the spectral flexure for every slit (global) or object (local)
 
     Args:
@@ -356,7 +595,7 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
             Array of slit/order numbers
         slit_bpm (`numpy.ndarray`_):
             True = masked slit
-        sky_file (str):
+        sky_file (:obj:`str`):
             Sky file
         method (:obj:`str`, optional):
             Two methods are available:
@@ -369,9 +608,11 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
                   each slit.
         specobjs (:class:`~pypeit.specobjs.Specobjs`, optional):
             Spectral extractions
-        slit_specs (list, optional):
+        slit_specs (:obj:`list`, optional):
             A list of linetools.xspectrum1d, one for each slit. The spectra stored in
             this list are sky spectra, extracted from the center of each slit.
+        wv_calib (:class:`pypeit.wavecalib.WaveCalib`):
+            Wavelength calibration object
         mxshft (int, optional):
             Passed to spec_flex_shift()
         excess_shft (str, optional):
@@ -382,169 +623,182 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
         results of each slit. This is filled with a basically empty
         dict if the slit is skipped.
     """
-    sv_fdict = None
     msgs.work("Consider doing 2 passes in flexure as in LowRedux")
 
     # Determine the method
     slit_cen = True if (specobjs is None) or (method == "slitcen") else False
 
-    # Load Archive. Save the line information to avoid the performance hit from calling it on the archive sky spectrum
+    # Load Archive. Save the fwhm to avoid the performance hit from calling it on the archive sky spectrum
     # multiple times
     sky_spectrum = data.load_sky_spectrum(sky_file)
-    sky_lines = arc.detect_lines(sky_spectrum.flux.value)
-
-    nslits = slits.nslits
-    gpm = np.logical_not(slit_bpm)
-    gdslits = np.where(gpm)[0]
+    # get arxiv sky spectrum resolution (FWHM in pixels)
+    arx_fwhm_pix = autoid.measure_fwhm(sky_spectrum.flux.value, sigdetect=4., fwhm=4.)
+    if arx_fwhm_pix is None:
+        msgs.error('Failed to measure the spectral FWHM of the archived sky spectrum. '
+                   'Not enough sky lines detected.')
 
     # Initialise the flexure list for each slit
     flex_list = []
-    # Slit/objects to come back to
-    return_later_sobjs = []
 
-    # Loop over slits, and then over objects
-    for islit in range(nslits):
-        msgs.info("Working on spectral flexure of slit: {:d}".format(islit))
+    # initiate list of slits to come back to if flexure calculation failed
+    return_later_slits = []
 
-        # Reset
-        flex_dict = dict(polyfit=[], shift=[], subpix=[], corr=[],
-                         corr_cen=[], spec_file=sky_file, smooth=[],
-                         arx_spec=[], sky_spec=[], method=[])
+    # empty dict
+    empty_flex_dict = dict(polyfit=[], shift=[], subpix=[], corr=[],
+                           corr_cen=[], spec_file=sky_file, smooth=[],
+                           arx_spec=[], sky_spec=[], method=[])
+
+    # flex dict keys that we need to update through the routine
+    keys_to_update = ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'method', 'arx_spec', 'sky_spec']
+
+    # Loop over slits
+    # good slits
+    gdslits = np.where(np.logical_not(slit_bpm))[0]
+
+    for islit in range(slits.nslits):
+        msgs.info(f"Working on spectral flexure of slit: {slits.spat_id[islit]}")
 
         # If no objects on this slit append an empty dictionary
         if islit not in gdslits:
-            flex_list.append(flex_dict.copy())
+            flex_list.append(empty_flex_dict.copy())
             continue
 
-        # Down the center of the slit (spec_method = slitcen)
-        if slit_cen:
-            sky_wave = slit_specs[islit].wavelength.value
-            sky_flux = slit_specs[islit].flux.value
-
-            # Calculate the shift
-            fdict = spec_flex_shift(slit_specs[islit], sky_spectrum, sky_lines,
-                                    mxshft=mxshft, excess_shft=excess_shft)
-            # Failed?
-            if fdict is not None:
-                # Update dict
-                for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec']:
-                    flex_dict[key].append(fdict[key])
-                # Interpolate
-                sky_wave_new = flexure_interp(fdict['shift'], sky_wave)
-                flex_dict['sky_spec'].append(xspectrum1d.XSpectrum1D.from_tuple((sky_wave_new, sky_flux)))
-                flex_dict['method'].append("slitcen")
-
-        # Along the boxcar extraction (spec_method = boxcar)
+        # get spectral FWHM (in Angstrom) if available
+        if wv_calib is not None:
+            iwv = np.where(wv_calib.spat_ids == slits.spat_id[islit])[0][0]
+            spec_fwhm = wv_calib.wv_fits[iwv].cen_disp*wv_calib.wv_fits[iwv].fwhm if wv_calib.wv_fits is not None else None
         else:
-            i_slitord = slitord[islit]
-            indx = specobjs.slitorder_indices(i_slitord)
-            this_specobjs = specobjs[indx]
-            # Loop through objects
-            for ss, sobj in enumerate(this_specobjs):
-                if sobj is None:
-                    continue
-                if sobj['BOX_WAVE'] is None: #len(specobj._data.keys()) == 1:  # Nothing extracted; only the trace exists
-                    continue
-                msgs.info(f"Working on flexure for object # {sobj.OBJID} in slit # {islit}")
+            spec_fwhm = None
 
-                # Using boxcar
-                sky_wave = sobj.BOX_WAVE
-                sky_flux = sobj.BOX_COUNTS_SKY
+        if slit_cen:
+            # global flexure
+            flex_list = spec_flex_shift_global(slit_specs, islit, sky_spectrum, arx_fwhm_pix, empty_flex_dict,
+                                               return_later_slits, flex_list, keys_to_update,
+                                               spec_fwhm=spec_fwhm, mxshft=mxshft, excess_shft=excess_shft)
+        else:
+            # local flexure
+            flex_list = spec_flex_shift_local(slits, slitord, specobjs, islit, sky_spectrum, arx_fwhm_pix,
+                                              empty_flex_dict, return_later_slits, flex_list, keys_to_update,
+                                              spec_fwhm=spec_fwhm, mxshft=mxshft, excess_shft=excess_shft)
 
-                # Generate 1D spectrum for object
-                obj_sky = xspectrum1d.XSpectrum1D.from_tuple((sky_wave, sky_flux))
+    # Check if we need to go back to some failed slits
+    if len(return_later_slits) > 0:
+        msgs.warn(f'Flexure shift calculation failed for {len(return_later_slits)} slits')
+        # take the median value to deal with the cases when there are more than one shift per slit (e.g., local flexure)
+        saved_shifts = np.array([np.percentile(flex['shift'], 50, interpolation='nearest')
+                                 if len(flex['shift']) > 0 else None for flex in flex_list])
+        if np.all(saved_shifts == None):
+            # If all the elements in saved_shifts are None means that there are no saved shifts available
+            msgs.warn(f'No previously saved flexure shift estimates available. '
+                      f'Flexure corrections cannot be performed.')
+            for islit in range(slits.nslits):
+                # we append an empty dictionary
+                flex_list.append(empty_flex_dict.copy())
+        else:
+            # get the median shift value among all slit
+            med_shift = np.percentile(saved_shifts[saved_shifts!= None], 50, interpolation='nearest')
+            # in which slit the median is?
+            islit_med_shift = np.where(saved_shifts == med_shift)[0][0]
+            msgs.info(f"Median value of all the measured flexure shifts, equal to "
+                      f"{saved_shifts[islit_med_shift]:.3f} pixels, will be used")
 
-                # Calculate the shift
-                fdict = spec_flex_shift(obj_sky, sky_spectrum, sky_lines,
-                                        mxshft=mxshft, excess_shft=excess_shft)
-                punt = False
-                if fdict is None:
-                    msgs.warn("Flexure shift calculation failed for this spectrum.")
-                    if sv_fdict is not None:
-                        msgs.warn("Will used saved estimate from a previous slit/object")
-                        fdict = copy.deepcopy(sv_fdict)
-                    else:
-                        # One does not exist yet
-                        # Save it for later
-                        return_later_sobjs.append([islit, ss])
-                        punt = True
-                else:
-                    sv_fdict = copy.deepcopy(fdict)
+            # global flexure
+            if slit_cen:
+                # get the dict where the med shift is
+                fdict = flex_list[islit_med_shift].copy()
 
-                # Punt?
-                if punt:
-                    break
+                # assign fdict to the failed slits
+                for sidx in return_later_slits:
+                    # Reset the dict
+                    flex_dict = copy.deepcopy(empty_flex_dict)
+                    # Update dict
+                    for key in keys_to_update[:-1]:
+                        flex_dict[key].append(fdict[key][0])
+                    # Interpolate
+                    sky_wave_new = flexure_interp(fdict['shift'][0], slit_specs[sidx].wavelength.value)
+                    flex_dict['sky_spec'].append(xspectrum1d.XSpectrum1D.from_tuple((sky_wave_new, slit_specs[sidx].flux.value)))
 
-                # Update dict
-                for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec', 'sky_spec']:
-                    flex_dict[key].append(fdict[key])
-                flex_dict['method'].append("boxcar")
+                    # insert flex_dict in flex_list at the location of the slit that failed the calculation
+                    flex_list[sidx] = flex_dict
+            # local flexure
+            else:
+                # get the dict where the med shift is
+                idx_med_shift = np.where(flex_list[islit_med_shift]['shift'] == med_shift)[0][0]
+                fdict = copy.deepcopy(empty_flex_dict)
+                for key in keys_to_update[:-1]:
+                    fdict[key].append(flex_list[islit_med_shift][key][idx_med_shift])
 
-        # Check if we need to go back
-        # TODO :: This code just throws an error... probably need to delete or fix this "local" spectral flexure code
-        if not slit_cen:
-            # Do we need to go back?
-            for items in return_later_sobjs:
-                if sv_fdict is None:
-                    msgs.info("No flexure corrections could be made")
-                    break
-                # Setup
-                msgs.error("This probably needs to be updated")
-                slit, ss = items
-                flex_dict = flex_list[slit]
-                sobj = specobjs[ss]
-                # Copy me
-                fdict = copy.deepcopy(sv_fdict)
-                # Update dict
-                for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec', 'sky_spec']:
-                    flex_dict[key].append(fdict[key])
-                flex_dict['method'].append("boxcar")
+                # assign fdict to the failed object
+                for sidx in return_later_slits:
+                    # get objects in this slit
+                    i_slitord = slitord[sidx]
+                    indx = specobjs.slitorder_indices(i_slitord)
 
-        # Append, this will be an empty dictionary if the flexure failed
-        flex_list.append(flex_dict.copy())
-
+                    for i in range(len(specobjs[indx])):
+                        # Reset the dict
+                        flex_dict = copy.deepcopy(empty_flex_dict)
+                        # Update dict
+                        for key in keys_to_update[:-1]:
+                            flex_dict[key].append(fdict[key][0])
+                        # Interpolate
+                        sky_wave_new = flexure_interp(fdict['shift'][0], specobjs[indx][i].BOX_WAVE)
+                        flex_dict['sky_spec'].append(
+                            xspectrum1d.XSpectrum1D.from_tuple((sky_wave_new, specobjs[indx][i].BOX_COUNTS_SKY)))
+                        # insert flex_dict in flex_list at the location of the slit that failed the calculation
+                        flex_list[sidx] = flex_dict
     return flex_list
 
 
 def spec_flexure_corrQA(ax, this_flex_dict, cntr, name):
     # Fit
     fit = this_flex_dict['polyfit'][cntr]
-    xval = np.linspace(-10., 10, 100) + this_flex_dict['corr_cen'][cntr]  # + flex_dict['shift'][o]
-    # model = (fit[2]*(xval**2.))+(fit[1]*xval)+fit[0]
-    model = fit.eval(xval)
-    # model = utils.func_val(fit, xval, 'polynomial')
-    mxmod = np.max(model)
-    ylim_min = np.min(model / mxmod) if np.isfinite(np.min(model / mxmod)) else 0.0
-    ylim = [ylim_min, 1.3]
-    ax.plot(xval - this_flex_dict['corr_cen'][cntr], model / mxmod, 'k-')
-    # Measurements
-    ax.scatter(this_flex_dict['subpix'][cntr] - this_flex_dict['corr_cen'][cntr],
-               this_flex_dict['corr'][cntr] / mxmod, marker='o')
-    # Final shift
-    ax.plot([this_flex_dict['shift'][cntr]] * 2, ylim, 'g:')
-    # Label
-    ax.text(0.5, 0.25, name, transform=ax.transAxes, size='large', ha='center')
-    ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(this_flex_dict['shift'][cntr]),
-            transform=ax.transAxes, size='large', ha='center')  # , bbox={'facecolor':'white'})
-    # Axes
-    ax.set_ylim(ylim)
-    ax.set_xlabel('Lag')
+    if fit is not None:
+        xval = np.linspace(-10., 10, 100) + this_flex_dict['corr_cen'][cntr]  # + flex_dict['shift'][o]
+        # model = (fit[2]*(xval**2.))+(fit[1]*xval)+fit[0]
+        model = fit.eval(xval)
+        # model = utils.func_val(fit, xval, 'polynomial')
+        mxmod = np.max(model)
+        ylim_min = np.min(model / mxmod) if np.isfinite(np.min(model / mxmod)) else 0.0
+        ylim = [ylim_min, 1.3]
+        ax.plot(xval - this_flex_dict['corr_cen'][cntr], model / mxmod, 'k-')
+        # Measurements
+        ax.scatter(this_flex_dict['subpix'][cntr] - this_flex_dict['corr_cen'][cntr],
+                   this_flex_dict['corr'][cntr] / mxmod, marker='o')
+        # Final shift
+        ax.plot([this_flex_dict['shift'][cntr]] * 2, ylim, 'g:')
+        # Label
+        ax.text(0.5, 0.25, name, transform=ax.transAxes, size='large', ha='center')
+        ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(this_flex_dict['shift'][cntr]),
+                transform=ax.transAxes, size='large', ha='center')  # , bbox={'facecolor':'white'})
+        # Axes
+        ax.set_ylim(ylim)
+        ax.set_xlabel('Lag')
+    else:
+        ax.text(0.5, 0.25, name, transform=ax.transAxes, size='large', ha='center')
+        ax.text(0.5, 0.15, 'flex_shift calculation failed', transform=ax.transAxes, size='large', ha='center')
+        # Axes
+        ax.set_xlabel('Lag')
 
 
-def spec_flexure_qa(slitords, bpm, basename, flex_list, specobjs=None, out_dir=None):
+def spec_flexure_qa(slitords, bpm, basename, flex_list, 
+                    specobjs=None, out_dir=None):
     """
+    Generate QA for the spectral flexure calculation
 
     Args:
         slitords (`numpy.ndarray`_):
             Array of slit/order numbers
         bpm (`numpy.ndarray`_):
-            True = masked slit
+            Boolean mask; True = masked slit
         basename (str):
+            Used to generate the output file name
         flex_list (list):
-        specobjs: (:class:`pypeit.specobjs.Specobjs`)
+            list of :obj:`dict` objects containing the flexure information
+        specobjs (:class:`~pypeit.specobjs.Specobjs`, optional):
             Spectrally extracted objects
-        out_dir:
-
+        out_dir (str, optonal):
+            Path to the output directory for the QA plots.  If None, the current
+            is used.
     """
     plt.rcdefaults()
     plt.rcParams['font.family'] = 'times new roman'
@@ -564,6 +818,12 @@ def spec_flexure_qa(slitords, bpm, basename, flex_list, specobjs=None, out_dir=N
         # Slit/order number
         slitord = slitords[islit]
 
+        this_flex_dict = flex_list[islit]
+        # Check that the default was overwritten
+        if len(this_flex_dict['shift']) == 0 or \
+                (len(this_flex_dict['shift']) > 0 and np.all([ss is None for ss in this_flex_dict['shift']])):
+            continue
+
         # Parse and Setup
         if slit_cen:
             nobj = 1
@@ -575,11 +835,6 @@ def spec_flexure_qa(slitords, bpm, basename, flex_list, specobjs=None, out_dir=N
             if nobj == 0:
                 continue
             ncol = min(3, nobj)
-        this_flex_dict = flex_list[islit]
-
-        # Check that the default was overwritten
-        if len(this_flex_dict['shift']) == 0:
-            continue
 
         nrow = nobj // ncol + ((nobj % ncol) > 0)
         # Outfile, one QA file per slit
@@ -587,20 +842,18 @@ def spec_flexure_qa(slitords, bpm, basename, flex_list, specobjs=None, out_dir=N
         plt.figure(figsize=(8, 5.0))
         plt.clf()
         gs = gridspec.GridSpec(nrow, ncol)
-        # TODO -- This cntr is crummy and needs to be replaced by a DataContainer
-        #  for flex_dict and flex_list
-        cntr = 0
         # Correlation QA
         if slit_cen:
             ax = plt.subplot(gs[0, 0])
-            spec_flexure_corrQA(ax, this_flex_dict, cntr, 'Slit Center')
+            spec_flexure_corrQA(ax, this_flex_dict, 0, 'Slit Center')
         else:
-            for specobj in this_specobjs:
+            iplt = 0
+            for ss, specobj in enumerate(this_specobjs):
                 if specobj is None or (specobj.BOX_WAVE is None and specobj.OPT_WAVE is None):
                     continue
-                ax = plt.subplot(gs[cntr//ncol, cntr % ncol])
-                spec_flexure_corrQA(ax, this_flex_dict, cntr, '{:s}'.format(specobj.NAME))
-                cntr += 1
+                ax = plt.subplot(gs[iplt//ncol, iplt % ncol])
+                spec_flexure_corrQA(ax, this_flex_dict, ss, '{:s}'.format(specobj.NAME))
+                iplt += 1
         # Finish
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
         plt.savefig(outfile, dpi=400)
@@ -610,7 +863,8 @@ def spec_flexure_qa(slitords, bpm, basename, flex_list, specobjs=None, out_dir=N
         if slit_cen:
             iobj = 0
         else:
-            iobj = 0
+            # only show the first object in this slit that does not have None shift
+            iobj = np.where([ss is not None for ss in this_flex_dict['shift']])[0][0]
             specobj = this_specobjs[iobj]
 
         # Repackage
@@ -640,9 +894,9 @@ def spec_flexure_qa(slitords, bpm, basename, flex_list, specobjs=None, out_dir=N
         nrow, ncol = 2, 3
         gs = gridspec.GridSpec(nrow, ncol)
         if slit_cen:
-            plt.suptitle('Sky Comparison for Slit Center', y=1.05)
+            plt.suptitle('Sky Comparison for Slit Center', y=0.99)
         else:
-            plt.suptitle('Sky Comparison for {:s}'.format(specobj.NAME), y=1.05)
+            plt.suptitle('Sky Comparison for {:s}'.format(specobj.NAME), y=0.99)
 
         for ii, igdsky in enumerate(gdsky):
             skyline = sky_lines[igdsky]
@@ -668,10 +922,10 @@ def spec_flexure_qa(slitords, bpm, basename, flex_list, specobjs=None, out_dir=N
                    handletextpad=0.3, fontsize='small', numpoints=1)
 
         # Finish
+        plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
         plt.savefig(outfile, dpi=400)
         plt.close()
         msgs.info("Wrote spectral flexure QA: {}".format(outfile))
-        #plt.close()
 
     plt.rcdefaults()
 
@@ -766,12 +1020,11 @@ def calculate_image_offset(im_ref, image, nfit=3):
             fitting the peak of the cross correlation.
 
     Returns:
-        ra_diff (float):
-            Relative shift (in pixels) of image relative to im_ref (x direction).
+        tuple: Returns two floats, the x and y offset of the image.
+          - ra_diff --  Relative shift (in pixels) of image relative to im_ref (x direction).
             In order to align image with im_ref, ra_diff should be added to the
             x-coordinates of image
-        dec_diff (float):
-            Relative shift (in pixels) of image relative to im_ref (y direction).
+          - dec_diff  -- Relative shift (in pixels) of image relative to im_ref (y direction).
             In order to align image with im_ref, dec_diff should be added to the
             y-coordinates of image
     """
@@ -815,16 +1068,23 @@ def sky_em_residuals(wave:np.ndarray, flux:np.ndarray,
     input sky emission lines 
 
     Args:
-        wave (np.ndarray): Wavelengths (in air!)
-        flux (np.ndarray): 
-        ivar (np.ndarray): 
-        sky_waves (np.ndarray): Skyline wavelengths (in air!)
-        plot (bool, optional): Defaults to False.
-        noff (int, optional): Range in Ang to analyze labout emission line. Defaults to 5.
-        nfit_min (int, optional): Minimum number of pixels required to do a fit. Defaults to 20.
+        wave (`numpy.ndarray`_): 
+            Wavelengths (in air!)
+        flux (`numpy.ndarray`_): 
+            Fluxes
+        ivar (`numpy.ndarray`_): 
+            Inverse variance
+        sky_waves (`numpy.ndarray`_): 
+            Skyline wavelengths (in air!)
+        plot (bool, optional): 
+            If true, plot the residuals
+        noff (int, optional): 
+            Range in Ang to analyze labout emission line. Defaults to 5.
+        nfit_min (int, optional): 
+            Minimum number of pixels required to do a fit. Defaults to 20.
 
     Returns:
-        tuple: np.ndarray's -- sky line wavelength of good lines, wavelength offset, 
+        tuple of `numpy.ndarray`_ -- sky line wavelength of good lines, wavelength offset, 
             error in wavelength offset, sky line width,
             error in sky line width
     """
