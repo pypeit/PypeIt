@@ -109,10 +109,12 @@ class FindObjects:
                 Specifies object being reduced 'science' 'standard'
                 'science_coadd2d'.  This is used only to determine the
                 spat_flexure_shift and ech_order for coadd2d.
-            waveTilts ():
-                blah
-            tilts ():
-                blah
+            waveTilts (:class:`pypeit.wavetilts.WaveTilts`_, optional):
+                DataContainer with arc/sky line tracing of the wavelength tilt
+                Only waveTilts or tilts is needed (not both)
+            tilts (`numpy.ndarray`_, optional):
+                Tilts frame produced by waveTilts.fit2tiltimg() for given a spatial flexure.
+                Only waveTilts or tilts is needed (not both)
             sky_region_file (str):
                 Name fo the Master sky region file created by the user
             bkg_redux (:obj:`bool`, optional):

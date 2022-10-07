@@ -139,7 +139,7 @@ class WaveTilts(datamodel.DataContainer):
 
 class BuildWaveTilts:
     """
-    Class to guide slit/order tracing
+    Class to guide arc/sky tracing
 
     Args:
         mstilt (:class:`pypeit.images.buildimage.TiltImage`): Tilt image

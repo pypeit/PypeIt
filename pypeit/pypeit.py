@@ -766,6 +766,7 @@ class PypeIt:
                 ignore_saturation=False), frame_par['process'])
 
         # Check if the user has manually created a Master sky regions
+        sky_region_file = None
         if self.par['reduce']['skysub']['load_mask']:
             # Check if a master Sky Regions file exists for this science frame
             file_base = os.path.basename(sciImg.files[0])
@@ -790,7 +791,6 @@ class PypeIt:
         objFind = find_objects.FindObjects.get_instance(sciImg, self.caliBrate.slits, self.spectrograph,
                                                         self.par, self.objtype,
                                                         waveTilts=self.caliBrate.wavetilts,
-                                                        tilts=blah,
                                                         sky_region_file=sky_region_file,
                                                         bkg_redux=self.bkg_redux,
                                                         manual=manual_obj,
