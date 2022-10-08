@@ -865,7 +865,7 @@ class PypeIt:
                                           sobjs=self.exTract.sobjs)
         else:
             # Although extraction is not performed, still need to prepare some masks and the tilts, and apply heliocentric correction
-            self.exTract.prepare_extraction(final_global_sky)
+            self.exTract.prepare_extraction()
             self.exTract.refframe_correct(self.fitstbl["ra"][frames[0]], self.fitstbl["dec"][frames[0]], self.obstime)
             # Since the extraction was not performed, fill the arrays with the best available information
             skymodel = final_global_sky
