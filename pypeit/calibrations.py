@@ -573,7 +573,7 @@ class Calibrations:
                                                  self.wv_calib, qa_path=self.qa_path,
                                                  master_key=self.master_key_dict['flat'])
             # Generate
-            pixelflatImages = pixelFlatField.run(show=self.show)
+            pixelflatImages = pixelFlatField.run(doqa=self.write_qa, show=self.show)
             # Set flatimages in case we want to apply the pixel-to-pixel sensitivity corrections to the illumflat
             self.flatimages = pixelflatImages
 
@@ -601,7 +601,7 @@ class Calibrations:
                                                  self.wv_calib, spat_illum_only=True, qa_path=self.qa_path,
                                                  master_key=self.master_key_dict['flat'])
             # Generate
-            illumflatImages = illumFlatField.run(show=self.show)
+            illumflatImages = illumFlatField.run(doqa=self.write_qa, show=self.show)
 
         # Merge the illum flat with the pixel flat
         if pixelflatImages is not None:

@@ -509,7 +509,7 @@ class FlatField:
 
     # TODO: Need to add functionality to use a different frame for the
     # ilumination flat, e.g. a sky flat
-    def run(self, debug=False, show=False):
+    def run(self, doqa=False, debug=False, show=False):
         """
         Generate normalized pixel and illumination flats.
 
@@ -526,6 +526,8 @@ class FlatField:
         :func:`fit`, and :func:`show`.
 
         Args:
+            doqa (:obj:`bool`, optional):
+                Save the QA?
             debug (:obj:`bool`, optional):
                 Run in debug mode.
             show (:obj:`bool`, optional):
@@ -538,7 +540,7 @@ class FlatField:
         # NOTE: Tilts do not change and self.slits is updated internally.
         if not self.flatpar['fit_2d_det_response']:
             # This spectrograph does not have a structure correction implemented. Ignore detector structure.
-            self.fit(spat_illum_only=self.spat_illum_only, debug=debug)
+            self.fit(spat_illum_only=self.spat_illum_only, doqa=doqa, debug=debug)
         else:  # Iterate on the pixelflat if required by the spectrograph
             # User has requested a structure correction.
             # Note: This will only be performed if it is coded for each individual spectrograph.
@@ -549,7 +551,7 @@ class FlatField:
             niter = 1
             for ff in range(niter):
                 # Just get the spatial and spectral profiles for now
-                self.fit(spat_illum_only=self.spat_illum_only, debug=debug)
+                self.fit(spat_illum_only=self.spat_illum_only, doqa=doqa, debug=debug)
                 msgs.info("Iteration {0:d} of 2D detector response extraction".format(ff+1))
                 # Extract a detector response image
                 det_resp = self.extract_structure(rawflat_orig)
@@ -559,7 +561,7 @@ class FlatField:
                 # Apply this model
                 self.rawflatimg.image = rawflat_orig * utils.inverse(det_resp_model)
             # Perform a final 2D fit with the cleaned image
-            self.fit(spat_illum_only=self.spat_illum_only, debug=debug)
+            self.fit(spat_illum_only=self.spat_illum_only, doqa=doqa, debug=debug)
             # fold in the spectrograph specific flatfield, and reset the rawimg
             self.flat_model *= det_resp_model
             self.mspixelflat *= det_resp_model
@@ -629,7 +631,7 @@ class FlatField:
                          [(0.9, 1.1), (0.9, 1.1), None, None, (0.8, 1.2)])
         show_flats(image_list, wcs_match=wcs_match, slits=self.slits, waveimg=self.waveimg)
 
-    def fit(self, spat_illum_only=False, debug=False):
+    def fit(self, spat_illum_only=False, doqa=True, debug=False):
         """
         Construct a model of the flat-field image.
 
@@ -720,6 +722,8 @@ class FlatField:
                 If true, only the spatial illumination profile will be calculated.
                 The 2D bspline fit will not be performed. This is primarily used
                 to build an illumflat.
+            doqa (:obj:`bool`, optional):
+                Save the QA?
             debug (:obj:`bool`, optional):
                 Show plots useful for debugging. This will block
                 further execution of the code until the plot windows
@@ -1093,7 +1097,7 @@ class FlatField:
             spat_illum_fine = 1  # Default value if the fine correction is not performed
             if exit_status <= 1 and self.flatpar['slit_illum_finecorr']:
                 spat_illum = spat_bspl.value(spat_coo_final[onslit_tweak])[0]
-                self.spatial_fit_finecorr(spat_illum, onslit_tweak, slit_idx, slit_spat, gpm)
+                self.spatial_fit_finecorr(spat_illum, onslit_tweak, slit_idx, slit_spat, gpm, doqa=doqa)
 
             # ----------------------------------------------------------
             # Construct the illumination profile with the tweaked edges
@@ -1308,7 +1312,7 @@ class FlatField:
         return exit_status, spat_coo_data, spat_flat_data, spat_bspl, spat_gpm_fit, \
                spat_flat_fit, spat_flat_data_raw
 
-    def spatial_fit_finecorr(self, spat_illum, onslit_tweak, slit_idx, slit_spat, gpm):
+    def spatial_fit_finecorr(self, spat_illum, onslit_tweak, slit_idx, slit_spat, gpm, doqa=False):
         """
         Generate a relative scaling image for a slit-based IFU. All
         slits are scaled relative to a reference slit, specified in
@@ -1326,6 +1330,8 @@ class FlatField:
             Spatial ID of the slit
         gpm : `numpy.ndarray`_
             Good pixel mask
+        doqa : `bool`_, optional:
+            Save the QA?
         """
         msgs.info("Performing a fine correction to the spatial illumination (slit={0:d})".format(slit_spat))
         # initialise
@@ -1377,13 +1383,15 @@ class FlatField:
         else:
             msgs.warn("Fine correction to the spatial illumination failed for slit {0:d}".format(slit_spat))
             return
+
         # Prepare QA
-        outfile = qa.set_qa_filename("Spatillum_FineCorr_"+self.master_key, 'spatillum_finecorr', slit=slit_spat,
-                                     out_dir=self.qa_path)
-        title = "Fine correction to spatial illumination (slit={0:d})".format(slit_spat)
-        normed[np.logical_not(onslit_tweak)] = 1  # For the QA, make everything off the slit equal to 1
-        spatillum_finecorr_qa(normed, illumflat_finecorr, this_left, this_right, ypos, cut,
-                              outfile=outfile, title=title, half_slen=slitlen//2)
+        if doqa:
+            outfile = qa.set_qa_filename("Spatillum_FineCorr_"+self.master_key, 'spatillum_finecorr', slit=slit_spat,
+                                         out_dir=self.qa_path)
+            title = "Fine correction to spatial illumination (slit={0:d})".format(slit_spat)
+            normed[np.logical_not(onslit_tweak)] = 1  # For the QA, make everything off the slit equal to 1
+            spatillum_finecorr_qa(normed, illumflat_finecorr, this_left, this_right, ypos, cut,
+                                  outfile=outfile, title=title, half_slen=slitlen//2)
         return
 
     def extract_structure(self, rawflat_orig):
