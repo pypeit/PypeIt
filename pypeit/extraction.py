@@ -62,7 +62,7 @@ class Extract:
 
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, bkg_redux=False,
+    def get_instance(cls, sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, global_sky=None, bkg_redux=False,
                      return_negative=False, std_redux=False, show=False, basename=None):
         """
         Instantiate the Reduce subclass appropriate for the provided
@@ -83,6 +83,8 @@ class Extract:
                 Specifies object being reduced 'science' 'standard'
                 'science_coadd2d'.  This is used only to determine the
                 spat_flexure_shift and ech_order for coadd2d.
+            global_sky (`numpy.ndarray`_):
+                Global sky model
             bkg_redux (:obj:`bool`, optional):
                 If True, the sciImg has been subtracted by
                 a background image (e.g. standard treatment in the IR)
@@ -106,12 +108,12 @@ class Extract:
         """
         return next(c for c in utils.all_subclasses(Extract)
                     if c.__name__ == (spectrograph.pypeline + 'Extract'))(
-                            sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, 
+                            sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, global_sky=global_sky,
                             bkg_redux=bkg_redux, return_negative=return_negative, std_redux=std_redux, show=show,
                             basename=basename)
 
-    def __init__(self, sciImg, sobjs_obj, spectrograph, par, caliBrate,
-                 objtype, bkg_redux=False, return_negative=False, std_redux=False, show=False,
+    def __init__(self, sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, global_sky=None,
+                 bkg_redux=False, return_negative=False, std_redux=False, show=False,
                  basename=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
@@ -124,6 +126,7 @@ class Extract:
         self.par = par
         self.caliBrate = caliBrate
         self.basename = basename
+        self.global_sky = global_sky
         # Parse
         # Slit pieces
         #   WARNING -- It is best to unpack here then pass around self.slits
@@ -169,7 +172,6 @@ class Extract:
         self.ivarmodel = None
         self.objimage = None
         self.skyimage = None
-        self.global_sky = None
         self.outmask = None
         self.extractmask = None
         # SpecObjs object
@@ -343,15 +345,13 @@ class Extract:
                     self.sobjs_obj[iobj].update_flex_shift(self.slitshift[islit], flex_type='global')
 
 
-    def run(self, global_sky, prepare_extraction=True, model_noise=None, spat_pix=None):
+    def run(self, prepare_extraction=True, model_noise=None, spat_pix=None):
         """
         Primary code flow for PypeIt reductions
 
         *NOT* used by COADD2D
 
         Args:
-            global_sky (`numpy.ndarray`_):
-                Global sky model
             prepare_extraction (bool):
                 If True, generate the tilts image and the waveimg using fits that are stored in their
                 respective objects. This allows spatial flexure compensation to optionally be taken into account.
@@ -375,9 +375,6 @@ class Extract:
                See main doc string for description
 
         """
-        # Set the global sky
-        self.global_sky = global_sky
-
         # Start by preparing some masks and the wavelength image, ready for extraction
         # TODO this should return things to make the control flow less opaque.
         if prepare_extraction:
