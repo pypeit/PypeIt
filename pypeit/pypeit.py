@@ -872,17 +872,15 @@ class PypeIt:
         # TODO Are we repeating steps in the init for FindObjects and Extract??
         self.exTract = extraction.Extract.get_instance(
             sciImg, self.caliBrate.slits, sobjs_obj, self.spectrograph,
-            self.par, self.objtype, waveTilts=self.caliBrate.wavetilts, wv_calib=self.caliBrate.wv_calib,
+            self.par, self.objtype, global_sky=final_global_sky, waveTilts=self.caliBrate.wavetilts, wv_calib=self.caliBrate.wv_calib,
             bkg_redux=self.bkg_redux, return_negative=self.par['reduce']['extraction']['return_negative'],
             std_redux=self.std_redux, basename=self.basename, show=self.show)
 
         if not self.par['reduce']['extraction']['skip_extraction']:
             skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, \
-                tilts = self.exTract.run(final_global_sky, ra=self.fitstbl["ra"][frames[0]],
+                tilts = self.exTract.run(ra=self.fitstbl["ra"][frames[0]],
                                          dec=self.fitstbl["dec"][frames[0]], obstime=self.obstime)
         else:
-            # Although exrtaction is not performed, still need to prepare some masks and the tilts
-            #self.exTract.prepare_extraction()
             # Since the extraction was not performed, fill the arrays with the best available information
             skymodel = final_global_sky
             objmodel = np.zeros_like(self.exTract.sciImg.image)

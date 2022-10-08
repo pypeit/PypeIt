@@ -478,7 +478,8 @@ class FindObjects:
         """
         pass
 
-    def global_skysub(self, skymask=None, update_crmask=True,
+
+    def global_skysub(self, skymask=None, update_crmask=True, trim_edg = (0, 0),
                       previous_sky=None, show_fit=False, show=False, show_objs=False, objs_not_masked=False):
         """
         Perform global sky subtraction, slit by slit
@@ -489,6 +490,8 @@ class FindObjects:
             skymask (`numpy.ndarray`_, None):
                 A 2D image indicating sky regions (1=sky)
             update_crmask (bool, optional):
+            trim_edg (tuple, optional):
+                 A two tuple of ints that specify the number of pixels to trim from the slit edges
             show_fit (bool, optional):
             show (bool, optional):
             show_objs (bool, optional):
@@ -608,7 +611,6 @@ class FindObjects:
             If the user has defined the sky, set this variable to True (otherwise False).
         """
         user_regions = self.par['reduce']['skysub']['user_regions']
-        # TODO Clean up this control flow and provide docs.
         # Perform some checks
         if sky_region_file is None and user_regions is None and skymask_init is None:
             msgs.error("You must set the initial skymask, the user_regions, or provide a Master SkyRegions file")
