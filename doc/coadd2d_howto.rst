@@ -83,7 +83,7 @@ offsets
 This parameter defines the offsets in spatial pixels between the frames to be coadded.
 Here are the options:
 
-- ``offsets = auto``: ``PypeIt`` will compute the offsets. If the parameter `user_obj`
+- ``offsets = auto``: ``PypeIt`` will compute the offsets. If the parameter ``user_obj``
   (see :ref:`pypeit_par:Coadd2DPar Keywords`) is also set, ``PypeIt`` will use the 1D extracted spectrum
   chosen by the user to compute the offsets, otherwise it will use the 1D extracted spectrum with
   the highest S/N. If such spectrum is not found in each frame that the user wants to coadd,
@@ -109,7 +109,7 @@ weights
 
 This parameter defines the weights to be used in the 2D coadding.
 
-- ``weights = auto``: ``PypeIt`` will try to compute the (S/N)^2 weights. If the parameter `user_obj`
+- ``weights = auto``: ``PypeIt`` will try to compute the (S/N)^2 weights. If the parameter ``user_obj``
   (see :ref:`pypeit_par:Coadd2DPar Keywords`) is also set, ``PypeIt`` will use the 1D extracted spectrum
   chosen by the user to compute the weights, otherwise it will use the 1D extracted spectrum with
   the highest S/N. If such spectrum is not found in each frame that the user wants to coadd,
@@ -304,7 +304,7 @@ In this example we 2D coadd only one detector (det 7); however, note that ``Pype
 uses, as default, a mosaic approach for the reduction of Keck/DEIMOS, for which a mosaic
 is constructed for each blue-red detector pair. See :doc:`deimos` for more detail.
 
-Because ``weights = auto``, the parameter `user_obj` in this example instructs ``PypeIt``
+Because ``weights = auto``, the parameter ``user_obj`` in this example instructs ``PypeIt``
 to use the 1D extracted spectrum with ``OBJID`` equal to 1 and ``SLITID`` equal to 1037
 to compute the weights. See :doc:`out_spec1D` for more info about ``SLITID`` and ``OBJID``.
 
