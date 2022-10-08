@@ -633,7 +633,7 @@ class CoAdd2D:
 
         # Local sky-subtraction
         skymodel_pseudo, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, _, _ = exTract.run(
-            global_sky_pseudo, prepare_extraction=False, model_noise=False, spat_pix=pseudo_dict['spat_img'])
+            prepare_extraction=False, model_noise=False, spat_pix=pseudo_dict['spat_img'])
 
 
         # Add the rest to the pseudo_dict
