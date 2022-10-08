@@ -87,7 +87,7 @@ class FindObjects:
 
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, sciImg, slits, spectrograph, par, objtype, waveTilts=None, tilts=None, sky_region_file=None,
+    def get_instance(cls, sciImg, slits, spectrograph, par, objtype, wv_calib, waveTilts=None, tilts=None, sky_region_file=None,
                      bkg_redux=False, find_negative=False, std_redux=False, show=False, clear_ginga=True,
                      basename=None, manual=None):
         """
@@ -108,6 +108,8 @@ class FindObjects:
                 Specifies object being reduced 'science' 'standard'
                 'science_coadd2d'.  This is used only to determine the
                 spat_flexure_shift and ech_order for coadd2d.
+            wv_calib (:class:`~pypeit.wavetilts.WaveCalib`):
+                This is the waveCalib object which is optional, but either wv_calib or waveimg must be provided.
             waveTilts (:class:`pypeit.wavetilts.WaveTilts`_, optional):
                 DataContainer with arc/sky line tracing of the wavelength tilt
                 Only waveTilts or tilts is needed (not both)
@@ -138,14 +140,14 @@ class FindObjects:
         """
         return next(c for c in utils.all_subclasses(FindObjects)
                     if c.__name__ == (spectrograph.pypeline + 'FindObjects'))(
-            sciImg, slits, spectrograph, par, objtype, waveTilts=waveTilts, tilts=tilts,
+            sciImg, slits, spectrograph, par, objtype, wv_calib, waveTilts=waveTilts, tilts=tilts,
             sky_region_file=sky_region_file, bkg_redux=bkg_redux,
             find_negative=find_negative, std_redux=std_redux, show=show, clear_ginga=clear_ginga,
             basename=basename, manual=manual)
 
-    def __init__(self, sciImg, slits, spectrograph, par, objtype, waveTilts=None, tilts=None, sky_region_file=None,
-                 bkg_redux=False, find_negative=False, std_redux=False, show=False, clear_ginga=True,
-                 basename=None, manual=None):
+    def __init__(self, sciImg, slits, spectrograph, par, objtype, wv_calib, waveTilts=None, tilts=None,
+                 sky_region_file=None, bkg_redux=False, find_negative=False, std_redux=False, show=False,
+                 clear_ginga=True, basename=None, manual=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
         # Instantiation attributes for this object
@@ -157,6 +159,7 @@ class FindObjects:
         self.basename = basename
         self.manual = manual
         self.sky_region_file = sky_region_file
+        self.wv_calib = wv_calib
         # Parse
         # Slit pieces
         #   WARNING -- It is best to unpack here then pass around self.slits
@@ -738,8 +741,8 @@ class MultiSlitFindObjects(FindObjects):
     See parent doc string for Args and Attributes
 
     """
-    def __init__(self, sciImg, slits, spectrograph, par, objtype, **kwargs):
-        super().__init__(sciImg, slits, spectrograph, par, objtype, **kwargs)
+    def __init__(self, sciImg, slits, spectrograph, par, objtype, wv_calib, **kwargs):
+        super().__init__(sciImg, slits, spectrograph, par, objtype, wv_calib, **kwargs)
 
     def get_platescale(self, slitord_id=None):
         """
@@ -879,8 +882,8 @@ class EchelleFindObjects(FindObjects):
     See parent doc string for Args and Attributes
 
     """
-    def __init__(self, sciImg, slits, spectrograph, par, objtype, **kwargs):
-        super().__init__(sciImg, slits, spectrograph, par, objtype, **kwargs)
+    def __init__(self, sciImg, slits, spectrograph, par, objtype, wv_calib, **kwargs):
+        super().__init__(sciImg, slits, spectrograph, par, objtype, wv_calib, **kwargs)
 
         # JFH For 2d coadds the orders are no longer located at the standard locations
         self.order_vec = spectrograph.orders if 'coadd2d' in self.objtype \
@@ -1028,8 +1031,8 @@ class IFUFindObjects(MultiSlitFindObjects):
     See parent doc string for Args and Attributes
 
     """
-    def __init__(self, sciImg, slits, spectrograph, par, objtype, **kwargs):
-        super().__init__(sciImg, slits, spectrograph, par, objtype, **kwargs)
+    def __init__(self, sciImg, slits, spectrograph, par, objtype, wv_calib, **kwargs):
+        super().__init__(sciImg, slits, spectrograph, par, objtype, wv_calib, **kwargs)
         self.initialise_slits(slits, initial=True)
 
     def find_objects_pypeline(self, image, ivar, std_trace=None,

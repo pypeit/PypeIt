@@ -66,7 +66,7 @@ class Extract:
 
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, sciImg, slits, sobjs_obj, spectrograph, par, objtype,
+    def get_instance(cls, sciImg, slits, sobjs_obj, spectrograph, par, objtype, global_sky=None,
                      waveTilts=None, tilts=None, wv_calib=None, waveimg=None, bkg_redux=False,
                      return_negative=False, std_redux=False, show=False, basename=None):
         """
@@ -90,6 +90,8 @@ class Extract:
                 Specifies object being reduced 'science' 'standard'
                 'science_coadd2d'.  This is used only to determine the
                 spat_flexure_shift and ech_order for coadd2d.
+            global_sky (:obj:`numpy.ndarray`_, optional):
+                Fit to global sky. If None, an array of zeroes is generated the same size as sciImg
             waveTilts (:class:`~pypeit.wavetilts.WaveTilts`, optional):
                 This is waveTilts object which is optional, but either waveTilts or tilts must
                 be provided.
@@ -139,7 +141,7 @@ class Extract:
         self.spectrograph = spectrograph
         self.objtype = objtype
         self.par = par
-        self.global_sky = global_sky
+        self.global_sky = global_sky if global_sky is not None else np.zeros_like(sciImg.image)
 
         #self.caliBrate = caliBrate
         self.basename = basename
