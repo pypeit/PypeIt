@@ -398,7 +398,7 @@ class Extract:
             # Could have negative objects but no positive objects so purge them if not return_negative
             if self.bkg_redux:
                 self.sobjs_obj.make_neg_pos() if self.return_negative else self.sobjs_obj.purge_neg()
-            self.skymodel = global_sky 
+            self.skymodel = self.global_sky
             self.objmodel = np.zeros_like(self.sciImg.image)
             # Set to sciivar. Could create a model but what is the point?
             self.ivarmodel = np.copy(self.sciImg.ivar)
