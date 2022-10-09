@@ -1,5 +1,5 @@
 """
-Module for MMT/Blue Channel specific methods.
+Module for JWST NIRCAM WFSS  specific methods.
 
 .. include:: ../include/links.rst
 """
@@ -19,7 +19,7 @@ from IPython import embed
 
 class JWSTNIRCamSpectrograph(spectrograph.Spectrograph):
     """
-    Child to handle MMT/Blue Channel specific code
+    Child to handle JWST/NIRCAM WFSS specific code
     """
     ndet = 2
     name = 'jwst_nircam'
@@ -36,7 +36,7 @@ class JWSTNIRCamSpectrograph(spectrograph.Spectrograph):
 
             Many of the necessary detector parameters are read from the file
             header, meaning the ``hdu`` argument is effectively **required** for
-            MMT/BlueChannel.  The optional use of ``hdu`` is only viable for
+            NIRCAM.  The optional use of ``hdu`` is only viable for
             automatically generated documentation.
 
         Args:
