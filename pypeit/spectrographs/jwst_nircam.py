@@ -26,7 +26,7 @@ class JWSTNIRCamSpectrograph(spectrograph.Spectrograph):
     header_name = 'jwst_nircam'
     telescope = telescopes.JWSTTelescopePar()
     camera = 'NIRCAM'
-    supported = True
+    supported = False
 
     def get_detector_par(self, det, hdu=None):
         """
