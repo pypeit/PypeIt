@@ -227,7 +227,6 @@ class Extract:
         elif wv_calib is None and waveimg is not None:
             self.waveimg=waveimg
 
-
         # Now apply a global flexure correction to each slit provided it's not a standard star
         if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
             self.spec_flexure_correct(mode='global')
