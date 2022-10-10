@@ -1285,9 +1285,10 @@ class IFUFindObjects(MultiSlitFindObjects):
         if not self.par['reduce']['skysub']['joint_fit']:
             return global_sky_sep
 
-        # TODO Ryan Cooke this merge as complicated, plese take a look. This stuff with waveimg
-        # generation and with flexure computations should not be here. It should be moved to the
-        # init of the IFU child. Not sure what to do about this flexure stuff either.
+        # TODO Ryan Cooke this merge was complicated, plese take a look. I take it this stuff cannot be
+        # moved to the the _iniit_ since it depends on the global_skysub right? Anyway, we are planning to get all the
+        # flexure methods out of extraction and into separate methods/classes, but for now just check that the control
+        # flow is correct.
         if self.wv_calib is None:
             msgs.error("A wavelength calibration is needed (wv_calib) if a joint sky fit is requested.")
         msgs.info("Generating wavelength image")
