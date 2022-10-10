@@ -26,12 +26,13 @@ from pypeit import utils
 from pypeit.display import display
 from pypeit.core.wavecal import autoid
 from pypeit.core import arc
-from pypeit.core import qa
+from pypeit.core import extract
 from pypeit.core import fitting
+from pypeit.core import qa
 from pypeit.datamodel import DataContainer
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
-from pypeit import specobjs
+from pypeit import specobj, specobjs
 from pypeit import data
 
 from IPython import embed
@@ -265,6 +266,7 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm=None, mxsh
         # We need to compare the absolute value of shift to ``mxshft``, since shift can be
         # positive or negative, while ``mxshft`` is generally only positive
         # We use the int of abs(shift) to avoid to trigger the error/warning for differences <1pixel
+        # TODO :: I'm not convinced that we need int here...
         if int(abs(shift)) > mxshft:
             msgs.warn(f"Computed shift {shift:.1f} pix is "
                       f"larger than specified maximum {mxshft} pix.")
@@ -749,6 +751,80 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
     return flex_list
 
 
+def spec_flexure_slit_global(sciImg, waveimg, global_sky, par, slits, slitmask, trace_spat, gd_slits, wv_calib, pypeline, det):
+    """Calculate the spectral flexure for every slit
+
+    Args:
+        sciImg  (:class:`~pypeit.images.pypeitimage.PypeItImage`):
+            Science image.
+        waveimg (`numpy.ndarray`_):
+            Wavelength image - shape (nspec, nspat)
+        global_sky (`numpy.ndarray`_):
+            2D array of the global_sky fit - shape (nspec, nspat)
+        par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
+            Parameters of the reduction.
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+            Slit trace set
+        slitmask (`numpy.ndarray`_):
+            An image with the slit index identified for each pixel (returned from slittrace.slit_img).
+        trace_spat (`numpy.ndarray`_):
+            Spatial pixel values (usually the center of each slit) where the sky spectrum will be extracted.
+            The shape of this array should be (nspec, nslits)
+        gd_slits (`numpy.ndarray`_):
+            True = good slit
+        wv_calib (:class:`pypeit.wavecalib.WaveCalib`):
+            Wavelength calibration
+        pypeline (:obj:`str`):
+            Name of the ``PypeIt`` pipeline method.  Allowed options are
+            MultiSlit, Echelle, or IFU.
+        det (:obj:`str`):
+            The name of the detector or mosaic from which the spectrum will be
+            extracted.  For example, DET01.
+
+    Returns:
+        :obj:`list`: A list of :obj:`dict` objects containing flexure
+        results of each slit. This is filled with a basically empty
+        dict if the slit is skipped.
+    """
+    # TODO :: Need to think about spatial flexure - is the appropriate spatial flexure already included in trace_spat via left/right slits?
+    trace_spec = np.arange(slits.nspec)
+    slit_specs = []
+    # get boxcar radius
+    box_radius = par['reduce']['extraction']['boxcar_radius']
+    for ss in range(slits.nslits):
+        if not gd_slits[ss]:
+            slit_specs.append(None)
+            continue
+        slit_spat = slits.spat_id[ss]
+        thismask = (slitmask == slit_spat)
+        inmask = sciImg.select_flag(invert=True) & thismask
+
+        # Dummy spec for extract_boxcar
+        spec = specobj.SpecObj(PYPELINE=pypeline,
+                               SLITID=ss,
+                               ECH_ORDER=ss,  # Use both to cover the bases for naming
+                               DET=str(det))
+        spec.trace_spec = trace_spec
+        spec.TRACE_SPAT = trace_spat[:, ss]
+        spec.BOX_RADIUS = box_radius
+        # Extract
+        extract.extract_boxcar(sciImg.image, sciImg.ivar, inmask, waveimg, global_sky, spec)
+        slit_wave, slit_sky = spec.BOX_WAVE, spec.BOX_COUNTS_SKY
+
+        # TODO :: Need to remove this XSpectrum1D dependency - it is required in:  flexure.spec_flex_shift
+        # Pack
+        slit_specs.append(xspectrum1d.XSpectrum1D.from_tuple((slit_wave, slit_sky)))
+
+    # Measure flexure
+    flex_list = spec_flexure_slit(slits, slits.slitord_id, np.logical_not(gd_slits),
+                                  par['flexure']['spectrum'],
+                                  method=par['flexure']['spec_method'],
+                                  mxshft=par['flexure']['spec_maxshift'],
+                                  excess_shft=par['flexure']['excessive_shift'],
+                                  specobjs=None, slit_specs=slit_specs, wv_calib=wv_calib)
+    return flex_list
+
+
 def spec_flexure_corrQA(ax, this_flex_dict, cntr, name):
     # Fit
     fit = this_flex_dict['polyfit'][cntr]
@@ -780,7 +856,7 @@ def spec_flexure_corrQA(ax, this_flex_dict, cntr, name):
         ax.set_xlabel('Lag')
 
 
-def spec_flexure_qa(slitords, bpm, basename, flex_list, 
+def spec_flexure_qa(slitords, bpm, basename, flex_list,
                     specobjs=None, out_dir=None):
     """
     Generate QA for the spectral flexure calculation
@@ -1068,23 +1144,23 @@ def sky_em_residuals(wave:np.ndarray, flux:np.ndarray,
     input sky emission lines 
 
     Args:
-        wave (`numpy.ndarray`_): 
+        wave (`numpy.ndarray`_):
             Wavelengths (in air!)
-        flux (`numpy.ndarray`_): 
+        flux (`numpy.ndarray`_):
             Fluxes
-        ivar (`numpy.ndarray`_): 
+        ivar (`numpy.ndarray`_):
             Inverse variance
-        sky_waves (`numpy.ndarray`_): 
+        sky_waves (`numpy.ndarray`_):
             Skyline wavelengths (in air!)
-        plot (bool, optional): 
+        plot (bool, optional):
             If true, plot the residuals
-        noff (int, optional): 
+        noff (int, optional):
             Range in Ang to analyze labout emission line. Defaults to 5.
-        nfit_min (int, optional): 
+        nfit_min (int, optional):
             Minimum number of pixels required to do a fit. Defaults to 20.
 
     Returns:
-        tuple of `numpy.ndarray`_ -- sky line wavelength of good lines, wavelength offset, 
+        tuple of `numpy.ndarray`_ -- sky line wavelength of good lines, wavelength offset,
             error in wavelength offset, sky line width,
             error in sky line width
     """

@@ -1309,7 +1309,7 @@ class ArchiveReid:
             # Add the patt_dict and wv_calib to the output dicts
             self.wv_calib[str(slit)] = copy.deepcopy(final_fit)
             if self.debug_fits:
-                arc_fit_qa(self.wv_calib[str(slit)], title='Silt: {}'.format(str(slit)))
+                arc_fit_qa(self.wv_calib[str(slit)], title='Slit: {}'.format(str(slit)))
 
         # Print the final report of all lines
         report_final(self.nslits, self.all_patt_dict, self.detections, self.wv_calib, self.ok_mask, self.bad_slits)

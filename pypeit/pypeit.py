@@ -878,18 +878,21 @@ class PypeIt:
             std_redux=self.std_redux, basename=self.basename, show=self.show)
 
         if not self.par['reduce']['extraction']['skip_extraction']:
-            skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, \
-                tilts = self.exTract.run(ra=self.fitstbl["ra"][frames[0]],
-                                         dec=self.fitstbl["dec"][frames[0]], obstime=self.obstime)
+            # Perform the extraction
+            skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, tilts = self.exTract.run()
+            # Apply a reference frame correction to each object and the waveimg
+            self.exTract.refframe_correct(self.fitstbl["ra"][frames[0]], self.fitstbl["dec"][frames[0]], self.obstime,
+                                          sobjs=self.exTract.sobjs)
         else:
             # Since the extraction was not performed, fill the arrays with the best available information
+            self.exTract.refframe_correct(self.fitstbl["ra"][frames[0]], self.fitstbl["dec"][frames[0]], self.obstime)
             skymodel = final_global_sky
             objmodel = np.zeros_like(self.exTract.sciImg.image)
             ivarmodel = np.copy(self.exTract.sciImg.ivar)
             outmask = self.exTract.sciImg.fullmask
+            sobjs = sobjs_obj
             waveImg = self.exTract.waveimg
             tilts = self.exTract.tilts
-            sobjs = sobjs_obj
 
         # TODO -- Do this upstream
         # Tack on detector and wavelength RMS
