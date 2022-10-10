@@ -790,7 +790,7 @@ class PypeIt:
         # At instantiaton, the fullmask in self.sciImg is modified
         objFind = find_objects.FindObjects.get_instance(sciImg, self.caliBrate.slits, self.spectrograph,
                                                         self.par, self.objtype,
-                                                        self.caliBrate.wv_calib,
+                                                        wv_calib=self.caliBrate.wv_calib,
                                                         waveTilts=self.caliBrate.wavetilts,
                                                         sky_region_file=sky_region_file,
                                                         bkg_redux=self.bkg_redux,
