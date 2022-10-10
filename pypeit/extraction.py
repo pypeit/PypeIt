@@ -66,7 +66,7 @@ class Extract:
 
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, sciImg, slits, sobjs_obj, spectrograph, par, objtype,
+    def get_instance(cls, sciImg, slits, sobjs_obj, spectrograph, par, objtype, global_sky=None,
                      waveTilts=None, tilts=None, wv_calib=None, waveimg=None, bkg_redux=False,
                      return_negative=False, std_redux=False, show=False, basename=None):
         """
@@ -90,6 +90,8 @@ class Extract:
                 Specifies object being reduced 'science' 'standard'
                 'science_coadd2d'.  This is used only to determine the
                 spat_flexure_shift and ech_order for coadd2d.
+            global_sky (:obj:`numpy.ndarray`_, optional):
+                Fit to global sky. If None, an array of zeroes is generated the same size as sciImg
             waveTilts (:class:`~pypeit.wavetilts.WaveTilts`, optional):
                 This is waveTilts object which is optional, but either waveTilts or tilts must
                 be provided.
@@ -122,11 +124,11 @@ class Extract:
         """
         return next(c for c in utils.all_subclasses(Extract)
                     if c.__name__ == (spectrograph.pypeline + 'Extract'))(
-            sciImg, slits, sobjs_obj, spectrograph, par, objtype, waveTilts=waveTilts, tilts=tilts,
+            sciImg, slits, sobjs_obj, spectrograph, par, objtype, global_sky=global_sky, waveTilts=waveTilts, tilts=tilts,
             wv_calib=wv_calib, waveimg=waveimg, bkg_redux=bkg_redux, return_negative=return_negative,
             std_redux=std_redux, show=show, basename=basename)
 
-    def __init__(self, sciImg, slits, sobjs_obj, spectrograph, par, objtype,
+    def __init__(self, sciImg, slits, sobjs_obj, spectrograph, par, objtype, global_sky=None,
                  waveTilts=None, tilts=None, wv_calib=None, waveimg=None,
                  bkg_redux=False, return_negative=False, std_redux=False, show=False,
                  basename=None):
@@ -139,6 +141,8 @@ class Extract:
         self.spectrograph = spectrograph
         self.objtype = objtype
         self.par = par
+        self.global_sky = global_sky if global_sky is not None else np.zeros_like(sciImg.image)
+
         #self.caliBrate = caliBrate
         self.basename = basename
         # Parse
@@ -365,15 +369,13 @@ class Extract:
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
 
-    def run(self, global_sky, model_noise=None, spat_pix=None, ra=None, dec=None, obstime=None):
+    def run(self, model_noise=None, spat_pix=None, ra=None, dec=None, obstime=None):
         """
         Primary code flow for PypeIt reductions
 
         *NOT* used by COADD2D
 
         Args:
-            global_sky (`numpy.ndarray`_):
-                Global sky model
             sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
                 List of objects found during `run_objfind`
             model_noise (bool):
@@ -394,7 +396,6 @@ class Extract:
             obstime (:obj:`astropy.time.Time`, optional):
                 Required if helio-centric correction is to be applied
 
-
             return_negative (:obj:`bool`, optional):
                 Do you want to extract the negative objects?
 
@@ -405,8 +406,8 @@ class Extract:
                See main doc string for description
 
         """
-
-        self.global_sky = global_sky
+        # TODO :: since prepare_extraction() has disappeared, we need to make sure that @doberoape's changes
+        # still take effect.
 
         # Apply a global flexure correction to each slit
         # provided it's not a standard star
@@ -434,7 +435,7 @@ class Extract:
             # Could have negative objects but no positive objects so purge them if not return_negative
             if self.bkg_redux:
                 self.sobjs_obj.make_neg_pos() if self.return_negative else self.sobjs_obj.purge_neg()
-            self.skymodel = global_sky 
+            self.skymodel = self.global_sky
             self.objmodel = np.zeros_like(self.sciImg.image)
             # Set to sciivar. Could create a model but what is the point?
             self.ivarmodel = np.copy(self.sciImg.ivar)

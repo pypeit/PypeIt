@@ -765,6 +765,21 @@ class PypeIt:
                 slits=self.caliBrate.slits,  # For flexure correction
                 ignore_saturation=False), frame_par['process'])
 
+        # Check if the user has manually created a Master sky regions
+        sky_region_file = None
+        if self.par['reduce']['skysub']['load_mask']:
+            # Check if a master Sky Regions file exists for this science frame
+            file_base = os.path.basename(sciImg.files[0])
+            prefix = os.path.splitext(file_base)
+            if prefix[1] == ".gz":
+                sciName = os.path.splitext(prefix[0])[0]
+            else:
+                sciName = prefix[0]
+
+            master_dir = self.caliBrate.master_dir
+            master_key = self.caliBrate.fitstbl.master_key(0, det=self.det) + "_" + sciName
+            sky_region_file = masterframe.construct_file_name(buildimage.SkyRegions, master_key, master_dir=master_dir)
+
         # Deal with manual extraction
         row = self.fitstbl[frames[0]]
         manual_obj = ManualExtractionObj.by_fitstbl_input(
@@ -774,7 +789,10 @@ class PypeIt:
         # Required for pypeline specific object
         # At instantiaton, the fullmask in self.sciImg is modified
         objFind = find_objects.FindObjects.get_instance(sciImg, self.caliBrate.slits, self.spectrograph,
-                                                        self.par, self.objtype, waveTilts=self.caliBrate.wavetilts,
+                                                        self.par, self.objtype,
+                                                        wv_calib=self.caliBrate.wv_calib,
+                                                        waveTilts=self.caliBrate.wavetilts,
+                                                        sky_region_file=sky_region_file,
                                                         bkg_redux=self.bkg_redux,
                                                         manual=manual_obj,
                                                         find_negative=self.find_negative,
@@ -855,17 +873,15 @@ class PypeIt:
         # TODO Are we repeating steps in the init for FindObjects and Extract??
         self.exTract = extraction.Extract.get_instance(
             sciImg, self.caliBrate.slits, sobjs_obj, self.spectrograph,
-            self.par, self.objtype, waveTilts=self.caliBrate.wavetilts, wv_calib=self.caliBrate.wv_calib,
+            self.par, self.objtype, global_sky=final_global_sky, waveTilts=self.caliBrate.wavetilts, wv_calib=self.caliBrate.wv_calib,
             bkg_redux=self.bkg_redux, return_negative=self.par['reduce']['extraction']['return_negative'],
             std_redux=self.std_redux, basename=self.basename, show=self.show)
 
         if not self.par['reduce']['extraction']['skip_extraction']:
             skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, \
-                tilts = self.exTract.run(final_global_sky, ra=self.fitstbl["ra"][frames[0]],
+                tilts = self.exTract.run(ra=self.fitstbl["ra"][frames[0]],
                                          dec=self.fitstbl["dec"][frames[0]], obstime=self.obstime)
         else:
-            # Although exrtaction is not performed, still need to prepare some masks and the tilts
-            #self.exTract.prepare_extraction()
             # Since the extraction was not performed, fill the arrays with the best available information
             skymodel = final_global_sky
             objmodel = np.zeros_like(self.exTract.sciImg.image)
