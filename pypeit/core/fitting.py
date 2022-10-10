@@ -20,6 +20,7 @@ from pypeit.datamodel import DataContainer
 
 from IPython import embed
 
+
 class PypeItFit(DataContainer):
     # Set the version of this class
     version = '1.0.0'
@@ -103,6 +104,9 @@ class PypeItFit(DataContainer):
         """
         Perform the fit, either in 1D or 2D depending on the
         data and model.
+
+        Returns:
+            int: Flag indicating whether fit was successful (1) or if it failed (0)
         """
 
         # Init
@@ -226,10 +230,10 @@ class PypeItFit(DataContainer):
         return np.sqrt(np.sum(weights * (yval - values) ** 2))
 
 
-def evaluate_fit(fitc, func, x, x2=None, minx=None, 
+def evaluate_fit(fitc, func, x, x2=None, minx=None,
                  maxx=None, minx2=None, maxx2=None):
     """
-    Return the evaluated fit at the x locations 
+    Return the evaluated fit at the x locations
 
     Args:
         fitc (`numpy.ndarray`_):
@@ -289,7 +293,7 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
     A robust fit is performed to the xarray, yarray pairs ``mask[i] = 1`` are
     good values, if provided.
 
-    The underlying method(s) are the numpy fitting routines, 
+    The underlying method(s) are the numpy fitting routines,
     e.g. polyfit, legfit.
 
     Args:
@@ -383,7 +387,7 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
     Returns:
         PypeItFit or None:
             Object containing the inputs to the fit and the
-            fit itself 
+            fit itself
     """
 
     # Setup the initial mask
@@ -546,7 +550,7 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
             Optional parameters passed to the optimizer.
 
     Returns:
-        tuple: 
+        tuple:
             - The object returned by the `scipy.optimize` function used
               by the fitter.  See `fitfunc`.
             - A `numpy.ndarray`_ with the model value fit to `ydata` and
@@ -755,7 +759,6 @@ def guess_gauss(x,y):
     return ampl, cent, sigma, floor
 
 
-
 def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
                       minx=None, maxx=None, miny=None, maxy=None):
     """
@@ -780,7 +783,7 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
             Maximum value for the fit used to normalise the y values
 
     Returns:
-        tuple: 
+        tuple:
             - The coefficients of the polynomial fit as a `numpy.ndarray`_
             - minx, maxx, miny, maxy: min and max values for the fit as :obj:`float`
 
@@ -813,7 +816,6 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
     z = z.reshape((vander.shape[0],))
     c = np.linalg.lstsq(vander, z, rcond=None)[0]
     return c.reshape(deg+1), minx, maxx, miny, maxy
-
 
 
 def twoD_Gaussian(tup, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
@@ -852,7 +854,7 @@ def twoD_Gaussian(tup, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
 # Below here are codes related to b-spline fitting
 def iterfit(xdata, ydata, invvar=None, inmask=None, upper=5, lower=5, x2=None,
             maxiter=10, nord=4, bkpt=None, fullbkpt=None, kwargs_bspline={}, kwargs_reject={}):
-    """Iteratively fit a b-spline set to data, with rejection. 
+    """Iteratively fit a b-spline set to data, with rejection.
     This is a utility function that allows
     the bspline to be used via a direct function call.
 

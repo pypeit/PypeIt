@@ -18,10 +18,6 @@ from linetools import utils as ltu
 from pypeit import msgs, utils
 from pypeit.display import display
 from pypeit.core import skysub, extract, wave, flexure
-from pypeit.core.moment import moment1d
-from pypeit import specobj
-
-from linetools.spectra import xspectrum1d
 
 from IPython import embed
 
@@ -84,7 +80,7 @@ class Extract:
             sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
                 Objects found but not yet extracted
             spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
-            par (pypeit.par.pyepeitpar.PypeItPar):
+            par (pypeit.par.pypeitpar.PypeItPar):
                 Parameter set for Extract
             objtype (:obj:`str`):
                 Specifies object being reduced 'science' 'standard'
@@ -145,6 +141,7 @@ class Extract:
 
         #self.caliBrate = caliBrate
         self.basename = basename
+        self.global_sky = global_sky
         # Parse
         # Slit pieces
         #   WARNING -- It is best to unpack here then pass around self.slits
@@ -190,7 +187,6 @@ class Extract:
         self.ivarmodel = None
         self.objimage = None
         self.skyimage = None
-        self.global_sky = None
         self.outmask = None
         self.extractmask = None
         # SpecObjs object
@@ -369,15 +365,17 @@ class Extract:
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
 
-    def run(self, model_noise=None, spat_pix=None, ra=None, dec=None, obstime=None):
+        # Wavelengths (on unmasked slits)
+        msgs.info("Generating wavelength image")
+        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
+
+    def run(self, model_noise=None, spat_pix=None):
         """
         Primary code flow for PypeIt reductions
 
         *NOT* used by COADD2D
 
         Args:
-            sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
-                List of objects found during `run_objfind`
             model_noise (bool):
                 If True, construct and iteratively update a model inverse variance image
                 using :func:`~pypeit.core.procimg.variance_model`. If False, a
@@ -389,15 +387,6 @@ class Extract:
                  Image containing the spatial coordinates. This option is used for 2d coadds
                  where the spat_pix image is generated as a coadd of images. For normal reductions
                  spat_pix is not required as it is trivially created from the image itself. Default is None.
-            ra (:obj:`float`, optional):
-                Required if helio-centric correction is to be applied
-            dec (:obj:`float`, optional):
-                Required if helio-centric correction is to be applied
-            obstime (:obj:`astropy.time.Time`, optional):
-                Required if helio-centric correction is to be applied
-
-            return_negative (:obj:`bool`, optional):
-                Do you want to extract the negative objects?
 
         Returns:
             tuple: skymodel (ndarray), objmodel (ndarray), ivarmodel (ndarray),
@@ -406,8 +395,38 @@ class Extract:
                See main doc string for description
 
         """
-        # TODO :: since prepare_extraction() has disappeared, we need to make sure that @doberoape's changes
-        # still take effect.
+        # Deal with dynamic calibrations
+        # Tilts
+        self.waveTilts.is_synced(self.slits)
+        #   Deal with Flexure
+        if self.par['calibrations']['tiltframe']['process']['spat_flexure_correct']:
+            _spat_flexure = 0. if self.spat_flexure_shift is None else self.spat_flexure_shift
+            # If they both shifted the same, there will be no reason to shift the tilts
+            tilt_flexure_shift = _spat_flexure - self.waveTilts.spat_flexure
+        else:
+            tilt_flexure_shift = self.spat_flexure_shift
+        msgs.info("Generating tilts image")
+        self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
+
+        # Wavelengths (on unmasked slits)
+        msgs.info("Generating wavelength image")
+        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
+
+        # Apply a global flexure correction to each slit
+        # provided it's not a standard star
+        if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
+            self.spec_flexure_correct(mode='global')
+            if self.nobj_to_extract > 0:
+                for iobj in range(self.sobjs_obj.nobj):
+                    islit = self.slits.spatid_to_zero(self.sobjs_obj[iobj].SLITID)
+                    self.sobjs_obj[iobj].update_flex_shift(self.slitshift[islit], flex_type='global')
+
+
+
+
+
+
+        self.global_sky = global_sky
 
         # Apply a global flexure correction to each slit
         # provided it's not a standard star
@@ -446,9 +465,6 @@ class Extract:
             # empty specobjs object from object finding
             self.sobjs = self.sobjs_obj
 
-        # Apply a reference frame correction to each object and the waveimg
-        self.refframe_correct(ra, dec, obstime, sobjs=self.sobjs)
-
         # Update the mask
         # TODO avoid modifying arguments to a class or function in place. If slits is mutable, it should be a return
         # value for the run function
@@ -459,8 +475,7 @@ class Extract:
                 self.slits.mask[reduce_masked], 'BADREDUCE')
 
         # Return
-        return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, \
-               self.waveimg, self.tilts
+        return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, self.waveimg, self.tilts
 
     def local_skysub_extract(self, global_sky, sobjs, model_noise=True, spat_pix=None,
                              show_profile=False, show_resids=False, show=False):
@@ -500,45 +515,10 @@ class Extract:
         if mode == "global":
             msgs.info('Performing global spectral flexure correction')
             gd_slits = np.logical_not(self.extract_bpm)
-            # TODO :: Need to think about spatial flexure - is the appropriate spatial flexure already included in trace_spat via left/right slits?
             trace_spat = 0.5 * (self.slits_left + self.slits_right)
-            trace_spec = np.arange(self.slits.nspec)
-            slit_specs = []
-            # get boxcar radius
-            box_radius = self.par['reduce']['extraction']['boxcar_radius']
-            for ss in range(self.slits.nslits):
-                if not gd_slits[ss]:
-                    slit_specs.append(None)
-                    continue
-                slit_spat = self.slits.spat_id[ss]
-                thismask = (self.slitmask == slit_spat)
-                inmask = self.sciImg.select_flag(invert=True) & thismask
-
-                # Dummy spec for extract_boxcar
-                spec = specobj.SpecObj(PYPELINE=self.pypeline,
-                                       SLITID=ss,
-                                       ECH_ORDER=ss, # Use both to cover the bases for naming
-                                       DET=str(self.det))
-                spec.trace_spec = trace_spec
-                spec.TRACE_SPAT = trace_spat[:,ss]
-                spec.BOX_RADIUS = box_radius
-                # Extract
-                extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar, inmask,
-                                       self.waveimg, self.global_sky, spec) 
-                slit_wave, slit_sky = spec.BOX_WAVE, spec.BOX_COUNTS_SKY
-
-                # TODO :: Need to remove this XSpectrum1D dependency - it is required in:  flexure.spec_flex_shift
-                # Pack
-                slit_specs.append(xspectrum1d.XSpectrum1D.from_tuple((slit_wave, slit_sky)))
-
-            # Measure flexure
-            # If mode == global: specobjs = None and slitspecs != None
-            flex_list = flexure.spec_flexure_slit(self.slits, self.slits.slitord_id, self.extract_bpm,
-                                                  self.par['flexure']['spectrum'],
-                                                  method=self.par['flexure']['spec_method'],
-                                                  mxshft=self.par['flexure']['spec_maxshift'],
-                                                  excess_shft=self.par['flexure']['excessive_shift'],
-                                                  specobjs=sobjs, slit_specs=slit_specs, wv_calib=self.wv_calib)
+            flex_list = flexure.spec_flexure_slit_global(self.sciImg, self.waveimg, self.global_sky, self.par,
+                                                         self.slits, self.slitmask, trace_spat, gd_slits,
+                                                         self.wv_calib, self.pypeline, self.det)
             # Store the slit shifts that were applied to each slit
             # These corrections are later needed so the specobjs metadata contains the total spectral flexure
             self.slitshift = np.zeros(self.slits.nslits)

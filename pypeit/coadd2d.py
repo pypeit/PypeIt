@@ -639,8 +639,6 @@ class CoAdd2D:
         #exTract.reduce_bpm = pseudo_reduce_bpm
 
         # Local sky-subtraction
-        #global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
-
         skymodel_pseudo, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, _, _ = exTract.run(
             model_noise=False, spat_pix=pseudo_dict['spat_img'])
 
