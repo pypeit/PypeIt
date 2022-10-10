@@ -364,11 +364,6 @@ class Extract:
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
-
-        # Wavelengths (on unmasked slits)
-        msgs.info("Generating wavelength image")
-        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
-
     def run(self, model_noise=None, spat_pix=None):
         """
         Primary code flow for PypeIt reductions
@@ -395,23 +390,6 @@ class Extract:
                See main doc string for description
 
         """
-        # Deal with dynamic calibrations
-        # Tilts
-        self.waveTilts.is_synced(self.slits)
-        #   Deal with Flexure
-        if self.par['calibrations']['tiltframe']['process']['spat_flexure_correct']:
-            _spat_flexure = 0. if self.spat_flexure_shift is None else self.spat_flexure_shift
-            # If they both shifted the same, there will be no reason to shift the tilts
-            tilt_flexure_shift = _spat_flexure - self.waveTilts.spat_flexure
-        else:
-            tilt_flexure_shift = self.spat_flexure_shift
-        msgs.info("Generating tilts image")
-        self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
-
-        # Wavelengths (on unmasked slits)
-        msgs.info("Generating wavelength image")
-        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
-
         # Apply a global flexure correction to each slit
         # provided it's not a standard star
         if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
@@ -420,21 +398,6 @@ class Extract:
                 for iobj in range(self.sobjs_obj.nobj):
                     islit = self.slits.spatid_to_zero(self.sobjs_obj[iobj].SLITID)
                     self.sobjs_obj[iobj].update_flex_shift(self.slitshift[islit], flex_type='global')
-
-
-
-
-
-
-        self.global_sky = global_sky
-
-        # Apply a global flexure correction to each slit
-        # provided it's not a standard star
-        if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
-            self.spec_flexure_correct(mode='global')
-            for iobj in range(self.sobjs_obj.nobj):
-                islit = self.slits.spatid_to_zero(self.sobjs_obj[iobj].SLITID)
-                self.sobjs_obj[iobj].update_flex_shift(self.slitshift[islit], flex_type='global')
 
         # Do we have any detected objects to extract?
         if self.nobj_to_extract > 0:
