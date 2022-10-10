@@ -110,7 +110,7 @@ No Fine Correction to the Spatial Illumination
 By default, a fine correction to the spatial illumination profile is performed. If you
 wish to turn off the fine correction to the spatial illumination profile (based on the
 appearance of the QA that is output in the PNG folder),
-add the following to the :ref:`pypeit_file:Parameter Block`:
+add the following to the :ref:`parameter_block`:
 
 .. code-block:: ini
 
