@@ -851,7 +851,7 @@ class PypeIt:
         # TODO Are we repeating steps in the init for FindObjects and Extract??
         self.exTract = extraction.Extract.get_instance(
             sciImg, sobjs_obj, self.spectrograph, 
-            self.par, self.caliBrate, self.objtype, 
+            self.par, self.caliBrate, self.objtype, global_sky=final_global_sky,
             bkg_redux=self.bkg_redux,
             return_negative=self.par['reduce']['extraction']['return_negative'],
             std_redux=self.std_redux,
@@ -859,20 +859,23 @@ class PypeIt:
             basename=self.basename)
 
         if not self.par['reduce']['extraction']['skip_extraction']:
-            skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, \
-                tilts = self.exTract.run(final_global_sky, ra=self.fitstbl["ra"][frames[0]],
-                                         dec=self.fitstbl["dec"][frames[0]], obstime=self.obstime)
+            # Perform the extraction
+            skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, tilts = self.exTract.run()
+            # Apply a reference frame correction to each object and the waveimg
+            self.exTract.refframe_correct(self.fitstbl["ra"][frames[0]], self.fitstbl["dec"][frames[0]], self.obstime,
+                                          sobjs=self.exTract.sobjs)
         else:
-            # Although exrtaction is not performed, still need to prepare some masks and the tilts
+            # Although extraction is not performed, still need to prepare some masks and the tilts, and apply heliocentric correction
             self.exTract.prepare_extraction()
+            self.exTract.refframe_correct(self.fitstbl["ra"][frames[0]], self.fitstbl["dec"][frames[0]], self.obstime)
             # Since the extraction was not performed, fill the arrays with the best available information
             skymodel = final_global_sky
             objmodel = np.zeros_like(self.exTract.sciImg.image)
             ivarmodel = np.copy(self.exTract.sciImg.ivar)
             outmask = self.exTract.sciImg.fullmask
+            sobjs = sobjs_obj
             waveImg = self.exTract.waveimg
             tilts = self.exTract.tilts
-            sobjs = sobjs_obj
 
         # TODO -- Do this upstream
         # Tack on detector and wavelength RMS

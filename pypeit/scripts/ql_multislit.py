@@ -251,9 +251,10 @@ def reduce(files, caliBrate, spectrograph, parset, bkg_files=None, show=False, s
     global_sky, sobjs_obj = objFind.run(std_trace=std_trace, show_peaks=show)
 
     # Instantiate Extract object
-    extract = extraction.Extract.get_instance(sciImg, sobjs_obj, spectrograph, parset, caliBrate,
-                                              'science', bkg_redux=bkg_redux, return_negative=bkg_redux, show=show)
-    skymodel, objmodel, ivarmodel, outmask, sobjs, waveimg, tilts = extract.run(global_sky, sobjs_obj)
+    extract = extraction.Extract.get_instance(sciImg, sobjs_obj, spectrograph, parset, caliBrate, 'science',
+                                              global_sky=global_sky, bkg_redux=bkg_redux, return_negative=bkg_redux,
+                                              show=show)
+    skymodel, objmodel, ivarmodel, outmask, sobjs, waveimg, tilts = extract.run()
 
     # TODO -- Do this upstream
     # Tack on detector
