@@ -1032,8 +1032,8 @@ class IFUFindObjects(MultiSlitFindObjects):
     See parent doc string for Args and Attributes
 
     """
-    def __init__(self, sciImg, slits, spectrograph, par, objtype, wv_calib=None, **kwargs):
-        super().__init__(sciImg, slits, spectrograph, par, objtype, wv_calib=None, **kwargs)
+    def __init__(self, sciImg, slits, spectrograph, par, objtype, **kwargs):
+        super().__init__(sciImg, slits, spectrograph, par, objtype, **kwargs)
         self.initialise_slits(slits, initial=True)
 
     def find_objects_pypeline(self, image, ivar, std_trace=None,
