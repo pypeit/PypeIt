@@ -19,6 +19,10 @@ Instrument                    Det  specaxis  specflip  spatflip  namp      gain 
 ``gemini_gnirs``              1    0         True      True      1         13.5                        7.0                     0.15      -1.0e+10  150000.0      0.7100     0.1500    
 ``gtc_osiris``                1    0         False     False     1         0.95                        4.5                     0.0       0.0e+00   65535.0       0.9500     0.1270    
 ...                           2    0         False     False     1         0.95                        4.5                     0.0       0.0e+00   65535.0       0.9500     0.1270    
+``jwst_nircam``               1    1         False     False     1         1.84                        8.55                    0.0335    -1.0e+10  59200.0       0.9500     0.0630    
+...                           2    1         False     False     1         1.8                         8.57                    0.035     -1.0e+10  58500.0       0.9500     0.0630    
+``jwst_nirspec``              1    1         False     False     1         0.996                       5.17                    0.0092    -1.0e+10  55100.0       0.9500     0.1000    
+...                           2    1         False     False     1         1.137                       6.6                     0.0057    -1.0e+10  60400.0       0.9500     0.1000    
 ``keck_deimos``               1    0         False     False     1         1.226                       2.57                    3.3       -1.0e+10  65535.0       0.9500     0.1185    
 ...                           2    0         False     False     1         1.188                       2.491                   3.6       -1.0e+10  65535.0       0.9500     0.1185    
 ...                           3    0         False     False     1         1.248                       2.618                   3.5       -1.0e+10  65535.0       0.9500     0.1185    
