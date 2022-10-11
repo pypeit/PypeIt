@@ -1281,18 +1281,14 @@ class IFUFindObjects(MultiSlitFindObjects):
                                                trim_edg=trim_edg, show_fit=show_fit, show=show,
                                                show_objs=show_objs)
 
-        # If the joint fit or spec/spat sensitivity corrections are not being performed, return the separate slits sky
-        if not self.par['reduce']['skysub']['joint_fit']:
+        # Check if flexure or a joint fit is requested
+        if not self.par['reduce']['skysub']['joint_fit'] and self.par['flexure']['spec_method'] == 'skip':
             return global_sky_sep
-
-        # TODO Ryan Cooke this merge was complicated, plese take a look. I take it this stuff cannot be
-        # moved to the the _iniit_ since it depends on the global_skysub right? Anyway, we are planning to get all the
-        # flexure methods out of extraction and into separate methods/classes, but for now just check that the control
-        # flow is correct.
         if self.wv_calib is None:
             msgs.error("A wavelength calibration is needed (wv_calib) if a joint sky fit is requested.")
         msgs.info("Generating wavelength image")
         self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
+        # Calculate spectral flexure
         method = self.par['flexure']['spec_method']
         if method in ['slitcen']:
             trace_spat = 0.5 * (self.slits_left + self.slits_right)
@@ -1304,6 +1300,10 @@ class IFUFindObjects(MultiSlitFindObjects):
                 self.slitshift[sl] = flex_list[sl]['shift'][0]
                 msgs.info("Flexure correction of slit {0:d}: {1:.3f} pixels".format(1 + sl, self.slitshift[sl]))
 
+        # If the joint fit or spec/spat sensitivity corrections are not being performed, return the separate slits sky
+        if not self.par['reduce']['skysub']['joint_fit']:
+            return global_sky_sep
+
         # Do the spatial scaling first
         # if self.par['scienceframe']['process']['use_illumflat']:
         #     # Perform the correction
@@ -1313,10 +1313,13 @@ class IFUFindObjects(MultiSlitFindObjects):
         #                                           show_fit=show_fit, show=show, show_objs=show_objs)
 
         # Recalculate the wavelength image, and the global sky taking into account the spectral flexure
-        msgs.info("Regenerating wavelength image")
+        msgs.info("Generating wavelength image, accounting for spectral flexure")
+        # It's needed in `illum_profile_spectral`
+        # TODO maybe would be better to move it inside `illum_profile_spectral`
+        if self.wv_calib is None:
+            msgs.error("A wavelength calibration is needed (wv_calib) if a joint sky fit is requested.")
         self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spec_flexure=self.slitshift,
                                                    spat_flexure=self.spat_flexure_shift)
-
 
         self.illum_profile_spectral(global_sky_sep, skymask=skymask)
 
