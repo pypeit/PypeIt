@@ -616,7 +616,7 @@ class FindObjects:
         """
         user_regions = self.par['reduce']['skysub']['user_regions']
         # Perform some checks
-        if sky_region_file is None and user_regions is None and skymask_init is None:
+        if sky_region_file is None and user_regions is not None and skymask_init is None:
             msgs.error("You must set the initial skymask, the user_regions, or provide a Master SkyRegions file")
         if self.par['reduce']['skysub']['load_mask'] and not os.path.exists(sky_region_file):
             msgs.warn("Master SkyRegions file does not exist. Create a Master SkyRegions frame, or set:")
@@ -657,7 +657,7 @@ class FindObjects:
                     msgs.error("Unable to determine sky regions")
         # If nothing else, use the initial sky_regions
         else:
-            skymask = skymask_init.copy()
+            skymask = skymask_init.copy() if skymask_init is not None else None
         # Return the result
         return skymask, usersky
 
