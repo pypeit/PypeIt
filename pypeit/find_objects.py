@@ -1314,10 +1314,6 @@ class IFUFindObjects(MultiSlitFindObjects):
 
         # Recalculate the wavelength image, and the global sky taking into account the spectral flexure
         msgs.info("Generating wavelength image, accounting for spectral flexure")
-        # It's needed in `illum_profile_spectral`
-        # TODO maybe would be better to move it inside `illum_profile_spectral`
-        if self.wv_calib is None:
-            msgs.error("A wavelength calibration is needed (wv_calib) if a joint sky fit is requested.")
         self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spec_flexure=self.slitshift,
                                                    spat_flexure=self.spat_flexure_shift)
 
