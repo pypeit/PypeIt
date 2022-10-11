@@ -363,7 +363,7 @@ Alternatively, see `Adding a Standard Star`_.
 Applying the PypeIt Sensitivity Function
 ========================================
 
-Once you have generated a `Sensitivity Function`_, you may apply
+Once you have generated a :ref:`Sensitivity Function<sensitivity_function>`, you may apply
 it to one or more :doc:`out_spec1D` files.
 The files are modified in place, filling the OPT_FLAM, BOX_FLAM, etc.
 entries, as described in :doc:`out_spec1D`.

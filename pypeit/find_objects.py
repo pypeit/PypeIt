@@ -109,9 +109,10 @@ class FindObjects:
                 'science_coadd2d'.  This is used only to determine the
                 spat_flexure_shift and ech_order for coadd2d.
             wv_calib (:class:`~pypeit.wavetilts.WaveCalib`, optional):
-                This is only used for the IFU child when a joint sky subtraction is requested.
-                This is the waveCalib object which is optional, but either wv_calib or waveimg must be provided.
-            waveTilts (:class:`pypeit.wavetilts.WaveTilts`_, optional):
+                This is only used for the IFU child when a joint sky subtraction
+                is requested.  This is the waveCalib object which is optional,
+                but either wv_calib or waveimg must be provided.
+            waveTilts (:class:`pypeit.wavetilts.WaveTilts`, optional):
                 DataContainer with arc/sky line tracing of the wavelength tilt
                 Only waveTilts or tilts is needed (not both)
             tilts (`numpy.ndarray`_, optional):
@@ -137,7 +138,7 @@ class FindObjects:
                 Passed to Parent init
 
         Returns:
-            :class:`~pypeit.find_objects.FindObjects`:
+            :class:`~pypeit.find_objects.FindObjects`:  Object finding class.
         """
         return next(c for c in utils.all_subclasses(FindObjects)
                     if c.__name__ == (spectrograph.pypeline + 'FindObjects'))(

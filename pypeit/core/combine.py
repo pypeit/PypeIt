@@ -45,12 +45,15 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
     ----------
     weights : `numpy.ndarray`_
         Weights to use. Options for the shape of weights are:
+
             - ``(nimgs,)``: a single weight per image in the stack
+
             - ``(nimgs, nspec)``: wavelength dependent weights per image in the
               stack
 
             - ``(nimgs, nspec, nspat)``: weights input with the shape of the
               image stack
+
         Note that the weights are distinct from the mask, which is dealt with
         via the ``inmask_stack`` argument, meaning there should not be any
         weights that are set to zero (although in principle this would still
@@ -166,18 +169,26 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
 
 def img_list_error_check(sci_list, var_list):
     """
-    Utility routine for dealing with lists of image stacks for weigthed_combine routines below. This
-    routine checks that the images sizes are correct and routines the shape of the image stacks.
-    Args:
-        sci_list: list
-            List of  float `numpy.ndarray`_ images (each being an image stack with shape (nimgs, nspec, nspat))
-            which are to be combined with the  weights, inmask_stack, and possibly sigma clipping
-        var_list: list
-            List of  float `numpy.ndarray`_ variance images (each being an image stack with shape (nimgs, nspec, nspat))
-            which are to be combined with proper erorr propagation, i.e.
-            using the  weights**2, inmask_stack, and possibly sigma clipping
-    Returns:
-        tuple: The shapes of the image stacks -- (nimgs, nspec, nspat)
+    Utility routine for dealing with lists of image stacks for
+    :func:`weighted_combine`. This routine checks that the images sizes are
+    correct and routines the shape of the image stacks.
+
+    Parameters
+    ----------
+    sci_list : :obj:`list`
+        List of  float `numpy.ndarray`_ images (each being an image stack with
+        shape ``(nimgs, nspec, nspat)``) which are to be combined with the
+        weights, mask, and possibly sigma clipping.
+    var_list : :obj:`list`
+        List of  float `numpy.ndarray`_ variance images (each being an image
+        stack with shape ``(nimgs, nspec, nspat)``) which are to be combined
+        with proper erorr propagation, i.e.  using the weights squared, mask,
+        and possibly sigma clipping.
+
+    Returns
+    -------
+    shape : :obj:`tuple`
+        The shapes of the image stacks -- ``(nimgs, nspec, nspat)``
 
     """
     shape_sci_list = []
@@ -262,27 +273,33 @@ def broadcast_lists_of_weights(weights, shapes):
     """
     Utility routine to broadcast weights to be the size of image stacks specified by shape
 
-    Args:
-        weights: :obj:`list`
-              List containing the weights to use. The length of weights must be nimgs, the number
-              of images that are being combined. The options for the date type/shape for the individual
-              elements of weights are:
+    Parameters
+    ----------
+    weights : :obj:`list`
+        List containing the weights to use. The length of weights must be nimgs,
+        the number of images that are being combined. The options for the date
+        type/shape for the individual elements of weights are:
 
-            - ``float``: a single weight per image in the stack
+            - :obj:`float`: a single weight per image in the stack
 
-            -  `numpy.ndarray` with shape ``(nspec,)``: wavelength dependent weights per image in the
-              stack
+            - `numpy.ndarray`_ with shape ``(nspec,)``: wavelength dependent
+              weights per image in the stack
 
-            -  `numpy.ndarray` with shape ``(nspec, nspat)``: weights input with the shape of each
-              image stack and will be simply be returned
-        shapes: :obj:`list`
-            List with length of nimgs containing the tuples which are the shapes (nspec, nspat)
-            of each image in the stack that should have their weights broadcast.
+            - `numpy.ndarray`_ with shape ``(nspec, nspat)``: weights input with
+              the shape of each image stack and will be simply be returned
+
+    shapes : :obj:`list`
+        List with length of nimgs containing the tuples which are the shapes
+        ``(nspec, nspat)`` of each image in the stack that should have their
+        weights broadcast.
 
 
-    Returns:
-        List of `numpy.ndarray` weight images where each image in the list has shape that was input via the shapes
-        input parameter.
+    Returns
+    -------
+
+    weights_list : :obj:`list` of `numpy.ndarray`_ objects
+        Weight images where each image in the list has shape that was input via
+        the shapes input parameter.
 
     """
     # Create the weights stack images from the wavelength dependent weights, i.e. propagate these

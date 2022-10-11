@@ -77,17 +77,18 @@ class Extract:
                 Image to reduce.
             slits (:class:`~pypeit.slittrace.SlitTraceSet`):
                 Slit trace set object
-            sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
+            sobjs_obj (:class:`~pypeit.specobjs.SpecObjs`):
                 Objects found but not yet extracted
             spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
-            par (pypeit.par.pyepeitpar.PypeItPar):
+            par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
                 Parameter set for Extract
             objtype (:obj:`str`):
-                Specifies object being reduced 'science' 'standard'
+                Specifies object being reduced 'science', 'standard', or
                 'science_coadd2d'.  This is used only to determine the
                 spat_flexure_shift and ech_order for coadd2d.
-            global_sky (:obj:`numpy.ndarray`_, optional):
-                Fit to global sky. If None, an array of zeroes is generated the same size as sciImg
+            global_sky (`numpy.ndarray`_, optional):
+                Fit to global sky. If None, an array of zeroes is generated the
+                same size as ``sciImg``.
             waveTilts (:class:`~pypeit.wavetilts.WaveTilts`, optional):
                 This is waveTilts object which is optional, but either waveTilts or tilts must
                 be provided.
@@ -101,12 +102,14 @@ class Extract:
                 If True, the sciImg has been subtracted by
                 a background image (e.g. standard treatment in the IR)
             return_negative (:obj:`bool`, optional):
-                If True, negative objects from difference imaging will also be extracted and returned. Default=False.
-                This option only applies to the case where bkg_redux=True, i.e. typically a near-IR reduction
-                where difference imaging has been employed to perform a first-pass at sky-subtraction. The
-                default behavior is to not extract these objects, although they are masked in global sky-subtraction
-                (performed in the find_objects class), and modeled in local sky-subtraction (performed by this class).
-
+                If True, negative objects from difference imaging will also be
+                extracted and returned. Default=False.  This option only applies
+                to the case where bkg_redux=True, i.e. typically a near-IR
+                reduction where difference imaging has been employed to perform
+                a first-pass at sky-subtraction. The default behavior is to not
+                extract these objects, although they are masked in global
+                sky-subtraction (performed in the find_objects class), and
+                modeled in local sky-subtraction (performed by this class).
             std_redux (:obj:`bool`, optional):
                 If True the object being extracted is a standards star
                 so that the reduction parameters can be adjusted accordingly.
@@ -116,7 +119,7 @@ class Extract:
                 Show plots along the way?
 
         Returns:
-            :class:`~pypeit.extraction.Extract`:
+            :class:`~pypeit.extraction.Extract`:  Extraction object.
         """
         return next(c for c in utils.all_subclasses(Extract)
                     if c.__name__ == (spectrograph.pypeline + 'Extract'))(
