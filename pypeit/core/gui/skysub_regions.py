@@ -114,7 +114,6 @@ class SkySubGUI(object):
         matplotlib.pyplot.rcParams['keymap.grid'] = ''              # switching on/off a grid in current axes (Default: g)
         matplotlib.pyplot.rcParams['keymap.yscale'] = ''            # toggle scaling of y-axes ('log'/'linear') (Default: l)
         matplotlib.pyplot.rcParams['keymap.xscale'] = ''            # toggle scaling of x-axes ('log'/'linear') (Default: L, k)
-        matplotlib.pyplot.rcParams['keymap.all_axes'] = ''          # enable all axes (Default: a)
 
         # Initialise the main canvas tools
         canvas.mpl_connect('draw_event', self.draw_callback)
@@ -141,13 +140,13 @@ class SkySubGUI(object):
         self._fita = None
 
         self.slits_left, self.slits_right, _ = slits.select_edges(initial=initial, flexure=flexure)
+        self.initialize_menu()
         self.reset_regions()
 
         # Draw the spectrum
         self.canvas.draw()
 
-        self.initialize_menu()
-        self.reset_regions()
+#        self.reset_regions()
 
     @classmethod
     def initialize(cls, det, frame, slits, pypeline, spectrograph, outname="skyregions.fits",
@@ -211,7 +210,7 @@ class SkySubGUI(object):
 
         axes = dict(main=ax, info=axinfo)
         # Initialise the object finding window and display to screen
-        fig.canvas.set_window_title('PypeIt - Sky regions')
+        fig.canvas.manager.set_window_title('PypeIt - Sky regions')
         srgui = SkySubGUI(fig.canvas, image, frame, outname, det, slits, axes, pypeline, spectrograph,
                           printout=printout, runtime=runtime, initial=initial, flexure=flexure, overwrite=overwrite)
         plt.show()
