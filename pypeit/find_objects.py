@@ -617,7 +617,8 @@ class FindObjects:
         user_regions = self.par['reduce']['skysub']['user_regions']
         # Perform some checks
         if sky_region_file is None and user_regions is None and skymask_init is None:
-            msgs.error("You must set the initial skymask, the user_regions, or provide a Master SkyRegions file")
+            msgs.warn("An initial skymask has not been supplied. Generating one...")
+            return None, False
         if self.par['reduce']['skysub']['load_mask'] and not os.path.exists(sky_region_file):
             msgs.warn("Master SkyRegions file does not exist. Create a Master SkyRegions frame, or set:")
             msgs.pypeitpar(['reduce', 'skysub', 'load_mask = False'])
