@@ -22,6 +22,8 @@ preparatory script, :ref:`pypeit_obslog`, which provides a simple listing of the
 available data files; however, use of this script is optional in terms of setup
 for reducing your data.
 
+.. _setup-metadata:
+
 Use of Metadata to Identify Instrument Configurations
 =====================================================
 

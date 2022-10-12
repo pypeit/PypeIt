@@ -10,6 +10,8 @@ Overview
 
 This document briefly summarizes a set of conventions (generally) adopted by PypeIt.
 
+.. _pypeit-orientation:
+
 Image Orientation
 =================
 

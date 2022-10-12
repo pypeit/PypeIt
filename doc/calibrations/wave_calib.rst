@@ -1,3 +1,6 @@
+
+.. include:: ../include/links.rst
+
 .. _wave_calib:
 
 ======================
@@ -63,6 +66,8 @@ the `NIST database <https://physics.nist.gov/PhysRefData/ASD/lines_form.html>`_,
 `"arc_lines" directory <https://github.com/pypeit/PypeIt/tree/release/pypeit/data/arc_lines/lists>`_
 of the repository. Here are the available lamps:
 
+.. THIS TABLE IS OUT OF DATE.  WE NEED A WAY OF AUTOMATICALLY GENERATING THIS TABLE
+
 ======  ==========  ================
 Lamp    Range (Å)   Last updated
 ======  ==========  ================
@@ -79,10 +84,10 @@ ZnI     3000-5000   21 December 2016
 ThAr    3000-11000  9 January 2018
 ======  ==========  ================
 
-In the case of the ThAr list, all of the lines are taken from
-the NIST database, and they are labeled with a 'MURPHY' flag if the
-line also appears in the list of lines identified by
-`Murphy et al. (2007) MNRAS 378 221 <http://adsabs.harvard.edu/abs/2007MNRAS.378..221M>`_
+In the case of the ThAr list, all of the lines are taken from the NIST database,
+and they are labeled with a 'MURPHY' flag if the line also appears in the list
+of lines identified by `Murphy et al. (2007, MNRAS, 378, 221)
+<http://adsabs.harvard.edu/abs/2007MNRAS.378..221M>`__.
 
 .. _user_linelists:
 
@@ -121,7 +126,7 @@ using the command:
     $ pypeit_install_linelist HgCd_MMT_lines.dat
 
 To access this list in your reduction, you would need to include it
-in your lamp list in the PypeIt Reduction File along with the built-in
+in your lamp list in the :ref:`pypeit_file` along with the built-in
 lists:
 
 .. code-block:: ini
@@ -180,18 +185,19 @@ with PypeIt.   The basic steps are:
  2. Load the parameters guiding wavelength calibration
  3. Generate the 1D wavelength fits
 
-The code is guided by the WaveCalib class, partially described
-by this `WaveCalib.ipynb <https://github.com/pypeit/pypeit/blob/master/doc/nb/WaveCalib.ipynb>`_
-Notebook.
+The code is guided by the :class:`~pypeit.wavecalib.WaveCalib` class, partially described
+by `this notebook <https://github.com/pypeit/pypeit/blob/master/doc/nb/WaveCalib.ipynb>`__.
 
 For the primary step (#3), we have developed several
-algorithms finding it challenging to have one that satisfies
-all instruments in all configurations.  We now briefly
+algorithms, finding it challenging to have one that satisfies
+all instruments in all configurations.  We briefly
 describe each and where they tend to be most effective.
 Each of these is used only to identify known arc lines in the
 spectrum.  Fits to the identified lines (vs. pixel) are
 performed with the same, iterative algorithm to generate
 the final wavelength solution.
+
+.. CAN WE ADD A SUMMARY TABLE HERE THAT GUIDES USERS TO WHAT ALGORITHM THEY SHOULD USE?
 
 .. _wvcalib-holygrail:
 
@@ -210,7 +216,7 @@ generated.
 However, we have found this algorithm is not highly robust
 (*e.g.*, slits fail at ~5-10% rate) and it struggles with
 high dispersion data (*e.g.*, ThAr lamps).  At this stage, we
-recommend it be used primarily by the Developers to generate
+recommend it be used primarily by developers to generate
 template spectra.
 
 .. _wvcalib-reidentify:
@@ -219,7 +225,7 @@ Reidentify
 ----------
 
 Following on our success using archived templates with the
-LowRedux code, we have implemented an improved version in PypeIt.
+`LowRedux`_ code, we have implemented an improved version in PypeIt.
 Each input arc spectrum is cross-correlated against one or
 more archived spectra, allowing for both a shift and a stretch.
 
@@ -237,8 +243,8 @@ Full Template
 
 This algorithm is similar to `Reidentify`_ with
 two exceptions:  (i) there is only a single template used
-(occasionally one per detector for spectra that span across
-multiple, *e.g.*, DEIMOS); (ii) IDs from
+(occasionally one per detector for spectra that span
+multiple detectors; *e.g.*, DEIMOS); (ii) IDs from
 the input arc spectrum are generally performed on snippets
 of the full input array.  The motivation for the latter is
 to reduce non-linearities that are not well captured by the
@@ -257,11 +263,10 @@ By-Hand Approach
 Identify
 --------
 
-If you would prefer to manually wavelength calibrate, then
-you can do so with the ``pypeit_identify`` task. To launch this task,
-you need to have successfully traced the slit edges (*i.e.*, a
-:doc:`master_edges` file must exist), and generated a
-:doc:`master_arc` calibration frame.
+If you would prefer to manually wavelength calibrate, then you can do so with
+the ``pypeit_identify`` GUI. To use this script, you must have successfully
+traced the slit edges (*i.e.*, a :doc:`master_edges` file must exist) and
+generated a :doc:`master_arc` calibration frame.
 
 .. _pypeit_identify:
 
@@ -288,8 +293,8 @@ basics
 Instructions on how to use this GUI are available by pressing
 the '?' key while hovering your mouse over the plotting window.
 You might find it helpful to specify the wavelength range of the
-linelist and the lamps to use using the pypeit_identify command
-line options.
+linelist and the lamps to use using the ``pypeit_identify``
+command-line options.
 
 Here is a standard sequence of moves once the GUI pops up:
 
@@ -306,7 +311,7 @@ Here is a standard sequence of moves once the GUI pops up:
    the plot window)
 6. Repeat steps 1-5 until you have identified 4+ lines across the spectrum
 7. Use 'f' to fit the current set of lines
-8. Use '+/-' to modify the order of the polyonmial fit
+8. Use '+/-' to modify the order of the polynomial fit
 9. Use 'a' to auto ID the rest
 10. Use 'f' to fit again
 11. Use 's' to save the line IDs and the wavelength solution if the
@@ -328,8 +333,8 @@ shift/stretch, press the 'h' key.
 If your solution is good enough (rms < 0.1 pixels), then
 `pypeit_identify`_ will automatically prompt you after you
 quit the GUI to see if you want to save the solution. Note,
-you can increase this tolerance using the command line option
-`pixtol`, or by setting the `force_save` command line option.
+you can increase this tolerance using the command-line option
+`pixtol`, or by setting the `force_save` command-line option.
 
 In addition to writing the wavelength solution to the current
 working directory, ``PypeIt`` now also saves the solution in
@@ -354,9 +359,8 @@ on your screen from ``pypeit_identify``, and run PypeIt in the standard
 :ref:`wvcalib-fulltemplate` mode.
 
 We also recommend that you send your solution to the
-PypeIt development (*e.g.*, post it on GitHub or the Users Slack)
-team, so that others can benefit from your wavelength
-calibration solution.
+PypeIt development team (*e.g.*, post it on GitHub or the Users Slack),
+so that others can benefit from your wavelength calibration solution.
 
 customizing
 -----------
@@ -385,7 +389,7 @@ are:
  2. The slit spans much bluer/redder than the archived template.
 
 In either case, a new template may need to be generated.
-If you are confident this is the case, raise an Issue.
+If you are confident this is the case, `Submit an issue`_.
 
 Items to Modify
 ===============
@@ -405,40 +409,39 @@ expected knowledge of their FWHM (future versions
 should solve for this).  A fiducial value for a
 standard slit is assumed for each instrument but
 if you are using particularly narrow/wide slits
-then in your PypeIt Reduction File you may need
-to modify:
+then in your :ref:`pypeit_file` you may need
+to modify it like so:
 
 .. code-block:: ini
 
     [calibrations]
-      [[wavelengths]]
-        fwhm=X.X
-
+        [[wavelengths]]
+            fwhm=X.X
 
 Alternatively, PypeIt can compute the arc line FWHM
 from the arc lines themselves (only the ones with the
 highest detection significance). The FWHM measured in
 this way will override the value set by ``fwhm``, which
-will still be used as first guess and for the :doc:`wavetilts`.
+will still be used as a first guess and for the :doc:`wavetilts`.
 This is particularly advantageous for multi-slit observations
-that have slit with different slit widths
+that have masks with different slit widths
 (*e.g.*, DEIMOS LVM slit-masks).
 The keyword that controls this option is called ``fwhm_fromlines``
-and is set to ``False`` by default. To switch it on add the
-following to your PypeIt Reduction File:
+and is set to ``False`` by default (see :ref:`parameters`). To switch it on, add the
+following to your :ref:`pypeit_file`:
 
 .. code-block:: ini
 
     [calibrations]
-      [[wavelengths]]
-        fwhm_fromlines = True
+        [[wavelengths]]
+            fwhm_fromlines = True
 
 
 Flexure Correction
 ==================
 
 By default, the code will calculate a flexure shift based on the
-extracted sky spectrum (boxcar). See :doc:`flexure` for
+(boxcar) extracted sky spectrum. See :doc:`flexure` for
 further details.
 
 .. _wvcalib-develop:
@@ -446,7 +449,7 @@ further details.
 Developers
 ==========
 
-Adding a new Solution
+Adding a new solution
 ---------------------
 
 When adding a new instrument or grating, one generally has
@@ -454,43 +457,45 @@ to perform a series of steps to enable accurate and precise
 wavelength calibration with PypeIt.  We recommend the following
 procedure, when possible:
 
-- Perform wavelength calibration with a previous pipeline
+- Perform wavelength calibration with a previous pipeline:
    * Record a calibrated, arc spectrum (*i.e.*, wavelength vs. counts)
    * In vaccuum or convert from air to vacuum
 
-- If no other DRP exists..
-   * Try running PypeIt with the :ref:`wvcalib-holygrail` algorithm and use that output
-   * And if that fails, generate a solution with the :ref:`wvcalib-byhand`
+- If no other DRP exists:
+   * Try running PypeIt with the :ref:`wvcalib-holygrail` algorithm and use that output.
+   * If that fails, generate a solution with the :ref:`wvcalib-byhand`.
 
-- Build a template from the arc spectrum
+- Build a template from the arc spectrum:
    * For fixed-format spectrographs, one spectrum (or one per order) should
      be sufficient.
    * For gratings that tilt, one may need to splice together a series
      of arc spectra to cover the full spectral range.
-   * See examples in the `templates.py` module.
-   * See :doc:`construct_template`
+   * Follow the guidance :doc:`here <construct_template>` and see examples in
+     :mod:`~pypeit.core.wavecal.templates` and
 
 - Augment the line list
    * We are very conservative about adding new lines to the existing line lists.
-     One bad line can have large, negative consequences.
+     One bad line can have significant, negative consequences.
    * Therefore, carefully vet the line by insuring it is frequently
      detected
    * And that it does not have large systematic residuals in good
      wavelength solutions.
-   * Then add to one of the files in data/arc_lines/lists
+   * Then add to one of the files to ``data/arc_lines/lists``
 
 .. _full-template-dev:
 
-Full Template Dev
------------------
+Full Template
+-------------
 
 The preferred method for multi-slit calibration is now
 called ``full_template`` which
-cross-matches an input sepctrum against an archived template.  The
-latter must be constructed by a Developer, using the
-core.wavecal.templates.py module.  The following table
+cross-matches an input spectrum against an archived template.  The
+latter must be constructed by a developer, using
+:mod:`~pypeit.core.wavecal.templates`.  The following table
 summarizes the existing ones (all of which are in the
 ``data/arc_lines/reid_arxiv`` folder):
+
+.. THIS IS WAY OUT OF DATE.  WE NEED AN AUTOMATED WAY OF GENERATING THIS TABLE
 
 ===============  =========================  =============================
 Instrument       Setup                      Name
@@ -511,15 +516,23 @@ shane_kast_blue  600_4310 grism, all lamps  shane_kast_blue_600.fits
 shane_kast_blue  830_3460 grism, all lamps  shane_kast_blue_830.fits
 ===============  =========================  =============================
 
-See the Templates Notebook or the core.wavecal.templates.py module
-for further details.
+.. WE SHOULD CONSIDER ADDING SOME OF THESE NOTEBOOKS DIRECTLY TO THE DOCS USING
+.. NBSPHINX: https://nbsphinx.readthedocs.io/
+.. AND TEST THAT THE CONTENT OF THE NOTEBOOKS IS VALID USING NBMAKE
+.. https://github.com/treebeardtech/nbmake
 
-One of the key parameters (and the only one modifiable) for
+.. See the Templates Notebook or the core.wavecal.templates.py module
+.. for further details.
+
+Follow the guidance :doc:`here <construct_template>` and see examples in
+:mod:`~pypeit.core.wavecal.templates` and
+
+One of the key parameters (and the only one that can be modified) for
 ``full_template`` is the number of snippets to break the input
-spectrum into for cross-matchging.  The default is 2 and the
+spectrum into for cross-matching.  The default is 2 and the
 concept is to handle non-linearities by simply reducing the
 length of the spectrum.  For relatively linear dispersers,
-``nsinppet = 1`` may frequently suffice.
+``nsnippet = 1`` may frequently suffice.
 
 For instruments where the spectrum runs across multiple
 detectors in the spectral dimension (*e.g.*, DEIMOS), it may
@@ -527,7 +540,7 @@ be necessary to generate detector specific templates (ugh).
 This is especially true if the spectrum is partial on the
 detector (*e.g.*, the 830G grating).
 
-
+----
 
 .. toctree::
    :caption: Additional Reading
@@ -537,3 +550,4 @@ detector (*e.g.*, the 830G grating).
    heliocorr
    wavetilts
    construct_template
+

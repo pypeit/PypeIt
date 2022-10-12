@@ -10,12 +10,14 @@ PypeIt Reduction File
 Overview
 ========
 
-The primary file that dictates how ``PypeIt`` is executed and what
-data it reduces is called the ``PypeIt`` reduction file. The name of
-the file is expected to end with ``.pypeit``, and it has a specific
-format that we discuss below. The ``PypeIt`` reduction file should
-first be automatically generated using the :ref:`pypeit_setup`
-script, but it can (and often will be) edited by the user.
+The PypeIt Reduction File is *the* critical component to any successful run of
+PypeIt.  It is where you set (1) how ``PypeIt`` is executed using its
+:ref:`parameters` and (2) what data files to include in the reduction.
+
+The name of the file is expected to end with ``.pypeit``, and it has a specific
+format that we discuss below. The ``PypeIt`` reduction file should first be
+automatically generated using the :ref:`pypeit_setup` script, but it can (and
+often *must*) be edited by the user.
 
 This document provides guidance on modifying the file.
 You may also wish to refer to :doc:`input_files` for
