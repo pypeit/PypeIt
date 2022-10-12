@@ -217,6 +217,10 @@ class SkySubGUI(object):
 
         return srgui
 
+    def finalize(self):
+        plt.rcdefaults()
+        plt.close()
+
     def region_help(self):
         print("You can enter the regions in the text box, as a comma separated")
         print("list of percentages. For example, typing  :10,35:65,80:  in the")
