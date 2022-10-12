@@ -77,6 +77,7 @@ PypeIt BibTeX Entries
    cookbook
    tutorials/tutorials
    quicklook
+   Example Data <dev_suite>
 
 .. toctree::
    :caption: Core Data Processing
@@ -84,6 +85,7 @@ PypeIt BibTeX Entries
    :hidden:
 
    setup
+   pypeit_par
    Execution <running>
    outputs
    QA <qa>
@@ -117,14 +119,14 @@ PypeIt BibTeX Entries
    :maxdepth: 1
    :hidden:
 
-   conventions
+   pypeit_par
    input_files
    pypeit_file
+   conventions
    spectrographs/spectrographs
    detectors
    mosaic
    frametype
-   pypeit_par
    scripts
    calibrations/calibrations
    bitmasks

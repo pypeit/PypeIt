@@ -32,7 +32,7 @@ def par_hierarchy(p, indent_level=0, key=''):
     if len(line_head) > 0:
         line_head = '``' + line_head + '``: '
     lines = [ indent_step + line_head + link_string(p) ]
-    lines += [ '' ]
+#    lines += [ '' ]
 
     for k in p.keys():
         if not isinstance(p[k], ParSet):
@@ -62,7 +62,7 @@ if __name__ == '__main__':
     p = pypeitpar.PypeItPar(flexure=pypeitpar.FlexurePar(),
                             fluxcalib=pypeitpar.FluxCalibratePar())
 
-    lines += par_hierarchy(p)
+    lines += ['| '+ l for l in par_hierarchy(p)]
     lines += ['']
     lines += ['----']
     lines += ['']
@@ -81,7 +81,7 @@ if __name__ == '__main__':
                            'provided above for each instrument.  That is, if one were to include '
                            'these in the PypeIt file, you would be reproducing the effect of the '
                            '`default_pypeit_par` method specific to each derived '
-                           ':class:`pypeit.spectrographs.spectrograph.Spectrograph` class.', 72)
+                           ':class:`~pypeit.spectrographs.spectrograph.Spectrograph` class.', 72)
     lines += ['']
 
     for spec in available_spectrographs:

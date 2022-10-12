@@ -693,7 +693,7 @@ class ParSet:
 
     @staticmethod
     def _rst_class_name(p):
-        return ':class:`' +  type(p).__module__ + '.' + type(p).__name__ + '`'
+        return ':class:`~' +  type(p).__module__ + '.' + type(p).__name__ + '`'
 
     def to_rst_table(self, parsets_listed=[]):
         """

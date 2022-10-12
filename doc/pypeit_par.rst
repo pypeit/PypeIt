@@ -12,39 +12,44 @@ PypeIt allows you to customize its execution without having to change the
 code directly.
 
 Although not ubiquitous, most optional arguments of PypeIt's algorithms
-are contained within the :class:`pypeit.par.pypeitpar.PypeItPar`
+are contained within the :class:`~pypeit.par.pypeitpar.PypeItPar`
 superset.  PypeIt uses the `configobj`_ class to parse the user-supplied
 arguments  in the :ref:`pypeit_file` into an instance of
-:class:`pypeit.par.pypeitpar.PypeItPar` that is passed to all of
+:class:`~pypeit.par.pypeitpar.PypeItPar` that is passed to all of
 PypeIt's main modules.  The syntax used to set parameters using the
 :ref:`pypeit_file` is important and the nesting of the parameter changes
 must match the `Current PypeItPar Parameter Hierarchy`_.
 
-Importantly, each instrument served provides its own default values for
-:class:`pypeit.par.pypeitpar.PypeItPar` as defined by its
-``default_pypeit_par`` method; e.g.,
-:func:`pypeit.spectrographs.shane_kast.ShaneKastSpectrograph.default_pypeit_par`.
-Only those parameters that the user wishes to be different from the
-default *as set by their specified instrument* need to be changed via
-the :ref:`pypeit_file`.  The :ref:`instr_par` are listed below.
+Importantly, each :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+derived class (e.g.,
+:class:`~pypeit.spectrographs.shane_kast.ShaneKastSpectrograph) provides its own
+default values for :class:`~pypeit.par.pypeitpar.PypeItPar` as defined by its
+``default_pypeit_par`` method; e.g., see
+:func:`~pypeit.spectrographs.shane_kast.ShaneKastSpectrograph.default_pypeit_par`
+for Shane/Kast.  Only those parameters that the user wishes to be different from
+the default *as set by their specified instrument* need to be changed via the
+:ref:`pypeit_file`.  The :ref:`instr_par` are listed below.
 
 .. warning::
 
- * Default values of parameters that actually point to data files
-   provided by PypeIt (e.g. the ``spectrum`` parameter for
-   :class:`pypeit.par.pypeitpar.FlexurePar`) in its root directory will
-   point to the relevant location on disk of whoever generated the
-   documentation, which will be different for your installation.
+    Default values of parameters that actually point to data files provided by
+    PypeIt (e.g. the ``spectrum`` parameter for
+    :class:`~pypeit.par.pypeitpar.FlexurePar`) in its root directory will point
+    to the relevant location on disk of whoever generated the documentation,
+    which will be different for your installation.
 
 .. _change_par:
 
 How to change a parameter
 =========================
 
-To change a parameter, set its value at the beginning of your pypeit
-file.  The *syntax* of the configuration block is important, but the
-indentation is not.  The indentation will just make the block easier to
-read.  All PypeIt files begin with the lines that set the spectrograph::
+To change a parameter, set its value in the :ref:`parameter_block` of the
+:ref:`pypeit_file`.  The *syntax* of the configuration block is important, but
+the indentation is not.  The indentation will just make the block easier to
+read.  The :ref:`pypeit_file` :ref:`parameter_block` always includes the lines
+that sets the spectrograph:
+
+.. code-block:: ini
 
     [rdx]
         spectrograph = keck_deimos
@@ -58,9 +63,9 @@ of how to change various parameters; for additional examples see the
 
    .. code-block:: ini
 
-    [calibrations]
-        [[slitedges]]
-            edge_thresh = 100
+        [calibrations]
+            [[slitedges]]
+                edge_thresh = 100
 
  * To change the exposure time range used to identify an arc and
    flat-field frames and to increase the LA Cosmic sigma-clipping
@@ -68,13 +73,13 @@ of how to change various parameters; for additional examples see the
 
    .. code-block:: ini
 
-    [calibrations]
-        [[arcframe]]
-            exprng = None,10
-            [[process]]
-                sigclip = 6.
-        [[pixelflatframe]]
-            exprng = 11,30
+        [calibrations]
+            [[arcframe]]
+                exprng = None,10
+                [[process]]
+                    sigclip = 6.
+            [[pixelflatframe]]
+                exprng = 11,30
 
 .. _baseprocess:
 
@@ -104,104 +109,55 @@ PypeIt file:
 Current PypeItPar Parameter Hierarchy
 +++++++++++++++++++++++++++++++++++++
 
-:ref:`pypeitpar`
-
-    ``[rdx]``: :ref:`reduxpar`
-
-    ``[calibrations]``: :ref:`calibrationspar`
-
-        ``[[biasframe]]``: :ref:`framegrouppar`
-
-            ``[[[process]]]``: :ref:`processimagespar`
-
-        ``[[darkframe]]``: :ref:`framegrouppar`
-
-            ``[[[process]]]``: :ref:`processimagespar`
-
-        ``[[arcframe]]``: :ref:`framegrouppar`
-
-            ``[[[process]]]``: :ref:`processimagespar`
-
-        ``[[tiltframe]]``: :ref:`framegrouppar`
-
-            ``[[[process]]]``: :ref:`processimagespar`
-
-        ``[[pixelflatframe]]``: :ref:`framegrouppar`
-
-            ``[[[process]]]``: :ref:`processimagespar`
-
-        ``[[pinholeframe]]``: :ref:`framegrouppar`
-
-            ``[[[process]]]``: :ref:`processimagespar`
-
-        ``[[alignframe]]``: :ref:`framegrouppar`
-
-            ``[[[process]]]``: :ref:`processimagespar`
-
-        ``[[alignment]]``: :ref:`alignpar`
-
-        ``[[traceframe]]``: :ref:`framegrouppar`
-
-            ``[[[process]]]``: :ref:`processimagespar`
-
-        ``[[illumflatframe]]``: :ref:`framegrouppar`
-
-            ``[[[process]]]``: :ref:`processimagespar`
-
-        ``[[lampoffflatsframe]]``: :ref:`framegrouppar`
-
-            ``[[[process]]]``: :ref:`processimagespar`
-
-        ``[[skyframe]]``: :ref:`framegrouppar`
-
-            ``[[[process]]]``: :ref:`processimagespar`
-
-        ``[[standardframe]]``: :ref:`framegrouppar`
-
-            ``[[[process]]]``: :ref:`processimagespar`
-
-        ``[[flatfield]]``: :ref:`flatfieldpar`
-
-        ``[[wavelengths]]``: :ref:`wavelengthsolutionpar`
-
-        ``[[slitedges]]``: :ref:`edgetracepar`
-
-        ``[[tilts]]``: :ref:`wavetiltspar`
-
-    ``[scienceframe]``: :ref:`framegrouppar`
-
-        ``[[process]]``: :ref:`processimagespar`
-
-    ``[reduce]``: :ref:`reducepar`
-
-        ``[[findobj]]``: :ref:`findobjpar`
-
-        ``[[skysub]]``: :ref:`skysubpar`
-
-        ``[[extraction]]``: :ref:`extractionpar`
-
-        ``[[cube]]``: :ref:`cubepar`
-
-        ``[[slitmask]]``: :ref:`slitmaskpar`
-
-    ``[flexure]``: :ref:`flexurepar`
-
-    ``[fluxcalib]``: :ref:`fluxcalibratepar`
-
-    ``[coadd1d]``: :ref:`coadd1dpar`
-
-    ``[coadd2d]``: :ref:`coadd2dpar`
-
-    ``[sensfunc]``: :ref:`sensfuncpar`
-
-        ``[[UVIS]]``: :ref:`sensfuncuvispar`
-
-        ``[[IR]]``: :ref:`telluricpar`
-
-    ``[telluric]``: :ref:`telluricpar`
-
-    ``[collate1d]``: :ref:`collate1dpar`
-
+| :ref:`pypeitpar`
+|     ``[rdx]``: :ref:`reduxpar`
+|     ``[calibrations]``: :ref:`calibrationspar`
+|         ``[[biasframe]]``: :ref:`framegrouppar`
+|             ``[[[process]]]``: :ref:`processimagespar`
+|         ``[[darkframe]]``: :ref:`framegrouppar`
+|             ``[[[process]]]``: :ref:`processimagespar`
+|         ``[[arcframe]]``: :ref:`framegrouppar`
+|             ``[[[process]]]``: :ref:`processimagespar`
+|         ``[[tiltframe]]``: :ref:`framegrouppar`
+|             ``[[[process]]]``: :ref:`processimagespar`
+|         ``[[pixelflatframe]]``: :ref:`framegrouppar`
+|             ``[[[process]]]``: :ref:`processimagespar`
+|         ``[[pinholeframe]]``: :ref:`framegrouppar`
+|             ``[[[process]]]``: :ref:`processimagespar`
+|         ``[[alignframe]]``: :ref:`framegrouppar`
+|             ``[[[process]]]``: :ref:`processimagespar`
+|         ``[[alignment]]``: :ref:`alignpar`
+|         ``[[traceframe]]``: :ref:`framegrouppar`
+|             ``[[[process]]]``: :ref:`processimagespar`
+|         ``[[illumflatframe]]``: :ref:`framegrouppar`
+|             ``[[[process]]]``: :ref:`processimagespar`
+|         ``[[lampoffflatsframe]]``: :ref:`framegrouppar`
+|             ``[[[process]]]``: :ref:`processimagespar`
+|         ``[[skyframe]]``: :ref:`framegrouppar`
+|             ``[[[process]]]``: :ref:`processimagespar`
+|         ``[[standardframe]]``: :ref:`framegrouppar`
+|             ``[[[process]]]``: :ref:`processimagespar`
+|         ``[[flatfield]]``: :ref:`flatfieldpar`
+|         ``[[wavelengths]]``: :ref:`wavelengthsolutionpar`
+|         ``[[slitedges]]``: :ref:`edgetracepar`
+|         ``[[tilts]]``: :ref:`wavetiltspar`
+|     ``[scienceframe]``: :ref:`framegrouppar`
+|         ``[[process]]``: :ref:`processimagespar`
+|     ``[reduce]``: :ref:`reducepar`
+|         ``[[findobj]]``: :ref:`findobjpar`
+|         ``[[skysub]]``: :ref:`skysubpar`
+|         ``[[extraction]]``: :ref:`extractionpar`
+|         ``[[cube]]``: :ref:`cubepar`
+|         ``[[slitmask]]``: :ref:`slitmaskpar`
+|     ``[flexure]``: :ref:`flexurepar`
+|     ``[fluxcalib]``: :ref:`fluxcalibratepar`
+|     ``[coadd1d]``: :ref:`coadd1dpar`
+|     ``[coadd2d]``: :ref:`coadd2dpar`
+|     ``[sensfunc]``: :ref:`sensfuncpar`
+|         ``[[UVIS]]``: :ref:`sensfuncuvispar`
+|         ``[[IR]]``: :ref:`telluricpar`
+|     ``[telluric]``: :ref:`telluricpar`
+|     ``[collate1d]``: :ref:`collate1dpar`
 
 ----
 
@@ -210,23 +166,23 @@ Current PypeItPar Parameter Hierarchy
 PypeItPar Keywords
 ------------------
 
-Class Instantiation: :class:`pypeit.par.pypeitpar.PypeItPar`
+Class Instantiation: :class:`~pypeit.par.pypeitpar.PypeItPar`
 
-================  ==============================================  =======  ============================  ======================================================================================================================================================================================================================================================================================
-Key               Type                                            Options  Default                       Description                                                                                                                                                                                                                                                                           
-================  ==============================================  =======  ============================  ======================================================================================================================================================================================================================================================================================
-``calibrations``  :class:`pypeit.par.pypeitpar.CalibrationsPar`   ..       `CalibrationsPar Keywords`_   Parameters for the calibration algorithms                                                                                                                                                                                                                                             
-``coadd1d``       :class:`pypeit.par.pypeitpar.Coadd1DPar`        ..       `Coadd1DPar Keywords`_        Par set to control 1D coadds.  Only used in the after-burner script.                                                                                                                                                                                                                  
-``coadd2d``       :class:`pypeit.par.pypeitpar.Coadd2DPar`        ..       `Coadd2DPar Keywords`_        Par set to control 2D coadds.  Only used in the after-burner script.                                                                                                                                                                                                                  
-``collate1d``     :class:`pypeit.par.pypeitpar.Collate1DPar`      ..       `Collate1DPar Keywords`_      Par set to control collating 1d spectra.  Only used in the after-burner script.                                                                                                                                                                                                       
-``flexure``       :class:`pypeit.par.pypeitpar.FlexurePar`        ..       `FlexurePar Keywords`_        Parameters used by the flexure-correction procedure.  Flexure corrections are not performed by default.  To turn on, either set the parameters in the 'flexure' parameter group or set 'flexure = True' in the 'rdx' parameter group to use the default flexure-correction parameters.
-``fluxcalib``     :class:`pypeit.par.pypeitpar.FluxCalibratePar`  ..       `FluxCalibratePar Keywords`_  Parameters used by the flux-calibration procedure.  Flux calibration is not performed by default.  To turn on, either set the parameters in the 'fluxcalib' parameter group or set 'fluxcalib = True' in the 'rdx' parameter group to use the default flux-calibration parameters.    
-``rdx``           :class:`pypeit.par.pypeitpar.ReduxPar`          ..       `ReduxPar Keywords`_          PypeIt reduction rules.                                                                                                                                                                                                                                                               
-``reduce``        :class:`pypeit.par.pypeitpar.ReducePar`         ..       `ReducePar Keywords`_         Parameters determining sky-subtraction, object finding, and extraction                                                                                                                                                                                                                
-``scienceframe``  :class:`pypeit.par.pypeitpar.FrameGroupPar`     ..       `FrameGroupPar Keywords`_     The frames and combination rules for the science observations                                                                                                                                                                                                                         
-``sensfunc``      :class:`pypeit.par.pypeitpar.SensFuncPar`       ..       `SensFuncPar Keywords`_       Par set to control sensitivity function computation.  Only used in the after-burner script.                                                                                                                                                                                           
-``telluric``      :class:`pypeit.par.pypeitpar.TelluricPar`       ..       `TelluricPar Keywords`_       Par set to control telluric fitting.  Only used in the pypeit_sensfunc and pypeit_telluric after-burner scripts.                                                                                                                                                                      
-================  ==============================================  =======  ============================  ======================================================================================================================================================================================================================================================================================
+================  ===============================================  =======  ============================  ======================================================================================================================================================================================================================================================================================
+Key               Type                                             Options  Default                       Description                                                                                                                                                                                                                                                                           
+================  ===============================================  =======  ============================  ======================================================================================================================================================================================================================================================================================
+``calibrations``  :class:`~pypeit.par.pypeitpar.CalibrationsPar`   ..       `CalibrationsPar Keywords`_   Parameters for the calibration algorithms                                                                                                                                                                                                                                             
+``coadd1d``       :class:`~pypeit.par.pypeitpar.Coadd1DPar`        ..       `Coadd1DPar Keywords`_        Par set to control 1D coadds.  Only used in the after-burner script.                                                                                                                                                                                                                  
+``coadd2d``       :class:`~pypeit.par.pypeitpar.Coadd2DPar`        ..       `Coadd2DPar Keywords`_        Par set to control 2D coadds.  Only used in the after-burner script.                                                                                                                                                                                                                  
+``collate1d``     :class:`~pypeit.par.pypeitpar.Collate1DPar`      ..       `Collate1DPar Keywords`_      Par set to control collating 1d spectra.  Only used in the after-burner script.                                                                                                                                                                                                       
+``flexure``       :class:`~pypeit.par.pypeitpar.FlexurePar`        ..       `FlexurePar Keywords`_        Parameters used by the flexure-correction procedure.  Flexure corrections are not performed by default.  To turn on, either set the parameters in the 'flexure' parameter group or set 'flexure = True' in the 'rdx' parameter group to use the default flexure-correction parameters.
+``fluxcalib``     :class:`~pypeit.par.pypeitpar.FluxCalibratePar`  ..       `FluxCalibratePar Keywords`_  Parameters used by the flux-calibration procedure.  Flux calibration is not performed by default.  To turn on, either set the parameters in the 'fluxcalib' parameter group or set 'fluxcalib = True' in the 'rdx' parameter group to use the default flux-calibration parameters.    
+``rdx``           :class:`~pypeit.par.pypeitpar.ReduxPar`          ..       `ReduxPar Keywords`_          PypeIt reduction rules.                                                                                                                                                                                                                                                               
+``reduce``        :class:`~pypeit.par.pypeitpar.ReducePar`         ..       `ReducePar Keywords`_         Parameters determining sky-subtraction, object finding, and extraction                                                                                                                                                                                                                
+``scienceframe``  :class:`~pypeit.par.pypeitpar.FrameGroupPar`     ..       `FrameGroupPar Keywords`_     The frames and combination rules for the science observations                                                                                                                                                                                                                         
+``sensfunc``      :class:`~pypeit.par.pypeitpar.SensFuncPar`       ..       `SensFuncPar Keywords`_       Par set to control sensitivity function computation.  Only used in the after-burner script.                                                                                                                                                                                           
+``telluric``      :class:`~pypeit.par.pypeitpar.TelluricPar`       ..       `TelluricPar Keywords`_       Par set to control telluric fitting.  Only used in the pypeit_sensfunc and pypeit_telluric after-burner scripts.                                                                                                                                                                      
+================  ===============================================  =======  ============================  ======================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -236,33 +192,33 @@ Key               Type                                            Options  Defau
 CalibrationsPar Keywords
 ------------------------
 
-Class Instantiation: :class:`pypeit.par.pypeitpar.CalibrationsPar`
+Class Instantiation: :class:`~pypeit.par.pypeitpar.CalibrationsPar`
 
-=====================  ===================================================  =======  =================================  =========================================================================================================================================================================================
-Key                    Type                                                 Options  Default                            Description                                                                                                                                                                              
-=====================  ===================================================  =======  =================================  =========================================================================================================================================================================================
-``alignframe``         :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the align frames                                                                                                                                    
-``alignment``          :class:`pypeit.par.pypeitpar.AlignPar`               ..       `AlignPar Keywords`_               Define the procedure for the alignment of traces                                                                                                                                         
-``arcframe``           :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the wavelength calibration                                                                                                                          
-``biasframe``          :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the bias correction                                                                                                                                 
-``bpm_usebias``        bool                                                 ..       False                              Make a bad pixel mask from bias frames? Bias frames must be provided.                                                                                                                    
-``darkframe``          :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the dark-current correction                                                                                                                         
-``flatfield``          :class:`pypeit.par.pypeitpar.FlatFieldPar`           ..       `FlatFieldPar Keywords`_           Parameters used to set the flat-field procedure                                                                                                                                          
-``illumflatframe``     :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the illumination flat                                                                                                                               
-``lampoffflatsframe``  :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the lamp off flats                                                                                                                                  
-``master_dir``         str                                                  ..       ``Masters``                        If provided, it should be the name of the folder to write master files. NOT A PATH.                                                                                                      
-``pinholeframe``       :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the pinholes                                                                                                                                        
-``pixelflatframe``     :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the pixel flat                                                                                                                                      
-``raise_chk_error``    bool                                                 ..       True                               Raise an error if the calibration check fails                                                                                                                                            
-``setup``              str                                                  ..       ..                                 If masters='force', this is the setup name to be used: e.g., C_02_aa .  The detector number is ignored but the other information must match the Master Frames in the master frame folder.
-``skyframe``           :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the sky background observations                                                                                                                     
-``slitedges``          :class:`pypeit.par.pypeitpar.EdgeTracePar`           ..       `EdgeTracePar Keywords`_           Slit-edge tracing parameters                                                                                                                                                             
-``standardframe``      :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the spectrophotometric standard observations                                                                                                        
-``tiltframe``          :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the wavelength tilts                                                                                                                                
-``tilts``              :class:`pypeit.par.pypeitpar.WaveTiltsPar`           ..       `WaveTiltsPar Keywords`_           Define how to trace the slit tilts using the trace frames                                                                                                                                
-``traceframe``         :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for images used for slit tracing                                                                                                                        
-``wavelengths``        :class:`pypeit.par.pypeitpar.WavelengthSolutionPar`  ..       `WavelengthSolutionPar Keywords`_  Parameters used to derive the wavelength solution                                                                                                                                        
-=====================  ===================================================  =======  =================================  =========================================================================================================================================================================================
+=====================  ====================================================  =======  =================================  =========================================================================================================================================================================================
+Key                    Type                                                  Options  Default                            Description                                                                                                                                                                              
+=====================  ====================================================  =======  =================================  =========================================================================================================================================================================================
+``alignframe``         :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the align frames                                                                                                                                    
+``alignment``          :class:`~pypeit.par.pypeitpar.AlignPar`               ..       `AlignPar Keywords`_               Define the procedure for the alignment of traces                                                                                                                                         
+``arcframe``           :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the wavelength calibration                                                                                                                          
+``biasframe``          :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the bias correction                                                                                                                                 
+``bpm_usebias``        bool                                                  ..       False                              Make a bad pixel mask from bias frames? Bias frames must be provided.                                                                                                                    
+``darkframe``          :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the dark-current correction                                                                                                                         
+``flatfield``          :class:`~pypeit.par.pypeitpar.FlatFieldPar`           ..       `FlatFieldPar Keywords`_           Parameters used to set the flat-field procedure                                                                                                                                          
+``illumflatframe``     :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the illumination flat                                                                                                                               
+``lampoffflatsframe``  :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the lamp off flats                                                                                                                                  
+``master_dir``         str                                                   ..       ``Masters``                        If provided, it should be the name of the folder to write master files. NOT A PATH.                                                                                                      
+``pinholeframe``       :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the pinholes                                                                                                                                        
+``pixelflatframe``     :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the pixel flat                                                                                                                                      
+``raise_chk_error``    bool                                                  ..       True                               Raise an error if the calibration check fails                                                                                                                                            
+``setup``              str                                                   ..       ..                                 If masters='force', this is the setup name to be used: e.g., C_02_aa .  The detector number is ignored but the other information must match the Master Frames in the master frame folder.
+``skyframe``           :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the sky background observations                                                                                                                     
+``slitedges``          :class:`~pypeit.par.pypeitpar.EdgeTracePar`           ..       `EdgeTracePar Keywords`_           Slit-edge tracing parameters                                                                                                                                                             
+``standardframe``      :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the spectrophotometric standard observations                                                                                                        
+``tiltframe``          :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the wavelength tilts                                                                                                                                
+``tilts``              :class:`~pypeit.par.pypeitpar.WaveTiltsPar`           ..       `WaveTiltsPar Keywords`_           Define how to trace the slit tilts using the trace frames                                                                                                                                
+``traceframe``         :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for images used for slit tracing                                                                                                                        
+``wavelengths``        :class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`  ..       `WavelengthSolutionPar Keywords`_  Parameters used to derive the wavelength solution                                                                                                                                        
+=====================  ====================================================  =======  =================================  =========================================================================================================================================================================================
 
 
 ----
@@ -272,7 +228,7 @@ Key                    Type                                                 Opti
 AlignPar Keywords
 -----------------
 
-Class Instantiation: :class:`pypeit.par.pypeitpar.AlignPar`
+Class Instantiation: :class:`~pypeit.par.pypeitpar.AlignPar`
 
 ===============  =============  =======  =============  =============================================================================================================================================================================================================================================================================
 Key              Type           Options  Default        Description                                                                                                                                                                                                                                                                  
@@ -291,7 +247,7 @@ Key              Type           Options  Default        Description
 FlatFieldPar Keywords
 ---------------------
 
-Class Instantiation: :class:`pypeit.par.pypeitpar.FlatFieldPar`
+Class Instantiation: :class:`~pypeit.par.pypeitpar.FlatFieldPar`
 
 ==========================  =================  =================================  ===========  ================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 Key                         Type               Options                            Default      Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
@@ -328,7 +284,7 @@ Key                         Type               Options                          
 EdgeTracePar Keywords
 ---------------------
 
-Class Instantiation: :class:`pypeit.par.pypeitpar.EdgeTracePar`
+Class Instantiation: :class:`~pypeit.par.pypeitpar.EdgeTracePar`
 
 ===========================  ================  ===========================================  ==============  ======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 Key                          Type              Options                                      Default         Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
@@ -400,7 +356,7 @@ Key                          Type              Options                          
 WaveTiltsPar Keywords
 ---------------------
 
-Class Instantiation: :class:`pypeit.par.pypeitpar.WaveTiltsPar`
+Class Instantiation: :class:`~pypeit.par.pypeitpar.WaveTiltsPar`
 
 ===================  =========================  =======  ==============  =========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 Key                  Type                       Options  Default         Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
@@ -429,7 +385,7 @@ Key                  Type                       Options  Default         Descrip
 WavelengthSolutionPar Keywords
 ------------------------------
 
-Class Instantiation: :class:`pypeit.par.pypeitpar.WavelengthSolutionPar`
+Class Instantiation: :class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`
 
 ====================  =========================  ===============================================================  ================  ====================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 Key                   Type                       Options                                                          Default           Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
@@ -475,7 +431,7 @@ Key                   Type                       Options                        
 Coadd1DPar Keywords
 -------------------
 
-Class Instantiation: :class:`pypeit.par.pypeitpar.Coadd1DPar`
+Class Instantiation: :class:`~pypeit.par.pypeitpar.Coadd1DPar`
 
 ====================  ==========  =======  ==========  =============================================================================================================================================================================================================================================================================================================================================================================================================================
 Key                   Type        Options  Default     Description                                                                                                                                                                                                                                                                                                                                                                                                                  
@@ -517,7 +473,7 @@ Key                   Type        Options  Default     Description
 Coadd2DPar Keywords
 -------------------
 
-Class Instantiation: :class:`pypeit.par.pypeitpar.Coadd2DPar`
+Class Instantiation: :class:`~pypeit.par.pypeitpar.Coadd2DPar`
 
 ====================  =========  =======  ========  ======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 Key                   Type       Options  Default   Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
@@ -539,7 +495,7 @@ Key                   Type       Options  Default   Description
 Collate1DPar Keywords
 ---------------------
 
-Class Instantiation: :class:`pypeit.par.pypeitpar.Collate1DPar`
+Class Instantiation: :class:`~pypeit.par.pypeitpar.Collate1DPar`
 
 =========================  ==========  =======  ============================================  ==============================================================================================================================================================================================================================================================================================================================================================================================================
 Key                        Type        Options  Default                                       Description                                                                                                                                                                                                                                                                                                                                                                                                   
@@ -565,7 +521,7 @@ Key                        Type        Options  Default                         
 FlexurePar Keywords
 -------------------
 
-Class Instantiation: :class:`pypeit.par.pypeitpar.FlexurePar`
+Class Instantiation: :class:`~pypeit.par.pypeitpar.FlexurePar`
 
 ===================  ==========  ========================================================  ====================  ======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 Key                  Type        Options                                                   Default               Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
@@ -585,7 +541,7 @@ Key                  Type        Options                                        
 FluxCalibratePar Keywords
 -------------------------
 
-Class Instantiation: :class:`pypeit.par.pypeitpar.FluxCalibratePar`
+Class Instantiation: :class:`~pypeit.par.pypeitpar.FluxCalibratePar`
 
 =====================  ====  =======  ===========  ============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 Key                    Type  Options  Default      Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
@@ -604,7 +560,7 @@ Key                    Type  Options  Default      Description
 ReduxPar Keywords
 -----------------
 
-Class Instantiation: :class:`pypeit.par.pypeitpar.ReduxPar`
+Class Instantiation: :class:`~pypeit.par.pypeitpar.ReduxPar`
 
 ======================  ==============  =======  ============================================  =======================================================================================================================================================================================================================================================================================================================================================================================================================
 Key                     Type            Options  Default                                       Description                                                                                                                                                                                                                                                                                                                                                                                                            
@@ -629,18 +585,18 @@ Key                     Type            Options  Default                        
 ReducePar Keywords
 ------------------
 
-Class Instantiation: :class:`pypeit.par.pypeitpar.ReducePar`
+Class Instantiation: :class:`~pypeit.par.pypeitpar.ReducePar`
 
-==============  ===========================================  =======  =========================  =================================================================================
-Key             Type                                         Options  Default                    Description                                                                      
-==============  ===========================================  =======  =========================  =================================================================================
-``cube``        :class:`pypeit.par.pypeitpar.CubePar`        ..       `CubePar Keywords`_        Parameters for cube generation algorithms                                        
-``extraction``  :class:`pypeit.par.pypeitpar.ExtractionPar`  ..       `ExtractionPar Keywords`_  Parameters for extraction algorithms                                             
-``findobj``     :class:`pypeit.par.pypeitpar.FindObjPar`     ..       `FindObjPar Keywords`_     Parameters for the find object and tracing algorithms                            
-``skysub``      :class:`pypeit.par.pypeitpar.SkySubPar`      ..       `SkySubPar Keywords`_      Parameters for sky subtraction algorithms                                        
-``slitmask``    :class:`pypeit.par.pypeitpar.SlitMaskPar`    ..       `SlitMaskPar Keywords`_    Parameters for slitmask                                                          
-``trim_edge``   list                                         ..       3, 3                       Trim the slit by this number of pixels left/right when performing sky subtraction
-==============  ===========================================  =======  =========================  =================================================================================
+==============  ============================================  =======  =========================  =================================================================================
+Key             Type                                          Options  Default                    Description                                                                      
+==============  ============================================  =======  =========================  =================================================================================
+``cube``        :class:`~pypeit.par.pypeitpar.CubePar`        ..       `CubePar Keywords`_        Parameters for cube generation algorithms                                        
+``extraction``  :class:`~pypeit.par.pypeitpar.ExtractionPar`  ..       `ExtractionPar Keywords`_  Parameters for extraction algorithms                                             
+``findobj``     :class:`~pypeit.par.pypeitpar.FindObjPar`     ..       `FindObjPar Keywords`_     Parameters for the find object and tracing algorithms                            
+``skysub``      :class:`~pypeit.par.pypeitpar.SkySubPar`      ..       `SkySubPar Keywords`_      Parameters for sky subtraction algorithms                                        
+``slitmask``    :class:`~pypeit.par.pypeitpar.SlitMaskPar`    ..       `SlitMaskPar Keywords`_    Parameters for slitmask                                                          
+``trim_edge``   list                                          ..       3, 3                       Trim the slit by this number of pixels left/right when performing sky subtraction
+==============  ============================================  =======  =========================  =================================================================================
 
 
 ----
@@ -650,7 +606,7 @@ Key             Type                                         Options  Default   
 CubePar Keywords
 ----------------
 
-Class Instantiation: :class:`pypeit.par.pypeitpar.CubePar`
+Class Instantiation: :class:`~pypeit.par.pypeitpar.CubePar`
 
 ====================  =====  =======  =======  ===============================================================================================================================================================================================================================================================================================================================================================================================================
 Key                   Type   Options  Default  Description                                                                                                                                                                                                                                                                                                                                                                                                    
@@ -683,7 +639,7 @@ Key                   Type   Options  Default  Description
 ExtractionPar Keywords
 ----------------------
 
-Class Instantiation: :class:`pypeit.par.pypeitpar.ExtractionPar`
+Class Instantiation: :class:`~pypeit.par.pypeitpar.ExtractionPar`
 
 ====================  ==========  =======  =======  =============================================================================================================================================================================================================================================================================================
 Key                   Type        Options  Default  Description                                                                                                                                                                                                                                                                                  
@@ -707,7 +663,7 @@ Key                   Type        Options  Default  Description
 FindObjPar Keywords
 -------------------
 
-Class Instantiation: :class:`pypeit.par.pypeitpar.FindObjPar`
+Class Instantiation: :class:`~pypeit.par.pypeitpar.FindObjPar`
 
 ===========================  ==========  =======  =======  ==========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 Key                          Type        Options  Default  Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
@@ -737,7 +693,7 @@ Key                          Type        Options  Default  Description
 SkySubPar Keywords
 ------------------
 
-Class Instantiation: :class:`pypeit.par.pypeitpar.SkySubPar`
+Class Instantiation: :class:`~pypeit.par.pypeitpar.SkySubPar`
 
 ===================  ==========  =======  =======  ========================================================================================================================================================================================================================================================================================================================================================================================================================
 Key                  Type        Options  Default  Description                                                                                                                                                                                                                                                                                                                                                                                                             
@@ -761,7 +717,7 @@ Key                  Type        Options  Default  Description
 SlitMaskPar Keywords
 --------------------
 
-Class Instantiation: :class:`pypeit.par.pypeitpar.SlitMaskPar`
+Class Instantiation: :class:`~pypeit.par.pypeitpar.SlitMaskPar`
 
 ===========================  ==========  =======  =======  ======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 Key                          Type        Options  Default  Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
@@ -786,16 +742,16 @@ Key                          Type        Options  Default  Description
 FrameGroupPar Keywords
 ----------------------
 
-Class Instantiation: :class:`pypeit.par.pypeitpar.FrameGroupPar`
+Class Instantiation: :class:`~pypeit.par.pypeitpar.FrameGroupPar`
 
-=============  ==============================================  ============================================================================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
-Key            Type                                            Options                                                                                                                                                       Default                       Description                                                                                                                                                                                                                                                    
-=============  ==============================================  ============================================================================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
-``exprng``     list                                            ..                                                                                                                                                            None, None                    Used in identifying frames of this type.  This sets the minimum and maximum allowed exposure times.  There must be two items in the list.  Use None to indicate no limit; i.e., to select exposures with any time greater than 30 sec, use exprng = [30, None].
-``frametype``  str                                             ``align``, ``arc``, ``bias``, ``dark``, ``pinhole``, ``pixelflat``, ``illumflat``, ``lampoffflats``, ``science``, ``standard``, ``trace``, ``tilt``, ``sky``  ``science``                   Frame type.  Options are: align, arc, bias, dark, pinhole, pixelflat, illumflat, lampoffflats, science, standard, trace, tilt, sky                                                                                                                             
-``process``    :class:`pypeit.par.pypeitpar.ProcessImagesPar`  ..                                                                                                                                                            `ProcessImagesPar Keywords`_  Low level parameters used for basic image processing                                                                                                                                                                                                           
-``useframe``   str                                             ..                                                                                                                                                            ..                            A master calibrations file to use if it exists.                                                                                                                                                                                                                
-=============  ==============================================  ============================================================================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
+=============  ===============================================  ============================================================================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
+Key            Type                                             Options                                                                                                                                                       Default                       Description                                                                                                                                                                                                                                                    
+=============  ===============================================  ============================================================================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
+``exprng``     list                                             ..                                                                                                                                                            None, None                    Used in identifying frames of this type.  This sets the minimum and maximum allowed exposure times.  There must be two items in the list.  Use None to indicate no limit; i.e., to select exposures with any time greater than 30 sec, use exprng = [30, None].
+``frametype``  str                                              ``align``, ``arc``, ``bias``, ``dark``, ``pinhole``, ``pixelflat``, ``illumflat``, ``lampoffflats``, ``science``, ``standard``, ``trace``, ``tilt``, ``sky``  ``science``                   Frame type.  Options are: align, arc, bias, dark, pinhole, pixelflat, illumflat, lampoffflats, science, standard, trace, tilt, sky                                                                                                                             
+``process``    :class:`~pypeit.par.pypeitpar.ProcessImagesPar`  ..                                                                                                                                                            `ProcessImagesPar Keywords`_  Low level parameters used for basic image processing                                                                                                                                                                                                           
+``useframe``   str                                              ..                                                                                                                                                            ..                            A master calibrations file to use if it exists.                                                                                                                                                                                                                
+=============  ===============================================  ============================================================================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
 
 
 ----
@@ -805,7 +761,7 @@ Key            Type                                            Options          
 ProcessImagesPar Keywords
 -------------------------
 
-Class Instantiation: :class:`pypeit.par.pypeitpar.ProcessImagesPar`
+Class Instantiation: :class:`~pypeit.par.pypeitpar.ProcessImagesPar`
 
 ========================  ==========  ======================================  ==========  ============================================================================================================================================================================================================================================================================================================================================================
 Key                       Type        Options                                 Default     Description                                                                                                                                                                                                                                                                                                                                                 
@@ -850,25 +806,25 @@ Key                       Type        Options                                 De
 SensFuncPar Keywords
 --------------------
 
-Class Instantiation: :class:`pypeit.par.pypeitpar.SensFuncPar`
+Class Instantiation: :class:`~pypeit.par.pypeitpar.SensFuncPar`
 
-==================  =============================================  ================  ===========================  ======================================================================================================================================================================================================================================================================================================================================================================
-Key                 Type                                           Options           Default                      Description                                                                                                                                                                                                                                                                                                                                                           
-==================  =============================================  ================  ===========================  ======================================================================================================================================================================================================================================================================================================================================================================
-``IR``              :class:`pypeit.par.pypeitpar.TelluricPar`      ..                `TelluricPar Keywords`_      Parameters for the IR sensfunc algorithm                                                                                                                                                                                                                                                                                                                              
-``UVIS``            :class:`pypeit.par.pypeitpar.SensfuncUVISPar`  ..                `SensfuncUVISPar Keywords`_  Parameters for the UVIS sensfunc algorithm                                                                                                                                                                                                                                                                                                                            
-``algorithm``       str                                            ``UVIS``, ``IR``  ``UVIS``                     Specify the algorithm for computing the sensitivity function. The options are:  (1) UVIS = Should be used for data with lambda < 7000A.No detailed model of telluric absorption but corrects for atmospheric extinction. (2) IR = Should be used for data with lambbda > 7000A.Peforms joint fit for sensitivity function and telluric absorption using HITRAN models.
-``extrap_blu``      float                                          ..                0.1                          Fraction of minimum wavelength coverage to grow the wavelength coverage of the sensitivitity function in the blue direction, i.e. if the standard star spectrumcuts off at wave_min, the sensfunc will be extrapolated to cover down to  (1.0-extrap_blu)*wave_min                                                                                                    
-``extrap_red``      float                                          ..                0.1                          Fraction of maximum wavelength coverage to grow the wavelength coverage of the sensitivitity function in the red direction, i.e. if the standard star spectrumcuts off at wave_max, the sensfunc will be extrapolated to cover up to  (1.0 + extrap_red)*wave_max                                                                                                     
-``mask_abs_lines``  bool                                           ..                True                         Mask Balmer, Paschen, Brackett, and Pfund lines in sensitivity function fit                                                                                                                                                                                                                                                                                           
-``multi_spec_det``  list                                           ..                ..                           List of detectors (identified by their string name, like DET01) to splice together for multi-detector instruments (e.g. DEIMOS). It is assumed that there is *no* overlap in wavelength across detectors (might be ok if there is).  If entered as a list of integers, they should be converted to the detector name.  **Cannot be used with detector mosaics.**      
-``polyorder``       int, list                                      ..                5                            Polynomial order for sensitivity function fitting                                                                                                                                                                                                                                                                                                                     
-``samp_fact``       float                                          ..                1.5                          sampling factor to make the wavelength grid for sensitivity function finer or coarser.  samp_fact > 1.0 oversamples (finer), samp_fact < 1.0 undersamples (coarser).                                                                                                                                                                                                  
-``star_dec``        float                                          ..                ..                           DEC of the standard star. This will override values in the header, i.e. if they are wrong or absent                                                                                                                                                                                                                                                                   
-``star_mag``        float                                          ..                ..                           Magnitude of the standard star (for near-IR mainly)                                                                                                                                                                                                                                                                                                                   
-``star_ra``         float                                          ..                ..                           RA of the standard star. This will override values in the header, i.e. if they are wrong or absent                                                                                                                                                                                                                                                                    
-``star_type``       str                                            ..                ..                           Spectral type of the standard star (for near-IR mainly)                                                                                                                                                                                                                                                                                                               
-==================  =============================================  ================  ===========================  ======================================================================================================================================================================================================================================================================================================================================================================
+==================  ==============================================  ================  ===========================  ======================================================================================================================================================================================================================================================================================================================================================================
+Key                 Type                                            Options           Default                      Description                                                                                                                                                                                                                                                                                                                                                           
+==================  ==============================================  ================  ===========================  ======================================================================================================================================================================================================================================================================================================================================================================
+``IR``              :class:`~pypeit.par.pypeitpar.TelluricPar`      ..                `TelluricPar Keywords`_      Parameters for the IR sensfunc algorithm                                                                                                                                                                                                                                                                                                                              
+``UVIS``            :class:`~pypeit.par.pypeitpar.SensfuncUVISPar`  ..                `SensfuncUVISPar Keywords`_  Parameters for the UVIS sensfunc algorithm                                                                                                                                                                                                                                                                                                                            
+``algorithm``       str                                             ``UVIS``, ``IR``  ``UVIS``                     Specify the algorithm for computing the sensitivity function. The options are:  (1) UVIS = Should be used for data with lambda < 7000A.No detailed model of telluric absorption but corrects for atmospheric extinction. (2) IR = Should be used for data with lambbda > 7000A.Peforms joint fit for sensitivity function and telluric absorption using HITRAN models.
+``extrap_blu``      float                                           ..                0.1                          Fraction of minimum wavelength coverage to grow the wavelength coverage of the sensitivitity function in the blue direction, i.e. if the standard star spectrumcuts off at wave_min, the sensfunc will be extrapolated to cover down to  (1.0-extrap_blu)*wave_min                                                                                                    
+``extrap_red``      float                                           ..                0.1                          Fraction of maximum wavelength coverage to grow the wavelength coverage of the sensitivitity function in the red direction, i.e. if the standard star spectrumcuts off at wave_max, the sensfunc will be extrapolated to cover up to  (1.0 + extrap_red)*wave_max                                                                                                     
+``mask_abs_lines``  bool                                            ..                True                         Mask Balmer, Paschen, Brackett, and Pfund lines in sensitivity function fit                                                                                                                                                                                                                                                                                           
+``multi_spec_det``  list                                            ..                ..                           List of detectors (identified by their string name, like DET01) to splice together for multi-detector instruments (e.g. DEIMOS). It is assumed that there is *no* overlap in wavelength across detectors (might be ok if there is).  If entered as a list of integers, they should be converted to the detector name.  **Cannot be used with detector mosaics.**      
+``polyorder``       int, list                                       ..                5                            Polynomial order for sensitivity function fitting                                                                                                                                                                                                                                                                                                                     
+``samp_fact``       float                                           ..                1.5                          sampling factor to make the wavelength grid for sensitivity function finer or coarser.  samp_fact > 1.0 oversamples (finer), samp_fact < 1.0 undersamples (coarser).                                                                                                                                                                                                  
+``star_dec``        float                                           ..                ..                           DEC of the standard star. This will override values in the header, i.e. if they are wrong or absent                                                                                                                                                                                                                                                                   
+``star_mag``        float                                           ..                ..                           Magnitude of the standard star (for near-IR mainly)                                                                                                                                                                                                                                                                                                                   
+``star_ra``         float                                           ..                ..                           RA of the standard star. This will override values in the header, i.e. if they are wrong or absent                                                                                                                                                                                                                                                                    
+``star_type``       str                                             ..                ..                           Spectral type of the standard star (for near-IR mainly)                                                                                                                                                                                                                                                                                                               
+==================  ==============================================  ================  ===========================  ======================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -878,7 +834,7 @@ Key                 Type                                           Options      
 SensfuncUVISPar Keywords
 ------------------------
 
-Class Instantiation: :class:`pypeit.par.pypeitpar.SensfuncUVISPar`
+Class Instantiation: :class:`~pypeit.par.pypeitpar.SensfuncUVISPar`
 
 ====================  ==========  =======  ===========  =========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 Key                   Type        Options  Default      Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
@@ -906,7 +862,7 @@ Key                   Type        Options  Default      Description
 TelluricPar Keywords
 --------------------
 
-Class Instantiation: :class:`pypeit.par.pypeitpar.TelluricPar`
+Class Instantiation: :class:`~pypeit.par.pypeitpar.TelluricPar`
 
 =======================  ==================  =======  ==========================  =================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 Key                      Type                Options  Default                     Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
@@ -962,7 +918,7 @@ The following provides the changes to the global default parameters
 provided above for each instrument.  That is, if one were to include
 these in the PypeIt file, you would be reproducing the effect of the
 `default_pypeit_par` method specific to each derived
-:class:`pypeit.spectrographs.spectrograph.Spectrograph` class.
+:class:`~pypeit.spectrographs.spectrograph.Spectrograph` class.
 
 BOK BC (``bok_bc``)
 -------------------

@@ -12,39 +12,44 @@ PypeIt allows you to customize its execution without having to change the
 code directly.
 
 Although not ubiquitous, most optional arguments of PypeIt's algorithms
-are contained within the :class:`pypeit.par.pypeitpar.PypeItPar`
+are contained within the :class:`~pypeit.par.pypeitpar.PypeItPar`
 superset.  PypeIt uses the `configobj`_ class to parse the user-supplied
 arguments  in the :ref:`pypeit_file` into an instance of
-:class:`pypeit.par.pypeitpar.PypeItPar` that is passed to all of
+:class:`~pypeit.par.pypeitpar.PypeItPar` that is passed to all of
 PypeIt's main modules.  The syntax used to set parameters using the
 :ref:`pypeit_file` is important and the nesting of the parameter changes
 must match the `Current PypeItPar Parameter Hierarchy`_.
 
-Importantly, each instrument served provides its own default values for
-:class:`pypeit.par.pypeitpar.PypeItPar` as defined by its
-``default_pypeit_par`` method; e.g.,
-:func:`pypeit.spectrographs.shane_kast.ShaneKastSpectrograph.default_pypeit_par`.
-Only those parameters that the user wishes to be different from the
-default *as set by their specified instrument* need to be changed via
-the :ref:`pypeit_file`.  The :ref:`instr_par` are listed below.
+Importantly, each :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+derived class (e.g.,
+:class:`~pypeit.spectrographs.shane_kast.ShaneKastSpectrograph) provides its own
+default values for :class:`~pypeit.par.pypeitpar.PypeItPar` as defined by its
+``default_pypeit_par`` method; e.g., see
+:func:`~pypeit.spectrographs.shane_kast.ShaneKastSpectrograph.default_pypeit_par`
+for Shane/Kast.  Only those parameters that the user wishes to be different from
+the default *as set by their specified instrument* need to be changed via the
+:ref:`pypeit_file`.  The :ref:`instr_par` are listed below.
 
 .. warning::
 
- * Default values of parameters that actually point to data files
-   provided by PypeIt (e.g. the ``spectrum`` parameter for
-   :class:`pypeit.par.pypeitpar.FlexurePar`) in its root directory will
-   point to the relevant location on disk of whoever generated the
-   documentation, which will be different for your installation.
+    Default values of parameters that actually point to data files provided by
+    PypeIt (e.g. the ``spectrum`` parameter for
+    :class:`~pypeit.par.pypeitpar.FlexurePar`) in its root directory will point
+    to the relevant location on disk of whoever generated the documentation,
+    which will be different for your installation.
 
 .. _change_par:
 
 How to change a parameter
 =========================
 
-To change a parameter, set its value at the beginning of your pypeit
-file.  The *syntax* of the configuration block is important, but the
-indentation is not.  The indentation will just make the block easier to
-read.  All PypeIt files begin with the lines that set the spectrograph::
+To change a parameter, set its value in the :ref:`parameter_block` of the
+:ref:`pypeit_file`.  The *syntax* of the configuration block is important, but
+the indentation is not.  The indentation will just make the block easier to
+read.  The :ref:`pypeit_file` :ref:`parameter_block` always includes the lines
+that sets the spectrograph:
+
+.. code-block:: ini
 
     [rdx]
         spectrograph = keck_deimos
@@ -58,9 +63,9 @@ of how to change various parameters; for additional examples see the
 
    .. code-block:: ini
 
-    [calibrations]
-        [[slitedges]]
-            edge_thresh = 100
+        [calibrations]
+            [[slitedges]]
+                edge_thresh = 100
 
  * To change the exposure time range used to identify an arc and
    flat-field frames and to increase the LA Cosmic sigma-clipping
@@ -68,13 +73,13 @@ of how to change various parameters; for additional examples see the
 
    .. code-block:: ini
 
-    [calibrations]
-        [[arcframe]]
-            exprng = None,10
-            [[process]]
-                sigclip = 6.
-        [[pixelflatframe]]
-            exprng = 11,30
+        [calibrations]
+            [[arcframe]]
+                exprng = None,10
+                [[process]]
+                    sigclip = 6.
+            [[pixelflatframe]]
+                exprng = 11,30
 
 .. _baseprocess:
 

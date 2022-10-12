@@ -2,8 +2,8 @@
 
     $ pypeit_ql_keck_deimos -h
     usage: pypeit_ql_keck_deimos [-h] [--redux_path REDUX_PATH] [--root ROOT]
-                                 [--calibs_only] [--science SCIENCE]
-                                 [-b BOX_RADIUS] [-d DET] [--ignore_headers]
+                                 [--calibs_only] [--science SCIENCE] [-b BOX_RADIUS]
+                                 [-d DET] [--ignore_headers]
                                  [--user_pixflat USER_PIXFLAT] [--maskID MASKID]
                                  [--slit_spat SLIT_SPAT]
                                  full_rawpath
@@ -32,6 +32,6 @@
       --maskID MASKID       Reduce this slit as specified by the maskID value
                             (default: None)
       --slit_spat SLIT_SPAT
-                            Reduce only this slit on this detector DET:SPAT_ID,
-                            e.g. 0:175 (default: None)
+                            Reduce only this slit on this detector DET:SPAT_ID, e.g.
+                            0:175 (default: None)
     

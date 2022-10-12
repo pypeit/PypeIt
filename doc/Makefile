@@ -57,16 +57,17 @@ clean:
 
 apirst:
 	SPHINX_APIDOC_OPTIONS=$(SPHINXAPIOPT) $(SPHINXAPI) --separate -o ./api ../pypeit ../pypeit/tests/* ../pypeit/deprecated/* ../pypeit/version.py ../pypeit/compiler_version*
-	python3 ./scripts/build_dependency_rst.py
-	python3 ./scripts/build_detector_table.py
-	python3 ./scripts/build_imgproc_defaults.py
-	python3 ./scripts/build_par_rst.py
-	python3 ./scripts/build_specobj_rst.py
-	python3 ./scripts/build_calib_images_rst.py
-	python3 ./scripts/write_script_help.py
-	python3 ./scripts/build_bitmask_rst.py
-	python3 ./scripts/build_spectbl_rst.py
-	python3 ./scripts/make_example_files.py
+	wget -O ./include/dev_suite_readme.rst https://raw.githubusercontent.com/pypeit/PypeIt-development-suite/rst_readme/README.rst
+	python ./scripts/build_dependency_rst.py
+	python ./scripts/build_detector_table.py
+	python ./scripts/build_imgproc_defaults.py
+	python ./scripts/build_par_rst.py
+	python ./scripts/build_specobj_rst.py
+	python ./scripts/build_calib_images_rst.py
+	python ./scripts/write_script_help.py
+	python ./scripts/build_bitmask_rst.py
+	python ./scripts/build_spectbl_rst.py
+	python ./scripts/make_example_files.py
 
 html:
 	make apirst

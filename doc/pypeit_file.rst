@@ -130,7 +130,7 @@ Here are additional docs on common edits that ``PypeIt`` users make:
 
    calibrations/calibrations
    frametype
-   calibrations/bias_dark
+   calibrations/image_proc
    calibrations/flat_fielding
    calibrations/wave_calib
    calibrations/slit_tracing
