@@ -847,8 +847,6 @@ class PypeIt:
         # to find all of the objects first using slitmask meta data,  but this comes at the expense of a much more complicated
         # control sctucture.
 
-        # Update the skymask
-        skymask = objFind.create_skymask(sobjs_obj)
         # Update the global sky
         if 'standard' in self.fitstbl['frametype'][frames[0]] or \
                 self.par['reduce']['findobj']['skip_final_global'] or \
@@ -856,6 +854,8 @@ class PypeIt:
                 self.par['reduce']['skysub']['user_regions'] is not None:
             final_global_sky = initial_sky
         else:
+            # Update the skymask
+            skymask = objFind.create_skymask(sobjs_obj)
             final_global_sky = objFind.global_skysub(previous_sky=initial_sky, skymask=skymask, show=self.show)
         scaleImg = objFind.scaleimg
 

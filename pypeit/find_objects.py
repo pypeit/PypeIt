@@ -338,31 +338,42 @@ class FindObjects:
             return np.zeros_like(self.sciImg.image), sobjs_obj
         else:
             # Check if the user wants to use a pre-defined sky regions file.
-            skymask0, usersky = self.load_skyregions(skymask_init=None, sky_region_file=self.sky_region_file)
-            # Perform a first pass sky-subtraction without masking any objects. Should  we make this no_poly=True to
-            # have fewer degrees of freedom in the with with-object global sky fits??
-            initial_sky0 = self.global_skysub(skymask=skymask0, update_crmask=False, objs_not_masked=True,
-                                              show_fit=show_skysub_fit).copy()
-            # First pass object finding
-            sobjs_obj, self.nobj = \
-                self.find_objects(self.sciImg.image-initial_sky0, self.sciImg.ivar, std_trace=std_trace,
-                                  show_peaks=show_peaks,
-                                  show=self.findobj_show and not self.std_redux,
-                                  save_objfindQA=self.par['reduce']['findobj']['skip_second_find'] | self.std_redux)
-            # create skymask using first pass sobjs_obj
-            skymask_init = self.create_skymask(sobjs_obj)
-            # Check if the user wants to overwrite the skymask with a pre-defined sky regions file.
-            skymask_init, usersky = self.load_skyregions(skymask_init=skymask_init, sky_region_file=self.sky_region_file)
-
-            # If no objects were found and user did not define sky regions, don't redo global sky subtraction
-            if self.nobj == 0 and not usersky:
-                initial_sky = initial_sky0
+            user_regions = self.par['reduce']['skysub']['user_regions']
+            load_skyreg = (self.sky_region_file is not None) or (user_regions is not None)
+            if load_skyreg:
+                skymask_init = self.load_skyregions(skymask_init=None, sky_region_file=self.sky_region_file)
+                # Perform a fit to the global sky model
+                initial_sky = self.global_skysub(skymask=skymask_init, update_crmask=False, objs_not_masked=True,
+                                                  show_fit=show_skysub_fit).copy()
+                # Perform object finding
+                sobjs_obj, self.nobj = \
+                    self.find_objects(self.sciImg.image - initial_sky, self.sciImg.ivar, std_trace=std_trace,
+                                      show_peaks=show_peaks,
+                                      show=self.findobj_show and not self.std_redux,
+                                      save_objfindQA=self.par['reduce']['findobj']['skip_second_find'] | self.std_redux)
             else:
-                # Global sky subtract now using the skymask defined by object positions
-                initial_sky = self.global_skysub(skymask=skymask_init, show_fit=show_skysub_fit).copy()
+                # Perform a first pass sky-subtraction without masking any objects. Should  we make this no_poly=True to
+                # have fewer degrees of freedom in the with with-object global sky fits??
+                initial_sky0 = self.global_skysub( update_crmask=False, objs_not_masked=True,
+                                                  show_fit=show_skysub_fit).copy()
+                # First pass object finding
+                sobjs_obj, self.nobj = \
+                    self.find_objects(self.sciImg.image-initial_sky0, self.sciImg.ivar, std_trace=std_trace,
+                                      show_peaks=show_peaks,
+                                      show=self.findobj_show and not self.std_redux,
+                                      save_objfindQA=self.par['reduce']['findobj']['skip_second_find'] | self.std_redux)
+                # create skymask using first pass sobjs_obj
+                skymask_init = self.create_skymask(sobjs_obj)
+
+                # If no objects were found and user did not define sky regions, don't redo global sky subtraction
+                if self.nobj == 0:
+                    initial_sky = initial_sky0
+                else:
+                    # Global sky subtract now using the skymask defined by object positions
+                    initial_sky = self.global_skysub(skymask=skymask_init, show_fit=show_skysub_fit).copy()
 
             # Second pass object finding on sky-subtracted image
-            if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
+            if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']) and (not load_skyreg):
                 sobjs_obj, self.nobj = self.find_objects(self.sciImg.image - initial_sky, self.sciImg.ivar,
                                                          std_trace=std_trace, show=self.findobj_show,
                                                          show_peaks=show_peaks)
@@ -611,19 +622,13 @@ class FindObjects:
         -------
         skymask :  `numpy.ndarray`_
             A boolean array of sky pixels (True is a pixel that corresponds to a sky region)
-        usersky : bool
-            If the user has defined the sky, set this variable to True (otherwise False).
         """
         user_regions = self.par['reduce']['skysub']['user_regions']
         # Perform some checks
-        if sky_region_file is None and user_regions is None and skymask_init is None:
-            msgs.warn("An initial skymask has not been supplied. Generating one...")
-            return None, False
         if self.par['reduce']['skysub']['load_mask'] and not os.path.exists(sky_region_file):
             msgs.warn("Master SkyRegions file does not exist. Create a Master SkyRegions frame, or set:")
             msgs.pypeitpar(['reduce', 'skysub', 'load_mask = False'])
             msgs.error("Unable to reduce data without SkyRegions")
-        usersky = False
         # First priority given to user_regions first
         if user_regions is not None:
             msgs.info("Using user_regions to determine the sky regions")
@@ -641,7 +646,6 @@ class FindObjects:
             # Generate image
             skymask = skysub.generate_mask(self.pypeline, regions, self.slits, self.slits_left,
                                                 self.slits_right, spat_flexure=self.spat_flexure_shift)
-            usersky = True
         # Second priority given to master sky regions file
         elif sky_region_file is not None:
             # Check if a file exists
@@ -649,7 +653,6 @@ class FindObjects:
                 msgs.info("Loading SkyRegions file: " + msgs.newline() + sky_region_file)
                 skyreg = buildimage.SkyRegions.from_file(sky_region_file)
                 skymask = skyreg.image.astype(np.bool)
-                usersky = True
             else:
                 msgs.warn("SkyRegions file not found:" + msgs.newline() + sky_region_file)
                 if skymask_init is not None:
@@ -660,7 +663,7 @@ class FindObjects:
         else:
             skymask = skymask_init.copy()
         # Return the result
-        return skymask, usersky
+        return skymask
 
     def show(self, attr, image=None, global_sky=None, showmask=False, sobjs=None,
              chname=None, slits=False,clear=False):
