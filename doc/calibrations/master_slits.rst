@@ -10,32 +10,31 @@ MasterSlits
 Overview
 ========
 
-This file describes the MasterSlits object.
+This file describes the ``MasterSlits`` object.
 It contains the main information on the traced slit edges, organized into left-right slit pairs.
 
 
-See below for the :ref:`master-naming`.
 This is written to disk as a multi-extension FITS file prefixed by
-MasterSlits in the Masters/ folder.
-See the :ref:`master-naming` docs for more.
+``MasterSlits`` in the ``Masters/`` folder.
+See :ref:`master-naming` for the naming convention.
 
 
 Viewing
 =======
 
-This is the preferred way to view the slit edges information contained in MasterSlits:
+The preferred way to view the slit edges information contained in ``MasterSlits`` is as follows:
 
 .. code-block:: python
 
     from astropy.io import fits
     from astropy.table import Table
 
-    hdu=fits.open('MasterSlits_A_1_01.fits')
-    Table(hdu[1].data)
+    hdu = fits.open('MasterSlits_A_1_DET01.fits')
+    Table(hdu['SLITS'].data)
 
 This will show a table that looks like this:
 
-.. code-block:: python
+.. code-block:: console
 
     spat_id maskdef_id             left_init [4096]                        right_init [4096]                        left_tweak [4096]                        right_tweak [4096]                         center [4096]               mask_init  mask specmin specmax
     int64    int64                    float64                                  float64                                  float64                                  float64                                  float64                    int16   int16 float64 float64
@@ -46,13 +45,14 @@ This will show a table that looks like this:
         322     699091   248.21048545837402 .. 278.352352142334   345.8145122528076 .. 376.4430561065674   251.7797389884793 .. 281.9216056724392   345.8145122528076 .. 376.4430561065674   297.0124988555908 .. 327.3977041244507         0     0    -inf     inf
         457     699080  350.76593017578125 .. 379.9788398742676   514.4993572235107 .. 544.0507583618164  355.0206685112119 .. 384.23357820969824    513.3126446738094 .. 542.864045812115     432.632643699646 .. 462.014799118042         0     0    -inf     inf
 
-In addition, if reducing :doc:`../spectrographs/deimos` or :doc:`../spectrographs/mosfire` data and slit-mask design matching is performed
-(see :ref:`deimos-mask-matching` for DEIMOS and :ref:`mosfire-edge-tracing` for MOSFIRE), a second
-`astropy.io.fits.BinTableHDU`_ is written to disk.
+In addition, if reducing :doc:`../spectrographs/deimos` or
+:doc:`../spectrographs/mosfire` data and slit-mask design matching is performed
+(see :ref:`deimos-mask-matching` for DEIMOS and :ref:`mosfire-edge-tracing` for
+MOSFIRE), a second `astropy.io.fits.BinTableHDU`_ is written to disk.
 
-.. code-block:: python
+.. code-block:: console
 
-    Table(hdu[2].data)
+    Table(hdu['MASKDEF_DESIGNTAB'].data)
 
     TRACEID TRACESROW     TRACELPIX          TRACERPIX      SPAT_ID SLITID       SLITLOPT           SLITROPT         SLITRA      SLITDEC        SLITLEN       SLITWID  SLITPA ALIGN OBJID     OBJRA        OBJDEC   OBJNAME  OBJMAG OBJMAG_BAND OBJ_TOPDIST OBJ_BOTDIST
      int64    int64        float64            float64        int64  int64        float64            float64         float64      float64        float64       float64 float64 int16 int64    float64      float64    str32  float64    str32      float64     float64
@@ -70,13 +70,14 @@ See :ref:`slittrace-datamodel` for a description of the columns.
 Current SlitTrace Data Model
 ============================
 
-Internally, the MasterSlits object is held in :class:`~pypeit.slittrace.SlitTraceSet`,
-which is a :class:`~pypeit.datamodel.DataContainer`.
-
+Internally, the ``MasterSlits`` object is held in :class:`~pypeit.slittrace.SlitTraceSet`,
+which subclasses from :class:`~pypeit.datamodel.DataContainer`.
 
 Here is its datamodel, which is written as an `astropy.io.fits.BinTableHDU`_.
-In addition, if reducing :doc:`../spectrographs/deimos` or :doc:`../spectrographs/mosfire` data and slit-mask design matching is performed,
-another  `astropy.io.fits.BinTableHDU`_ is written to a fits extension named `MASKDEF_DESIGNTAB`.
+In addition, if reducing :doc:`../spectrographs/deimos` or
+:doc:`../spectrographs/mosfire` data and slit-mask design matching is performed,
+another  `astropy.io.fits.BinTableHDU`_ is written to a fits extension named
+`MASKDEF_DESIGNTAB`.
 
 .. include:: ../include/datamodel_slittrace.rst
 

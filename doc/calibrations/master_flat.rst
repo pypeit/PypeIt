@@ -1,3 +1,6 @@
+
+.. include:: ../include/links.rst
+
 ==========
 MasterFlat
 ==========
@@ -5,20 +8,20 @@ MasterFlat
 Overview
 ========
 
-This file describes the data model for the MasterFlat.
+This file describes the data model for the ``MasterFlat``.
 It is a series of images starting from
 the combination of all input *pixelflat* frames.
 
 The images are written to disk as a multi-extension FITS file
-prefixed by MasterFlat in the Masters/ folder.
+prefixed by ``MasterFlat`` in the ``Masters/`` folder.
 See :ref:`master-naming` for the naming convention.
 
 
 Inspecting
 ==========
 
-PypeIt provides the `pypeit_chk_flats` script to inspect
-the key `MasterFlat`_ outputs.
+PypeIt provides the ``pypeit_chk_flats`` script to inspect
+the key ``MasterFlat`` outputs.
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
@@ -30,16 +33,17 @@ The script usage can be displayed by calling the script with the
 pypeit_chk_flats
 ----------------
 
-This script takes a `MasterFlat`_ as input and displays
+This script takes a ``MasterFlat`` as input and displays
 a series of images in a
-`ginga <https://ginga.readthedocs.io/en/latest/>`_
-viewer, each in a separate tab.
+`ginga`_ viewer, each in a separate tab.
 
-Here is a typical call::
+Here is a typical call:
 
-    pypeit_chk_flats Masters/MasterFlat_A_1_01.fits
+.. code-block:: console
 
-We now describe the standard products.
+    pypeit_chk_flats Masters/MasterFlat_A_1_DET01.fits
+
+Below we describe the standard products.
 There is enough variation from spectrograph to
 spectrograph that we have not included example
 screen-shots.
@@ -47,11 +51,11 @@ screen-shots.
 Raw Flat
 --------
 
-This is the processed and combined `pixelflat` images.
-Despite the name, it is not completely Raw.
+This is the processed and combined ``pixelflat`` image.
+Despite the name, it is not completely raw.
 
 This image should look like any one of your input
-`pixelflat` images.
+``pixelflat`` images.
 
 Pixel Flat
 ----------
@@ -82,22 +86,24 @@ Flat Model
 
 This image should largely resemble the `Raw Flat`_.
 
-Trouble Shooting
-================
+Troubleshooting
+===============
 
 If one or more of your image appears to be in err,
 here are the things to consider:
 
  - Is one or more of your flat frames junk?
+
  - Is one or more of your input flat frames mis-labeled?
+
  - Did you saturate portions of the flat?
 
 Current FlatImages Data Model
 =============================
 
 Internally, the image is held in
-:class:`pypeit.flatfield.FlatImages`
-which is a :class:`pypeit.datamodel.DataContainer`.
+:class:`~pypeit.flatfield.FlatImages`
+which subclasses from :class:`pypeit.datamodel.DataContainer`.
 
 The datamodel written to disk is:
 

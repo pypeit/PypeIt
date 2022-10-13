@@ -5,11 +5,11 @@ MasterTilts
 Overview
 ========
 
-This file describes the data model for the `MasterTilts`_.
+This file describes the data model for the ``MasterTilts``.
 
 
 The images are written to disk as a multi-extension FITS file
-prefixed by `MasterTilts`_ in the Masters/ folder.
+prefixed by ``MasterTilts`` in the ``Masters/`` folder.
 See :ref:`master-naming` for the naming convention.
 
 
@@ -25,23 +25,26 @@ There are 3 PNG files generated per slit:
 2D Arc Tilts
 ------------
 
-This QA shows the spectral,spatial positions of all
+This QA shows the spectral vs. spatial positions of all
 the lines traced by the code.  Here is an example
-from `shane_kast_red`:
+from ``shane_kast_red``:
 
 .. image:: ../figures/arc_tilts_2d.png
 
 Here is what you hope to see in this QA:
 
  - RMS < 0.1
+
  - Very few red points
+
  - The red points are mainly at the very edges of the black lines
+
  - The black points span across the full detector
 
 On the last point, if only a smaller portion of the detector
 is covered, the code is extrapolating.
 Indeed, the example above only shows
-outputs down to ~480 Spectral Pixel which is not ideal.
+outputs down to ~480 Spectral Pixel, which is not ideal.
 Of course, this will be the case for spectrographs
 that have data which does not span the full detector.
 
@@ -50,12 +53,12 @@ Spat Tilts
 
 This QA examines the residuals of (tilt position - model)
 as a function of spatial offset along the slit.  Here
-is an example from `shane_kast_red`:
+is an example from ``shane_kast_red``:
 
 .. image:: ../figures/arc_tilts_spat.png
 
-One hopes to see small residuals and without any substantial
-spatial dependence.  But, it is comment for there to be
+One hopes to see small residuals without any substantial
+spatial dependence.  But, it is common for there to be
 significant residuals at the edges of the slit
 (as in this example).
 
@@ -64,17 +67,18 @@ Spec Tilts
 
 This QA examines the residuals of (tilt position - model)
 as a function of spetral offset along the slit.  Here
-is an example from `shane_kast_red`:
+is an example from ``shane_kast_red``:
 
 .. image:: ../figures/arc_tilts_spec.png
 
 One hopes to see:
 
  - The black points scattering about 0
+
  - The orange and green points not too far above 0
 
-Trouble Shooting
-================
+Troubleshooting
+===============
 
 If one or more of your image appears to be in err,
 here are the things to consider:
@@ -82,7 +86,9 @@ here are the things to consider:
 Insufficient Lines
 ------------------
 
-TODO: Explain how to add more
+.. todo::
+    
+    Explain how to add more
 
 
 Current WaveTilts Data Model
@@ -90,9 +96,9 @@ Current WaveTilts Data Model
 
 Internally, the image is held in
 :class:`pypeit.wavetilts.WaveTilts`
-which is a :class:`pypeit.datamodel.DataContainer`.
-The datamodel written to disk is:
+which subclasses from :class:`pypeit.datamodel.DataContainer`.
 
+The datamodel written to disk is:
 
 .. include:: ../include/datamodel_wavetilts.rst
 

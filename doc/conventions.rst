@@ -48,14 +48,24 @@ their center, the slit identifier, and the detector; e.g.,
 
 .. TODO: ADD AN ECHELLE EXAMPLE
 
+.. _conventions-datamodel:
+
+Datamodels
+==========
+
+.. include:: include/datamodels.rst
+
+
 Calibration Frames
 ==================
 
 All reduced calibration frames are held in the ``Masters`` directory and given
-the file name prefix ``Master`` (e.g., ``MasterArc``).  They are also assigned a
-unique identifier that is a combination of their setup, calibration group, and
-detector (e.g., ``A_1_DET01``).  The naming convention for master calibration
-frames is described in more detail :ref:`here <masters>`.
+the file name prefix ``Master`` (e.g., ``MasterArc``).  See :ref:`outputs-dir`
+and :ref:`calibrations`.
+
+The master frames are also assigned a unique identifier that is a combination of
+their setup, calibration group, and detector (e.g., ``A_1_DET01``).  For details
+on the construction of this identifier, see :ref:`master-naming`.
 
 .. _science_frame_naming:
 

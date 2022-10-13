@@ -12,7 +12,7 @@ salient detector parameters.  Many of these parameters are hard-coded for each
 supported instrument, but they can also be read from the frame in question.  The
 detector parameters used during the data reduction are provided in most of the
 primary ``PypeIt`` output files, including both the :ref:`spec-2d-output` and
-the :ref:`masters`.
+the :ref:`calibrations`.
 
 The datamodel for the
 :class:`~pypeit.images.detector_container.DetectorContainer` object is:

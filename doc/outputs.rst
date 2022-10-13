@@ -1,4 +1,6 @@
 
+.. include:: include/links.rst
+
 .. _outputs:
 
 =======
@@ -7,26 +9,15 @@ Outputs
 
 PypeIt, despite being a pipeline for data *reduction*, is capable of generating
 an inordinate amount of data products.  These pages document the various data
-products.  Note that the convention used for the file names are discussed
+products.  Note that conventions used for the file names are discussed
 :doc:`here<conventions>`.
 
 ----
 
-Output Files
-============
-
-The primary output files from PypeIt's core data processing steps are a set of
-calibrations, calibrated 2D spectral images, and 1D spectral extractions.
-Output files from further processing steps, like :doc:`fluxing`, are discussed
-in their associated documentation pages.
-
-.. Instead, consolidate a description of all outputs here, including telluric
-.. fitting, fluxing, coadding, etc.
-
 .. _outputs-dir:
 
 Directory Structure
--------------------
+===================
 
 Assuming it was executed from within the directory created by
 :ref:`pypeit_setup` (e.g., ``${RDXDIR}/keck_deimos_A``), by default
@@ -53,8 +44,21 @@ directory structure throughout this documentation.
     well tested.  For now, we strongly recommend you use PypeIt's default output
     directory structure.
 
-The following links provide more information about each file, how they're
-produced, and their current datamodel.
+----
+
+Output Files
+============
+
+The primary output files from PypeIt's core data processing steps are a set of
+calibrations, calibrated 2D spectral images, and 1D spectral extractions.
+Output files from further processing steps, like :doc:`fluxing`, are discussed
+in their associated documentation pages.
+
+.. TODO: Instead, consolidate a description of all outputs here, including
+.. telluric fitting, fluxing, coadding, etc.
+
+The following links provide more information about PypeIt's primary output
+files, how they're produced, and their current datamodel.
 
 .. toctree::
    :maxdepth: 1
@@ -63,10 +67,25 @@ produced, and their current datamodel.
    out_spec2D
    out_spec1D
 
+.. note::
+
+    Nearly all of PypeIt's main output files are written by python objects that
+    subclass from :class:`~pypeit.datamodel.DataContainer`; see
+    :mod:`~pypeit.datamodel`, as well as important details
+    :ref:`here<conventions-datamodel>` or (repeated)
+    :ref:`below<outputs-datamodel>`.
+
 ----
 
-Additional Outputs
-==================
+Additional Information
+======================
+
+.. _outputs-datamodel:
+
+Datamodels
+----------
+
+.. include:: include/datamodels.rst
 
 Bitmasks
 --------

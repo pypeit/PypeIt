@@ -1,7 +1,7 @@
 """
 Implements classes and function for the PypeIt data model.
 
-.. data-container:
+.. _data-container:
 
 DataContainer
 -------------
@@ -486,6 +486,7 @@ class DataContainer:
     Defines an abstract class for holding and manipulating data.
 
     The primary utilities of the class are:
+
         - Attributes can be accessed normally or as expected for a :obj:`dict`
         - Attributes and items are restricted to conform to a specified data model.
 

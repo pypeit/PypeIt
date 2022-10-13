@@ -78,7 +78,9 @@ with are listed** `here
 In addition to our primary code base, we maintain an extensive `development
 suite <https://github.com/pypeit/PypeIt-development-suite>`__ primarily used to
 perform multiple layers of code testing, from basic unit tests to full
-end-to-end tests of all our command-line scripts.
+end-to-end tests of all our command-line scripts.  **If you are new to PypeIt,
+you are encouraged to pull example data from the DevSuite for your instrument
+when learning how to use the software.**
 
 ----
 

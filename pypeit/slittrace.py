@@ -162,7 +162,7 @@ class SlitTraceSet(datamodel.DataContainer):
                  'mask': dict(otype=np.ndarray, atype=np.integer,
                               descr='Bit mask for slits (fully good slits have 0 value).  Shape '
                                     'is Nslits.'),
-                'slitbitm': dict(otype=str, desc='List of BITMASK keys from SlitTraceBitMask'),
+                'slitbitm': dict(otype=str, descr='List of BITMASK keys from SlitTraceBitMask'),
                 'specmin': dict(otype=np.ndarray, atype=np.floating,
                                 descr='Minimum spectral position allowed for each slit/order.  '
                                       'Shape is Nslits.'),

@@ -12,6 +12,9 @@ from pypeit.images import buildimage
 from pypeit.flatfield import FlatImages
 from pypeit.wavetilts import WaveTilts
 from pypeit.wavecalib import WaveCalib
+from pypeit.alignframe import Alignments
+from pypeit.edgetrace import EdgeTraceSet
+from pypeit.slittrace import SlitTraceSet
 
 from IPython import embed
 
@@ -19,6 +22,18 @@ def link_string(p):
     return '`{0} Keywords`_'.format(type(p).__name__)
 
 #-----------------------------------------------------------------------------
+
+def type_name(t):
+    if t is numpy.bool_:
+        return 'np.bool'
+    return t.__name__
+
+
+def type_names(types):
+    if isinstance(types, (list,tuple)):
+        return ', '.join([type_name(t) for t in types])
+    return type_name(types)
+
 
 def build_tbl(obj):
 
@@ -39,13 +54,10 @@ def build_tbl(obj):
         alternate_keys.append(_k)
         data_table[i+1,0] = to_string(_k, use_repr=False, verbatim=True)
         # Object Type
-        if isinstance(data_model[k]['otype'], (list,tuple)):
-            data_table[i+1,1] = ', '.join([t.__name__ for t in data_model[k]['otype']])
-        else:
-            data_table[i+1,1] = data_model[k]['otype'].__name__
+        data_table[i+1,1] = type_names(data_model[k]['otype'])
         # Array type
         if 'atype' in data_model[k].keys():
-            data_table[i+1,2] = data_model[k]['atype'].__name__
+            data_table[i+1,2] = type_names(data_model[k]['atype'])
         else:
             data_table[i+1,2] = ' '
         # Description
@@ -73,7 +85,8 @@ if __name__ == '__main__':
     output_root = os.path.join(os.path.split(os.path.abspath(resource_filename('pypeit', '')))[0],
                                'doc', 'include')
     for obj in [buildimage.ArcImage, buildimage.BiasImage, buildimage.DarkImage,
-                buildimage.TiltImage, WaveCalib, WaveTilts, FlatImages]:
+                buildimage.TiltImage, WaveCalib, WaveTilts, FlatImages,
+                Alignments, EdgeTraceSet, SlitTraceSet]:
 
         ofile = os.path.join(output_root, 'datamodel_{0}.rst'.format(obj.__name__.lower()))
 

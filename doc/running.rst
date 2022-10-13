@@ -84,7 +84,7 @@ then remove them and run without ``-o``.
 
 This ``-m`` or ``--do_not_use_masters`` flag tells PypeIt to **avoid**
 using any existing
-calibration frames (referred to as :doc:`calibrations/masters`) instead
+calibration frames (referred to as "Master Frames") instead
 of loading from disk.
 
 Using this can *greatly* slow down the code.

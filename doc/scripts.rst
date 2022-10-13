@@ -143,7 +143,7 @@ And the associated output::
 
 Here, the first level is the calib_grp (1), the next level gives
 the Master key (A_1_01) and then there is a listing of the files
-contributing to each of the :ref:`masters`.  See those docs for more.
+contributing to each of the :ref:`calibrations`.  See those docs for more.
 
 .. _pypeit-obslog:
 

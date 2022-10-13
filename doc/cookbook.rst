@@ -195,10 +195,10 @@ assessment plots in the ``${RDXDIR}/keck_deimos_A/QA`` directory.
 4. Examine the calibrations
 ===========================
 
-*For more detail, see* :doc:`calibrations/calibrations`, :doc:`calibrations/masters`, and :ref:`master-naming`.
+*For more detail, see* :doc:`calibrations/calibrations`.
 
 As the code runs, when a new calibration is generated the default is to write it
-to disk as a :doc:`calibrations/masters` file.  Quality assessment plots for some of these
+to disk as a "Master Frame" file.  Quality assessment plots for some of these
 are written to the :doc:`qa` folder for inspection.  We encourage you to inspect
 these calibration outputs as they come, both the files themselves and the QA
 plots.
