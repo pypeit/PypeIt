@@ -286,6 +286,9 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['reduce']['skysub']['bspline_spacing'] = 0.6
         par['reduce']['skysub']['joint_fit'] = False
 
+        # No objects are extracted, so we should correct for flexure
+        par['flexure']['spec_method'] = 'slitcen'
+
         # Flux calibration parameters
         par['sensfunc']['UVIS']['extinct_correct'] = False  # This must be False - the extinction correction is performed when making the datacube
 
