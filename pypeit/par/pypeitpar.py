@@ -3659,7 +3659,7 @@ class SkySubPar(ParSet):
     """
 
     def __init__(self, bspline_spacing=None, sky_sigrej=None, global_sky_std=None, no_poly=None,
-                 user_regions=None, joint_fit=None, load_mask=None, mask_by_boxcar=None,
+                 user_regions=None, joint_fit=None, mask_by_boxcar=None,
                  no_local_sky=None, max_mask_frac=None):
         # Grab the parameter names and values from the function
         # arguments
@@ -3714,12 +3714,6 @@ class SkySubPar(ParSet):
         dtypes['mask_by_boxcar'] = bool
         descr['mask_by_boxcar'] = 'In global sky evaluation, mask the sky region around the object by the boxcar radius (set in ExtractionPar).'
 
-        defaults['load_mask'] = False
-        dtypes['load_mask'] = bool
-        descr['load_mask'] = 'Load a user-defined sky regions mask to be used for the sky regions. Note, ' \
-                             'if you set this to True, you must first run the pypeit_skysub_regions GUI ' \
-                             'to manually select and store the regions to file.'
-
         defaults['joint_fit'] = False
         dtypes['joint_fit'] = bool
         descr['joint_fit'] = 'Perform a simultaneous joint fit to sky regions using all available slits. ' \
@@ -3746,7 +3740,7 @@ class SkySubPar(ParSet):
 
         # Basic keywords
         parkeys = ['bspline_spacing', 'sky_sigrej', 'global_sky_std', 'no_poly',
-                   'user_regions', 'load_mask', 'joint_fit', 'mask_by_boxcar',
+                   'user_regions', 'joint_fit', 'mask_by_boxcar',
                    'no_local_sky', 'max_mask_frac']
 
         badkeys = np.array([pk not in parkeys for pk in k])
