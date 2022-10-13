@@ -1336,6 +1336,20 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         # Grab the slit edges
         slits = spec2DObj.slits
 
+        # debug = False
+        # if debug:
+        #     embed()
+        #     assert(False)
+        #     from matplotlib import pyplot as plt
+        #     colors = plt.cm.jet(np.linspace(0, 1, slits.nslits))
+        #     left, right, _ = slits.select_edges(initial=True, flexure=None)
+        #     mid = np.round(0.5*(left+right)).astype(np.int)
+        #     for ss in range(slits.nslits):
+        #         wv = waveimg[(np.arange(waveimg.shape[0]),mid[:,ss],)]
+        #         fx = sciimg[(np.arange(waveimg.shape[0]),mid[:,ss],)]
+        #         plt.plot(wv,fx, color=colors[ss])
+        #     plt.show()
+
         wave0 = waveimg[waveimg != 0.0].min()
         # Calculate the delta wave in every pixel on the slit
         waveimp = np.roll(waveimg, 1, axis=0)
