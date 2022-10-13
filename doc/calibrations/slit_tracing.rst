@@ -143,8 +143,8 @@ one or more slits.  This may be mitigated by modifying the
 ``edge_thresh`` or ``minimum_slit_length`` keywords of
 :ref:`edgetracepar`.
 
-.. WHAT IF THE "detector" is a mosaic?  Does it need to be the tuple of the
-.. detectors in the mosaic, or the mosaic number?
+.. TODO: WHAT IF THE "detector" is a mosaic?  Does it need to be the tuple of
+.. the detectors in the mosaic, or the mosaic number?
 
 Otherwise, the code may be instructed to add slits at user-input
 locations.  The syntax is a list of lists, with
@@ -172,8 +172,8 @@ the value of ``edge_thresh`` in
 is required for longslit observations
 with the red camera of :doc:`../spectrographs/lris`.
 
-.. WHAT IF THE "detector" is a mosaic?  Does it need to be the tuple of the
-.. detectors in the mosaic, or the mosaic number?
+.. TODO: WHAT IF THE "detector" is a mosaic?  Does it need to be the tuple of
+.. the detectors in the mosaic, or the mosaic number?
 
 Otherwise, the code may be instructed to remove slits at user-input
 locations. The syntax is a list of lists,

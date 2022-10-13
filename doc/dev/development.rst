@@ -135,8 +135,8 @@ Testing the Code
 link for more details on executing the tests.  What follows describes how to add
 new tests.
 
-.. SHOULD WE INSTEAD ADD THESE DETAILS TO THE DEVSUITE README DOC?  FOR BOTH THE
-.. DEV-SUITE AND UNIT TESTS?
+.. TODO: SHOULD WE INSTEAD ADD THESE DETAILS TO THE DEVSUITE README DOC?  FOR
+.. BOTH THE DEV-SUITE AND UNIT TESTS?
 
 .. _dev-suite-tests:
 
@@ -317,8 +317,8 @@ A typical ``PypeIt`` development workflow is as follows:
 Pull Request Acceptance Requirements
 ------------------------------------
 
-.. SOME OF THIS NEEDS TO BE UPDATED, PARTICULARLY HOW THE RESULTS OF THE TESTS
-.. SHOULD BE POSTED TO THE PR
+.. TODO: SOME OF THIS NEEDS TO BE UPDATED, PARTICULARLY HOW THE RESULTS OF THE
+.. TESTS SHOULD BE POSTED TO THE PR
 
 Once you've submitted a pull request, we'll review your PR and provide
 comments on the code.  The minimum requirements for acceptance of a PR
@@ -489,7 +489,7 @@ J. Xavier Prochaska, Joseph Hennawi.
 Additional Developer Links
 --------------------------
 
-.. UPDATE THESE
+.. TODO: UPDATE THESE
 
 Here are some developer-specific docs:
 

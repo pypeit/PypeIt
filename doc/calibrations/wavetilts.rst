@@ -27,8 +27,8 @@ Here is the code flow:
 
         iv. Save
 
-.. WE SHOULD CONSIDER ADDING SOME OF THESE NOTEBOOKS DIRECTLY TO THE DOCS USING
-.. NBSPHINX: https://nbsphinx.readthedocs.io/
+.. TODO: WE SHOULD CONSIDER ADDING SOME OF THESE NOTEBOOKS DIRECTLY TO THE DOCS
+.. USING NBSPHINX: https://nbsphinx.readthedocs.io/
 .. AND TEST THAT THE CONTENT OF THE NOTEBOOKS IS VALID USING NBMAKE
 .. https://github.com/treebeardtech/nbmake
 
@@ -42,7 +42,7 @@ QA
 The code will output a residual plot of the 2D fit to offsets.
 It should be possible to achieve an RMS < 0.05 pixels.
 
-.. SHOW AN EXAMPLE OF THIS PLOT
+.. TODO: SHOW AN EXAMPLE OF THIS PLOT
 
 Settings
 ========

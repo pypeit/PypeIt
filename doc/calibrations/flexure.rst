@@ -225,7 +225,7 @@ Briefly, this algorithm:
 
 6. The user then needs to read in the output and apply it to their spectra with their own custom code.
 
-.. NEED TO DESCRIBE THE OUTPUT FILE SOMEWHERE
+.. TODO: NEED TO DESCRIBE THE OUTPUT FILE SOMEWHERE
    
 Future work may combine this approach with the standard (e.g. 
 implement cross-correlation with a stretch).
@@ -281,3 +281,4 @@ Here is an example file:
 
 As desired, you can modify the 
 :ref:`flexurepar` in the top block.
+

@@ -66,7 +66,8 @@ the `NIST database <https://physics.nist.gov/PhysRefData/ASD/lines_form.html>`_,
 `"arc_lines" directory <https://github.com/pypeit/PypeIt/tree/release/pypeit/data/arc_lines/lists>`_
 of the repository. Here are the available lamps:
 
-.. THIS TABLE IS OUT OF DATE.  WE NEED A WAY OF AUTOMATICALLY GENERATING THIS TABLE
+.. TODO: THIS TABLE IS OUT OF DATE.  WE NEED A WAY OF AUTOMATICALLY GENERATING
+.. THIS TABLE
 
 ======  ==========  ================
 Lamp    Range (Å)   Last updated
@@ -197,7 +198,8 @@ spectrum.  Fits to the identified lines (vs. pixel) are
 performed with the same, iterative algorithm to generate
 the final wavelength solution.
 
-.. CAN WE ADD A SUMMARY TABLE HERE THAT GUIDES USERS TO WHAT ALGORITHM THEY SHOULD USE?
+.. TODO: CAN WE ADD A SUMMARY TABLE HERE THAT GUIDES USERS TO WHAT ALGORITHM
+.. THEY SHOULD USE?
 
 .. _wvcalib-holygrail:
 
@@ -495,7 +497,7 @@ latter must be constructed by a developer, using
 summarizes the existing ones (all of which are in the
 ``data/arc_lines/reid_arxiv`` folder):
 
-.. THIS IS WAY OUT OF DATE.  WE NEED AN AUTOMATED WAY OF GENERATING THIS TABLE
+.. TODO: THIS IS WAY OUT OF DATE.  WE NEED AN AUTOMATED WAY OF GENERATING THIS TABLE
 
 ===============  =========================  =============================
 Instrument       Setup                      Name
@@ -516,7 +518,7 @@ shane_kast_blue  600_4310 grism, all lamps  shane_kast_blue_600.fits
 shane_kast_blue  830_3460 grism, all lamps  shane_kast_blue_830.fits
 ===============  =========================  =============================
 
-.. WE SHOULD CONSIDER ADDING SOME OF THESE NOTEBOOKS DIRECTLY TO THE DOCS USING
+.. TODO: WE SHOULD CONSIDER ADDING SOME OF THESE NOTEBOOKS DIRECTLY TO THE DOCS USING
 .. NBSPHINX: https://nbsphinx.readthedocs.io/
 .. AND TEST THAT THE CONTENT OF THE NOTEBOOKS IS VALID USING NBMAKE
 .. https://github.com/treebeardtech/nbmake

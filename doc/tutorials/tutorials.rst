@@ -5,25 +5,34 @@
 Tutorials
 =========
 
-The following are a few instrument-specific tutorials.  If this is your first
-time using PypeIt, you're encouraged to read through the Shane Kast tutorial as
-a general example of how to use PypeIt; see also the :ref:`cookbook`.
+The following are a few instrument-specific tutorials.
 
-The Shane Kast tutorial can also be used as an example of how to reduce
-**long-slit** data with PypeIt.  See the Keck DEIMOS tutorial as a general
-introduction to **multi-slit** reductions with PypeIt.  The Gemini-GNIRS
-tutorial serves as an example of both an **echelle** reduction and a **NIR**
-reduction with PypeIt.
+If this is your **first time using PypeIt**, you're encouraged to read through
+the Shane Kast tutorial as a general example of how to use PypeIt; see also the
+:ref:`cookbook`.  **You are encouraged to pull example data from the DevSuite
+for your instrument when learning how to use the software;** see :ref:`dev-suite`.
 
-For additional instrument-specific recommendations, please see the links at
-the bottom of the :doc:`../spectrographs/spectrographs` page.
+For different types of data (long-slit, echelle, etc), we recommend the
+following starting points:
+
+    - **Long-slit data**: :doc:`Shane Kast<kast_howto>`
+
+    - **Multi-slit data**: :doc:`Keck DEIMOS<deimos_howto>`
+
+    - **NIR data**: :doc:`Gemini GNIRS<gnirs_howto>`
+
+    - **Echelle data**: :doc:`Gemini GNIRS<gnirs_howto>`
+
+For additional instrument-specific recommendations, please see the links at the
+bottom of the :doc:`../spectrographs/spectrographs` page.  The full set of
+available tutorials are as follows.
 
 .. toctree::
    :caption: Instrument-specific Tutorials
    :maxdepth: 1
 
-   Shane Kast (long-slit example) <kast_howto>
-   Keck DEIMOS (multi-slit example) <deimos_howto>
-   Gemini GNIRS (NIR echelle example) <gnirs_howto>
+   Gemini GNIRS <gnirs_howto>
+   Keck DEIMOS <deimos_howto>
+   Shane Kast <kast_howto>
 
 

@@ -14,7 +14,7 @@ Installation
     miniconda installer. If you're an Apple Silicon Mac user, skip to the :ref:`m1_macs`
     section for details.
 
-.. DO WE HAVE A RELEVANT LINK FOR THE PYPEIT USERS SLACK?
+.. TODO: DO WE HAVE A RELEVANT LINK FOR THE PYPEIT USERS SLACK?
 
 .. warning::
 
@@ -227,9 +227,9 @@ internet connection will need to cache the necessary data files ahead of time.  
 this process, a script ``pypeit_cache_github_data`` is included.  For example, to
 download the needed files for the ``keck_deimos`` spectrograph, you would execute:
 
-      .. code-block:: console
+.. code-block:: console
 
-        $ pypeit_cache_github_data keck_deimos
+    $ pypeit_cache_github_data keck_deimos
 
 Once cached, the data will be accessed by PypeIt without requiring an internet
 connection.  This script will also download Atmospheric Model Grids specified in the
@@ -262,9 +262,9 @@ To install the grid independent of a reduction, run the ``pypeit_install_telluri
 script, calling the filename of the grid required.  For example, if you needed the file
 ``TelFit_MaunaKea_3100_26100_R200000.fits``, you would execute:
 
-    .. code-block:: console
+.. code-block:: console
 
-        $ pypeit_install_telluric TelFit_MaunaKea_3100_26100_R200000.fits
+    $ pypeit_install_telluric TelFit_MaunaKea_3100_26100_R200000.fits
 
 The downloaded file will exist in the PypeIt cache, and will persist through
 upgrades of your installation via `pip`_ or `conda`_.  To force the update of a
@@ -428,7 +428,7 @@ Some users have run into the following complications when installing the
 PypeIt dependencies.  If you run into any more, please `submit an issue
 <https://github.com/pypeit/PypeIt/issues>`__.
 
-.. IS THIS FIRST ITEM STILL TRUE?
+.. TODO: IS THIS FIRST ITEM STILL TRUE?
 
 - At the moment, an implicit dependency on QT bindings remains (either PyQT5 or
   PySide2) because of our dependence on ``linetools``.
@@ -569,7 +569,8 @@ PypeIt environment by executing:
     cd ~/PypeIt
     pytest
 
-.. WHO AMONG THE CORE DEVELOPERS USE TOX?  WE USE IT FOR CI TESTS, BUT SHOULD WE BE RECOMMENDING IT FOR USERS?
+.. TODO: WHO AMONG THE CORE DEVELOPERS USE TOX?  WE USE IT FOR CI TESTS, BUT
+.. SHOULD WE BE RECOMMENDING IT FOR USERS?
 
 To test within isolated environments and against different versions of various
 dependencies, we recommend using ``tox``:

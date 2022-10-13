@@ -8,5 +8,7 @@ observations.  Currently these are only used for Keck/KCWI reductions.
 
 See :doc:`master_align`.
 
+.. TODO: Need input from Ryan
+
 More description/explanation is forthcoming...
 

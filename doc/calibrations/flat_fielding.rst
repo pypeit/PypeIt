@@ -226,7 +226,8 @@ at present for :ref:`lrisb`.
 
 And you perform this by modifying the :ref:`parameter_block`:
 
-.. IS THIS STILL THE CORRECT APPROACH?  WHAT DO PEOPLE DO IF THEY DON'T HAVE THE DEV SUITE?
+.. TODO: IS THIS STILL THE CORRECT APPROACH?  WHAT DO PEOPLE DO IF THEY DON'T
+.. HAVE THE DEV SUITE?
 
 .. code-block:: ini
 
@@ -239,7 +240,7 @@ None of the frames in the :ref:`data_block` should be labelled as ``pixelflat``.
 Algorithms
 ----------
 
-.. TO BE FILLED IN BY JFH
+.. TODO: TO BE FILLED IN BY JFH
 
 TBW
 
@@ -250,8 +251,8 @@ If you wish to tune the algorithms used to generate the
 pixel flat and/or illumination flat, you will want to
 modify the :ref:`flatfieldpar` in the :ref:`pypeit_file`.
 
-.. JFH+KBW TO PROVIDE EXPERT ADVICE ON THAT HERE.
-.. DO WE NEED MORE THAN WHAT IS BELOW?
+.. TODO: JFH+KBW TO PROVIDE EXPERT ADVICE ON THAT HERE.  DO WE NEED MORE THAN
+.. WHAT IS BELOW?
 
 Below we list common modifications.
 
