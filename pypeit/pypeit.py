@@ -767,7 +767,7 @@ class PypeIt:
 
         # Check if the user has manually created a Master sky regions
         sky_region_file = None
-        if self.par['reduce']['skysub']['load_mask']:
+        if self.par['reduce']['skysub']['user_regions'] == 'master':
             # Check if a master Sky Regions file exists for this science frame
             file_base = os.path.basename(sciImg.files[0])
             prefix = os.path.splitext(file_base)
