@@ -331,6 +331,7 @@ class FindObjects:
             List of objects found
         """
 
+        # If the skip_skysub is set (i.e. image is already sky-subtracted), simply find objects
         if self.par['reduce']['findobj']['skip_skysub']:
             sobjs_obj, self.nobj = self.find_objects(self.sciImg.image, self.sciImg.ivar,
                                                      std_trace=std_trace, show=self.findobj_show,
@@ -338,36 +339,47 @@ class FindObjects:
             return np.zeros_like(self.sciImg.image), sobjs_obj
         else:
             # Check if the user wants to use a pre-defined sky regions file.
-            skymask0, usersky = self.load_skyregions(skymask_init=None, sky_region_file=self.sky_region_file)
-            # Perform a first pass sky-subtraction without masking any objects. Should  we make this no_poly=True to
-            # have fewer degrees of freedom in the with with-object global sky fits??
-            initial_sky0 = self.global_skysub(skymask=skymask0, update_crmask=False, objs_not_masked=True,
-                                              show_fit=show_skysub_fit).copy()
-            # First pass object finding
-            sobjs_obj, self.nobj = \
-                self.find_objects(self.sciImg.image-initial_sky0, self.sciImg.ivar, std_trace=std_trace,
-                                  show_peaks=show_peaks,
-                                  show=self.findobj_show and not self.std_redux,
-                                  save_objfindQA=self.par['reduce']['findobj']['skip_second_find'] | self.std_redux)
-            # create skymask using first pass sobjs_obj
-            skymask_init = self.create_skymask(sobjs_obj)
-            # Check if the user wants to overwrite the skymask with a pre-defined sky regions file.
-            skymask_init, usersky = self.load_skyregions(skymask_init=skymask_init, sky_region_file=self.sky_region_file)
-
-            # If no objects were found and user did not define sky regions, don't redo global sky subtraction
-            if self.nobj == 0 and not usersky:
-                initial_sky = initial_sky0
+            user_regions = self.par['reduce']['skysub']['user_regions']
+            load_skyreg = (self.sky_region_file is not None) or (user_regions is not None)
+            if load_skyreg:
+                skymask_init = self.load_skyregions(skymask_init=None, sky_region_file=self.sky_region_file)
+                # Perform a fit to the global sky model
+                initial_sky = self.global_skysub(skymask=skymask_init, update_crmask=False, objs_not_masked=True,
+                                                  show_fit=show_skysub_fit).copy()
+                # Perform object finding
+                sobjs_obj, self.nobj = \
+                    self.find_objects(self.sciImg.image - initial_sky, self.sciImg.ivar, std_trace=std_trace,
+                                      show_peaks=show_peaks,
+                                      show=self.findobj_show and not self.std_redux,
+                                      save_objfindQA=self.par['reduce']['findobj']['skip_second_find'] | self.std_redux)
             else:
-                # Global sky subtract now using the skymask defined by object positions
-                initial_sky = self.global_skysub(skymask=skymask_init, show_fit=show_skysub_fit).copy()
+                # Perform a first pass sky-subtraction without masking any objects. Should  we make this no_poly=True to
+                # have fewer degrees of freedom in the with with-object global sky fits??
+                initial_sky0 = self.global_skysub( update_crmask=False, objs_not_masked=True,
+                                                  show_fit=show_skysub_fit).copy()
+                # First pass object finding
+                sobjs_obj, self.nobj = \
+                    self.find_objects(self.sciImg.image-initial_sky0, self.sciImg.ivar, std_trace=std_trace,
+                                      show_peaks=show_peaks,
+                                      show=self.findobj_show and not self.std_redux,
+                                      save_objfindQA=self.par['reduce']['findobj']['skip_second_find'] | self.std_redux)
 
-            # Second pass object finding on sky-subtracted image
-            if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
-                sobjs_obj, self.nobj = self.find_objects(self.sciImg.image - initial_sky, self.sciImg.ivar,
-                                                         std_trace=std_trace, show=self.findobj_show,
-                                                         show_peaks=show_peaks)
-            else:
-                msgs.info("Skipping 2nd run of finding objects")
+                if self.nobj == 0:
+                    # If no objects were found don't redo global sky subtraction
+                    initial_sky = initial_sky0
+                    msgs.info("No objects identified, skipping second pass of sky-subtraction and object finding")
+                else:
+                    # If objects were found, create skymask using first pass objects that were identified, sobjs_obj
+                    skymask_init = self.create_skymask(sobjs_obj)
+                    # Global sky subtract now using the skymask defined by object positions
+                    initial_sky = self.global_skysub(skymask=skymask_init, show_fit=show_skysub_fit).copy()
+                    # Second pass object finding on sky-subtracted image with updated sky created after masking objects
+                    if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
+                        sobjs_obj, self.nobj = self.find_objects(self.sciImg.image - initial_sky, self.sciImg.ivar,
+                                                        std_trace=std_trace, show=self.findobj_show,
+                                                        show_peaks=show_peaks)
+                    else:
+                        msgs.info("Skipping 2nd run of finding objects")
 
             # TODO I think the final global should go here as well from the pypeit.py class lines 837
 
@@ -596,33 +608,28 @@ class FindObjects:
         # Return
         return global_sky
 
-    def load_skyregions(self, sky_region_file=None, skymask_init=None):
+    def load_skyregions(self, sky_region_file=None):
         """
-        Load or generate the sky regions
+        Load or generate the sky regions.
+        TODO: Ryan can you please document somewhere the parameters involved here. There are a lot of things interacting
+        i.e. user_regions, load_mask, and sky_region_file and how they interact is not clear.
 
         Parameters
         ----------
         sky_region_file (str):
             Name of the sky regions file
-        skymask_init :  (`numpy.ndarray`_, optional)
-            A boolean array of sky pixels (True is pixel is a sky region)
 
         Returns
         -------
         skymask :  `numpy.ndarray`_
             A boolean array of sky pixels (True is a pixel that corresponds to a sky region)
-        usersky : bool
-            If the user has defined the sky, set this variable to True (otherwise False).
         """
         user_regions = self.par['reduce']['skysub']['user_regions']
         # Perform some checks
-        if sky_region_file is None and user_regions is not None and skymask_init is None:
-            msgs.error("You must set the initial skymask, the user_regions, or provide a Master SkyRegions file")
         if self.par['reduce']['skysub']['load_mask'] and not os.path.exists(sky_region_file):
             msgs.warn("Master SkyRegions file does not exist. Create a Master SkyRegions frame, or set:")
             msgs.pypeitpar(['reduce', 'skysub', 'load_mask = False'])
             msgs.error("Unable to reduce data without SkyRegions")
-        usersky = False
         # First priority given to user_regions first
         if user_regions is not None:
             msgs.info("Using user_regions to determine the sky regions")
@@ -640,7 +647,6 @@ class FindObjects:
             # Generate image
             skymask = skysub.generate_mask(self.pypeline, regions, self.slits, self.slits_left,
                                                 self.slits_right, spat_flexure=self.spat_flexure_shift)
-            usersky = True
         # Second priority given to master sky regions file
         elif sky_region_file is not None:
             # Check if a file exists
@@ -648,18 +654,13 @@ class FindObjects:
                 msgs.info("Loading SkyRegions file: " + msgs.newline() + sky_region_file)
                 skyreg = buildimage.SkyRegions.from_file(sky_region_file)
                 skymask = skyreg.image.astype(np.bool)
-                usersky = True
             else:
-                msgs.warn("SkyRegions file not found:" + msgs.newline() + sky_region_file)
-                if skymask_init is not None:
-                    skymask = skymask_init.copy()
-                else:
-                    msgs.error("Unable to determine sky regions")
-        # If nothing else, use the initial sky_regions
+                msgs.error("SkyRegions file not found:" + msgs.newline() + sky_region_file)
         else:
-            skymask = skymask_init.copy() if skymask_init is not None else None
+            msgs.error("This should not happen. There is a bug")
+
         # Return the result
-        return skymask, usersky
+        return skymask
 
     def show(self, attr, image=None, global_sky=None, showmask=False, sobjs=None,
              chname=None, slits=False,clear=False):
@@ -1281,18 +1282,14 @@ class IFUFindObjects(MultiSlitFindObjects):
                                                trim_edg=trim_edg, show_fit=show_fit, show=show,
                                                show_objs=show_objs)
 
-        # If the joint fit or spec/spat sensitivity corrections are not being performed, return the separate slits sky
-        if not self.par['reduce']['skysub']['joint_fit']:
+        # Check if flexure or a joint fit is requested
+        if not self.par['reduce']['skysub']['joint_fit'] and self.par['flexure']['spec_method'] == 'skip':
             return global_sky_sep
-
-        # TODO Ryan Cooke this merge was complicated, plese take a look. I take it this stuff cannot be
-        # moved to the the _iniit_ since it depends on the global_skysub right? Anyway, we are planning to get all the
-        # flexure methods out of extraction and into separate methods/classes, but for now just check that the control
-        # flow is correct.
         if self.wv_calib is None:
             msgs.error("A wavelength calibration is needed (wv_calib) if a joint sky fit is requested.")
         msgs.info("Generating wavelength image")
         self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
+        # Calculate spectral flexure
         method = self.par['flexure']['spec_method']
         if method in ['slitcen']:
             trace_spat = 0.5 * (self.slits_left + self.slits_right)
@@ -1304,6 +1301,10 @@ class IFUFindObjects(MultiSlitFindObjects):
                 self.slitshift[sl] = flex_list[sl]['shift'][0]
                 msgs.info("Flexure correction of slit {0:d}: {1:.3f} pixels".format(1 + sl, self.slitshift[sl]))
 
+        # If the joint fit or spec/spat sensitivity corrections are not being performed, return the separate slits sky
+        if not self.par['reduce']['skysub']['joint_fit']:
+            return global_sky_sep
+
         # Do the spatial scaling first
         # if self.par['scienceframe']['process']['use_illumflat']:
         #     # Perform the correction
@@ -1313,10 +1314,9 @@ class IFUFindObjects(MultiSlitFindObjects):
         #                                           show_fit=show_fit, show=show, show_objs=show_objs)
 
         # Recalculate the wavelength image, and the global sky taking into account the spectral flexure
-        msgs.info("Regenerating wavelength image")
+        msgs.info("Generating wavelength image, accounting for spectral flexure")
         self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spec_flexure=self.slitshift,
                                                    spat_flexure=self.spat_flexure_shift)
-
 
         self.illum_profile_spectral(global_sky_sep, skymask=skymask)
 
