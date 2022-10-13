@@ -3714,12 +3714,6 @@ class SkySubPar(ParSet):
         dtypes['mask_by_boxcar'] = bool
         descr['mask_by_boxcar'] = 'In global sky evaluation, mask the sky region around the object by the boxcar radius (set in ExtractionPar).'
 
-        defaults['load_mask'] = False
-        dtypes['load_mask'] = bool
-        descr['load_mask'] = 'Load a user-defined sky regions mask to be used for the sky regions. Note, ' \
-                             'if you set this to True, you must first run the pypeit_skysub_regions GUI ' \
-                             'to manually select and store the regions to file.'
-
         defaults['joint_fit'] = False
         dtypes['joint_fit'] = bool
         descr['joint_fit'] = 'Perform a simultaneous joint fit to sky regions using all available slits. ' \
