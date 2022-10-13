@@ -767,7 +767,7 @@ class PypeIt:
 
         # Check if the user has manually created a Master sky regions
         sky_region_file = None
-        if self.par['reduce']['skysub']['load_mask']:
+        if self.par['reduce']['skysub']['user_regions'] == 'master':
             # Check if a master Sky Regions file exists for this science frame
             file_base = os.path.basename(sciImg.files[0])
             prefix = os.path.splitext(file_base)
@@ -847,8 +847,6 @@ class PypeIt:
         # to find all of the objects first using slitmask meta data,  but this comes at the expense of a much more complicated
         # control sctucture.
 
-        # Update the skymask
-        skymask = objFind.create_skymask(sobjs_obj)
         # Update the global sky
         if 'standard' in self.fitstbl['frametype'][frames[0]] or \
                 self.par['reduce']['findobj']['skip_final_global'] or \
@@ -856,6 +854,8 @@ class PypeIt:
                 self.par['reduce']['skysub']['user_regions'] is not None:
             final_global_sky = initial_sky
         else:
+            # Update the skymask
+            skymask = objFind.create_skymask(sobjs_obj)
             final_global_sky = objFind.global_skysub(previous_sky=initial_sky, skymask=skymask, show=self.show)
         scaleImg = objFind.scaleimg
 
