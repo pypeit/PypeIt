@@ -33,24 +33,7 @@ The columns ``calib`` and ``comb_id`` should be edited
 according to the desired reduction, while ``bkg_id`` is not used here and its
 value should be set to -1.  These columns are defined as follows:
 
-    - ``calib`` assigns each frame to one or more :ref:`calibration-groups`.
-      Calibration frames with the same calibration group number will be used to
-      reduce a science frame with that calibration group number.  Importantly,
-      calibration frames (e.g., biases) can be part of multiple calibrations
-      groups, but each science frame must be assigned to *only one* calibration
-      group.  Calibration groups should form a running sequence from
-      :math:`1...N` for :math:`N` calibration groups, where :math:`N\leq 63`.
-      The value can also be set to ``all`` meaning the frame is part of *all*
-      calibration groups.
-
-    - ``comb_id`` represents a combination ID assigned to each science frame.
-      Frames with the same value of ``comb_id`` will be combined. Note that this
-      is an unweighted co-add (and hence may not be necessarily be "optimal" in
-      terms of S/N ratio).  The ``comb_id`` must be a single integer, but the
-      integers can be anything.  Science frames that are combined together can
-      have the same ``calib`` value if they use the same set of calibrations.
-      For the calibration frames, ``comb_id`` is irrelevant and its value should
-      be set to ``-1``.
+.. include:: include/combine_columns.rst
 
 Remember that ``bkg_id`` should have a value of -1 when not performing
 difference imaging.
@@ -58,6 +41,11 @@ difference imaging.
 See additional discussion :ref:`here<calibration-groups>` and
 :ref:`here<ab-image-differencing>`, and see a worked example in the
 :ref:`gnirs_howto`.
+
+.. note::
+
+     The values of the ``calib`` ID have no relation to the values for the
+     ``comb_id`` and ``bkg_id``.
 
 .. TODO: Not a great example because no science images are combined in the
 .. Gemini/GNIRS reduction!
