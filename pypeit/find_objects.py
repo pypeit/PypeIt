@@ -342,7 +342,7 @@ class FindObjects:
             user_regions = self.par['reduce']['skysub']['user_regions']
             load_skyreg = (self.sky_region_file is not None) or (user_regions is not None)
             if load_skyreg:
-                skymask_init = self.load_skyregions(skymask_init=None, sky_region_file=self.sky_region_file)
+                skymask_init = self.load_skyregions(sky_region_file=self.sky_region_file)
                 # Perform a fit to the global sky model
                 initial_sky = self.global_skysub(skymask=skymask_init, update_crmask=False, objs_not_masked=True,
                                                   show_fit=show_skysub_fit).copy()
