@@ -46,7 +46,7 @@ Object identifiers in multislit data are named after the spatial pixel nearest
 their center, the slit identifier, and the detector; e.g.,
 ``SPAT0242-SLIT0241-DET07``.
 
-.. add an echelle example
+.. TODO: ADD AN ECHELLE EXAMPLE
 
 Calibration Frames
 ==================

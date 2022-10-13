@@ -14,7 +14,7 @@ correct the detector response and perform wavelength calibration.
 
 Although fluxing is certainly a calibration step, this is *not* performed as a
 standard part of PypeIt's main data reduction procedure, :ref:`run-pypeit`.
-Instead it is treated as a post-processing procedure; see :doc:`../fluxing`.
+Instead, it is treated as a post-processing procedure; see :doc:`../fluxing`.
 
 ----
 
@@ -66,6 +66,32 @@ used for the calibration of the third science frame.
     after :ref:`image_proc` **without** accounting for any shifts in the
     wavelength calibration or slit traces), see :ref:`2d_combine`.
 
+.. _calibrations-calibfile:
+
+Output calib file
+-----------------
+
+When pypeit runs successful, a file with a ``.calib`` extension is generated
+that provides a summary of the calibration groups used during the reduction.
+The file lists all the source file of each frame type ordered by their
+calibration group.  It looks roughly like this:
+
+.. code-block:: console
+
+    A:
+    --:
+        SETUP DETAILS
+    1:
+        align: []
+        arc:
+        - /arc/file/1
+        - /arc/file/2
+        bias: []
+        ...
+
+You may generate a similar (and perhaps more readable) file using the
+:ref:`pypeit-parse-calib-id` script.
+
 ----
 
 Calibration Steps
@@ -83,38 +109,42 @@ The primary calibration procedures are, in the order they're performed:
    Slit Alignment (IFU only) <alignment>
    flat_fielding
 
+Follow the above links for a detailed description of each step, and how the
+default calibration procedures may be **modified** to suit your needs.
+
+----
 
 Products
 ========
 
-The main products of calibrations are :doc:`masters` which
-are placed in the Masters/ folder.  Here are the full set
-that may be created (not all are required; depends on the
-instrument):
+As the calibrations are completed, PypeIt will save the results to files in the
+``Masters/`` folder (see :ref:`outputs-dir`).  Unless otherwise indicated, all
+output files are in FITS format.
+
+Saving the results of each calibration step to a file allows:
+
+ - the user to inspect the calibrations, and
+
+ - for a quicker re-reduction (i.e. these steps can be skipped) including in
+   cases where the code crashed, things were fixed, and then one re-runs the
+   script.
+
+Below is the full list of possible master frame produced by PypeIt.  For any
+given run, the files actually produced will depend on the :doc:`spectrograph
+<../spectrographs/spectrographs>` and the files listed in the
+:ref:`pypeit_file`.
 
 .. toctree::
    :maxdepth: 1
 
-   masters
-   master_align
-   master_arc
-   master_bias
-   master_dark
-   master_edges
-   master_slits
-   master_flat
-   master_tilt
-   master_tilts
-   master_wvcalib
-
-Modifications
-=============
-
-Here are the global modifications one may make
-for calibrations:
-
-* Add/Suppress bias/dark frame generation. See :doc:`image_proc`
-* Add/Suppress flexure correction.  See :doc:`flexure`
-* Add/Suppress aspects of flat fielding.  See :doc:`flat_fielding`
-* Associate different calibration frames to different science frames. See :ref:`2d_combine_calibs`
+   Alignment Image (IFU only) <master_align>
+   Processed arc spectral image <master_arc>
+   Processed bias image <master_bias>
+   Processed dark image <master_dark>
+   Images used to trace slit edges <master_edges>
+   Consolidated slit traces <master_slits>
+   Normalized flat field images <master_flat>
+   Image used to trace wavelengths within each slit (tilts) <master_tilt>
+   Mapping of pixels to constant wavelength <master_tilts>
+   Solution of 1D wavelength calibration <master_wvcalib>
 

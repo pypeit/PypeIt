@@ -23,6 +23,8 @@ in their associated documentation pages.
 .. Instead, consolidate a description of all outputs here, including telluric
 .. fitting, fluxing, coadding, etc.
 
+.. _outputs-dir:
+
 Directory Structure
 -------------------
 
