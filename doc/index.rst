@@ -128,7 +128,6 @@ PypeIt BibTeX Entries
    mosaic
    frametype
    scripts
-   calibrations/calibrations
    bitmasks
 
 .. toctree::

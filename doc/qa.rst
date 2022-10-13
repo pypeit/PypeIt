@@ -1,9 +1,13 @@
+
+.. TODO: We should expand this page, showing examples of the QA plots and
+.. describing them in more detail.
+
 =========
 PypeIt QA
 =========
 
 As part of the standard reduction, PypeIt generates a series
-of Quality Assurance (QA) files. This documentation describes
+of Quality Assurance (QA) files. This document describes
 the typical outputs, in the typical order that they appear.
 
 The basic arrangement is that individual PNG files are created
@@ -15,12 +19,12 @@ HTML
 ====
 
 When the code completes (or crashes out), a set of
-HTML files are generated in the *QA/* folder.  There
+HTML files are generated in the ``QA/`` folder.  There
 is one HTML file per MasterFrame set and one
 HTML file per science exposure.  Example names are
-*MF_A.html*.
+``MF_A.html``.
 
-Open in your browser and have at em.
+Open in your browser and have at 'em.
 Quick links are provided to allow one to jump between
 the various files.
 

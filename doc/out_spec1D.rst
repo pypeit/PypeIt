@@ -1,6 +1,4 @@
 
-:orphan:
-
 .. include:: include/links.rst
 
 .. _spec-1d-output:
@@ -15,9 +13,9 @@ Overview
 A primary data product for PypeIt are 1D, calibrated spectra
 for extracted sources.  The most fundamental spectrum may be
 described by two arrays: flux, wavelength (in vacuum).  These together
-with an error array are the minimal output for even the 
-Quick reduction mode.  There are, however, several methods
-of extraction, calibration, etc. which yield various data
+with an error array are the minimal output for even :doc:`quicklook`.
+There are, however, several methods
+of extraction, calibration, etc. that yield various data
 products. Additionally, a `.txt` file with `Extraction Information`_ for
 each extracted 1D spectrum is also produced.
 
@@ -33,11 +31,8 @@ The 1D spectra files have names like::
 
     spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits
 
-The naming convention is:
-
-.. code-block:: console
-
-    {prefix}_{frame}-{objname}_{spectrograph}_{timestamp}.fits
+See :ref:`here<science_frame_naming>` for a description of the naming
+convention.
 
 Objects
 -------
@@ -64,24 +59,24 @@ by the extraction mode.
 +-----------------+------------------------------------------------------------+
 | Extraction Mode | Description                                                |
 +=================+============================================================+
-| BOXCAR          | Top-hat extraction around the trace.  The precise window   |
+| BOX             | Top-hat extraction around the trace.  The precise window   |
 |                 | used is defined by the BOXCAR_APERTURE, in pixels.         |
 +-----------------+------------------------------------------------------------+
-| OPTIMAL         | Standard Horne algorithm for extraction using the fitted   |
+| OPT             | Standard Horne algorithm for extraction using the fitted   |
 |                 | spatial profile.  An estimate of this profile is given by  |
 |                 | OBJ_FWHM                                                   |
 +-----------------+------------------------------------------------------------+
 
 Therefore, the integrated counts for a boxcar extraction are given by the
-BOXCAR_COUNTS array with variance BOXCAR_VAR.
+``BOX_COUNTS`` array with inverse variance ``BOX_COUNTS_IVAR``.
 
 .. _pypeit_show_1dspec:
 
 pypeit_show_1dspec
 ==================
 
-The spectra may be viewed with the `pypeit_show_1dspec`_ script
-which loads the data and launches a GUI from the *linetools* package.
+The spectra may be viewed with the `pypeit_show_1dspec`_ script,
+which loads the data and launches a GUI from the `linetools`_ package.
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
@@ -92,8 +87,7 @@ Here is a typical call::
 
     pypeit_show_1dspec Science/spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits --exten 1
 
-This should launch an `XSpecGUI <https://linetools.readthedocs.io/en/latest/xspecgui.html>`_
-on your screen from the *linetools* package.
+This should launch an `XSpecGUI <https://linetools.readthedocs.io/en/latest/xspecgui.html>`__.
 
 .. warning::
 
@@ -113,7 +107,9 @@ Here are the typical options you will use:
 --list
 ++++++
 
-This prints a list to the screen of all the objects extracted.  An example::
+This prints a list to the screen of all the objects extracted.  An example:
+
+.. code-block:: console
 
     EXT0000001 = SPAT0351-SLIT0000-DET01
     EXT0000002 = SPAT0392-SLIT0001-DET01
@@ -145,7 +141,7 @@ Plot this object.
 --extract
 +++++++++
 
-Choice of :ref:`spec1d-extraction` method
+Choice of :ref:`spec1d-extraction` method.
 
 --flux
 ++++++
@@ -156,7 +152,9 @@ Extraction Information
 ======================
 
 A `.txt` file with the same name as the 1D spectra `File`_ is also produced by PypeIt.
-This file lists the main extraction information for each 1D spectrum. It looks like::
+This file lists the main extraction information for each 1D spectrum. It looks like:
+
+.. code-block:: console
 
     | slit |                    name | spat_pixpos | spat_fracpos | box_width | opt_fwhm |   s2n | wv_rms |
     |   69 | SPAT0071-SLIT0069-DET02 |        70.9 |        0.504 |      3.00 |    1.911 |  7.06 |  0.025 |
@@ -177,10 +175,10 @@ where:
   performed, the reported SNR is for the boxcar extracted object;
 - ``wv_rms`` is the RMS in pixels of the wavelength solution.
 
-
-In addition, if reducing :doc:`spectrographs/deimos` or :doc:`spectrographs/mosfire` data and slit-mask design matching is performed,
-``maskdef_id``, ``objname``, ``objra``, ``objdec``, and ``maskdef_extract``  are also provided
-for each spectrum (see :ref:`radec_object_report`).
+In addition, if reducing :doc:`spectrographs/deimos` or
+:doc:`spectrographs/mosfire` data and slit-mask design matching is performed,
+``maskdef_id``, ``objname``, ``objra``, ``objdec``, and ``maskdef_extract``  are
+also provided for each spectrum (see :ref:`radec_object_report`).
 
 .. _spec1D-datamodel:
 
@@ -197,7 +195,7 @@ for each detector with at least one spectrum extracted.
 
 All wavelengths are in vacuum.
 
-Multiple :class:`~pypeit.specobj.SpecObj` objects are held interally
+Multiple :class:`~pypeit.specobj.SpecObj` objects are held internally
 by a :class:`~pypeit.specobjs.SpecObjs` object.
 
 .. include:: include/datamodel_specobj.rst

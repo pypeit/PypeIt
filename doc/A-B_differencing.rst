@@ -68,6 +68,8 @@ For optical spectrographs, arc/tilt images would be treated similarly.
 See below for near-IR spectrographs, where one typically derives the
 wavelength and tilt solutions from sky lines in the science frames themselves.
 
+.. _ab-image-differencing:
+
 Image Differencing
 ==================
 

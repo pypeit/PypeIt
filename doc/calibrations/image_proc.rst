@@ -362,6 +362,8 @@ most relevant parameters in the algorithm are editable via the
 :func:`~pypeit.images.pypeitimage.PypeItImage.build_crmask` and
 :func:`~pypeit.core.procimg.lacosmic`.
 
+.. _image-proc-combine:
+
 Image Combination
 -----------------
 
@@ -466,9 +468,6 @@ Here are a few typical examples of workflow changes:
             [[traceframe]]
                 [[[process]]]
                     use_darkimage = True
-
-
-
 
 
 .. [1] `Newberry (1991, PASP, 103, 122) <https://ui.adsabs.harvard.edu/abs/1991PASP..103..122N/abstract>`_
