@@ -44,6 +44,8 @@ directory structure throughout this documentation.
     well tested.  For now, we strongly recommend you use PypeIt's default output
     directory structure.
 
+.. TODO: INCLUDE COADD DIRECTORY STRUCTURE
+
 ----
 
 Output Files

@@ -7,8 +7,8 @@ Coadd 2D Spectra
 Overview
 ========
 
-This document will describe how to combine the 2D spectra
-from multiple exposures.
+This document will describe how to combine the 2D spectra from multiple
+exposures.  **For worked examples,** see :doc:`tutorials/coadd2d_howto`.
 
 This must be done outside of the data reduction pipeline,
 i.e. PypeIt will *not* coadd your spectra as
@@ -149,4 +149,4 @@ Here are additional docs related to coadd2d:
 .. toctree::
    :maxdepth: 1
 
-   coadd2d_howto
+   tutorials/coadd2d_howto
