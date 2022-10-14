@@ -56,7 +56,7 @@ if __name__ == '__main__':
 
     # Start to append the automatically generated documentation
     lines += ['Current PypeItPar Parameter Hierarchy']
-    lines += ['+++++++++++++++++++++++++++++++++++++']
+    lines += ['=====================================']
     lines += ['']
 
     p = pypeitpar.PypeItPar(flexure=pypeitpar.FlexurePar(),
@@ -74,7 +74,7 @@ if __name__ == '__main__':
     lines += ['']
 
     lines += ['Instrument-Specific Default Configuration']
-    lines += ['+++++++++++++++++++++++++++++++++++++++++']
+    lines += ['=========================================']
     lines += ['']
 
     lines += textwrap.wrap('The following provides the changes to the global default parameters '

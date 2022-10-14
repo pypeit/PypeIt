@@ -24,7 +24,7 @@ corrupt headers.  This occurs somewhat frequently
 at the Keck Observatory when the instrument loses 
 connectivity with the telescope.
 
-The :ref:`pypeit-setup` and :ref:`pypeit-obslog` scripts
+The :ref:`pypeit_setup` and :ref:`pypeit_obslog` scripts
 have been written to be *immune* from this.  Therefore,
 a failure when using this scripts should be brought to the
 attention of the developers.

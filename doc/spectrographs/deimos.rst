@@ -1,5 +1,7 @@
 .. include:: ../include/links.rst
 
+.. _deimos:
+
 ***********
 Keck DEIMOS
 ***********

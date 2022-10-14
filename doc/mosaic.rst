@@ -89,7 +89,7 @@ Image and Coordinate Transformations
 ------------------------------------
 
 General coordinate transformation matrices are generated using methods in the
-:mod:`pypeit.core.transform` module, and the image transformations are performed
+:mod:`~pypeit.core.transform` module, and the image transformations are performed
 using `scipy.ndimage.affine_transform`_.  For detectors in a mosaic, the key
 parameters are the *relative* offsets between the centers of the detectors and
 their rotations about that center.  The convenience function used to generate
@@ -155,9 +155,10 @@ good practice to set one of the detectors as the reference, which simply means
 it has no shift or rotation.  All images in a mosaic are currently limited to
 having exactly the same shape, and all PypeIt mosaics are created using
 nearest-grid-point interpolation (``order=0`` in
-`scipy.ndimage.affine_transform`_).  
+`scipy.ndimage.affine_transform`_) by default (cf., the approach used for
+:ref:`deimos`).  
 
-Image mosaics in ``Pypeit`` are constructed *after* the :ref:`image_proc`,
+Image mosaics in PypeIt are constructed *after* the :ref:`image_proc`,
 meaning that the images to be included in the mosaic obey the PypeIt
 convention of spectral pixels along the first axis and spatial pixels along the
 second axis; i.e., the shape of each image is :math:`(N_{\rm spec}, N_{\rm
@@ -166,7 +167,7 @@ should be defined adopting the spatial axis as the Cartesian :math:`x` axis and
 the spectral axis as the Cartesian :math:`y` axis.  Specifically,
 
 - **Shifts**: Image shifts are defined in *unbinned* pixels.  The first element in the
-  two-tuple should be the spatial shift, and the second is the specral shift.
+  two-tuple should be the spatial shift, and the second is the spectral shift.
 
 - **Rotations**: Rotations are defined in counter-clockwise degrees.
 
@@ -227,7 +228,7 @@ bounding boxes of the input images in the output mosaic.
    direction.  Orange, red, and purple boxes are the bounding boxes for the 1st,
    2nd, and 3rd input images, respectively.  Note that, because we've filled the
    empty pixels with ``np.nan`` values, the unfilled regions in the ``msc``
-   array are not shown.
+   array are not shown by `matplotlib`_.
 
 
 

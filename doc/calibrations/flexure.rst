@@ -156,6 +156,7 @@ The basic algorithm may be summarized as follows:
 8. Apply shift
 
 
+.. _alternate_sky_models:
 
 Alternate sky models
 --------------------

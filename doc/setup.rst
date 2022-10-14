@@ -257,6 +257,24 @@ the A configuration is::
 This example will generate a new folder named ``keck_lris_blue_A``
 and within it will be a file named ``keck_lris_blue_A.pypeit``.
 
+4. Edit the pypeit file
+-----------------------
+
+You will likely need to edit your :ref:`pypeit_file`.  This includes adding any
+desired changes to the :ref:`parameter_block`, adding/removing files from the
+:ref:`data_block`, correcting any erroneous frametypes (see :ref:`frame_types`),
+specifying any desired association between science and calibration frames (see
+:ref:`calibration-groups`), which science frames to combine (see
+:ref:`2d_combine`), and which frames to use as backgrounds and/or part of an AB
+offset sequence (see :ref:`a-b_differencing`).
+
+.. warning:: 
+
+    Any execution of :ref:`run-pypeit` will *crash* if your :doc:`pypeit_file`
+    includes entries with ``None`` frame types defined.  You must either remove
+    or edit those entries in the pypeit file by-hand after running
+    :ref:`pypeit_setup`.
+
 ----
 
 Options

@@ -80,7 +80,7 @@ PypeIt BibTeX Entries
    Example Data <dev_suite>
 
 .. toctree::
-   :caption: Core Data Processing
+   :caption: Core Processing
    :maxdepth: 1
    :hidden:
 
@@ -107,12 +107,12 @@ PypeIt BibTeX Entries
    :maxdepth: 1
    :hidden:
 
-   telluric
    fluxing
    coadd1d
+   telluric
+   collate1d
    coadd2d
    coadd3d
-   collate1d
 
 .. toctree::
    :caption: Reference

@@ -91,6 +91,8 @@ Give it a shot!
 
 ----
 
+.. _pypeit-ql-keck-nires:
+
 pypeit_ql_keck_nires
 ====================
 
@@ -136,8 +138,8 @@ and :ref:`pypeit_show_2dspec`.
 
 .. _pypeit-ql-deimos:
 
-pypeit_ql_deimos
-================
+pypeit_ql_keck_deimos
+=====================
 
 This scripts enables quicklook reductions on :doc:`spectrographs/deimos` data.
 

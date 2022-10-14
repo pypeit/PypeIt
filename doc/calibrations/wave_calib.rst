@@ -542,6 +542,8 @@ be necessary to generate detector specific templates (ugh).
 This is especially true if the spectrum is partial on the
 detector (*e.g.*, the 830G grating).
 
+.. TODO: Add a description of pypeit_show_arxiv?
+
 ----
 
 .. toctree::

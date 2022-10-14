@@ -1,6 +1,6 @@
 .. highlight:: rest
 
-.. _configobj: http://configobj.readthedocs.io/en/latest/
+.. include:: include/links.rst
 
 .. _parameters:
 

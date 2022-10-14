@@ -18,6 +18,8 @@ See :ref:`master-naming` for the naming convention.
 Inspecting
 ==========
 
+.. TODO: What about pypeit_chk_alignments?
+
 The first extension is the combined image.
 You can view it with any standard image viewer, e.g.:
 

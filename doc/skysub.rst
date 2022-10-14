@@ -58,6 +58,7 @@ lines on faint galaxy continua), set
        [[skysub]]
           no_local_sky = True
 
+.. _skysub-regions:
 
 Interactively defining the sky regions
 ======================================

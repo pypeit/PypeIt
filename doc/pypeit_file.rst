@@ -11,11 +11,11 @@ Overview
 ========
 
 The PypeIt Reduction File is *the* critical component to any successful run of
-PypeIt.  It is where you set (1) how ``PypeIt`` is executed using its
+PypeIt.  It is where you set (1) how PypeIt is executed using its
 :ref:`parameters` and (2) what data files to include in the reduction.
 
 The name of the file is expected to end with ``.pypeit``, and it has a specific
-format that we discuss below. The ``PypeIt`` reduction file should first be
+format that we discuss below. The PypeIt reduction file should first be
 automatically generated using the :ref:`pypeit_setup` script, but it can (and
 often *must*) be edited by the user.
 
@@ -23,8 +23,8 @@ This document provides guidance on modifying the file.
 You may also wish to refer to :doc:`input_files` for
 additional information on formatting.
 
-You must have a unique ``PypeIt`` file for each instrument
-configuration, or "setup" (modulo detectors), which is often includes
+You must have a unique PypeIt file for each instrument
+configuration, or "setup" (modulo detectors), which often includes
 the name of the slit mask design for relevant instruments. It is
 possible that you will need to modify the settings for different
 gratings, etc. It will also enable you to more easily customize the
@@ -51,15 +51,18 @@ to customize the parameters used to define how the data reduction
 proceeds. The two lines shown in this example are the only 2 that are
 required.
 
-See `Edits to the Parameter Block`_ for common edits and also read
-the :ref:`instr_par` relevant to the instrument used to collect your
-data. Importantly, note that this provides the alterations that are
-*always* made to the default parameters for the instrument in
-question; i.e., these are *not* the parameters that you need to
-include in your ``PypeIt`` reduction file. You only need to include
-parameters in your ``PypeIt`` reduction file that you wish to change
-from the instrument-specific defaults (or the global defaults in the
-case that the instrument requires no change to the global default).
+See :ref:`parameters` for how the parameter block should be formatted, how to
+change parameters, a detailed description of each parameter provided for *any*
+PypeIt algorithm, and all the changes made to the default parameter values made
+for each :ref:`instr_par`.  Importantly, note that this provides the alterations
+that are *always* made to the default parameters for the instrument in question;
+i.e., these are *not* the parameters that you need to include in your PypeIt
+reduction file. You only need to include parameters in your PypeIt reduction
+file that you wish to change from the instrument-specific defaults (or the
+global defaults in the case that the instrument requires no change to the global
+default).
+
+See `Edits to the Parameter Block`_ for common edits
 
 .. _setup_block:
 
@@ -95,10 +98,10 @@ the underlying `astropy.table.Table`_ object used by
 
 .. warning::
 
-    Users are recommended to always generate the ``PypeIt`` reduction 
+    Users are recommended to always generate the PypeIt reduction 
     file using the :ref:`pypeit_setup` script. However, you will often need to
     edit it because it is virtually impossible to create an automated
-    procedure that will work in all cases. The ``PypeIt`` reduction
+    procedure that will work in all cases. The PypeIt reduction
     file is the ultimate authority in terms of how the data is
     reduced. As such, you should understand how edits to this file
     work because these edits will override *anything* derived from
@@ -124,7 +127,7 @@ Edits to the Parameter Block
 parameters, the :ref:`instr_par`, and the instructions for
 :ref:`change_par`.
 
-Here are additional docs on common edits that ``PypeIt`` users make:
+Here are additional docs on common edits that PypeIt users make:
 
 .. toctree::
    :caption: More reading
@@ -144,7 +147,7 @@ Edits to the Data Block
 =======================
 
 This section describes the common edits to the Data Block of the
-``PypeIt`` file.
+PypeIt file.
 
 Add/Remove a File
 -----------------
@@ -168,7 +171,7 @@ frametype
 ---------
 
 The most common edit for a given data file is its :doc:`frametype`.
-For almost all spectrographs supported by ``PypeIt``, you will need
+For almost all spectrographs supported by PypeIt, you will need
 at least one of these: ``arc``, ``tilt``, ``pixelflat``, ``trace``
 and ``science``.
 

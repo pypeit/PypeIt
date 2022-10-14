@@ -153,6 +153,9 @@ reduced:
     m190627_0004.fits | tilt,arc,science | ... |     1 |      11 |     12       # Position B
     m190627_0005.fits |       background | ... |     2 |      12 |     -1       # Position C
 
+.. TODO: Is the above correct?  There is no ``background`` frametype.  Should
+   this be "sky"?  See pypeit.core.framematch and frametype.rst
+
 This will combine the two A images for the purposes of computing arcs and tilts, and will also combine
 them into one science frame. Likewise for the B images. The C image will be used as the background
 for both sets of combined images.

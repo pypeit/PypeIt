@@ -40,6 +40,7 @@ instrument-specific details for running PypeIt.
    deimos
    keck_kcwi
    lris
+   keck_nires
    mosfire
    lbt_mods
    mage

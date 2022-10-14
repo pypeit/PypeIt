@@ -1,17 +1,15 @@
 
-.. Where do we specify the pypeit image orientation convention, etc?  I want to
-   specify somewhere that the exposure time needs to be in seconds.  Do we
-   something like a "PypeIt Conventions" doc?
+.. include:: ../include/links.rst
 
 .. _new_spec:
 
-****************
+================
 New Spectrograph
-****************
+================
 
 Here are notes on how to add a new spectrograph from scratch or to add a new
 mode. To do so, you should install PypeIt following the development path;
-see :doc:`../installing` and :doc:`../dev/development`.
+see :doc:`../installing` and :doc:`development`.
 
 Entirely New
 ============
@@ -48,13 +46,13 @@ spectrograph has a similar set of modes, see
 
     - The class-hierarchy is *not* meant to capture different instrument
       configurations (gratings, filters, etc).
-    - The `name` attribute of a spectrograph *should be None* if the class is
+    - The ``name`` attribute of a spectrograph *should be None* if the class is
       only a base class.
 
 Having said all of that, the basic steps one needs to follow to introduce a
 new spectrograph are as follows:
 
-#. Build a new file called ``name_of_spectrograph.py`` file and put it in the
+#. Build a new file called ``telescope_spectrograph.py`` file and put it in the
    ``pypeit/spectrographs/`` directory.
 
 #. Add the new module to the list imported by
@@ -98,15 +96,17 @@ new spectrograph are as follows:
    :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.get_rawimage`.
 
 #. For echelle spectrographs, there are numerous methods required that provide
-   details for the (currently fixed) format of the orders.
+   details for the (currently fixed) format of the orders.  See, e.g.,
+   :class:`~pypeit.spectrographs.vlt_xshooter.VLTXShooterNIRSpectrograph`.
 
 #. You may need to generate wavelength solutions for your setups. You can use the
    :ref:`pypeit_identify` utility, and add this to the PypeIt archive by
    following the steps outlined in the :doc:`../calibrations/construct_template`
-   documentation.
+   documentation.  See :ref:`wave_calib`.
 
 
-See this `example PR <https://github.com/pypeit/PypeIt/pull/1179>`_ for the SOAR/Goodman spectrograph.
+See this `example PR <https://github.com/pypeit/PypeIt/pull/1179>`_ for the
+SOAR/Goodman spectrograph.
 
 
 Near-IR
@@ -119,11 +119,15 @@ an example.
 Tests
 +++++
 
-For a spectrograph to be supported going forth, we require a mininum set
+For a spectrograph to be supported going forth, we require a minimum set
 of tests.  These are:
 
-- A full run of the pipeline for each grating/mode of the spectrograph in the PypeIt Development Suite.
-- A unit test in ``test_load_images.py`` to tickle the I/O.
+    - A full run of the pipeline for each grating/mode of the spectrograph in
+      the `PypeIt Development Suite`_.
+
+    - A simple unit test that check an image can be loaded.  This needs to be
+      added to the `PypeIt Development Suite`_; see `here
+      <https://github.com/pypeit/PypeIt-development-suite/blob/master/unit_tests/test_load_images.py>`__.
 
 Docs
 ++++
