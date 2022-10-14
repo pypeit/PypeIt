@@ -1332,7 +1332,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
             slit_cen_dspat_vec = np.zeros(self.nexp)
             for iexp, ref_trace in enumerate(ref_trace_stack):
                 nspec_this = ref_trace.shape[0]
-                slit_cen_dspat_vec[iexp] = (maskdef_slitcen_pixpos - ref_trace[nspec_this//2])/self.spat_samp_fact
+                slit_cen_dspat_vec[iexp] = (maskdef_slitcen_pixpos[iexp] - ref_trace[nspec_this//2])/self.spat_samp_fact
 
             imaskdef_slitcen_dspat = np.mean(slit_cen_dspat_vec)
             #imaskdef_slitcen_dspat = np.mean((maskdef_slitcen_pixpos - ref_trace_stack[self.nspec//2, :])/self.spat_samp_fact)
