@@ -341,6 +341,8 @@ class FindObjects:
         else:
             # Check if the user wants to use a pre-defined sky regions file.
             user_regions = self.par['reduce']['skysub']['user_regions']
+            if user_regions == '': user_regions = None
+            # Check if sky regions should be loaded
             load_skyreg = (self.sky_region_file is not None) or (user_regions is not None)
             if load_skyreg:
                 skymask_init = self.load_skyregions(sky_region_file=self.sky_region_file)
@@ -633,7 +635,7 @@ class FindObjects:
 
         Parameters
         ----------
-        sky_region_file : str
+        sky_region_file : str, None, optional
             Name of the sky regions file
 
         Returns

@@ -3736,7 +3736,9 @@ class SkySubPar(ParSet):
                                 'an empty string. If you wish to set the sky regions, The text should be ' \
                                 'a comma separated list of percentages to apply to _all_ slits ' \
                                 ' For example: The following string   :10,35:65,80:   would select the ' \
-                                'first 10%, the inner 30%, and the final 20% of _all_ slits.'
+                                'first 10%, the inner 30%, and the final 20% of _all_ slits. Alternatively, you ' \
+                                'can also set the argument to be "master", which will load a MasterSkyRegions ' \
+                                'file that the user has generated with the pypeit_skysub_regions tool.'
 
         defaults['mask_by_boxcar'] = False
         dtypes['mask_by_boxcar'] = bool
