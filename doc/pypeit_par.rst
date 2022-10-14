@@ -920,6 +920,8 @@ these in the PypeIt file, you would be reproducing the effect of the
 `default_pypeit_par` method specific to each derived
 :class:`~pypeit.spectrographs.spectrograph.Spectrograph` class.
 
+.. _instr_par-bok_bc:
+
 BOK BC (``bok_bc``)
 -------------------
 Alterations to the default parameters are:
@@ -1042,6 +1044,8 @@ Alterations to the default parameters are:
   [sensfunc]
       polyorder = 7
 
+.. _instr_par-gemini_flamingos1:
+
 GEMINI-S FLAMINGOS (``gemini_flamingos1``)
 ------------------------------------------
 Alterations to the default parameters are:
@@ -1159,6 +1163,8 @@ Alterations to the default parameters are:
       [[findobj]]
           snr_thresh = 5.0
           find_trim_edge = 50, 50
+
+.. _instr_par-gemini_flamingos2:
 
 GEMINI-S FLAMINGOS (``gemini_flamingos2``)
 ------------------------------------------
@@ -1286,6 +1292,8 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TelFit_LasCampanas_3100_26100_R20000.fits
 
+.. _instr_par-gemini_gmos_north_e2v:
+
 GEMINI-N GMOS-N (``gemini_gmos_north_e2v``)
 -------------------------------------------
 Alterations to the default parameters are:
@@ -1366,6 +1374,8 @@ Alterations to the default parameters are:
           noise_floor = 0.01
   [flexure]
       spec_method = boxcar
+
+.. _instr_par-gemini_gmos_north_ham:
 
 GEMINI-N GMOS-N (``gemini_gmos_north_ham``)
 -------------------------------------------
@@ -1448,6 +1458,8 @@ Alterations to the default parameters are:
   [flexure]
       spec_method = boxcar
 
+.. _instr_par-gemini_gmos_north_ham_ns:
+
 GEMINI-N GMOS-N (``gemini_gmos_north_ham_ns``)
 ----------------------------------------------
 Alterations to the default parameters are:
@@ -1528,6 +1540,8 @@ Alterations to the default parameters are:
           noise_floor = 0.01
   [flexure]
       spec_method = boxcar
+
+.. _instr_par-gemini_gmos_south_ham:
 
 GEMINI-S GMOS-S (``gemini_gmos_south_ham``)
 -------------------------------------------
@@ -1614,6 +1628,8 @@ Alterations to the default parameters are:
       algorithm = IR
       [[IR]]
           telgridfile = TelFit_LasCampanas_3100_26100_R20000.fits
+
+.. _instr_par-gemini_gnirs:
 
 GEMINI-N GNIRS (``gemini_gnirs``)
 ---------------------------------
@@ -1733,6 +1749,8 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
 
+.. _instr_par-gtc_osiris:
+
 GTC OSIRIS (``gtc_osiris``)
 ---------------------------
 Alterations to the default parameters are:
@@ -1818,6 +1836,8 @@ Alterations to the default parameters are:
   [reduce]
       [[findobj]]
           maxnumber_std = 1
+
+.. _instr_par-keck_deimos:
 
 KECK DEIMOS (``keck_deimos``)
 -----------------------------
@@ -1923,6 +1943,8 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
 
+.. _instr_par-keck_hires_red:
+
 KECK HIRES_R (``keck_hires_red``)
 ---------------------------------
 Alterations to the default parameters are:
@@ -2002,6 +2024,8 @@ Alterations to the default parameters are:
           mask_cr = True
           sigclip = 20.0
           noise_floor = 0.01
+
+.. _instr_par-keck_kcwi:
 
 KECK KCWI (``keck_kcwi``)
 -------------------------
@@ -2101,6 +2125,8 @@ Alterations to the default parameters are:
       [[UVIS]]
           extinct_correct = False
 
+.. _instr_par-keck_lris_blue:
+
 KECK LRISb (``keck_lris_blue``)
 -------------------------------
 Alterations to the default parameters are:
@@ -2197,6 +2223,8 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
 
+.. _instr_par-keck_lris_blue_orig:
+
 KECK LRISb (``keck_lris_blue_orig``)
 ------------------------------------
 Alterations to the default parameters are:
@@ -2292,6 +2320,8 @@ Alterations to the default parameters are:
   [sensfunc]
       [[IR]]
           telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
+
+.. _instr_par-keck_lris_red:
 
 KECK LRISr (``keck_lris_red``)
 ------------------------------
@@ -2397,6 +2427,8 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
 
+.. _instr_par-keck_lris_red_mark4:
+
 KECK LRISr (``keck_lris_red_mark4``)
 ------------------------------------
 Alterations to the default parameters are:
@@ -2501,6 +2533,8 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
 
+.. _instr_par-keck_lris_red_orig:
+
 KECK LRISr (``keck_lris_red_orig``)
 -----------------------------------
 Alterations to the default parameters are:
@@ -2604,6 +2638,8 @@ Alterations to the default parameters are:
       polyorder = 9
       [[IR]]
           telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
+
+.. _instr_par-keck_mosfire:
 
 KECK MOSFIRE (``keck_mosfire``)
 -------------------------------
@@ -2722,6 +2758,8 @@ Alterations to the default parameters are:
       polyorder = 13
       [[IR]]
           telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
+
+.. _instr_par-keck_nires:
 
 KECK NIRES (``keck_nires``)
 ---------------------------
@@ -2854,6 +2892,8 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
 
+.. _instr_par-keck_nirspec_low:
+
 KECK NIRSPEC (``keck_nirspec_low``)
 -----------------------------------
 Alterations to the default parameters are:
@@ -2974,6 +3014,8 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
 
+.. _instr_par-lbt_luci1:
+
 LBT LUCI1 (``lbt_luci1``)
 -------------------------
 Alterations to the default parameters are:
@@ -3084,6 +3126,8 @@ Alterations to the default parameters are:
           bspline_spacing = 0.8
       [[extraction]]
           std_prof_nsigma = 100.0
+
+.. _instr_par-lbt_luci2:
 
 LBT LUCI2 (``lbt_luci2``)
 -------------------------
@@ -3199,6 +3243,8 @@ Alterations to the default parameters are:
           std_prof_nsigma = 100.0
           model_full_slit = True
 
+.. _instr_par-lbt_mods1b:
+
 LBT MODS1B (``lbt_mods1b``)
 ---------------------------
 Alterations to the default parameters are:
@@ -3288,6 +3334,8 @@ Alterations to the default parameters are:
           noise_floor = 0.01
   [flexure]
       spec_method = boxcar
+
+.. _instr_par-lbt_mods1r:
 
 LBT MODS1R (``lbt_mods1r``)
 ---------------------------
@@ -3381,6 +3429,8 @@ Alterations to the default parameters are:
   [flexure]
       spec_method = boxcar
 
+.. _instr_par-lbt_mods2b:
+
 LBT MODS2B (``lbt_mods2b``)
 ---------------------------
 Alterations to the default parameters are:
@@ -3470,6 +3520,8 @@ Alterations to the default parameters are:
           noise_floor = 0.01
   [flexure]
       spec_method = boxcar
+
+.. _instr_par-lbt_mods2r:
 
 LBT MODS2R (``lbt_mods2r``)
 ---------------------------
@@ -3562,6 +3614,8 @@ Alterations to the default parameters are:
           noise_floor = 0.01
   [flexure]
       spec_method = boxcar
+
+.. _instr_par-ldt_deveny:
 
 LDT DeVeny (``ldt_deveny``)
 ---------------------------
@@ -3660,6 +3714,8 @@ Alterations to the default parameters are:
       spec_method = boxcar
   [sensfunc]
       polyorder = 7
+
+.. _instr_par-magellan_fire:
 
 MAGELLAN FIRE (``magellan_fire``)
 ---------------------------------
@@ -3795,6 +3851,8 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TelFit_LasCampanas_3100_26100_R20000.fits
 
+.. _instr_par-magellan_fire_long:
+
 MAGELLAN FIRE (``magellan_fire_long``)
 --------------------------------------
 Alterations to the default parameters are:
@@ -3916,6 +3974,8 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TelFit_LasCampanas_3100_26100_R20000.fits
 
+.. _instr_par-magellan_mage:
+
 MAGELLAN MagE (``magellan_mage``)
 ---------------------------------
 Alterations to the default parameters are:
@@ -4011,6 +4071,8 @@ Alterations to the default parameters are:
       [[extraction]]
           model_full_slit = True
 
+.. _instr_par-mdm_osmos_mdm4k:
+
 KPNO MDM4K (``mdm_osmos_mdm4k``)
 --------------------------------
 Alterations to the default parameters are:
@@ -4090,6 +4152,8 @@ Alterations to the default parameters are:
       [[process]]
           mask_cr = True
           noise_floor = 0.01
+
+.. _instr_par-mmt_binospec:
 
 MMT BINOSPEC (``mmt_binospec``)
 -------------------------------
@@ -4197,6 +4261,8 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
 
+.. _instr_par-mmt_bluechannel:
+
 MMT Blue_Channel (``mmt_bluechannel``)
 --------------------------------------
 Alterations to the default parameters are:
@@ -4297,6 +4363,8 @@ Alterations to the default parameters are:
           global_sky_std = False
   [sensfunc]
       polyorder = 7
+
+.. _instr_par-mmt_mmirs:
 
 MMT MMIRS (``mmt_mmirs``)
 -------------------------
@@ -4427,6 +4495,8 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
 
+.. _instr_par-not_alfosc:
+
 NOT ALFOSC (``not_alfosc``)
 ---------------------------
 Alterations to the default parameters are:
@@ -4521,6 +4591,8 @@ Alterations to the default parameters are:
           use_overscan = False
           noise_floor = 0.01
 
+.. _instr_par-ntt_efosc2:
+
 NTT EFOSC2 (``ntt_efosc2``)
 ---------------------------
 Alterations to the default parameters are:
@@ -4605,6 +4677,8 @@ Alterations to the default parameters are:
           no_poly = True
   [flexure]
       spec_method = boxcar
+
+.. _instr_par-p200_dbsp_blue:
 
 P200 DBSPb (``p200_dbsp_blue``)
 -------------------------------
@@ -4691,6 +4765,8 @@ Alterations to the default parameters are:
   [sensfunc]
       [[UVIS]]
           nresln = 5
+
+.. _instr_par-p200_dbsp_red:
 
 P200 DBSPr (``p200_dbsp_red``)
 ------------------------------
@@ -4780,6 +4856,8 @@ Alterations to the default parameters are:
           polycorrect = False
       [[IR]]
           telgridfile = TelFit_Lick_3100_11100_R10000.fits
+
+.. _instr_par-p200_tspec:
 
 P200 TSPEC (``p200_tspec``)
 ---------------------------
@@ -4916,6 +4994,8 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
 
+.. _instr_par-shane_kast_blue:
+
 SHANE KASTb (``shane_kast_blue``)
 ---------------------------------
 Alterations to the default parameters are:
@@ -5007,6 +5087,8 @@ Alterations to the default parameters are:
       spec_method = boxcar
       spectrum = sky_kastb_600.fits
 
+.. _instr_par-shane_kast_red:
+
 SHANE KASTr (``shane_kast_red``)
 --------------------------------
 Alterations to the default parameters are:
@@ -5092,6 +5174,8 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TelFit_Lick_3100_11100_R10000.fits
 
+.. _instr_par-shane_kast_red_ret:
+
 SHANE KASTr (``shane_kast_red_ret``)
 ------------------------------------
 Alterations to the default parameters are:
@@ -5175,6 +5259,8 @@ Alterations to the default parameters are:
           noise_floor = 0.01
   [flexure]
       spec_method = boxcar
+
+.. _instr_par-soar_goodman_red:
 
 SOAR red (``soar_goodman_red``)
 -------------------------------
@@ -5271,6 +5357,8 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TelFit_LasCampanas_3100_26100_R20000.fits
 
+.. _instr_par-tng_dolores:
+
 TNG DOLORES (``tng_dolores``)
 -----------------------------
 Alterations to the default parameters are:
@@ -5347,6 +5435,8 @@ Alterations to the default parameters are:
       [[process]]
           mask_cr = True
           noise_floor = 0.01
+
+.. _instr_par-vlt_fors2:
 
 VLT FORS2 (``vlt_fors2``)
 -------------------------
@@ -5445,6 +5535,8 @@ Alterations to the default parameters are:
       algorithm = IR
       [[IR]]
           telgridfile = TelFit_Paranal_VIS_4900_11100_R25000.fits
+
+.. _instr_par-vlt_sinfoni:
 
 VLT SINFONI (``vlt_sinfoni``)
 -----------------------------
@@ -5576,6 +5668,8 @@ Alterations to the default parameters are:
       polyorder = 7
       [[IR]]
           telgridfile = TelFit_Paranal_NIR_9800_25000_R25000.fits
+
+.. _instr_par-vlt_xshooter_nir:
 
 VLT XShooter_NIR (``vlt_xshooter_nir``)
 ---------------------------------------
@@ -5718,6 +5812,8 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TelFit_Paranal_NIR_9800_25000_R25000.fits
 
+.. _instr_par-vlt_xshooter_uvb:
+
 VLT XShooter_UVB (``vlt_xshooter_uvb``)
 ---------------------------------------
 Alterations to the default parameters are:
@@ -5840,6 +5936,8 @@ Alterations to the default parameters are:
           global_sky_std = False
       [[extraction]]
           model_full_slit = True
+
+.. _instr_par-vlt_xshooter_vis:
 
 VLT XShooter_VIS (``vlt_xshooter_vis``)
 ---------------------------------------
@@ -5975,6 +6073,8 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TelFit_Paranal_VIS_4900_11100_R25000.fits
 
+.. _instr_par-wht_isis_blue:
+
 WHT ISISb (``wht_isis_blue``)
 -----------------------------
 Alterations to the default parameters are:
@@ -6071,6 +6171,8 @@ Alterations to the default parameters are:
           mask_cr = True
           use_overscan = False
           noise_floor = 0.01
+
+.. _instr_par-wht_isis_red:
 
 WHT ISISr (``wht_isis_red``)
 ----------------------------

@@ -19,6 +19,8 @@ This must be done outside of the data reduction pipeline (:ref:`run-pypeit`);
 i.e., PypeIt will *not* coadd your spectra as
 part of the data reduction process.
 
+.. _pypeit_coadd_datacube:
+
 pypeit_coadd_datacube
 =====================
 

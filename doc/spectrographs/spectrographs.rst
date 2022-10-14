@@ -14,7 +14,8 @@ well-vetted by PypeIt developers. "Unsupported" spectrographs are
 in-development; however, the development timescale is undefined.
 
 For instructions on how to add a new spectrograph see:
-:doc:`../dev/new_spectrograph`.
+:doc:`../dev/new_spectrograph`.  Additional details for each spectrograph are
+provided via the links :ref:`below<spec_details>`.
 
 
 .. include:: ../include/spectrographs_table.rst
@@ -35,11 +36,11 @@ instrument-specific details for running PypeIt.
    gemini_flamingos2
    gemini_gmos
    gemini_gnirs
+   gtc_osiris
    deimos
    keck_kcwi
    lris
    mosfire
-   gtc_osiris
    lbt_mods
    mage
    magellan_fire

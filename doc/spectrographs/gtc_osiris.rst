@@ -6,18 +6,27 @@ GTC OSIRIS
 Overview
 ========
 
-This file summarizes several instrument specific
+This file summarizes several instrument-specific
 settings that are related to the GTC/OSIRIS spectrograph.
 
 Common Items
 ============
 
-Targets centred on chip 2
-+++++++++++++++++++++++++
+Targets centered on chip 2
+++++++++++++++++++++++++++
 
-GTC/OSIRIS has two detectors with the object of interest always centred on
-chip 2.  For many users this might meaning running run_pypeit with the
-"--det 2" switch.
+GTC/OSIRIS has two detectors with the object of interest always centered on
+chip 2.  For many users this might meaning executing :ref:`run-pypeit` with the
+``-d 2`` option, or by setting:
+
+.. code-block:: ini
+
+    [rdx]
+        spectrograph = gtc_osiris
+        detnum = 2
+
+in your :ref:`pypeit_file`.
+
 
 Standards taken with wide-slit
 ++++++++++++++++++++++++++++++
@@ -32,13 +41,20 @@ MOS fails
 
 MOS setups are prone to failures, particularly when slits are very close
 together (which can lead to overlaps that are identified as slits) or very
-short.  For overlapping slitlets, one can set::
+short.  For overlapping slitlets, one can set:
+
+.. code-block:: ini
 
     [calibrations]
         [[slitedges]]
             minimum_slit_length = 2.
 
-To avoid these overlapping regions from being identified as slits.
+to avoid these overlapping regions from being identified as slits.
+
 Similarly, short slits which cause problems for flat-fielding,
 sky-subtraction or object detection can be ignored by setting the same
 parameter to ~4.0
+
+.. TODO: May want to test this again once the new overlap parameter in the
+.. EdgeTracePar is available.
+

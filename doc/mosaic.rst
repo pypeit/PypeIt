@@ -8,14 +8,14 @@ Detector Mosaics
 ================
 
 If the geometry of each detector in a detector array is known *a priori*,
-``PypeIt`` can construct a mosaic of the detector data for further processing,
+PypeIt can construct a mosaic of the detector data for further processing,
 instead of processing the detector data individually.  This is currently the
 default approach for Gemini/GMOS and  Keck/DEIMOS only.
 
 Coordinate Conventions
 ----------------------
 
-Coordinate conventions are critical to understanding how ``PypeIt`` constructs
+Coordinate conventions are critical to understanding how PypeIt constructs
 the detector mosaics.  In general, we adopt the standard numpy/matplotlib
 convention (also identical to how 2D numpy arrays are displayed in `ginga`_),
 where the first axis is along the ordinate (Cartesian :math:`y`) and the second
@@ -81,7 +81,7 @@ which should produce the following:
 .. figure:: figures/mosaic_coordinates.png
    :width: 70%
 
-   Assumed coordinate system for ``PypeIt`` image transformations; small values
+   Assumed coordinate system for PypeIt image transformations; small values
    are dark, large values are bright.  The shape of the image is ``(256,512)``.
    Black circles mark the vertices of the image bounding box.
 
@@ -153,12 +153,12 @@ To construct a mosaic of the images in a detector array, we need offsets and
 rotations for all the relevant detectors.  To minimize the interpolation, it is
 good practice to set one of the detectors as the reference, which simply means
 it has no shift or rotation.  All images in a mosaic are currently limited to
-having exactly the same shape, and all ``PypeIt`` mosaics are created using
+having exactly the same shape, and all PypeIt mosaics are created using
 nearest-grid-point interpolation (``order=0`` in
 `scipy.ndimage.affine_transform`_).  
 
 Image mosaics in ``Pypeit`` are constructed *after* the :ref:`image_proc`,
-meaning that the images to be included in the mosaic obey the ``PypeIt``
+meaning that the images to be included in the mosaic obey the PypeIt
 convention of spectral pixels along the first axis and spatial pixels along the
 second axis; i.e., the shape of each image is :math:`(N_{\rm spec}, N_{\rm
 spat})`.  Following the conventions above, that means the shifts and rotations

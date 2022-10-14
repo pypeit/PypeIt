@@ -15,7 +15,7 @@ This file summarizes several instrument specific
 settings that are related to the Keck/KCWI spectrograph.
 Future setups will be included in PypeIt. If your setup
 or wavelength range is not supported, you may need to use
-the pypeit_identify task to manually wavelength calibrate
+the :ref:`pypeit_identify` task to manually wavelength calibrate
 your data. Also note that NAS mode is not currently
 supported in PypeIt.
 
@@ -44,11 +44,13 @@ using the internal "Continuum" lamp. We have also identified
 that there is some detector structure at the level of a few
 percent. The default setting is to model and account for the
 detector structure. If you would like to turn this off, you
-should add the following to your pypeit file::
+should add the following to your :ref:`pypeit_file`:
+
+.. code-block:: ini
 
     [calibrations]
-      [[flatfield]]
-         flatfield_structure = False
+        [[flatfield]]
+            flatfield_structure = False
 
 Trace Flat
 ----------
@@ -66,12 +68,14 @@ PypeIt uses alignment frames to perform an astrometric correction.
 For KCWI, these are referred to as "Cont Bars" frames. This correction
 is small, and if you do not have alignment frames for KCWI you should
 turn off the astrometric correction when combining your data with the
-pypeit_coadd_datacube routine (see :doc:`../coadd3d` for the
-documentation) using the command::
+:ref:`pypeit_coadd_datacube` routine (see :doc:`../coadd3d` for the
+documentation) by setting:
+
+.. code-block:: ini
 
     [reduce]
-      [[cube]]
-         astrometric = False
+        [[cube]]
+            astrometric = False
 
 
 Image processing
@@ -89,11 +93,13 @@ pattern. We have a robust algorithm to remove this pattern in both
 noise can be reduced by a factor of 1.5-1.6. This pattern
 is removed by default, but if you would prefer to turn this
 off, you can do so by adding the following in your
-:doc:`../pypeit_file`::
+:ref:`pypeit_file`:
+
+.. code-block:: ini
 
     [scienceframe]
-      [[process]]
-           use_pattern = False
+        [[process]]
+            use_pattern = False
 
 Note, the effective read noise of the data is determined from the
 overscan regions. Also note that this pattern noise is different
@@ -103,42 +109,50 @@ pattern noise is additive, the detector structure is multiplicative.
 Relative spectral illumination correction
 -----------------------------------------
 
+.. TODO: Should we be suggesting people take exposures of the moon?
+
 At this stage, we recommend that you take sky flats to measure
 the relative spectral sensitivity of the different slices. It's possible
 that a short exposure of the moon will work equally well. You could also
 use dome flats if you can get sufficient blue counts. You should create
-a :doc:`../pypeit_file` that is separate from your science observations, and
+a :ref:`pypeit_file` that is separate from your science observations, and
 reduce this sky flat frame as if it were a science frame (i.e. label it
-as a science frame in this :doc:`../pypeit_file`). You should then add the
-following lines to the top of the :doc:`../pypeit_file`::
+as a science frame in this :ref:`pypeit_file`). You should then add the
+following lines to the top of the :ref:`pypeit_file`:
+
+.. code-block:: ini
 
     [reduce]
-      [[skysub]]
-        joint_fit = True
-        user_regions = :50,50:
+        [[skysub]]
+            joint_fit = True
+            user_regions = :50,50:
 
 The first of these commands performs a joint fit to all slices (i.e. assumes
-that the sky is the same in all slices), while the second command tells pypeit
+that the sky is the same in all slices), while the second command tells PypeIt
 to use the entire slice to determine the sky and relative scale. This process
 only calculates the relative scale correction. To apply it to your science
 frames, this scale correction is applied when you make the datacube. The
 command to apply this scale correction to your science frames in your
-:doc:`../coadd3d` file::
+:doc:`../coadd3d` file:
+
+.. code-block:: ini
 
     [reduce]
-      [[skysub]]
-        scale_corr = Science/spec2d_KB.blah-Sky_KCWI_blah.fits
+        [[skysub]]
+            scale_corr = Science/spec2d_KB.blah-Sky_KCWI_blah.fits
 
-where the spec2d file is the name of the reduced sky flat file. If you did
+where the spec2d file assigned to ``scale_corr`` is the name of the reduced sky flat file. If you did
 not take sky flats or dome flats, you *should not use the internal flats*.
 The only other reasonable alternative is to use the sky regions of your
 science frames, but note that you need sufficient counts to do this properly.
 To turn on a joint fit to the sky spectrum (and therefore account for the
-relative transmission of the slices) add the following to your pypeit file::
+relative transmission of the slices) add the following to your :ref:`pypeit_file`:
+
+.. code-block:: ini
 
     [reduce]
-      [[skysub]]
-        joint_fit = True
+        [[skysub]]
+            joint_fit = True
 
 and you can also set the user_regions (as above), if you know where the sky
 appears on the slices.
@@ -153,9 +167,9 @@ Flux calibration
 ----------------
 
 You should reduce all standard star observations as if they are science
-observations (i.e. in your .pypeit file, make sure the standard star frames
-are labelled as "science" and not "standard"). The flux calibration is done
-outside of the pipeline when creating datacubes.
+observations (i.e. in your :ref:`pypeit_file`, make sure the standard star frames
+are labelled as ``science`` and not ``standard`` in the :ref:`data_block`). The flux calibration is done
+outside of the pipeline when creating datacubes; see :doc:`../coadd3d` and :doc:`../fluxing`.
 
 Producing datacubes
 +++++++++++++++++++
@@ -163,6 +177,6 @@ Producing datacubes
 PypeIt does not produce datacubes as a standard product of
 the reduction process. Instead, PypeIt delivers fully processed
 2D frames, which can be combined into a single datacube using
-the pypeit_coadd_datacube routine (see :doc:`../coadd3d` for the
+the ``pypeit_coadd_datacube`` routine (see :doc:`../coadd3d` for the
 documentation).
 

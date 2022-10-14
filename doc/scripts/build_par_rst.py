@@ -86,6 +86,8 @@ if __name__ == '__main__':
 
     for spec in available_spectrographs:
         s = load_spectrograph(spec)
+        lines += [ f'.. _instr_par-{s.name}:']
+        lines += ['']
         lines += [ ' '.join([s.telescope['name'], s.camera, '(``{0}``)'.format(s.name)]) ]
         lines += [ '-'*len(lines[-1]) ]
         lines += [ 'Alterations to the default parameters are:' ]
