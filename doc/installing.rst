@@ -69,6 +69,8 @@ for more details. See also `virtualenvwrapper
 easily managing `virtualenv`_ environments. The `conda`_ installation method described below
 creates an environment for you.
 
+.. _installing-pip:
+
 Install via ``pip``
 -------------------
 

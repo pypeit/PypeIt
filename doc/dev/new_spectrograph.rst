@@ -10,18 +10,18 @@ New Spectrograph
 ****************
 
 Here are notes on how to add a new spectrograph from scratch or to add a new
-mode. To do so, you should install ``PypeIt`` following the development path;
+mode. To do so, you should install PypeIt following the development path;
 see :doc:`../installing` and :doc:`../dev/development`.
 
 Entirely New
 ============
 
-``PypeIt`` defines instrument-specific behavior/parameters using a python
+PypeIt defines instrument-specific behavior/parameters using a python
 class hierarchy; see :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
 for relevant documentation and the abstractions that will need to be defined
 for new spectrographs.
 
-``PypeIt`` reductions follow three different data-reduction paths: (1)
+PypeIt reductions follow three different data-reduction paths: (1)
 single, long-slit, or multi-slit reductions (e.g., Keck DEIMOS), (2) echelle
 reductions for spectrographs that observe multiple, cross-dispersed orders
 (e.g., Keck NIRES), and (3) slit-based integral-field spectrographs (e.g.,
@@ -31,7 +31,7 @@ All spectrograph classes are located in ``pypeit/spectrographs/``, starting
 from the top-level of the repository. See :ref:`instruments` for a table with
 the data-reduction (pipeline) path used for each spectrograph.
 
-The class-hierarchy is used by ``PypeIt`` to specify certain instrument
+The class-hierarchy is used by PypeIt to specify certain instrument
 modes, like spectrograph arm, that inherit from a common base class. For
 example, :class:`~pypeit.spectrographs.keck_lris.KeckLRISSpectrograph`
 implements many of the methods that are common to both arms (red and blue) of
@@ -69,7 +69,7 @@ new spectrograph are as follows:
 #. Set the algorithmic path: the class attribute, ``pypeline``, must be
    ``'MultiSlit'``, ``'Echelle'``, or ``'IFU'``.
 
-#. Set the default parameters ``PypeIt`` uses during the reduction; see
+#. Set the default parameters PypeIt uses during the reduction; see
    :ref:`parameters`, and, e.g.,
    :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.default_pypeit_par`.
 
@@ -77,11 +77,11 @@ new spectrograph are as follows:
    :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.bpm`.
 
 #. Define the link between header keywords read from the raw fits files and
-   the ``PypeIt``-specific :doc:`metadata` keys used throughout the code; see e.g.,
+   the PypeIt-specific :doc:`metadata` keys used throughout the code; see e.g.,
    :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.init_meta`
    and :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.compound_meta`.
 
-#. Define the set of ``PypeIt``-specific :doc:`metadata` keys that are used to
+#. Define the set of PypeIt-specific :doc:`metadata` keys that are used to
    establish a unique instrument configuration; see, e.g.,
    :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.configuration_keys`.
 

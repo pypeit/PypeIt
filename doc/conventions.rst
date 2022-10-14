@@ -22,7 +22,7 @@ is important to the generality and simplicity of the low-level code base.
 The PypeIt convention is to orient images such that spectra run along the first
 axis of an image --- from blue wavelengths at small pixel coordinates to red
 wavelengths at large pixel coordinates --- and the spatial or cross-dispersion
-direction runss along the second axis --- with echelle orders running from the
+direction runs along the second axis --- with echelle orders running from the
 highest order at small pixel coordinates to the lowest order at large pixel
 coordinates.  That is, the shape of the images is always (roughly) the number of
 spectral pixels by the number of spatial pixels, often referred to in our

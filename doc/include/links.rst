@@ -44,6 +44,7 @@
 .. _scipy.ndimage.binary_dilation: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.binary_dilation.html
 
 .. matplotlib
+.. _matplotlib: https://matplotlib.org/
 .. _matplotlib.pyplot.imshow: http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.imshow
 .. _matplotlib.axes.Axes: https://matplotlib.org/api/axes_api.html#matplotlib.axes.Axes
 

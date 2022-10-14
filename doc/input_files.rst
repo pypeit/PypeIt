@@ -1,8 +1,6 @@
 
 .. include:: include/links.rst
 
-.. _configobj: http://configobj.readthedocs.io/en/latest/
-
 .. _input_files:
 
 =================
@@ -12,7 +10,7 @@ Input File Format
 Overview
 ========
 
-To maintain uniformity, ``PypeIt`` uses a standard format
+To maintain uniformity, PypeIt uses a standard format
 for all of the input files used by the :doc:`scripts`.  
 This document describes that
 format and its main components.  The specifics of 
@@ -24,7 +22,7 @@ of this page.
 Comments in the :doc:`input_files` are indicated by
 a leading ``#`` and are always ignored.
 
-The main three components of a ``PypeIt`` input file are:
+The main three components of a PypeIt input file are:
 
     - :ref:`input-files-parameter-block`
     - :ref:`input-files-setup-block`
@@ -42,7 +40,7 @@ We now described each in turn.
 Parameter Block
 ===============
 
-Most of the :doc:`input_files` require input from the 
+Most of the input files require input from the 
 user and/or allow for the user to make modifications to 
 the default parameters of the pipeline.  This information
 is ingested in a series of lines that we refer to 
@@ -60,11 +58,14 @@ Here is an example of the `Parameter Block`_ for a
         spectrograph = shane_kast_blue
     [calibrations]
         [[slitedges]]
-        edge_thresh = 100
-    
-The formatting is dict-like, with each level of the dict 
-set by the key in ``[]`` and the eventual key/item pair
-marked by assignment.
+            edge_thresh = 100
+
+The formatting is dict-like, with each level of the dict set by the key in
+``[]`` and the eventual key/item pair marked by assignment.  Note that the
+indentation is **not** strictly required, but the number of square brackets
+indicating the dictionary hierarchy **is** required.  That is, in the example
+above, ``slitedges`` is a sub-dictionary within ``calibrations`` as indicated by
+the double brackets.
 
 .. _input-files-setup-block:
 
@@ -72,7 +73,7 @@ Setup Block
 ===========
 
 This block describes the instrument configuration. 
-As it is only required and used with the :doc:`pypeit_file`
+As it is only required and used with the :doc:`pypeit_file`,
 we refer to its documentation of the :ref:`setup_block`
 for full details.
 
@@ -82,13 +83,13 @@ Data Block
 ==========
 
 The third component is a data block which itself consists
-of two components:  a line-by-line of data paths and
-a | delimited Table of data.  The latter usually contains
+of two components:  a line-by-line set of data paths and
+a ``|`` delimited table of data.  The latter usually contains
 at a minimum the filenames to be processed by a 
-``PypeIt`` script.
+PypeIt script.
 
-A data block is marked by a pair of starting *xxx read*
-and ending *xxx end* lines where *xxx* is specific 
+A data block is marked by a pair of starting ``xxx read``
+and ending ``xxx end`` lines where ``xxx`` is specific 
 to the type of input file.  Here is an example for a
 :doc:`pypeit_file`:
 
@@ -107,9 +108,9 @@ We now describe the two parts of the data block
 paths
 -----
 
-The lines following the *xxx read* describe the path(s) 
-to the files.  Each line should start with *path* and 
-then is followed by a relative or absolute path.  We 
+The lines following the ``xxx read`` describe the path(s) 
+to the files.  Each line should start with ``path`` and 
+then be followed by a relative or absolute path.  We 
 *strongly* recommend using the absolute path.
 
 The ``paths`` portion of the :ref:`input-files-data-block` is not used by 
@@ -120,11 +121,13 @@ for the :doc:`pypeit_file`.
 data
 ----
 
-After the ``paths`` portion is a | delimited table that
-provides data.  It usually contains at a minimum a single column
+After the ``paths`` portion is a ``|`` delimited table that
+provides data.  It usually contains, at minimum, a single column
 specifying the files to be processed by the script.
 
-That would look like::
+That would look like:
+
+.. code-block:: ini
 
     # Data block
     spec2d read
@@ -137,7 +140,7 @@ That would look like::
     spec2d end
 
 Here, the column name (``filename``) is trivial and a bit awkward,
-but it is also *required*.
+but it is also **required**.
 
 Many files use a multi-column table with | delimiters, e.g.:
 
@@ -155,12 +158,13 @@ Docs on Pypeit Input Files
 ==========================
 
 Here are links to the detailed
-docs on the main set of :doc:`input_files`:
+docs on the main set of PypeIt input files:
 
-    - :doc:`pypeit_file`
+    - :ref:`pypeit_file`
+    - :ref:`flexure_file`
     - :ref:`sensitivity_file`
     - :ref:`flux_file`
     - :ref:`coadd1d_file`
     - :ref:`coadd2d_file`
-    - :ref:`flexure_file`
+    - :ref:`coadd3d_file`
 
