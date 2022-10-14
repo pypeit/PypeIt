@@ -42,6 +42,8 @@ class Messages:
     ----------
     log : str or None
       Name of saved log file (no log will be saved if log=="")
+    log_object: file-like object or None
+      Already opened file-like object to receive logs.
     verbosity : int (0,1,2)
       Level of verbosity:
         0 = No output
@@ -51,7 +53,7 @@ class Messages:
       If true, the screen output will have colors, otherwise
       normal screen output will be displayed
     """
-    def __init__(self, log=None, verbosity=None, colors=True):
+    def __init__(self, log=None, verbosity=None, colors=True, log_object=None):
 
         # Initialize other variables
         self._defverb = 1
@@ -76,7 +78,7 @@ class Messages:
 
         # Initialize the log
         self._log = None
-        self._initialize_log_file(log=log)
+        self._initialize_log_file(log=log, log_object=log_object)
 
         # Use colors?
         self._start = None
@@ -127,15 +129,20 @@ class Messages:
             clean_msg = self._cleancolors(_msg)
             self._log.write(clean_msg+'\n' if last else clean_msg)
 
-    def _initialize_log_file(self, log=None):
+    def _initialize_log_file(self, log=None, log_object=None):
         """
         Expects self._log is already None.
         """
-        if log is None:
+
+        if log is not None:
+            # Initialize the log
+            self._log = open(log, 'w')
+        elif log_object is not None:
+            # Use already opened log file-like object
+            self._log = log_object
+        else:
             return
 
-        # Initialize the log
-        self._log = open(log, 'w')
 
         self._log.write("------------------------------------------------------\n\n")
         self._log.write("This log was generated with version {0:s} of PypeIt\n\n".format(
@@ -145,7 +152,7 @@ class Messages:
         self._log.write("You are using astropy version={:s}\n\n".format(astropy.__version__))
         self._log.write("------------------------------------------------------\n\n")
 
-    def reset(self, log=None, verbosity=None, colors=True):
+    def reset(self, log=None, verbosity=None, colors=True, log_object=None):
         """
         Reinitialize the object.
 
@@ -154,16 +161,16 @@ class Messages:
         """
         # Initialize other variables
         self._verbosity = self._defverb if verbosity is None else verbosity
-        self.reset_log_file(log)
+        self.reset_log_file(log, log_object)
         self.disablecolors()
         if colors:
             self.enablecolors()
 
-    def reset_log_file(self, log):
+    def reset_log_file(self, log, log_object=None):
         if self._log:
             self._log.close()
             self._log = None
-        self._initialize_log_file(log=log)
+        self._initialize_log_file(log=log, log_object=log_object)
 
     def close(self):
         '''
@@ -179,15 +186,12 @@ class Messages:
         premsg = '\n'+self._start + self._white_RD + '[ERROR]   ::' + self._end + ' '
         self._print(premsg, msg)
 
-        # Close log file
+        # Close QA plots
         # TODO: This no longer "closes" the QA plots
-        self.close()
+        close_qa(self.pypeit_file, self.qa_path)
 
         raise PypeItError(msg)
 
-        # TODO: Does this do anything? I didn't think anything past `raise`
-        # would be executed.
-        sys.exit(1)
 
     def info(self, msg):
         """
