@@ -53,16 +53,22 @@ required.
 
 See :ref:`parameters` for how the parameter block should be formatted, how to
 change parameters, a detailed description of each parameter provided for *any*
-PypeIt algorithm, and all the changes made to the default parameter values made
-for each :ref:`instr_par`.  Importantly, note that this provides the alterations
-that are *always* made to the default parameters for the instrument in question;
-i.e., these are *not* the parameters that you need to include in your PypeIt
-reduction file. You only need to include parameters in your PypeIt reduction
-file that you wish to change from the instrument-specific defaults (or the
-global defaults in the case that the instrument requires no change to the global
-default).
+PypeIt algorithm, all the changes made to the default parameter values made for
+each :ref:`instr_par`, and the :ref:`precedence<parameter-precedence>` given to
+changes made to the parameters w.r.t. their global defaults.  Importantly, note
+that :ref:`this<instr_par>` provides the alterations that are *always* made to
+the default parameters for the instrument in question; i.e., these are *not* the
+parameters that you need to include in your PypeIt reduction file. You only need
+to include parameters in your PypeIt reduction file that you wish to change from
+the instrument-specific defaults (or the global defaults in the case that the
+instrument requires no change to the global default).
 
-See `Edits to the Parameter Block`_ for common edits
+Suggested changes to the parameters are made *throughout* our documentation.  If
+you're having trouble getting the performance you want, first try reading
+through the documentation for the algorithm your interested in (start with those
+listed under "Processing Details" in the menu to the left) and then ping the 
+`PypeIt Users Slack <pypeit-users.slack.com>`__ (make sure you look at the
+pinned comment in the #guidlines channel).  Also see our :doc:`reduction_tips`.
 
 .. _setup_block:
 
@@ -84,17 +90,15 @@ for further details.
 Data Block
 ----------
 
-.. DESCRIBE CALIBRATION GROUPS HERE?
-
 Last is the data block, beginning with the line ``data read``
 and ending with ``data end``, which
 includes the path(s) to the raw data files and a table 
 describing those files. It is common to edit this table 
 as described below.
 
-The data block is a | deimited table as written by 
+The data block is a ``|`` deimited table as written by 
 the underlying `astropy.table.Table`_ object used by 
-:ref:`pypeit_setup`. The | symbols need not align. 
+:ref:`pypeit_setup`. The ``|`` symbols need not align. 
 
 .. warning::
 
@@ -120,34 +124,7 @@ of the following :doc:`frametype`:
     The code will *not* run if your :doc:`pypeit_file` includes
     entries with ``None``. You must remove or modify those entries.
 
-Edits to the Parameter Block
-============================
-
-:doc:`pypeit_par` provides the complete (and extensive) list of
-parameters, the :ref:`instr_par`, and the instructions for
-:ref:`change_par`.
-
-Here are additional docs on common edits that PypeIt users make:
-
-.. toctree::
-   :caption: More reading
-   :maxdepth: 1
-
-   calibrations/calibrations
-   frametype
-   calibrations/image_proc
-   calibrations/flat_fielding
-   calibrations/wave_calib
-   calibrations/slit_tracing
-   object_finding
-   reduction_tips
-
-
-Edits to the Data Block
-=======================
-
-This section describes the common edits to the Data Block of the
-PypeIt file.
+Common edits to the Data Block of the PypeIt file are as follows.
 
 Add/Remove a File
 -----------------
@@ -159,7 +136,7 @@ To add a file, the only safe move is to copy in a line from the
 It needs to be formatted just like the others.
 
 To remove a file, you may delete the line or comment it out by
-pre-pending a `#`.
+pre-pending a ``#``.
 
 Here is yet another reminder to **not** include bad calibration
 frames in the reduction (i.e., frames that you do not want to use,

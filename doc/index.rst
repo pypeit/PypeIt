@@ -78,6 +78,7 @@ PypeIt BibTeX Entries
    tutorials/tutorials
    quicklook
    Example Data <dev_suite>
+   reduction_tips
 
 .. toctree::
    :caption: Core Processing

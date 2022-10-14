@@ -49,7 +49,7 @@ if __name__ == '__main__':
     # Read the baseline file that is not changed and must be edited by
     # the person building the documentation as necessary.
     pypeit_root = os.path.dirname(resource_filename('pypeit', ''))
-    input_base = os.path.join(pypeit_root, 'doc', 'scripts', 'base_par_rst.txt')
+    input_base = os.path.join(pypeit_root, 'doc', 'scripts', 'base_par.rst')
     with open(input_base, 'r') as f:
         lines = [ l.replace('\n','') for l in f.readlines() ]
     lines += ['']

@@ -1,3 +1,7 @@
+
+.. TODO: Is it useful to consolidate these here instead of putting them in the
+   relevant docs?
+
 ==============
 Reduction Tips
 ==============
@@ -24,8 +28,8 @@ Object Finding
 Refer to :doc:`object_finding` for full details on the algorithm.
 This process is guided by the :ref:`findobjpar`.
 
-The most common to modify is **sig_thresh** which sets the
-search for any source with *peak* flux in excess of **sig_thresh**
+The most common to modify is ``sig_thresh``, which sets the
+search for any source with *peak* flux in excess of ``sig_thresh``
 times the RMS.  The default is 10 and you may wish to
 reduce this parameter.   Add the following to the
 :ref:`parameter_block`:
@@ -33,8 +37,8 @@ reduce this parameter.   Add the following to the
 .. code-block:: ini
 
     [reduce]
-      [[findobj]]
-          sig_thresh = 3.
+        [[findobj]]
+            sig_thresh = 3.
 
 This will search for any source with peak flux 3-sigma above the
 estimated RMS in the smashed slit profile.
@@ -61,19 +65,19 @@ modifications are being implemented the way you intend.
 
   .. code-block:: ini
 	
-	[reduce]
-      [[findobj]]
-          maxnumber = 1
+    [reduce]
+        [[findobj]]
+            maxnumber = 1
 
 - Modify the FWHM of your object of interest in pixels.  The default is 10, but
-  you may want to increase or decrease this, depending on number of pixels per
+  you may want to increase or decrease this, depending on the number of pixels per
   spatial PSF:
 
   .. code-block:: ini
 
-	[reduce]
-      [[findobj]]
-          find\_fwhm = 8.
+    [reduce]
+        [[findobj]]
+            find_fwhm = 8.
 
 
 Extraction
@@ -103,10 +107,10 @@ Here is the expert move.  Add the following to the
 .. code-block:: ini
 
     [reduce]
-      [[extraction]]
-          use_2dmodel_mask = False
+        [[extraction]]
+            use_2dmodel_mask = False
 
-And it is likely you will want to use the BOXCAR extractions
-instead of OPTIMAL.  But do a comparison.
+And it is likely you will want to use the ``BOXCAR`` extractions
+instead of ``OPTIMAL``.  But do a comparison.
 
 
