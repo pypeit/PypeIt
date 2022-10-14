@@ -482,7 +482,7 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
                 do_xcorr_arc=True, debug=False):
 
     """ Determine the shift inspec2 relative to inspec1.  This routine computes the shift by finding the maximum of the
-    the cross-correlation coefficient. The convention for the shift is that positive shift means inspec2 is shifted to the right
+    cross-correlation coefficient. The convention for the shift is that positive shift means inspec2 is shifted to the right
     (higher pixel values) relative to inspec1.
 
     Args:
