@@ -1315,7 +1315,7 @@ class CubePar(ParSet):
     """
 
     def __init__(self, slit_spec=None, relative_weights=None, combine=None, output_filename=None,
-                 standard_cube=None, reference_image=None, save_whitelight=None,
+                 standard_cube=None, reference_image=None, save_whitelight=None, method=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None, astrometric=None, grating_corr=None, scale_corr=None,
                  skysub_frame=None):
@@ -1382,6 +1382,19 @@ class CubePar(ParSet):
                                    'so some spaxels in the 2D white light image may have different wavelength ' \
                                    'ranges. If combine=False, the individual spec3d files will have a suffix ' \
                                    '"_whitelight".'
+
+        defaults['method'] = "resample"
+        dtypes['method'] = str
+        descr['method'] = 'What method should be used to generate the datacube. There are currently two options:' \
+                          '(1) "resample" (default) - this algorithm resamples the spec2d frames into a datacube. ' \
+                          'Flux is conserved, but pixels are correlated, and the error spectrum does not account ' \
+                          'for covariance between neighbouring pixels. ' \
+                          '(2) "NGP" (nearest grid point) - this algorithm is effectively a 3D histogram. Flux is ' \
+                          'conserved, pixels are not correlated, however this option suffers the same downsides as ' \
+                          'any histogram; the choice of bin sizes can change how the datacube appears. This algorithm ' \
+                          'takes each pixel on the spec2d frame and puts the flux of this pixel into one voxel in the ' \
+                          'datacube. Depending on the binning used, some voxels may be empty (zero flux) while a ' \
+                          'neighbouring voxel might contain the flux from two spec2d pixels.'
 
         defaults['ra_min'] = None
         dtypes['ra_min'] = float

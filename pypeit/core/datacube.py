@@ -987,6 +987,49 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
     return all_wghts
 
 
+def generate_cube_resample(outfile, hdr,
+                           overwrite=False, blaze_wave=None, blaze_spec=None, fluxcal=False,
+                           sensfunc=None, specname="PYP_SPEC", debug=False):
+    """
+    Save a datacube using the Nearest Grid Point (NGP) algorithm.
+
+    Args:
+        outfile (`str`):
+            Filename to be used to save the datacube
+        hdr (`astropy.io.fits.header_`):
+            Header of the output datacube (must contain WCS)
+        blaze_wave (`numpy.ndarray`_, optional):
+            Wavelength array of the spectral blaze function
+        blaze_spec (`numpy.ndarray`_, optional):
+            Spectral blaze function
+        fluxcal (bool, optional):
+            Are the data flux calibrated?
+        sensfunc (`numpy.ndarray`_, None, optional):
+            Sensitivity function that has been applied to the datacube
+        specname (str, optional):
+            Name of the spectrograph
+        debug (bool, optional):
+            Debug the code by writing out a residuals cube?
+    """
+
+    # Using X (spatial) pixel coordinates and Wavelength, generate spline to Y (spectral) pixel coordinates
+
+    # Find the X Y position for constant wavelength
+    #   -> get RA and DEC given X, Y values.
+    #   -> from RA and DEC of the left slit edge (corresponding to X0 and Y0), calculate delta arcsec along the constant wavelength slice.
+    #   -> Create a spline to predict X1 pixel given the delta arcseconds from the left slit edge.
+    #   -> We now have two splines (one to give X1, and another to give Y1), and an X0, Y0 (of the left edge).
+    #   -> Use this information to create the X,Y grid points of the final resampled data
+    #   -> Use shapely to get overlapping area of each individual pixel and the resampled quadrangles.
+
+    # TODO :: Write out a residuals cube
+    if debug:
+        pass
+
+    # Save the final datacube
+    # TODO :: Write out the datacube
+
+
 def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bins,
                       overwrite=False, blaze_wave=None, blaze_spec=None, fluxcal=False,
                       sensfunc=None, specname="PYP_SPEC", debug=False):
@@ -1014,10 +1057,10 @@ def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bin
             Wavelength array of the spectral blaze function
         blaze_spec (`numpy.ndarray`_):
             Spectral blaze function
-        sensfunc (`numpy.ndarray`_, None):
-            Sensitivity function that has been applied to the datacube
         fluxcal (bool):
             Are the data flux calibrated?
+        sensfunc (`numpy.ndarray`_, None):
+            Sensitivity function that has been applied to the datacube
         specname (str):
             Name of the spectrograph
         debug (bool):
@@ -1126,13 +1169,29 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     flatpar = parset['calibrations']['flatfield']
     senspar = parset['sensfunc']
 
-    # Get the detector number and string representation
-    det = 1 if parset['rdx']['detnum'] is None else parset['rdx']['detnum']
-    detname = spec.get_det_name(det)
-
     # prep
     numfiles = len(files)
     combine = cubepar['combine']
+    method = cubepar['method'].lower()
+
+    # Determine what method is requested
+    if method == "resample":
+        try:
+            import shapely
+            msgs.info("Adopting the 'resample' algorithm to generate the datacube.")
+            if combine:
+                msgs.warn("Cannot combine cubes with the 'resample' algorithm - generating individual cubes.")
+                combine = False
+        except ImportError:
+            msgs.error("To use the 'resample' algorithm to make your datacube, you need to install shapely.")
+    elif method == "ngp":
+        msgs.info("Adopting the nearest grid point (NGP) algorithm to generate the datacube.")
+    else:
+        msgs.error(f"The following datacube method is not allowed: {method}")
+
+    # Get the detector number and string representation
+    det = 1 if parset['rdx']['detnum'] is None else parset['rdx']['detnum']
+    detname = spec.get_det_name(det)
 
     # Check if the output file exists
     if combine:
@@ -1529,6 +1588,10 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                 outfile = get_output_filename(fil, cubepar['output_filename'], combine, ff+1)
             # Generate individual whitelight images of each spec2d file
             if cubepar['save_whitelight']:
+                if method == 'resample':
+                    # TODO :: Implement this feature...
+                    msgs.warn("Whitelight images are not implemented with the 'resample' algorithm.")
+                    msgs.info("Generating a whitelight image with the NGP algorithm.")
                 out_whitelight = os.path.splitext(outfile)[0] + "_whitelight.fits"
                 whitelight_img, _, wlwcs = make_whitelight_frompixels(raimg[onslit_gpm], decimg[onslit_gpm], wave_ext,
                                                                       flux_sav[resrt], np.ones(numpix), np.zeros(numpix), dspat)
@@ -1536,15 +1599,23 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                 img_hdu = fits.PrimaryHDU(whitelight_img.T, header=wlwcs.to_header())
                 img_hdu.writeto(out_whitelight, overwrite=overwrite)
             # Make the datacube
-            slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
-            numwav = int((np.max(waveimg) - wave0) / dwv)
-            bins = spec.get_datacube_bins(slitlength, minmax, numwav)
-            msgs.info("Generating pixel coordinates")
-            pix_coord = frame_wcs.wcs_world2pix(np.vstack((raimg[onslit_gpm], decimg[onslit_gpm], wave_ext * 1.0E-10)).T, 0)
-            hdr = frame_wcs.to_header()
-            generate_cube_ngp(outfile, hdr, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix), pix_coord, bins,
-                              overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
-                              fluxcal=fluxcal, specname=specname)
+            if method == 'resample':
+                # TODO :: FILL IN THIS CODE
+                generate_cube_resample(outfile, hdr,
+                                       overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
+                                       fluxcal=fluxcal, specname=specname)
+            elif method == 'ngp':
+                slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
+                numwav = int((np.max(waveimg) - wave0) / dwv)
+                bins = spec.get_datacube_bins(slitlength, minmax, numwav)
+                msgs.info("Generating pixel coordinates")
+                pix_coord = frame_wcs.wcs_world2pix(np.vstack((raimg[onslit_gpm], decimg[onslit_gpm], wave_ext * 1.0E-10)).T, 0)
+                hdr = frame_wcs.to_header()
+                generate_cube_ngp(outfile, hdr, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix), pix_coord, bins,
+                                  overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
+                                  fluxcal=fluxcal, specname=specname)
+            else:
+                msgs.error(f"The following method is not yet implemented: {method}")
             continue
 
         # Store the information
