@@ -840,27 +840,6 @@ class CoAdd2D:
             sciivar_stack.append(s2dobj.ivarmodel)
             mask_stack.append(s2dobj.bpmmask)
             slitmask_stack.append(s2dobj.slits.slit_img(flexure=s2dobj.sci_spat_flexure))
-            #tilts_stack.append(s2dobj.tilts)
-
-        #    if ifile == 0:
-        #        sciimg_stack = np.zeros((nfiles,) + s2dobj.sciimg.shape, dtype=float)
-        #        waveimg_stack = np.zeros_like(sciimg_stack, dtype=float)
-        #        tilts_stack = np.zeros_like(sciimg_stack, dtype=float)
-        #        skymodel_stack = np.zeros_like(sciimg_stack, dtype=float)
-        #        sciivar_stack = np.zeros_like(sciimg_stack, dtype=float)
-        #        mask_stack = np.zeros_like(sciimg_stack, dtype=float)
-        #        slitmask_stack = np.zeros_like(sciimg_stack, dtype=int)
-
-        #    sciimg_stack[ifile, :, :] = s2dobj.sciimg
-        #    waveimg_stack[ifile, :, :] = s2dobj.waveimg
-        #    skymodel_stack[ifile, :, :] = s2dobj.skymodel
-        #    sciivar_stack[ifile, :, :] = s2dobj.ivarmodel
-        #    mask_stack[ifile, :, :] = s2dobj.bpmmask
-            # TODO -- Set back after done testing
-
-        #    slitmask_stack[ifile, :, :] = s2dobj.slits.slit_img(flexure=s2dobj.sci_spat_flexure)
-        #    _spat_flexure = 0. if s2dobj.sci_spat_flexure is None else s2dobj.sci_spat_flexure
-        #    tilts_stack[ifile,:,:] = s2dobj.tilts #.fit2tiltimg(slitmask_stack[ifile, :, :], flexure=_tilt_flexure_shift)
 
         return dict(specobjs_list=specobjs_list, slits_list=slits_list,
                     slitmask_stack=slitmask_stack,
@@ -1109,8 +1088,6 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
             sci_list = [[sciimg - skymodel for sciimg, skymodel in zip(self.stack_dict['sciimg_stack'], self.stack_dict['skymodel_stack'])]]
             var_list = [[utils.inverse(sciivar) for sciivar in self.stack_dict['sciivar_stack']]]
-            #sci_list = [self.stack_dict['sciimg_stack'] - self.stack_dict['skymodel_stack']]
-            #var_list = [utils.inverse(self.stack_dict['sciivar_stack'])]
 
             msgs.info('Rebinning Images')
             mask_stack = [mask == 0 for mask in self.stack_dict['mask_stack']]
@@ -1195,7 +1172,6 @@ class MultiSlitCoAdd2D(CoAdd2D):
         """
         msgs.info('Finding brightest object')
         nexp = len(specobjs_list)
-        #nspec = specobjs_list[0][0].TRACE_SPAT.shape[0]
         nslits = spat_ids.size
 
         slit_snr_max = np.zeros((nslits, nexp), dtype=float)
@@ -1310,7 +1286,6 @@ class MultiSlitCoAdd2D(CoAdd2D):
             # maskdef_slitcenters. This trace the slit center along the spectral direction.
             # But here we take only the value at the mid point
 
-            # TODO JFH now that we allow different image sizes with lists is this correct?
             maskdef_slitcen_pixpos = self.stack_dict['slits_list'][0].maskdef_slitcen[self.nspec_array[0]//2, slit_idx] + self.maskdef_offset
             # binned maskdef_slitcenters position with respect to the center of the slit in ref_trace_stack
             # this value should be the same for each exposure, but in case there are differences we take the mean value
@@ -1321,7 +1296,6 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 slit_cen_dspat_vec[iexp] = (maskdef_slitcen - ref_trace[nspec_this//2])/self.spat_samp_fact
 
             imaskdef_slitcen_dspat = np.mean(slit_cen_dspat_vec)
-            #imaskdef_slitcen_dspat = np.mean((maskdef_slitcen_pixpos - ref_trace_stack[self.nspec//2, :])/self.spat_samp_fact)
 
             # expected position of the targeted object from slitmask design (as distance from left slit edge)
             imaskdef_objpos = self.stack_dict['slits_list'][0].maskdef_objpos[slit_idx]
@@ -1340,7 +1314,6 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 objpos_dspat_vec[iexp] = (maskdef_obj - ref_trace[nspec_this//2])/self.spat_samp_fact
 
             imaskdef_objpos_dspat = np.mean(objpos_dspat_vec)
-            #imaskdef_objpos_dspat = np.mean((maskdef_obj_pixpos - ref_trace_stack[self.nspec//2, :])/self.spat_samp_fact)
 
         else:
             this_maskdef_designtab = None

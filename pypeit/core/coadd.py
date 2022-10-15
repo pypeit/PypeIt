@@ -78,7 +78,7 @@ def renormalize_errors_qa(chi, maskchi, sigma_corr, sig_range = 6.0,
     plt.close()
 
 
-def renormalize_errors(chi, mask, clip = 6.0, max_corr = 5.0, title = '', debug=False):
+def renormalize_errors(chi, mask, clip=6.0, max_corr=5.0, title = '', debug=False):
     """
     Function for renormalizing errors. The distribution of input chi (defined by chi = (data - model)/sigma) values is
     analyzed, and a correction factor to the standard deviation sigma_corr is returned. This should be multiplied into
@@ -91,7 +91,6 @@ def renormalize_errors(chi, mask, clip = 6.0, max_corr = 5.0, title = '', debug=
             input chi values
         mask (`numpy.ndarray`_):
             True = good, mask for your chi array of type bool
-        clip (float, optional):
         mask (`numpy.ndarray`_):
             True = good, mask for your chi array of type bool
         clip (float, optional):
