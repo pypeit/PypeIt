@@ -2704,15 +2704,15 @@ def get_wave_bins(thismask_stack, waveimg_stack, wave_grid):
 
     Parameters
     ----------
-    thismask_stack (list):
+    thismask_stack: list
         List of boolean arrays containing the masks indicating which pixels are on
         the slit in question.  `True` values are on the slit;
         `False` values are off the slit.  Length of the list is nimgs.   Shapes of the individual elements in the list
         are (nspec, nspat),  but each image can have a different shape.
-    waveimg_stack (list):
+    waveimg_stack: list
         List of the wavelength images, each of which is a float `numpy.ndarray`_. Length of the list is nimgs.
         Shapes of the individual elements in the list are (nspec, nspat),  but each image can have a different shape.
-    wave_grid : array  shape (ngrid)
+    wave_grid: array  shape (ngrid)
         The wavelength grid created for the 2d coadd
 
     Returns
@@ -2748,12 +2748,12 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
 
     Parameters
     ----------
-    thismask_stack (list):
+    thismask_stack: list
         List of boolean arrays containing the masks indicating which pixels are on
         the slit in question.  `True` values are on the slit;
         `False` values are off the slit.  Length of the list is nimgs.   Shapes of the individual elements in the list
         are (nspec, nspat),  but each image can have a different shape.
-    ref_trace_stack (list):
+    ref_trace_stack: list
         List of reference traces about which the images are rectified and coadded.  If the images were not dithered then
         this reference trace can simply be the center of the slit:
 
@@ -2958,7 +2958,6 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
                                norm_rebin_stack != 0, sigma_clip=True,
                                sigma_clip_stack=sci_list_rebin[2], sigrej=sigrej,
                                maxiters=maxiters)
-    #sciimg, imgminsky, tilts, waveimg, dspat = sci_list_out
     sciimg, imgminsky, waveimg, dspat = sci_list_out
     sciivar = utils.inverse(var_list_out[0])
 
