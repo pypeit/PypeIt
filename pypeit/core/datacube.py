@@ -24,6 +24,12 @@ from pypeit.core import coadd, extract, findobj_skymask, parse, skysub
 from pypeit.core.procimg import grow_mask
 from pypeit.spectrographs.util import load_spectrograph
 
+# Shapely is needed if using the resample algorithm
+try:
+    import shapely
+except ImportError:
+    shapely = None
+
 from IPython import embed
 
 
@@ -1176,14 +1182,13 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
     # Determine what method is requested
     if method == "resample":
-        try:
-            import shapely
+        if shapely is None:
+            msgs.error("To use the 'resample' algorithm to make your datacube, you need to install shapely.")
+        else:
             msgs.info("Adopting the 'resample' algorithm to generate the datacube.")
             if combine:
-                msgs.warn("Cannot combine cubes with the 'resample' algorithm - generating individual cubes.")
+                msgs.warn("Cannot combine cubes with the 'resample' algorithm - generating individual datacubes.")
                 combine = False
-        except ImportError:
-            msgs.error("To use the 'resample' algorithm to make your datacube, you need to install shapely.")
     elif method == "ngp":
         msgs.info("Adopting the nearest grid point (NGP) algorithm to generate the datacube.")
     else:
