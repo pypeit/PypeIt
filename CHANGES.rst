@@ -15,6 +15,7 @@
   function computation and flux calibration.
 - Added spectral flexure and reference frame corrections for IFU data
 - Allow separate sky frame to be used for sky subtraction with IFU data
+- Implemented a resample algorithm when generating datacubes
 
 
 1.10.0 (11 July 2022)
