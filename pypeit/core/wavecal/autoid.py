@@ -866,14 +866,14 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, ok_mask=No
 
     Parameters
     ----------
-    spec :  float ndarray shape of (nspec, norders)
+    spec :  `numpy.ndarray_`, shape=(nspec, norders)
         Array of arc spectra for each order for which wavelength solutions are
         desired.
-    orders : `numpy.ndarray`, optional
+    orders : `numpy.ndarray_`
         Order numbers for the provided spectra. Used to match against
         the relevant archived spectrum for echelle spectrographs.
         Shape must be :math:`(N_{\rm orders},)`
-    spec_arxiv :  float ndarray shape (nspec, narxiv) or (nspec)
+    spec_arxiv :  `numpy.ndarray_`, shape=(nspec, narxiv) or (nspec)
         Collection of archival arc spectra for which wavelength solution and line identifications are known
     wave_soln_arxiv:  float ndarray shape (nspec, narxiv) or (nspec)
         Wavelength solutions for the archival arc spectra spec_arxiv
@@ -911,6 +911,12 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, ok_mask=No
         threshold are not used in wavelength solution fits because
         they cannot be accurately centroided
 
+    Returns
+    -------
+    all_patt_dict: dict
+       Arc lines pattern dictionary with some information about the IDs as well as the cross-correlation values
+    wv_calib: dict
+       Dictionary containing the wavelength solution for each order
 
     """
 
@@ -1083,7 +1089,7 @@ class ArchiveReid:
     par : :class:`~pypeit.par.pypeitpar.WaveSolutionPar`
         Key parameters that drive the behavior of the
         wavelength-solution algorithms.
-    ech_fixed_format (bool):
+    ech_fixed_format: bool
         Set to True if this is a fixed format echelle spectrograp. The code will then
         align the archive_arc and the extracted arc for each order for the reidentification.
     ok_mask : `numpy.ndarray`, optional
@@ -1167,7 +1173,6 @@ class ArchiveReid:
             msgs.error('Number of provided orders does not match the number of provided spectra.')
 
         self.par = par
-        #self.spectrograph = spectrograph
         self.lamps = lamps
         self.use_unknowns = use_unknowns
 
@@ -1183,14 +1188,12 @@ class ArchiveReid:
         # TODO: Why are we doing this?
         # Parameters for arc line detction
         self.nonlinear_counts = nonlinear_counts # self.par['nonlinear_counts']
-        #self.sigdetect = self.par['sigdetect']  # This is not used and isn't right either
         # Paramaters that govern reidentification
         self.reid_arxiv = self.par['reid_arxiv']
         self.nreid_min = self.par['nreid_min']
         self.nlocal_cc = self.par['nlocal_cc']
         self.cc_thresh = self.par['cc_thresh']
         self.cc_local_thresh = self.par['cc_local_thresh']
-        #self.ech_fix_format = self.par['ech_fix_format']
 
         # Paramters that govern wavelength solution fitting
         self.match_toler = self.par['match_toler']

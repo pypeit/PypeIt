@@ -217,7 +217,6 @@ def get_wave_grid(waves=None, masks=None, wave_method='linear', iref=0, wave_gri
 
         dwave_data, dloglam_data, resln_guess, pix_per_sigma = get_sampling(waves)
 
-        # TODO: These tests of the string value should not use 'in', they should use ==
         if wave_method in ['velocity', 'log10']:
             if dv is not None and dloglam is not None:
                 msgs.error('You can only specify dv or dloglam but not both')
@@ -430,7 +429,7 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_
           Fwhm of arc lines. Used for peak finding and to assign a fwhm in the xcorr_arc.
 
     Returns:
-        xcorr_arc (ndarray):
+        xcorr_arc: numpy.ndarray_
           Synthetic arc spectrum to be used for cross-correlations, shape = (nspec,)
 
     """
@@ -462,13 +461,6 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_
         else:
             xcorr_arc += ampl_clip[ind]*np.exp(-0.5*((spec_vec - tcent1[ind])/sigma)**2)
 
-    #for ind in w1:
-    #    # If just the width is a bad, use the width implied by the fwhm
-    #    xcorr_arc += ampl_clip[ind]*np.exp(-0.5*((spec_vec - tcent1[ind])/twid1[ind])**2)
-
-    #plt.plot(xcorr_arc, drawstyle='steps-mid', color='black', label='xcorr_arc')
-    #plt.plot(inspec1, drawstyle='steps-mid', color='green', label='input spectrum')
-    #plt.show()
 
     return xcorr_arc
 
@@ -486,12 +478,12 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
     (higher pixel values) relative to inspec1.
 
     Args:
-        inspec1 : ndarray
+        inspec1 : numpy.ndarray_
             Reference spectrum
-        inspec2 : ndarray
+        inspec2 : numpy.ndarray_
             Spectrum for which the shift and stretch are computed such
             that it will match inspec1
-        sigdetect (float, optional, default=3.0):
+        sigdetect:  float, optional, default=3.0
           Peak finding threshold for lines that will be used to create the synthetic xcorr_arc
         sig_ceil (float, optional, default = 10.0):
           Significance threshold for peaks that will be used to determine the line amplitude clipping threshold.
@@ -725,17 +717,19 @@ def wavegrid(wave_min, wave_max, dwave, spec_samp_fact=1.0, log10=False):
 
     Returns:
         :obj:`tuple`: Returns two `numpy.ndarray`_ objects and a float:
-            - ``wave_grid``: (ndarray, (ngrid +1,)) New wavelength grid, not masked.
-              This is a set of bin edges (rightmost edge for the last bin and leftmost edges for the rest),
-              while wave_grid_mid is a set of bin centers, hence wave_grid has 1 more value than wave_grid_mid.
-            - ``wave_grid_mid``: ndarray, (ngrid,) New wavelength grid evaluated at the centers of
-              the wavelength bins, that is this grid is simply offset from
-              ``wave_grid`` by ``dsamp/2.0``, in either linear space or log10
-              depending on whether linear or (log10 or velocity) was requested.
-              Last bin center is removed since it falls outside wave_grid.
-              For iref or concatenate, the linear wavelength sampling will be
-              calculated.
-            - ``dsamp``: The pixel sampling for wavelength grid created.
+            - ``wave_grid``: (ndarray, (ngrid +1,))
+                New wavelength grid, not masked. This is a set of bin edges (rightmost edge for the last bin and leftmost edges for the rest),
+                while wave_grid_mid is a set of bin centers, hence wave_grid has 1 more value than wave_grid_mid.
+            - ``wave_grid_mid``: ndarray, (ngrid,)
+                New wavelength grid evaluated at the centers of
+                the wavelength bins, that is this grid is simply offset from
+               ``wave_grid`` by ``dsamp/2.0``, in either linear space or log10
+                depending on whether linear or (log10 or velocity) was requested.
+                Last bin center is removed since it falls outside wave_grid.
+                For iref or concatenate, the linear wavelength sampling will be
+                calculated.
+            - ``dsamp``:
+               The pixel sampling for wavelength grid created.
 
     """
 

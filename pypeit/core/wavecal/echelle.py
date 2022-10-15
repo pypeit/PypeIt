@@ -118,7 +118,14 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, xdangle, 
             Number of orders in the echelle spectrum
         pad (int):
             Number of orders to pad the coverage by on the blue and red side.
+
     Returns:
+        order_vec_guess: `numpy.ndarray`_
+          Vector of order numbers for the predicted echelle spectrum. Shape = (norders,)
+        wave_soln_guess:  `numpy.ndarray`_
+          Predicted wavelength solution. Shape = (nspec, norders)
+        arcspec_guess:  `numpy.ndarray`_
+          Predicted echelle arc spectrum. Shape = (nspec, norders)
 
     """
 
