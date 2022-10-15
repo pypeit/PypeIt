@@ -1239,7 +1239,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             cubepar['scale_corr'] = None
     # Load the default sky frame to be used for sky subtraction
     skysub_default = "image"
-    skysubImgDef = None  # This is the default behaviour (to use the "image" for the sky subtraction)
+    skysubImgDef = None  # This is the default behaviour (i.e. to use the "image" for the sky subtraction)
 
     if cubepar['skysub_frame'] in [None, 'none', '', 'None']:
         skysub_default = "none"
@@ -1254,6 +1254,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             skysubImgDef = spec2DObj.skymodel/skysub_exptime  # Sky counts/second
         except:
             msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + cubepar['skysub_frame'])
+    else:
+        msgs.error("Could not determine the skysub method:" + msgs.newline() + cubepar['skysub_frame'])
     # Load all spec2d files and prepare the data for making a datacube
     for ff, fil in enumerate(files):
         # Load it up
@@ -1293,10 +1295,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             skysubImg = skysubImgDef.copy() * exptime
         # See if there's any changes from the default behaviour
         if opts['skysub_frame'][ff] is not None:
-            if opts['skysub_frame'][ff] is None:
-                skysubImg = np.array([0.0])
-                this_skysub = "none"  # Don't do sky subtraction
-            elif opts['skysub_frame'][ff].lower() == 'default':
+            if opts['skysub_frame'][ff].lower() == 'default':
                 if skysub_default == "image":
                     skysubImg = spec2DObj.skymodel
                     this_skysub = "image"  # Use the current spec2d for sky subtraction
