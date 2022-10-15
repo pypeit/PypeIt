@@ -291,6 +291,8 @@ class FindObjects:
         that we'll use here in :class:`FindObjects`
 
         Args:
+            slits: :class:`SlitTraceSet` object
+                SlitTraceSet object containing the slit boundaries that will be initialized.
             initial (:obj:`bool`, optional):
                 Use the initial definition of the slits. If False,
                 tweaked slits are used.
@@ -315,14 +317,14 @@ class FindObjects:
         """
         Primary code flow for object finding in PypeIt reductions
 
-        *NOT* used by COADD2D
-
         Parameters
         ----------
         std_trace : `numpy.ndarray`_, optional
             Trace of the standard star
         show_peaks : :obj:`bool`, optional
             Show peaks in find_objects methods
+        show_skysub_fit : :obj:`bool`, optional
+            Show the fits for the global sky subtraction
 
         Returns
         -------

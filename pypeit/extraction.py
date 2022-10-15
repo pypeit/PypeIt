@@ -142,7 +142,6 @@ class Extract:
         self.par = par
         self.global_sky = global_sky if global_sky is not None else np.zeros_like(sciImg.image)
 
-        #self.caliBrate = caliBrate
         self.basename = basename
         # Parse
         # Slit pieces
@@ -199,9 +198,9 @@ class Extract:
         # Deal with dynamically generated calibrations, i.e. the tilts. If the tilts are not input generate
         # them from the  fits in caliBrate, otherwise use the input tilts
         if waveTilts is None and tilts is None:
-            msgs.error("Must provide either waveTilts or tilts to FindObjects")
+            msgs.error("Must provide either waveTilts or tilts to Extract")
         elif waveTilts is not None and tilts is not None:
-            msgs.error("Cannot provide both waveTilts and tilts to FindObjects")
+            msgs.error("Cannot provide both waveTilts and tilts to Extract")
         elif waveTilts is not None and tilts is None:
             self.waveTilts = waveTilts
             self.waveTilts.is_synced(self.slits)
@@ -275,7 +274,9 @@ class Extract:
         Gather all the :class:`SlitTraceSet` attributes
         that we'll use here in :class:`Extract`
 
-        Args:
+        Args
+            slits: :class:`SlitTraceSet` object
+                SlitTraceSet object containing the slit boundaries that will be initialized.
             initial (:obj:`bool`, optional):
                 Use the initial definition of the slits. If False,
                 tweaked slits are used.
