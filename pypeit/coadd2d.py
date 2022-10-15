@@ -1330,9 +1330,9 @@ class MultiSlitCoAdd2D(CoAdd2D):
             # this value should be the same for each exposure, but in case there are differences we take the mean value
 
             slit_cen_dspat_vec = np.zeros(self.nexp)
-            for iexp, ref_trace in enumerate(ref_trace_stack):
+            for iexp, (ref_trace, maskdef_slitcen) in enumerate(zip(ref_trace_stack, maskdef_slitcen_pixpos)):
                 nspec_this = ref_trace.shape[0]
-                slit_cen_dspat_vec[iexp] = (maskdef_slitcen_pixpos[iexp] - ref_trace[nspec_this//2])/self.spat_samp_fact
+                slit_cen_dspat_vec[iexp] = (maskdef_slitcen - ref_trace[nspec_this//2])/self.spat_samp_fact
 
             imaskdef_slitcen_dspat = np.mean(slit_cen_dspat_vec)
             #imaskdef_slitcen_dspat = np.mean((maskdef_slitcen_pixpos - ref_trace_stack[self.nspec//2, :])/self.spat_samp_fact)
@@ -1349,9 +1349,9 @@ class MultiSlitCoAdd2D(CoAdd2D):
             # this value should be the same for each exposure, but in case there are differences we take the mean value
 
             objpos_dspat_vec = np.zeros(self.nexp)
-            for iexp, ref_trace in enumerate(ref_trace_stack):
+            for iexp, (ref_trace, maskdef_obj) in enumerate(zip(ref_trace_stack, maskdef_obj_pixpos)):
                 nspec_this = ref_trace.shape[0]
-                objpos_dspat_vec[iexp] = (maskdef_obj_pixpos - ref_trace[nspec_this//2])/self.spat_samp_fact
+                objpos_dspat_vec[iexp] = (maskdef_obj - ref_trace[nspec_this//2])/self.spat_samp_fact
 
             imaskdef_objpos_dspat = np.mean(objpos_dspat_vec)
             #imaskdef_objpos_dspat = np.mean((maskdef_obj_pixpos - ref_trace_stack[self.nspec//2, :])/self.spat_samp_fact)
