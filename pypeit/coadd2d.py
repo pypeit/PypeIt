@@ -457,10 +457,9 @@ class CoAdd2D:
             sciivar_pseudo[ispec, ispat] = coadd_dict['sciivar']
             this_waveimg = coadd_dict['waveimg']
             waveimg_pseudo[ispec, ispat] = this_waveimg
-            tilts_pseudo[ispec, ispat] = (this_waveimg - coadd_dict['wave_min'][0])/(coadd_dict['wave_max'][-1] - coadd_dict['wave_min'][0])
             # spat_img_pseudo is the sub-pixel image position on the rebinned pseudo image
             inmask_pseudo[ispec, ispat] = coadd_dict['outmask']
-            image_temp = (coadd_dict['dspat'] - coadd_dict['dspat_mid'][0] + spat_left)*coadd_dict['outmask']
+            image_temp = (coadd_dict['dspat'] - coadd_dict['dspat_mid'][0] + spat_left) #*coadd_dict['outmask']
             spat_img_pseudo[ispec, ispat] = image_temp
             nused_pseudo[ispec, ispat] = coadd_dict['nused']
             wave_min[ispec, islit] = coadd_dict['wave_min']
@@ -472,9 +471,13 @@ class CoAdd2D:
             # in the wavelength image. This means howver that the 2d wavelength image has wavelengths with
             # two different meanings, i.e. where unmasked they are averaged rebinned wavelengths, but where masked
             # it is the original grid.
+            # TODO THink about whether we should just use the fixed grid wavelengths throughout as the waveimg rather than
+            # have this hybrid defintion.
             waveimg_pseudo[ispec, ispat][np.logical_not(inmask_pseudo[ispec, ispat])] = \
                 waveimg_mid_pseudo[ispec, ispat][np.logical_not(inmask_pseudo[ispec, ispat])]
             wave_mask[ispec, islit] = True
+            tilts_pseudo[ispec, ispat] = (waveimg_pseudo[ispec, ispat] - coadd_dict['wave_min'][0])/(coadd_dict['wave_max'][-1] - coadd_dict['wave_min'][0])
+
             # Fill in the rest of the wave_mid with the corresponding points in the wave_grid
             #wave_this = wave_mid[wave_mask[:,islit], islit]
             #ind_upper = np.argmin(np.abs(self.wave_grid_mid - wave_this.max())) + 1
