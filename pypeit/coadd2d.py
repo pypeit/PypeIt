@@ -205,8 +205,6 @@ class CoAdd2D:
 
         # Check that nspec is the same for all the exposures
         self.nspec_array = np.array([slits.nspec for slits in self.stack_dict['slits_list']])
-        #if not len(set(nspec_list)) == 1:
-        #    msgs.error('Not all of your exposures have the same spectral dimension. Check your inputs')
         self.nspec_max = self.nspec_array.max()
 
         # Check that binning is the same for all the exposures
@@ -364,8 +362,6 @@ class CoAdd2D:
             msgs.info('Performing 2d coadd for slit: {:d}/{:d}'.format(slit_idx, self.nslits_single - 1))
             ref_trace_stack = self.reference_trace_stack(slit_idx, offsets=self.offsets,
                                                          objid=self.objid_bri)
-
-            #thismask_stack = np.abs(self.stack_dict['slitmask_stack'] - self.stack_dict['slits_list'][0].spat_id[slit_idx]) <= self.par['coadd2d']['spat_toler']
 
             thismask_stack = [np.abs(slitmask - self.stack_dict['slits_list'][0].spat_id[slit_idx]) <= self.par['coadd2d']['spat_toler'] for slitmask in self.stack_dict['slitmask_stack']]
             # maskdef info
@@ -632,17 +628,6 @@ class CoAdd2D:
                                                   'science_coadd2d', global_sky=None, tilts=pseudo_dict['tilts'],
                                                   waveimg=pseudo_dict['waveimg'], bkg_redux=self.bkg_redux,
                                                   basename=basename, show=show)
-
-        # Set the tilts and waveimg attributes from the psuedo_dict here, since we generate these dynamically from fits
-        # normally, but this is not possible for coadds
-        #exTract.tilts = pseudo_dict['tilts']
-        #exTract.waveimg = pseudo_dict['waveimg']
-        #exTract.binning = self.binning
-        #exTract.basename = basename
-        #exTract.reduce_bpm = pseudo_reduce_bpm
-
-        # Local sky-subtraction
-        #global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
 
         skymodel_pseudo, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, _, _ = exTract.run(
             model_noise=False, spat_pix=pseudo_dict['spat_img'])
