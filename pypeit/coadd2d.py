@@ -705,8 +705,6 @@ class CoAdd2D:
         Returns:
 
         """
-        #ref_trace_stack = np.zeros((self.stack_dict['slits_list'][0].nspec, len(offsets)),
-        #                           dtype=float)
         ref_trace_stack = []
         for iexp, slits in enumerate(self.stack_dict['slits_list']):
             ref_trace_stack.append(slits.center[:,slitid] - offsets[iexp])
