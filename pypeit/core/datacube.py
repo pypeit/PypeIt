@@ -993,17 +993,35 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
     return all_wghts
 
 
-def generate_cube_resample(outfile, hdr,
+def generate_cube_resample(outfile, frame_wcs, fluximg, ivarimg, raimg, decimg, waveimg, slitimg,
                            overwrite=False, blaze_wave=None, blaze_spec=None, fluxcal=False,
                            sensfunc=None, specname="PYP_SPEC", debug=False):
     """
-    Save a datacube using the Nearest Grid Point (NGP) algorithm.
+    Save a datacube using the resample algorithm.
+
+    This function takes the fully calibrated input data, and resamples
+    all slices onto a regular 3D grid, while conserving flux. Note that
+    the final datacube has correlations between voxels, and this covariance
+    information is not saved.
 
     Args:
         outfile (`str`):
             Filename to be used to save the datacube
-        hdr (`astropy.io.fits.header_`):
-            Header of the output datacube (must contain WCS)
+        frame_wcs (`astropy.wcs.wcs.WCS`_):
+            World coordinate system for this frame.
+        fluximg (`numpy.ndarray`_):
+            Surface brightness of each pixel in the frame (units = erg/s/cm^2/A/arcsec^2)
+        ivarimg (`numpy.ndarray`_):
+            Inverse variance of each pixel in the frame
+        raimg (`numpy.ndarray`_):
+            Right ascension of each pixel in the frame (units = decimal degrees)
+        decimg (`numpy.ndarray`_):
+            Declination of each pixel in the frame (units = decimal degrees)
+        waveimg (`numpy.ndarray`_):
+            Wavelength of each pixel in the frame (units = Angstroms)
+        slitimg (`numpy.ndarray`_):
+            Slit image. -1 is not on a slit (or a masked pixel), and all other
+            pixels are labelled with their spatial IDs.
         blaze_wave (`numpy.ndarray`_, optional):
             Wavelength array of the spectral blaze function
         blaze_spec (`numpy.ndarray`_, optional):
@@ -1603,16 +1621,23 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                 msgs.info("Saving white light image as: {0:s}".format(out_whitelight))
                 img_hdu = fits.PrimaryHDU(whitelight_img.T, header=wlwcs.to_header())
                 img_hdu.writeto(out_whitelight, overwrite=overwrite)
+            # Get the coordinate bounds
+            slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
+            numwav = int((np.max(waveimg) - wave0) / dwv)
+            bins = spec.get_datacube_bins(slitlength, minmax, numwav)
             # Make the datacube
             if method == 'resample':
-                # TODO :: FILL IN THIS CODE
-                generate_cube_resample(outfile, hdr,
+                fluximg, ivarimg = np.zeros_like(raimg), np.zeros_like(raimg)
+                fluximg[onslit_gpm] = flux_sav[resrt]
+                ivarimg[onslit_gpm] = ivar_sav[resrt]
+                # Get the slit image and then unset pixels in the slit image that are bad
+                slitimg = slitid_img_init.copy()
+                slitimg[~onslit_gpm] = -1
+                # Now generate the cube
+                generate_cube_resample(outfile, frame_wcs, fluximg, ivarimg, raimg, decimg, waveimg, slitimg,
                                        overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
                                        fluxcal=fluxcal, specname=specname)
             elif method == 'ngp':
-                slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
-                numwav = int((np.max(waveimg) - wave0) / dwv)
-                bins = spec.get_datacube_bins(slitlength, minmax, numwav)
                 msgs.info("Generating pixel coordinates")
                 pix_coord = frame_wcs.wcs_world2pix(np.vstack((raimg[onslit_gpm], decimg[onslit_gpm], wave_ext * 1.0E-10)).T, 0)
                 hdr = frame_wcs.to_header()
