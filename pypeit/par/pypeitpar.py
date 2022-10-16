@@ -1481,7 +1481,7 @@ class CubePar(ParSet):
 
         # Basic keywords
         parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'reference_image',
-                   'save_whitelight', 'ra_min', 'ra_max', 'dec_min', 'dec_max', 'wave_min', 'wave_max',
+                   'save_whitelight', 'method', 'ra_min', 'ra_max', 'dec_min', 'dec_max', 'wave_min', 'wave_max',
                    'spatial_delta', 'wave_delta', 'relative_weights', 'combine', 'astrometric', 'grating_corr',
                    'scale_corr', 'skysub_frame']
 
