@@ -13,7 +13,7 @@ from astropy import wcs, units
 from astropy.coordinates import AltAz, SkyCoord
 from astropy.io import fits
 import scipy.optimize as opt
-from scipy.interpolate import interp1d
+from scipy.interpolate import interp1d, RegularGridInterpolator
 import numpy as np
 
 from pypeit import msgs
@@ -993,7 +993,7 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
     return all_wghts
 
 
-def generate_cube_resample(outfile, frame_wcs, fluximg, ivarimg, raimg, decimg, waveimg, slitimg,
+def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, decimg, waveimg, slitimg,
                            overwrite=False, blaze_wave=None, blaze_spec=None, fluxcal=False,
                            sensfunc=None, specname="PYP_SPEC", debug=False):
     """
@@ -1009,6 +1009,8 @@ def generate_cube_resample(outfile, frame_wcs, fluximg, ivarimg, raimg, decimg, 
             Filename to be used to save the datacube
         frame_wcs (`astropy.wcs.wcs.WCS`_):
             World coordinate system for this frame.
+        slits (:class:`pypeit.slittrace.SlitTraceSet`_)
+            Information stored about the slits
         fluximg (`numpy.ndarray`_):
             Surface brightness of each pixel in the frame (units = erg/s/cm^2/A/arcsec^2)
         ivarimg (`numpy.ndarray`_):
@@ -1035,16 +1037,65 @@ def generate_cube_resample(outfile, frame_wcs, fluximg, ivarimg, raimg, decimg, 
         debug (bool, optional):
             Debug the code by writing out a residuals cube?
     """
+    embed()
+    from shapely.geometry import Polygon, Box
+    from shapely.strtree import STRtree
+    # Extract some convenience variables
+    out_del_spat = np.sqrt(frame_wcs.wcs.cd[1, 1] ** 2 + frame_wcs.wcs.cd[0, 1] ** 2)
+    out_min_wave = 1.0E10 * frame_wcs.wcs.crval[2]  # Angstroms
+    out_max_wave = np.max(waveimg)
+    out_del_wave = 1.0E10 * frame_wcs.wcs.cd[2,2]  # Angstroms
 
-    # Using X (spatial) pixel coordinates and Wavelength, generate spline to Y (spectral) pixel coordinates
+    nspec, nspat, nslice = slits.nspec, slits.nspat, slits.spat_id.size  # Detector spectal/spatial pixels and number of slices
+    # Generate the output datacube
+    nvox_spat =
+    nvox_wave =
+    datcube = np.zeros((nslice, nvox_spat, nvox_wave), dtype=float)
+    varcube = np.zeros_like(datcube)
 
-    # Find the X Y position for constant wavelength
-    #   -> get RA and DEC given X, Y values.
-    #   -> from RA and DEC of the left slit edge (corresponding to X0 and Y0), calculate delta arcsec along the constant wavelength slice.
-    #   -> Create a spline to predict X1 pixel given the delta arcseconds from the left slit edge.
-    #   -> We now have two splines (one to give X1, and another to give Y1), and an X0, Y0 (of the left edge).
-    #   -> Use this information to create the X,Y grid points of the final resampled data
-    #   -> Use shapely to get overlapping area of each individual pixel and the resampled quadrangles.
+    # X and Y pixel coordinates for every detector pixel
+    xx, yy = np.meshgrid(np.arange(nspat), np.arange(nspec), indexing='ij', sparse=True)
+    # Generate a linear regular spline between X pixel and wavelength, mapped to Y pixel
+    ypix_spline = RegularGridInterpolator((xx, waveimg), yy, method="linear", bounds_error=False, fill_value=-1)
+
+    # Loop through all slices and fill in the datacube elements
+    for sl, spat_id in enumerate(slits.spat_id):
+        # Generate a list of all detector pixels in this slice
+        detpix_polys = []
+        pix_spec, pix_spat = np.where(slitimg == spat_id)
+        for ss in range(pix_spat.size):
+            detpix_polys.append(Box(pix_spat[ss], pix_spec[ss], pix_spat[ss]+1, pix_spec[ss]+1))
+        # Create a Sort-Tile-Recursive tree of the detector pixels to quickly query overlapping voxels
+        detgeom = STRtree(detpix_polys)
+        # Loop through all voxels for this slice and calculate the overlapping area
+        for wv in range(nvox_wave):
+            for sp in range(nvox_spat):
+                # Generate the voxel coordinates in detector pixel space (points must be counter-clockwise)
+                voxel_geom = Polygon([(-1, -1), (2, 0), (2, 2), (-1, 2)])
+                # Find overlapping detector pixels
+                result = detgeom.query(voxel_geom)
+                # Sum all overlapping flux-weighted areas
+                this_flx = 0
+                this_var = 0
+                for pp in range(len(result)):
+                    # polys[0] in result
+                    this_flx +=
+                    this_var +=
+                # Fill in the datacube
+                datcube[sl, sp, wv] = this_flx
+                varcube[sl, sp, wv] = this_var
+
+
+    # Create spline of RAimg and DECimg
+    # Evaluate RA/DEC at the centre of the slice (this is the same along the entire trace ==> (RA_0, DEC_0))
+    # Calculate an "offsets" image, which indicates the offset in arcsec from (RA_0, DEC_0)
+    # Create two splines of the offsets image: (1) offset predicts RA; (2) offset predicts Dec.
+    # Use these splines to calculate the RA and DEC of the voxels, combine this with the output wavelength grid.
+    # Generate all RA, DEC, WAVELENGTH triples (i.e. find the RA,DEC pairs along constant wavelength, for all wavelengths)
+    # Use the WCS (which contains the astrometric transform) to go from world to pix
+    #    i.e. need to invert this:
+    #    world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init]*(nspec-1), 0)
+    # This gives us the x,y detector positions of the voxel geometry
 
     # TODO :: Write out a residuals cube
     if debug:
@@ -1326,7 +1377,9 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     if cubepar['skysub_frame'] in [None, 'none', '', 'None']:
         skysub_default = "none"
         skysubImgDef = np.array([0.0])  # Do not perform sky subtraction
-    elif cubepar['skysub_frame'].lower() != "image":
+    elif cubepar['skysub_frame'].lower() == "image":
+        skysub_default = "image"
+    else:
         msgs.info("Loading default image for sky subtraction:" +
                   msgs.newline() + cubepar['skysub_frame'])
         try:
@@ -1336,8 +1389,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             skysubImgDef = spec2DObj.skymodel/skysub_exptime  # Sky counts/second
         except:
             msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + cubepar['skysub_frame'])
-    else:
-        msgs.error("Could not determine the skysub method:" + msgs.newline() + cubepar['skysub_frame'])
+
     # Load all spec2d files and prepare the data for making a datacube
     for ff, fil in enumerate(files):
         # Load it up
@@ -1479,17 +1531,18 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         if dspat is None:
             dspat = max(pxscl, slscl)
         if pxscl > dspat:
-            msgs.warn("Spatial scale requested ({0:f}'') is less than the pixel scale ({1:f}'')".format(dspat,pxscl))
-        if pxscl > dspat:
+            msgs.warn("Spatial scale requested ({0:f}'') is less than the pixel scale ({1:f}'')".format(dspat, pxscl))
+        if slscl > dspat:
             msgs.warn("Spatial scale requested ({0:f}'') is less than the slicer scale ({1:f}'')".format(dspat, slscl))
 
         # Loading the alignments frame for these data
         astrometric = cubepar['astrometric']
-        msgs.info("Loading alignments")
-        alignfile = masterframe.construct_file_name(alignframe.Alignments, hdr['TRACMKEY'], master_dir=hdr['PYPMFDIR'])
         alignments = None
-        if cubepar['astrometric']:
+        if astrometric:
+            alignfile = masterframe.construct_file_name(alignframe.Alignments, hdr['TRACMKEY'],
+                                                        master_dir=hdr['PYPMFDIR'])
             if os.path.exists(alignfile) and cubepar['astrometric']:
+                msgs.info("Loading alignments")
                 alignments = alignframe.Alignments.from_file(alignfile)
             else:
                 msgs.warn("Could not find Master Alignment frame:"+msgs.newline()+alignfile)
@@ -1591,7 +1644,10 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         ivar_sav = ivar_ext[wvsrt] / ext_corr ** 2
 
         # Convert units to Counts/s/Ang/arcsec2
-        scl_units = dwav_ext[wvsrt] * 3600.0 * 3600.0 * (frame_wcs.wcs.cdelt[0] * frame_wcs.wcs.cdelt[1])
+        # Slicer sampling * spatial pixel sampling
+        pix_degsq = np.sqrt(frame_wcs.wcs.cd[0, 0] ** 2 + frame_wcs.wcs.cd[1, 0] ** 2) * \
+                    np.sqrt(frame_wcs.wcs.cd[1, 1] ** 2 + frame_wcs.wcs.cd[0, 1] ** 2)
+        scl_units = dwav_ext[wvsrt] * 3600.0 * 3600.0 * pix_degsq
         flux_sav /= scl_units
         ivar_sav *= scl_units ** 2
 
@@ -1634,7 +1690,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                 slitimg = slitid_img_init.copy()
                 slitimg[~onslit_gpm] = -1
                 # Now generate the cube
-                generate_cube_resample(outfile, frame_wcs, fluximg, ivarimg, raimg, decimg, waveimg, slitimg,
+                generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, decimg, waveimg, slitimg,
                                        overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
                                        fluxcal=fluxcal, specname=specname)
             elif method == 'ngp':
