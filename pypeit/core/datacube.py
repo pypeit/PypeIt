@@ -899,6 +899,37 @@ def generate_masterWCS(crval, cdelt, equinox=2000.0, name="Instrument Unknown"):
     return w
 
 
+def generate_spec_wcs(cubepar, hdr, slits, platescale, wave0, dwv, spatial_scale=None):
+        """
+        Construct/Read a World-Coordinate System for a frame.
+
+        Args:
+            cubepar (:class:`~pypeit.par.pypeitpar.PypeItPar`):
+                The Cube data reduction parameters
+            hdr (`astropy.io.fits.Header`_):
+                The header of the raw frame. The information in this
+                header will be extracted and returned as a WCS.
+            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+                Slit traces.
+            platescale (:obj:`float`):
+                The platescale of an unbinned pixel in arcsec/pixel (e.g.
+                detector.platescale). See also 'spatial_scale'
+            wave0 (:obj:`float`):
+                The wavelength zeropoint.
+            dwv (:obj:`float`):
+                Change in wavelength per spectral pixel.
+            spatial_scale (:obj:`float`, None, optional):
+                The spatial scale (units=arcsec/pixel) of the WCS to be used.
+                This variable is fixed, and is independent of the binning.
+                If spatial_scale is set, it will be used for the spatial size
+                of the WCS and the platescale will be ignored. If None, then
+                the platescale will be used.
+
+        Returns:
+            `astropy.wcs.wcs.WCS`_: The world-coordinate system.
+        """
+
+
 def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, whitelight_img, dspat, dwv,
                     sn_smooth_npix=None, relative_weights=False):
     """ Calculate wavelength dependent optimal weights. The weighting
@@ -993,8 +1024,8 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
     return all_wghts
 
 
-def generate_cube_resample(outfile, cubepar, frame_wcs, slits, fluximg, ivarimg, raimg, decimg, waveimg, slitimg,
-                           overwrite=False, blaze_wave=None, blaze_spec=None, fluxcal=False,
+def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, decimg, waveimg, slitimg,
+                           overwrite=False, output_wcs=None, blaze_wave=None, blaze_spec=None, fluxcal=False,
                            sensfunc=None, specname="PYP_SPEC", debug=False):
     """
     Save a datacube using the resample algorithm.
@@ -1024,6 +1055,10 @@ def generate_cube_resample(outfile, cubepar, frame_wcs, slits, fluximg, ivarimg,
         slitimg (`numpy.ndarray`_):
             Slit image. -1 is not on a slit (or a masked pixel), and all other
             pixels are labelled with their spatial IDs.
+        overwrite (bool, optional):
+            If the output file exists, it will be overwritten if this parameter is True.
+        output_wcs (`astropy.wcs.wcs.WCS`_, optional):
+            World coordinate system for the output datacube. If None, frame_wcs will be used.
         blaze_wave (`numpy.ndarray`_, optional):
             Wavelength array of the spectral blaze function
         blaze_spec (`numpy.ndarray`_, optional):
@@ -1037,36 +1072,64 @@ def generate_cube_resample(outfile, cubepar, frame_wcs, slits, fluximg, ivarimg,
         debug (bool, optional):
             Debug the code by writing out a residuals cube?
     """
+    # Set the output_wcs if it's not already set
+    if output_wcs is None:
+        output_wcs = frame_wcs
     embed()
-    from shapely.geometry import Polygon, Box
+    assert(False)
+    from shapely.geometry import Polygon, box as shapelyBox
     from shapely.strtree import STRtree
-    # Set spatial grid
-    out_del_spat = np.sqrt(frame_wcs.wcs.cd[1, 1] ** 2 + frame_wcs.wcs.cd[0, 1] ** 2)
+    # Get the grid spacing along the spatial direction
+    frm_cd_spat = np.sqrt(frame_wcs.wcs.cd[1, 1] ** 2 + frame_wcs.wcs.cd[0, 1] ** 2)
+    out_cd_spat = np.sqrt(output_wcs.wcs.cd[1, 1] ** 2 + output_wcs.wcs.cd[0, 1] ** 2)
+    slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
+    nvox_spat = int(np.ceil(slitlength*frm_cd_spat/out_cd_spat))
+    crd_vox_spat = out_cd_spat * (np.arange(nvox_spat+1) - (nvox_spat+1)// 2)  # +1 to get bin edges
+    # Get the grid spacing along the spectral direction
+    out_cr_wave = 1.0E10 * output_wcs.wcs.crval[2]
+    out_cd_wave = 1.0E10 * output_wcs.wcs.cd[2, 2]
+    nvox_wave = int(np.ceil((np.max(waveimg)-out_cr_wave)/out_cd_wave))
+    crd_vox_spec = out_cr_wave + out_cd_wave * np.arange(nvox_wave+1)  # +1 to get bin edges
 
     # Detector spectal/spatial pixels and number of slices
     nspec, nspat, nslice = slits.nspec, slits.nspat, slits.spat_id.size
 
-    # Set wavelength grid of the output datacube
-    out_min_wave = cubepar['wave_min'] if cubepar['wave_min'] is not None else 1.0E10 * frame_wcs.wcs.crval[2]
-    out_max_wave = cubepar['wave_max'] if cubepar['wave_max'] is not None else np.max(waveimg)
-    out_del_wave = cubepar['wave_delta'] if cubepar['wave_delta'] is not None else 1.0E10 * frame_wcs.wcs.cd[2, 2]
-    nvox_wave = int(np.ceil((out_max_wave-out_min_wave)/out_del_wave))
-
     # Generate the output datacube
-    nvox_spat = 1
     datcube = np.zeros((nslice, nvox_spat, nvox_wave), dtype=float)
-    varcube = np.zeros_like(datcube)
+    varcube = np.zeros((nslice, nvox_spat, nvox_wave), dtype=float)
 
-    # X and Y pixel coordinates for every detector pixel
-    xx, yy = np.meshgrid(np.arange(nspat), np.arange(nspec), indexing='ij', sparse=True)
     # Generate a linear regular spline between X pixel and wavelength, mapped to Y pixel
-    spl_ra = RegularGridInterpolator((xx, yy), raimg, method="linear", bounds_error=False, fill_value=-1)
-    spl_dec = RegularGridInterpolator((xx, yy), decimg, method="linear", bounds_error=False, fill_value=-1)
+    spl_ra = RegularGridInterpolator((np.arange(nspec), np.arange(nspat)), raimg, method="linear", bounds_error=False, fill_value=-1)
+    spl_dec = RegularGridInterpolator((np.arange(nspec), np.arange(nspat)), decimg, method="linear", bounds_error=False, fill_value=-1)
 
-    # Find the central trace
-    #Need to invert the WCS to get evalpos=0.5 (probably by a spline)
-    #slitID, evalpos, tilts*(nspec-1) = wcs.wcs_world2pix(ra, dec, wavelength, 0)
-    #world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init] * (nspec - 1), 0)
+    # Transform the voxel geometry to detector pixels
+    ra0, dec0 = np.zeros(nslice), np.zeros(nslice)
+    for sl, spat_id in enumerate(slits.spat_id):
+        msgs.info(f"Calculating voxel geometry for slit {spat_id}")
+        # Calculate RA and Dec of central traces
+        wsl = np.where(slitimg == spat_id)
+        this_ra, this_dec = raimg[wsl], decimg[wsl]
+        _, spat_posn, slit_tilt = frame_wcs.wcs_world2pix(this_ra, this_dec, waveimg[wsl], 0)
+        asrt = np.argsort(spat_posn)
+        ra0[sl] = np.interp(0.0, spat_posn[asrt], this_ra[asrt])
+        dec0[sl] = np.interp(0.0, spat_posn[asrt], this_dec[asrt])
+        cosdec = np.cos(dec0[sl]*np.pi/180.0)
+        # Generate an offsets image
+        offset = np.sqrt(((this_ra-ra0[sl])*cosdec)**2 + (this_dec-dec0[sl])**2)
+        asrt = np.argsort(offset)
+        spl_ra = interp1d(offset[asrt], this_ra[asrt], kind='linear', bounds_error=False, fill_value="extrapolate")
+        spl_dec = interp1d(offset[asrt], this_dec[asrt], kind='linear', bounds_error=False, fill_value="extrapolate")
+        crd_vox_ra = spl_ra(crd_vox_spat)
+        crd_vox_dec = spl_dec(crd_vox_spat)
+
+    # Calculate an "offsets" image, which indicates the offset in arcsec from (RA_0, DEC_0)
+    # Create two splines of the offsets image: (1) offset predicts RA; (2) offset predicts Dec.
+    # Use these splines to calculate the RA and DEC of the voxels, combine this with the output wavelength grid.
+    # Generate all RA, DEC, WAVELENGTH triples (i.e. find the RA,DEC pairs along constant wavelength, for all wavelengths)
+    # Use the WCS (which contains the astrometric transform) to go from world to pix
+    #    i.e. need to invert this:
+    #    world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init]*(nspec-1), 0)
+    # This gives us the x,y detector positions of the voxel geometry
 
     # Loop through all slices and fill in the datacube elements
     for sl, spat_id in enumerate(slits.spat_id):
@@ -1074,7 +1137,7 @@ def generate_cube_resample(outfile, cubepar, frame_wcs, slits, fluximg, ivarimg,
         detpix_polys = []
         pix_spec, pix_spat = np.where(slitimg == spat_id)
         for ss in range(pix_spat.size):
-            detpix_polys.append(Box(pix_spat[ss], pix_spec[ss], pix_spat[ss]+1, pix_spec[ss]+1))
+            detpix_polys.append(shapelyBox(pix_spat[ss], pix_spec[ss], pix_spat[ss]+1, pix_spec[ss]+1))
         # Create a Sort-Tile-Recursive tree of the detector pixels to quickly query overlapping voxels
         detgeom = STRtree(detpix_polys)
         # Loop through all voxels for this slice and calculate the overlapping area
@@ -1655,9 +1718,9 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
         # Convert units to Counts/s/Ang/arcsec2
         # Slicer sampling * spatial pixel sampling
-        pix_degsq = np.sqrt(frame_wcs.wcs.cd[0, 0] ** 2 + frame_wcs.wcs.cd[1, 0] ** 2) * \
-                    np.sqrt(frame_wcs.wcs.cd[1, 1] ** 2 + frame_wcs.wcs.cd[0, 1] ** 2)
-        scl_units = dwav_ext[wvsrt] * 3600.0 * 3600.0 * pix_degsq
+        sl_deg = np.sqrt(frame_wcs.wcs.cd[0, 0] ** 2 + frame_wcs.wcs.cd[1, 0] ** 2)
+        px_deg = np.sqrt(frame_wcs.wcs.cd[1, 1] ** 2 + frame_wcs.wcs.cd[0, 1] ** 2)
+        scl_units = dwav_ext[wvsrt] * (3600.0 * sl_deg) * (3600.0 * px_deg)
         flux_sav /= scl_units
         ivar_sav *= scl_units ** 2
 
@@ -1699,11 +1762,14 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                 # Get the slit image and then unset pixels in the slit image that are bad
                 slitimg = slitid_img_init.copy()
                 slitimg[~onslit_gpm] = -1
-                # Generate the output WCS
-                datacube_WCS = make_datacube_wcs(cubepar, spec2DObj.head0, slits, detector.platescale, wave0, dwv)
+                # Generate the output WCS for the datacube
+                crval_wv = cubepar['wave_min'] if cubepar['wave_min'] is not None else 1.0E10 * frame_wcs.wcs.crval[2]
+                cd_wv = cubepar['wave_delta'] if cubepar['wave_delta'] is not None else 1.0E10 * frame_wcs.wcs.cd[2, 2]
+                cd_spat = cubepar['spatial_delta'] if cubepar['spatial_delta'] is not None else px_deg*3600.0
+                output_wcs = spec.get_wcs(spec2DObj.head0, slits, detector.platescale, crval_wv, cd_wv, spatial_scale=cd_spat)
                 # Now generate the cube
-                generate_cube_resample(outfile, frame_wcs, datacube_WCS, slits, fluximg, ivarimg, raimg, decimg, waveimg, slitimg,
-                                       overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
+                generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, decimg, waveimg, slitimg,
+                                       overwrite=overwrite, output_wcs=output_wcs, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
                                        fluxcal=fluxcal, specname=specname)
             elif method == 'ngp':
                 msgs.info("Generating pixel coordinates")
