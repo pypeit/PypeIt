@@ -899,37 +899,6 @@ def generate_masterWCS(crval, cdelt, equinox=2000.0, name="Instrument Unknown"):
     return w
 
 
-def generate_spec_wcs(cubepar, hdr, slits, platescale, wave0, dwv, spatial_scale=None):
-        """
-        Construct/Read a World-Coordinate System for a frame.
-
-        Args:
-            cubepar (:class:`~pypeit.par.pypeitpar.PypeItPar`):
-                The Cube data reduction parameters
-            hdr (`astropy.io.fits.Header`_):
-                The header of the raw frame. The information in this
-                header will be extracted and returned as a WCS.
-            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
-                Slit traces.
-            platescale (:obj:`float`):
-                The platescale of an unbinned pixel in arcsec/pixel (e.g.
-                detector.platescale). See also 'spatial_scale'
-            wave0 (:obj:`float`):
-                The wavelength zeropoint.
-            dwv (:obj:`float`):
-                Change in wavelength per spectral pixel.
-            spatial_scale (:obj:`float`, None, optional):
-                The spatial scale (units=arcsec/pixel) of the WCS to be used.
-                This variable is fixed, and is independent of the binning.
-                If spatial_scale is set, it will be used for the spatial size
-                of the WCS and the platescale will be ignored. If None, then
-                the platescale will be used.
-
-        Returns:
-            `astropy.wcs.wcs.WCS`_: The world-coordinate system.
-        """
-
-
 def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, whitelight_img, dspat, dwv,
                     sn_smooth_npix=None, relative_weights=False):
     """ Calculate wavelength dependent optimal weights. The weighting
