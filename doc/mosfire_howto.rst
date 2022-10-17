@@ -7,399 +7,413 @@ Keck-MOSIFRE HOWTO
 Overview
 ========
 
-This doc goes through a full run of ``PypeIt`` on a set of observations taken with Keck/MOSFIRE.
-
-..
-    The following was performed on a Macbook Pro with 8 GB RAM
-    (we recommend 32GB+ for DEIMOS) and took ~45min for the
-    one detector.
-
-
-    Setup
-    =====
+This doc goes through a full run of PypeIt on one of the Keck/MOSFIRE datasets in the PypeIt Development Suite,
+specifically the ``mask1_K_with_continuum`` multi-slits observations.
+The following was performed on a Macbook Pro with 16 GB RAM and took approximately 20 minutes.
 
-    Organize data
-    -------------
-
-    Place all of the files in a single folder. Mine is named
-    ``/home/xavier/Projects/PypeIt-development-suite/RAW_DATAkeck_deimos/1200G_M_7750``
-    (which I will refer to as ``RAW_PATH``).  A useful shortcut for this
-    can be to set an export variable (here it is in bash)::
-
-        export RAW_PATH=`pwd`
+Setup
+=====
 
-    The files within this folder are:
-
-    .. code-block:: bash
-
-        $ ls
-        DE.20170425.09554.fits.gz  DE.20170425.09803.fits.gz  DE.20170425.53065.fits.gz
-        DE.20170425.09632.fits.gz  DE.20170425.50487.fits.gz
-        DE.20170425.09722.fits.gz  DE.20170425.51771.fits.gz
-
-    It is perfectly fine for the files to contain more than one mask
-    or observations with various gratings.  But be sure to include
-    all of the calibrations for each.
-
-    Run ``pypeit_setup``
-    --------------------
-
-    The first script you will run with ``PypeIt`` is :ref:`pypeit_setup` which
-    examines your raw files and generates a sorted list and (when instructed)
-    one :doc:`pypeit_file` per instrument configuration.
-
-    Complete instructions are provided in :doc:`setup`.
-
-    Here is my call for these data::
-
-        cd folder_for_reducing   # this is usually *not* the raw data folder
-        pypeit_setup -r RAW_PATH/DE. -s keck_deimos -c A
-
-    This creates a :doc:`pypeit_file` in the folder named
-    *keck_deimos_A* beneath where the script was run.
-    Note that RAW_PATH should be the *full* path, i.e. including a /
-    at the start.
+Organize data
+-------------
+
+Place all of the files in a single folder, making sure you have
+all the calibration files you need, in addition to the science ones.
+The dataset used here is in the following folder:
+``/PypeIt-development-suite/RAW_DATA/mask1_K_with_continuum``.
+
+The files within this folder are:
 
-    You will likely see a few WARNINGs about not determining
-    frames of a few types (e.g. align).  You may ignore these (and
-    most other) WARNING messages of PypeIt.
+.. code-block:: bash
+
+    $ ls
+    m121128_0105.fits m121128_0112.fits m121128_0119.fits m121128_0215.fits
+    m121128_0106.fits m121128_0113.fits m121128_0120.fits m121128_0216.fits
+    m121128_0107.fits m121128_0114.fits m121128_0214.fits m121128_0217.fits
+
+
+This folder can include data from different datasets (e.g., more than one slitmask
+or observations in various filter). The script :ref:`pypeit_setup`
+(see next step) will help to parse the desired dataset.
+
+.. important::
+    **Note on calibrations**
+
+    The MOSFIRE calibration GUI provides, during your observing night, the option to take flats
+    with the lamps off. This is the default in the GUI only for the K-band, but we recommend taking
+    these flats for all MOSFIRE spectroscopic observations. The purpose of the flats with the lamps off
+    is to remove the increase and/or variation in zero level caused by persistence from the high counts
+    in the flats and/or thermal emission from the telescope/dome (in the K-band). See :ref:`mosfire_flats`
+    for more info.
+
+    Also, PypeIt generally perform the wavelength calibration using the OH lines in science frames. For this
+    reason arc frames are not required for the reduction unless the observations were taken with a
+    ``long2pos_specphot`` slitmask. In this case the arc frames are required for a successful wavelength
+    calibration. See :ref:`mosfire_wavecalib` for more info.
 
-    If your files included more than one setup (including multiple
-    masks), then you may wish to replace ``A`` in the call to
-    :ref:`pypeit_setup` with ``B`` or some
-    other setup indicator.  Inspect the .sorted file in the setup_files
-    folder to see all the options.
 
-    For this example, my .pypeit file in the keck_deimos_A directory
-    looks like this::
+Run ``pypeit_setup``
+--------------------
 
-        # Auto-generated PypeIt file
-        # Tue 20 Apr 2021 12:37:45
+The first script to run with PypeIt is :ref:`pypeit_setup` which examines your raw files
+and generates a sorted list and (when instructed) one :doc:`pypeit_file` per instrument configuration.
 
-        # User-defined execution parameters
-        [rdx]
-        spectrograph = keck_deimos
+See complete instructions are provided in :ref:`setup_doc`.
 
-        # Setup
-        setup read
-            Setup A:
-                dispname: 1200G
-                decker: dra11
-                binning: 1,1
-                dispangle: 7699.95654297
-                    amp: SINGLE:B
-        setup end
+For this example, we move to the folder where we want to perform the reduction and save the
+associated outputs and we run:
 
-        # Read in the data
-        data read
-        path /home/xavier/Projects/PypeIt-development-suite/RAW_DATA/keck_deimos/1200G_M_7750
-        |                  filename |                 frametype |                 ra |                dec |  target | dispname | decker | binning |          mjd |    airmass | exptime |     dispangle |      amp |    dateobs |         utc |
-        | DE.20170425.09554.fits.gz |                  arc,tilt |  57.99999999999999 |               45.0 | unknown |    1200G |  dra11 |     1,1 | 57868.110529 | 1.41291034 |     1.0 | 7699.95654297 | SINGLE:B | 2017-04-25 | 02:39:14.41 |
-        | DE.20170425.09632.fits.gz | pixelflat,illumflat,trace |  57.99999999999999 |               45.0 | unknown |    1200G |  dra11 |     1,1 | 57868.111418 | 1.41291034 |    12.0 | 7699.95654297 | SINGLE:B | 2017-04-25 | 02:40:32.06 |
-        | DE.20170425.09722.fits.gz | pixelflat,illumflat,trace |  57.99999999999999 |               45.0 | unknown |    1200G |  dra11 |     1,1 | 57868.112443 | 1.41291034 |    12.0 | 7699.95654297 | SINGLE:B | 2017-04-25 | 02:42:02.26 |
-        | DE.20170425.09803.fits.gz | pixelflat,illumflat,trace |  57.99999999999999 |               45.0 | unknown |    1200G |  dra11 |     1,1 | 57868.113392 | 1.41291034 |    12.0 | 7699.95654297 | SINGLE:B | 2017-04-25 | 02:43:23.16 |
-        | DE.20170425.50487.fits.gz |                   science | 260.04999999999995 | 57.958444444444446 |   dra11 |    1200G |  dra11 |     1,1 | 57868.584271 |  1.2765523 |  1200.0 | 7699.95654297 | SINGLE:B | 2017-04-25 | 14:01:27.15 |
-        | DE.20170425.51771.fits.gz |                   science | 260.04999999999995 | 57.958444444444446 |   dra11 |    1200G |  dra11 |     1,1 | 57868.599136 | 1.29137753 |  1200.0 | 7699.95654297 | SINGLE:B | 2017-04-25 | 14:22:51.01 |
-        | DE.20170425.53065.fits.gz |                   science | 260.04999999999995 | 57.958444444444446 |   dra11 |    1200G |  dra11 |     1,1 |   57868.6141 | 1.31412428 |  1000.0 | 7699.95654297 | SINGLE:B | 2017-04-25 | 14:44:25.52 |
-        data end
+.. code-block:: bash
 
+    cd folder_for_reducing   # this is usually *not* the raw data folder
+    pypeit_setup -s keck_mosfire -r /PypeIt-development-suite/RAW_DATA/mask1_K_with_continuum -b
 
-    In this example, all of the frametypes were accurately assigned
-    in the :doc:`pypeit_file`, so there are no edits to be made.
-    This should generally be the case for DEIMOS.
-    However, if frame types are not assigned correctly,
-    you can edit them following these instructions on
-    the :ref:`data_block`.
+This will create in a folder called ``setup_files/`` a ``.sorted`` file that shows the raw file organized
+by datasets. We inspect the ``.sorted`` file and identify the dataset that we want to reduced
+(in this case it is indicated with the letter ``A`` ) and re-run ``pypeit_setup`` as:
 
-    On the other hand, it is the user's responsibility to remove
-    any bad (or undesired) calibration or science frames from the
-    list.  Either delete them altogether or comment out with a #.
+.. code-block:: bash
 
-    Note:  we generally recommend to *not* use bias frames with DEIMOS.
+    pypeit_setup -s keck_mosfire -r /PypeIt-development-suite/RAW_DATA/mask1_K_with_continuum -b -c A
 
-    I am going to restrict the reduction to only one of the 8 detectors
-    in the DEIMOS mosaic.  Here detector 7, which is one of the middle
-    chips and the redder spectra.  I do this by editing the PypeIt file
-    and its parameter block to now read::
+Note that we use the ``-b`` flag because we are dealing with near-IR observations for which a
+dither pattern is used to perform background subtraction. The ``-b`` flag adds three columns in the
+:ref:`pypeit_file:Data Block` of the ``pypeit_file`` to instruct PypeIt on the desired background subtraction
+(see :ref:`setup_doc` and :ref:`a-b_differencing` for more info).
 
-        # User-defined execution parameters
-        [rdx]
-        spectrograph = keck_deimos
-        detnum = 7
+This creates a :ref:`pypeit_file` in a folder called ``keck_mosfire_A/``, which looks like this::
 
-    A full run with all 8 detectors (the default) is both long and may
-    tax (or exceed) the RAM of your computer.
-    Therefore, you may wish
-    to reduce 1 or 2 detectors at a time in this fashion.
-    For more than one detector, use a list for `detnum`
-    (e.g.  `detnum = 3,7`). Also, note that ``PypeIt`` uses a mosaic approach
-    for the reduction. This is the default for :doc:`deimos`, for which a mosaic
-    is constructed for each blue-red detector pair.
+    # Auto-generated PypeIt input file using PypeIt version: 1.10.1.dev218+gefe7d7ef6
+    # UTC 2022-10-14T22:04:15.975
 
-    Main Run
-    ========
+    # User-defined execution parameters
+    [rdx]
+        spectrograph = keck_mosfire
 
-    Once the :doc:`pypeit_file` is ready, the main call is
-    simply::
+    # Setup
+    setup read
+    Setup A:
+      decker_secondary: ic348_TK_M03A
+      dispname: K-spectroscopy
+      filter1: K
+      slitlength: null
+      slitwid: null
+    setup end
 
-        cd keck_deimos_A
-        run_pypeit keck_deimos_A.pypeit -o
+    # Data block
+    data read
+     path mask1_K_with_continuum
+             filename |                 frametype |          ra |         dec |        target |       dispname |        decker | binning |            mjd |    airmass |  exptime | filter1 | lampstat01 | dithpat | dithpos | dithoff | frameno | calib | comb_id | bkg_id
+    m121128_0214.fits |          arc,science,tilt | 56.27484011 | 32.19165488 | ic348_TK_M03A | K-spectroscopy | ic348_TK_M03A |     1,1 |  56259.2716455 | 1.37254788 | 98.92572 |       K |        off |   Stare |       A |     1.5 |     214 |     0 |       1 |      2
+    m121128_0215.fits |          arc,science,tilt | 56.27402153 | 32.19170348 | ic348_TK_M03A | K-spectroscopy | ic348_TK_M03A |     1,1 | 56259.27318428 | 1.36213505 | 98.92572 |       K |        off |   Stare |       B |    -1.5 |     215 |     0 |       2 |      1
+    m121128_0216.fits |          arc,science,tilt | 56.27402153 | 32.19170348 | ic348_TK_M03A | K-spectroscopy | ic348_TK_M03A |     1,1 | 56259.27469644 | 1.35216515 | 98.92572 |       K |        off |   Stare |       B |    -1.5 |     216 |     0 |       2 |      1
+    m121128_0217.fits |          arc,science,tilt | 56.27484011 | 32.19165488 | ic348_TK_M03A | K-spectroscopy | ic348_TK_M03A |     1,1 | 56259.27624622 | 1.34220549 | 98.92572 |       K |        off |   Stare |       A |     1.5 |     217 |     0 |       1 |      2
+    m121128_0119.fits |                  arc,tilt |         7.8 |        45.0 |       unknown | K-spectroscopy | ic348_TK_M03A |     1,1 | 56259.14680212 | 1.41291034 |  1.45479 |       K |         Ar |    none |    none |     0.0 |     119 |     0 |      -1 |     -1
+    m121128_0120.fits |                  arc,tilt |         7.8 |        45.0 |       unknown | K-spectroscopy | ic348_TK_M03A |     1,1 | 56259.14700351 | 1.41291034 |  1.45479 |       K |         Ne |    none |    none |     0.0 |     120 |     0 |      -1 |     -1
+    m121128_0105.fits |              lampoffflats |         7.8 |        45.0 |       unknown | K-spectroscopy | ic348_TK_M03A |     1,1 | 56259.14200914 | 1.41291034 |  14.5479 |       K |        off |    none |    none |     0.0 |     105 |     0 |      -1 |     -1
+    m121128_0106.fits |              lampoffflats |         7.8 |        45.0 |       unknown | K-spectroscopy | ic348_TK_M03A |     1,1 | 56259.14231181 | 1.41291034 |  14.5479 |       K |        off |    none |    none |     0.0 |     106 |     0 |      -1 |     -1
+    m121128_0107.fits |              lampoffflats |         7.8 |        45.0 |       unknown | K-spectroscopy | ic348_TK_M03A |     1,1 | 56259.14262084 | 1.41291034 |  14.5479 |       K |        off |    none |    none |     0.0 |     107 |     0 |      -1 |     -1
+    m121128_0112.fits | pixelflat,illumflat,trace |         7.8 |        45.0 |       unknown | K-spectroscopy | ic348_TK_M03A |     1,1 | 56259.14425684 | 1.41291034 |  14.5479 |       K |         on |    none |    none |     0.0 |     112 |     0 |      -1 |     -1
+    m121128_0113.fits | pixelflat,illumflat,trace |         7.8 |        45.0 |       unknown | K-spectroscopy | ic348_TK_M03A |     1,1 | 56259.14450569 | 1.41291034 |  14.5479 |       K |         on |    none |    none |     0.0 |     113 |     0 |      -1 |     -1
+    m121128_0114.fits | pixelflat,illumflat,trace |         7.8 |        45.0 |       unknown | K-spectroscopy | ic348_TK_M03A |     1,1 | 56259.14479678 | 1.41291034 |  14.5479 |       K |         on |    none |    none |     0.0 |     114 |     0 |      -1 |     -1
+    data end
 
-    The "-o" specifies to over-write any existing science
-    output files.  As there are none, it is superflous but we
-    recommend (almost) always using it.
+Inspecting this file, we want to make sure that all the frame types were accurately assigned in the
+:ref:`pypeit_file:Data Block`. If not, we can make edits using the instructions in
+:ref:`pypeit_file:Edits to the Data Block`. We can also remove any bad (or undesired) calibration
+or science frames from the list, by either deleting them altogether or commenting out with a ``#``.
 
-    The :doc:`running` doc describes the process in some
-    more detail.
+In this example, all the frametypes were accurately assigned. However, as mentioned earlier, we use the
+OH lines in science frames for the wavelength calibration, therefore we do not want to keep the arc frames
+(*m121128_0119.fits*, *m121128_0120.fits*) in the Data Block list, and we comment them out.
 
-    Inspecting Files
-    ================
+.. tip::
+    If the user wants to use the arc frames instead, they can keep the 2 arc frames in the list, but need
+    to edit the ``frametype`` for the science frames (*m121128_0214.fits - m121128_0217.fits*), i.e., removing
+    the ``arc`` and ``tilt`` frame type. In addition, the changes explained in :ref:`mosfire_wavecalib` will have to
+    be added to the :ref:`pypeit_file:Parameter Block`.
 
-    As the code runs, a series of files are written to the disk.
+Other possible edits to the :ref:`pypeit_file:Data Block` are related to the ``calib``, ``comb_id``, and ``bkg_id``
+columns, which instruct PypeIt on the desired frame combination and background subtraction.
+For Keck/MOSFIRE data, PypeIt tries to automatically set the ``calib``, ``comb_id``, ``bkg_id`` using the dither
+information recorded in the header (also reported in the ``dithpat``, ``dithpos``, and ``dithoff`` columns)
+of the science frames (see :ref:`mosfire_config_report`); however, the user can edit these columns according to
+the preferred reduction (see :ref:`a-b_differencing` and :ref:`2d_combine` for more info).
 
-    Calibrations
-    ------------
+Finally, in this example, we also edit the :ref:`pypeit_file:Parameter Block` adding following lines::
 
-    The first set are :doc:`calibrations`.
-    What follows are a series of screen shots
-    and :doc:`qa` PNGs produced by *PypeIt*.
+    [reduce]
+       [[slitmask]]
+          use_dither_offset = False
+          bright_maskdef_id = 4
 
 
-    Slit Edges
-    ++++++++++
 
-    The code will automatically assign edges to each slit on the
-    detector.  This includes using inform from the slitmask design
-    recorded in the FITS file, as described in :doc:`dev/slitmask_ids`
 
-    Here is a zoom-in screen shot from the first tab in the *ginga*
-    window after using
-    the :ref:`pypeit_chk_edges` script, with this explicit call
-    (be patient with *ginga*)::
+Main Run
+========
 
-        pypeit_chk_edges Masters/MasterEdges_A_1_07.fits.gz
+Once the :doc:`pypeit_file` is ready, the main call is
+simply::
 
-    .. image:: figures/deimos_edges_image.png
+    cd keck_deimos_A
+    run_pypeit keck_deimos_A.pypeit -o
 
-    Note the 07 in the filename refers to the detector 7.
+The "-o" specifies to over-write any existing science
+output files.  As there are none, it is superflous but we
+recommend (almost) always using it.
 
-    The data is the combined flat images and the green/red
-    lines indicate the left/right slit edges.  The dark blue
-    labels are the internal slit identifiers of PypeIt.
-    The cyan numbers are the user-assigned ID values of the slits.
+The :doc:`running` doc describes the process in some
+more detail.
 
-    See :doc:`master_edges` for further details.
+Inspecting Files
+================
 
-    Arc
-    +++
+As the code runs, a series of files are written to the disk.
 
-    Here is a screen shot of most of the arc image as viewed
-    with *ginga*::
+Calibrations
+------------
 
-        ginga Masters/MasterArc_A_1_07.fits
+The first set are :doc:`calibrations`.
+What follows are a series of screen shots
+and :doc:`qa` PNGs produced by *PypeIt*.
 
-    As typical of most arc images, one sees a series
-    of arc lines, here oriented approximately horizontally.
 
-    .. image:: figures/deimos_arc_image.png
+Slit Edges
+++++++++++
 
-    See :doc:`master_arc` for further details.
+The code will automatically assign edges to each slit on the
+detector.  This includes using inform from the slitmask design
+recorded in the FITS file, as described in :doc:`dev/slitmask_ids`
 
-    Wavelengths
-    +++++++++++
+Here is a zoom-in screen shot from the first tab in the *ginga*
+window after using
+the :ref:`pypeit_chk_edges` script, with this explicit call
+(be patient with *ginga*)::
 
-    One should inspect the :doc:`qa` for the wavelength
-    calibration.  These are PNGs in the QA/PNG/ folder.
+    pypeit_chk_edges Masters/MasterEdges_A_1_07.fits.gz
 
-    Note:  there are multiple files generated for every slit.
-    When the reduction is complete, you may prefer to scan
-    through them by opening the HTML file under QA/.
+.. image:: figures/deimos_edges_image.png
 
-    1D
-    ::
+Note the 07 in the filename refers to the detector 7.
 
-    Here is an example of the 1D fits, written to
-    the QA/PNGs/Arc_1dfit_A_1_07_S0758.png file:
+The data is the combined flat images and the green/red
+lines indicate the left/right slit edges.  The dark blue
+labels are the internal slit identifiers of PypeIt.
+The cyan numbers are the user-assigned ID values of the slits.
 
-    .. image:: figures/deimos_arc1d.png
+See :doc:`master_edges` for further details.
 
-    What you hope to see in this QA is:
+Arc
++++
 
-     - On the left, many of the blue arc lines marked with green IDs
-     - In the upper right, an RMS < 0.1 pixels
-     - In the lower right, a random scatter about 0 residuals
+Here is a screen shot of most of the arc image as viewed
+with *ginga*::
 
-    See :doc:`master_wvcalib` for further details.
+    ginga Masters/MasterArc_A_1_07.fits
 
+As typical of most arc images, one sees a series
+of arc lines, here oriented approximately horizontally.
 
-    2D
-    ::
+.. image:: figures/deimos_arc_image.png
 
-    There are several QA files written for the 2D fits.
-    Here is QA/PNGs/Arc_tilts_2d_A_1_07_S0758.png:
+See :doc:`master_arc` for further details.
 
-    .. image:: figures/deimos_arc2d.png
+Wavelengths
++++++++++++
 
-    Each horizontal line of black dots is an arc line.
-    Red points were rejected in the 2D fitting.  Provided
-    most were not rejected, the fit should be good.
-    An RMS<0.1 is also desired for this fit.
+One should inspect the :doc:`qa` for the wavelength
+calibration.  These are PNGs in the QA/PNG/ folder.
 
-    See :doc:`master_wvcalib` for further details.
+Note:  there are multiple files generated for every slit.
+When the reduction is complete, you may prefer to scan
+through them by opening the HTML file under QA/.
 
-    Flatfield
-    +++++++++
+1D
+::
 
-    The code produces flat field images for correcting
-    pixel-to-pixel variations and illumination of the detector.
+Here is an example of the 1D fits, written to
+the QA/PNGs/Arc_1dfit_A_1_07_S0758.png file:
 
-    Here is a zoom-in screen shot from the first tab in the *ginga*
-    window (pixflat_norm) after using
-    :ref:`pypeit_chk_flats`, with this explicit call::
+.. image:: figures/deimos_arc1d.png
 
-        pypeit_chk_flats Masters/MasterFlat_A_1_07.fits
+What you hope to see in this QA is:
 
-    .. image:: figures/deimos_flat.png
+ - On the left, many of the blue arc lines marked with green IDs
+ - In the upper right, an RMS < 0.1 pixels
+ - In the lower right, a random scatter about 0 residuals
 
-    One notes the pixel-to-pixel variations;  these are
-    at the percent level.
-    The slit edges defined by the code
-    are also plotted (green/red lines).
-    The regions of the detector beyond the slit
-    boundaries have been set to unit value.
+See :doc:`master_wvcalib` for further details.
 
-    See :doc:`master_flat` for further details.
 
-    Spectra
-    -------
+2D
+::
 
-    Eventually (be patient), the code will start
-    generating 2D and 1D spectra outputs.  One per standard
-    and science frame, located in the *Science/* folder.
+There are several QA files written for the 2D fits.
+Here is QA/PNGs/Arc_tilts_2d_A_1_07_S0758.png:
 
-    Spec2D
-    ++++++
+.. image:: figures/deimos_arc2d.png
 
-    Slit inspection
-    :::::::::::::::
+Each horizontal line of black dots is an arc line.
+Red points were rejected in the 2D fitting.  Provided
+most were not rejected, the fit should be good.
+An RMS<0.1 is also desired for this fit.
 
-    It is frequently useful to view a summary of the slits
-    successfully reduced by PypeIt.  The
-    :ref:`pypeit_parse_slits`, with this explicit call::
+See :doc:`master_wvcalib` for further details.
 
-         pypeit_parse_slits Science/spec2d_DE.20170425.50487-dra11_DEIMOS_2017Apr25T140121.014.fits
+Flatfield
++++++++++
 
-    this prints, detector by detector, the SpatID (internal PypeIt name),
-    MaskID (user ID), and Flags for each slit.  Those with *None* have been
-    successfully reduced.
+The code produces flat field images for correcting
+pixel-to-pixel variations and illumination of the detector.
 
-    Visual inspection
-    :::::::::::::::::
+Here is a zoom-in screen shot from the first tab in the *ginga*
+window (pixflat_norm) after using
+:ref:`pypeit_chk_flats`, with this explicit call::
 
-    Here is a screen shot from the third tab in the *ginga*
-    window (sky_resid-det07) after using
-    :ref:`pypeit_show_2dspec`, with this explicit call::
+    pypeit_chk_flats Masters/MasterFlat_A_1_07.fits
 
-        pypeit_show_2dspec Science/spec2d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits --det 7
+.. image:: figures/deimos_flat.png
 
-    .. image:: figures/deimos_spec2d.png
+One notes the pixel-to-pixel variations;  these are
+at the percent level.
+The slit edges defined by the code
+are also plotted (green/red lines).
+The regions of the detector beyond the slit
+boundaries have been set to unit value.
 
-    For DEIMOS masks with many slits, the display time is substantial.
-    You may prefer to limit viewing only a subset of the `channels`
-    with the `--channels` option.
+See :doc:`master_flat` for further details.
 
-    The green/red lines are the slit edges.
-    The orange line shows the *PypeIt* trace
-    of the object and the orange text is the
-    *PypeIt* assigned name.  Yellow lines indicate
-    sources that were auto-magically extracted
-    based on the mask design (i.e. they had insufficient
-    S/N for detection).
-    The night sky and emission lines have been subtracted.
+Spectra
+-------
 
-    See :doc:`out_spec2D` for further details.
+Eventually (be patient), the code will start
+generating 2D and 1D spectra outputs.  One per standard
+and science frame, located in the *Science/* folder.
 
-    Spec1D
-    ++++++
+Spec2D
+++++++
 
-    You can see a summary of all the extracted sources in spec1d*.txt
-    files in the Science/ folder.  Here is the top of the one I've
-    produced named spec1d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits:
+Slit inspection
+:::::::::::::::
 
-    .. code-block:: bash
+It is frequently useful to view a summary of the slits
+successfully reduced by PypeIt.  The
+:ref:`pypeit_parse_slits`, with this explicit call::
 
-        | slit |                    name | maskdef_id | objname |     objra |   objdec | spat_pixpos | spat_fracpos | box_width | opt_fwhm |   s2n | maskdef_extract | wv_rms |
-        |   34 | SPAT0036-SLIT0034-DET07 |    1039404 |    3394 | 260.08018 | 57.96760 |        36.4 |        0.561 |      3.00 |    0.935 | 16.78 |           False |  0.052 |
-        |   91 | SPAT0097-SLIT0091-DET07 |    1039403 |    3347 | 260.08404 | 57.94896 |        96.9 |        0.630 |      3.00 |    0.868 | 11.74 |           False |  0.041 |
-        |  139 | SPAT0139-SLIT0139-DET07 |    1039402 |    3309 | 260.08660 | 57.97074 |       138.8 |        0.496 |      3.00 |    0.593 |  2.49 |            True |  0.063 |
-        |  183 | SPAT0185-SLIT0183-DET07 |    1039401 |    3290 | 260.08949 | 57.94758 |       185.0 |        0.531 |      3.00 |    0.849 | 10.12 |           False |  0.048 |
-        |  241 | SPAT0229-SLIT0241-DET07 |    1039400 |    3273 | 260.09227 | 57.94045 |       229.5 |        0.284 |      3.00 |    0.802 |  1.73 |           False |  0.032 |
-        |  311 | SPAT0329-SLIT0311-DET07 |    1039399 |    3212 | 260.09824 | 57.98572 |       329.2 |        0.812 |      3.00 |    0.906 | 17.72 |           False |  0.056 |
+     pypeit_parse_slits Science/spec2d_DE.20170425.50487-dra11_DEIMOS_2017Apr25T140121.014.fits
 
-    The *maskdef_id* and *objname* are user supplied in the mask design.
-    Serendipitous sources will be named SERENDIP.  The *maskdef_extract* flag
-    indicates whether the extraction was 'forced', i.e. the source was not
-    detected by PypeIt so extraction was performed based on the mask design.
+this prints, detector by detector, the SpatID (internal PypeIt name),
+MaskID (user ID), and Flags for each slit.  Those with *None* have been
+successfully reduced.
 
-    One can generate a similar, smaller set of output using the --list option
-    with :ref:`pypeit_show_1dspec`::
+Visual inspection
+:::::::::::::::::
 
-        pypeit_show_1dspec spec1d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits --list
+Here is a screen shot from the third tab in the *ginga*
+window (sky_resid-det07) after using
+:ref:`pypeit_show_2dspec`, with this explicit call::
 
-    Last, here is a screen shot from the GUI showing the
-    1D spectrum after using
-    :ref:`pypeit_show_1dspec`, with this explicit call::
+    pypeit_show_2dspec Science/spec2d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits --det 7
 
-       pypeit_show_1dspec spec1d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits --exten 23
+.. image:: figures/deimos_spec2d.png
 
-    .. image:: figures/deimos_spec1d.png
+For DEIMOS masks with many slits, the display time is substantial.
+You may prefer to limit viewing only a subset of the `channels`
+with the `--channels` option.
 
-    This uses the
-    `XSpecGUI <https://linetools.readthedocs.io/en/latest/xspecgui.html>`_
-    from the *linetools* package.  The black line is the flux and the
-    red line is the estimated error.
+The green/red lines are the slit edges.
+The orange line shows the *PypeIt* trace
+of the object and the orange text is the
+*PypeIt* assigned name.  Yellow lines indicate
+sources that were auto-magically extracted
+based on the mask design (i.e. they had insufficient
+S/N for detection).
+The night sky and emission lines have been subtracted.
 
-    See :doc:`out_spec1D` for further details.
+See :doc:`out_spec2D` for further details.
 
-    Fluxing
-    =======
+Spec1D
+++++++
 
-    The results can be flux calibrated using archived sensitivity functions. To do so first create a
-    fluxing file, named keck_deimos_1200g_m_7750.flux in this example:
+You can see a summary of all the extracted sources in spec1d*.txt
+files in the Science/ folder.  Here is the top of the one I've
+produced named spec1d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits:
 
-    .. code-block:: bash
+.. code-block:: bash
 
-        [fluxcalib]
-        use_archived_sens = True
+    | slit |                    name | maskdef_id | objname |     objra |   objdec | spat_pixpos | spat_fracpos | box_width | opt_fwhm |   s2n | maskdef_extract | wv_rms |
+    |   34 | SPAT0036-SLIT0034-DET07 |    1039404 |    3394 | 260.08018 | 57.96760 |        36.4 |        0.561 |      3.00 |    0.935 | 16.78 |           False |  0.052 |
+    |   91 | SPAT0097-SLIT0091-DET07 |    1039403 |    3347 | 260.08404 | 57.94896 |        96.9 |        0.630 |      3.00 |    0.868 | 11.74 |           False |  0.041 |
+    |  139 | SPAT0139-SLIT0139-DET07 |    1039402 |    3309 | 260.08660 | 57.97074 |       138.8 |        0.496 |      3.00 |    0.593 |  2.49 |            True |  0.063 |
+    |  183 | SPAT0185-SLIT0183-DET07 |    1039401 |    3290 | 260.08949 | 57.94758 |       185.0 |        0.531 |      3.00 |    0.849 | 10.12 |           False |  0.048 |
+    |  241 | SPAT0229-SLIT0241-DET07 |    1039400 |    3273 | 260.09227 | 57.94045 |       229.5 |        0.284 |      3.00 |    0.802 |  1.73 |           False |  0.032 |
+    |  311 | SPAT0329-SLIT0311-DET07 |    1039399 |    3212 | 260.09824 | 57.98572 |       329.2 |        0.812 |      3.00 |    0.906 | 17.72 |           False |  0.056 |
 
-        # User-defined fluxing parameters
-        flux read
-          Science/spec1d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits
-        flux end
+The *maskdef_id* and *objname* are user supplied in the mask design.
+Serendipitous sources will be named SERENDIP.  The *maskdef_extract* flag
+indicates whether the extraction was 'forced', i.e. the source was not
+detected by PypeIt so extraction was performed based on the mask design.
 
-    Next run the flux calibration tool::
+One can generate a similar, smaller set of output using the --list option
+with :ref:`pypeit_show_1dspec`::
 
-        pypeit_flux_calib keck_deimos_1200g_m_7750.flux
+    pypeit_show_1dspec spec1d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits --list
 
-    The results can be viewed by passing *--flux* to pypeit_show_1dspec::
+Last, here is a screen shot from the GUI showing the
+1D spectrum after using
+:ref:`pypeit_show_1dspec`, with this explicit call::
 
-        pypeit_show_1dspec Science/spec1d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits --exten 23 --flux
+   pypeit_show_1dspec spec1d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits --exten 23
 
-    .. image:: figures/deimos_spec1d_flux.png
+.. image:: figures/deimos_spec1d.png
 
-    The archived sensitivity functions for DEIMOS are currently experimental and should be used with caution.
-    See :doc:`fluxing` for more details on flux calibration with ``PypeIt``.
+This uses the
+`XSpecGUI <https://linetools.readthedocs.io/en/latest/xspecgui.html>`_
+from the *linetools* package.  The black line is the flux and the
+red line is the estimated error.
 
-    Flexure
-    =======
+See :doc:`out_spec1D` for further details.
 
-    The default run performs a flexure correction, slit-by-slit
-    based on analysis of the sky lines to impose a fixed pixel shift
-    for each detector in the spectral dimension.
-    For a more accurate solution,
-    it may be preferred to perform flexure across both detectors.
+Fluxing
+=======
 
-    See :ref:`pypeit_multislit_flexure` for full details on this procedure.
+The results can be flux calibrated using archived sensitivity functions. To do so first create a
+fluxing file, named keck_deimos_1200g_m_7750.flux in this example:
+
+.. code-block:: bash
+
+    [fluxcalib]
+    use_archived_sens = True
+
+    # User-defined fluxing parameters
+    flux read
+      Science/spec1d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits
+    flux end
+
+Next run the flux calibration tool::
+
+    pypeit_flux_calib keck_deimos_1200g_m_7750.flux
+
+The results can be viewed by passing *--flux* to pypeit_show_1dspec::
+
+    pypeit_show_1dspec Science/spec1d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits --exten 23 --flux
+
+.. image:: figures/deimos_spec1d_flux.png
+
+The archived sensitivity functions for DEIMOS are currently experimental and should be used with caution.
+See :doc:`fluxing` for more details on flux calibration with ``PypeIt``.
+
+Flexure
+=======
+
+The default run performs a flexure correction, slit-by-slit
+based on analysis of the sky lines to impose a fixed pixel shift
+for each detector in the spectral dimension.
+For a more accurate solution,
+it may be preferred to perform flexure across both detectors.
+
+See :ref:`pypeit_multislit_flexure` for full details on this procedure.
 
 
 
