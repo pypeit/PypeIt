@@ -993,7 +993,7 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
     return all_wghts
 
 
-def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, decimg, waveimg, slitimg,
+def generate_cube_resample(outfile, cubepar, frame_wcs, slits, fluximg, ivarimg, raimg, decimg, waveimg, slitimg,
                            overwrite=False, blaze_wave=None, blaze_spec=None, fluxcal=False,
                            sensfunc=None, specname="PYP_SPEC", debug=False):
     """
@@ -1040,23 +1040,33 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     embed()
     from shapely.geometry import Polygon, Box
     from shapely.strtree import STRtree
-    # Extract some convenience variables
+    # Set spatial grid
     out_del_spat = np.sqrt(frame_wcs.wcs.cd[1, 1] ** 2 + frame_wcs.wcs.cd[0, 1] ** 2)
-    out_min_wave = 1.0E10 * frame_wcs.wcs.crval[2]  # Angstroms
-    out_max_wave = np.max(waveimg)
-    out_del_wave = 1.0E10 * frame_wcs.wcs.cd[2,2]  # Angstroms
 
-    nspec, nspat, nslice = slits.nspec, slits.nspat, slits.spat_id.size  # Detector spectal/spatial pixels and number of slices
+    # Detector spectal/spatial pixels and number of slices
+    nspec, nspat, nslice = slits.nspec, slits.nspat, slits.spat_id.size
+
+    # Set wavelength grid of the output datacube
+    out_min_wave = cubepar['wave_min'] if cubepar['wave_min'] is not None else 1.0E10 * frame_wcs.wcs.crval[2]
+    out_max_wave = cubepar['wave_max'] if cubepar['wave_max'] is not None else np.max(waveimg)
+    out_del_wave = cubepar['wave_delta'] if cubepar['wave_delta'] is not None else 1.0E10 * frame_wcs.wcs.cd[2, 2]
+    nvox_wave = int(np.ceil((out_max_wave-out_min_wave)/out_del_wave))
+
     # Generate the output datacube
-    nvox_spat =
-    nvox_wave =
+    nvox_spat = 1
     datcube = np.zeros((nslice, nvox_spat, nvox_wave), dtype=float)
     varcube = np.zeros_like(datcube)
 
     # X and Y pixel coordinates for every detector pixel
     xx, yy = np.meshgrid(np.arange(nspat), np.arange(nspec), indexing='ij', sparse=True)
     # Generate a linear regular spline between X pixel and wavelength, mapped to Y pixel
-    ypix_spline = RegularGridInterpolator((xx, waveimg), yy, method="linear", bounds_error=False, fill_value=-1)
+    spl_ra = RegularGridInterpolator((xx, yy), raimg, method="linear", bounds_error=False, fill_value=-1)
+    spl_dec = RegularGridInterpolator((xx, yy), decimg, method="linear", bounds_error=False, fill_value=-1)
+
+    # Find the central trace
+    #Need to invert the WCS to get evalpos=0.5 (probably by a spline)
+    #slitID, evalpos, tilts*(nspec-1) = wcs.wcs_world2pix(ra, dec, wavelength, 0)
+    #world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init] * (nspec - 1), 0)
 
     # Loop through all slices and fill in the datacube elements
     for sl, spat_id in enumerate(slits.spat_id):
@@ -1079,8 +1089,8 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
                 this_var = 0
                 for pp in range(len(result)):
                     # polys[0] in result
-                    this_flx +=
-                    this_var +=
+                    this_flx += 0
+                    this_var += 0
                 # Fill in the datacube
                 datcube[sl, sp, wv] = this_flx
                 varcube[sl, sp, wv] = this_var
@@ -1689,8 +1699,10 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                 # Get the slit image and then unset pixels in the slit image that are bad
                 slitimg = slitid_img_init.copy()
                 slitimg[~onslit_gpm] = -1
+                # Generate the output WCS
+                datacube_WCS = make_datacube_wcs(cubepar, spec2DObj.head0, slits, detector.platescale, wave0, dwv)
                 # Now generate the cube
-                generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, decimg, waveimg, slitimg,
+                generate_cube_resample(outfile, frame_wcs, datacube_WCS, slits, fluximg, ivarimg, raimg, decimg, waveimg, slitimg,
                                        overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
                                        fluxcal=fluxcal, specname=specname)
             elif method == 'ngp':

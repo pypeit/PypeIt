@@ -434,10 +434,6 @@ class SlitTraceSet(datamodel.DataContainer):
         locations : `numpy.ndarray`_, list
             locations along the slit of the alignment traces. Must
             be a 1D array of the same length as alignments.traces.shape[1]
-        maxslitlen : int
-            This is the slit length in pixels, and it should be the same
-            value that was passed to get_wcs() to generate the WCS that
-            is passed into this function as an argument.
         astrometric : bool
             Perform astrometric correction using alignment frame?
         initial : bool

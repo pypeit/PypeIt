@@ -829,10 +829,13 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         binspec, binspat = parse.parse_binning(self.get_meta_value([hdr], 'binning'))
 
         # Get the pixel and slice scales
-        pxscl = platescale * binspat / 3600.0  # Need to convert arcsec to degrees
+        pxscl = platescale * binspat / 3600.0  # 3600 is to convert arcsec to degrees
         slscl = self.get_meta_value([hdr], 'slitwid')
         if spatial_scale is not None:
-            pxscl = spatial_scale / 3600.0  # Need to convert arcsec to degrees
+            if pxscl > spatial_scale / 3600.0:
+                msgs.warn("Spatial scale requested ({0:f}'') is less than the pixel scale ({1:f}'')".format(spatial_scale, pxscl*3600.0))
+            # Update the pixel scale
+            pxscl = spatial_scale / 3600.0  # 3600 is to convert arcsec to degrees
 
         # Get the typical slit length (this changes by ~0.3% over all slits, so a constant is fine for now)
         slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
