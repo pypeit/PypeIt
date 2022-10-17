@@ -696,13 +696,17 @@ class CoAdd2D:
 
     def offset_slit_cen(self, slitid, offsets):
         """
-        ..todo.. I need a doc string
+        Offset the slit centers of the slit designated by slitid by the provided offsets
 
         Args:
-            slitid:
-            offsets:
+            slitid (int):
+               ID of the slit that is being offset
+            offsets (list, `numpy.ndarray`_):
+               A list or array of offsets that are being applied to the slit center
 
         Returns:
+            ref_trace_stack (list):
+               A list of reference traces for the 2d coadding that have been offset
 
         """
         ref_trace_stack = []
@@ -1535,25 +1539,22 @@ class EchelleCoAdd2D(CoAdd2D):
                 the nexp, the number of images being coadded.
 
         Returns:
-            `numpy.ndarray`: An array with shape (nspec, nexp)
-            containing the reference trace for each of the nexp
-            exposures.
+            ref_trace_stack (list):
+               A list of reference traces for the 2d coadding that have been offset
 
         """
 
         if offsets is not None and objid is not None:
             msgs.error('You can only input offsets or an objid, but not both')
-        nexp = len(offsets) if offsets is not None else len(objid)
         if isinstance(offsets, (list, np.ndarray)):
             return self.offset_slit_cen(slitid, offsets)
         elif objid is not None:
             specobjs_list = self.stack_dict['specobjs_list']
-            nspec = specobjs_list[0][0].TRACE_SPAT.shape[0]
-            # Grab the traces, flux, wavelength and noise for this slit and objid.
-            ref_trace_stack = np.zeros((nspec, nexp), dtype=float)
+            ref_trace_stack = []
             for iexp, sobjs in enumerate(specobjs_list):
                 ithis = (sobjs.ECH_ORDERINDX == slitid) & (sobjs.ECH_OBJID == objid[iexp])
-                ref_trace_stack[:, iexp] = sobjs[ithis].TRACE_SPAT
+                ref_trace_stack.append(sobjs[ithis][0].TRACE_SPAT)
+
             return ref_trace_stack
         else:
             msgs.error('You must input either offsets or an objid to determine the stack of reference traces')

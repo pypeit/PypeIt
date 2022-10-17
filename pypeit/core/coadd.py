@@ -2761,7 +2761,7 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
 
         If the images were dithered, then this object can either be the slitcen appropriately shifted with the dither pattern,
         or it could be the trace of the object of interest in each exposure determined by running PypeIt on the individual
-        images.  Shape is (nspec, nimgs).
+        images.  The list has nimgs elements, each of which is a 1D `numpy.ndarray`_ of shape (nspec,).
 
     spat_samp_fact (float, optional):
         Spatial sampling for 2d coadd spatial bins in pixels. A value > 1.0 (i.e. bigger pixels)
