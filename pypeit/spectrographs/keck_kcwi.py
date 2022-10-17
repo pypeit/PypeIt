@@ -797,7 +797,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         """
         return 'Mask' in hdr['BNASNAM']
 
-    def get_wcs(self, hdr, slits, platescale, wave0, dwv):
+    def get_wcs(self, hdr, slits, platescale, wave0, dwv, spatial_scale=None):
         """
         Construct/Read a World-Coordinate System for a frame.
 
@@ -809,11 +809,17 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 Slit traces.
             platescale (:obj:`float`):
                 The platescale of an unbinned pixel in arcsec/pixel (e.g.
-                detector.platescale).
+                detector.platescale). See also 'spatial_scale'
             wave0 (:obj:`float`):
                 The wavelength zeropoint.
             dwv (:obj:`float`):
                 Change in wavelength per spectral pixel.
+            spatial_scale (:obj:`float`, None, optional):
+                The spatial scale (units=arcsec/pixel) of the WCS to be used.
+                This variable is fixed, and is independent of the binning.
+                If spatial_scale is set, it will be used for the spatial size
+                of the WCS and the platescale will be ignored. If None, then
+                the platescale will be used.
 
         Returns:
             `astropy.wcs.wcs.WCS`_: The world-coordinate system.
@@ -825,6 +831,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Get the pixel and slice scales
         pxscl = platescale * binspat / 3600.0  # Need to convert arcsec to degrees
         slscl = self.get_meta_value([hdr], 'slitwid')
+        if spatial_scale is not None:
+            pxscl = spatial_scale / 3600.0  # Need to convert arcsec to degrees
 
         # Get the typical slit length (this changes by ~0.3% over all slits, so a constant is fine for now)
         slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
