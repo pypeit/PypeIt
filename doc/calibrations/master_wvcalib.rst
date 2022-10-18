@@ -1,3 +1,6 @@
+
+.. include:: ../include/links.rst
+
 .. _master_wvcalib:
 
 ===============

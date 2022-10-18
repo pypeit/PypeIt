@@ -226,8 +226,6 @@ Briefly, this algorithm:
 
 6. The user then needs to read in the output and apply it to their spectra with their own custom code.
 
-.. TODO: NEED TO DESCRIBE THE OUTPUT FILE SOMEWHERE
-   
 Future work may combine this approach with the standard (e.g. 
 implement cross-correlation with a stretch).
 
@@ -247,7 +245,13 @@ to avoid the vacuum frame:
 
 Second, generate a `Flexure File`_ as described below.
 
-Last, run the ``pypeit_multislit_flexure`` script:
+Last, run the ``pypeit_multislit_flexure`` script.
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: ../help/pypeit_multislit_flexure.rst
+
+and a typical call looks like:
 
 .. code-block:: bash
 
@@ -282,4 +286,33 @@ Here is an example file:
 
 As desired, you can modify the 
 :ref:`flexurepar` in the top block.
+
+.. _flexure_output_file:
+
+Output File
++++++++++++
+
+The output file produced by `pypeit_multislit_flexure`_ is named
+``${outroot}${target}_${filename}.fits``, where
+
+- ``outroot`` is the 2nd command-line argument (see above)
+
+- ``target`` is pulled from the header of the first ``spec1d`` file in the
+  :ref:`flexure_file` (the TARGET header keyword must exist)
+
+- ``filename`` is parsed from the FILENAME header keyword:
+
+  .. code-block:: python
+
+    filename = header['FILENAME'].split('.')[2]
+
+The file has the following two extensions:
+
+=====================  ==============================  =========  ==========================================================================
+HDU Name               HDU Type                        Data Type  Description                                                                                                  
+=====================  ==============================  =========  ==========================================================================
+``PRIMARY``            `astropy.io.fits.PrimaryHDU`_   ...        Empty data HDU.  Contains basic header information.                                                          
+``FLEXURE``            `astropy.io.fits.BinTableHDU`_  ...        All data from the :class:`~pypeit.core.flexure.MultiSlitFlexure` datamodel
+=====================  ==============================  =========  ==========================================================================
+
 

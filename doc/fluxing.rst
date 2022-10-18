@@ -1,3 +1,5 @@
+.. include:: include/links.rst
+
 .. _fluxing:
 
 =======
@@ -374,6 +376,25 @@ we use the Kurucz93 stellar SED.
 Alternatively, see `Adding a Standard Star`_.
 
 
+.. _sensitivity_output_file:
+
+Sensitivity Output File
+-----------------------
+
+The name of the file containing the sensitivity function can be directly
+provided (using the ``-o`` command-line option).  Otherwise, the file name will
+default to one that is identical to the provided ``spec1d`` file, but with
+``spec1d`` replaced by ``sens``.
+
+The sensitivity data is built and written by :class:`~pypeit.sensfunc.SensFunc`,
+which subclasses from :class:`~pypeit.datamodel.DataContainer`.  Note that the
+telluric data are only included when using the IR algorithm.
+
+Here is its datamodel:
+
+.. include:: include/datamodel_sensfunc.rst
+
+
 .. _apply_fluxcal:
 
 Applying the PypeIt Sensitivity Function
@@ -463,6 +484,7 @@ The script usage can be displayed by calling the script with the
 
 .. TODO: THIS NEEDS SOME MORE DESCRIPTION
 
+.. _pypeit_flux_calib:
 
 pypeit_flux_calib
 -----------------
@@ -480,8 +502,9 @@ Here is a typical call:
 
     pypeit_flux_calib flux_file.txt
 
-Again, the :doc:`out_spec1D` files are modified in place.
-See :ref:`pypeit_show_1dspec` for details on how to view them.
+Again, the :doc:`out_spec1D` files are **modified in place**; see there for the
+related datamodel changes.  Also see :ref:`pypeit_show_1dspec` for details on how to
+view them.
 
 Archival Sensitivity Functions
 ------------------------------

@@ -278,15 +278,23 @@ while setting ``samp_fact`` < 1.0 under-samples (coarser grid).
 Current Coadd1D Data Model
 ==========================
 
-Internally, the data are held in
-:class:`~pypeit.coadd1d.OneSpec`.
+The result of the 1D coadding will be saved to a fits file.  The file name can
+be provided directly using the ``coadd1dfile`` parameter in the
+:ref:`coadd1d_file` or you can use the default.  The default filename convention
+is ``coadd1d_<target>_<instrument name>_<YYYYMMDD>.fits`` or
+``coadd1d_<target>_<instrument name>_<YYYYMMDD>-<YYYYMMDD>.fits``, if the coadd
+included more than one day's worth of data. The default location of the file
+will be along side the first spec1d file.  Currently ``instrument_name`` is
+taken from the ``camera`` attribute of the relevant
+:class:`~pypeit.spectrographs.spectrograph.Spectrograph` class.
 
-The datamodel is:
+The format of the 1D coadd file follows follows the general
+class :class:`~pypeit.onespec.OneSpec`, such that its file extensions are:
 
 .. include:: include/datamodel_onespec.rst
 
-The Coadd1D spectrum may be viewed with the ``lt_xspec`` script, which loads the data
-and launches a GUI from the `linetools`_ package. e.g.:
+You view the spectrum using the ``lt_xspec`` script, which loads the data
+and launches a GUI from the `linetools`_` package. e.g.:
 
 .. code-block:: console
 

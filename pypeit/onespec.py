@@ -106,6 +106,12 @@ class OneSpec(datamodel.DataContainer):
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
 
+    def _bundle(self):
+        """
+        Override the base class method simply to set the HDU extension name.
+        """
+        return super()._bundle(ext='SPECTRUM')
+
     @property
     def sig(self):
         """ Return the 1-sigma array

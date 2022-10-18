@@ -65,6 +65,7 @@ apirst:
 	python ./scripts/build_par_rst.py
 	python ./scripts/build_specobj_rst.py
 	python ./scripts/build_calib_images_rst.py
+	python ./scripts/build_afterburn_datamodels_rst.py
 	python ./scripts/write_script_help.py
 	python ./scripts/build_bitmask_rst.py
 	python ./scripts/build_spectbl_rst.py

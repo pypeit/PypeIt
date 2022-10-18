@@ -61,7 +61,7 @@ class FlatImages(datamodel.DataContainer):
                  'pixelflat_model': dict(otype=np.ndarray, atype=np.floating, descr='Model flat'),
                  'pixelflat_spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline,
                                                  descr='B-spline models for pixel flat; see '
-                                                       ':class:`~pypeit.bspline.bspline.bspline'),
+                                                       ':class:`~pypeit.bspline.bspline.bspline`'),
                  'pixelflat_finecorr': dict(otype=np.ndarray, atype=fitting.PypeItFit,
                                        descr='PypeIt 2D polynomial fits to the fine correction of the spatial illumination profile'),
                  'pixelflat_bpm': dict(otype=np.ndarray, atype=np.integer,
@@ -74,7 +74,7 @@ class FlatImages(datamodel.DataContainer):
                                        descr='Processed, combined illum flats'),
                  'illumflat_spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline,
                                                  descr='B-spline models for illum flat; see '
-                                                       ':class:`~pypeit.bspline.bspline.bspline'),
+                                                       ':class:`~pypeit.bspline.bspline.bspline`'),
                  'illumflat_finecorr': dict(otype=np.ndarray, atype=fitting.PypeItFit,
                                        descr='PypeIt 2D polynomial fits to the fine correction of the spatial illumination profile'),
                  'illumflat_bpm': dict(otype=np.ndarray, atype=np.integer,
@@ -136,7 +136,8 @@ class FlatImages(datamodel.DataContainer):
             # Skip None
             if self[key] is None:
                 continue
-            if self.datamodel[key]['otype'] == np.ndarray and 'bsplines' not in key and 'finecorr' not in key:
+            if self.datamodel[key]['otype'] == np.ndarray and 'bsplines' not in key \
+                    and 'finecorr' not in key:
                 d += [{key: self[key]}]
             elif 'bsplines' in key:
                 flattype = 'pixelflat' if 'pixelflat' in key else 'illumflat'
@@ -148,12 +149,14 @@ class FlatImages(datamodel.DataContainer):
                       for ss in range(len(self[key]))]
             else:
                 if len(d) > 0:
-                    embed()
                     d[0][key] = self[key]
                 else:
                     d += [{key: self[key]}]
-        embed()
-        exit()
+
+        # TODO: Somehow this approach can lead to a bug where the PIXELFLAT_RAW
+        # extension is missing its extension name.  I think this is because
+        # PYP_SPEC is added to it, but I gave up on debugging this for now.
+
         # Return
         return d
 

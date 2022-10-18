@@ -309,6 +309,8 @@ Performs quick-look reductions specifically for Keck/DEIMOS; see :ref:`pypeit-ql
 
 ----
 
+.. _further_proc_scripts:
+
 Further Processing Scripts
 ==========================
 
@@ -383,6 +385,8 @@ The script usage can be displayed by calling the script with the
 ``-h`` option:
 
 .. include:: help/pypeit_tellfit.rst
+
+.. _pypeit_collate_1d:
 
 pypeit_collate_1d
 -----------------

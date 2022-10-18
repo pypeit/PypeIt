@@ -1312,6 +1312,15 @@ class MultiSlitFlexure(DataContainer):
         self.pmodel_b = None
         self.pmodel_l = None
 
+    # NOTE: If you make changes to how this object is bundled into the output
+    # datamodel, make sure you update the documentation in
+    # doc/calibrations/flexure.rst!
+    def _bundle(self):
+        """
+        Override the base class method simply to set the HDU extension name.
+        """
+        return super()._bundle(ext='FLEXURE')
+
     def init(self, spectrograph, par):
         """ Initialize this and that about the slits, par, spectrograph
         e.g. RA, DEC, S/N

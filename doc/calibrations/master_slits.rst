@@ -79,5 +79,5 @@ In addition, if reducing :doc:`../spectrographs/deimos` or
 another  `astropy.io.fits.BinTableHDU`_ is written to a fits extension named
 `MASKDEF_DESIGNTAB`.
 
-.. include:: ../include/datamodel_slittrace.rst
+.. include:: ../include/datamodel_slittraceset.rst
 

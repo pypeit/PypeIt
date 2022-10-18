@@ -148,12 +148,14 @@ You can choose another location by modifying `--basename`_.
 
 **For worked examples,** see :doc:`tutorials/coadd2d_howto`.
 
+.. _coadd2d_datamodel:
 
 Current Coadd2D Data Model
 ==========================
 
-The outputs are identical to the standard run, as
-described in :doc:`out_spec1D` and :doc:`out_spec2D`.
+The outputs produced by :ref:`pypeit-coadd-2dspec` are identical to a standard
+run of :ref:`run-pypeit`, except that the results are places in ``*_coadd``
+directories.  See :doc:`out_spec1D` and :doc:`out_spec2D`.
 
-.. TODO: Need to be more clear about this...
+.. TODO: This needs more detail
 

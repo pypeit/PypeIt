@@ -81,7 +81,9 @@ class SensFunc(datamodel.DataContainer):
                  'std_dec': dict(otype=float, descr='DEC of the standard source'),
                  'airmass': dict(otype=float, descr='Airmass of the observation'),
                  'exptime': dict(otype=float, descr='Exposure time'),
-                 'telluric': dict(otype=telluric.Telluric, descr='Telluric model'),
+                 'telluric': dict(otype=telluric.Telluric,
+                                  descr='Telluric model; see '
+                                        ':class:`~pypeit.core.telluric.Telluric`'),
                  'sens': dict(otype=table.Table, descr='Table with the sensitivity function'),
                  'wave': dict(otype=np.ndarray, atype=float, descr='Wavelength vectors'),
                  'zeropoint': dict(otype=np.ndarray, atype=float,

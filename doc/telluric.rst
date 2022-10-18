@@ -1,3 +1,5 @@
+.. include:: include/links.rst
+
 ===================
 Telluric correction
 ===================
@@ -14,6 +16,8 @@ details.
 Note that execution of ``pypeit_tellfit`` requires the atmospheric model grids
 to be installed on your system.  See the instructions for installing these
 :ref:`data_installation`.
+
+.. _pypeit_tellfit:
 
 pypeit_tellfit
 ==============
@@ -198,16 +202,30 @@ You can specify a list of specific regions used for the fitting, if not
 set it will simply use the whole spectrum. The format for this parameter
 is exactly same with the `bal_wv_min_max`_ defined above.
 
+.. _tellfit-output-file:
 
-Show your final telluric corrected spectrum
-===========================================
+Telluric Output files
+=====================
 
-The final spectrum may be viewed with the ``lt_xspec`` script, which loads the data
+:ref:`pypeit_tellfit` produces two main output files, the telluric corrected
+spectrum and the best-fitting telluric model.
+
+The telluric corrected spectrum has the same name as your input file, but with
+``.fits`` replaced by ``_tellcorr.fits``.  It's data model follows the general
+class :class:`~pypeit.onespec.OneSpec`, such that its file extensions are:
+
+.. include:: include/datamodel_onespec.rst
+
+You view the spectrum using the ``lt_xspec`` script, which loads the data
 and launches a GUI from the `linetools`_` package. e.g.:
 
 .. code-block:: console
 
     lt_xspec J1342_GNIRS_tellcorr.fits
 
-.. TODO: NEED TO DOCUMENT THE tellmodel FILE    
+The best-fitting telluric model is a two extension fits file, where the 2nd
+extension is identical to one of the extensions from the
+:ref:`sensitivity_output_file`:
+
+.. include:: include/datamodel_telluric.rst
 

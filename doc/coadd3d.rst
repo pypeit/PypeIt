@@ -203,6 +203,8 @@ not expect the automatic combination algorithm to perform well. Instead, you
 should output individual data cubes and manually combine the cubes with some
 other purpose-built software.
 
+.. _coadd3d_datamodel:
+
 Current Coadd3D Data Model
 ==========================
 
@@ -234,4 +236,5 @@ plot a wavelength slice of the cube:
     plt.ylabel('Dec')
     plt.show()
 
+.. TODO: This needs an actual datamodel
 

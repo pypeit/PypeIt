@@ -48,19 +48,13 @@ directory structure throughout this documentation.
 
 ----
 
-Output Files
-============
+Core Processing Output Files
+============================
 
 The primary output files from PypeIt's core data processing steps are a set of
-calibrations, calibrated 2D spectral images, and 1D spectral extractions.
-Output files from further processing steps, like :doc:`fluxing`, are discussed
-in their associated documentation pages.
-
-.. TODO: Instead, consolidate a description of all outputs here, including
-.. telluric fitting, fluxing, coadding, etc.
-
-The following links provide more information about PypeIt's primary output
-files, how they're produced, and their current datamodel.
+calibrations, calibrated 2D spectral images, and 1D spectral extractions.  The
+following links provide more information about these primary output files, how
+they're produced, and their current datamodel.
 
 .. toctree::
    :maxdepth: 1
@@ -79,8 +73,30 @@ files, how they're produced, and their current datamodel.
 
 ----
 
-Additional Information
-======================
+Further Processing Output Files
+===============================
+
+Output files from PypeIt's :ref:`further_proc_scripts` are discussed in their
+associated documentation pages.  Here are some quick links to their
+descriptions:
+
+- :ref:`sensitivity_output_file`
+- :ref:`1D Co-add Outputs<coadd1d_datamodel>`
+- :ref:`tellfit-output-file`
+- :ref:`Flexure <flexure_output_file>`
+- :ref:`2d Co-add Outputs<coadd2d_datamodel>`
+- :ref:`3D Co-add Outputs<coadd3d_datamodel>`
+
+Importantly note that:
+
+    - execution of :ref:`pypeit_flux_calib` makes direct changes to the :ref:`spec-1d-output`
+
+    - the output of :ref:`pypeit_collate_1d` is identical to :ref:`pypeit_coadd_1dspec`
+
+----
+
+Common Output Components
+========================
 
 .. _outputs-datamodel:
 
