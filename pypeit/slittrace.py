@@ -77,6 +77,10 @@ class SlitTraceSet(datamodel.DataContainer):
     ``load=True`` on instantiation or by a call to :func:`load`.
     Otherwise, all the elements of the data model will be empty.
 
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_slittraceset.rst
+
     Args:
         load (:obj:`bool`, optional):
             Attempt to load an existing master frame with the slit

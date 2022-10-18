@@ -47,6 +47,10 @@ class SensFunc(datamodel.DataContainer):
     wavelength range of your data (UVIS for :math:`\lambda < 7000` angstrom,
     IR for :math:`\lambda > 7000` angstrom.)
 
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_sensfunc.rst
+
     Args:
         spec1dfile (:obj:`str`):
             PypeIt spec1d file for the standard file.

@@ -1,14 +1,9 @@
 
 Version 1.1.0
 
-==============  ========  ==========  =======================================
-HDU Name        Obj Type  Array Type  Description                            
-==============  ========  ==========  =======================================
-``PYP_SPEC``    str                   PypeIt spectrograph name               
-``ALIGNFRAME``  ndarray   floating    Processed, combined alignment frames   
-``NALIGN``      int                   Number of alignment traces in each slit
-``NSLITS``      int                   The number of slits                    
-``NSPEC``       int                   The number of spectral elements        
-``SPAT_ID``     ndarray   integer     Slit spat_id                           
-``TRACES``      ndarray   floating    Traces of the alignment frame          
-==============  ========  ==========  =======================================
+===========  ==============================  =========  ===================================================================
+HDU Name     HDU Type                        Data Type  Description                                                        
+===========  ==============================  =========  ===================================================================
+``PRIMARY``  `astropy.io.fits.PrimaryHDU`_   ...        Empty data HDU.  Contains basic header information.                
+``ALIGN``    `astropy.io.fits.BinTableHDU`_  ...        Spatial alignment data; see :class:`~pypeit.alignframe.Alignments`.
+===========  ==============================  =========  ===================================================================

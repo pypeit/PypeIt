@@ -56,12 +56,8 @@ If your image appears to be in err, here are the things to consider:
 Current Alignments Data Model
 =============================
 
-Internally, the master image is held in
-:class:`~pypeit.images.buildimage.AlignImage`,
-which subclasses from :class:`~pypeit.images.pypeitimage.PypeItImage` and
-:class:`~pypeit.datamodel.DataContainer`.
-
-The datamodel written to disk is:
-
-.. include:: ../include/datamodel_alignments.rst
+The ``MasterAlignment`` output file has two extensions, an empty primary
+extension and an ``ALIGN`` extension, which is an `astropy.io.fits.BinTableHDU`_
+containing all the data from the underlying
+:class:`~pypeit.alignframe.Alignments` class.  For details see its datamodel.
 

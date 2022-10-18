@@ -17,7 +17,7 @@ the :ref:`calibrations`.
 The datamodel for the
 :class:`~pypeit.images.detector_container.DetectorContainer` object is:
 
-.. include:: include/datamodel_detector.rst
+.. include:: include/class_datamodel_detector.rst
 
 Instrument-Specific Data
 ========================

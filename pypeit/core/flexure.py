@@ -1237,6 +1237,10 @@ class MultiSlitFlexure(DataContainer):
     Class to perform multi-detector flexure analysis.
 
     Based on code written by Marla Geha for DEIMOS.
+
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_multislitflexure.rst
     """
 
     # Set the version of this class

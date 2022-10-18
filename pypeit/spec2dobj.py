@@ -34,7 +34,11 @@ class Spec2DObj(datamodel.DataContainer):
 
     One generates one of these Objects for each detector in the exposure.
 
-    See datamodel below and at :ref:`spec2dobj_datamodel`
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_spec2dobj.rst
+
+    .. See datamodel below and at :ref:`spec2dobj_datamodel`
 
     Args:
 

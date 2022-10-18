@@ -21,7 +21,9 @@ class OneSpec(datamodel.DataContainer):
     DataContainer to hold single spectra, e.g., from
     :class:`~pypeit.coadd1d.CoAdd1D`.
 
-    See the datamodel for argument descriptions
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_onespec.rst
 
     Args:
         wave

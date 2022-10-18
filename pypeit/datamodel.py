@@ -752,7 +752,7 @@ class DataContainer:
 
         Certain **restrictions** apply to how the data can be bundled
         for the general parser implementation (:func:`_parse`) to
-        work correctly. These restriction are:
+        work correctly. These restrictions are:
 
             - The shape and orientation of any input arrays are
               assumed to be correct.

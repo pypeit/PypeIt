@@ -16,6 +16,10 @@
 .. numpy
 .. _numpy: https://numpy.org/
 .. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
+.. _numpy.int32: https://numpy.org/doc/stable/reference/arrays.scalars.html
+.. _numpy.integer: https://numpy.org/doc/stable/reference/arrays.scalars.html#numpy.integer
+.. _numpy.floating: https://numpy.org/doc/stable/reference/arrays.scalars.html#numpy.floating
+.. _numpy.bool_: https://numpy.org/doc/stable/reference/arrays.scalars.html#numpy.bool_
 .. _numpy.ma.MaskedArray: http://docs.scipy.org/doc/numpy/reference/maskedarray.baseclass.html
 .. _numpy.ma.median: https://numpy.org/doc/stable/reference/generated/numpy.ma.median.html
 .. _numpy.recarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.recarray.html
@@ -57,10 +61,12 @@
 .. _astropy.io.fits.HDUList: http://docs.astropy.org/en/stable/io/fits/api/hdulists.html
 .. _astropy.io.fits.HDUList.writeto: http://docs.astropy.org/en/stable/io/fits/api/hdulists.html#astropy.io.fits.HDUList.writeto
 .. _astropy.io.fits.Header: http://docs.astropy.org/en/stable/io/fits/api/headers.html#header
+.. _astropy.io.fits.PrimaryHDU: https://docs.astropy.org/en/stable/io/fits/api/hdus.html#astropy.io.fits.PrimaryHDU
 .. _astropy.io.fits.ImageHDU: https://docs.astropy.org/en/stable/io/fits/api/images.html#imagehdu
 .. _astropy.io.fits.BinTableHDU: https://docs.astropy.org/en/stable/io/fits/api/tables.html#bintablehdu
 .. _astropy.io.fits.Column: https://docs.astropy.org/en/stable/io/fits/api/tables.html#column
 .. _astropy.table.Table: https://docs.astropy.org/en/stable/table/
+.. _astropy.table.table.Table: https://docs.astropy.org/en/stable/table/
 .. _astropy.table.Table.read: https://docs.astropy.org/en/stable/api/astropy.table.Table.html#astropy.table.Table.read
 .. _astropy.table.Row: https://docs.astropy.org/en/stable/api/astropy.table.Row.html
 .. _astropy.wcs.wcs.WCS: http://docs.astropy.org/en/stable/api/astropy.wcs.WCS.html
