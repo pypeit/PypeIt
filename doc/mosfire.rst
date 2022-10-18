@@ -120,6 +120,7 @@ adding the **exclude_regions** parameter in the :doc:`pypeit_file` (as shown abo
 flag **bound_detector** is set to **True**.
 
 .. _mosfire_flats:
+
 Flat Fielding
 -------------
 The MOSFIRE calibration GUI provides the option to take flats with the lamps off. This is the default in the
@@ -223,3 +224,4 @@ Here are additional docs related to Keck/MOSFIRE:
    dev/slitmask_ids
    dev/radec_object
    dev/add_missing_obj
+   mosfire_howto

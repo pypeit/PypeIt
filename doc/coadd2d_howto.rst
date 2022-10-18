@@ -16,7 +16,8 @@ When Running the Script
 -----------------------
 
 :ref:`pypeit-coadd-2dspec` is run only after a successful main reduction (i.e., :ref:`run-pypeit`).
-See :ref:`deimos_howto` for an example on how to run the main reduction for DEIMOS.
+See :ref:`deimos_howto` and :ref:`mosfire_howto` for examples on how to run the main reduction
+for DEIMOS and MOSFIRE.
 
 Coadd2d File
 ------------

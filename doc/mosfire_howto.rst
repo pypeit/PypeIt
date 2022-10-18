@@ -249,6 +249,7 @@ which opens the `ginga`_ image viewer. Here is a zoom-in screenshot from the fir
 in the `ginga`_ window:
 
 .. image:: figures/mosfire_edges_image.png
+   :scale: 40%
 
 
 The data shown is the *Trace Image*, i.e., the combined flat images with the lamp off flats subtracted.
@@ -290,7 +291,7 @@ Arc
 +++
 
 As mentioned before, we use the OH lines in the science frames to perform the wavelength calibration,
-therefore, the ``MasterArc`` image is basically the combined science frames.
+therefore, the ``MasterArc`` image is made by the combined science frames.
 
 Here is a zoom-in screenshot of the ``MasterArc`` image as viewed with `ginga`_:
 
@@ -298,9 +299,10 @@ Here is a zoom-in screenshot of the ``MasterArc`` image as viewed with `ginga`_:
 
     ginga Masters/MasterArc_A_1_DET01.fits
 
-where we can see several OH lines oriented approximately horizontally.
-
 .. image:: figures/mosfire_arc_image.png
+   :scale: 40%
+
+where we can see several OH lines oriented approximately horizontally.
 
 See :doc:`master_arc` for further details.
 
@@ -357,6 +359,7 @@ There are several QA files written for the 2D fits.
 Here is ``QA/PNGs/Arc_tilts_2d_A_1_DET01_S0656.png``:
 
 .. image:: figures/mosfire_arc2d.png
+  :scale: 20%
 
 Each horizontal line of black dots is an OH line.
 Red points were rejected in the 2D fitting.  Provided
@@ -378,6 +381,7 @@ To inspect the ``MasterFlat`` images we can use the script :ref:`pypeit_chk_flat
 Here is a zoom-in screenshot from the first tab in the `ginga`_ window (``pixflat_norm``):
 
 .. image:: figures/mosfire_flat.png
+   :scale: 40%
 
 In this example, for all the ``MasterFlat`` images the flats with the lamps off have been subtracted.
 Note that the pixel-to-pixel variations are expressed at the percent level.
@@ -389,15 +393,14 @@ See :doc:`master_flat` for further details.
 Object finding
 --------------
 
-We can also inspect the :doc:`qa` for the object finding process. Plots saved in *png* files with suffix
+We can also inspect the :doc:`qa` for the object finding process. Plots saved in *PNG* files with suffix
 *_obj_prof* show the object profile collapse along the spectral direction. Here is an example for
 an ``A-B`` frame and a ``B-A`` frame:
 
 .. image:: figures/mosfire_objfind_a-b.png
-   :scale: 50%
-
+   :scale: 30%
 .. image:: figures/mosfire_objfind_b-a.png
-   :scale: 50%
+   :scale: 30%
 
 showing the object detected above the SNR threshold.
 
@@ -472,6 +475,7 @@ In this example, we can visualize the ``A-B`` 2D spectrum with this explicit cal
 We show here a zoom-in screenshot from the third tab in the `ginga`_ window (``sky_resid-DET01``):
 
 .. image:: figures/mosfire_spec2d.png
+   :scale: 40%
 
 This shows the sky residual image, which is the reduced MOSFIRE detector, with the sky lines subtracted,
 divided by the uncertainties.
@@ -487,7 +491,7 @@ Spec1D
 
 You can see a summary of all the extracted sources in the ``spec1d*.txt`` files saved
 in the ``Science/`` folder.  Here is the ``spec1d_m121128_0214-ic348_TK_M03A_MOSFIRE_20121128T063110.171.txt``
-generated for this example::
+generated for this dataset::
 
     | slit |                    name | maskdef_id |  objname |    objra |   objdec | spat_pixpos | spat_fracpos | box_width | opt_fwhm |    s2n | maskdef_extract | wv_rms |
     |  306 | SPAT0094-SLIT0306-DET01 |          8 | SERENDIP | 56.23222 | 32.18100 |        93.9 |        0.148 |      3.00 |    0.635 |   3.29 |           False |  0.041 |
@@ -511,14 +515,15 @@ To inspect the 1D spectrum, we can use the script :ref:`pypeit_show_1dspec`, wit
     pypeit_show_1dspec Science/spec1d_m121128_0214-ic348_TK_M03A_MOSFIRE_20121128T063110.171.fits --exten 3
 
 Since ``spec1d*.fits`` is a multi-extension fits file that contains all the 1D extracted spectra
-(one per each extension), we need to specify which 1D spectrum we want to inspect by passing ``--exten 3``
-to the call. To help decide which 1D spectrum to visualize, we can run beforehand the following:
+(one per each extension), we need to specify which 1D spectrum (i.e., extension) we want to inspect
+by passing ``--exten 3`` to the call. To help decide which 1D spectrum to visualize,
+we can run beforehand the following:
 
 .. code-block:: bash
 
     pypeit_show_1dspec Science/spec1d_m121128_0214-ic348_TK_M03A_MOSFIRE_20121128T063110.171.fits --list
 
-which list all the extensions with the associated 1D spectrum PypeIt name and a few other information.
+which lists all the extensions with the associated 1D spectrum PypeIt name and a few other information.
 
 This is a screenshot from the GUI showing the 1D spectrum:
 
@@ -526,7 +531,7 @@ This is a screenshot from the GUI showing the 1D spectrum:
 
 This uses the
 `XSpecGUI <https://linetools.readthedocs.io/en/latest/xspecgui.html>`_
-from the *linetools* package.  The black line is the flux and the
+from the `linetools`_ package.  The black line is the flux and the
 red line is the estimated error.
 
 See :doc:`out_spec1D` for further details.
