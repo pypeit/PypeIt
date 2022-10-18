@@ -2352,13 +2352,13 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None,
     ----------
     waves: `numpy.ndarray`_
         Wavelength arrays for spectra to be stacked.
-        shape=(nspec, nexp)
+        shape=(nspec, norder, nexp)
     fluxes: `numpy.ndarray`_
         Flux arrays for spectra to be stacked.
-        shape=(nspec, nexp)
+        shape=(nspec, norder, nexp)
     ivars: `numpy.ndarray`_
         ivar arrays for spectra to be stacked.
-        shape=(nspec, nexp)
+        shape=(nspec, norder, nexp)
     masks: `numpy.ndarray`_
         Mask array with shape (nspec, norders, nexp) containing the spectra to be coadded.
     weights_sens: `numpy.ndarray`_
