@@ -107,7 +107,7 @@ class PypeItMetadataProxy(QAbstractTableModel):
             self.sortOrder = order
             colname = self._colnames[self.sortColumn]
             self._sortIdx = self._metadata.table[self._displayIdx].argsort(colname, reverse=(order==Qt.DescendingOrder))
-            self.dataChanged.emit(self.index(0, 0), self.index(len(self.self._displayIdx)-1, len(self._colnames)-1))
+            self.dataChanged.emit(self.index(0, 0), self.index(len(self._displayIdx)-1, len(self._colnames)-1))
 
     def headerData(self, section, orientation, role):
         if role == Qt.DisplayRole:
