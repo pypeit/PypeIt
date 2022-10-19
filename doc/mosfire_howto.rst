@@ -60,7 +60,7 @@ Run ``pypeit_setup``
 The first script to run with PypeIt is :ref:`pypeit_setup`, which examines the raw files
 and generates a sorted list and (when instructed) one :doc:`pypeit_file` per instrument configuration.
 
-See complete instructions are provided in :ref:`setup_doc`.
+See complete instructions provided in :ref:`setup_doc`.
 
 For this example, we move to the folder where we want to perform the reduction and save the
 associated outputs and we run:
@@ -70,7 +70,7 @@ associated outputs and we run:
     cd folder_for_reducing   # this is usually *not* the raw data folder
     pypeit_setup -s keck_mosfire -r /PypeIt-development-suite/RAW_DATA/mask1_K_with_continuum -b
 
-This creates, in a folder called ``setup_files/``, a ``.sorted`` file that shows the raw file organized
+This creates, in a folder called ``setup_files/``, a ``.sorted`` file that shows the raw files organized
 by datasets. We inspect the ``.sorted`` file and identify the dataset that we want to reduced
 (in this case it is indicated with the letter ``A`` ) and re-run ``pypeit_setup`` as:
 
@@ -136,12 +136,13 @@ OH lines in science frames for the wavelength calibration, therefore we do not w
     the ``arc`` and ``tilt`` frame type. In addition, the changes explained in :ref:`mosfire_wavecalib` will have to
     be added to the :ref:`pypeit_file:Parameter Block`.
 
-Other possible edits to the :ref:`pypeit_file:Data Block` are related to the ``calib``, ``comb_id``, and ``bkg_id``
+Other possible edits to the :ref:`pypeit_file:Data Block` are related to the ``comb_id`` and ``bkg_id``
 columns, which instruct PypeIt on the desired frame combination and background subtraction.
-For Keck/MOSFIRE data, PypeIt tries to automatically set the ``calib``, ``comb_id``, ``bkg_id`` using the dither
-information (reported in the ``dithpat``, ``dithpos``, and ``dithoff`` columns) recorded in the header
-of the science frames (see :ref:`mosfire_config_report`); however, the user can edit these columns according to
-the preferred reduction (see :ref:`a-b_differencing` and :ref:`2d_combine` for more info).
+For Keck/MOSFIRE data, PypeIt tries to automatically set the ``comb_id`` and ``bkg_id`` using the dither
+information (reported here in the ``dithpat``, ``dithpos``, and ``dithoff`` columns) recorded in the header
+of the science frames (see :ref:`mosfire_combid_bkgid`); however,
+the user can edit these columns according to the preferred reduction (see :ref:`a-b_differencing` and
+:ref:`2d_combine` for more info).
 
 Finally, in this example, we also edit the :ref:`pypeit_file:Parameter Block` adding the following lines::
 
@@ -212,7 +213,7 @@ Once the ``pypeit_file`` is ready, the main call is simply:
 
 .. code-block:: bash
 
-    run_pypeit ``keck_mosfire_A/keck_mosfire_A.pypeit`` -o
+    run_pypeit keck_mosfire_A/keck_mosfire_A.pypeit -o
 
 The "-o" specifies to over-write any existing science output files.  As there are none, it is superfluous but we
 recommend (almost) always using it.
@@ -260,7 +261,7 @@ from the slitmask design, which within the Pypeit framework are called ``maskdef
 See :doc:`master_edges` for further details.
 
 We can also inspect the ``MasterSlits`` file, which contains the main information on the traced slit edges,
-organized into left-right slit pairs. This is a multi-extension fits file with two
+organized into left-right slit pairs. This is a multi-extension FITS file with two
 `astropy.io.fits.BinTableHDU`_ (for MOSFIRE). The second extension, called ``MASKDEF_DESIGNTAB``, includes
 all the relevant slitmask design information. In this example, ``MASKDEF_DESIGNTAB`` looks like this:
 
@@ -394,7 +395,7 @@ Object finding
 --------------
 
 We can also inspect the :doc:`qa` for the object finding process. Plots saved in *PNG* files with suffix
-*_obj_prof* show the object profile collapse along the spectral direction. Here is an example for
+*"_obj_prof"* show the object profile collapse along the spectral direction. Here is an example for
 an ``A-B`` frame and a ``B-A`` frame:
 
 .. image:: figures/mosfire_objfind_a-b.png
@@ -490,7 +491,7 @@ Spec1D
 ++++++
 
 You can see a summary of all the extracted sources in the ``spec1d*.txt`` files saved
-in the ``Science/`` folder.  Here is the ``spec1d_m121128_0214-ic348_TK_M03A_MOSFIRE_20121128T063110.171.txt``
+in the ``Science/`` folder.  Here is ``spec1d_m121128_0214-ic348_TK_M03A_MOSFIRE_20121128T063110.171.txt``
 generated for this dataset::
 
     | slit |                    name | maskdef_id |  objname |    objra |   objdec | spat_pixpos | spat_fracpos | box_width | opt_fwhm |    s2n | maskdef_extract | wv_rms |
@@ -514,7 +515,7 @@ To inspect the 1D spectrum, we can use the script :ref:`pypeit_show_1dspec`, wit
 
     pypeit_show_1dspec Science/spec1d_m121128_0214-ic348_TK_M03A_MOSFIRE_20121128T063110.171.fits --exten 3
 
-Since ``spec1d*.fits`` is a multi-extension fits file that contains all the 1D extracted spectra
+Since ``spec1d*.fits`` is a multi-extension FITS file that contains all the 1D extracted spectra
 (one per each extension), we need to specify which 1D spectrum (i.e., extension) we want to inspect
 by passing ``--exten 3`` to the call. To help decide which 1D spectrum to visualize,
 we can run beforehand the following:
