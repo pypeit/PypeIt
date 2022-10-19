@@ -164,4 +164,7 @@ development of PypeIt.
 * Emanuele Paolo Farina
 * Debora Pelliccia
 * James Reichwein
+* Milan Roberson
+* Timothy Pickering
+* Timothy Ellsworth-Bowers
 
