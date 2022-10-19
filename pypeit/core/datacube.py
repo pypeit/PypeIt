@@ -889,7 +889,7 @@ def generate_masterWCS(crval, cdelt, equinox=2000.0, name="Instrument Unknown"):
     # Insert the coordinate frame
     w.wcs.cname = ['RA', 'DEC', 'Wavelength']
     w.wcs.cunit = [units.degree, units.degree, units.Angstrom]
-    w.wcs.ctype = ["RA---TAN", "DEC--TAN", "AWAV"]
+    w.wcs.ctype = ["RA---TAN", "DEC--TAN", "WAVE"]
     w.wcs.crval = crval  # RA, DEC, and wavelength zeropoints
     w.wcs.crpix = [0, 0, 0]  # RA, DEC, and wavelength reference pixels
     #w.wcs.cd = np.array([[cdval[0], 0.0, 0.0], [0.0, cdval[1], 0.0], [0.0, 0.0, cdval[2]]])
@@ -1046,6 +1046,7 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
         output_wcs = frame_wcs
     embed()
     assert(False)
+    from scipy.interpolate import griddata
     from shapely.geometry import Polygon, box as shapelyBox
     from shapely.strtree import STRtree
     # Get the grid spacing along the spatial direction
@@ -1055,8 +1056,8 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     nvox_spat = int(np.ceil(slitlength*frm_cd_spat/out_cd_spat))
     crd_vox_spat = out_cd_spat * (np.arange(nvox_spat+1) - (nvox_spat+1)// 2)  # +1 to get bin edges
     # Get the grid spacing along the spectral direction
-    out_cr_wave = 1.0E10 * output_wcs.wcs.crval[2]
-    out_cd_wave = 1.0E10 * output_wcs.wcs.cd[2, 2]
+    out_cr_wave = output_wcs.wcs.crval[2]
+    out_cd_wave = output_wcs.wcs.cd[2, 2]
     nvox_wave = int(np.ceil((np.max(waveimg)-out_cr_wave)/out_cd_wave))
     crd_vox_spec = out_cr_wave + out_cd_wave * np.arange(nvox_wave+1)  # +1 to get bin edges
 
@@ -1072,16 +1073,26 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     spl_dec = RegularGridInterpolator((np.arange(nspec), np.arange(nspat)), decimg, method="linear", bounds_error=False, fill_value=-1)
 
     # Transform the voxel geometry to detector pixels
-    ra0, dec0 = np.zeros(nslice), np.zeros(nslice)
+    msgs.warn("ngrd_spat must be an odd number") # TODO :: NEED TO CHECK THIS BEFORE MERGING PR!!!
+    ngrd_spec, ngrd_spat = 1 + nspec // 20, 5
+    ra0, dec0 = np.zeros((nslice, ngrd_spat)), np.zeros((nslice, ngrd_spat))
+    ggrid = np.linspace(-slitlength/2, slitlength/2, ngrd_spat)
     for sl, spat_id in enumerate(slits.spat_id):
         msgs.info(f"Calculating voxel geometry for slit {spat_id}")
         # Calculate RA and Dec of central traces
         wsl = np.where(slitimg == spat_id)
-        this_ra, this_dec = raimg[wsl], decimg[wsl]
-        _, spat_posn, slit_tilt = frame_wcs.wcs_world2pix(this_ra, this_dec, waveimg[wsl], 0)
+        this_ra, this_dec, this_wave = raimg[wsl], decimg[wsl], waveimg[wsl]
+        _, spat_posn, _ = frame_wcs.wcs_world2pix(this_ra, this_dec, this_wave*1.0E-10, 0)
         asrt = np.argsort(spat_posn)
-        ra0[sl] = np.interp(0.0, spat_posn[asrt], this_ra[asrt])
-        dec0[sl] = np.interp(0.0, spat_posn[asrt], this_dec[asrt])
+        ra0[sl, :] = np.interp(ggrid, spat_posn[asrt], this_ra[asrt])
+        dec0[sl, :] = np.interp(ggrid, spat_posn[asrt], this_dec[asrt])
+        # Need to solve for x,y detector coordinates for these RA/DEC values, given an ngrd_spec value
+
+
+
+
+
+
         cosdec = np.cos(dec0[sl]*np.pi/180.0)
         # Generate an offsets image
         offset = np.sqrt(((this_ra-ra0[sl])*cosdec)**2 + (this_dec-dec0[sl])**2)
@@ -1090,6 +1101,20 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
         spl_dec = interp1d(offset[asrt], this_dec[asrt], kind='linear', bounds_error=False, fill_value="extrapolate")
         crd_vox_ra = spl_ra(crd_vox_spat)
         crd_vox_dec = spl_dec(crd_vox_spat)
+        voxel_coords = np.zeros((nvox_spat + 1, nvox_wave + 1, 2))
+        # Interpolate a small wavelength range at any given time for efficiency
+        evalpos = np.column_stack((crd_vox_ra, crd_vox_dec, np.zeros(nvox_spat + 1)))  # Last entry is dummy
+        wdiff = 1
+        for wl in range(crd_vox_spec.size):
+            ww = np.where((this_wave >= crd_vox_spec[wl] - wdiff * out_cd_wave) &
+                          (this_wave <= crd_vox_spec[wl] + wdiff * out_cd_wave))
+            if ww[0].size <= 5: continue
+            points = np.column_stack((this_ra[ww], this_dec[ww], this_wave[ww]))
+            evalpos[:,2] = crd_vox_spec[wl] * np.ones(nvox_spat + 1)
+            voxel_coords[:, wl, 0] = griddata(points, wsl[1][ww], evalpos, method='linear', fill_value=-1)  # Spatial
+            voxel_coords[:, wl, 1] = griddata(points, wsl[0][ww], evalpos, method='linear', fill_value=-1)  # Spectral
+    #spl_x = LinearNDInterpolator(np.column_stack((this_ra, this_dec, waveimg[wsl])), wsl[1], fill_value=-1)
+    #spl_y = LinearNDInterpolator(np.column_stack((this_ra, this_dec, waveimg[wsl])), wsl[1], fill_value=-1)
 
     # Calculate an "offsets" image, which indicates the offset in arcsec from (RA_0, DEC_0)
     # Create two splines of the offsets image: (1) offset predicts RA; (2) offset predicts Dec.

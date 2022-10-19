@@ -911,7 +911,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Insert the coordinate frame
         w.wcs.cname = ['KCWI RA', 'KCWI DEC', 'KCWI Wavelength']
         w.wcs.cunit = [units.degree, units.degree, units.Angstrom]
-        w.wcs.ctype = ["RA---TAN", "DEC--TAN", "AWAV"]
+        w.wcs.ctype = ["RA---TAN", "DEC--TAN", "WAVE"]  # Note, WAVE is vacuum wavelength
         w.wcs.crval = [ra, dec, wave0]  # RA, DEC, and wavelength zeropoints
         w.wcs.crpix = [crpix1, crpix2, crpix3]  # RA, DEC, and wavelength reference pixels
         w.wcs.cd = np.array([[cd11, cd12, 0.0], [cd21, cd22, 0.0], [0.0, 0.0, dwv]])
