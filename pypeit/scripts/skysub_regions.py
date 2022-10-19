@@ -91,4 +91,5 @@ class SkySubRegions(scriptbase.ScriptBase):
         # Get the results
         skyreg.get_result()
 
-
+        # Reset the defaults
+        skyreg.finalize()

@@ -29,8 +29,9 @@ There are two primary components to flat-fielding in PypeIt:
 
 The first accounts for pixel-to-pixel variations in the detector
 while the latter corrects for spatial variations along each slit
-and at its edges. There is also a routine to correct for the
-relative spectral illumination of multiple slits.
+and at its edges. There are also routines to:
+(1) perform a fine correction to the spatial illumination profile; and
+(2) correct for the relative spectral illumination of multiple slits.
 
 Application
 -----------
@@ -103,6 +104,20 @@ Or you can choose to make this choice for only a specific frametype:
         [[standard]]
             [[[process]]]
                 use_illumflat = False
+
+No Fine Correction to the Spatial Illumination
+----------------------------------------------
+
+By default, a fine correction to the spatial illumination profile is performed. If you
+wish to turn off the fine correction to the spatial illumination profile (based on the
+appearance of the QA that is output in the PNG folder),
+add the following to the :ref:`pypeit_file:Parameter Block`:
+
+.. code-block:: ini
+
+    [calibrations]
+        [[flatfield]]
+            slit_illum_finecorr = False
 
 Apply Illumination Flat
 -----------------------
