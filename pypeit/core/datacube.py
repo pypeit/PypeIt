@@ -993,7 +993,8 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
     return all_wghts
 
 
-def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, decimg, waveimg, slitimg,
+def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, decimg, waveimg, slitimg, gpm,
+                           grid_nspat=5, grid_specsep=20,
                            overwrite=False, output_wcs=None, blaze_wave=None, blaze_spec=None, fluxcal=False,
                            sensfunc=None, specname="PYP_SPEC", debug=False):
     """
@@ -1022,8 +1023,16 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
         waveimg (`numpy.ndarray`_):
             Wavelength of each pixel in the frame (units = Angstroms)
         slitimg (`numpy.ndarray`_):
-            Slit image. -1 is not on a slit (or a masked pixel), and all other
+            Slit image. -1 is not on a sli, and all other
             pixels are labelled with their spatial IDs.
+        gpm (`numpy.ndarray`_):
+            Good pixel mask (bool). True = good pixel
+        grid_nspat (int):
+            Number of grid points in the spatial direction when evaluating the
+            voxel geometry in detector coordinates. This should be an odd number
+        grid_specsep (int):
+            Number of pixels between each grid point in the spectral direction
+            when evaluating the voxel geometry in detector coordinates
         overwrite (bool, optional):
             If the output file exists, it will be overwritten if this parameter is True.
         output_wcs (`astropy.wcs.wcs.WCS`_, optional):
@@ -1044,6 +1053,10 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     # Set the output_wcs if it's not already set
     if output_wcs is None:
         output_wcs = frame_wcs
+    # Check that grid_nspat is an odd number
+    if grid_nspat%2==0:
+        msgs.warn(f"grid_nspat must be an odd number. Using grid_nspat={grid_nspat+1} instead")
+        grid_nspat += 1
     embed()
     assert(False)
     from scipy.interpolate import griddata
@@ -1071,12 +1084,17 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     # Generate a linear regular spline between X pixel and wavelength, mapped to Y pixel
     spl_ra = RegularGridInterpolator((np.arange(nspec), np.arange(nspat)), raimg, method="linear", bounds_error=False, fill_value=-1)
     spl_dec = RegularGridInterpolator((np.arange(nspec), np.arange(nspat)), decimg, method="linear", bounds_error=False, fill_value=-1)
+    spl_wav = RegularGridInterpolator((np.arange(nspec), np.arange(nspat)), waveimg, method="linear", bounds_error=False, fill_value=-1)
 
     # Transform the voxel geometry to detector pixels
-    msgs.warn("ngrd_spat must be an odd number") # TODO :: NEED TO CHECK THIS BEFORE MERGING PR!!!
-    ngrd_spec, ngrd_spat = 1 + nspec // 20, 5
-    ra0, dec0 = np.zeros((nslice, ngrd_spat)), np.zeros((nslice, ngrd_spat))
-    ggrid = np.linspace(-slitlength/2, slitlength/2, ngrd_spat)
+    grid_nspec = 1 + nspec // grid_specsep
+    xgrid = np.zeros((grid_nspec, grid_nspat), dtype=int)
+    ygridt = np.zeros(grid_nspec, dtype=int)
+    ygridt[-1] = nspec - 1
+    ygridt[1:-1] = (nspec % grid_specsep + 2 * grid_specsep) // 2 + np.arange(grid_nspec - 2) * grid_specsep
+    ygrid = ygridt[:, np.newaxis].repeat(grid_nspat, axis=1)
+    ra0, dec0 = np.zeros(nslice), np.zeros(nslice)
+    offsimg = np.zeros_like(waveimg)
     for sl, spat_id in enumerate(slits.spat_id):
         msgs.info(f"Calculating voxel geometry for slit {spat_id}")
         # Calculate RA and Dec of central traces
@@ -1084,37 +1102,31 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
         this_ra, this_dec, this_wave = raimg[wsl], decimg[wsl], waveimg[wsl]
         _, spat_posn, _ = frame_wcs.wcs_world2pix(this_ra, this_dec, this_wave*1.0E-10, 0)
         asrt = np.argsort(spat_posn)
-        ra0[sl, :] = np.interp(ggrid, spat_posn[asrt], this_ra[asrt])
-        dec0[sl, :] = np.interp(ggrid, spat_posn[asrt], this_dec[asrt])
-        # Need to solve for x,y detector coordinates for these RA/DEC values, given an ngrd_spec value
-
-
-
-
-
-
-        cosdec = np.cos(dec0[sl]*np.pi/180.0)
-        # Generate an offsets image
-        offset = np.sqrt(((this_ra-ra0[sl])*cosdec)**2 + (this_dec-dec0[sl])**2)
-        asrt = np.argsort(offset)
-        spl_ra = interp1d(offset[asrt], this_ra[asrt], kind='linear', bounds_error=False, fill_value="extrapolate")
-        spl_dec = interp1d(offset[asrt], this_dec[asrt], kind='linear', bounds_error=False, fill_value="extrapolate")
-        crd_vox_ra = spl_ra(crd_vox_spat)
-        crd_vox_dec = spl_dec(crd_vox_spat)
-        voxel_coords = np.zeros((nvox_spat + 1, nvox_wave + 1, 2))
-        # Interpolate a small wavelength range at any given time for efficiency
-        evalpos = np.column_stack((crd_vox_ra, crd_vox_dec, np.zeros(nvox_spat + 1)))  # Last entry is dummy
-        wdiff = 1
-        for wl in range(crd_vox_spec.size):
-            ww = np.where((this_wave >= crd_vox_spec[wl] - wdiff * out_cd_wave) &
-                          (this_wave <= crd_vox_spec[wl] + wdiff * out_cd_wave))
-            if ww[0].size <= 5: continue
-            points = np.column_stack((this_ra[ww], this_dec[ww], this_wave[ww]))
-            evalpos[:,2] = crd_vox_spec[wl] * np.ones(nvox_spat + 1)
-            voxel_coords[:, wl, 0] = griddata(points, wsl[1][ww], evalpos, method='linear', fill_value=-1)  # Spatial
-            voxel_coords[:, wl, 1] = griddata(points, wsl[0][ww], evalpos, method='linear', fill_value=-1)  # Spectral
-    #spl_x = LinearNDInterpolator(np.column_stack((this_ra, this_dec, waveimg[wsl])), wsl[1], fill_value=-1)
-    #spl_y = LinearNDInterpolator(np.column_stack((this_ra, this_dec, waveimg[wsl])), wsl[1], fill_value=-1)
+        ra0[sl] = np.interp(0.0, spat_posn[asrt], this_ra[asrt])
+        dec0[sl] = np.interp(0.0, spat_posn[asrt], this_dec[asrt])
+        # Generate the offsets
+        cosdec = np.cos(dec0[sl] * np.pi / 180.0)
+        offsimg[wsl] = np.sqrt(((this_ra - ra0[sl]) * cosdec) ** 2 + (this_dec - dec0[sl]) ** 2)
+        # Update the xgrid values for this slice
+        for yy in range(ngrd_spec):
+            wsl = np.where(slitimg == spat_id)
+            allind = wsl[1][np.where(wsl[0] == ygridt[yy])]
+            xgrid[yy, 0] = np.min(allind)
+            xgrid[yy, -1] = np.max(allind)
+            numpix = xgrid[yy, -1] - xgrid[yy, 0]
+            sep = numpix // (ngrd_spat - 1)
+            xgrid[yy, 1:-1] = xgrid[yy, 0] + (numpix % sep + 2 * sep) // 2 + np.arange(ngrd_spat - 2) * sep
+        #  Extract offset + wavelength information and estimate transform
+        grid_coord = (ygrid.flatten(), xgrid.flatten())
+        grid_offs = offsimg[grid_coord]
+        grid_wave = waveimg[grid_coord]
+        src = np.column_stack((grid_wave, grid_offs))
+        dst = np.column_stack(grid_coord)
+        tform = transform.estimate_transform('polynomial', src, dst, order=1)
+        # Transform the voxel coordinates to detector coordinates
+        evalpos = np.column_stack((crd_vox_spec[:,np.newaxis].repeat(crd_vox_spat.size, axis=1).flatten(),
+                                   crd_vox_spec[np.newaxis,:].repeat(crd_vox_spec.size, axis=0).flatten()))
+        crd_det = tform(evalpos)
 
     # Calculate an "offsets" image, which indicates the offset in arcsec from (RA_0, DEC_0)
     # Create two splines of the offsets image: (1) offset predicts RA; (2) offset predicts Dec.
@@ -1125,8 +1137,6 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     #    world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init]*(nspec-1), 0)
     # This gives us the x,y detector positions of the voxel geometry
 
-    # Loop through all slices and fill in the datacube elements
-    for sl, spat_id in enumerate(slits.spat_id):
         # Generate a list of all detector pixels in this slice
         detpix_polys = []
         pix_spec, pix_spat = np.where(slitimg == spat_id)
