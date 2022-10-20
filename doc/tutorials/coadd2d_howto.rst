@@ -188,7 +188,7 @@ Once the coadd2d file is ready, the main call is simply:
     $ pypeit_coadd_2dspec --file keck_lris_blue_multi_600_4000_d560.coadd2d --only_slits 30,70,111,156,216
 
 The ``--only_slits`` option allows to perform the 2D coadding only for the selected slits. Note that `only_slits`
-can be also provided in the coadd 2D file as a :ref:`pypeit_par:Coadd2DPar Keywords`.
+can be also provided in the coadd 2D file as a :ref:`coadd2dpar`.
 Several options can be added to this simple run and you can find all of them in :ref:`pypeit-coadd-2dspec`.
 
 At the beginning of the run, the user should inspect the information printed on the terminal by the script,
@@ -321,11 +321,11 @@ Our coadd2d file is called ``keck_deimos_1200g_m_7750.coadd2d`` and looks like t
 
 In this example we 2D coadd only one detector (det 7); however, note that ``PypeIt``
 uses, as default, a mosaic approach for the reduction of Keck/DEIMOS, for which a mosaic
-is constructed for each blue-red detector pair. See :doc:`deimos` for more detail.
+is constructed for each blue-red detector pair. See :doc:`../spectrographs/deimos` for more detail.
 
 Because ``weights = auto``, the parameter ``user_obj`` in this example instructs ``PypeIt``
 to use the 1D extracted spectrum with ``OBJID`` equal to 1 and ``SLITID`` equal to 1037
-to compute the weights. See :doc:`out_spec1D` for more info about ``SLITID`` and ``OBJID``.
+to compute the weights. See :doc:`../out_spec1D` for more info about ``SLITID`` and ``OBJID``.
 
 .. note::
 

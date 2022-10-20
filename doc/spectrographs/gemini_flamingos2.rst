@@ -18,7 +18,7 @@ when reducing your data with PypeIt.
 Object finding
 ++++++++++++++
 
-It has been reported that the default ``sig_thresh`` of 10
+It has been reported that the default ``snr_thresh`` of 10
 for Flamingos2 could detect some junk objects because the detector
 is not quite clean. If you want to get rid of these junk objects, and
 assuming your science object itself is bright,
@@ -28,7 +28,7 @@ try:
 
     [reduce]
         [[findobj]]
-            sig_thresh = 20
+            snr_thresh = 20
 
 You can use ``pypeit_show_2dspec`` to visualize what was extracted from the
 science exposures.

@@ -28,8 +28,8 @@ Object Finding
 Refer to :doc:`object_finding` for full details on the algorithm.
 This process is guided by the :ref:`findobjpar`.
 
-The most common to modify is ``sig_thresh``, which sets the
-search for any source with *peak* flux in excess of ``sig_thresh``
+The most common to modify is ``snr_thresh``, which sets the
+search for any source with *peak* flux in excess of ``snr_thresh``
 times the RMS.  The default is 10 and you may wish to
 reduce this parameter.   Add the following to the
 :ref:`parameter_block`:
@@ -38,7 +38,7 @@ reduce this parameter.   Add the following to the
 
     [reduce]
         [[findobj]]
-            sig_thresh = 3.
+            snr_thresh = 3.
 
 This will search for any source with peak flux 3-sigma above the
 estimated RMS in the smashed slit profile.

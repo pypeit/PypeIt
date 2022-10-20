@@ -45,16 +45,35 @@ date of the processing.
 Wavelength Fit QA
 -----------------
 
-See :doc:`calibrations/master_wvcalib` for a discussion of this QA.
+PypeIt produces plots like the one below showing the result of the wavelength
+calibration.
+
+.. figure:: figures/deimos_arc1d.png
+   :width: 60 %
+
+   An example QA plot for Keck/DEIMOS wavelength calibration.  The extracted arc
+   spectrum is shown to the left with arc lines used for the wavelength solution
+   marked in green.  The upper-right plot shows the best-fit calibration between
+   pixel number and wavelength, and the bottom-right plot shows the residuals as
+   a function of pixel number.
+
+See :doc:`calibrations/master_wvcalib` for more discussion of this QA.
 
 
 Wavelength Tilts QA
 -------------------
 
-There are generally a series of PNG files describing the analysis of the
-tilts of the arc lines.
+PypeIt produces plots like the one below showing the result of tracing the tilts
+in the wavelength as a function of spatial position within the slits.
 
-See :doc:`calibrations/master_tilts` for a discussion of this QA.
+.. figure:: figures/mosfire_arc2d.png
+   :width: 60%
+
+   An example QA plot for a single slit in a Keck/MOSFIRE tilt QA plot.  Each
+   horizontal line of black dots is an OH line.  Red points were rejected in the
+   2D fitting.  Provided most were not rejected, the fit should be good.
+
+See :doc:`calibrations/master_tilts` for more discussion of this QA.
 
 
 Exposure QA

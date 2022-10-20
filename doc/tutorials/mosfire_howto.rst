@@ -1,4 +1,5 @@
-.. include:: include/links.rst
+
+.. include:: ../include/links.rst
 
 .. _mosfire_howto:
 
@@ -9,9 +10,10 @@ Keck-MOSFIRE HOWTO
 Overview
 ========
 
-This doc goes through a full run of PypeIt on one of the Keck/MOSFIRE datasets in the PypeIt Development Suite,
-specifically the ``mask1_K_with_continuum`` multi-slits observations.
-The following was performed on a Macbook Pro with 16 GB RAM and took approximately 20 minutes.
+This doc goes through a full run of PypeIt on one of the Keck/MOSFIRE datasets
+in the `PypeIt Development Suite`_ (see :ref:`dev-suite`), specifically the
+``mask1_K_with_continuum`` multi-slits observations.  The following was
+performed on a Macbook Pro with 16 GB RAM and took approximately 20 minutes.
 
 Setup
 =====
@@ -43,7 +45,7 @@ or observations in various filter). The script :ref:`pypeit_setup`
 
     The MOSFIRE calibration GUI provides, during your observing night, the option to take flats
     with the lamps off. This is the default in the GUI only for the K-band, but we recommend taking
-    these flats for all MOSFIRE spectroscopic observations. The purpose of the flats with the lamps off
+    these flats for *all* MOSFIRE spectroscopic observations. The purpose of the flats with the lamps off
     is to remove the increase and/or variation in zero level caused by persistence from the high counts
     in the flats and/or thermal emission from the telescope/dome (in the K-band). See :ref:`mosfire_flats`
     for more info.
@@ -58,7 +60,7 @@ Run ``pypeit_setup``
 --------------------
 
 The first script to run with PypeIt is :ref:`pypeit_setup`, which examines the raw files
-and generates a sorted list and (when instructed) one :doc:`pypeit_file` per instrument configuration.
+and generates a sorted list and (when instructed) one :ref:`pypeit_file` per instrument configuration.
 
 See complete instructions provided in :ref:`setup_doc`.
 
@@ -80,11 +82,13 @@ by datasets. We inspect the ``.sorted`` file and identify the dataset that we wa
 
 Note that we use the ``-b`` flag because we are dealing with near-IR observations for which a
 dither pattern is used to perform background subtraction. The ``-b`` flag adds three columns in the
-:ref:`pypeit_file:Data Block` of the ``pypeit_file``, and these columns hold instructions on the
+:ref:`data_block` of the ``pypeit_file``, and these columns hold instructions on the
 desired background subtraction (see :ref:`setup_doc` and :ref:`a-b_differencing` for more info).
 
 This creates a :ref:`pypeit_file` called ``keck_mosfire_A.pypeit`` inside a folder called
-``keck_mosfire_A/``, and it looks like this::
+``keck_mosfire_A/``, and it looks like this:
+
+.. code-block:: console
 
     # Auto-generated PypeIt input file using PypeIt version: 1.10.1.dev218+gefe7d7ef6
     # UTC 2022-10-14T22:04:15.975
@@ -122,8 +126,8 @@ This creates a :ref:`pypeit_file` called ``keck_mosfire_A.pypeit`` inside a fold
     data end
 
 Inspecting this file, we want to make sure that all the frame types were accurately assigned in the
-:ref:`pypeit_file:Data Block`. If not, we can make edits using the instructions in
-:ref:`pypeit_file:Edits to the Data Block`. We can also remove any bad (or undesired) calibration
+:ref:`data_block`.  If not, these can be fixed by editing the :ref:`pypeit_file` directly; see instructions
+:ref:`here<data_block>`. We can also remove any bad (or undesired) calibration
 or science frames from the list, by either deleting them altogether or commenting out with a ``#``.
 
 In this example, all the frametypes were accurately assigned. However, as mentioned earlier, we use the
@@ -134,9 +138,9 @@ OH lines in science frames for the wavelength calibration, therefore we do not w
     If the user wants to use the arc frames instead, they can keep the 2 arc frames in the list, but need
     to edit the ``frametype`` for the science frames (*m121128_0214.fits - m121128_0217.fits*), i.e., remove
     the ``arc`` and ``tilt`` frame type. In addition, the changes explained in :ref:`mosfire_wavecalib` will have to
-    be added to the :ref:`pypeit_file:Parameter Block`.
+    be added to the :ref:`parameter_block`.
 
-Other possible edits to the :ref:`pypeit_file:Data Block` are related to the ``comb_id`` and ``bkg_id``
+Other possible edits to the :ref:`data_block` are related to the ``comb_id`` and ``bkg_id``
 columns, which instruct PypeIt on the desired frame combination and background subtraction.
 For Keck/MOSFIRE data, PypeIt tries to automatically set the ``comb_id`` and ``bkg_id`` using the dither
 information (reported here in the ``dithpat``, ``dithpos``, and ``dithoff`` columns) recorded in the header
@@ -144,7 +148,7 @@ of the science frames (see :ref:`mosfire_combid_bkgid`); however,
 the user can edit these columns according to the preferred reduction (see :ref:`a-b_differencing` and
 :ref:`2d_combine` for more info).
 
-Finally, in this example, we also edit the :ref:`pypeit_file:Parameter Block` adding the following lines:
+Finally, in this example, we also edit the :ref:`parameter_block` adding the following lines:
 
 .. code-block:: ini
 
@@ -156,7 +160,7 @@ Finally, in this example, we also edit the :ref:`pypeit_file:Parameter Block` ad
 The dither offset, in conjunction with the MOSFIRE slitmask design information, is used by PypeIt to
 find the targeted objects on the slit and to force the extraction of undetected objects at the expected location
 (see :ref:`radec_object_report` and :ref:`add_missing_obj_report`). As default (i.e., if we did not add the
-lines above in the :ref:`pypeit_file:Parameter Block`), PypeIt uses the dither offset recorded in the header of
+lines above in the :ref:`parameter_block`), PypeIt uses the dither offset recorded in the header of
 the science frames for this purpose; however, it is known that MOSFIRE observations show small drifts of the
 objects position with time, which are not recorded in the header. For this reason, a better approach would be
 to let PypeIt compute the offset using a bright object in one of the slits in the slitmask. To do so, we need
@@ -164,7 +168,9 @@ to instruct PypeIt not to read the dither offset recorded in the header (``use_d
 to provide the ``Slit_Number`` of the slit containing the bright object we want to use to compute the offset
 (``bright_maskdef_id = 4``, which means that we are using the bright object in the slit with ``Slit_Number=4``).
 
-The final ``pypeit_file``, after all the edits, looks like this::
+The final ``pypeit_file``, after all the edits, looks like this:
+
+.. code-block:: console
 
     # Auto-generated PypeIt input file using PypeIt version: 1.10.1.dev218+gefe7d7ef6
     # UTC 2022-10-14T22:04:15.975
@@ -220,7 +226,7 @@ Once the ``pypeit_file`` is ready, the main call is simply:
 The "-o" specifies to over-write any existing science output files.  As there are none, it is superfluous but we
 recommend (almost) always using it.
 
-The :doc:`running` doc describes the process in some more detail.
+The :doc:`../running` doc describes the process in some more detail.
 
 Inspecting Files
 ================
@@ -230,8 +236,8 @@ As the code runs, a series of files are written to the disk.
 Calibrations
 ------------
 
-The first set are :doc:`calibrations`. What follows are a series of screenshots
-and :doc:`qa` PNGs produced by PypeIt.
+The first set are :doc:`../calibrations/calibrations`. What follows are a series of screenshots
+and :doc:`../qa` PNGs produced by PypeIt.
 
 
 Slit Edges
@@ -251,7 +257,7 @@ with this explicit call:
 which opens the `ginga`_ image viewer. Here is a zoom-in screenshot from the first tab
 in the `ginga`_ window:
 
-.. image:: figures/mosfire_edges_image.png
+.. image:: ../figures/mosfire_edges_image.png
    :scale: 40%
 
 
@@ -260,7 +266,7 @@ The green/magenta lines indicate the left/right slit edges.  The aquamarine labe
 ``S`` are the internal slit identifiers of PypeIt, while the cyan numbers are the ``Slit_Number`` values
 from the slitmask design, which within the Pypeit framework are called ``maskdef_id``.
 
-See :doc:`master_edges` for further details.
+See :doc:`../calibrations/master_edges` for further details.
 
 We can also inspect the ``MasterSlits`` file, which contains the main information on the traced slit edges,
 organized into left-right slit pairs. This is a multi-extension FITS file with two
@@ -302,17 +308,17 @@ Here is a zoom-in screenshot of the ``MasterArc`` image as viewed with `ginga`_:
 
     ginga Masters/MasterArc_A_1_DET01.fits
 
-.. image:: figures/mosfire_arc_image.png
+.. image:: ../figures/mosfire_arc_image.png
    :scale: 40%
 
 where we can see several OH lines oriented approximately horizontally.
 
-See :doc:`master_arc` for further details.
+See :doc:`../calibrations/master_arc` for further details.
 
 Wavelengths
 +++++++++++
 
-It is important to inspect the :doc:`qa` for the wavelength calibration.  These are PNGs in the ``QA/PNG/`` folder.
+It is important to inspect the :doc:`../qa` for the wavelength calibration.  These are PNGs in the ``QA/PNG/`` folder.
 
 Note:  there are multiple files generated for every slit. When the reduction is complete, you may prefer to scan
 through them by opening the HTML file under ``QA/``.
@@ -323,7 +329,7 @@ through them by opening the HTML file under ``QA/``.
 Here is an example of the 1D fits, written to
 the ``QA/PNGs/Arc_1dfit_A_1_DET01_S0656.png`` file:
 
-.. image:: figures/mosfire_arc1d.png
+.. image:: ../figures/mosfire_arc1d.png
 
 What you hope to see in this QA is:
 
@@ -361,7 +367,7 @@ See :ref:`pypeit-chk-wavecalib` for a detailed description of all the columns.
 There are several QA files written for the 2D fits.
 Here is ``QA/PNGs/Arc_tilts_2d_A_1_DET01_S0656.png``:
 
-.. image:: figures/mosfire_arc2d.png
+.. image:: ../figures/mosfire_arc2d.png
   :scale: 20%
 
 Each horizontal line of black dots is an OH line.
@@ -369,7 +375,7 @@ Red points were rejected in the 2D fitting.  Provided
 most were not rejected, the fit should be good.
 An RMS<0.1 is also desired for this fit.
 
-See :doc:`master_tilts` for further details.
+See :doc:`../calibrations/master_tilts` for further details.
 
 Flatfield
 +++++++++
@@ -383,7 +389,7 @@ To inspect the ``MasterFlat`` images we can use the script :ref:`pypeit_chk_flat
 
 Here is a zoom-in screenshot from the first tab in the `ginga`_ window (``pixflat_norm``):
 
-.. image:: figures/mosfire_flat.png
+.. image:: ../figures/mosfire_flat.png
    :scale: 40%
 
 In this example, for all the ``MasterFlat`` images the flats with the lamps off have been subtracted.
@@ -391,18 +397,18 @@ Note that the pixel-to-pixel variations are expressed at the percent level.
 The slit edges defined during the `Slit Edges`_ tracing process and tweaked using the illumination flat field
 are also plotted (green/magenta lines).
 
-See :doc:`master_flat` for further details.
+See :doc:`../calibrations/master_flat` for further details.
 
 Object finding
 --------------
 
-We can also inspect the :doc:`qa` for the object finding process. Plots saved in *PNG* files with suffix
+We can also inspect the :doc:`../qa` for the object finding process. Plots saved in *PNG* files with suffix
 *"_obj_prof"* show the object profile collapse along the spectral direction. Here is an example for
 an ``A-B`` frame and a ``B-A`` frame:
 
-.. image:: figures/mosfire_objfind_a-b.png
+.. image:: ../figures/mosfire_objfind_a-b.png
    :scale: 30%
-.. image:: figures/mosfire_objfind_b-a.png
+.. image:: ../figures/mosfire_objfind_b-a.png
    :scale: 30%
 
 showing the object detected above the SNR threshold.
@@ -477,7 +483,7 @@ In this example, we can visualize the ``A-B`` 2D spectrum with this explicit cal
 
 We show here a zoom-in screenshot from the third tab in the `ginga`_ window (``sky_resid-DET01``):
 
-.. image:: figures/mosfire_spec2d.png
+.. image:: ../figures/mosfire_spec2d.png
    :scale: 40%
 
 This shows the sky residual image, which is the reduced MOSFIRE detector, with the sky lines subtracted,
@@ -486,7 +492,7 @@ The green/magenta lines are the slit edges. The orange lines show the object pos
 and the orange text is the PypeIt assigned name (starting with ``SPAT``) plus the object name from
 the slitmask design information (stating with ``OBJNAME``).  Yellow lines, if present, indicate
 sources that, although not detected, have been extracted at the expected location from the slitmask design.
-See :doc:`out_spec2D` for further details.
+See :doc:`../out_spec2D` for further details.
 
 
 Spec1D
@@ -494,7 +500,9 @@ Spec1D
 
 You can see a summary of all the extracted sources in the ``spec1d*.txt`` files saved
 in the ``Science/`` folder.  Here is ``spec1d_m121128_0214-ic348_TK_M03A_MOSFIRE_20121128T063110.171.txt``
-generated for this dataset::
+generated for this dataset:
+
+.. code-block:: console
 
     | slit |                    name | maskdef_id |  objname |    objra |   objdec | spat_pixpos | spat_fracpos | box_width | opt_fwhm |    s2n | maskdef_extract | wv_rms |
     |  306 | SPAT0094-SLIT0306-DET01 |          8 | SERENDIP | 56.23222 | 32.18100 |        93.9 |        0.148 |      3.00 |    0.635 |   3.29 |           False |  0.041 |
@@ -530,14 +538,14 @@ which lists all the extensions with the associated 1D spectrum PypeIt name and a
 
 This is a screenshot from the GUI showing the 1D spectrum:
 
-.. image:: figures/mosfire_spec1d.png
+.. image:: ../figures/mosfire_spec1d.png
 
 This uses the
 `XSpecGUI <https://linetools.readthedocs.io/en/latest/xspecgui.html>`_
 from the `linetools`_ package.  The black line is the flux and the
 red line is the estimated error.
 
-See :doc:`out_spec1D` for further details.
+See :doc:`../out_spec1D` for further details.
 
 Coadd2D
 =======

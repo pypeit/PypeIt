@@ -217,7 +217,7 @@ class :class:`~pypeit.onespec.OneSpec`, such that its file extensions are:
 .. include:: include/datamodel_onespec.rst
 
 You view the spectrum using the ``lt_xspec`` script, which loads the data
-and launches a GUI from the `linetools`_` package. e.g.:
+and launches a GUI from the `linetools`_ package. e.g.:
 
 .. code-block:: console
 

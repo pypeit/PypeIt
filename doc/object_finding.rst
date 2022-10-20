@@ -138,8 +138,4 @@ vs spatial position vector. The best way to choose these pixels is to run PypeIt
 without it set. Then run :ref:`pypeit_show_2dspec` to view the sky-subtracted
 image and decide which pixels to use for object finding. Then re-run ``PypeIt``.
 
-.. todo::
-
-    Put in manual extraction stuff here in place of this stuff on
-    interactive object finding.
 

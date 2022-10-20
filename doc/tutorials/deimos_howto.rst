@@ -103,7 +103,7 @@ exceed) the RAM of your computer.  Therefore, you may wish to reduce 1 or 2
 detectors at a time in this fashion.  For more than one detector, use a list for
 `detnum` (e.g.  `detnum = 3,7`). Also, note that PypeIt can construct image
 mosaics for detectors separated along the dispersion axis.  This is now the
-default approach for :doc:`deimos`, where a mosaic is constructed for each
+default approach for :doc:`../spectrographs/deimos`, where a mosaic is constructed for each
 blue-red detector pair, see :ref:`here<deimos_mosaic>`.
 
 Main Run
@@ -330,7 +330,7 @@ Last, here is a screen shot from the GUI showing the
 
 This uses the
 `XSpecGUI <https://linetools.readthedocs.io/en/latest/xspecgui.html>`_
-from the *linetools* package.  The black line is the flux and the
+from the `linetools`_ package.  The black line is the flux and the
 red line is the estimated error.
 
 See :doc:`../out_spec1D` for further details.

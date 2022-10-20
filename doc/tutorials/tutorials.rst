@@ -18,7 +18,7 @@ etc), we recommend the following starting points:
 
     - **Multi-slit data**: :doc:`Keck DEIMOS<deimos_howto>`
 
-    - **NIR data**: :doc:`Gemini GNIRS<gnirs_howto>`
+    - **NIR data**: :doc:`Keck MOSFIRE<mosfire_howto>`
 
     - **Echelle data**: :doc:`Gemini GNIRS<gnirs_howto>`
 
@@ -33,6 +33,7 @@ bottom of the :doc:`../spectrographs/spectrographs` page.
 
    Gemini GNIRS <gnirs_howto>
    Keck DEIMOS <deimos_howto>
+   Keck MOSFIRE <mosfire_howto>
    Shane Kast <kast_howto>
 
 ----
