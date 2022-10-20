@@ -3,7 +3,7 @@
 .. _mosfire_howto:
 
 ==================
-Keck-MOSIFRE HOWTO
+Keck-MOSFIRE HOWTO
 ==================
 
 Overview
@@ -144,12 +144,14 @@ of the science frames (see :ref:`mosfire_combid_bkgid`); however,
 the user can edit these columns according to the preferred reduction (see :ref:`a-b_differencing` and
 :ref:`2d_combine` for more info).
 
-Finally, in this example, we also edit the :ref:`pypeit_file:Parameter Block` adding the following lines::
+Finally, in this example, we also edit the :ref:`pypeit_file:Parameter Block` adding the following lines:
+
+.. code-block:: ini
 
     [reduce]
-       [[slitmask]]
-          use_dither_offset = False
-          bright_maskdef_id = 4
+        [[slitmask]]
+            use_dither_offset = False
+            bright_maskdef_id = 4
 
 The dither offset, in conjunction with the MOSFIRE slitmask design information, is used by PypeIt to
 find the targeted objects on the slit and to force the extraction of undetected objects at the expected location
