@@ -1330,7 +1330,7 @@ class FlatField:
             Spatial ID of the slit
         gpm : `numpy.ndarray`_
             Good pixel mask
-        doqa : `bool`_, optional:
+        doqa : bool, optional:
             Save the QA?
         """
         msgs.info("Performing a fine correction to the spatial illumination (slit={0:d})".format(slit_spat))

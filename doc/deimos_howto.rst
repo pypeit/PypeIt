@@ -131,7 +131,9 @@ tax (or exceed) the RAM of your computer.
 Therefore, you may wish
 to reduce 1 or 2 detectors at a time in this fashion.
 For more than one detector, use a list for `detnum`
-(e.g.  `detnum = 3,7`).
+(e.g.  `detnum = 3,7`). Also, note that ``PypeIt`` uses a mosaic approach
+for the reduction. This is the default for :doc:`deimos`, for which a mosaic
+is constructed for each blue-red detector pair.
 
 Main Run
 ========
