@@ -1244,7 +1244,9 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     if cubepar['skysub_frame'] in [None, 'none', '', 'None']:
         skysub_default = "none"
         skysubImgDef = np.array([0.0])  # Do not perform sky subtraction
-    elif cubepar['skysub_frame'].lower() != "image":
+    elif cubepar['skysub_frame'].lower() == "image":
+        skysub_default = "image"
+    else:
         msgs.info("Loading default image for sky subtraction:" +
                   msgs.newline() + cubepar['skysub_frame'])
         try:
@@ -1254,8 +1256,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             skysubImgDef = spec2DObj.skymodel/skysub_exptime  # Sky counts/second
         except:
             msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + cubepar['skysub_frame'])
-    else:
-        msgs.error("Could not determine the skysub method:" + msgs.newline() + cubepar['skysub_frame'])
+
     # Load all spec2d files and prepare the data for making a datacube
     for ff, fil in enumerate(files):
         # Load it up
@@ -1383,17 +1384,18 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         if dspat is None:
             dspat = max(pxscl, slscl)
         if pxscl > dspat:
-            msgs.warn("Spatial scale requested ({0:f}'') is less than the pixel scale ({1:f}'')".format(dspat,pxscl))
-        if pxscl > dspat:
+            msgs.warn("Spatial scale requested ({0:f}'') is less than the pixel scale ({1:f}'')".format(dspat, pxscl))
+        if slscl > dspat:
             msgs.warn("Spatial scale requested ({0:f}'') is less than the slicer scale ({1:f}'')".format(dspat, slscl))
 
         # Loading the alignments frame for these data
         astrometric = cubepar['astrometric']
-        msgs.info("Loading alignments")
-        alignfile = masterframe.construct_file_name(alignframe.Alignments, hdr['TRACMKEY'], master_dir=hdr['PYPMFDIR'])
         alignments = None
-        if cubepar['astrometric']:
+        if astrometric:
+            alignfile = masterframe.construct_file_name(alignframe.Alignments, hdr['TRACMKEY'],
+                                                        master_dir=hdr['PYPMFDIR'])
             if os.path.exists(alignfile) and cubepar['astrometric']:
+                msgs.info("Loading alignments")
                 alignments = alignframe.Alignments.from_file(alignfile)
             else:
                 msgs.warn("Could not find Master Alignment frame:"+msgs.newline()+alignfile)
@@ -1495,7 +1497,10 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         ivar_sav = ivar_ext[wvsrt] / ext_corr ** 2
 
         # Convert units to Counts/s/Ang/arcsec2
-        scl_units = dwav_ext[wvsrt] * 3600.0 * 3600.0 * (frame_wcs.wcs.cdelt[0] * frame_wcs.wcs.cdelt[1])
+        # Slicer sampling * spatial pixel sampling
+        sl_deg = np.sqrt(frame_wcs.wcs.cd[0, 0] ** 2 + frame_wcs.wcs.cd[1, 0] ** 2)
+        px_deg = np.sqrt(frame_wcs.wcs.cd[1, 1] ** 2 + frame_wcs.wcs.cd[0, 1] ** 2)
+        scl_units = dwav_ext[wvsrt] * (3600.0 * sl_deg) * (3600.0 * px_deg)
         flux_sav /= scl_units
         ivar_sav *= scl_units ** 2
 
