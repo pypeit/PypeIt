@@ -1384,9 +1384,9 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         if dspat is None:
             dspat = max(pxscl, slscl)
         if pxscl > dspat:
-            msgs.warn("Spatial scale requested ({0:f}'') is less than the pixel scale ({1:f}'')".format(dspat, pxscl))
+            msgs.warn("Spatial scale requested ({0:f}'') is less than the pixel scale ({1:f}'')".format(3600.0*dspat, 3600.0*pxscl))
         if slscl > dspat:
-            msgs.warn("Spatial scale requested ({0:f}'') is less than the slicer scale ({1:f}'')".format(dspat, slscl))
+            msgs.warn("Spatial scale requested ({0:f}'') is less than the slicer scale ({1:f}'')".format(3600.0*dspat, 3600.0*slscl))
 
         # Loading the alignments frame for these data
         astrometric = cubepar['astrometric']
