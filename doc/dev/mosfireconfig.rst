@@ -93,6 +93,8 @@ No automated procedure exists to do anything except this. However, the user can 
 within a given configuration, assign specific calibration frames to specific science frames using the data in
 the ``calib`` column of the :ref:`data_block`.
 
+.. _mosfire_combid_bkgid:
+
 MOSFIRE combination and background groups
 -----------------------------------------
 

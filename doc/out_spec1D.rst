@@ -148,6 +148,8 @@ Choice of :ref:`spec1d-extraction` method.
 
 Show the fluxed spectrum (only if it has been fluxed!)
 
+.. _spec1d-extract_info:
+
 Extraction Information
 ======================
 

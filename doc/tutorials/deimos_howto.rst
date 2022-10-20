@@ -100,8 +100,11 @@ and its parameter block to now read::
 
 A full run with all 8 detectors (the default) is both long and may tax (or
 exceed) the RAM of your computer.  Therefore, you may wish to reduce 1 or 2
-detectors at a time in this fashion.  Certain combinations of detectors may be
-reduced as a :doc:`mosaic<../mosaic>`, see :ref:`here<deimos_mosaic>`.
+detectors at a time in this fashion.  For more than one detector, use a list for
+`detnum` (e.g.  `detnum = 3,7`). Also, note that PypeIt can construct image
+mosaics for detectors separated along the dispersion axis.  This is now the
+default approach for :doc:`deimos`, where a mosaic is constructed for each
+blue-red detector pair, see :ref:`here<deimos_mosaic>`.
 
 Main Run
 ========
@@ -375,3 +378,4 @@ For a more accurate solution,
 it may be preferred to perform flexure across both detectors.
 
 See :ref:`pypeit_multislit_flexure` for full details on this procedure.
+

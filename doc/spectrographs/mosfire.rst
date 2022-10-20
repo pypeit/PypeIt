@@ -1,3 +1,5 @@
+.. _mosfire:
+
 ************
 Keck MOSFIRE
 ************
@@ -128,6 +130,8 @@ if the automatic selection of the regions to exclude does not look right, the us
 adding the ``exclude_regions`` parameter in the :ref:`pypeit_file` (as shown above), making sure that the
 flag ``bound_detector`` is set to True.
 
+.. _mosfire_flats:
+
 Flat Fielding
 -------------
 
@@ -148,6 +152,8 @@ in the PypeIt file have the same exposure times as the ``trace``, ``pixelflat`` 
     If the user wants to use other images (e.g. spectroscopic twilight flats) for the ``illumflat``, then the 
     current implementation would likely fail. If distinct frames are desired for ``trace``, ``pixelflat``
     and ``illumflat``, we currently advise users to simply not use the ``lampoffflats``.
+
+.. _mosfire_wavecalib:
 
 Wavelength calibration
 ----------------------
@@ -231,4 +237,5 @@ to the development of PypeIt for use with MOSFIRE data:
    ../dev/slitmask_ids
    ../dev/radec_object
    ../dev/add_missing_obj
+   ../tutorials/mosfire_howto
 
