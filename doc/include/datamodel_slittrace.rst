@@ -26,7 +26,7 @@ Obj Key                Obj Type           Array Type  Description
 ``TRACELPIX``          ndarray            float       Spatial pixel coordinate for left edge.
 ``TRACERPIX``          ndarray            float       Spatial pixel coordinate for right edge.
 ``SPAT_ID``            ndarray            int         Slit ID number from SPAT measured at half way point.
-``SLITID``             ndarray            int         Slit ID Number (``maskdef_id``).
+``MASKDEF_ID``         ndarray            int         Slit ID Number from slitmask design.
 ``SLITLOPT``           ndarray            float       Left edge of the slit in pixel from slitmask design before x-correlation.
 ``SLITROPT``           ndarray            float       Right edge of the slit in pixel from slitmask design before x-correlation.
 ``SLITRA``             ndarray            float       Right ascension of the slit center (deg).

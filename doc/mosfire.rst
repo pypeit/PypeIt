@@ -1,3 +1,5 @@
+.. _mosfire:
+
 ************
 Keck MOSFIRE
 ************
@@ -117,6 +119,8 @@ if the automatic selection of the regions to exclude does not look right, the us
 adding the **exclude_regions** parameter in the :doc:`pypeit_file` (as shown above), making sure that the
 flag **bound_detector** is set to **True**.
 
+.. _mosfire_flats:
+
 Flat Fielding
 -------------
 The MOSFIRE calibration GUI provides the option to take flats with the lamps off. This is the default in the
@@ -135,6 +139,8 @@ in the PypeIt file have the same exposure time of the ``trace``, ``pixelflat`` a
     If the user wants to use other images (e.g. spectroscopic twilight flats) for the ``illumflat``, then the 
     current implementation would likely fail. If distinct frames are desired for ``trace``, ``pixelflat``
     and ``illumflat``, we currently advise users to simply not use the ``lampofflats``.
+
+.. _mosfire_wavecalib:
 
 Wavelength calibration
 ----------------------
@@ -218,3 +224,4 @@ Here are additional docs related to Keck/MOSFIRE:
    dev/slitmask_ids
    dev/radec_object
    dev/add_missing_obj
+   mosfire_howto
