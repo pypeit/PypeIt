@@ -18,6 +18,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     ndet = 1
     telescope = telescopes.KeckTelescopePar()
     camera = 'NIRSPEC'
+    url = 'https://www2.keck.hawaii.edu/inst/nirspec/'
     header_name = 'NIRSPEC'
 
     def get_detector_par(self, det, hdu=None):

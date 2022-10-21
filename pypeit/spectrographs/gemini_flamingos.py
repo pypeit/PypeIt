@@ -18,6 +18,7 @@ class GeminiFLAMINGOSSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1
     telescope = telescopes.GeminiSTelescopePar()
+    url = 'https://www.gemini.edu/instrumentation/flamingos-2'
 
     def init_meta(self):
         """

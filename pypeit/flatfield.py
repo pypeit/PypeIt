@@ -33,10 +33,14 @@ from pypeit import slittrace
 
 class FlatImages(datamodel.DataContainer):
     """
-    Simple DataContainer for the output from Flatfield
+    Simple DataContainer for the output from Flatfield.
 
-    All of the items in the datamodel are required for instantiation,
-      although they can be None (but shouldn't be)
+    All of the items in the datamodel are required for instantiation, although
+    they can be None (but shouldn't be).
+
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_flatimages.rst
 
     """
     minimum_version = '1.1.1'
@@ -56,7 +60,8 @@ class FlatImages(datamodel.DataContainer):
                                         descr='Normalized pixel flat'),
                  'pixelflat_model': dict(otype=np.ndarray, atype=np.floating, descr='Model flat'),
                  'pixelflat_spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline,
-                                                 descr='B-spline models for pixel flat'),
+                                                 descr='B-spline models for pixel flat; see '
+                                                       ':class:`~pypeit.bspline.bspline.bspline`'),
                  'pixelflat_finecorr': dict(otype=np.ndarray, atype=fitting.PypeItFit,
                                        descr='PypeIt 2D polynomial fits to the fine correction of the spatial illumination profile'),
                  'pixelflat_bpm': dict(otype=np.ndarray, atype=np.integer,
@@ -68,11 +73,12 @@ class FlatImages(datamodel.DataContainer):
                  'illumflat_raw': dict(otype=np.ndarray, atype=np.floating,
                                        descr='Processed, combined illum flats'),
                  'illumflat_spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline,
-                                                 descr='B-spline models for illum flat'),
-                 'illumflat_bpm': dict(otype=np.ndarray, atype=np.integer,
-                                       descr='Mirrors SlitTraceSet mask for flat-specific flags'),
+                                                 descr='B-spline models for illum flat; see '
+                                                       ':class:`~pypeit.bspline.bspline.bspline`'),
                  'illumflat_finecorr': dict(otype=np.ndarray, atype=fitting.PypeItFit,
                                        descr='PypeIt 2D polynomial fits to the fine correction of the spatial illumination profile'),
+                 'illumflat_bpm': dict(otype=np.ndarray, atype=np.integer,
+                                       descr='Mirrors SlitTraceSet mask for flat-specific flags'),
                  'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
                  'spat_id': dict(otype=np.ndarray, atype=np.integer, descr='Slit spat_id')}
 
@@ -130,7 +136,8 @@ class FlatImages(datamodel.DataContainer):
             # Skip None
             if self[key] is None:
                 continue
-            if self.datamodel[key]['otype'] == np.ndarray and 'bsplines' not in key and 'finecorr' not in key:
+            if self.datamodel[key]['otype'] == np.ndarray and 'bsplines' not in key \
+                    and 'finecorr' not in key:
                 d += [{key: self[key]}]
             elif 'bsplines' in key:
                 flattype = 'pixelflat' if 'pixelflat' in key else 'illumflat'
@@ -145,6 +152,11 @@ class FlatImages(datamodel.DataContainer):
                     d[0][key] = self[key]
                 else:
                     d += [{key: self[key]}]
+
+        # TODO: Somehow this approach can lead to a bug where the PIXELFLAT_RAW
+        # extension is missing its extension name.  I think this is because
+        # PYP_SPEC is added to it, but I gave up on debugging this for now.
+
         # Return
         return d
 

@@ -23,6 +23,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
     name = 'ntt_efosc2'
     header_name = 'EFOSC'
     camera = 'EFOSC2'
+    url = 'https://www.eso.org/sci/facilities/lasilla/instruments/efosc.html'
     supported = True
     comment = 'The ESO Faint Object Spectrograph and Camera version 2'
 

@@ -47,6 +47,15 @@ class bspline(datamodel.DataContainer):
     Functions in the bspline library are implemented as methods on this
     class.
 
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_bspline.rst
+
+    When written to an output-file HDU, all `numpy.ndarray`_ elements are
+    bundled into an `astropy.io.fits.BinTableHDU`_, and the other elements are
+    written as header keywords.  Any datamodel elements that are None are *not*
+    included in the output.
+
     Parameters
     ----------
     x : `numpy.ndarray`_

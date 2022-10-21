@@ -26,6 +26,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
     header_name = 'jwst_nirspec'
     telescope = telescopes.JWSTTelescopePar()
     camera = 'NIRSPEC'
+    url = 'https://jwst-docs.stsci.edu/jwst-near-infrared-spectrograph'
     supported = True
 
     def get_detector_par(self, det, hdu=None):

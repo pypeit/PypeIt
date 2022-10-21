@@ -133,7 +133,7 @@ def define_additional_meta(nlamps=20):
                        'datasec': dict(dtype=str, comment='Data section (windowing)'),
                        'dateobs': dict(dtype=str, comment='Observation date'),
                        'decker_secondary': dict(dtype=str, comment='Partial Slitmask/decker name. '
-                                                                  'It differs from decker. This is curently '
+                                                                  'It differs from decker. This is currently '
                                                                   'only needed for the reduction of some '
                                                                   'MOSFIRE masks, which use calibrations '
                                                                   'taken with a partially different decker '

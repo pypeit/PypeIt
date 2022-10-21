@@ -19,6 +19,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     ndet = 1
     name = 'gemini_gnirs'
     camera = 'GNIRS'
+    url = 'https://www.gemini.edu/instrumentation/gnirs'
     header_name = 'GNIRS'
     telescope = telescopes.GeminiNTelescopePar()
     pypeline = 'Echelle'

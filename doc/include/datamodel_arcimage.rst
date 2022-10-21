@@ -1,10 +1,11 @@
 
 Version 1.2.0
 
-================  =========================  ==========  =================================
-HDU Name          Obj Type                   Array Type  Description                      
-================  =========================  ==========  =================================
-``ARC_IMAGE``     ndarray                    floating    Primary image data               
-``ARC_FULLMASK``  ndarray                    integer     Full image bitmask               
-``ARC_DETECTOR``  DetectorContainer, Mosaic              The detector or mosaic parameters
-================  =========================  ==========  =================================
+================  ==============================  =========  ================================================================================================================================================
+HDU Name          HDU Type                        Data Type  Description                                                                                                                                     
+================  ==============================  =========  ================================================================================================================================================
+``PRIMARY``       `astropy.io.fits.PrimaryHDU`_   ...        Empty data HDU.  Contains basic header information.                                                                                             
+``ARC_IMAGE``     `astropy.io.fits.ImageHDU`_     floating   Primary image data                                                                                                                              
+``ARC_FULLMASK``  `astropy.io.fits.ImageHDU`_     integer    Full image bitmask                                                                                                                              
+``ARC_DETECTOR``  `astropy.io.fits.BinTableHDU`_             The detector (see :class:`~pypeit.images.detector_container.DetectorContainer`) or mosaic (see :class:`~pypeit.images.mosaic.Mosaic`) parameters
+================  ==============================  =========  ================================================================================================================================================

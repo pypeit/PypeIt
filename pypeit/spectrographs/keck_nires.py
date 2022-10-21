@@ -20,6 +20,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
     name = 'keck_nires'
     telescope = telescopes.KeckTelescopePar()
     camera = 'NIRES'
+    url = 'https://www2.keck.hawaii.edu/inst/nires/'
     header_name = 'NIRES'
     pypeline = 'Echelle'
     ech_fixed_format = True

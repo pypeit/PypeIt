@@ -24,6 +24,7 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1
     telescope = telescopes.LBTTelescopePar()
+    url = 'https://scienceops.lbto.org/mods/'
 
 #    def __init__(self):
 #        super().__init__()

@@ -26,6 +26,7 @@ class JWSTNIRCamSpectrograph(spectrograph.Spectrograph):
     header_name = 'jwst_nircam'
     telescope = telescopes.JWSTTelescopePar()
     camera = 'NIRCAM'
+    url = 'https://jwst-docs.stsci.edu/jwst-near-infrared-camera/nircam-observing-modes/nircam-wide-field-slitless-spectroscopy'
     supported = False
 
     def get_detector_par(self, det, hdu=None):

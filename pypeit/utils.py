@@ -1028,8 +1028,7 @@ def yamlify(obj, debug=False):
 
     Recursively process an object so it can be serialised for yaml.
 
-    Based on jsonify in `linetools
-    <https://pypi.python.org/pypi/linetools>`_.
+    Based on jsonify in `linetools`_.
 
     Also found in desiutils
 
