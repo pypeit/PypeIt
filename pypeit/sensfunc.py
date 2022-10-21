@@ -47,6 +47,10 @@ class SensFunc(datamodel.DataContainer):
     wavelength range of your data (UVIS for :math:`\lambda < 7000` angstrom,
     IR for :math:`\lambda > 7000` angstrom.)
 
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_sensfunc.rst
+
     Args:
         spec1dfile (:obj:`str`):
             PypeIt spec1d file for the standard file.
@@ -77,7 +81,9 @@ class SensFunc(datamodel.DataContainer):
                  'std_dec': dict(otype=float, descr='DEC of the standard source'),
                  'airmass': dict(otype=float, descr='Airmass of the observation'),
                  'exptime': dict(otype=float, descr='Exposure time'),
-                 'telluric': dict(otype=telluric.Telluric, descr='Telluric model'),
+                 'telluric': dict(otype=telluric.Telluric,
+                                  descr='Telluric model; see '
+                                        ':class:`~pypeit.core.telluric.Telluric`'),
                  'sens': dict(otype=table.Table, descr='Table with the sensitivity function'),
                  'wave': dict(otype=np.ndarray, atype=float, descr='Wavelength vectors'),
                  'zeropoint': dict(otype=np.ndarray, atype=float,

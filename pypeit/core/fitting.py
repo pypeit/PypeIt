@@ -22,6 +22,20 @@ from IPython import embed
 
 
 class PypeItFit(DataContainer):
+    """
+    General fitting class used by PypeIt.
+
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_pypeitfit.rst
+
+    When written to an output-file HDU, all `numpy.ndarray`_ elements are
+    bundled into an `astropy.io.fits.BinTableHDU`_, and the other elements are
+    written as header keywords.  Any datamodel elements that are None are *not*
+    included in the output.
+
+    """
+
     # Set the version of this class
     version = '1.0.0'
 

@@ -23,8 +23,20 @@ class WaveFit(datamodel.DataContainer):
     """
     DataContainer for the output from BuildWaveCalib
 
-    All of the items in the datamodel are required for instantiation,
-      although they can be None (but shouldn't be)
+    All of the items in the datamodel are required for instantiation, although
+    they can be None (but shouldn't be).
+
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_wavefit.rst
+
+    When written to an output-file HDU, all `numpy.ndarray`_ elements are
+    bundled into an `astropy.io.fits.BinTableHDU`_, the ``pypeitfit`` attribute
+    is written to a separate extension (see
+    :class:`~pypeit.core.fitting.PypeItFit`), and the other elements are written
+    as header keywords.  Any datamodel elements that are None are *not* included
+    in the output.  The two HDU extensions are given names according to their
+    spatial ID; see :func:`hduext_prefix_from_spatid`.
 
     """
     version = '1.1.0'

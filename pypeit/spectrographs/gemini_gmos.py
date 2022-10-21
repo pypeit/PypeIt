@@ -91,6 +91,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 3
     detid = None
+    url = 'http://www.gemini.edu/instrumentation/gmos'
 
     def init_meta(self):
         """

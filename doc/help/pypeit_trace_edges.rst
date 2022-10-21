@@ -4,7 +4,7 @@
     usage: pypeit_trace_edges [-h] (-f PYPEIT_FILE | -t TRACE_FILE) [-g GROUP]
                               [-d [DETECTOR ...]] [-s SPECTROGRAPH] [-b BINNING]
                               [-p REDUX_PATH] [-m MASTER_DIR] [-o] [--debug]
-                              [--show]
+                              [--show] [-v VERBOSITY]
     
     Trace slit edges
     
@@ -58,4 +58,8 @@
       --debug               Run in debug mode. (default: False)
       --show                Show the stages of trace refinements (only for the new
                             code). (default: False)
+      -v VERBOSITY, --verbosity VERBOSITY
+                            Verbosity level between 0 [none] and 2 [all]. Default:
+                            1. Level 2 writes a log with filename
+                            trace_edges_YYYYMMDD-HHMM.log (default: 1)
     
