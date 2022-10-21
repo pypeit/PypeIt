@@ -741,19 +741,19 @@ SkySubPar Keywords
 
 Class Instantiation: :class:`~pypeit.par.pypeitpar.SkySubPar`
 
-===================  ==========  =======  =======  ========================================================================================================================================================================================================================================================================================================================================================================================================================
-Key                  Type        Options  Default  Description                                                                                                                                                                                                                                                                                                                                                                                                             
-===================  ==========  =======  =======  ========================================================================================================================================================================================================================================================================================================================================================================================================================
-``bspline_spacing``  int, float  ..       0.6      Break-point spacing for the bspline sky subtraction fits.                                                                                                                                                                                                                                                                                                                                                               
-``global_sky_std``   bool        ..       True     Global sky subtraction will be performed on standard stars. This should be turned off for example for near-IR reductions with narrow slits, since bright standards can fill the slit causing global sky-subtraction to fail. In these situations we go straight to local sky-subtraction since it is designed to deal with such situations                                                                              
-``joint_fit``        bool        ..       False    Perform a simultaneous joint fit to sky regions using all available slits. Currently, this parameter is only used for IFU data reduction.                                                                                                                                                                                                                                                                               
-``mask_by_boxcar``   bool        ..       False    In global sky evaluation, mask the sky region around the object by the boxcar radius (set in ExtractionPar).                                                                                                                                                                                                                                                                                                            
-``max_mask_frac``    float       ..       0.8      Maximum fraction of total pixels on a slit that can be masked by the input masks. If more than this threshold is masked the code will return zeros and throw a warning.                                                                                                                                                                                                                                                 
-``no_local_sky``     bool        ..       False    If True, turn off local sky model evaluation, but do fit object profile and perform optimal extraction                                                                                                                                                                                                                                                                                                                  
-``no_poly``          bool        ..       False    Turn off polynomial basis (Legendre) in global sky subtraction                                                                                                                                                                                                                                                                                                                                                          
-``sky_sigrej``       float       ..       3.0      Rejection parameter for local sky subtraction                                                                                                                                                                                                                                                                                                                                                                           
-``user_regions``     str, list   ..       ..       A user-defined sky regions mask can be set using this keyword. To allow the code to identify the sky regions automatically, set this variable to an empty string. If you wish to set the sky regions, The text should be a comma separated list of percentages to apply to _all_ slits  For example: The following string   :10,35:65,80:   would select the first 10%, the inner 30%, and the final 20% of _all_ slits.
-===================  ==========  =======  =======  ========================================================================================================================================================================================================================================================================================================================================================================================================================
+===================  ==========  =======  =======  ==============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+Key                  Type        Options  Default  Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+===================  ==========  =======  =======  ==============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+``bspline_spacing``  int, float  ..       0.6      Break-point spacing for the bspline sky subtraction fits.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+``global_sky_std``   bool        ..       True     Global sky subtraction will be performed on standard stars. This should be turned off for example for near-IR reductions with narrow slits, since bright standards can fill the slit causing global sky-subtraction to fail. In these situations we go straight to local sky-subtraction since it is designed to deal with such situations                                                                                                                                                                                                                                                    
+``joint_fit``        bool        ..       False    Perform a simultaneous joint fit to sky regions using all available slits. Currently, this parameter is only used for IFU data reduction.                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+``mask_by_boxcar``   bool        ..       False    In global sky evaluation, mask the sky region around the object by the boxcar radius (set in ExtractionPar).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+``max_mask_frac``    float       ..       0.8      Maximum fraction of total pixels on a slit that can be masked by the input masks. If more than this threshold is masked the code will return zeros and throw a warning.                                                                                                                                                                                                                                                                                                                                                                                                                       
+``no_local_sky``     bool        ..       False    If True, turn off local sky model evaluation, but do fit object profile and perform optimal extraction                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+``no_poly``          bool        ..       False    Turn off polynomial basis (Legendre) in global sky subtraction                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
+``sky_sigrej``       float       ..       3.0      Rejection parameter for local sky subtraction                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+``user_regions``     str, list   ..       ..       A user-defined sky regions mask can be set using this keyword. To allow the code to identify the sky regions automatically, set this variable to an empty string. If you wish to set the sky regions, The text should be a comma separated list of percentages to apply to _all_ slits  For example: The following string   :10,35:65,80:   would select the first 10%, the inner 30%, and the final 20% of _all_ slits. Alternatively, you can also set the argument to be "master", which will load a MasterSkyRegions file that the user has generated with the pypeit_skysub_regions tool.
+===================  ==========  =======  =======  ==============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -1883,6 +1883,179 @@ Alterations to the default parameters are:
       [[findobj]]
           maxnumber_std = 1
 
+.. _instr_par-jwst_nircam:
+
+JWST NIRCAM (``jwst_nircam``)
+-----------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = jwst_nircam
+  [calibrations]
+      [[biasframe]]
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              mask_cr = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[standardframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[wavelengths]]
+          refframe = observed
+  [scienceframe]
+      [[process]]
+          sigclip = 5.0
+          objlim = 2.0
+          noise_floor = 0.01
+  [reduce]
+      trim_edge = 0, 0
+      [[findobj]]
+          find_trim_edge = 0, 0
+          maxnumber_sci = 2
+          find_fwhm = 2.0
+      [[skysub]]
+          bspline_spacing = 1.2
+          sky_sigrej = 4.0
+          max_mask_frac = 0.95
+      [[extraction]]
+          boxcar_radius = 0.25
+          sn_gauss = 6.0
+          model_full_slit = True
+          use_2dmodel_mask = False
+
+.. _instr_par-jwst_nirspec:
+
+JWST NIRSPEC (``jwst_nirspec``)
+-------------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = jwst_nirspec
+  [calibrations]
+      [[biasframe]]
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              mask_cr = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[standardframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[wavelengths]]
+          refframe = observed
+  [scienceframe]
+      [[process]]
+          sigclip = 5.0
+          objlim = 2.0
+          noise_floor = 0.01
+  [reduce]
+      trim_edge = 0, 0
+      [[findobj]]
+          find_trim_edge = 0, 0
+          maxnumber_sci = 2
+          find_fwhm = 2.0
+      [[skysub]]
+          bspline_spacing = 5.0
+          sky_sigrej = 4.0
+          mask_by_boxcar = True
+          max_mask_frac = 0.95
+      [[extraction]]
+          boxcar_radius = 0.2
+          sn_gauss = 6.0
+          model_full_slit = True
+          use_2dmodel_mask = False
+
 .. _instr_par-keck_deimos:
 
 KECK DEIMOS (``keck_deimos``)
@@ -1989,10 +2162,10 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
 
-.. _instr_par-keck_hires_red:
+.. _instr_par-keck_hires:
 
-KECK HIRES_R (``keck_hires_red``)
----------------------------------
+KECK HIRES (``keck_hires``)
+---------------------------
 Alterations to the default parameters are:
 
 .. code-block:: ini
@@ -5638,7 +5811,7 @@ Alterations to the default parameters are:
   [sensfunc]
       algorithm = IR
       [[IR]]
-          telgridfile = TelFit_Paranal_VIS_4900_11100_R25000.fits
+          telgridfile = TelFit_Paranal_VIS_9800_25000_R25000.fits
 
 .. _instr_par-vlt_sinfoni:
 

@@ -703,33 +703,44 @@ def wavegrid(wave_min, wave_max, dwave, spec_samp_fact=1.0, log10=False):
 
     Utility routine to generate a uniform grid of wavelengths
 
-    Args:
-        wave_min (float):
-           Mininum wavelength. Must be linear even if log10 is requested
-        wave_max (float):
-           Maximum wavelength. Must be linear even if log10 is requested.
-        dwave (float):
-           Delta wavelength interval. Must be linear if log10=False, or log10 if log10=True
-        spec_samp_fact (float, optional):
-            Make the wavelength grid  sampling finer (spec_samp_fact < 1.0) or coarser (spec_samp_fact > 1.0) by this
-            sampling factor. This basically multiples the 'native' spectral pixels by spec_samp_fact, i.e. units
-            spec_samp_fact are pixels.
+    Parameters
+    ----------
 
-    Returns:
-        :obj:`tuple`: Returns two `numpy.ndarray`_ objects and a float:
-            - ``wave_grid``: (ndarray, (ngrid +1,))
-                New wavelength grid, not masked. This is a set of bin edges (rightmost edge for the last bin and leftmost edges for the rest),
-                while wave_grid_mid is a set of bin centers, hence wave_grid has 1 more value than wave_grid_mid.
-            - ``wave_grid_mid``: ndarray, (ngrid,)
-                New wavelength grid evaluated at the centers of
-                the wavelength bins, that is this grid is simply offset from
-               ``wave_grid`` by ``dsamp/2.0``, in either linear space or log10
-                depending on whether linear or (log10 or velocity) was requested.
-                Last bin center is removed since it falls outside wave_grid.
-                For iref or concatenate, the linear wavelength sampling will be
-                calculated.
-            - ``dsamp``:
-               The pixel sampling for wavelength grid created.
+    wave_min : float
+        Mininum wavelength. Must be linear even if log10 is requested
+    wave_max : float
+        Maximum wavelength. Must be linear even if log10 is requested.
+    dwave : float
+        Delta wavelength interval. Must be linear if ``log10=False``, or log10
+        if ``log10=True``
+    spec_samp_fact : float, optional
+        Make the wavelength grid sampling finer (spec_samp_fact < 1.0) or
+        coarser (spec_samp_fact > 1.0) by this sampling factor. This basically
+        multiples the 'native' spectral pixels by ``spec_samp_fact``, i.e. units
+        of ``spec_samp_fact`` are pixels.
+    log10 : bool, optional
+        Return a geometric wavelength grid with steps of constant log base 10 in
+        wavelength.
+
+    Returns
+    -------
+
+    wave_grid : `numpy.ndarray`_, (ngrid +1,)
+        New wavelength grid, not masked. This is a set of bin edges (rightmost
+        edge for the last bin and leftmost edges for the rest), while
+        wave_grid_mid is a set of bin centers, hence wave_grid has 1 more value
+        than wave_grid_mid.
+
+    wave_grid_mid : `numpy.ndarray`_, (ngrid,)
+        New wavelength grid evaluated at the centers of the wavelength bins,
+        that is this grid is simply offset from ``wave_grid`` by ``dsamp/2.0``,
+        in either linear space or log10 depending on whether linear or (log10 or
+        velocity) was requested.  Last bin center is removed since it falls
+        outside wave_grid.  For iref or concatenate, the linear wavelength
+        sampling will be calculated.
+
+    dsamp : float
+        The pixel sampling for wavelength grid created.
 
     """
 
