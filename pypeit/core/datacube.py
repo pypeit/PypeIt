@@ -13,7 +13,7 @@ from astropy import wcs, units
 from astropy.coordinates import AltAz, SkyCoord
 from astropy.io import fits
 import scipy.optimize as opt
-from scipy.interpolate import interp1d, RegularGridInterpolator
+from scipy.interpolate import interp1d, RegularGridInterpolator, LinearNDInterpolator
 import numpy as np
 
 from pypeit import msgs
@@ -1054,14 +1054,15 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     if output_wcs is None:
         output_wcs = frame_wcs
     # Check that grid_nspat is an odd number
-    if grid_nspat%2==0:
+    if grid_nspat%2 == 0:
         msgs.warn(f"grid_nspat must be an odd number. Using grid_nspat={grid_nspat+1} instead")
         grid_nspat += 1
     embed()
     assert(False)
-    from scipy.interpolate import griddata
     from shapely.geometry import Polygon, box as shapelyBox
     from shapely.strtree import STRtree
+    from scipy.interpolate import RBFInterpolator
+    debug = False
     # Get the grid spacing along the spatial direction
     frm_cd_spat = np.sqrt(frame_wcs.wcs.cd[1, 1] ** 2 + frame_wcs.wcs.cd[0, 1] ** 2)
     out_cd_spat = np.sqrt(output_wcs.wcs.cd[1, 1] ** 2 + output_wcs.wcs.cd[0, 1] ** 2)
@@ -1073,6 +1074,7 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     out_cd_wave = output_wcs.wcs.cd[2, 2]
     nvox_wave = int(np.ceil((np.max(waveimg)-out_cr_wave)/out_cd_wave))
     crd_vox_spec = out_cr_wave + out_cd_wave * np.arange(nvox_wave+1)  # +1 to get bin edges
+    vox_shape = (nvox_wave+1, nvox_spat+1)
 
     # Detector spectal/spatial pixels and number of slices
     nspec, nspat, nslice = slits.nspec, slits.nspat, slits.spat_id.size
@@ -1080,11 +1082,6 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     # Generate the output datacube
     datcube = np.zeros((nslice, nvox_spat, nvox_wave), dtype=float)
     varcube = np.zeros((nslice, nvox_spat, nvox_wave), dtype=float)
-
-    # Generate a linear regular spline between X pixel and wavelength, mapped to Y pixel
-    spl_ra = RegularGridInterpolator((np.arange(nspec), np.arange(nspat)), raimg, method="linear", bounds_error=False, fill_value=-1)
-    spl_dec = RegularGridInterpolator((np.arange(nspec), np.arange(nspat)), decimg, method="linear", bounds_error=False, fill_value=-1)
-    spl_wav = RegularGridInterpolator((np.arange(nspec), np.arange(nspat)), waveimg, method="linear", bounds_error=False, fill_value=-1)
 
     # Transform the voxel geometry to detector pixels
     grid_nspec = 1 + nspec // grid_specsep
@@ -1095,6 +1092,7 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     ygrid = ygridt[:, np.newaxis].repeat(grid_nspat, axis=1)
     ra0, dec0 = np.zeros(nslice), np.zeros(nslice)
     offsimg = np.zeros_like(waveimg)
+    sl, spat_id = 0, slits.spat_id[0]  # TODO :: REMOVE THIS LINE OF CODE!
     for sl, spat_id in enumerate(slits.spat_id):
         msgs.info(f"Calculating voxel geometry for slit {spat_id}")
         # Calculate RA and Dec of central traces
@@ -1106,27 +1104,45 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
         dec0[sl] = np.interp(0.0, spat_posn[asrt], this_dec[asrt])
         # Generate the offsets
         cosdec = np.cos(dec0[sl] * np.pi / 180.0)
-        offsimg[wsl] = np.sqrt(((this_ra - ra0[sl]) * cosdec) ** 2 + (this_dec - dec0[sl]) ** 2)
+        diff_ra, diff_dec = (this_ra - ra0[sl]) * cosdec, this_dec - dec0[sl]
+        if np.max(diff_ra)-np.min(diff_ra) > np.max(diff_dec)-np.min(diff_dec):
+            sgn = np.sign(diff_ra)
+        else:
+            sgn = np.sign(diff_dec)
+        offsimg[wsl] = -sgn * np.sqrt(diff_ra**2 + diff_dec**2)
         # Update the xgrid values for this slice
-        for yy in range(ngrd_spec):
+        for yy in range(grid_nspec):
             wsl = np.where(slitimg == spat_id)
             allind = wsl[1][np.where(wsl[0] == ygridt[yy])]
             xgrid[yy, 0] = np.min(allind)
             xgrid[yy, -1] = np.max(allind)
             numpix = xgrid[yy, -1] - xgrid[yy, 0]
-            sep = numpix // (ngrd_spat - 1)
-            xgrid[yy, 1:-1] = xgrid[yy, 0] + (numpix % sep + 2 * sep) // 2 + np.arange(ngrd_spat - 2) * sep
+            sep = numpix // (grid_nspat - 1)
+            xgrid[yy, 1:-1] = xgrid[yy, 0] + (numpix % sep + 2 * sep) // 2 + np.arange(grid_nspat - 2) * sep
         #  Extract offset + wavelength information and estimate transform
         grid_coord = (ygrid.flatten(), xgrid.flatten())
         grid_offs = offsimg[grid_coord]
         grid_wave = waveimg[grid_coord]
         src = np.column_stack((grid_wave, grid_offs))
-        dst = np.column_stack(grid_coord)
-        tform = transform.estimate_transform('polynomial', src, dst, order=1)
+        dst = np.column_stack(grid_coord).astype(float)
         # Transform the voxel coordinates to detector coordinates
         evalpos = np.column_stack((crd_vox_spec[:,np.newaxis].repeat(crd_vox_spat.size, axis=1).flatten(),
-                                   crd_vox_spec[np.newaxis,:].repeat(crd_vox_spec.size, axis=0).flatten()))
-        crd_det = tform(evalpos)
+                                   crd_vox_spat[np.newaxis,:].repeat(crd_vox_spec.size, axis=0).flatten()))
+        # tform = LinearNDInterpolator(src, dst, rescale=True)
+        # crd_det_tmp = tform(evalpos)
+
+        src_off = np.min(src, axis=0)
+        src_scl = np.max(src-src_off, axis=0)
+        dst_off = np.min(dst, axis=0)
+        dst_scl = np.max(dst-dst_off, axis=0)
+        tform = RBFInterpolator((src-src_off)/src_scl, (dst-dst_off)/dst_scl, smoothing=0.01)
+        crd_det = dst_off + dst_scl * tform((evalpos-src_off)/src_scl)
+        if debug:
+            plt.plot(crd_det[:, 0], crd_det[:, 1], 'rx')
+            #plt.plot(crd_det_tmp[:, 0], crd_det_tmp[:, 1], 'bx')
+            plt.plot(np.arange(slits.left_init.shape[0]), slits.left_init[:, 0], 'k-')
+            plt.plot(np.arange(slits.right_init.shape[0]), slits.right_init[:, 0], 'k-')
+            plt.show()
 
     # Calculate an "offsets" image, which indicates the offset in arcsec from (RA_0, DEC_0)
     # Create two splines of the offsets image: (1) offset predicts RA; (2) offset predicts Dec.
@@ -1136,7 +1152,8 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     #    i.e. need to invert this:
     #    world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init]*(nspec-1), 0)
     # This gives us the x,y detector positions of the voxel geometry
-
+        vox_shape = (nvox_wave+1, nvox_spat+1)
+        crd_det_spec, crd_det_spat = crd_det[:, 0].reshape(vox_shape), crd_det[:, 1].reshape(vox_shape)
         # Generate a list of all detector pixels in this slice
         detpix_polys = []
         pix_spec, pix_spat = np.where(slitimg == spat_id)
@@ -1148,15 +1165,21 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
         for wv in range(nvox_wave):
             for sp in range(nvox_spat):
                 # Generate the voxel coordinates in detector pixel space (points must be counter-clockwise)
-                voxel_geom = Polygon([(-1, -1), (2, 0), (2, 2), (-1, 2)])
+                voxel_geom = Polygon([(crd_det_spat[wv, sp],   crd_det_spec[wv,   sp]),
+                                      (crd_det_spat[wv, sp+1], crd_det_spec[wv,   sp]),
+                                      (crd_det_spat[wv, sp+1], crd_det_spec[wv+1, sp]),
+                                      (crd_det_spat[wv, sp],   crd_det_spec[wv+1, sp]),
+                                      (crd_det_spat[wv, sp],   crd_det_spec[wv,   sp])])
                 # Find overlapping detector pixels
                 result = detgeom.query(voxel_geom)
                 # Sum all overlapping flux-weighted areas
                 this_flx = 0
                 this_var = 0
                 for pp in range(len(result)):
-                    # polys[0] in result
-                    this_flx += 0
+                    area = voxel_geom.intersection(result[pp]).area
+                    pix_spat = int(min(result[pp].exterior.coords[0][0], result[pp].exterior.coords[2][0]))
+                    pix_spec = int(min(result[pp].exterior.coords[0][1], result[pp].exterior.coords[2][1]))
+                    this_flx += area * fluximg[pix_spec, pix_spat]
                     this_var += 0
                 # Fill in the datacube
                 datcube[sl, sp, wv] = this_flx
@@ -1180,6 +1203,101 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
 
     # Save the final datacube
     # TODO :: Write out the datacube
+
+
+class Linear2DInterpolator(object):
+    """
+    An extension of *LinearNDInterpolator* in 2D that
+    extrapolates (linearly) outside of the convex hull.
+    Nearest simplex is used for that, which might not be
+    the best choice, but it's the simplest one.
+
+    Largely taken from the following, with some modifications to allow rescaling:
+    https://gist.github.com/tunnell/90a83b7e1f894e8f882a029caece447b
+    """
+
+    def __init__(self, points, values):
+        self.lndi = LinearNDInterpolator(points, values)
+        hull = self.lndi.tri.convex_hull.tolist()
+        # Build a mask showing if a simplex has a side that
+        # is in the convex hull.
+        self.is_convex_simplex = np.zeros(len(self.lndi.tri.simplices),
+                                          dtype=bool)
+        for irow, row in enumerate(self.lndi.tri.simplices):
+            rrow = row[[0, 1, 2, 0]]
+            for pos in range(3):
+                if rrow[pos:pos + 2].tolist() in hull or \
+                        rrow[[pos + 1, pos]].tolist() in hull:
+                    self.is_convex_simplex[irow] = True
+
+    def __call__(self, xi):
+        """
+        Predict values at points *xi*
+        """
+        result = self.lndi(xi)
+        mask = np.isnan(result.sum(axis=1))
+        if not np.any(mask):
+            # All points are within the convex hull - nothing to do more.
+            return result
+        simplices = []
+
+        # Build a list of nearest simplices for points outside
+        # the convex hull
+        for i, drow in enumerate(self.lndi.tri.plane_distance(xi[mask])):
+
+            mi = np.max(drow[self.is_convex_simplex])  # Fixed if nearested isn't on hull
+            w = np.where(drow == mi)[0]
+
+            if len(w) == 1 and self.is_convex_simplex[w]:
+                simplices.append(w)
+            elif len(w) > 1:
+                ww = w[self.is_convex_simplex[w]][0]
+                simplices.append(ww)
+            else:
+                raise ValueError
+
+        simplices = np.array(simplices)
+        result_update = np.zeros((mask.sum(), 2))  # fixed
+        for simple in np.unique(simplices):
+            indices = np.where(simplices == simple)[0]
+            result_update[indices] = self._get_simplex_at_point(simple, xi[mask][indices])
+
+        result[mask] = result_update
+        return result
+
+    def _get_simplex_at_point(self, ind, point):
+        """
+        Calculate the value at a point (or points)
+        using the plane build on simplex with index *ind*.
+        """
+        point = np.atleast_2d(np.array(point))
+        simplex = self.lndi.tri.simplices[ind]
+
+        plane_points = self.lndi.tri.points[[simplex]]
+        values = self.lndi.values[[simplex]]
+
+        point = point - plane_points[0]
+
+        extrapolated_points = []
+
+        for i, value in enumerate(values[0]):
+            # These two vectors are in the plane
+            v1 = (plane_points[2][0] - plane_points[0][0],
+                  plane_points[2][1] - plane_points[0][1],
+                  values[2][i] - values[0][i])
+
+            v2 = (plane_points[1][0] - plane_points[0][0],
+                  plane_points[1][1] - plane_points[0][1],
+                  values[1][i] - values[0][i])
+
+            # the cross product is a vector normal to the plane
+            cp = np.cross(v1, v2)
+
+            # z corresponding to plane requires dot with norm = 0
+            # (Norm) dot (position with only z unknown) = 0, solve.
+            extrapolated_points.append(values[0][i] + (- cp[0] * point[:, 0] - cp[1] * point[:, 1]) / cp[2])
+
+        return np.array(extrapolated_points).T
 
 
 def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bins,
@@ -1765,14 +1883,13 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                 ivarimg[onslit_gpm] = ivar_sav[resrt]
                 # Get the slit image and then unset pixels in the slit image that are bad
                 slitimg = slitid_img_init.copy()
-                slitimg[~onslit_gpm] = -1
                 # Generate the output WCS for the datacube
                 crval_wv = cubepar['wave_min'] if cubepar['wave_min'] is not None else 1.0E10 * frame_wcs.wcs.crval[2]
                 cd_wv = cubepar['wave_delta'] if cubepar['wave_delta'] is not None else 1.0E10 * frame_wcs.wcs.cd[2, 2]
                 cd_spat = cubepar['spatial_delta'] if cubepar['spatial_delta'] is not None else px_deg*3600.0
                 output_wcs = spec.get_wcs(spec2DObj.head0, slits, detector.platescale, crval_wv, cd_wv, spatial_scale=cd_spat)
                 # Now generate the cube
-                generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, decimg, waveimg, slitimg,
+                generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, decimg, waveimg, slitid_img_init, onslit_gpm,
                                        overwrite=overwrite, output_wcs=output_wcs, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
                                        fluxcal=fluxcal, specname=specname)
             elif method == 'ngp':
