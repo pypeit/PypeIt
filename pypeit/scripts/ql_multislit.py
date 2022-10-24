@@ -40,6 +40,7 @@ from pypeit.core.parse import get_dnum, parse_binning
 from pypeit.core.wavecal import wvutils
 from pypeit import sensfunc
 from pypeit.core import flux_calib
+from pypeit.core import setup
 from pypeit.scripts import scriptbase
 from pypeit.spectrographs import available_spectrographs
 
@@ -322,9 +323,14 @@ class QL_MOS(scriptbase.ScriptBase):
         parser.add_argument('spectrograph', type=str,
                             help='A valid spectrograph identifier: {0}'.format(
                                  ', '.join(available_spectrographs)))
-        parser.add_argument('full_rawpath', type=str, help='Full path to the raw files')
-        parser.add_argument('files', type=str, nargs='+',
-                            help='list of frames i.e. img1.fits img2.fits')
+        parser.add_argument('--rawfile_list', type=str, 
+                            help='File providing raw files to reduce including their path(s)')
+        parser.add_argument('--full_rawpath', type=str, 
+                            help='Full path to the raw files. Used with --rawfiles or --extension')
+        parser.add_argument('--raw_extension', type=str, default='.fits',
+                            help='Extension for raw files in full_rawpath.  Only use if --rawfile_list and --rawfiles are not provided')
+        parser.add_argument('--rawfiles', type=str, nargs='+',
+                            help='comma separated list of raw frames e.g. img1.fits,img2.fits.  These must exist within --full_rawpath')
         parser.add_argument('--spec_samp_fact', default=1.0, type=float,
                             help='Make the wavelength grid finer (spec_samp_fact < 1.0) or '
                                  'coarser (spec_samp_fact > 1.0) by this sampling factor, i.e. '
@@ -374,14 +380,20 @@ class QL_MOS(scriptbase.ScriptBase):
     @staticmethod
     def main(args):
 
-        # Parse the detector this is taken from view_fits but this should be made into a utility function
-
         tstart = time.time()
-        # Parse the files sort by MJD
-        files = np.array([os.path.join(args.full_rawpath, file) for file in args.files])
+
+        # Ingest Files 
+        files = setup.grab_rawfiles(
+            raw_paths=args.full_rawpath, 
+            file_of_files=args.rawfile_list, 
+            list_of_files=args.rawfiles.split(','))
         nfiles = len(files)
 
+        # Run PypeIt Setup
+        ps = pypeitsetup.PypeItSetup.from_rawfiles(files,
+                                        args.spectrograph) 
 
+        '''
         # Read in the spectrograph, config the parset
         spectrograph = load_spectrograph(args.spectrograph)
         spectrograph_cfg_lines = spectrograph.config_specific_par(files[0]).to_config()
@@ -395,6 +407,9 @@ class QL_MOS(scriptbase.ScriptBase):
             mjds[ifile] = spectrograph.get_meta_value(file, 'mjd', ignore_bad_header=True,
                                                       no_fussing=True)
         files = files[np.argsort(mjds)]
+        '''
+
+        # Generate PypeIt files
 
         # Get the master path
 

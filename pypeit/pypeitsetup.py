@@ -18,6 +18,7 @@ from pypeit.metadata import PypeItMetaData
 from pypeit import inputfiles
 
 from pypeit.par import PypeItPar
+from pypeit.core import setup
 from pypeit.spectrographs.util import load_spectrograph
 
 
@@ -217,21 +218,27 @@ class PypeItSetup:
         # Set the output directory
         if not os.path.isdir(output_path):
             os.makedirs(output_path)
-        # Set the output file name
-        date = str(datetime.date.today().strftime('%Y-%m-%d'))
-        # pypeit_file = os.path.join(output_path, '{0}_{1}.pypeit'.format(spectrograph, date))
-        # msgs.info('A vanilla pypeit file will be written to: {0}'.format(pypeit_file))
         
         # Grab the list of files
+        data_files = setup.files_from_extension()
         dfname = os.path.join(root, '*{0}*'.format(extension)) \
                     if os.path.isdir(root) else '{0}*{1}*'.format(root, extension)
         data_files = glob.glob(dfname)
         data_files.sort()
+
+        # Instantiate
+        return cls.from_rawfiles(data_files, spectrograph)
+
+    @classmethod
+    def from_rawfiles(cls, data_files:list, spectrograph:str):
+
+        # Configure me
         cfg_lines = ['[rdx]']
         cfg_lines += ['    spectrograph = {0}'.format(spectrograph)]
 
         # Instantiate
         return cls(data_files, cfg_lines=cfg_lines) #pypeit_file=filename, 
+
 
     @property
     def nfiles(self):
