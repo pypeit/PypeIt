@@ -1059,6 +1059,7 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
         grid_nspat += 1
     embed()
     assert(False)
+    atime=time.time()
     from shapely.geometry import Polygon, box as shapelyBox
     from shapely.strtree import STRtree
     from scipy.interpolate import RBFInterpolator
@@ -1092,9 +1093,10 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     ygrid = ygridt[:, np.newaxis].repeat(grid_nspat, axis=1)
     ra0, dec0 = np.zeros(nslice), np.zeros(nslice)
     offsimg = np.zeros_like(waveimg)
-    sl, spat_id = 0, slits.spat_id[0]  # TODO :: REMOVE THIS LINE OF CODE!
+    varimgsq = utils.inverse(ivarimg ** 2)
+    #sl, spat_id = 0, slits.spat_id[0]  # TODO :: REMOVE THIS LINE OF CODE!
     for sl, spat_id in enumerate(slits.spat_id):
-        msgs.info(f"Calculating voxel geometry for slit {spat_id}")
+        msgs.info(f"Calculating voxel geometry for slit {spat_id} -- {(time.time()-atime)/60}")
         # Calculate RA and Dec of central traces
         wsl = np.where(slitimg == spat_id)
         this_ra, this_dec, this_wave = raimg[wsl], decimg[wsl], waveimg[wsl]
@@ -1152,7 +1154,6 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     #    i.e. need to invert this:
     #    world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init]*(nspec-1), 0)
     # This gives us the x,y detector positions of the voxel geometry
-        vox_shape = (nvox_wave+1, nvox_spat+1)
         crd_det_spec, crd_det_spat = crd_det[:, 0].reshape(vox_shape), crd_det[:, 1].reshape(vox_shape)
         # Generate a list of all detector pixels in this slice
         detpix_polys = []
@@ -1162,6 +1163,8 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
         # Create a Sort-Tile-Recursive tree of the detector pixels to quickly query overlapping voxels
         detgeom = STRtree(detpix_polys)
         # Loop through all voxels for this slice and calculate the overlapping area
+        #all_area = np.zeros_like(fluximg)
+        #atime=time.time()
         for wv in range(nvox_wave):
             for sp in range(nvox_spat):
                 # Generate the voxel coordinates in detector pixel space (points must be counter-clockwise)
@@ -1175,34 +1178,34 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
                 # Sum all overlapping flux-weighted areas
                 this_flx = 0
                 this_var = 0
+                this_area = 0
                 for pp in range(len(result)):
                     area = voxel_geom.intersection(result[pp]).area
                     pix_spat = int(min(result[pp].exterior.coords[0][0], result[pp].exterior.coords[2][0]))
                     pix_spec = int(min(result[pp].exterior.coords[0][1], result[pp].exterior.coords[2][1]))
-                    this_flx += area * fluximg[pix_spec, pix_spat]
-                    this_var += 0
+                    if ivarimg[pix_spec, pix_spat] != 0.0:
+                        this_flx += area * fluximg[pix_spec, pix_spat]
+                        this_var += area**2 * varimgsq[pix_spec, pix_spat]
+                        this_area += area
+                    #all_area[pix_spec, pix_spat] += area
                 # Fill in the datacube
-                datcube[sl, sp, wv] = this_flx
-                varcube[sl, sp, wv] = this_var
+                this_area = 1 if this_area == 0 else this_area
+                datcube[sl, sp, wv] = this_flx / this_area
+                varcube[sl, sp, wv] = this_var / this_area**2
 
+    # Generate a header
+    hdr = output_wcs.to_header()
 
-    # Create spline of RAimg and DECimg
-    # Evaluate RA/DEC at the centre of the slice (this is the same along the entire trace ==> (RA_0, DEC_0))
-    # Calculate an "offsets" image, which indicates the offset in arcsec from (RA_0, DEC_0)
-    # Create two splines of the offsets image: (1) offset predicts RA; (2) offset predicts Dec.
-    # Use these splines to calculate the RA and DEC of the voxels, combine this with the output wavelength grid.
-    # Generate all RA, DEC, WAVELENGTH triples (i.e. find the RA,DEC pairs along constant wavelength, for all wavelengths)
-    # Use the WCS (which contains the astrometric transform) to go from world to pix
-    #    i.e. need to invert this:
-    #    world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init]*(nspec-1), 0)
-    # This gives us the x,y detector positions of the voxel geometry
-
-    # TODO :: Write out a residuals cube
-    if debug:
-        pass
+    # Add the unit of flux to the header
+    if fluxcal:
+        hdr['FLUXUNIT'] = (PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
+    else:
+        hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
 
     # Save the final datacube
-    # TODO :: Write out the datacube
+    msgs.info("Saving datacube as: {0:s}".format(outfile))
+    final_cube = DataCube(datcube.T, varcube.T, specname, blaze_wave, blaze_spec, sensfunc=sensfunc, fluxed=fluxcal)
+    final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
 
 
 def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bins,
