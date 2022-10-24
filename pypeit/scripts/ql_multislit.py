@@ -420,6 +420,29 @@ class QL_MOS(scriptbase.ScriptBase):
             det=args.det, configs=args.configs)
         # Science                                
 
+        det_container = ps.spectrograph.get_detector_par(
+            args.det, hdu=fits.open(files[0]))
+        binspectral, binspatial = parse_binning(
+            det_container['binning'])
+        platescale = det_container['platescale']*binspatial
+        detname = det_container.name
+
+        if std_spec1d_file is not None:
+            std_trace = specobjs.get_std_trace(
+                detname, std_spec1d_file, chk_version=False)
+        else:
+            std_trace = None
+
+        # Parse the offset information out of the headers. TODO in the future
+        # get this out of fitstable
+        dither_pattern, dither_id, offset_arcsec = \
+            ps.spectrograph.parse_dither_pattern(files)
+
+        print_offset_report(files, dither_pattern, dither_id, offset_arcsec, target, platescale)
+        
+        #caliBrate = build_calibrate(_det, files, spectrograph, parset, bias_masterframe_name,
+        #                                slit_masterframe_name, wvcalib_masterframe_name, tilts_masterframe_name)
+
         # Run calibs?
         if not args.skip_calibs:
             for calib_pypeit_file in calib_pypeit_files:
@@ -433,6 +456,7 @@ class QL_MOS(scriptbase.ScriptBase):
 
         # Get the master path
 
+        '''
         # Calibration Master directory
         master_dir = os.path.join(data.Paths.data, 'QL_MASTERS') if args.master_dir is None else args.master_dir
         master_subdir = spectrograph.get_ql_master_dir(files[0])
@@ -463,24 +487,8 @@ class QL_MOS(scriptbase.ScriptBase):
             # or (sensfunc_masterframe_name is None or not os.path.isfile(sensfunc_masterframe_name)):
             msgs.error('Master frames not found.  Check that environment variable QL_MASTERS '
                        'points at the Master Calibs')
+        '''
 
-        det_container = spectrograph.get_detector_par(_det, hdu=fits.open(files[0]))
-        binspectral, binspatial = parse_binning(det_container['binning'])
-        platescale = det_container['platescale']*binspatial
-        detname = det_container.name
-
-        if std_spec1d_file is not None:
-            std_trace = specobjs.get_std_trace(detname, std_spec1d_file, chk_version=False)
-        else:
-            std_trace = None
-
-        # Parse the offset information out of the headers. TODO in the future
-        # get this out of fitstable
-        dither_pattern, dither_id, offset_arcsec = spectrograph.parse_dither_pattern(files)
-
-        print_offset_report(files, dither_pattern, dither_id, offset_arcsec, target, platescale)
-        caliBrate = build_calibrate(_det, files, spectrograph, parset, bias_masterframe_name,
-                                        slit_masterframe_name, wvcalib_masterframe_name, tilts_masterframe_name)
 
         spec2d_list, offsets_dith_pix = run(files, dither_id, offset_arcsec, caliBrate, spectrograph,
                                             platescale, parset, std_trace, args.show, bkg_redux=args.bkg_redux)

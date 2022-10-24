@@ -36,7 +36,7 @@ def generate_calib_pypeit_files(ps, output_path:str,
 
     return calib_pypeit_files
 
-def generate_science_pypeitfiles(calib_pypeit_file, ps_sci):
+def generate_science_pypeitfiles(ps, calib_pypeit_file, ps_sci):
     """
     Process a science frame
 
