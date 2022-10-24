@@ -21,7 +21,7 @@ from astropy.stats import sigma_clipped_stats
 
 from pypeit import utils
 from pypeit import data
-from pypeit import pypeit
+from pypeit.scripts import run_pypeit
 from pypeit import par, msgs
 from pypeit import pypeitsetup
 from pypeit import wavecalib
@@ -41,6 +41,7 @@ from pypeit.core.wavecal import wvutils
 from pypeit import sensfunc
 from pypeit.core import flux_calib
 from pypeit.core import setup
+from pypeit.core import quicklook
 from pypeit.scripts import scriptbase
 from pypeit.spectrographs import available_spectrographs
 
@@ -331,6 +332,8 @@ class QL_MOS(scriptbase.ScriptBase):
                             help='Extension for raw files in full_rawpath.  Only use if --rawfile_list and --rawfiles are not provided')
         parser.add_argument('--rawfiles', type=str, nargs='+',
                             help='comma separated list of raw frames e.g. img1.fits,img2.fits.  These must exist within --full_rawpath')
+        parser.add_argument('--configs', type=str, nargs='A',
+                            help='Configurations to reduce [A,all]')
         parser.add_argument('--spec_samp_fact', default=1.0, type=float,
                             help='Make the wavelength grid finer (spec_samp_fact < 1.0) or '
                                  'coarser (spec_samp_fact > 1.0) by this sampling factor, i.e. '
@@ -392,6 +395,7 @@ class QL_MOS(scriptbase.ScriptBase):
         # Run PypeIt Setup
         ps = pypeitsetup.PypeItSetup.from_rawfiles(files,
                                         args.spectrograph) 
+        ps.run(setup_only=True, no_write_sorted=True)
 
         '''
         # Read in the spectrograph, config the parset
@@ -410,6 +414,22 @@ class QL_MOS(scriptbase.ScriptBase):
         '''
 
         # Generate PypeIt files
+        # Calibs
+        calib_pypeit_files = quicklook.generate_calib_pypeit_files(
+            ps, args.redux_path,
+            det=args.det, configs=args.configs)
+        # Science                                
+
+        # Run calibs?
+        if not args.skip_calibs:
+            for calib_pypeit_file in calib_pypeit_files:
+
+                # Run me via the script
+                redux_path = os.path.dirname(calib_pypeit_file)  # Path to PypeIt file
+                run_pargs = run_pypeit.RunPypeIt.parse_args([calib_pypeit_file,
+                                                '-r={}'.format(redux_path),
+                                                '-c'])
+                run_pypeit.RunPypeIt.main(run_pargs)
 
         # Get the master path
 
