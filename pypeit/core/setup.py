@@ -6,6 +6,7 @@ import glob
 
 from pypeit import inputfiles
 
+from IPython import embed
 
 def grab_rawfiles(raw_paths:list=None, 
                file_of_files:str=None,
@@ -53,3 +54,4 @@ def files_from_extension(raw_path:str,
 
     # Return
     return data_files
+

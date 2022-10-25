@@ -5,6 +5,7 @@ Script for quick-look reductions for Multislit observations.
 .. include:: ../include/links.rst
 """
 
+from email import header
 import os
 import copy
 import time
@@ -20,7 +21,6 @@ from astropy.table import Table
 from astropy.stats import sigma_clipped_stats
 
 from pypeit import utils
-from pypeit import data
 from pypeit.scripts import run_pypeit
 from pypeit import par, msgs
 from pypeit import pypeitsetup
@@ -37,7 +37,6 @@ from pypeit.display import display
 from pypeit.images import buildimage
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core.parse import get_dnum, parse_binning
-from pypeit.core.wavecal import wvutils
 from pypeit import sensfunc
 from pypeit.core import flux_calib
 from pypeit.core import setup
@@ -332,8 +331,10 @@ class QL_MOS(scriptbase.ScriptBase):
                             help='Extension for raw files in full_rawpath.  Only use if --rawfile_list and --rawfiles are not provided')
         parser.add_argument('--rawfiles', type=str, nargs='+',
                             help='comma separated list of raw frames e.g. img1.fits,img2.fits.  These must exist within --full_rawpath')
-        parser.add_argument('--configs', type=str, nargs='A',
+        parser.add_argument('--configs', type=str, default='A',
                             help='Configurations to reduce [A,all]')
+        parser.add_argument('--sci_files', type=str, 
+                            help='comma separated list of raw frames to be specified as science exposures (over-rides PypeIt frame typing)')
         parser.add_argument('--spec_samp_fact', default=1.0, type=float,
                             help='Make the wavelength grid finer (spec_samp_fact < 1.0) or '
                                  'coarser (spec_samp_fact > 1.0) by this sampling factor, i.e. '
@@ -385,12 +386,14 @@ class QL_MOS(scriptbase.ScriptBase):
 
         tstart = time.time()
 
+        # Load up the spectrograph
+        spectrograph = load_spectrograph(args.spectrograph)
+
         # Ingest Files 
         files = setup.grab_rawfiles(
-            raw_paths=args.full_rawpath, 
+            raw_paths=[args.full_rawpath], 
             file_of_files=args.rawfile_list, 
-            list_of_files=args.rawfiles.split(','))
-        nfiles = len(files)
+            list_of_files=None if args.rawfiles is None else args.rawfiles.split(','))
 
         # Run PypeIt Setup
         ps = pypeitsetup.PypeItSetup.from_rawfiles(files,
@@ -413,14 +416,45 @@ class QL_MOS(scriptbase.ScriptBase):
         files = files[np.argsort(mjds)]
         '''
 
-        # Generate PypeIt files
+        # Generate PypeIt files (and folders)
         # Calibs
         calib_pypeit_files = quicklook.generate_calib_pypeit_files(
             ps, args.redux_path,
             det=args.det, configs=args.configs)
-        # Science                                
 
-        det_container = ps.spectrograph.get_detector_par(
+        # Science files                                
+        if args.sci_files is not None:
+            sci_files = args.sci_files.split(',')
+            # WORK ON THIS
+            embed(header='427 of ql multi')
+        else:
+            sci_idx = ps.fitstbl['frametype'] == 'science'
+
+        if np.sum(sci_idx) == 0:
+            msgs.error('No science frames found in the provided files.  Add at least one or specify using --sci_files.')
+
+        # Match to calib
+        sci_setups = []
+        for dir_path, sci_file in zip(
+            ps.fitstbl['directory'][sci_idx],
+            ps.fitstbl['filename'][sci_idx]):
+            calib_pypeit_file, ps_sci, sci_setup =\
+                quicklook.match_science_to_calibs(
+                    os.path.join(dir_path,sci_file), 
+                    spectrograph, args.redux_path)
+            sci_setups.append(sci_setup)
+
+        # Only 1 setup?
+        if len(np.unique(sci_setups)) != 1:
+            dtbl = Table()
+            dtbl['sci_files'] = ps.fitstbl['filename'][sci_idx]
+            dtbl['setup'] = sci_setups
+            print(dtbl)
+            msgs.error('Your science files have multiple setups.  This is not supported. Remove one more of them.')
+
+        # Let's buil the PypeIt file
+
+        det_container = spectrograph.get_detector_par(
             args.det, hdu=fits.open(files[0]))
         binspectral, binspatial = parse_binning(
             det_container['binning'])
