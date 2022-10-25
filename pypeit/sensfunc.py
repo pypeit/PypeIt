@@ -20,6 +20,7 @@ from pypeit import msgs
 from pypeit import specobjs
 from pypeit import utils
 from pypeit import io
+from pypeit.core import coadd
 from pypeit.core import flux_calib
 from pypeit.core import telluric
 from pypeit.core import fitting
@@ -45,6 +46,10 @@ class SensFunc(datamodel.DataContainer):
     either :class:`UVISSensFunc` or :class:`IRSensFunc`, depending on the
     wavelength range of your data (UVIS for :math:`\lambda < 7000` angstrom,
     IR for :math:`\lambda > 7000` angstrom.)
+
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_sensfunc.rst
 
     Args:
         spec1dfile (:obj:`str`):
@@ -76,7 +81,9 @@ class SensFunc(datamodel.DataContainer):
                  'std_dec': dict(otype=float, descr='DEC of the standard source'),
                  'airmass': dict(otype=float, descr='Airmass of the observation'),
                  'exptime': dict(otype=float, descr='Exposure time'),
-                 'telluric': dict(otype=telluric.Telluric, descr='Telluric model'),
+                 'telluric': dict(otype=telluric.Telluric,
+                                  descr='Telluric model; see '
+                                        ':class:`~pypeit.core.telluric.Telluric`'),
                  'sens': dict(otype=table.Table, descr='Table with the sensitivity function'),
                  'wave': dict(otype=np.ndarray, atype=float, descr='Wavelength vectors'),
                  'zeropoint': dict(otype=np.ndarray, atype=float,
@@ -686,7 +693,7 @@ class SensFunc(datamodel.DataContainer):
                 weights_stack[:,iord,iexp] = utils.inverse(sensfunc_iord)
 
         if debug:
-            weights_qa(waves_stack, weights_stack, (waves_stack > 1.0), title='sensfunc_weights')
+            coadd.weights_qa(waves_stack, weights_stack, (waves_stack > 1.0), title='sensfunc_weights')
 
         if waves.ndim == 2:
             weights_stack = np.reshape(weights_stack, (nspec, norder))
@@ -858,6 +865,7 @@ class UVISSensFunc(SensFunc):
                                                     self.meta_spec['AIRMASS'], self.std_dict,
                                                     self.meta_spec['LONGITUDE'],
                                                     self.meta_spec['LATITUDE'],
+                                                    self.par['UVIS']['extinct_file'],
                                                     self.meta_spec['ECH_ORDERS'],
                                                     polyorder=self.par['polyorder'],
                                                     balm_mask_wid=self.par['UVIS']['balm_mask_wid'],

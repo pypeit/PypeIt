@@ -219,8 +219,8 @@ class PypeItSetup:
             os.makedirs(output_path)
         # Set the output file name
         date = str(datetime.date.today().strftime('%Y-%m-%d'))
-        pypeit_file = os.path.join(output_path, '{0}_{1}.pypeit'.format(spectrograph, date))
-        msgs.info('A vanilla pypeit file will be written to: {0}'.format(pypeit_file))
+        # pypeit_file = os.path.join(output_path, '{0}_{1}.pypeit'.format(spectrograph, date))
+        # msgs.info('A vanilla pypeit file will be written to: {0}'.format(pypeit_file))
         
         # Grab the list of files
         dfname = os.path.join(root, '*{0}*'.format(extension)) \
@@ -472,6 +472,7 @@ class PypeItSetup:
 
         if obslog:
             log_file = pypeit_file.replace('.pypeit', '.obslog')
+            log_file = os.path.join(_output_path, os.path.split(log_file)[1])
             header = ['Auto-generated PypeIt Observing Log',
                       '{0}'.format(time.strftime("%a %d %b %Y %H:%M:%S", time.localtime()))]
             self.fitstbl.write(output=log_file, columns='pypeit', sort_col='mjd',

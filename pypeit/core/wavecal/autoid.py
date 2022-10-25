@@ -856,13 +856,19 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     return detections, spec_cont_sub, patt_dict_slit
 
 
-def measure_fwhm(spec):
+def measure_fwhm(spec, sigdetect=10., fwhm=5.):
     """
     Measure the arc lines FWHM, i.e, approximate spectral resolution
 
     Args:
         spec (`numpy.ndarray`_):
-            Arc spectrum from a single slit
+            Arc spectrum from a single slit.
+        sigdetect (:obj:`float`, optional):
+            Sigma threshold above fluctuations for arc-line detection.
+            Used by :func:`pypeit.core.arc.detect_lines`.
+        fwhm (:obj:`float`, optional):
+            Number of pixels per fwhm resolution element.
+            Used by :func:`pypeit.core.arc.detect_lines`.
 
     Returns:
         :obj:`float`: Measured arc lines FWHM in binned pixels of the input arc image
@@ -870,7 +876,7 @@ def measure_fwhm(spec):
 
     # Determine the lines FWHM, i.e, approximate spectral resolution
     #  This may only be recorded and not used by the algorithms
-    _, _, _, wdth, _, best, _, nsig = arc.detect_lines(spec, sigdetect=10., fwhm=5.)
+    _, _, _, wdth, _, best, _, nsig = arc.detect_lines(spec, sigdetect=sigdetect, fwhm=fwhm)
     # 1sigma Gaussian widths of the line detections
     wdth = wdth[best]
     # significance of each line detected
@@ -879,14 +885,14 @@ def measure_fwhm(spec):
     # We start with nsig_thrshd of 500 and iteratively reduce it if there are not more than 6 lines
     nsig_thrshd = 500.
     measured_fwhm = None
-    while nsig_thrshd > 10.:
-        if wdth[nsig > nsig_thrshd].size > 6:
+    while nsig_thrshd >= sigdetect:
+        if wdth[nsig >= nsig_thrshd].size > 6:
             # compute average `wdth`
-            mean, med, _ = stats.sigma_clipped_stats(wdth[nsig > nsig_thrshd], sigma_lower=2.0, sigma_upper=2.0)
+            mean, med, _ = stats.sigma_clipped_stats(wdth[nsig >= nsig_thrshd], sigma_lower=2.0, sigma_upper=2.0)
             # FWHM in pixels
-            measured_fwhm = np.round(med * 2.35482, 1)
+            measured_fwhm = med * (2 * np.sqrt(2 * np.log(2)))
             break
-        nsig_thrshd -= 5
+        nsig_thrshd -= sigdetect/2.
 
     return measured_fwhm
 
@@ -910,13 +916,13 @@ def set_fwhm(par, measured_fwhm=None):
     # Set FWHM for the methods that follow
     if par['fwhm_fromlines'] is False:
         fwhm = par['fwhm']
-        msgs.info("User-provided arc lines FWHM: {} pixels".format(fwhm))
+        msgs.info(f"User-provided arc lines FWHM: {fwhm:.1f} pixels")
     elif measured_fwhm is None:
         fwhm = par['fwhm']
-        msgs.warn("Assumed arc lines FWHM: {} pixels".format(fwhm))
+        msgs.warn(f"Assumed arc lines FWHM: {fwhm:.1f} pixels")
     else:
         fwhm = measured_fwhm
-        msgs.info("Measured arc lines FWHM: {} pixels".format(fwhm))
+        msgs.info(f"Measured arc lines FWHM: {fwhm:.1f} pixels")
 
     return fwhm
 
@@ -1363,7 +1369,7 @@ class ArchiveReid:
             # Add the patt_dict and wv_calib to the output dicts
             self.wv_calib[str(slit)] = copy.deepcopy(final_fit)
             if self.debug_fits:
-                arc_fit_qa(self.wv_calib[str(slit)], title='Silt: {}'.format(str(slit)))
+                arc_fit_qa(self.wv_calib[str(slit)], title='Slit: {}'.format(str(slit)))
 
         # Print the final report of all lines
         self.report_final()
@@ -2666,7 +2672,7 @@ class HolyGrail:
                 msgs.info("Wrote: {:s}".format(self._outroot + slittxt + '.json'))
 
                 # Plot
-                tmp_list = vstack([self._line_lists, self._unknwns])
+                tmp_list = np.vstack([self._line_lists, self._unknwns])
                 match_qa(self._spec[:, slit], use_tcent, tmp_list,
                             self._all_patt_dict[str(slit)]['IDs'], self._all_patt_dict[str(slit)]['scores'],
                             outfile=self._outroot + slittxt + '.pdf')

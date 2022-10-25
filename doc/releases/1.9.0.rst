@@ -1,0 +1,46 @@
+
+Version 1.9.0
+=============
+
+Major Changes
+-------------
+
+- Reduction of Keck/DEIMOS now defaults to mosaics of red and blue
+  detector pairs
+- Package data is no longer distributed via PyPI. Instead, we use
+  astropy's downloading/caching system as needed by the user
+- Significant refactor of object finding and 2D extraction algorithms
+- Added support for:
+  - VLT FORS2 600z grism
+  - VLT XShooter UVB arm
+
+Minor Changes/Improvements
+--------------------------
+
+- Default comb_id ordering matches the sorted file name in pypeit_setup
+- Save output wavelength calibration from pypeit_identify to the cache
+  for direct reuse in data reduction.
+- The pypeit_identify GUI can now toggle between linear and log scaling
+  of the arc spectrum flux.
+- Dark subtraction now ignores any difference in exposure time, by
+  default
+- Added more flexible quicklook that can handle dithering.
+- Bug fixes in local sky subtraction and extraction
+- Fixed pypeit_setup issues due to bad LRIS headers.
+- Fixed a bug in 2d coadding when objects were not being identified.
+- Refactored 2d extraction.
+- Minor enhancements to pypeit_identify GUI
+- Refactoring of pypeit_show_wvcalib GUI
+
+Instrument-specific Changes/Improvements
+----------------------------------------
+
+- Improve Keck/KCWI automatic frame typing.
+- Added wavelength templates for
+  - Keck/MOSFIRE (OH and arc lines)
+  - bok_bc 300 grating template
+- Improved wavelength solution for Gemini-Nort E2V detector
+- Keck/DEIMOS now uses gain/RN values measured periodically by WMKO
+- Added enhancements and fixes for Keck lris red Mark4.
+- Added code to better parse Gemini/GNIRS dither sequences
+

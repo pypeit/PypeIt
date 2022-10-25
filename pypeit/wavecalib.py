@@ -29,8 +29,12 @@ class WaveCalib(datamodel.DataContainer):
     """
     DataContainer for the output from BuildWaveCalib
 
-    All of the items in the datamodel are required for instantiation,
-      although they can be None (but shouldn't be)
+    All of the items in the datamodel are required for instantiation, although
+    they can be None (but shouldn't be)
+
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_wavecalib.rst
 
     """
     version = '1.0.0'
@@ -94,9 +98,16 @@ class WaveCalib(datamodel.DataContainer):
             # Array?
             if self.datamodel[key]['otype'] == np.ndarray and key != 'wv_fits':
                 _d.append({key: self[key]})
+            # TODO: Can we put all the WAVEFIT and PYPEITFIT at the end of the
+            # list of HDUs?  This would mean ARC_SPECTRA is always in the same
+            # extension number, regardless of the number of slits.
             elif key == 'wv_fits':
                 for ss, wv_fit in enumerate(self[key]):
+                    # TODO: Are we writing empty extensions if any of the
+                    # elements of self[key] are None?  If so, is this required
+                    # behavior?  Why?
                     # Naming
+                    # TODO: Shouldn't this name match the dkey below?
                     dkey = 'WAVEFIT-{}'.format(self.spat_ids[ss])
                     # Generate a dummy?
                     if wv_fit is None:
@@ -487,15 +498,7 @@ class BuildWaveCalib:
             measured_fwhms[islit] = autoid.measure_fwhm(arccen[:, islit])
 
         # Obtain calibration for all slits
-        if method == 'simple':
-            line_lists = waveio.load_line_lists(self.lamps)
-
-            final_fit = arc.simple_calib_driver(line_lists, arccen, ok_mask_idx,
-                                                    n_final=self.par['n_final'],
-                                                    sigdetect=self.par['sigdetect'],
-                                                    IDpixels=self.par['IDpixels'],
-                                                    IDwaves=self.par['IDwaves'])
-        elif method == 'holy-grail':
+        if method == 'holy-grail':
             # Sometimes works, sometimes fails
             arcfitter = autoid.HolyGrail(arccen, self.lamps, par=self.par, ok_mask=ok_mask_idx,
                                          nonlinear_counts=self.nonlinear_counts,

@@ -24,6 +24,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1  # Because each detector is written to a separate FITS file
     telescope = telescopes.VLTTelescopePar()
+    url = 'https://www.eso.org/sci/facilities/paranal/instruments/fors.html'
 
     @classmethod
     def default_pypeit_par(cls):

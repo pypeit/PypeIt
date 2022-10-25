@@ -24,6 +24,7 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1
     telescope = telescopes.LBTTelescopePar()
+    url = 'https://scienceops.lbto.org/mods/'
 
 #    def __init__(self):
 #        super().__init__()
@@ -50,6 +51,12 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['arcframe']['exprng'] = [None, None]
         par['calibrations']['standardframe']['exprng'] = [1, 200]
         par['scienceframe']['exprng'] = [200, None]
+
+        # Do not sigmaclip the arc frames for better MasterArc and better wavecalib
+        par['calibrations']['arcframe']['process']['clip'] = False
+        # Do not sigmaclip the tilt frames
+        par['calibrations']['tiltframe']['process']['clip'] = False
+
         return par
 
     def init_meta(self):

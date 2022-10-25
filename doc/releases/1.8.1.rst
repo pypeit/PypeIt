@@ -1,0 +1,8 @@
+
+Version 1.8.1
+=============
+
+- Various hotfixes
+- Include preliminary support for fluxing with archived SensFunc files
+  for DEIMOS.
+

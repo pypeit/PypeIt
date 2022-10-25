@@ -13,8 +13,10 @@ development of ``PypeIt``.
    
    deimosframes
    mosfireframes
+   niresframes
    slitmask_ids
    deimosconfig
+   mosfireconfig
    radec_object
    deimos_wavecalib
    add_missing_obj

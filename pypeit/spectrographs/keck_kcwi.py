@@ -38,6 +38,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
     name = 'keck_kcwi'
     telescope = telescopes.KeckTelescopePar()
     camera = 'KCWI'
+    url = 'https://www2.keck.hawaii.edu/inst/kcwi/'
     header_name = 'KCWI'
     pypeline = 'IFU'
     supported = True
@@ -251,7 +252,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Relative illumination correction
         par['calibrations']['flatfield']['slit_illum_relative'] = True  # Calculate the relative slit illumination
         par['calibrations']['flatfield']['slit_illum_ref_idx'] = 14  # The reference index - this should probably be the same for the science frame
-        par['calibrations']['flatfield']['slit_illum_smooth_npix'] = 4  # Sufficiently small value so less structure in relative weights
+        par['calibrations']['flatfield']['slit_illum_smooth_npix'] = 5  # Sufficiently small value so less structure in relative weights
         par['calibrations']['flatfield']['fit_2d_det_response'] = True  # Include the 2D detector response in the pixelflat.
 
         # Set the default exposure time ranges for the frame typing
@@ -863,7 +864,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)  # DEC degress per column
         cd22 = cdelt2 * np.cos(crota)                          # DEC degrees per row
         # Get reference pixels (set these to the middle of the FOV)
-        crpix1 = 24/2 - 0.5   # i.e. 24 slices/2 and then -0.5 to account for the bin edge used with NGP
+        crpix1 = 24/2   # i.e. 24 slices/2
         crpix2 = slitlength / 2.
         crpix3 = 1.
         # Get the offset

@@ -33,6 +33,10 @@ class PypeItImage(datamodel.DataContainer):
     Note that all arguments for instantiation are optional, meaning that an
     empty object can be created.
 
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_pypeitimage.rst
+
     Args:
         image (`numpy.ndarray`_, optional):
             Primary image data
@@ -119,7 +123,9 @@ class PypeItImage(datamodel.DataContainer):
                  'crmask': dict(otype=np.ndarray, atype=np.bool_, descr='CR mask image'),
                  'fullmask': dict(otype=np.ndarray, atype=np.integer, descr='Full image bitmask'),
                  'detector': dict(otype=(DetectorContainer, Mosaic),
-                                  descr='The detector or mosaic parameters'),
+                                  descr='The detector (see :class:`~pypeit.images.detector_container.DetectorContainer`) '
+                                        'or mosaic (see :class:`~pypeit.images.mosaic.Mosaic`) '
+                                        'parameters'),
                  'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
                  'units': dict(otype=str, descr='(Unscaled) Pixel units (e- or ADU)'),
                  # TODO: Consider forcing exptime to be a float.

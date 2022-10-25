@@ -33,6 +33,10 @@ class TracePCA(DataContainer):
     :func:`pypeit.core.pca.fit_pca_coefficients`, and
     :func:`pypeit.core.pca.pca_predict`.
 
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_tracepca.rst
+
     Args:
         trace_cen (`numpy.ndarray`_, optional):
             A floating-point array with the spatial location of each
@@ -69,7 +73,7 @@ class TracePCA(DataContainer):
                                              'coordinate system for the PCA.'),
                  'trace_coo': dict(otype=np.ndarray, atype=(float,np.floating),
                                    descr='Trace coordinates.  Shape must be '
-                                         r':math:`(N_{\rm spec},N_{\rm trace}).'),
+                                         r':math:`(N_{\rm spec},N_{\rm trace})`.'),
                  'nspec': dict(otype=int,
                                descr='Number of pixels in the image spectral direction.'),
                  'ntrace': dict(otype=int, descr='Number of traces used to construct the PCA.'),

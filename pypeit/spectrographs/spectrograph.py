@@ -97,6 +97,11 @@ class Spectrograph:
     This is used by specdb, so use that naming convention
     """
 
+    url = None
+    """
+    Reference url
+    """
+
     header_name = None
     """
     Name of the spectrograph camera or arm from the Header.
@@ -606,6 +611,26 @@ class Spectrograph:
         """
         return ['dispname', 'dichroic', 'decker']
 
+    def modify_config(self, fitstbl, cfg):
+        """
+        Modify the configuration dictionary for a given frame. This method is used
+        in :func:`pypeit.metadata.PypeItMetaData.set_configurations` to modify in place
+        the configuration requirement to assign a specific frame to the current setup.
+
+        **This method is not defined for all spectrographs.**
+
+        Args:
+            fitstbl(`astropy.table.Table`_):
+                The table with the metadata for one frames.
+            cfg (:obj:`dict`):
+                dictionary with metadata associated to a specific configuration.
+
+        Returns:
+            :obj:`dict`: modified dictionary with metadata associated to a specific configuration.
+        """
+
+        return cfg
+
     def valid_configuration_values(self):
         """
         Return a fixed set of valid values for any/all of the configuration
@@ -660,6 +685,25 @@ class Spectrograph:
             group.
         """
         return {'bias': None, 'dark': None}
+
+    def get_comb_group(self, fitstbl):
+        """
+
+        This method is used in :func:`pypeit.metadata.PypeItMetaData.set_combination_groups`,
+        and modifies comb_id and bkg_id metas for a specific instrument.
+
+
+        **This method is not defined for all spectrographs.**
+
+        Args:
+            fitstbl(`astropy.table.Table`_):
+                The table with the metadata for all the frames.
+
+        Returns:
+            `astropy.table.Table`_: modified fitstbl.
+        """
+
+        return fitstbl
 
     def pypeit_file_keys(self):
         """

@@ -24,6 +24,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
     name = 'mmt_binospec'
     telescope = telescopes.MMTTelescopePar()
     camera = 'BINOSPEC'
+    url = 'https://lweb.cfa.harvard.edu/mmti/binospec.html'
     header_name = 'Binospec'
     supported = True
 
