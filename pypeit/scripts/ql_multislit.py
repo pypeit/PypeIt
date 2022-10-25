@@ -434,15 +434,20 @@ class QL_MOS(scriptbase.ScriptBase):
             msgs.error('No science frames found in the provided files.  Add at least one or specify using --sci_files.')
 
         # Match to calib
-        sci_setups = []
+        ps_sci_list, sci_setups, full_scifiles = [], [], []
         for dir_path, sci_file in zip(
             ps.fitstbl['directory'][sci_idx],
             ps.fitstbl['filename'][sci_idx]):
+            #
+            full_scifile = os.path.join(dir_path, sci_file)
             calib_pypeit_file, ps_sci, sci_setup =\
                 quicklook.match_science_to_calibs(
-                    os.path.join(dir_path,sci_file), 
+                    full_scifile,
                     spectrograph, args.redux_path)
+            # Save
+            ps_sci_list.append(ps_sci)
             sci_setups.append(sci_setup)
+            full_scifiles.append(full_scifile)
 
         # Only 1 setup?
         if len(np.unique(sci_setups)) != 1:
@@ -452,7 +457,12 @@ class QL_MOS(scriptbase.ScriptBase):
             print(dtbl)
             msgs.error('Your science files have multiple setups.  This is not supported. Remove one more of them.')
 
-        # Let's buil the PypeIt file
+        # Let's build the PypeIt file
+        sci_pypeit_file, sci_pypeitFile = quicklook.generate_sci_pypeitfile(
+            calib_pypeit_file, 
+            full_scifiles, ps_sci_list)
+        
+        embed(header='463 of ql multi')
 
         det_container = spectrograph.get_detector_par(
             args.det, hdu=fits.open(files[0]))

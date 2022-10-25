@@ -104,52 +104,57 @@ def generate_science_pypeitfiles(calib_pypeit_file, ps_sci):
 
 
 
-def run_on_science(pargs, calib_pypeit_file, ps_sci):
+def generate_sci_pypeitfile(calib_pypeit_file:str, 
+                            sci_files:list,
+                            ps_sci_list:list,
+                            cfg_dict:dict=None):
     """
-    Process a science frame
+    Generate the PypeIt file for the science frames
+    """
 
-    Args:
-        pargs (argparse.ArgumentParser):
-            Command line arguments
-        calib_pypeit_file (str):
-        ps_sci (:class:`pypeit.pypeitsetup.PypeItSetup`):
-    """
     # Parse science file info
-    science_file = os.path.join(pargs.full_rawpath, pargs.science)
+    #science_file = os.path.join(pargs.full_rawpath, pargs.science)
     science_pypeit = calib_pypeit_file.replace('calib', 'science')
 
     calibPypeItFile = inputfiles.PypeItFile.from_file(calib_pypeit_file)
 
     # Add science file to data block?
-    if science_file not in calibPypeItFile.filenames:
-        new_row = {}
-        for key in calibPypeItFile.data.keys():
-            new_row[key] = ps_sci.fitstbl[key][0]
-        new_row['filename'] = pargs.science
+    gd_files = calibPypeItFile.data['frametype'] != 'science'
+    for ps_sci, science_file in zip(ps_sci_list, sci_files):
+        if science_file not in calibPypeItFile.filenames:
+            # NEED TO DEVELOP THIS
+            embed(header='125 of ql')
+            new_row = {}
+            for key in calibPypeItFile.data.keys():
+                new_row[key] = ps_sci.fitstbl[key][0]
+            new_row['filename'] = science_file
+        # Add to good files
+        mt = calibPypeItFile.data['filename'] == os.path.basename(science_file)
+        gd_files = gd_files | mt
 
-    # Generate data block
-    # Remove any extraneous science files in the folder
-    gd_files = (calibPypeItFile.data['filename'] == os.path.basename(science_file)) | (
-        calibPypeItFile.data['frametype'] != 'science')
+    # Cut down
     cut_data = calibPypeItFile.data[gd_files]
 
     # Add to configs
     config_lines = calibPypeItFile.cfg_lines
-    if pargs.slit_spat is not None:
-        # Remove detnum
-        for kk, item in enumerate(config_lines):
-            if 'detnum' in item:
-                config_lines.pop(kk)
 
-        # Add in name, slitspatnum
-        ridx = config_lines.index('[rdx]')
-        config_lines.insert(ridx+1, '    slitspatnum = {0}'.format(pargs.slit_spat))
+    # TODO -- GENERALIZE THIS
+    if cfg_dict is not None:
+        if pargs.slit_spat is not None:
+            # Remove detnum
+            for kk, item in enumerate(config_lines):
+                if 'detnum' in item:
+                    config_lines.pop(kk)
 
-        # this is to avoid that the default detnum (which was introduced for mosaic)
-        # will be passed to the reduction and crash it
-        config_lines.insert(ridx+2, '    detnum = None')
-    else:
-        raise NotImplementedError('NOT READY:  118 of ql_deimos')
+            # Add in name, slitspatnum
+            ridx = config_lines.index('[rdx]')
+            config_lines.insert(ridx+1, '    slitspatnum = {0}'.format(pargs.slit_spat))
+
+            # this is to avoid that the default detnum (which was introduced for mosaic)
+            # will be passed to the reduction and crash it
+            config_lines.insert(ridx+2, '    detnum = None')
+        else:
+            raise NotImplementedError('NOT READY:  118 of ql_deimos')
 
     # Generate PypeIt file
     pypeitFile = inputfiles.PypeItFile(config=config_lines, 
@@ -158,6 +163,11 @@ def run_on_science(pargs, calib_pypeit_file, ps_sci):
                                        setup=calibPypeItFile.setup)
     pypeitFile.write(science_pypeit)
 
+    # Return
+    return science_pypeit, pypeitFile
+
+
+def run_on_science(pargs, calib_pypeit_file, ps_sci):
     # Run me!
     redux_path = os.path.dirname(science_pypeit)  # Path to PypeIt file
     run_pargs = run_pypeit.RunPypeIt.parse_args([science_pypeit,
