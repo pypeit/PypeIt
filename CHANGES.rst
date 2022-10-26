@@ -1,4 +1,10 @@
 
+1.11.1dev
+---------
+
+- Added spectral flexure and reference frame corrections for IFU data
+- Allow separate sky frame to be used for sky subtraction with IFU data
+
 1.11.0 (21 Oct 2022)
 --------------------
 
@@ -15,8 +21,6 @@
 - Allow for the specification of a specific UVIS extinction file for sensitivity
   function computation and flux calibration.
 - Refactor and general update of documentation
-- Added spectral flexure and reference frame corrections for IFU data
-- Allow separate sky frame to be used for sky subtraction with IFU data
 
 1.10.0 (11 July 2022)
 ---------------------
