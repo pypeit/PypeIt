@@ -13,7 +13,7 @@ from astropy import wcs, units
 from astropy.coordinates import AltAz, SkyCoord
 from astropy.io import fits
 import scipy.optimize as opt
-from scipy.interpolate import interp1d, RegularGridInterpolator, LinearNDInterpolator
+from scipy.interpolate import interp1d, RegularGridInterpolator, RBFInterpolator
 import numpy as np
 
 from pypeit import msgs
@@ -1057,12 +1057,6 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     if grid_nspat%2 == 0:
         msgs.warn(f"grid_nspat must be an odd number. Using grid_nspat={grid_nspat+1} instead")
         grid_nspat += 1
-    embed()
-    assert(False)
-    atime=time.time()
-    from shapely.geometry import Polygon, box as shapelyBox
-    from shapely.strtree import STRtree
-    from scipy.interpolate import RBFInterpolator
     debug = False
     # Get the grid spacing along the spatial direction
     frm_cd_spat = np.sqrt(frame_wcs.wcs.cd[1, 1] ** 2 + frame_wcs.wcs.cd[0, 1] ** 2)
@@ -1094,7 +1088,6 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     ra0, dec0 = np.zeros(nslice), np.zeros(nslice)
     offsimg = np.zeros_like(waveimg)
     varimgsq = utils.inverse(ivarimg ** 2)
-    #sl, spat_id = 0, slits.spat_id[0]  # TODO :: REMOVE THIS LINE OF CODE!
     for sl, spat_id in enumerate(slits.spat_id):
         msgs.info(f"Calculating voxel geometry for slit {spat_id} -- {(time.time()-atime)/60}")
         # Calculate RA and Dec of central traces
@@ -1154,25 +1147,28 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     #    i.e. need to invert this:
     #    world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init]*(nspec-1), 0)
     # This gives us the x,y detector positions of the voxel geometry
+        from shapely.geometry import Polygon, box as shapelyBox
+        from shapely.strtree import STRtree
+
         crd_det_spec, crd_det_spat = crd_det[:, 0].reshape(vox_shape), crd_det[:, 1].reshape(vox_shape)
         # Generate a list of all detector pixels in this slice
         detpix_polys = []
         pix_spec, pix_spat = np.where(slitimg == spat_id)
         for ss in range(pix_spat.size):
-            detpix_polys.append(shapelyBox(pix_spat[ss], pix_spec[ss], pix_spat[ss]+1, pix_spec[ss]+1))
+            detpix_polys.append(shapely.geometry.box(pix_spat[ss], pix_spec[ss], pix_spat[ss]+1, pix_spec[ss]+1))
         # Create a Sort-Tile-Recursive tree of the detector pixels to quickly query overlapping voxels
-        detgeom = STRtree(detpix_polys)
+        detgeom = shapely.strtree.STRtree(detpix_polys)
         # Loop through all voxels for this slice and calculate the overlapping area
         #all_area = np.zeros_like(fluximg)
         #atime=time.time()
         for wv in range(nvox_wave):
             for sp in range(nvox_spat):
                 # Generate the voxel coordinates in detector pixel space (points must be counter-clockwise)
-                voxel_geom = Polygon([(crd_det_spat[wv, sp],   crd_det_spec[wv,   sp]),
-                                      (crd_det_spat[wv, sp+1], crd_det_spec[wv,   sp]),
-                                      (crd_det_spat[wv, sp+1], crd_det_spec[wv+1, sp]),
-                                      (crd_det_spat[wv, sp],   crd_det_spec[wv+1, sp]),
-                                      (crd_det_spat[wv, sp],   crd_det_spec[wv,   sp])])
+                voxel_geom = shapely.geometry.Polygon([(crd_det_spat[wv, sp],   crd_det_spec[wv,   sp]),
+                                                       (crd_det_spat[wv, sp+1], crd_det_spec[wv,   sp]),
+                                                       (crd_det_spat[wv, sp+1], crd_det_spec[wv+1, sp]),
+                                                       (crd_det_spat[wv, sp],   crd_det_spec[wv+1, sp]),
+                                                       (crd_det_spat[wv, sp],   crd_det_spec[wv,   sp])])
                 # Find overlapping detector pixels
                 result = detgeom.query(voxel_geom)
                 # Sum all overlapping flux-weighted areas
