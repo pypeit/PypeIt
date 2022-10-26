@@ -1,16 +1,38 @@
-""" Base routines for Quicklook scripts """
+""" Base routines for Quicklook scripts 
+
+Use cases:
+
+  1. User inputs N files: arc, flat, science(s)
+  2. User inputs 1 or more science files for a fixed-format instrument (e.g. NIRES)
+  3. User inputs 1 folder of files
+  4. User inputs 1 folder of files including 1 new science frame
+  5. User inputs an ASCII file of files
+  6. User inputs 2 science files with A-B [and calibs or uses defaults]
+  7. User inputs N science files with A and B (only), stacks all files at A and B independently, A-B, add pos+neg
+  8. User inputs N science files with an arbitrary set of dither patterns that are encoded in the headers (e.g. MOSFIRE, currently this works for just one dither pattern, and that may be all we need). Total stack is computed
+
+"""
+
 import os
 import glob
 
-from matplotlib.pyplot import sci
+import configobj
 
 from pypeit import inputfiles, msgs
 from pypeit import pypeitsetup
 from pypeit import utils
-from pypeit.scripts import run_pypeit
 
 from IPython import embed
 
+def default_par():
+
+    cfg_default = {}
+    cfg_default['rdx'] = dict(ignore_bad_headers=True)
+    cfg_default['scienceframe'] = dict(process=dict(mask_cr=False))
+    cfg_default['baseprocess'] = dict(use_biasimage=False)
+    cfg_default['reduce'] = dict(extraction=dict(skip_optimal=True),
+                                 findobj=dict(skip_second_find=True))
+    return cfg_default
 
 def generate_calib_pypeit_files(ps, output_path:str,
                    det:str='1',
@@ -48,7 +70,7 @@ def generate_calib_pypeit_files(ps, output_path:str,
 def generate_sci_pypeitfile(calib_pypeit_file:str, 
                             sci_files:list,
                             ps_sci_list:list,
-                            cfg_dict:dict=None):
+                            input_cfg_dict:dict={}):
     """
     Generate the PypeIt file for the science frames
     """
@@ -77,25 +99,30 @@ def generate_sci_pypeitfile(calib_pypeit_file:str,
     cut_data = calibPypeItFile.data[gd_files]
 
     # Add to configs
-    config_lines = calibPypeItFile.cfg_lines
+    calib_cfg = dict(calibPypeItFile.config)
+    ql_cfg = default_par()
 
-    # TODO -- GENERALIZE THIS
-    if cfg_dict is not None:
-        if pargs.slit_spat is not None:
-            # Remove detnum
-            for kk, item in enumerate(config_lines):
-                if 'detnum' in item:
-                    config_lines.pop(kk)
+    full_cfg = {}
+    full_cfg.update(calib_cfg)
+    full_cfg.update(ql_cfg)
+    full_cfg.update(input_cfg_dict)
+    config_lines = configobj.ConfigObj(full_cfg).write()
+    embed(header='107 of ql')
 
-            # Add in name, slitspatnum
-            ridx = config_lines.index('[rdx]')
-            config_lines.insert(ridx+1, '    slitspatnum = {0}'.format(pargs.slit_spat))
+    # A touch of voodoo for slitspat_num
+    if 'rdx' in full_cfg.keys() and 'slitspatnum' in full_cfg['rdx'].keys():
+        # Remove detnum
+        for kk, item in enumerate(config_lines):
+            if 'detnum' in item:
+                config_lines.pop(kk)
 
-            # this is to avoid that the default detnum (which was introduced for mosaic)
-            # will be passed to the reduction and crash it
-            config_lines.insert(ridx+2, '    detnum = None')
-        else:
-            raise NotImplementedError('NOT READY:  118 of ql_deimos')
+        # Add in name, slitspatnum
+        ridx = config_lines.index('[rdx]')
+        config_lines.insert(ridx+1, '    slitspatnum = {0}'.format(full_cfg['rdx']['slitspatnum']))
+
+        # this is to avoid that the default detnum (which was introduced for mosaic)
+        # will be passed to the reduction and crash it
+        config_lines.insert(ridx+2, '    detnum = None')
 
     # Generate PypeIt file
     pypeitFile = inputfiles.PypeItFile(config=config_lines, 
