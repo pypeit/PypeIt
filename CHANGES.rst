@@ -1,4 +1,10 @@
 
+1.11.1dev
+---------
+
+- Started modifications and support for JWST.
+
+
 1.11.0 (21 Oct 2022)
 --------------------
 
@@ -19,7 +25,6 @@
 sizes.
 - Restructured extraction and find_objects classes to work
 better with 2d coadds.
-- Started modifications and support for JWST.
 - Refactor and general update of documentation
 
 1.10.0 (11 July 2022)
