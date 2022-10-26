@@ -1088,6 +1088,8 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     ra0, dec0 = np.zeros(nslice), np.zeros(nslice)
     offsimg = np.zeros_like(waveimg)
     varimgsq = utils.inverse(ivarimg ** 2)
+    import time
+    atime = time.time()
     for sl, spat_id in enumerate(slits.spat_id):
         msgs.info(f"Calculating voxel geometry for slit {spat_id} -- {(time.time()-atime)/60}")
         # Calculate RA and Dec of central traces
