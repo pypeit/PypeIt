@@ -24,6 +24,7 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
     telescope = telescopes.BokTelescopePar()
     name = 'bok_bc'
     camera = 'BC'
+    url = 'http://james.as.arizona.edu/~psmith/90inch/90inch.html'
     comment = 'Bok B&C spectrometer'
     header_name = 'Bok B&C spectrometer'
     supported = True

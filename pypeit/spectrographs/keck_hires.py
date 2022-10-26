@@ -30,6 +30,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1
     telescope = telescopes.KeckTelescopePar()
+    url = 'https://www2.keck.hawaii.edu/inst/hires/'
     pypeline = 'Echelle'
 
     @classmethod

@@ -91,7 +91,7 @@ def geomotion_correct(radec, time, longitude, latitude, elevation, refframe):
 def geomotion_velocity(time, skycoord, frame="heliocentric"):
     """ Perform a barycentric/heliocentric velocity correction.
 
-    For the correciton, this routine uses the ephemeris:  astropy.coordinates.solar_system_ephemeris.set
+    For the correction, this routine uses the ephemeris:  astropy.coordinates.solar_system_ephemeris.set
     For more information see `~astropy.coordinates.solar_system_ephemeris`.
 
     Parameters
@@ -108,6 +108,11 @@ def geomotion_velocity(time, skycoord, frame="heliocentric"):
     vcorr : float
         The velocity correction that should be added to the original velocity.
     """
+
+    # TODO: Is there a reason that we're not using
+    # SkyCoord.radial_velocity_correction?  It seems like this is reproducing
+    # that functionality without all the detailed checking of the input.  See:
+    # https://docs.astropy.org/en/stable/coordinates/velocities.html#radial-velocity-corrections
 
     # Check that the RA/DEC of the object is ICRS compatible
     if not skycoord.is_transformable_to(ICRS()):

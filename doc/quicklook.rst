@@ -1,20 +1,22 @@
 *********************
-Quick Look Reductions
+Quick-Look Reductions
 *********************
 
 Overview
 ========
 
-PypeIt provides a set of Quick Look scripts for
+PypeIt provides a set of quick-look scripts for
 quick reductions, presumably at the telescope.
 We describe each in turn.
+
+----
 
 .. _pypeit-ql-mos:
 
 pypeit_ql_mos
 =============
 
-This script performs a boxcar (only) extraction of a long
+This script performs a boxcar (only) extraction of a long-
 or multi-slit observation taken with one of PypeIt's
 spectrographs.
 
@@ -23,15 +25,17 @@ The script usage can be displayed by calling the script with the
 
 .. include:: help/pypeit_ql_mos.rst
 
-And here is a sample call on files from the Development suite::
+And here is a sample call on files from the Development suite:
+
+.. code-block:: bash
 
     pypeit_ql_mos shane_kast_blue /home/xavier/local/Python/PypeIt-development-suite/RAW_DATA/Shane_Kast_blue/600_4310_d55 b1.fits.gz b10.fits.gz b27.fits.gz
 
-This generates a `shane_kast_blue_A` folder with the standard
-calibration (Masters), QA, and Science outputs.
+This generates a ``shane_kast_blue_A`` folder with the standard
+calibration (Masters), QA, and Science :doc:`outputs`.
 
 This script has been tested successfully on the following instruments:
-shane_kast_blue, shane_kast_red, keck_lris_blue, keck_deimos.
+``shane_kast_blue``, ``shane_kast_red``, ``keck_lris_blue``, ``keck_deimos``.
 
 .. _pypeit-ql-mos-options:
 
@@ -60,8 +64,8 @@ Specify the detector to be reduced. Only 1 is done at a time.
 --slit_spat
 -----------
 
-Specify the spatial position of the single slit to reduce.
-On the detector you chose.
+Specify the spatial position of the single slit to reduce
+on the detector you chose.
 
 Examples
 ++++++++
@@ -82,8 +86,12 @@ keck_deimos (multislit with one slit isolated)::
 
     pypeit_ql_mos keck_deimos /home/xavier/scratch/QL/2020-03-29-DEIMOS-TestData DE.20100913.56927.fits DE.20100913.57161.fits DE.20100913.22358.fits -d 7 --slit_spat 1132
 
-It is possible all of the MOS :doc:`spectrographs` will work.
+It is possible all of the MOS :doc:`spectrographs/spectrographs` will work.
 Give it a shot!
+
+----
+
+.. _pypeit-ql-keck-nires:
 
 pypeit_ql_keck_nires
 ====================
@@ -91,7 +99,7 @@ pypeit_ql_keck_nires
 This script performs a quick A-B reduction of a pair of
 Keck/NIRES spectral images.  Currently, the code takes
 2min and 20s to process two images with boxcar extractions.
-Therefore, there is a first set of nires-output_ in
+Therefore, there is a first set of :ref:`nires-output` in
 approximately 1 minute.
 
 NIRES QL Setup
@@ -123,21 +131,23 @@ NIRES QL Output
 +++++++++++++++
 
 If all goes smoothly, the code will generate four spectral
-output files, with 2 each with extensions of spec1d and
-spec2d.  These can be viewed with :ref:`pypeit_show_1dspec`
+output files, 2 of each spec1d and
+spec2d outputs.  These can be viewed with :ref:`pypeit_show_1dspec`
 and :ref:`pypeit_show_2dspec`.
 
 
 .. _pypeit-ql-deimos:
 
-pypeit_ql_deimos
-================
+pypeit_ql_keck_deimos
+=====================
 
-This scripts enables quicklook reductions on :doc:`deimos` data.
+This scripts enables quicklook reductions on :doc:`spectrographs/deimos` data.
 
 For the user at WMKO, the general procedure is two steps:
-  (1) run the script on your afternoon calibrations;
-  (2) run the script during the night on a given slit on a given detector.
+
+    #. run the script on your afternoon calibrations;
+
+    #. run the script during the night on a given slit on a given detector.
 
 Afternoon Calibrations
 ++++++++++++++++++++++
@@ -154,8 +164,8 @@ the masks in the specified path::
     
     pypeit_ql_keck_deimos full_path_to_raw_files --root=DE. -d=3 --redux_path=path_for_calibs --calibs_only
 
-This will process all the raw files in `full_path_to_raw_files` and put the calibration
-outputs in `path_for_calibs`.  And only for detector=3.
+This will process all the raw files in ``full_path_to_raw_files`` and put the calibration
+outputs in ``path_for_calibs``.  And only for ``detector=3``.
 
 If you are running at WMKO and have access to a sizeable machine with
 50+Gb RAM and 8 processors, you can launch one command like the one above for
@@ -169,9 +179,10 @@ a command like::
 
     pypeit_ql_keck_deimos full_path_to_raw_files --science=DE.20130409.20629.fits --slit_spat=3:763 --redux_path=path_to_calibs 
 
-This will process and extract spectra from the slit_id=763 in the 
-science exposure DE.20130409.20629.fits.  Again, you specify
-the path to the RAW frames and the `path_for_calibs` which is also
+This will process and extract spectra from the ``slit_id=763`` in the 
+science exposure ``DE.20130409.20629.fits``.  Again, you specify
+the path to the RAW frames and the ``path_for_calibs``, which is also
 where the reduced spectra will appear.  
 
 We estimate 2min for full extraction on a single slit.
+

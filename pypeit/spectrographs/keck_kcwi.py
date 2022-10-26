@@ -38,6 +38,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
     name = 'keck_kcwi'
     telescope = telescopes.KeckTelescopePar()
     camera = 'KCWI'
+    url = 'https://www2.keck.hawaii.edu/inst/kcwi/'
     header_name = 'KCWI'
     pypeline = 'IFU'
     supported = True

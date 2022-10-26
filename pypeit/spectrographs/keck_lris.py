@@ -35,6 +35,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 2
     telescope = telescopes.KeckTelescopePar()
+    url = 'https://www2.keck.hawaii.edu/inst/lris/'
 
     @classmethod
     def default_pypeit_par(cls):

@@ -31,6 +31,7 @@ class P200DBSPSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1
     telescope = telescopes.P200TelescopePar()
+    url = 'https://sites.astro.caltech.edu/palomar/observer/200inchResources/dbspoverview.html'
 
     def configuration_keys(self):
         """
