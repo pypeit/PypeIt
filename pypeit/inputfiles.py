@@ -370,8 +370,8 @@ class InputFile:
             key (str): Column of self.data with the filenames of interest
             skip_blank (bool, optional): If True, ignore any
                 entry that is '', 'none' or 'None'. Defaults to False.
-            check_exists (bool, optional): If False, PypeIt will not
-            check if 'key' exists as a file. Defaults to True.
+            check_exists (bool, optional):If False, PypeIt will not
+                check if 'key' exists as a file. Defaults to True.
 
         Returns:
             list: List of the full paths to each data file
@@ -632,18 +632,25 @@ class Coadd3DFile(InputFile):
         Parse the options associated with a cube block.
         Here is a description of the available options:
 
-        scale_corr     : The name of an alternative spec2d file that is used for the relative spectral scale correction.
-                        This parameter can also be set for all frames with the default command::
+        - ``scale_corr``: The name of an alternative spec2d file that is used for
+          the relative spectral scale correction.  This parameter can also be set
+          for all frames with the default command:
 
-                            [reduce]
-                                [[cube]]
-                                    scale_corr = spec2d_alternative.fits
-        skysub_frame   : The name of an alternative spec2d file that is used for the sky subtraction.
-                        This parameter can also be set for all frames with the default command::
+          .. code-block:: ini
 
-                            [reduce]
-                                [[cube]]
-                                    skysub_frame = spec2d_alternative.fits
+                [reduce]
+                    [[cube]]
+                        scale_corr = spec2d_alternative.fits
+
+        - ``skysub_frame``: The name of an alternative spec2d file that is used
+          for the sky subtraction.  This parameter can also be set for all frames
+          with the default command:
+
+          .. code-block:: ini
+
+                [reduce]
+                    [[cube]]
+                        skysub_frame = spec2d_alternative.fits
 
         Returns
         -------
