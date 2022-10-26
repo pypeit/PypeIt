@@ -27,8 +27,8 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1
     telescope = telescopes.VLTTelescopePar()
-    url = 'https://www.eso.org/sci/facilities/paranal/instruments/xshooter.html'
     pypeline = 'Echelle'
+    url = 'https://www.eso.org/sci/facilities/paranal/instruments/xshooter.html'
     ech_fixed_format = True
     header_name = 'XSHOOTER'
 
