@@ -462,7 +462,15 @@ class QL_MOS(scriptbase.ScriptBase):
             calib_pypeit_file, 
             full_scifiles, ps_sci_list)
         
-        embed(header='463 of ql multi')
+        # Run it
+        redux_path = os.path.dirname(sci_pypeit_file)  # Path to PypeIt file
+        run_pargs = run_pypeit.RunPypeIt.parse_args(
+            [sci_pypeit_file, '-r={}'.format(redux_path)])
+        run_pypeit.RunPypeIt.main(run_pargs)
+
+        msgs.info(utils.get_time_string(time.time()-tstart))
+
+        embed(header='471 of ql multi')
 
         det_container = spectrograph.get_detector_par(
             args.det, hdu=fits.open(files[0]))
