@@ -476,6 +476,7 @@ class SlitTraceSet(datamodel.DataContainer):
         minmax = np.zeros((self.nslits, 2))
         # Get the slit information
         slitid_img_init = self.slit_img(pad=0, initial=initial, flexure=flexure)
+        all_tform = []
         for slit_idx, spatid in enumerate(self.spat_id):
             onslit = (slitid_img_init == spatid)
             onslit_init = np.where(onslit)
@@ -512,6 +513,7 @@ class SlitTraceSet(datamodel.DataContainer):
                 pixdst = tform(pixsrc)
                 evalpos = (pixdst[:, 0] - 0.5) * slitlength
             else:
+                tform = None
                 evalpos = onslit_init[1] - trace_cen[onslit_init[0], slit_idx]
             minmax[:, 0] = np.min(evalpos)
             minmax[:, 1] = np.max(evalpos)
@@ -523,7 +525,7 @@ class SlitTraceSet(datamodel.DataContainer):
             # Set the RA first and DEC next
             raimg[onslit] = world_ra.copy()
             decimg[onslit] = world_dec.copy()
-        return raimg, decimg, minmax
+        return raimg, decimg, minmax#, tform
 
     def select_edges(self, initial=False, flexure=None):
         """

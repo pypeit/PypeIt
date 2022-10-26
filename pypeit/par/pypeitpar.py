@@ -1383,13 +1383,17 @@ class CubePar(ParSet):
                                    'ranges. If combine=False, the individual spec3d files will have a suffix ' \
                                    '"_whitelight".'
 
-        defaults['method'] = "resample"
+        defaults['method'] = "subsample"
         dtypes['method'] = str
-        descr['method'] = 'What method should be used to generate the datacube. There are currently two options:' \
-                          '(1) "resample" (default) - this algorithm resamples the spec2d frames into a datacube. ' \
-                          'Flux is conserved, but pixels are correlated, and the error spectrum does not account ' \
-                          'for covariance between neighbouring pixels. ' \
-                          '(2) "NGP" (nearest grid point) - this algorithm is effectively a 3D histogram. Flux is ' \
+        descr['method'] = 'What method should be used to generate the datacube. There are currently two options: ' \
+                          '(1) "subsample" (default) - this algorithm is a hybrid between "resample" and "NGP". Each' \
+                          'pixel is sub sampled by a factor of 10, and then a NGP algorithm is used. The algorithm is ' \
+                          'relatively fast and conserves flux, but note that voxels are correlated, and the error ' \
+                          'spectrum does not account for the covariance between adjacent voxels. ' \
+                          '(2) "resample" - this algorithm resamples the spec2d frames into a datacube. ' \
+                          'Flux is conserved, but voxels are correlated, and the error spectrum does not account ' \
+                          'for covariance between adjacent voxels. ' \
+                          '(3) "NGP" (nearest grid point) - this algorithm is effectively a 3D histogram. Flux is ' \
                           'conserved, pixels are not correlated, however this option suffers the same downsides as ' \
                           'any histogram; the choice of bin sizes can change how the datacube appears. This algorithm ' \
                           'takes each pixel on the spec2d frame and puts the flux of this pixel into one voxel in the ' \

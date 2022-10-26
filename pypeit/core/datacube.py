@@ -1359,6 +1359,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             if combine:
                 msgs.warn("Cannot combine cubes with the 'resample' algorithm - generating individual datacubes.")
                 combine = False
+    elif method == "subsample":
+        msgs.info("Adopting the subsample algorithm to generate the datacube.")
     elif method == "ngp":
         msgs.info("Adopting the nearest grid point (NGP) algorithm to generate the datacube.")
     else:
@@ -1783,7 +1785,9 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             numwav = int((np.max(waveimg) - wave0) / dwv)
             bins = spec.get_datacube_bins(slitlength, minmax, numwav)
             # Make the datacube
-            if method == 'resample':
+            if method == 'subsample':
+                msgs.error("Not implemented yet.")
+            elif method == 'resample':
                 fluximg, ivarimg = np.zeros_like(raimg), np.zeros_like(raimg)
                 fluximg[onslit_gpm] = flux_sav[resrt]
                 ivarimg[onslit_gpm] = ivar_sav[resrt]
