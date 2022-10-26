@@ -22,6 +22,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
     name = 'vlt_sinfoni'
     telescope = telescopes.VLTTelescopePar()
     camera = 'SINFONI'
+    url = 'https://www.eso.org/sci/facilities/paranal/decommissioned/sinfoni.html'
     header_name = 'SINFONI'
     supported = True
     comment = 'Gratings tested: K'

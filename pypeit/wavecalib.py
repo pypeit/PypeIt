@@ -29,8 +29,12 @@ class WaveCalib(datamodel.DataContainer):
     """
     DataContainer for the output from BuildWaveCalib
 
-    All of the items in the datamodel are required for instantiation,
-      although they can be None (but shouldn't be)
+    All of the items in the datamodel are required for instantiation, although
+    they can be None (but shouldn't be)
+
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_wavecalib.rst
 
     """
     version = '1.0.0'
@@ -94,9 +98,16 @@ class WaveCalib(datamodel.DataContainer):
             # Array?
             if self.datamodel[key]['otype'] == np.ndarray and key != 'wv_fits':
                 _d.append({key: self[key]})
+            # TODO: Can we put all the WAVEFIT and PYPEITFIT at the end of the
+            # list of HDUs?  This would mean ARC_SPECTRA is always in the same
+            # extension number, regardless of the number of slits.
             elif key == 'wv_fits':
                 for ss, wv_fit in enumerate(self[key]):
+                    # TODO: Are we writing empty extensions if any of the
+                    # elements of self[key] are None?  If so, is this required
+                    # behavior?  Why?
                     # Naming
+                    # TODO: Shouldn't this name match the dkey below?
                     dkey = 'WAVEFIT-{}'.format(self.spat_ids[ss])
                     # Generate a dummy?
                     if wv_fit is None:

@@ -31,7 +31,9 @@ class DataCube(datamodel.DataContainer):
     """
     DataContainer to hold the products of a datacube
 
-    See the datamodel for argument descriptions
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_datacube.rst
 
     Args:
         flux (`numpy.ndarray`_):

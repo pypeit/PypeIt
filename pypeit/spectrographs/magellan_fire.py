@@ -33,6 +33,7 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
     ndet = 1
     telescope = telescopes.MagellanTelescopePar()
     camera = 'FIRE'
+    url = 'http://web.mit.edu/~rsimcoe/www/FIRE/index.html'
     header_name = 'FIRE'
 
     def init_meta(self):

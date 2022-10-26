@@ -97,6 +97,11 @@ class Spectrograph:
     This is used by specdb, so use that naming convention
     """
 
+    url = None
+    """
+    Reference url
+    """
+
     header_name = None
     """
     Name of the spectrograph camera or arm from the Header.

@@ -11,31 +11,28 @@ Frame Types
 Overview
 ========
 
-Every raw data file ingested by ``PypeIt`` must be given a frame
+Every raw data file ingested by PypeIt must be given a frame
 type. This identifies how the frame should be treated and included in
 the data reduction.
 
-Frame typing can be done automatically by running ``pypeit_setup``
-(see :ref:`pypeit_setup`), which is a simple wrapper for
-:class:`~pypeit.pypeitsetup.PypeItSetup`. The type of frame for each
-data file is automatically identified as one or more of the types
-listed in the table below; any files that could not be identified are
-given a frame type set to ``None``.
+Frame typing can be done automatically by running :ref:`pypeit_setup`, which is
+a simple wrapper for :class:`~pypeit.pypeitsetup.PypeItSetup`. The type of frame
+for each data file is automatically identified as one or more of the types
+listed in the table below; any files that could not be identified are given a
+frame type set to ``None``.
 
-Automated typing of *calibration* frames is robust for the following
-instruments:
-
- - Keck DEIMOS
-
-However, automated typing of ``science`` versus ``standard`` frames
-is not generally robust.
+The robustness of the automated typing of :ref:`calibration
+frames<calibrations>` varies with some :ref:`instruments` being much more robust
+than others.  Automated typing of ``science`` versus ``standard`` frames is
+generally not robust for any instrument.  *Always inspect your*
+:ref:`pypeit_file` *to ensure the frame typing is correct!* 
 
 .. _frame_type_defs:
 
 Definitions
 ===========
 
-The possible frame types defined by ``PypeIt`` and a brief
+The possible frame types defined by PypeIt and a brief
 description can be listed as follows:
 
 .. code-block:: python
@@ -60,23 +57,26 @@ Frame Type       Description
 ``standard``     Spectrum of spectrophotometric standard star PypeIt includes a list of pre-defined standards
 ``trace``        Spectrum taken to define the slit edges. Often this is an exposure using a flat lamp, but for observations in the very blue, this may be on-sky. The slit length of a trace frame should be the same as the science slit.
 ``tilt``         Exposure used to trace the tilt in the wavelength solution. Often the same file(s) as the arc.
+``sky``          On-sky observation of the sky used for background subtraction
 ``None``         File could not be automatically identified by PypeIt
 ================ =============================================================
+
+.. TODO: Need to check that "sky" frametype is correct and/or used!
 
 It is possible (and even common for arc and flats images) that a frame can be
 assigned more than one frame type.
 
 .. warning:: 
 
-    The code will *not* run if your :doc:`pypeit_file` includes
-    entries with ``None`` frame types defined. You must either remove
+    Any execution of :ref:`run-pypeit` will *crash* if your :doc:`pypeit_file`
+    includes entries with ``None`` frame types defined.  You must either remove
     or edit those entries in the pypeit file by-hand after running
-    ``pypeit_setup``.
+    :ref:`pypeit_setup`.
 
 Automated Typing
 ================
 
-Automated typing of files is performed by ``pypeit_setup``.
+Automated typing of files is performed by :ref:`pypeit_setup`.
 
 In detail, :class:`~pypeit.pypeitsetup.PypeItSetup` builds a table of
 metadata for all files found using the search key provided to its
@@ -86,33 +86,15 @@ metadata itself is gathered and maintained by
 keywords that are defined for each supported spectrograph. For
 example, the metadata keywords for Keck DEIMOS reductions are:
 
-.. code-block:: python
+.. include:: include/deimos_meta_key_map.rst
 
-    from pypeit.spectrographs.keck_deimos import KeckDEIMOSSpectrograph
-    spec = KeckDEIMOSSpectrograph()
-
-    for key in spec.meta.keys():
-        if spec.meta[key]['card'] is None:
-            continue
-        print('Key: {0:>15}; Extension: {1:>2}; Header Card: {2:>10}'.format(
-                    key, spec.meta[key]['ext'], spec.meta[key]['card']))
-
-which prints the following:
+which can be obtained by executing
 
 .. code-block:: bash
 
-    Key:              ra; Extension:  0; Header Card:         RA
-    Key:             dec; Extension:  0; Header Card:        DEC
-    Key:          target; Extension:  0; Header Card:   TARGNAME
-    Key:          decker; Extension:  0; Header Card:   SLMSKNAM
-    Key:             mjd; Extension:  0; Header Card:    MJD-OBS
-    Key:         exptime; Extension:  0; Header Card:   ELAPTIME
-    Key:         airmass; Extension:  0; Header Card:    AIRMASS
-    Key:        dispname; Extension:  0; Header Card:   GRATENAM
-    Key:           hatch; Extension:  0; Header Card:   HATCHPOS
-    Key:          idname; Extension:  0; Header Card:    OBSTYPE
-    Key:      lampstat01; Extension:  0; Header Card:      LAMPS
+    pypeit_obslog keck_deimos -k
 
+See :ref:`pypeit_obslog`.
 
 The method :func:`~pypeit.metadata.PypeItMetaData.get_frame_types`
 uses the metadata to try to identify each frame type. With a couple
@@ -122,7 +104,7 @@ exceptions, however, this method is largely a wrapper for the
 for DEIMOS. The relevant exposure time for each frame can be refined
 using parameters in the pypeit file. For example, to edit the
 exposure time for ``pixelflat`` images to be between 15 and 30
-seconds, you can include the following lines in your pypeit file:
+seconds, you can include the following lines in your :ref:`pypeit_file`:
 
 .. code-block:: ini
 
@@ -143,3 +125,9 @@ shows the default exposure-time range for pixel flats is ``[None,
 pixel-flats. At the moment, only the exposure time can be altered
 programmatically for the frame type determination; all other
 conditions are hard-coded.
+
+.. TODO: I'm not sure this functionality, at least at the user level, is ever
+   actually used now.  I doubt people ever run pypeit_setup with a preset pypeit
+   file with the old data block that just had a wild-card path the globs files,
+   which is what you'd need to do this.
+
