@@ -3,6 +3,8 @@
 ---------
 
 - LRISr header issue
+- Limit the images written to the MasterEdges file to only the trace
+  image, mask, and detector.
 
 1.11.0 (21 Oct 2022)
 --------------------
