@@ -22,7 +22,8 @@ from pypeit.spectrographs import available_spectrographs
 
 
 def link_string(p):
-    return '`{0} Keywords`_'.format(type(p).__name__)
+    return f':ref:`{type(p).__name__.lower()}`'
+#    return '`{0} Keywords`_'.format(type(p).__name__)
 
 
 def par_hierarchy(p, indent_level=0, key=''):
@@ -31,7 +32,7 @@ def par_hierarchy(p, indent_level=0, key=''):
     if len(line_head) > 0:
         line_head = '``' + line_head + '``: '
     lines = [ indent_step + line_head + link_string(p) ]
-    lines += [ '' ]
+#    lines += [ '' ]
 
     for k in p.keys():
         if not isinstance(p[k], ParSet):
@@ -48,20 +49,20 @@ if __name__ == '__main__':
     # Read the baseline file that is not changed and must be edited by
     # the person building the documentation as necessary.
     pypeit_root = os.path.dirname(resource_filename('pypeit', ''))
-    input_base = os.path.join(pypeit_root, 'doc', 'scripts', 'base_par_rst.txt')
+    input_base = os.path.join(pypeit_root, 'doc', 'scripts', 'base_par.rst')
     with open(input_base, 'r') as f:
         lines = [ l.replace('\n','') for l in f.readlines() ]
     lines += ['']
 
     # Start to append the automatically generated documentation
     lines += ['Current PypeItPar Parameter Hierarchy']
-    lines += ['+++++++++++++++++++++++++++++++++++++']
+    lines += ['=====================================']
     lines += ['']
 
     p = pypeitpar.PypeItPar(flexure=pypeitpar.FlexurePar(),
                             fluxcalib=pypeitpar.FluxCalibratePar())
 
-    lines += par_hierarchy(p)
+    lines += ['| '+ l for l in par_hierarchy(p)]
     lines += ['']
     lines += ['----']
     lines += ['']
@@ -69,25 +70,29 @@ if __name__ == '__main__':
     lines += p.to_rst_table()
     lines += ['']
 
-    lines += [' .. _instr_par:']
+    lines += ['.. _instr_par:']
     lines += ['']
 
     lines += ['Instrument-Specific Default Configuration']
-    lines += ['+++++++++++++++++++++++++++++++++++++++++']
+    lines += ['=========================================']
     lines += ['']
 
     lines += textwrap.wrap('The following provides the changes to the global default parameters '
                            'provided above for each instrument.  That is, if one were to include '
                            'these in the PypeIt file, you would be reproducing the effect of the '
                            '`default_pypeit_par` method specific to each derived '
-                           ':class:`pypeit.spectrographs.spectrograph.Spectrograph` class.', 72)
+                           ':class:`~pypeit.spectrographs.spectrograph.Spectrograph` class.', 72)
     lines += ['']
 
     for spec in available_spectrographs:
         s = load_spectrograph(spec)
+        lines += [ f'.. _instr_par-{s.name}:']
+        lines += ['']
         lines += [ ' '.join([s.telescope['name'], s.camera, '(``{0}``)'.format(s.name)]) ]
         lines += [ '-'*len(lines[-1]) ]
-        lines += [ 'Alterations to the default parameters are::' ]
+        lines += [ 'Alterations to the default parameters are:' ]
+        lines += ['']
+        lines += ['.. code-block:: ini']
         lines += ['']
         sl = s.default_pypeit_par().to_config(include_descr=False, exclude_defaults=True)
         lines += [ '  ' + l for l in sl ]

@@ -1855,6 +1855,10 @@ class Telluric(datamodel.DataContainer):
     and will also average down the residuals from the telluric model fit in
     the final averaged spectrum.
 
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_telluric.rst
+
     .. todo::
         - List the elements of ``obj_params``.
 

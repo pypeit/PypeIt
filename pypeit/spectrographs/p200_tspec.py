@@ -22,6 +22,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
     name = 'p200_tspec'
     telescope = telescopes.P200TelescopePar()
     camera = 'TSPEC'
+    url = 'https://sites.astro.caltech.edu/palomar/observer/200inchResources/tspeccookbook.html'
     header_name = 'TSPEC_SPEC'
     pypeline = 'Echelle'
     ech_fixed_format = True

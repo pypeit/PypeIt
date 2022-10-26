@@ -55,6 +55,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
     telescope = telescopes.KeckTelescopePar()
     camera = 'HIRES'
     header_name = 'HIRES'
+    url = 'https://www2.keck.hawaii.edu/inst/hires/'
     pypeline = 'Echelle'
     ech_fixed_format = False
     supported = True
