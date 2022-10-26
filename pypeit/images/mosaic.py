@@ -22,6 +22,11 @@ class Mosaic(datamodel.DataContainer):
     """
     Class to hold mosaic parameters and the details of the detectors used to
     construct the mosaic.
+
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_mosaic.rst
+
     """
 
     # Set the version of this class

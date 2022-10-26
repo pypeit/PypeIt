@@ -21,6 +21,7 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
     name = 'mdm_osmos_mdm4k'
     telescope = telescopes.KPNOTelescopePar()
     camera = 'MDM4K'
+    url = 'https://www.astronomy.ohio-state.edu/martini.10/osmos/'
     header_name = 'OSMOS'
     supported = True
     comment = 'MDM OSMOS spectrometer'

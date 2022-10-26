@@ -25,6 +25,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
     ndet = 1
     name = 'magellan_mage'
     camera = 'MagE'
+    url = 'https://www.lco.cl/?epkb_post_type_1=mage'
     header_name = 'MagE'
     telescope = telescopes.MagellanTelescopePar()
     pypeline = 'Echelle'

@@ -13,6 +13,7 @@
 - Allow verbosity specification for various post-processing command-line scripts.
 - Allow for the specification of a specific UVIS extinction file for sensitivity
   function computation and flux calibration.
+- Refactor and general update of documentation
 
 1.10.0 (11 July 2022)
 ---------------------
