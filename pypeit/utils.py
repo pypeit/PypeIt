@@ -18,7 +18,7 @@ from IPython import embed
 import numpy as np
 from numpy.lib.stride_tricks import as_strided
 
-from scipy import interpolate, ndimage
+from scipy import ndimage
 
 import matplotlib
 from matplotlib import pyplot as plt
@@ -26,7 +26,6 @@ from matplotlib import pyplot as plt
 from astropy import units
 from astropy import stats
 
-from pypeit.core import pydl
 from pypeit import msgs
 from pypeit.move_median import move_median
 
@@ -998,8 +997,7 @@ def yamlify(obj, debug=False):
 
     Recursively process an object so it can be serialised for yaml.
 
-    Based on jsonify in `linetools
-    <https://pypi.python.org/pypi/linetools>`_.
+    Based on jsonify in `linetools`_.
 
     Also found in desiutils
 

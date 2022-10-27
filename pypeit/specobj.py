@@ -32,6 +32,10 @@ class SpecObj(datamodel.DataContainer):
     are instantiated by the object finding routine, and then all spectral
     extraction information for the object are assigned as attributes
 
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_specobj.rst
+
     Args:
         PYPELINE (:obj:`str`):
             Name of the ``PypeIt`` pipeline method.  Allowed options are
@@ -50,7 +54,7 @@ class SpecObj(datamodel.DataContainer):
             Running index for the order.
     """
 
-    version = '1.1.5'
+    version = '1.1.6'
     """
     Current datamodel version number.
     """
@@ -60,10 +64,10 @@ class SpecObj(datamodel.DataContainer):
                  'FWHM': dict(otype=float, descr='Spatial FWHM of the object (pixels)'),
                  'FWHMFIT': dict(otype=np.ndarray,
                                  descr='Spatial FWHM across the detector (pixels)'),
-                 'THRESHOLD': dict(otype=float,
-                                  descr='Threshold used for object finding'),
                  'smash_peakflux': dict(otype=float,
-                                   descr='Peak value of the spectrum spatial profile'),
+                                        descr='Peak value of the spectral direction collapsed spatial profile'),
+                 'smash_snr': dict(otype=float,
+                                        descr='Peak S/N ratio of the spectral direction collapsed patial profile'),
                  'OPT_WAVE': dict(otype=np.ndarray, atype=float,
                                   descr='Optimal Wavelengths in vacuum (Angstroms)'),
                  'OPT_FLAM': dict(otype=np.ndarray, atype=float,
@@ -224,7 +228,7 @@ class SpecObj(datamodel.DataContainer):
     def _init_internals(self):
         # Object finding
         self.smash_peakflux = None
-        self.smash_nsig = None
+        self.smash_snr = None
 
         # Hand
         self.hand_extract_flag = False
@@ -457,7 +461,7 @@ class SpecObj(datamodel.DataContainer):
 
     # TODO This should be a wrapper calling a core algorithm.
     def apply_flux_calib(self, wave_zp, zeropoint, exptime, tellmodel=None, extinct_correct=False,
-                         airmass=None, longitude=None, latitude=None, extrap_sens=False):
+                         airmass=None, longitude=None, latitude=None, extinctfilepar=None, extrap_sens=False):
         """
         Apply a sensitivity function to our spectrum
 
@@ -481,6 +485,9 @@ class SpecObj(datamodel.DataContainer):
             latitude:
                 latitude in degree for observatory
                 Used for extinction correction
+            extinctfilepar (str):
+                [sensfunc][UVIS][extinct_file] parameter
+                Used for extinction correction
             extrap_sens (bool, optional):
                 Extrapolate the sensitivity function (instead of crashing out)
 
@@ -494,9 +501,8 @@ class SpecObj(datamodel.DataContainer):
             wave = self[attr+'_WAVE']
             # Interpolate the sensitivity function onto the wavelength grid of the data
             sens_factor = flux_calib.get_sensfunc_factor(
-                wave, wave_zp, zeropoint, exptime, tellmodel=tellmodel, extinct_correct=extinct_correct,
-                                airmass=airmass, longitude=longitude, latitude=latitude, extrap_sens=extrap_sens)
-
+                wave, wave_zp, zeropoint, exptime, tellmodel=tellmodel, extinct_correct=extinct_correct, airmass=airmass,
+                longitude=longitude, latitude=latitude, extinctfilepar=extinctfilepar, extrap_sens=extrap_sens)
             flam = self[attr+'_COUNTS']*sens_factor
             flam_sig = sens_factor/np.sqrt(self[attr+'_COUNTS_IVAR'])
             flam_ivar = self[attr+'_COUNTS_IVAR']/sens_factor**2
@@ -589,8 +595,8 @@ class SpecObj(datamodel.DataContainer):
         """
         required = ['TRACE_SPAT', 'SPAT_PIXPOS', 'SPAT_FRACPOS',
             'trace_spec', 'OBJID', 'FWHM', 'maskwidth', 'NAME',
-            'smash_peakflux',
-            'SLITID', 'DET', 'PYPELINE', 'OBJTYPE', 'THRESHOLD']
+            'smash_peakflux', 'smash_snr',
+            'SLITID', 'DET', 'PYPELINE', 'OBJTYPE']
         if 'Echelle' in self.PYPELINE:
             required += ['ECH_NAME']
 
@@ -628,5 +634,49 @@ class SpecObj(datamodel.DataContainer):
             if rdict[key] is not False:
                 repr += '{}: {}\n'.format(key, rdict[key])
         return repr + '>'
+
+    def has_opt_ext(self):
+        """
+        Cehck that all the values of the optimal extraction exist
+
+        Returns:
+            :obj:bool: True if all OPT values are available
+        """
+        keys_to_check = ['OPT_WAVE', 'OPT_COUNTS', 'OPT_COUNTS_IVAR', 'OPT_MASK']
+
+        return np.all([self[key] is not None for key in keys_to_check])
+
+    def get_opt_ext(self):
+        """
+        Return the optimal extraction values
+
+        Returns:
+            :obj:tuple: OPT_WAVE, OPT_COUNTS, OPT_COUNTS_IVAR, OPT_MASK attributes of SpecObj
+
+        """
+        return self.OPT_WAVE, self.OPT_COUNTS, self.OPT_COUNTS_IVAR, self.OPT_MASK
+
+    def has_box_ext(self):
+        """
+        Cehck that all the values of the boxcar extraction exist
+
+        Returns:
+            :obj:bool: True if all BOX values are available
+        """
+        keys_to_check = ['BOX_WAVE', 'BOX_COUNTS', 'BOX_COUNTS_IVAR', 'BOX_MASK']
+
+        return np.all([self[key] is not None for key in keys_to_check])
+
+    def get_box_ext(self):
+        """
+        Return the boxcar extraction values
+
+        Returns:
+            :obj:tuple: BOX_WAVE, BOX_COUNTS, BOX_COUNTS_IVAR, BOX_MASK attributes of SpecObj
+
+        """
+        return self.BOX_WAVE, self.BOX_COUNTS, self.BOX_COUNTS_IVAR, self.BOX_MASK
+
+
 
 

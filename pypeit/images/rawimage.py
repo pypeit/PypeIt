@@ -269,7 +269,8 @@ class RawImage:
                 # doesn't check this...
                 gain[i] += procimg.gain_frame(self.oscansec_img[i],
                                               np.atleast_1d(self.detector[i]['gain']))
-
+            # Set gain to 1 outside of the datasec and oscansec sections.
+            gain[i][gain[i]==0] = 1
         # Convert from DN to counts
         self.image *= np.array(gain)
 
@@ -291,7 +292,11 @@ class RawImage:
             msgs.error('Dark image has not been created!  Run build_dark.')
         _dark = self.dark if self.par['shot_noise'] else None
         _counts = self.image if self.par['shot_noise'] else None
-        self.base_var = procimg.base_variance(self.rn2img, darkcurr=_dark, exptime=self.exptime,
+        # NOTE: self.dark is expected to be in *counts*.  This means that
+        # procimg.base_variance should be called with exptime=None.  If the
+        # exposure time is provided, the units of the dark current are expected
+        # to be in e-/hr!
+        self.base_var = procimg.base_variance(self.rn2img, darkcurr=_dark, #exptime=self.exptime,
                                               proc_var=self.proc_var, count_scale=self.img_scale)
         var = procimg.variance_model(self.base_var, counts=_counts, count_scale=self.img_scale,
                                      noise_floor=self.par['noise_floor'])
@@ -417,9 +422,10 @@ class RawImage:
                observed dark images.  The shape and orientation of the observed
                dark image must match the *processed* image.  I.e., if you trim
                and orient this image, you must also have trimmed and oriented
-               the dark frames.  The dark image is *automatically* scaled by the
-               ratio of the exposure times to ensure the counts/s in the dark
-               are removed from the image being processed.
+               the dark frames.  To scale the dark image by the ratio of the
+               exposure times to ensure the counts/s in the dark are removed
+               from the image being processed, set the ``dark_expscale``
+               parameter to true.
 
             #. :func:`subtract_dark`: Subtract the master dark image and
                propagate any error.
@@ -605,7 +611,8 @@ class RawImage:
         #     frame is provided and subtracted, its shape and orientation must
         #     match the *processed* image, and the units *must* be in
         #     electrons/counts.
-        self.build_dark(dark_image=dark if self.par['use_darkimage'] else None)
+        self.build_dark(dark_image=dark if self.par['use_darkimage'] else None,
+                        expscale=self.par['dark_expscale'])
 
         #   - Subtract dark current.  This simply subtracts the dark current
         #     from the image being processed.  If available, uncertainty from
@@ -635,7 +642,7 @@ class RawImage:
         self.ivar = self.build_ivar()
 
         #   - Subtract continuum level
-        if self.par['use_continuum']:
+        if self.par['subtract_continuum']:
             # Calculate a simple smooth continuum image, and subtract this from the frame
             self.subtract_continuum()
 
@@ -799,7 +806,9 @@ class RawImage:
         # Generate the illumination flat, as needed
         illum_flat = 1.0
         if self.par['use_illumflat']:
-            illum_flat = flatimages.fit2illumflat(slits, flexure_shift=self.spat_flexure_shift)
+            # TODO :: We don't have tilts here yet... might be ever so slightly better, especially on very tilted slits
+            illum_flat = flatimages.fit2illumflat(slits, spat_flexure=self.spat_flexure_shift, finecorr=False)
+            illum_flat *= flatimages.fit2illumflat(slits, spat_flexure=self.spat_flexure_shift, finecorr=True)
             if debug:
                 left, right = slits.select_edges(flexure=self.spat_flexure_shift)
                 viewer, ch = display.show_image(illum_flat, chname='illum_flat')
@@ -884,7 +893,7 @@ class RawImage:
 
     # TODO: expscale is currently not a parameter that the user can control.
     # Should it be?
-    def build_dark(self, dark_image=None, expscale=True):
+    def build_dark(self, dark_image=None, expscale=False):
         """
         Build the dark image data used for dark subtraction and error
         propagation.
@@ -904,12 +913,10 @@ class RawImage:
 
         .. warning::
 
-            The current default automatically scales the dark frame to match the
-            exposure time of the image being processed.  Typically dark frames
-            should have the same exposure time as the image being processed, so
-            this will have no effect.  However, beware if that's not the case,
-            and make sure this scaling is appropriate.  Use ``expscale`` to
-            turn it off.
+            Typically dark frames should have the same exposure time as the
+            image being processed.  However, beware if that's not the case, and 
+            make sure any use of exposure time scaling of the counts (see
+            ``expscale``) is appropriate!
 
         Args:
             dark_image (:class:`~pypeit.images.pypeitimage.PypeItImage`, optional):
@@ -1062,23 +1069,14 @@ class RawImage:
             if not np.any(self.oscansec_img[i] > 0):
                 msgs.error('Image has no overscan region.  Pattern noise cannot be subtracted.')
 
-            # Grab the frequency, if it exists in the header.  For some instruments,
-            # PYPFRQ is added to the header in get_rawimage() in the spectrograph
-            # file.  See keck_kcwi.py for an example.
-            frequency = []
-            try:
-                # Grab a list of all the amplifiers
-                amps = np.sort(np.unique(self.oscansec_img[i,self.oscansec_img[i] > 0]))
-                for amp in amps:
-                    frequency.append(self.hdu[0].header['PYPFRQ{0:02d}'.format(amp)])
-                # Final check to make sure the list isn't empty (which it shouldn't be, anyway)
-                if len(frequency) == 0:
-                    frequency = None
-            except KeyError:
-                frequency = None
+            patt_freqs = self.spectrograph.calc_pattern_freq(self.image[i], self.datasec_img[i],
+                                                             self.oscansec_img[i], self.hdu)
+            # Final check to make sure the list isn't empty (which it shouldn't be, anyway)
+            if len(patt_freqs) == 0:
+                patt_freqs = None
             # Subtract the pattern and overwrite the current image
             _ps_img[i] = procimg.subtract_pattern(self.image[i], self.datasec_img[i],
-                                                  self.oscansec_img[i], frequency=frequency)
+                                                  self.oscansec_img[i], frequency=patt_freqs)
         self.image = np.array(_ps_img)
         self.steps[step] = True
 

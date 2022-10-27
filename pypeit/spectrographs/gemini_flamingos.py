@@ -18,6 +18,7 @@ class GeminiFLAMINGOSSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1
     telescope = telescopes.GeminiSTelescopePar()
+    url = 'https://www.gemini.edu/instrumentation/flamingos-2'
 
     def init_meta(self):
         """
@@ -132,7 +133,7 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
         par['scienceframe']['exprng'] = [20, None]
 
         # Scienceimage parameters
-        par['reduce']['findobj']['sig_thresh'] = 5.0
+        par['reduce']['findobj']['snr_thresh'] = 5.0
         par['reduce']['skysub']['sky_sigrej'] = 5.0
         par['reduce']['findobj']['find_trim_edge'] = [10,10]
         # Do not correct for flexure
@@ -291,7 +292,7 @@ class GeminiFLAMINGOS1Spectrograph(GeminiFLAMINGOSSpectrograph):
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Scienceimage parameters
-        par['reduce']['findobj']['sig_thresh'] = 5.0
+        par['reduce']['findobj']['snr_thresh'] = 5.0
         # TODO: I think this parameter was removed
         par['reduce']['findobj']['find_trim_edge'] = [50,50]
 

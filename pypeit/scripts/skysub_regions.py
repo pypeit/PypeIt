@@ -28,6 +28,9 @@ class SkySubRegions(scriptbase.ScriptBase):
                             help='Use flexure corrected slit edges?')
         parser.add_argument('-s', '--standard', default=False, action='store_true',
                             help='List standard stars as well?')
+        parser.add_argument('-v', '--verbosity', type=int, default=1,
+                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
+                                 'Level 2 writes a log with filename skysub_regions_YYYYMMDD-HHMM.log')
         return parser
 
     @staticmethod
@@ -35,11 +38,15 @@ class SkySubRegions(scriptbase.ScriptBase):
 
         import os
 
+        from pypeit import msgs
         from pypeit.core.gui.skysub_regions import SkySubGUI
         from pypeit.core import flexure
         from pypeit.scripts import utils
         from pypeit import masterframe
         from pypeit.images import buildimage
+
+        # Set the verbosity, and create a logfile if verbosity == 2
+        msgs.set_logfile_and_verbosity('skysub_regions', args.verbosity)
 
         # Generate a utilities class
         info = utils.Utilities(None, pypeit_file=args.file, det=args.det)
@@ -84,4 +91,5 @@ class SkySubRegions(scriptbase.ScriptBase):
         # Get the results
         skyreg.get_result()
 
-
+        # Reset the defaults
+        skyreg.finalize()

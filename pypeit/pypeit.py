@@ -19,6 +19,8 @@ from configobj import ConfigObj
 from astropy.io import fits
 from astropy.table import Table
 
+from pypeit import inputfiles
+from pypeit.core import parse
 from pypeit import masterframe
 from pypeit import msgs
 from pypeit import calibrations
@@ -28,14 +30,12 @@ from pypeit import find_objects
 from pypeit import extraction
 from pypeit import spec2dobj
 from pypeit.core import qa
-from pypeit.core import parse
 from pypeit.core import findobj_skymask
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
 from pypeit import utils
 from pypeit.history import History
-from pypeit.par.util import parse_pypeit_file
 from pypeit.par import PypeItPar
 from pypeit.metadata import PypeItMetaData
 from pypeit.manual_extract import ManualExtractionObj
@@ -93,14 +93,12 @@ class PypeIt:
         
         self.msgs_reset()
         
-        # Load
-        cfg_lines, data_files, frametype, usrdata, setups, _ \
-                = parse_pypeit_file(pypeit_file, runtime=True)
+        # Load up PypeIt file
+        self.pypeItFile = inputfiles.PypeItFile.from_file(pypeit_file)
         self.calib_only = calib_only
 
         # Spectrograph
-        cfg = ConfigObj(cfg_lines)
-        spectrograph_name = cfg['rdx']['spectrograph']
+        spectrograph_name = self.pypeItFile.config['rdx']['spectrograph']
         self.spectrograph = load_spectrograph(spectrograph_name)
         msgs.info('Loaded spectrograph {0}'.format(self.spectrograph.name))
 
@@ -109,14 +107,14 @@ class PypeIt:
         #   - Grab a science or standard file for configuration specific parameters
 
         config_specific_file = None
-        for idx, row in enumerate(usrdata):
+        for idx, row in enumerate(self.pypeItFile.data):
             if ('science' in row['frametype']) or ('standard' in row['frametype']):
-                config_specific_file = data_files[idx]
+                config_specific_file = self.pypeItFile.filenames[idx]
         # search for arcs, trace if no scistd was there
         if config_specific_file is None:
-            for idx, row in enumerate(usrdata):
+            for idx, row in enumerate(self.pypeItFile.data):
                 if ('arc' in row['frametype']) or ('trace' in row['frametype']):
-                    config_specific_file = data_files[idx]
+                    config_specific_file = self.pypeItFile.filenames[idx]
         if config_specific_file is not None:
             msgs.info(
                 'Setting configuration-specific parameters using {0}'.format(os.path.split(config_specific_file)[1]))
@@ -124,7 +122,8 @@ class PypeIt:
 
         #   - Build the full set, merging with any user-provided
         #     parameters
-        self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
+        self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, 
+                                            merge_with=self.pypeItFile.cfg_lines)
         msgs.info('Built full PypeIt parameter set.')
 
         # Check the output paths are ready
@@ -138,11 +137,15 @@ class PypeIt:
         # Build the meta data
         #   - Re-initilize based on the file data
         msgs.info('Compiling metadata')
-        self.fitstbl = PypeItMetaData(self.spectrograph, self.par, files=data_files,
-                                      usrdata=usrdata, strict=True)
+        self.fitstbl = PypeItMetaData(self.spectrograph, self.par, 
+                                      files=self.pypeItFile.filenames,
+                                      usrdata=self.pypeItFile.data, 
+                                      strict=True)
         #   - Interpret automated or user-provided data from the PypeIt
         #   file
-        self.fitstbl.finalize_usr_build(frametype, setups[0])
+        self.fitstbl.finalize_usr_build(
+            self.pypeItFile.frametypes, 
+            self.pypeItFile.setup_name)
 
         
         # --------------------------------------------------------------
@@ -290,10 +293,16 @@ class PypeIt:
             # Find the detectors to reduce
 #            detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
 #                                                ndet=self.spectrograph.ndet)
-            detectors = self.spectrograph.select_detectors(subset=self.par['rdx']['detnum'])
+            subset = self.par['rdx']['slitspatnum'] if self.par['rdx']['slitspatnum'] is not None \
+                else self.par['rdx']['detnum']
+            detectors = self.spectrograph.select_detectors(subset=subset)
+            msgs.info(f'Detectors to work on: {detectors}')
+
             calib_dict[calib_grp] = {}
+
             # Loop on Detectors
             for self.det in detectors:
+                msgs.info("Working on detector {0}".format(self.det))
                 # Instantiate Calibrations class
                 self.caliBrate = calibrations.Calibrations.get_instance(
                     self.fitstbl, self.par['calibrations'], self.spectrograph,
@@ -308,6 +317,10 @@ class PypeIt:
                 # Allow skipping the run (e.g. parse_calib_id.py script)
                 if run:
                     self.caliBrate.run_the_steps()
+                    if not self.caliBrate.success:
+                        msgs.warn(f'Calibrations for detector {self.det} were unsuccessful!  The step '
+                                  f'that failed was {self.caliBrate.failed_step}.  Continuing by '
+                                  f'skipping this detector.')
 
                 key = self.caliBrate.master_key_dict['frame']
                 calib_dict[calib_grp][key] = {}
@@ -349,7 +362,8 @@ class PypeIt:
         """
         Main driver of the entire reduction
 
-        Calibration and extraction via a series of calls to reduce_exposure()
+        Calibration and extraction via a series of calls to
+        :func:`reduce_exposure`.
 
         """
         # Validate the parameter set
@@ -362,6 +376,11 @@ class PypeIt:
 
         # Find the science frames
         is_science = self.fitstbl.find_frames('science')
+        # this will give an error to alert the user that no reduction
+        # will be run if there are no science/standard frames and `run_pypeit` is run without -c flag
+        if not np.any(is_science) and not np.any(is_standard):
+            msgs.error('No science/standard frames provided. Add them to your PypeIt file '
+                       'if this is a standard run! Otherwise run calib_only reduction using -c flag')
 
         # Frame indices
         frame_indx = np.arange(len(self.fitstbl))
@@ -380,13 +399,14 @@ class PypeIt:
             u_combid_std= np.unique(self.fitstbl['comb_id'][grp_standards])
             for j, comb_id in enumerate(u_combid_std):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
-                bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
+                # Find all frames whose comb_id matches the current frames bkg_id (same as for science frames).
+                bg_frames = np.where((self.fitstbl['comb_id'] == self.fitstbl['bkg_id'][frames][0]) &
+                                     (self.fitstbl['comb_id'] >= 0))[0]
                 if not self.outfile_exists(frames[0]) or self.overwrite:
                     # Build history to document what contributd to the reduced
                     # exposure
                     history = History(self.fitstbl.frame_paths(frames[0]))
                     history.add_reduce(i, self.fitstbl, frames, bg_frames)
-
                     std_spec2d, std_sobjs = self.reduce_exposure(frames, bg_frames=bg_frames)
 
                     # TODO come up with sensible naming convention for save_exposure for combined files
@@ -432,8 +452,11 @@ class PypeIt:
                     science_basename[j] = self.basename
 
                     # TODO come up with sensible naming convention for save_exposure for combined files
-                    self.save_exposure(frames[0], sci_spec2d, sci_sobjs,
-                                       self.basename, history)
+                    if len(sci_spec2d.detectors) > 0:
+                        self.save_exposure(frames[0], sci_spec2d, sci_sobjs, self.basename, history)
+                    else:
+                        msgs.warn('No spec2d and spec1d saved to file because the '
+                                  'calibration/reduction was not successful for all the detectors')
                 else:
                     msgs.warn('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
@@ -554,7 +577,7 @@ class PypeIt:
             objFind_list.append(objFind)
 
         # slitmask stuff
-        if self.par['reduce']['slitmask']['assign_obj']:
+        if len(calibrated_det) > 0 and self.par['reduce']['slitmask']['assign_obj']:
             # get object positions from slitmask design and slitmask offsets for all the detectors
             spat_flexure = np.array([ss.spat_flexure for ss in sciImg_list])
             # Grab platescale with binning
@@ -641,56 +664,6 @@ class PypeIt:
         setup = self.fitstbl.master_key(frame, det=det)
         return objtype_out, setup, obstime, basename, binning
 
-    def get_std_trace(self, std_redux, det, std_outfile):
-        """
-        Returns the trace of the standard if it is applicable to the current reduction
-
-        Args:
-            std_redux (:obj:`bool`):
-                Flag that the current reduction *is* the reduction of a standard
-                and that this step should be skipped.   So, if this is False,
-                the method will proceed; otherwise, the returned value is always
-                None.
-            det (:obj:`int`, :obj:`tuple`):
-                1-indexed detector(s) to process.
-            std_outfile (:obj:`str`):
-                Filename with the standard star spec1d file.  Can be None.
-
-        Returns:
-            `numpy.ndarray`_: Trace of the standard star on input detector.
-            Will be None if ``std_redux`` is true, if ``std_outfile`` is None,
-            or if the selected detector/mosaic is not available in the provided
-            spec1d file.
-        """
-        if std_redux is False and std_outfile is not None:
-            sobjs = specobjs.SpecObjs.from_fitsfile(std_outfile)
-            detname = self.spectrograph.get_det_name(det)
-            # Does the detector match?
-            # TODO: Instrument specific logic here could be implemented with the
-            # parset. For example LRIS-B or LRIS-R we we would use the standard
-            # from another detector.
-
-            this_det = sobjs.DET == detname
-            if np.any(this_det):
-                sobjs_det = sobjs[this_det]
-                sobjs_std = sobjs_det.get_std()
-                # No standard extracted on this detector??
-                if sobjs_std is None:
-                    return None
-                std_trace = sobjs_std.TRACE_SPAT
-                # flatten the array if this multislit
-                if 'MultiSlit' in self.spectrograph.pypeline:
-                    std_trace = std_trace.flatten()
-                elif 'Echelle' in self.spectrograph.pypeline:
-                    std_trace = std_trace.T
-                else:
-                    msgs.error('Unrecognized pypeline')
-            else:
-                std_trace = None
-        else:
-            std_trace = None
-
-        return std_trace
 
     def calib_one(self, frames, det):
         """
@@ -751,7 +724,7 @@ class PypeIt:
         sciImg : :class:`~pypeit.images.pypeitimage.PypeItImage`
             Science image
         objFind : :class:`~pypeit.find_objects.FindObjects`
-            Object finding object
+            Object finding speobject
 
         """
         # Grab some meta-data needed for the reduction from the fitstbl
@@ -762,12 +735,13 @@ class PypeIt:
 
         # Is this a standard star?
         self.std_redux = 'standard' in self.objtype
-        if self.std_redux:
-            frame_par = self.par['calibrations']['standardframe']
-        else:
-            frame_par = self.par['scienceframe']
+        frame_par = self.par['calibrations']['standardframe'] if self.std_redux else self.par['scienceframe']
         # Get the standard trace if need be
-        std_trace = self.get_std_trace(self.std_redux, det, std_outfile)
+
+        if self.std_redux is False and std_outfile is not None:
+            std_trace = specobjs.get_std_trace(self.spectrograph.get_det_name(det), std_outfile)
+        else:
+            std_trace = None
 
         # Build Science image
         sci_files = self.fitstbl.frame_paths(frames)
@@ -853,7 +827,6 @@ class PypeIt:
 
         # Update the skymask
         skymask = objFind.create_skymask(sobjs_obj)
-
         # Update the global sky
         if 'standard' in self.fitstbl['frametype'][frames[0]] or \
                 self.par['reduce']['findobj']['skip_final_global'] or \
@@ -862,13 +835,13 @@ class PypeIt:
             final_global_sky = initial_sky
         else:
             final_global_sky = objFind.global_skysub(previous_sky=initial_sky, skymask=skymask, show=self.show)
+        scaleImg = objFind.scaleimg
 
         # update here slits.mask since global_skysub modify reduce_bpm and we need to propagate it into extraction
         flagged_slits = np.where(objFind.reduce_bpm)[0]
         if len(flagged_slits) > 0:
             self.caliBrate.slits.mask[flagged_slits] = \
                 self.caliBrate.slits.bitmask.turn_on(self.caliBrate.slits.mask[flagged_slits], 'BADREDUCE')
-
 
         msgs.info("Extraction begins for {} on det={}".format(self.basename, det))
 
@@ -878,7 +851,7 @@ class PypeIt:
         # TODO Are we repeating steps in the init for FindObjects and Extract??
         self.exTract = extraction.Extract.get_instance(
             sciImg, sobjs_obj, self.spectrograph, 
-            self.par, self.caliBrate, self.objtype, 
+            self.par, self.caliBrate, self.objtype, global_sky=final_global_sky,
             bkg_redux=self.bkg_redux,
             return_negative=self.par['reduce']['extraction']['return_negative'],
             std_redux=self.std_redux,
@@ -886,21 +859,23 @@ class PypeIt:
             basename=self.basename)
 
         if not self.par['reduce']['extraction']['skip_extraction']:
-            skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, \
-                tilts = self.exTract.run(final_global_sky, ra=self.fitstbl["ra"][frames[0]],
-                                         dec=self.fitstbl["dec"][frames[0]], obstime=self.obstime)
+            # Perform the extraction
+            skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, tilts = self.exTract.run()
+            # Apply a reference frame correction to each object and the waveimg
+            self.exTract.refframe_correct(self.fitstbl["ra"][frames[0]], self.fitstbl["dec"][frames[0]], self.obstime,
+                                          sobjs=self.exTract.sobjs)
         else:
-            # Although exrtaction is not performed, still need to prepare some masks and the tilts
-            self.exTract.prepare_extraction(final_global_sky)
+            # Although extraction is not performed, still need to prepare some masks and the tilts, and apply heliocentric correction
+            self.exTract.prepare_extraction()
+            self.exTract.refframe_correct(self.fitstbl["ra"][frames[0]], self.fitstbl["dec"][frames[0]], self.obstime)
             # Since the extraction was not performed, fill the arrays with the best available information
-            skymodel = self.exTract.global_sky
+            skymodel = final_global_sky
             objmodel = np.zeros_like(self.exTract.sciImg.image)
             ivarmodel = np.copy(self.exTract.sciImg.ivar)
             outmask = self.exTract.sciImg.fullmask
-            scaleImg = self.exTract.scaleimg
+            sobjs = sobjs_obj
             waveImg = self.exTract.waveimg
             tilts = self.exTract.tilts
-            sobjs = sobjs_obj
 
         # TODO -- Do this upstream
         # Tack on detector and wavelength RMS
@@ -935,6 +910,7 @@ class PypeIt:
                                         vel_type=self.par['calibrations']['wavelengths']['refframe'],
                                         tilts=tilts,
                                         slits=slits,
+                                        wavesol=self.caliBrate.wv_calib.wave_diagnostics(print_diag=False),
                                         maskdef_designtab=maskdef_designtab)
         spec2DObj.process_steps = sciImg.process_steps
 

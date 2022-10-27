@@ -3,6 +3,7 @@
     $ pypeit_sensfunc -h
     usage: pypeit_sensfunc [-h] [--algorithm {UVIS,IR}] [--multi MULTI] [-o OUTFILE]
                            [-s SENS_FILE] [--debug] [--par_outfile PAR_OUTFILE]
+                           [-v VERBOSITY]
                            spec1dfile
     
     Compute a sensitivity function
@@ -64,4 +65,8 @@
       --par_outfile PAR_OUTFILE
                             Name of output file to save the parameters used by the
                             fit
+      -v VERBOSITY, --verbosity VERBOSITY
+                            Verbosity level between 0 [none] and 2 [all]. Default:
+                            1. Level 2 writes a log with filename sensfunc_YYYYMMDD-
+                            HHMM.log
     

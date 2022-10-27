@@ -13,15 +13,11 @@ import datetime
 
 from IPython import embed
 
-import numpy as np
-
-from astropy.table import hstack, Table
-
 from pypeit import msgs
 from pypeit.metadata import PypeItMetaData
+from pypeit import inputfiles
 
 from pypeit.par import PypeItPar
-from pypeit.par.util import parse_pypeit_file, make_pypeit_file
 from pypeit.spectrographs.util import load_spectrograph
 
 
@@ -161,16 +157,23 @@ class PypeItSetup:
 
         Args:
             filename (str):
-                Name of the pypeit file to read.  Pypit files have a
+                Name of the pypeit file to read.  PypeIt files have a
                 specific set of valid formats. A description can be
                 found :ref:`pypeit_file`.
         
         Returns:
             :class:`PypeitSetup`: The instance of the class.
         """
-        cfg_lines, data_files, frametype, usrdata, setups, setup_dict = parse_pypeit_file(filename)
-        return cls(data_files, frametype=frametype, usrdata=usrdata, setups=setups,
-                   cfg_lines=cfg_lines, pypeit_file=filename, setup_dict=setup_dict)
+        # Load up a pypeItFile object
+        pypeItFile = inputfiles.PypeItFile.from_file(filename)
+        # Instantiate
+        return cls(pypeItFile.filenames, 
+                   frametype=pypeItFile.frametypes, 
+                   usrdata=pypeItFile.data, 
+                   setups=[pypeItFile.setup_name],
+                   cfg_lines=pypeItFile.cfg_lines, 
+                   pypeit_file=filename, 
+                   setup_dict=pypeItFile.setup)
 
     @classmethod
     def from_file_root(cls, root, spectrograph, extension='.fits', output_path=None):
@@ -216,40 +219,19 @@ class PypeItSetup:
             os.makedirs(output_path)
         # Set the output file name
         date = str(datetime.date.today().strftime('%Y-%m-%d'))
-        pypeit_file = os.path.join(output_path, '{0}_{1}.pypeit'.format(spectrograph, date))
-        msgs.info('A vanilla pypeit file will be written to: {0}'.format(pypeit_file))
+        # pypeit_file = os.path.join(output_path, '{0}_{1}.pypeit'.format(spectrograph, date))
+        # msgs.info('A vanilla pypeit file will be written to: {0}'.format(pypeit_file))
         
-        # Generate the pypeit file
-        cls.vanilla_pypeit_file(pypeit_file, root, spectrograph, extension=extension)
-
-        # Now setup PypeIt using that file
-        return cls.from_pypeit_file(pypeit_file)
-
-    @staticmethod
-    def vanilla_pypeit_file(pypeit_file, root, spectrograph, extension='.fits'):
-        """
-        Write a vanilla PypeIt file.
-
-        Args:
-            pypeit_file (str):
-              Name of PypeIt file to be generated
-            root (str):
-            spectrograph (str):
-              Name of spectrograph
-            extension (str, optional):
-              File extension
-
-        Returns:
-
-        """
-        # Generate
+        # Grab the list of files
         dfname = os.path.join(root, '*{0}*'.format(extension)) \
                     if os.path.isdir(root) else '{0}*{1}*'.format(root, extension)
-        # configuration lines
+        data_files = glob.glob(dfname)
+        data_files.sort()
         cfg_lines = ['[rdx]']
         cfg_lines += ['    spectrograph = {0}'.format(spectrograph)]
-#        cfg_lines += ['    sortroot = {0}'.format(root)]
-        make_pypeit_file(pypeit_file, spectrograph, [dfname], cfg_lines=cfg_lines, setup_mode=True)
+
+        # Instantiate
+        return cls(data_files, cfg_lines=cfg_lines) #pypeit_file=filename, 
 
     @property
     def nfiles(self):
@@ -289,7 +271,6 @@ class PypeItSetup:
 
         # Add this to the completed steps
         self.steps.append(inspect.stack()[0][3])
-
         # Return the table
         return self.fitstbl.table
 
@@ -494,6 +475,7 @@ class PypeItSetup:
 
         if obslog:
             log_file = pypeit_file.replace('.pypeit', '.obslog')
+            log_file = os.path.join(_output_path, os.path.split(log_file)[1])
             header = ['Auto-generated PypeIt Observing Log',
                       '{0}'.format(time.strftime("%a %d %b %Y %H:%M:%S", time.localtime()))]
             self.fitstbl.write(output=log_file, columns='pypeit', sort_col='mjd',

@@ -110,7 +110,7 @@ def discrete_correlate_match(x_det, x_model, step=1, xlag_range=[-50, 50]):
     slit edge predicted by the optical model and the one found in the image, given a range of
     offsets. This is used iteratively.
 
-   Taken from in DEEP2/spec2d/pro/discrete_correlate_match.pro
+    Taken from in DEEP2/spec2d/pro/discrete_correlate_match.pro
     x_det==x1, x_model==x2_in
 
     Args:

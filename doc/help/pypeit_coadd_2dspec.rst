@@ -5,15 +5,19 @@
                                [--debug_offsets] [--peaks] [--basename BASENAME]
                                [--spec_samp_fact SPEC_SAMP_FACT]
                                [--spat_samp_fact SPAT_SAMP_FACT] [--debug]
-                               [--only_slits ONLY_SLITS]
+                               [--only_slits ONLY_SLITS] [-v VERBOSITY]
     
     Coadd 2D spectra produced by PypeIt
     
     optional arguments:
       -h, --help            show this help message and exit
       --file FILE           File to guide 2d coadds (default: None)
-      --det DET             Only coadd data from this detector (1-indexed) (default:
-                            None)
+      --det DET             1-indexed detector or list of detectors that the user
+                            wants tocoadd. If None, all the detectors are coadded.
+                            If the spec2d aremosaiced and the user wants to restrict
+                            the coadd to only selectedmosaics, use the parameter
+                            detnum in the coadd2d file as done inrun_pypeit
+                            (default: None)
       --obj OBJ             Object name in lieu of extension, e.g if the spec2d
                             files are named
                             'spec2d_J1234+5678_GNIRS_2017Mar31T085412.181.fits' then
@@ -37,4 +41,8 @@
       --debug               show debug plots? (default: False)
       --only_slits ONLY_SLITS
                             Only coadd the following slits (default: None)
+      -v VERBOSITY, --verbosity VERBOSITY
+                            Verbosity level between 0 [none] and 2 [all]. Default:
+                            1. Level 2 writes a log with filename
+                            coadd_2dspec_YYYYMMDD-HHMM.log (default: 1)
     

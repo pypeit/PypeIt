@@ -50,7 +50,7 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
-    'sphinx.ext.autosectionlabel',
+#    'sphinx.ext.autosectionlabel',
 ]
 
 # Nicer math rendering than sphinx default?
@@ -116,7 +116,7 @@ language = None
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns = ['_build', 'include/*.rst', 'help/*.rst']
+exclude_patterns = ['_build', 'include/*.rst', 'help/*.rst', 'scripts/*.rst']
 
 # When nit-picking, ignore these warnings:
 nitpick_ignore = [ ('py:class', 'optional'),
@@ -167,6 +167,7 @@ html_theme = 'sphinx_rtd_theme'
 # documentation.
 html_theme_options = {
     'logo_only': True,
+    'prev_next_buttons_location': None
 }
 
 # Add any paths that contain custom themes here, relative to this directory.

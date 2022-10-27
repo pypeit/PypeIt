@@ -61,6 +61,9 @@ class SensFunc(scriptbase.ScriptBase):
                             help="show debug plots?")
         parser.add_argument("--par_outfile", default='sensfunc.par',
                             help="Name of output file to save the parameters used by the fit")
+        parser.add_argument('-v', '--verbosity', type=int, default=1,
+                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
+                                 'Level 2 writes a log with filename sensfunc_YYYYMMDD-HHMM.log')
         return parser
 
     @staticmethod
@@ -69,15 +72,16 @@ class SensFunc(scriptbase.ScriptBase):
 
         import os
 
-        import numpy as np
-
         from astropy.io import fits
 
         from pypeit import msgs
-        from pypeit import io
+        from pypeit import inputfiles
         from pypeit.par import pypeitpar
         from pypeit import sensfunc
         from pypeit.spectrographs.util import load_spectrograph
+
+        # Set the verbosity, and create a logfile if verbosity == 2
+        msgs.set_logfile_and_verbosity('sensfunc', args.verbosity)
 
         # Check parameter inputs
         if args.algorithm is not None and args.sens_file is not None:
@@ -104,9 +108,14 @@ class SensFunc(scriptbase.ScriptBase):
         spectrograph_def_par = spectrograph.default_pypeit_par()
 
         # If the .sens file was passed in read it and overwrite default parameters
-        par = spectrograph_def_par if args.sens_file is None else \
-                pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                                                   merge_with=io.read_sensfile(args.sens_file))
+
+        if args.sens_file is not None:
+            sensFile = inputfiles.SensFile.from_file(args.sens_file)
+            # Read sens file
+            par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
+                merge_with=sensFile.cfg_lines)
+        else:
+            par = spectrograph_def_par 
 
         # If algorithm was provided override defaults. Note this does undo .sens
         # file since they cannot both be passed

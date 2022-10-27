@@ -22,6 +22,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
     name = 'p200_tspec'
     telescope = telescopes.P200TelescopePar()
     camera = 'TSPEC'
+    url = 'https://sites.astro.caltech.edu/palomar/observer/200inchResources/tspeccookbook.html'
     header_name = 'TSPEC_SPEC'
     pypeline = 'Echelle'
     supported = True
@@ -153,6 +154,11 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
+
+        # Model entire slit
+        par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
+        par['reduce']['findobj']['maxnumber_sci'] = 2  # Slit is narrow so allow one object per order
+        par['reduce']['findobj']['maxnumber_std'] = 1  # Slit is narrow so allow one object per order
 
         # Flexure
         par['flexure']['spec_method'] = 'skip'

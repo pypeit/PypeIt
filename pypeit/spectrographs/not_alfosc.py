@@ -25,6 +25,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
     name = 'not_alfosc'
     telescope = telescopes.NOTTelescopePar()
     camera = 'ALFOSC'
+    url = 'https://www.not.iac.es/instruments/alfosc/'
     header_name = 'ALFOSC_FASU'
     supported = True
     comment = 'Grisms 4, 19'

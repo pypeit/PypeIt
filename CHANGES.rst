@@ -1,21 +1,75 @@
+1.10.1dev
+---------
 
-1.8.2dev
---------
+- Add ability for users to specify custom arc line lists for
+  wavelength calibration, saved in the user's PypeIt cache
+- Added Keck/NIRES frame-typing development doc.
+- Now more than one setup can be assigned to the same calibration frame,
+  allowing to associate the same calibration frames to different science/standard
+  frames, if desired.
+- Correctly associate calibrations with science data for MOSFIRE longslit and long2pos masks.
+- Automatically assign `comb_id` and `bkg_id` to MOSFIRE science data,
+  using the information on the dither pattern.
+- Allow verbosity specification for various post-processing command-line scripts.
+- Allow for the specification of a specific UVIS extinction file for sensitivity
+  function computation and flux calibration.
+- Refactor and general update of documentation
 
-- When using glob to get files in pypeit_setup, added automatic sorting so that
-  the default `comb_id` ordering matches the sorted file name.
+1.10.0 (11 July 2022)
+---------------------
+
+- Modify tweak_standard for Mosfire/J2
+- Apply find_min_max when clipping the image for object finding
+- Mask bad detector regions for global sky flexure calculation
+- Detector structure correction included in flatfield calibration
+- Apply find_min_max when clipping the image for object finding
+- Mask bad detector regions for global sky flexure calculation
+- Fixed a bug associated with 2d interpolation of waveimg in extraction.
+- Refactor PypeIt input files
+- Added wavelength diagnostics to the spec2d output
+
+
+1.9.1 (13 June 2022)
+--------------------
+
+- Hotfix for bug related to downloading from the `reid_arxiv` when using
+  the `reidentify` wavelength calibration method.
+
+
+1.9.0 (31 May 2022)
+-------------------
+
+- When using glob to get files in pypeit_setup, added automatic sorting
+  so that the default `comb_id` ordering matches the sorted file name.
 - Improve Keck/KCWI automatic frame typing.
+- Implemented Keck/KCWI flux calibration
 - Wavelength templates (OH lines and arc lamps) created for Keck/MOSFIRE
 - Mosaic is now available for Keck/DEIMOS too.
-- Various package data (e.g., reid_arxiv, sensfunc) are no longer distributed via
-  PyPI to reduce package size; introduce mechanisms for downloading/caching needed
-  data either at runtime or on demand.
-- Save output wavelength calibration from `pypeit_identify` to the cache for
-  direct reuse in data reduction.
-- The `pypeit_identify` GUI can now toggle between linear and log scaling of the
-  arc spectrum flux.
+- Various package data (e.g., reid_arxiv, sensfunc) are no longer
+  distributed via PyPI to reduce package size; introduce mechanisms for
+  downloading/caching needed data either at runtime or on demand.
+- Save output wavelength calibration from `pypeit_identify` to the cache
+  for direct reuse in data reduction.
+- The `pypeit_identify` GUI can now toggle between linear and log
+  scaling of the arc spectrum flux.
 - Improved wavelength solution for Gemini-Nort E2V detector
 - Keck/DEIMOS now uses gain/RN values measured periodically by WMKO
+- Add bok_bc 300 grating template
+- Added more flexible quicklook that can handle dithering.
+- Expose exposure time scaling for dark frames as an image processing
+  parameter, and set the default behavior to ignore any difference in
+  exposure time.  Also fixes a bug in the variance calculation.
+- Refactored object finding
+- Bug fixes in local sky subtraction and extraction
+- Fixed pypeit setup issues due to bad LRIS headers.
+- Added support for VLT FORS2 600z grism.
+- Added enhancements and fixes for Keck lris red Mark4.
+- Fixed a bug in 2d coadding when objects were not being identified.
+  Refactored 2d extraction.
+- Added code to better parse Gemini/GNIRS dither sequences
+- Add spectrograph child for VLT X-SHOOTER UVB arm
+- Minor enhancements to `pypeit_identify` GUI
+- Refactoring of `pypeit_show_wvcalib` GUI
 
 
 1.8.1 (23 Feb 2022)
@@ -24,6 +78,7 @@
 - various hotfixes
 - Include preliminary support for fluxing with archived SensFunc files
   for DEIMOS.
+
 
 1.8.0 (12 Feb 2022)
 -------------------
@@ -144,6 +199,7 @@
     - improvements in the frame typing
 - Implements new Mark4 detector for Keck/LRISr  (aka keck_lris_red_mark4)
 - QL script for Keck/DEIMOS
+- Implemented flux calibration and grating correction for datacubes.
 
 
 1.6.0 (1 Oct 2021)

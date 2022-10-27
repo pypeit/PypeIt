@@ -5,6 +5,9 @@ Module for LRIS specific methods.
 """
 import glob
 import os
+from IPython import embed
+
+from pkg_resources import resource_filename
 
 import numpy as np
 
@@ -32,6 +35,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 2
     telescope = telescopes.KeckTelescopePar()
+    url = 'https://www2.keck.hawaii.edu/inst/lris/'
 
     @classmethod
     def default_pypeit_par(cls):
@@ -76,7 +80,13 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['standardframe']['process']['spat_flexure_correct'] = True
 
         par['scienceframe']['exprng'] = [60, None]
+
+
+        # If telluric is triggered
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+
         return par
+
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -134,6 +144,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self.meta['hatch'] = dict(ext=0, card='TRAPDOOR')
         # Red only, but grabbing here
         self.meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-2)
+        self.meta['cenwave'] = dict(ext=0, card='WAVELEN', rtol=2.0)
         self.meta['frameno'] = dict(ext=0, card='FRAMENO')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
@@ -169,6 +180,12 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         elif 'lampstat' in meta_key:
             idx = int(meta_key[-2:])
             curr_date = time.Time(self.get_meta_value(headarr, 'mjd'), format='mjd')
+            #except:
+            #    msgs.warn('No mjd in header. You either have bad headers, '
+            #              'or incorrectly specified the wrong spectrograph, '
+            #              'or are reading in other files from your directory.  '
+            #              'Using 2022-01-01 as the date for parsing lamp info from headers')
+            #    curr_date =  time.Time("2022-01-01", format='isot')
             # Modern -- Assuming the change occurred with the new red detector
             t_newlamp = time.Time("2014-02-15", format='isot')  # LAMPS changed in Header
             if curr_date > t_newlamp:
@@ -1085,6 +1102,8 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # Return
         return detector
 
+
+
     @classmethod
     def default_pypeit_par(cls):
         """
@@ -1119,7 +1138,30 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         par['scienceframe']['process']['sigclip'] = 5.
         par['scienceframe']['process']['objlim'] = 5.
 
+        # Sensitivity function defaults
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 9
+
         return par
+
+    def get_ql_master_dir(self, file):
+        """
+        Returns master file directory for quicklook reductions.
+
+        Args:
+            file (str):
+              Image file
+
+        Returns:
+            master_dir (str):
+              Quicklook Master directory
+
+        """
+
+        lris_grating = self.get_meta_value(file, 'dispname')
+        lris_dichroic = self.get_meta_value(file, 'dichroic')
+        setup_path = lris_grating.replace('/','_') + '_d' + lris_dichroic
+        return os.path.join(self.name, setup_path)
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -1206,7 +1248,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return super().configuration_keys() + ['dispangle', 'amp', 'binning']
+        return super().configuration_keys() + ['dispangle', 'cenwave', 'amp', 'binning']
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
@@ -1273,6 +1315,7 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
         self.meta['mjd'] = dict(ext=0, card='MJD')
         self.meta['exptime'] = dict(ext=0, card='TELAPSE')
 
+
     def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
@@ -1315,7 +1358,7 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
         # Date of Mark4 installation
         t2021_upgrade = time.Time("2021-04-15", format='isot') 
         # TODO -- Update with the date we transitioned to the correct ones
-        t_gdhead = time.Time("2029-01-01", format='isot')  
+        t_gdhead = time.Time("2029-01-01", format='isot')
         date = time.Time(hdu[0].header['MJD'], format='mjd')
 
         if date < t2021_upgrade:

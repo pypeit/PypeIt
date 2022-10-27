@@ -17,9 +17,12 @@ class Alignments(datamodel.DataContainer):
     """
     Simple DataContainer for the alignment output
 
-    All of the items in the datamodel are required for instantiation,
-      although they can be None (but shouldn't be)
+    All of the items in the datamodel are required for instantiation, although
+    they can be None (but shouldn't be)
 
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_alignments.rst
     """
     minimum_version = '1.1.0'
     version = '1.1.0'
@@ -58,6 +61,15 @@ class Alignments(datamodel.DataContainer):
     def _validate(self):
         # TBC - need to check that all alignment traces have been correctly traced
         pass
+
+    # NOTE: If you make changes to how this object is bundled into the output
+    # datamodel, make sure you update the documentation in
+    # doc/calibrations/master_align.rst!
+    def _bundle(self):
+        """
+        Override the base class method simply to set the HDU extension name.
+        """
+        return super()._bundle(ext='ALIGN')
 
     def is_synced(self, slits):
         """
@@ -195,13 +207,12 @@ class TraceAlignment:
                             'OBJTYPE': "align_profile", 'PYPELINE': self.spectrograph.pypeline}
             msgs.info("Fitting alignment traces in slit {0:d}".format(slit_idx))
             align_traces = findobj_skymask.objs_in_slit(
-                self.rawalignimg.image, slitid_img_init == slit_spat,
+                self.rawalignimg.image, self.rawalignimg.ivar, slitid_img_init == slit_spat,
                 left[:, slit_idx], right[:, slit_idx],
-                has_negative=False, ncoeff=self.alignpar['trace_npoly'],
-                specobj_dict=specobj_dict, sig_thresh=self.alignpar['sig_thresh'],
+                ncoeff=self.alignpar['trace_npoly'],
+                specobj_dict=specobj_dict, snr_thresh=self.alignpar['snr_thresh'],
                 show_peaks=show_peaks, show_fits=False,
                 trim_edg=self.alignpar['trim_edge'],
-                cont_fit=False, npoly_cont=0,
                 nperslit=len(self.alignpar['locations']))
             if len(align_traces) != len(self.alignpar['locations']):
                 # Align tracing has failed for this slit

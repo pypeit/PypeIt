@@ -23,6 +23,8 @@ Submodules
    pypeit.scripts.flux_calib
    pypeit.scripts.flux_setup
    pypeit.scripts.identify
+   pypeit.scripts.install_extinctfile
+   pypeit.scripts.install_linelist
    pypeit.scripts.install_ql_masters
    pypeit.scripts.install_telluric
    pypeit.scripts.lowrdx_skyspec
@@ -32,9 +34,9 @@ Submodules
    pypeit.scripts.parse_slits
    pypeit.scripts.qa_html
    pypeit.scripts.ql_keck_deimos
-   pypeit.scripts.ql_keck_mosfire
    pypeit.scripts.ql_keck_nires
    pypeit.scripts.ql_mos
+   pypeit.scripts.ql_multislit
    pypeit.scripts.run_pypeit
    pypeit.scripts.scriptbase
    pypeit.scripts.sensfunc

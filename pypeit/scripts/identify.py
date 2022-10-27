@@ -22,27 +22,29 @@ class Identify(scriptbase.ScriptBase):
         parser.add_argument('-s', '--solution', default=False, action='store_true',
                             help="Load a wavelength solution from the arc_file (if it exists)")
         parser.add_argument("--wmin", type=float, default=3000.0, help="Minimum wavelength range")
-        parser.add_argument("--wmax", type=float, default=10000.0, help="Maximum wavelength range")
+        parser.add_argument("--wmax", type=float, default=26000.0, help="Maximum wavelength range")
         parser.add_argument("--slit", type=int, default=0,
                             help="Which slit to load for wavelength calibration")
         parser.add_argument("--det", type=int, default=1, help="Detector index")
         parser.add_argument("--rmstol", type=float, default=0.1, help="RMS tolerance")
         parser.add_argument("--fwhm", type=float, default=4., help="FWHM for line finding")
+        parser.add_argument("--sigdetect", type=float, help="sigma detection for line finding")
         parser.add_argument("--pixtol", type=float, default=0.1,
                             help="Pixel tolerance for Auto IDs")
         parser.add_argument('--test', default=False, action='store_true',
-                            help="Unit tests?")
+                            help="Testing functionality, do not show plots")
         parser.add_argument("--linear", default=False, action="store_true",
-                            help="Show the spectrum in linear scale? (Default: log")
+                            help="Show the spectrum in linear (rather than log) scale")
         parser.add_argument('--force_save', default=False, action='store_true',
                             help="Save the solutions, despite the RMS")
+        parser.add_argument('--rescale_resid', default=False, action='store_true',
+                            help="Rescale the residual plot to include all points?")
         return parser
 
     @staticmethod
     def main(args):
 
         import os
-        import sys
 
         import numpy as np
         
@@ -79,8 +81,9 @@ class Identify(scriptbase.ScriptBase):
         # Check if a solution exists
         solnname = masterframe.construct_file_name(WaveCalib, msarc.master_key,
                                                    master_dir=msarc.master_dir)
-        wv_calib = waveio.load_wavelength_calibration(solnname) \
-                        if os.path.exists(solnname) and args.solution else None
+        # wv_calib = waveio.load_wavelength_calibration(solnname) \
+        wv_calib = WaveCalib.from_file(solnname) \
+            if os.path.exists(solnname) and args.solution else None
 
         # Load the MasterFrame (if it exists and is desired).  Bad-pixel mask
         # set to any flagged pixel in MasterArc.
@@ -98,10 +101,14 @@ class Identify(scriptbase.ScriptBase):
         arcfitter = Identify.initialise(arccen, lamps, slits, slit=int(args.slit), par=par,
                                         wv_calib_all=wv_calib, wavelim=[args.wmin, args.wmax],
                                         nonlinear_counts=nonlinear_counts,
-                                        pxtoler=args.pixtol, test=args.test, fwhm=args.fwhm,
-                                        specname=spec.name, y_log=not args.linear)
+                                        pxtoler=args.pixtol, test=args.test, 
+                                        fwhm=args.fwhm,
+                                        sigdetect=args.sigdetect,
+                                        specname=spec.name,
+                                        y_log=not args.linear,
+                                        rescale_resid=args.rescale_resid)
 
-        # Testing?
+        # If testing, return now
         if args.test:
             return arcfitter
         final_fit = arcfitter.get_results()
