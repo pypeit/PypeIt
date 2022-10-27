@@ -151,7 +151,7 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         self.meta['exptime'] = dict(ext=0, card='ELAPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
-        self.meta['dispname'] = dict(ext=0, card='INSTRUME')
+        self.meta['dispname'] = dict(card=None, compound=True)
         self.meta['idname'] = dict(ext=0, card='OBSTYPE')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
@@ -184,10 +184,9 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         if meta_key == 'binning':
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             return parse.binning2string(binspec, binspatial)
-        #elif meta_key == 'mjd':
-        #    time = '{:s}T{:s}'.format(headarr[0]['UT-DATE'], headarr[0]['UT-TIME'])
-        #    ttime = Time(time, format='isot')
-        #    return ttime.mjd
+        elif meta_key == 'dispname':
+            dname = headarr[0]['INSTRUME'].split(' ')[1]
+            return dname
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -229,15 +228,24 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         if ftype in ['pinhole', 'dark']:
             # No pinhole or pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
-        elif ftype in ['bias']:
+        if ftype in ['bias']:
             return fitstbl['idname'] == 'Bias'
-        elif ftype in ['pixelflat', 'trace']:
-            return fitstbl['idname'] in ['DmFlat', 'IntFlat', 'SkyFlat']
-        elif ftype in ['arc']:
+        if ftype in ['pixelflat', 'trace', 'illumflat']:
+            ans = np.zeros(len(fitstbl), dtype=bool)
+            for kk, idnm in enumerate(fitstbl['idname']):
+                if idnm in ['DmFlat', 'IntFlat', 'SkyFlat']:
+                    ans[kk] = True
+            return ans
+        if ftype in ['arc', 'tilt']:
             return fitstbl['idname'] == 'Line'
-        else:
+        if ftype == 'science':
             return (fitstbl['idname'] == 'Object') \
                         & framematch.check_frame_exptime(fitstbl['exptime'], (60., None)) 
+        if ftype == 'standard':
+            return (fitstbl['idname'] == 'Object') \
+                        & framematch.check_frame_exptime(fitstbl['exptime'], (0., 60.)) 
+        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        return np.zeros(len(fitstbl), dtype=bool)
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
@@ -290,7 +298,7 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         Number of orders for this spectograph. Should only defined for
         echelle spectrographs, and it is undefined for the base class.
         """
-        return 12   # 20-6
+        return 10   # 20-6
 
     @property
     def order_spat_pos(self):
@@ -306,7 +314,7 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         """
         Return the order number for each echelle order.
         """
-        return  np.arange(17, 5, -1, dtype=int)
+        return  np.arange(15, 5, -1, dtype=int)
 
     @property
     def spec_min_max(self):
