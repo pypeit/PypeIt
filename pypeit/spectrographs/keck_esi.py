@@ -1,8 +1,9 @@
 """
-Module for Magellan/MAGE specific methods.
+Module for Keck/ESI specific methods.
 
 .. include:: ../include/links.rst
 """
+import os
 
 from IPython import embed
 
@@ -18,18 +19,17 @@ from pypeit.core import parse
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 
-class MagellanMAGESpectrograph(spectrograph.Spectrograph):
+class KeckESISpectrograph(spectrograph.Spectrograph):
     """
-    Child to handle Magellan/MAGE specific code
+    Child to handle Keck/ESI specific code
     """
     ndet = 1
-    name = 'magellan_mage'
-    camera = 'MagE'
+    name = 'keck_esi'
+    camera = 'ESI'
     url = 'https://www.lco.cl/?epkb_post_type_1=mage'
-    header_name = 'MagE'
-    telescope = telescopes.MagellanTelescopePar()
+    telescope = telescopes.KeckTelescopePar()
     pypeline = 'Echelle'
-    supported = True
+    supported = False
     comment = 'See :doc:`mage`'
 
     def get_detector_par(self, det, hdu=None):
@@ -57,21 +57,19 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
             det             = 1,
             dataext         = 0,
             specaxis        = 1,
-            specflip        = True,
+            specflip        = False,
             spatflip        = False,
             # plate scale in arcsec/pixel
-            platescale      = 0.3,
-            # electrons/pixel/hour. From: http://www.lco.cl/telescopes-information/magellan/instruments/mage/the-mage-spectrograph-user-manual
-            darkcurr        = 1.00,
+            platescale      = 0.1542,
+            # electrons/pixel/hour. 
+            darkcurr        = 2.10, # Could be updated
             saturation      = 65535.,
             # CCD is linear to better than 0.5 per cent up to digital saturation (65,536 DN including bias) in the Fast readout mode.
             nonlinear       = 0.99,
             mincounts       = -1e10,
-            numamplifiers   = 1,
-            gain            = np.atleast_1d(1.02), # depends on the readout
-            ronoise         = np.atleast_1d(2.9), # depends on the readout
-            datasec         = np.atleast_1d('[1:1024, 1:2048]'),
-            oscansec        = np.atleast_1d('[1:1024, 2049:2176]'),
+            numamplifiers   = 2,
+            gain            = np.atleast_1d([1.3, 1.3]), 
+            ronoise         = np.atleast_1d([2.5,2.5]), 
             )
         # Taken from the MASE paper: https://arxiv.org/pdf/0910.1834.pdf
         #self.norders = 15
@@ -148,18 +146,29 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         # Required (core)
         self.meta['ra'] = dict(ext=0, card='RA')
         self.meta['dec'] = dict(ext=0, card='DEC')
-        self.meta['target'] = dict(ext=0, card='OBJECT')
-        #TODO: Check decker is correct
-        self.meta['decker'] = dict(ext=0, card='SLITNAME')
+        self.meta['target'] = dict(ext=0, card='TARGNAME')
+        
+        self.meta['decker'] = dict(ext=0, card='SLMSKNAM')
         self.meta['binning'] = dict(card=None, compound=True)
-#        self.meta['binning'] = dict(ext=0, card='BINNING')
-        self.meta['mjd'] = dict(ext=0, card=None, compound=True)
-        self.meta['exptime'] = dict(ext=0, card='EXPTIME')
+        self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        self.meta['exptime'] = dict(ext=0, card='ELAPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
-        self.meta['dispname'] = dict(ext=0, card='INSTRUME')
-        self.meta['idname'] = dict(ext=0, card='EXPTYPE')
+        #self.meta['dispname'] = dict(ext=0, card='INSTRUME')
+        self.meta['idname'] = dict(ext=0, card='OBSTYPE')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
+
+        # Lamps -- Have varied in time..
+        self.meta['lampstat01'] = dict(ext=0, card='LAMPAR1')
+        self.meta['lampstat02'] = dict(ext=0, card='LAMPCU1')
+        self.meta['lampstat03'] = dict(ext=0, card='LAMPNE1')
+        self.meta['lampstat04'] = dict(ext=0, card='LAMPNE2')
+        self.meta['lampstat05'] = dict(ext=0, card='LAMPQTZ1')
+        self.meta['lampstat06'] = dict(ext=0, card='FLIMAGIN')
+        self.meta['lampstat07'] = dict(ext=0, card='FLSPECTR')
+
+        # Hatch
+        self.meta['hatch'] = dict(ext=0, card='HATCHPOS')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -178,10 +187,10 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         if meta_key == 'binning':
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             return parse.binning2string(binspec, binspatial)
-        elif meta_key == 'mjd':
-            time = '{:s}T{:s}'.format(headarr[0]['UT-DATE'], headarr[0]['UT-TIME'])
-            ttime = Time(time, format='isot')
-            return ttime.mjd
+        #elif meta_key == 'mjd':
+        #    time = '{:s}T{:s}'.format(headarr[0]['UT-DATE'], headarr[0]['UT-TIME'])
+        #    ttime = Time(time, format='isot')
+        #    return ttime.mjd
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -221,17 +230,17 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         if ftype in ['pinhole', 'dark']:
-            # No pinhole or bias or dark frames
+            # No pinhole or pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
         elif ftype in ['bias']:
             return fitstbl['idname'] == 'Bias'
         elif ftype in ['pixelflat', 'trace']:
-            return fitstbl['idname'] == 'Flat'
+            return fitstbl['idname'] in ['DmFlat', 'IntFlat', 'SkyFlat']
         elif ftype in ['arc']:
-            return fitstbl['idname'] == 'ThAr-Lamp'
+            return fitstbl['idname'] == 'Line'
         else:
             return (fitstbl['idname'] == 'Object') \
-                        & framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+                        & framematch.check_frame_exptime(fitstbl['exptime'], (60., None)) 
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
@@ -263,6 +272,8 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         # Call the base-class method to generate the empty bpm
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
+        # TODO -- Add this
+        '''
         # Get the binning
         msgs.info("Custom bad pixel mask for MAGE")
         hdu = io.fits_open(filename)
@@ -271,6 +282,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         # Do it
         bpm_img[:, :10//binspatial] = 1.  # Setting BPM on the edge of the detector often leads to false edges
         bpm_img[:, 1020//binspatial:] = 1.
+        '''
         # Return
         return bpm_img
 
@@ -330,3 +342,39 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         return np.full(norders, 0.30*binspatial)
 
 
+
+    def get_rawimage(self, raw_file, det, spectrim=None):
+        """ Read the image
+        """
+        # Check for file; allow for extra .gz, etc. suffix
+        if not os.path.isfile(raw_file):
+            msgs.error(f'{raw_file} not found!')
+        hdu = io.fits_open(raw_file)
+        head0 = hdu[0].header
+
+        # Number of AMPS
+        namp = head0['NUMAMPS']
+
+        # Get post, pre-pix values
+        prepix = head0['PREPIX']
+        postpix = head0['POSTPIX']
+        preline = head0['PRELINE']
+        postline = head0['POSTLINE']
+
+        # Grab the data
+        full_image = hdu[0].data.astype(float)
+        rawdatasec_img = np.zeros_like(full_image, dtype=int)
+        oscansec_img = np.zeros_like(full_image, dtype=int)
+
+        # 
+        nspat = head0['WINDOW'].split(',')[3] // namp
+        for amp in range(namp):
+            col0 = prepix*2
+            # Data
+            rawdatasec_img[:, col0:col0+nspat] = amp+1
+            # Overscan
+            o0 = col0 + nspat*namp + postpix*amp
+            oscansec_img[:, o0:o0+postpix] = amp+1
+
+        return self.get_detector_par(1, hdu=hdu), \
+                full_image, hdu, head0['ELAPTIME'], rawdatasec_img, oscansec_img
