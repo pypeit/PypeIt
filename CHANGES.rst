@@ -3,7 +3,7 @@
 ---------
 
 - Started modifications and support for JWST.
-
+- LRISr header issue
 
 1.11.0 (21 Oct 2022)
 --------------------

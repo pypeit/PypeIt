@@ -657,7 +657,8 @@ class Spectrograph:
         if 'instrument' in meta_tbl.keys():
             # Check that there is only one instrument
             #  This could fail if one mixes is much older calibs
-            instr_names = np.unique(meta_tbl['instrument'].data)
+            indx = meta_tbl['instrument'].data != None
+            instr_names = np.unique(meta_tbl['instrument'].data[indx])
             if len(instr_names) != 1:
                 msgs.warn(f"More than one instrument in your dataset! {instr_names} \n"+
                 f"Proceed with great caution...")
