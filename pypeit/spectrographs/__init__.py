@@ -8,6 +8,7 @@ from pypeit.spectrographs import bok_bc
 from pypeit.spectrographs import gemini_flamingos
 from pypeit.spectrographs import gemini_gmos
 from pypeit.spectrographs import gemini_gnirs
+from pypeit.spectrographs import keck_esi
 from pypeit.spectrographs import keck_deimos
 from pypeit.spectrographs import keck_hires
 from pypeit.spectrographs import keck_kcwi

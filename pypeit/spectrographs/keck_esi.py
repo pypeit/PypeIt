@@ -56,7 +56,7 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
             binning         = binning,
             det             = 1,
             dataext         = 0,
-            specaxis        = 1,
+            specaxis        = 0,
             specflip        = False,
             spatflip        = False,
             # plate scale in arcsec/pixel
@@ -71,9 +71,6 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
             gain            = np.atleast_1d([1.3, 1.3]), 
             ronoise         = np.atleast_1d([2.5,2.5]), 
             )
-        # Taken from the MASE paper: https://arxiv.org/pdf/0910.1834.pdf
-        #self.norders = 15
-        # 20-6
         return detector_container.DetectorContainer(**detector_dict)
 
     @classmethod
@@ -154,7 +151,7 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         self.meta['exptime'] = dict(ext=0, card='ELAPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
-        #self.meta['dispname'] = dict(ext=0, card='INSTRUME')
+        self.meta['dispname'] = dict(ext=0, card='INSTRUME')
         self.meta['idname'] = dict(ext=0, card='OBSTYPE')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
@@ -273,6 +270,7 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         # TODO -- Add this
+        #  BE SURE TO ELIMINATE THE FIRST COLUMN OR TWO
         '''
         # Get the binning
         msgs.info("Custom bad pixel mask for MAGE")
@@ -367,14 +365,16 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         oscansec_img = np.zeros_like(full_image, dtype=int)
 
         # 
-        nspat = head0['WINDOW'].split(',')[3] // namp
+        nspat = int(head0['WINDOW'].split(',')[3]) // namp
         for amp in range(namp):
-            col0 = prepix*2
+            col0 = prepix*2 + nspat*amp
             # Data
             rawdatasec_img[:, col0:col0+nspat] = amp+1
             # Overscan
-            o0 = col0 + nspat*namp + postpix*amp
+            o0 = prepix*2 + nspat*namp + postpix*amp
             oscansec_img[:, o0:o0+postpix] = amp+1
+
+        #embed(header='435 of keck_esi.py')
 
         return self.get_detector_par(1, hdu=hdu), \
                 full_image, hdu, head0['ELAPTIME'], rawdatasec_img, oscansec_img
