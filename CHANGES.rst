@@ -1,5 +1,11 @@
-1.10.1dev
+
+1.11.1dev
 ---------
+
+- LRISr header issue
+
+1.11.0 (21 Oct 2022)
+--------------------
 
 - Add ability for users to specify custom arc line lists for
   wavelength calibration, saved in the user's PypeIt cache
