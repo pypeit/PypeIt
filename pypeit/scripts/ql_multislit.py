@@ -376,10 +376,7 @@ class QL_MOS(scriptbase.ScriptBase):
         parser.add_argument("--show", default=False, action="store_true",
                             help='Show the reduction steps. Equivalent to the -s option when '
                                  'running pypeit.')
-        parser.add_argument('--det', type=str, default='1', nargs='*',
-                            help='Detector(s) to show.  If more than one, the list of detectors '
-                                 'must be one of the allowed mosaics hard-coded for the selected '
-                                 'spectrograph.')
+        parser.add_argument('--det', type=str, help='Detector(s) to reduce.')
         return parser
 
 
@@ -426,11 +423,14 @@ class QL_MOS(scriptbase.ScriptBase):
                 ps, calib_dir,
                 det=args.det, configs=args.configs)
 
+            # Process them
+            quicklook.process_calibs(calib_pypeit_files)
+
         # Science files                                
         if args.sci_files is not None:
             sci_files = args.sci_files.split(',')
             # WORK ON THIS
-            embed(header='427 of ql multi')
+            embed(header='434 of ql multi')
         else:
             sci_idx = ps.fitstbl['frametype'] == 'science'
 
@@ -486,10 +486,10 @@ class QL_MOS(scriptbase.ScriptBase):
         run_pargs = run_pypeit.RunPypeIt.parse_args(
             [sci_pypeit_file, '-r={}'.format(redux_path)])
         run_pypeit.RunPypeIt.main(run_pargs)
-
         msgs.info(utils.get_time_string(time.time()-tstart))
 
-        embed(header='471 of ql multi')
+        if True:
+            return
 
         det_container = spectrograph.get_detector_par(
             args.det, hdu=fits.open(files[0]))

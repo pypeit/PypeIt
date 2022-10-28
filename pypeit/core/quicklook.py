@@ -21,6 +21,7 @@ import configobj
 from pypeit import inputfiles, msgs
 from pypeit import pypeitsetup
 from pypeit import utils
+from pypeit.scripts import run_pypeit
 
 from IPython import embed
 
@@ -35,7 +36,7 @@ def default_par():
     return cfg_default
 
 def generate_calib_pypeit_files(ps, output_path:str,
-                   det:str='1',
+                   det:str=None,
                    configs:str='all'):
     # Grab setups
     setups, indx = ps.fitstbl.get_configuration_names(
@@ -43,7 +44,8 @@ def generate_calib_pypeit_files(ps, output_path:str,
 
     # Restrict on detector -- May remove this
     ps.user_cfg = ['[rdx]', 'spectrograph = {}'.format(ps.spectrograph.name)]
-    ps.user_cfg += ['detnum = {}'.format(det)]
+    if det is not None:
+        ps.user_cfg += ['detnum = {}'.format(det)]
     # Avoid crash in flat fielding from saturated slits
     ps.user_cfg += ['[calibrations]', '[[flatfield]]', 'saturated_slits = mask']
 
@@ -65,6 +67,18 @@ def generate_calib_pypeit_files(ps, output_path:str,
         calib_pypeit_files.append(calib_pypeit_file)
 
     return calib_pypeit_files
+
+def process_calibs(calib_pypeit_files:list):
+
+    # Loop on setups, rename + run calibs
+    for calib_pypeit_file in calib_pypeit_files: 
+        # Run me via the script
+        redux_path = os.path.dirname(calib_pypeit_file)  # Path to PypeIt file
+        run_pargs = run_pypeit.RunPypeIt.parse_args(
+            [calib_pypeit_file, 
+             '-r={}'.format(redux_path), '-c'])
+        run_pypeit.RunPypeIt.main(run_pargs)
+
 
 def folder_name_from_scifiles(sci_files:list):
     return 'test'
