@@ -27,6 +27,7 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
     name = 'keck_esi'
     camera = 'ESI'
     url = 'https://www.lco.cl/?epkb_post_type_1=mage'
+    ech_fixed_format = True
     telescope = telescopes.KeckTelescopePar()
     pypeline = 'Echelle'
     supported = False

@@ -2716,7 +2716,8 @@ class EdgeTracePar(ParSet):
                  trace_median_frac=None, trace_thresh=None, fwhm_uniform=None, niter_uniform=None,
                  fwhm_gaussian=None, niter_gaussian=None, det_buffer=None, max_nudge=None,
                  sync_predict=None, sync_center=None, gap_offset=None, sync_to_edge=None,
-                 bound_detector=None, minimum_slit_dlength=None, dlength_range=None, 
+                 bound_detector=None, 
+                 minimum_slit_dlength=None, dlength_range=None, 
                  minimum_slit_length=None, minimum_slit_length_sci=None,
                  length_range=None, minimum_slit_gap=None, clip=None, order_match=None,
                  order_offset=None, add_missed_orders=None, overlap=None, use_maskdesign=None,
@@ -3194,11 +3195,11 @@ class EdgeTracePar(ParSet):
                    'smash_range', 'edge_detect_clip', 'trace_median_frac', 'trace_thresh',
                    'fwhm_uniform', 'niter_uniform', 'fwhm_gaussian', 'niter_gaussian',
                    'det_buffer', 'max_nudge', 'sync_predict', 'sync_center', 'gap_offset',
-                   'sync_to_edge', 'bound_detector', 'minimum_slit_length',
-                   'minimum_slit_length_sci', 'length_range', 'minimum_slit_gap', 'clip',
-                   'order_match', 'order_offset', 'add_missed_orders', 'overlap', 'use_maskdesign',
-                   'maskdesign_maxsep', 'maskdesign_step', 'maskdesign_sigrej', 'pad',
-                   'add_slits', 'add_predict', 'rm_slits']
+                   'sync_to_edge', 'bound_detector', 'minimum_slit_dlength', 'dlength_range',
+                   'minimum_slit_length', 'minimum_slit_length_sci', 'length_range',
+                   'minimum_slit_gap', 'clip', 'order_match', 'order_offset', 'add_missed_orders',
+                   'overlap', 'use_maskdesign', 'maskdesign_maxsep', 'maskdesign_step',
+                   'maskdesign_sigrej', 'pad', 'add_slits', 'add_predict', 'rm_slits']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
