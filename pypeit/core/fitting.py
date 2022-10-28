@@ -302,7 +302,7 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
                maxiter=10, in_gpm=None, weights=None, invvar=None,
                lower=None, upper=None, maxdev=None, maxrej=None, groupdim=None,
                groupsize=None, groupbadpix=False, grow=0, sticky=True, use_mad=True,
-               debug=False):
+               verbose=True):
     """
     A robust fit is performed to the xarray, yarray pairs ``mask[i] = 1`` are
     good values, if provided.
@@ -421,7 +421,7 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
     #mskcnt = np.sum(this_gpm)
     #pypeitFit = None
     while (not qdone) and (iIter < maxiter):
-        if np.sum(this_gpm) <= np.sum(order) + 1:
+        if (np.sum(this_gpm) <= np.sum(order) + 1):
             msgs.warn("More parameters than data points - fit might be undesirable")
         if not np.any(this_gpm):
             msgs.warn("All points were masked. Returning current fit and masking all points. Fit is likely undesirable")
@@ -442,7 +442,7 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
                                           use_mad=use_mad, sticky=sticky)
         # Update the iteration
         iIter += 1
-    if (iIter == maxiter) & (maxiter != 0):
+    if (iIter == maxiter) & (maxiter != 0) & verbose:
         msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_polyfit_djs')
 
     # Do the final fit

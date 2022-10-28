@@ -11,7 +11,7 @@ def test_detect_lines():
     arx_sky = data.load_sky_spectrum('paranal_sky.fits')
     arx_amp_true, arx_amp, arx_cent, arx_wid, arx_centerr, arx_w, arx_yprep, _ \
             = arc.detect_lines(arx_sky.flux.value)
-    assert (len(arx_w[0]) > 3275)
+    assert (len(arx_w) > 3275)
 
 # Many more functions in pypeit.core.arc that need tests!
 
