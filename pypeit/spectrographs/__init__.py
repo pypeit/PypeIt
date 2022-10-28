@@ -36,6 +36,8 @@ from pypeit.spectrographs import vlt_xshooter
 from pypeit.spectrographs import vlt_sinfoni
 from pypeit.spectrographs import wht_isis
 from pypeit.spectrographs import ntt_efosc2
+from pypeit.spectrographs import jwst_nirspec
+from pypeit.spectrographs import jwst_nircam
 
 
 # Build the list of names for the available spectrographs
