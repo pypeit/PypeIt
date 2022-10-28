@@ -2718,9 +2718,9 @@ class EdgeTracePar(ParSet):
                  sync_predict=None, sync_center=None, gap_offset=None, sync_to_edge=None,
                  bound_detector=None, minimum_slit_length=None, minimum_slit_length_sci=None,
                  length_range=None, minimum_slit_gap=None, clip=None, order_match=None,
-                 order_offset=None, use_maskdesign=None, maskdesign_maxsep=None,
-                 maskdesign_step=None, maskdesign_sigrej=None, pad=None, add_slits=None,
-                 add_predict=None, rm_slits=None):
+                 order_offset=None, add_missed_orders=None, use_maskdesign=None,
+                 maskdesign_maxsep=None, maskdesign_step=None, maskdesign_sigrej=None, pad=None,
+                 add_slits=None, add_predict=None, rm_slits=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3063,6 +3063,12 @@ class EdgeTracePar(ParSet):
                                 'fraction of the detector spatial scale. If None, no offset ' \
                                 'is applied.'
 
+        defaults['add_missed_orders'] = False
+        dtypes['add_missed_orders'] = bool
+        descr['add_missed_orders'] = 'If orders are not detected by the automated edge tracing, ' \
+                                     'attempt to add them based on their expected positions on ' \
+                                     'on the detector.  Echelle spectrographs only.'
+
         defaults['use_maskdesign'] = False
         dtypes['use_maskdesign'] = bool
         descr['use_maskdesign'] = 'Use slit-mask designs to identify slits.'
@@ -3162,9 +3168,9 @@ class EdgeTracePar(ParSet):
                    'det_buffer', 'max_nudge', 'sync_predict', 'sync_center', 'gap_offset',
                    'sync_to_edge', 'bound_detector', 'minimum_slit_length',
                    'minimum_slit_length_sci', 'length_range', 'minimum_slit_gap', 'clip',
-                   'order_match', 'order_offset', 'use_maskdesign', 'maskdesign_maxsep',
-                   'maskdesign_step', 'maskdesign_sigrej', 'pad', 'add_slits', 'add_predict',
-                   'rm_slits']
+                   'order_match', 'order_offset', 'add_missed_orders', 'use_maskdesign',
+                   'maskdesign_maxsep', 'maskdesign_step', 'maskdesign_sigrej', 'pad',
+                   'add_slits', 'add_predict', 'rm_slits']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

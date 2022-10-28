@@ -112,9 +112,14 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         par['calibrations']['tilts']['tracethresh'] = 10. #[10]*self.norders
         par['calibrations']['slitedges']['fit_order'] = 5
         par['calibrations']['slitedges']['max_shift_adj'] = 3.
-        par['calibrations']['slitedges']['edge_thresh'] = 10.  # Tough to get the bluest orders
         par['calibrations']['slitedges']['left_right_pca'] = True
-        par['calibrations']['slitedges']['fit_min_spec_length'] = 0.3  # Allow for a short detected blue order
+
+        par['calibrations']['slitedges']['edge_thresh'] = 5.0
+        par['calibrations']['slitedges']['det_min_spec_length'] = 0.2
+        par['calibrations']['slitedges']['fit_min_spec_length'] = 0.4
+        par['calibrations']['slitedges']['pca_sigrej'] = 1.5
+        par['calibrations']['slitedges']['pca_order'] = 3
+        par['calibrations']['slitedges']['add_missed_orders'] = True
         # Find object parameters
         par['reduce']['findobj']['find_trim_edge'] = [4,4]    # Slit is too short to trim 5,5 especially with 2x binning
         par['reduce']['findobj']['maxnumber_sci'] = 2  # Slit is narrow so allow one object per order
@@ -298,23 +303,30 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         Number of orders for this spectograph. Should only defined for
         echelle spectrographs, and it is undefined for the base class.
         """
-        return 10   # 20-6
+        return 10   # 15-6
 
     @property
     def order_spat_pos(self):
         """
         Return the expected spatial position of each echelle order.
         """
-        ord_spat_pos =  np.array([0.316, 0.399, 0.475, 0.545, 0.609, 0.669, 0.723, 0.774, 0.823,
-                                  0.869, 0.915, 0.965])
-        return ord_spat_pos
+        return np.array([0.115, 0.245, 0.362, 0.465, 0.558, 0.642, 0.719, 0.791, 0.861, 0.933])
+
+    @property
+    def order_spat_width(self):
+        """
+        Return the expected spatial width of each slit trace for each order,
+        relative to the spatial size of the detector.
+        """
+        return np.array([0.0879, 0.0818, 0.0779, 0.0747, 0.0720, 0.0696, 0.0676, 0.0658, 0.0640,
+                         0.0617])
 
     @property
     def orders(self):
         """
         Return the order number for each echelle order.
         """
-        return  np.arange(15, 5, -1, dtype=int)
+        return np.arange(15, 5, -1, dtype=int)
 
     @property
     def spec_min_max(self):

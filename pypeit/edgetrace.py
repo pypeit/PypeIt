@@ -134,7 +134,6 @@ from pypeit.tracepca import TracePCA
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.spectrographs.util import load_spectrograph
 
-
 class EdgeTraceBitMask(BitMask):
     """
     Mask bits used during slit tracing.
@@ -172,9 +171,11 @@ class EdgeTraceBitMask(BitMask):
                  ('ABNORMALSLIT', 'Slit formed by left and right edge has abnormal length'),
                    ('USERRMSLIT', 'Slit removed by user'),
                       ('NOORDER', 'Unable to associate this trace with an echelle order (echelle '
-                                  ' spectrographs only)'),
+                                  'spectrographs only)'),
                 ('ORDERMISMATCH', 'Slit traces are not well matched to any echelle order (echelle '
-                                  ' spectrographs only)')])
+                                  'spectrographs only)'),
+                  ('ORDERINSERT', 'Trace was inserted as the expected location of an echelle '
+                                  'order missed by the automated tracing')])
         super(EdgeTraceBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
 
     @property
@@ -190,7 +191,7 @@ class EdgeTraceBitMask(BitMask):
         List of flags used to mark traces inserted for various
         reasons.
         """
-        return ['USERINSERT', 'SYNCINSERT', 'MASKINSERT', 'ORPHANINSERT']
+        return ['USERINSERT', 'SYNCINSERT', 'MASKINSERT', 'ORPHANINSERT', 'ORDERINSERT']
 
     @property
     def order_flags(self):
@@ -861,6 +862,15 @@ class EdgeTraceSet(DataContainer):
                 return
             if show_stages:
                 self.show(title='After synchronizing left-right traces into slits')
+
+        if not self.is_empty and self.par['add_missed_orders']:
+            self.order_refine(debug=debug)
+            # Check that the edges are still sinked (overkill?)
+            self.success = self.sync()
+            if not self.success:
+                return
+            if show_stages:
+                self.show(title='After adding in missing orders')
 
         # First manually remove some traces, just in case a user
         # wishes to manually place a trace nearby a trace that
@@ -3034,6 +3044,8 @@ class EdgeTraceSet(DataContainer):
                     and np.sum(good[self.is_right]) > self.par['pca_min_edges'] \
                     if self.par['left_right_pca'] else np.sum(good) > self.par['pca_min_edges']
 
+    # TODO: Consolidate the options in `add_user_traces` with this function to
+    # enable more prediction options, not just the PCA.
     def predict_traces(self, edge_cen, side=None):
         """
         Use the PCA decomposition to predict traces.
@@ -4036,6 +4048,8 @@ class EdgeTraceSet(DataContainer):
                       left and right traces.
                     - ``'mask'``: Traces were generated based on the
                       expected slit positions from mask design data.
+                    - ``'order'``: Traces are the expected location of an
+                      echelle order.
 
             resort (:obj:`bool`, optional):
                 Resort the traces in the spatial dimension; see
@@ -4046,6 +4060,14 @@ class EdgeTraceSet(DataContainer):
                 :func:`nudge_traces`.
 
         """
+        # TODO: When inserting traces and echelle orders are already matched,
+        # the length of the orderid vector is not longer valid.  For now, just
+        # remove any existing array and warn the user they they'll need to
+        # rematch the orders.
+        if self.orderid is not None:
+            msgs.warn('Inserting traces invalidates order matching.  Removing.')
+            self.orderid = None
+
         # Check input
         _side = np.atleast_1d(side)
         ntrace = _side.size
@@ -4906,6 +4928,57 @@ class EdgeTraceSet(DataContainer):
         #     self._fill_design_table(register, _design_file)
         #     self._fill_objects_table(register)
 
+    def order_refine(self, debug=False):
+        """
+        For echelle spectrographs, attempt to add any orders that are not
+        present in the current set of edges.
+        """
+        if self.spectrograph.pypeline != 'Echelle':
+            msgs.warn('Parameter add_missed_orders only valid for Echelle spectrographs.')
+            return
+
+        # TODO: What happens if *more* edges are detected than there are
+        # archived order positions?
+
+        # First match the expected orders
+        spat_offset = self.match_order()
+
+        available_orders = self.orderid[1::2]
+        missed_orders = np.setdiff1d(self.spectrograph.orders, available_orders)
+        if missed_orders.size == 0:
+            # No missing orders, we're done
+            return
+
+        # TODO: Vet good traces
+
+        # Update the PCA
+        # TODO: Check that the edges can be PCA'd somewhere before this?
+        self.build_pca()
+
+        # Find the indices of the missing orders
+        missed_orders_indx = utils.index_of_x_eq_y(self.spectrograph.orders, missed_orders)
+
+        # Get the spatial positions of the new left and right order edges
+        add_right_edges = (self.spectrograph.order_spat_pos[missed_orders_indx]
+                            + self.spectrograph.order_spat_width[missed_orders_indx]/2.
+                            + spat_offset) * self.nspat
+
+        add_left_edges = (self.spectrograph.order_spat_pos[missed_orders_indx]
+                            - self.spectrograph.order_spat_width[missed_orders_indx]/2.
+                            + spat_offset) * self.nspat
+
+        side = np.append(np.full(add_left_edges.size, -1, dtype=int),
+                            np.full(add_right_edges.size, 1, dtype=int))
+
+        missed_traces = self.predict_traces(np.append(add_left_edges, add_right_edges),
+                                            side=side)
+
+        # Insert the traces
+        self.insert_traces(side, missed_traces, mode='order', nudge=False)
+
+        # Rematch the orders
+        self.match_order()
+
     def slit_spatial_center(self, normalized=True, spec=None, use_center=False, 
                             include_box=False):
         """
@@ -4992,6 +5065,10 @@ class EdgeTraceSet(DataContainer):
 
         The result of this method is to instantiate :attr:`orderid`.
 
+        Returns:
+            :obj:`float`: The median offset in pixels between the archived order
+            positions and those measured via the edge tracing.
+
         Raises:
             PypeItError:
                 Raised if the number of orders or their spatial
@@ -5015,8 +5092,9 @@ class EdgeTraceSet(DataContainer):
         if offset is None:
             offset = 0.0
 
-        # This requires the slits to be synced! Masked elements in
-        # slit_cen are for bad slits.
+        # Get the order centers in fractions of the detector width.  This
+        # requires the slits to be synced! Masked elements in slit_cen are for
+        # bad slits.
         slit_cen = self.slit_spatial_center()
 
         # Calculate the separation between the order and every
@@ -5028,11 +5106,12 @@ class EdgeTraceSet(DataContainer):
         # keep the signed value for reporting, but used the absolute
         # value of the difference for vetting below.
         sep = sep[(np.arange(self.spectrograph.norders),slit_indx)]
-        min_sep = np.absolute(sep)
+        med_offset = np.median(sep)
+        min_sep = np.absolute(sep - med_offset)
 
         # Report
-        msgs.info('Before vetting, the echelle order, matching left-right trace pair, and '
-                  'matching separation are:')
+        msgs.info(f'Median offset is {med_offset:.3f}.')
+        msgs.info('After offsetting, order-matching separations are:')
         msgs.info(' {0:>6} {1:>4} {2:>6}'.format('ORDER', 'PAIR', 'SEP'))
         msgs.info(' {0} {1} {2}'.format('-'*6, '-'*4, '-'*6))
         for i in range(self.spectrograph.norders):
@@ -5042,14 +5121,12 @@ class EdgeTraceSet(DataContainer):
         # Single slit matched to multiple orders
         uniq, cnts = np.unique(slit_indx.compressed(), return_counts=True)
         for u in uniq[cnts > 1]:
-            indx = slit_indx == u
-            # Keep the one with the smallest separation
-            indx[np.argmin(min_sep[indx]) + np.where(indx)[0][1:]] = False
-            # Disassociate the other order from any slit
-            slit_indx[np.logical_not(indx) & (slit_indx == u)] = np.ma.masked
+            # Find the unmasked and multiply-matched indices
+            indx = (slit_indx.data == u) & np.logical_not(np.ma.getmaskarray(slit_indx))
+            # Keep the one with the smallest separation and mask the rest
+            slit_indx[np.setdiff1d(np.where(indx), [np.argmin(min_sep[indx])])] = np.ma.masked
 
-        # Flag and remove orders separated by more than the provided
-        # threshold
+        # Flag orders separated by more than the provided threshold
         if self.par['order_match'] is not None:
             indx = (min_sep > self.par['order_match']) \
                         & np.logical_not(np.ma.getmaskarray(min_sep))
@@ -5080,6 +5157,8 @@ class EdgeTraceSet(DataContainer):
         nfound = len(found_orders)
         indx = (2*slit_indx.compressed()[:,None] + np.tile(np.array([0,1]), (nfound,1))).ravel()
         self.orderid[indx] = (np.array([-1,1])[None,:]*found_orders[:,None]).ravel()
+
+        return med_offset
 
     def get_slits(self):
         """
