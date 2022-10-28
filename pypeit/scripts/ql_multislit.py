@@ -367,7 +367,9 @@ class QL_MOS(scriptbase.ScriptBase):
                                  'to the left.')
         parser.add_argument("--redux_path", type=str, default=os.getcwd(),
                             help="Location where reduction outputs should be stored.")
-        parser.add_argument("--master_dir", type=str, default=os.getenv('QL_MASTERS'),
+        parser.add_argument("--calib_dir", type=str, 
+                            help="Location folders of calibration reductions")
+        parser.add_argument("--master_dir", type=str, 
                             help="Location of PypeIt Master files used for the reduction.")
         parser.add_argument('--embed', default=False, action='store_true',
                             help='Upon completion embed in ipython shell')
@@ -418,9 +420,11 @@ class QL_MOS(scriptbase.ScriptBase):
 
         # Generate PypeIt files (and folders)
         # Calibs
-        calib_pypeit_files = quicklook.generate_calib_pypeit_files(
-            ps, args.redux_path,
-            det=args.det, configs=args.configs)
+        if args.master_dir is None:
+            calib_dir = args.calib_dir if args.calib_dir is not None else args.redux_path
+            calib_pypeit_files = quicklook.generate_calib_pypeit_files(
+                ps, calib_dir,
+                det=args.det, configs=args.configs)
 
         # Science files                                
         if args.sci_files is not None:
@@ -433,17 +437,25 @@ class QL_MOS(scriptbase.ScriptBase):
         if np.sum(sci_idx) == 0:
             msgs.error('No science frames found in the provided files.  Add at least one or specify using --sci_files.')
 
-        # Match to calib
+        # Loop on science files to setup PypeIt file and calibs
         ps_sci_list, sci_setups, full_scifiles = [], [], []
-        for dir_path, sci_file in zip(
-            ps.fitstbl['directory'][sci_idx],
+        for dir_path, sci_file in zip(ps.fitstbl['directory'][sci_idx],
             ps.fitstbl['filename'][sci_idx]):
-            #
+            # Science file and setup
             full_scifile = os.path.join(dir_path, sci_file)
-            calib_pypeit_file, ps_sci, sci_setup =\
-                quicklook.match_science_to_calibs(
-                    full_scifile,
+            ps_sci = pypeitsetup.PypeItSetup.from_file_root(
+                full_scifile, spectrograph.name, extension='')
+            ps_sci.run(setup_only=True, no_write_sorted=True)
+
+            # Calibs
+            if args.master_dir is None:
+                calib_pypeit_file, sci_setup =\
+                    quicklook.match_science_to_calibs(
+                    full_scifile, ps_sci,
                     spectrograph, args.redux_path)
+            else:
+                print("NEED TO GRAB THE SETUP")
+                embed(header='458 of ql multi')
             # Save
             ps_sci_list.append(ps_sci)
             sci_setups.append(sci_setup)
@@ -457,10 +469,17 @@ class QL_MOS(scriptbase.ScriptBase):
             print(dtbl)
             msgs.error('Your science files have multiple setups.  This is not supported. Remove one more of them.')
 
-        # Let's build the PypeIt file
-        sci_pypeit_file, sci_pypeitFile = quicklook.generate_sci_pypeitfile(
-            calib_pypeit_file, 
-            full_scifiles, ps_sci_list)
+        # Let's build the PypeIt file and link to Masters
+        if args.master_dir is None:
+            sci_pypeit_file, sci_pypeitFile = \
+                quicklook.generate_sci_pypeitfile(
+                calib_pypeit_file, 
+                args.redux_path,
+                full_scifiles, ps_sci_list)
+            embed(header='478 of ql multi')
+        else:
+            print("NEED TO GENERATE FROM SCRATCH")
+            embed(header='479 of ql multi')
         
         # Run it
         redux_path = os.path.dirname(sci_pypeit_file)  # Path to PypeIt file

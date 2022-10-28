@@ -66,11 +66,15 @@ def generate_calib_pypeit_files(ps, output_path:str,
 
     return calib_pypeit_files
 
+def folder_name_from_scifiles(sci_files:list):
+    return 'test'
 
 def generate_sci_pypeitfile(calib_pypeit_file:str, 
+                            redux_path:str,
                             sci_files:list,
                             ps_sci_list:list,
-                            input_cfg_dict:dict={}):
+                            input_cfg_dict:dict={},
+                            remove_sci_dir:bool=True):
     """
     Generate the PypeIt file for the science frames
     """
@@ -79,6 +83,24 @@ def generate_sci_pypeitfile(calib_pypeit_file:str,
     #science_file = os.path.join(pargs.full_rawpath, pargs.science)
     science_pypeit = calib_pypeit_file.replace('calib', 'science')
 
+    folder = folder_name_from_scifiles(sci_files)
+    sci_dir = os.path.join(redux_path, folder)
+    master_dir = os.path.join(sci_dir, 'Masters')
+
+    # Science reuction folder
+    if os.path.isdir(sci_dir) and remove_sci_dir:
+        os.system('rm -rf {}'.format(sci_dir))
+    if not os.path.isdir(sci_dir):
+        os.makedirs(sci_dir)
+        
+    # Link to Masters
+    calib_dir = os.path.dirname(calib_pypeit_file)
+    master_calib_dir = os.path.join(calib_dir, 'Masters')
+    if not os.path.isdir(master_dir):
+        os.symlink(master_calib_dir, master_dir)
+        
+    # Continuing..
+    science_pypeit = os.path.join(sci_dir, os.path.basename(science_pypeit))
     calibPypeItFile = inputfiles.PypeItFile.from_file(calib_pypeit_file)
 
     # Add science file to data block?
@@ -99,15 +121,13 @@ def generate_sci_pypeitfile(calib_pypeit_file:str,
     cut_data = calibPypeItFile.data[gd_files]
 
     # Add to configs
-    calib_cfg = dict(calibPypeItFile.config)
-    ql_cfg = default_par()
+    ql_cfg = configobj.ConfigObj(default_par())
+    full_cfg = calibPypeItFile.config
+    full_cfg.merge(ql_cfg)
+    if len(input_cfg_dict) > 0:
+        full_cfg.merge(configobj.ConfigObj(input_cfg_dict))
 
-    full_cfg = {}
-    full_cfg.update(calib_cfg)
-    full_cfg.update(ql_cfg)
-    full_cfg.update(input_cfg_dict)
-    config_lines = configobj.ConfigObj(full_cfg).write()
-    embed(header='107 of ql')
+    config_lines = full_cfg.write()
 
     # A touch of voodoo for slitspat_num
     if 'rdx' in full_cfg.keys() and 'slitspatnum' in full_cfg['rdx'].keys():
@@ -136,7 +156,8 @@ def generate_sci_pypeitfile(calib_pypeit_file:str,
 
 
 
-def match_science_to_calibs(science_file:str, 
+def match_science_to_calibs(science_file:str,
+                            ps_sci:pypeitsetup.PypeItSetup, 
                             spectrograph,
                             redux_path:str):
     """
@@ -144,9 +165,11 @@ def match_science_to_calibs(science_file:str,
     in the specified reduction folder. If any exists 
     
     Args:
+        science_file (str): Full path to the science file
+        ps_sci (:class:`pypeit.pypeitsetup.PypeItSetup`): 
 
     Returns:
-        tuple: str, :class:`pypeit.pypeitsetup.PypeItSetup`, str
+        tuple: str, str
             Name of PypeIt file for calibrations
             PypeIt Setup class for the science file
             Name of setup key
@@ -156,11 +179,6 @@ def match_science_to_calibs(science_file:str,
     if not os.path.isfile(science_file):
         msgs.error("Your science filename {} does not exist. Check your path".format(science_file))
 
-    # Run setup on the single science file
-    ps_sci = pypeitsetup.PypeItSetup.from_file_root(science_file, 
-                                        spectrograph.name, 
-                                        extension='')
-    ps_sci.run(setup_only=True, no_write_sorted=True)
 
     # Generate the setup dict and yamilfy (yes, this is necessary)
     setup_dict = {}
@@ -190,4 +208,4 @@ def match_science_to_calibs(science_file:str,
     if len(mtch) != 1:
         msgs.error("Matched to zero or more than one setup.  Inconceivable!")
 
-    return mtch[0], ps_sci, setup_key
+    return mtch[0], setup_key
