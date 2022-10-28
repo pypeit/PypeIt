@@ -452,7 +452,7 @@ class QL_MOS(scriptbase.ScriptBase):
                 calib_pypeit_file, sci_setup =\
                     quicklook.match_science_to_calibs(
                     full_scifile, ps_sci,
-                    spectrograph, args.redux_path)
+                    spectrograph, calib_dir)
             else:
                 print("NEED TO GRAB THE SETUP")
                 embed(header='458 of ql multi')

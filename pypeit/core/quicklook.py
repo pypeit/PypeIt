@@ -13,6 +13,7 @@ Use cases:
 
 """
 
+from email import header
 import os
 import glob
 
@@ -173,7 +174,7 @@ def generate_sci_pypeitfile(calib_pypeit_file:str,
 def match_science_to_calibs(science_file:str,
                             ps_sci:pypeitsetup.PypeItSetup, 
                             spectrograph,
-                            redux_path:str):
+                            calib_dir:str):
     """
     Match a given science frame to the set of pre-made calibrations
     in the specified reduction folder. If any exists 
@@ -202,7 +203,7 @@ def match_science_to_calibs(science_file:str,
 
     # Check against existing PypeIt files
     pypeit_files = glob.glob(os.path.join(
-        redux_path, f'{spectrograph.name}_*', 
+        calib_dir, f'{spectrograph.name}_*', 
         f'{spectrograph.name}_calib_*.pypeit'))
     mtch = []
     setup_key = None
@@ -220,6 +221,7 @@ def match_science_to_calibs(science_file:str,
             setup_key = pypeitFile.setup_name
     # Are we ok?
     if len(mtch) != 1:
+        embed(header='224 of ql')
         msgs.error("Matched to zero or more than one setup.  Inconceivable!")
 
     return mtch[0], setup_key
