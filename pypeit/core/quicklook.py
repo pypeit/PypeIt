@@ -86,7 +86,9 @@ def process_calibs(calib_pypeit_files:list):
 
 
 def folder_name_from_scifiles(sci_files:list):
-    return 'test'
+    # For now, we return the first filename
+    #  without .fits
+    return os.path.splitext(os.path.basename(sci_files[0]))[0]
 
 def generate_sci_pypeitfile(calib_pypeit_file:str, 
                             redux_path:str,
