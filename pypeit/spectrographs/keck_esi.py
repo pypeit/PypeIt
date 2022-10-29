@@ -91,7 +91,7 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
-        par['calibrations']['wavelengths']['lamps'] = ['ThAr_MagE']
+        par['calibrations']['wavelengths']['lamps'] = ['CuI', 'ArI', 'NeI', 'HgI', 'XeI', 'ArII']
 
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         par['calibrations']['wavelengths']['cc_thresh'] = 0.50
