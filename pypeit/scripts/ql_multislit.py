@@ -371,6 +371,8 @@ class QL_MOS(scriptbase.ScriptBase):
                             help="Location folders of calibration reductions")
         parser.add_argument("--master_dir", type=str, 
                             help="Location of PypeIt Master files used for the reduction.")
+        parser.add_argument('--maskID', type=int,
+                            help='Reduce this slit as specified by the maskID value')
         parser.add_argument('--embed', default=False, action='store_true',
                             help='Upon completion embed in ipython shell')
         parser.add_argument("--show", default=False, action="store_true",
@@ -475,13 +477,14 @@ class QL_MOS(scriptbase.ScriptBase):
                 quicklook.generate_sci_pypeitfile(
                 calib_pypeit_file, 
                 args.redux_path,
-                full_scifiles, ps_sci_list)
-            embed(header='478 of ql multi')
+                full_scifiles, ps_sci_list,
+                maskID=args.maskID)
         else:
             print("NEED TO GENERATE FROM SCRATCH")
             embed(header='479 of ql multi')
         
         # Run it
+        embed(header='487 of ql multi')
         redux_path = os.path.dirname(sci_pypeit_file)  # Path to PypeIt file
         run_pargs = run_pypeit.RunPypeIt.parse_args(
             [sci_pypeit_file, '-r={}'.format(redux_path)])

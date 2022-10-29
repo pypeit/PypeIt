@@ -22,6 +22,7 @@ import configobj
 from pypeit import inputfiles, msgs
 from pypeit import pypeitsetup
 from pypeit import utils
+from pypeit.slittrace import SlitTraceSet 
 from pypeit.scripts import run_pypeit
 
 from IPython import embed
@@ -89,7 +90,8 @@ def generate_sci_pypeitfile(calib_pypeit_file:str,
                             sci_files:list,
                             ps_sci_list:list,
                             input_cfg_dict:dict={},
-                            remove_sci_dir:bool=True):
+                            remove_sci_dir:bool=True,
+                            maskID:str=None):
     """
     Generate the PypeIt file for the science frames
     """
@@ -142,8 +144,26 @@ def generate_sci_pypeitfile(calib_pypeit_file:str,
     if len(input_cfg_dict) > 0:
         full_cfg.merge(configobj.ConfigObj(input_cfg_dict))
 
-    config_lines = full_cfg.write()
 
+    if maskID is not None:
+        # Loop on SlitTrace files
+        slittrace_files = glob.glob(os.path.join(
+            master_dir, 
+            f'MasterSlits_{calibPypeItFile.setup_name}_1_*'))
+        detname = None
+        for sliittrace_file in slittrace_files:
+            slitTrace = SlitTraceSet.from_file(sliittrace_file)
+            if maskID in slitTrace.maskdef_id:
+                detname = slitTrace.detname
+                break
+        if detname is None:
+            msgs.error('Could not find a SlitTrace file with maskID={}'.format(maskID))
+
+        # Add to config
+        maskID_dict = dict(rdx=dict(detnum=detname, 
+                                    maskIDs=maskID))
+        full_cfg.merge(configobj.ConfigObj(maskID_dict))
+            
     # A touch of voodoo for slitspat_num
     if 'rdx' in full_cfg.keys() and 'slitspatnum' in full_cfg['rdx'].keys():
         # Remove detnum
@@ -160,6 +180,7 @@ def generate_sci_pypeitfile(calib_pypeit_file:str,
         config_lines.insert(ridx+2, '    detnum = None')
 
     # Generate PypeIt file
+    config_lines = full_cfg.write()
     pypeitFile = inputfiles.PypeItFile(config=config_lines, 
                                        file_paths=calibPypeItFile.file_paths,
                                        data_table=cut_data,
