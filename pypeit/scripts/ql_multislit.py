@@ -484,7 +484,6 @@ class QL_MOS(scriptbase.ScriptBase):
             embed(header='479 of ql multi')
         
         # Run it
-        embed(header='487 of ql multi')
         redux_path = os.path.dirname(sci_pypeit_file)  # Path to PypeIt file
         run_pargs = run_pypeit.RunPypeIt.parse_args(
             [sci_pypeit_file, '-r={}'.format(redux_path)])

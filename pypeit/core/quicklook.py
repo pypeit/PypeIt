@@ -17,11 +17,14 @@ from email import header
 import os
 import glob
 
+import numpy as np
+
 import configobj
 
 from pypeit import inputfiles, msgs
 from pypeit import pypeitsetup
 from pypeit import utils
+from pypeit.spectrographs.util import load_spectrograph
 from pypeit.slittrace import SlitTraceSet 
 from pypeit.scripts import run_pypeit
 
@@ -155,12 +158,17 @@ def generate_sci_pypeitfile(calib_pypeit_file:str,
             slitTrace = SlitTraceSet.from_file(sliittrace_file)
             if maskID in slitTrace.maskdef_id:
                 detname = slitTrace.detname
+                spectrograph = load_spectrograph(
+                    calibPypeItFile.config['rdx']['spectrograph'])
+                
+                mosaic_id = np.where(spectrograph.list_detectors(mosaic=True) == detname)[0][0]
+                det_tuple = spectrograph.allowed_mosaics[mosaic_id]
                 break
         if detname is None:
             msgs.error('Could not find a SlitTrace file with maskID={}'.format(maskID))
 
         # Add to config
-        maskID_dict = dict(rdx=dict(detnum=detname, 
+        maskID_dict = dict(rdx=dict(detnum=[det_tuple],
                                     maskIDs=maskID))
         full_cfg.merge(configobj.ConfigObj(maskID_dict))
             

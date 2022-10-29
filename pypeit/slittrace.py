@@ -1396,7 +1396,17 @@ class SlitTraceSet(datamodel.DataContainer):
                 msk[idx] = False
             self.mask[msk] = self.bitmask.turn_on(self.mask[msk], 'USERIGNORE')
         elif user_slits['method'] == 'maskIDs':
-            raise NotImplementedError("Not ready for maskID yet")
+            # Mask only the good one
+            msk = np.ones(self.nslits, dtype=bool)
+            for slit_id in user_slits['slit_info']:
+                idx = np.where(self.maskdef_id == slit_id)[0][0]
+                msk[idx] = False
+            # Set
+            self.mask[msk] = self.bitmask.turn_on(self.mask[msk], 
+                                                  'USERIGNORE')
+        else:
+            msgs.error('Not ready for this method: {:s}'.format(
+                user_slits['method']))
 
     def mask_flats(self, flatImages):
         """
