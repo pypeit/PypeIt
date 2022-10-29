@@ -98,7 +98,7 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
 
         # Reidentification parameters
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_mage.fits'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_esi_ECH.fits'
         par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
