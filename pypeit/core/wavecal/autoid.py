@@ -50,7 +50,7 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
 
     """
     plt.rcdefaults()
-    plt.rcParams['font.family']= 'times new roman'
+    plt.rcParams['font.family']= 'serif'
 
     arc_spec = waveFit['spec']
 
