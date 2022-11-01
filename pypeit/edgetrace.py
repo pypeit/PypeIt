@@ -4182,6 +4182,8 @@ class EdgeTraceSet(DataContainer):
             mask = self.bitmask.turn_on(mask, 'SYNCINSERT')
         elif mode == 'mask':
             mask = self.bitmask.turn_on(mask, 'MASKINSERT')
+        elif mode == 'order':
+            mask = self.bitmask.turn_on(mask, 'ORDERINSERT')
 
         # Set the ID numbers for the new traces
         _traceid = np.empty(ntrace, dtype=int)
