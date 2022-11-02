@@ -1,4 +1,10 @@
 
+1.11.1dev
+---------
+
+- (Hotfix) Fixed bug that allowed science frames to be assigned to multiple
+  instrument configurations
+
 1.11.0 (21 Oct 2022)
 --------------------
 
