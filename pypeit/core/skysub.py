@@ -620,7 +620,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
     bkpts_optimal : bool, optional 
         Parameter governing whether spectral direction breakpoints
         for b-spline sky/object modeling are determined optimally.
-        If ``bkpts_optima=True``, the optimal break-point spacing
+        If ``bkpts_optimal=True``, the optimal break-point spacing
         will be determined directly using the optimal_bkpts function
         by measuring how well we are sampling the sky using ``piximg
         = (nspec-1)*yilyd``. The bsp parameter in this case
