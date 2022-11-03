@@ -16,14 +16,11 @@ from astropy.coordinates import SkyCoord, Angle
 from astropy import units
 from astropy.stats import sigma_clipped_stats
 from scipy.interpolate import RegularGridInterpolator, interp1d
-try:
-    from skimage import transform as skimageTransform
-except ImportError:
-    skimageTransform = None
 
 from pypeit import msgs
 from pypeit import datamodel
 from pypeit import specobj
+from pypeit import alignframe
 from pypeit.bitmask import BitMask
 from pypeit.core import parse
 
@@ -421,7 +418,7 @@ class SlitTraceSet(datamodel.DataContainer):
             slitlen = np.median(slitlen, axis=1)
         return slitlen
 
-    def get_radec_image(self, wcs, alignments, tilts, locations,
+    def get_radec_image(self, wcs, traces, tilts, locations,
                         astrometric=True, initial=True, flexure=None):
         """Generate an RA and DEC image for every pixel in the frame
         NOTE: This function is currently only used for IFU reductions.
@@ -430,9 +427,14 @@ class SlitTraceSet(datamodel.DataContainer):
         ----------
         wcs : astropy.wcs
             The World Coordinate system of a science frame
-        alignments : :class:`pypeit.alignframe.Alignments`
-            The alignments (traces) of the slits. This allows
-            different slits to be aligned correctly.
+        traces : `numpy.ndarray`
+            The alignments (traces) of the slits. This allows different slices
+            to be aligned correctly. Ideally, this variable will be assigned the
+            value of alignments.traces. However, this can also be assigned the
+            left and right slit edges:
+            traces = np.append(left.reshape((left.shape[0],1,left.shape[1])),
+                   right.reshape((left.shape[0],1,left.shape[1])), axis=1)
+            In this case, locations=np.array([0,1])
         tilts : `numpy.ndarray`
             Spectral tilts.
         locations : `numpy.ndarray`_, list
@@ -455,24 +457,16 @@ class SlitTraceSet(datamodel.DataContainer):
                 the slits. The third array has a shape of (nslits, 2).
         """
         msgs.work("Spatial flexure is not currently implemented for the astrometric alignment")
-        # Check if the user has skimage installed
-        if skimageTransform is None or alignments is None:
-            if skimageTransform is None: msgs.warn("scikit-image is not installed - astrometric correction not implemented")
-            else: msgs.warn("Alignments were not provided - astrometric correction not implemented")
-            astrometric = False
+        if type(locations) is list:
+            locations = np.array(locations)
+        if locations.size != traces.shape[1]:
+            msgs.error("The size of locations must be the same as traces.shape[1]")
         # Prepare the parameters
-        if not astrometric:
-            left, right, _ = self.select_edges(initial=initial, flexure=flexure)
-            trace_cen = 0.5 * (left + right)
-        else:
-            if type(locations) is list:
-                locations = np.array(locations)
-            elif type(locations) is not np.ndarray:
-                msgs.error("locations must be a 1D list or 1D numpy array")
-            nspec, nloc, nslit = alignments.traces.shape
+        #nspec, nloc, nslit = traces.shape
+        alignSplines = alignframe.AlignmentSplines(traces, locations, tilts)
 
-            # Generate a spline of the waveimg for interpolation
-            tilt_spl = RegularGridInterpolator((np.arange(tilts.shape[0]), np.arange(tilts.shape[1])), tilts*(nspec-1), method='linear')
+        # Generate a spline of the waveimg for interpolation
+        tilt_spl = RegularGridInterpolator((np.arange(tilts.shape[0]), np.arange(tilts.shape[1])), tilts*(nspec-1), method='linear')
 
         # Initialise the output
         raimg = np.zeros((self.nspec, self.nspat))
@@ -480,6 +474,7 @@ class SlitTraceSet(datamodel.DataContainer):
         minmax = np.zeros((self.nslits, 2))
         # Get the slit information
         slitid_img_init = self.slit_img(pad=0, initial=initial, flexure=flexure)
+        all_transforms = []
         for slit_idx, spatid in enumerate(self.spat_id):
             onslit = (slitid_img_init == spatid)
             onslit_init = np.where(onslit)
@@ -487,7 +482,18 @@ class SlitTraceSet(datamodel.DataContainer):
                 msgs.error("Slit {0:d} ({1:d}/{2:d}) is masked. Cannot generate RA/DEC image.".format(spatid,
                                                                                                       slit_idx+1,
                                                                                                       self.spat_id.size))
+            # Loop on spectral coordinate
+            for ss in range(nspec):
+                pass
+            """
+            Plan:
+            * generate a tilt spline... f(x,y) = tilt
+            * For each spectral row, do a linear interpolation, so that g(x,y) = offset from central trace
+            * RA, Dec can be calculated with: wcs.wcs_pix2world(slitID, offset, tilts[onslit_init]*(nspec-1), 0) 
+            """
+
             if astrometric:
+                embed()
                 # Calculate the typical pixel difference in the spatial direction
                 medpixdiff = np.median(np.diff(alignments.traces[:, :, slit_idx], axis=1))
                 nspecpix = np.int(np.ceil(nspec / medpixdiff))
