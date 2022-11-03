@@ -37,7 +37,9 @@ class DataCube(datamodel.DataContainer):
     """
     DataContainer to hold the products of a datacube
 
-    See the datamodel for argument descriptions
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_datacube.rst
 
     Args:
         flux (`numpy.ndarray`_):
@@ -1486,10 +1488,10 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         try:
             spec2DObj = spec2dobj.Spec2DObj.from_file(cubepar['skysub_frame'], detname)
             skysub_exptime = fits.open(cubepar['skysub_frame'])[0].header['EXPTIME']
-            skysub_default = cubepar['skysub_frame']
-            skysubImgDef = spec2DObj.skymodel/skysub_exptime  # Sky counts/second
         except:
             msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + cubepar['skysub_frame'])
+        skysub_default = cubepar['skysub_frame']
+        skysubImgDef = spec2DObj.skymodel/skysub_exptime  # Sky counts/second
 
     # Load all spec2d files and prepare the data for making a datacube
     for ff, fil in enumerate(files):
@@ -1510,9 +1512,9 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         # Try to load the relative scale image, if something other than the default has been provided
         relScaleImg = relScaleImgDef.copy()
         if opts['scale_corr'][ff] is not None:
+            msgs.info("Loading relative scale image:" + msgs.newline() + opts['scale_corr'][ff])
+            spec2DObj_scl = spec2dobj.Spec2DObj.from_file(opts['scale_corr'][ff], detname)
             try:
-                msgs.info("Loading relative scale image:"+msgs.newline()+opts['scale_corr'][ff])
-                spec2DObj_scl = spec2dobj.Spec2DObj.from_file(opts['scale_corr'][ff], detname)
                 relScaleImg = spec2DObj_scl.scaleimg
             except:
                 msgs.warn("Could not load scaleimg from spec2d file:" + msgs.newline() + opts['scale_corr'][ff])
@@ -1544,15 +1546,15 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                 skysubImg = np.array([0.0])
                 this_skysub = "none"  # Don't do sky subtraction
             else:
+                # Load a user specified frame for sky subtraction
+                msgs.info("Loading skysub frame:" + msgs.newline() + opts['skysub_frame'][ff])
                 try:
-                    # Load a user specified frame for sky subtraction
-                    msgs.info("Loading skysub frame:"+msgs.newline()+opts['skysub_frame'][ff])
                     spec2DObj_sky = spec2dobj.Spec2DObj.from_file(opts['skysub_frame'][ff], detname)
                     skysub_exptime = fits.open(opts['skysub_frame'][ff])[0].header['EXPTIME']
-                    skysubImg = spec2DObj_sky.skymodel * exptime / skysub_exptime  # Sky counts
-                    this_skysub = opts['skysub_frame'][ff]  # User specified spec2d for sky subtraction
                 except:
                     msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + opts['skysub_frame'][ff])
+                skysubImg = spec2DObj_sky.skymodel * exptime / skysub_exptime  # Sky counts
+                this_skysub = opts['skysub_frame'][ff]  # User specified spec2d for sky subtraction
         if this_skysub == "none":
             msgs.info("Sky subtraction will not be performed.")
         else:
@@ -1632,9 +1634,9 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         if dspat is None:
             dspat = max(pxscl, slscl)
         if pxscl > dspat:
-            msgs.warn("Spatial scale requested ({0:f}'') is less than the pixel scale ({1:f}'')".format(dspat, pxscl))
+            msgs.warn("Spatial scale requested ({0:f} arcsec) is less than the pixel scale ({1:f} arcsec)".format(3600.0*dspat, 3600.0*pxscl))
         if slscl > dspat:
-            msgs.warn("Spatial scale requested ({0:f}'') is less than the slicer scale ({1:f}'')".format(dspat, slscl))
+            msgs.warn("Spatial scale requested ({0:f} arcsec) is less than the slicer scale ({1:f} arcsec)".format(3600.0*dspat, 3600.0*slscl))
 
         # Loading the alignments frame for these data
         astrometric = cubepar['astrometric']

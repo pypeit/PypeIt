@@ -243,6 +243,10 @@ class EdgeTraceSet(DataContainer):
     traced on the detector to slits expected from provided metadata.
     Once finished these objects will only contain data for
     spectrograph output files that provide the relevant metadata.
+
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_edgetraceset.rst
    
     .. todo:
         - Include a method/check that determines if traces cross one
@@ -405,7 +409,9 @@ class EdgeTraceSet(DataContainer):
                                   descr='Spectrograph disperser name.  Primarily needed for '
                                         'reloading an existing MasterEdge file.'),
                  'traceimg': dict(otype=TraceImage,
-                                   descr='Image used to construct the edge traces.'),
+                                   descr='Image used to construct the edge traces; see '
+                                         ':class:`~pypeit.images.buildimage.TraceImage` and '
+                                         ':class:`~pypeit.images.pypeitimage.PypeItImage`.'),
                  'nspec': dict(otype=int, descr='Image pixels in the spectral direction.'),
                  'nspat': dict(otype=int, descr='Image pixels in the spatial direction.'),
                  'tracebpm': dict(otype=np.ndarray, atype=(bool, np.bool_),
@@ -417,7 +423,8 @@ class EdgeTraceSet(DataContainer):
                                        'IDs are for, respectively, left and right edges.'),
                  'maskdef_id': dict(otype=np.ndarray, atype=(int, np.integer),
                                  descr='slitmask ID number for the edge traces. '
-                                       'IDs are for, respectively, left and right edges.'),
+                                       'IDs are for, respectively, left and right edges.  Only '
+                                       'defined if mask-design metadata is available.'),
                  'orderid': dict(otype=np.ndarray, atype=(int, np.integer),
                                  descr='For echelle spectrographs, this is the order ID number '
                                        'for the edge traces.  Negative and positive IDs are for, '
@@ -437,14 +444,20 @@ class EdgeTraceSet(DataContainer):
                                        'used to fit the trace data.  Either ``pca`` for a PCA '
                                        'decomposition or the polynomial function type and order'),
                  'pca': dict(otype=TracePCA,
-                             descr='The PCA decomposition of all edge traces.  Ignored if the '
-                                   'left_right_pca parameter is True.'),
+                             descr='The PCA decomposition of all edge traces.  Not defined if PCA '
+                                   'separated between left and right traces (i.e., the '
+                                   'left_right_pca parameter is True).  See '
+                                   ':class:`~pypeit.tracepca.TracePCA`.'),
                  'left_pca': dict(otype=TracePCA,
-                                  descr='The PCA decomposition of the left-edge traces.  Ignored '
-                                        'if the left_right_pca parameter is False.'),
+                                  descr='The PCA decomposition of the left-edge traces.  Not '
+                                        'defined if PCA performed on all traces, regardless of '
+                                        'edge side (i.e., the left_right_pca parameter is '
+                                        'False).  See :class:`~pypeit.tracepca.TracePCA`.'),
                  'right_pca': dict(otype=TracePCA,
-                                   descr='The PCA decomposition of the right-edge traces.  '
-                                         'Ignored if the left_right_pca parameter is False.'),
+                                   descr='The PCA decomposition of the right-edge traces.  Not '
+                                         'defined if PCA performed on all traces, regardless of '
+                                         'edge side (i.e., the left_right_pca parameter is '
+                                         'False).  See :class:`~pypeit.tracepca.TracePCA`.'),
                  'pcatype': dict(otype=str,
                                  descr='String identifier for the measurements used to construct '
                                        'the PCA (center or fit)')}

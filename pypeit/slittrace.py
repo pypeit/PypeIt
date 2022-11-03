@@ -77,6 +77,10 @@ class SlitTraceSet(datamodel.DataContainer):
     ``load=True`` on instantiation or by a call to :func:`load`.
     Otherwise, all the elements of the data model will be empty.
 
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_slittraceset.rst
+
     Args:
         load (:obj:`bool`, optional):
             Attempt to load an existing master frame with the slit
@@ -162,7 +166,7 @@ class SlitTraceSet(datamodel.DataContainer):
                  'mask': dict(otype=np.ndarray, atype=np.integer,
                               descr='Bit mask for slits (fully good slits have 0 value).  Shape '
                                     'is Nslits.'),
-                'slitbitm': dict(otype=str, desc='List of BITMASK keys from SlitTraceBitMask'),
+                'slitbitm': dict(otype=str, descr='List of BITMASK keys from SlitTraceBitMask'),
                 'specmin': dict(otype=np.ndarray, atype=np.floating,
                                 descr='Minimum spectral position allowed for each slit/order.  '
                                       'Shape is Nslits.'),

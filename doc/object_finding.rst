@@ -41,6 +41,8 @@ In a standard run, the approach to object finding adopted is:
 
 These steps are performed by :func:`pypeit.find_objects.FindObjects.run`.
 
+.. TODO: Add the QA plot example
+
 The automated object finding algorithm is
 :func:`~pypeit.core.findobj_skymask.objs_in_slit`. It performs the following
 steps:
@@ -74,7 +76,7 @@ steps:
 Parameters
 ==========
 
-This reduction step is guided by the :ref:`pypeit_par:FindObjPar Keywords`.
+This reduction step is guided by the :ref:`findobjpar`.
 
 These are parameters one may modify to improve performance.
 While we have tried to tune these for each spectrograph, 
@@ -116,7 +118,7 @@ find_min_max
 ------------
 
 If your spectrum covers only a minority of the detector 
-(less than 50%), you may need to set this the ``find_min_max``
+(less than 50%), you may need to set this using the ``find_min_max``
 parameter.  This includes odd tilts of the grating, 
 data cut off to the blue and objects with 
 spectral breaks, like with high-z quasars or
@@ -132,11 +134,8 @@ finding collapses out to search for objects via
             find_min_max = 1600, 2048
 
 This will only collapse out spectral pixels 1600-2048 when computing the 1d SNR
-vs spatial position vector. The best way to choose these pixels is to run pypeit
+vs spatial position vector. The best way to choose these pixels is to run PypeIt
 without it set. Then run :ref:`pypeit_show_2dspec` to view the sky-subtracted
 image and decide which pixels to use for object finding. Then re-run ``PypeIt``.
 
-.. todo::
 
-    Put in manual extraction stuff here in place of this stuff on
-    interactive object finding.

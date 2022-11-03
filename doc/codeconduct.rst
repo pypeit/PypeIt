@@ -10,8 +10,10 @@ It is a modified version of
 `the one adopted by the astropy community
 <https://www.astropy.org/code_of_conduct.html>`_.
 
+----
 
 PypeIt Community Code of Conduct
+================================
 
 The community of participants in open source PypeIt projects
 is made up of members from around the globe with a diverse set
@@ -48,3 +50,4 @@ of conduct, but agree to also abide by the present code of conduct.
 
 Parts of this code of conduct have been adapted from
 the `PSF code of conduct <https://www.python.org/psf/conduct/>`_.
+

@@ -21,6 +21,7 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1
     telescope = telescopes.LBTTelescopePar()
+    url = 'https://scienceops.lbto.org/luci/'
 
 #    def __init__(self):
 #        super().__init__()
