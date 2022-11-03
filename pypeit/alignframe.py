@@ -7,6 +7,7 @@ Module for generating an Alignment image to map constant spatial locations
 import inspect
 import numpy as np
 from IPython import embed
+from scipy.interpolate import interp1d, RegularGridInterpolator
 
 from pypeit.display import display
 from pypeit.core import findobj_skymask
@@ -323,3 +324,39 @@ def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
                                    color=color)
 
 
+class AlignmentSplines:
+    def __init__(self, traces, locations, tilts):
+        embed()
+        self.traces = traces
+        self.locations = locations
+        self.nspec, self.ntrace, self.nslit = traces.shape
+        # Transform between detector pixels and the tilts:
+        self.spl_tilt = self.nslit * [self.nspec*[None]]  # Splines - map (x,y) pixels ==> tilts
+        self.spl_tilt_inv = self.nslit * [self.nspec*[None]]  # Inverse - map (tilts,y) ==> x
+        # Transform between detector pixels and the offsets from the slit centre:
+        self.spl_offs = self.nslit * [self.nspec*[None]]  # Splines - map (x,y) pixels ==> offsets
+        self.spl_offs_inv = self.nslit * [self.nspec*[None]]  # Inverse - map (offsets,y) ==> x
+        self.spl_fulltilts = RegularGridInterpolator((np.arange(tilts.shape[0]), np.arange(tilts.shape[1])),
+                                                     tilts * (self.nspec - 1), method='linear')
+
+    def build_splines(self):
+        for sl in range(self.nslit):
+            # Determine slit length along the spectral direction
+            slitlen = np.sqrt((xyll[:, 0] - xyrr[:, 0]) ** 2 + (xyll[:, 1] - xyrr[:, 1]) ** 2)
+            slen_spl = interp1d(np.linspace(0.0, 1.0, nspec), slitlen, kind='linear',
+                                bounds_error=False, fill_value="extrapolate")
+            slitlength = slen_spl(tilts[onslit_init])
+
+            # Next steps...
+            x, tilt => y  # Now I have (x,y) pairs at a given tilt, calculate pythagoras to get slit length for this tilt
+            tilts ==> slitlength
+
+            for sp in range(self.nspec):
+                self.spl_tilt[sl][sp] = interp1d(self.traces[sp,:,sl], self.spl_fulltilts((sp, self.traces[sp,:,sl])),
+                                                 kind='linear', bounds_error=False, fill_value='extrapolate')
+                self.spl_tilt_inv[sl][sp] = interp1d(self.spl_fulltilts((sp, self.traces[sp,:,sl])), self.traces[sp,:,sl],
+                                                     kind='linear', bounds_error=False, fill_value='extrapolate')
+                self.spl_offs[sl][sp] = interp1d(self.traces[sp,:,sl], y,
+                                                 kind='linear', bounds_error=False, fill_value='extrapolate')
+                self.spl_offs_inv[sl][sp] = interp1d(x, self.traces[sp,:,sl],
+                                                     kind='linear', bounds_error=False, fill_value='extrapolate')
