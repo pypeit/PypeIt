@@ -1104,6 +1104,8 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
         # Generate the offsets
         cosdec = np.cos(dec0[sl] * np.pi / 180.0)
         diff_ra, diff_dec = (this_ra - ra0[sl]) * cosdec, this_dec - dec0[sl]
+        msgs.bug("There is sometimes a sign error that needs to be resolved here...")
+        msgs.error("Use another algorithm for the time being...")
         if np.max(diff_ra)-np.min(diff_ra) > np.max(diff_dec)-np.min(diff_dec):
             sgn = np.sign(diff_ra)
         else:
@@ -1118,7 +1120,7 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
             numpix = xgrid[yy, -1] - xgrid[yy, 0]
             sep = numpix // (grid_nspat - 1)
             xgrid[yy, 1:-1] = xgrid[yy, 0] + (numpix % sep + 2 * sep) // 2 + np.arange(grid_nspat - 2) * sep
-        #  Extract offset + wavelength information and estimate transform
+        # Extract offset + wavelength information and estimate transform
         grid_coord = (ygrid.flatten(), xgrid.flatten())
         grid_offs = offsimg[grid_coord]
         grid_wave = waveimg[grid_coord]
@@ -1727,7 +1729,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
         # Generate an RA/DEC image
         msgs.info("Generating RA/DEC image")
-        raimg, decimg, minmax = slits.get_radec_image(frame_wcs, alignments, spec2DObj.tilts, locations,
+        raimg, decimg, minmax = slits.get_radec_image(frame_wcs, alignments.traces, spec2DObj.tilts, locations,
                                                       astrometric=astrometric, initial=True, flexure=flexure)
 
         # Perform the DAR correction
@@ -1857,7 +1859,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             bins = spec.get_datacube_bins(slitlength, minmax, numwav)
             # Make the datacube
             if method == 'subsample':
-
+                pass
             elif method == 'resample':
                 fluximg, ivarimg = np.zeros_like(raimg), np.zeros_like(raimg)
                 fluximg[onslit_gpm] = flux_sav[resrt]
