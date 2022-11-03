@@ -1500,7 +1500,7 @@ class CubePar(ParSet):
 
     def validate(self):
         allowed_methods = ["subsample", "resample", "NGP"]
-        if self.data['method'] is not in allowed_methods:
+        if self.data['method'] not in allowed_methods:
             raise ValueError("The 'method' must be one of:\n"+", ".join(allowed_methods))
 
 
