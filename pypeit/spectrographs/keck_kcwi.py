@@ -240,7 +240,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Always correct for flexure, starting with default parameters
         # slitcen must be used, because this is a slit-based IFU where
         # no objects are extracted.
-        par['flexure']['spec_method'] = 'slitcen'
+        par['flexure']['spec_method'] = 'skip'
+        par['flexure']['spec_maxshift'] = 2.5  # Just in case someone switches on spectral flexure, this needs to be minimal
 
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'

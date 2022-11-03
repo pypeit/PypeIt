@@ -1208,6 +1208,75 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
 
 
+def generate_cube_subsample(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bins,
+                            overwrite=False, blaze_wave=None, blaze_spec=None, fluxcal=False,
+                            sensfunc=None, specname="PYP_SPEC", debug=False):
+    """
+    Save a datacube using the subsample algorithm. This algorithm is a combination of the
+    "nearest grid point" and "resample" algorithms.
+
+    Args:
+        outfile (`str`):
+            Filename to be used to save the datacube
+        hdr (`astropy.io.fits.header_`):
+            Header of the output datacube (must contain WCS)
+        all_sci (`numpy.ndarray`_):
+            1D flattened array containing the counts of each pixel from all spec2d files
+        all_ivar (`numpy.ndarray`_):
+            1D flattened array containing the inverse variance of each pixel from all spec2d files
+        all_wghts (`numpy.ndarray`_):
+            1D flattened array containing the weights of each pixel to be used in the combination
+        pix_coord (`numpy.ndarray`_):
+            The NGP pixel coordinates corresponding to the RA,DEC,WAVELENGTH of each individual
+            pixel in the processed spec2d frames. After setting up an astropy WCS, pix_coord is
+            returned by the function: `astropy.wcs.WCS.wcs_world2pix_`
+        bins (tuple):
+            A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and z wavelength coordinates    :param overwrite:
+        blaze_wave (`numpy.ndarray`_):
+            Wavelength array of the spectral blaze function
+        blaze_spec (`numpy.ndarray`_):
+            Spectral blaze function
+        fluxcal (bool):
+            Are the data flux calibrated?
+        sensfunc (`numpy.ndarray`_, None):
+            Sensitivity function that has been applied to the datacube
+        specname (str):
+            Name of the spectrograph
+        debug (bool):
+            Debug the code by writing out a residuals cube?
+    """
+    # Add the unit of flux to the header
+    if fluxcal:
+        hdr['FLUXUNIT'] = (PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
+    else:
+        hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
+
+    # Use NGP to generate the cube - this ensures errors between neighbouring voxels are not correlated
+    datacube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci * all_wghts)
+    norm, edges = np.histogramdd(pix_coord, bins=bins, weights=all_wghts)
+    norm_cube = utils.inverse(norm)
+    datacube *= norm_cube
+    # Create the variance cube, including weights
+    msgs.info("Generating variance cube")
+    all_var = utils.inverse(all_ivar)
+    var_cube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_var * all_wghts**2)
+    var_cube *= norm_cube**2
+
+    # Save the datacube
+    if debug:
+        datacube_resid, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci*np.sqrt(all_ivar))
+        norm, edges = np.histogramdd(pix_coord, bins=bins)
+        norm_cube = utils.inverse(norm)
+        outfile_resid = "datacube_resid.fits"
+        msgs.info("Saving datacube as: {0:s}".format(outfile_resid))
+        hdu = fits.PrimaryHDU((datacube_resid*norm_cube).T, header=hdr)
+        hdu.writeto(outfile_resid, overwrite=overwrite)
+
+    msgs.info("Saving datacube as: {0:s}".format(outfile))
+    final_cube = DataCube(datacube.T, var_cube.T, specname, blaze_wave, blaze_spec, sensfunc=sensfunc, fluxed=fluxcal)
+    final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
+
+
 def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bins,
                       overwrite=False, blaze_wave=None, blaze_spec=None, fluxcal=False,
                       sensfunc=None, specname="PYP_SPEC", debug=False):
@@ -1361,6 +1430,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             if combine:
                 msgs.warn("Cannot combine cubes with the 'resample' algorithm - generating individual datacubes.")
                 combine = False
+    elif method == "subsample":
+        msgs.info("Adopting the subsample algorithm to generate the datacube.")
     elif method == "ngp":
         msgs.info("Adopting the nearest grid point (NGP) algorithm to generate the datacube.")
     else:
@@ -1771,7 +1842,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             # Generate individual whitelight images of each spec2d file
             if cubepar['save_whitelight']:
                 if method == 'resample':
-                    # TODO :: Implement this feature...
+                    # TODO :: Implement this feature... May be better to generate this after making the cube?
                     msgs.warn("Whitelight images are not implemented with the 'resample' algorithm.")
                     msgs.info("Generating a whitelight image with the NGP algorithm.")
                 out_whitelight = os.path.splitext(outfile)[0] + "_whitelight.fits"
@@ -1785,7 +1856,9 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             numwav = int((np.max(waveimg) - wave0) / dwv)
             bins = spec.get_datacube_bins(slitlength, minmax, numwav)
             # Make the datacube
-            if method == 'resample':
+            if method == 'subsample':
+
+            elif method == 'resample':
                 fluximg, ivarimg = np.zeros_like(raimg), np.zeros_like(raimg)
                 fluximg[onslit_gpm] = flux_sav[resrt]
                 ivarimg[onslit_gpm] = ivar_sav[resrt]
