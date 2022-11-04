@@ -21,6 +21,7 @@ from pypeit import utils
 from pypeit import masterframe
 
 
+# TODO This docs need to indicate the types of things. Are crmask fullmask etc. boolean or ints?
 class PypeItImage(datamodel.DataContainer):
     r"""
     Container class for processed ``PypeIt`` images and associated data.
@@ -57,7 +58,6 @@ class PypeItImage(datamodel.DataContainer):
             Image count scaling applied (e.g., 1/flat-field)
         bpm (`numpy.ndarray`_, optional):
             Bad pixel mask
-        # TODO This docs need to indicate the types of things. Are crmask fullmask etc. boolean or ints?
         crmask (`numpy.ndarray`_, optional):
             CR mask image
         fullmask (`numpy.ndarray`_, optional):

@@ -36,8 +36,7 @@ def predict_ech_order_coverage(angle_fits_params, xd_angle_coeffs, xdisp, xdangl
             Number of orders to pad the coverage by on the blue and red side.
 
     Returns:
-        order_vec (numpy.ndarray):
-            Array of order numbers for the predicted coverage.
+        `numpy.ndarray`_: Array of order numbers for the predicted coverage.
     """
 
     # Evaluate the fits for reddest order vs xdanalge which using hte values stored in the angle_fits_params
@@ -69,9 +68,8 @@ def predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, ech_angle, order_
             Number of spectral pixels in the echelle spectrum
 
     Returns:
-        wave_soln_guess (numpy.ndarray):
-            Array containing the predicted echelle spectrum. Shape = (nspec, norders)
-
+        `numpy.ndarray`_: Array containing the predicted echelle spectrum. Shape
+        is (nspec, norders)
     """
 
     norders = order_vec.size
@@ -101,31 +99,34 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, xdangle, 
     """
     Predict the echelle arc spectrum using the fits to wavelength solution vs echangle and xdangle  and the archived
     composite arcs.
-    Args:
-        angle_fits_file (str):
-            File containing the fits to wavelength solution vs echangle and xdangle
-        composite_arc_file (str):
-            File containing the archived composite arcs for each order.
-        echangle (float):
-            Echelle angle
-        xdangle (float):
-            Cross-disperser angle
-        xdisp (str):
-            Cross disperser. E.g. for Keck HIRES this is either 'UV' or 'RED'
-        nspec (int):
-            Number of spectral pixels in the echelle spectrum
-        norders (int):
-            Number of orders in the echelle spectrum
-        pad (int):
-            Number of orders to pad the coverage by on the blue and red side.
 
-    Returns:
-        order_vec_guess: `numpy.ndarray`_
-          Vector of order numbers for the predicted echelle spectrum. Shape = (norders,)
-        wave_soln_guess:  `numpy.ndarray`_
-          Predicted wavelength solution. Shape = (nspec, norders)
-        arcspec_guess:  `numpy.ndarray`_
-          Predicted echelle arc spectrum. Shape = (nspec, norders)
+    Parameters
+    ----------
+    angle_fits_file : str
+        File containing the fits to wavelength solution vs echangle and xdangle
+    composite_arc_file : str
+        File containing the archived composite arcs for each order.
+    echangle : float
+        Echelle angle
+    xdangle : float
+        Cross-disperser angle
+    xdisp : str
+        Cross disperser. E.g. for Keck HIRES this is either 'UV' or 'RED'
+    nspec : int
+        Number of spectral pixels in the echelle spectrum
+    norders : int
+        Number of orders in the echelle spectrum
+    pad : int
+        Number of orders to pad the coverage by on the blue and red side.
+
+    Returns
+    -------
+    order_vec_guess : `numpy.ndarray`_
+        Vector of order numbers for the predicted echelle spectrum. Shape = (norders,)
+    wave_soln_guess :  `numpy.ndarray`_
+        Predicted wavelength solution. Shape = (nspec, norders)
+    arcspec_guess :  `numpy.ndarray`_
+        Predicted echelle arc spectrum. Shape = (nspec, norders)
 
     """
 

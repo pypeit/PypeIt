@@ -766,6 +766,9 @@ class Calibrations:
             meta_dict = dict(self.fitstbl[is_arc][0]) \
                 if self.spectrograph.pypeline == 'Echelle' and not self.spectrograph.ech_fixed_format else None
             # Instantiate
+            # TODO: Pull out and pass only the necessary parts of meta_dict to
+            # this, or include the relevant parts as parameters.  See comments
+            # in PRs #1454 and #1476 on this.
             self.waveCalib = wavecalib.BuildWaveCalib(self.msarc, self.slits, self.spectrograph,
                                                       self.par['wavelengths'], lamps,
                                                       meta_dict = meta_dict,

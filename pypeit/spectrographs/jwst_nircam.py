@@ -89,8 +89,7 @@ class JWSTNIRCamSpectrograph(spectrograph.Spectrograph):
             ronoise=np.atleast_1d(8.57),
         ))
         detector_dicts = [detector_dict1, detector_dict2]
-        detector = detector_container.DetectorContainer(**detector_dicts[det-1])
-        return detector
+        return detector_container.DetectorContainer(**detector_dicts[det-1])
 
 
     def init_meta(self):

@@ -356,60 +356,64 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
 
     Parameters
     ----------
-    wave: `numpy.ndarray`_
-            wavelength array of shape (nspec,). flux, ivar, flux_ref, and ivar_ref must all be on the same wavelength grid
-    flux: `numpy.ndarray`_
-            flux that you want to rescale to match flux_ref
-    ivar: `numpy.ndarray`_
-            inverse varaiance of the array that you want to rescale to match flux_ref
-    flux_ref: `numpy.ndarray`_
-            reference flux that you want to rescale flux to match.
-    ivar_ref: `numpy.ndarray`_
-            inverse variance for reference flux
-    norder: int
-            Order of polynomial rescaling; norder=1 is a linear fit and norder must be >= 1 otherwise the
-            code will fault.
-    mask: `numpy.ndarray`_, optional
-            boolean mask for spectrum that you want to rescale, True=Good
-    mask_ref: `numpy.ndarray`_, optional
-            boolean mask for reference flux
-    scale_min: float, optional
-            minimum scaling factor allowed. default =0.05
-    scale_max: float, optional
-            maximum scaling factor allowed. default=100.0
-    func: str, optional
-            function you want to use. default='legendre'
-    model: str, optional
-            model type, valid model types are 'poly', 'square', or 'exp', corresponding to normal polynomial,
-            squared polynomial, or exponentiated polynomial. default = 'square'
-    maxiter: int, optional
-            maximum number of iterations for robust_optimize. default=3
-    sticky: bool, optional
-            whether you want the rejection to be sticky or not with robust_optimize. See docs for djs_reject for
-            definition of sticky.  default=True
-    lower: float, optional
-            lower sigrej rejection threshold for robust_optimize. default=3.0
-    upper: float, optional
-            upper sigrej rejection threshold for robust_optimize. default=3.0
-    median_frac: float, optional
-            the code rescales median filtered spectra with 'reflect' boundary conditions. The
-            with of the median filter will be median_frac*nspec, where nspec is the number of spectral pixels.
-            default = 0.01,
-    debug: bool, optional
-            If True, show interactive QA plot. default=False
+    wave : `numpy.ndarray`_
+        wavelength array of shape (nspec,). flux, ivar, flux_ref, and ivar_ref
+        must all be on the same wavelength grid
+    flux : `numpy.ndarray`_
+        flux that you want to rescale to match flux_ref
+    ivar : `numpy.ndarray`_
+        inverse varaiance of the array that you want to rescale to match flux_ref
+    flux_ref : `numpy.ndarray`_
+        reference flux that you want to rescale flux to match.
+    ivar_ref : `numpy.ndarray`_
+        inverse variance for reference flux
+    norder : int
+        Order of polynomial rescaling; norder=1 is a linear fit and norder must
+        be >= 1 otherwise the code will fault.
+    mask : `numpy.ndarray`_, optional
+        boolean mask for spectrum that you want to rescale, True=Good
+    mask_ref : `numpy.ndarray`_, optional
+        boolean mask for reference flux
+    scale_min : float, optional
+        minimum scaling factor allowed. default =0.05
+    scale_max : float, optional
+        maximum scaling factor allowed. default=100.0
+    func : str, optional
+        function you want to use. default='legendre'
+    model : str, optional
+        model type, valid model types are 'poly', 'square', or 'exp',
+        corresponding to normal polynomial, squared polynomial, or exponentiated
+        polynomial. default = 'square'
+    maxiter : int, optional
+        maximum number of iterations for robust_optimize. default=3
+    sticky : bool, optional
+        whether you want the rejection to be sticky or not with robust_optimize.
+        See docs for djs_reject for definition of sticky.  default=True
+    lower : float, optional
+        lower sigrej rejection threshold for robust_optimize. default=3.0
+    upper : float, optional
+        upper sigrej rejection threshold for robust_optimize. default=3.0
+    median_frac : float, optional
+        the code rescales median filtered spectra with 'reflect' boundary
+        conditions. The with of the median filter will be median_frac*nspec,
+        where nspec is the number of spectral pixels.  default = 0.01,
+    debug : bool, optional
+        If True, show interactive QA plot. default=False
 
     Returns
     -------
-    tuple of outputs: tuple
-           (1) ymult: `numpy.ndarray`_, (nspec,) -- rescaling factor to be
-           multiplied into flux to match flux_ref.
-           (2) tuple of (result.x, wave_min, wave_max).
-           (3) flux_rescale:
-           `numpy.ndarray`_, (nspec,) -- rescaled flux, i.e. ymult multiplied
-           into flux. (4) ivar_rescale: ndarray, (nspec,) -- rescaled
-           inverse variance. (5) outmask: `numpy.ndarray`_, bool, (nspec,) --
-           output mask determined from the robust_optimize
-           optimization/rejection iterations. True=Good
+    ymult : `numpy.ndarray`_, (nspec,)
+        rescaling factor to be multiplied into flux to match flux_ref.
+    fit_tuple : :obj:`tuple`
+        Tuple with the polynomial coefficients, the minimum wavelength
+        coordinate and maximum wavelength coordinate used in the fit.
+    flux_rescale : `numpy.ndarray`_, (nspec,)
+        rescaled flux, i.e. ymult multiplied into flux.
+    ivar_rescale : `numpy.ndarray`_, (nspec,)
+        rescaled inverse variance
+    outmask : `numpy.ndarray`_, bool, (nspec,)
+        output mask determined from the robust_optimize optimization/rejection
+        iterations. True=Good
     """
 
     if norder < 1:
@@ -1255,8 +1259,6 @@ def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights, min_weight=1e
             limiting case of very small wavelength bins. For larger wavelength bins, the number of exposures contributing
             to a given bin will be larger.  shape=(ngrid +1,)
     waves: `numpy.ndarray`_
-            to a given bin will be larger.  shape=(ngrid +1,)
-    waves: `numpy.ndarray`_
             wavelength arrays for spectra to be stacked. Note that the wavelength grids can in general be different for
             each exposure and irregularly spaced.
             shape=(nspec, nexp)
@@ -1949,7 +1951,7 @@ def scale_spec_stack(wave_grid, waves, fluxes, ivars, masks, sn, weights,
                      hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
                      debug=False, show=False):
 
-    '''
+    """
     THIS NEEDS A PROPER DESCRIPTION
 
     Parameters
@@ -1998,6 +2000,7 @@ def scale_spec_stack(wave_grid, waves, fluxes, ivars, masks, sn, weights,
         minimum SNR for perforing median scaling
     debug: bool, optional, default=False
         show interactive QA plot
+
     Returns
     -------
     fluxes_scales: `numpy.ndarray`_
@@ -2012,8 +2015,7 @@ def scale_spec_stack(wave_grid, waves, fluxes, ivars, masks, sn, weights,
         scale_spec
     scale_method_used: list
         List of methods used for rescaling spectra.
-    Returns
-    '''
+    """
 
     # Compute an initial stack as the reference, this has its own wave grid based on the weighted averages
     wave_stack, flux_stack, ivar_stack, mask_stack, nused = compute_stack(wave_grid, waves, fluxes, ivars, masks, weights)
@@ -2085,7 +2087,7 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
         percentile fraction cut used for selecting minimum SNR cut for robust_median_ratio
     maxiter_scale: int, optional, default=5
         Maximum number of iterations performed for rescaling spectra.
-    wave_grid_input (`numpy.ndarray`_):
+    wave_grid_input : `numpy.ndarray`_
         User input wavelength grid to be used with the 'user_input' wave_method. Shape is (nspec_input,)
     maxiter_reject: int, optional, default=5
         maximum number of iterations for stacking and rejection. The code stops iterating either when
@@ -2386,7 +2388,7 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None,
            In case you want to specify the minimum wavelength in your wavelength grid, default=None computes from data.
     wave_grid_max: float, optional
            In case you want to specify the maximum wavelength in your wavelength grid, default=None computes from data.
-    wave_grid_input (`numpy.ndarray`_):
+    wave_grid_input : `numpy.ndarray`_
             User input wavelength grid to be used with the 'user_input' wave_method. Shape is (nspec_input,)
     ref_percentile:
         percentile fraction cut used for selecting minimum SNR cut for robust_median_ratio
@@ -2730,42 +2732,52 @@ def get_wave_bins(thismask_stack, waveimg_stack, wave_grid):
     wave_upper = -np.inf
     for thismask, waveimg in zip(thismask_stack, waveimg_stack):
         wavemask = thismask & (waveimg > 1.0)
-        wave_min = waveimg[wavemask].min()
-        wave_max = waveimg[wavemask].max()
-        wave_lower = wave_min if wave_min < wave_lower else wave_lower
-        wave_upper = wave_max if wave_max > wave_upper else wave_upper
-
+        wave_lower = min(wave_lower, np.amin(waveimg[wavemask]))
+        wave_upper = max(wave_upper, np.amax(waveimg[wavemask]))
+#        wave_min = waveimg[wavemask].min()
+#        wave_max = waveimg[wavemask].max()
+#        wave_lower = wave_min if wave_min < wave_lower else wave_lower
+#        wave_upper = wave_max if wave_max > wave_upper else wave_upper
     ind_lower, ind_upper = get_wave_ind(wave_grid, wave_lower, wave_upper)
     return wave_grid[ind_lower:ind_upper + 1]
 
 
 def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
     """
-    Determine the spatial bins for a 2d coadd and relative pixel coordinate images. This routine loops over all the
-    images being coadded and creates an image of spatial pixel positions relative to the reference trace for each image
-    in units of the desired rebinned spatial pixel sampling spat_samp_fact.  The minimum and maximum relative pixel positions
-    in this frame are then used to define a spatial position grid with whatever desired pixel spatial sampling.
+    Determine the spatial bins for a 2d coadd and relative pixel coordinate
+    images. This routine loops over all the images being coadded and creates an
+    image of spatial pixel positions relative to the reference trace for each
+    image in units of the desired rebinned spatial pixel sampling
+    spat_samp_fact.  The minimum and maximum relative pixel positions in this
+    frame are then used to define a spatial position grid with whatever desired
+    pixel spatial sampling.
 
     Parameters
     ----------
-    thismask_stack: list
-        List of boolean arrays containing the masks indicating which pixels are on
-        the slit in question.  `True` values are on the slit;
-        `False` values are off the slit.  Length of the list is nimgs.   Shapes of the individual elements in the list
-        are (nspec, nspat),  but each image can have a different shape.
-    ref_trace_stack: list
-        List of reference traces about which the images are rectified and coadded.  If the images were not dithered then
-        this reference trace can simply be the center of the slit:
+    thismask_stack : list
+        List of boolean arrays containing the masks indicating which pixels are
+        on the slit in question.  `True` values are on the slit; `False` values
+        are off the slit.  Length of the list is nimgs.   Shapes of the
+        individual elements in the list are (nspec, nspat),  but each image can
+        have a different shape.
+    ref_trace_stack : list
+        List of reference traces about which the images are rectified and
+        coadded.  If the images were not dithered then this reference trace can
+        simply be the center of the slit:
+
+        .. code-block:: python
 
             slitcen = (slit_left + slit_righ)/2
 
-        If the images were dithered, then this object can either be the slitcen appropriately shifted with the dither pattern,
-        or it could be the trace of the object of interest in each exposure determined by running PypeIt on the individual
-        images.  The list has nimgs elements, each of which is a 1D `numpy.ndarray`_ of shape (nspec,).
-
-    spat_samp_fact (float, optional):
-        Spatial sampling for 2d coadd spatial bins in pixels. A value > 1.0 (i.e. bigger pixels)
-        will downsample the images spatially, whereas < 1.0 will oversample. Default = 1.0
+        If the images were dithered, then this object can either be the slitcen
+        appropriately shifted with the dither pattern, or it could be the trace
+        of the object of interest in each exposure determined by running PypeIt
+        on the individual images.  The list has nimgs elements, each of which is
+        a 1D `numpy.ndarray`_ of shape (nspec,).
+    spat_samp_fact : float, optional
+        Spatial sampling for 2d coadd spatial bins in pixels. A value > 1.0
+        (i.e. bigger pixels) will downsample the images spatially, whereas < 1.0
+        will oversample. Default = 1.0
 
     Returns
     -------
@@ -2788,10 +2800,12 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
         slit_cen_img = np.repeat(trace[:,np.newaxis], nspat, axis=1)
         dspat_iexp = (spat_img - slit_cen_img) / spat_samp_fact
         dspat_stack.append(dspat_iexp)
-        spat_min_iexp = dspat_iexp[thismask].min()
-        spat_max_iexp = dspat_iexp[thismask].max()
-        spat_min = spat_min_iexp if spat_min_iexp < spat_min else spat_min
-        spat_max = spat_max_iexp if spat_max_iexp > spat_max else spat_max
+        spat_min = min(spat_min, np.amin(dspat_iexp[thismask]))
+        spat_max = max(spat_max, np.amax(dspat_iexp[thismask]))
+#        spat_min_iexp = dspat_iexp[thismask].min()
+#        spat_max_iexp = dspat_iexp[thismask].max()
+#        spat_min = spat_min_iexp if spat_min_iexp < spat_min else spat_min
+#        spat_max = spat_max_iexp if spat_max_iexp > spat_max else spat_max
 
     spat_min_int = np.floor(spat_min)
     spat_max_int = np.ceil(spat_max)
@@ -2877,7 +2891,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
         maskdef_dict (:obj:`dict`, optional): Dictionary containing all the maskdef info. The quantities saved
             are: maskdef_id, maskdef_objpos, maskdef_slitcen, maskdef_designtab. To learn what
             they are see :class:`~pypeit.slittrace.SlitTraceSet` datamodel.
-        interp_dspat : bool, optional
+        interp_dspat (bool, optional):
            Interpolate in the spatial coordinate image to faciliate running
            through core.extract.local_skysub_extract. This can be slow.   Default=True.
 

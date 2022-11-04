@@ -421,7 +421,7 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
     #mskcnt = np.sum(this_gpm)
     #pypeitFit = None
     while (not qdone) and (iIter < maxiter):
-        if (np.sum(this_gpm) <= np.sum(order) + 1):
+        if np.sum(this_gpm) <= np.sum(order) + 1:
             msgs.warn("More parameters than data points - fit might be undesirable")
         if not np.any(this_gpm):
             msgs.warn("All points were masked. Returning current fit and masking all points. Fit is likely undesirable")
