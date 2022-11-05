@@ -546,6 +546,7 @@ class BuildWaveCalib:
                                              #debug=True, debug_reid=True, debug_xcorr=True)
         elif self.par['method'] == 'echelle':
             # Echelle calibration
+            msgs.error('Non-fixed format Echelle wavelength calibration is not yet full implemented')
             # TODO: Get these from the spectrograph file later.
             angle_fits_file = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms', 'hires_wvcalib',
                                            'wvcalib_angle_fits.fits')
