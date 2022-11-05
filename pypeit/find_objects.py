@@ -350,7 +350,7 @@ class FindObjects:
             skymask_init = self.load_skyregions(sky_region_file=self.sky_region_file)
             # Perform a fit to the global sky model
             initial_sky = self.global_skysub(skymask=skymask_init, update_crmask=False, objs_not_masked=True,
-                                                show_fit=show_skysub_fit).copy()
+                                                show_fit=show_skysub_fit)
             # Perform object finding
             sobjs_obj, self.nobj = \
                 self.find_objects(self.sciImg.image - initial_sky, self.sciImg.ivar, std_trace=std_trace,
@@ -361,7 +361,7 @@ class FindObjects:
             # Perform a first pass sky-subtraction without masking any objects. Should  we make this no_poly=True to
             # have fewer degrees of freedom in the with with-object global sky fits??
             initial_sky0 = self.global_skysub(update_crmask=False, objs_not_masked=True,
-                                              show_fit=show_skysub_fit).copy()
+                                              show_fit=show_skysub_fit)
             # First pass object finding
             sobjs_obj, self.nobj = \
                 self.find_objects(self.sciImg.image-initial_sky0, self.sciImg.ivar, std_trace=std_trace,
@@ -377,7 +377,7 @@ class FindObjects:
                 # If objects were found, create skymask using first pass objects that were identified, sobjs_obj
                 skymask_init = self.create_skymask(sobjs_obj)
                 # Global sky subtract now using the skymask defined by object positions
-                initial_sky = self.global_skysub(skymask=skymask_init, show_fit=show_skysub_fit).copy()
+                initial_sky = self.global_skysub(skymask=skymask_init, show_fit=show_skysub_fit)
                 # Second pass object finding on sky-subtracted image with updated sky created after masking objects
                 if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
                     sobjs_obj, self.nobj = self.find_objects(self.sciImg.image - initial_sky, self.sciImg.ivar,

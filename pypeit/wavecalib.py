@@ -343,6 +343,13 @@ class BuildWaveCalib:
             The parameters used for the wavelength solution
             Uses ['calibrations']['wavelengths']
         binspectral (int, optional): Binning of the Arc in the spectral dimension
+        meta_dict (dict: optional):
+            Dictionary containing meta information required for wavelength calibration. Specifically for non-fixed
+            format echelles this dict must contain the following keys:
+               'echangle':  the echelle angle
+               'xdangle': the cross-disperser angle
+               'dispmame': the disperser name
+
         det (int, optional): Detector number
         msbpm (ndarray, optional): Bad pixel mask image
         qa_path (str, optional):  For QA
