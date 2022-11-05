@@ -3,7 +3,7 @@
     $ pypeit_setup -h
     usage: pypeit_setup [-h] [-s SPECTROGRAPH] [-r ROOT] [-e EXTENSION]
                         [-d OUTPUT_PATH] [-o] [-c CFG_SPLIT] [-b] [-m]
-                        [-v VERBOSITY]
+                        [-v VERBOSITY] [-k]
     
     Parse data files to construct a pypeit file in preparation for reduction using
     'run_pypeit'
@@ -56,4 +56,11 @@
                             edit (default: False)
       -v VERBOSITY, --verbosity VERBOSITY
                             Level of verbosity from 0 to 2. (default: 2)
+      -k, --keep_bad_frames
+                            Keep all frames, even if they are identified as having
+                            bad/unrecognized configurations that cannot be reduced
+                            by pypeit. (This is the opposite of the --bad_frames
+                            option in pypeit_obslog; i.e., you have to tell
+                            pypeit_setup to keep these frames, whereas you have to
+                            tell pypeit_obslog to remove them. (default: False)
     

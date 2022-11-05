@@ -545,16 +545,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
         # Instantiate
         detector_dicts = [detector_dict1, detector_dict2, detector_dict3]
-        detector = detector_container.DetectorContainer(
-            **detector_dicts[det-1])
-
-        if hdu is None:
-            return detector
-
-        # Return
-        return detector
-
-
+        return detector_container.DetectorContainer( **detector_dicts[det-1])
 
 
 def indexing(itt, postpix, det=None,xbin=1,ybin=1):
