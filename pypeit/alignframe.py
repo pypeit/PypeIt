@@ -326,6 +326,25 @@ def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
 
 class AlignmentSplines:
     def __init__(self, traces, locations, tilts):
+        """Convenience class to build and transform between detector pixel coordinates and
+        WCS pixel coordinates (i.e. constant wavelength and spatial position).
+
+        Parameters
+        ----------
+        traces : `numpy.ndarray`
+            The alignments (traces) of the slits. This allows different slices
+            to be aligned correctly. Ideally, this variable will be assigned the
+            value of alignments.traces. However, this can also be assigned the
+            left and right slit edges:
+            traces = np.append(left.reshape((left.shape[0],1,left.shape[1])),
+                   right.reshape((left.shape[0],1,left.shape[1])), axis=1)
+            In this case, locations=np.array([0,1])
+        locations : `numpy.ndarray`_, list
+            locations along the slit of the alignment traces. Must
+            be a 1D array of the same length as alignments.traces.shape[1]
+        tilts : `numpy.ndarray`
+            Spectral tilts.
+        """
         self.traces = traces
         self.locations = locations
         self.tilts = tilts
@@ -339,6 +358,9 @@ class AlignmentSplines:
         self.build_splines()
 
     def build_splines(self):
+        """
+        Build the interpolation transforms for each slit
+        """
         spldict = dict(kind='linear', bounds_error=False, fill_value="extrapolate")
         ycoord = np.arange(self.nspec)
         for sl in range(self.nslit):
@@ -374,4 +396,21 @@ class AlignmentSplines:
             # wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init] * (nspec - 1), 0)
 
     def transform(self, slitnum, xpix, ypix):
+        """
+        Convenience function to return the spatial offset in pixels
+        from the spatial centre of the slit.
+
+        Parameters
+        ----------
+        slitnum : `int`
+            Slit number
+        xpix : `numpy.ndarray`
+            Detector pixel coordinate (spatial direction)
+        ypix : `numpy.ndarray`
+            Detector pixel coordinate (spectral direction)
+
+        Returns
+        -------
+        tuple : There are
+        """
         return self.spl_transform[slitnum]((ypix, xpix))

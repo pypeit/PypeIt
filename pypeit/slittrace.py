@@ -418,8 +418,7 @@ class SlitTraceSet(datamodel.DataContainer):
             slitlen = np.median(slitlen, axis=1)
         return slitlen
 
-    def get_radec_image(self, wcs, traces, tilts, locations,
-                        astrometric=True, initial=True, flexure=None):
+    def get_radec_image(self, wcs, traces, tilts, locations, initial=True, flexure=None):
         """Generate an RA and DEC image for every pixel in the frame
         NOTE: This function is currently only used for IFU reductions.
 
@@ -440,8 +439,6 @@ class SlitTraceSet(datamodel.DataContainer):
         locations : `numpy.ndarray`_, list
             locations along the slit of the alignment traces. Must
             be a 1D array of the same length as alignments.traces.shape[1]
-        astrometric : bool
-            Perform astrometric correction using alignment frame?
         initial : bool
             Select the initial slit edges?
         flexure : float, optional
@@ -449,12 +446,14 @@ class SlitTraceSet(datamodel.DataContainer):
 
         Returns
         -------
-        tuple : There are three elements in the tuple. The first two are 2D numpy arrays
+        tuple : There are four elements in the tuple. The first two are 2D numpy arrays
                 of shape (nspec, nspat), where the first ndarray is the RA image, and the
                 second ndarray is the DEC image. RA and DEC are in units degrees. The third
                 element of the tuple stores the minimum and maximum difference (in pixels)
-                between the WCS reference (usually the centre of the slit) and the edge of
-                the slits. The third array has a shape of (nslits, 2).
+                between the WCS reference (usually the centre of the slit) and the edges of
+                the slits. The third array has a shape of (nslits, 2). The fourth contains
+                the transformation between detector pixel coordinates and the WCS pixel
+                coordinates.
         """
         msgs.work("Spatial flexure is not currently implemented for the astrometric alignment")
         if type(locations) is list:

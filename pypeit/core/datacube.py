@@ -1729,7 +1729,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
         # Generate an RA/DEC image
         msgs.info("Generating RA/DEC image")
-        raimg, decimg, minmax = slits.get_radec_image(frame_wcs, alignments.traces, spec2DObj.tilts, locations,
+        raimg, decimg, minmax, ast_trans = slits.get_radec_image(frame_wcs, alignments.traces, spec2DObj.tilts, locations,
                                                       astrometric=astrometric, initial=True, flexure=flexure)
 
         # Perform the DAR correction
