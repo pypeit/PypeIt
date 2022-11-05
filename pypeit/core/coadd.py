@@ -2784,9 +2784,7 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
     spat_max = -np.inf
     for thismask, trace in zip(thismask_stack, trace_stack):
         nspec, nspat = thismask.shape
-        spat_img = np.repeat(np.arange(nspat)[np.newaxis, :], nspec, axis=0)
-        slit_cen_img = np.repeat(trace[:,np.newaxis], nspat, axis=1)
-        dspat_iexp = (spat_img - slit_cen_img) / spat_samp_fact
+        dspat_iexp = (np.arange(nspat)[np.newaxis, :] - trace[:, np.newaxis]) / spat_samp_fact
         dspat_stack.append(dspat_iexp)
         spat_min_iexp = dspat_iexp[thismask].min()
         spat_max_iexp = dspat_iexp[thismask].max()
