@@ -1255,12 +1255,6 @@ def generate_cube_subsample(outfile, frame_wcs, all_sci, all_ivar, all_wghts, al
         specname (str, optional):
             Name of the spectrograph
     """
-    # Add the unit of flux to the header
-    if fluxcal:
-        hdr['FLUXUNIT'] = (PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
-    else:
-        hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
-
     # Prepare the output arrays
     outshape = (bins.shape[0]-1, bins.shape[1]-1, bins.shape[2]-1)
     datacube, varcube, normcube = np.zeros(outshape), np.zeros(outshape), np.zeros(outshape)
@@ -1294,6 +1288,13 @@ def generate_cube_subsample(outfile, frame_wcs, all_sci, all_ivar, all_wghts, al
     nc_inverse = utils.inverse(normcube)
     datacube *= nc_inverse
     varcube *= nc_inverse**2
+
+    # Prepare the header, and add the unit of flux to the header
+    hdr = frame_wcs.to_header()
+    if fluxcal:
+        hdr['FLUXUNIT'] = (PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
+    else:
+        hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
 
     # Write out the datacube
     msgs.info("Saving datacube as: {0:s}".format(outfile))
@@ -1736,9 +1737,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             msgs.warn("Spatial scale requested ({0:f} arcsec) is less than the slicer scale ({1:f} arcsec)".format(3600.0*dspat, 3600.0*slscl))
 
         # Loading the alignments frame for these data
-        astrometric = cubepar['astrometric']
         alignments = None
-        if astrometric:
+        if cubepar['astrometric']:
             alignfile = masterframe.construct_file_name(alignframe.Alignments, hdr['TRACMKEY'],
                                                         master_dir=hdr['PYPMFDIR'])
             if os.path.exists(alignfile) and cubepar['astrometric']:
@@ -1747,14 +1747,19 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             else:
                 msgs.warn("Could not find Master Alignment frame:"+msgs.newline()+alignfile)
                 msgs.warn("Astrometric correction will not be performed")
-                astrometric = False
         else:
             msgs.info("Astrometric correction will not be performed")
-
+        # If nothing better was provided, use the slit edges
+        if alignments is None:
+            left, right, _ = slits.select_edges(initial=True, flexure=flexure)
+            locations = [0.0, 1.0]
+            traces = np.append(left[:,None,:], right[:,None,:], axis=1)
+        else:
+            traces = alignments.traces
         # Generate an RA/DEC image
         msgs.info("Generating RA/DEC image")
-        raimg, decimg, minmax, ast_trans = slits.get_radec_image(frame_wcs, alignments.traces, spec2DObj.tilts, locations,
-                                                                 astrometric=astrometric, initial=True, flexure=flexure)
+        raimg, decimg, minmax, ast_trans = slits.get_radec_image(frame_wcs, traces, spec2DObj.tilts, locations,
+                                                                 initial=True, flexure=flexure)
 
         # Perform the DAR correction
         if wave_ref is None:
