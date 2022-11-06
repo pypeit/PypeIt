@@ -1209,10 +1209,9 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     final_cube = DataCube(datcube.T, varcube.T, specname, blaze_wave, blaze_spec, sensfunc=sensfunc, fluxed=fluxcal)
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
 
-
-def generate_cube_subsample(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bins,
-                            overwrite=False, blaze_wave=None, blaze_spec=None, fluxcal=False,
-                            sensfunc=None, specname="PYP_SPEC", debug=False):
+def generate_cube_subsample(outfile, frame_wcs, all_sci, all_ivar, all_wghts, all_wave, slits, slitid_img_gpm,
+                            astrom_trans, bins, subsample=10, overwrite=False, blaze_wave=None, blaze_spec=None,
+                            fluxcal=False, sensfunc=None, specname="PYP_SPEC"):
     """
     Save a datacube using the subsample algorithm. This algorithm is a combination of the
     "nearest grid point" and "resample" algorithms.
@@ -1220,32 +1219,41 @@ def generate_cube_subsample(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coor
     Args:
         outfile (`str`):
             Filename to be used to save the datacube
-        hdr (`astropy.io.fits.header_`):
-            Header of the output datacube (must contain WCS)
+        frame_wcs (`astropy.wcs.wcs.WCS`_):
+            World coordinate system for this frame.
         all_sci (`numpy.ndarray`_):
             1D flattened array containing the counts of each pixel from all spec2d files
         all_ivar (`numpy.ndarray`_):
             1D flattened array containing the inverse variance of each pixel from all spec2d files
         all_wghts (`numpy.ndarray`_):
             1D flattened array containing the weights of each pixel to be used in the combination
-        pix_coord (`numpy.ndarray`_):
-            The NGP pixel coordinates corresponding to the RA,DEC,WAVELENGTH of each individual
-            pixel in the processed spec2d frames. After setting up an astropy WCS, pix_coord is
-            returned by the function: `astropy.wcs.WCS.wcs_world2pix_`
+        all_wave (`numpy.ndarray`_)
+            1D flattened array containing the wavelength of each pixel (units = Angstroms)
+        slits (:class:`pypeit.slittrace.SlitTraceSet`_)
+            Information stored about the slits
+        slitid_img_gpm (`numpy.ndarray`_)
+            An image indicating which pixels belong to a slit (0 = not on a slit or a masked pixel).
+            Any positive value indicates the spatial ID of the pixel.
+        astrom_trans (:class:`pypeit.alignframe.AlignmentSplines`_):
+            A Class containing the transformation between detector pixel coordinates and WCS pixel coordinates
         bins (tuple):
-            A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and z wavelength coordinates    :param overwrite:
-        blaze_wave (`numpy.ndarray`_):
+            A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and z wavelength coordinates
+        subsample (`int`, optional):
+            What is the subsampling factor. Higher values give more reliable results, but note
+            that the time required goes as N^2. The default value is 10, which subsamples each detector pixel into
+            100 subpixels (i.e. 10^2).
+        overwrite (`bool`, optional):
+            If True, the output cube will be overwritten.
+        blaze_wave (`numpy.ndarray`_, optional):
             Wavelength array of the spectral blaze function
-        blaze_spec (`numpy.ndarray`_):
+        blaze_spec (`numpy.ndarray`_, optional):
             Spectral blaze function
-        fluxcal (bool):
+        fluxcal (bool, optional):
             Are the data flux calibrated?
-        sensfunc (`numpy.ndarray`_, None):
+        sensfunc (`numpy.ndarray`_, None, optional):
             Sensitivity function that has been applied to the datacube
-        specname (str):
+        specname (str, optional):
             Name of the spectrograph
-        debug (bool):
-            Debug the code by writing out a residuals cube?
     """
     # Add the unit of flux to the header
     if fluxcal:
@@ -1253,27 +1261,41 @@ def generate_cube_subsample(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coor
     else:
         hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
 
-    # Use NGP to generate the cube - this ensures errors between neighbouring voxels are not correlated
-    datacube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci * all_wghts)
-    norm, edges = np.histogramdd(pix_coord, bins=bins, weights=all_wghts)
-    norm_cube = utils.inverse(norm)
-    datacube *= norm_cube
-    # Create the variance cube, including weights
-    msgs.info("Generating variance cube")
+    # Prepare the output arrays
+    outshape = (bins.shape[0]-1, bins.shape[1]-1, bins.shape[2]-1)
+    datacube, varcube, normcube = np.zeros(outshape), np.zeros(outshape), np.zeros(outshape)
+
+    # Subsample each pixel
+    ssamp_offs = np.arange(0.5/subsample, 1, 1/subsample) - 0.5  # -0.5 is to offset from the centre of each pixel.
+    area = 1/subsample**2
+    all_wght_subsmp = all_wghts * area
+    # Loop through all slits
+    all_sltid = (slitid_img_gpm > 0)
     all_var = utils.inverse(all_ivar)
-    var_cube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_var * all_wghts**2)
-    var_cube *= norm_cube**2
+    embed()
+    for sl, spatid in enumerate(slits.spat_id):
+        this_sl = (all_sltid==spatid)
+        wpix = np.where(slitid_img_gpm==spatid)
+        slitID = np.ones(wpix[0].size) * sl - wcs.wcs.crpix[0]
+        for xx in range(subsample):
+            for yy in range(subsample):
+                # Calculate the tranformation from detector pixels to voxels
+                evalpos = astrom_trans.transform(sl, wpix[1] + ssamp_offs[xx], wpix[0] + ssamp_offs[yy])
+                world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init] * (nspec - 1), 0)
+                pix_coord = frame_wcs.wcs_world2pix(np.vstack((world_ra, world_dec, all_wave[this_sl] * 1.0E-10)).T, 0)
+                # Now assemble this postion of the datacube
+                tmp_dc, _ = np.histogramdd(pix_coord, bins=bins, weights=all_sci[this_sl] * all_wght_subsmp[this_sl])
+                tmp_vr, _ = np.histogramdd(pix_coord, bins=bins, weights=all_var[this_sl] * all_wght_subsmp[this_sl]**2)
+                tmp_nm, _ = np.histogramdd(pix_coord, bins=bins, weights=all_wght_subsmp[this_sl])
+                datacube += tmp_dc
+                varcube += tmp_vr
+                normcube += tmp_nm
+    # Normalise the datacube and variance cube
+    nc_inverse = utils.inverse(normcube)
+    datacube *= nc_inverse
+    varcube *= nc_inverse**2
 
-    # Save the datacube
-    if debug:
-        datacube_resid, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci*np.sqrt(all_ivar))
-        norm, edges = np.histogramdd(pix_coord, bins=bins)
-        norm_cube = utils.inverse(norm)
-        outfile_resid = "datacube_resid.fits"
-        msgs.info("Saving datacube as: {0:s}".format(outfile_resid))
-        hdu = fits.PrimaryHDU((datacube_resid*norm_cube).T, header=hdr)
-        hdu.writeto(outfile_resid, overwrite=overwrite)
-
+    # Write out the datacube
     msgs.info("Saving datacube as: {0:s}".format(outfile))
     final_cube = DataCube(datacube.T, var_cube.T, specname, blaze_wave, blaze_spec, sensfunc=sensfunc, fluxed=fluxcal)
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
@@ -1301,7 +1323,9 @@ def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bin
             pixel in the processed spec2d frames. After setting up an astropy WCS, pix_coord is
             returned by the function: `astropy.wcs.WCS.wcs_world2pix_`
         bins (tuple):
-            A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and z wavelength coordinates    :param overwrite:
+            A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and z wavelength coordinates
+        overwrite (`bool`):
+            If True, the output cube will be overwritten.
         blaze_wave (`numpy.ndarray`_):
             Wavelength array of the spectral blaze function
         blaze_spec (`numpy.ndarray`_):
@@ -1730,7 +1754,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         # Generate an RA/DEC image
         msgs.info("Generating RA/DEC image")
         raimg, decimg, minmax, ast_trans = slits.get_radec_image(frame_wcs, alignments.traces, spec2DObj.tilts, locations,
-                                                      astrometric=astrometric, initial=True, flexure=flexure)
+                                                                 astrometric=astrometric, initial=True, flexure=flexure)
 
         # Perform the DAR correction
         if wave_ref is None:
@@ -1859,7 +1883,12 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             bins = spec.get_datacube_bins(slitlength, minmax, numwav)
             # Make the datacube
             if method == 'subsample':
-                pass
+                slitid_img_gpm = slitid_img_init.copy()
+                slitid_img_gpm[(bpmmask != 0) | (~sky_is_good)] = 0
+                generate_cube_subsample(outfile, frame_wcs, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix),
+                                        wave_ext, slits, slitid_img_gpm, ast_trans, bins,
+                                        overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
+                                        fluxcal=fluxcal, specname=specname)
             elif method == 'resample':
                 fluximg, ivarimg = np.zeros_like(raimg), np.zeros_like(raimg)
                 fluximg[onslit_gpm] = flux_sav[resrt]
