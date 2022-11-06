@@ -1209,7 +1209,7 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     final_cube = DataCube(datcube.T, varcube.T, specname, blaze_wave, blaze_spec, sensfunc=sensfunc, fluxed=fluxcal)
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
 
-def generate_cube_subsample(outfile, frame_wcs, all_sci, all_ivar, all_wghts, all_wave, slits, slitid_img_gpm,
+def generate_cube_subsample(outfile, frame_wcs, all_sci, all_ivar, all_wghts, all_wave, tilts, slits, slitid_img_gpm,
                             astrom_trans, bins, subsample=10, overwrite=False, blaze_wave=None, blaze_spec=None,
                             fluxcal=False, sensfunc=None, specname="PYP_SPEC"):
     """
@@ -1229,6 +1229,8 @@ def generate_cube_subsample(outfile, frame_wcs, all_sci, all_ivar, all_wghts, al
             1D flattened array containing the weights of each pixel to be used in the combination
         all_wave (`numpy.ndarray`_)
             1D flattened array containing the wavelength of each pixel (units = Angstroms)
+        tilts (`numpy.ndarray`_)
+            2D wavelength tilts frame
         slits (:class:`pypeit.slittrace.SlitTraceSet`_)
             Information stored about the slits
         slitid_img_gpm (`numpy.ndarray`_)
@@ -1256,7 +1258,8 @@ def generate_cube_subsample(outfile, frame_wcs, all_sci, all_ivar, all_wghts, al
             Name of the spectrograph
     """
     # Prepare the output arrays
-    outshape = (bins.shape[0]-1, bins.shape[1]-1, bins.shape[2]-1)
+    embed()
+    outshape = (bins[0].size-1, bins[1].size-1, bins[2].size-1)
     datacube, varcube, normcube = np.zeros(outshape), np.zeros(outshape), np.zeros(outshape)
 
     # Subsample each pixel
@@ -1266,16 +1269,15 @@ def generate_cube_subsample(outfile, frame_wcs, all_sci, all_ivar, all_wghts, al
     # Loop through all slits
     all_sltid = (slitid_img_gpm > 0)
     all_var = utils.inverse(all_ivar)
-    embed()
     for sl, spatid in enumerate(slits.spat_id):
         this_sl = (all_sltid==spatid)
         wpix = np.where(slitid_img_gpm==spatid)
-        slitID = np.ones(wpix[0].size) * sl - wcs.wcs.crpix[0]
+        slitID = np.ones(wpix[0].size) * sl - frame_wcs.wcs.crpix[0]
         for xx in range(subsample):
             for yy in range(subsample):
                 # Calculate the tranformation from detector pixels to voxels
                 evalpos = astrom_trans.transform(sl, wpix[1] + ssamp_offs[xx], wpix[0] + ssamp_offs[yy])
-                world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init] * (nspec - 1), 0)
+                world_ra, world_dec, _ = frame_wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init] * (nspec - 1), 0)
                 pix_coord = frame_wcs.wcs_world2pix(np.vstack((world_ra, world_dec, all_wave[this_sl] * 1.0E-10)).T, 0)
                 # Now assemble this postion of the datacube
                 tmp_dc, _ = np.histogramdd(pix_coord, bins=bins, weights=all_sci[this_sl] * all_wght_subsmp[this_sl])
@@ -1891,7 +1893,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                 slitid_img_gpm = slitid_img_init.copy()
                 slitid_img_gpm[(bpmmask != 0) | (~sky_is_good)] = 0
                 generate_cube_subsample(outfile, frame_wcs, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix),
-                                        wave_ext, slits, slitid_img_gpm, ast_trans, bins,
+                                        wave_ext, spec2DObj.tilts, slits, slitid_img_gpm, ast_trans, bins,
                                         overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
                                         fluxcal=fluxcal, specname=specname)
             elif method == 'resample':

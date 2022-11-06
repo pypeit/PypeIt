@@ -390,7 +390,8 @@ class AlignmentSplines:
             out_transform = np.zeros((self.nspec, xcoord.size))
             for sp in range(self.nspec):
                 out_transform[sp,:] = (self.spl_loc[sl][sp](xcoord) - 0.5) * self.spl_slen[sl](sp)
-            self.spl_transform[sl] = RegularGridInterpolator((ycoord, xcoord), out_transform, method='linear')
+            self.spl_transform[sl] = RegularGridInterpolator((ycoord, xcoord), out_transform, method='linear',
+                                                             bounds_error=False, fill_value=None) # This will extrapolate
             # TODO :: Remove these notes...
             # We now have everything we need to calculate the location and tilt of every pixel in the image.
             # evalpos = (self.spl_loc[sl][ypixels](xpixels) - 0.5) * self.spl_slen[sl](ypixels)
