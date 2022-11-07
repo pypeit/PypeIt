@@ -654,7 +654,7 @@ def _build_remote_url(f_name, f_type, remote_host=""):
         # Hard-wire the URL based on PypeIt Version
         data_url = (
             "https://raw.githubusercontent.com/pypeit/PypeIt/"
-            f"{'develop' if '.dev' in __version__ else __version__}/pypeit/data/"
+            f"{'develop' if '.dev' in __version__ else __version__}/pypeit/data"
         )
         return f"{data_url}/{f_type}/{f_name}", None
 
