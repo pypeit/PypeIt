@@ -351,7 +351,7 @@ class Identify:
 
         axes = dict(main=ax, fit=axfit, resid=axres, info=axinfo)
         # Initialise the identify window and display to screen
-        fig.canvas.set_window_title('PypeIt - Identify')
+        fig.canvas.manager.set_window_title('PypeIt - Identify')
         ident = Identify(fig.canvas, axes, spec, specres, detns, line_lists, par,
                          lflag_color, slit=slit, y_log=y_log, wv_calib=wv_calib,
                          spatid=str(slits.spat_id[slit]), pxtoler=pxtoler,
