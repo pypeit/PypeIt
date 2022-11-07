@@ -366,15 +366,16 @@ class AlignmentSplines:
         for sl in range(self.nslit):
             msgs.info("Calculating astrometric transform of slit {0:d}/{1:d}".format(sl+1, self.nslit))
             xlr, tlr = np.zeros((self.nspec, 2)), np.zeros((self.nspec, 2))
-            eval_trim = 1  # This evaluates the slit length inside the actual slit edges, due to edge effects.
+            eval_trim = 2  # This evaluates the slit length inside the actual slit edges, due to edge effects.
             for sp in range(self.nspec):
                 # Calculate x coordinate at the slit edges, and the spectral tilts at those locations
                 xlr[sp, :] = interp1d(self.locations, self.traces[sp,:,sl], **spldict)([0.0, 1.0])
                 tmptilt = self.spl_fulltilts([[sp, xlr[sp,0] + eval_trim],
-                                              [sp, xlr[sp,0] + 2*eval_trim],
+                                              [sp, xlr[sp,0] + eval_trim+1],
                                               [sp, xlr[sp,1] - eval_trim],
-                                              [sp, xlr[sp,1] - 2*eval_trim]])
-                tlr[sp, :] = [2*tmptilt[0]-tmptilt[1], 2*tmptilt[2]-tmptilt[3]]
+                                              [sp, xlr[sp,1] - eval_trim-1]])
+                tlr[sp, :] = [tmptilt[0]-eval_trim*(tmptilt[1]-tmptilt[0]),
+                              tmptilt[2]-eval_trim*(tmptilt[3]-tmptilt[2])]
                 # pseudo-2D alignments -> locations
                 self.spl_loc[sl][sp] = interp1d(self.traces[sp,:,sl], self.locations, **spldict)
             # For a given tilt value, get the (x,y) coordinate of the right edge
@@ -397,7 +398,7 @@ class AlignmentSplines:
             # evalpos = (self.spl_loc[sl][ypixels](xpixels) - 0.5) * self.spl_slen[sl](ypixels)
             # wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init] * (nspec - 1), 0)
 
-    def transform(self, slitnum, xpix, ypix):
+    def transform(self, slitnum, spatpix, specpix):
         """
         Convenience function to return the spatial offset in pixels
         from the spatial centre of the slit.
@@ -406,13 +407,13 @@ class AlignmentSplines:
         ----------
         slitnum : `int`
             Slit number
-        xpix : `numpy.ndarray`
+        spatpix : `numpy.ndarray`
             Detector pixel coordinate (spatial direction)
-        ypix : `numpy.ndarray`
+        specpix : `numpy.ndarray`
             Detector pixel coordinate (spectral direction)
 
         Returns
         -------
         tuple : There are
         """
-        return self.spl_transform[slitnum]((ypix, xpix))
+        return self.spl_transform[slitnum]((specpix, spatpix))

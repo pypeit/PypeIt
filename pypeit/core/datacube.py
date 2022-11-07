@@ -1258,7 +1258,6 @@ def generate_cube_subsample(outfile, frame_wcs, all_sci, all_ivar, all_wghts, al
             Name of the spectrograph
     """
     # Prepare the output arrays
-    embed()
     outshape = (bins[0].size-1, bins[1].size-1, bins[2].size-1)
     datacube, varcube, normcube = np.zeros(outshape), np.zeros(outshape), np.zeros(outshape)
 
@@ -1267,17 +1266,18 @@ def generate_cube_subsample(outfile, frame_wcs, all_sci, all_ivar, all_wghts, al
     area = 1/subsample**2
     all_wght_subsmp = all_wghts * area
     # Loop through all slits
-    all_sltid = (slitid_img_gpm > 0)
+    all_sltid = slitid_img_gpm[(slitid_img_gpm > 0)]
     all_var = utils.inverse(all_ivar)
     for sl, spatid in enumerate(slits.spat_id):
-        this_sl = (all_sltid==spatid)
+        msgs.info(f"Assembling datacube for slit {sl+1}/{slits.nslits}")
+        this_sl = np.where(all_sltid==spatid)
         wpix = np.where(slitid_img_gpm==spatid)
         slitID = np.ones(wpix[0].size) * sl - frame_wcs.wcs.crpix[0]
         for xx in range(subsample):
             for yy in range(subsample):
                 # Calculate the tranformation from detector pixels to voxels
                 evalpos = astrom_trans.transform(sl, wpix[1] + ssamp_offs[xx], wpix[0] + ssamp_offs[yy])
-                world_ra, world_dec, _ = frame_wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init] * (nspec - 1), 0)
+                world_ra, world_dec, _ = frame_wcs.wcs_pix2world(slitID, evalpos, tilts[wpix] * (slits.nspec - 1), 0)
                 pix_coord = frame_wcs.wcs_world2pix(np.vstack((world_ra, world_dec, all_wave[this_sl] * 1.0E-10)).T, 0)
                 # Now assemble this postion of the datacube
                 tmp_dc, _ = np.histogramdd(pix_coord, bins=bins, weights=all_sci[this_sl] * all_wght_subsmp[this_sl])
@@ -1300,7 +1300,7 @@ def generate_cube_subsample(outfile, frame_wcs, all_sci, all_ivar, all_wghts, al
 
     # Write out the datacube
     msgs.info("Saving datacube as: {0:s}".format(outfile))
-    final_cube = DataCube(datacube.T, var_cube.T, specname, blaze_wave, blaze_spec, sensfunc=sensfunc, fluxed=fluxcal)
+    final_cube = DataCube(datacube.T, varcube.T, specname, blaze_wave, blaze_spec, sensfunc=sensfunc, fluxed=fluxcal)
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
 
 
@@ -1890,6 +1890,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             bins = spec.get_datacube_bins(slitlength, minmax, numwav)
             # Make the datacube
             if method == 'subsample':
+                # Get the slit image and then unset pixels in the slit image that are bad
                 slitid_img_gpm = slitid_img_init.copy()
                 slitid_img_gpm[(bpmmask != 0) | (~sky_is_good)] = 0
                 generate_cube_subsample(outfile, frame_wcs, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix),
@@ -1900,8 +1901,6 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                 fluximg, ivarimg = np.zeros_like(raimg), np.zeros_like(raimg)
                 fluximg[onslit_gpm] = flux_sav[resrt]
                 ivarimg[onslit_gpm] = ivar_sav[resrt]
-                # Get the slit image and then unset pixels in the slit image that are bad
-                slitimg = slitid_img_init.copy()
                 # Generate the output WCS for the datacube
                 crval_wv = cubepar['wave_min'] if cubepar['wave_min'] is not None else 1.0E10 * frame_wcs.wcs.crval[2]
                 cd_wv = cubepar['wave_delta'] if cubepar['wave_delta'] is not None else 1.0E10 * frame_wcs.wcs.cd[2, 2]

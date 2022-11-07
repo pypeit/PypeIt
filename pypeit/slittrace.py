@@ -477,8 +477,8 @@ class SlitTraceSet(datamodel.DataContainer):
                 msgs.error(f"Slit {spatid} ({slit_idx+1}/{self.spat_id.size}) is masked. Cannot generate RA/DEC image.")
             # Retrieve the pixel offset from the central trace
             evalpos = alignSplines.transform(slit_idx, onslit_init[1], onslit_init[0])
-            minmax[:, 0] = np.min(evalpos)
-            minmax[:, 1] = np.max(evalpos)
+            minmax[slit_idx, 0] = np.min(evalpos)
+            minmax[slit_idx, 1] = np.max(evalpos)
             # Calculate the WCS from the pixel positions
             slitID = np.ones(evalpos.size) * slit_idx - wcs.wcs.crpix[0]
             world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init]*(self.nspec-1), 0)
