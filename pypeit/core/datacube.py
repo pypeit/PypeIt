@@ -1276,10 +1276,14 @@ def generate_cube_subsample(outfile, frame_wcs, all_sci, all_ivar, all_wghts, al
         for xx in range(subsample):
             for yy in range(subsample):
                 # Calculate the tranformation from detector pixels to voxels
-                evalpos = astrom_trans.transform(sl, wpix[1] + ssamp_offs[xx], wpix[0] + ssamp_offs[yy])
-                world_ra, world_dec, _ = frame_wcs.wcs_pix2world(slitID, evalpos, tilts[wpix] * (slits.nspec - 1), 0)
+                spatpos = astrom_trans.transform(sl, wpix[1] + ssamp_offs[xx], wpix[0] + ssamp_offs[yy])
+                # TODO :: The tilts in the following line is evaluated at the pixel location, not the subsampled pixel location
+                # A simple fix is implemented for the spectral direction, but this is not so straightforward for the spatial direction
+                # Probably, the correction in the spatial direction is so tiny, that this doesn't matter...
+                specpos = tilts[wpix] * (slits.nspec - 1) + ssamp_offs[yy]
+                world_ra, world_dec, _ = frame_wcs.wcs_pix2world(slitID, spatpos, specpos, 0)
                 pix_coord = frame_wcs.wcs_world2pix(np.vstack((world_ra, world_dec, all_wave[this_sl] * 1.0E-10)).T, 0)
-                # Now assemble this postion of the datacube
+                # Now assemble this position of the datacube
                 tmp_dc, _ = np.histogramdd(pix_coord, bins=bins, weights=all_sci[this_sl] * all_wght_subsmp[this_sl])
                 tmp_vr, _ = np.histogramdd(pix_coord, bins=bins, weights=all_var[this_sl] * all_wght_subsmp[this_sl]**2)
                 tmp_nm, _ = np.histogramdd(pix_coord, bins=bins, weights=all_wght_subsmp[this_sl])
@@ -1896,7 +1900,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                 generate_cube_subsample(outfile, frame_wcs, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix),
                                         wave_ext, spec2DObj.tilts, slits, slitid_img_gpm, ast_trans, bins,
                                         overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
-                                        fluxcal=fluxcal, specname=specname)
+                                        fluxcal=fluxcal, specname=specname, subsample=cubepar['subsample'])
             elif method == 'resample':
                 fluximg, ivarimg = np.zeros_like(raimg), np.zeros_like(raimg)
                 fluximg[onslit_gpm] = flux_sav[resrt]
@@ -1912,11 +1916,17 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                                        fluxcal=fluxcal, specname=specname)
             elif method == 'ngp':
                 msgs.info("Generating pixel coordinates")
-                pix_coord = frame_wcs.wcs_world2pix(np.vstack((raimg[onslit_gpm], decimg[onslit_gpm], wave_ext * 1.0E-10)).T, 0)
-                hdr = frame_wcs.to_header()
-                generate_cube_ngp(outfile, hdr, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix), pix_coord, bins,
-                                  overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
-                                  fluxcal=fluxcal, specname=specname)
+                slitid_img_gpm = slitid_img_init.copy()
+                slitid_img_gpm[(bpmmask != 0) | (~sky_is_good)] = 0
+                generate_cube_subsample(outfile, frame_wcs, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix),
+                                        wave_ext, spec2DObj.tilts, slits, slitid_img_gpm, ast_trans, bins,
+                                        overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
+                                        fluxcal=fluxcal, specname=specname, subsample=1)
+                # pix_coord = frame_wcs.wcs_world2pix(np.vstack((raimg[onslit_gpm], decimg[onslit_gpm], wave_ext * 1.0E-10)).T, 0)
+                # hdr = frame_wcs.to_header()
+                # generate_cube_ngp(outfile, hdr, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix), pix_coord, bins,
+                #                   overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
+                #                   fluxcal=fluxcal, specname=specname)
             else:
                 msgs.error(f"The following method is not yet implemented: {method}")
             continue

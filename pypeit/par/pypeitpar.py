@@ -1317,7 +1317,7 @@ class CubePar(ParSet):
                  standard_cube=None, reference_image=None, save_whitelight=None, method=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None, astrometric=None, grating_corr=None, scale_corr=None,
-                 skysub_frame=None):
+                 skysub_frame=None, subsample=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1399,6 +1399,10 @@ class CubePar(ParSet):
                           'takes each pixel on the spec2d frame and puts the flux of this pixel into one voxel in the ' \
                           'datacube. Depending on the binning used, some voxels may be empty (zero flux) while a ' \
                           'neighbouring voxel might contain the flux from two spec2d pixels.'
+
+        defaults['subsample'] = 10
+        dtypes['subsample'] = int
+        descr['subsample'] = 'TBC'
 
         defaults['ra_min'] = None
         dtypes['ra_min'] = float
@@ -1484,8 +1488,8 @@ class CubePar(ParSet):
         k = np.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'reference_image',
-                   'save_whitelight', 'method', 'ra_min', 'ra_max', 'dec_min', 'dec_max', 'wave_min', 'wave_max',
+        parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'reference_image', 'save_whitelight',
+                   'method', 'subsample', 'ra_min', 'ra_max', 'dec_min', 'dec_max', 'wave_min', 'wave_max',
                    'spatial_delta', 'wave_delta', 'relative_weights', 'combine', 'astrometric', 'grating_corr',
                    'scale_corr', 'skysub_frame']
 
