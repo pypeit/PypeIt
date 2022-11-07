@@ -4,6 +4,7 @@
 
 - (Hotfix) Fixed bug that allowed science frames to be assigned to multiple
   instrument configurations
+- (Hotfix) Fixed typo related to GitHub download for offline processing
 
 1.11.0 (21 Oct 2022)
 --------------------
