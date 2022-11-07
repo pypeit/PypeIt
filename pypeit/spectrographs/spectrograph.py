@@ -27,6 +27,7 @@ provide instrument-specific:
 """
 
 from abc import ABCMeta
+import os
 
 from IPython import embed
 
@@ -1410,6 +1411,7 @@ class Spectrograph:
         # Faster to open the whole file and then assign the headers,
         # particularly for gzipped files (e.g., DEIMOS)
         if isinstance(inp, str):
+            self._check_extensions(inp)
             try:
                 hdu = io.fits_open(inp)
             except:
