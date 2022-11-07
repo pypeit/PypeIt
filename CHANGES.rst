@@ -1,5 +1,13 @@
-1.10.1dev
+
+1.11.1dev
 ---------
+
+- Added spectral flexure and reference frame corrections for IFU data
+- Allow separate sky frame to be used for sky subtraction with IFU data
+- Implemented a resample algorithm when generating datacubes
+
+1.11.0 (21 Oct 2022)
+--------------------
 
 - Add ability for users to specify custom arc line lists for
   wavelength calibration, saved in the user's PypeIt cache
@@ -13,10 +21,7 @@
 - Allow verbosity specification for various post-processing command-line scripts.
 - Allow for the specification of a specific UVIS extinction file for sensitivity
   function computation and flux calibration.
-- Added spectral flexure and reference frame corrections for IFU data
-- Allow separate sky frame to be used for sky subtraction with IFU data
-- Implemented a resample algorithm when generating datacubes
-
+- Refactor and general update of documentation
 
 1.10.0 (11 July 2022)
 ---------------------

@@ -2,8 +2,8 @@
 
 .. _development:
 
-PypeIt Development Procedures and Guidelines
-============================================
+Development Procedures and Guidelines
+=====================================
 
 We encourage anyone to help us develop the ``PypeIt`` code base to better
 suit your needs and to improve its algorithms.  If you do so, please
@@ -13,41 +13,8 @@ note our :ref:`codeconduct`.
 Installation
 ------------
 
-If you plan to develop/alter the ``PypeIt`` code directly, you should
-install the software via git.  You can fork the GitHub `repo`_, develop
-within your own fork, and then perform a pull request from that fork.
-Or you can clone the `repo`_ and work with it directly:
-
-.. code-block:: console
-
-    git clone https://github.com/pypeit/PypeIt
-    cd PypeIt
-    pip install -e .
-
-It's important that you use the ``-e`` option when you run ``pip`` so that changes
-made to your local installation are immediately available when you re-execute the code.
-This will install the core dependencies, but not optional ones like PyQT, PySide2, or
-any of the dependencies required for testing or building docs. To install everything you
-might possibly need, do:
-
-.. code-block:: console
-
-    pip install -e ".[test,docs,pyside2,pyqt5,shapely]"
-
-There is also a short-cut for this:
-
-.. code-block:: console
-
-    pip install -e ".[dev]"
-
-.. warning::
-    The quotes in the above installation lines are shell dependent.  For
-    example, you need the quotes with zshell, but the quotes cause an error in
-    bash.
-
-It is very highly recommended to do your development install into its own clean
-environment. See :ref:`installing` for examples of how to do this with either ``conda``
-or ``virtualenv``.
+If you plan to develop/alter the ``PypeIt`` code directly, you should install
+the software via git, instead of pip or conda.  See :ref:`developer_install`.
 
 This isn't required, but to simplify some of the commands below, I
 assume that you have an environmental variable that points to your
@@ -63,43 +30,52 @@ Branches
 
 ``PypeIt`` maintains two persistent branches:
 
- * ``release``: This is the primary stable version of the code.  Nominally, this
-   is the version of the code that is installed when using `pip`_ and its the
-   version that is used to produce latest `documentation`_.  Pull requests to
-   this branch are only done before tagging a new release of the code or to
-   perform critical bug hotfixes.  The release schedule is decided by the core
-   developers.
+ * ``release``: This is the primary stable version of the code.  Modulo any
+   recent hotfixes, this is the version of the code that is installed when
+   using `pip`_ and its the version that is used to produce latest
+   `documentation`_.  Pull requests to this branch are only done before tagging
+   a new release of the code or to perform critical bug hotfixes.  The release
+   schedule is decided by the core developers.
 
  * ``develop``: This is the main development version of the code.  It should be
    stable enough to use, but it may contain experimental, unsupported code that
    is work in progress.
 
-When editing the code, please create a new branch stemming from the
-``develop`` branch:
+When editing the code, please create a new branch stemming from the ``develop``
+branch.  You are also **strongly** encouraged to pull and merge in the most
+recent version of the ``release`` branch:
 
 .. code-block:: bash
 
     cd $PYPEIT_DIR
+    git checkout release
+    git pull
     git checkout develop
     git pull
     git checkout -b my_new_feature
+    git merge --no-ff release
+
+.. note::
+
+    In terms of the merge with the release branch, beware that you may need to
+    start a new section of the ``CHANGES.rst`` file to reflect a jump in the
+    version number.
 
 Development Principles and Communication
 ----------------------------------------
 
 The main thing to keep in mind when developing for ``PypeIt`` is that its
 primary use is as an end-to-end reduction pipeline.  This has a few
-implications that one should keep in mind:
+implications:
 
  * By default, the execution of ``run_pypeit`` should continue either
-   until a critical error is raised or the reduction is complete.  **No
-   direct interaction with the code should be required at any point**,
-   unless explicitly requested by the user.  ``PypeIt`` does have some
-   interactive components, but most of these are executed via separate
+   until a critical error is raised or the reduction is complete.  **No direct
+   interaction with the code should be required at any point**.  ``PypeIt`` does
+   have some interactive components, but these are executed via separate
    scripts.
 
  * Any input needed from the user for your feature should be provided by
-   a parameter (preferred) or as a command-line argument.
+   :ref:`parameters` (preferred) or as a command-line argument.
 
  * When developing and debugging, you may need to interact with the code
    using `pdb`_ or `IPython.embed`_; however, these instances should be
@@ -109,8 +85,9 @@ implications that one should keep in mind:
    automatically generated quality-assessment figures (preferred) or via
    scripts that interact with the primary output files.
 
- * If your development includes adding a **new spectrograph** to the list of
-   spectrograph data that ``PypeIt`` can reduce, see advice at :ref:`new_spec`.
+ * See :doc:`here <new_spectrograph>` for guidance on 
+   adding a **new spectrograph** to the list of spectrograph data that
+   ``PypeIt`` can reduce.
 
  * If your development includes adding a **new executable script**, see advice
    at :ref:`new_script`.
@@ -120,15 +97,18 @@ other development activities.  Your feature will likely depend on or
 influence the outcome of other modules during the data-reduction
 process.  This leads to a few important guidelines:
 
- * Make sure that your branch is always up-to-date with the ``develop``
-   branch.  E.g.:
+ * Make sure that your branch is always up-to-date with the ``develop`` *and*
+   ``release`` branches.  E.g.:
 
    .. code-block:: bash
 
         cd $PYPEIT_DIR
+        git checkout release
+        git pull
         git checkout develop
         git pull
         git checkout my_new_feature
+        git merge --no-ff release
         git merge --no-ff develop
 
  * Consider the effects of simultaneous development efforts on your work
@@ -151,80 +131,17 @@ access.
 Testing the Code
 ----------------
 
-``PypeIt`` has two main methods for testing and verifying the code base,
-unit tests and a dedicated development suite.
+``PypeIt`` performs extensive testing using the :ref:`dev-suite`; follow that
+link for more details on executing the tests.  What follows describes how to add
+new tests.
 
-.. _dev-suite:
+.. TODO: SHOULD WE INSTEAD ADD THESE DETAILS TO THE DEVSUITE README DOC?  FOR
+.. BOTH THE DEV-SUITE AND UNIT TESTS?
+
+.. _dev-suite-tests:
 
 Development Suite
 ~~~~~~~~~~~~~~~~~
-
-We have compiled a large suite of data from all instruments supported by
-``PypeIt``.  These data are used to test that ``PypeIt`` is successful for *all*
-instruments *anytime* new features are developed.  For access to the shared
-Google TeamDrive, please request it on the Users Slack.
-
-To test PypeIt using the data from the Google Drive:
-
- * Clone the `PypeIt-development-suite`_ repository:
-
-   .. code-block:: bash
-
-        git clone https://github.com/pypeit/PypeIt-development-suite.git
-
- * Download/sync the Drive to the repository.  The Drive ``CALIBS`` and
-   ``RAW_DATA`` directories should be accessible.  For syncing, consider using
-   `rclone`_.
-
-   .. warning::
-
-        The ``RAW_DATA`` directory currently contains about 43 Gb of data, and
-        running the develop test below produces about 61 Gb (outdated) of
-        reduced data.
-
- * Run the test suite on the setups designated for development purposes:
-
-   .. code-block:: bash
-
-        cd PypeIt-development-suite
-        ./pypeit_test develop
-
-   .. warning::
-
-        The current script executes 89 (outdated) tests.  These tests are mostly
-        reductions of example data, but they also include fluxing, flexure, and
-        coadding tests.  The execution time is system dependent, but you should
-        expect it to take approx. 14 hours (outdated).
-
-   The test suite can be run in parallel using the -t option.
-
-   .. code-block:: bash
-
-        ./pypeit_test -t 2 develop
-
-   The above runs tests using two processes run from parallel threads. The number of
-   threads that can be used reliably depends on the amount of memory available. The
-   below table shows the worst case amount of memory used per number of threads.
-
-   +--------------+---------------+
-   | # of threads | Memory used GB|
-   +==============+===============+
-   | 1            | 16            |
-   +--------------+---------------+
-   | 2            | 32            |
-   +--------------+---------------+
-   | 3            | 46            |
-   +--------------+---------------+
-   | 4            | 60            |
-   +--------------+---------------+
-   | 5            | 72            |
-   +--------------+---------------+
-   | 6            | 80            |
-   +--------------+---------------+
-   | 7            | 88            |
-   +--------------+---------------+
-   | 8            | 94            |
-   +--------------+---------------+
 
 To add new tests to the development suite
 
@@ -232,16 +149,17 @@ To add new tests to the development suite
        organized into setup directories under a directory named for the
        instrument.
 
-    #. Add new a pypeit to the `PypeIt-development-suite`_ repo under
-       ``pypeit_files``. The file name be lower case and named after the
-       instrument and setup, for example: ``keck_deimos_1200g_m_7750.pypeit``.
+    #. Add a new :ref:`pypeit_file` specific to this data to the `PypeIt
+       Development Suite`_ repo under ``pypeit_files``. The file name must be
+       lower case and named after the instrument and setup, for example:
+       ``keck_deimos_1200g_m_7750.pypeit``.
 
     #. If desired, add any files for ``pypeit_sensfunc``, ``pypeit_flux_calib``,
        ``pypeit_coadd_1dspec``, ``pypeit_coadd_2dspec`` to the
-       `PypeIt-development-suite`_ repo under ``sensfunc_files``,
+       `PypeIt Development Suite`_ repo under ``sensfunc_files``,
        ``fluxing_files``, ``coadd1d_files``, ``coadd2d_files``, respectively.
 
-    #. Edit ``test_setups.py`` in the `PypeIt-development-suite`_ under
+    #. Edit ``test_setups.py`` in the `PypeIt Development Suite`_ under
        ``test_scripts``. Follow the instructions at the top of that file.
 
     #. Run the full development test suite to completion. Once all tests pass,
@@ -313,30 +231,19 @@ can do:
 Similar ``dev`` dependencies are configured for ``numpy``, ``ginga``, and
 ``linetools``, as well.
 
-Some of the unit tests require the `Development Suite`_ and/or a set of "cooked"
-data products with the expected result produced by testing ``PypeIt`` on
-specific data.  The unit tests will skip the appropriate testing function if the
-`Development Suite`_ path is not defined or if there is no ``Cooked/`` directory
-in the relevant path.
-
-For the unit tests to take advantage of the development-suite data,
-``PYPEIT_DEV`` must be an environmental variable that points to the root
-directory with the development suite data.  For example, include the following
-line in your ``~/.zshrc`` or ``~/.bash_profile`` file:
-
-.. code-block:: bash
-
-    export PYPEIT_DEV=$HOME/Work/packages/PypeIt-development-suite
-
-For unit tests that use the "cooked" data, ``PypeIt`` must find a directory
-called ``$PYPEIT_DEV/Cooked/``.
+Unit tests included in the main PypeIt repo should *not* require large data
+files.  Some files are kept in the repo for this purpose, but they should be
+minimized to keep the size of the package distribution manageable.  Unit tests
+that require input data files should instead be added to the `PypeIt Development
+Suite`_.
 
 Workflow
 --------
 
 A typical ``PypeIt`` development workflow is as follows:
 
- * Create a new branch stemming from the ``develop`` branch:
+ * Create a new branch stemming from the ``develop`` branch (hot-fixes should
+   instead branch from ``release``):
 
    .. code-block:: bash
 
@@ -362,11 +269,6 @@ A typical ``PypeIt`` development workflow is as follows:
         cd $PYPEIT_DIR
         tox -e test
 
-   The tests should be run so that they have access to the `Development
-   Suite`_ (so that it can, e.g., test loading data), but this first
-   round of tests can/should be run without the "cooked" output (e.g.,
-   either delete or move the ``$PYPEIT_DEV/Cooked/`` directory).
-
  * Run the `Development Suite`_ and fix any failures:
 
    .. code-block:: bash
@@ -374,30 +276,20 @@ A typical ``PypeIt`` development workflow is as follows:
         cd $PYPEIT_DEV
         ./pypeit_test develop
 
- * (If needed) Build the cooked tar file (e.g., replace ``x.xx.x`` by
-   incrementing the current version):
-
-   .. code-block:: bash
-
-        cd $PYPEIT_DEV
-        ./build_cooked x.xx.x
-
- * Rerun and debug the tests (being sure to edit
-   ``$PYPEIT_DIR/pypeit/tests/test_cooked.py`` to accept your cooked
-   version):
-
-   .. code-block:: bash
-
-        cd $PYPEIT_DIR
-        tox -e test
-
  * Edit ``$PYPEIT_DIR/CHANGES.rst`` to reflect your key developments and
-   update the API `documentation`_.
+   update the API `documentation`_.  You can compile the docs as follows, which
+   is just a simple convenience script for executing ``make clean ; make html``
+   in the ``doc`` directory.
 
    .. code-block:: bash
 
         cd $PYPEIT_DIR
         ./update_docs
+
+   *Any* warnings in the sphinx build of the docs *must* be fixed.  If you're
+   having difficulty getting the right sphinx/rst incantation, ping the
+   documentation channel in the `PypeIt Developers Slack
+   <https://pypeit.slack.com>`__.
 
  * Make sure all your edits are committed and pushed to the remote
    repository:
@@ -413,8 +305,20 @@ A typical ``PypeIt`` development workflow is as follows:
    <https://github.com/pypeit/PypeIt/compare>`_. Unless otherwise
    requested, all PRs should be submitted to the ``develop`` branch.
 
+
+.. note::
+
+   The addition of new commits causes ``setuptools_scm`` to automatically
+   increment the version based on the last tag that was pushed.  This will be of
+   the form ``{next_version}.dev{distance}+{scm letter}{revision hash}``.  See
+   the `setuptools_scm documentation <https://github.com/pypa/setuptools_scm>`_
+   for more details.
+
 Pull Request Acceptance Requirements
 ------------------------------------
+
+.. TODO: SOME OF THIS NEEDS TO BE UPDATED, PARTICULARLY HOW THE RESULTS OF THE
+.. TESTS SHOULD BE POSTED TO THE PR
 
 Once you've submitted a pull request, we'll review your PR and provide
 comments on the code.  The minimum requirements for acceptance of a PR
@@ -423,21 +327,16 @@ are as follows:
  * If your PR introduces a new instrument (see :ref:`new_spec`) that ``PypeIt``
    is to support for the long term, this instrument *must* be added to the
    `Development Suite`_.  That means raw data should be added to the Google
-   Drive and a relevant test should be added to the ``$PYPEIT_DEV/pypeit_test``
-   script (via a PR to the `PypeIt-development-suite`_) such that the new
-   instrument is included in list of instruments tested by executing
-   ``./pypeit_test develop``).
+   Drive (see :ref:`here <dev-suite>`) and relevant tests should be added to
+   the ``$PYPEIT_DEV/pypeit_test`` script (via a PR to the `PypeIt Development
+   Suite`_) such that the new instrument is included in list of instruments
+   tested by executing ``./pypeit_test develop``.
 
- * The Code Checks run by GitHub (see the Checks tab of the PR) on the remote
+ * The CI tests run by GitHub (see the Checks tab of the PR) on the remote
    repository must pass.
 
  * You have to post a successful report resulting from your execution of
-   both the `Unit Tests`_ and the `Development Suite`_.  You should also
-   have uploaded the "cooked" data to the TeamDrive; e.g.:
-
-   .. code-block:: bash
-
-        rclone copyto Cooked_pypeit_dev_vx.xx.x.tar.gz gdv:Cooked_pypeit_dev_vx.xx.x.tar.gz
+   both the `Unit Tests`_ and the `Development Suite`_.  
 
    .. figure:: ../figures/tests_success.png
 
@@ -482,7 +381,7 @@ repository.  Tagging a release version of the code is triggered anytime the
 development branch of the code is merged into the ``release`` branch.  The
 tagging process is as follows:
 
- * At regular ``PypeIt`` telecons or over the ``PypeIt`` developers Slack, the
+ * At biweekly ``PypeIt`` telecons or over the ``PypeIt`` developers Slack, the
    core development team will decide to merge the ``develop`` branch into
    ``release``.
 
@@ -502,7 +401,7 @@ tagging process is as follows:
         git pull
         git checkout -b staged
 
- * **Before being merged into master**, the code is tagged as follows:
+ * **Before being merged into release**, the code is tagged as follows:
 
     .. code-block:: bash
 
@@ -565,33 +464,6 @@ tagging process is as follows:
    of a new pypeit package on conda-forge. For more information on how to
    manually update the conda-forge pypeit package, see :ref:`conda_forge`.
 
- * Now we need to advance the version of the code to a new development
-   version and merge ``develop`` with the new ``release``:
-
-    .. code-block:: bash
-
-        cd $PYPEIT_DIR
-
-        # Branch from release
-        git checkout release
-        git pull
-        git checkout -b devup
-
-        # Edit CHANGES.rst to begin the new dev section
-        vi CHANGES.rst
-        git add -u
-        git commit -m 'CHANGES'
-
-   The addition of this new commit will cause ``setuptools_scm`` to
-   automatically increment the version based on the last tag that was pushed.
-   This will be of the form ``{next_version}.dev{distance}+{scm letter}{revision
-   hash}``.  See the `setuptools_scm documentation
-   <https://github.com/pypa/setuptools_scm>`_ for more details.
-
- * Finally, a quick PR is issued that pulls ``devup`` into ``develop``.
-   All of the `Pull Request Acceptance Requirements`_ should already be
-   satisfied, meaning that the PR should be quickly accepted and merged.
-
 DOI
 ---
 
@@ -609,7 +481,7 @@ as
 This document was developed and mutually agreed upon by: Kyle Westfall,
 J. Xavier Prochaska, Joseph Hennawi.
 
-*Last Modified: 13 Jun 2021*
+*Last Modified: 12 Oct 2022*
 
 ----
 
@@ -617,18 +489,19 @@ J. Xavier Prochaska, Joseph Hennawi.
 Additional Developer Links
 --------------------------
 
-.. Should move these rst files into the dev directory!
+.. TODO: UPDATE THESE
 
 Here are some developer-specific docs:
 
 .. toctree::
    :maxdepth: 1
 
-   ../flow
-   ../internals
-   ../metadata
-   ../new_script
+   metadata
+   new_script
+   new_spectrograph
    reports
    conda_forge
    build_archived_sensfuncs
    fluxing
+
+

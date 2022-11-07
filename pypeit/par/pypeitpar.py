@@ -4,7 +4,7 @@ Defines parameter sets used to set the behavior for core pypeit
 functionality.
 
 For more details on the full parameter hierarchy and a tabulated
-description of the keywords in each parameter set, see :ref:`pypeitpar`.
+description of the keywords in each parameter set, see :ref:`parameters`.
 
 For examples of how to change the parameters for a run of pypeit using
 the pypeit input file, see :ref:`pypeit_file`.
@@ -116,7 +116,7 @@ class FrameGroupPar(ParSet):
     frames should be grouped and combined.
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
+    see :ref:`parameters`.
     """
     def __init__(self, frametype=None, useframe=None, exprng=None, process=None):
         # Grab the parameter names and values from the function
@@ -204,7 +204,7 @@ class ProcessImagesPar(ParSet):
     of the pypeit objects.
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
+    see :ref:`parameters`.
     """
     def __init__(self, trim=None, apply_gain=None, orient=None,
                  overscan_method=None, overscan_par=None,
@@ -554,7 +554,7 @@ class FlatFieldPar(ParSet):
     flattening.
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
+    see :ref:`parameters`.
     """
     def __init__(self, method=None, pixelflat_file=None, spec_samp_fine=None,
                  spec_samp_coarse=None, spat_samp=None, tweak_slits=None, tweak_slits_thresh=None,
@@ -802,7 +802,7 @@ class FlexurePar(ParSet):
     corrections, both spatial and spectral
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
+    see :ref:`parameters`.
     """
     def __init__(self, spec_method=None, spec_maxshift=None, spectrum=None,
                  multi_min_SN=None, excessive_shift=None):
@@ -913,8 +913,7 @@ class AlignPar(ParSet):
     alignments in an align frame.
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
-
+    see :ref:`parameters`.
     """
 
     def __init__(self, locations=None, trace_npoly=None, trim_edge=None, snr_thresh=None):
@@ -988,7 +987,7 @@ class Coadd1DPar(ParSet):
     A parameter set holding the arguments for how to perform 1D coadds
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
+    see :ref:`parameters`.
     """
     def __init__(self, ex_value=None, flux_value=None, nmaskedge=None,
                  sn_smooth_npix=None, wave_method=None, dv=None, wave_grid_min=None, wave_grid_max=None, spec_samp_fact=None, ref_percentile=None, maxiter_scale=None,
@@ -1205,7 +1204,7 @@ class Coadd2DPar(ParSet):
     A parameter set holding the arguments for how to perform 2D coadds
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
+    see :ref:`parameters`.
     """
     def __init__(self, only_slits=None, offsets=None, spat_toler=None, weights=None, user_obj=None,
                  use_slits4wvgrid=None, manual=None):
@@ -1311,7 +1310,7 @@ class CubePar(ParSet):
     to cube generation (primarily for IFU data).
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
+    see :ref:`parameters`.
     """
 
     def __init__(self, slit_spec=None, relative_weights=None, combine=None, output_filename=None,
@@ -1385,16 +1384,17 @@ class CubePar(ParSet):
 
         defaults['method'] = "subsample"
         dtypes['method'] = str
-        descr['method'] = 'What method should be used to generate the datacube. There are currently two options: ' \
-                          '(1) "subsample" (default) - this algorithm is a hybrid between "resample" and "NGP". Each' \
-                          'pixel is sub sampled by a factor of 10, and then a NGP algorithm is used. The algorithm is ' \
-                          'relatively fast and conserves flux, but note that voxels are correlated, and the error ' \
-                          'spectrum does not account for the covariance between adjacent voxels. ' \
+        descr['method'] = 'What method should be used to generate the datacube. There are currently three options:' \
+                          '(1) "subsample" (default) - this algorithm subsamples each pixel in the spec2d frames ' \
+                          'and assigns each subpixel into a voxel of the datacube. Note that the resample algorithm ' \
+                          'exactly maps pixels to voxels, the subsample algorithm is much faster and performs just ' \
+                          'as well. Flux is conserved, but voxels are correlated, and the error spectrum does not ' \
+                          'account for covariance between adjacent voxels. ' \
                           '(2) "resample" - this algorithm resamples the spec2d frames into a datacube. ' \
                           'Flux is conserved, but voxels are correlated, and the error spectrum does not account ' \
-                          'for covariance between adjacent voxels. ' \
+                          'for covariance between neighbouring pixels. ' \
                           '(3) "NGP" (nearest grid point) - this algorithm is effectively a 3D histogram. Flux is ' \
-                          'conserved, pixels are not correlated, however this option suffers the same downsides as ' \
+                          'conserved, voxels are not correlated, however this option suffers the same downsides as ' \
                           'any histogram; the choice of bin sizes can change how the datacube appears. This algorithm ' \
                           'takes each pixel on the spec2d frame and puts the flux of this pixel into one voxel in the ' \
                           'datacube. Depending on the binning used, some voxels may be empty (zero flux) while a ' \
@@ -1499,7 +1499,9 @@ class CubePar(ParSet):
         return cls(**kwargs)
 
     def validate(self):
-        pass
+        allowed_methods = ["subsample", "resample", "NGP"]
+        if self.data['method'] not in allowed_methods:
+            raise ValueError("The 'method' must be one of:\n"+", ".join(allowed_methods))
 
 
 class FluxCalibratePar(ParSet):
@@ -1508,7 +1510,7 @@ class FluxCalibratePar(ParSet):
     calibration.
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
+    see :ref:`parameters`.
     """
     def __init__(self, extinct_correct=None, extinct_file=None, extrap_sens=None, use_archived_sens = False):
 
@@ -1591,7 +1593,7 @@ class SensFuncPar(ParSet):
     sensfunc.SensFuncUV
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
+    see :ref:`parameters`.
     """
     def __init__(self, extrap_blu=None, extrap_red=None, samp_fact=None, multi_spec_det=None, algorithm=None, UVIS=None,
                  IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None,
@@ -1728,7 +1730,7 @@ class SensfuncUVISPar(ParSet):
     sensfunc.SensFuncUV
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
+    see :ref:`parameters`.
     """
     def __init__(self, balm_mask_wid=None, std_file=None, std_obj_id=None, sensfunc=None, extinct_correct=None,
                  extinct_file=None, telluric_correct=None, telluric=None, polycorrect=None,
@@ -1976,7 +1978,7 @@ class TelluricPar(ParSet):
     sensfunc.SensFuncUV
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
+    see :ref:`parameters`.
     """
 
     def __init__(self, telgridfile=None, sn_clip=None, resln_guess=None, resln_frac_bounds=None, pix_shift_bounds=None,
@@ -2275,7 +2277,7 @@ class ReduxPar(ParSet):
     reductions.
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
+    see :ref:`parameters`.
     """
     def __init__(self, spectrograph=None, detnum=None, sortroot=None, calwin=None, scidir=None,
                  qadir=None, redux_path=None, ignore_bad_headers=None, slitspatnum=None,
@@ -2406,7 +2408,7 @@ class WavelengthSolutionPar(ParSet):
     wavelength solution.
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
+    see :ref:`parameters`.
     """
     def __init__(self, reference=None, method=None, echelle=None, ech_fix_format=None,
                  ech_nspec_coeff=None, ech_norder_coeff=None, ech_sigrej=None, lamps=None,
@@ -2733,7 +2735,7 @@ class EdgeTracePar(ParSet):
     Parameters used for slit edge tracing.
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
+    see :ref:`parameters`.
     """
     prefix = 'ETP'  # Prefix for writing parameters to a header is a class attribute
     def __init__(self, filt_iter=None, sobel_mode=None, edge_thresh=None, sobel_enhance=None, exclude_regions=None,
@@ -3240,7 +3242,7 @@ class WaveTiltsPar(ParSet):
     monochromatic tilt along the slit.
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
+    see :ref:`parameters`.
 
     .. todo::
         Changed to reflect wavetilts.py settings.  Was `yorder`
@@ -3431,7 +3433,7 @@ class ReducePar(ParSet):
     finding and extraction in the Reduce class
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
+    see :ref:`parameters`.
     """
 
     def __init__(self, findobj=None, skysub=None, extraction=None,
@@ -3518,7 +3520,7 @@ class FindObjPar(ParSet):
     to finding and tracing objects.
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
+    see :ref:`parameters`.
     """
 
     def __init__(self, trace_npoly=None, snr_thresh=None, find_trim_edge=None,
@@ -3676,7 +3678,7 @@ class SkySubPar(ParSet):
     to sky subtraction.
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
+    see :ref:`parameters`.
     """
 
     def __init__(self, bspline_spacing=None, sky_sigrej=None, global_sky_std=None, no_poly=None,
@@ -3783,7 +3785,7 @@ class ExtractionPar(ParSet):
     to extraction.
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
+    see :ref:`parameters`.
     """
 
     def __init__(self, boxcar_radius=None, std_prof_nsigma=None, sn_gauss=None,
@@ -3889,7 +3891,7 @@ class CalibrationsPar(ParSet):
     class.
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
+    see :ref:`parameters`.
     """
     def __init__(self, master_dir=None, setup=None, bpm_usebias=None, biasframe=None,
                  darkframe=None, arcframe=None, tiltframe=None, pixelflatframe=None,
@@ -4158,7 +4160,7 @@ class PypeItPar(ParSet):
         par.to_config('mypypeitpar.cfg')
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
+    see :ref:`parameters`.
     """
     def __init__(self, rdx=None, calibrations=None, scienceframe=None, reduce=None,
                  flexure=None, fluxcalib=None, coadd1d=None, coadd2d=None, sensfunc=None, telluric=None,
@@ -4732,7 +4734,7 @@ class Collate1DPar(ParSet):
     A parameter set holding the arguments for collating, coadding, and archving 1d spectra.
 
     For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
+    see :ref:`parameters`.
     """
     def __init__(self, tolerance=None, dry_run=None, ignore_flux=None, flux=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, wv_rms_thresh=None, outdir=None, spec1d_outdir=None, refframe=None):
 

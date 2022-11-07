@@ -14,9 +14,6 @@ from pypeit import coadd1d
 
 from IPython import embed
 
-def link_string(p):
-    return '`{0} Keywords`_'.format(type(p).__name__)
-
 #-----------------------------------------------------------------------------
 
 if __name__ == '__main__':

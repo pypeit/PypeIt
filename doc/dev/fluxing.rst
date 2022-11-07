@@ -1,6 +1,6 @@
 .. include:: ../include/links.rst
 
-.. IF IT ISN'T ALREADY, WE SHOULD MOVE THESE DETAILS SOMEWHERE RELEVANT IN THE
+.. TODO: IF IT ISN'T ALREADY, WE SHOULD MOVE THESE DETAILS SOMEWHERE RELEVANT IN THE
 .. MAIN DOC PAGES.
 
 .. _fluxcalib:
@@ -75,7 +75,7 @@ where :math:`ZPCONST = 40.09` is a dimensionless number defined by
 In practice PypeIt fits and stores the spectroscopic zerpoints and uses the equation above to compute
 :math:`F_\lambda` from :math:`N_\lambda` and vice-versa.
 
-The sensitivity function script :ref:`fluxing:pypeit_sensfunc` produces a QA plot showing the
+The sensitivity function script :ref:`pypeit_sensfunc` produces a QA plot showing the
 the zeropoint fit, as shown below. For echelle observations this zeropoint QA is shown for each order.
 
 
@@ -112,7 +112,7 @@ realistic scenario where they differ, this will manifest as a wavelength depende
 with the direction of the error depending on the relative seeing between the standard star and science observations. In future
 versions we hope to implement a better treatment of slit losses. For the time being we recommend that users that require
 very accurate flux calibration force PypeIt flux calibrated spectra to agree with photometry. This can be done using the
-`filter` parameter option for 1D coadding (see :ref:`pypeit_par:Coadd1DPar Keywords`), which can be set in the
+`filter` parameter option for 1D coadding (see :ref:`coadd1dpar`), which can be set in the
 .coadd1d file which is used to guide 1D coaddition with the ``pypeit_coadd1d`` script (see :ref:`coadd1d`).
 
 

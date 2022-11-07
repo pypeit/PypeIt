@@ -8,6 +8,7 @@
                              [--flux] [--exclude_slit_bm [EXCLUDE_SLIT_BM ...]]
                              [--exclude_serendip] [--wv_rms_thresh WV_RMS_THRESH]
                              [--refframe {observed,heliocentric,barycentric}]
+                             [-v VERBOSITY]
                              [input_file]
     
     Flux/Coadd multiple 1d spectra from multiple nights and prepare a directory for
@@ -85,4 +86,8 @@
       --refframe {observed,heliocentric,barycentric}
                             Perform reference frame correction prior to coadding.
                             Options are: observed, heliocentric, barycentric
+      -v VERBOSITY, --verbosity VERBOSITY
+                            Verbosity level between 0 [none] and 2 [all]. Default:
+                            1. Level 2 writes a log with filename
+                            collate_1d_YYYYMMDD-HHMM.log
     

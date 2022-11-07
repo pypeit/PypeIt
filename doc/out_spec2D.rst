@@ -1,4 +1,6 @@
 
+:orphan:
+
 .. include:: include/links.rst
 
 .. _spec-2d-output:
@@ -12,14 +14,14 @@ Spec2D Output
 Overview
 ========
 
-During the data-reduction process, ``PypeIt`` creates a series of 2D
-spectral images prior to extraction of 1D spectra. And, of course,
-several of these 2D images may have greater value for analysis than
-the 1D spectra.
+During the data-reduction process, ``PypeIt`` creates a series of 2D spectral
+images prior to extraction of 1D spectra. And, of course, several of these 2D
+images may have greater value for analysis than the 1D spectra.  For the
+extracted 1D spectra, see :ref:`spec-1d-output`.
 
 For each on-source exposure, ``PypeIt`` outputs a series of these
-images in a single, multi-extension fits file, separated by detector.
-See the `Current Spec2DObj Data Model`_ for details.
+images in a single, multi-extension fits file, separated by detector;
+see :ref:`spec2dobj_datamodel`.
 
 Naming
 ======
@@ -28,9 +30,8 @@ The 2D spectra files have names like::
 
     spec2d_b27-J1217p3905_KASTb_2015May20T045733.560.fits
 
-The model is::
-
-    Prefix_frame-objname_spectrograph_timestamp.fits
+See :ref:`here<science_frame_naming>` for a description of the naming
+convention.
 
 Inspecting
 ==========
@@ -60,7 +61,6 @@ Here is a typical call:
 
     pypeit_show_2dspec Science/spec2d_c17_60L._LRISb_2017Mar20T055336.211.fits
 
-
 This opens 4 tabs in the `ginga`_ display, one for each of the
 following:
 
@@ -76,6 +76,15 @@ indicate traces for manually extracted objects.
 As you mouse around, the x-values shown at the bottom indicate
 the wavelength.
 
+.. warning::
+
+    If you get an obscure error when executing the above command, it may be that
+    you're trying to view a file created by a previous version of PypeIt.  As
+    the code develops, we sometimes change the datamodel of different output
+    files, which are often not backwards compatible.  If you run into this error,
+    try reverting to the relevant PypeIt version (the version used to create the
+    file is typically written to the ``VERSPYP`` header keyword) or re-reduce
+    the data with the new PypeIt version.
 
 pypeit_parse_slits
 ------------------
@@ -108,7 +117,11 @@ Identifying Slits
 =================
 
 If you need to generate an image describing the location of each
-slit/order for a given detector here is the recommended approach::
+slit/order for a given detector here is the recommended approach:
+
+.. TODO: Make sure this is up-to-date
+
+.. code-block:: python
 
     from pypeit import spec2dobj
     spec2DObj = spec2dobj.Spec2DObj.from_file('spec2d_b170320_2083-c17_60L._LRISb_2017Mar20T055336.211.fits', det=2)
@@ -118,6 +131,7 @@ If no flexure correction was applied, it will be ignored.
 This generates an image with pixel values:
 
  - -1 for a pixel not in any slit/order
+
  - SPAT_ID for each pixel in the slit identified by SPAT_ID
 
 .. _spec2dobj_datamodel:
@@ -142,3 +156,4 @@ written as a separate HDU prefixed by the detector number,
 
 For a description of how to use the bitmasks (i.e., the ``*BPMMASK``
 extensions), see our description of the :ref:`out_masks`.
+

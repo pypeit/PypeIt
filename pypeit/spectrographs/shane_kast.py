@@ -26,6 +26,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1
     telescope = telescopes.ShaneTelescopePar()
+    url = 'http://mthamilton.ucolick.org/techdocs/instruments/kast/'
 
     @classmethod
     def default_pypeit_par(cls):

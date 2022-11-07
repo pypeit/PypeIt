@@ -37,7 +37,9 @@ class DataCube(datamodel.DataContainer):
     """
     DataContainer to hold the products of a datacube
 
-    See the datamodel for argument descriptions
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_datacube.rst
 
     Args:
         flux (`numpy.ndarray`_):
@@ -1102,6 +1104,8 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
         # Generate the offsets
         cosdec = np.cos(dec0[sl] * np.pi / 180.0)
         diff_ra, diff_dec = (this_ra - ra0[sl]) * cosdec, this_dec - dec0[sl]
+        msgs.bug("There is sometimes a sign error that needs to be resolved here...")
+        msgs.error("Use another algorithm for the time being...")
         if np.max(diff_ra)-np.min(diff_ra) > np.max(diff_dec)-np.min(diff_dec):
             sgn = np.sign(diff_ra)
         else:
@@ -1116,7 +1120,7 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
             numpix = xgrid[yy, -1] - xgrid[yy, 0]
             sep = numpix // (grid_nspat - 1)
             xgrid[yy, 1:-1] = xgrid[yy, 0] + (numpix % sep + 2 * sep) // 2 + np.arange(grid_nspat - 2) * sep
-        #  Extract offset + wavelength information and estimate transform
+        # Extract offset + wavelength information and estimate transform
         grid_coord = (ygrid.flatten(), xgrid.flatten())
         grid_offs = offsimg[grid_coord]
         grid_wave = waveimg[grid_coord]
@@ -1205,6 +1209,100 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     final_cube = DataCube(datcube.T, varcube.T, specname, blaze_wave, blaze_spec, sensfunc=sensfunc, fluxed=fluxcal)
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
 
+def generate_cube_subsample(outfile, frame_wcs, all_sci, all_ivar, all_wghts, all_wave, tilts, slits, slitid_img_gpm,
+                            astrom_trans, bins, subsample=10, overwrite=False, blaze_wave=None, blaze_spec=None,
+                            fluxcal=False, sensfunc=None, specname="PYP_SPEC"):
+    """
+    Save a datacube using the subsample algorithm. This algorithm is a combination of the
+    "nearest grid point" and "resample" algorithms.
+
+    Args:
+        outfile (`str`):
+            Filename to be used to save the datacube
+        frame_wcs (`astropy.wcs.wcs.WCS`_):
+            World coordinate system for this frame.
+        all_sci (`numpy.ndarray`_):
+            1D flattened array containing the counts of each pixel from all spec2d files
+        all_ivar (`numpy.ndarray`_):
+            1D flattened array containing the inverse variance of each pixel from all spec2d files
+        all_wghts (`numpy.ndarray`_):
+            1D flattened array containing the weights of each pixel to be used in the combination
+        all_wave (`numpy.ndarray`_)
+            1D flattened array containing the wavelength of each pixel (units = Angstroms)
+        tilts (`numpy.ndarray`_)
+            2D wavelength tilts frame
+        slits (:class:`pypeit.slittrace.SlitTraceSet`_)
+            Information stored about the slits
+        slitid_img_gpm (`numpy.ndarray`_)
+            An image indicating which pixels belong to a slit (0 = not on a slit or a masked pixel).
+            Any positive value indicates the spatial ID of the pixel.
+        astrom_trans (:class:`pypeit.alignframe.AlignmentSplines`_):
+            A Class containing the transformation between detector pixel coordinates and WCS pixel coordinates
+        bins (tuple):
+            A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and z wavelength coordinates
+        subsample (`int`, optional):
+            What is the subsampling factor. Higher values give more reliable results, but note
+            that the time required goes as N^2. The default value is 10, which subsamples each detector pixel into
+            100 subpixels (i.e. 10^2).
+        overwrite (`bool`, optional):
+            If True, the output cube will be overwritten.
+        blaze_wave (`numpy.ndarray`_, optional):
+            Wavelength array of the spectral blaze function
+        blaze_spec (`numpy.ndarray`_, optional):
+            Spectral blaze function
+        fluxcal (bool, optional):
+            Are the data flux calibrated?
+        sensfunc (`numpy.ndarray`_, None, optional):
+            Sensitivity function that has been applied to the datacube
+        specname (str, optional):
+            Name of the spectrograph
+    """
+    # Prepare the output arrays
+    outshape = (bins[0].size-1, bins[1].size-1, bins[2].size-1)
+    datacube, varcube, normcube = np.zeros(outshape), np.zeros(outshape), np.zeros(outshape)
+
+    # Subsample each pixel
+    ssamp_offs = np.arange(0.5/subsample, 1, 1/subsample) - 0.5  # -0.5 is to offset from the centre of each pixel.
+    area = 1/subsample**2
+    all_wght_subsmp = all_wghts * area
+    # Loop through all slits
+    all_sltid = slitid_img_gpm[(slitid_img_gpm > 0)]
+    all_var = utils.inverse(all_ivar)
+    for sl, spatid in enumerate(slits.spat_id):
+        msgs.info(f"Assembling datacube for slit {sl+1}/{slits.nslits}")
+        this_sl = np.where(all_sltid==spatid)
+        wpix = np.where(slitid_img_gpm==spatid)
+        slitID = np.ones(wpix[0].size) * sl - frame_wcs.wcs.crpix[0]
+        for xx in range(subsample):
+            for yy in range(subsample):
+                # Calculate the tranformation from detector pixels to voxels
+                evalpos = astrom_trans.transform(sl, wpix[1] + ssamp_offs[xx], wpix[0] + ssamp_offs[yy])
+                world_ra, world_dec, _ = frame_wcs.wcs_pix2world(slitID, evalpos, tilts[wpix] * (slits.nspec - 1), 0)
+                pix_coord = frame_wcs.wcs_world2pix(np.vstack((world_ra, world_dec, all_wave[this_sl] * 1.0E-10)).T, 0)
+                # Now assemble this postion of the datacube
+                tmp_dc, _ = np.histogramdd(pix_coord, bins=bins, weights=all_sci[this_sl] * all_wght_subsmp[this_sl])
+                tmp_vr, _ = np.histogramdd(pix_coord, bins=bins, weights=all_var[this_sl] * all_wght_subsmp[this_sl]**2)
+                tmp_nm, _ = np.histogramdd(pix_coord, bins=bins, weights=all_wght_subsmp[this_sl])
+                datacube += tmp_dc
+                varcube += tmp_vr
+                normcube += tmp_nm
+    # Normalise the datacube and variance cube
+    nc_inverse = utils.inverse(normcube)
+    datacube *= nc_inverse
+    varcube *= nc_inverse**2
+
+    # Prepare the header, and add the unit of flux to the header
+    hdr = frame_wcs.to_header()
+    if fluxcal:
+        hdr['FLUXUNIT'] = (PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
+    else:
+        hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
+
+    # Write out the datacube
+    msgs.info("Saving datacube as: {0:s}".format(outfile))
+    final_cube = DataCube(datacube.T, varcube.T, specname, blaze_wave, blaze_spec, sensfunc=sensfunc, fluxed=fluxcal)
+    final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
+
 
 def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bins,
                       overwrite=False, blaze_wave=None, blaze_spec=None, fluxcal=False,
@@ -1228,7 +1326,9 @@ def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bin
             pixel in the processed spec2d frames. After setting up an astropy WCS, pix_coord is
             returned by the function: `astropy.wcs.WCS.wcs_world2pix_`
         bins (tuple):
-            A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and z wavelength coordinates    :param overwrite:
+            A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and z wavelength coordinates
+        overwrite (`bool`):
+            If True, the output cube will be overwritten.
         blaze_wave (`numpy.ndarray`_):
             Wavelength array of the spectral blaze function
         blaze_spec (`numpy.ndarray`_):
@@ -1488,10 +1588,10 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         try:
             spec2DObj = spec2dobj.Spec2DObj.from_file(cubepar['skysub_frame'], detname)
             skysub_exptime = fits.open(cubepar['skysub_frame'])[0].header['EXPTIME']
-            skysub_default = cubepar['skysub_frame']
-            skysubImgDef = spec2DObj.skymodel/skysub_exptime  # Sky counts/second
         except:
             msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + cubepar['skysub_frame'])
+        skysub_default = cubepar['skysub_frame']
+        skysubImgDef = spec2DObj.skymodel/skysub_exptime  # Sky counts/second
 
     # Load all spec2d files and prepare the data for making a datacube
     for ff, fil in enumerate(files):
@@ -1512,9 +1612,9 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         # Try to load the relative scale image, if something other than the default has been provided
         relScaleImg = relScaleImgDef.copy()
         if opts['scale_corr'][ff] is not None:
+            msgs.info("Loading relative scale image:" + msgs.newline() + opts['scale_corr'][ff])
+            spec2DObj_scl = spec2dobj.Spec2DObj.from_file(opts['scale_corr'][ff], detname)
             try:
-                msgs.info("Loading relative scale image:"+msgs.newline()+opts['scale_corr'][ff])
-                spec2DObj_scl = spec2dobj.Spec2DObj.from_file(opts['scale_corr'][ff], detname)
                 relScaleImg = spec2DObj_scl.scaleimg
             except:
                 msgs.warn("Could not load scaleimg from spec2d file:" + msgs.newline() + opts['scale_corr'][ff])
@@ -1546,15 +1646,15 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                 skysubImg = np.array([0.0])
                 this_skysub = "none"  # Don't do sky subtraction
             else:
+                # Load a user specified frame for sky subtraction
+                msgs.info("Loading skysub frame:" + msgs.newline() + opts['skysub_frame'][ff])
                 try:
-                    # Load a user specified frame for sky subtraction
-                    msgs.info("Loading skysub frame:"+msgs.newline()+opts['skysub_frame'][ff])
                     spec2DObj_sky = spec2dobj.Spec2DObj.from_file(opts['skysub_frame'][ff], detname)
                     skysub_exptime = fits.open(opts['skysub_frame'][ff])[0].header['EXPTIME']
-                    skysubImg = spec2DObj_sky.skymodel * exptime / skysub_exptime  # Sky counts
-                    this_skysub = opts['skysub_frame'][ff]  # User specified spec2d for sky subtraction
                 except:
                     msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + opts['skysub_frame'][ff])
+                skysubImg = spec2DObj_sky.skymodel * exptime / skysub_exptime  # Sky counts
+                this_skysub = opts['skysub_frame'][ff]  # User specified spec2d for sky subtraction
         if this_skysub == "none":
             msgs.info("Sky subtraction will not be performed.")
         else:
@@ -1634,14 +1734,13 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         if dspat is None:
             dspat = max(pxscl, slscl)
         if pxscl > dspat:
-            msgs.warn("Spatial scale requested ({0:f}'') is less than the pixel scale ({1:f}'')".format(dspat, pxscl))
+            msgs.warn("Spatial scale requested ({0:f} arcsec) is less than the pixel scale ({1:f} arcsec)".format(3600.0*dspat, 3600.0*pxscl))
         if slscl > dspat:
-            msgs.warn("Spatial scale requested ({0:f}'') is less than the slicer scale ({1:f}'')".format(dspat, slscl))
+            msgs.warn("Spatial scale requested ({0:f} arcsec) is less than the slicer scale ({1:f} arcsec)".format(3600.0*dspat, 3600.0*slscl))
 
         # Loading the alignments frame for these data
-        astrometric = cubepar['astrometric']
         alignments = None
-        if astrometric:
+        if cubepar['astrometric']:
             alignfile = masterframe.construct_file_name(alignframe.Alignments, hdr['TRACMKEY'],
                                                         master_dir=hdr['PYPMFDIR'])
             if os.path.exists(alignfile) and cubepar['astrometric']:
@@ -1650,14 +1749,19 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             else:
                 msgs.warn("Could not find Master Alignment frame:"+msgs.newline()+alignfile)
                 msgs.warn("Astrometric correction will not be performed")
-                astrometric = False
         else:
             msgs.info("Astrometric correction will not be performed")
-
+        # If nothing better was provided, use the slit edges
+        if alignments is None:
+            left, right, _ = slits.select_edges(initial=True, flexure=flexure)
+            locations = [0.0, 1.0]
+            traces = np.append(left[:,None,:], right[:,None,:], axis=1)
+        else:
+            traces = alignments.traces
         # Generate an RA/DEC image
         msgs.info("Generating RA/DEC image")
-        raimg, decimg, minmax = slits.get_radec_image(frame_wcs, alignments, spec2DObj.tilts, locations,
-                                                      astrometric=astrometric, initial=True, flexure=flexure)
+        raimg, decimg, minmax, ast_trans = slits.get_radec_image(frame_wcs, traces, spec2DObj.tilts, locations,
+                                                                 initial=True, flexure=flexure)
 
         # Perform the DAR correction
         if wave_ref is None:
@@ -1771,7 +1875,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             # Generate individual whitelight images of each spec2d file
             if cubepar['save_whitelight']:
                 if method == 'resample':
-                    # TODO :: Implement this feature...
+                    # TODO :: Implement this feature... May be better to generate this after making the cube?
                     msgs.warn("Whitelight images are not implemented with the 'resample' algorithm.")
                     msgs.info("Generating a whitelight image with the NGP algorithm.")
                 out_whitelight = os.path.splitext(outfile)[0] + "_whitelight.fits"
@@ -1786,13 +1890,17 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             bins = spec.get_datacube_bins(slitlength, minmax, numwav)
             # Make the datacube
             if method == 'subsample':
-                msgs.error("Not implemented yet.")
+                # Get the slit image and then unset pixels in the slit image that are bad
+                slitid_img_gpm = slitid_img_init.copy()
+                slitid_img_gpm[(bpmmask != 0) | (~sky_is_good)] = 0
+                generate_cube_subsample(outfile, frame_wcs, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix),
+                                        wave_ext, spec2DObj.tilts, slits, slitid_img_gpm, ast_trans, bins,
+                                        overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
+                                        fluxcal=fluxcal, specname=specname)
             elif method == 'resample':
                 fluximg, ivarimg = np.zeros_like(raimg), np.zeros_like(raimg)
                 fluximg[onslit_gpm] = flux_sav[resrt]
                 ivarimg[onslit_gpm] = ivar_sav[resrt]
-                # Get the slit image and then unset pixels in the slit image that are bad
-                slitimg = slitid_img_init.copy()
                 # Generate the output WCS for the datacube
                 crval_wv = cubepar['wave_min'] if cubepar['wave_min'] is not None else 1.0E10 * frame_wcs.wcs.crval[2]
                 cd_wv = cubepar['wave_delta'] if cubepar['wave_delta'] is not None else 1.0E10 * frame_wcs.wcs.cd[2, 2]
