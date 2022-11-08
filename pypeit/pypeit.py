@@ -118,6 +118,7 @@ class PypeIt:
         if config_specific_file is not None:
             msgs.info(
                 'Setting configuration-specific parameters using {0}'.format(os.path.split(config_specific_file)[1]))
+        self.spectrograph._check_extensions(config_specific_file)
         spectrograph_cfg_lines = self.spectrograph.config_specific_par(config_specific_file).to_config()
 
         #   - Build the full set, merging with any user-provided
@@ -576,6 +577,7 @@ class PypeIt:
             sciImg_list.append(sciImg)
             objFind_list.append(objFind)
 
+
         # slitmask stuff
         if len(calibrated_det) > 0 and self.par['reduce']['slitmask']['assign_obj']:
             # get object positions from slitmask design and slitmask offsets for all the detectors
@@ -765,6 +767,21 @@ class PypeIt:
                 slits=self.caliBrate.slits,  # For flexure correction
                 ignore_saturation=False), frame_par['process'])
 
+        # Check if the user has manually created a Master sky regions
+        sky_region_file = None
+        if self.par['reduce']['skysub']['user_regions'] == 'master':
+            # Check if a master Sky Regions file exists for this science frame
+            file_base = os.path.basename(sciImg.files[0])
+            prefix = os.path.splitext(file_base)
+            if prefix[1] == ".gz":
+                sciName = os.path.splitext(prefix[0])[0]
+            else:
+                sciName = prefix[0]
+
+            master_dir = self.caliBrate.master_dir
+            master_key = self.caliBrate.fitstbl.master_key(0, det=self.det) + "_" + sciName
+            sky_region_file = masterframe.construct_file_name(buildimage.SkyRegions, master_key, master_dir=master_dir)
+
         # Deal with manual extraction
         row = self.fitstbl[frames[0]]
         manual_obj = ManualExtractionObj.by_fitstbl_input(
@@ -773,9 +790,11 @@ class PypeIt:
         # Instantiate Reduce object
         # Required for pypeline specific object
         # At instantiaton, the fullmask in self.sciImg is modified
-        objFind = find_objects.FindObjects.get_instance(sciImg, self.spectrograph,
-                                                        self.par, self.caliBrate,
-                                                        self.objtype,
+        objFind = find_objects.FindObjects.get_instance(sciImg, self.caliBrate.slits, self.spectrograph,
+                                                        self.par, self.objtype,
+                                                        wv_calib=self.caliBrate.wv_calib,
+                                                        waveTilts=self.caliBrate.wavetilts,
+                                                        sky_region_file=sky_region_file,
                                                         bkg_redux=self.bkg_redux,
                                                         manual=manual_obj,
                                                         find_negative=self.find_negative,
@@ -825,15 +844,19 @@ class PypeIt:
         # Is this a standard star?
         self.std_redux = 'standard' in self.objtype
 
-        # Update the skymask
-        skymask = objFind.create_skymask(sobjs_obj)
+        ## TODO JFH I think all of this about determining the final global sky should be moved out of this method
+        ## and preferably into the FindObjects class. I see why we are doing it like this since for multislit we need
+        # to find all of the objects first using slitmask meta data,  but this comes at the expense of a much more complicated
+        # control sctucture.
+
         # Update the global sky
         if 'standard' in self.fitstbl['frametype'][frames[0]] or \
                 self.par['reduce']['findobj']['skip_final_global'] or \
-                self.par['reduce']['skysub']['load_mask'] or \
                 self.par['reduce']['skysub']['user_regions'] is not None:
             final_global_sky = initial_sky
         else:
+            # Update the skymask
+            skymask = objFind.create_skymask(sobjs_obj)
             final_global_sky = objFind.global_skysub(previous_sky=initial_sky, skymask=skymask, show=self.show)
         scaleImg = objFind.scaleimg
 
@@ -850,13 +873,10 @@ class PypeIt:
         # At instantiaton, the fullmask in self.sciImg is modified
         # TODO Are we repeating steps in the init for FindObjects and Extract??
         self.exTract = extraction.Extract.get_instance(
-            sciImg, sobjs_obj, self.spectrograph, 
-            self.par, self.caliBrate, self.objtype, global_sky=final_global_sky,
-            bkg_redux=self.bkg_redux,
-            return_negative=self.par['reduce']['extraction']['return_negative'],
-            std_redux=self.std_redux,
-            show=self.show,
-            basename=self.basename)
+            sciImg, self.caliBrate.slits, sobjs_obj, self.spectrograph,
+            self.par, self.objtype, global_sky=final_global_sky, waveTilts=self.caliBrate.wavetilts, wv_calib=self.caliBrate.wv_calib,
+            bkg_redux=self.bkg_redux, return_negative=self.par['reduce']['extraction']['return_negative'],
+            std_redux=self.std_redux, basename=self.basename, show=self.show)
 
         if not self.par['reduce']['extraction']['skip_extraction']:
             # Perform the extraction
@@ -865,10 +885,8 @@ class PypeIt:
             self.exTract.refframe_correct(self.fitstbl["ra"][frames[0]], self.fitstbl["dec"][frames[0]], self.obstime,
                                           sobjs=self.exTract.sobjs)
         else:
-            # Although extraction is not performed, still need to prepare some masks and the tilts, and apply heliocentric correction
-            self.exTract.prepare_extraction()
-            self.exTract.refframe_correct(self.fitstbl["ra"][frames[0]], self.fitstbl["dec"][frames[0]], self.obstime)
             # Since the extraction was not performed, fill the arrays with the best available information
+            self.exTract.refframe_correct(self.fitstbl["ra"][frames[0]], self.fitstbl["dec"][frames[0]], self.obstime)
             skymodel = final_global_sky
             objmodel = np.zeros_like(self.exTract.sciImg.image)
             ivarmodel = np.copy(self.exTract.sciImg.ivar)

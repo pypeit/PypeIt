@@ -234,6 +234,33 @@ class Messages:
             premsgs = self._start + self._yellow_CL + '[PROGRESS]::' + self._end + ' '
             self._print(premsgp+premsgs, msg)
 
+    def pypeitpar_text(self, msglist):
+        """
+        Prepare a text string with the pypeit par formatting.
+
+        Parameters
+        ----------
+        msglist: list of str
+          A list containing the pypeit parameters. The last element of the list
+          must be the argument and the variable. For example, to print:
+
+          [sensfunc]
+            [[UVIS]]
+              polycorrect = False
+
+        you should set msglist = ['sensfunc', 'UVIS', 'polycorrect = False']
+        """
+        parstring = '\n'
+        premsg = '             '
+        for ll, lin in enumerate(msglist):
+            thismsg = ll*'  '
+            if ll == len(msglist)-1:
+                thismsg += lin
+            else:
+                thismsg += (ll+1) * '[' + lin + (ll+1) * ']'
+            parstring += premsg + thismsg + '\n'
+        return parstring
+
     def pypeitpar(self, msglist):
         """
         Print a message with the pypeit par formatting.

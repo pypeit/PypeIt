@@ -23,7 +23,9 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
     url = 'https://www2.keck.hawaii.edu/inst/nires/'
     header_name = 'NIRES'
     pypeline = 'Echelle'
+    ech_fixed_format = True
     supported = True
+
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -84,7 +86,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         # Reidentification parameters
         par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.fits'
-        par['calibrations']['wavelengths']['ech_fix_format'] = True
+#        par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4

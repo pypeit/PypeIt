@@ -2,6 +2,11 @@
 1.11.1dev
 ---------
 
+- (Hotfix) Fixed bug that allowed science frames to be assigned to multiple
+  instrument configurations
+- (Hotfix) Fixed typo related to GitHub download for offline processing
+- Started modifications and support for JWST.
+- LRISr header issue
 - Added spectral flexure and reference frame corrections for IFU data
 - Allow separate sky frame to be used for sky subtraction with IFU data
 
@@ -20,6 +25,11 @@
 - Allow verbosity specification for various post-processing command-line scripts.
 - Allow for the specification of a specific UVIS extinction file for sensitivity
   function computation and flux calibration.
+- Adding Keck/HIRES functionality.
+- Restructred coadd2d in order to work with images that have different
+sizes.
+- Restructured extraction and find_objects classes to work
+better with 2d coadds.
 - Refactor and general update of documentation
 
 1.10.0 (11 July 2022)
