@@ -23,6 +23,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     header_name = 'GNIRS'
     telescope = telescopes.GeminiNTelescopePar()
     pypeline = 'Echelle'
+    ech_fixed_format = True
     supported = True
 
     def get_detector_par(self, det, hdu=None):
@@ -153,7 +154,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['method'] = 'reidentify'
             par['calibrations']['wavelengths']['cc_thresh'] = 0.6
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs.fits'
-            par['calibrations']['wavelengths']['ech_fix_format'] = True
+#            par['calibrations']['wavelengths']['ech_fix_format'] = True
             # Echelle parameters
             # JFH This is provisional these IDs should be checked.
             par['calibrations']['wavelengths']['echelle'] = True
@@ -188,7 +189,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['method'] = 'reidentify'
             par['calibrations']['wavelengths']['cc_thresh'] = 0.6
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs_10mm_LBSX.fits'
-            par['calibrations']['wavelengths']['ech_fix_format'] = True
+#            par['calibrations']['wavelengths']['ech_fix_format'] = True
             # Echelle parameters
             par['calibrations']['wavelengths']['echelle'] = True
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3

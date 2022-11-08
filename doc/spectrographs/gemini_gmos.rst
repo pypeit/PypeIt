@@ -107,3 +107,14 @@ lowered the default ``tracethresh`` parameter to 10, i.e.:
 It is possible you will want to increase this, but unlikely.
 
 
+We also have a report (issue #1467) that the default value of the parameter
+``fwhm_fromline=True`` can sometimes lead to poor wavelength calibration.  If
+your RMS is a factor of 2-3 too high, consider setting:
+
+.. code-block:: ini
+
+    [calibrations]
+        [[wavelengths]]
+            fwhm_fromlines = False
+
+

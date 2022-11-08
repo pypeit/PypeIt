@@ -1,5 +1,15 @@
-1.10.1dev
+
+1.11.1dev
 ---------
+
+- (Hotfix) Fixed bug that allowed science frames to be assigned to multiple
+  instrument configurations
+- (Hotfix) Fixed typo related to GitHub download for offline processing
+- Started modifications and support for JWST.
+- LRISr header issue
+
+1.11.0 (21 Oct 2022)
+--------------------
 
 - Add ability for users to specify custom arc line lists for
   wavelength calibration, saved in the user's PypeIt cache
@@ -13,6 +23,11 @@
 - Allow verbosity specification for various post-processing command-line scripts.
 - Allow for the specification of a specific UVIS extinction file for sensitivity
   function computation and flux calibration.
+- Adding Keck/HIRES functionality.
+- Restructred coadd2d in order to work with images that have different
+sizes.
+- Restructured extraction and find_objects classes to work
+better with 2d coadds.
 - Refactor and general update of documentation
 
 1.10.0 (11 July 2022)

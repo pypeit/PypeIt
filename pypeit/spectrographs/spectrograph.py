@@ -115,6 +115,12 @@ class Spectrograph:
     spectrograph.
     """
 
+    ech_fixed_format = None
+    """
+    If an echelle spectrograph, this will be set to a boolean indicating whether it is a fixed format or tiltable 
+    echelle. 
+    """
+
     supported = False
     """
     Flag that ``PypeIt`` code base has been sufficiently tested with data
@@ -150,6 +156,8 @@ class Spectrograph:
         # Generate and check the instrument-specific metadata definition
         self.init_meta()
         self.validate_metadata()
+        if self.pypeline == 'Echelle' and self.ech_fixed_format is None:
+            msgs.error('ech_fixed_format must be set for echelle spectrographs')
 
         # TODO: Is there a better way to do this?
         # Validate the instance by checking that the class has defined the
@@ -670,7 +678,8 @@ class Spectrograph:
         if 'instrument' in meta_tbl.keys():
             # Check that there is only one instrument
             #  This could fail if one mixes is much older calibs
-            instr_names = np.unique(meta_tbl['instrument'].data)
+            indx = meta_tbl['instrument'].data != None
+            instr_names = np.unique(meta_tbl['instrument'].data[indx])
             if len(instr_names) != 1:
                 msgs.warn(f"More than one instrument in your dataset! {instr_names} \n"+
                 f"Proceed with great caution...")
