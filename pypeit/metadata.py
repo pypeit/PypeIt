@@ -809,6 +809,7 @@ class PypeItMetaData:
         nrows = len(self)
         col = table.Column(data=['None'] * nrows, name='setup', dtype='U25')
         self.table.add_column(col)
+        is_science = self.find_frames('science')    # Science frames can only have one configuration
         for i in range(nrows):
             for d, cfg in _configs.items():
                 # modify the configuration items only for specific frames. This is instrument dependent.
@@ -818,7 +819,7 @@ class PypeItMetaData:
                         continue
                     elif self.table['setup'][i] == 'None':
                         self.table['setup'][i] = d
-                    else:
+                    elif not is_science[i]:
                         self.table['setup'][i] += ',{}'.format(d)
 
         # Check if any of the configurations are not set
