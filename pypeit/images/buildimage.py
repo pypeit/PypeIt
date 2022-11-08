@@ -107,6 +107,15 @@ class TraceImage(pypeitimage.PypeItImage):
     output_to_disk = ('TRACE_IMAGE', 'TRACE_FULLMASK', 'TRACE_DETECTOR')
     hdu_prefix = 'TRACE_'
 
+    # TODO: This is a hack to limit the arrays written to the MasterEdges object
+    # to just the selection above.  The reason this doesn't work like the other
+    # master images above is because the `to_master_file` function is not used
+    # to build the output MasterEdges file.  We might want to come up with a
+    # better long-term fix for this.
+    def _bundle(self):
+        return [_d for _d in super()._bundle() 
+                    if any(np.isin(list(_d.keys()), ['image', 'fullmask', 'detector']))]
+
 
 class SkyRegions(pypeitimage.PypeItImage):
     """
