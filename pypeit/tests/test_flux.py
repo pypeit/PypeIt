@@ -1,8 +1,7 @@
 """
-Module to run tests on simple fitting routines for arrays
+Module to run tests on a few flux routines
 """
 import os
-import sys
 
 import numpy as np
 import pytest
@@ -11,59 +10,21 @@ from astropy import units
 from astropy.coordinates import SkyCoord
 
 from pypeit.core import flux_calib
-from pypeit.core import load
-from pypeit.spectrographs.util import load_spectrograph
-from pypeit import specobjs
-from pypeit.tests.tstutils import dummy_fitstbl
+from pypeit import telescopes
 from pypeit.par.pypeitpar import Coadd1DPar
 
 
 from pypeit.pypmsgs import PypeItError
 
 
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
 
-
-# JFH This test is defunct
-# TODO: Can it be repurposed to test the relevant functionality? If
-# not, delete it.
-#def test_bspline_fit():
-#    # Testing the bspline works ok (really testing bkspace)
-#    fit_dict = linetools.utils.loadjson(data_path('flux_data.json'))
-#    wave = np.array(fit_dict['wave'])
-#    magfunc = np.array(fit_dict['magf'])
-#    logivar = np.array(fit_dict['logiv'])
-#    bspline_par = dict(bkspace=fit_dict['bkspec'])
-#    mask, tck = utils.robust_polyfit(wave, magfunc, 3, function='bspline',
-#                                       weights=np.sqrt(logivar), bspline_par=bspline_par)
-
-# TODO: This needs to be replaced with new tests of SensFunc!!
-#def test_gen_sensfunc():
-#
-#    kastr = load_spectrograph('shane_kast_red')
-#
-#    # Load a random spectrum for the sensitivity function
-#    sfile = data_path('spec1d_r153-J0025-0312_KASTr_2015Jan23T025323.850.fits')
-#    sobjs = specobjs.SpecObjs.from_fitsfile(sfile)
-##    telescope = telescopes.ShaneTelescopePar()
-#    fitstbl = dummy_fitstbl()
-#    RA = '05:06:36.6'
-#    DEC = '52:52:01.0'
-#
-#    # Get the sensitivity function
-#    sens_dict = flux_calib.generate_sensfunc(sobjs[0].BOX_WAVE,
-#                                             sobjs[0].BOX_COUNTS,
-#                                             sobjs[0].BOX_COUNTS_IVAR,
-#                                             fitstbl['airmass'][4], fitstbl['exptime'][4],
-#                                             kastr.telescope['longitude'],
-#                                             kastr.telescope['latitude'],
-#                                             ra=RA, dec=DEC)
-#
-#    # Test
-#    assert isinstance(sens_dict, dict)
-#    assert isinstance(sens_dict['wave_min'], units.Quantity)
+def test_blackbody():
+    a, teff = 2.65, 10086  # Parameter of J1245+4238
+    wave, flam = flux_calib.blackbody_func(a, teff)
+    flam_scl = flam*flux_calib.BB_SCALE_FACTOR  # In units 10^-17 erg/s/cm2/A
+    res = np.interp(4000.0, wave, flam_scl)
+    # The following value is close to the value shown in the Figure 15 of Suzuki & Fukugita (2018).
+    assert(np.isclose(res, 89.6419630016348))
 
 
 def test_find_standard():
@@ -84,18 +45,29 @@ def test_find_standard():
 
 def test_load_extinction():
     # Load
-    extinct = flux_calib.load_extinction_data(121.6428, 37.3413889)
+    mtham = telescopes.ShaneTelescopePar()
+    lon = mtham['longitude']
+    lat = mtham['latitude']
+    extinct = flux_calib.load_extinction_data(lon, lat, 'closest')
     np.testing.assert_allclose(extinct['wave'][0], 3200.)
     assert extinct['wave'].unit == units.AA
     np.testing.assert_allclose(extinct['mag_ext'][0], 1.084)
-    # Fail
-    extinct = flux_calib.load_extinction_data(0., 37.3413889)
-    assert extinct is None
+
+    # Fail on location in the western Mediterranean Sea
+    with pytest.raises(PypeItError):
+        extinct = flux_calib.load_extinction_data(0., 37.3413889, 'closest')
+
+    # Fail on nonexistant extinction filename
+    with pytest.raises(PypeItError):
+        extinct = flux_calib.load_extinction_data(lon, lat, 'northpoleextinct.dat')
 
 
 def test_extinction_correction():
     # Load
-    extinct = flux_calib.load_extinction_data(121.6428, 37.3413889)
+    mtham = telescopes.ShaneTelescopePar()
+    lon = mtham['longitude']
+    lat = mtham['latitude']
+    extinct = flux_calib.load_extinction_data(lon, lat, 'closest')
     # Correction
     wave = np.arange(3000.,10000.)*units.AA
     AM=1.5

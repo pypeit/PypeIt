@@ -22,6 +22,10 @@ class ManualExtractionObj(datamodel.DataContainer):
     For an example of how to define a series of manual extractions in
     the pypeit input file, see :ref:`pypeit_file`.
 
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_manualextractionobj.rst
+
     Args:
         frame (:obj:`str`):
             The name of the fits file for a manual extraction

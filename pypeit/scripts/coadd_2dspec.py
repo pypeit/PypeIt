@@ -17,7 +17,7 @@ from astropy.io import fits
 
 from pypeit import par, msgs, io
 from pypeit import coadd2d
-from pypeit import io
+from pypeit import inputfiles
 from pypeit import specobjs
 from pypeit import spec2dobj
 from pypeit.scripts import scriptbase
@@ -62,6 +62,9 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                                  "spat_samp_fact are pixels.")
         parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
         parser.add_argument("--only_slits", type=str, default=None, help="Only coadd the following slits")
+        parser.add_argument('-v', '--verbosity', type=int, default=1,
+                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
+                                 'Level 2 writes a log with filename coadd_2dspec_YYYYMMDD-HHMM.log')
 
         #parser.add_argument("--wave_method", type=str, default=None,
         #                    help="Wavelength method for wavelength grid. If not set, code will "
@@ -75,11 +78,22 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
     def main(args):
         """ Executes 2d coadding
         """
+        # Set the verbosity, and create a logfile if verbosity == 2
+        msgs.set_logfile_and_verbosity('coadd_2dspec', args.verbosity)
+
         msgs.info('PATH =' + os.getcwd())
         # Load the file
         if args.file is not None:
-            spectrograph_name, config_lines, spec2d_files \
-                    = io.read_spec2d_file(args.file, filetype="coadd2d")
+            # Read
+            coadd2dFile = inputfiles.Coadd2DFile.from_file(args.file)
+            # Parse
+            spectrograph_name = coadd2dFile.config['rdx']['spectrograph'] 
+            config_lines = coadd2dFile.cfg_lines 
+            spec2d_files = coadd2dFile.filenames
+
+            # Continue
+            #spectrograph_name, config_lines, spec2d_files, spec2d_opts \
+            #        = io.read_spec2d_file(args.file, filetype="coadd2d")
             spectrograph = load_spectrograph(spectrograph_name)
 
             # Parameters
@@ -145,6 +159,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         parset['calibrations']['wavelengths']['refframe'] = 'observed'
         # TODO Flexure correction for coadd2d needs to be thought through. Currently turning it off.
         parset['flexure']['spec_method'] = 'skip'
+        # TODO This is currently the default for 2d coadds, but we need a way to toggle it on/off
+        parset['reduce']['findobj']['skip_skysub'] = True
         # Write the par to disk
         par_outfile = basename+'_coadd2d.par'
         print("Writing the parameters to {}".format(par_outfile))
@@ -177,6 +193,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             os.makedirs(master_dir)
 
         # Instantiate the sci_dict
+        # TODO Why do we need this sci_dict at all?? JFH
         sci_dict = OrderedDict()  # This needs to be ordered
         sci_dict['meta'] = {}
         sci_dict['meta']['vel_corr'] = 0.
@@ -269,6 +286,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                                                           bpmmask=sci_dict[coadd.detname]['outmask'],
                                                           detector=sci_dict[coadd.detname]['detector'],
                                                           slits=slits,
+                                                          wavesol=None,
                                                           waveimg=sci_dict[coadd.detname]['waveimg'],
                                                           tilts=sci_dict[coadd.detname]['tilts'],
                                                           sci_spat_flexure=None,

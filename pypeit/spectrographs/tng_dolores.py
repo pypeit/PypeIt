@@ -23,6 +23,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
     name = 'tng_dolores'
     telescope = telescopes.TNGTelescopePar()
     camera = 'DOLORES'
+    url = 'https://oapd.inaf.it/mos/'
     comment = 'DOLORES (LRS) spectrograph; LR-R'
 
 
@@ -82,6 +83,13 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['scienceframe']['exprng'] = [1, None]
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        par['calibrations']['arcframe']['process']['clip'] = False
+        par['calibrations']['arcframe']['process']['combine'] = 'mean'
+        par['calibrations']['arcframe']['process']['subtract_continuum'] = True
+        par['calibrations']['tiltframe']['process']['clip'] = False
+        par['calibrations']['tiltframe']['process']['combine'] = 'mean'
+        par['calibrations']['tiltframe']['process']['subtract_continuum'] = True
+
         return par
 
     
@@ -106,11 +114,12 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         par = self.default_pypeit_par() if inp_par is None else inp_par
 
         if self.get_meta_value(scifile, 'dispname') == 'LR-B':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'tng_dolores_LR-B_arx.fits'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'tng_dolores_LR-B_arx_v2.fits'
             # Add CdI
             par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI']
+            par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI']
         else:
+            par['calibrations']['wavelengths']['method'] = 'holy-grail'
             msg.warn('Check wavelength calibration file.')
 
         # Return
@@ -126,7 +135,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         """
         self.meta = {}
         # Required (core)
-        self.meta['ra'] = dict(ext=0, card='RA')
+        self.meta['ra'] = dict(ext=0, card=None, compound=True)
         self.meta['dec'] = dict(ext=0, card='DEC')
         self.meta['target'] = dict(ext=0, card='OBJCAT')
         self.meta['decker'] = dict(ext=0, card='SLT_ID')
@@ -160,6 +169,9 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
             time = headarr[0]['DATE-OBS']
             ttime = Time(time, format='isot')
             return ttime.mjd
+        elif meta_key == 'ra':
+            radeg = headarr[0]['RA-RAD']*180.0/np.pi  # Convert radians to decimal degrees
+            return radeg
         msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):

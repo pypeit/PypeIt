@@ -24,6 +24,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
     name = 'ldt_deveny'
     telescope = telescopes.LDTTelescopePar()
     camera = 'DeVeny'
+    url = 'https://lowell.edu/research/telescopes-and-facilities/ldt/deveny-optical-spectrograph/'
     header_name = 'Deveny'
     comment = 'LDT DeVeny Optical Spectrograph'
     supported = True
@@ -217,6 +218,10 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['calibrations']['bpm_usebias'] = True
 
         # Wavelength Calibration Parameters
+        # Do not sigmaclip the arc frames for better MasterArc and better wavecalib
+        par['calibrations']['arcframe']['process']['clip'] = False
+        # Do not sigmaclip the tilt frames
+        par['calibrations']['tiltframe']['process']['clip'] = False
         # Arc lamps list from header -- instead of defining the full list here
         par['calibrations']['wavelengths']['lamps'] = ['use_header']
         #par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'HgI']

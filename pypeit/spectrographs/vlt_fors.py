@@ -24,6 +24,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1  # Because each detector is written to a separate FITS file
     telescope = telescopes.VLTTelescopePar()
+    url = 'https://www.eso.org/sci/facilities/paranal/instruments/fors.html'
 
     @classmethod
     def default_pypeit_par(cls):
@@ -68,8 +69,8 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['polyorder'] = 8
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Paranal_NIR_9800_25000_R25000.fits'
+        par['sensfunc']['polyorder'] = 5
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Paranal_VIS_9800_25000_R25000.fits'
 
 
 

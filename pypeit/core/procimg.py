@@ -381,14 +381,14 @@ def cr_screen(a, mask_value=0.0, spatial_axis=1):
     function assumes floating point values.
 
     Args:
-        a (numpy.ndarray): Input 2D array
+        a (`numpy.ndarray`_): Input 2D array
         mask_value (float): (**Optional**) Values to ignore during the
             calculation of the median.  Default is 0.0.
         spatial_axis (int): (**Optional**) Axis along which to calculate
             the median.  Default is 1.
 
     Returns:
-        numpy.ndarray: Returns a map of :math:`|\Delta_{i,j}|/\sigma_j`,
+        `numpy.ndarray`_: Returns a map of :math:`|\Delta_{i,j}|/\sigma_j`,
         where :math:`\Delta_{i,j}` is the difference between the pixel
         value and the median along axis :math:`i` and :math:`\sigma_j`
         is robustly determined using the median absolute deviation,
@@ -873,7 +873,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         mod_oscan, _ = rect_slice_with_mask(tmp, tmp_oscan, amp)
         old_ron = stats.sigma_clipped_stats(overscan, sigma=5)[-1]
         new_ron = stats.sigma_clipped_stats(overscan-mod_oscan, sigma=5)[-1]
-        msgs.info(f'Effective readnoise of amplifier {amp} reduced by a factor of {old_ron/new_ron:.2f}x')
+        msgs.info(f'Effective read noise of amplifier {amp} reduced by a factor of {old_ron/new_ron:.2f}x')
 
         # Subtract the model pattern from the full datasec
         outframe[osd_slice] -= model_pattern
@@ -1062,57 +1062,6 @@ def replace_column_linear(img, left, right):
     # Interpolate
     img[:,left:right] = np.divide(img[:,right]-img[:,left-1],right-left+1)[:,None] \
                             * (np.arange(right-left)+1)[None,:] + img[:,left-1][:,None]
-
-
-def old_replace_columns(img, bad_cols, replace_with='mean'):
-    """ Replace bad columns with values from the neighbors
-
-    Parameters
-    ----------
-    img : ndarray
-    bad_cols: ndarray (bool, 1D, shape[1] of img)
-      True = bad column
-      False = ok column
-    replace_with : str, optional
-      Option for replacement
-       mean -- Use the mean of the closest left/right columns
-
-    Returns
-    -------
-    img2 : ndarray
-      Copy of the input image with the bad columns replaced
-    """
-    # Prep
-    img2 = img.copy()
-    # Find the starting/ends of the bad column sets
-    tmp = np.zeros(img.shape[1], dtype=int)
-    tmp[bad_cols] = 1
-    tmp2 = tmp - np.roll(tmp,1)
-    # Deal with first column
-    if bad_cols[0]:
-        tmp2[0]=1
-    # Deal with last column
-    if bad_cols[-1]:
-        tmp2[-1]=-1
-    ledges = np.where(tmp2 == 1)[0]
-    redges = np.where(tmp2 == -1)[0]
-    # Last column?
-    if tmp2[-1] == 1:
-        redges = np.concatenate([redges, np.array([bad_cols.size-1])])
-    # Loop on em
-    for kk, ledge in enumerate(ledges):
-        lval = img[:,redges[kk]+1] if ledge == 0 else img[:,ledge-1]
-        rval = img[:, redges[kk]]
-        # First columns?
-        # Replace
-        if replace_with == 'mean':
-            mval = (lval+rval)/2.
-            for ii in range(ledge, redges[kk]+1):
-                img2[:,ii] = mval
-        else:
-            msgs.error("Bad option to replace_columns")
-    # Return
-    return img2
 
 
 def trim_frame(frame, mask):

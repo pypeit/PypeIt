@@ -693,7 +693,7 @@ class ParSet:
 
     @staticmethod
     def _rst_class_name(p):
-        return ':class:`' +  type(p).__module__ + '.' + type(p).__name__ + '`'
+        return ':class:`~' +  type(p).__module__ + '.' + type(p).__name__ + '`'
 
     def to_rst_table(self, parsets_listed=[]):
         """
@@ -731,8 +731,10 @@ class ParSet:
             data_table[i+1,4] = '..' if self.descr[k] is None \
                                     else ParSet._data_string(self.descr[k])
 
-        output = [ '{0} Keywords'.format(type(self).__name__) ]
-        output += [ '-'*len(output[0]) ]
+        output = [ f'.. _{type(self).__name__.lower()}:']
+        output += [ '' ]
+        output += [ f'{type(self).__name__} Keywords']
+        output += [ '-'*len(output[2]) ]
         output += [ '' ]
         output += ['Class Instantiation: ' + ParSet._rst_class_name(self)]
         output += ['']

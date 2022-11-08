@@ -3,18 +3,18 @@
 
 .. _known_failure_modes:
 
-=============
-Failure Modes
-=============
+===================
+Known Failure Modes
+===================
 
 Overview
 ========
 
 This doc attempts to capture known failure modes of
-PypeIt and potential mitigations.  These are intended to be 
+PypeIt and potential mitigation strategies.  These are intended to be 
 distinct from common user error.
 
-.. bad-headers:
+.. _bad-headers:
 
 Bad Headers
 ===========
@@ -24,7 +24,7 @@ corrupt headers.  This occurs somewhat frequently
 at the Keck Observatory when the instrument loses 
 connectivity with the telescope.
 
-The :ref:`pypeit-setup` and :ref:`pypeit-obslog` scripts
+The :ref:`pypeit_setup` and :ref:`pypeit_obslog` scripts
 have been written to be *immune* from this.  Therefore,
 a failure when using this scripts should be brought to the
 attention of the developers.

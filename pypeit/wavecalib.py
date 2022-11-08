@@ -13,8 +13,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from linetools import utils as ltu
-
 from astropy.table import Table
+from astropy.io import fits
 
 from pypeit import msgs
 from pypeit.core import arc, qa
@@ -22,6 +22,8 @@ from pypeit.core import fitting
 from pypeit.core.wavecal import autoid, waveio, wv_fitting
 from pypeit.core.gui.identify import Identify
 from pypeit import datamodel
+from pypeit.core.wavecal import echelle, wvutils
+
 
 from IPython import embed
 
@@ -29,8 +31,12 @@ class WaveCalib(datamodel.DataContainer):
     """
     DataContainer for the output from BuildWaveCalib
 
-    All of the items in the datamodel are required for instantiation,
-      although they can be None (but shouldn't be)
+    All of the items in the datamodel are required for instantiation, although
+    they can be None (but shouldn't be)
+
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_wavecalib.rst
 
     """
     version = '1.0.0'
@@ -94,9 +100,16 @@ class WaveCalib(datamodel.DataContainer):
             # Array?
             if self.datamodel[key]['otype'] == np.ndarray and key != 'wv_fits':
                 _d.append({key: self[key]})
+            # TODO: Can we put all the WAVEFIT and PYPEITFIT at the end of the
+            # list of HDUs?  This would mean ARC_SPECTRA is always in the same
+            # extension number, regardless of the number of slits.
             elif key == 'wv_fits':
                 for ss, wv_fit in enumerate(self[key]):
+                    # TODO: Are we writing empty extensions if any of the
+                    # elements of self[key] are None?  If so, is this required
+                    # behavior?  Why?
                     # Naming
+                    # TODO: Shouldn't this name match the dkey below?
                     dkey = 'WAVEFIT-{}'.format(self.spat_ids[ss])
                     # Generate a dummy?
                     if wv_fit is None:
@@ -253,11 +266,33 @@ class WaveCalib(datamodel.DataContainer):
         # Return
         return image
 
-    def print_diagnostics(self):
+    def wave_diagnostics(self, print_diag=False):
         """
-        Print a set of diagnostics to the screen
+        Create a table with wavecalib diagnostics
+
+        Args:
+            print_diag (:obj:`bool`, optional):
+                If True, the diagnostic table is printed to screen
+        Returns:
+            `astropy.table.Table`_: wavecalib diagnostics table
 
         """
+        # wavelength range of calibrated arc spectra
+        minWave = np.array([0 if wvfit.wave_soln is None else wvfit.wave_soln[0] for wvfit in self.wv_fits])
+        maxWave = np.array([0 if wvfit.wave_soln is None else wvfit.wave_soln[-1] for wvfit in self.wv_fits])
+
+        # wavelength range of fitted ID'd lines
+        lines_wmin = np.array([0 if wvfit is None or wvfit.pypeitfit is None else
+                              wvfit.wave_fit[wvfit.pypeitfit.gpm == 1][0] for wvfit in self.wv_fits])
+        lines_wmax = np.array([0 if wvfit is None or wvfit.pypeitfit is None else
+                              wvfit.wave_fit[wvfit.pypeitfit.gpm == 1][-1] for wvfit in self.wv_fits])
+
+        # wavelength coverage of fitted ID'd lines
+        lines_waverange = lines_wmax - lines_wmin
+        spec_waverange = maxWave - minWave
+        lines_cov = [0 if spec_waverange[i] == 0 else
+                     lines_waverange[i] / spec_waverange[i] * 100 for i in range(self.wv_fits.size)]
+
         # Generate a table
         diag = Table()
         # Slit number
@@ -266,21 +301,29 @@ class WaveCalib(datamodel.DataContainer):
         # spat_id
         diag['SpatID'] = [wvfit.spat_id for wvfit in self.wv_fits]
         # Central wave, delta wave
-        diag['minWave'] = [0 if wvfit.wave_soln is None else wvfit.wave_soln[0] for wvfit in self.wv_fits]
+        diag['minWave'] = minWave
         diag['minWave'].format = '0.1f'
         diag['Wave_cen'] = [0 if wvfit.cen_wave is None else wvfit.cen_wave for wvfit in self.wv_fits]
         diag['Wave_cen'].format = '0.1f'
-        diag['maxWave'] = [0 if wvfit.wave_soln is None else wvfit.wave_soln[-1] for wvfit in self.wv_fits]
+        diag['maxWave'] = maxWave
         diag['maxWave'].format = '0.1f'
         diag['dWave'] = [0 if wvfit.cen_disp is None else wvfit.cen_disp for wvfit in self.wv_fits]
         diag['dWave'].format = '0.3f'
         # Number of good lines
         diag['Nlin'] = [0 if wvfit.pypeitfit is None else np.sum(wvfit.pypeitfit.gpm) for wvfit in self.wv_fits]
+        diag['IDs_Wave_range'] = ['{:9.3f} - {:9.3f}'.format(lines_wmin[i], lines_wmax[i]) for i in range(self.wv_fits.size)]
+        diag['IDs_Wave_cov(%)'] = lines_cov
+        diag['IDs_Wave_cov(%)'].format = '0.1f'
+        # FWHM
+        diag['mesured_fwhm'] = [0. if wvfit.fwhm is None else wvfit.fwhm for wvfit in self.wv_fits]
+        diag['mesured_fwhm'].format = '0.1f'
         # RMS
         diag['RMS'] = [0 if wvfit.rms is None else wvfit.rms for wvfit in self.wv_fits]
         diag['RMS'].format = '0.3f'
-        # Print it
-        print(diag)
+        if print_diag:
+            # Print it
+            print(diag)
+        return diag
 
 
 class BuildWaveCalib:
@@ -299,11 +342,25 @@ class BuildWaveCalib:
         par (:class:`pypeit.par.pypeitpar.WaveSolutionPar`):
             The parameters used for the wavelength solution
             Uses ['calibrations']['wavelengths']
-        binspectral (int, optional): Binning of the Arc in the spectral dimension
-        det (int, optional): Detector number
-        msbpm (ndarray, optional): Bad pixel mask image
-        qa_path (str, optional):  For QA
-        master_key (:obj:`str`, optional):  For naming QA only
+        binspectral (int, optional):
+            Binning of the Arc in the spectral dimension
+        meta_dict (dict: optional):
+            Dictionary containing meta information required for wavelength
+            calibration. Specifically for non-fixed format echelles this dict
+            must contain the following keys:
+
+               - ``'echangle'``:  the echelle angle
+               - ``'xdangle'``: the cross-disperser angle
+               - ``'dispmame'``: the disperser name
+
+        det (int, optional):
+            Detector number
+        msbpm (ndarray, optional):
+            Bad pixel mask image
+        qa_path (str, optional):
+            For QA
+        master_key (:obj:`str`, optional):
+            For naming QA only
 
     Attributes:
         steps : list
@@ -328,7 +385,7 @@ class BuildWaveCalib:
 
     frametype = 'wv_calib'
 
-    def __init__(self, msarc, slits, spectrograph, par, lamps, binspectral=None, det=1,
+    def __init__(self, msarc, slits, spectrograph, par, lamps, binspectral=None, meta_dict=None, det=1,
                  qa_path=None, msbpm=None, master_key=None):
 
         # TODO: This should be a stop-gap to avoid instantiation of this with
@@ -342,6 +399,7 @@ class BuildWaveCalib:
         self.spectrograph = spectrograph
         self.par = par
         self.lamps = lamps
+        self.meta_dict=meta_dict
 
         # Optional parameters
         self.bpm = self.msarc.select_flag(flag='BPM') if msbpm is None else msbpm.astype(bool)
@@ -445,16 +503,19 @@ class BuildWaveCalib:
         # Obtain a list of good slits
         ok_mask_idx = np.where(np.invert(self.wvc_bpm))[0]
 
-        # Obtain calibration for all slits
-        if method == 'simple':
-            line_lists = waveio.load_line_lists(self.lamps)
+        # print to screen the slit widths if maskdef_designtab is available
+        if self.slits.maskdef_designtab is not None:
+            msgs.info("Slit widths (arcsec): {}".format(np.round(self.slits.maskdef_designtab['SLITWID'].data, 2)))
 
-            final_fit = arc.simple_calib_driver(line_lists, arccen, ok_mask_idx,
-                                                    n_final=self.par['n_final'],
-                                                    sigdetect=self.par['sigdetect'],
-                                                    IDpixels=self.par['IDpixels'],
-                                                    IDwaves=self.par['IDwaves'])
-        elif method == 'holy-grail':
+        # measure the FWHM of the arc lines
+        measured_fwhms = np.zeros(arccen.shape[1], dtype=object)
+        for islit in range(arccen.shape[1]):
+            if islit not in ok_mask_idx:
+                continue
+            measured_fwhms[islit] = autoid.measure_fwhm(arccen[:, islit])
+
+        # Obtain calibration for all slits
+        if method == 'holy-grail':
             # Sometimes works, sometimes fails
             arcfitter = autoid.HolyGrail(arccen, self.lamps, par=self.par, ok_mask=ok_mask_idx,
                                          nonlinear_counts=self.nonlinear_counts,
@@ -475,8 +536,9 @@ class BuildWaveCalib:
         elif method == 'reidentify':
             # Now preferred
             # Slit positions
-            arcfitter = autoid.ArchiveReid(arccen, self.spectrograph, self.lamps, self.par, ok_mask=ok_mask_idx,
-                                           #slit_spat_pos=self.spat_coo,
+            arcfitter = autoid.ArchiveReid(arccen, self.lamps, self.par,
+                                           ech_fixed_format=self.spectrograph.ech_fixed_format, ok_mask=ok_mask_idx,
+                                           measured_fwhms=measured_fwhms,
                                            orders=self.orders,
                                            nonlinear_counts=self.nonlinear_counts)
             patt_dict, final_fit = arcfitter.get_results()
@@ -484,13 +546,32 @@ class BuildWaveCalib:
             # Now preferred
             if self.binspectral is None:
                 msgs.error("You must specify binspectral for the full_template method!")
-            if self.slits.maskdef_designtab is not None:
-                msgs.info("Slit widths (arcsec): {}".format(np.round(self.slits.maskdef_designtab['SLITWID'].data,2)))
             final_fit = autoid.full_template(arccen, self.lamps, self.par, ok_mask_idx, self.det,
-                                             self.binspectral,
+                                             self.binspectral, measured_fwhms=measured_fwhms,
                                              nonlinear_counts=self.nonlinear_counts,
                                              nsnippet=self.par['nsnippet'])
                                              #debug=True, debug_reid=True, debug_xcorr=True)
+        elif self.par['method'] == 'echelle':
+            # Echelle calibration
+            msgs.error('Non-fixed format Echelle wavelength calibration is not yet full implemented')
+            # TODO: Get these from the spectrograph file later.
+            angle_fits_file = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms', 'hires_wvcalib',
+                                           'wvcalib_angle_fits.fits')
+            composite_arc_file = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms', 'hires_wvcalib',
+                                              'HIRES_composite_arc.fits')
+            # Identify the echelle orders
+            order_vec, wave_soln_arxiv, arcspec_arxiv = echelle.identify_ech_orders(
+                arccen, self.meta_dict['echangle'], self.meta_dict['xdangle'], self.meta_dict['dispname'],
+                angle_fits_file, composite_arc_file, pad=3, debug=False)
+            # Put the order numbers in the slit object
+            self.slits.ech_order = order_vec
+            # TODO:
+            # HACK!!
+            ok_mask_idx = ok_mask_idx[:-1]
+            patt_dict, final_fit = autoid.echelle_wvcalib(arccen, order_vec, arcspec_arxiv, wave_soln_arxiv,
+                                                          self.lamps, self.par, ok_mask=ok_mask_idx,
+                                                          nonlinear_counts=self.nonlinear_counts,
+                                                          debug_all=False)
         else:
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
 
@@ -504,6 +585,8 @@ class BuildWaveCalib:
             else:
                 # This is for I/O naming
                 item.spat_id = self.slits.spat_id[idx]
+                # add measured fwhm
+                item['fwhm'] = measured_fwhms[idx]
                 tmp.append(item)
         self.wv_calib = WaveCalib(wv_fits=np.asarray(tmp),
                                   arc_spectra=arccen,
@@ -692,6 +775,8 @@ class BuildWaveCalib:
         self.wv_calib['strpar'] = json.dumps(j_par)#, sort_keys=True, indent=4, separators=(',', ': '))
 
         return self.wv_calib
+
+
 
     def show(self, item, slit=None):
         """

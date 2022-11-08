@@ -128,7 +128,7 @@ def run(files, caliBrate, spectrograph, det, parset, show=False, std_trace=None)
     extract = extraction.Extract.get_instance(sciImg, sobjs_obj, spectrograph, parset, caliBrate,
                                               'science', bkg_redux=False, return_negative=False, show=show)
 
-    skymodel, objmodel, ivarmodel, outmask, sobjs, scaleimg, waveimg, tilts = extract.run(global_sky, sobjs_obj)
+    skymodel, objmodel, ivarmodel, outmask, sobjs, scaleimg, waveimg, tilts = extract.run()
 
 
     # Instantiate Reduce object
@@ -169,6 +169,7 @@ def run(files, caliBrate, spectrograph, det, parset, show=False, std_trace=None)
                                     vel_type=parset['calibrations']['wavelengths']['refframe'],
                                     tilts=tilts,
                                     slits=copy.deepcopy(caliBrate.slits),
+                                    wavesol=caliBrate.wv_calib.wave_diagnostics(print_diag=False),
                                     maskdef_designtab=None)
     spec2DObj.process_steps = sciImg.process_steps
     return spec2DObj

@@ -19,6 +19,7 @@ class WHTISISSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1
     telescope = telescopes.WHTTelescopePar()
+    url = 'https://www.ing.iac.es/astronomy/instruments/isis/'
 
     def configuration_keys(self):
         """

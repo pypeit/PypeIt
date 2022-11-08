@@ -18,7 +18,7 @@ from IPython import embed
 import numpy as np
 from numpy.lib.stride_tricks import as_strided
 
-from scipy import interpolate, ndimage
+from scipy import ndimage
 
 import matplotlib
 from matplotlib import pyplot as plt
@@ -26,7 +26,6 @@ from matplotlib import pyplot as plt
 from astropy import units
 from astropy import stats
 
-from pypeit.core import pydl
 from pypeit import msgs
 from pypeit.move_median import move_median
 
@@ -350,6 +349,37 @@ def nearest_unmasked(arr, use_indices=False):
     nearest[np.diag_indices(arr.size)] = np.ma.masked
     # Return the location of the minimum value ignoring the masked values
     return np.ma.argmin(nearest, axis=1)
+
+
+def contiguous_true(m):
+    """
+    Find contiguous regions of True values in a boolean numpy array.
+
+    This is identically what is done by `numpy.ma.flatnotmasked_contiguous`_,
+    except the argument is the mask, not a masked array, and it selects
+    contiguous True regions instead of contiguous False regions.
+
+    Args:
+        m (array-like):
+            A boolean array.  Must be 1D.
+
+    Returns:
+        :obj:`list`: A list of slice objects that select contiguous regions of
+        True values in the provided array.
+    """
+    _m = np.atleast_1d(m)
+    if _m.ndim > 1:
+        raise ValueError('contiguous_true only accepts 1D arrays.')
+    if not np.any(_m):
+        return [slice(0, _m.size)]
+    i = 0
+    result = []
+    for (k, g) in itertools.groupby(_m.ravel()):
+        n = len(list(g))
+        if k:
+            result.append(slice(i, i + n))
+        i += n
+    return result
 
 
 def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest', replace='original'):
@@ -998,8 +1028,7 @@ def yamlify(obj, debug=False):
 
     Recursively process an object so it can be serialised for yaml.
 
-    Based on jsonify in `linetools
-    <https://pypi.python.org/pypi/linetools>`_.
+    Based on jsonify in `linetools`_.
 
     Also found in desiutils
 

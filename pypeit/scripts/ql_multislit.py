@@ -245,15 +245,18 @@ def reduce(files, caliBrate, spectrograph, parset, bkg_files=None, show=False, s
                                                            ignore_saturation=False), parset['scienceframe']['process'])
 
     # DP: Should find_negative be True here? JFH: For quicklook yes!
-    objFind = find_objects.FindObjects.get_instance(sciImg, spectrograph, parset, caliBrate, 'science',
+    objFind = find_objects.FindObjects.get_instance(sciImg, caliBrate.slits, spectrograph, parset, 'science',
+                                                    waveTilts=caliBrate.wavetilts,
                                                     bkg_redux=bkg_redux, find_negative=bkg_redux, show=show)
 
     global_sky, sobjs_obj = objFind.run(std_trace=std_trace, show_peaks=show)
 
     # Instantiate Extract object
-    extract = extraction.Extract.get_instance(sciImg, sobjs_obj, spectrograph, parset, caliBrate,
-                                              'science', bkg_redux=bkg_redux, return_negative=bkg_redux, show=show)
-    skymodel, objmodel, ivarmodel, outmask, sobjs, waveimg, tilts = extract.run(global_sky, sobjs_obj)
+    extract = extraction.Extract.get_instance(sciImg, caliBrate.slits, sobjs_obj, spectrograph, parset, 'science',
+                                              global_sky=global_sky, waveTilts=caliBrate.wavetilts,
+                                              wv_calib=caliBrate.wv_calib,
+                                              bkg_redux=bkg_redux, return_negative=bkg_redux, show=show)
+    skymodel, objmodel, ivarmodel, outmask, sobjs, waveimg, tilts = extract.run()
 
     # TODO -- Do this upstream
     # Tack on detector
@@ -281,6 +284,7 @@ def reduce(files, caliBrate, spectrograph, parset, bkg_files=None, show=False, s
                                     vel_type=parset['calibrations']['wavelengths']['refframe'],
                                     tilts=tilts,
                                     slits=copy.deepcopy(caliBrate.slits),
+                                    wavesol=caliBrate.wv_calib.wave_diagnostics(print_diag=False),
                                     maskdef_designtab=None)
     spec2DObj.process_steps = sciImg.process_steps
 
@@ -303,6 +307,7 @@ def reduce(files, caliBrate, spectrograph, parset, bkg_files=None, show=False, s
                                            vel_type=parset['calibrations']['wavelengths']['refframe'],
                                            tilts=tilts,
                                            slits=copy.deepcopy(caliBrate.slits),
+                                           wavesol=caliBrate.wv_calib.wave_diagnostics(print_diag=False),
                                            maskdef_designtab=None)
         return spec2DObj, spec2DObj_bkg
 

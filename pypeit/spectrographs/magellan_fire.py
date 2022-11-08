@@ -33,6 +33,7 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
     ndet = 1
     telescope = telescopes.MagellanTelescopePar()
     camera = 'FIRE'
+    url = 'http://web.mit.edu/~rsimcoe/www/FIRE/index.html'
     header_name = 'FIRE'
 
     def init_meta(self):
@@ -90,6 +91,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
     """
     name = 'magellan_fire'
     pypeline = 'Echelle'
+    ech_fixed_format = True
     supported = True
     comment = 'Magellan/FIRE in echelle mode'
 
@@ -156,7 +158,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
 
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
-        par['calibrations']['wavelengths']['ech_fix_format'] = True
+#        par['calibrations']['wavelengths']['ech_fix_format'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 6
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0

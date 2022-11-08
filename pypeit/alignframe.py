@@ -17,9 +17,12 @@ class Alignments(datamodel.DataContainer):
     """
     Simple DataContainer for the alignment output
 
-    All of the items in the datamodel are required for instantiation,
-      although they can be None (but shouldn't be)
+    All of the items in the datamodel are required for instantiation, although
+    they can be None (but shouldn't be)
 
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_alignments.rst
     """
     minimum_version = '1.1.0'
     version = '1.1.0'
@@ -58,6 +61,15 @@ class Alignments(datamodel.DataContainer):
     def _validate(self):
         # TBC - need to check that all alignment traces have been correctly traced
         pass
+
+    # NOTE: If you make changes to how this object is bundled into the output
+    # datamodel, make sure you update the documentation in
+    # doc/calibrations/master_align.rst!
+    def _bundle(self):
+        """
+        Override the base class method simply to set the HDU extension name.
+        """
+        return super()._bundle(ext='ALIGN')
 
     def is_synced(self, slits):
         """

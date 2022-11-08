@@ -642,7 +642,7 @@ class RawImage:
         self.ivar = self.build_ivar()
 
         #   - Subtract continuum level
-        if self.par['use_continuum']:
+        if self.par['subtract_continuum']:
             # Calculate a simple smooth continuum image, and subtract this from the frame
             self.subtract_continuum()
 
@@ -665,6 +665,7 @@ class RawImage:
 
         # Mask(s)
         if self.par['mask_cr']:
+            # TODO: CR rejection of the darks was failing for HIRES for some reason...
             pypeitImage.build_crmask(self.par)
 
         pypeitImage.build_mask(saturation='default', mincounts='default')
@@ -806,7 +807,9 @@ class RawImage:
         # Generate the illumination flat, as needed
         illum_flat = 1.0
         if self.par['use_illumflat']:
-            illum_flat = flatimages.fit2illumflat(slits, flexure_shift=self.spat_flexure_shift)
+            # TODO :: We don't have tilts here yet... might be ever so slightly better, especially on very tilted slits
+            illum_flat = flatimages.fit2illumflat(slits, spat_flexure=self.spat_flexure_shift, finecorr=False)
+            illum_flat *= flatimages.fit2illumflat(slits, spat_flexure=self.spat_flexure_shift, finecorr=True)
             if debug:
                 left, right = slits.select_edges(flexure=self.spat_flexure_shift)
                 viewer, ch = display.show_image(illum_flat, chname='illum_flat')

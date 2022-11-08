@@ -5,6 +5,7 @@ Module for terminal and file logging.
     Why not use pythons native logging package?
 
 """
+import datetime
 import sys
 import os
 import getpass
@@ -114,11 +115,11 @@ class Messages:
             devmsg = ''
         return devmsg
 
-    def _print(self, premsg, msg, last=True):
+    def _print(self, premsg, msg, last=True, printDevMsg=True):
         """
         Print to standard error and the log file
         """
-        devmsg = self._devmsg()
+        devmsg = self._devmsg() if printDevMsg else ''
         _msg = premsg+devmsg+msg
         if self._verbosity != 0:
             print(_msg, file=sys.stderr)
@@ -233,6 +234,58 @@ class Messages:
             premsgs = self._start + self._yellow_CL + '[PROGRESS]::' + self._end + ' '
             self._print(premsgp+premsgs, msg)
 
+    def pypeitpar_text(self, msglist):
+        """
+        Prepare a text string with the pypeit par formatting.
+
+        Parameters
+        ----------
+        msglist: list of str
+          A list containing the pypeit parameters. The last element of the list
+          must be the argument and the variable. For example, to print:
+
+          [sensfunc]
+            [[UVIS]]
+              polycorrect = False
+
+        you should set msglist = ['sensfunc', 'UVIS', 'polycorrect = False']
+        """
+        parstring = '\n'
+        premsg = '             '
+        for ll, lin in enumerate(msglist):
+            thismsg = ll*'  '
+            if ll == len(msglist)-1:
+                thismsg += lin
+            else:
+                thismsg += (ll+1) * '[' + lin + (ll+1) * ']'
+            parstring += premsg + thismsg + '\n'
+        return parstring
+
+    def pypeitpar(self, msglist):
+        """
+        Print a message with the pypeit par formatting.
+
+        Parameters
+        ----------
+        msglist: list of str
+          A list containing the pypeit parameters. The last element of the list
+          must be the argument and the variable. For example, to print:
+
+          [sensfunc]
+            [[UVIS]]
+              polycorrect = False
+
+        you should set msglist = ['sensfunc', 'UVIS', 'polycorrect = False']
+        """
+        premsg = '             '
+        for ll, lin in enumerate(msglist):
+            thismsg = ll*'  '
+            if ll == len(msglist)-1:
+                thismsg += lin
+            else:
+                thismsg += (ll+1) * '[' + lin + (ll+1) * ']'
+            self._print(premsg, thismsg, printDevMsg=False)
+
     def prindent(self, msg):
         """
         Print an indent
@@ -310,5 +363,29 @@ class Messages:
         self._black_YL = ''
         self._yellow_BK = ''
 
+    def set_logfile_and_verbosity(self, scriptname, verbosity):
+        """
+        Set the logfile name and verbosity level for a script run.
 
+        PypeIt scripts (with the exception of run_pypeit) default to verbosity
+        level = 1.  For certain scripts, having a more verbose output (with an
+        accompanying log file) would be helpful for debugging purposes.  This
+        function provides the ability to set the ``msgs`` verbosity and create
+        a log file for those certain scripts.
 
+        Log filenames have the form scriptname_YYYYMMDD_HHMM.log to differentiate
+        between different runs of the script.  Timestamp is UT.
+
+        Args:
+            scriptname (:obj:`str`, optional):
+                The name of the calling script for use in the logfile
+            verbosity (:obj:`int`, optional):
+                The requested verbosity, passed in from the argument parser.
+                Verbosity level between 0 [none] and 2 [all]
+        """
+        # Create a UT timestamp (to the minute) for the log filename
+        timestamp = datetime.datetime.utcnow().strftime("%Y%m%d-%H%M")
+        # Create a logfile only if verbosity == 2
+        logname = f"{scriptname}_{timestamp}.log" if verbosity == 2 else None
+        # Set the verbosity in msgs
+        self.reset(log=logname, verbosity=verbosity)

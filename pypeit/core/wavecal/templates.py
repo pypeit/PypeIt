@@ -22,6 +22,7 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit import io
 from pypeit import wavecalib
+from pypeit.core import arc
 from pypeit.core.wave import airtovac
 from pypeit.core.wavecal import waveio
 from pypeit.core.wavecal import wvutils
@@ -391,15 +392,23 @@ def read_ascii(tbl_file, in_vac=True):
 
 def xidl_arcspec(xidl_file, slit):
     """
-    Read an XIDL format solution
+    Read an XIDL format solution for a Longslit
 
     Note:  These are in air
 
-    Args:
-        xidl_file (str):
-        slit (int):
+    Parameters
+    ----------
+    xidl_file : str
+       XIDL file
+    slit : int
+       The slit in question.
 
-    Returns:
+    Returns
+    -------
+    wave : np.ndarray
+        Wavelengths in vacuum for that slit
+    spec : np.ndarray
+        Arc spectrum for that slit
 
     """
     xidl_dict = readsav(xidl_file)
@@ -428,6 +437,64 @@ def xidl_arcspec(xidl_file, slit):
         spec = spec[::-1]
     # Return
     return wv_vac.value, spec
+
+
+def xidl_hires(xidl_file, specbin=1):
+    """
+    Read an XIDL format solution for Keck/HIRES
+
+    Note:  They used air
+
+    Args:
+        xidl_file (str):
+            Keck/HIRES save file
+
+    Returns:
+
+    """
+    xidl_dict = readsav(xidl_file)
+    order_vec = xidl_dict['guess_ordr']
+    norders = order_vec.size
+    nspec = xidl_dict['sv_aspec'].shape[1]
+
+    # Wavelengths
+    wave = np.zeros((norders, specbin*nspec))
+    spec = np.zeros((norders, specbin*nspec))
+
+    calib = xidl_dict['all_arcfit']
+    order_mask = np.ones(norders, dtype=bool)
+
+    # Here we go on the fits
+    for kk in range(norders):
+        # Generate the wavelengths
+        if calib['FUNC'][kk] == b'CHEBY':
+            log10_wv_air = cheby_val(calib['FFIT'][kk], 
+                               np.arange(nspec),
+                        calib['NRM'][kk], calib['NORD'][kk])
+        elif calib['FUNC'][kk] == b'POLY':
+            log10_wv_air = poly_val(calib['FFIT'][kk], 
+                              np.arange(nspec),
+                              calib['NRM'][kk])
+        else:
+            order_mask[kk]=False
+            continue
+
+        wv_vac = airtovac(10**log10_wv_air * units.AA).value
+        ispec = xidl_dict['sv_aspec'][kk,:]
+        # Flip to blue to red?
+        if wv_vac[1] < wv_vac[0]:
+            wv_vac = wv_vac[::-1]
+            ispec = ispec[::-1]
+        # Fill
+        if specbin != 1:
+            wave[kk,:] = arc.resize_spec(wv_vac, nspec*specbin)
+            spec[kk,:] = arc.resize_spec(ispec, nspec*specbin)
+        else:
+            wave[kk,:] = wv_vac
+            spec[kk,:] = ispec
+    # Return
+
+    return order_vec[order_mask], wave[order_mask,:], spec[order_mask,:]
 
 
 def main(flg):
@@ -589,7 +656,7 @@ def main(flg):
             print("Wrote: {}".format(outfile))
 
     if flg & (2**16):  # VLT/X-Shooter line list
-        old_file = os.path.join(data.Paths.linelist, 'ThAr_XSHOOTER_VIS_air_lines.dat')
+        old_file = data.get_linelist_filepath('ThAr_XSHOOTER_VIS_air_lines.dat')
         # Load
         air_list = waveio.load_line_list(old_file)
         # Vacuum
@@ -597,7 +664,7 @@ def main(flg):
         vac_list = air_list.copy()
         vac_list['wave'] = vac_wv
         # Write
-        new_file = os.path.join(data.Paths.linelist, 'ThAr_XSHOOTER_VIS_lines.dat')
+        new_file = data.get_linelist_filepath('ThAr_XSHOOTER_VIS_lines.dat')
         vac_list.write(new_file, format='ascii.fixed_width', overwrite=True)
         print("Wrote: {}".format(new_file))
 

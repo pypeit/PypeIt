@@ -3,8 +3,7 @@ Routines for matching frames to certain types or each other.
 
 .. include:: ../include/links.rst
 """
-import os
-import re
+# TODO -- Move this out of core?
 
 from collections import OrderedDict
 
@@ -21,14 +20,6 @@ class FrameTypeBitMask(BitMask):
     standard, or trace.
     """
     def __init__(self):
-        # TODO: This needs to be an OrderedDict for now to ensure that
-        # the bits assigned to each key is always the same. As of python
-        # 3.7, normal dict types are guaranteed to preserve insertion
-        # order as part of its data model. When/if we require python
-        # 3.7, we can remove this (and other) OrderedDict usage in favor
-        # of just a normal dict.
-
-        # TODO JFH: I don't think we ever use pinhole. Should we remove it.
         # TODO JFH: We need a background image type
         frame_types = OrderedDict([
                        ('align', 'Trace constant spatial positions along the slit'),
@@ -38,6 +29,9 @@ class FrameTypeBitMask(BitMask):
                      ('pinhole', 'Pinhole observation used for tracing slit centers'),
                    ('pixelflat', 'Flat-field exposure used for pixel-to-pixel response'),
                    ('illumflat', 'Flat-field exposure used for illumination flat'),
+                   ('lampoffflats', 'Flat-field exposure with lamps off used to remove '
+                                   'persistence from lamp on flat exposures and/or thermal emission '
+                                   'from the telescope and dome'),
                      ('science', 'On-sky observation of a primary target'),
                     ('standard', 'On-sky observation of a flux calibrator'),
                        ('trace', 'High-count exposure used to trace slit positions'),
