@@ -1875,6 +1875,9 @@ Alterations to the default parameters are:
       [[slitedges]]
           sync_predict = nearest
           bound_detector = True
+      [[tilts]]
+          spat_order = 5
+          spec_order = 5
   [scienceframe]
       exprng = 90, None
       [[process]]
@@ -1883,6 +1886,8 @@ Alterations to the default parameters are:
   [reduce]
       [[findobj]]
           maxnumber_std = 1
+      [[skysub]]
+          no_poly = True
 
 .. _instr_par-jwst_nircam:
 
