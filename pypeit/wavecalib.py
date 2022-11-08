@@ -342,18 +342,25 @@ class BuildWaveCalib:
         par (:class:`pypeit.par.pypeitpar.WaveSolutionPar`):
             The parameters used for the wavelength solution
             Uses ['calibrations']['wavelengths']
-        binspectral (int, optional): Binning of the Arc in the spectral dimension
+        binspectral (int, optional):
+            Binning of the Arc in the spectral dimension
         meta_dict (dict: optional):
-            Dictionary containing meta information required for wavelength calibration. Specifically for non-fixed
-            format echelles this dict must contain the following keys:
-               'echangle':  the echelle angle
-               'xdangle': the cross-disperser angle
-               'dispmame': the disperser name
+            Dictionary containing meta information required for wavelength
+            calibration. Specifically for non-fixed format echelles this dict
+            must contain the following keys:
 
-        det (int, optional): Detector number
-        msbpm (ndarray, optional): Bad pixel mask image
-        qa_path (str, optional):  For QA
-        master_key (:obj:`str`, optional):  For naming QA only
+               - ``'echangle'``:  the echelle angle
+               - ``'xdangle'``: the cross-disperser angle
+               - ``'dispmame'``: the disperser name
+
+        det (int, optional):
+            Detector number
+        msbpm (ndarray, optional):
+            Bad pixel mask image
+        qa_path (str, optional):
+            For QA
+        master_key (:obj:`str`, optional):
+            For naming QA only
 
     Attributes:
         steps : list
