@@ -49,5 +49,6 @@ instrument-specific details for running PypeIt.
    mmt_mmirs
    ntt_efosc2
    shane_kast
+   soar_goodman
    xshooter
 

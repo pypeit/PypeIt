@@ -1528,7 +1528,7 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, ypos, cut, outfile=None
         In this case, each output pixel shown contains about 2 detector pixels.
     """
     plt.rcdefaults()
-    plt.rcParams['font.family'] = 'times new roman'
+    plt.rcParams['font.family'] = 'serif'
 
     msgs.info("Generating QA for spatial illumination fine correction")
     # Setup some plotting variables
