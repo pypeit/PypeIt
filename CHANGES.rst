@@ -2,6 +2,9 @@
 1.11.1dev
 ---------
 
+- (Hotfix) Fixed bug that allowed science frames to be assigned to multiple
+  instrument configurations
+- (Hotfix) Fixed typo related to GitHub download for offline processing
 - Started modifications and support for JWST.
 - LRISr header issue
 
