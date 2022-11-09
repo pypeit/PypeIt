@@ -642,15 +642,15 @@ class SpecObjs:
         if os.path.isfile(outfile) and (update_det is not None or slitspatnum is not None):
             _specobjs = SpecObjs.from_fitsfile(outfile)
             mask = np.ones(_specobjs.nobj, dtype=bool)
-            # Update_det
-            if update_det is not None:
-                # Pop out those with this detector (and slit if slit_spat_num is provided)
-                for det in np.atleast_1d(update_det):
-                    mask[_specobjs.DET == det] = False
-            elif slitspatnum is not None: # slitspatnum
+            # Update
+            if slitspatnum is not None: # slitspatnum
                 dets, spat_ids = parse.parse_slitspatnum(slitspatnum)
                 for det, spat_id in zip(dets, spat_ids):
                     mask[(_specobjs.DET == det) & (_specobjs.SLITID == spat_id)] = False
+            elif update_det is not None:
+                # Pop out those with this detector (and slit if slit_spat_num is provided)
+                for det in np.atleast_1d(update_det):
+                    mask[_specobjs.DET == det] = False
             _specobjs = _specobjs[mask]
             # Add in the new
             # TODO: Is the loop necessary? add_sobj can take many SpecObj objects.

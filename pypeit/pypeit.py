@@ -122,8 +122,9 @@ class PypeIt:
 
         #   - Build the full set, merging with any user-provided
         #     parameters
-        self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, 
-                                            merge_with=self.pypeItFile.cfg_lines)
+        self.par = PypeItPar.from_cfg_lines(
+            cfg_lines=spectrograph_cfg_lines, 
+            merge_with=self.pypeItFile.cfg_lines)
         msgs.info('Built full PypeIt parameter set.')
 
         # Check the output paths are ready

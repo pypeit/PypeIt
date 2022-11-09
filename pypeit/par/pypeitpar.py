@@ -2282,14 +2282,12 @@ class ReduxPar(ParSet):
                           'Gemini/GMOS and Keck/DEIMOS) ``detnum`` should be a list of ' \
                           'tuples of the detector indices that are mosaiced together. ' \
                           'E.g., for Gemini/GMOS ``detnum`` would be ``[(1,2,3)]`` and for ' \
-                          'KEck/DEIMOS it would be ``[(1, 5), (2, 6), (3, 7), (4, 8)]`` ' \
-                          'This cannot (and should not) be used with slitspatnum. '
+                          'KEck/DEIMOS it would be ``[(1, 5), (2, 6), (3, 7), (4, 8)]`` ' 
 
         dtypes['slitspatnum'] = [str, list]
         descr['slitspatnum'] = 'Restrict reduction to a set of slit DET:SPAT values (closest slit is used). ' \
-                               'Example syntax -- slitspatnum = 1:175,1:205   If you are re-running the code, ' \
-                               '(i.e. modifying one slit) you *must* have the precise SPAT_ID index.' \
-                               'This cannot (and should not) be used with detnum'
+                               'Example syntax -- slitspatnum = DET1:175,DET1:205 or MSC02:2234  If you are re-running the code, ' \
+                               '(i.e. modifying one slit) you *must* have the precise SPAT_ID index.' 
 
         dtypes['maskIDs'] = [str, int, list]
         descr['maskIDs'] = 'Restrict reduction to a set of slitmask IDs' \
@@ -2351,8 +2349,8 @@ class ReduxPar(ParSet):
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
         # Check that detnum and slitspatnum are not both set
-        if kwargs['detnum'] is not None and kwargs['slitspatnum'] is not None:
-            raise IOError("You cannot set both detnum and slitspatnum!  Causes serious SpecObjs output challenges..")
+        #if kwargs['detnum'] is not None and kwargs['slitspatnum'] is not None:
+        #    raise IOError("You cannot set both detnum and slitspatnum!  Causes serious SpecObjs output challenges..")
         # Finish
         return cls(**kwargs)
 
@@ -2360,8 +2358,8 @@ class ReduxPar(ParSet):
         if self.data['slitspatnum'] is not None:
             if self.data['maskIDs'] is not None:
                 raise ValueError("You cannot assign both splitspatnum and maskIDs")
-            if self.data['detnum'] is not None:
-                raise ValueError("You cannot assign both splitspatnum and detnum")
+            #if self.data['detnum'] is not None:
+            #    raise ValueError("You cannot assign both splitspatnum and detnum")
         if self.data['maskIDs'] is not None:
             if self.data['detnum'] is None:
                 raise ValueError("You must assign detnum with maskIDs (for now)")
