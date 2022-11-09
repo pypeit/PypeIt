@@ -1256,6 +1256,8 @@ def generate_cube_subsample(outfile, frame_wcs, all_sci, all_ivar, all_wghts, al
             Sensitivity function that has been applied to the datacube
         specname (str, optional):
             Name of the spectrograph
+        output_wcs (`astropy.wcs.wcs.WCS`_):
+            Output WCS - if None, the frame_wcs will be used.
     """
     if output_wcs is None:
         output_wcs = frame_wcs
@@ -1275,6 +1277,11 @@ def generate_cube_subsample(outfile, frame_wcs, all_sci, all_ivar, all_wghts, al
         this_sl = np.where(all_sltid==spatid)
         wpix = np.where(slitid_img_gpm==spatid)
         slitID = np.ones(wpix[0].size) * sl - frame_wcs.wcs.crpix[0]
+        # Generate a spline between spectral pixel position and wavelength
+        yspl = tilts[wpix]*(slits.nspec - 1)
+        wspl = all_wave[this_sl]
+        asrt = np.argsort(yspl)
+        wave_spl = interp1d(yspl[asrt], wspl[asrt], kind='linear', bounds_error=False, fill_value='extrapolate')
         for xx in range(subsample):
             for yy in range(subsample):
                 # Calculate the tranformation from detector pixels to voxels
@@ -1282,9 +1289,9 @@ def generate_cube_subsample(outfile, frame_wcs, all_sci, all_ivar, all_wghts, al
                 # TODO :: The tilts in the following line is evaluated at the pixel location, not the subsampled pixel location
                 # A simple fix is implemented for the spectral direction, but this is not so straightforward for the spatial direction
                 # Probably, the correction in the spatial direction is so tiny, that this doesn't matter...
-                specpos = tilts[wpix]*(slits.nspec - 1) + ssamp_offs[yy]
-                world_ra, world_dec, _ = frame_wcs.wcs_pix2world(slitID, spatpos, specpos, 0)
-                pix_coord = output_wcs.wcs_world2pix(np.vstack((world_ra, world_dec, all_wave[this_sl] * 1.0E-10)).T, 0)
+                specpos = wave_spl(tilts[wpix]*(slits.nspec - 1) + ssamp_offs[yy])
+                world_ra, world_dec, _ = frame_wcs.wcs_pix2world(slitID, spatpos, np.zeros(slitID.size), 0)
+                pix_coord = output_wcs.wcs_world2pix(np.vstack((world_ra, world_dec, specpos * 1.0E-10)).T, 0)
                 # Now assemble this position of the datacube
                 tmp_dc, _ = np.histogramdd(pix_coord, bins=bins, weights=all_sci[this_sl] * all_wght_subsmp[this_sl])
                 tmp_vr, _ = np.histogramdd(pix_coord, bins=bins, weights=all_var[this_sl] * all_wght_subsmp[this_sl]**2)
@@ -2046,12 +2053,12 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     coord_min = [ra_min, dec_min, wav_min]
     coord_dlt = [dspat, dspat, dwv]
     masterwcs = generate_masterWCS(coord_min, coord_dlt, name=specname)
-    msgs.info(msgs.newline()+"-"*40 +
+    msgs.info(msgs.newline() + "-" * 40 +
               msgs.newline() + "Parameters of the WCS:" +
               msgs.newline() + "RA   min, max = {0:f}, {1:f}".format(ra_min, ra_max) +
               msgs.newline() + "DEC  min, max = {0:f}, {1:f}".format(dec_min, dec_max) +
               msgs.newline() + "WAVE min, max = {0:f}, {1:f}".format(wav_min, wav_max) +
-              msgs.newline() + "Spaxel size = {0:f}''".format(3600.0*dspat) +
+              msgs.newline() + "Spaxel size = {0:f} arcsec".format(3600.0*dspat) +
               msgs.newline() + "Wavelength step = {0:f} A".format(dwv) +
               msgs.newline() + "-" * 40)
 
