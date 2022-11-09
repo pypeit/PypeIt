@@ -451,8 +451,7 @@ class CoAdd2D:
             ispat = slice(spat_left,spat_righ)
             imgminsky_pseudo[ispec, ispat] = coadd_dict['imgminsky']
             sciivar_pseudo[ispec, ispat] = coadd_dict['sciivar']
-            this_waveimg = coadd_dict['waveimg']
-            waveimg_pseudo[ispec, ispat] = this_waveimg
+            waveimg_pseudo[ispec, ispat] = coadd_dict['waveimg']
             # spat_img_pseudo is the sub-pixel image position on the rebinned pseudo image
             inmask_pseudo[ispec, ispat] = coadd_dict['outmask']
             image_temp = (coadd_dict['dspat'] - coadd_dict['dspat_mid'][0] + spat_left) #*coadd_dict['outmask']
@@ -705,14 +704,15 @@ class CoAdd2D:
                A list or array of offsets that are being applied to the slit center
 
         Returns:
-            ref_trace_stack (list):
-               A list of reference traces for the 2d coadding that have been offset
-
+            :obj:`list`: A list of reference traces for the 2d coadding that
+            have been offset.
         """
-        ref_trace_stack = []
-        for iexp, slits in enumerate(self.stack_dict['slits_list']):
-            ref_trace_stack.append(slits.center[:,slitid] - offsets[iexp])
-        return ref_trace_stack
+        return [slits.center[:,slitid] - offsets[iexp] 
+                    for iexp, slits in enumerate(self.stack_dict['slits_list'])]
+#        ref_trace_stack = []
+#        for iexp, slits in enumerate(self.stack_dict['slits_list']):
+#            ref_trace_stack.append(slits.center[:,slitid] - offsets[iexp])
+#        return ref_trace_stack
 
     def get_wave_grid(self, **kwargs_wave):
         """
@@ -1080,9 +1080,11 @@ class MultiSlitCoAdd2D(CoAdd2D):
             thismask_stack = [np.abs(slitmask - self.spatid_bri) <= self.par['coadd2d']['spat_toler'] for slitmask in self.stack_dict['slitmask_stack']]
 
             # TODO Need to think abbout whether we have multiple tslits_dict for each exposure or a single one
-            trace_stack_bri = []
-            for slits in self.stack_dict['slits_list']:
-                trace_stack_bri.append(slits.center[:, self.slitidx_bri])
+            trace_stack_bri = [slits.center[:, self.slitidx_bri] 
+                                    for slits in self.stack_dict['slits_list']]
+#            trace_stack_bri = []
+#            for slits in self.stack_dict['slits_list']:
+#                trace_stack_bri.append(slits.center[:, self.slitidx_bri])
             # Determine the wavelength grid that we will use for the current slit/order
 
             ## TODO: Should the spatial and spectral samp_facts here match those of the final coadded data, or she would
@@ -1539,8 +1541,8 @@ class EchelleCoAdd2D(CoAdd2D):
                 the nexp, the number of images being coadded.
 
         Returns:
-            ref_trace_stack (list):
-               A list of reference traces for the 2d coadding that have been offset
+            :obj:`list`: A list of reference traces for the 2d coadding that
+            have been offset
 
         """
 
@@ -1548,15 +1550,15 @@ class EchelleCoAdd2D(CoAdd2D):
             msgs.error('You can only input offsets or an objid, but not both')
         if isinstance(offsets, (list, np.ndarray)):
             return self.offset_slit_cen(slitid, offsets)
-        elif objid is not None:
+
+        if objid is not None:
             specobjs_list = self.stack_dict['specobjs_list']
             ref_trace_stack = []
             for iexp, sobjs in enumerate(specobjs_list):
                 ithis = (sobjs.ECH_ORDERINDX == slitid) & (sobjs.ECH_OBJID == objid[iexp])
                 ref_trace_stack.append(sobjs[ithis][0].TRACE_SPAT)
-
             return ref_trace_stack
-        else:
-            msgs.error('You must input either offsets or an objid to determine the stack of reference traces')
-            return None
+
+        msgs.error('You must input either offsets or an objid to determine the stack of '
+                   'reference traces')
 

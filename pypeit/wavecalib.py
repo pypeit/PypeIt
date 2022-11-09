@@ -342,11 +342,25 @@ class BuildWaveCalib:
         par (:class:`pypeit.par.pypeitpar.WaveSolutionPar`):
             The parameters used for the wavelength solution
             Uses ['calibrations']['wavelengths']
-        binspectral (int, optional): Binning of the Arc in the spectral dimension
-        det (int, optional): Detector number
-        msbpm (ndarray, optional): Bad pixel mask image
-        qa_path (str, optional):  For QA
-        master_key (:obj:`str`, optional):  For naming QA only
+        binspectral (int, optional):
+            Binning of the Arc in the spectral dimension
+        meta_dict (dict: optional):
+            Dictionary containing meta information required for wavelength
+            calibration. Specifically for non-fixed format echelles this dict
+            must contain the following keys:
+
+               - ``'echangle'``:  the echelle angle
+               - ``'xdangle'``: the cross-disperser angle
+               - ``'dispmame'``: the disperser name
+
+        det (int, optional):
+            Detector number
+        msbpm (ndarray, optional):
+            Bad pixel mask image
+        qa_path (str, optional):
+            For QA
+        master_key (:obj:`str`, optional):
+            For naming QA only
 
     Attributes:
         steps : list
@@ -539,6 +553,7 @@ class BuildWaveCalib:
                                              #debug=True, debug_reid=True, debug_xcorr=True)
         elif self.par['method'] == 'echelle':
             # Echelle calibration
+            msgs.error('Non-fixed format Echelle wavelength calibration is not yet full implemented')
             # TODO: Get these from the spectrograph file later.
             angle_fits_file = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms', 'hires_wvcalib',
                                            'wvcalib_angle_fits.fits')

@@ -196,6 +196,7 @@ class PypeItMetaData:
             # Read the fits headers.  NOTE: If the file cannot be opened,
             # headarr will be None, and the subsequent loop over the meta keys
             # will fill the data dictionary with None values.
+            msgs.info('Adding metadata for {0}'.format(os.path.split(ifile)[1]))
             headarr = self.spectrograph.get_headarr(ifile, strict=strict)
 
             # Grab Meta
@@ -210,7 +211,6 @@ class PypeItMetaData:
                     msgs.warn('Removing troublesome # character from {0}.  Returning {1}.'.format(
                               meta_key, value))
                 data[meta_key].append(value)
-            msgs.info('Added metadata for {0}'.format(os.path.split(ifile)[1]))
 
         # JFH Changed the below to not crash if some files have None in
         # their MJD. This is the desired behavior since if there are
@@ -809,6 +809,7 @@ class PypeItMetaData:
         nrows = len(self)
         col = table.Column(data=['None'] * nrows, name='setup', dtype='U25')
         self.table.add_column(col)
+        is_science = self.find_frames('science')    # Science frames can only have one configuration
         for i in range(nrows):
             for d, cfg in _configs.items():
                 # modify the configuration items only for specific frames. This is instrument dependent.
@@ -818,7 +819,7 @@ class PypeItMetaData:
                         continue
                     elif self.table['setup'][i] == 'None':
                         self.table['setup'][i] = d
-                    else:
+                    elif not is_science[i]:
                         self.table['setup'][i] += ',{}'.format(d)
 
         # Check if any of the configurations are not set

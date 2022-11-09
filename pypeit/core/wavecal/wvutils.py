@@ -412,25 +412,25 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_
     the input spectrum.
 
     Args:
-        inspec1 (ndarray):
-          Input spectrum, shape = (nspec,)
+        inspec1 (`numpy.ndarray`_):
+            Input spectrum, shape = (nspec,)
         sigdetect (float, optional, default=3.0):
-          Peak finding threshold for lines that will be used to create the synthetic xcorr_arc
+            Peak finding threshold for lines that will be used to create the synthetic xcorr_arc
         sig_ceil (float, optional, default = 10.0):
-          Significance threshold for peaks that will be used to determine the line amplitude clipping threshold.
-          For peaks with significance > sig_ceil, the code will find the amplitude corresponding to
-          perecent_ceil, and this will be the clipping threshold.
+            Significance threshold for peaks that will be used to determine the line amplitude clipping threshold.
+            For peaks with significance > sig_ceil, the code will find the amplitude corresponding to
+            perecent_ceil, and this will be the clipping threshold.
         percent_ceil (float, optional, default=50.0):
-          Upper percentile threshold for thresholding positive and negative values. If set to None, no thresholding
-          will be performed.
+            Upper percentile threshold for thresholding positive and negative values. If set to None, no thresholding
+            will be performed.
         use_raw_arc (bool, optional):
-          If True, use amplitudes from the raw arc, i.e. do not continuum subtract. Default = False
+            If True, use amplitudes from the raw arc, i.e. do not continuum subtract. Default = False
         fwhm (float, optional):
-          Fwhm of arc lines. Used for peak finding and to assign a fwhm in the xcorr_arc.
+            Fwhm of arc lines. Used for peak finding and to assign a fwhm in the xcorr_arc.
 
     Returns:
-        xcorr_arc: numpy.ndarray_
-          Synthetic arc spectrum to be used for cross-correlations, shape = (nspec,)
+        `numpy.ndarray`_: Synthetic arc spectrum to be used for
+        cross-correlations, shape = (nspec,)
 
     """
 
@@ -458,14 +458,9 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_
         sigma = fwhm/2.35
         if tcent1[ind] == -999.0:
             continue
-        else:
-            xcorr_arc += ampl_clip[ind]*np.exp(-0.5*((spec_vec - tcent1[ind])/sigma)**2)
-
+        xcorr_arc += ampl_clip[ind]*np.exp(-0.5*((spec_vec - tcent1[ind])/sigma)**2)
 
     return xcorr_arc
-
-
-
 
 
 # ToDO can we speed this code up? I've heard numpy.correlate is faster. Someone should investigate optimization. Also we don't need to compute
@@ -473,45 +468,51 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_
 def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetect=5.0, sig_ceil=10.0, fwhm=4.0,
                 do_xcorr_arc=True, debug=False):
 
-    """ Determine the shift inspec2 relative to inspec1.  This routine computes the shift by finding the maximum of the
-    cross-correlation coefficient. The convention for the shift is that positive shift means inspec2 is shifted to the right
-    (higher pixel values) relative to inspec1.
+    """
+    Determine the shift inspec2 relative to inspec1.  This routine computes the
+    shift by finding the maximum of the cross-correlation coefficient. The
+    convention for the shift is that positive shift means inspec2 is shifted to
+    the right (higher pixel values) relative to inspec1.
 
-    Args:
-        inspec1 : numpy.ndarray_
-            Reference spectrum
-        inspec2 : numpy.ndarray_
-            Spectrum for which the shift and stretch are computed such
-            that it will match inspec1
-        sigdetect:  float, optional, default=3.0
-          Peak finding threshold for lines that will be used to create the synthetic xcorr_arc
-        sig_ceil (float, optional, default = 10.0):
-          Significance threshold for peaks that will be used to determine the line amplitude clipping threshold.
-          For peaks with significance > sig_ceil, the code will find the amplitude corresponding to
-          perecent_ceil, and this will be the clipping threshold.
-        percent_ceil: float, default=90.0
-            Apply a ceiling to the input spectra at the percent_ceil
-            percentile level of the distribution of peak amplitudes.
-            This prevents extremely strong lines from completely
-            dominating the cross-correlation, which can causes the
-            cross-correlation to have spurious noise spikes that are not
-            the real maximum.
-        use_raw_arc: bool, default = False
-            If this parameter is True the raw arc will be used rather
-            than the continuum subtracted arc
-        do_xcorr_arc: bool, default = True
-            If this parameter is True, peak finding will be performed and a synthetic arc will be created to be used for
-            the cross-correlations.  If a synthetic arc has already been created by get_xcorr_arc, then set this to False
+    Parameters
+    ----------
+    inspec1 : numpy.ndarray_
+        Reference spectrum
+    inspec2 : numpy.ndarray_
+        Spectrum for which the shift and stretch are computed such
+        that it will match inspec1
+    sigdetect :  float, optional, default=3.0
+        Peak finding threshold for lines that will be used to create the
+        synthetic xcorr_arc
+    sig_ceil : float, optional, default = 10.0
+        Significance threshold for peaks that will be used to determine the line
+        amplitude clipping threshold.  For peaks with significance > sig_ceil,
+        the code will find the amplitude corresponding to perecent_ceil, and
+        this will be the clipping threshold.
+    percent_ceil : float, default=90.0
+        Apply a ceiling to the input spectra at the percent_ceil
+        percentile level of the distribution of peak amplitudes.
+        This prevents extremely strong lines from completely
+        dominating the cross-correlation, which can causes the
+        cross-correlation to have spurious noise spikes that are not
+        the real maximum.
+    use_raw_arc : bool, default = False
+        If this parameter is True the raw arc will be used rather than the
+        continuum subtracted arc
+    do_xcorr_arc : bool, default = True
+        If this parameter is True, peak finding will be performed and a
+        synthetic arc will be created to be used for the cross-correlations.  If
+        a synthetic arc has already been created by get_xcorr_arc, then set this
+        to False
+    debug: boolean, default = False
+        Produce debugging plot
 
-        debug: boolean, default = False
-
-    Returns:
-       tuple: Returns the following:
-
-            - shift: float; the shift which was determined
-            - cross_corr: float; the maximum of the cross-correlation
-              coefficient at this shift
-
+    Returns
+    -------
+    shift : float
+        the shift which was determined
+    cross_corr: float
+        the maximum of the cross-correlation coefficient at this shift
     """
 
     if do_xcorr_arc:
@@ -571,9 +572,9 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         default cc_thresh =-1.0 means shift/stretch is always attempted
         since the cross correlation coeficcient cannot be less than
         -1.0.
-    sigdetect (float, optional, default=3.0):
+    sigdetect : float, optional, default=3.0
         Peak finding threshold for lines that will be used to create the synthetic xcorr_arc
-    sig_ceil (float, optional, default = 10.0):
+    sig_ceil : float, optional, default = 10.0
         Significance threshold for peaks that will be used to determine the line amplitude clipping threshold.
         For peaks with significance > sig_ceil, the code will find the amplitude corresponding to
         perecent_ceil, and this will be the clipping threshold.

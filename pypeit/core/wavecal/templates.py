@@ -399,7 +399,9 @@ def xidl_arcspec(xidl_file, slit):
     Parameters
     ----------
     xidl_file : str
+       XIDL file
     slit : int
+       The slit in question.
 
     Returns
     -------

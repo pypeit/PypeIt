@@ -48,8 +48,9 @@ def skysub_npoly(thismask):
     return npoly
 
 
-def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=None, bsp=0.6, sigrej=3.0, maxiter=35,
-                  trim_edg=(3,3), pos_mask=True, max_mask_frac=0.80, show_fit=False, no_poly=False, npoly=None):
+def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=None, bsp=0.6,
+                  sigrej=3.0, maxiter=35, trim_edg=(3,3), pos_mask=True, max_mask_frac=0.80,
+                  show_fit=False, no_poly=False, npoly=None):
     """
     Perform global sky subtraction on an input slit
     THIS NEEDS MORE DESCRIPTION
@@ -95,7 +96,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
             requires that the counts are positive which will not be the
             case for i.e. an A-B image. Thus the routine will fail if
             pos_mask is not set to False.
-        max_mask_frac: float, default max_bad_pixel_frac = 0.80
+        max_mask_frac (float, optional):
             Maximum fraction of total pixels that can be masked by the input masks. If more than this
             threshold is masked the code will return zeros and throw a warning.
         show_fit (bool, optional):
@@ -621,7 +622,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
     bkpts_optimal : bool, optional
         Parameter governing whether spectral direction breakpoints
         for b-spline sky/object modeling are determined optimally.
-        If ``bkpts_optima=True``, the optimal break-point spacing
+        If ``bkpts_optimal=True``, the optimal break-point spacing
         will be determined directly using the optimal_bkpts function
         by measuring how well we are sampling the sky using ``piximg
         = (nspec-1)*yilyd``. The bsp parameter in this case
