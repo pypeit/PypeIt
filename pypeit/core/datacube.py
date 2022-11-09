@@ -1213,8 +1213,11 @@ def generate_cube_subsample(outfile, output_wcs, all_sci, all_ivar, all_wghts, a
                             astrom_trans, bins, subsample=10, overwrite=False, blaze_wave=None, blaze_spec=None,
                             fluxcal=False, sensfunc=None, specname="PYP_SPEC"):
     """
-    Save a datacube using the subsample algorithm. This algorithm is a combination of the
-    "nearest grid point" and "resample" algorithms.
+    Save a datacube using the subsample algorithm. This algorithm splits
+    each detector pixel into multiple subpixels, and then assigns each
+    subpixel to a voxel. For example, if subsample=10, then each detector
+    pixel is subsampled by 10^2=100 subpixels. When subsample=1, this
+    corresponds to the nearest grid point (NGP) algorithm.
 
     Args:
         outfile (`str`):
@@ -1276,7 +1279,7 @@ def generate_cube_subsample(outfile, output_wcs, all_sci, all_ivar, all_wghts, a
         slitID = np.ones(wpix[0].size) * sl - output_wcs.wcs.crpix[0]
         # Generate a spline between spectral pixel position and wavelength
         yspl = tilts[wpix]*(slits.nspec - 1)
-        wspl = all_wave[this_sl]*1.0E-10
+        wspl = all_wave[this_sl]
         asrt = np.argsort(yspl)
         wave_spl = interp1d(yspl[asrt], wspl[asrt], kind='linear', bounds_error=False, fill_value='extrapolate')
         for xx in range(subsample):
