@@ -169,12 +169,15 @@ class EdgeTraceBitMask(BitMask):
                     ('SHORTSLIT', 'Slit formed by left and right edge is too short to be valid'),
                       ('BOXSLIT', 'Slit formed by left and right edge is valid (large enough '
                                   'to be a valid slit), but too short to be a science slit'),
-                 ('ABNORMALSLIT', 'Slit formed by left and right edge has abnormal length'),
+           ('ABNORMALSLIT_SHORT', 'Slit formed by left and right edge is abnormally short'),
+            ('ABNORMALSLIT_LONG', 'Slit formed by left and right edge is abnormally long'),
                    ('USERRMSLIT', 'Slit removed by user'),
                       ('NOORDER', 'Unable to associate this trace with an echelle order (echelle '
                                   ' spectrographs only)'),
                 ('ORDERMISMATCH', 'Slit traces are not well matched to any echelle order (echelle '
-                                  ' spectrographs only)')])
+                                  ' spectrographs only)'),
+            ('LARGELENGTHCHANGE', 'Large difference in the slit length as a function of '
+                                  'wavelength.')])
         super(EdgeTraceBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
 
     @property
@@ -2341,6 +2344,33 @@ class EdgeTraceSet(DataContainer):
 
         self.sync(rebuild_pca=False)
 
+    def _flag_edges(self, trace_cen, indx, flg):
+        """
+        Convenience function for slit checking, which performs the same
+        operations to the set of edges flagged for the many reasons iterated
+        through in :func:`check_synced`.
+
+        This modifies :attr:`edge_msk` directly.
+
+        Args:
+            trace_cen (`numpy.ndarray`_):
+                The 2D array with the edge traces.
+            indx (`numpy.ndarray`_):
+                The boolean array selecting the edges to be flagged.
+            flg (:obj:`str`):
+                The bit flag to be assigned.
+        """
+        if np.sum(indx) == self.ntrace:
+            if self.ntrace == 2:
+                # TODO: I *really* don't like this because it has
+                # the potential to yield an infinite loop, but it's
+                # also the simplest approach.
+                return self._masked_single_slit(trace_cen)
+            msgs.warn('All slits have been flagged!')
+        if np.any(indx):
+            msgs.info(f'Flagging {np.sum(indx)//2} slits as {flg}!')
+            self.edge_msk[:,indx] = self.bitmask.turn_on(self.edge_msk[:,indx], flg)
+
     def check_synced(self, rebuild_pca=False):
         """
         Quality check and masking of the synchronized edges.
@@ -2435,16 +2465,21 @@ class EdgeTraceSet(DataContainer):
 
         # Parse parameters and report
         gap_atol = None
+        dlength_rtol = self.par['dlength_range']
+        dlength_atol = None
         length_atol = None
         length_atol_sci = None
         length_rtol = self.par['length_range']
-        if self.par['minimum_slit_length'] is not None \
+        if self.par['minimum_slit_dlength'] is not None \
+                or self.par['minimum_slit_length'] is not None \
                 or self.par['minimum_slit_length_sci'] is not None \
                 or self.par['minimum_slit_gap'] is not None:
             platescale = parse.parse_binning(self.traceimg.detector.binning)[1] \
                             * self.traceimg.detector['platescale']
             msgs.info('Binning: {0}'.format(self.traceimg.detector.binning))
             msgs.info('Platescale per binned pixel: {0}'.format(platescale))
+            if self.par['minimum_slit_dlength'] is not None:
+                length_atol = self.par['minimum_slit_dlength']/platescale
             if self.par['minimum_slit_length'] is not None:
                 length_atol = self.par['minimum_slit_length']/platescale
             if self.par['minimum_slit_length_sci'] is not None:
@@ -2453,10 +2488,17 @@ class EdgeTraceSet(DataContainer):
                 gap_atol = self.par['minimum_slit_gap']/platescale
 
         msgs.info('Minimum slit gap (binned pixels): {0}'.format(gap_atol))
+        msgs.info('Minimum change in slit length (binned pixels): {0}'.format(dlength_atol))
+        msgs.info('Range in the change in slit length not limited' if dlength_rtol is None else
+                  f'Range in the change in slit length limited to +/-{dlength_rtol*100:.1f}%')
         msgs.info('Minimum slit length (binned pixels): {0}'.format(length_atol))
         msgs.info('Minimum science slit length (binned pixels): {0}'.format(length_atol_sci))
         msgs.info('Range in slit length not limited' if length_rtol is None else
-                  'Range in slit length limited to +/-{0:.1f}%'.format(length_rtol*100))
+                  f'Range in slit length limited to +/-{length_rtol*100:.1f}%')
+
+        if length_rtol is None and self.par['overlap']:
+            msgs.warn('Overlap keyword ignored!  Must set length_range to identify abnormally '
+                      'short slits.')
 
         # TODO: Should here and below only use the unmasked parts of
         # the trace for the slit gap and length computations?
@@ -2479,52 +2521,94 @@ class EdgeTraceSet(DataContainer):
                 trace_cen = self.edge_cen if self.edge_fit is None else self.edge_fit
 
         # Calculate the slit length and gap
-        slit_length = np.median(np.squeeze(np.diff(trace_cen.reshape(self.nspec,-1,2), axis=-1)),
-                                axis=0)
+        slit_length = np.squeeze(np.diff(trace_cen.reshape(self.nspec,-1,2), axis=-1))
+        med_slit_length = np.median(slit_length, axis=0)
+
+        if dlength_atol is not None:
+            # Check the length of each slit against the median value, flagging
+            # any above the provided *absolute* tolerance (both edges are
+            # flagged)
+            indx = np.repeat(np.any(np.absolute(slit_length-med_slit_length[None,:])
+                                    > dlength_atol, axis=0), 2)
+            self._flag_edges(trace_cen, indx, 'LARGELENGTHCHANGE')
+
+        if dlength_rtol is not None:
+            # For slits with larger than 0 lengths (i.e., valid slits), check
+            # their length against the median value, flagging any exhibit a
+            # *relative* change above the provided tolerance (both edges are
+            # flagged)
+            indx = np.all(slit_length > 0, axis=0)
+            dlen = np.zeros_like(slit_length)
+            dlen[:,indx] = np.log(np.absolute(slit_length[:,indx]/med_slit_length[None,indx]))
+            indx = np.repeat(np.logical_not(indx) 
+                                | np.any(np.absolute(dlen) > np.log(1+dlength_rtol), axis=0), 2)
+            self._flag_edges(trace_cen, indx, 'LARGELENGTHCHANGE')
+
         if length_atol is not None:
             # Find any short slits (flag both edges of the slit)
-            indx = np.repeat(slit_length < length_atol, 2)
-            if np.sum(indx) == self.ntrace:
-                if self.ntrace == 2:
-                    # TODO: I *really* don't like this because it has
-                    # the potential to yield an infinite loop, but it's
-                    # also the simplest approach.
-                    return self._masked_single_slit(trace_cen)
-                msgs.warn('All slits are too short!')
-            if np.any(indx):
-                msgs.info('Rejecting {0} slits that are too short.'.format(np.sum(indx)))
-                self.edge_msk[:,indx] = self.bitmask.turn_on(self.edge_msk[:,indx], 'SHORTSLIT')
+            indx = np.repeat(med_slit_length < length_atol, 2)
+            self._flag_edges(trace_cen, indx, 'SHORTSLIT')
 
         if length_atol_sci is not None:
             # Find any box slits (flag both edges of the slit)
-            indx = slit_length < length_atol_sci
+            indx = med_slit_length < length_atol_sci
             if length_atol is not None:
-                indx &= (slit_length > length_atol)
+                indx &= (med_slit_length > length_atol)
             indx = np.repeat(indx, 2)
-            if np.sum(indx) == self.ntrace:
-                if self.ntrace == 2:
-                    # TODO: I *really* don't like this because it has
-                    # the potential to yield an infinite loop, but it's
-                    # also the simplest approach.
-                    return self._masked_single_slit(trace_cen)
-                msgs.warn('All slits are too short!')
-            if np.any(indx):
-                msgs.info('Identifying/Rejecting {0} slits as box slits.'.format(np.sum(indx)))
-                self.edge_msk[:,indx] = self.bitmask.turn_on(self.edge_msk[:,indx], 'BOXSLIT')
+            self._flag_edges(trace_cen, indx, 'BOXSLIT')
 
+        # TODO: Might want to do this first, then do overlap, then redo all of
+        # the above after rejiggering the overlap regions.
         if length_rtol is not None:
-            # Find slits that are not within the provided fraction of
-            # the median length
-            indx = np.repeat(np.absolute(np.log(slit_length/np.median(slit_length)))
+            # Find slits that are abnormally short
+            short = np.repeat(np.log(med_slit_length/np.median(med_slit_length))
+                              < np.log(1-length_rtol), 2)
+            if np.any(short):
+                msgs.info(f'Flagging {np.sum(short)} abnormally short slit edges.')
+                self.edge_msk[:,short] \
+                        = self.bitmask.turn_on(self.edge_msk[:,short], 'ABNORMALSLIT_SHORT')
+            long = np.repeat(np.log(med_slit_length/np.median(med_slit_length))
                              > np.log(1+length_rtol), 2)
-            if np.any(indx):
-                msgs.info('Rejecting {0} abnormally long or short slits.'.format(np.sum(indx)))
-                self.edge_msk[:,indx] = self.bitmask.turn_on(self.edge_msk[:,indx], 'ABNORMALSLIT')
+            if np.any(long):
+                msgs.info(f'Flagging {np.sum(long)} abnormally long slit edges.')
+                self.edge_msk[:,long] \
+                        = self.bitmask.turn_on(self.edge_msk[:,long], 'ABNORMALSLIT_LONG')
+
+        # Get the slits that have been flagged as abnormally short.  This should
+        # be the same as the definition above, it's just redone here to ensure
+        # `short` is defined when `length_rtol` is None.
+        short = self.fully_masked_traces(flag='ABNORMALSLIT_SHORT')
+        if self.par['overlap'] and np.any(short):
+            msgs.info('Assuming slits flagged as abnormally short are actually due to '
+                      'overlapping slit edges.')
+            rmtrace = np.zeros(self.ntrace, dtype=bool)
+            # Find sets of adjacent short slits and assume they all select
+            # adjacent overlap regions.
+            short_slits = utils.contiguous_true(short)
+            for slc in short_slits:
+                # Remove the edges just before and after this region of short
+                # slits.  They were likely inserted by the left-right syncing.
+                rmtrace[max(0,slc.start-1)] = True
+                rmtrace[min(self.ntrace-1, slc.stop)] = True
+                # Flip the sign of the edges (i.e., turn lefts into rights and
+                # vice versa).  This turns the overlap regions into slit gaps.
+                self.traceid[slc] *= -1
+                # Turn off the masking
+                self.edge_msk[:,slc] \
+                        = self.bitmask.turn_off(self.edge_msk[:,slc], 'ABNORMALSLIT_SHORT')
+            # Remove the flagged traces, resort the edges, and rebuild the pca
+            self.remove_traces(rmtrace, rebuild_pca=_rebuild_pca)
+            # This operation should lead to traces that are still synced.
+            # There's a bug if they aren't!
+            # TODO: We can remove this assert once we're satisfied we've caught
+            # all the corner cases.
+#            assert self.is_synced, 'CODING ERROR: Overlapping slit strategy failed.'
 
         # TODO: Check that slit edges meet a minimum slit gap?
 
         # Find all traces to remove
-        rmtrace = self.fully_masked_traces(flag=self.bitmask.bad_flags, exclude=self.bitmask.exclude_flags)
+        rmtrace = self.fully_masked_traces(flag=self.bitmask.bad_flags,
+                                           exclude=self.bitmask.exclude_flags)
         # Make sure to also remove the synced one
         rmtrace = self.synced_selection(rmtrace, mode='both', assume_synced=True)
         # Remove 'em
@@ -3013,7 +3097,7 @@ class EdgeTraceSet(DataContainer):
         # Set and report the minimum length needed for the PCA in
         # pixels
         minimum_spec_length = self.par['fit_min_spec_length']*self.nspec
-        msgs.info('Minium length of traces to include in the PCA: {0}'.format(minimum_spec_length))
+        msgs.info('Minimum length of traces to include in the PCA: {0}'.format(minimum_spec_length))
 
         # This call to check_traces will flag any trace with a length
         # below minimum_spec_length as SHORTRANGE
@@ -3074,12 +3158,12 @@ class EdgeTraceSet(DataContainer):
             msgs.error('Spatial locations and side integers must have the same shape.')
 
         if self.par['left_right_pca']:
-            trace_add = np.zeros((self.nspec,0), dtype='float')
+            trace_add = np.zeros((self.nspec,_side.size), dtype='float')
             for s,p in zip([-1,1], [self.left_pca,self.right_pca]):
                 indx = _side == s
                 if not np.any(indx):
                     continue
-                trace_add = np.hstack((trace_add, p.predict(np.atleast_1d(_edge_cen[indx]))))
+                trace_add[:,indx] = p.predict(_edge_cen[indx])
         else:
             trace_add = self.pca.predict(_edge_cen)
 
@@ -4998,8 +5082,6 @@ class EdgeTraceSet(DataContainer):
                 locations are not defined for an Echelle
                 spectrograph.
         """
-        if self.spectrograph.pypeline != 'Echelle':
-            return
 
         if self.spectrograph.norders is None:
             msgs.error('Coding error: norders not defined for {0}!'.format(
@@ -5111,7 +5193,8 @@ class EdgeTraceSet(DataContainer):
 
         # For echelle spectrographs, match the left-right trace pairs
         # to echelle orders
-        self.match_order()
+        if self.spectrograph.pypeline == 'Echelle' and self.spectrograph.ech_fixed_format:
+            self.match_order()
 
         # Select the good traces, including only those correctly
         # matched to echelle orders for echelle spectrographs and
