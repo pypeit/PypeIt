@@ -1209,9 +1209,9 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     final_cube = DataCube(datcube.T, varcube.T, specname, blaze_wave, blaze_spec, sensfunc=sensfunc, fluxed=fluxcal)
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
 
-def generate_cube_subsample(outfile, frame_wcs, all_sci, all_ivar, all_wghts, all_wave, tilts, slits, slitid_img_gpm,
+def generate_cube_subsample(outfile, output_wcs, all_sci, all_ivar, all_wghts, all_wave, tilts, slits, slitid_img_gpm,
                             astrom_trans, bins, subsample=10, overwrite=False, blaze_wave=None, blaze_spec=None,
-                            fluxcal=False, sensfunc=None, specname="PYP_SPEC", output_wcs=None):
+                            fluxcal=False, sensfunc=None, specname="PYP_SPEC"):
     """
     Save a datacube using the subsample algorithm. This algorithm is a combination of the
     "nearest grid point" and "resample" algorithms.
@@ -1219,8 +1219,8 @@ def generate_cube_subsample(outfile, frame_wcs, all_sci, all_ivar, all_wghts, al
     Args:
         outfile (`str`):
             Filename to be used to save the datacube
-        frame_wcs (`astropy.wcs.wcs.WCS`_):
-            World coordinate system for this frame.
+        output_wcs (`astropy.wcs.wcs.WCS`_):
+            Output world coordinate system.
         all_sci (`numpy.ndarray`_):
             1D flattened array containing the counts of each pixel from all spec2d files
         all_ivar (`numpy.ndarray`_):
@@ -1256,11 +1256,7 @@ def generate_cube_subsample(outfile, frame_wcs, all_sci, all_ivar, all_wghts, al
             Sensitivity function that has been applied to the datacube
         specname (str, optional):
             Name of the spectrograph
-        output_wcs (`astropy.wcs.wcs.WCS`_):
-            Output WCS - if None, the frame_wcs will be used.
     """
-    if output_wcs is None:
-        output_wcs = frame_wcs
     # Prepare the output arrays
     outshape = (bins[0].size-1, bins[1].size-1, bins[2].size-1)
     datacube, varcube, normcube = np.zeros(outshape), np.zeros(outshape), np.zeros(outshape)
@@ -1272,14 +1268,15 @@ def generate_cube_subsample(outfile, frame_wcs, all_sci, all_ivar, all_wghts, al
     # Loop through all slits
     all_sltid = slitid_img_gpm[(slitid_img_gpm > 0)]
     all_var = utils.inverse(all_ivar)
+    wave0, wave_delta = output_wcs.wcs.crval[2], output_wcs.wcs.cd[2, 2]
     for sl, spatid in enumerate(slits.spat_id):
-        msgs.info(f"Assembling datacube for slit {sl+1}/{slits.nslits}")
+        msgs.info(f"Resampling slit {sl+1}/{slits.nslits} into the datacube")
         this_sl = np.where(all_sltid==spatid)
         wpix = np.where(slitid_img_gpm==spatid)
-        slitID = np.ones(wpix[0].size) * sl - frame_wcs.wcs.crpix[0]
+        slitID = np.ones(wpix[0].size) * sl - output_wcs.wcs.crpix[0]
         # Generate a spline between spectral pixel position and wavelength
         yspl = tilts[wpix]*(slits.nspec - 1)
-        wspl = all_wave[this_sl]
+        wspl = all_wave[this_sl]*1.0E-10
         asrt = np.argsort(yspl)
         wave_spl = interp1d(yspl[asrt], wspl[asrt], kind='linear', bounds_error=False, fill_value='extrapolate')
         for xx in range(subsample):
@@ -1289,10 +1286,9 @@ def generate_cube_subsample(outfile, frame_wcs, all_sci, all_ivar, all_wghts, al
                 # TODO :: The tilts in the following line is evaluated at the pixel location, not the subsampled pixel location
                 # A simple fix is implemented for the spectral direction, but this is not so straightforward for the spatial direction
                 # Probably, the correction in the spatial direction is so tiny, that this doesn't matter...
-                specpos = wave_spl(tilts[wpix]*(slits.nspec - 1) + ssamp_offs[yy])
-                world_ra, world_dec, _ = frame_wcs.wcs_pix2world(slitID, spatpos, np.zeros(slitID.size), 0)
-                pix_coord = output_wcs.wcs_world2pix(np.vstack((world_ra, world_dec, specpos * 1.0E-10)).T, 0)
+                specpos = (wave_spl(tilts[wpix]*(slits.nspec - 1) + ssamp_offs[yy]) - wave0) / wave_delta
                 # Now assemble this position of the datacube
+                pix_coord = np.column_stack((slitID, spatpos, specpos))
                 tmp_dc, _ = np.histogramdd(pix_coord, bins=bins, weights=all_sci[this_sl] * all_wght_subsmp[this_sl])
                 tmp_vr, _ = np.histogramdd(pix_coord, bins=bins, weights=all_var[this_sl] * all_wght_subsmp[this_sl]**2)
                 tmp_nm, _ = np.histogramdd(pix_coord, bins=bins, weights=all_wght_subsmp[this_sl])
@@ -1901,47 +1897,30 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
             numwav = int((np.max(waveimg) - wave0) / dwv)
             bins = spec.get_datacube_bins(slitlength, minmax, numwav)
+            # Generate the output WCS for the datacube
+            crval_wv = cubepar['wave_min'] if cubepar['wave_min'] is not None else 1.0E10 * frame_wcs.wcs.crval[2]
+            cd_wv = cubepar['wave_delta'] if cubepar['wave_delta'] is not None else 1.0E10 * frame_wcs.wcs.cd[2, 2]
+            cd_spat = cubepar['spatial_delta'] if cubepar['spatial_delta'] is not None else px_deg * 3600.0
+            output_wcs = spec.get_wcs(spec2DObj.head0, slits, detector.platescale, crval_wv, cd_wv, spatial_scale=cd_spat)
             # Make the datacube
-            if method == 'subsample':
-                # Generate the output WCS for the datacube
-                crval_wv = cubepar['wave_min'] if cubepar['wave_min'] is not None else 1.0E10 * frame_wcs.wcs.crval[2]
-                cd_wv = cubepar['wave_delta'] if cubepar['wave_delta'] is not None else 1.0E10 * frame_wcs.wcs.cd[2, 2]
-                cd_spat = cubepar['spatial_delta'] if cubepar['spatial_delta'] is not None else px_deg*3600.0
-                output_wcs = spec.get_wcs(spec2DObj.head0, slits, detector.platescale, crval_wv, cd_wv, spatial_scale=cd_spat)
+            if method in ['subsample', 'ngp']:
+                if method == 'ngp': subsample = 1
+                else: subsample = cubepar['subsample']
                 # Get the slit image and then unset pixels in the slit image that are bad
                 slitid_img_gpm = slitid_img_init.copy()
                 slitid_img_gpm[(bpmmask != 0) | (~sky_is_good)] = 0
-                generate_cube_subsample(outfile, frame_wcs, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix),
+                generate_cube_subsample(outfile, output_wcs, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix),
                                         wave_ext, spec2DObj.tilts, slits, slitid_img_gpm, ast_trans, bins,
                                         overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
-                                        fluxcal=fluxcal, specname=specname, subsample=cubepar['subsample'],
-                                        output_wcs=output_wcs)
+                                        fluxcal=fluxcal, specname=specname, subsample=subsample)
             elif method == 'resample':
                 fluximg, ivarimg = np.zeros_like(raimg), np.zeros_like(raimg)
                 fluximg[onslit_gpm] = flux_sav[resrt]
                 ivarimg[onslit_gpm] = ivar_sav[resrt]
-                # Generate the output WCS for the datacube
-                crval_wv = cubepar['wave_min'] if cubepar['wave_min'] is not None else 1.0E10 * frame_wcs.wcs.crval[2]
-                cd_wv = cubepar['wave_delta'] if cubepar['wave_delta'] is not None else 1.0E10 * frame_wcs.wcs.cd[2, 2]
-                cd_spat = cubepar['spatial_delta'] if cubepar['spatial_delta'] is not None else px_deg*3600.0
-                output_wcs = spec.get_wcs(spec2DObj.head0, slits, detector.platescale, crval_wv, cd_wv, spatial_scale=cd_spat)
                 # Now generate the cube
                 generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, decimg, waveimg, slitid_img_init, onslit_gpm,
                                        overwrite=overwrite, output_wcs=output_wcs, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
                                        fluxcal=fluxcal, specname=specname)
-            elif method == 'ngp':
-                msgs.info("Generating pixel coordinates")
-                slitid_img_gpm = slitid_img_init.copy()
-                slitid_img_gpm[(bpmmask != 0) | (~sky_is_good)] = 0
-                generate_cube_subsample(outfile, frame_wcs, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix),
-                                        wave_ext, spec2DObj.tilts, slits, slitid_img_gpm, ast_trans, bins,
-                                        overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
-                                        fluxcal=fluxcal, specname=specname, subsample=1)
-                # pix_coord = frame_wcs.wcs_world2pix(np.vstack((raimg[onslit_gpm], decimg[onslit_gpm], wave_ext * 1.0E-10)).T, 0)
-                # hdr = frame_wcs.to_header()
-                # generate_cube_ngp(outfile, hdr, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix), pix_coord, bins,
-                #                   overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
-                #                   fluxcal=fluxcal, specname=specname)
             else:
                 msgs.error(f"The following method is not yet implemented: {method}")
             continue
