@@ -1402,7 +1402,9 @@ class CubePar(ParSet):
 
         defaults['subsample'] = 10
         dtypes['subsample'] = int
-        descr['subsample'] = 'TBC'
+        descr['subsample'] = 'Subpixellation scale of each pixel when method=subsample. The total number of ' \
+                             'subpixels in each pixel is given by subsample^2. The default option is to divide ' \
+                             'each spec2d pixel into 100 subpixels during datacube creation.'
 
         defaults['ra_min'] = None
         dtypes['ra_min'] = float

@@ -1280,7 +1280,7 @@ def generate_cube_subsample(outfile, frame_wcs, all_sci, all_ivar, all_wghts, al
                 # TODO :: The tilts in the following line is evaluated at the pixel location, not the subsampled pixel location
                 # A simple fix is implemented for the spectral direction, but this is not so straightforward for the spatial direction
                 # Probably, the correction in the spatial direction is so tiny, that this doesn't matter...
-                specpos = tilts[wpix] * (slits.nspec - 1) + ssamp_offs[yy]
+                specpos = wpix[0] + ssamp_offs[yy]#tilts[wpix] * (slits.nspec - 1) + ssamp_offs[yy]
                 world_ra, world_dec, _ = frame_wcs.wcs_pix2world(slitID, spatpos, specpos, 0)
                 pix_coord = frame_wcs.wcs_world2pix(np.vstack((world_ra, world_dec, all_wave[this_sl] * 1.0E-10)).T, 0)
                 # Now assemble this position of the datacube
