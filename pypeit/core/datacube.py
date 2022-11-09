@@ -1211,7 +1211,7 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
 
 def generate_cube_subsample(outfile, output_wcs, all_sci, all_ivar, all_wghts, all_wave, tilts, slits, slitid_img_gpm,
                             astrom_trans, bins, subsample=10, overwrite=False, blaze_wave=None, blaze_spec=None,
-                            fluxcal=False, sensfunc=None, specname="PYP_SPEC"):
+                            fluxcal=False, sensfunc=None, specname="PYP_SPEC", debug=False):
     """
     Save a datacube using the subsample algorithm. This algorithm splits
     each detector pixel into multiple subpixels, and then assigns each
@@ -1259,11 +1259,14 @@ def generate_cube_subsample(outfile, output_wcs, all_sci, all_ivar, all_wghts, a
             Sensitivity function that has been applied to the datacube
         specname (str, optional):
             Name of the spectrograph
+        debug (bool):
+            If True, a residuals cube will be output. If the datacube generation is correct, the
+            distribution of pixels in the residual cube with no flux should have mean=0 and std=1.
     """
     # Prepare the output arrays
     outshape = (bins[0].size-1, bins[1].size-1, bins[2].size-1)
     datacube, varcube, normcube = np.zeros(outshape), np.zeros(outshape), np.zeros(outshape)
-
+    if debug: residcube = np.zeros(outshape)
     # Subsample each pixel
     ssamp_offs = np.arange(0.5/subsample, 1, 1/subsample) - 0.5  # -0.5 is to offset from the centre of each pixel.
     area = 1/subsample**2
@@ -1295,6 +1298,9 @@ def generate_cube_subsample(outfile, output_wcs, all_sci, all_ivar, all_wghts, a
                 tmp_dc, _ = np.histogramdd(pix_coord, bins=bins, weights=all_sci[this_sl] * all_wght_subsmp[this_sl])
                 tmp_vr, _ = np.histogramdd(pix_coord, bins=bins, weights=all_var[this_sl] * all_wght_subsmp[this_sl]**2)
                 tmp_nm, _ = np.histogramdd(pix_coord, bins=bins, weights=all_wght_subsmp[this_sl])
+                if debug:
+                    tmp_rsd, _ = np.histogramdd(pix_coord, bins=bins, weights=all_sci[this_sl] * np.sqrt(all_ivar[this_sl]))
+                    residcube += tmp_rsd
                 datacube += tmp_dc
                 varcube += tmp_vr
                 normcube += tmp_nm
@@ -1302,6 +1308,7 @@ def generate_cube_subsample(outfile, output_wcs, all_sci, all_ivar, all_wghts, a
     nc_inverse = utils.inverse(normcube)
     datacube *= nc_inverse
     varcube *= nc_inverse**2
+    if debug: residcube *= nc_inverse
 
     # Prepare the header, and add the unit of flux to the header
     hdr = output_wcs.to_header()
@@ -1314,6 +1321,13 @@ def generate_cube_subsample(outfile, output_wcs, all_sci, all_ivar, all_wghts, a
     msgs.info("Saving datacube as: {0:s}".format(outfile))
     final_cube = DataCube(datacube.T, varcube.T, specname, blaze_wave, blaze_spec, sensfunc=sensfunc, fluxed=fluxcal)
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
+
+    # Save a residuals cube, if requested
+    if debug:
+        outfile_resid = outfile.replace(".fits", "_resid.fits")
+        msgs.info("Saving residuals datacube as: {0:s}".format(outfile_resid))
+        hdu = fits.PrimaryHDU(residcube.T, header=hdr)
+        hdu.writeto(outfile_resid, overwrite=overwrite)
 
 
 def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bins,
