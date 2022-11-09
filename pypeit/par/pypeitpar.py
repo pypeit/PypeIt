@@ -2041,7 +2041,7 @@ class TelluricPar(ParSet):
         pars['pix_shift_bounds'] = tuple_force(pars['pix_shift_bounds'])
         defaults['pix_shift_bounds'] = (-5.0,5.0)
         dtypes['pix_shift_bounds'] = tuple
-        descr['pix_shift_bounds'] = ' Bounds for the pixel shift optimization in telluric model fit in units of pixels. ' \
+        descr['pix_shift_bounds'] = 'Bounds for the pixel shift optimization in telluric model fit in units of pixels. ' \
                                     'The atmosphere will be allowed to shift within this range during the fit.'
 
         pars['delta_coeff_bounds'] = tuple_force(pars['delta_coeff_bounds'])
@@ -2131,7 +2131,7 @@ class TelluricPar(ParSet):
 
         defaults['disp'] = False
         dtypes['disp'] = bool
-        descr['disp'] = 'Argument for scipy.optimize.differential_evolution which will  display status messages to the ' \
+        descr['disp'] = 'Argument for scipy.optimize.differential_evolution which will display status messages to the ' \
                         'screen indicating the status of the optimization. See documentation for telluric.Telluric ' \
                         'for a description of the output and how to know if things are working well.'
 

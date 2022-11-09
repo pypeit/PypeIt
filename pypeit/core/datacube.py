@@ -1211,7 +1211,7 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
 
 def generate_cube_subsample(outfile, frame_wcs, all_sci, all_ivar, all_wghts, all_wave, tilts, slits, slitid_img_gpm,
                             astrom_trans, bins, subsample=10, overwrite=False, blaze_wave=None, blaze_spec=None,
-                            fluxcal=False, sensfunc=None, specname="PYP_SPEC"):
+                            fluxcal=False, sensfunc=None, specname="PYP_SPEC", output_wcs=None):
     """
     Save a datacube using the subsample algorithm. This algorithm is a combination of the
     "nearest grid point" and "resample" algorithms.
@@ -1257,6 +1257,8 @@ def generate_cube_subsample(outfile, frame_wcs, all_sci, all_ivar, all_wghts, al
         specname (str, optional):
             Name of the spectrograph
     """
+    if output_wcs is None:
+        output_wcs = frame_wcs
     # Prepare the output arrays
     outshape = (bins[0].size-1, bins[1].size-1, bins[2].size-1)
     datacube, varcube, normcube = np.zeros(outshape), np.zeros(outshape), np.zeros(outshape)
@@ -1280,9 +1282,9 @@ def generate_cube_subsample(outfile, frame_wcs, all_sci, all_ivar, all_wghts, al
                 # TODO :: The tilts in the following line is evaluated at the pixel location, not the subsampled pixel location
                 # A simple fix is implemented for the spectral direction, but this is not so straightforward for the spatial direction
                 # Probably, the correction in the spatial direction is so tiny, that this doesn't matter...
-                specpos = tilts[wpix] * (slits.nspec - 1) + ssamp_offs[yy]
+                specpos = tilts[wpix]*(slits.nspec - 1) + ssamp_offs[yy]
                 world_ra, world_dec, _ = frame_wcs.wcs_pix2world(slitID, spatpos, specpos, 0)
-                pix_coord = frame_wcs.wcs_world2pix(np.vstack((world_ra, world_dec, all_wave[this_sl] * 1.0E-10)).T, 0)
+                pix_coord = output_wcs.wcs_world2pix(np.vstack((world_ra, world_dec, all_wave[this_sl] * 1.0E-10)).T, 0)
                 # Now assemble this position of the datacube
                 tmp_dc, _ = np.histogramdd(pix_coord, bins=bins, weights=all_sci[this_sl] * all_wght_subsmp[this_sl])
                 tmp_vr, _ = np.histogramdd(pix_coord, bins=bins, weights=all_var[this_sl] * all_wght_subsmp[this_sl]**2)
@@ -1296,7 +1298,7 @@ def generate_cube_subsample(outfile, frame_wcs, all_sci, all_ivar, all_wghts, al
     varcube *= nc_inverse**2
 
     # Prepare the header, and add the unit of flux to the header
-    hdr = frame_wcs.to_header()
+    hdr = output_wcs.to_header()
     if fluxcal:
         hdr['FLUXUNIT'] = (PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
     else:
@@ -1894,13 +1896,19 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             bins = spec.get_datacube_bins(slitlength, minmax, numwav)
             # Make the datacube
             if method == 'subsample':
+                # Generate the output WCS for the datacube
+                crval_wv = cubepar['wave_min'] if cubepar['wave_min'] is not None else 1.0E10 * frame_wcs.wcs.crval[2]
+                cd_wv = cubepar['wave_delta'] if cubepar['wave_delta'] is not None else 1.0E10 * frame_wcs.wcs.cd[2, 2]
+                cd_spat = cubepar['spatial_delta'] if cubepar['spatial_delta'] is not None else px_deg*3600.0
+                output_wcs = spec.get_wcs(spec2DObj.head0, slits, detector.platescale, crval_wv, cd_wv, spatial_scale=cd_spat)
                 # Get the slit image and then unset pixels in the slit image that are bad
                 slitid_img_gpm = slitid_img_init.copy()
                 slitid_img_gpm[(bpmmask != 0) | (~sky_is_good)] = 0
                 generate_cube_subsample(outfile, frame_wcs, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix),
                                         wave_ext, spec2DObj.tilts, slits, slitid_img_gpm, ast_trans, bins,
                                         overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
-                                        fluxcal=fluxcal, specname=specname, subsample=cubepar['subsample'])
+                                        fluxcal=fluxcal, specname=specname, subsample=cubepar['subsample'],
+                                        output_wcs=output_wcs)
             elif method == 'resample':
                 fluximg, ivarimg = np.zeros_like(raimg), np.zeros_like(raimg)
                 fluximg[onslit_gpm] = flux_sav[resrt]
