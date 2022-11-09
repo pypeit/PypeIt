@@ -953,7 +953,7 @@ def initialise(det, frame, left, right, obj_trace, trace_models, sobjs, slit_ids
     axes = dict(main=ax, profile=axprof, info=axinfo)
     profdict = dict(profile=profile[0], fwhm=[vlinel, vliner])
     # Initialise the object finding window and display to screen
-    fig.canvas.set_window_title('PypeIt - Object Tracing')
+    fig.canvas.manager.set_window_title('PypeIt - Object Tracing')
     ofgui = ObjFindGUI(fig.canvas, image, frame, det, sobjs, _left, _right, obj_trace,
                        trace_models, axes, profdict, slit_ids=slit_ids, printout=printout,
                        runtime=runtime)

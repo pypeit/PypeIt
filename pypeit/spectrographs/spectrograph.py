@@ -27,6 +27,7 @@ provide instrument-specific:
 """
 
 from abc import ABCMeta
+import os
 
 from IPython import embed
 
@@ -114,6 +115,12 @@ class Spectrograph:
     spectrograph.
     """
 
+    ech_fixed_format = None
+    """
+    If an echelle spectrograph, this will be set to a boolean indicating whether it is a fixed format or tiltable 
+    echelle. 
+    """
+
     supported = False
     """
     Flag that ``PypeIt`` code base has been sufficiently tested with data
@@ -132,6 +139,11 @@ class Spectrograph:
     Metadata model that is generic to all spectrographs.
     """
 
+    allowed_extensions = None
+    """
+    Defines the allowed extensions for the input fits files.
+    """
+
     def __init__(self):
         self.dispname = None
         self.rawdatasec_img = None
@@ -144,6 +156,8 @@ class Spectrograph:
         # Generate and check the instrument-specific metadata definition
         self.init_meta()
         self.validate_metadata()
+        if self.pypeline == 'Echelle' and self.ech_fixed_format is None:
+            msgs.error('ech_fixed_format must be set for echelle spectrographs')
 
         # TODO: Is there a better way to do this?
         # Validate the instance by checking that the class has defined the
@@ -202,6 +216,21 @@ class Spectrograph:
         """
 
         return par
+
+    def _check_extensions(self, filename):
+        """
+        Check if this filename has an allowed extension
+
+        Args:
+            filename (:obj:`str`):
+                Input raw fits filename
+        """
+        if self.allowed_extensions is not None:
+            if os.path.splitext(filename)[1] not in self.allowed_extensions:
+                msgs.error("The input filename:"+msgs.newline()+
+                           filename+msgs.newline()+
+                           f"has the wrong extension. The allowed extensions for {self.name} include:"+msgs.newline()+
+                           ",".join(self.allowed_extensions))
 
     def _check_telescope(self):
         """Check the derived class has properly defined the telescope."""
@@ -649,7 +678,8 @@ class Spectrograph:
         if 'instrument' in meta_tbl.keys():
             # Check that there is only one instrument
             #  This could fail if one mixes is much older calibs
-            instr_names = np.unique(meta_tbl['instrument'].data)
+            indx = meta_tbl['instrument'].data != None
+            instr_names = np.unique(meta_tbl['instrument'].data[indx])
             if len(instr_names) != 1:
                 msgs.warn(f"More than one instrument in your dataset! {instr_names} \n"+
                 f"Proceed with great caution...")
@@ -985,7 +1015,8 @@ class Spectrograph:
             pixel. Pixels unassociated with any amplifier are set to 0.  Shape
             is identical to ``raw_img``.
         """
-        # Open
+        # Check extension and then open
+        self._check_extensions(raw_file)
         hdu = io.fits_open(raw_file)
 
         # Validate the entered (list of) detector(s)
@@ -1389,6 +1420,7 @@ class Spectrograph:
         # Faster to open the whole file and then assign the headers,
         # particularly for gzipped files (e.g., DEIMOS)
         if isinstance(inp, str):
+            self._check_extensions(inp)
             try:
                 hdu = io.fits_open(inp)
             except:

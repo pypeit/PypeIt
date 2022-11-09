@@ -128,10 +128,32 @@ def gemini_gmos_r831_ham(overwrite=False):
                              ifiles=ifiles, det_cut=det_cut, chk=True, normalize=False, lowredux=False,
                              subtract_conti=True, overwrite=overwrite, shift_wave=True)
 
+# ##############################
+def gemini_gmos_r400_nham_mosaic(overwrite=False):  
+    """This was a one-off for a wide slit with GMOS
+    Not for general usage and it won't be archived
+
+    Args:
+        overwrite (bool, optional): _description_. Defaults to False.
+    """
+    # Turns off normalize
+    binspec = 2
+    outroot = 'gemini_gmos_r400_Nham_wide_mosaic.fits'
+    #
+    ifiles = [0]
+    slits = [388]
+    lcut = []
+    wfile1 = os.path.join(templates.template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_NHam.fits')
+    #
+    templates.build_template([wfile1], slits, lcut, binspec,
+                   outroot, lowredux=False, ifiles=ifiles, chk=True,
+                   normalize=False, overwrite=overwrite, subtract_conti=True)
+
 
 if __name__ == '__main__':
     #gemini_gmos_r400_hama()#overwrite=True)
     #gemini_gmos_r400_e2v(overwrite=True)
-    gemini_gmos_r400_e2v_mosaic(overwrite=True)
+    #gemini_gmos_r400_e2v_mosaic(overwrite=True)
     #gemini_gmos_b600_ham(overwrite=True)
     #gemini_gmos_r831_ham(overwrite=False)
+    gemini_gmos_r400_nham_mosaic(overwrite=True)
