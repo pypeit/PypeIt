@@ -450,8 +450,8 @@ class GTCOSIRISSpectrograph_quicklook(GTCOSIRISSpectrograph):
         """
         par = super().default_pypeit_par()
         # Ignore these steps to speed things up a little
-        # par['reduce']['skysub']['no_local_sky'] = True
-        # par['reduce']['findobj']['skip_second_find'] = True
-        # par['reduce']['findobj']['skip_final_global'] = True
-        # par['reduce']['extraction']['skip_optimal'] = True
+        par['reduce']['skysub']['no_local_sky'] = True
+        par['reduce']['findobj']['skip_second_find'] = True
+        par['reduce']['findobj']['skip_final_global'] = True
+        par['reduce']['extraction']['skip_optimal'] = True
         return par
