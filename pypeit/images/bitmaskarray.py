@@ -6,23 +6,84 @@ from IPython import embed
 import numpy as np
 
 from pypeit.datamodel import DataContainer
+from pypeit import msgs
 
 
 class BitMaskArray(DataContainer):
+    """
+    Object that holds both the mask data and the mask interpretation object.
+
+    This is an abstract class that should not be directly instantiated.
+
+    Args:
+        shape (:obj:`tuple`):
+            Shape of the mask to create.
+        asuint (:obj:`bool`, optional):
+            When setting the data-type for the mask array (see
+            :func:`~pypeit.bitmask.BitMask.minimum_dtype`), use an *unsigned*
+            integer instead of a signed integer (e.g., ``uint16`` instead of
+            ``int16``).
+    """
+
     version = None
+    """
+    DataContainer version.  Must be defined by the subclass.
+    """
 
     datamodel = {'mask': dict(otype=np.ndarray, atype=np.integer, descr='Bitmask values')}
+    """
+    Datamodel is simple, containing only the mask array.
+    """
 
     bitmask = None
+    """
+    :class:`~pypeit.bitmask.BitMask` object used to interpret the bit array.
+    Must be defined by the subclass.  When defining subclasses, note that the
+    bitmask flags *must* be case-insensitive strings.
+    """
 
     def __init__(self, shape, asuint=False):
         # Instantiate as an empty DataContainer
         super().__init__()
 
-        self.lower_keys = [k.lower() for k in self.bit_keys()]
+        # Check the bitmask
+        keys = self.bit_keys()
+        if any([not isinstance(k, str) for k in keys]):
+            msgs.error(f'CODING ERROR: {self.bitmask.__class__.__name__} must only contain '
+                       'string bit flags.')
+
+        self.lower_keys = [k.lower() for k in keys]
+        if len(np.unique(self.lower_keys)) != len(keys):
+            msgs.error('CODING ERROR: All bitmask keys must be case-insensitive and unique: '
+                       f'{keys}')
+
         self.mask = np.zeros(shape, dtype=self.bitmask.minimum_dtype(asuint=asuint))
 
     def __getattr__(self, item):
+        """
+        Override the attribute access to allow for immediate construction and
+        access to boolean arrays that select array elements with the provided flag.
+
+        For example, if ``'BPM'`` is a flag in the :attr:`bitmask`, and ``mask``
+        is an instance of the the relevant subclass, ``mask.bpm`` is identical
+        to calling ``mask.flagged(flag='BPM')``.
+
+        .. warning::
+
+            Using this functionality creates a new numpy array *every time it is
+            called*.  This can be slow for large arrays.  This means that, if
+            you need to access the boolean array for a given flag multiple
+            times, you should set it to a new object (e.g., ``maskbpm =
+            mask.bpm``)!
+
+        If the attribute (``item``) requested is *not* one of the bitmask flags,
+        the :class:`~pypeit.datamodel.DataContainer` base class function is
+        called.
+
+        Args:
+            item (object):
+                The attribute being accessed.
+        """
         try:
             i = self.lower_keys.index(item.lower())
         except ValueError:
@@ -40,7 +101,7 @@ class BitMaskArray(DataContainer):
 
     # TODO: This loses the description of the bits.  Might be better to override
     # to_hdu; although this gets sticky trying to figure out which hdu has the
-    # mask...  Leaving this way for now.
+    # mask...  Leaving it this way for now.
     def _bundle(self):
         """
         Override the base-class bundle method so that the bitmask keys can be

@@ -12,7 +12,11 @@ class ImageBitMask(BitMask):
     Define a bitmask used to set the reasons why each pixel in a science
     image was masked.
     """
-    version = '1.0.0'
+
+    version = '1.1.0'
+    """
+    Bitmask key version.
+    """
 
     def __init__(self):
         # TODO:
@@ -27,8 +31,9 @@ class ImageBitMask(BitMask):
                          IVAR0='Inverse variance is undefined',
                          IVAR_NAN='Inverse variance is NaN',
                          EXTRACT='Pixel masked during local skysub and extraction',
-                         BADSCALE='Bad image rescaling operation (e.g., flat value <= 0)',
-                         STCKMASK='All pixels masked in image stack')
+                         BADSCALE='Bad image rescaling operation (e.g., flat-field value <= 0)',
+                         STCKMASK='All pixels masked in image stack',
+                         USER='Pixel masked by user')
         super(ImageBitMask, self).__init__(list(mask_bits.keys()), descr=list(mask_bits.values()))
 
 
