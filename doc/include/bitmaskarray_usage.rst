@@ -6,7 +6,7 @@ to interpret them into a new subclass of
 uses of :class:`~pypeit.bitmask.BitMask` objects (see :ref:`bitmasks`).
 
 Defining a new subclass
------------------------
++++++++++++++++++++++++
 
 Given the definition of ``ImageBitMask``, we can implement a relevant
 :class:`~pypeit.images.bitmaskarray.BitMaskArray` subclass as follows:
@@ -36,9 +36,9 @@ You can access the bit flag names using:
     ['BPM', 'COSMIC', 'SATURATED']
 
 Bit access
-----------
+++++++++++
 
-You can flag bits using :func:`~pypeit.bitmaskarray.BitMaskArray.flag`.  For
+You can flag bits using :func:`~pypeit.bitmaskarray.BitMaskArray.turn_on`.  For
 example, the following code flags the center column of the image as being
 part of the detector bad-pixel mask:
 
@@ -130,6 +130,11 @@ bits themselves:
     >>> indx[2,3] = True
     >>> mask.bpm = indx # Throws an AttributeError
 
+Instead, you must use the bit toggling functions provided by the class:
+:func:`~pypeit.images.bitmaskarray.BitMaskArray.turn_on`,
+:func:`~pypeit.images.bitmaskarray.BitMaskArray.turn_off`, or
+:func:`~pypeit.images.bitmaskarray.BitMaskArray.toggle`.
+
 .. tip::
 
     Every time :func:`~pypeit.images.bitmaskarray.BitMaskArray.flagged` is
@@ -140,7 +145,7 @@ bits themselves:
     of how this is done within python).
 
 Input/Output
-------------
+++++++++++++
 
 As a subclass of :class:`~pypeit.datamodel.DataContainer`, you can save and read
 the bitmask data to/from files:
@@ -153,7 +158,7 @@ the bitmask data to/from files:
     True
 
 In addition to the mask data, the bit flags and values are also written to the
-header:
+header; see the ``BIT*`` entries in the header below:
 
 .. code-block:: python
 
@@ -187,4 +192,12 @@ header:
     EXTNAME = 'MASK    '           / extension name
     CHECKSUM= 'APGODMFOAMFOAMFO'   / HDU checksum updated 2022-11-10T13:10:27
     DATASUM = '1245200 '           / data unit checksum updated 2022-11-10T13:10:27
+
+.. note::
+
+    Currently, when loading a mask, the bit names in the header of the output
+    file are **not** checked against the bitmask definition in the code itself.
+    This kind of version control should be handled using the ``version``
+    attribute of the class.  I.e., anytime the flags in the bitmask are changed,
+    the developers should bump the class version.
 

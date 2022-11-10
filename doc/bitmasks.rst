@@ -13,7 +13,7 @@ PypeIt has implemented a generalized class for handling bitmasks.
 .. _bitmasks-arrays:
 
 Bitmask Arrays
-==============
+--------------
 
 .. include:: include/bitmaskarray_usage.rst
 
