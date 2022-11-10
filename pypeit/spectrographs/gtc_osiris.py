@@ -408,6 +408,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
 
         return bpm_img
 
+
 class GTCOSIRISSpectrograph_quicklook(GTCOSIRISSpectrograph):
     """
     Child to handle windowing of OSIRIS quick look reduction
