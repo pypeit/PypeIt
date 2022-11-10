@@ -90,7 +90,6 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         # Return
         return detector_container.DetectorContainer(**detectors[det-1])
 
-
     @classmethod
     def default_pypeit_par(cls):
         """
@@ -408,3 +407,51 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             bpm_img[bc[bb][2]:bc[bb][3] + 1, bc[bb][0]:bc[bb][1] + 1] = 1
 
         return bpm_img
+
+class GTCOSIRISSpectrograph_quicklook(GTCOSIRISSpectrograph):
+    """
+    Child to handle windowing of OSIRIS quick look reduction
+    """
+    ndet = 2
+    name = 'gtc_osiris_ql'
+
+    def get_detector_par(self, det, hdu=None):
+        """
+        Return metadata for the selected detector.
+
+        Detector data from `here
+        <http://www.gtc.iac.es/instruments/osiris/>`__.
+
+        Args:
+            det (:obj:`int`):
+                1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
+
+        Returns:
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
+        """
+        thisdet = super().get_detector_par(det, hdu=hdu)
+        thisdet.datasec = np.atleast_1d('[1:4102,300:600]')
+        thisdet._validate()
+        return thisdet
+
+
+    @classmethod
+    def default_pypeit_par(cls):
+        """
+        Return the default parameters to use for this instrument.
+
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
+        """
+        par = super().default_pypeit_par()
+        # Ignore these steps to speed things up a little
+        # par['reduce']['skysub']['no_local_sky'] = True
+        # par['reduce']['findobj']['skip_second_find'] = True
+        # par['reduce']['findobj']['skip_final_global'] = True
+        # par['reduce']['extraction']['skip_optimal'] = True
+        return par
