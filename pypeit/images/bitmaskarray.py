@@ -1,5 +1,15 @@
 """
 General utility for bit-based masking.
+
+Class usage examples
+====================
+
+.. include:: ../include/bitmaskarray_usage.rst
+
+----
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
 """
 from IPython import embed
 
@@ -139,23 +149,27 @@ class BitMaskArray(DataContainer):
         """
         self.bitmask.info()
 
-    def flagged(self, flag=None):
+    def flagged(self, flag=None, invert=False):
         """
         Determine if a bit is on in the provided bitmask value.  The
         function can be used to determine if any individual bit is on or
         any one of many bits is on.
 
         Args:
-            flag (str, array-like, optional):
+            flag (:obj:`str`, array-like, optional):
                 One or more bit names to check.  If None, then it checks
                 if *any* bit is on.
+            invert (:obj:`bool`, optional):
+                Invert the boolean such that unflagged pixels are True and flagged pixels are False.
         
         Returns:
-            bool: Boolean flags that the provided flags (or any flag) is
-            on for the provided bitmask value.  Shape is the same as
-            `value`.
+            `numpy.ndarray`_:  Boolean array indicating where the internal
+            bitmask is flagged by the selected bits.  Flagged values are True,
+            unflagged values are False.  If ``invert`` is True, this is
+            reversed.
         """
-        return self.bitmask.flagged(self.mask, flag=flag)
+        indx = self.bitmask.flagged(self.mask, flag=flag)
+        return np.logical_not(indx) if invert else indx
 
     def flagged_bits(self, index):
         """
@@ -166,7 +180,7 @@ class BitMaskArray(DataContainer):
                 Tuple with the indices in the array.
         
         Returns:
-            list: List of flagged bit value keywords.
+            :obj:`list`: List of flagged bit value keywords.
         """
         return self.bitmask.flagged_bits(self.mask[index])
 
@@ -210,7 +224,7 @@ class BitMaskArray(DataContainer):
                 turn off the provided bit flags.  I.e., for the internal
                 :attr:`mask`, ``mask[select]`` must be a valid (fancy indexing)
                 operation.
-            flag (str, array-like):
+            flag (:obj:`str`, array-like):
                 Bit name(s) to turn off.
         """
         self.mask[select] = self.bitmask.turn_off(self.mask[select], flag)

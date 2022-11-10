@@ -4,7 +4,7 @@
 Base class for handling bit masks.
 
 Class usage examples
---------------------
+====================
 
 .. include:: ../include/bitmask_usage.rst
 
