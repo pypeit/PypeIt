@@ -648,7 +648,7 @@ class PypeItImage(datamodel.DataContainer):
         Args:
             flag (:obj:`str`, array-like, optional):
                 One or more flags to select when returning the boolean mask.  If
-                None, pixels flagged for any reason are returned as True.
+                None, pixels flagged for *any* reason are returned as True.
             invert (:obj:`bool`, optional):
                 If False, the return mask is True for masked pixels, False for
                 good pixels (i.e., a bad-pixel mask).  If True, invert the sense

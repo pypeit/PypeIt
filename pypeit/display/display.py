@@ -192,6 +192,7 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
     # and use the mask to identify why each pixel was masked
     if mask is not None:
         # Unpack the bitmask
+        # TODO: This *must* fault meaning this option is never actually used in the code.
         bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask, ivarnanmask, extractmask \
                 = bitmask.unpack(mask)
 
