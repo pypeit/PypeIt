@@ -11,6 +11,8 @@ from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 
+from IPython import embed
+
 
 class KeckNIRESSpectrograph(spectrograph.Spectrograph):
     """
@@ -121,9 +123,10 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 60]
-        par['calibrations']['arcframe']['exprng'] = [100, None]
-        par['calibrations']['tiltframe']['exprng'] = [100, None]
-        par['calibrations']['darkframe']['exprng'] = [60, None]
+        # DP: I don't think we need these. Do we?
+        # par['calibrations']['arcframe']['exprng'] = [100, None]
+        # par['calibrations']['tiltframe']['exprng'] = [100, None]
+        # par['calibrations']['darkframe']['exprng'] = [60, None]
         par['scienceframe']['exprng'] = [60, None]
 
         # Sensitivity function parameters
@@ -158,6 +161,11 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         self.meta['frameno'] = dict(ext=0, card='FRAMENUM')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
+        # Dithering
+        self.meta['dithpat'] = dict(ext=0, card='DPATNAME')
+        self.meta['dithpos'] = dict(ext=0, card='DPATIPOS')
+        self.meta['dithoff'] = dict(ext=0, card='YOFFSET')
+
     def configuration_keys(self):
         """
         Return the metadata keys that define a unique instrument
@@ -174,6 +182,147 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         """
         return ['dispname']
 
+    def get_comb_group(self, fitstbl):
+        """
+
+        This method is used in :func:`pypeit.metadata.PypeItMetaData.set_combination_groups`,
+        and modifies calib, comb_id and bkg_id metas for a specific instrument.
+
+        Specifically here for NIRES, since it's likely to have one set of flat/dark frames for
+        different targets, this method sets calib = "all" for the flat and dark frames and
+        assigns different calib values to the science/standard frames of different targets.
+
+        Moreover, this method parses from the header the dither pattern of the science/standard
+        frames in a given calibration group and assigns to each of them a comb_id and a
+        bkg_id. The dither pattern used here are: "ABAB", "ABBA", "ABpat", "ABC".
+        Note that the frames in the same dither positions (A positions or B positions)
+        of each "ABAB" or "ABBA" sequence are 2D coadded  (without optimal weighting)
+        before the background subtraction, while for the other dither patterns (e.g., "ABpat"),
+        the frames in the same dither positions are not coadded.
+        comb_id and bkg_id will not assigned if:
+
+            - dither offset is zero for every frames of a dither sequence
+            - a dither position within a specific dither sequence is missing
+            - dither pattern recorded in the header is NONE or MANUAL, or is none of the above patterns.
+
+        Args:
+            fitstbl(`astropy.table.Table`_):
+                The table with the metadata for all the frames.
+
+        Returns:
+            `astropy.table.Table`_: modified fitstbl.
+        """
+        #TODO incorporate parse_dither_pattern() here.
+
+        # find index of fitstbl that contains dark, pixelflat, trace, or lampoffflats frames
+        flat_idx = np.array(['pixelflat' in _tab for _tab in fitstbl['frametype']]) | \
+                   np.array(['trace' in _tab for _tab in fitstbl['frametype']]) | \
+                   np.array(['lampoffflats' in _tab for _tab in fitstbl['frametype']]) | \
+                   np.array(['dark' in _tab for _tab in fitstbl['frametype']])
+        # set calib for those frames to "all" since it's likely that the same flats are used for different targets
+        fitstbl['calib'][flat_idx] = 'all'
+
+        # find index of fitstbl that contains science and standard frames
+        # where science
+        sci_idx = np.array(['science' in _tab for _tab in fitstbl['frametype']])
+        # where standard
+        std_idx = np.array(['standard' in _tab for _tab in fitstbl['frametype']])
+
+        # initizialize target calib
+        targ_calib = 0
+
+        sci_std_idx = [sci_idx, std_idx]
+        # loop over the science and standard frames
+        for idx in sci_std_idx:
+            setups = np.unique(fitstbl[idx]['setup'])
+            # loop over the setups (generally there is only one setup, but we check anyway)
+            for setup in setups:
+                in_cfg = idx & np.array([setup in _set for _set in fitstbl['setup']])
+                if len(fitstbl[in_cfg]) == 1:
+                    continue
+                # generally there is only one setup, but different targets. We want to separate those.
+                # how may targets are in this setup?
+                targets = np.unique(fitstbl[in_cfg]['target'])
+                # loop through targets
+                for targ in targets:
+                    targ_calib += 1
+                    # where this targ
+                    targ_idx = in_cfg & (fitstbl['target'] == targ)
+                    # set different calib for different targs
+                    if 'science' in fitstbl['frametype'][targ_idx][0] or \
+                       ('standard' in fitstbl['frametype'][targ_idx][0] and 'arc' in fitstbl['frametype'][targ_idx][0]):
+                        fitstbl['calib'][targ_idx] = targ_calib
+                    elif 'standard' in fitstbl['frametype'][targ_idx]:
+                        # find the science frames
+                        sci_in_cfg = sci_idx & np.array([setup in _set for _set in fitstbl['setup']])
+                        if len(fitstbl[sci_in_cfg]) > 0:
+                            # find the closest (in time) science frame to the standard target
+                            close_idx = np.argmin(np.absolute(fitstbl[sci_in_cfg]['mjd'] - fitstbl[targ_idx]['mjd'][0]))
+                            fitstbl['calib'][targ_idx] = fitstbl['calib'][sci_in_cfg][close_idx]
+
+                    # how many dither patterns are used for the selected science/standard target?
+                    uniq_dithpats = np.unique(fitstbl[targ_idx]['dithpat'])
+                    # loop through the dither patterns
+                    for dpat in uniq_dithpats:
+                        if dpat == 'NONE':
+                            continue
+                        # where this dpat
+                        dpat_idx = targ_idx & (fitstbl['dithpat'] == dpat)
+                        # get doff
+                        doff = fitstbl[dpat_idx]['dithoff'].data.astype(int)
+
+                        # compute comb_id
+                        if len(fitstbl[dpat_idx]) > 1 and np.any(doff != 0):
+                            # get default combid and bkgid
+                            combid = np.copy(fitstbl['comb_id'][dpat_idx].data)
+                            bkgid = np.copy(fitstbl['bkg_id'][dpat_idx].data)
+                            dpos = fitstbl[dpat_idx]['dithpos']
+
+                            if dpat == "ABAB":
+                                # find the starting index of the ABAB sequence
+                                dpos_idx = np.where((dpos == "1") & (np.roll(dpos, -1) == "2") &
+                                                    (np.roll(dpos, -2) == "3") & (np.roll(dpos, -3) == "4"))[0]
+                                for i in dpos:
+                                    # make sure that that dither offsets are correct
+                                    if i < len(dpos) - 3 and doff[i] == doff[i+2] and doff[i+1] == doff[i+3]:
+                                        bkgid[i] = combid[i+1]
+                                        bkgid[i+1] = combid[i]
+                                        combid[i+2] = combid[i]
+                                        bkgid[i+2] = bkgid[i]
+                                        combid[i+3] = combid[i+1]
+                                        bkgid[i+3] = bkgid[i+1]
+
+                            elif dpat == "ABBA":
+                                # find the starting index of the ABBA sequence
+                                dpos_idx = np.where((dpos == "1") & (np.roll(dpos, -1) == "2") &
+                                                    (np.roll(dpos, -2) == "3") & (np.roll(dpos, -3) == "4"))[0]
+                                for i in dpos_idx:
+                                    # make sure that that dither offsets are correct
+                                    if i < len(dpos) - 3 and doff[i] == doff[i+3] and doff[i+1] == doff[i+2]:
+                                        bkgid[i] = combid[i+1]
+                                        bkgid[i+1] = combid[i]
+                                        combid[i+2] = combid[i+1]
+                                        bkgid[i+2] = bkgid[i+1]
+                                        combid[i+3] = combid[i]
+                                        bkgid[i+3] = bkgid[i]
+
+                            elif dpat == "ABpat":
+                                # find the starting index of the AB sequence
+                                dpos_idx = np.where((dpos == "1") & (np.roll(dpos, -1) == "2"))[0]
+                                for i in dpos_idx:
+                                    # exclude when np.roll counts the 1st element of dpos to be in a
+                                    # sequence with the last element
+                                    if i < len(dpos)-1:
+                                        bkgid[i] = combid[i+1]
+                                        bkgid[i+1] = combid[i]
+                            #TODO
+                            # elif dpat == "ABC":
+
+                            fitstbl['bkg_id'][dpat_idx] = bkgid
+                            fitstbl['comb_id'][dpat_idx] = combid
+
+        return fitstbl
+
     def pypeit_file_keys(self):
         """
         Define the list of keys to be output into a standard ``PypeIt`` file.
@@ -184,9 +333,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
             :ref:`pypeit_file`.
         """
         pypeit_keys = super().pypeit_file_keys()
-        # TODO: Why are these added here? See
-        # pypeit.metadata.PypeItMetaData.set_pypeit_cols
-        pypeit_keys += ['frameno', 'calib', 'comb_id', 'bkg_id']
+        pypeit_keys += ['dithpat', 'dithpos', 'dithoff','frameno']
         return pypeit_keys
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
@@ -213,7 +360,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
             # No pinhole or bias frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype == 'standard':
-            return good_exp & ((fitstbl['idname'] == 'object') | (fitstbl['idname'] == 'Object'))
+            return good_exp & ((fitstbl['idname'] == 'object') | (fitstbl['idname'] == 'Object') | (fitstbl['idname'] == 'standard') | (fitstbl['idname'] == 'telluric'))
         if ftype == 'dark':
             return good_exp & (fitstbl['idname'] == 'dark')
         if ftype in ['pixelflat', 'trace']:
