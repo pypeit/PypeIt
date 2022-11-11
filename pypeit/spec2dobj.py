@@ -124,8 +124,9 @@ class Spec2DObj(datamodel.DataContainer):
         """
         hdul = io.fits_open(file)
         # Quick check on det
-        if not np.any([detname in hdu.name for hdu in hdul]):
-            msgs.error(f'{detname} not available in any extension of {file}')
+        detnames = np.unique([hdu.name.split('-')[0] for hdu in hdul[1:]])
+        if detname not in detnames:
+            msgs.error(f'Your --det={detname} is not available. \n   Choose from: {detnames}')
         slf = super().from_hdu(hdul, hdu_prefix=f'{detname}-', chk_version=chk_version)
         slf.head0 = hdul[0].header
         slf.chk_version = chk_version
