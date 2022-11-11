@@ -127,7 +127,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         # par['calibrations']['arcframe']['exprng'] = [100, None]
         # par['calibrations']['tiltframe']['exprng'] = [100, None]
         # par['calibrations']['darkframe']['exprng'] = [60, None]
-        par['scienceframe']['exprng'] = [60, None]
+        par['scienceframe']['exprng'] = [61, None]
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
@@ -148,7 +148,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         # Required (core)
         self.meta['ra'] = dict(ext=0, card='RA')
         self.meta['dec'] = dict(ext=0, card='DEC')
-        self.meta['target'] = dict(ext=0, card='OBJECT')
+        self.meta['target'] = dict(ext=0, card='TARGNAME')
         self.meta['decker'] = dict(ext=0, card=None, default='0.55 slit')
         self.meta['binning'] = dict(ext=0, card=None, default='1,1')
 
@@ -194,7 +194,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         Moreover, this method parses from the header the dither pattern of the science/standard
         frames in a given calibration group and assigns to each of them a comb_id and a
-        bkg_id. The dither pattern used here are: "ABAB", "ABBA", "ABpat", "ABC".
+        bkg_id. The dither patterns used here are: "ABAB", "ABBA", "ABpat", "ABC".
         Note that the frames in the same dither positions (A positions or B positions)
         of each "ABAB" or "ABBA" sequence are 2D coadded  (without optimal weighting)
         before the background subtraction, while for the other dither patterns (e.g., "ABpat"),
@@ -356,13 +356,14 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-        if ftype in ['pinhole', 'bias']:
+        if ftype in ['pinhole', 'bias', 'dark']:
             # No pinhole or bias frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype == 'standard':
-            return good_exp & ((fitstbl['idname'] == 'object') | (fitstbl['idname'] == 'Object') | (fitstbl['idname'] == 'standard') | (fitstbl['idname'] == 'telluric'))
-        if ftype == 'dark':
-            return good_exp & (fitstbl['idname'] == 'dark')
+            return good_exp & ((fitstbl['idname'] == 'object') | (fitstbl['idname'] == 'Object') |
+                               (fitstbl['idname'] == 'standard') | (fitstbl['idname'] == 'telluric'))
+        if ftype == 'lampoffflats':
+            return good_exp & ((fitstbl['idname'] == 'dark') | (fitstbl['idname'] == 'Dark'))
         if ftype in ['pixelflat', 'trace']:
             return fitstbl['idname'] == 'domeflat'
         if ftype in 'science':

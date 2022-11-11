@@ -42,21 +42,21 @@ required for the frame-typing and their associated keyword in the
 
 The criteria used to select each frame type are as follows:
 
-=============   ==========================================================   =========
-Frame           ``OBSTYPE``                                                  ``ITIME``
-=============   ==========================================================   =========
-``science``     ``'Object'``, ``'object'``                                   ``>60s``
-``standard``    ``'Object'``, ``'object'``, ``'standard'``, ``'telluric'``   ``<60s``
-``dark``        ``'dark'``                                                   Not used
-``pixelflat``   ``'domeflat'``                                               Not used
-``trace``       ``'domeflat'``                                               Not used
-``arc``         ``'Object'``, ``'object'``                                   Not used
-``tilt``        ``'Object'``, ``'object'``                                   Not used
-=============   ==========================================================   =========
+================   ==========================================================   =========
+Frame              ``OBSTYPE``                                                  ``ITIME``
+================   ==========================================================   =========
+``science``        ``'Object'``, ``'object'``                                   ``>60s``
+``standard``       ``'Object'``, ``'object'``, ``'standard'``, ``'telluric'``   ``<60s``
+``lampoffflats``   ``'dark'``, ``'Dark'``                                       Not used
+``pixelflat``      ``'domeflat'``                                               Not used
+``trace``          ``'domeflat'``                                               Not used
+``arc``            ``'Object'``, ``'object'``                                   Not used
+``tilt``           ``'Object'``, ``'object'``                                   Not used
+================   ==========================================================   =========
 
 .. note::
 
-    - Frames with type ``bias``, ``illumflat``, and ``pinhole`` are *not* typed.
+    - Frames with type ``bias``, ``dark``, ``illumflat``, and ``pinhole`` are *not* typed.
 
     - By default, the exposure time (``ITIME``) is only used to distinguish
       between ``science`` and ``standard`` frames; the criteria for ``ITIME``

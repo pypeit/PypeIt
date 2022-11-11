@@ -21,4 +21,5 @@ to the development of PypeIt for use with NIRES data:
    :maxdepth: 1
 
    ../dev/niresframes
+   ../dev/niresconfig
 
