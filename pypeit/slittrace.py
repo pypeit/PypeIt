@@ -1382,7 +1382,8 @@ class SlitTraceSet(datamodel.DataContainer):
         """
         if user_slits['method'] == 'slitspat':
             # Parse
-            dets, spat_ids = parse.parse_slitspatnum(user_slits['slit_info'])
+            dets, spat_ids = parse.parse_slitspatnum(
+                user_slits['slit_info'])
             if det not in dets:
                 return
             # Cut down for convenience
@@ -1394,7 +1395,8 @@ class SlitTraceSet(datamodel.DataContainer):
                 #TODO -- Consider putting in a tolerance which if not met causes a crash
                 idx = np.argmin(np.abs(self.spat_id - slit_spat))
                 msk[idx] = False
-            self.mask[msk] = self.bitmask.turn_on(self.mask[msk], 'USERIGNORE')
+            self.mask[msk] = self.bitmask.turn_on(self.mask[msk], 
+                                                  'USERIGNORE')
         elif user_slits['method'] == 'maskIDs':
             # Mask only the good one
             msk = np.ones(self.nslits, dtype=bool)

@@ -715,7 +715,16 @@ class Calibrations:
 
         # User mask?
         if self.user_slits is not None:
-            self.slits.user_mask(self.det, self.user_slits)
+            # Parse the DET/MSC name
+            if isinstance(self.det, tuple):
+                detname = self.spectrograph.list_detectors(
+                mosaic=True)[self.spectrograph.allowed_mosaics.index(self.det)]
+            elif isinstance(self.det, int):
+                detname = self.spectrograph.list_detectors()[self.det-1]
+            else:
+                msgs.error("Bad type for self.det")
+
+            self.slits.user_mask(detname, self.user_slits)
 
         return self.slits
 
