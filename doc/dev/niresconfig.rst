@@ -153,7 +153,7 @@ To run this test:
 .. code-block:: bash
 
     cd ${PYPEIT_DEV}/unit_tests
-    pytest test_setup.py::test_setup_keck_nires_comb -W ignore
+    pytest test_setups.py::test_setup_keck_nires_comb -W ignore
 
 The test requires that you have downloaded the ``PypeIt``
 :ref:`dev-suite` and defined the ``PYPEIT_DEV`` environmental
