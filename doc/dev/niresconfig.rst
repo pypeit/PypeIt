@@ -77,7 +77,7 @@ using the information on the nodding pattern available in the files headers. Spe
 ===============     ============
 
 which are also provided in the :ref:`data_block`. The dither patterns parsed by PypeIt are:
-"ABAB", "ABBA", "ABpat", "ABC", see examples below.
+"ABAB", "ABBA", "ABpat", see examples below.
 ``comb_id`` and ``bkg_id`` will not be assigned if:
 
 - ``dithoff`` is zero for every frames of a dither sequence;
@@ -124,7 +124,7 @@ This combination of ``comb_id`` and ``bkg_id`` will create two reduced frames:
     s181127_0021.fits.gz+s181127_0022.fits.gz - s181127_0020.fits.gz+s181127_0023.fits.gz (BB-AA)
 
 ..
-    Lastly, if observations were taken with an "ABC" ``dithpat``... TODO
+    TODO: Lastly, if observations were taken with an "ABC" ``dithpat``...
 
 
 Testing

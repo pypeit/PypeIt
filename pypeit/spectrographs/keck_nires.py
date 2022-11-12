@@ -194,7 +194,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         Moreover, this method parses from the header the dither pattern of the science/standard
         frames in a given calibration group and assigns to each of them a comb_id and a
-        bkg_id. The dither patterns used here are: "ABAB", "ABBA", "ABpat", "ABC".
+        bkg_id. The dither patterns used here are: "ABAB", "ABBA", "ABpat", "ABC" (ABC not yet).
         Note that the frames in the same dither positions (A positions or B positions)
         of each "ABAB" or "ABBA" sequence are 2D coadded  (without optimal weighting)
         before the background subtraction, while for the other dither patterns (e.g., "ABpat"),
