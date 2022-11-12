@@ -1397,11 +1397,12 @@ class PypeItMetaData:
             # if get_comb_group() is not defined in the relevant spectrograph self.table is unchanged
             self.table = self.spectrograph.get_comb_group(self.table)
 
-            # Re-set the calibbit in case calib was changed by get_comb_group().
-            # If calib was not changed, calibbit values will be unchanged
-            self._set_calib_group_bits()
-            # Check that the groups are valid
-            self._check_calib_groups()
+            if 'calib' in self.keys():
+                # Re-set the calibbit in case calib was changed by get_comb_group().
+                # If calib was not changed, calibbit values will be unchanged
+                self._set_calib_group_bits()
+                # Check that the groups are valid
+                self._check_calib_groups()
 
     def set_user_added_columns(self):
         """

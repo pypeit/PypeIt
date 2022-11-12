@@ -214,22 +214,22 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         """
         #TODO incorporate parse_dither_pattern() here.
 
-        # find index of fitstbl that contains dark, pixelflat, trace, or lampoffflats frames
-        flat_idx = np.array(['pixelflat' in _tab for _tab in fitstbl['frametype']]) | \
-                   np.array(['trace' in _tab for _tab in fitstbl['frametype']]) | \
-                   np.array(['lampoffflats' in _tab for _tab in fitstbl['frametype']]) | \
-                   np.array(['dark' in _tab for _tab in fitstbl['frametype']])
-        # set calib for those frames to "all" since it's likely that the same flats are used for different targets
-        fitstbl['calib'][flat_idx] = 'all'
+        if 'calib' in fitstbl.keys():
+            # find index of fitstbl that contains dark, pixelflat, trace, or lampoffflats frames
+            flat_idx = np.array(['pixelflat' in _tab for _tab in fitstbl['frametype']]) | \
+                       np.array(['trace' in _tab for _tab in fitstbl['frametype']]) | \
+                       np.array(['lampoffflats' in _tab for _tab in fitstbl['frametype']]) | \
+                       np.array(['dark' in _tab for _tab in fitstbl['frametype']])
+            # set calib for those frames to "all" since it's likely that the same flats are used for different targets
+            fitstbl['calib'][flat_idx] = 'all'
+            # initialize target calib
+            targ_calib = 0
 
         # find index of fitstbl that contains science and standard frames
         # where science
         sci_idx = np.array(['science' in _tab for _tab in fitstbl['frametype']])
         # where standard
         std_idx = np.array(['standard' in _tab for _tab in fitstbl['frametype']])
-
-        # initizialize target calib
-        targ_calib = 0
 
         sci_std_idx = [sci_idx, std_idx]
         # loop over the science and standard frames
@@ -245,20 +245,21 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                 targets = np.unique(fitstbl[in_cfg]['target'])
                 # loop through targets
                 for targ in targets:
-                    targ_calib += 1
                     # where this targ
                     targ_idx = in_cfg & (fitstbl['target'] == targ)
-                    # set different calib for different targs
-                    if 'science' in fitstbl['frametype'][targ_idx][0] or \
-                       ('standard' in fitstbl['frametype'][targ_idx][0] and 'arc' in fitstbl['frametype'][targ_idx][0]):
-                        fitstbl['calib'][targ_idx] = targ_calib
-                    elif 'standard' in fitstbl['frametype'][targ_idx]:
-                        # find the science frames
-                        sci_in_cfg = sci_idx & np.array([setup in _set for _set in fitstbl['setup']])
-                        if len(fitstbl[sci_in_cfg]) > 0:
-                            # find the closest (in time) science frame to the standard target
-                            close_idx = np.argmin(np.absolute(fitstbl[sci_in_cfg]['mjd'] - fitstbl[targ_idx]['mjd'][0]))
-                            fitstbl['calib'][targ_idx] = fitstbl['calib'][sci_in_cfg][close_idx]
+                    if 'calib' in fitstbl.keys():
+                        targ_calib += 1
+                        # set different calib for different targs
+                        if 'science' in fitstbl['frametype'][targ_idx][0] or \
+                           ('standard' in fitstbl['frametype'][targ_idx][0] and 'arc' in fitstbl['frametype'][targ_idx][0]):
+                            fitstbl['calib'][targ_idx] = targ_calib
+                        elif 'standard' in fitstbl['frametype'][targ_idx]:
+                            # find the science frames
+                            sci_in_cfg = sci_idx & np.array([setup in _set for _set in fitstbl['setup']])
+                            if len(fitstbl[sci_in_cfg]) > 0:
+                                # find the closest (in time) science frame to the standard target
+                                close_idx = np.argmin(np.absolute(fitstbl[sci_in_cfg]['mjd'] - fitstbl[targ_idx]['mjd'][0]))
+                                fitstbl['calib'][targ_idx] = fitstbl['calib'][sci_in_cfg][close_idx]
 
                     # how many dither patterns are used for the selected science/standard target?
                     uniq_dithpats = np.unique(fitstbl[targ_idx]['dithpat'])
