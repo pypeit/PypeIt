@@ -11,7 +11,7 @@ Version History
 =========   ================   =========== ===========
 *Version*   *Author*           *Date*      ``PypeIt``
 =========   ================   =========== ===========
-1.0         Debora Pelliccia   10 Nov 2022 1.11.1dev
+1.0         Debora Pelliccia   11 Nov 2022 1.11.1dev
 =========   ================   =========== ===========
 
 ----
@@ -45,9 +45,9 @@ frames should be applied.
 By default, :ref:`pypeit_setup` uses the setup identifier (e.g., A,B,C,D...) to assign frames to a single calibration
 group. Since NIRES has only one configuration, i.e., ony one setup identifier, all the frames would have
 the same PypeIt keyword ``calib``. However, since it is likely, during an observing night, to observe different
-targets, PypeIt automatically assigns different ``calib`` values to the science/standard frames of different targets.
-Moreover, usually only one set of flat/dark observations are taken for the different targets, therefore PypeIt
-automatically sets ``calib = all`` for the flat and dark frames, so that it can use them for the calibration
+targets, PypeIt automatically assigns different ``calib`` values to the science/standard NIRES frames of different targets.
+Moreover, usually only one set of flat observations are taken for the different targets, therefore PypeIt
+automatically sets ``calib = all`` for the flat frames, so that it can use them for the calibration
 of all the different targets. See :ref:`calibration-groups`.
 The user can always edit the :ref:`pypeit_file` to assign specific calibration frames to specific science
 frames using the data in the ``calib`` column of the :ref:`data_block`.
@@ -78,7 +78,7 @@ using the information on the nodding pattern available in the files headers. Spe
 
 which are also provided in the :ref:`data_block`. The dither patterns parsed by PypeIt are:
 "ABAB", "ABBA", "ABpat", "ABC", see examples below.
-``comb_id`` and ``bkg_id`` will not assigned if:
+``comb_id`` and ``bkg_id`` will not be assigned if:
 
 - ``dithoff`` is zero for every frames of a dither sequence;
 - a dither position within a specific dither sequence is missing;
@@ -161,23 +161,23 @@ variable that points to the relevant directory.
 
 The algorithm for this test is as follows:
 
-    1. Collect the names of all files in the following directory:
+1. Collect the names of all files in the following directory:
 
-    .. code-block:: ini
+.. code-block:: ini
 
-        ${PYPEIT_DEV}/RAW_DATA/keck_nires/ERIS
+    ${PYPEIT_DEV}/RAW_DATA/keck_nires/ERIS
 
-    2. Use :class:`~pypeit.pypeitsetup.PypeItSetup` to automatically
-       identify the configurations for these files.
+2. Use :class:`~pypeit.pypeitsetup.PypeItSetup` to automatically
+   identify the configurations for these files.
 
-    3. Check that the code found one configuration and wrote the pypeit file for it.
+3. Check that the code found one configuration and wrote the pypeit file for it.
 
-    4. Read the pypeit file.
+4. Read the pypeit file.
 
-    5. Check that the ``calib`` values for science/standard and calibration frames are correct.
+5. Check that the ``calib`` values for science/standard and calibration frames are correct.
 
-    6. Check that ``comb_id`` and ``bkg_id`` for the science frames are what expected. The
-           dither sequence used here is: "ABBA".
+6. Check that ``comb_id`` and ``bkg_id`` for the science frames are what expected. The
+   dither sequence used here is: "ABBA".
 
 
 Because this test is now included in the ``PypeIt`` :ref:`unit-tests`, these configuration checks
