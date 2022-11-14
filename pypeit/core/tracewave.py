@@ -912,7 +912,7 @@ def arc_tilts_2d_qa(tilts_dspat, tilts, tilts_model, tot_mask, rej_mask, spat_or
 
     """
     plt.rcdefaults()
-    plt.rcParams['font.family'] = 'Helvetica'
+    plt.rcParams['font.family'] = 'sans-serif'
 
     # Outfile
     method = inspect.stack()[0][3]
@@ -961,7 +961,7 @@ def arc_tilts_spec_qa(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rm
     """
 
     plt.rcdefaults()
-    plt.rcParams['font.family'] = 'Helvetica'
+    plt.rcParams['font.family'] = 'sans-serif'
 
     # Outfil
     method = inspect.stack()[0][3]
@@ -1039,7 +1039,7 @@ def arc_tilts_spat_qa(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask,
                    fwhm,
                    setup='A', slitord_id=0, outfile=None, show_QA=False, out_dir=None):
     plt.rcdefaults()
-    plt.rcParams['font.family'] = 'Helvetica'
+    plt.rcParams['font.family'] = 'sans-serif'
 
     # Outfil
     method = inspect.stack()[0][3]
