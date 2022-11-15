@@ -160,7 +160,8 @@ class BitMaskArray(DataContainer):
                 One or more bit names to check.  If None, then it checks
                 if *any* bit is on.
             invert (:obj:`bool`, optional):
-                Invert the boolean such that unflagged pixels are True and flagged pixels are False.
+                Invert the boolean such that unflagged pixels are True and
+                flagged pixels are False.
         
         Returns:
             `numpy.ndarray`_:  Boolean array indicating where the internal

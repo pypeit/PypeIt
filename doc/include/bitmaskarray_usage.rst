@@ -101,6 +101,20 @@ by one or more flags:
            [False, False,  True, False, False],
            [ True,  True,  True,  True,  True]])
 
+If you want to select all pixels that are **not** flagged by a given flag, you
+can use the ``invert`` option in 
+:func:`~pypeit.images.bitmaskarray.BitMaskArray.flagged`:
+
+.. code-block:: python
+
+    >>> gpm = mask.flagged(flag='BPM', invert=True)
+    >>> gpm
+    array([[ True,  True, False,  True,  True],
+           [ True,  True, False,  True,  True],
+           [ True,  True, False,  True,  True],
+           [ True,  True, False,  True,  True],
+           [ True,  True, False,  True,  True]])
+
 For individual flags, there is also convenience functionality that allows you to
 access a boolean array as if it were an attribute of the object:
 
