@@ -11,6 +11,10 @@ Use cases:
   7. User inputs N science files with A and B (only), stacks all files at A and B independently, A-B, add pos+neg
   8. User inputs N science files with an arbitrary set of dither patterns that are encoded in the headers (e.g. MOSFIRE, currently this works for just one dither pattern, and that may be all we need). Total stack is computed
 
+Notes with JFH:
+  1. Label B images as "sky" for A-B redux
+  2. Write spec2D A images to disk with a minus sign and call B
+  3. Consider not writing out but return instead
 """
 
 from email import header
