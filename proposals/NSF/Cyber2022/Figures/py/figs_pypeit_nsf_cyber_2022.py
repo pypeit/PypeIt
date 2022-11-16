@@ -90,21 +90,29 @@ def fig_spectrographs(outfile:str='fig_geo_spectrographs.png',
         if np.abs(uni_lat-19.8283333333333) < 1e-5:
             # Gemini
             idx = idx | (np.abs(all_lats - 19.82380144722) < 1e-5)
-        elif np.abs(uni_lat-19.82380144722) < 1e-5:
-            continue
         # Magellan/CTIO
-        if (np.abs(uni_lat+29.00333333333) < 1e-5) or (
-            np.abs(uni_lat+29.256666666666) < 1e-5):
+        if (np.abs(uni_lat+29.00333333333) < 1e-5): 
             # 
             idx = idx | (np.abs(all_lats + 30.240741666666672) < 1e-5)
             idx = idx | (np.abs(all_lats + 29.256666666666) < 1e-5)
-        elif np.abs(uni_lat+30.240741666666672) < 1e-5:
-            continue
-        elif np.abs(uni_lat+29.256666666666) < 1e-5:
-            continue
+        # Arziona
+        if np.abs(uni_lat-31.6809444444) < 1e-5: 
+            idx = idx | (np.abs(all_lats - 32.7015999999) < 1e-5) # LBT
+            idx = idx | (np.abs(all_lats - 34.744305000) < 1e-5) # LDT
+            idx = idx | (np.abs(all_lats - 31.963333333) < 1e-5)
         lon, lat = geo_dict[specs[idx][0]][0], geo_dict[specs[idx][0]][1], 
         # Plot
         plt.plot(lon, lat, 'o', transform=tformP)
+        if (np.abs(uni_lat-32.) < 3.) & (
+            np.abs(uni_lat-31.68094444) > 1e-5) & (
+                np.abs(uni_lat-33.356000000) > 1e-5): # Arizona
+            continue
+        if np.abs(uni_lat+30.240741666666672) < 1e-5:
+            continue
+        if np.abs(uni_lat+29.256666666666) < 1e-5:
+            continue
+        if np.abs(uni_lat-19.82380144722) < 1e-5:
+            continue
         # Label
         lbl = ''
         for spec in specs[idx]:
@@ -114,9 +122,15 @@ def fig_spectrographs(outfile:str='fig_geo_spectrographs.png',
             va = 'bottom'
         else:
             va = 'top'
+        if 'p200' in lbl:
+            ha = 'right'
+        else:
+            ha = 'left'
         #lbl = specs[idx][0]
+        if np.abs(uni_lat-31.6809444) < 1e-5: 
+            lon += 2.
         ax.text(lon, lat, lbl, transform=tformP,
-              fontsize=15, ha='left', va=va)
+              fontsize=15, ha=ha, va=va)
 
     
     # Zoom in
