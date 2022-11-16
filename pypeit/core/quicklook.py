@@ -17,7 +17,6 @@ Notes with JFH:
   3. Consider not writing out but return instead
 """
 
-from email import header
 import os
 import glob
 
@@ -35,6 +34,11 @@ from pypeit.scripts import run_pypeit
 from IPython import embed
 
 def default_par():
+    """ Generate default parameters for config
+
+    Returns:
+        dict: Default parameters
+    """
 
     cfg_default = {}
     cfg_default['rdx'] = dict(ignore_bad_headers=True)
@@ -47,6 +51,19 @@ def default_par():
 def generate_calib_pypeit_files(ps, output_path:str,
                    det:str=None,
                    configs:str='all'):
+    """ Generate the PypeIt files for the calibrations
+
+    Args:
+        ps (:class:`pypeit.pypeitsetup.PypeItSetup`): 
+            Setup object
+        output_path (str): 
+            Output path for the PypeIt files
+        det (str, optional): Detector/mosaic. Defaults to None.
+        configs (str, optional): Which configurations to generate. Defaults to 'all'.
+
+    Returns:
+        list: List of calib PypeIt files
+    """
     # Grab setups
     setups, indx = ps.fitstbl.get_configuration_names(
         return_index=True)
@@ -78,6 +95,12 @@ def generate_calib_pypeit_files(ps, output_path:str,
     return calib_pypeit_files
 
 def process_calibs(calib_pypeit_files:list):
+    """Process the calibrations
+
+    Args:
+        calib_pypeit_files (list): 
+            List of PypeIt files for the calibrations
+    """
 
     # Loop on setups, rename + run calibs
     for calib_pypeit_file in calib_pypeit_files: 
@@ -90,19 +113,43 @@ def process_calibs(calib_pypeit_files:list):
 
 
 def folder_name_from_scifiles(sci_files:list):
+    """ Folder name for output of QL on science file(s)
+
+    Currently, the code takes the name of the first file.
+    This may evolve.. 
+
+    Args:
+        sci_files (list): List of science files
+
+    Returns:
+        str: Folder name
+    """
     # For now, we return the first filename
     #  without .fits
     return os.path.splitext(os.path.basename(sci_files[0]))[0]
 
 def generate_sci_pypeitfile(calib_pypeit_file:str, 
-                            redux_path:str,
-                            sci_files:list,
-                            ps_sci_list:list,
-                            input_cfg_dict:dict={},
-                            remove_sci_dir:bool=True,
+                            redux_path:str, 
+                            sci_files:list, 
+                            ps_sci_list:list, 
+                            input_cfg_dict:dict={}, 
+                            remove_sci_dir:bool=True, 
                             maskID:str=None):
     """
     Generate the PypeIt file for the science frames
+    from the calib PypeIt file
+    
+    Args:
+        calib_pypeit_file (str): Calibration PypeIt file
+        redux_path (str): Path to the redux folder
+        sci_files (list): List of science files
+        ps_sci_list (list): List of pypeit.setup.PypeItSetup objects
+        input_cfg_dict (dict, optional): Input configuration dictionary. Defaults to {}.
+        remove_sci_dir (bool, optional): Remove the science directory if it exists. Defaults to True.
+        maskID (str, optional): Mask ID to isolate for QL.  Defaults to None.
+
+    Returns: 
+        tuple: science_pypeit (str), pypeitFile (pypeit.inputfiles.PypeItFile)
     """
 
     # Parse science file info
@@ -217,6 +264,9 @@ def match_science_to_calibs(science_file:str,
     Args:
         science_file (str): Full path to the science file
         ps_sci (:class:`pypeit.pypeitsetup.PypeItSetup`): 
+        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            Spectrograph objec
+        calib_dir (str): Full path to the calibration directory
 
     Returns:
         tuple: str, str
