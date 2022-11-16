@@ -45,30 +45,31 @@ part of the detector bad-pixel mask:
 .. code-block:: python
 
     import numpy as np
-    mask.turn_on(np.s_[:,2], 'BPM')
+    mask.turn_on('BPM', select=np.s_[:,2])
 
-The first argument to :func:`~pypeit.images.bitmaskarray.BitMaskArray.turn_on`
-can be *anything* that is appropriately interpreted as slicing a
-`numpy.ndarray`_.  That is, ``arr[index]`` must be valid, where ``index`` is the
-first argument and ``arr`` is the internal array held by ``mask``.
+The ``select`` argument to
+:func:`~pypeit.images.bitmaskarray.BitMaskArray.turn_on` can be *anything* that
+is appropriately interpreted as slicing a `numpy.ndarray`_.  That is,
+``arr[select]`` must be valid, where ``arr`` is the internal array held by
+``mask``.
 
 Similarly, you can flag a pixel with a cosmic ray:
 
 .. code-block:: python
 
-    mask.turn_on((0,0), 'COSMIC')
+    mask.turn_on('COSMIC', select=(0,0))
 
 or multiple pixels as being saturated:
 
 .. code-block:: python
 
-    mask.turn_on(([0,1,-1,-1],[0,0,-1,-2]), 'SATURATED')
+    mask.turn_on('SATURATED', select=([0,1,-1,-1],[0,0,-1,-2]))
 
 and you can simultaneously flag pixels for multiple reasons:
 
 .. code-block:: python
 
-    mask.turn_on(([-1,-1],[0,1]), ['COSMIC', 'SATURATED'])
+    mask.turn_on(['COSMIC', 'SATURATED'], select=([-1,-1],[0,1]))
 
 
 The mask values themselves are accessed using the ``mask`` attribute:

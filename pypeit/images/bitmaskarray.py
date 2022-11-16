@@ -55,7 +55,14 @@ class BitMaskArray(DataContainer):
     def __init__(self, shape, asuint=False):
         # Instantiate as an empty DataContainer
         super().__init__()
+        self._set_keys()
+        self.mask = np.zeros(shape, dtype=self.bitmask.minimum_dtype(asuint=asuint))
 
+    def _set_keys(self):
+        """
+        Set :attr:`lower_keys`, which are needed for the bit access convenience
+        method.
+        """
         # Check the bitmask
         keys = self.bit_keys()
         if any([not isinstance(k, str) for k in keys]):
@@ -66,8 +73,6 @@ class BitMaskArray(DataContainer):
         if len(np.unique(self.lower_keys)) != len(keys):
             msgs.error('CODING ERROR: All bitmask keys must be case-insensitive and unique: '
                        f'{keys}')
-
-        self.mask = np.zeros(shape, dtype=self.bitmask.minimum_dtype(asuint=asuint))
 
     def __getattr__(self, item):
         """
@@ -102,6 +107,22 @@ class BitMaskArray(DataContainer):
         # could be slow for large arrays.  Instead, we might want to do some
         # clever lazy-loading to make this faster.
         return self.flagged(flag=list(self.bit_keys())[i])
+
+    def __or__(self, other):
+        """Override or operation for mask."""
+        _self = super().__new__(self.__class__)
+        DataContainer.__init__(_self)
+        _self._set_keys()
+        _self.mask = self.mask | other.mask
+        return _self
+
+    def __and__(self, other):
+        """Override and operation for mask."""
+        _self = super().__new__(self.__class__)
+        DataContainer.__init__(_self)
+        _self._set_keys()
+        _self.mask = self.mask & other.mask
+        return _self
 
     def _init_internals(self):
         """
@@ -185,49 +206,55 @@ class BitMaskArray(DataContainer):
         """
         return self.bitmask.flagged_bits(self.mask[index])
 
-    def toggle(self, select, flag):
+    def toggle(self, flag, select=None):
         """
         Toggle bits for selected array elements.
 
         Args:
-            select (:obj:`tuple`, :obj:`slice`, `numpy.ndarray`_):
+            flag (:obj:`str`, array-like):
+                Bit name(s) to toggle.
+            select (:obj:`tuple`, :obj:`slice`, `numpy.ndarray`_, optional):
                 Object used to select elements of the mask array to at which to
                 toggle the provided bit flags.  I.e., for the internal
                 :attr:`mask`, ``mask[select]`` must be a valid (fancy indexing)
-                operation.
-            flag (:obj:`str`, array-like):
-                Bit name(s) to toggle.
+                operation.  If None, the bit is toggled for the full mask!
         """
+        if select is None:
+            select = np.s_[...]
         self.mask[select] = self.bitmask.toggle(self.mask[select], flag)
 
-    def turn_on(self, select, flag):
+    def turn_on(self, flag, select=None):
         """
         Ensure that a bit is turned on for the selected elements.
 
         Args:
-            select (:obj:`tuple`, :obj:`slice`, `numpy.ndarray`_):
+            flag (:obj:`str`, array-like):
+                Bit name(s) to turn on.
+            select (:obj:`tuple`, :obj:`slice`, `numpy.ndarray`_, optional):
                 Object used to select elements of the mask array to at which to
                 turn on the provided bit flags.  I.e., for the internal
                 :attr:`mask`, ``mask[select]`` must be a valid (fancy indexing)
-                operation.
-            flag (:obj:`str`, array-like):
-                Bit name(s) to turn on.
+                operation.  If None, the bit is turned on for the full mask!
         """
+        if select is None:
+            select = np.s_[...]
         self.mask[select] = self.bitmask.turn_on(self.mask[select], flag)
 
-    def turn_off(self, select, flag):
+    def turn_off(self, flag, select=None):
         """
         Ensure that a bit is turned off in the provided bitmask value.
 
         Args:
-            select (:obj:`tuple`, :obj:`slice`, `numpy.ndarray`_):
+            flag (:obj:`str`, array-like):
+                Bit name(s) to turn off.
+            select (:obj:`tuple`, :obj:`slice`, `numpy.ndarray`_, optional):
                 Object used to select elements of the mask array to at which to
                 turn off the provided bit flags.  I.e., for the internal
                 :attr:`mask`, ``mask[select]`` must be a valid (fancy indexing)
-                operation.
-            flag (:obj:`str`, array-like):
-                Bit name(s) to turn off.
+                operation.  If None, the bit is turned off for the full mask!
         """
+        if select is None:
+            select = np.s_[...]
         self.mask[select] = self.bitmask.turn_off(self.mask[select], flag)
 
     def consolidate(self, flag_set, consolidated_flag):
