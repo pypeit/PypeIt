@@ -277,6 +277,8 @@ class PypeItImage(datamodel.DataContainer):
                 type check failed. If False, throw a warning only.
         """
         # Need to separately parse the mask because it is not called 'MASK'
+        if hdu_prefix is None:
+            hdu_prefix = cls.hdu_prefix
 
         # Set the mask extension name
         mask_ext = 'FULLMASK' if hdu_prefix is None else f'{hdu_prefix}FULLMASK'
@@ -302,9 +304,10 @@ class PypeItImage(datamodel.DataContainer):
             _f(f'Current version of {cls.__name__} object in code (v{cls.version})'
                ' does not match version used to write your HDU(s)!')
 
-        # Add the mask
-        d['fullmask'] = ImageBitMaskArray.from_hdu(hdu[mask_ext], ext_pseudo='MASK',
-                                                   chk_version=chk_version)
+        if mask_ext in hdu:
+            # Add the mask
+            d['fullmask'] = ImageBitMaskArray.from_hdu(hdu[mask_ext], ext_pseudo='MASK',
+                                                       chk_version=chk_version)
 
         # Instantiate
         return cls.from_dict(d=d)
