@@ -108,20 +108,29 @@ class BitMaskArray(DataContainer):
         # clever lazy-loading to make this faster.
         return self.flagged(flag=list(self.bit_keys())[i])
 
+    def __getitem__(self, item):
+        """Allow direct access to the mask."""
+        try:
+            return self.mask[item]
+        except:
+            return super().__getitem__(item)
+
+    def __setitem__(self, item, value):
+        try:
+            self.mask[item] = value
+        except:
+            super().__setitem__(item, value)
+
     def __or__(self, other):
         """Override or operation for mask."""
-        _self = super().__new__(self.__class__)
-        DataContainer.__init__(_self)
-        _self._set_keys()
-        _self.mask = self.mask | other.mask
+        _self = self.copy()
+        _self.mask |= other.mask
         return _self
 
     def __and__(self, other):
         """Override and operation for mask."""
-        _self = super().__new__(self.__class__)
-        DataContainer.__init__(_self)
-        _self._set_keys()
-        _self.mask = self.mask & other.mask
+        _self = self.copy()
+        _self.mask &= other.mask
         return _self
 
     def _init_internals(self):
@@ -145,6 +154,14 @@ class BitMaskArray(DataContainer):
         d = super()._bundle()
         d[0].update(self.bitmask.to_dict())
         return d
+
+    def copy(self):
+        """Create a deep copy."""
+        _self = super().__new__(self.__class__)
+        DataContainer.__init__(_self)
+        _self._set_keys()
+        _self.mask = self.mask.copy()
+        return _self
 
     # NOTE: This function cannot be called keys because that would override the
     # DataContainer base-class function!

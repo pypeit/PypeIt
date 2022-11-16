@@ -314,7 +314,7 @@ class CombineImage:
         comb = pypeitimage.PypeItImage(image=comb_img, ivar=utils.inverse(comb_var), nimg=nstack,
                                        amp_img=pypeitImage.amp_img, det_img=pypeitImage.det_img,
                                        rn2img=comb_rn2, base_var=comb_basev, img_scale=comb_scl,
-                                       bpm=np.logical_not(gpm).astype(np.uint8),
+                                       bpm=np.logical_not(gpm), #.astype(np.uint8),
                                        # NOTE: The detector is needed here so
                                        # that we can get the dark current later.
                                        detector=pypeitImage.detector,

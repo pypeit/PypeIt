@@ -85,8 +85,8 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
     return viewer
 
 
-def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten=0, cuts=None,
-               clear=False, wcs_match=False):
+def show_image(inp, chname='Image', waveimg=None, mask=None, exten=0, cuts=None, clear=False,
+               wcs_match=False):
     """
     Display an image using Ginga.
 
@@ -102,14 +102,9 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
             The name of the ginga channel to use.
         waveimg (:obj:`numpy.ndarray`, optional):
             Wavelength image
-        bitmask (:class:`pypeit.bitmask.BitMask`, optional):
-            The object used to unpack the mask values.  If this is
-            provided, mask must also be provided and the expectation is
-            that a extraction image is being shown.
-        mask (numpy.ndarray, optional):
-            A boolean or bitmask array that designates a pixel as being
-            masked.  Currently this is only used when displaying the
-            spectral extraction result.
+        mask (:class:`~pypeit.images.ImageBitMaskArray`, optional):
+            A bitmask array that designates a pixel as being masked.  Currently
+            this is only used when displaying the spectral extraction result.
         exten (:obj:`int`, optional):
             The extension of the fits file with the image to show.  This
             is only used if the input is a file name.
@@ -129,14 +124,11 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
 
     Raises:
         ValueError:
-            Raised if `cuts` is provided and does not have two elements
-            or if bitmask is provided but mask is not.
+            Raised if `cuts` is provided and does not have two elements.
     """
     # Input checks
     if cuts is not None and len(cuts) != 2:
         raise ValueError('Input cuts must only have two elements, the lower and upper cut.')
-    if mask is not None and bitmask is None:
-        raise ValueError('If providing a mask, must also provide the bitmask.')
 
     # Instantiate viewer
     viewer = connect_to_ginga()
@@ -191,35 +183,41 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
     # If bitmask was passed in, assume this is an extraction qa image
     # and use the mask to identify why each pixel was masked
     if mask is not None:
-        # Unpack the bitmask
-        # TODO: This *must* fault meaning this option is never actually used in the code.
-        bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask, ivarnanmask, extractmask \
-                = bitmask.unpack(mask)
+        # Select pixels on any slit
+        onslit = mask.flagged('OFFSLITS', invert=True)
 
         # These are the pixels that were masked by the bpm
-        spec_bpm, spat_bpm = np.where(bpm & ~offslitmask)
+        spec_bpm, spat_bpm = np.where(mask.bpm & onslit)
         nbpm = len(spec_bpm)
         # note: must cast numpy floats to regular python floats to pass the remote interface
         points_bpm = [dict(type='point', args=(float(spat_bpm[i]), float(spec_bpm[i]), 2),
                            kwargs=dict(style='plus', color='magenta')) for i in range(nbpm)]
 
         # These are the pixels that were masked by LACOSMICS
-        spec_cr, spat_cr = np.where(crmask & ~offslitmask)
+        spec_cr, spat_cr = np.where(mask.cr & onslit)
         ncr = len(spec_cr)
         # note: must cast numpy floats to regular python floats to pass the remote interface
         points_cr = [dict(type='point', args=(float(spat_cr[i]), float(spec_cr[i]), 2),
                              kwargs=dict(style='plus', color='cyan')) for i in range(ncr)]
 
         # These are the pixels that were masked by the extraction
-        spec_ext, spat_ext = np.where(extractmask & ~offslitmask)
+        spec_ext, spat_ext = np.where(mask.extract & onslit)
         next = len(spec_ext)
         # note: must cast numpy floats to regular python floats to pass the remote interface
         points_ext = [dict(type='point', args=(float(spat_ext[i]), float(spec_ext[i]), 2),
                             kwargs=dict(style='plus', color='red')) for i in range(next)]
 
-        # These are the pixels that were masked for any other reason
-        spec_oth, spat_oth = np.where(satmask | minmask | nanmask | ivar0mask | ivarnanmask
-                                      & ~offslitmask)
+        # Get the "rest" of the flags
+        other_flags = list(mask.bit_keys())
+        other_flags.remove('OFFSLITS')
+        other_flags.remove('BPM')
+        other_flags.remove('CR')
+        other_flags.remove('EXTRACT')
+        # Determine where any of them are flagged
+        other_bpm = mask.flagged(flag=other_flags)
+
+        # These are the pixels that were masked for any other reason (and on a slit)
+        spec_oth, spat_oth = np.where(other_bpm & onslit)
         noth = len(spec_oth)
         # note: must cast numpy floats to regular python floats to pass
         # the remote interface
@@ -250,8 +248,7 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
 
 def show_points(viewer, ch, spec, spat, color='cyan', legend=None, legend_spec=None, legend_spat=None):
     """
-
-
+    Plot points in a ginga viewer
 
     Parameters
     ----------

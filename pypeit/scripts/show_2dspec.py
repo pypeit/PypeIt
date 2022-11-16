@@ -168,7 +168,7 @@ class Show2DSpec(scriptbase.ScriptBase):
         # Show the bitmask?
         mask_in = None
         if args.showmask:
-            viewer, ch_mask = display.show_image(spec2DObj.bpmmask, chname="BPM",
+            viewer, ch_mask = display.show_image(spec2DObj.bpmmask, chname='MASK',
                                                  waveimg=spec2DObj.waveimg, 
                                                  clear=args.clear)
 
@@ -176,8 +176,8 @@ class Show2DSpec(scriptbase.ScriptBase):
         # SCIIMG
         if 0 in show_channels:
             image = spec2DObj.sciimg  # Processed science image
-            mean, med, sigma = sigma_clipped_stats(image[spec2DObj.bpmmask == 0], sigma_lower=5.0,
-                                                   sigma_upper=5.0)
+            gpm = spec2DObj.select_flag(invert=True)
+            mean, med, sigma = sigma_clipped_stats(image[gpm], sigma_lower=5.0, sigma_upper=5.0)
             cut_min = mean - 1.0 * sigma
             cut_max = mean + 4.0 * sigma
             chname_sci = args.prefix+f'sciimg-{detname}'
@@ -195,15 +195,12 @@ class Show2DSpec(scriptbase.ScriptBase):
 
         # SKYSUB
         if 1 in show_channels:
+            gpm = spec2DObj.select_flag(invert=True)
             if args.ignore_extract_mask:
-                # TODO -- Is there a cleaner way to do this?
-                gpm = (spec2DObj.bpmmask == 0) | (spec2DObj.bpmmask == 2**bitMask.bits['EXTRACT'])
-            else:
-                gpm = spec2DObj.bpmmask == 0
+                gpm |= spec2DObj.select_flag(flag='EXTRACT')
 
-            image = (spec2DObj.sciimg - spec2DObj.skymodel) * gpm
-            mean, med, sigma = sigma_clipped_stats(image[spec2DObj.bpmmask == 0], sigma_lower=5.0,
-                                                   sigma_upper=5.0)
+            image = (spec2DObj.sciimg - spec2DObj.skymodel) * gpm.astype(float)
+            mean, med, sigma = sigma_clipped_stats(image[gpm], sigma_lower=5.0, sigma_upper=5.0)
             cut_min = mean - 1.0 * sigma
             cut_max = mean + 4.0 * sigma
             chname_skysub = args.prefix+f'skysub-{detname}'
@@ -240,13 +237,12 @@ class Show2DSpec(scriptbase.ScriptBase):
         if 2 in show_channels:
             # the block below is repeated because if showing this channel but
             # not channel 1 it will crash
+            gpm = spec2DObj.select_flag(invert=True)
             if args.ignore_extract_mask:
-                # TODO -- Is there a cleaner way to do this?
-                gpm = (spec2DObj.bpmmask == 0) | (spec2DObj.bpmmask == 2**bitMask.bits['EXTRACT'])
-            else:
-                gpm = spec2DObj.bpmmask == 0
+                gpm |= spec2DObj.select_flag(flag='EXTRACT')
             chname_skyresids = args.prefix+f'sky_resid-{detname}'
-            image = (spec2DObj.sciimg - spec2DObj.skymodel) * np.sqrt(spec2DObj.ivarmodel) * gpm
+            image = (spec2DObj.sciimg - spec2DObj.skymodel) * np.sqrt(spec2DObj.ivarmodel) \
+                        * gpm.astype(float)
             viewer, ch_sky_resids = display.show_image(image, chname_skyresids,
                                                        waveimg=spec2DObj.waveimg, cuts=(-5.0, 5.0),
                                                        bitmask=bitMask, mask=mask_in)
@@ -260,8 +256,9 @@ class Show2DSpec(scriptbase.ScriptBase):
         if 3 in show_channels:
             chname_resids = args.prefix+f'resid-{detname}'
             # full model residual map
+            gpm = spec2DObj.select_flag(invert=True)
             image = (spec2DObj.sciimg - spec2DObj.skymodel - spec2DObj.objmodel) \
-                        * np.sqrt(spec2DObj.ivarmodel) * (spec2DObj.bpmmask == 0)
+                        * np.sqrt(spec2DObj.ivarmodel) * gpm.astype(float)
             viewer, ch_resids = display.show_image(image, chname=chname_resids,
                                                    waveimg=spec2DObj.waveimg, cuts=(-5.0, 5.0),
                                                    bitmask=bitMask, mask=mask_in, wcs_match=True)

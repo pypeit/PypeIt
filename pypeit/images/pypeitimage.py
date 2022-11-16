@@ -43,8 +43,13 @@ class PypeItImage(datamodel.DataContainer):
 
     Regardless of whether or not it is provided directly (see ``fullmask``), the
     image mask is always instantiated.  If ``fullmask`` is not provided, this
-    instantiation begins with all values being unmasked.  To flag values in the
-    image as being masked for a given reason, see :func:`update_mask`.
+    instantiation begins with all values being unmasked.  Although the class
+    allows direct access/manipulation of ``fullmask`` (see
+    :class:`~pypeit.images.imagebitmask.ImageBitMaskArray`), functionality is
+    provided that provides convenience interfaces to the underlying object;  see
+    :func:`update_mask` and :func:`select_flag`, as well as
+    :class:`~pypeit.images.imagebitmask.ImageBitMask` for the valid flag names.
+    
     Additionally, pixels can be flagged on instantiation as being part of a
     bad-pixel mask (``bpm``), a cosmic ray hit (``crmask``), or a user-level
     bad-pixel mask (``usermask``).  Importantly, if both ``fullmask`` and one of
@@ -257,9 +262,9 @@ class PypeItImage(datamodel.DataContainer):
 
         This overrides the base-class method. Overriding this method
         is preferrable to overriding the ``_parse`` method because it
-        makes it easier to deal with the muliple
+        makes it easier to deal with the multiple
         :class:`~pypeit.datamodel.DataContainer` objects contained by
-        :class:`EdgeTraceSet`.
+        :class:`PypeItImage`.
 
         Args:
             hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
@@ -326,15 +331,6 @@ class PypeItImage(datamodel.DataContainer):
         """
         return isinstance(self.detector, Mosaic) and self.image.ndim == 2
 
-    # TODO: Should we keep this?
-    @property
-    def bpm(self):
-        """
-        Return an array with the pixels flagged as being part of a bad-pixel
-        mask.
-        """
-        return self.fullmask.bpm
-
     def build_crmask(self, par, subtract_img=None):
         """
         Identify and flag cosmic rays in the image.
@@ -369,7 +365,7 @@ class PypeItImage(datamodel.DataContainer):
         # to L.A.Cosmic?  For now, I'm doing the simple thing of just using the
         # bad pixel mask, but what other flags from ``fullmask`` should be
         # included?
-        bpm = self.bpm
+        bpm = self.fullmask.bpm
 
         # TODO: These saturation and non-linear values are typically for the raw
         # pixel value.  E.g., a saturation of 65535 is because the digitization

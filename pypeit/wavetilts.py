@@ -236,8 +236,11 @@ class BuildWaveTilts:
         # TODO -- Discuss further with JFH
         self.slitmask_science = self.slits.slit_img(initial=True, flexure=self.spat_flexure, exclude_flag=['BOXSLIT'])  # All unmasked slits
         # Resize
-        gpm = (self.mstilt.bpm == 0) if self.mstilt.bpm is not None \
-            else np.ones_like(self.slitmask_science, dtype=bool)
+        # TODO: Should this be the bpm or *any* flag?
+        gpm = self.mstilt.select_flag(flag='BPM', invert=True) if self.mstilt is not None \
+                    else np.ones_like(self.slitmask_science, dtype=bool)
+#        gpm = (self.mstilt.bpm == 0) if self.mstilt.bpm is not None \
+#            else np.ones_like(self.slitmask_science, dtype=bool)
         self.shape_science = self.slitmask_science.shape
         self.shape_tilt = self.mstilt.image.shape
         self.slitcen = arc.resize_slits2arc(self.shape_tilt, self.shape_science, (all_left+all_right)/2)

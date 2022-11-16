@@ -37,7 +37,7 @@ class Extract:
             Final model of sky
         global_sky (`numpy.ndarray`_):
             Fit to global sky
-        outmask (`numpy.ndarray`_):
+        outmask (:class:`~pypeit.images.imagebitmask.ImageBitMaskArray`):
             Final output mask
         extractmask (`numpy.ndarray`_):
             Extraction mask
@@ -346,7 +346,7 @@ class Extract:
             self.ivarmodel = np.copy(self.sciImg.ivar)
             # NOTE: fullmask is a bit mask, make sure it's treated as such, not
             # a boolean (e.g., bad pixel) mask.
-            self.outmask = self.sciImg.fullmask
+            self.outmask = self.sciImg.fullmask.copy()
             self.skymodel = global_sky.copy()
         else:  # Local sky subtraction and optimal extraction.
             model_noise_1 = not self.bkg_redux if model_noise is None else model_noise
@@ -426,13 +426,14 @@ class Extract:
             # Set to the initial mask in case no objects were found
             # NOTE: fullmask is a bit mask, make sure it's treated as such, not
             # a boolean (e.g., bad pixel) mask.
-            self.outmask = self.sciImg.fullmask
+            self.outmask = self.sciImg.fullmask.copy()
             # empty specobjs object from object finding
             self.sobjs = self.sobjs_obj
 
         # Update the mask
         # TODO avoid modifying arguments to a class or function in place. If slits is mutable, it should be a return
         # value for the run function
+        # TODO: change slits.mask > 2 to use named flags.
         reduce_masked = np.where(np.invert(self.extract_bpm_init) & self.extract_bpm & (self.slits.mask > 2))[0]
         if len(reduce_masked) > 0:
             # TODO Change BADREDUCE to BADEXTRACT
@@ -597,18 +598,14 @@ class Extract:
 
         """
 
-        if showmask:
-            mask_in = self.sciImg.fullmask
-            bitmask_in = self.sciImg.bitmask
-        else:
-            mask_in = None
-            bitmask_in = None
+        mask_in = self.sciImg.fullmask if showmask else None
 
         img_gpm = self.sciImg.select_flag(invert=True)
         detname = self.spectrograph.get_det_name(self.det)
 
         # TODO Do we still need this here?
-        if attr == 'global' and all([a is not None for a in [self.sciImg.image, self.global_sky, self.sciImg.fullmask]]):
+        if attr == 'global' and all([a is not None for a in [self.sciImg.image, self.global_sky,
+                                                             self.sciImg.fullmask]]):
             # global sky subtraction
             # sky subtracted image
             image = (self.sciImg.image - self.global_sky) * img_gpm.astype(float)
@@ -617,10 +614,10 @@ class Extract:
             cut_min = mean - 1.0 * sigma
             cut_max = mean + 4.0 * sigma
             ch_name = chname if chname is not None else f'global_sky_{detname}'
-            viewer, ch = display.show_image(image, chname=ch_name, bitmask=bitmask_in,
-                                            mask=mask_in, clear=clear, wcs_match=True)
-                                          #, cuts=(cut_min, cut_max))
-        elif attr == 'local' and all([a is not None for a in [self.sciImg.image, self.skymodel, self.sciImg.fullmask]]):
+            viewer, ch = display.show_image(image, chname=ch_name, mask=mask_in, clear=clear,
+                                            wcs_match=True)
+        elif attr == 'local' and all([a is not None for a in [self.sciImg.image, self.skymodel,
+                                                              self.sciImg.fullmask]]):
             # local sky subtraction
             # sky subtracted image
             image = (self.sciImg.image - self.skymodel) * img_gpm.astype(float)
@@ -629,28 +626,27 @@ class Extract:
             cut_min = mean - 1.0 * sigma
             cut_max = mean + 4.0 * sigma
             ch_name = chname if chname is not None else f'local_sky_{detname}'
-            viewer, ch = display.show_image(image, chname=ch_name, bitmask=bitmask_in,
-                                            mask=mask_in, clear=clear, wcs_match=True)
-                                          #, cuts=(cut_min, cut_max))
-        elif attr == 'sky_resid' and all([a is not None for a in [self.sciImg.image, self.skymodel, self.objmodel,
-                                                                  self.ivarmodel, self.sciImg.fullmask]]):
+            viewer, ch = display.show_image(image, chname=ch_name, mask=mask_in, clear=clear,
+                                            wcs_match=True)
+        elif attr == 'sky_resid' and all([a is not None for a in [self.sciImg.image, self.skymodel,
+                                                                  self.objmodel, self.ivarmodel,
+                                                                  self.sciImg.fullmask]]):
             # sky residual map with object included
             image = (self.sciImg.image - self.skymodel) * np.sqrt(self.ivarmodel)
             image *= img_gpm.astype(float)
             ch_name = chname if chname is not None else f'sky_resid_{detname}'
             viewer, ch = display.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
-                                            bitmask=bitmask_in, mask=mask_in, clear=clear,
-                                            wcs_match=True)
-        elif attr == 'resid' and all([a is not None for a in [self.sciImg.image, self.skymodel, self.objmodel,
-                                                                      self.ivarmodel, self.sciImg.fullmask]]):
+                                            mask=mask_in, clear=clear, wcs_match=True)
+        elif attr == 'resid' and all([a is not None for a in [self.sciImg.image, self.skymodel,
+                                                              self.objmodel, self.ivarmodel,
+                                                              self.sciImg.fullmask]]):
             # full residual map with object model subtractede
             # full model residual map
             image = (self.sciImg.image - self.skymodel - self.objmodel) * np.sqrt(self.ivarmodel)
             image *= img_gpm.astype(float)
             ch_name = chname if chname is not None else f'resid_{detname}'
-            viewer, ch = display.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
-                                            bitmask=bitmask_in, mask=mask_in, clear=clear,
-                                            wcs_match=True)
+            viewer, ch = display.show_image(image, chname=ch_name, cuts=(-5.0, 5.0), mask=mask_in,
+                                            clear=clear, wcs_match=True)
         elif attr == 'image':
             ch_name = chname if chname is not None else 'image'
             viewer, ch = display.show_image(image, chname=ch_name, clear=clear, wcs_match=True)
@@ -747,7 +743,7 @@ class MultiSlitExtract(Extract):
         # Initialize to mask in case no objects were found
         # NOTE: fullmask is a bit mask, make sure it's treated as such, not a
         # boolean (e.g., bad pixel) mask.
-        self.outmask = np.copy(self.sciImg.fullmask)
+        self.outmask = self.sciImg.fullmask.copy()
         # Initialize to input mask in case no objects were found
         self.extractmask = self.sciImg.select_flag(invert=True)
         # Initialize to zero in case no objects were found
@@ -806,8 +802,7 @@ class MultiSlitExtract(Extract):
         # Set the bit for pixels which were masked by the extraction.
         # For extractmask, True = Good, False = Bad
         iextract = base_gpm & np.logical_not(self.extractmask)
-        # TODO: Change this to use the update_mask method?
-        self.outmask[iextract] = self.sciImg.bitmask.turn_on(self.outmask[iextract], 'EXTRACT')
+        self.outmask.turn_on('EXTRACT', select=iextract)
 
         # Step
         self.steps.append(inspect.stack()[0][3])

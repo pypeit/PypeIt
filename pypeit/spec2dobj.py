@@ -47,7 +47,7 @@ class Spec2DObj(datamodel.DataContainer):
             Primary header if instantiated from a FITS file
 
     """
-    version = '1.0.5'
+    version = '1.1.0'
 
     # TODO 2d data model should be expanded to include:
     # waveimage  --  flexure and heliocentric corrections should be applied to the final waveimage and since this is unique to
@@ -73,9 +73,9 @@ class Spec2DObj(datamodel.DataContainer):
                                         'the science image (float32)'),
                  'waveimg': dict(otype=np.ndarray, atype=np.floating,
                                  descr='2D wavelength image in vacuum (float64)'),
-                 'bpmmask': dict(otype=np.ndarray, atype=np.integer,
+                 'bpmmask': dict(otype=imagebitmask.ImageBitMaskArray,
                                  descr='2D bad-pixel mask for the image'),
-                 'imgbitm': dict(otype=str, descr='List of BITMASK keys from ImageBitMask'),
+#                 'imgbitm': dict(otype=str, descr='List of BITMASK keys from ImageBitMask'),
                  'slits': dict(otype=slittrace.SlitTraceSet,
                                descr='SlitTraceSet defining the slits'),
                  'wavesol': dict(otype=table.Table,
@@ -122,12 +122,49 @@ class Spec2DObj(datamodel.DataContainer):
             :class:`~pypeit.spec2dobj.Spec2DObj`: 2D spectra object.
 
         """
-        hdul = io.fits_open(file)
+        with io.fits_open(file) as hdu:
+            return cls.from_hdu(hdu, detname, chk_version=chk_version)
+
+    @classmethod
+    def from_hdu(cls, hdu, detname, chk_version=True):
+        """
+        Overload :func:`pypeit.datamodel.DataContainer.from_hdu` to allow det
+        input and to slurp the header
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
+                The HDU(s) with the data to use for instantiation.
+            detname (:obj:`str`):
+                The string identifier for the detector or mosaic used to select
+                the data that is read.
+            chk_version (:obj:`bool`, optional):
+                If False, allow a mismatch in datamodel to proceed
+
+        Returns:
+            :class:`~pypeit.spec2dobj.Spec2DObj`: 2D spectra object.
+
+        """
+        ext = [h.name for h in hdu if detname in h.name]
+        mask_ext = f'{detname}-BPMMASK'
+        try:
+            i = ext.index(mask_ext)
+        except ValueError:
+            has_mask = False
+            pass
+        else:
+            has_mask = True
+            ext.pop(i)
+
         # Quick check on det
-        if not np.any([detname in hdu.name for hdu in hdul]):
+#        if not np.any([detname in hdu.name for hdu in hdul]):
+        if len(ext) == 0:
             msgs.error(f'{detname} not available in any extension of {file}')
-        slf = super().from_hdu(hdul, hdu_prefix=f'{detname}-', chk_version=chk_version)
-        slf.head0 = hdul[0].header
+
+        slf = super().from_hdu(hdu, ext=ext, hdu_prefix=f'{detname}-', chk_version=chk_version)
+        if has_mask:
+            slf.bpmmask = imagebitmask.ImageBitMaskArray.from_hdu(hdu[mask_ext], ext_pseudo='MASK',
+                                                                  chk_version=chk_version)
+        slf.head0 = hdu[0].header
         slf.chk_version = chk_version
         return slf
 
@@ -152,14 +189,14 @@ class Spec2DObj(datamodel.DataContainer):
         Returns:
 
         """
-        # Check the bitmask is current
-        bitmask = imagebitmask.ImageBitMask()
-        if self.imgbitm is None:
-            self.imgbitm = ','.join(list(bitmask.keys()))
-        else:
-            # Validate
-            if self.imgbitm != ','.join(list(bitmask.keys())) and self.chk_version:
-                msgs.error("Input BITMASK keys differ from current data model!")
+#        # Check the bitmask is current
+#        bitmask = imagebitmask.ImageBitMask()
+#        if self.imgbitm is None:
+#            self.imgbitm = ','.join(list(bitmask.keys()))
+#        else:
+#            # Validate
+#            if self.imgbitm != ','.join(list(bitmask.keys())) and self.chk_version:
+#                msgs.error("Input BITMASK keys differ from current data model!")
 
         # Check the detector/mosaic identifier has been provided (note this is a
         # property method)
@@ -190,6 +227,9 @@ class Spec2DObj(datamodel.DataContainer):
                 else:
                     tmp[key] = self[key]
                 d.append(tmp)
+            # Mask
+            elif key == 'bpmmask':
+                d.append(dict(bpmmask=self.bpmmask))
             # Detector
             elif key == 'detector':
                 d.append(dict(detector=self.detector))
@@ -254,7 +294,7 @@ class Spec2DObj(datamodel.DataContainer):
 
         # Slitmask
         slitmask = spec2DObj.slits.slit_img(flexure=spec2DObj.sci_spat_flexure,
-                                                 exclude_flag=spec2DObj.slits.bitmask.exclude_for_reducing)
+                                            exclude_flag=spec2DObj.slits.bitmask.exclude_for_reducing)
         # Fill in the image
         for slit_idx, spat_id in enumerate(spec2DObj.slits.spat_id[gpm]):
             inmask = slitmask == spat_id
@@ -282,8 +322,8 @@ class Spec2DObj(datamodel.DataContainer):
             skysub_img -= self.objmodel
 
         # Chi
-        chi = skysub_img * np.sqrt(self.ivarmodel) * (self.bpmmask == 0)
-        chi_slit = chi * (slit_select == self.slits.spat_id[slitidx]) * (self.bpmmask == 0)
+        chi = skysub_img * np.sqrt(self.ivarmodel) * (self.bpmmask.mask == 0)
+        chi_slit = chi * (slit_select == self.slits.spat_id[slitidx]) * (self.bpmmask.mask == 0)
 
         # All bad?
         if np.all(chi_slit == 0):
@@ -353,8 +393,7 @@ class AllSpec2DObj:
         # Detectors included
         detectors = hdul[0].header[self.hdr_prefix+'DETS']
         for detname in detectors.split(','):
-            self[detname] = Spec2DObj.from_hdu(hdul, hdu_prefix=f'{detname}-',
-                                               chk_version=chk_version)
+            self[detname] = Spec2DObj.from_hdu(hdul, detname, chk_version=chk_version)
         return self
 
     def __init__(self):

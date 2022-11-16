@@ -405,10 +405,6 @@ class BuildWaveCalib:
         self.bpm = self.msarc.select_flag(flag='BPM') if msbpm is None else msbpm.astype(bool)
         if self.bpm.shape != self.msarc.shape:
             msgs.error('Bad-pixel mask is not the same shape as the arc image.')
-#        self.bpm = msbpm
-#        if self.bpm is None and msarc is not None:
-#            # msarc can be None for load;  will remove this for DataContainer
-#            self.bpm = msarc.bpm
         self.binspectral = binspectral
         self.qa_path = qa_path
         self.det = det
@@ -461,8 +457,10 @@ class BuildWaveCalib:
             self.slitcen = arc.resize_slits2arc(self.shape_arc, self.shape_science, (all_left+all_right)/2)
             self.slitmask = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
             # Mask
-            gpm = self.bpm == 0 if self.bpm is not None \
-                else np.ones_like(self.slitmask_science, dtype=bool)
+            # TODO: The bpm defined above is already a boolean and cannot be None.
+            gpm = np.logical_not(self.bpm)
+#            gpm = self.bpm == 0 if self.bpm is not None \
+#                else np.ones_like(self.slitmask_science, dtype=bool)
             self.gpm = arc.resize_mask2arc(self.shape_arc, gpm)
             # We want even the saturated lines in full_template for the cross-correlation
             #   They will be excised in the detect_lines() method on the extracted arc
