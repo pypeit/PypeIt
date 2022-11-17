@@ -758,14 +758,14 @@ class PypeIt:
         # Background Image?
         if len(bg_frames) > 0:
             bg_file_list = self.fitstbl.frame_paths(bg_frames)
-            sciImg = sciImg.sub(
-                buildimage.buildimage_fromlist(
-                self.spectrograph, det, frame_par,bg_file_list,
-                bpm=self.caliBrate.msbpm, bias=self.caliBrate.msbias,
-                dark=self.caliBrate.msdark,
-                flatimages=self.caliBrate.flatimages,
-                slits=self.caliBrate.slits,  # For flexure correction
-                ignore_saturation=False), frame_par['process'])
+            bgimg = buildimage.buildimage_fromlist(self.spectrograph, det, frame_par, bg_file_list,
+                                                   bpm=self.caliBrate.msbpm,
+                                                   bias=self.caliBrate.msbias,
+                                                   dark=self.caliBrate.msdark,
+                                                   flatimages=self.caliBrate.flatimages,
+                                                   slits=self.caliBrate.slits,
+                                                   ignore_saturation=False)
+            sciImg = sciImg.sub(bgimg)
 
         # Check if the user has manually created a Master sky regions
         sky_region_file = None

@@ -287,12 +287,8 @@ class PypeItImage(datamodel.DataContainer):
         ext = [h.name for h in hdu] if hasattr(hdu, '__len__') else [hdu.name]
 
         # Remove the mask extension if it's there
-        try:
-            i = ext.index(mask_ext)
-        except ValueError:
-            pass
-        else:
-            ext.pop(i)
+        if mask_ext in ext:
+            ext.remove(mask_ext)
 
         # Parse everything *but* the mask extension
         d, version_passed, type_passed, parsed_hdus \
@@ -690,8 +686,26 @@ class PypeItImage(datamodel.DataContainer):
 
     def sub(self, other):
         """
-        Subtract this PypeItImage from another, propagating the error and
-        masking.
+        Subtract this PypeItImage from another.
+        
+        The following operations are performed:
+
+            - the image data is subtracted (images must have the same shape)
+            - the inverse variance (:attr:`ivar`) is propagated
+            - the number of images is combined (:attr:`nimg`)
+            - the RN2 (:attr:`rn2img`) is propagated
+            - the base variance (:attr:`base_var`) is propagated
+            - the image scaling (:attr:`img_scale`) is averaged
+            - the bit mask (:attr:`fullmask`) is joined (using an or operation)
+            - if it's the same for both images, the spectrograph name
+              (:attr:`PYP_SPEC`) is propagated
+            - if it's the same for both images, the images units (:attr:`units`)
+              is propagated
+            - if both images provide source file names, the file lists are
+              concatenated
+            - the detector from the first image (``self``) is used for the
+              returned image and the detector for the ``other`` image is
+              *ignored*
 
         Args:
             other (:class:`~pypeit.images.pypeitimage.PypeItImage`):
@@ -703,11 +717,6 @@ class PypeItImage(datamodel.DataContainer):
         """
         if not isinstance(other, PypeItImage):
             msgs.error('Image to subtract must be of type PypeItImage.')
-
-        # TODO:
-        #   - Check the units are the same
-        #   - If both images have the same detector, propagate it?
-        #
 
         # Subtract the image
         newimg = self.image - other.image
@@ -764,15 +773,22 @@ class PypeItImage(datamodel.DataContainer):
             new_fullmask = None
 
         # PYP_SPEC
+        # TODO: Instead raise an error if they're not the same
         new_spec = self.PYP_SPEC if self.PYP_SPEC == other.PYP_SPEC else None
 
         # units
+        # TODO: Instead raise an error if they're not the same
         new_units = self.units if self.units == other.units else None
 
         # Create the new image
+        # TODO: We should instead *copy* the detector object; otherwise, it's
+        # possible that it will be shared between multiple images.  Nominally,
+        # this should be okay because the detector data is meant to be static,
+        # but we should fix this.
         new_pypeitImage = PypeItImage(newimg, ivar=new_ivar, nimg=new_nimg, rn2img=new_rn2,
                                       base_var=new_base, img_scale=new_img_scale,
-                                      fullmask=new_fullmask, PYP_SPEC=new_spec, units=new_units)
+                                      fullmask=new_fullmask, detector=self.detector,
+                                      PYP_SPEC=new_spec, units=new_units)
 
         # Files
         if self.files is not None and other.files is not None:
