@@ -28,9 +28,34 @@ where ``-b`` indicates that the data uses background images and includes the
 one instrument configuration (NIRES only has one configuration anyway), so
 setting ``-c A`` and ``-c all`` is equivalent.
 
-The resulting pypeit file looks like:
+The resulting pypeit file looks like this:
 
-.. include:: ../include/gemini_gnirs_A.pypeit.rst
+.. include:: ../include/keck_nires_A.pypeit.rst
+
+For this example dataset, the details of the default pypeit file are not
+correct; see :ref:`here <nires_config_report>` for an example where the frame
+typing and dither pattern determinations are correct.
+
+The issue with this database is that only two pointings in the ABBA pattern for
+the standard star observations are available, the exposure time of the standard
+observations is longer than the default, and the dither pattern of the science
+frames are set to MANUAL.  All of this means you need to edit the pypeit file to
+correct these errors.  The corrections needed are:
+
+    - Set the frametypes for ``s190519_0059.fits`` and ``s190519_0060.fits`` to
+      ``arc,tilt,standard``.
+
+    - Set the ``bkg_id`` for the ``standard`` and ``science`` frames; see
+      :ref:`a-b_differencing`.
+
+The corrected version looks like this:
+
+.. include:: ../include/keck_nires_A_corrected.pypeit.rst
+
+Finally, note that by setting the two science frames to also be ``arc`` and
+``tilt`` frames, we're indicating that the sky lines should be used to perform
+the wavelength calibration.
+
 
 Reliable image typing and sequence generation based on header cards is not yet implemented for GNIRS.
 Hence, several modifications to the PypeIt file need to be made before executing :ref:`run-pypeit`.
