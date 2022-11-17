@@ -17,16 +17,16 @@ This doc goes through a full run of PypeIt on one of the Keck/NIRES datasets
 PypeIt File
 ===========
 
-Here is some advice on how to setup your PypeIt file. 
-
 To setup the pypeit file, first run :ref:`pypeit_setup`:
 
 .. code-block:: bash
 
-    pypeit_setup -r absolute_path -s gemini_gnirs -b -c A 
+    pypeit_setup -r $HOME/Work/packages/PypeIt-development-suite/RAW_DATA/keck_nires/NIRES/ -s keck_nires -b -c A 
 
 where ``-b`` indicates that the data uses background images and includes the
-``calib``, ``comb_id``, ``bkg_id`` in the pypeit file. 
+``calib``, ``comb_id``, ``bkg_id`` in the pypeit file.  This directory only has
+one instrument configuration (NIRES only has one configuration anyway), so
+setting ``-c A`` and ``-c all`` is equivalent.
 
 The resulting pypeit file looks like:
 
