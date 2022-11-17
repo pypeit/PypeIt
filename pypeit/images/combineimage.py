@@ -189,14 +189,6 @@ class CombineImage:
             msgs.error(f'Unknown image combination method, {combine_method}.  Must be '
                        '"mean" or "median".')
 
-        # If not provided, generate the bpm for this spectrograph and detector.
-        # Regardless of the file used, this must result in the same bpm, so we
-        # just use the first one.
-        # TODO: Why is this done here?  It's the same thing as what's done if
-        # bpm is not passed to RawImage.process...
-#        if bpm is None:
-#            bpm = self.spectrograph.bpm(self.files[0], self.det)
-
         # Loop on the files
         for kk, ifile in enumerate(self.files):
             # Load raw image

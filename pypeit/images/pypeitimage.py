@@ -197,15 +197,22 @@ class PypeItImage(datamodel.DataContainer):
         # Reset the masks if they're provided.
         if fullmask is None:
             self.reinit_mask()
+
         if bpm is not None:
+            if not np.issubdtype(bpm.dtype, np.bool_) and not np.issubdtype(bpm.dtype, bool):
+                msgs.error('CODING ERROR: bpm entry in PypeItImage must have boolean type')
             if clean_mask:
                 self.update_mask('BPM', action='turn_off')
             self.update_mask('BPM', indx=bpm)
         if crmask is not None:
+            if not np.issubdtype(crmask.dtype, np.bool_) and not np.issubdtype(crmask.dtype, bool):
+                msgs.error('CODING ERROR: crmask entry in PypeItImage must have boolean type')
             if clean_mask:
                 self.update_mask('CR', action='turn_off')
             self.update_mask('CR', indx=crmask)
         if usermask is not None:
+            if not np.issubdtype(usermask.dtype, np.bool_) and not np.issubdtype(usermask.dtype, bool):
+                msgs.error('CODING ERROR: usermask entry in PypeItImage must have boolean type')
             if clean_mask:
                 self.update_mask('USER', action='turn_off')
             self.update_mask('USER', indx=crmask)
