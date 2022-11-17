@@ -42,6 +42,8 @@ PypeIt uses the concept of a "calibration group" to define a complete set of
 calibration frames (e.g., arcs, flats) and the science frames to which these calibration
 frames should be applied.
 
+.. TODO: Confirm why each science frame is given its own calib ID
+
 By default, :ref:`pypeit_setup` uses the setup identifier (e.g., A,B,C,D...) to assign frames to a single calibration
 group. Since NIRES has only one configuration, i.e., ony one setup identifier, all the frames would have
 the same PypeIt keyword ``calib``. However, since it is likely, during an observing night, to observe different
