@@ -2348,9 +2348,6 @@ class ReduxPar(ParSet):
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
-        # Check that detnum and slitspatnum are not both set
-        #if kwargs['detnum'] is not None and kwargs['slitspatnum'] is not None:
-        #    raise IOError("You cannot set both detnum and slitspatnum!  Causes serious SpecObjs output challenges..")
         # Finish
         return cls(**kwargs)
 
@@ -2358,8 +2355,6 @@ class ReduxPar(ParSet):
         if self.data['slitspatnum'] is not None:
             if self.data['maskIDs'] is not None:
                 raise ValueError("You cannot assign both splitspatnum and maskIDs")
-            #if self.data['detnum'] is not None:
-            #    raise ValueError("You cannot assign both splitspatnum and detnum")
         if self.data['maskIDs'] is not None:
             if self.data['detnum'] is None:
                 raise ValueError("You must assign detnum with maskIDs (for now)")
