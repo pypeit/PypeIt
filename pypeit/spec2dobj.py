@@ -351,7 +351,45 @@ class Spec2DObj(datamodel.DataContainer):
         # Save
         self.med_chis = np.array(med_chis)
         self.std_chis = np.array(std_chis)
-        return
+
+    def select_flag(self, flag=None, invert=False):
+        """
+        Return a boolean array that selects pixels masked with the specified
+        bits in :attr:`fullmask`.
+
+        For example, to create a bad-pixel mask based on which pixels have
+        cosmic-ray detections, run:
+
+        .. code-block:: python
+
+            cr_bpm = self.select_flag(flag='CR')
+
+        Or, to create a good-pixel mask for all pixels that are not flagged for
+        any reason, run:
+
+        .. code-block:: python
+
+            gpm = self.select_flag(invert=True)
+
+        Args:
+            flag (:obj:`str`, array-like, optional):
+                One or more flags to select when returning the boolean mask.  If
+                None, pixels flagged for *any* reason are returned as True.
+            invert (:obj:`bool`, optional):
+                If False, the return mask is True for masked pixels, False for
+                good pixels (i.e., a bad-pixel mask).  If True, invert the sense
+                of the mask (i.e., create a good-pixel mask, True for good
+                pixels, False for bad pixels).
+    
+        Returns:
+            `numpy.ndarray`_: Boolean array where pixels with the selected bits
+            flagged are returned as True (if ``invert`` is False); i.e., this is
+            a boolean bad-pixel mask (or a good-pixel mask when ``invert`` is
+            True).  If ``flag`` is not provided, pixels flagged for any reason
+            are returned as True.
+        """
+        return self.bpmmask.flagged(flag=flag, invert=invert)
+
 
 class AllSpec2DObj:
     """
