@@ -109,11 +109,11 @@ class QLMOS(scriptbase.ScriptBase):
             asrt.append(idx)
         asrt = np.array(asrt)
 
+        # Setup (this needs to be before set_combination_groups() since it's used there)
+        ps.fitstbl['setup'] = 'A'
         # Set bits
         ps.fitstbl.set_frame_types(file_bits[asrt])
         ps.fitstbl.set_combination_groups()
-        # Extras
-        ps.fitstbl['setup'] = 'A'
 
         # Write
         ofiles = ps.fitstbl.write_pypeit(configs='A', write_bkg_pairs=True, cfg_lines=cfg_lines)
