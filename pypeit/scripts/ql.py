@@ -24,7 +24,7 @@ from pypeit.spectrographs import available_spectrographs
 
 from IPython import embed
 
-class QLMOS(scriptbase.ScriptBase):
+class QL(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
