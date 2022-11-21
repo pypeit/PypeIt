@@ -45,6 +45,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             Object with the detector metadata.
         """
         binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
+        detwin2 = '[1:4102,300:600]' if self.quicklook else detwin2 = '[1:4102,52:1920]'
 
         # Detector 1
         detector_dict1 = dict(
@@ -81,7 +82,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             numamplifiers   = 1,
             gain            = np.atleast_1d([0.95]),
             ronoise         = np.atleast_1d([4.5]),
-            datasec         = np.atleast_1d('[1:4102,52:1920]'),
+            datasec         = np.atleast_1d(detwin2),
             oscansec        = np.atleast_1d('[1:4102,6:40]')
             )
 

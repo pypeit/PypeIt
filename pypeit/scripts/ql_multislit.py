@@ -388,7 +388,7 @@ class QL_MOS(scriptbase.ScriptBase):
         tstart = time.time()
 
         # Load up the spectrograph
-        spectrograph = load_spectrograph(args.spectrograph)
+        spectrograph = load_spectrograph(args.spectrograph, quicklook=True)
 
         # Ingest Files 
         files = setup.grab_rawfiles(

@@ -133,11 +133,12 @@ class Spectrograph:
     Metadata model that is generic to all spectrographs.
     """
 
-    def __init__(self):
+    def __init__(self, quicklook=False):
         self.dispname = None
         self.rawdatasec_img = None
         self.oscansec_img = None
         self.slitmask = None
+        self.quicklook = quicklook
 
         # Extension with the primary header data
         self.primary_hdrext = 0

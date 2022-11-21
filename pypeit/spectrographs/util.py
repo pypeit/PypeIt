@@ -13,7 +13,7 @@ from pypeit import spectrographs
 from pypeit import msgs
 
 
-def load_spectrograph(spec):
+def load_spectrograph(spec, quicklook=False):
     """
     Instantiate a spectrograph from the available subclasses of
     :class:`~pypeit.spectrographs.spectrograph.Spectrograph`.
@@ -25,6 +25,8 @@ def load_spectrograph(spec):
             as a base class, the instance is simply returned. If it is a
             string, the string is used to instantiate the relevant
             spectrograph instance.
+        quicklook (:obj:`bool`):
+            Is this a quicklook reduction?
 
     Returns:
         :class:`~pypeit.spectrographs.spectrograph.Spectrograph`: The
@@ -40,7 +42,7 @@ def load_spectrograph(spec):
 
     classes = spectrographs.spectrograph_classes()
     if spec in classes.keys():
-        return classes[spec]()
+        return classes[spec](quicklook=quicklook)
 
     # Check if we were given a file, and if so try to read the spectrograph type from its header
     if os.path.isfile(spec):
@@ -48,7 +50,7 @@ def load_spectrograph(spec):
         if 'PYP_SPEC' in header:
             pyp_spec = header['PYP_SPEC']
             if pyp_spec in classes.keys():
-                spectrograph = classes[pyp_spec]()
+                spectrograph = classes[pyp_spec](quicklook=quicklook)
                 if 'DISPNAME' in header:
                     spectrograph.dispname = header['DISPNAME']
                 return spectrograph

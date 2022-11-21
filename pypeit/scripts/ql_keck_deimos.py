@@ -150,7 +150,7 @@ def get_science_setup(pargs, spectrograph_name:str):
 
     """
     # Load up the spectrograph
-    spectrograph = load_spectrograph(spectrograph_name)
+    spectrograph = load_spectrograph(spectrograph_name, quicklook=True)
 
     # Check file exists
     science_file = os.path.join(pargs.full_rawpath, pargs.science)
