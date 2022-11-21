@@ -77,6 +77,10 @@ class SlitTraceSet(datamodel.DataContainer):
     ``load=True`` on instantiation or by a call to :func:`load`.
     Otherwise, all the elements of the data model will be empty.
 
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_slittraceset.rst
+
     Args:
         load (:obj:`bool`, optional):
             Attempt to load an existing master frame with the slit
@@ -162,7 +166,7 @@ class SlitTraceSet(datamodel.DataContainer):
                  'mask': dict(otype=np.ndarray, atype=np.integer,
                               descr='Bit mask for slits (fully good slits have 0 value).  Shape '
                                     'is Nslits.'),
-                'slitbitm': dict(otype=str, desc='List of BITMASK keys from SlitTraceBitMask'),
+                'slitbitm': dict(otype=str, descr='List of BITMASK keys from SlitTraceBitMask'),
                 'specmin': dict(otype=np.ndarray, atype=np.floating,
                                 descr='Minimum spectral position allowed for each slit/order.  '
                                       'Shape is Nslits.'),
@@ -483,6 +487,10 @@ class SlitTraceSet(datamodel.DataContainer):
         for slit_idx, spatid in enumerate(self.spat_id):
             onslit = (slitid_img_init == spatid)
             onslit_init = np.where(onslit)
+            if self.mask[slit_idx] != 0:
+                msgs.error("Slit {0:d} ({1:d}/{2:d}) is masked. Cannot generate RA/DEC image.".format(spatid,
+                                                                                                      slit_idx+1,
+                                                                                                      self.spat_id.size))
             if astrometric:
                 # Calculate the typical pixel difference in the spatial direction
                 medpixdiff = np.median(np.diff(alignments.traces[:, :, slit_idx], axis=1))

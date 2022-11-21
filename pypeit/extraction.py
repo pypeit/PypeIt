@@ -275,7 +275,7 @@ class Extract:
         that we'll use here in :class:`Extract`
 
         Args
-            slits: :class:`SlitTraceSet` object
+            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
                 SlitTraceSet object containing the slit boundaries that will be initialized.
             initial (:obj:`bool`, optional):
                 Use the initial definition of the slits. If False,

@@ -877,7 +877,7 @@ def spec_flexure_qa(slitords, bpm, basename, flex_list,
             is used.
     """
     plt.rcdefaults()
-    plt.rcParams['font.family'] = 'times new roman'
+    plt.rcParams['font.family'] = 'serif'
 
     # What type of QA are we doing
     slit_cen = False
@@ -1237,6 +1237,10 @@ class MultiSlitFlexure(DataContainer):
     Class to perform multi-detector flexure analysis.
 
     Based on code written by Marla Geha for DEIMOS.
+
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_multislitflexure.rst
     """
 
     # Set the version of this class
@@ -1307,6 +1311,15 @@ class MultiSlitFlexure(DataContainer):
         self.pmodel_m = None
         self.pmodel_b = None
         self.pmodel_l = None
+
+    # NOTE: If you make changes to how this object is bundled into the output
+    # datamodel, make sure you update the documentation in
+    # doc/calibrations/flexure.rst!
+    def _bundle(self):
+        """
+        Override the base class method simply to set the HDU extension name.
+        """
+        return super()._bundle(ext='FLEXURE')
 
     def init(self, spectrograph, par):
         """ Initialize this and that about the slits, par, spectrograph

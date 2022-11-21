@@ -118,6 +118,7 @@ class PypeIt:
         if config_specific_file is not None:
             msgs.info(
                 'Setting configuration-specific parameters using {0}'.format(os.path.split(config_specific_file)[1]))
+        self.spectrograph._check_extensions(config_specific_file)
         spectrograph_cfg_lines = self.spectrograph.config_specific_par(config_specific_file).to_config()
 
         #   - Build the full set, merging with any user-provided
@@ -363,7 +364,8 @@ class PypeIt:
         """
         Main driver of the entire reduction
 
-        Calibration and extraction via a series of calls to reduce_exposure()
+        Calibration and extraction via a series of calls to
+        :func:`reduce_exposure`.
 
         """
         # Validate the parameter set

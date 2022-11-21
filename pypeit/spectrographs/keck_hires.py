@@ -54,7 +54,9 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
     name = 'keck_hires'
     telescope = telescopes.KeckTelescopePar()
     camera = 'HIRES'
+    url = 'https://www2.keck.hawaii.edu/inst/hires/'
     header_name = 'HIRES'
+    url = 'https://www2.keck.hawaii.edu/inst/hires/'
     pypeline = 'Echelle'
     ech_fixed_format = False
     supported = True
@@ -543,16 +545,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
         # Instantiate
         detector_dicts = [detector_dict1, detector_dict2, detector_dict3]
-        detector = detector_container.DetectorContainer(
-            **detector_dicts[det-1])
-
-        if hdu is None:
-            return detector
-
-        # Return
-        return detector
-
-
+        return detector_container.DetectorContainer( **detector_dicts[det-1])
 
 
 def indexing(itt, postpix, det=None,xbin=1,ybin=1):

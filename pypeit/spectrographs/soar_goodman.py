@@ -22,6 +22,8 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1
     telescope = telescopes.SOARTelescopePar()
+    url = 'https://noirlab.edu/science/programs/ctio/instruments/goodman-high-throughput-spectrograph'
+    allowed_extensions = [".fz"]
 
     def configuration_keys(self):
         """

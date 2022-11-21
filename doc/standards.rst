@@ -8,7 +8,7 @@ Standard Stars
 
 PypeIt has a set of standard stars used for flux
 calibration that are mainly taken from the now
-defunct STScI calspec package.
+defunct STScI ``calspec`` package.
 
 .. _standard_list:
 
@@ -57,12 +57,16 @@ ltt9491_002.fits            LTT9491       23:19:35.00    -17:05:30.0
 feige110_005.fits           FEIGE110      23:19:58.40    -05:09:56.2
 ========================== ============= ============== ==============
 
-Full list is available in pypeit/data/standards/calspec/README
+Full list is available in ``pypeit/data/standards/calspec/README``.
+
+.. TODO: Can we just include that file here?
 
 ESO standards
 =============
 
-We now include a few ESO standard star files
+We now include a few ESO standard star files.
+
+.. TODO: Include the listing here?
 
 
 

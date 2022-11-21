@@ -23,6 +23,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
     name = 'tng_dolores'
     telescope = telescopes.TNGTelescopePar()
     camera = 'DOLORES'
+    url = 'https://oapd.inaf.it/mos/'
     comment = 'DOLORES (LRS) spectrograph; LR-R'
 
 

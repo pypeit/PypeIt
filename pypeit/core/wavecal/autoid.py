@@ -51,7 +51,7 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
 
     """
     plt.rcdefaults()
-    plt.rcParams['font.family']= 'times new roman'
+    plt.rcParams['font.family']= 'serif'
 
     arc_spec = waveFit['spec']
 
@@ -701,6 +701,9 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
           Dict of wavelength calibration solutions
 
     """
+    #debug = True
+    #debug_xcorr = True
+    #debug_reid = True
     # Load line lists
     if 'ThAr' in lamps:
         line_lists_all = waveio.load_line_lists(lamps)
@@ -875,7 +878,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, ok_mask=No
         Shape must be :math:`(N_{\rm orders},)`
     spec_arxiv :  `numpy.ndarray_`, shape=(nspec, narxiv) or (nspec)
         Collection of archival arc spectra for which wavelength solution and line identifications are known
-    wave_soln_arxiv:  float ndarray shape (nspec, narxiv) or (nspec)
+    wave_arxiv:  float ndarray shape (nspec, narxiv) or (nspec)
         Wavelength solutions for the archival arc spectra spec_arxiv
     lamps : :obj:`list`
         List of arc lamps to be used for wavelength calibration.
@@ -1023,6 +1026,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, ok_mask=No
 def report_final(nslits, all_patt_dict, detections, wv_calib, ok_mask, bad_slits):
     """
     Print out the final report for wavelength calibration
+
     Args:
         nslits (int):
             Number of slits or ders
@@ -1036,9 +1040,6 @@ def report_final(nslits, all_patt_dict, detections, wv_calib, ok_mask, bad_slits
             Mask of indices of good slits
         bad_slits (ndarray, bool):
             List of slits that are bad
-
-
-
     """
     for slit in range(nslits):
         # Prepare a message for bad wavelength solutions
@@ -1070,7 +1071,6 @@ def report_final(nslits, all_patt_dict, detections, wv_calib, ok_mask, bad_slits
                   '  Central dispersion            = {:g}A/pix'.format(cen_disp) + msgs.newline() +
                   '  Central wave/disp             = {:g}'.format(cen_wave / cen_disp) + msgs.newline() +
                   '  Final RMS of fit              = {:g}'.format(wv_calib[st]['rms']))
-    return
 
 
 class ArchiveReid:

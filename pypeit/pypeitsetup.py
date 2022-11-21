@@ -384,6 +384,9 @@ class PypeItSetup:
         # configuration-defining metadata
         if clean_config:
             self.fitstbl.clean_configurations()
+            if len(self.fitstbl) == 0:
+                msgs.error('Cleaning the configurations removed all the files!  Rerun '
+                           'pypeit_setup with the --keep_bad_frames option.')
 
         # Determine the type of each frame.
         self.get_frame_types(flag_unknown=setup_only or calibration_check)
@@ -479,6 +482,7 @@ class PypeItSetup:
 
         if obslog:
             log_file = pypeit_file.replace('.pypeit', '.obslog')
+            log_file = os.path.join(_output_path, os.path.split(log_file)[1])
             header = ['Auto-generated PypeIt Observing Log',
                       '{0}'.format(time.strftime("%a %d %b %Y %H:%M:%S", time.localtime()))]
             self.fitstbl.write(output=log_file, columns='pypeit', sort_col='mjd',

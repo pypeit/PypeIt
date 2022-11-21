@@ -8,11 +8,12 @@ Automated typing of NIRES frames
 Version History
 ---------------
 
-=========   =============   =========== ===========
-*Version*   *Author*        *Date*      ``PypeIt``
-=========   =============   =========== ===========
-1.0         Kyle Westfall    9 Aug 2022 1.10.1dev
-=========   =============   =========== ===========
+=========   ================   =========== ===========
+*Version*   *Author*           *Date*      ``PypeIt``
+=========   ================   =========== ===========
+1.0         Kyle Westfall      9 Aug 2022  1.10.1dev
+1.1         Debora Pelliccia   9 Nov 2022  1.11.1dev
+=========   ================   =========== ===========
 
 ----
 
@@ -36,27 +37,30 @@ required for the frame-typing and their associated keyword in the
 ``fitstbl`` key     Header Key
 ===============     ============
 ``idname``          ``OBSTYPE``
+``exptime``          ``ITIME``
 ===============     ============
 
 The criteria used to select each frame type are as follows:
 
-=============   ==========================================
-Frame           ``OBSTYPE``                               
-=============   ==========================================
-``science``     ``'Object'``, ``'object'``                             
-``dark``        ``'dark'``                                
-``pixelflat``   ``'domeflat'``                             
-``trace``       ``'domeflat'``                             
-``arc``         ``'Object'``, ``'object'``                             
-``tilt``        ``'Object'``, ``'object'``                             
-=============   ==========================================
+================   ==========================================================   =========
+Frame              ``OBSTYPE``                                                  ``ITIME``
+================   ==========================================================   =========
+``science``        ``'Object'``, ``'object'``                                   ``>60s``
+``standard``       ``'Object'``, ``'object'``, ``'standard'``, ``'telluric'``   ``<60s``
+``lampoffflats``   ``'dark'``, ``'Dark'``                                       Not used
+``pixelflat``      ``'domeflat'``                                               Not used
+``trace``          ``'domeflat'``                                               Not used
+``arc``            ``'Object'``, ``'object'``                                   Not used
+``tilt``           ``'Object'``, ``'object'``                                   Not used
+================   ==========================================================   =========
 
 .. note::
 
-    - Frames with type ``bias``, ``illumflat``, and ``pinhole`` are *not* typed.
+    - Frames with type ``bias``, ``dark``, ``illumflat``, and ``pinhole`` are *not* typed.
 
-    - By default, the exposure time (``ELAPTIME``) is not used to distinguish
-      frame types; however, this can be changed using the ``exprng`` parameter
+    - By default, the exposure time (``ITIME``) is only used to distinguish
+      between ``science`` and ``standard`` frames; the criteria for ``ITIME``
+      can be changed using the ``exprng`` parameter
       in the :ref:`pypeit_file`; see also :ref:`frame_types`.
 
 Testing

@@ -1,5 +1,5 @@
 """
-Module for MMT/Blue Channel specific methods.
+Module for JWST NIRSpec specific methods.
 
 .. include:: ../include/links.rst
 """
@@ -19,25 +19,19 @@ from IPython import embed
 
 class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
     """
-    Child to handle MMT/Blue Channel specific code
+    Child to handle JWST NIRSpec specific code
     """
     ndet = 2
     name = 'jwst_nirspec'
     header_name = 'jwst_nirspec'
     telescope = telescopes.JWSTTelescopePar()
     camera = 'NIRSPEC'
+    url = 'https://jwst-docs.stsci.edu/jwst-near-infrared-spectrograph'
     supported = True
 
     def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
-
-        .. warning::
-
-            Many of the necessary detector parameters are read from the file
-            header, meaning the ``hdu`` argument is effectively **required** for
-            MMT/BlueChannel.  The optional use of ``hdu`` is only viable for
-            automatically generated documentation.
 
         Args:
             det (:obj:`int`):
@@ -86,9 +80,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
             ronoise=np.atleast_1d(6.60),
         ))
         detector_dicts = [detector_dict1, detector_dict2]
-        detector = detector_container.DetectorContainer(**detector_dicts[det-1])
-        return detector
-
+        return detector_container.DetectorContainer(**detector_dicts[det-1])
 
     def init_meta(self):
         """
