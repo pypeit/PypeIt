@@ -894,6 +894,16 @@ class Spectrograph:
 
         if isinstance(subset, str):
             _subset = parse.parse_slitspatnum(subset)[0].tolist()
+            # Convert detector to int/tuple
+            new_dets = []
+            for item in _subset:
+                if 'DET' in item:
+                    idx = np.where(self.list_detectors() == item)[0][0]
+                    new_dets.append(idx+1)
+                elif 'MSC' in item:
+                    idx = np.where(self.list_detectors(mosaic=True) == item)[0][0]
+                    new_dets.append(self.allowed_mosaics[idx])
+            _subset = new_dets
         elif isinstance(subset, (int, tuple)):
             _subset = [subset]
         else:

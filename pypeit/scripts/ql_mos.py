@@ -1,136 +1,200 @@
 """
-This script runs PypeIt on a set of MultiSlit images
+Script for quick-look reductions for Multislit observations.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
 
-from pypeit.scripts import scriptbase
+import os
+import time
 
+import numpy as np
+
+from astropy.table import Table
+
+from pypeit import utils
+from pypeit.scripts import run_pypeit
+from pypeit import par, msgs
+from pypeit import pypeitsetup
+from pypeit.spectrographs.util import load_spectrograph
+from pypeit.core import setup
+from pypeit.core import quicklook
+from pypeit.scripts import scriptbase
+from pypeit.spectrographs import available_spectrographs
+
+from IPython import embed
 
 class QLMOS(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
-        parser = super().get_parser(description='Script to run PypeIt in QuickLook on a set of '
-                                                'MOS files', width=width)
+        parser = super().get_parser(description='Script to produce quick-look multislit PypeIt reductions', width=width)
         parser.add_argument('spectrograph', type=str,
-                            help='Name of spectograph, e.g. shane_kast_blue')
-        parser.add_argument('full_rawpath', type=str, help='Full path to the raw files')
-        parser.add_argument('arc', type=str, help='Arc frame filename')
-        parser.add_argument('flat', type=str, help='Flat frame filename')
-        parser.add_argument('science', type=str, help='Science frame filename')
-        parser.add_argument('-b', '--box_radius', type=float,
-                            help='Set the radius for the boxcar extraction (arcsec)')
-        parser.add_argument('-d', '--det', type=int, default=1,
-                            help='Detector number. Cannot use with --slit_spat')
-        parser.add_argument('--ignore_headers', default=False, action='store_true',
-                            help='Ignore bad headers?')
-        parser.add_argument('--user_pixflat', type=str,
-                            help='Use a user-supplied pixel flat (e.g. keck_lris_blue)')
-        parser.add_argument('--slit_spat', type=str,
-                            help='Reduce only this slit on this detector DET:SPAT_ID, e.g. 1:175')
+                            help='A valid spectrograph identifier: {0}'.format(
+                                 ', '.join(available_spectrographs)))
+        parser.add_argument('--rawfile_list', type=str, 
+                            help='File providing raw files to reduce including their path(s)')
+        parser.add_argument('--full_rawpath', type=str, 
+                            help='Full path to the raw files. Used with --rawfiles or --extension')
+        parser.add_argument('--raw_extension', type=str, default='.fits',
+                            help='Extension for raw files in full_rawpath.  Only use if --rawfile_list and --rawfiles are not provided')
+        parser.add_argument('--rawfiles', type=str, nargs='+',
+                            help='comma separated list of raw frames e.g. img1.fits,img2.fits.  These must exist within --full_rawpath')
+        parser.add_argument('--configs', type=str, default='A',
+                            help='Configurations to reduce [A,all]')
+        parser.add_argument('--sci_files', type=str, 
+                            help='comma separated list of raw frames to be specified as science exposures (over-rides PypeIt frame typing)')
+        parser.add_argument('--spec_samp_fact', default=1.0, type=float,
+                            help='Make the wavelength grid finer (spec_samp_fact < 1.0) or '
+                                 'coarser (spec_samp_fact > 1.0) by this sampling factor, i.e. '
+                                 'units of spec_samp_fact are pixels.')
+        parser.add_argument('--spat_samp_fact', default=1.0, type=float,
+                            help='Make the spatial grid finer (spat_samp_fact < 1.0) or coarser '
+                                 '(spat_samp_fact > 1.0) by this sampling factor, i.e. units of '
+                                 'spat_samp_fact are pixels.')
+        parser.add_argument("--bkg_redux", default=False, action='store_true',
+                            help='If set the script will perform difference imaging quicklook. Namely it will identify '
+                                 'sequences of AB pairs based on the dither pattern and perform difference imaging sky '
+                                 'subtraction and fit for residuals')
+        parser.add_argument("--flux", default=False, action='store_true',
+                            help='This option will multiply in sensitivity function to obtain a '
+                                 'flux calibrated 2d spectrum')
+        parser.add_argument("--mask_cr", default=False, action='store_true',
+                            help='This option turns on cosmic ray rejection. This improves the '
+                                 'reduction but doubles runtime.')
+        parser.add_argument("--writefits", default=False, action='store_true',
+                            help="Write the ouputs to a fits file")
+        parser.add_argument('--no_gui', default=False, action='store_true',
+                            help="Do not display the results in a GUI")
+        parser.add_argument('--box_radius', type=float,
+                            help='Set the radius for the boxcar extraction')
+        parser.add_argument('--offset', type=float, default=None,
+                            help='Override the automatic offsets determined from the headers. '
+                                 'Offset is in pixels.  This option is useful if a standard '
+                                 'dither pattern was not executed.  The offset convention is '
+                                 'such that a negative offset will move the (negative) B image '
+                                 'to the left.')
+        parser.add_argument("--redux_path", type=str, default=os.getcwd(),
+                            help="Location where reduction outputs should be stored.")
+        parser.add_argument("--calib_dir", type=str, 
+                            help="Location folders of calibration reductions")
+        parser.add_argument("--master_dir", type=str, 
+                            help="Location of PypeIt Master files used for the reduction.")
+        parser.add_argument('--maskID', type=int,
+                            help='Reduce this slit as specified by the maskID value')
+        parser.add_argument('--embed', default=False, action='store_true',
+                            help='Upon completion embed in ipython shell')
+        parser.add_argument("--show", default=False, action="store_true",
+                            help='Show the reduction steps. Equivalent to the -s option when '
+                                 'running pypeit.')
+        parser.add_argument('--det', type=str, help='Detector(s) to reduce.')
         return parser
+
 
     @staticmethod
     def main(args):
 
-        import os
-        import numpy as np
+        tstart = time.time()
 
-        from IPython import embed
+        # Load up the spectrograph
+        spectrograph = load_spectrograph(args.spectrograph)
 
-        from pypeit import pypeit
-        from pypeit import pypeitsetup
-        from pypeit.core import framematch
-        from pypeit import msgs
+        # Ingest Files 
+        files = setup.grab_rawfiles(
+            raw_paths=[args.full_rawpath], 
+            file_of_files=args.rawfile_list, 
+            list_of_files=None if args.rawfiles is None else args.rawfiles.split(','))
 
-        spec = args.spectrograph
+        # Run PypeIt Setup
+        ps = pypeitsetup.PypeItSetup.from_rawfiles(files,
+                                        args.spectrograph) 
+        ps.run(setup_only=True, no_write_sorted=True)
 
-        # Config the run
-        cfg_lines = ['[rdx]']
-        cfg_lines += ['    spectrograph = {0}'.format(spec)]
-        cfg_lines += ['    redux_path = {0}_A'.format(os.path.join(os.getcwd(),spec))]
-        if args.slit_spat is not None:
-            msgs.info("--slit_spat provided.  Ignoring --det")
+        '''
+        # Read in the spectrograph, config the parset
+        spectrograph = load_spectrograph(args.spectrograph)
+        spectrograph_cfg_lines = spectrograph.config_specific_par(files[0]).to_config()
+        parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines,
+                                              merge_with=config_lines(args))
+        _det = parse_det(args.det, spectrograph)
+
+        target = spectrograph.get_meta_value(files[0], 'target')
+        mjds = np.zeros(nfiles)
+        for ifile, file in enumerate(files):
+            mjds[ifile] = spectrograph.get_meta_value(file, 'mjd', ignore_bad_header=True,
+                                                      no_fussing=True)
+        files = files[np.argsort(mjds)]
+        '''
+
+        # Generate PypeIt files (and folders)
+        # Calibs
+        if args.master_dir is None:
+            calib_dir = args.calib_dir if args.calib_dir is not None else args.redux_path
+            calib_pypeit_files = quicklook.generate_calib_pypeit_files(
+                ps, calib_dir,
+                det=args.det, configs=args.configs)
+
+            # Process them
+            quicklook.process_calibs(calib_pypeit_files)
+
+        # Science files                                
+        if args.sci_files is not None:
+            sci_files = args.sci_files.split(',')
+            # WORK ON THIS
+            embed(header='434 of ql multi')
         else:
-            cfg_lines += ['    detnum = {0}'.format(args.det)]
-        # Restrict on slit
-        if args.slit_spat is not None:
-            cfg_lines += ['    slitspatnum = {0}'.format(args.slit_spat)]
-        # Allow for bad headers
-        if args.ignore_headers:
-            cfg_lines += ['    ignore_bad_headers = True']
-        cfg_lines += ['[scienceframe]']
-        cfg_lines += ['    [[process]]']
-        cfg_lines += ['        mask_cr = False']
-        # Calibrations
-        cfg_lines += ['[baseprocess]']
-        cfg_lines += ['    use_biasimage = False']
-        cfg_lines += ['[calibrations]']
-        # Input pixel flat?
-        if args.user_pixflat is not None:
-            cfg_lines += ['    [[flatfield]]']
-            cfg_lines += ['        pixelflat_file = {0}'.format(args.user_pixflat)]
-        # Reduction restrictions
-        cfg_lines += ['[reduce]']
-        cfg_lines += ['    [[extraction]]']
-        cfg_lines += ['         skip_optimal = True']
-        # Set boxcar radius
-        if args.box_radius is not None:
-            cfg_lines += ['    boxcar_radius = {0}'.format(args.box_radius)]
-        cfg_lines += ['    [[findobj]]']
-        cfg_lines += ['         skip_second_find = True']
+            sci_idx = ps.fitstbl['frametype'] == 'science'
 
-        # Data files
-        data_files = [os.path.join(args.full_rawpath, args.arc),
-                      os.path.join(args.full_rawpath, args.flat),
-                      os.path.join(args.full_rawpath,args.science)]
+        if np.sum(sci_idx) == 0:
+            msgs.error('No science frames found in the provided files.  Add at least one or specify using --sci_files.')
 
-        # Setup
-        ps = pypeitsetup.PypeItSetup(data_files, path='./', spectrograph_name=spec,
-                                     cfg_lines=cfg_lines)
-        ps.build_fitstbl()
-        # TODO -- Get the type_bits from  'science'
-        bm = framematch.FrameTypeBitMask()
-        file_bits = np.zeros(3, dtype=bm.minimum_dtype())
-        file_bits[0] = bm.turn_on(file_bits[0], ['arc', 'tilt'])
-        file_bits[1] = bm.turn_on(file_bits[1], ['pixelflat', 'trace', 'illumflat']
-                                                 if args.user_pixflat is None
-                                                 else ['trace', 'illumflat'])
-        file_bits[2] = bm.turn_on(file_bits[2], 'science')
+        # Loop on science files to setup PypeIt file and calibs
+        ps_sci_list, sci_setups, full_scifiles = [], [], []
+        for dir_path, sci_file in zip(ps.fitstbl['directory'][sci_idx],
+            ps.fitstbl['filename'][sci_idx]):
+            # Science file and setup
+            full_scifile = os.path.join(dir_path, sci_file)
+            ps_sci = pypeitsetup.PypeItSetup.from_file_root(
+                full_scifile, spectrograph.name, extension='')
+            ps_sci.run(setup_only=True, no_write_sorted=True)
 
-        # PypeItSetup sorts according to MJD
-        #   Deal with this
-        asrt = []
-        for ifile in data_files:
-            bfile = os.path.basename(ifile)
-            idx = ps.fitstbl['filename'].data.tolist().index(bfile)
-            asrt.append(idx)
-        asrt = np.array(asrt)
+            # Calibs
+            if args.master_dir is None:
+                calib_pypeit_file, sci_setup =\
+                    quicklook.match_science_to_calibs(
+                    full_scifile, ps_sci,
+                    spectrograph, calib_dir)
+            else:
+                print("NEED TO GRAB THE SETUP")
+                embed(header='458 of ql multi')
+            # Save
+            ps_sci_list.append(ps_sci)
+            sci_setups.append(sci_setup)
+            full_scifiles.append(full_scifile)
 
-        # Set bits
-        ps.fitstbl.set_frame_types(file_bits[asrt])
-        ps.fitstbl.set_combination_groups()
-        # Extras
-        ps.fitstbl['setup'] = 'A'
+        # Only 1 setup?
+        if len(np.unique(sci_setups)) != 1:
+            dtbl = Table()
+            dtbl['sci_files'] = ps.fitstbl['filename'][sci_idx]
+            dtbl['setup'] = sci_setups
+            print(dtbl)
+            msgs.error('Your science files have multiple setups.  This is not supported. Remove one more of them.')
 
-        # Write
-        ofiles = ps.fitstbl.write_pypeit(configs='A', write_bkg_pairs=True, cfg_lines=cfg_lines)
-        if len(ofiles) > 1:
-            msgs.error("Bad things happened..")
-
-        # Instantiate the main pipeline reduction object
-        pypeIt = pypeit.PypeIt(ofiles[0], verbosity=2,
-                               reuse_masters=True, overwrite=True,
-                               logname='mos.log', show=False)
-        # Run
-        pypeIt.reduce_all()
-        msgs.info('Data reduction complete')
-        # QA HTML
-        msgs.info('Generating QA HTML')
-        pypeIt.build_qa()
-
-        return 0
-
-
+        # Let's build the PypeIt file and link to Masters
+        if args.master_dir is None:
+            sci_pypeit_file, sci_pypeitFile = \
+                quicklook.generate_sci_pypeitfile(
+                calib_pypeit_file, 
+                args.redux_path,
+                full_scifiles, ps_sci_list,
+                maskID=args.maskID)
+        else:
+            print("NEED TO GENERATE FROM SCRATCH")
+            embed(header='479 of ql multi')
+        
+        # Run it
+        redux_path = os.path.dirname(sci_pypeit_file)  # Path to PypeIt file
+        run_pargs = run_pypeit.RunPypeIt.parse_args(
+            [sci_pypeit_file, '-r={}'.format(redux_path)])
+        run_pypeit.RunPypeIt.main(run_pargs)
+        msgs.info(utils.get_time_string(time.time()-tstart))

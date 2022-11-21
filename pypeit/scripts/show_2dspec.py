@@ -83,6 +83,10 @@ class Show2DSpec(scriptbase.ScriptBase):
                                  'assuming the reduction is for a single detector.  If a string, '
                                  'it must match the name of the detector object (e.g., DET01 for '
                                  'a detector, MSC01 for a mosaic).')
+        parser.add_argument("--spat_id", type=int, default=None,
+                            help='Restrict plotting to this slit (PypeIt ID notation)')
+        parser.add_argument("--maskID", type=int, default=None,
+                            help='Restrict plotting to this maskID')
         parser.add_argument('--showmask', default=False, help='Overplot masked pixels',
                             action='store_true')
         parser.add_argument('--removetrace', default=False, action="store_true",
@@ -141,8 +145,16 @@ class Show2DSpec(scriptbase.ScriptBase):
         if spec2DObj.sci_spat_flexure is not None:
             msgs.info("Offseting slits by {}".format(spec2DObj.sci_spat_flexure))
         all_left, all_right, mask = slits.select_edges(flexure=spec2DObj.sci_spat_flexure)
+
         # TODO -- This may be too restrictive, i.e. ignore BADFLTCALIB??
         gpm = mask == 0
+
+        # Restrict on spat_id or maskid? 
+        if args.spat_id is not None:
+            gpm += slits.spat_id == args.spat_id
+        elif args.maskID is not None:
+            gpm += slits.maskdef_id == args.maskID
+        
         left = all_left[:, gpm]
         right = all_right[:, gpm]
         slid_IDs = spec2DObj.slits.slitord_id[gpm]

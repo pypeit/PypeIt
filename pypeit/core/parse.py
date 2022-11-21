@@ -157,8 +157,8 @@ def parse_slitspatnum(slitspatnum):
             A single string or list of strings to parse.
 
     Returns:
-        :obj:`tuple`:  Two integer arrays with the list of 1-indexed detector
-        numbers and spatial pixels coordinates for each slit.  The shape of each
+        :obj:`tuple`:  Two arrays with the list of 1-indexed detectors (str)
+        and spatial pixels coordinates for each slit.  The shape of each
         array is ``(nslits,)``, where ``nslits`` is the number of
         ``slitspatnum`` entries parsed (1 if only a single string is provided).
     """
@@ -168,10 +168,10 @@ def parse_slitspatnum(slitspatnum):
         slitspatnum = ",".join(slitspatnum)
     for item in slitspatnum.split(','):
         spt = item.split(':')
-        dets.append(int(spt[0]))
+        dets.append(spt[0])
         spat_ids.append(int(spt[1]))
     # Return
-    return np.array(dets).astype(int), np.array(spat_ids).astype(int)
+    return np.array(dets).astype(str), np.array(spat_ids).astype(int)
 
 
 def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, binning=None):

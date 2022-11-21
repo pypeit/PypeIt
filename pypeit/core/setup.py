@@ -12,16 +12,20 @@ def grab_rawfiles(raw_paths:list=None,
                file_of_files:str=None,
                list_of_files:list=None,
                extension:str='.fits'):
-    """_summary_
+    """ Grab the list of raw files
 
     Args:
-        raw_paths (list, optional): _description_
-        file_of_files (str, optional): _description_. Defaults to None.
-        list_of_files (list, optional): _description_. Defaults to None.
-        extension (str, optional): _description_. Defaults to '.fits'.
+        raw_paths (list, optional): 
+            List of paths to raw files
+        file_of_files (str, optional): 
+            File with list of raw files. PypeIt input file formatted
+        list_of_files (list, optional): 
+            List of raw files.  These are combined with raw_paths
+        extension (str, optional): 
+            File extension to search on.  Defaults to '.fits'.
 
     Returns:
-        list: List of raw data files with full path
+        list: List of raw data filenames with full path
     """
 
     # Which option>
@@ -46,6 +50,17 @@ def grab_rawfiles(raw_paths:list=None,
 
 def files_from_extension(raw_path:str,
                          extension:str='fits'):
+    """ Grab the list of files with a given extension 
+
+        Args:
+            raw_path (str):
+                Path to raw files
+            extension (str, optional):
+                File extension to search on.  Defaults to '.fits'.
+
+        Returns:
+            list: List of raw data filenames (sorted) with full path
+    """
     # Grab the list of files
     dfname = os.path.join(raw_path, '*{0}*'.format(extension)) \
                 if os.path.isdir(raw_path) else '{0}*{1}*'.format(raw_path, extension)

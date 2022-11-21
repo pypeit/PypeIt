@@ -5,7 +5,6 @@ Script for quick-look reductions for Multislit observations.
 .. include:: ../include/links.rst
 """
 
-from email import header
 import os
 import copy
 import time
@@ -21,7 +20,8 @@ from astropy.table import Table
 from astropy.stats import sigma_clipped_stats
 
 from pypeit import utils
-from pypeit.scripts import run_pypeit
+from pypeit import data
+from pypeit import pypeit
 from pypeit import par, msgs
 from pypeit import pypeitsetup
 from pypeit import wavecalib
@@ -37,10 +37,9 @@ from pypeit.display import display
 from pypeit.images import buildimage
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core.parse import get_dnum, parse_binning
+from pypeit.core.wavecal import wvutils
 from pypeit import sensfunc
 from pypeit.core import flux_calib
-from pypeit.core import setup
-from pypeit.core import quicklook
 from pypeit.scripts import scriptbase
 from pypeit.spectrographs import available_spectrographs
 
@@ -315,7 +314,7 @@ def reduce(files, caliBrate, spectrograph, parset, bkg_files=None, show=False, s
 
 
 
-class QL_MOS(scriptbase.ScriptBase):
+class QL_Multislit(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
@@ -323,18 +322,9 @@ class QL_MOS(scriptbase.ScriptBase):
         parser.add_argument('spectrograph', type=str,
                             help='A valid spectrograph identifier: {0}'.format(
                                  ', '.join(available_spectrographs)))
-        parser.add_argument('--rawfile_list', type=str, 
-                            help='File providing raw files to reduce including their path(s)')
-        parser.add_argument('--full_rawpath', type=str, 
-                            help='Full path to the raw files. Used with --rawfiles or --extension')
-        parser.add_argument('--raw_extension', type=str, default='.fits',
-                            help='Extension for raw files in full_rawpath.  Only use if --rawfile_list and --rawfiles are not provided')
-        parser.add_argument('--rawfiles', type=str, nargs='+',
-                            help='comma separated list of raw frames e.g. img1.fits,img2.fits.  These must exist within --full_rawpath')
-        parser.add_argument('--configs', type=str, default='A',
-                            help='Configurations to reduce [A,all]')
-        parser.add_argument('--sci_files', type=str, 
-                            help='comma separated list of raw frames to be specified as science exposures (over-rides PypeIt frame typing)')
+        parser.add_argument('full_rawpath', type=str, help='Full path to the raw files')
+        parser.add_argument('files', type=str, nargs='+',
+                            help='list of frames i.e. img1.fits img2.fits')
         parser.add_argument('--spec_samp_fact', default=1.0, type=float,
                             help='Make the wavelength grid finer (spec_samp_fact < 1.0) or '
                                  'coarser (spec_samp_fact > 1.0) by this sampling factor, i.e. '
@@ -367,43 +357,33 @@ class QL_MOS(scriptbase.ScriptBase):
                                  'to the left.')
         parser.add_argument("--redux_path", type=str, default=os.getcwd(),
                             help="Location where reduction outputs should be stored.")
-        parser.add_argument("--calib_dir", type=str, 
-                            help="Location folders of calibration reductions")
-        parser.add_argument("--master_dir", type=str, 
+        parser.add_argument("--master_dir", type=str, default=os.getenv('QL_MASTERS'),
                             help="Location of PypeIt Master files used for the reduction.")
-        parser.add_argument('--maskID', type=int,
-                            help='Reduce this slit as specified by the maskID value')
         parser.add_argument('--embed', default=False, action='store_true',
                             help='Upon completion embed in ipython shell')
         parser.add_argument("--show", default=False, action="store_true",
                             help='Show the reduction steps. Equivalent to the -s option when '
                                  'running pypeit.')
-        parser.add_argument('--det', type=str, help='Detector(s) to reduce.')
+        parser.add_argument('--det', type=str, default='1', nargs='*',
+                            help='Detector(s) to show.  If more than one, the list of detectors '
+                                 'must be one of the allowed mosaics hard-coded for the selected '
+                                 'spectrograph.')
         return parser
 
 
     @staticmethod
     def main(args):
 
+        # Parse the detector this is taken from view_fits but this should be made into a utility function
+
         tstart = time.time()
+        # Parse the files sort by MJD
+        files = np.array([os.path.join(args.full_rawpath, file) for file in args.files])
+        nfiles = len(files)
 
-        # Load up the spectrograph
-        spectrograph = load_spectrograph(args.spectrograph, quicklook=True)
 
-        # Ingest Files 
-        files = setup.grab_rawfiles(
-            raw_paths=[args.full_rawpath], 
-            file_of_files=args.rawfile_list, 
-            list_of_files=None if args.rawfiles is None else args.rawfiles.split(','))
-
-        # Run PypeIt Setup
-        ps = pypeitsetup.PypeItSetup.from_rawfiles(files,
-                                        args.spectrograph) 
-        ps.run(setup_only=True, no_write_sorted=True)
-
-        '''
         # Read in the spectrograph, config the parset
-        spectrograph = load_spectrograph(args.spectrograph)
+        spectrograph = load_spectrograph(args.spectrograph, quicklook=True)
         spectrograph_cfg_lines = spectrograph.config_specific_par(files[0]).to_config()
         parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines,
                                               merge_with=config_lines(args))
@@ -415,121 +395,9 @@ class QL_MOS(scriptbase.ScriptBase):
             mjds[ifile] = spectrograph.get_meta_value(file, 'mjd', ignore_bad_header=True,
                                                       no_fussing=True)
         files = files[np.argsort(mjds)]
-        '''
-
-        # Generate PypeIt files (and folders)
-        # Calibs
-        if args.master_dir is None:
-            calib_dir = args.calib_dir if args.calib_dir is not None else args.redux_path
-            calib_pypeit_files = quicklook.generate_calib_pypeit_files(
-                ps, calib_dir,
-                det=args.det, configs=args.configs)
-
-            # Process them
-            quicklook.process_calibs(calib_pypeit_files)
-
-        # Science files                                
-        if args.sci_files is not None:
-            sci_files = args.sci_files.split(',')
-            # WORK ON THIS
-            embed(header='434 of ql multi')
-        else:
-            sci_idx = ps.fitstbl['frametype'] == 'science'
-
-        if np.sum(sci_idx) == 0:
-            msgs.error('No science frames found in the provided files.  Add at least one or specify using --sci_files.')
-
-        # Loop on science files to setup PypeIt file and calibs
-        ps_sci_list, sci_setups, full_scifiles = [], [], []
-        for dir_path, sci_file in zip(ps.fitstbl['directory'][sci_idx],
-            ps.fitstbl['filename'][sci_idx]):
-            # Science file and setup
-            full_scifile = os.path.join(dir_path, sci_file)
-            ps_sci = pypeitsetup.PypeItSetup.from_file_root(
-                full_scifile, spectrograph.name, extension='')
-            ps_sci.run(setup_only=True, no_write_sorted=True)
-
-            # Calibs
-            if args.master_dir is None:
-                calib_pypeit_file, sci_setup =\
-                    quicklook.match_science_to_calibs(
-                    full_scifile, ps_sci,
-                    spectrograph, calib_dir)
-            else:
-                print("NEED TO GRAB THE SETUP")
-                embed(header='458 of ql multi')
-            # Save
-            ps_sci_list.append(ps_sci)
-            sci_setups.append(sci_setup)
-            full_scifiles.append(full_scifile)
-
-        # Only 1 setup?
-        if len(np.unique(sci_setups)) != 1:
-            dtbl = Table()
-            dtbl['sci_files'] = ps.fitstbl['filename'][sci_idx]
-            dtbl['setup'] = sci_setups
-            print(dtbl)
-            msgs.error('Your science files have multiple setups.  This is not supported. Remove one more of them.')
-
-        # Let's build the PypeIt file and link to Masters
-        if args.master_dir is None:
-            sci_pypeit_file, sci_pypeitFile = \
-                quicklook.generate_sci_pypeitfile(
-                calib_pypeit_file, 
-                args.redux_path,
-                full_scifiles, ps_sci_list,
-                maskID=args.maskID)
-        else:
-            print("NEED TO GENERATE FROM SCRATCH")
-            embed(header='479 of ql multi')
-        
-        # Run it
-        redux_path = os.path.dirname(sci_pypeit_file)  # Path to PypeIt file
-        run_pargs = run_pypeit.RunPypeIt.parse_args(
-            [sci_pypeit_file, '-r={}'.format(redux_path)])
-        run_pypeit.RunPypeIt.main(run_pargs)
-        msgs.info(utils.get_time_string(time.time()-tstart))
-
-        if True:
-            return
-
-        det_container = spectrograph.get_detector_par(
-            args.det, hdu=fits.open(files[0]))
-        binspectral, binspatial = parse_binning(
-            det_container['binning'])
-        platescale = det_container['platescale']*binspatial
-        detname = det_container.name
-
-        if std_spec1d_file is not None:
-            std_trace = specobjs.get_std_trace(
-                detname, std_spec1d_file, chk_version=False)
-        else:
-            std_trace = None
-
-        # Parse the offset information out of the headers. TODO in the future
-        # get this out of fitstable
-        dither_pattern, dither_id, offset_arcsec = \
-            ps.spectrograph.parse_dither_pattern(files)
-
-        print_offset_report(files, dither_pattern, dither_id, offset_arcsec, target, platescale)
-        
-        #caliBrate = build_calibrate(_det, files, spectrograph, parset, bias_masterframe_name,
-        #                                slit_masterframe_name, wvcalib_masterframe_name, tilts_masterframe_name)
-
-        # Run calibs?
-        if not args.skip_calibs:
-            for calib_pypeit_file in calib_pypeit_files:
-
-                # Run me via the script
-                redux_path = os.path.dirname(calib_pypeit_file)  # Path to PypeIt file
-                run_pargs = run_pypeit.RunPypeIt.parse_args([calib_pypeit_file,
-                                                '-r={}'.format(redux_path),
-                                                '-c'])
-                run_pypeit.RunPypeIt.main(run_pargs)
 
         # Get the master path
 
-        '''
         # Calibration Master directory
         master_dir = os.path.join(data.Paths.data, 'QL_MASTERS') if args.master_dir is None else args.master_dir
         master_subdir = spectrograph.get_ql_master_dir(files[0])
@@ -560,8 +428,24 @@ class QL_MOS(scriptbase.ScriptBase):
             # or (sensfunc_masterframe_name is None or not os.path.isfile(sensfunc_masterframe_name)):
             msgs.error('Master frames not found.  Check that environment variable QL_MASTERS '
                        'points at the Master Calibs')
-        '''
 
+        det_container = spectrograph.get_detector_par(_det, hdu=fits.open(files[0]))
+        binspectral, binspatial = parse_binning(det_container['binning'])
+        platescale = det_container['platescale']*binspatial
+        detname = det_container.name
+
+        if std_spec1d_file is not None:
+            std_trace = specobjs.get_std_trace(detname, std_spec1d_file, chk_version=False)
+        else:
+            std_trace = None
+
+        # Parse the offset information out of the headers. TODO in the future
+        # get this out of fitstable
+        dither_pattern, dither_id, offset_arcsec = spectrograph.parse_dither_pattern(files)
+
+        print_offset_report(files, dither_pattern, dither_id, offset_arcsec, target, platescale)
+        caliBrate = build_calibrate(_det, files, spectrograph, parset, bias_masterframe_name,
+                                        slit_masterframe_name, wvcalib_masterframe_name, tilts_masterframe_name)
 
         spec2d_list, offsets_dith_pix = run(files, dither_id, offset_arcsec, caliBrate, spectrograph,
                                             platescale, parset, std_trace, args.show, bkg_redux=args.bkg_redux)
