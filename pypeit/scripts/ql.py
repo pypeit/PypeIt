@@ -39,7 +39,7 @@ class QL(scriptbase.ScriptBase):
         parser.add_argument('--raw_extension', type=str, default='.fits',
                             help='Extension for raw files in full_rawpath.  Only use if --rawfile_list and --rawfiles are not provided')
         parser.add_argument('--rawfiles', type=str, nargs='+',
-                            help='comma separated list of raw frames e.g. img1.fits,img2.fits.  These must exist within --full_rawpath')
+                            help='space separated list of raw frames e.g. img1.fits img2.fits.  These must exist within --full_rawpath')
         parser.add_argument('--configs', type=str, default='A',
                             help='Configurations to reduce [A,all]')
         parser.add_argument('--sci_files', type=str, 
@@ -103,7 +103,7 @@ class QL(scriptbase.ScriptBase):
         files = setup.grab_rawfiles(
             raw_paths=[args.full_rawpath], 
             file_of_files=args.rawfile_list, 
-            list_of_files=None if args.rawfiles is None else args.rawfiles.split(','))
+            list_of_files=args.rawfiles) 
 
         # Run PypeIt Setup
         ps = pypeitsetup.PypeItSetup.from_rawfiles(files,

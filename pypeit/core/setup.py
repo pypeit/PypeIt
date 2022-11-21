@@ -20,7 +20,7 @@ def grab_rawfiles(raw_paths:list=None,
         file_of_files (str, optional): 
             File with list of raw files. PypeIt input file formatted
         list_of_files (list, optional): 
-            List of raw files.  These are combined with raw_paths
+            List of raw files (str).  These are combined with raw_paths
         extension (str, optional): 
             File extension to search on.  Defaults to '.fits'.
 
@@ -36,9 +36,8 @@ def grab_rawfiles(raw_paths:list=None,
         data_files = []
         for raw_path in raw_paths:
             for ifile in list_of_files:
-                if os.path.isfile(os.path.join(
-                    raw_path, ifile)):
-                    data_files.append()
+                if os.path.isfile(os.path.join(raw_path, ifile)):
+                    data_files.append(os.path.join(raw_path, ifile))
     else: # Search in raw_paths for files with the given extension
         data_files = []
         for raw_path in raw_paths:
