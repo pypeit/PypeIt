@@ -220,11 +220,7 @@ class PypeItSetup:
             os.makedirs(output_path)
         
         # Grab the list of files
-        data_files = setup.files_from_extension()
-        dfname = os.path.join(root, '*{0}*'.format(extension)) \
-                    if os.path.isdir(root) else '{0}*{1}*'.format(root, extension)
-        data_files = glob.glob(dfname)
-        data_files.sort()
+        data_files = setup.files_from_extension(root, extension=extension)
 
         # Instantiate
         return cls.from_rawfiles(data_files, spectrograph)
