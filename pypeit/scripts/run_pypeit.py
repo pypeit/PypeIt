@@ -77,6 +77,8 @@ class RunPypeIt(scriptbase.ScriptBase):
                                  '-o is used, the outputs for the input detector will be replaced.')
         parser.add_argument('-c', '--calib_only', default=False, action='store_true',
                             help='Only run on calibrations')
+        parser.add_argument('-q', '--quicklook', default=False, action='store_true',
+                            help='Perform a quicklook reduction')
 
         return parser
 
@@ -110,7 +112,7 @@ class RunPypeIt(scriptbase.ScriptBase):
                                overwrite=args.overwrite,
                                redux_path=args.redux_path,
                                calib_only=args.calib_only,
-                               logname=logname, show=args.show)
+                               logname=logname, show=args.show, quicklook=args.quicklook)
 
         # JFH I don't see why this is an optional argument here. We could allow
         # the user to modify an infinite number of parameters from the command

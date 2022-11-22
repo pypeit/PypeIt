@@ -132,7 +132,7 @@ def process_calibs(calib_pypeit_files:list):
         redux_path = os.path.dirname(calib_pypeit_file)  # Path to PypeIt file
         run_pargs = run_pypeit.RunPypeIt.parse_args(
             [calib_pypeit_file, 
-             '-r={}'.format(redux_path), '-c'])
+             '-r={}'.format(redux_path), '-c', '-q'])
         run_pypeit.RunPypeIt.main(run_pargs)
 
 

@@ -177,7 +177,7 @@ class PypeItSetup:
                    setup_dict=pypeItFile.setup)
 
     @classmethod
-    def from_file_root(cls, root, spectrograph, extension='.fits', output_path=None):
+    def from_file_root(cls, root, spectrograph, extension='.fits', output_path=None, quicklook=False):
         """
         Instantiate the :class:`PypeItSetup` object by providing a file
         root.
@@ -213,7 +213,7 @@ class PypeItSetup:
                         if os.path.isdir(root) else '{0}*{1}*'.format(root, extension)
             # No pypeit file is written and we just construct the setup object
             # directly
-            return cls(sorted(glob.glob(dfname)), spectrograph_name=spectrograph)
+            return cls(sorted(glob.glob(dfname)), spectrograph_name=spectrograph, quicklook=quicklook)
 
         # Set the output directory
         if not os.path.isdir(output_path):
@@ -223,7 +223,7 @@ class PypeItSetup:
         data_files = setup.files_from_extension(root, extension=extension)
 
         # Instantiate
-        return cls.from_rawfiles(data_files, spectrograph)
+        return cls.from_rawfiles(data_files, spectrograph, quicklook=quicklook)
 
     @classmethod
     def from_rawfiles(cls, data_files:list, spectrograph:str, quicklook:bool):
@@ -233,6 +233,7 @@ class PypeItSetup:
         cfg_lines += ['    spectrograph = {0}'.format(spectrograph)]
 
         # Instantiate
+        print(quicklook)
         return cls(data_files, cfg_lines=cfg_lines, quicklook=quicklook) #pypeit_file=filename,
 
 

@@ -84,7 +84,7 @@ class PypeIt:
 
     """
     def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse_masters=False, logname=None,
-                 show=False, redux_path=None, calib_only=False):
+                 show=False, redux_path=None, calib_only=False, quicklook=False):
 
         # Set up logging
         self.logname = logname
@@ -99,7 +99,7 @@ class PypeIt:
 
         # Spectrograph
         spectrograph_name = self.pypeItFile.config['rdx']['spectrograph']
-        self.spectrograph = load_spectrograph(spectrograph_name)
+        self.spectrograph = load_spectrograph(spectrograph_name, quicklook=quicklook)
         msgs.info('Loaded spectrograph {0}'.format(self.spectrograph.name))
 
         # --------------------------------------------------------------
