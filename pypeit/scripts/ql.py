@@ -138,8 +138,7 @@ class QL(scriptbase.ScriptBase):
         # Science files                                
         if args.sci_files is not None:
             sci_files = args.sci_files.split(',')
-            # WORK ON THIS
-            embed(header='434 of ql multi')
+            sci_idx = np.in1d(ps.fitstbl['filename'], sci_files)
         else:
             sci_idx = ps.fitstbl['frametype'] == 'science'
 
@@ -193,6 +192,6 @@ class QL(scriptbase.ScriptBase):
         # Run it
         redux_path = os.path.dirname(sci_pypeit_file)  # Path to PypeIt file
         run_pargs = run_pypeit.RunPypeIt.parse_args(
-            [sci_pypeit_file, '-r={}'.format(redux_path)])
+            [sci_pypeit_file, '-r={}'.format(redux_path), '-q'])
         run_pypeit.RunPypeIt.main(run_pargs)
         msgs.info(utils.get_time_string(time.time()-tstart))
