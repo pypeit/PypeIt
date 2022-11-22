@@ -24,6 +24,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
     name = 'ldt_deveny'
     telescope = telescopes.LDTTelescopePar()
     camera = 'DeVeny'
+    url = 'https://lowell.edu/research/telescopes-and-facilities/ldt/deveny-optical-spectrograph/'
     header_name = 'Deveny'
     comment = 'LDT DeVeny Optical Spectrograph'
     supported = True

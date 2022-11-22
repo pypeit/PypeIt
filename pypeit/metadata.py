@@ -196,6 +196,7 @@ class PypeItMetaData:
             # Read the fits headers.  NOTE: If the file cannot be opened,
             # headarr will be None, and the subsequent loop over the meta keys
             # will fill the data dictionary with None values.
+            msgs.info('Adding metadata for {0}'.format(os.path.split(ifile)[1]))
             headarr = self.spectrograph.get_headarr(ifile, strict=strict)
 
             # Grab Meta
@@ -210,7 +211,6 @@ class PypeItMetaData:
                     msgs.warn('Removing troublesome # character from {0}.  Returning {1}.'.format(
                               meta_key, value))
                 data[meta_key].append(value)
-            msgs.info('Added metadata for {0}'.format(os.path.split(ifile)[1]))
 
         # JFH Changed the below to not crash if some files have None in
         # their MJD. This is the desired behavior since if there are
@@ -809,6 +809,7 @@ class PypeItMetaData:
         nrows = len(self)
         col = table.Column(data=['None'] * nrows, name='setup', dtype='U25')
         self.table.add_column(col)
+        is_science = self.find_frames('science')    # Science frames can only have one configuration
         for i in range(nrows):
             for d, cfg in _configs.items():
                 # modify the configuration items only for specific frames. This is instrument dependent.
@@ -818,7 +819,7 @@ class PypeItMetaData:
                         continue
                     elif self.table['setup'][i] == 'None':
                         self.table['setup'][i] = d
-                    else:
+                    elif not is_science[i]:
                         self.table['setup'][i] += ',{}'.format(d)
 
         # Check if any of the configurations are not set
@@ -1396,6 +1397,13 @@ class PypeItMetaData:
             # if get_comb_group() is not defined in the relevant spectrograph self.table is unchanged
             self.table = self.spectrograph.get_comb_group(self.table)
 
+            if 'calib' in self.keys():
+                # Re-set the calibbit in case calib was changed by get_comb_group().
+                # If calib was not changed, calibbit values will be unchanged
+                self._set_calib_group_bits()
+                # Check that the groups are valid
+                self._check_calib_groups()
+
     def set_user_added_columns(self):
         """
         Set columns that the user *might* add
@@ -1470,10 +1478,10 @@ class PypeItMetaData:
                 # calibration files are used for different setups. Here we update calib to have only the
                 # value relevant for this setup.
                 # find the calib value in this setup that is not a list (which is probably a science/standard)
-                no_list = np.array([',' not in cc for cc in subtbl['calib']])
+                no_list = np.array([',' not in str(cc) for cc in subtbl['calib']])
                 if np.any(no_list):
-                    # set the same calib value to the whole setup
-                    subtbl['calib'] = subtbl['calib'][no_list][0]
+                    # assign the calib value in this setup that is not a list to frames that have calib as a list
+                    subtbl['calib'][np.logical_not(no_list)] = subtbl['calib'][no_list][0]
 
             # Write the file
             ff.write('##########################################################\n')
@@ -1674,10 +1682,10 @@ class PypeItMetaData:
                 # calibration files are used for different setups. Here we update calib to have only the
                 # value relevant for this setup.
                 # find the calib value in this setup that is not a list (which is probably a science/standard)
-                no_list = np.array([',' not in cc for cc in subtbl['calib']])
+                no_list = np.array([',' not in str(cc) for cc in subtbl['calib']])
                 if np.any(no_list):
-                    # set the same calib value to the whole setup
-                    subtbl['calib'] = subtbl['calib'][no_list][0]
+                    # assign the calib value in this setup that is not a list to frames that have calib as a list
+                    subtbl['calib'][np.logical_not(no_list)] = subtbl['calib'][no_list][0]
             subtbl.sort(['frametype','filename'])
             #with io.StringIO() as ff:
             #    subtbl.write(ff, format='ascii.fixed_width')

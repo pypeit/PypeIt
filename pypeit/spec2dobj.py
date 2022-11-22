@@ -15,13 +15,12 @@ import numpy as np
 
 from astropy.io import fits
 from astropy.stats import mad_std
-import astropy
+from astropy import table
 
 from pypeit import msgs
 from pypeit import io
 from pypeit import datamodel
 from pypeit import slittrace
-from pypeit import wavecalib
 from pypeit.core import parse 
 from pypeit.images import imagebitmask
 from pypeit.images.detector_container import DetectorContainer
@@ -29,16 +28,17 @@ from pypeit.images.mosaic import Mosaic
 
 from IPython import embed
 
-#def spec2d_hdu_prefix(det):
-#    return 'DET{:02d}-'.format(det)
-
 
 class Spec2DObj(datamodel.DataContainer):
     """Class to handle 2D spectral image outputs of PypeIt
 
     One generates one of these Objects for each detector in the exposure.
 
-    See datamodel below and at :ref:`spec2dobj_datamodel`
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_spec2dobj.rst
+
+    .. See datamodel below and at :ref:`spec2dobj_datamodel`
 
     Args:
 
@@ -78,14 +78,14 @@ class Spec2DObj(datamodel.DataContainer):
                  'imgbitm': dict(otype=str, descr='List of BITMASK keys from ImageBitMask'),
                  'slits': dict(otype=slittrace.SlitTraceSet,
                                descr='SlitTraceSet defining the slits'),
-                 'wavesol': dict(otype=astropy.table.Table,
+                 'wavesol': dict(otype=table.Table,
                                descr='Table with WaveCalib diagnostic info'),
-                 'maskdef_designtab': dict(otype=astropy.table.Table,
+                 'maskdef_designtab': dict(otype=table.Table,
                                            descr='Table with slitmask design and object info'),
                  'sci_spat_flexure': dict(otype=float,
                                           descr='Shift, in spatial pixels, between this image '
                                                 'and SlitTrace'),
-                 'sci_spec_flexure': dict(otype=astropy.table.Table,
+                 'sci_spec_flexure': dict(otype=table.Table,
                                           descr='Global shift of the spectrum to correct for spectral'
                                                 'flexure (pixels). This is based on the sky spectrum at'
                                                 'the center of each slit'),

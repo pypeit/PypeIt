@@ -1,5 +1,20 @@
-1.10.1dev
+
+1.11.1dev
 ---------
+
+- (Hotfix) Fixed bug that allowed science frames to be assigned to multiple
+  instrument configurations
+- (Hotfix) Fixed typo related to GitHub download for offline processing
+- Started modifications and support for JWST.
+- LRISr header issue
+- Added spectral flexure and reference frame corrections for IFU data
+- Allow separate sky frame to be used for sky subtraction with IFU data
+- Limit the images written to the MasterEdges file to only the trace
+  image, mask, and detector.
+- Refactor quicklook scripts
+
+1.11.0 (21 Oct 2022)
+--------------------
 
 - Add ability for users to specify custom arc line lists for
   wavelength calibration, saved in the user's PypeIt cache
@@ -18,7 +33,7 @@
 sizes.
 - Restructured extraction and find_objects classes to work
 better with 2d coadds.
-- Started modifications and support for JWST.
+- Refactor and general update of documentation
 
 1.10.0 (11 July 2022)
 ---------------------

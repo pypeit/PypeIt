@@ -91,7 +91,9 @@ By default, :ref:`pypeit_setup` uses the setup identifier (e.g., A,B,C,D...) to 
 group. Frames that are in the same calibration group will have the same ``PypeIt`` keyword ``calib``.
 No automated procedure exists to do anything except this. However, the user can edit the :ref:`pypeit_file` to,
 within a given configuration, assign specific calibration frames to specific science frames using the data in
-the ``calib`` column of the :ref:`pypeit_file:Data Block`.
+the ``calib`` column of the :ref:`data_block`.
+
+.. _mosfire_combid_bkgid:
 
 MOSFIRE combination and background groups
 -----------------------------------------
@@ -100,7 +102,7 @@ MOSFIRE combination and background groups
 and background groups. Science frames that should be combined together are assigned the same combination ID
 (``comb_id``), while a background ID (``bkg_id``) identifies frames that are used as background images.
 Frames with the same value of ``bkg_id`` will be combined together. The values of ``comb_id`` and ``bkg_id``
-are provided in the :ref:`pypeit_file` as two columns in the :ref:`pypeit_file:Data Block`, so that users
+are provided in the :ref:`pypeit_file` as two columns in the :ref:`data_block`, so that users
 can modify them according to their preferred reduction. See more detail in :ref:`a-b_differencing`.
 
 For MOSFIRE, ``PypeIt`` attempts to automatically assign ``comb_id`` and ``bkg_id`` to the science frames, by
@@ -114,10 +116,10 @@ using the information on the nodding pattern available in the files headers. Spe
 ``dithpos``         ``FRAMEID``
 ===============     ============
 
-which are also provided in the :ref:`pypeit_file:Data Block`.
+which are also provided in the :ref:`data_block`.
 
 If the observations were taken with a "Slit Nod"/"Mask Nod" ``dithpat`` or using the *long2pos* slitmask,
-the :ref:`pypeit_file:Data Block` will look like::
+the :ref:`data_block` will look like::
 
                   filename | frametype | ... |  dithpat | dithpos | dithoff | frameno | calib | comb_id | bkg_id
     MF.20141126.17372.fits |   science | ... | Mask Nod |       A |    10.0 |     182 |     4 |      21 |     22
@@ -208,7 +210,7 @@ To run this test:
 .. code-block:: bash
 
     cd ${PYPEIT_DEV}/unit_tests
-    pytest test_setup.py::test_setup_keck_mosfire_multiconfig -W ignore
+    pytest test_setups.py::test_setup_keck_mosfire_multiconfig -W ignore
 
 The test requires that you have downloaded the ``PypeIt``
 :ref:`dev-suite` and defined the ``PYPEIT_DEV`` environmental

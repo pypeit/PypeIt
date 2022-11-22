@@ -33,20 +33,41 @@ from pypeit.scripts import run_pypeit
 
 from IPython import embed
 
-def default_par():
+def default_par(calib_only:bool=False):
     """ Generate default parameters for config
+
+    Args:
+        calib_only (bool, optional):
+            Generate parameters for calibrations only
+    
 
     Returns:
         dict: Default parameters
     """
 
-    cfg_default = {}
-    cfg_default['rdx'] = dict(ignore_bad_headers=True)
-    cfg_default['scienceframe'] = dict(process=dict(mask_cr=False))
-    cfg_default['baseprocess'] = dict(use_biasimage=False)
-    cfg_default['reduce'] = dict(extraction=dict(skip_optimal=True),
-                                 findobj=dict(skip_second_find=True))
-    return cfg_default
+    cfg_default = ['[rdx]', 
+                    'quicklook = True']
+    
+
+    cfg_default = ['[rdx]', 
+                    '    ignore_bad_headers = True',
+                    '[baseprocess]', 
+                        'use_biasimage = False', 
+                    '[calibrations]', 
+                    '  [[flatfield]]', 
+                    '       saturated_slits = mask']
+    # Reduction parameters
+    if not calib_only:
+        cfg_default += ['[scienceframe]',
+                        '    [[process]]',
+                        '        mask_cr = False',
+                        '[reduce]',
+                        '    [[extraction]]',
+                        '        skip_optimal = True',
+                        '    [[findobj]]',
+                        '        skip_second_find = True']
+    # Return
+    return configobj.ConfigObj(cfg_default)
 
 def generate_calib_pypeit_files(ps, output_path:str,
                    det:str=None,
@@ -72,15 +93,18 @@ def generate_calib_pypeit_files(ps, output_path:str,
     ps.user_cfg = ['[rdx]', 'spectrograph = {}'.format(ps.spectrograph.name)]
     if det is not None:
         ps.user_cfg += ['detnum = {}'.format(det)]
-    # Avoid crash in flat fielding from saturated slits
-    ps.user_cfg += ['[calibrations]', '[[flatfield]]', 'saturated_slits = mask']
+
+    # QL parameters
+    ql_cfg = default_par(calib_only=True)
+    # Merge
+    ql_cfg.merge(configobj.ConfigObj(ps.user_cfg))
 
     # TODO -- Remove the science files!  We want calibs only
 
     # Write the PypeIt files
     pypeit_files = ps.fitstbl.write_pypeit(output_path=output_path,
-                                          cfg_lines=ps.user_cfg,
-                                          configs=configs)
+                                           cfg_lines=ql_cfg.write(),
+                                           configs=configs)
 
     # Rename calibs
     calib_pypeit_files = []

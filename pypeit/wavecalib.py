@@ -31,8 +31,12 @@ class WaveCalib(datamodel.DataContainer):
     """
     DataContainer for the output from BuildWaveCalib
 
-    All of the items in the datamodel are required for instantiation,
-      although they can be None (but shouldn't be)
+    All of the items in the datamodel are required for instantiation, although
+    they can be None (but shouldn't be)
+
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_wavecalib.rst
 
     """
     version = '1.0.0'
@@ -96,9 +100,16 @@ class WaveCalib(datamodel.DataContainer):
             # Array?
             if self.datamodel[key]['otype'] == np.ndarray and key != 'wv_fits':
                 _d.append({key: self[key]})
+            # TODO: Can we put all the WAVEFIT and PYPEITFIT at the end of the
+            # list of HDUs?  This would mean ARC_SPECTRA is always in the same
+            # extension number, regardless of the number of slits.
             elif key == 'wv_fits':
                 for ss, wv_fit in enumerate(self[key]):
+                    # TODO: Are we writing empty extensions if any of the
+                    # elements of self[key] are None?  If so, is this required
+                    # behavior?  Why?
                     # Naming
+                    # TODO: Shouldn't this name match the dkey below?
                     dkey = 'WAVEFIT-{}'.format(self.spat_ids[ss])
                     # Generate a dummy?
                     if wv_fit is None:
@@ -331,11 +342,25 @@ class BuildWaveCalib:
         par (:class:`pypeit.par.pypeitpar.WaveSolutionPar`):
             The parameters used for the wavelength solution
             Uses ['calibrations']['wavelengths']
-        binspectral (int, optional): Binning of the Arc in the spectral dimension
-        det (int, optional): Detector number
-        msbpm (ndarray, optional): Bad pixel mask image
-        qa_path (str, optional):  For QA
-        master_key (:obj:`str`, optional):  For naming QA only
+        binspectral (int, optional):
+            Binning of the Arc in the spectral dimension
+        meta_dict (dict: optional):
+            Dictionary containing meta information required for wavelength
+            calibration. Specifically for non-fixed format echelles this dict
+            must contain the following keys:
+
+               - ``'echangle'``:  the echelle angle
+               - ``'xdangle'``: the cross-disperser angle
+               - ``'dispmame'``: the disperser name
+
+        det (int, optional):
+            Detector number
+        msbpm (ndarray, optional):
+            Bad pixel mask image
+        qa_path (str, optional):
+            For QA
+        master_key (:obj:`str`, optional):
+            For naming QA only
 
     Attributes:
         steps : list
@@ -528,6 +553,7 @@ class BuildWaveCalib:
                                              #debug=True, debug_reid=True, debug_xcorr=True)
         elif self.par['method'] == 'echelle':
             # Echelle calibration
+            msgs.error('Non-fixed format Echelle wavelength calibration is not yet full implemented')
             # TODO: Get these from the spectrograph file later.
             angle_fits_file = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms', 'hires_wvcalib',
                                            'wvcalib_angle_fits.fits')

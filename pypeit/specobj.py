@@ -32,6 +32,10 @@ class SpecObj(datamodel.DataContainer):
     are instantiated by the object finding routine, and then all spectral
     extraction information for the object are assigned as attributes
 
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_specobj.rst
+
     Args:
         PYPELINE (:obj:`str`):
             Name of the ``PypeIt`` pipeline method.  Allowed options are

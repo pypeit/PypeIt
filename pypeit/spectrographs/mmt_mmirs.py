@@ -29,6 +29,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
     name = 'mmt_mmirs'
     telescope = telescopes.MMTTelescopePar()
     camera = 'MMIRS'
+    url = 'https://lweb.cfa.harvard.edu/mmti/mmirs.html'
     header_name = 'mmirs'
     supported = True
 

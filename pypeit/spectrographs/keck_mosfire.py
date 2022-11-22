@@ -30,6 +30,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
     name = 'keck_mosfire'
     telescope = telescopes.KeckTelescopePar()
     camera = 'MOSFIRE'
+    url = 'https://www2.keck.hawaii.edu/inst/mosfire/home.html'
     header_name = 'MOSFIRE'
     supported = True
     comment = 'Gratings tested: Y, J, J2, H, K; see :doc:`mosfire`'

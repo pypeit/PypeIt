@@ -73,7 +73,7 @@ Application
 
 To perform the RA, Dec and object name assignment to extracted spectra, the parameters
 described in the *Application* section of :ref:`slitmask_ids_report` must be set.
-Moreover, the **assign_obj** flag in :ref:`pypeit_par:SlitMaskPar Keywords` must be **True**.
+Moreover, the **assign_obj** flag in :ref:`slitmaskpar` must be **True**.
 This is the default for DEIMOS (except when the *LongMirr* or the *LVM* mask is used) and
 MOSFIRE (except when the *LONGSLIT* mask is used).
 Seven other parameters control this procedure. Six are for the slitmask offset determination
@@ -117,8 +117,8 @@ Access
 
 - Ra, Dec, object name and ``maskdef_id`` are visible in the .txt file with a list of all extracted spectra,
   generated at the end the ``PypeIt`` reduction.
-- Ra, Dec, object name are also visible by running `pypeit_show_1d --list` (see :ref:`out_spec1D:pypeit_show_1dspec`)
-- Object names are visible in `ginga` when running `pypeit_show_2d` (see :ref:`out_spec2D:pypeit_show_2dspec`)
+- Ra, Dec, object name are also visible by running `pypeit_show_1d --list` (see :ref:`pypeit_show_1dspec`)
+- Object names are visible in `ginga` when running `pypeit_show_2d` (see :ref:`pypeit_show_2dspec`)
 
 
 Testing
@@ -157,13 +157,13 @@ and is as follows:
 
     1. Load the information relative to the specific instrument (DEIMOS, MOSFIRE).
 
-    2. Load the :ref:`pypeit_par:Instrument-Specific Default Configuration` parameters and select the detector.
+    2. Load the :ref:`instr_par` parameters and select the detector.
 
     3. Build a trace image using three flat-field images from a specific dataset in the :ref:`dev-suite`.
 
     4. Update the instrument configuration parameters to include configurations specific for the
        used instrument setup. Among others, this step sets the **assign_obj** flag in
-       :ref:`pypeit_par:SlitMaskPar Keywords` to **True**.
+       :ref:`slitmaskpar` to **True**.
 
     5. Run the slit tracing procedure using :class:`~pypeit.edgetrace.EdgeTraceSet`, during which
        the slitmask ID assignment is performed (see :ref:`slitmask_ids_report`), and the ``maskdef_id``
