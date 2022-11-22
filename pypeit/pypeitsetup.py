@@ -95,10 +95,10 @@ class PypeItSetup:
         pypeit_file (str):
             See description of class argument.
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-            An instance of the `Spectograph` class used throughout the
+            An instance of the `Spectrograph` class used throughout the
             reduction procedures.
-        par (:class:`pypeit.par.pypeitpar.PypitPar`):
-            An instance of the `PypitPar` class that provides the
+        par (:class:`pypeit.par.pypeitpar.PypeitPar`):
+            An instance of the `PypeitPar` class that provides the
             parameters to all the algorthms that pypeit uses to reduce
             the data.
         fitstbl (:class:`pypeit.metadata.PypeItMetaData`):
@@ -111,7 +111,7 @@ class PypeItSetup:
     """
     def __init__(self, file_list, path=None, frametype=None, usrdata=None, 
                  setups=None, cfg_lines=None, spectrograph_name=None, 
-                 pypeit_file=None, setup_dict=None):
+                 pypeit_file=None, setup_dict=None, quicklook=False):
 
         # The provided list of files cannot be None
         if file_list is None or len(file_list) == 0:
@@ -137,7 +137,7 @@ class PypeItSetup:
             msgs.error('Must provide spectrograph name directly or using configuration lines.')
        
         # Instantiate the spectrograph
-        self.spectrograph = load_spectrograph(_spectrograph_name)#, ifile=file_list[0])
+        self.spectrograph = load_spectrograph(_spectrograph_name, quicklook=quicklook)#, ifile=file_list[0])
 
         # Get the spectrograph specific configuration to be merged with
         # the user modifications.
@@ -205,7 +205,7 @@ class PypeItSetup:
                 object. If the path doesn't yet exist, it is created.
         
         Returns:
-            :class:`PypitSetup`: The instance of the class.
+            :class:`PypeitSetup`: The instance of the class.
         """
         if output_path is None:
             # Find all the files
@@ -226,14 +226,14 @@ class PypeItSetup:
         return cls.from_rawfiles(data_files, spectrograph)
 
     @classmethod
-    def from_rawfiles(cls, data_files:list, spectrograph:str):
+    def from_rawfiles(cls, data_files:list, spectrograph:str, quicklook:bool):
 
         # Configure me
         cfg_lines = ['[rdx]']
         cfg_lines += ['    spectrograph = {0}'.format(spectrograph)]
 
         # Instantiate
-        return cls(data_files, cfg_lines=cfg_lines) #pypeit_file=filename, 
+        return cls(data_files, cfg_lines=cfg_lines, quicklook=quicklook) #pypeit_file=filename,
 
 
     @property

@@ -96,10 +96,7 @@ class QL(scriptbase.ScriptBase):
 
         tstart = time.time()
 
-        # Load up the spectrograph
-        spectrograph = load_spectrograph(args.spectrograph)
-
-        # Ingest Files 
+        # Ingest Files
         files = setup.grab_rawfiles(
             raw_paths=[args.full_rawpath], 
             file_of_files=args.rawfile_list, 
@@ -107,7 +104,8 @@ class QL(scriptbase.ScriptBase):
 
         # Run PypeIt Setup
         ps = pypeitsetup.PypeItSetup.from_rawfiles(files,
-                                        args.spectrograph) 
+                                                   args.spectrograph,
+                                                   quicklook=True)
         ps.run(setup_only=True, no_write_sorted=True)
 
         '''
@@ -155,7 +153,7 @@ class QL(scriptbase.ScriptBase):
             # Science file and setup
             full_scifile = os.path.join(dir_path, sci_file)
             ps_sci = pypeitsetup.PypeItSetup.from_file_root(
-                full_scifile, spectrograph.name, extension='')
+                full_scifile, ps.spectrograph.name, extension='')
             ps_sci.run(setup_only=True, no_write_sorted=True)
 
             # Calibs
@@ -163,7 +161,7 @@ class QL(scriptbase.ScriptBase):
                 calib_pypeit_file, sci_setup =\
                     quicklook.match_science_to_calibs(
                     full_scifile, ps_sci,
-                    spectrograph, calib_dir)
+                    ps.spectrograph, calib_dir)
             else:
                 print("NEED TO GRAB THE SETUP")
                 embed(header='458 of ql multi')
