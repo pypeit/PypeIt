@@ -35,7 +35,7 @@ class QL(scriptbase.ScriptBase):
         parser.add_argument('--rawfile_list', type=str, 
                             help='File providing raw files to reduce including their path(s)')
         parser.add_argument('--full_rawpath', type=str, 
-                            help='Full path to the raw files. Used with --rawfiles or --extension')
+                            help='Full path to the raw files. Used with --rawfiles or --raw_extension')
         parser.add_argument('--raw_extension', type=str, default='.fits',
                             help='Extension for raw files in full_rawpath.  Only use if --rawfile_list and --rawfiles are not provided')
         parser.add_argument('--rawfiles', type=str, nargs='+',
@@ -88,6 +88,8 @@ class QL(scriptbase.ScriptBase):
                             help='Show the reduction steps. Equivalent to the -s option when '
                                  'running pypeit.')
         parser.add_argument('--det', type=str, help='Detector(s) to reduce.')
+        parser.add_argument("--calibs_only", default=False, action="store_true",
+                            help='Reduce only the calibrations?')
         return parser
 
 
@@ -136,6 +138,10 @@ class QL(scriptbase.ScriptBase):
 
             # Process them
             quicklook.process_calibs(calib_pypeit_files)
+
+        if args.calibs_only:
+            msgs.info("Calibrations only requested.  Exiting")
+            return
 
         # Science files                                
         if args.sci_files is not None:
