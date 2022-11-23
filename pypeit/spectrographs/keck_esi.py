@@ -283,8 +283,23 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         # Call the base-class method to generate the empty bpm
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
+
+        # Get the binning 
+        msgs.info("Custom bad pixel mask for ESI")
+        hdu = io.fits_open(filename)
+        binspatial, binspec = parse.parse_binning(hdu[0].header['BINNING'])
+        hdu.close()
+
         # TODO -- Add this
+        # Binning Independent Masking 
         #  BE SURE TO ELIMINATE THE FIRST COLUMN OR TWO
+        bpm_img[:,0:(2//binspatial)] = 1
+        # Mask out the 'hotspot' on the upper left coner
+        bpm_img[(3842//binspec):(3944//binspec), (43//binspatial):(185//binspatial)] = 1
+        # Mask out the 'bad columns' on the upper left coner
+        bpm_img[(2642//binspec):, (442//binspatial):(466//binspatial)] = 1
+
+
         '''
         # Get the binning
         msgs.info("Custom bad pixel mask for MAGE")
