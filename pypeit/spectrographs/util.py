@@ -13,7 +13,7 @@ from pypeit import spectrographs
 from pypeit import msgs
 
 
-def load_spectrograph(spec, quicklook=False):
+def load_spectrograph(spec):
     """
     Instantiate a spectrograph from the available subclasses of
     :class:`~pypeit.spectrographs.spectrograph.Spectrograph`.
@@ -42,7 +42,7 @@ def load_spectrograph(spec, quicklook=False):
 
     classes = spectrographs.spectrograph_classes()
     if spec in classes.keys():
-        return classes[spec](quicklook=quicklook)
+        return classes[spec]()
 
     # Check if we were given a file, and if so try to read the spectrograph type from its header
     if os.path.isfile(spec):
@@ -50,7 +50,7 @@ def load_spectrograph(spec, quicklook=False):
         if 'PYP_SPEC' in header:
             pyp_spec = header['PYP_SPEC']
             if pyp_spec in classes.keys():
-                spectrograph = classes[pyp_spec](quicklook=quicklook)
+                spectrograph = classes[pyp_spec]()
                 if 'DISPNAME' in header:
                     spectrograph.dispname = header['DISPNAME']
                 return spectrograph

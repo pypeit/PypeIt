@@ -144,12 +144,11 @@ class Spectrograph:
     Defines the allowed extensions for the input fits files.
     """
 
-    def __init__(self, quicklook=False):
+    def __init__(self):
         self.dispname = None
         self.rawdatasec_img = None
         self.oscansec_img = None
         self.slitmask = None
-        self.quicklook = quicklook
 
         # Extension with the primary header data
         self.primary_hdrext = 0

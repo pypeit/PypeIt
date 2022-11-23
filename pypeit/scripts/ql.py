@@ -1,10 +1,8 @@
 """
 Script for quick-look reductions for Multislit observations.
 
-.. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-
 import os
 import time
 

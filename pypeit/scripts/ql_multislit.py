@@ -66,6 +66,7 @@ def config_lines(args):
     cfg_lines = ['[rdx]']
     cfg_lines += ['    spectrograph = {0}'.format(args.spectrograph)]
     cfg_lines += ['    redux_path = {0}'.format(args.redux_path)]
+    cfg_lines += ['    quicklook = True']
     cfg_lines += ['    scidir = Science_QL']
     # Calibrations
     cfg_lines += ['[baseprocess]']
@@ -383,7 +384,7 @@ class QL_Multislit(scriptbase.ScriptBase):
 
 
         # Read in the spectrograph, config the parset
-        spectrograph = load_spectrograph(args.spectrograph, quicklook=True)
+        spectrograph = load_spectrograph(args.spectrograph)
         spectrograph_cfg_lines = spectrograph.config_specific_par(files[0]).to_config()
         parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines,
                                               merge_with=config_lines(args))
