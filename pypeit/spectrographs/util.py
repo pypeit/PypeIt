@@ -25,8 +25,6 @@ def load_spectrograph(spec):
             as a base class, the instance is simply returned. If it is a
             string, the string is used to instantiate the relevant
             spectrograph instance.
-        quicklook (:obj:`bool`):
-            Is this a quicklook reduction?
 
     Returns:
         :class:`~pypeit.spectrographs.spectrograph.Spectrograph`: The
