@@ -72,13 +72,8 @@ class RunPypeIt(scriptbase.ScriptBase):
         # TODO: JFH Should the default now be true with the new definition.
         parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                             help='Overwrite any existing files/directories')
-        parser.add_argument('-d', '--detector', default=None,
-                            help='Detector to limit reductions on.  If the output files exist and '
-                                 '-o is used, the outputs for the input detector will be replaced.')
         parser.add_argument('-c', '--calib_only', default=False, action='store_true',
                             help='Only run on calibrations')
-        parser.add_argument('-q', '--quicklook', default=False, action='store_true',
-                            help='Perform a quicklook reduction')
 
         return parser
 
@@ -91,14 +86,6 @@ class RunPypeIt(scriptbase.ScriptBase):
 
         from pypeit import pypeit
         from pypeit import msgs
-
-
-        # Initiate logging for bugs and command line help
-        # These messages will not be saved to a log file
-        # Set the default variables
-#        qck = False
-#        cpu = 1
-#        vrb = 2
 
         # Load options from command line
         splitnm = os.path.splitext(args.pypeit_file)
@@ -113,19 +100,6 @@ class RunPypeIt(scriptbase.ScriptBase):
                                redux_path=args.redux_path,
                                calib_only=args.calib_only,
                                logname=logname, show=args.show)
-
-        # JFH I don't see why this is an optional argument here. We could allow
-        # the user to modify an infinite number of parameters from the command
-        # line? Why do we have the PypeIt file then? This detector can be set in
-        # the pypeit file.  Detector?
-        if args.detector is not None:
-            msgs.info("Restricting reductions to detector={}".format(args.detector))
-            pypeIt.par['rdx']['detnum'] = int(args.detector)
-
-        if args.quicklook:
-            msgs.info("Running in QuickLook mode")
-            pypeIt.par['rdx']['quicklook'] = True
-
 
         if args.calib_only:
             calib_dict = pypeIt.calib_all()
