@@ -9,6 +9,7 @@ import time
 import os
 import copy
 import json
+import datetime
 
 from IPython import embed
 
@@ -132,8 +133,11 @@ class PypeIt:
         if redux_path is not None:
             self.par['rdx']['redux_path'] = redux_path
 
-        # TODO: Write the full parameter set here?
+        # Write the full parameter set here
         # --------------------------------------------------------------
+        par_file = pypeit_file.replace(
+            '.pypeit', f"_UTC_{datetime.datetime.utcnow().date()}.par")
+        self.par.to_config(par_file)
 
         # --------------------------------------------------------------
         # Build the meta data
