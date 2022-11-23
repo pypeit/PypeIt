@@ -112,7 +112,7 @@ class RunPypeIt(scriptbase.ScriptBase):
                                overwrite=args.overwrite,
                                redux_path=args.redux_path,
                                calib_only=args.calib_only,
-                               logname=logname, show=args.show, quicklook=args.quicklook)
+                               logname=logname, show=args.show)
 
         # JFH I don't see why this is an optional argument here. We could allow
         # the user to modify an infinite number of parameters from the command
@@ -121,6 +121,11 @@ class RunPypeIt(scriptbase.ScriptBase):
         if args.detector is not None:
             msgs.info("Restricting reductions to detector={}".format(args.detector))
             pypeIt.par['rdx']['detnum'] = int(args.detector)
+
+        if args.quicklook:
+            msgs.info("Running in QuickLook mode")
+            pypeIt.par['rdx']['quicklook'] = True
+
 
         if args.calib_only:
             calib_dict = pypeIt.calib_all()

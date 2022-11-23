@@ -236,7 +236,7 @@ def generate_sci_pypeitfile(calib_pypeit_file:str,
             if maskID in slitTrace.maskdef_id:
                 detname = slitTrace.detname
                 spectrograph = load_spectrograph(
-                    calibPypeItFile.config['rdx']['spectrograph'], quicklook=True)
+                    calibPypeItFile.config['rdx']['spectrograph'])
                 
                 mosaic_id = np.where(spectrograph.list_detectors(mosaic=True) == detname)[0][0]
                 det_tuple = spectrograph.allowed_mosaics[mosaic_id]
