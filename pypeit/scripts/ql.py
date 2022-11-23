@@ -177,6 +177,6 @@ class QL(scriptbase.ScriptBase):
         # Run it
         redux_path = os.path.dirname(sci_pypeit_file)  # Path to PypeIt file
         run_pargs = run_pypeit.RunPypeIt.parse_args(
-            [sci_pypeit_file, '-r', 'redux_path', '-q'])
+            [sci_pypeit_file, '-r', 'redux_path'])
         run_pypeit.RunPypeIt.main(run_pargs)
         msgs.info(f'Quicklook completed in {utils.get_time_string(time.perf_counter()-tstart)} seconds')
