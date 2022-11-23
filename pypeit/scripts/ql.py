@@ -17,7 +17,7 @@ from pypeit.scripts import run_pypeit
 from pypeit import par, msgs
 from pypeit import pypeitsetup
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.core import io
+from pypeit import io
 from pypeit.core import quicklook
 from pypeit.scripts import scriptbase
 from pypeit.spectrographs import available_spectrographs

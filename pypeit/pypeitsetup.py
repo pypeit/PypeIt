@@ -18,7 +18,7 @@ from pypeit.metadata import PypeItMetaData
 from pypeit import inputfiles
 
 from pypeit.par import PypeItPar
-from pypeit.core import io
+from pypeit import io
 from pypeit.spectrographs.util import load_spectrograph
 
 
