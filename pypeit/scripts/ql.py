@@ -17,7 +17,7 @@ from pypeit.scripts import run_pypeit
 from pypeit import par, msgs
 from pypeit import pypeitsetup
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.core import setup
+from pypeit.core import io
 from pypeit.core import quicklook
 from pypeit.scripts import scriptbase
 from pypeit.spectrographs import available_spectrographs
@@ -42,8 +42,8 @@ class QL(scriptbase.ScriptBase):
                             help='space separated list of raw frames e.g. img1.fits img2.fits.  These must exist within --full_rawpath')
         parser.add_argument('--configs', type=str, default='A',
                             help='Configurations to reduce [A,all]')
-        parser.add_argument('--sci_files', type=str, 
-                            help='comma separated list of raw frames to be specified as science exposures (over-rides PypeIt frame typing)')
+        #parser.add_argument('--sci_files', type=str, nargs='+',
+        #                    help='space separated list of raw frames to be specified as science exposures (over-rides PypeIt frame typing)')
         parser.add_argument('--spec_samp_fact', default=1.0, type=float,
                             help='Make the wavelength grid finer (spec_samp_fact < 1.0) or '
                                  'coarser (spec_samp_fact > 1.0) by this sampling factor, i.e. '
@@ -96,13 +96,13 @@ class QL(scriptbase.ScriptBase):
     @staticmethod
     def main(args):
 
-        tstart = time.time()
+        tstart = time.perf_conuter()
 
         # Load up the spectrograph
         spectrograph = load_spectrograph(args.spectrograph)
 
         # Ingest Files 
-        files = setup.grab_rawfiles(
+        files = io.grab_rawfiles(
             raw_paths=[args.full_rawpath], 
             file_of_files=args.rawfile_list, 
             list_of_files=args.rawfiles) 
@@ -111,22 +111,6 @@ class QL(scriptbase.ScriptBase):
         ps = pypeitsetup.PypeItSetup.from_rawfiles(files,
                                         args.spectrograph) 
         ps.run(setup_only=True, no_write_sorted=True)
-
-        '''
-        # Read in the spectrograph, config the parset
-        spectrograph = load_spectrograph(args.spectrograph)
-        spectrograph_cfg_lines = spectrograph.config_specific_par(files[0]).to_config()
-        parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines,
-                                              merge_with=config_lines(args))
-        _det = parse_det(args.det, spectrograph)
-
-        target = spectrograph.get_meta_value(files[0], 'target')
-        mjds = np.zeros(nfiles)
-        for ifile, file in enumerate(files):
-            mjds[ifile] = spectrograph.get_meta_value(file, 'mjd', ignore_bad_header=True,
-                                                      no_fussing=True)
-        files = files[np.argsort(mjds)]
-        '''
 
         # Generate PypeIt files (and folders)
         # Calibs
@@ -144,12 +128,7 @@ class QL(scriptbase.ScriptBase):
             return
 
         # Science files                                
-        if args.sci_files is not None:
-            sci_files = args.sci_files.split(',')
-            # WORK ON THIS
-            embed(header='434 of ql multi')
-        else:
-            sci_idx = ps.fitstbl['frametype'] == 'science'
+        sci_idx = ps.fitstbl['frametype'] == 'science'
 
         if np.sum(sci_idx) == 0:
             msgs.error('No science frames found in the provided files.  Add at least one or specify using --sci_files.')
@@ -171,8 +150,7 @@ class QL(scriptbase.ScriptBase):
                     full_scifile, ps_sci,
                     spectrograph, calib_dir)
             else:
-                print("NEED TO GRAB THE SETUP")
-                embed(header='458 of ql multi')
+                msgs.error("NEED TO GRAB THE SETUP")
             # Save
             ps_sci_list.append(ps_sci)
             sci_setups.append(sci_setup)
@@ -195,12 +173,11 @@ class QL(scriptbase.ScriptBase):
                 full_scifiles, ps_sci_list,
                 maskID=args.maskID)
         else:
-            print("NEED TO GENERATE FROM SCRATCH")
-            embed(header='479 of ql multi')
+            msgs.error("NEED TO GENERATE FROM SCRATCH")
         
         # Run it
         redux_path = os.path.dirname(sci_pypeit_file)  # Path to PypeIt file
         run_pargs = run_pypeit.RunPypeIt.parse_args(
-            [sci_pypeit_file, '-r={}'.format(redux_path)])
+            [sci_pypeit_file, '-r', 'redux_path'])
         run_pypeit.RunPypeIt.main(run_pargs)
-        msgs.info(utils.get_time_string(time.time()-tstart))
+        msgs.info(f'Quicklook completed in {utils.get_time_string(time.perf_counter()-tstart)} seconds')
