@@ -18,7 +18,7 @@ from pypeit.metadata import PypeItMetaData
 from pypeit import inputfiles
 
 from pypeit.par import PypeItPar
-from pypeit.core import setup
+from pypeit import io
 from pypeit.spectrographs.util import load_spectrograph
 
 
@@ -220,7 +220,7 @@ class PypeItSetup:
             os.makedirs(output_path)
         
         # Grab the list of files
-        data_files = setup.files_from_extension(root, extension=extension)
+        data_files = io.files_from_extension(root, extension=extension)
 
         # Instantiate
         return cls.from_rawfiles(data_files, spectrograph, quicklook=quicklook)

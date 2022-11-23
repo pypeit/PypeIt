@@ -17,7 +17,7 @@ from pypeit.scripts import run_pypeit
 from pypeit import par, msgs
 from pypeit import pypeitsetup
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.core import setup
+from pypeit import io
 from pypeit.core import quicklook
 from pypeit.scripts import scriptbase
 from pypeit.spectrographs import available_spectrographs
@@ -35,15 +35,15 @@ class QL(scriptbase.ScriptBase):
         parser.add_argument('--rawfile_list', type=str, 
                             help='File providing raw files to reduce including their path(s)')
         parser.add_argument('--full_rawpath', type=str, 
-                            help='Full path to the raw files. Used with --rawfiles or --extension')
+                            help='Full path to the raw files. Used with --rawfiles or --raw_extension')
         parser.add_argument('--raw_extension', type=str, default='.fits',
                             help='Extension for raw files in full_rawpath.  Only use if --rawfile_list and --rawfiles are not provided')
         parser.add_argument('--rawfiles', type=str, nargs='+',
                             help='space separated list of raw frames e.g. img1.fits img2.fits.  These must exist within --full_rawpath')
         parser.add_argument('--configs', type=str, default='A',
                             help='Configurations to reduce [A,all]')
-        parser.add_argument('--sci_files', type=str, 
-                            help='comma separated list of raw frames to be specified as science exposures (over-rides PypeIt frame typing)')
+        parser.add_argument('--sci_files', type=str, nargs='+',
+                            help='space separated list of raw frames to be specified as science exposures (over-rides PypeIt frame typing)')
         parser.add_argument('--spec_samp_fact', default=1.0, type=float,
                             help='Make the wavelength grid finer (spec_samp_fact < 1.0) or '
                                  'coarser (spec_samp_fact > 1.0) by this sampling factor, i.e. '
@@ -88,16 +88,18 @@ class QL(scriptbase.ScriptBase):
                             help='Show the reduction steps. Equivalent to the -s option when '
                                  'running pypeit.')
         parser.add_argument('--det', type=str, help='Detector(s) to reduce.')
+        parser.add_argument("--calibs_only", default=False, action="store_true",
+                            help='Reduce only the calibrations?')
         return parser
 
 
     @staticmethod
     def main(args):
 
-        tstart = time.time()
+        tstart = time.perf_conuter()
 
-        # Ingest Files
-        files = setup.grab_rawfiles(
+        # Ingest Files 
+        files = io.grab_rawfiles(
             raw_paths=[args.full_rawpath], 
             file_of_files=args.rawfile_list, 
             list_of_files=args.rawfiles) 
@@ -107,22 +109,6 @@ class QL(scriptbase.ScriptBase):
                                                    args.spectrograph,
                                                    quicklook=True)
         ps.run(setup_only=True, no_write_sorted=True)
-
-        '''
-        # Read in the spectrograph, config the parset
-        spectrograph = load_spectrograph(args.spectrograph)
-        spectrograph_cfg_lines = spectrograph.config_specific_par(files[0]).to_config()
-        parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines,
-                                              merge_with=config_lines(args))
-        _det = parse_det(args.det, spectrograph)
-
-        target = spectrograph.get_meta_value(files[0], 'target')
-        mjds = np.zeros(nfiles)
-        for ifile, file in enumerate(files):
-            mjds[ifile] = spectrograph.get_meta_value(file, 'mjd', ignore_bad_header=True,
-                                                      no_fussing=True)
-        files = files[np.argsort(mjds)]
-        '''
 
         # Generate PypeIt files (and folders)
         # Calibs
@@ -135,9 +121,12 @@ class QL(scriptbase.ScriptBase):
             # Process them
             quicklook.process_calibs(calib_pypeit_files)
 
+        if args.calibs_only:
+            msgs.info("Calibrations only requested.  Exiting")
+            return
+
         # Science files                                
         if args.sci_files is not None:
-            sci_files = args.sci_files.split(',')
             sci_idx = np.in1d(ps.fitstbl['filename'], sci_files)
         else:
             sci_idx = ps.fitstbl['frametype'] == 'science'
@@ -162,8 +151,7 @@ class QL(scriptbase.ScriptBase):
                     full_scifile, ps_sci,
                     ps.spectrograph, calib_dir)
             else:
-                print("NEED TO GRAB THE SETUP")
-                embed(header='458 of ql multi')
+                msgs.error("NEED TO GRAB THE SETUP")
             # Save
             ps_sci_list.append(ps_sci)
             sci_setups.append(sci_setup)
@@ -186,12 +174,11 @@ class QL(scriptbase.ScriptBase):
                 full_scifiles, ps_sci_list,
                 maskID=args.maskID)
         else:
-            print("NEED TO GENERATE FROM SCRATCH")
-            embed(header='479 of ql multi')
+            msgs.error("NEED TO GENERATE FROM SCRATCH")
         
         # Run it
         redux_path = os.path.dirname(sci_pypeit_file)  # Path to PypeIt file
         run_pargs = run_pypeit.RunPypeIt.parse_args(
-            [sci_pypeit_file, '-r={}'.format(redux_path), '-q'])
+            [sci_pypeit_file, '-r', 'redux_path', '-q'])
         run_pypeit.RunPypeIt.main(run_pargs)
-        msgs.info(utils.get_time_string(time.time()-tstart))
+        msgs.info(f'Quicklook completed in {utils.get_time_string(time.perf_counter()-tstart)} seconds')

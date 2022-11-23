@@ -2299,7 +2299,7 @@ class ReduxPar(ParSet):
                           'Gemini/GMOS and Keck/DEIMOS) ``detnum`` should be a list of ' \
                           'tuples of the detector indices that are mosaiced together. ' \
                           'E.g., for Gemini/GMOS ``detnum`` would be ``[(1,2,3)]`` and for ' \
-                          'KEck/DEIMOS it would be ``[(1, 5), (2, 6), (3, 7), (4, 8)]`` ' 
+                          'Keck/DEIMOS it would be ``[(1, 5), (2, 6), (3, 7), (4, 8)]`` ' 
 
         dtypes['slitspatnum'] = [str, list]
         descr['slitspatnum'] = 'Restrict reduction to a set of slit DET:SPAT values (closest slit is used). ' \

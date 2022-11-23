@@ -1,15 +1,11 @@
 """
 Module to run tests on scripts
 """
-from genericpath import isfile
 import os
 import glob
 import shutil
 
 from IPython import embed
-
-import numpy as np
-import py
 
 import pytest
 

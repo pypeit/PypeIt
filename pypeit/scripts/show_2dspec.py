@@ -151,9 +151,9 @@ class Show2DSpec(scriptbase.ScriptBase):
 
         # Restrict on spat_id or maskid? 
         if args.spat_id is not None:
-            gpm += slits.spat_id == args.spat_id
+            gpm &= slits.spat_id == args.spat_id
         elif args.maskID is not None:
-            gpm += slits.maskdef_id == args.maskID
+            gpm &= slits.maskdef_id == args.maskID
         
         left = all_left[:, gpm]
         right = all_right[:, gpm]
