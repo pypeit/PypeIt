@@ -219,7 +219,7 @@ class PypeItSetup:
                         if os.path.isdir(root) else '{0}*{1}*'.format(root, extension)
             # No pypeit file is written and we just construct the setup object
             # directly
-            return cls(sorted(glob.glob(dfname)), spectrograph_name=spectrograph, quicklook=quicklook)
+            return cls(sorted(glob.glob(dfname)), spectrograph_name=spectrograph)
 
         # Set the output directory
         if not os.path.isdir(output_path):
@@ -254,7 +254,6 @@ class PypeItSetup:
             cfg_lines += ['    quicklook = True']
 
         # Instantiate
-        print(quicklook)
         return cls(data_files, cfg_lines=cfg_lines) #pypeit_file=filename,
 
 

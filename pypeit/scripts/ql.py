@@ -94,7 +94,7 @@ class QL(scriptbase.ScriptBase):
     @staticmethod
     def main(args):
 
-        tstart = time.perf_conuter()
+        tstart = time.perf_counter()
 
         # Ingest Files 
         files = io.grab_rawfiles(
@@ -125,7 +125,7 @@ class QL(scriptbase.ScriptBase):
 
         # Science files                                
         if args.sci_files is not None:
-            sci_idx = np.in1d(ps.fitstbl['filename'], sci_files)
+            sci_idx = np.in1d(ps.fitstbl['filename'], args.sci_files)
         else:
             sci_idx = ps.fitstbl['frametype'] == 'science'
 
