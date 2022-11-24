@@ -83,7 +83,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             numamplifiers   = 1,
             gain            = np.atleast_1d([0.95]),
             ronoise         = np.atleast_1d([4.5]),
-            datasec         = np.atleast_1d('[1:4102,300:600]'),
+            datasec         = np.atleast_1d('[1:4102,52:1920]'),
             oscansec        = np.atleast_1d('[1:4102,6:40]')
             )
 
