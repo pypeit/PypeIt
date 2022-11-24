@@ -2261,7 +2261,7 @@ class ReduxPar(ParSet):
     """
     def __init__(self, spectrograph=None, detnum=None, sortroot=None, calwin=None, scidir=None,
                  qadir=None, redux_path=None, ignore_bad_headers=None, slitspatnum=None,
-                 maskIDs=None):
+                 maskIDs=None, quicklook=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2286,6 +2286,12 @@ class ReduxPar(ParSet):
         descr['spectrograph'] = 'Spectrograph that provided the data to be reduced.  ' \
                                 'See :ref:`instruments` for valid options.'
 #                                'Options are: {0}'.format(', '.join(options['spectrograph']))
+
+        defaults['quicklook'] = False
+        dtypes['quicklook'] = bool
+        descr['quicklook'] = 'Run a quick look reduction? This is usually good if you want to quickly ' \
+                             'reduce the data (usually at the telescope in real time) to get an initial ' \
+                             'estimate of the data quality.'
 
         dtypes['detnum'] = [int, list]
         descr['detnum'] = 'Restrict reduction to a list of detector indices. ' \
@@ -2349,7 +2355,7 @@ class ReduxPar(ParSet):
         k = np.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = [ 'spectrograph', 'detnum', 'sortroot', 'calwin', 'scidir', 'qadir',
+        parkeys = [ 'spectrograph', 'quicklook', 'detnum', 'sortroot', 'calwin', 'scidir', 'qadir',
                     'redux_path', 'ignore_bad_headers', 'slitspatnum', 'maskIDs']
 
         badkeys = np.array([pk not in parkeys for pk in k])

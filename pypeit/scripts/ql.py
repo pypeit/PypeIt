@@ -1,10 +1,8 @@
 """
 Script for quick-look reductions for Multislit observations.
 
-.. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-
 import os
 import time
 
@@ -42,8 +40,8 @@ class QL(scriptbase.ScriptBase):
                             help='space separated list of raw frames e.g. img1.fits img2.fits.  These must exist within --full_rawpath')
         parser.add_argument('--configs', type=str, default='A',
                             help='Configurations to reduce [A,all]')
-        #parser.add_argument('--sci_files', type=str, nargs='+',
-        #                    help='space separated list of raw frames to be specified as science exposures (over-rides PypeIt frame typing)')
+        parser.add_argument('--sci_files', type=str, nargs='+',
+                            help='space separated list of raw frames to be specified as science exposures (over-rides PypeIt frame typing)')
         parser.add_argument('--spec_samp_fact', default=1.0, type=float,
                             help='Make the wavelength grid finer (spec_samp_fact < 1.0) or '
                                  'coarser (spec_samp_fact > 1.0) by this sampling factor, i.e. '
@@ -96,10 +94,7 @@ class QL(scriptbase.ScriptBase):
     @staticmethod
     def main(args):
 
-        tstart = time.perf_conuter()
-
-        # Load up the spectrograph
-        spectrograph = load_spectrograph(args.spectrograph)
+        tstart = time.perf_counter()
 
         # Ingest Files 
         files = io.grab_rawfiles(
@@ -109,7 +104,8 @@ class QL(scriptbase.ScriptBase):
 
         # Run PypeIt Setup
         ps = pypeitsetup.PypeItSetup.from_rawfiles(files,
-                                        args.spectrograph) 
+                                                   args.spectrograph,
+                                                   quicklook=True)
         ps.run(setup_only=True, no_write_sorted=True)
 
         # Generate PypeIt files (and folders)
@@ -128,7 +124,10 @@ class QL(scriptbase.ScriptBase):
             return
 
         # Science files                                
-        sci_idx = ps.fitstbl['frametype'] == 'science'
+        if args.sci_files is not None:
+            sci_idx = np.in1d(ps.fitstbl['filename'], args.sci_files)
+        else:
+            sci_idx = ps.fitstbl['frametype'] == 'science'
 
         if np.sum(sci_idx) == 0:
             msgs.error('No science frames found in the provided files.  Add at least one or specify using --sci_files.')
@@ -140,7 +139,7 @@ class QL(scriptbase.ScriptBase):
             # Science file and setup
             full_scifile = os.path.join(dir_path, sci_file)
             ps_sci = pypeitsetup.PypeItSetup.from_file_root(
-                full_scifile, spectrograph.name, extension='')
+                full_scifile, ps.spectrograph.name, extension='')
             ps_sci.run(setup_only=True, no_write_sorted=True)
 
             # Calibs
@@ -148,7 +147,7 @@ class QL(scriptbase.ScriptBase):
                 calib_pypeit_file, sci_setup =\
                     quicklook.match_science_to_calibs(
                     full_scifile, ps_sci,
-                    spectrograph, calib_dir)
+                    ps.spectrograph, calib_dir)
             else:
                 msgs.error("NEED TO GRAB THE SETUP")
             # Save

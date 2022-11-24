@@ -21,6 +21,7 @@ from pypeit.par import PypeItPar
 from pypeit import io
 from pypeit.spectrographs.util import load_spectrograph
 
+from IPython import embed
 
 # TODO: Instantiation should just automatically trigger the run
 # method...
@@ -95,10 +96,10 @@ class PypeItSetup:
         pypeit_file (str):
             See description of class argument.
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-            An instance of the `Spectograph` class used throughout the
+            An instance of the `Spectrograph` class used throughout the
             reduction procedures.
-        par (:class:`pypeit.par.pypeitpar.PypitPar`):
-            An instance of the `PypitPar` class that provides the
+        par (:class:`pypeit.par.pypeitpar.PypeitPar`):
+            An instance of the `PypeitPar` class that provides the
             parameters to all the algorthms that pypeit uses to reduce
             the data.
         fitstbl (:class:`pypeit.metadata.PypeItMetaData`):
@@ -139,13 +140,15 @@ class PypeItSetup:
         # Instantiate the spectrograph
         self.spectrograph = load_spectrograph(_spectrograph_name)#, ifile=file_list[0])
 
+
         # Get the spectrograph specific configuration to be merged with
         # the user modifications.
         spectrograph_cfg_lines = self.spectrograph.default_pypeit_par().to_config()
 
         # Instantiate the pypeit parameters.  The user input
         # configuration (cfg_lines) can be None.
-        self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
+        self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, 
+                                            merge_with=cfg_lines)
 
         # Prepare internals for execution
         self.fitstbl = None
@@ -177,7 +180,8 @@ class PypeItSetup:
                    setup_dict=pypeItFile.setup)
 
     @classmethod
-    def from_file_root(cls, root, spectrograph, extension='.fits', output_path=None):
+    def from_file_root(cls, root, spectrograph, extension='.fits', output_path=None, 
+                       quicklook=False):
         """
         Instantiate the :class:`PypeItSetup` object by providing a file
         root.
@@ -203,9 +207,11 @@ class PypeItSetup:
                 Otherwise, the method first writes a vanilla ``PypeIt`` file
                 and then uses :func:`from_pypeit_file` to instantiate the
                 object. If the path doesn't yet exist, it is created.
+            quicklook (:obj:`bool`, optional):
+                If True, prepare for quicklook run.
         
         Returns:
-            :class:`PypitSetup`: The instance of the class.
+            :class:`PypeitSetup`: The instance of the class.
         """
         if output_path is None:
             # Find all the files
@@ -223,17 +229,32 @@ class PypeItSetup:
         data_files = io.files_from_extension(root, extension=extension)
 
         # Instantiate
-        return cls.from_rawfiles(data_files, spectrograph)
+        return cls.from_rawfiles(data_files, spectrograph, quicklook=quicklook)
 
     @classmethod
-    def from_rawfiles(cls, data_files:list, spectrograph:str):
+    def from_rawfiles(cls, data_files:list, spectrograph:str, quicklook:bool):
+        """ Instantiate the :class:`PypeItSetup` object by providing a list of raw files.
+
+        Args:
+            data_files (list): 
+                List of raw files to be reduced.
+            spectrograph (str): 
+                The PypeIt name of the spectrograph used 
+            quicklook (bool): 
+                If True, prepare for quicklook run.
+
+        Returns:
+            :class:`PypeItSetup`: The instance of the class.
+        """
 
         # Configure me
         cfg_lines = ['[rdx]']
         cfg_lines += ['    spectrograph = {0}'.format(spectrograph)]
+        if quicklook:
+            cfg_lines += ['    quicklook = True']
 
         # Instantiate
-        return cls(data_files, cfg_lines=cfg_lines) #pypeit_file=filename, 
+        return cls(data_files, cfg_lines=cfg_lines) #pypeit_file=filename,
 
 
     @property

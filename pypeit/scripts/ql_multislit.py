@@ -66,6 +66,7 @@ def config_lines(args):
     cfg_lines = ['[rdx]']
     cfg_lines += ['    spectrograph = {0}'.format(args.spectrograph)]
     cfg_lines += ['    redux_path = {0}'.format(args.redux_path)]
+    cfg_lines += ['    quicklook = True']
     cfg_lines += ['    scidir = Science_QL']
     # Calibrations
     cfg_lines += ['[baseprocess]']
