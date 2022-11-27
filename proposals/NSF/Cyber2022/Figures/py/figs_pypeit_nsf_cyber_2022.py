@@ -109,7 +109,7 @@ user_inst = [
     'RIT',
     'IAS, Princeton',
     'Queens Univeristy',
-    'IAC, Canary Islands': (0, 0),  # Canary Islands
+    'IAC, Canary Islands',
     'University of North Carolina',
     'Yale University',
     'CSIC Granada',
