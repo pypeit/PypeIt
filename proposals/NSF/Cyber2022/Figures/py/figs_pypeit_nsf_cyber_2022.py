@@ -30,6 +30,147 @@ from pypeit.spectrographs import spectrograph_classes
 
 from IPython import embed
 
+# User Institutions
+
+user_inst = {
+    'Harvard University': (0, 0),
+    'MPIA': (0, 0),
+    'UC Berkeley': (0, 0),
+    'Princeton University': (0, 0),
+    'Cidade University': (0, 0), # Brazil
+    'Ohio State University': (0, 0), 
+    'Vanderbilt University': (0, 0), 
+    'AIP': (0, 0), 
+    'Univeristy of Copenhagen': (0, 0), 
+    'Washington State University': (0, 0), 
+    'UC Santa Cruz': (0, 0), 
+    'University of Southhampton': (0, 0), 
+    'UC Los Angeles': (0, 0), 
+    'University of Illinois': (0, 0), 
+    'University of Melbourne': (0, 0), 
+    'University of Hong Kong': (0, 0), 
+    'University of Toronto': (0, 0), 
+    'Carnegie': (0, 0), 
+    'Northwestern University': (0, 0), 
+    'University of Dublin': (0, 0), 
+    'Johns Hopkins': (0, 0), 
+    'STScI': (0, 0), 
+    'Las Cumbres Observatory': (0, 0), 
+    'UC Santa Barbara': (0, 0), 
+    'University of Hawaii': (0, 0), 
+    'Caltech': (0, 0), 
+    'Univeristy of Southern Queensland': (0, 0), 
+    'Univeristy of Texas': (0, 0), 
+    'Flatiron Institute': (0, 0), 
+    'Weizmann Institute': (0, 0), 
+    'Tel Aviv University': (0, 0), 
+    'Observatoire de Paris': (0, 0), 
+    'MIT': (0, 0), 
+    'Stockholm University': (0, 0), 
+    'University of Cambridge': (0, 0),
+    'University of Maryland': (0, 0), 
+    'Goddard': (0, 0), 
+    'University of Washington': (0, 0), 
+    'University of Portsmouth': (0, 0), 
+    'Humboldt University': (0, 0),  # Berlin
+    'Univ Lyon': (0, 0),  
+    'Kunkoly Observatory': (0, 0),  # Hungary
+    'University of Arizona': (0, 0),  
+    'ESO': (0, 0),  
+    'Gemini Observatory': (0, 0),  
+    'Leiden University': (0, 0),  
+    'University of Birmingham': (0, 0),  
+    'Technical Univeristy of Denmark': (0, 0),  
+    'Warsaw Univeristy': (0, 0),  
+    'Univeristy of Turku': (0, 0),  # Finland
+    'Radboud University': (0, 0),  # Netherlands
+    'SRON': (0, 0),  # Netherlands
+    'Stockholm University': (0, 0),  
+    'University of Edinburgh': (0, 0),  
+    'INAF Rome': (0, 0),  
+    'Queens University': (0, 0), 
+    'UC Davis': (0, 0), 
+    'UC Riverside': (0, 0), 
+    'York University': (0, 0), 
+    'Tufts University': (0, 0), 
+    'UC Irvine': (0, 0), 
+    'CSIC Madrid': (0, 0), # Madrid
+    'INAF Tieste': (0, 0),  
+    'INAF Napoli': (0, 0),  
+    'Universidad Andres Bello': (0, 0),   # Santiago
+    'Univeristy of Wisconsin': (0, 0),   
+    'INAF Padova': (0, 0),  
+    'San Jose State': (0, 0),  
+    'Univeristy of Waterloo': (0, 0),  
+    'Univeristy of Oulu': (0, 0),   # Finland
+    'Michigan State Univeristy': (0, 0),   
+    'Swinburne Univeristy': (0, 0),   
+    'RIT': (0, 0),   
+    'IAS': (0, 0),   # Princeton
+    'Queens Univeristy': (0, 0),  # Kingston, Canada
+    'IAC': (0, 0),  # Canary Islands
+    'UNC': (0, 0),  
+    'Yale University': (0, 0),  
+    'CSIC Granada': (0, 0), 
+    'University of Manchester': (0, 0),  
+    'NAOJ': (0, 0),  
+    'Monash University': (0, 0),  
+    'Universidad de Zaragoza': (0, 0),  # Spain
+    'European University Cyprus': (0, 0),  # Spain
+    'JPL': (0, 0),  # Spain
+    'Macquarie University': (0, 0),  
+    'UNIST': (0, 0),  # South Korea
+    'University of Firenze': (0, 0),  
+    'INFN Fiorentino': (0, 0),  
+    'University of Oslo': (0, 0),  
+    'INAF Bologna': (0, 0),  
+    'GEPI Meudon': (0, 0),  
+    'University of Pisa': (0, 0),  
+    'University of Minnesota': (0, 0),  
+    'LBNL': (0, 0),  
+    'Royal Observatory': (0, 0),  # Edinburgh
+    'UCL': (0, 0),  
+    'University of Tokyo': (0, 0),  
+    'University of Hertfordshire': (0, 0),  
+    'ASTRON': (0, 0),  
+    'MPIR Bonn': (0, 0),  
+    'CSIRO': (0, 0),  
+    'Curtin University': (0, 0),  
+    'SKA Observatory': (0, 0),  # Macclesfield UK
+    'University of Sydney': (0, 0),  
+    'Pontificia Universidad Catolica de Valparaiso': (0, 0),  
+    'University of Oxford': (0, 0),  
+    'University of Chicago': (0, 0),  
+    'INAF Naples': (0, 0),  
+    'CNRS Marseille': (0, 0),  
+    'Peking University': (0, 0),  
+    'Kyungpook National University': (0, 0),  # Daegu, South Korea
+    'Pusan National University': (0, 0),  # Busan
+    'Kyung Hee University': (0, 0),  # Busan
+    'Korea Institute for Advanced Study': (0, 0),  # Busan
+    'SRI': (0, 0),  # Moscow, Russaia
+    'MPA': (0, 0), 
+    'University of Michigan': (0, 0),  
+    'Karl Remeis-Observatory and Erlangen Centre for Astroparticle Physics': (0, 0),  # Bamberg
+    'South African Radio Astronomy Observatory': (0, 0),  
+    'IUCAA': (0, 0),  # Pune, India
+    'NRAO Socorro': (0, 0),  # 
+    'University of Geneva': (0, 0),  # 
+    'IAP': (0, 0),  # 
+    'Universidad de Chile': (0, 0),   
+    'University of the Western Cape': (0, 0),  # South Africa
+    'University of New South Wales': (0, 0),  # 
+    'Arkansas Tech': (0, 0),  # 
+    'Japan Aerospace Exploration Agency': (0, 0), 
+    'Australian National University': (0, 0),  
+    'Maria Mitchell Observatory': (0, 0),  
+    'Universita degli Studi di Milano Bicocca': (0, 0),  
+    'Universita di Firenze': (0, 0),  
+    'INAF Florence': (0, 0),  
+    'San Diego State University': (0, 0),  
+    'WMKO': (0, 0),  
+    }
+
 def set_fontsize(ax, fsz):
     """
     Set the fontsize throughout an Axis
@@ -159,233 +300,117 @@ def fig_spectrographs(outfile:str='fig_geo_spectrographs.png',
     print('Wrote {:s}'.format(outfile))
 
 
-def fig_slopevsDT(outfile='fig_slopevsDT.png', table=None,
-                  local=False, vmax=None, 
-                    cmap=None, cuts=None, scl = 1, debug=False):
-    """ Bivariate of slope_min vs. DT
+def fig_users(outfile:str='fig_geo_users.png', 
+                 debug=False): 
+    """ Global geographic plot of PypeIt users
 
     Args:
-        outfile (str, optional): [description]. Defaults to 'fig_slopevsDT.png'.
-        local (bool, optional): [description]. Defaults to False.
-        vmax ([type], optional): [description]. Defaults to None.
-        cmap ([type], optional): [description]. Defaults to None.
-        cuts ([type], optional): [description]. Defaults to None.
-        scl (int, optional): [description]. Defaults to 1.
-        debug (bool, optional): [description]. Defaults to False.
+        outfile (str): 
+        debug (bool, optional): _description_. Defaults to False.
     """
 
-    # Load table
-    modis_tbl = ssl_paper_analy.load_modis_tbl(
-        local=local, cuts=cuts, table=table)
-    outfile = update_outfile(outfile, table)
+    # Load up spectrographs 
+    spectrographs = spectrograph_classes()
 
-    # Debug?
+    # Grab the locations
+    geo_dict = {}
+    for key in spectrographs.keys():
+        spectrograph = spectrographs[key]
+        geo_dict[key] = spectrograph.telescope['longitude'], spectrograph.telescope['latitude']
+        # Reset JWST
+        if 'jwst' in key:
+            geo_dict[key] = -76.615278, 39.289444
+    all_lats = np.array([geo_dict[key][1] for key in geo_dict.keys()])
+    specs = np.array(list(geo_dict.keys()))
+
     if debug:
-        modis_tbl = modis_tbl.loc[np.arange(1000000)].copy()
+        embed(header='70 of fig_geo_spectrographs')
 
-    # Plot
-    fig = plt.figure(figsize=(12, 12))
+    # Figure
+    fig = plt.figure(figsize=(12,8))
     plt.clf()
 
-    jg = sns.jointplot(data=modis_tbl, x='DT', y='min_slope', kind='hex',
-                       bins='log', gridsize=250, xscale='log',
-                       cmap=plt.get_cmap('winter'), mincnt=1,
-                       marginal_kws=dict(fill=False, color='black', bins=100)) 
-    jg.ax_joint.set_xlabel(r'$\Delta T$')
-    jg.ax_joint.set_ylabel(metric_lbls['min_slope'])
-    plt.colorbar()
+    tformP = ccrs.PlateCarree()
 
-    plotting.set_fontsize(jg.ax_joint, 15.)
-    plt.savefig(outfile, dpi=300)
-    plt.close()
-    print('Wrote {:s}'.format(outfile))
+    ax = plt.axes(projection=tformP)
 
 
-def fig_slopes(outfile='fig_slopes.png', 
-               local=False, vmax=None, table=None,
-               cmap=None, cuts=None, scl = 1, debug=False):
+    #cm = plt.get_cmap(color)
+    uni_lats = np.unique(all_lats)
 
-    # Load table
-    modis_tbl = ssl_paper_analy.load_modis_tbl(
-        local=local, cuts=cuts, table=table)
-    outfile = update_outfile(outfile, table)
+    # Plot em
+    for uni_lat in uni_lats:
+        idx = all_lats == uni_lat
+        if np.abs(uni_lat-19.8283333333333) < 1e-5:
+            # Gemini
+            idx = idx | (np.abs(all_lats - 19.82380144722) < 1e-5)
+        # Magellan/CTIO
+        if (np.abs(uni_lat+29.00333333333) < 1e-5): 
+            # 
+            idx = idx | (np.abs(all_lats + 30.240741666666672) < 1e-5)
+            idx = idx | (np.abs(all_lats + 29.256666666666) < 1e-5)
+        # Arziona
+        if np.abs(uni_lat-31.6809444444) < 1e-5: 
+            idx = idx | (np.abs(all_lats - 32.7015999999) < 1e-5) # LBT
+            idx = idx | (np.abs(all_lats - 34.744305000) < 1e-5) # LDT
+            idx = idx | (np.abs(all_lats - 31.963333333) < 1e-5)
+        lon, lat = geo_dict[specs[idx][0]][0], geo_dict[specs[idx][0]][1], 
+        # Plot
+        plt.plot(lon, lat, 'o', transform=tformP)
+        if (np.abs(uni_lat-32.) < 3.) & (
+            np.abs(uni_lat-31.68094444) > 1e-5) & (
+                np.abs(uni_lat-33.356000000) > 1e-5): # Arizona
+            continue
+        if np.abs(uni_lat+30.240741666666672) < 1e-5:
+            continue
+        if np.abs(uni_lat+29.256666666666) < 1e-5:
+            continue
+        if np.abs(uni_lat-19.82380144722) < 1e-5:
+            continue
+        # Label
+        lbl = ''
+        for spec in specs[idx]:
+            lbl += spec + '\n'
+        lbl = lbl[:-3]
+        if 'vlt' in lbl or 'shane' in lbl:
+            va = 'bottom'
+        else:
+            va = 'top'
+        if 'p200' in lbl:
+            ha = 'right'
+        else:
+            ha = 'left'
+        #lbl = specs[idx][0]
+        if np.abs(uni_lat-31.6809444) < 1e-5: 
+            lon += 2.
+        ax.text(lon, lat, lbl, transform=tformP,
+              fontsize=15, ha=ha, va=va)
 
-    # Debug?
-    if debug:
-        modis_tbl = modis_tbl.loc[np.arange(100000)].copy()
-
-    # Check on isotropy
-    diff = np.abs(modis_tbl.zonal_slope - modis_tbl.merid_slope)
-    sig = np.sqrt(modis_tbl.zonal_slope_err**2 + modis_tbl.merid_slope**2)
-
-    one_sig = diff < 1*sig
-    frac = np.sum(one_sig) / len(diff)
-    print(f"Fraction within 1 sigma = {frac}")
-
-    # Plot
-    fig = plt.figure(figsize=(12, 12))
-    plt.clf()
-
-    #ymnx = [-5000., 1000.]
-
-    jg = sns.jointplot(data=modis_tbl, x='zonal_slope', y='merid_slope', 
-                       kind='hex', #bins='log', xscale='log',
-                       gridsize=100,
-                       mincnt=1,
-                       marginal_kws=dict(fill=False, 
-                                         color='black', bins=100),
-                       cmap=plt.get_cmap('YlGnBu')) 
-                       #mincnt=1,
-    plt.colorbar()
     
-    jg.ax_joint.set_xlabel(metric_lbls['zonal_slope'])
-    jg.ax_joint.set_ylabel(metric_lbls['merid_slope'])
-    jg.ax_joint.plot([-5, 1.], [-5, 1.], 'k--')
-    #jg.ax_joint.set_ylim(ymnx)
-
-    plotting.set_fontsize(jg.ax_joint, 15.)
-    plt.savefig(outfile, dpi=300)
-    plt.close()
-    print('Wrote {:s}'.format(outfile))
-
-
-def fig_2d_stats(outroot='fig_2dstats_', stat=None, table=None,
-                local=False, vmax=None, nbins=40,
-                cmap=None, cuts=None, scl = 1, debug=False):
-    """ 2D histograms in the UMAP space
-
-    Args:
-        outroot (str, optional): [description]. Defaults to 'fig_2dstats_'.
-        stat ([type], optional): [description]. Defaults to None.
-        local (bool, optional): [description]. Defaults to False.
-        vmax ([type], optional): [description]. Defaults to None.
-        cmap ([type], optional): [description]. Defaults to None.
-        cuts ([type], optional): [description]. Defaults to None.
-        scl (int, optional): [description]. Defaults to 1.
-        debug (bool, optional): [description]. Defaults to False.
-    """
-
-    # Load table
-    modis_tbl = ssl_paper_analy.load_modis_tbl(local=local, cuts=cuts, table=table)
-
-    # Debug?
-    if debug:
-        modis_tbl = modis_tbl.loc[np.arange(1000000)].copy()
-
-    # Stat
-    if stat is None:
-        stat = 'min_slope'
-    if cmap is None:
-        cmap = 'hot'
-    outfile = outroot+stat+'.png'
-
-    # Decorate
-    outfile = update_outfile(outfile, table)
-
-    # Do it
-    median_slope, x_edge, y_edge, ibins = scipy.stats.binned_statistic_2d(
-        modis_tbl.U0, modis_tbl.U1, modis_tbl[stat],
-        statistic='median', expand_binnumbers=True, bins=[nbins,nbins])
-
-    # Plot
-    fig = plt.figure(figsize=(12, 12))
-    plt.clf()
-    ax = plt.gca()
-
-
-    cm = plt.get_cmap(cmap)
-    mplt = ax.pcolormesh(x_edge, y_edge, 
-                     median_slope.transpose(),
-                     cmap=cm, 
-                     vmax=None) 
-
-    # Color bar
-    cbaxes = plt.colorbar(mplt, pad=0., fraction=0.030)
-    cbaxes.set_label(f'median({metric_lbls[stat]})', fontsize=17.)
-    cbaxes.ax.tick_params(labelsize=15)
-
-    ax.set_xlabel(r'$U_0$')
-    ax.set_ylabel(r'$U_1$')
-
-    plotting.set_fontsize(ax, 17.)
-    plt.savefig(outfile, dpi=300)
-    plt.close()
-    print('Wrote {:s}'.format(outfile))
-
-
-def fig_fit_metric(outroot='fig_fit_', metric=None, 
-                   local=False, vmax=None, table=None,
-                   distr='normal',
-                   cmap=None, cuts=None, debug=False):
-
-    # Load table
-    modis_tbl = ssl_paper_analy.load_modis_tbl(local=local, cuts=cuts,
-                                               table=table)
-
-    # Debug?
-    if debug:
-        modis_tbl = modis_tbl.loc[np.arange(1000000)].copy()
-
-    # Stat
-    if metric is None:
-        metric = 'DT'
-    outfile = outroot+metric+'.png'
-    # Decorate
-    outfile = update_outfile(outfile, table)
-
-    # Fit
-    xmnx = modis_tbl[metric].min(), modis_tbl[metric].max()
-    xval = np.linspace(xmnx[0], xmnx[1], 1000)
-    dx = xval[1]-xval[0]
-    if distr == 'normal':
-        mean, sigma = stats.norm.fit(modis_tbl[metric])
-        vals = stats.norm.pdf(xval, mean, sigma)
-        print(f"Gaussian fit: mean={mean}, sigma={sigma}")
-    elif distr == 'lognorm':
-        shape,loc,scale = stats.lognorm.fit(modis_tbl[metric])
-        vals = stats.lognorm.pdf(xval, shape, loc, scale)
-        print(f"Log-norm fit: shape={shape}, loc={loc}, scale={scale}")
-    else: 
-        raise IOError(f"Bad distribution {distr}")
-
-    # Normalize
-    sum = dx * np.sum(vals)
-    vals /= sum
-
-    # Cumulative
-    cumsum = np.cumsum(vals)
-    cumsum /= cumsum[-1]
+    # Zoom in
+    ax.set_extent([-170, 10, -60, 60], 
+                  crs=ccrs.PlateCarree())
     
-    # Plot
-    fig = plt.figure(figsize=(10, 5))
-    plt.clf()
-    gs = gridspec.GridSpec(1,2)
+    # Coast lines
+    ax.coastlines(zorder=10)
+    ax.add_feature(cartopy.feature.LAND, 
+        facecolor='lightgray', edgecolor='black')
 
-    # Histogram
-    ax_hist = plt.subplot(gs[0])
+    gl = ax.gridlines(crs=ccrs.PlateCarree(), linewidth=1, 
+        color='black', alpha=0.5, linestyle=':', draw_labels=True)
+    #gl.xlabels_top = False
+    #gl.ylabels_left = True
+    #gl.ylabels_right=False
+    #gl.xlines = True
+    #gl.xformatter = LONGITUDE_FORMATTER
+    #gl.yformatter = LATITUDE_FORMATTER
+    #gl.xlabel_style = {'color': 'black'}# 'weight': 'bold'}
+    #gl.ylabel_style = {'color': 'black'}# 'weight': 'bold'}
 
-    _ = sns.histplot(modis_tbl, x=metric, ax=ax_hist,
-                     stat='density')
-    ax_hist.plot(xval, vals, 'k-')
-    
-
-
-    # CDF
-    ax_cdf = plt.subplot(gs[1])
-    _ = sns.ecdfplot(modis_tbl, x=metric, ax=ax_cdf)
-    ax_cdf.plot(xval, cumsum, 'k--')
-
-    for ax in [ax_hist, ax_cdf]:
-        ax.set_xlabel(metric_lbls[metric])
-        plotting.set_fontsize(ax, 17.)
+    set_fontsize(ax, 19.)
     plt.savefig(outfile, dpi=300)
     plt.close()
     print('Wrote {:s}'.format(outfile))
-
-    # KS test
-    #embed(header='778 of figs')
-    #print(stats.kstest(modis_tbl[metric], distr))
-
 
 def fig_learn_curve(outfile='fig_learn_curve.png'):
     # Grab the data
