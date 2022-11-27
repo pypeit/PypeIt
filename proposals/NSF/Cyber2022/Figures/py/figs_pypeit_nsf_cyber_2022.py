@@ -169,6 +169,8 @@ user_inst = {
     'INAF Florence': (0, 0),  
     'San Diego State University': (0, 0),  
     'WMKO': (0, 0),  
+    'Lowell Observatory': (0, 0),
+    'Boston University': (0, 0),
     }
 
 def set_fontsize(ax, fsz):
