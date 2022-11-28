@@ -408,3 +408,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             bpm_img[bc[bb][2]:bc[bb][3] + 1, bc[bb][0]:bc[bb][1] + 1] = 1
 
         return bpm_img
+
+class GTCMAATSpectrograph(GTCOSIRISSpectrograph):
+    pypeline = 'IFU'
+    name = 'gtc_maat'
