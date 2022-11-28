@@ -12,6 +12,7 @@ from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 import astropy.io.fits as fits
+from astropy.time import Time
 
 
 class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
@@ -52,7 +53,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             binning         = binning,
             det             = 1,
             dataext         = 1,  # Not sure this is used
-            specaxis        = 0,
+            specaxis        = 1,
             specflip        = False,
             spatflip        = False,
             platescale      = 0.127,  # arcsec per pixel
@@ -177,9 +178,29 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            binspatial, binspec = parse.parse_binning(headarr[0]['CCDSUM'])
+            binspatial, binspec = parse.parse_binning(headarr[0]['CCD-SUM'])
             binning = parse.binning2string(binspec, binspatial)
             return binning
+        elif meta_key == 'pressure':
+            try:
+                return headarr[0]['WXPRESS'] * 0.001  # Must be in astropy.units.bar
+            except KeyError:
+                msgs.warn("Pressure is not in header")
+                return 0.0
+        elif meta_key == 'temperature':
+            try:
+                return headarr[0]['WXOUTTMP']  # Must be in astropy.units.deg_C
+            except KeyError:
+                msgs.warn("Temperature is not in header")
+                return 0.0
+        elif meta_key == 'humidity':
+            try:
+                return headarr[0]['WXOUTHUM'] / 100.0
+            except KeyError:
+                msgs.warn("Humidity is not in header")
+                return 0.0
+        elif meta_key == 'obstime':
+            return Time(headarr[0]['DATE-END'])
 
     def configuration_keys(self):
         """
@@ -383,7 +404,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
 
         # Extract some header info
         head0 = fits.getheader(filename, ext=0)
-        binning = head0['CCDSUM']
+        binning = head0['CCD-SUM']
 
         # Construct a list of the bad columns
         bc = []
@@ -409,6 +430,44 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
 
         return bpm_img
 
+
 class GTCMAATSpectrograph(GTCOSIRISSpectrograph):
     pypeline = 'IFU'
     name = 'gtc_maat'
+
+    def init_meta(self):
+        super().init_meta()
+        self.meta['obstime'] = dict(card=None, compound=True, required=False)
+        self.meta['pressure'] = dict(card=None, compound=True, required=False)
+        self.meta['temperature'] = dict(card=None, compound=True, required=False)
+        self.meta['humidity'] = dict(card=None, compound=True, required=False)
+
+    @classmethod
+    def default_pypeit_par(cls):
+        par = super().default_pypeit_par()
+
+        # LACosmics parameters
+        par['scienceframe']['process']['sigclip'] = 4.0
+        par['scienceframe']['process']['objlim'] = 1.5
+        par['scienceframe']['process']['use_illumflat'] = True  # illumflat is applied when building the relative scale image in reduce.py, so should be applied to scienceframe too.
+        par['scienceframe']['process']['use_specillum'] = False  # apply relative spectral illumination
+        par['scienceframe']['process']['spat_flexure_correct'] = False  # don't correct for spatial flexure - varying spatial illumination profile could throw this correction off. Also, there's no way to do astrometric correction if we can't correct for spatial flexure of the contbars frames
+        par['scienceframe']['process']['use_biasimage'] = False
+        par['scienceframe']['process']['use_darkimage'] = False
+
+        # Don't do 1D extraction for 3D data - it's meaningless because the DAR correction must be performed on the 3D data.
+        par['reduce']['extraction']['skip_extraction'] = True  # Because extraction occurs before the DAR correction, don't extract
+
+        # Make sure that this is reduced as a slit (as opposed to fiber) spectrograph
+        par['reduce']['cube']['slit_spec'] = True
+        par['reduce']['cube']['combine'] = False  # Make separate spec3d files from the input spec2d files
+
+        # Sky subtraction parameters
+        par['reduce']['skysub']['no_poly'] = True
+        par['reduce']['skysub']['bspline_spacing'] = 0.6
+        par['reduce']['skysub']['joint_fit'] = False
+
+        # Flux calibration parameters
+        par['sensfunc']['UVIS']['extinct_correct'] = False  # This must be False - the extinction correction is performed when making the datacube
+
+        return par

@@ -347,6 +347,12 @@ class Calibrations:
             self.alignments = alignframe.Alignments.from_file(masterframe_filename)
             self.alignments.is_synced(self.slits)
             return self.alignments
+        elif len(align_files) == 0:
+            msgs.warn("No frametype=align files to build alignments image")
+            return
+        else: # Build
+            msgs.info("Preparing a master {0:s} frame".format(buildimage.AlignImage.master_type))
+
 
         msalign = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                  self.par['alignframe'], align_files,
