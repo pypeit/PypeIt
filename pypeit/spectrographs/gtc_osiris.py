@@ -53,7 +53,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             binning         = binning,
             det             = 1,
             dataext         = 1,  # Not sure this is used
-            specaxis        = 1,
+            specaxis        = 0,
             specflip        = False,
             spatflip        = False,
             platescale      = 0.127,  # arcsec per pixel
