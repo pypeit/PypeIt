@@ -5,39 +5,134 @@ Quick-Look Reductions
 Overview
 ========
 
-PypeIt provides a set of quick-look scripts for
+PypeIt provides a quicklook script for
 quick reductions, presumably at the telescope.
-We describe each in turn.
+
+At present, only a few spectrographs have been
+extensively tested:  
+``shane_kast_blue``, ``shane_kast_red``, ``keck_lris_blue``, 
+``keck_deimos``.
+
+The approach is to (1) generate calibration files if needed 
+using an auto-generated :doc:`pypeit_file`
+and then (2) process the input science file(s) with
+a separate auto-generated :doc:`pypeit_file`.
+These are generally organized in separate directories
+along with the output products.
 
 ----
 
-.. _pypeit-ql-mos:
+.. _pypeit-ql:
 
-pypeit_ql_mos
-=============
+pypeit_ql
+=========
 
-This script performs a boxcar (only) extraction of a long-
-or multi-slit observation taken with one of PypeIt's
-spectrographs.
+This script performs a boxcar (only) extraction of 
+long- or multi-slit observations.
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
 
-.. include:: help/pypeit_ql_mos.rst
+.. include:: help/pypeit_ql.rst
 
-And here is a sample call on files from the Development suite:
+Longslit
+++++++++
+
+The default quicklook mode for longslit reductions
+is to use the ``boxcar`` extraction method, skip
+bias image subtraction (maintain overscan), and skip
+CR rejection. 
+
+Standard call
+-------------
+
+Here is a sample call for a standard
+longslit run on files from the ``shane_kast_blue`` 
+Development suite:
 
 .. code-block:: bash
 
-    pypeit_ql_mos shane_kast_blue /home/xavier/local/Python/PypeIt-development-suite/RAW_DATA/Shane_Kast_blue/600_4310_d55 b1.fits.gz b10.fits.gz b27.fits.gz
+    pypeit_ql shane_kast_blue --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55 --rawfiles b1.fits.gz b10.fits.gz b27.fits.gz 
 
-This generates a ``shane_kast_blue_A`` folder with the standard
-calibration (Masters), QA, and Science :doc:`outputs`.
+This first generates a ``shane_kast_blue_A`` folder with the 
+processed calibrations (Masters) and associated QA :doc:`outputs`.
+It then generates a separate folder named ``b27`` which holds
+the ``Science`` folder with the processed 2D spectral
+image and the extracted spectra.
 
-This script has been tested successfully on the following instruments:
-``shane_kast_blue``, ``shane_kast_red``, ``keck_lris_blue``, ``keck_deimos``.
+Previous Calibrations
+---------------------
 
-.. _pypeit-ql-mos-options:
+Different file
+++++++++++++++
+
+If we rerun the script replacing the ``b27.fits.gz`` file with
+``b28.fits.gz``, 
+
+.. code-block:: bash
+
+    pypeit_ql shane_kast_blue --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55 --rawfiles b1.fits.gz b10.fits.gz b28.fits.gz 
+
+then the script will detect that the calibration
+files are already present and will only process the science
+frame.  You can force a re-generation of the calibrations
+with ``--clobber_calibs``.
+
+
+Masters
++++++++
+
+One can specifiy the path to a set of Masters files
+for use as calibrations with ``--masters_dir``.  
+
+.. code-block:: bash
+
+    pypeit_ql shane_kast_blue --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55 --rawfiles b1.fits.gz b10.fits.gz b27.fits.gz b28.fits.gz --masters_dir /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/REDUX_OUT/shane_kast_blue/TMP/shane_kast_blue_A/Masters
+
+Note that the code will adopt the setup and bit number
+of the Masters files.
+
+Warning:  the code will not check that the configuration
+of these calibration files match the science frames.
+
+Calibrations Folder
++++++++++++++++++++
+
+One can specifiy the path to a folder containing 
+one or more sub-folders of reducted calibration files.
+This is set with the ``--calib_dir`` option.
+
+A standard use case is for ``keck_deimos`` reductions
+where the calibrations were auto-generated in the
+afternoon by WMKO scripts.  
+
+But here is an example with the ``shane_kast_blue``:
+
+.. code-block:: bash
+
+    pypeit_ql shane_kast_blue --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55 --rawfiles b1.fits.gz b10.fits.gz b27.fits.gz b28.fits.gz --calib_dir /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/REDUX_OUT/shane_kast_blue/TMP 
+
+At least one set of the calibrations must have a 
+configuration matching the science frames.
+
+Stacked frames
+--------------
+
+If you perform the call with multiple science frames,
+the default mode is to stack these frames and then
+perform sky subtraction, object finding, and extraction.
+
+Here is an example call:
+
+.. code-block:: bash
+
+    pypeit_ql shane_kast_blue --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55 --rawfiles b1.fits.gz b10.fits.gz b27.fits.gz b28.fits.gz 
+
+This generates a folder named ``b27-b28`` with one 
+``spec2d`` and one ``spec1d`` file in the ``Science`` folder.
+
+You can force the script to process each science frame
+individually with ``--no_stack``.
 
 QL Options
 ++++++++++
@@ -91,85 +186,6 @@ Give it a shot!
 
 ----
 
-.. _pypeit-ql-keck-nires:
-
-pypeit_ql_keck_nires
-====================
-
-This script performs a quick A-B reduction of a pair of
-Keck/NIRES spectral images.  Currently, the code takes
-2min and 20s to process two images with boxcar extractions.
-Therefore, there is a first set of :ref:`nires-output` in
-approximately 1 minute.
-
-NIRES QL Setup
-++++++++++++++
-
-Before running this script, you will need to download the quick-look masters.
-See the :ref:`data_installation` section of the :ref:`installing` instructions.
-
-.. _nires-options:
-
-NIRES QL Options
-++++++++++++++++
-
-The script usage can be displayed by calling the script with the
-``-h`` option:
-
-.. include:: help/pypeit_ql_keck_nires.rst
-
-NIRES QL Example
-++++++++++++++++
-
-Here is an example call::
-
-    pypeit_ql_keck_nires /data/Keck_NIRES/Raw s180604_0089.fits.gz s180604_0090.fits.gz -b 0.5
-
-.. _nires-output:
-
-NIRES QL Output
-+++++++++++++++
-
-If all goes smoothly, the code will generate four spectral
-output files, 2 of each spec1d and
-spec2d outputs.  These can be viewed with :ref:`pypeit_show_1dspec`
-and :ref:`pypeit_show_2dspec`.
-
-
-.. _pypeit-ql-deimos:
-
-pypeit_ql_keck_deimos
-=====================
-
-This scripts enables quicklook reductions on :doc:`spectrographs/deimos` data.
-
-For the user at WMKO, the general procedure is two steps:
-
-    #. run the script on your afternoon calibrations;
-
-    #. run the script during the night on a given slit on a given detector.
-
-Afternoon Calibrations
-++++++++++++++++++++++
-
-To enable fast reductions during the night, 
-you will need to have processed the calibrations for
-at least the detectors that you will want to inspect during the night.  
-The calibration processing is expensive (~1 hour per detector per setup) 
-and future work should enable
-this to launch as a multi-process job.
-
-Here is an example call that will reduce the 3rd detector for all of
-the masks in the specified path::
-    
-    pypeit_ql_keck_deimos full_path_to_raw_files --root=DE. -d=3 --redux_path=path_for_calibs --calibs_only
-
-This will process all the raw files in ``full_path_to_raw_files`` and put the calibration
-outputs in ``path_for_calibs``.  And only for ``detector=3``.
-
-If you are running at WMKO and have access to a sizeable machine with
-50+Gb RAM and 8 processors, you can launch one command like the one above for
-each detector.
 
 One Slit
 ++++++++
