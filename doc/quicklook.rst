@@ -5,7 +5,7 @@ Quick-Look Reductions
 Overview
 ========
 
-PypeIt provides a quicklook script for
+PypeIt provides a quicklook script ``pypeit_ql`` for
 quick reductions, presumably at the telescope.
 
 At present, only a few spectrographs have been
@@ -20,13 +20,6 @@ a separate auto-generated :doc:`pypeit_file`.
 These are generally organized in separate directories
 along with the output products.
 
-----
-
-.. _pypeit-ql:
-
-pypeit_ql
-=========
-
 This script performs a boxcar (only) extraction of 
 long- or multi-slit observations.
 
@@ -36,7 +29,7 @@ The script usage can be displayed by calling the script with the
 .. include:: help/pypeit_ql.rst
 
 Longslit
-++++++++
+========
 
 The default quicklook mode for longslit reductions
 is to use the ``boxcar`` extraction method, skip
@@ -134,27 +127,24 @@ This generates a folder named ``b27-b28`` with one
 You can force the script to process each science frame
 individually with ``--no_stack``.
 
-QL Options
-++++++++++
+Other Options
+-------------
 
-Here are a few of the standard options:
+Here are a few more options
 
 --box_radius
-------------
+++++++++++++
+
+Over-ride the default boxcar extraction radius with
+``--box_radius``.  The value is given in arcseconds.
+
+--det
++++++
 
 Specify the size of the extraction radius.
 
---ignore_headers
-----------------
-
-If your telescope (e.g. Keck) has a tendency to write
-bad headers, you may wish to set it.  We recommend
-not doing so until you see it crash from a bad header.
-
 --det
 -----
-
-Specify the detector to be reduced. Only 1 is done at a time.
 
 --slit_spat
 -----------

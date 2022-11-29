@@ -72,6 +72,7 @@ def generate_sci_pypeitfile(redux_path:str,
                             input_cfg_dict:dict=None, 
                             remove_sci_dir:bool=True, 
                             maskID:str=None,
+                            boxcar_radius:float=None,
                             stack:bool=True):
     """
     Generate the PypeIt file for the science frames
@@ -89,6 +90,9 @@ def generate_sci_pypeitfile(redux_path:str,
         det (str, optional): Detector/mosaic. Defaults to None.
         remove_sci_dir (bool, optional): Remove the science directory if it exists. Defaults to True.
         maskID (str, optional): Mask ID to isolate for QL.  Defaults to None.
+        boxcar_radius (float, optional): Boxcar radius for extraction.  
+            In units of arcsec.  Defaults to None.
+        stack (bool, optional): Stack the science frames.  Defaults to True.
 
     Returns: 
         tuple: name of pypeit file (str), pypeitFile object (pypeit.inputfiles.PypeItFile)
@@ -156,6 +160,13 @@ def generate_sci_pypeitfile(redux_path:str,
         # this is to avoid that the default detnum (which was introduced for mosaic)
         # will be passed to the reduction and crash it
         config_lines.insert(ridx+2, '    detnum = None')
+
+    # Boxcar radius?
+    if boxcar_radius is not None:
+        # Add to config
+        boxcar_lines = ['[reduce]', '[[extraction]]', f'boxcar_radius = {boxcar_radius}']
+        full_cfg.merge(configobj.ConfigObj(boxcar_lines))
+        
 
     # Generate PypeIt file
     config_lines = full_cfg.write()
@@ -269,7 +280,9 @@ class QL(scriptbase.ScriptBase):
                             help='Clobber existing calibration files?')
         parser.add_argument('--maskID', type=int,
                             help='Reduce this slit as specified by the maskID value')
-        parser.add_argument('--det', type=str, help='Detector(s) to reduce.')
+        parser.add_argument('--boxcar_radius', type=float,
+                            help='Set the radius for the boxcar extraction in arcseconds')
+        parser.add_argument('--det', type=str, help='Detector to reduce.')
         parser.add_argument('--no_stack', dest='stack', default=True, 
                             action="store_false",
                             help='Do *not* stack multiple science frames')
@@ -362,6 +375,7 @@ class QL(scriptbase.ScriptBase):
                     ps_sci, 
                     maskID=args.maskID, 
                     det=args.det,
+                    boxcar_radius=args.boxcar_radius,
                     stack=args.stack)
         
         # Run it
