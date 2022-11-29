@@ -88,6 +88,9 @@ class QL(scriptbase.ScriptBase):
         parser.add_argument('--det', type=str, help='Detector(s) to reduce.')
         parser.add_argument("--calibs_only", default=False, action="store_true",
                             help='Reduce only the calibrations?')
+        parser.add_argument("--clobber_calibs", default=False, 
+                            action="store_true",
+                            help='Clobber existing calibration files?')
         return parser
 
 
@@ -107,16 +110,23 @@ class QL(scriptbase.ScriptBase):
                                                 args.spectrograph)
         ps.run(setup_only=True, no_write_sorted=True)
 
-        # Calibrate, if necessasry
+        # Calibrate, if necessary
         calib_dir = args.calib_dir if args.calib_dir is not None else args.redux_path
         if args.master_dir is None:
             # Generate PypeIt files (and folders)
             calib_pypeit_files = ps.generate_ql_calib_pypeit_files(
-                calib_dir, det=args.det, configs=args.configs)
+                calib_dir, det=args.det, configs=args.configs,
+                clobber=args.clobber_calibs)
             # Process them
             for calib_pypeit_file in calib_pypeit_files: 
                 # Run me via the script
                 redux_path = os.path.dirname(calib_pypeit_file)  # Path to PypeIt file
+                # Check for masters
+                master_files = glob.glob(os.path.join(
+                    redux_path, 'Masters', 'Master*'))
+                if len(master_files) > 0 and not args.clobber_calibs:
+                    msgs.info('Master files already exist.  Skipping calibration.')
+                    continue
                 pypeIt = pypeit.PypeIt(calib_pypeit_file,
                                        redux_path=redux_path, 
                                        calib_only=True)

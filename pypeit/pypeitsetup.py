@@ -513,7 +513,8 @@ class PypeItSetup:
 
     def generate_ql_calib_pypeit_files(self, output_path:str, 
                                        det:str=None, 
-                                       configs:str='all'):
+                                       configs:str='all',
+                                       clobber:bool=False):
         """ Generate the PypeIt files for the calibrations
         for quicklook purposes.
 
@@ -522,6 +523,7 @@ class PypeItSetup:
                 Output path for the PypeIt files
             det (str, optional): Detector/mosaic. Defaults to None.
             configs (str, optional): Which configurations to generate. Defaults to 'all'.
+            clobber (bool, optional): Overwrite existing files. Defaults to False.
 
         Returns:
             list: List of calib PypeIt files
@@ -554,7 +556,10 @@ class PypeItSetup:
             calib_pypeit_file = pypeit_file.replace(
                 '_{}.pypeit'.format(setup), 
                 '_calib_{}.pypeit'.format(setup))
-            os.rename(pypeit_file, calib_pypeit_file)
+            if clobber:
+                os.rename(pypeit_file, calib_pypeit_file)
+            else:
+                os.remove(pypeit_file)
             calib_pypeit_files.append(calib_pypeit_file)
 
         return calib_pypeit_files

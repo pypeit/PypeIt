@@ -50,8 +50,9 @@ def is_on(config:configobj.ConfigObj):
 def folder_name_from_scifiles(sci_files:list):
     """ Folder name for output of QL on science file(s)
 
-    Currently, the code takes the name of the first file.
-    This may evolve.. 
+    If one file, use the filename minus any extensions (e.g. .fits.gz)
+    If multiple files, use a - separated string of the first
+    and last filenames
 
     Args:
         sci_files (list): List of science files
@@ -59,9 +60,12 @@ def folder_name_from_scifiles(sci_files:list):
     Returns:
         str: Folder name
     """
-    # For now, we return the first filename
-    #  without .fits
-    return os.path.splitext(os.path.basename(sci_files[0]))[0]
+    first_file = os.path.basename(sci_files[0]).split('.')[0]
+    if len(sci_files) == 1:
+        return first_file
+    else:
+        last_file = os.path.basename(sci_files[-1]).split('.')[0]
+        return f'{first_file}-{last_file}'
 
 def generate_sci_pypeitfile(redux_path:str, 
                             sci_files:list, 
