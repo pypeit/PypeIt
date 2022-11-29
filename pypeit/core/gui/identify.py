@@ -231,7 +231,7 @@ class Identify:
         fwhm : float, optional
             FWHM of arc lines in pixels for detection
         sigdetect : float, optional
-            sigma detection limit for arc lines; defaults to par['sigdetect'] 
+            sigma detection limit for arc lines; defaults to par['sigdetect']
         pxtoler : float, optional
             Tolerance in pixels for adding lines with the auto option
         specname : str, optional
@@ -797,7 +797,7 @@ class Identify:
 
                 # Print some helpful information
                 print("\n\nPlease visit the following site if you want to include your solution in PypeIt:")
-                print("https://pypeit.readthedocs.io/en/latest/construct_template.html#creating-the-template\n")
+                print("https://pypeit.readthedocs.io/en/release/calibrations/construct_template.html")
                 print("You will need the following information:")
                 print("  (1) spectral binning = {0:d}".format(binspec))
                 print("  (2) slit spat_id = {0:s}".format(self._spatid))
