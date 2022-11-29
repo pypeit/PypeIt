@@ -30,13 +30,13 @@ from pypeit import find_objects
 from pypeit import extraction
 from pypeit import spec2dobj
 from pypeit.core import qa
-from pypeit.core import quicklook
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
 from pypeit import utils
 from pypeit.history import History
 from pypeit.par import PypeItPar
+from pypeit.par.pypeitpar import ql_is_on
 from pypeit.metadata import PypeItMetaData
 from pypeit.manual_extract import ManualExtractionObj
 
@@ -122,7 +122,7 @@ class PypeIt:
         spectrograph_cfg_lines = self.spectrograph.config_specific_par(config_specific_file).to_config()
 
         # Quick look?
-        ql_cfg_lines = self.spectrograph.ql_par() if quicklook.is_on(
+        ql_cfg_lines = self.spectrograph.ql_par() if ql_is_on(
             self.pypeItFile.config) else []
 
         #   - Build the full set, merging with any user-provided

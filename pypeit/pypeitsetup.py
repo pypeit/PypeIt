@@ -556,7 +556,7 @@ class PypeItSetup:
             calib_pypeit_file = pypeit_file.replace(
                 '_{}.pypeit'.format(setup), 
                 '_calib_{}.pypeit'.format(setup))
-            if clobber:
+            if clobber or (not os.path.isfile(calib_pypeit_file)):
                 os.rename(pypeit_file, calib_pypeit_file)
             else:
                 os.remove(pypeit_file)

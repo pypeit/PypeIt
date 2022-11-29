@@ -4825,4 +4825,18 @@ class Collate1DPar(ParSet):
         pass
 
 
+def ql_is_on(config:ConfigObj):
+    """ Check whether QL is set to "on"
 
+    Args:
+        config (configobj.ConfigObj): 
+            parameters
+
+    Returns:
+        bool: True if QL is on
+    """
+    if 'rdx' in config.keys() and 'quicklook' in config['rdx'].keys()\
+        and config['rdx']['quicklook']:
+        return True
+    else:
+        False

@@ -1,14 +1,33 @@
 """
 Script for quick-look reductions for Multislit observations.
 
+Use cases:
+
+  1. User inputs N files: arc, flat, science(s)
+  2. User inputs 1 or more science files for a fixed-format instrument (e.g. NIRES)
+  3. User inputs 1 folder of files
+  4. User inputs 1 folder of files including 1 new science frame
+  5. User inputs an ASCII file of files
+  6. User inputs 2 science files with A-B [and calibs or uses defaults]
+  7. User inputs N science files with A and B (only), stacks all files at A and B independently, A-B, add pos+neg
+  8. User inputs N science files with an arbitrary set of dither patterns that are encoded in the headers (e.g. MOSFIRE, currently this works for just one dither pattern, and that may be all we need). Total stack is computed
+
+Notes with JFH:
+  1. Label B images as "sky" for A-B redux
+  2. Write spec2D A images to disk with a minus sign and call B
+  3. Consider not writing out but return instead
+
 .. include:: ../include/links.rst
 """
+
 import os
 import time
 import glob
+import shutil
 
 import numpy as np
 
+import configobj
 
 from pypeit import utils
 from pypeit.scripts import run_pypeit
@@ -16,12 +35,207 @@ from pypeit import msgs
 from pypeit import pypeitsetup
 from pypeit import io
 from pypeit import pypeit
-from pypeit.core import quicklook
 from pypeit.scripts import scriptbase
 from pypeit.spectrographs import available_spectrographs
+from pypeit.slittrace import SlitTraceSet 
+from pypeit import inputfiles 
 
 from IPython import embed
 
+
+def folder_name_from_scifiles(sci_files:list):
+    """ Folder name for output of QL on science file(s)
+
+    If one file, use the filename minus any extensions (e.g. .fits.gz)
+    If multiple files, use a - separated string of the first
+    and last filenames
+
+    Args:
+        sci_files (list): List of science files
+
+    Returns:
+        str: Folder name
+    """
+    first_file = os.path.basename(sci_files[0]).split('.')[0]
+    if len(sci_files) == 1:
+        return first_file
+    else:
+        last_file = os.path.basename(sci_files[-1]).split('.')[0]
+        return f'{first_file}-{last_file}'
+
+def generate_sci_pypeitfile(redux_path:str, 
+                            sci_files:list, 
+                            master_calib_dir:str,
+                            master_setup_and_bit:list,
+                            ps_sci, 
+                            det:str=None,
+                            input_cfg_dict:dict=None, 
+                            remove_sci_dir:bool=True, 
+                            maskID:str=None,
+                            stack:bool=True):
+    """
+    Generate the PypeIt file for the science frames
+    from the calib PypeIt file
+    
+    Args:
+        redux_path (str): Path to the redux folder
+        sci_files (list): List of science files (full path)
+        master_calib_dir (str): Path to the master calib folder
+        master_setup_and_bit (list): 
+            Name of the master setup and bit (list of str)
+        ps_sci (:class:`pypeit.pypeitsetup.PypeItSetup`):
+        input_cfg_dict (dict, optional): 
+            Input configuration dictionary. Defaults to None.
+        det (str, optional): Detector/mosaic. Defaults to None.
+        remove_sci_dir (bool, optional): Remove the science directory if it exists. Defaults to True.
+        maskID (str, optional): Mask ID to isolate for QL.  Defaults to None.
+
+    Returns: 
+        tuple: name of pypeit file (str), pypeitFile object (pypeit.inputfiles.PypeItFile)
+    """
+
+    # Parse science file info
+    folder = folder_name_from_scifiles(sci_files)
+    sci_dir = os.path.join(redux_path, folder)
+    masters_dir = os.path.join(sci_dir, 'Masters')
+
+    # Science reduction folder
+    if os.path.isdir(sci_dir) and remove_sci_dir:
+        shutil.rmtree(sci_dir)
+    if not os.path.isdir(sci_dir):
+        os.makedirs(sci_dir)
+        
+    # Link to Masters
+    if not os.path.isdir(masters_dir):
+        os.symlink(master_calib_dir, masters_dir)
+        
+    # Configure
+    user_cfg = ['[rdx]', 'spectrograph = {}'.format(ps_sci.spectrograph.name)]
+    if det is not None:
+        user_cfg += ['detnum = {}'.format(det)]
+    user_cfg += ['quicklook = True']
+    full_cfg = configobj.ConfigObj(user_cfg)
+
+    # Add input configs
+    if input_cfg_dict is not None:
+        full_cfg.merge(configobj.ConfigObj(input_cfg_dict))
+
+    # maskID specified?
+    if maskID is not None:
+        # Loop on SlitTrace files
+        slittrace_files = glob.glob(os.path.join(
+            masters_dir, 
+            f'MasterSlits_{master_setup_and_bit[0]}_{master_setup_and_bit[1]}_*'))
+        detname = None
+        for sliittrace_file in slittrace_files:
+            slitTrace = SlitTraceSet.from_file(sliittrace_file)
+            if maskID in slitTrace.maskdef_id:
+                detname = slitTrace.detname
+                mosaic_id = np.where(ps_sci.spectrograph.list_detectors(mosaic=True) == detname)[0][0]
+                det_tuple = ps_sci.spectrograph.allowed_mosaics[mosaic_id]
+                break
+        if detname is None:
+            msgs.error('Could not find a SlitTrace file with maskID={}'.format(maskID))
+
+        # Add to config
+        maskID_dict = dict(rdx=dict(detnum=[det_tuple],
+                                    maskIDs=maskID))
+        full_cfg.merge(configobj.ConfigObj(maskID_dict))
+            
+    # slitspatnum specified?
+    if 'rdx' in full_cfg.keys() and 'slitspatnum' in full_cfg['rdx'].keys():
+        # Remove detnum
+        for kk, item in enumerate(config_lines):
+            if 'detnum' in item:
+                config_lines.pop(kk)
+
+        # Add in name, slitspatnum
+        ridx = config_lines.index('[rdx]')
+        config_lines.insert(ridx+1, '    slitspatnum = {0}'.format(full_cfg['rdx']['slitspatnum']))
+
+        # this is to avoid that the default detnum (which was introduced for mosaic)
+        # will be passed to the reduction and crash it
+        config_lines.insert(ridx+2, '    detnum = None')
+
+    # Generate PypeIt file
+    config_lines = full_cfg.write()
+
+    # Setup, forcing name to match Masters 
+    setup = ps_sci.fitstbl.configs.copy()
+    key = list(setup.keys())[0]
+    setup[f'Setup {master_setup_and_bit[0]}'] = setup[key].copy()
+    setup.pop(key)
+    # Odds and ends at the finish
+    output_cols = ps_sci.fitstbl.set_pypeit_cols(write_bkg_pairs=True,
+                                           write_manual=False)
+    file_paths = np.unique([os.path.dirname(ff) for ff in sci_files]).tolist()
+
+    # Stack?
+    if len(sci_files) > 1 and stack:
+        ps_sci.fitstbl['comb_id'] = 1
+
+    # Generate
+    pypeitFile = inputfiles.PypeItFile(
+        config=config_lines, 
+        file_paths=file_paths,
+        data_table=ps_sci.fitstbl.table[output_cols],
+        setup=setup)
+
+    # Write
+    pypeit_file = f'{ps_sci.spectrograph.name}_{master_setup_and_bit[0]}.pypeit' 
+    science_pypeit_filename = os.path.join(sci_dir, pypeit_file)
+    pypeitFile.write(science_pypeit_filename)
+
+    # Return
+    return science_pypeit_filename, pypeitFile
+
+
+
+def match_science_to_calibs(ps_sci:pypeitsetup.PypeItSetup, 
+                            calib_dir:str):
+    """
+    Match a given science frame to the set of pre-made calibrations
+    in the specified reduction folder. If any exists 
+    
+    Args:
+        ps_sci (:class:`pypeit.pypeitsetup.PypeItSetup`):
+        calib_dir (str): Full path to the calibration directory
+
+    Returns:
+        tuple: str, str
+            Name of PypeIt file for calibrations
+            Full path to Masters
+
+    """
+    # Check on one setup
+    if len(ps_sci.fitstbl.configs.keys()) > 1:
+        msgs.error('Your science files come from more than one setup. Please reduce them separately.')
+    # Check against existing calibration PypeIt files
+    pypeit_files = glob.glob(os.path.join(
+        calib_dir, f'{ps_sci.spectrograph.name}_*', 
+        f'{ps_sci.spectrograph.name}_calib_*.pypeit'))
+    mtch = []
+    for pypeit_file in pypeit_files:
+        # Read
+        pypeitFile = inputfiles.PypeItFile.from_file(pypeit_file)
+
+        # Check for a match
+        match = True
+        for key in ps_sci.spectrograph.configuration_keys():
+            if ps_sci.fitstbl.configs['A'][key] != pypeitFile.setup[key]:
+                match = False
+        if match:
+            mtch.append(pypeit_file)
+    # Are we ok?
+    if len(mtch) == 0:
+        msgs.error("Matched to zero setups.  The calibrations files are stale/wrong/corrupt..")
+    elif len(mtch) > 1:
+        msgs.warn("Matched to multiple setups.  This should not have happened, but we will take the first.")
+
+    # Master dir
+    masters_dir = os.path.join(os.path.dirname(mtch[0]), 'Masters')
+
+    return mtch[0], masters_dir
 class QL(scriptbase.ScriptBase):
 
     @classmethod
@@ -38,59 +252,27 @@ class QL(scriptbase.ScriptBase):
                             help='Extension for raw files in full_rawpath.  Only use if --rawfile_list and --rawfiles are not provided')
         parser.add_argument('--rawfiles', type=str, nargs='+',
                             help='space separated list of raw frames e.g. img1.fits img2.fits.  These must exist within --full_rawpath')
-        parser.add_argument('--configs', type=str, default='A',
-                            help='Configurations to reduce [A,all]')
         parser.add_argument('--sci_files', type=str, nargs='+',
                             help='space separated list of raw frames to be specified as science exposures (over-rides PypeIt frame typing)')
-        parser.add_argument('--spec_samp_fact', default=1.0, type=float,
-                            help='Make the wavelength grid finer (spec_samp_fact < 1.0) or '
-                                 'coarser (spec_samp_fact > 1.0) by this sampling factor, i.e. '
-                                 'units of spec_samp_fact are pixels.')
-        parser.add_argument('--spat_samp_fact', default=1.0, type=float,
-                            help='Make the spatial grid finer (spat_samp_fact < 1.0) or coarser '
-                                 '(spat_samp_fact > 1.0) by this sampling factor, i.e. units of '
-                                 'spat_samp_fact are pixels.')
-        parser.add_argument("--bkg_redux", default=False, action='store_true',
-                            help='If set the script will perform difference imaging quicklook. Namely it will identify '
-                                 'sequences of AB pairs based on the dither pattern and perform difference imaging sky '
-                                 'subtraction and fit for residuals')
-        parser.add_argument("--flux", default=False, action='store_true',
-                            help='This option will multiply in sensitivity function to obtain a '
-                                 'flux calibrated 2d spectrum')
-        parser.add_argument("--mask_cr", default=False, action='store_true',
-                            help='This option turns on cosmic ray rejection. This improves the '
-                                 'reduction but doubles runtime.')
-        parser.add_argument("--writefits", default=False, action='store_true',
-                            help="Write the ouputs to a fits file")
-        parser.add_argument('--no_gui', default=False, action='store_true',
-                            help="Do not display the results in a GUI")
         parser.add_argument('--box_radius', type=float,
                             help='Set the radius for the boxcar extraction')
-        parser.add_argument('--offset', type=float, default=None,
-                            help='Override the automatic offsets determined from the headers. '
-                                 'Offset is in pixels.  This option is useful if a standard '
-                                 'dither pattern was not executed.  The offset convention is '
-                                 'such that a negative offset will move the (negative) B image '
-                                 'to the left.')
         parser.add_argument("--redux_path", type=str, default=os.getcwd(),
                             help="Location where reduction outputs should be stored.")
         parser.add_argument("--calib_dir", type=str, 
                             help="Location folders of calibration reductions")
-        parser.add_argument("--master_dir", type=str, 
+        parser.add_argument("--masters_dir", type=str, 
                             help="Location of PypeIt Master files used for the reduction.")
-        parser.add_argument('--maskID', type=int,
-                            help='Reduce this slit as specified by the maskID value')
-        parser.add_argument('--embed', default=False, action='store_true',
-                            help='Upon completion embed in ipython shell')
-        parser.add_argument("--show", default=False, action="store_true",
-                            help='Show the reduction steps. Equivalent to the -s option when '
-                                 'running pypeit.')
-        parser.add_argument('--det', type=str, help='Detector(s) to reduce.')
         parser.add_argument("--calibs_only", default=False, action="store_true",
                             help='Reduce only the calibrations?')
         parser.add_argument("--clobber_calibs", default=False, 
                             action="store_true",
                             help='Clobber existing calibration files?')
+        parser.add_argument('--maskID', type=int,
+                            help='Reduce this slit as specified by the maskID value')
+        parser.add_argument('--det', type=str, help='Detector(s) to reduce.')
+        parser.add_argument('--no_stack', dest='stack', default=True, 
+                            action="store_false",
+                            help='Do *not* stack multiple science frames')
         return parser
 
 
@@ -112,21 +294,21 @@ class QL(scriptbase.ScriptBase):
 
         # Calibrate, if necessary
         calib_dir = args.calib_dir if args.calib_dir is not None else args.redux_path
-        if args.master_dir is None:
+        if args.masters_dir is None:
             # Generate PypeIt files (and folders)
             calib_pypeit_files = ps.generate_ql_calib_pypeit_files(
-                calib_dir, det=args.det, configs=args.configs,
+                calib_dir, det=args.det, configs='all',
                 clobber=args.clobber_calibs)
             # Process them
             for calib_pypeit_file in calib_pypeit_files: 
-                # Run me via the script
                 redux_path = os.path.dirname(calib_pypeit_file)  # Path to PypeIt file
-                # Check for masters
+                # Check for existing masters
                 master_files = glob.glob(os.path.join(
                     redux_path, 'Masters', 'Master*'))
                 if len(master_files) > 0 and not args.clobber_calibs:
                     msgs.info('Master files already exist.  Skipping calibration.')
                     continue
+                # Run
                 pypeIt = pypeit.PypeIt(calib_pypeit_file,
                                        redux_path=redux_path, 
                                        calib_only=True)
@@ -155,31 +337,32 @@ class QL(scriptbase.ScriptBase):
             msgs.error('Your science files come from more than one setup. Please reduce them separately.')
 
         # Masters dir and their setup
-        if args.master_dir is None:
+        if args.masters_dir is None:
             # Match to calibs
-            _, master_dir = quicklook.match_science_to_calibs(
+            _, masters_dir = match_science_to_calibs(
                 ps_sci, calib_dir)
         else:
-            master_dir = args.master_dir
+            masters_dir = args.masters_dir
 
         # Parse for setup
         master_files = glob.glob(os.path.join(
-            master_dir, 'Master*'))
+            masters_dir, 'Master*'))
         if len(master_files) == 0:
-            msgs.error('No Master files found in {:s}'.format(master_dir))
+            msgs.error('No Master files found in {:s}'.format(masters_dir))
         masters_setup_and_bit = os.path.basename(
             master_files[0]).split('_')[1:3]
 
         # Build the PypeIt file and link to Masters
         sci_pypeit_file, _ = \
-                quicklook.generate_sci_pypeitfile(
+                generate_sci_pypeitfile(
                     args.redux_path, 
                     full_scifiles, 
-                    master_dir, 
+                    masters_dir, 
                     masters_setup_and_bit, 
                     ps_sci, 
                     maskID=args.maskID, 
-                    det=args.det)
+                    det=args.det,
+                    stack=args.stack)
         
         # Run it
         redux_path = os.path.dirname(sci_pypeit_file)  # Path to PypeIt file
