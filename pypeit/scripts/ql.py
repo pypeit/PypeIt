@@ -143,14 +143,14 @@ class QL(scriptbase.ScriptBase):
         # Masters dir and their setup
         if args.master_dir is None:
             # Match to calibs
-            _, master_dir, sci_setup =\
+            _, master_dir, masters_setup =\
                 quicklook.match_science_to_calibs(ps_sci, calib_dir)
         else:
             master_dir = args.master_dir
             # Parse for setup
             master_files = glob.glob(os.path.join(
                 args.master_dir, 'Master*'))
-            sci_setup = os.path.basename(
+            masters_setup = os.path.basename(
                 master_files[0]).split('_')[1]
 
         # Build the PypeIt file and link to Masters
@@ -159,7 +159,7 @@ class QL(scriptbase.ScriptBase):
                     args.redux_path, 
                     full_scifiles, 
                     master_dir, 
-                    sci_setup, ps_sci, 
+                    masters_setup, ps_sci, 
                     maskID=args.maskID, 
                     det=args.det)
         
