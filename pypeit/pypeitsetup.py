@@ -511,3 +511,50 @@ class PypeItSetup:
             msgs.info("Inspect the .sorted file")
 
 
+    def generate_ql_calib_pypeit_files(self, output_path:str, 
+                                       det:str=None, 
+                                       configs:str='all'):
+        """ Generate the PypeIt files for the calibrations
+        for quicklook purposes.
+
+        Args:
+            output_path (str): 
+                Output path for the PypeIt files
+            det (str, optional): Detector/mosaic. Defaults to None.
+            configs (str, optional): Which configurations to generate. Defaults to 'all'.
+
+        Returns:
+            list: List of calib PypeIt files
+        """
+        # Grab setups
+        setups, indx = self.fitstbl.get_configuration_names(
+            return_index=True)
+
+        # Restrict on detector -- May remove this
+        self.user_cfg = ['[rdx]', 'spectrograph = {}'.format(
+            self.spectrograph.name)]
+        if det is not None:
+            self.user_cfg += ['detnum = {}'.format(det)]
+        self.user_cfg += ['quicklook = True']
+
+
+        # TODO -- Remove the science files!  We want calibs only
+
+        # Write the PypeIt files
+        pypeit_files = self.fitstbl.write_pypeit(
+            output_path=output_path, 
+            cfg_lines=self.user_cfg, 
+            configs=configs)
+
+        # Rename calibs
+        calib_pypeit_files = []
+        for pypeit_file, setup in zip(pypeit_files, setups):
+
+            # Rename with _calib
+            calib_pypeit_file = pypeit_file.replace(
+                '_{}.pypeit'.format(setup), 
+                '_calib_{}.pypeit'.format(setup))
+            os.rename(pypeit_file, calib_pypeit_file)
+            calib_pypeit_files.append(calib_pypeit_file)
+
+        return calib_pypeit_files

@@ -9,13 +9,13 @@ import glob
 
 import numpy as np
 
-from astropy.table import Table
 
 from pypeit import utils
 from pypeit.scripts import run_pypeit
 from pypeit import msgs
 from pypeit import pypeitsetup
 from pypeit import io
+from pypeit import pypeit
 from pypeit.core import quicklook
 from pypeit.scripts import scriptbase
 from pypeit.spectrographs import available_spectrographs
@@ -111,12 +111,16 @@ class QL(scriptbase.ScriptBase):
         calib_dir = args.calib_dir if args.calib_dir is not None else args.redux_path
         if args.master_dir is None:
             # Generate PypeIt files (and folders)
-            calib_pypeit_files = quicklook.generate_calib_pypeit_files(
-                ps, calib_dir,
-                det=args.det, configs=args.configs)
-
+            calib_pypeit_files = ps.generate_ql_calib_pypeit_files(
+                calib_dir, det=args.det, configs=args.configs)
             # Process them
-            quicklook.process_calibs(calib_pypeit_files)
+            for calib_pypeit_file in calib_pypeit_files: 
+                # Run me via the script
+                redux_path = os.path.dirname(calib_pypeit_file)  # Path to PypeIt file
+                pypeIt = pypeit.PypeIt(calib_pypeit_file,
+                                       redux_path=redux_path, 
+                                       calib_only=True)
+                calib_dict = pypeIt.calib_all()
         if args.calibs_only:
             msgs.info("Calibrations only requested.  Exiting")
             return
@@ -143,15 +147,18 @@ class QL(scriptbase.ScriptBase):
         # Masters dir and their setup
         if args.master_dir is None:
             # Match to calibs
-            _, master_dir, masters_setup =\
-                quicklook.match_science_to_calibs(ps_sci, calib_dir)
+            _, master_dir = quicklook.match_science_to_calibs(
+                ps_sci, calib_dir)
         else:
             master_dir = args.master_dir
-            # Parse for setup
-            master_files = glob.glob(os.path.join(
-                args.master_dir, 'Master*'))
-            masters_setup = os.path.basename(
-                master_files[0]).split('_')[1]
+
+        # Parse for setup
+        master_files = glob.glob(os.path.join(
+            master_dir, 'Master*'))
+        if len(master_files) == 0:
+            msgs.error('No Master files found in {:s}'.format(master_dir))
+        masters_setup_and_bit = os.path.basename(
+            master_files[0]).split('_')[1:3]
 
         # Build the PypeIt file and link to Masters
         sci_pypeit_file, _ = \
@@ -159,7 +166,8 @@ class QL(scriptbase.ScriptBase):
                     args.redux_path, 
                     full_scifiles, 
                     master_dir, 
-                    masters_setup, ps_sci, 
+                    masters_setup_and_bit, 
+                    ps_sci, 
                     maskID=args.maskID, 
                     det=args.det)
         

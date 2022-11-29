@@ -18,6 +18,7 @@ Notes with JFH:
 """
 
 import os
+import shutil
 import glob
 
 import numpy as np
@@ -26,10 +27,7 @@ import configobj
 
 from pypeit import inputfiles, msgs
 from pypeit import pypeitsetup
-from pypeit import utils
-from pypeit.spectrographs.util import load_spectrograph
 from pypeit.slittrace import SlitTraceSet 
-from pypeit.scripts import run_pypeit
 
 from IPython import embed
 
@@ -48,71 +46,6 @@ def is_on(config:configobj.ConfigObj):
         return True
     else:
         False
-
-
-def generate_calib_pypeit_files(ps, output_path:str,
-                   det:str=None,
-                   configs:str='all'):
-    """ Generate the PypeIt files for the calibrations
-
-    Args:
-        ps (:class:`pypeit.pypeitsetup.PypeItSetup`): 
-            Setup object
-        output_path (str): 
-            Output path for the PypeIt files
-        det (str, optional): Detector/mosaic. Defaults to None.
-        configs (str, optional): Which configurations to generate. Defaults to 'all'.
-
-    Returns:
-        list: List of calib PypeIt files
-    """
-    # Grab setups
-    setups, indx = ps.fitstbl.get_configuration_names(
-        return_index=True)
-
-    # Restrict on detector -- May remove this
-    ps.user_cfg = ['[rdx]', 'spectrograph = {}'.format(ps.spectrograph.name)]
-    if det is not None:
-        ps.user_cfg += ['detnum = {}'.format(det)]
-    ps.user_cfg += ['quicklook = True']
-
-
-    # TODO -- Remove the science files!  We want calibs only
-
-    # Write the PypeIt files
-    pypeit_files = ps.fitstbl.write_pypeit(output_path=output_path,
-                                           cfg_lines=ps.user_cfg,
-                                           configs=configs)
-
-    # Rename calibs
-    calib_pypeit_files = []
-    for pypeit_file, setup in zip(pypeit_files, setups):
-
-        # Rename with _calib
-        calib_pypeit_file = pypeit_file.replace('_{}.pypeit'.format(setup),
-                                                '_calib_{}.pypeit'.format(setup))
-        os.rename(pypeit_file, calib_pypeit_file)
-        calib_pypeit_files.append(calib_pypeit_file)
-
-    return calib_pypeit_files
-
-def process_calibs(calib_pypeit_files:list):
-    """Process the calibrations
-
-    Args:
-        calib_pypeit_files (list): 
-            List of PypeIt files for the calibrations
-    """
-
-    # Loop on setups, rename + run calibs
-    for calib_pypeit_file in calib_pypeit_files: 
-        # Run me via the script
-        redux_path = os.path.dirname(calib_pypeit_file)  # Path to PypeIt file
-        run_pargs = run_pypeit.RunPypeIt.parse_args(
-            [calib_pypeit_file, 
-             '-r={}'.format(redux_path), '-c'])
-        run_pypeit.RunPypeIt.main(run_pargs)
-
 
 def folder_name_from_scifiles(sci_files:list):
     """ Folder name for output of QL on science file(s)
@@ -133,10 +66,10 @@ def folder_name_from_scifiles(sci_files:list):
 def generate_sci_pypeitfile(redux_path:str, 
                             sci_files:list, 
                             master_calib_dir:str,
-                            master_setup_name:str,
+                            master_setup_and_bit:list,
                             ps_sci, 
                             det:str=None,
-                            input_cfg_dict:dict={}, 
+                            input_cfg_dict:dict=None, 
                             remove_sci_dir:bool=True, 
                             maskID:str=None):
     """
@@ -147,9 +80,11 @@ def generate_sci_pypeitfile(redux_path:str,
         redux_path (str): Path to the redux folder
         sci_files (list): List of science files (full path)
         master_calib_dir (str): Path to the master calib folder
-        master_setup_name (str): Name of the master setup
+        master_setup_and_bit (list): 
+            Name of the master setup and bit (list of str)
         ps_sci (:class:`pypeit.pypeitsetup.PypeItSetup`):
-        input_cfg_dict (dict, optional): Input configuration dictionary. Defaults to {}.
+        input_cfg_dict (dict, optional): 
+            Input configuration dictionary. Defaults to None.
         det (str, optional): Detector/mosaic. Defaults to None.
         remove_sci_dir (bool, optional): Remove the science directory if it exists. Defaults to True.
         maskID (str, optional): Mask ID to isolate for QL.  Defaults to None.
@@ -165,7 +100,7 @@ def generate_sci_pypeitfile(redux_path:str,
 
     # Science reduction folder
     if os.path.isdir(sci_dir) and remove_sci_dir:
-        os.system('rm -rf {}'.format(sci_dir))
+        shutil.rmtree(sci_dir)
     if not os.path.isdir(sci_dir):
         os.makedirs(sci_dir)
         
@@ -181,7 +116,7 @@ def generate_sci_pypeitfile(redux_path:str,
     full_cfg = configobj.ConfigObj(user_cfg)
 
     # Add input configs
-    if len(input_cfg_dict) > 0:
+    if input_cfg_dict is not None:
         full_cfg.merge(configobj.ConfigObj(input_cfg_dict))
 
     # maskID specified?
@@ -189,7 +124,7 @@ def generate_sci_pypeitfile(redux_path:str,
         # Loop on SlitTrace files
         slittrace_files = glob.glob(os.path.join(
             master_dir, 
-            f'MasterSlits_{master_setup_name}_1_*'))
+            f'MasterSlits_{master_setup_and_bit[0]}_{master_setup_and_bit[1]}_*'))
         detname = None
         for sliittrace_file in slittrace_files:
             slitTrace = SlitTraceSet.from_file(sliittrace_file)
@@ -227,7 +162,7 @@ def generate_sci_pypeitfile(redux_path:str,
     # Setup, forcing name to match Masters 
     setup = ps_sci.fitstbl.configs.copy()
     key = list(setup.keys())[0]
-    setup[f'Setup {master_setup_name}'] = setup[key].copy()
+    setup[f'Setup {master_setup_and_bit[0]}'] = setup[key].copy()
     setup.pop(key)
     # Odds and ends at the finish
     output_cols = ps_sci.fitstbl.set_pypeit_cols(write_bkg_pairs=True,
@@ -242,7 +177,7 @@ def generate_sci_pypeitfile(redux_path:str,
         setup=setup)
 
     # Write
-    pypeit_file = f'{ps_sci.spectrograph.name}_{master_setup_name}.pypeit' 
+    pypeit_file = f'{ps_sci.spectrograph.name}_{master_setup_and_bit[0]}.pypeit' 
     science_pypeit_filename = os.path.join(sci_dir, pypeit_file)
     pypeitFile.write(science_pypeit_filename)
 
@@ -265,7 +200,6 @@ def match_science_to_calibs(ps_sci:pypeitsetup.PypeItSetup,
         tuple: str, str
             Name of PypeIt file for calibrations
             Full path to Masters
-            Name of setup key
 
     """
     # Check on one setup
@@ -276,7 +210,6 @@ def match_science_to_calibs(ps_sci:pypeitsetup.PypeItSetup,
         calib_dir, f'{ps_sci.spectrograph.name}_*', 
         f'{ps_sci.spectrograph.name}_calib_*.pypeit'))
     mtch = []
-    setup_key = None
     for pypeit_file in pypeit_files:
         # Read
         pypeitFile = inputfiles.PypeItFile.from_file(pypeit_file)
@@ -288,12 +221,11 @@ def match_science_to_calibs(ps_sci:pypeitsetup.PypeItSetup,
                 match = False
         if match:
             mtch.append(pypeit_file)
-            setup_key = pypeitFile.setup_name
     # Are we ok?
     if len(mtch) != 1:
         msgs.error("Matched to zero or more than one setup.  Inconceivable!")
 
-    # Master ir
+    # Master dir
     master_dir = os.path.join(os.path.dirname(mtch[0]), 'Masters')
 
-    return mtch[0], master_dir, setup_key
+    return mtch[0], master_dir
