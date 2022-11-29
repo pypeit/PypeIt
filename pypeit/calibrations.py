@@ -225,6 +225,7 @@ class Calibrations:
         # Initialize for this setup
         self.frame = frame
         self.calib_ID = int(self.fitstbl['calib'][frame])
+        embed()
         self.det = det
         if par is not None:
             self.par = par

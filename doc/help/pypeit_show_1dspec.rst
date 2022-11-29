@@ -2,7 +2,7 @@
 
     $ pypeit_show_1dspec -h
     usage: pypeit_show_1dspec [-h] [--list] [--exten EXTEN] [--obj OBJ]
-                              [--extract EXTRACT] [--flux]
+                              [--extract EXTRACT] [--flux] [-m]
                               file
     
     Show a 1D spectrum
@@ -19,4 +19,5 @@
       --extract EXTRACT  Extraction method. Default is OPT. ['BOX', 'OPT'] (default:
                          OPT)
       --flux             Show fluxed spectrum? (default: False)
+      -m, --masked       Only show unmasked data. (default: False)
     

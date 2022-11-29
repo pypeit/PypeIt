@@ -3062,7 +3062,6 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
-          exprng = 60, None
           [[[process]]]
               mask_cr = True
               use_biasimage = False
@@ -3070,14 +3069,12 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
-          exprng = 100, None
           [[[process]]]
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
-          exprng = 100, None
           [[[process]]]
               use_biasimage = False
               use_overscan = False
@@ -3155,7 +3152,7 @@ Alterations to the default parameters are:
       [[tilts]]
           tracethresh = 10.0
   [scienceframe]
-      exprng = 60, None
+      exprng = 61, None
       [[process]]
           satpix = nothing
           mask_cr = True
