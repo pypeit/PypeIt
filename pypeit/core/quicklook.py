@@ -130,9 +130,10 @@ def folder_name_from_scifiles(sci_files:list):
     #  without .fits
     return os.path.splitext(os.path.basename(sci_files[0]))[0]
 
-def generate_sci_pypeitfile(calib_pypeit_file:str, 
-                            redux_path:str, 
+def generate_sci_pypeitfile(redux_path:str, 
                             sci_files:list, 
+                            master_calib_dir:str,
+                            master_setup_name:str,
                             ps_sci, 
                             det:str=None,
                             input_cfg_dict:dict={}, 
@@ -146,7 +147,7 @@ def generate_sci_pypeitfile(calib_pypeit_file:str,
         calib_pypeit_file (str): Calibration PypeIt file
             Requried for the Masters setup name, data paths, etc.
         redux_path (str): Path to the redux folder
-        sci_files (list): List of science files
+        sci_files (list): List of science files (full path)
         ps_sci (:class:`pypeit.pypeitsetup.PypeItSetup`):
         input_cfg_dict (dict, optional): Input configuration dictionary. Defaults to {}.
         remove_sci_dir (bool, optional): Remove the science directory if it exists. Defaults to True.
@@ -168,31 +169,9 @@ def generate_sci_pypeitfile(calib_pypeit_file:str,
         os.makedirs(sci_dir)
         
     # Link to Masters
-    calib_dir = os.path.dirname(calib_pypeit_file)
-    master_calib_dir = os.path.join(calib_dir, 'Masters')
     if not os.path.isdir(master_dir):
         os.symlink(master_calib_dir, master_dir)
         
-    # Continuing..
-    calibPypeItFile = inputfiles.PypeItFile.from_file(calib_pypeit_file)
-
-    # Add science file to data block?
-    #gd_files = calibPypeItFile.data['frametype'] != 'science'
-    #for ps_sci, science_file in zip(ps_sci_list, sci_files):
-    #    if science_file not in calibPypeItFile.filenames:
-    #        # NEED TO DEVELOP THIS
-    #        embed(header='125 of ql')
-    #        new_row = {}
-    #        for key in calibPypeItFile.data.keys():
-    #            new_row[key] = ps_sci.fitstbl[key][0]
-    #        new_row['filename'] = science_file
-    #    # Add to good files
-    #    mt = calibPypeItFile.data['filename'] == os.path.basename(science_file)
-    #    gd_files = gd_files | mt
-
-    # Cut down
-    #cut_data = calibPypeItFile.data[gd_files]
-
     # Configure
     user_cfg = ['[rdx]', 'spectrograph = {}'.format(ps_sci.spectrograph.name)]
     if det is not None:
@@ -200,26 +179,23 @@ def generate_sci_pypeitfile(calib_pypeit_file:str,
     user_cfg += ['quicklook = True']
     full_cfg = configobj.ConfigObj(user_cfg)
 
-    # Add to configs
+    # Add input configs
     if len(input_cfg_dict) > 0:
         full_cfg.merge(configobj.ConfigObj(input_cfg_dict))
 
-
+    # maskID specified?
     if maskID is not None:
         # Loop on SlitTrace files
         slittrace_files = glob.glob(os.path.join(
             master_dir, 
-            f'MasterSlits_{calibPypeItFile.setup_name}_1_*'))
+            f'MasterSlits_{master_setup_name}_1_*'))
         detname = None
         for sliittrace_file in slittrace_files:
             slitTrace = SlitTraceSet.from_file(sliittrace_file)
             if maskID in slitTrace.maskdef_id:
                 detname = slitTrace.detname
-                spectrograph = load_spectrograph(
-                    calibPypeItFile.config['rdx']['spectrograph'])
-                
-                mosaic_id = np.where(spectrograph.list_detectors(mosaic=True) == detname)[0][0]
-                det_tuple = spectrograph.allowed_mosaics[mosaic_id]
+                mosaic_id = np.where(ps_sci.spectrograph.list_detectors(mosaic=True) == detname)[0][0]
+                det_tuple = ps_sci.spectrograph.allowed_mosaics[mosaic_id]
                 break
         if detname is None:
             msgs.error('Could not find a SlitTrace file with maskID={}'.format(maskID))
@@ -229,7 +205,7 @@ def generate_sci_pypeitfile(calib_pypeit_file:str,
                                     maskIDs=maskID))
         full_cfg.merge(configobj.ConfigObj(maskID_dict))
             
-    # A touch of voodoo for slitspat_num
+    # slitspatnum specified?
     if 'rdx' in full_cfg.keys() and 'slitspatnum' in full_cfg['rdx'].keys():
         # Remove detnum
         for kk, item in enumerate(config_lines):
@@ -250,13 +226,23 @@ def generate_sci_pypeitfile(calib_pypeit_file:str,
     # Grab output columns
     output_cols = ps_sci.fitstbl.set_pypeit_cols(write_bkg_pairs=True,
                                            write_manual=False)
-    pypeitFile = inputfiles.PypeItFile(config=config_lines, 
-                                       file_paths=calibPypeItFile.file_paths,
-                                       data_table=ps_sci.fitstbl.table[output_cols],
-                                       setup=calibPypeItFile.setup)
+    file_paths = np.unique([os.path.dirname(ff) for ff in sci_files]).tolist()
+    # Setup, forcing name to match Masters 
+    setup = ps_sci.fitstbl.configs.copy()
+    key = list(setup.keys())[0]
+    setup[f'Setup {master_setup_name}'] = setup[key].copy()
+    setup.pop(key)
+
+    # Generate
+    pypeitFile = inputfiles.PypeItFile(
+        config=config_lines, 
+        file_paths=file_paths,
+        data_table=ps_sci.fitstbl.table[output_cols],
+        setup=setup)
+
     # Write
-    tmp = calib_pypeit_file.replace('calib', 'science')
-    science_pypeit_filename = os.path.join(sci_dir, os.path.basename(tmp))
+    pypeit_file = f'{ps_sci.spectrograph.name}_{master_setup_name}.pypeit' 
+    science_pypeit_filename = os.path.join(sci_dir, pypeit_file)
     pypeitFile.write(science_pypeit_filename)
 
     # Return
@@ -277,7 +263,7 @@ def match_science_to_calibs(ps_sci:pypeitsetup.PypeItSetup,
     Returns:
         tuple: str, str
             Name of PypeIt file for calibrations
-            PypeIt Setup class for the science file
+            Full path to Masters
             Name of setup key
 
     """
@@ -306,4 +292,7 @@ def match_science_to_calibs(ps_sci:pypeitsetup.PypeItSetup,
     if len(mtch) != 1:
         msgs.error("Matched to zero or more than one setup.  Inconceivable!")
 
-    return mtch[0], setup_key
+    # Master ir
+    master_dir = os.path.join(os.path.dirname(mtch[0]), 'Masters')
+
+    return mtch[0], master_dir, setup_key

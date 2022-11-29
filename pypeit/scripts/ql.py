@@ -5,6 +5,7 @@ Script for quick-look reductions for Multislit observations.
 """
 import os
 import time
+import glob
 
 import numpy as np
 
@@ -12,9 +13,8 @@ from astropy.table import Table
 
 from pypeit import utils
 from pypeit.scripts import run_pypeit
-from pypeit import par, msgs
+from pypeit import msgs
 from pypeit import pypeitsetup
-from pypeit.spectrographs.util import load_spectrograph
 from pypeit import io
 from pypeit.core import quicklook
 from pypeit.scripts import scriptbase
@@ -107,10 +107,10 @@ class QL(scriptbase.ScriptBase):
                                                    args.spectrograph)
         ps.run(setup_only=True, no_write_sorted=True)
 
-        # Generate PypeIt files (and folders)
         # Calibs
+        calib_dir = args.calib_dir if args.calib_dir is not None else args.redux_path
         if args.master_dir is None:
-            calib_dir = args.calib_dir if args.calib_dir is not None else args.redux_path
+            # Generate PypeIt files (and folders)
             calib_pypeit_files = quicklook.generate_calib_pypeit_files(
                 ps, calib_dir,
                 det=args.det, configs=args.configs)
@@ -131,48 +131,36 @@ class QL(scriptbase.ScriptBase):
         if np.sum(sci_idx) == 0:
             msgs.error('No science frames found in the provided files.  Add at least one or specify using --sci_files.')
 
-        # Loop on science files to setup PypeIt file and calibs
-        #ps_sci_list, sci_setups, full_scifiles = [], [], []
+        # Generate setup object
         full_scifiles = [os.path.join(dir_path, sci_file) for dir_path, sci_file in zip(
             ps.fitstbl['directory'][sci_idx], ps.fitstbl['filename'][sci_idx])]
-            # Science file and setup
-            #full_scifile = os.path.join(dir_path, sci_file)
-            #full_scifiles.append(full_scifile)
-
         ps_sci = pypeitsetup.PypeItSetup.from_rawfiles(
                 full_scifiles, ps.spectrograph.name)
+        # Run Setup
         ps_sci.run(setup_only=True, no_write_sorted=True)
+        # Limit to a single science setup
         if len(ps_sci.fitstbl.configs.keys()) > 1:
             msgs.error('Your science files come from more than one setup. Please reduce them separately.')
 
         # Match to calibs
         if args.master_dir is None:
-            calib_pypeit_file, sci_setup =\
+            calib_pypeit_file, master_dir, sci_setup =\
                 quicklook.match_science_to_calibs(ps_sci, calib_dir)
         else:
-            msgs.error("NEED TO GRAB THE SETUP")
-        '''
-            # Save
-            ps_sci_list.append(ps_sci)
-            sci_setups.append(sci_setup)
-            full_scifiles.append(full_scifile)
-
-        # Only 1 setup?
-        if len(np.unique(sci_setups)) != 1:
-            dtbl = Table()
-            dtbl['sci_files'] = ps.fitstbl['filename'][sci_idx]
-            dtbl['setup'] = sci_setups
-            print(dtbl)
-            msgs.error('Your science files have multiple setups.  This is not supported. Remove one more of them.')
-        '''
+            # Parse
+            master_files = glob.glob(os.path.join(
+                args.master_dir, 'Master*'))
+            sci_setup = os.path.basename(
+                master_files[0]).split('_')[1]
+            master_dir = args.master_dir
 
         # Let's build the PypeIt file and link to Masters
         if args.master_dir is None:
             sci_pypeit_file, sci_pypeitFile = \
                 quicklook.generate_sci_pypeitfile(
-                calib_pypeit_file, 
                 args.redux_path,
                 full_scifiles,
+                master_dir, sci_setup,
                 ps_sci,
                 maskID=args.maskID)
         else:
