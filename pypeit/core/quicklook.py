@@ -33,41 +33,22 @@ from pypeit.scripts import run_pypeit
 
 from IPython import embed
 
-def default_par(calib_only:bool=False):
-    """ Generate default parameters for config
+def is_on(config:configobj.ConfigObj):
+    """ Check whether QL is set to "on"
 
     Args:
-        calib_only (bool, optional):
-            Generate parameters for calibrations only
-    
+        config (configobj.ConfigObj): 
+            parameters
 
     Returns:
-        dict: Default parameters
+        bool: True if QL is on
     """
+    if 'rdx' in config.keys() and 'quicklook' in config['rdx'].keys()\
+        and config['rdx']['quicklook']:
+        return True
+    else:
+        False
 
-    cfg_default = ['[rdx]', 
-                    'quicklook = True']
-    
-
-    cfg_default = ['[rdx]', 
-                    '    ignore_bad_headers = True',
-                    '[baseprocess]', 
-                        'use_biasimage = False', 
-                    '[calibrations]', 
-                    '  [[flatfield]]', 
-                    '       saturated_slits = mask']
-    # Reduction parameters
-    if not calib_only:
-        cfg_default += ['[scienceframe]',
-                        '    [[process]]',
-                        '        mask_cr = False',
-                        '[reduce]',
-                        '    [[extraction]]',
-                        '        skip_optimal = True',
-                        '    [[findobj]]',
-                        '        skip_second_find = True']
-    # Return
-    return configobj.ConfigObj(cfg_default)
 
 def generate_calib_pypeit_files(ps, output_path:str,
                    det:str=None,
@@ -93,17 +74,14 @@ def generate_calib_pypeit_files(ps, output_path:str,
     ps.user_cfg = ['[rdx]', 'spectrograph = {}'.format(ps.spectrograph.name)]
     if det is not None:
         ps.user_cfg += ['detnum = {}'.format(det)]
+    ps.user_cfg += ['quicklook = True']
 
-    # QL parameters
-    ql_cfg = default_par(calib_only=True)
-    # Merge
-    ql_cfg.merge(configobj.ConfigObj(ps.user_cfg))
 
     # TODO -- Remove the science files!  We want calibs only
 
     # Write the PypeIt files
     pypeit_files = ps.fitstbl.write_pypeit(output_path=output_path,
-                                           cfg_lines=ql_cfg.write(),
+                                           cfg_lines=ps.user_cfg,
                                            configs=configs)
 
     # Rename calibs
@@ -155,7 +133,8 @@ def folder_name_from_scifiles(sci_files:list):
 def generate_sci_pypeitfile(calib_pypeit_file:str, 
                             redux_path:str, 
                             sci_files:list, 
-                            ps_sci_list:list, 
+                            ps_sci, 
+                            det:str=None,
                             input_cfg_dict:dict={}, 
                             remove_sci_dir:bool=True, 
                             maskID:str=None):
@@ -165,26 +144,24 @@ def generate_sci_pypeitfile(calib_pypeit_file:str,
     
     Args:
         calib_pypeit_file (str): Calibration PypeIt file
+            Requried for the Masters setup name, data paths, etc.
         redux_path (str): Path to the redux folder
         sci_files (list): List of science files
-        ps_sci_list (list): List of pypeit.setup.PypeItSetup objects
+        ps_sci (:class:`pypeit.pypeitsetup.PypeItSetup`):
         input_cfg_dict (dict, optional): Input configuration dictionary. Defaults to {}.
         remove_sci_dir (bool, optional): Remove the science directory if it exists. Defaults to True.
         maskID (str, optional): Mask ID to isolate for QL.  Defaults to None.
 
     Returns: 
-        tuple: science_pypeit (str), pypeitFile (pypeit.inputfiles.PypeItFile)
+        tuple: name of pypeit file (str), pypeitFile object (pypeit.inputfiles.PypeItFile)
     """
 
     # Parse science file info
-    #science_file = os.path.join(pargs.full_rawpath, pargs.science)
-    science_pypeit = calib_pypeit_file.replace('calib', 'science')
-
     folder = folder_name_from_scifiles(sci_files)
     sci_dir = os.path.join(redux_path, folder)
     master_dir = os.path.join(sci_dir, 'Masters')
 
-    # Science reuction folder
+    # Science reduction folder
     if os.path.isdir(sci_dir) and remove_sci_dir:
         os.system('rm -rf {}'.format(sci_dir))
     if not os.path.isdir(sci_dir):
@@ -197,30 +174,33 @@ def generate_sci_pypeitfile(calib_pypeit_file:str,
         os.symlink(master_calib_dir, master_dir)
         
     # Continuing..
-    science_pypeit = os.path.join(sci_dir, os.path.basename(science_pypeit))
     calibPypeItFile = inputfiles.PypeItFile.from_file(calib_pypeit_file)
 
     # Add science file to data block?
-    gd_files = calibPypeItFile.data['frametype'] != 'science'
-    for ps_sci, science_file in zip(ps_sci_list, sci_files):
-        if science_file not in calibPypeItFile.filenames:
-            # NEED TO DEVELOP THIS
-            embed(header='125 of ql')
-            new_row = {}
-            for key in calibPypeItFile.data.keys():
-                new_row[key] = ps_sci.fitstbl[key][0]
-            new_row['filename'] = science_file
-        # Add to good files
-        mt = calibPypeItFile.data['filename'] == os.path.basename(science_file)
-        gd_files = gd_files | mt
+    #gd_files = calibPypeItFile.data['frametype'] != 'science'
+    #for ps_sci, science_file in zip(ps_sci_list, sci_files):
+    #    if science_file not in calibPypeItFile.filenames:
+    #        # NEED TO DEVELOP THIS
+    #        embed(header='125 of ql')
+    #        new_row = {}
+    #        for key in calibPypeItFile.data.keys():
+    #            new_row[key] = ps_sci.fitstbl[key][0]
+    #        new_row['filename'] = science_file
+    #    # Add to good files
+    #    mt = calibPypeItFile.data['filename'] == os.path.basename(science_file)
+    #    gd_files = gd_files | mt
 
     # Cut down
-    cut_data = calibPypeItFile.data[gd_files]
+    #cut_data = calibPypeItFile.data[gd_files]
+
+    # Configure
+    user_cfg = ['[rdx]', 'spectrograph = {}'.format(ps_sci.spectrograph.name)]
+    if det is not None:
+        user_cfg += ['detnum = {}'.format(det)]
+    user_cfg += ['quicklook = True']
+    full_cfg = configobj.ConfigObj(user_cfg)
 
     # Add to configs
-    ql_cfg = configobj.ConfigObj(default_par())
-    full_cfg = calibPypeItFile.config
-    full_cfg.merge(ql_cfg)
     if len(input_cfg_dict) > 0:
         full_cfg.merge(configobj.ConfigObj(input_cfg_dict))
 
@@ -266,30 +246,32 @@ def generate_sci_pypeitfile(calib_pypeit_file:str,
 
     # Generate PypeIt file
     config_lines = full_cfg.write()
+
+    # Grab output columns
+    output_cols = ps_sci.fitstbl.set_pypeit_cols(write_bkg_pairs=True,
+                                           write_manual=False)
     pypeitFile = inputfiles.PypeItFile(config=config_lines, 
                                        file_paths=calibPypeItFile.file_paths,
-                                       data_table=cut_data,
+                                       data_table=ps_sci.fitstbl.table[output_cols],
                                        setup=calibPypeItFile.setup)
-    pypeitFile.write(science_pypeit)
+    # Write
+    tmp = calib_pypeit_file.replace('calib', 'science')
+    science_pypeit_filename = os.path.join(sci_dir, os.path.basename(tmp))
+    pypeitFile.write(science_pypeit_filename)
 
     # Return
-    return science_pypeit, pypeitFile
+    return science_pypeit_filename, pypeitFile
 
 
 
-def match_science_to_calibs(science_file:str,
-                            ps_sci:pypeitsetup.PypeItSetup, 
-                            spectrograph,
+def match_science_to_calibs(ps_sci:pypeitsetup.PypeItSetup, 
                             calib_dir:str):
     """
     Match a given science frame to the set of pre-made calibrations
     in the specified reduction folder. If any exists 
     
     Args:
-        science_file (str): Full path to the science file
-        ps_sci (:class:`pypeit.pypeitsetup.PypeItSetup`): 
-        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-            Spectrograph objec
+        ps_sci (:class:`pypeit.pypeitsetup.PypeItSetup`):
         calib_dir (str): Full path to the calibration directory
 
     Returns:
@@ -299,21 +281,13 @@ def match_science_to_calibs(science_file:str,
             Name of setup key
 
     """
-    # Check file exists
-    if not os.path.isfile(science_file):
-        msgs.error("Your science filename {} does not exist. Check your path".format(science_file))
-
-
-    # Generate the setup dict and yamilfy (yes, this is necessary)
-    setup_dict = {}
-    for key in spectrograph.configuration_keys():
-        setup_dict[key] = ps_sci.fitstbl[key][0]
-    setup_dict = utils.yamlify(setup_dict)
-
-    # Check against existing PypeIt files
+    # Check on one setup
+    if len(ps_sci.fitstbl.configs.keys()) > 1:
+        msgs.error('Your science files come from more than one setup. Please reduce them separately.')
+    # Check against existing calibration PypeIt files
     pypeit_files = glob.glob(os.path.join(
-        calib_dir, f'{spectrograph.name}_*', 
-        f'{spectrograph.name}_calib_*.pypeit'))
+        calib_dir, f'{ps_sci.spectrograph.name}_*', 
+        f'{ps_sci.spectrograph.name}_calib_*.pypeit'))
     mtch = []
     setup_key = None
     for pypeit_file in pypeit_files:
@@ -322,15 +296,14 @@ def match_science_to_calibs(science_file:str,
 
         # Check for a match
         match = True
-        for key in spectrograph.configuration_keys():
-            if setup_dict[key] != pypeitFile.setup[key]:
+        for key in ps_sci.spectrograph.configuration_keys():
+            if ps_sci.fitstbl.configs['A'][key] != pypeitFile.setup[key]:
                 match = False
         if match:
             mtch.append(pypeit_file)
             setup_key = pypeitFile.setup_name
     # Are we ok?
     if len(mtch) != 1:
-        embed(header='224 of ql')
         msgs.error("Matched to zero or more than one setup.  Inconceivable!")
 
     return mtch[0], setup_key

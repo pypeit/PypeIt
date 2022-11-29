@@ -131,7 +131,7 @@ class PypeItSetup:
 
         # Determine the spectrograph name
         _spectrograph_name = spectrograph_name if cfg_lines is None \
-                    else PypeItPar.from_cfg_lines(merge_with=cfg_lines)['rdx']['spectrograph']
+                    else PypeItPar.from_cfg_lines(merge_with=(cfg_lines,))['rdx']['spectrograph']
 
         # Cannot proceed without spectrograph name
         if _spectrograph_name is None:
@@ -148,7 +148,7 @@ class PypeItSetup:
         # Instantiate the pypeit parameters.  The user input
         # configuration (cfg_lines) can be None.
         self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, 
-                                            merge_with=cfg_lines)
+                                            merge_with=(cfg_lines,))
 
         # Prepare internals for execution
         self.fitstbl = None
@@ -180,8 +180,7 @@ class PypeItSetup:
                    setup_dict=pypeItFile.setup)
 
     @classmethod
-    def from_file_root(cls, root, spectrograph, extension='.fits', output_path=None, 
-                       quicklook=False):
+    def from_file_root(cls, root, spectrograph, extension='.fits', output_path=None):
         """
         Instantiate the :class:`PypeItSetup` object by providing a file
         root.
@@ -207,8 +206,6 @@ class PypeItSetup:
                 Otherwise, the method first writes a vanilla ``PypeIt`` file
                 and then uses :func:`from_pypeit_file` to instantiate the
                 object. If the path doesn't yet exist, it is created.
-            quicklook (:obj:`bool`, optional):
-                If True, prepare for quicklook run.
         
         Returns:
             :class:`PypeitSetup`: The instance of the class.
@@ -229,10 +226,10 @@ class PypeItSetup:
         data_files = io.files_from_extension(root, extension=extension)
 
         # Instantiate
-        return cls.from_rawfiles(data_files, spectrograph, quicklook=quicklook)
+        return cls.from_rawfiles(data_files, spectrograph)
 
     @classmethod
-    def from_rawfiles(cls, data_files:list, spectrograph:str, quicklook:bool):
+    def from_rawfiles(cls, data_files:list, spectrograph:str):
         """ Instantiate the :class:`PypeItSetup` object by providing a list of raw files.
 
         Args:
@@ -240,8 +237,6 @@ class PypeItSetup:
                 List of raw files to be reduced.
             spectrograph (str): 
                 The PypeIt name of the spectrograph used 
-            quicklook (bool): 
-                If True, prepare for quicklook run.
 
         Returns:
             :class:`PypeItSetup`: The instance of the class.
@@ -250,8 +245,6 @@ class PypeItSetup:
         # Configure me
         cfg_lines = ['[rdx]']
         cfg_lines += ['    spectrograph = {0}'.format(spectrograph)]
-        if quicklook:
-            cfg_lines += ['    quicklook = True']
 
         # Instantiate
         return cls(data_files, cfg_lines=cfg_lines) #pypeit_file=filename,

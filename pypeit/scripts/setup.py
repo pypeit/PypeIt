@@ -48,8 +48,6 @@ class Setup(scriptbase.ScriptBase):
                             help='Include the manual extraction column for the user to edit')
         parser.add_argument('-v', '--verbosity', type=int, default=2,
                             help='Level of verbosity from 0 to 2.')
-        parser.add_argument('-q', '--quicklook', default=False, action='store_true',
-                            help='Perform a quicklook reduction')
         parser.add_argument('-k', '--keep_bad_frames', default=False, action='store_true',
                             help='Keep all frames, even if they are identified as having '
                                  'bad/unrecognized configurations that cannot be reduced by '
@@ -80,7 +78,7 @@ class Setup(scriptbase.ScriptBase):
 
         # Initialize PypeItSetup based on the arguments
         ps = PypeItSetup.from_file_root(args.root, args.spectrograph, extension=args.extension,
-                                        output_path=sort_dir, quicklook=args.quicklook)
+                                        output_path=sort_dir)
         # Run the setup
         ps.run(setup_only=True, sort_dir=sort_dir, write_bkg_pairs=args.background, 
                write_manual=args.manual_extraction, obslog=True,

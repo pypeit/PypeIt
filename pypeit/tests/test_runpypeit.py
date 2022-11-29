@@ -16,11 +16,11 @@ import numpy as np
 import matplotlib
 matplotlib.use('agg')  
 
-from pypeit.scripts.parse_calib_id import ParseCalibID
 from pypeit.scripts.setup import Setup
 from pypeit.scripts.run_pypeit import RunPypeIt
 from pypeit.tests.tstutils import data_path
 from pypeit import specobjs
+from pypeit.par import pypeitpar 
 
 
 def test_run_pypeit():
@@ -70,6 +70,12 @@ def test_run_pypeit():
 
     # Helio
     assert abs(specObjs[0].VEL_CORR - 0.9999251762866389) < 1.0E-10
+
+    # .par file was written and loads
+    par_file = glob.glob(os.path.join(configdir, '*.par'))[0]
+    par = pypeitpar.PypeItPar.from_cfg_file(par_file)
+    assert isinstance(par, pypeitpar.PypeItPar)
+                               
 
     # Now re-use those master files
     pargs = RunPypeIt.parse_args([pyp_file, '-o', '-r', configdir])

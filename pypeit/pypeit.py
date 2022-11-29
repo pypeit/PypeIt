@@ -15,7 +15,6 @@ from IPython import embed
 
 import numpy as np
 
-from configobj import ConfigObj
 
 from astropy.io import fits
 from astropy.table import Table
@@ -31,7 +30,7 @@ from pypeit import find_objects
 from pypeit import extraction
 from pypeit import spec2dobj
 from pypeit.core import qa
-from pypeit.core import findobj_skymask
+from pypeit.core import quicklook
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
@@ -122,11 +121,17 @@ class PypeIt:
         self.spectrograph._check_extensions(config_specific_file)
         spectrograph_cfg_lines = self.spectrograph.config_specific_par(config_specific_file).to_config()
 
+        # Quick look?
+        ql_cfg_lines = self.spectrograph.ql_par() if quicklook.is_on(
+            self.pypeItFile.config) else []
+
         #   - Build the full set, merging with any user-provided
         #     parameters
         self.par = PypeItPar.from_cfg_lines(
             cfg_lines=spectrograph_cfg_lines, 
-            merge_with=self.pypeItFile.cfg_lines)
+            merge_with=(ql_cfg_lines, self.pypeItFile.cfg_lines))
+            #cfg_lines=spectrograph_cfg_lines, 
+            #merge_with=self.pypeItFile.cfg_lines)
         msgs.info('Built full PypeIt parameter set.')
 
         # Check the output paths are ready

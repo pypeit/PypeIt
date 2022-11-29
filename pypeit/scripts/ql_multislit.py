@@ -387,7 +387,7 @@ class QL_Multislit(scriptbase.ScriptBase):
         spectrograph = load_spectrograph(args.spectrograph)
         spectrograph_cfg_lines = spectrograph.config_specific_par(files[0]).to_config()
         parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines,
-                                              merge_with=config_lines(args))
+                                              merge_with=(config_lines(args),))
         _det = parse_det(args.det, spectrograph)
 
         target = spectrograph.get_meta_value(files[0], 'target')
