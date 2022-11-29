@@ -144,12 +144,13 @@ def generate_sci_pypeitfile(redux_path:str,
     from the calib PypeIt file
     
     Args:
-        calib_pypeit_file (str): Calibration PypeIt file
-            Requried for the Masters setup name, data paths, etc.
         redux_path (str): Path to the redux folder
         sci_files (list): List of science files (full path)
+        master_calib_dir (str): Path to the master calib folder
+        master_setup_name (str): Name of the master setup
         ps_sci (:class:`pypeit.pypeitsetup.PypeItSetup`):
         input_cfg_dict (dict, optional): Input configuration dictionary. Defaults to {}.
+        det (str, optional): Detector/mosaic. Defaults to None.
         remove_sci_dir (bool, optional): Remove the science directory if it exists. Defaults to True.
         maskID (str, optional): Mask ID to isolate for QL.  Defaults to None.
 
@@ -223,15 +224,15 @@ def generate_sci_pypeitfile(redux_path:str,
     # Generate PypeIt file
     config_lines = full_cfg.write()
 
-    # Grab output columns
-    output_cols = ps_sci.fitstbl.set_pypeit_cols(write_bkg_pairs=True,
-                                           write_manual=False)
-    file_paths = np.unique([os.path.dirname(ff) for ff in sci_files]).tolist()
     # Setup, forcing name to match Masters 
     setup = ps_sci.fitstbl.configs.copy()
     key = list(setup.keys())[0]
     setup[f'Setup {master_setup_name}'] = setup[key].copy()
     setup.pop(key)
+    # Odds and ends at the finish
+    output_cols = ps_sci.fitstbl.set_pypeit_cols(write_bkg_pairs=True,
+                                           write_manual=False)
+    file_paths = np.unique([os.path.dirname(ff) for ff in sci_files]).tolist()
 
     # Generate
     pypeitFile = inputfiles.PypeItFile(
