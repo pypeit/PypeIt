@@ -159,7 +159,8 @@ def test_fail_badpar():
     # Faults because there's no junk parameter
     cfg_lines = ['[calibrations]', '[[biasframe]]', '[[[process]]]', 'junk = True']
     with pytest.raises(ValueError):
-        _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config(), merge_with=(cfg_lines))
+        _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config(), 
+                                                merge_with=(cfg_lines,))
     
 def test_fail_badlevel():
     p = load_spectrograph('gemini_gnirs').default_pypeit_par()
@@ -168,6 +169,7 @@ def test_fail_badlevel():
     # process parameter for CalibrationsPar)
     cfg_lines = ['[calibrations]', '[[biasframe]]', '[[process]]', 'cr_reject = True']
     with pytest.raises(ValueError):
-        _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config(), merge_with=(cfg_lines))
+        _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config(), 
+                                                merge_with=(cfg_lines,))
 
 
