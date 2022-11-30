@@ -56,11 +56,16 @@ def folder_name_from_scifiles(sci_files:list):
     Returns:
         str: Folder name
     """
-    first_file = os.path.basename(sci_files[0]).split('.')[0]
+    def strip_me_down(ifile):
+        base = os.path.basename(ifile)
+        ipos = base.find('.fits') # Will this fail for any spectrograph?
+        return base[:ipos]
+
+    first_file = strip_me_down(sci_files[0])
     if len(sci_files) == 1:
         return first_file
     else:
-        last_file = os.path.basename(sci_files[-1]).split('.')[0]
+        last_file = strip_me_down(sci_files[-1])
         return f'{first_file}-{last_file}'
 
 def generate_sci_pypeitfile(redux_path:str, 
@@ -274,7 +279,7 @@ class QL(scriptbase.ScriptBase):
                             help='Reduce the slit(s) as specified by the maskID value(s)')
         parser.add_argument('--boxcar_radius', type=float,
                             help='Set the radius for the boxcar extraction in arcseconds')
-        parser.add_argument('--det', type=str, help='Detector to reduce.')
+        parser.add_argument('--det', type=str, help='Detector to reduce. Same format as detnum')
         parser.add_argument('--no_stack', dest='stack', default=True, 
                             action="store_false",
                             help='Do *not* stack multiple science frames')
