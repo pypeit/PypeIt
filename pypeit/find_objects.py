@@ -1270,11 +1270,10 @@ class IFUFindObjects(MultiSlitFindObjects):
 
         if update_crmask:
             # Find CRs with sky subtraction
+            # NOTE: There's no need to run `sciImg.update_mask_cr` after this.
+            # This operation updates the mask directly!
             self.sciImg.build_crmask(self.par['scienceframe']['process'],
                                      subtract_img=global_sky)
-            # TODO: This mask update is done *inside* build_crmask.
-#            # Update the fullmask
-#            self.sciImg.update_mask_cr(self.sciImg.crmask)
 
         # Step
         self.steps.append(inspect.stack()[0][3])

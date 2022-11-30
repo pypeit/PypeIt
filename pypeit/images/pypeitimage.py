@@ -32,10 +32,10 @@ class PypeItImage(datamodel.DataContainer):
     spec},N_{\rm spat})`.
 
     Class instantiation only requires the ``image`` data; all other elements of
-    the datamodel are optionally defined.  If not defined, the datamodel
+    the datamodel are completely optional.  If not defined, the datamodel
     elements are set to None, with the exception of the image mask (see below).
     Any code that uses a ``PypeItImage`` and accesses the datamodel components
-    must be able to handle when any of the values are None.
+    *must* be able to handle when any of the values are None.
 
     The datamodel components are:
 
@@ -45,8 +45,8 @@ class PypeItImage(datamodel.DataContainer):
     image mask is always instantiated.  If ``fullmask`` is not provided, this
     instantiation begins with all values being unmasked.  Although the class
     allows direct access/manipulation of ``fullmask`` (see
-    :class:`~pypeit.images.imagebitmask.ImageBitMaskArray`), functionality is
-    provided that provides convenience interfaces to the underlying object;  see
+    :class:`~pypeit.images.imagebitmask.ImageBitMaskArray`), convenience
+    functions are provided to interface with the underlying object;  see
     :func:`update_mask` and :func:`select_flag`, as well as
     :class:`~pypeit.images.imagebitmask.ImageBitMask` for the valid flag names.
     
@@ -217,8 +217,6 @@ class PypeItImage(datamodel.DataContainer):
                 self.update_mask('USER', action='turn_off')
             self.update_mask('USER', indx=crmask)
 
-        self._validate()
-
     def _init_internals(self):
         """
         Initialize attributes that are not part of the datamodel.
@@ -243,7 +241,7 @@ class PypeItImage(datamodel.DataContainer):
         keys = list(self.keys())
         # Primary image
         d = [dict(image=self.image)]
-        keys.pop(keys.index('image'))
+        keys.remove('image')
 
         # Rest of the datamodel
         for key in keys:
@@ -283,11 +281,12 @@ class PypeItImage(datamodel.DataContainer):
                 If True, raise an error if the datamodel version or
                 type check failed. If False, throw a warning only.
         """
-        # Need to separately parse the mask because it is not called 'MASK'
+        # Set the default hdu prefix if none is provided
         if hdu_prefix is None:
             hdu_prefix = cls.hdu_prefix
 
-        # Set the mask extension name
+        # Need to separately parse the mask because it is not called 'MASK'.
+        # Set the mask extension name.
         mask_ext = 'FULLMASK' if hdu_prefix is None else f'{hdu_prefix}FULLMASK'
 
         # Get all the extensions
@@ -308,7 +307,7 @@ class PypeItImage(datamodel.DataContainer):
                ' does not match version used to write your HDU(s)!')
 
         if mask_ext in hdu:
-            # Add the mask
+            # If the mask extension exists, parse it
             d['fullmask'] = ImageBitMaskArray.from_hdu(hdu[mask_ext], ext_pseudo='MASK',
                                                        chk_version=chk_version)
 
@@ -563,10 +562,12 @@ class PypeItImage(datamodel.DataContainer):
             _mincounts = mincounts
 
         if from_scratch:
-            # Instatiate the mask
+            # Save the existing BPM and CR masks
             bpm = self.fullmask.bpm
             cr = self.fullmask.cr
+            # Re-initialize the fullmask (erases all existing masks)
             self.reinit_mask()
+            # Recover the BPM and CR masks
             self.update_mask('BPM', indx=bpm)
             self.update_mask('CR', indx=cr)
 
@@ -802,59 +803,6 @@ class PypeItImage(datamodel.DataContainer):
             new_pypeitImage.files = self.files + other.files
 
         return new_pypeitImage
-
-#    def sub(self, other, par):
-#        """
-#        Subtract one PypeItImage from another
-#        Extras (e.g. ivar, masks) are included if they are present
-#
-#        Args:
-#            other (:class:`PypeItImage`):
-#            par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
-#                Parameters that dictate the processing of the images.  See
-#                :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the defaults
-#        Returns:
-#            PypeItImage:
-#        """
-#        if not isinstance(other, PypeItImage):
-#            msgs.error("Misuse of the subtract method")
-#        # Images
-#        newimg = self.image - other.image
-#
-#        # Mask time
-#        outmask_comb = self.select_flag(invert=True) & other.select_flag(invert=True)
-#
-#        # Variance
-#        if self.ivar is not None:
-#            new_ivar = utils.inverse(utils.inverse(self.ivar) + utils.inverse(other.ivar))
-#            new_ivar[np.logical_not(outmask_comb)] = 0
-#        else:
-#            new_ivar = None
-#
-#        # RN2
-#        if self.rn2img is not None and other.rn2img is not None:
-#            new_rn2 = self.rn2img + other.rn2img
-#        else:
-#            new_rn2 = None
-#
-#        # Instantiate
-#        new_sciImg = PypeItImage(image=newimg, ivar=new_ivar, bpm=self.bpm, rn2img=new_rn2,
-#                                 detector=self.detector)
-#        # Files
-#        if self.files is not None and other.files is not None:
-#            new_sciImg.files = self.files + other.files
-#
-#        #TODO: KW properly handle adding the bits
-#        #crmask_diff = new_sciImg.build_crmask(par) if par['mask_cr'] else np.zeros_like(other.image, dtype=bool)
-#        # crmask_eff assumes evertything masked in the outmask_comb is a CR in the individual images
-#        # JFH changed to below because this was not respecting the desire not to mask_crs
-#        new_sciImg.crmask = (new_sciImg.build_crmask(par) | np.logical_not(outmask_comb)) \
-#                                if par['mask_cr'] else np.logical_not(outmask_comb)
-#        #new_sciImg.crmask = crmask_diff | np.logical_not(outmask_comb)
-#        # Note that the following uses the saturation and mincounts held in self.detector
-#        new_sciImg.build_mask()
-#
-#        return new_sciImg
 
     def show(self):
         """

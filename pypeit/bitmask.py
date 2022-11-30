@@ -463,14 +463,6 @@ class BitMask:
         for hdr_key, bit_key in bits.items():
             i = int(hdr_key.replace(prefix, ''))
             hdr[hdr_key] = (bit_key, self.descr[i])
-#        if prefix is None:
-#            prefix = self.prefix
-#        maxbit = max(list(self.bits.values()))
-#        ndig = int(numpy.log10(maxbit))+1 
-#        for key, value in sorted(self.bits.items(), key=lambda x:(x[1],x[0])):
-#            if key == 'NULL':
-#                continue
-#            hdr['{0}{1}'.format(prefix, str(value).zfill(ndig))] = (key, self.descr[value])
 
     @classmethod
     def from_header(cls, hdr, prefix=None):

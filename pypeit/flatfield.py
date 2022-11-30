@@ -560,8 +560,6 @@ class FlatField:
             rawflat_orig = self.rawflatimg.image.copy()
             # TODO: Should this be *any* flag, or just BPM?
             gpm = self.rawflatimg.select_flag(flag='BPM', invert=True)
-#            gpm = np.ones(rawflat_orig.shape, dtype=bool) if self.rawflatimg.bpm is None else \
-#                (1 - self.rawflatimg.bpm).astype(bool)
             niter = 1
             for ff in range(niter):
                 # Just get the spatial and spectral profiles for now
@@ -778,8 +776,6 @@ class FlatField:
         # Good pixel mask
         # TODO: Should this be *any* flag, or just BPM?
         gpm = self.rawflatimg.select_flag(flag='BPM', invert=True)
-#        gpm = np.ones_like(rawflat, dtype=bool) if self.rawflatimg.bpm is None else (
-#                1-self.rawflatimg.bpm).astype(bool)
 
         # Flat-field modeling is done in the log of the counts
         flat_log = np.log(np.fmax(rawflat, 1.0))
@@ -1440,7 +1436,6 @@ class FlatField:
         # Now fit the spectral profile
         # TODO: Should this be *any* flag, or just BPM?
         gpm = self.rawflatimg.select_flag(flag='BPM', invert=True)
-#        gpm = np.ones(rawflat.shape, dtype=bool) if self.rawflatimg.bpm is None else (1 - self.rawflatimg.bpm).astype(bool)
         scale_model = illum_profile_spectral(rawflat, self.waveimg, self.slits,
                                              slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
                                              model=None, gpmask=gpm, skymask=None, trim=self.flatpar['slit_trim'],
@@ -1498,8 +1493,6 @@ class FlatField:
         if gpm is None:
             # TODO: Should this be *any* flag, or just BPM?
             gpm = self.rawflatimg.select_flag(flag='BPM', invert=True)
-#            gpm = np.ones_like(rawflat, dtype=bool) if self.rawflatimg.bpm is None else (
-#                    1 - self.rawflatimg.bpm).astype(bool)
 
         # Obtain relative spectral illumination
         return illum_profile_spectral(rawflat, self.waveimg, self.slits,

@@ -801,8 +801,7 @@ class MultiSlitExtract(Extract):
 
         # Set the bit for pixels which were masked by the extraction.
         # For extractmask, True = Good, False = Bad
-        iextract = base_gpm & np.logical_not(self.extractmask)
-        self.outmask.turn_on('EXTRACT', select=iextract)
+        self.outmask.turn_on('EXTRACT', select=base_gpm & np.logical_not(self.extractmask))
 
         # Step
         self.steps.append(inspect.stack()[0][3])

@@ -163,8 +163,8 @@ class BitMaskArray(DataContainer):
         _self.mask = self.mask.copy()
         return _self
 
-    # NOTE: This function cannot be called keys because that would override the
-    # DataContainer base-class function!
+    # NOTE: This function cannot be called "keys" because that would override
+    # the DataContainer base-class function!
     def bit_keys(self):
         """
         Return a list of the bit keywords.

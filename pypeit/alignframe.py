@@ -157,7 +157,6 @@ class TraceAlignment:
         self.slits = slits
 
         # Optional parameters
-#        self.bpm = rawalignimg.mask if msbpm is None else msbpm
         self.bpm = rawalignimg.fullmask.bpm if msbpm is None else msbpm
         self.qa_path = qa_path
         self.det = det

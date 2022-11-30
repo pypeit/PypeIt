@@ -144,21 +144,17 @@ class Spec2DObj(datamodel.DataContainer):
             :class:`~pypeit.spec2dobj.Spec2DObj`: 2D spectra object.
 
         """
+        # Get list of extensions associated with this detector
         ext = [h.name for h in hdu if detname in h.name]
-        mask_ext = f'{detname}-BPMMASK'
-        try:
-            i = ext.index(mask_ext)
-        except ValueError:
-            has_mask = False
-            pass
-        else:
-            has_mask = True
-            ext.pop(i)
 
-        # Quick check on det
-#        if not np.any([detname in hdu.name for hdu in hdul]):
         if len(ext) == 0:
+            # No relevant extensions!
             msgs.error(f'{detname} not available in any extension of {file}')
+
+        mask_ext = f'{detname}-BPMMASK'
+        has_mask = mask_ext in ext
+        if has_mask:
+            ext.remove(mask_ext)
 
         slf = super().from_hdu(hdu, ext=ext, hdu_prefix=f'{detname}-', chk_version=chk_version)
         if has_mask:
@@ -184,20 +180,8 @@ class Spec2DObj(datamodel.DataContainer):
 
     def _validate(self):
         """
-        Assert that the detector has been set
-
-        Returns:
-
+        Assert that the detector has been set and that the bitmask is correct.
         """
-#        # Check the bitmask is current
-#        bitmask = imagebitmask.ImageBitMask()
-#        if self.imgbitm is None:
-#            self.imgbitm = ','.join(list(bitmask.keys()))
-#        else:
-#            # Validate
-#            if self.imgbitm != ','.join(list(bitmask.keys())) and self.chk_version:
-#                msgs.error("Input BITMASK keys differ from current data model!")
-
         # Check the detector/mosaic identifier has been provided (note this is a
         # property method)
         if self.detname is None:
@@ -355,7 +339,7 @@ class Spec2DObj(datamodel.DataContainer):
     def select_flag(self, flag=None, invert=False):
         """
         Return a boolean array that selects pixels masked with the specified
-        bits in :attr:`fullmask`.
+        bits in :attr:`bpmmask`.
 
         For example, to create a bad-pixel mask based on which pixels have
         cosmic-ray detections, run:

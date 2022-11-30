@@ -239,8 +239,6 @@ class BuildWaveTilts:
         # TODO: Should this be the bpm or *any* flag?
         gpm = self.mstilt.select_flag(flag='BPM', invert=True) if self.mstilt is not None \
                     else np.ones_like(self.slitmask_science, dtype=bool)
-#        gpm = (self.mstilt.bpm == 0) if self.mstilt.bpm is not None \
-#            else np.ones_like(self.slitmask_science, dtype=bool)
         self.shape_science = self.slitmask_science.shape
         self.shape_tilt = self.mstilt.image.shape
         self.slitcen = arc.resize_slits2arc(self.shape_tilt, self.shape_science, (all_left+all_right)/2)

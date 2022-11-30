@@ -652,7 +652,7 @@ class RawImage:
         # img_scale, noise_floor, and shot_noise.
         _det, _image, _ivar, _datasec_img, _det_img, _rn2img, _base_var, _img_scale, _bpm \
                 = self._squeeze()
-        # TODO: BPM MUST BE A BOOLEAN!
+        # NOTE: BPM MUST BE A BOOLEAN!
         pypeitImage = pypeitimage.PypeItImage(_image, ivar=_ivar, amp_img=_datasec_img,
                                               det_img=_det_img, rn2img=_rn2img, base_var=_base_var,
                                               img_scale=_img_scale, detector=_det,

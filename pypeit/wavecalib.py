@@ -459,8 +459,6 @@ class BuildWaveCalib:
             # Mask
             # TODO: The bpm defined above is already a boolean and cannot be None.
             gpm = np.logical_not(self.bpm)
-#            gpm = self.bpm == 0 if self.bpm is not None \
-#                else np.ones_like(self.slitmask_science, dtype=bool)
             self.gpm = arc.resize_mask2arc(self.shape_arc, gpm)
             # We want even the saturated lines in full_template for the cross-correlation
             #   They will be excised in the detect_lines() method on the extracted arc
