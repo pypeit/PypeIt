@@ -10,7 +10,7 @@ quick reductions, presumably at the telescope.
 
 At present, only a few spectrographs have been
 extensively tested:  
-``shane_kast_blue``, ``shane_kast_red``, ``keck_lris_blue``, 
+``shane_kast_blue``, ``shane_kast_red``, ``keck_lris_red``, 
 ``keck_deimos``.
 
 The approach is to (1) generate calibration files if needed 
@@ -147,7 +147,19 @@ Over-ride the default boxcar extraction radius with
 --det
 -----
 
-Specify the size of the extraction radius.
+It will greatly speed things up to isolate
+the detector(s) of interest.  Use ``--det`` 
+with the same syntax as the parameter ``detnum``.
+
+Here is an example with the (old) ``keck_lris_red``
+detector:
+
+.. code-block:: bash
+
+    pypeit_ql keck_lris_red --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/keck_lris_red/long_600_7500_d560  --rawfiles LR.20160216.40478.fits.gz  --masters_dir /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/REDUX_OUT/keck_lris_red/long_600_7500_d560/Masters --det 2
+
+This will only process the second detector.
+
 
 Multislit
 =========
