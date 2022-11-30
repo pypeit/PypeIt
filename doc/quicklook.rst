@@ -164,23 +164,21 @@ Therefore, you may wish to isolate a single slit.
 
 This can be done in two ways.
 
---slit_spat
------------
+--slitspatnum
+-------------
 
-Specify the spatial position of the single slit to reduce
-on the detector you chose.
+Specify the detector and spatial position of the slit
+you wish to reduce.
 
+Here is an example with ``keck_deimos``:
 
-keck_lris_blue (longslit + archived pixel flat)::
+.. code-block:: bash
 
-    pypeit_ql_mos keck_lris_blue /home/xavier/scratch/FRB190714/Raw b191228_1020.fits b191228_1066.fits b191228_1051.fits --det 2 --user_pixflat=/home/xavier/local/Python/PypeIt-development-suite//CALIBS/PYPEIT_LRISb_pixflat_B600_2x2_17sep2009.fits.gz
+    pypeit_ql keck_deimos --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/keck_deimos/600ZD_M_6500 --rawfiles d1010_0056.fits.gz --masters_dir /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/REDUX_OUT/keck_deimos/600ZD_M_6500/Masters --slitspatnum MSC02:452
 
-keck_deimos (multislit with one slit isolated)::
-
-    pypeit_ql_mos keck_deimos /home/xavier/scratch/QL/2020-03-29-DEIMOS-TestData DE.20100913.56927.fits DE.20100913.57161.fits DE.20100913.22358.fits -d 7 --slit_spat 1132
-
-It is possible all of the MOS :doc:`spectrographs/spectrographs` will work.
-Give it a shot!
+This requires that the detector(s) with this
+slit have been calibrated (or will be calibrated, e.g. by 
+specfiying ``--det``).
 
 --maskID
 --------
@@ -196,7 +194,7 @@ Here is an example with ``keck_deimos``:
 
 This requires that the detector(s) with this
 slit have been calibrated (or will be calibrated, e.g. by 
-specfiying ``--det1`).
+specfiying ``--det``).
 
 ----
 

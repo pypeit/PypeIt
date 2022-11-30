@@ -71,6 +71,7 @@ def generate_sci_pypeitfile(redux_path:str,
                             det:str=None,
                             input_cfg_dict:dict=None, 
                             remove_sci_dir:bool=True, 
+                            slitspatnum:str=None,
                             maskID:str=None,
                             boxcar_radius:float=None,
                             stack:bool=True):
@@ -89,6 +90,7 @@ def generate_sci_pypeitfile(redux_path:str,
             Input configuration dictionary. Defaults to None.
         det (str, optional): Detector/mosaic. Defaults to None.
         remove_sci_dir (bool, optional): Remove the science directory if it exists. Defaults to True.
+        slitspatnum (str, optional):  
         maskID (str, optional): Mask ID to isolate for QL.  Defaults to None.
         boxcar_radius (float, optional): Boxcar radius for extraction.  
             In units of arcsec.  Defaults to None.
@@ -147,19 +149,9 @@ def generate_sci_pypeitfile(redux_path:str,
         full_cfg.merge(configobj.ConfigObj(maskID_dict))
             
     # slitspatnum specified?
-    if 'rdx' in full_cfg.keys() and 'slitspatnum' in full_cfg['rdx'].keys():
-        # Remove detnum
-        for kk, item in enumerate(config_lines):
-            if 'detnum' in item:
-                config_lines.pop(kk)
-
-        # Add in name, slitspatnum
-        ridx = config_lines.index('[rdx]')
-        config_lines.insert(ridx+1, '    slitspatnum = {0}'.format(full_cfg['rdx']['slitspatnum']))
-
-        # this is to avoid that the default detnum (which was introduced for mosaic)
-        # will be passed to the reduction and crash it
-        config_lines.insert(ridx+2, '    detnum = None')
+    if slitspatnum is not None: #'rdx' in full_cfg.keys() and 'slitspatnum' in full_cfg['rdx'].keys():
+        ssn_dict = dict(rdx=dict(slitspatnum=slitspatnum))
+        full_cfg.merge(configobj.ConfigObj(ssn_dict))
 
     # Boxcar radius?
     if boxcar_radius is not None:
@@ -265,8 +257,6 @@ class QL(scriptbase.ScriptBase):
                             help='space separated list of raw frames e.g. img1.fits img2.fits.  These must exist within --full_rawpath')
         parser.add_argument('--sci_files', type=str, nargs='+',
                             help='space separated list of raw frames to be specified as science exposures (over-rides PypeIt frame typing)')
-        parser.add_argument('--box_radius', type=float,
-                            help='Set the radius for the boxcar extraction')
         parser.add_argument("--redux_path", type=str, default=os.getcwd(),
                             help="Full path to where QL reduction should be run.")
         parser.add_argument("--calib_dir", type=str, 
@@ -278,8 +268,10 @@ class QL(scriptbase.ScriptBase):
         parser.add_argument("--clobber_calibs", default=False, 
                             action="store_true",
                             help='Clobber existing calibration files?')
+        parser.add_argument('--slitspatnum', type=str,
+                            help='Reduce the slit(s) as specified by the slitspatnum value(s)')
         parser.add_argument('--maskID', type=int,
-                            help='Reduce this slit as specified by the maskID value')
+                            help='Reduce the slit(s) as specified by the maskID value(s)')
         parser.add_argument('--boxcar_radius', type=float,
                             help='Set the radius for the boxcar extraction in arcseconds')
         parser.add_argument('--det', type=str, help='Detector to reduce.')
@@ -374,6 +366,7 @@ class QL(scriptbase.ScriptBase):
                     masters_setup_and_bit, 
                     ps_sci, 
                     maskID=args.maskID, 
+                    slitspatnum=args.slitspatnum,
                     det=args.det,
                     boxcar_radius=args.boxcar_radius,
                     stack=args.stack)
