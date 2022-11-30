@@ -268,7 +268,7 @@ class QL(scriptbase.ScriptBase):
         parser.add_argument('--box_radius', type=float,
                             help='Set the radius for the boxcar extraction')
         parser.add_argument("--redux_path", type=str, default=os.getcwd(),
-                            help="Location where reduction outputs should be stored.")
+                            help="Full path to where QL reduction should be run.")
         parser.add_argument("--calib_dir", type=str, 
                             help="Location folders of calibration reductions")
         parser.add_argument("--masters_dir", type=str, 

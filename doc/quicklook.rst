@@ -37,7 +37,7 @@ bias image subtraction (maintain overscan), and skip
 CR rejection. 
 
 Standard call
--------------
++++++++++++++
 
 Here is a sample call for a standard
 longslit run on files from the ``shane_kast_blue`` 
@@ -54,26 +54,32 @@ the ``Science`` folder with the processed 2D spectral
 image and the extracted spectra.
 
 Previous Calibrations
----------------------
++++++++++++++++++++++
+
+There are various ways to use previously generated
+calibration files.  We provide examples of each.
 
 Different file
-++++++++++++++
+--------------
 
-If we rerun the script replacing the ``b27.fits.gz`` file with
-``b28.fits.gz``, 
+Simply re-running the script
+above but replacing the ``b27.fits.gz`` file with
+``b28.fits.gz`` will reuse the calibrations we --ignore_headers
+just made: 
 
 .. code-block:: bash
 
     pypeit_ql shane_kast_blue --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55 --rawfiles b1.fits.gz b10.fits.gz b28.fits.gz 
 
-then the script will detect that the calibration
+Here the script will detect that the calibration
 files are already present and will only process the science
-frame.  You can force a re-generation of the calibrations
+frame.  In this case,
+you could force a re-generation of the calibrations
 with ``--clobber_calibs``.
 
 
-Masters
-+++++++
+Masters Folder
+--------------
 
 One can specifiy the path to a set of Masters files
 for use as calibrations with ``--masters_dir``.  
@@ -89,7 +95,7 @@ Warning:  the code will not check that the configuration
 of these calibration files match the science frames.
 
 Calibrations Folder
-+++++++++++++++++++
+-------------------
 
 One can specifiy the path to a folder containing 
 one or more sub-folders of reducted calibration files.
@@ -109,7 +115,7 @@ At least one set of the calibrations must have a
 configuration matching the science frames.
 
 Stacked frames
---------------
+++++++++++++++
 
 If you perform the call with multiple science frames,
 the default mode is to stack these frames and then
@@ -128,23 +134,35 @@ You can force the script to process each science frame
 individually with ``--no_stack``.
 
 Other Options
--------------
++++++++++++++
 
 Here are a few more options
 
 --box_radius
-++++++++++++
+------------
 
 Over-ride the default boxcar extraction radius with
 ``--box_radius``.  The value is given in arcseconds.
 
 --det
-+++++
+-----
 
 Specify the size of the extraction radius.
 
---det
------
+Multislit
+=========
+
+Here are some options specific to multi-slit
+observations.
+
+Isolating a slit
+++++++++++++++++
+
+In general, reducing all of the slits from
+a multi-slit observation will not be quick.
+Therefore, you may wish to isolate a single slit.
+
+This can be done in two ways.
 
 --slit_spat
 -----------
@@ -152,16 +170,6 @@ Specify the size of the extraction radius.
 Specify the spatial position of the single slit to reduce
 on the detector you chose.
 
-Examples
-++++++++
-
-shane_kast_blue::
-
-    pypeit_ql_mos shane_kast_blue /home/xavier/local/Python/PypeIt-development-suite/RAW_DATA/Shane_Kast_blue/600_4310_d55 b1.fits.gz b10.fits.gz b27.fits.gz
-
-keck_lris_red (longslit)::
-
-    pypeit_ql_mos keck_lris_red /home/xavier/local/Python/PypeIt-development-suite/RAW_DATA/Keck_LRIS_red/long_600_7500_d560 LR.20160216.05709.fits.gz LR.20160216.13991.fits.gz LR.20160216.40478.fits.gz --det 2 --ignore_headers
 
 keck_lris_blue (longslit + archived pixel flat)::
 
