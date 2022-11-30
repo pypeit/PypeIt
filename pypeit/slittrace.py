@@ -1407,7 +1407,7 @@ class SlitTraceSet(datamodel.DataContainer):
                                                   'USERIGNORE')
         elif user_slits['method'] == 'maskIDs':
             # Mask only the good one
-            msk = np.logical_not(np.isin(user_slits['slit_info'], self.mask_id))
+            msk = np.logical_not(np.isin(self.maskdef_id, user_slits['slit_info']))
             # Set
             self.mask[msk] = self.bitmask.turn_on(self.mask[msk], 
                                                   'USERIGNORE')

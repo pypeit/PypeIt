@@ -182,6 +182,22 @@ keck_deimos (multislit with one slit isolated)::
 It is possible all of the MOS :doc:`spectrographs/spectrographs` will work.
 Give it a shot!
 
+--maskID
+--------
+
+Specify the user defined maskID value for the slit of interest.
+This will be an integer, e.g.  958454.
+
+Here is an example with ``keck_deimos``:
+
+.. code-block:: bash
+
+    pypeit_ql keck_deimos --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/keck_deimos/600ZD_M_6500 --rawfiles d1010_0056.fits.gz --masters_dir /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/REDUX_OUT/keck_deimos/600ZD_M_6500/Masters --maskID 958454
+
+This requires that the detector(s) with this
+slit have been calibrated (or will be calibrated, e.g. by 
+specfiying ``--det1`).
+
 ----
 
 
