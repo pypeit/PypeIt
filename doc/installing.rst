@@ -262,11 +262,11 @@ The needed model grid will download automatically when required by the code, but
 given the size of these files and your downlink speed, this may take some time.
 To install the grid independent of a reduction, run the ``pypeit_install_telluric``
 script, calling the filename of the grid required.  For example, if you needed the file
-``TelFit_MaunaKea_3100_26100_R200000.fits``, you would execute:
+``TelFit_MaunaKea_3100_26100_R20000.fits``, you would execute:
 
 .. code-block:: console
 
-    $ pypeit_install_telluric TelFit_MaunaKea_3100_26100_R200000.fits
+    $ pypeit_install_telluric TelFit_MaunaKea_3100_26100_R20000.fits
 
 The downloaded file will exist in the PypeIt cache, and will persist through
 upgrades of your installation via `pip`_ or `conda`_.  To force the update of a

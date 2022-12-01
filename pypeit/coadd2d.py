@@ -373,6 +373,8 @@ class CoAdd2D:
             else:
                 weights = self.use_weights
             # Perform the 2d coadd
+            # NOTE: mask_stack is a gpm, and this is called inmask_stack in
+            # compute_coadd2d, and outmask in coadd_dict is also a gpm
             mask_stack = [mask == 0 for mask in self.stack_dict['mask_stack']]
             coadd_dict = coadd.compute_coadd2d(ref_trace_stack, self.stack_dict['sciimg_stack'],
                                                self.stack_dict['sciivar_stack'],
@@ -452,9 +454,10 @@ class CoAdd2D:
             imgminsky_pseudo[ispec, ispat] = coadd_dict['imgminsky']
             sciivar_pseudo[ispec, ispat] = coadd_dict['sciivar']
             waveimg_pseudo[ispec, ispat] = coadd_dict['waveimg']
-            # spat_img_pseudo is the sub-pixel image position on the rebinned pseudo image
+            # NOTE: inmask is a gpm
             inmask_pseudo[ispec, ispat] = coadd_dict['outmask']
             image_temp = (coadd_dict['dspat'] - coadd_dict['dspat_mid'][0] + spat_left) #*coadd_dict['outmask']
+            # spat_img_pseudo is the sub-pixel image position on the rebinned pseudo image
             spat_img_pseudo[ispec, ispat] = image_temp
             nused_pseudo[ispec, ispat] = coadd_dict['nused']
             wave_min[ispec, islit] = coadd_dict['wave_min']
@@ -518,7 +521,7 @@ class CoAdd2D:
         spec_max = np.zeros(self.nslits_coadded)
         for islit in range(self.nslits_coadded):
             spat_id = slits_pseudo.spat_id[islit]
-            slit_width = np.sum(inmask_pseudo*(slitmask_pseudo == spat_id),axis=1)
+            slit_width = np.sum(inmask_pseudo & (slitmask_pseudo == spat_id), axis=1)
             slit_width_img = np.outer(slit_width, np.ones(nspat_pseudo))
             med_slit_width = np.median(slit_width_img[slitmask_pseudo == spat_id])
             # TODO -- need inline docs
@@ -543,11 +546,11 @@ class CoAdd2D:
 
     def reduce(self, pseudo_dict, show=False, clear_ginga=True, show_peaks=False, show_skysub_fit=False, basename=None):
         """
-        Method to run the reduction on coadd2d psuedo images
+        Method to run the reduction on coadd2d pseudo images
 
         Args:
             pseudo_dict (dict):
-               Dictionary containing coadd2d psuedo images
+               Dictionary containing coadd2d pseudo images
             show (bool):
                If True, show the outputs to ginga and the screen analogous to run_pypeit with the -s option
             show_peaks (bool):
@@ -561,13 +564,9 @@ class CoAdd2D:
 
         show = self.show if show is None else show
         show_peaks = self.show_peaks if show_peaks is None else show_peaks
-        # TODO I think this is incorrect. I don't know how to instanatiate this class from an existing mask
-        # because everthying is hidden behind exceedingly complicated bitmasks.
-        sciImage = pypeitimage.PypeItImage(image=pseudo_dict['imgminsky'],
-                                           ivar=pseudo_dict['sciivar'],
-                                           bpm=np.zeros_like(pseudo_dict['inmask'].astype(int)),  # Dummy bpm
-                                           rn2img=np.zeros_like(pseudo_dict['inmask']).astype(float),  # Dummy rn2img
-                                           crmask=np.invert(pseudo_dict['inmask'].astype(bool)))
+        # NOTE: inmask is a gpm
+        sciImage = pypeitimage.PypeItImage(pseudo_dict['imgminsky'], ivar=pseudo_dict['sciivar'],
+                                           bpm=np.logical_not(pseudo_dict['inmask']))
         sciImage.detector = self.stack_dict['detectors'][0]
         #
         slitmask_pseudo = pseudo_dict['slits'].slit_img()
@@ -842,7 +841,7 @@ class CoAdd2D:
             waveimg_stack.append(s2dobj.waveimg)
             skymodel_stack.append(s2dobj.skymodel)
             sciivar_stack.append(s2dobj.ivarmodel)
-            mask_stack.append(s2dobj.bpmmask)
+            mask_stack.append(s2dobj.bpmmask.mask)
             slitmask_stack.append(s2dobj.slits.slit_img(flexure=s2dobj.sci_spat_flexure))
 
         return dict(specobjs_list=specobjs_list, slits_list=slits_list,
