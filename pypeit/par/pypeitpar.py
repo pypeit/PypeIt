@@ -2304,7 +2304,7 @@ class ReduxPar(ParSet):
 
         dtypes['slitspatnum'] = [str, list]
         descr['slitspatnum'] = 'Restrict reduction to a set of slit DET:SPAT values (closest slit is used). ' \
-                               'Example syntax -- slitspatnum = DET1:175,DET1:205 or MSC02:2234  If you are re-running the code, ' \
+                               'Example syntax -- slitspatnum = DET01:175,DET01:205 or MSC02:2234  If you are re-running the code, ' \
                                '(i.e. modifying one slit) you *must* have the precise SPAT_ID index.' 
 
         dtypes['maskIDs'] = [str, int, list]
@@ -4366,7 +4366,7 @@ class PypeItPar(ParSet):
                 (None) and use `merge_with` to provide a set of
                 lines to merge with the defaults to construct the full
                 parameter set.
-            merge_with (:obj:`tuple`, optional):
+            merge_with (:obj:`tuple` or :obj:`list`, optional):
                 A tuple containing one more lists
                 of strings with lines read, or made to look like
                 they are, from a configuration file that should be
@@ -4375,6 +4375,8 @@ class PypeItPar(ParSet):
                 The order of the lists in the tuple is important, as
                 it sets the order in which the lines are merged.
                 Last in line has *highest* priority.
+                Or the input may be a list which will be taken 
+                as a single item described above.
             evaluate (:obj:`bool`, optional):
                 Evaluate the values in the config object before
                 assigning them in the subsequent parameter sets.  The
@@ -4409,6 +4411,8 @@ class PypeItPar(ParSet):
         # Merge in additional parameters
         if merge_with is not None:
             # Check it is a tuple
+            if isinstance(merge_with, list):
+                merge_with = (merge_with,)
             if not isinstance(merge_with, tuple):
                 msgs.error('Input merge_with must be a tuple.')
             # Proceed
@@ -4835,8 +4839,7 @@ def ql_is_on(config:ConfigObj):
     Returns:
         bool: True if QL is on
     """
-    if 'rdx' in config.keys() and 'quicklook' in config['rdx'].keys()\
-        and config['rdx']['quicklook']:
-        return True
-    else:
-        False
+    try: 
+        return config['rdx']['quicklook']
+    except:
+        return False

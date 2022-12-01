@@ -121,15 +121,16 @@ class PypeIt:
         self.spectrograph._check_extensions(config_specific_file)
         spectrograph_cfg_lines = self.spectrograph.config_specific_par(config_specific_file).to_config()
 
-        # Quick look?
-        ql_cfg_lines = self.spectrograph.ql_par() if ql_is_on(
-            self.pypeItFile.config) else []
+        # Addtional parameters, including QL
+        merge = (self.pypeItFile.cfg_lines,)
+        if ql_is_on(self.pypeItFile.config):
+            merge = (self.spectrograph.ql_par(),) + merge
 
         #   - Build the full set, merging with any user-provided
         #     parameters
         self.par = PypeItPar.from_cfg_lines(
             cfg_lines=spectrograph_cfg_lines, 
-            merge_with=(ql_cfg_lines, self.pypeItFile.cfg_lines))
+            merge_with=merge)
             #cfg_lines=spectrograph_cfg_lines, 
             #merge_with=self.pypeItFile.cfg_lines)
         msgs.info('Built full PypeIt parameter set.')
@@ -142,7 +143,7 @@ class PypeIt:
         # --------------------------------------------------------------
         par_file = pypeit_file.replace(
             '.pypeit', f"_UTC_{datetime.datetime.utcnow().date()}.par")
-        self.par.to_config(par_file)
+        self.par.to_config(par_file, include_descr=False)
 
         # --------------------------------------------------------------
         # Build the meta data

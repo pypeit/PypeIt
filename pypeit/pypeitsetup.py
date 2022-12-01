@@ -98,7 +98,7 @@ class PypeItSetup:
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             An instance of the `Spectrograph` class used throughout the
             reduction procedures.
-        par (:class:`pypeit.par.pypeitpar.PypeitPar`):
+        par (:class:`pypeit.par.pypeitpar.PypeItPar`):
             An instance of the `PypeitPar` class that provides the
             parameters to all the algorthms that pypeit uses to reduce
             the data.
@@ -533,10 +533,9 @@ class PypeItSetup:
             return_index=True)
 
         # Restrict on detector -- May remove this
-        self.user_cfg = ['[rdx]', 'spectrograph = {}'.format(
-            self.spectrograph.name)]
+        self.user_cfg = ['[rdx]', f'spectrograph = {self.spectrograph.name}']
         if det is not None:
-            self.user_cfg += ['detnum = {}'.format(det)]
+            self.user_cfg += [f'detnum = {det}']
         self.user_cfg += ['quicklook = True']
 
 

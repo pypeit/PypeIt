@@ -91,18 +91,20 @@ def generate_sci_pypeitfile(redux_path:str,
         master_setup_and_bit (list): 
             Name of the master setup and bit (list of str)
         ps_sci (:class:`pypeit.pypeitsetup.PypeItSetup`):
+            Setup object for the science frame(s)
         input_cfg_dict (dict, optional): 
             Input configuration dictionary. Defaults to None.
         det (str, optional): Detector/mosaic. Defaults to None.
         remove_sci_dir (bool, optional): Remove the science directory if it exists. Defaults to True.
         slitspatnum (str, optional):  
+            Value for slitspatnum, e.g. MSCO2:4244
         maskID (str, optional): Mask ID to isolate for QL.  Defaults to None.
         boxcar_radius (float, optional): Boxcar radius for extraction.  
             In units of arcsec.  Defaults to None.
         stack (bool, optional): Stack the science frames.  Defaults to True.
 
     Returns: 
-        tuple: name of pypeit file (str), pypeitFile object (pypeit.inputfiles.PypeItFile)
+        tuple: name of pypeit file (str), pypeitFile object (:class:`~pypeit.inputfiles.PypeItFile`)
     """
 
     # Parse science file info
@@ -244,6 +246,7 @@ def match_science_to_calibs(ps_sci:pypeitsetup.PypeItSetup,
     masters_dir = os.path.join(os.path.dirname(mtch[0]), 'Masters')
 
     return mtch[0], masters_dir
+
 class QL(scriptbase.ScriptBase):
 
     @classmethod
@@ -331,7 +334,7 @@ class QL(scriptbase.ScriptBase):
         if args.sci_files is not None:
             sci_idx = np.in1d(ps.fitstbl['filename'], args.sci_files)
         else:
-            sci_idx = ps.fitstbl['frametype'] == 'science'
+            sci_idx = ps.fitstbl.find_frames('science')
 
         if np.sum(sci_idx) == 0:
             msgs.error('No science frames found in the provided files.  Add at least one or specify using --sci_files.')
@@ -378,7 +381,6 @@ class QL(scriptbase.ScriptBase):
         
         # Run it
         redux_path = os.path.dirname(sci_pypeit_file)  # Path to PypeIt file
-        run_pargs = run_pypeit.RunPypeIt.parse_args(
-            [sci_pypeit_file, '-r', redux_path])
-        run_pypeit.RunPypeIt.main(run_pargs)
+        pypeIt = pypeit.PypeIt(sci_pypeit_file,
+                               redux_path=redux_path) 
         msgs.info(f'Quicklook completed in {utils.get_time_string(time.perf_counter()-tstart)} seconds')

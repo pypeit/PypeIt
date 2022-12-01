@@ -41,13 +41,16 @@ Standard call
 
 Here is a sample call for a standard
 longslit run on files from the ``shane_kast_blue`` 
-Development suite:
+Development suite.  In the example, the files
+b1.fits.gz b10.fits.gz b27.fits.gz are an
+arc, flat, and science frame.  But their ordering
+is not important.
 
 .. code-block:: bash
 
     pypeit_ql shane_kast_blue --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55 --rawfiles b1.fits.gz b10.fits.gz b27.fits.gz 
 
-This first generates a ``shane_kast_blue_A`` folder with the 
+This call first generates a ``shane_kast_blue_A`` folder with the 
 processed calibrations (Masters) and associated QA :doc:`outputs`.
 It then generates a separate folder named ``b27`` which holds
 the ``Science`` folder with the processed 2D spectral
@@ -64,7 +67,7 @@ Different file
 
 Simply re-running the script
 above but replacing the ``b27.fits.gz`` file with
-``b28.fits.gz`` will reuse the calibrations we --ignore_headers
+``b28.fits.gz`` will reuse the calibrations we 
 just made: 
 
 .. code-block:: bash
@@ -98,7 +101,8 @@ Calibrations Folder
 -------------------
 
 One can specifiy the path to a folder containing 
-one or more sub-folders of reducted calibration files.
+one or more *sub-folders* of reduced calibration files,
+each of which would hold a Masters/ folder.
 This is set with the ``--calib_dir`` option.
 
 A standard use case is for ``keck_deimos`` reductions
@@ -132,6 +136,9 @@ This generates a folder named ``b27-b28`` with one
 
 You can force the script to process each science frame
 individually with ``--no_stack``.
+This is the same as making multiple calls with ``pypeit_ql``
+replacing the science file each time, except the 
+folders generated would be ``b27``, ``b28``, etc.
 
 Other Options
 +++++++++++++
@@ -143,13 +150,16 @@ Here are a few more options
 
 Over-ride the default boxcar extraction radius with
 ``--box_radius``.  The value is given in arcseconds.
+This will over-ride the defaut as described
+in :ref:`extractionpar`.
 
 --det
 -----
 
 It will greatly speed things up to isolate
 the detector(s) of interest.  Use ``--det`` 
-with the same syntax as the parameter ``detnum``.
+with the same syntax as the parameter ``detnum``,
+as described in :ref:`reduxpar`.
 
 Here is an example with the (old) ``keck_lris_red``
 detector:
@@ -188,6 +198,11 @@ Here is an example with ``keck_deimos``:
 
     pypeit_ql keck_deimos --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/keck_deimos/600ZD_M_6500 --rawfiles d1010_0056.fits.gz --masters_dir /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/REDUX_OUT/keck_deimos/600ZD_M_6500/Masters --slitspatnum MSC02:452
 
+
+Here we have specified ``--slitspatnum`` as
+``MSC02:452``, which means use the 2nd mosaic
+and the slit closest to position 452.
+
 This requires that the detector(s) with this
 slit have been calibrated (or will be calibrated, e.g. by 
 specfiying ``--det``).
@@ -207,22 +222,3 @@ Here is an example with ``keck_deimos``:
 This requires that the detector(s) with this
 slit have been calibrated (or will be calibrated, e.g. by 
 specfiying ``--det``).
-
-----
-
-
-One Slit
-++++++++
-
-To reduce a single slit on a single detector for a single exposure, you would issue
-a command like::
-
-    pypeit_ql_keck_deimos full_path_to_raw_files --science=DE.20130409.20629.fits --slit_spat=3:763 --redux_path=path_to_calibs 
-
-This will process and extract spectra from the ``slit_id=763`` in the 
-science exposure ``DE.20130409.20629.fits``.  Again, you specify
-the path to the RAW frames and the ``path_for_calibs``, which is also
-where the reduced spectra will appear.  
-
-We estimate 2min for full extraction on a single slit.
-
