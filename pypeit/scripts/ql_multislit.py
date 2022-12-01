@@ -241,9 +241,10 @@ def reduce(files, caliBrate, spectrograph, parset, bkg_files=None, show=False, s
 
     if bkg_files is not None:
         # Background Image?
-        sciImg = sciImg.sub(buildimage.buildimage_fromlist(spectrograph, caliBrate.det, parset['scienceframe'], list(bkg_files),
-                                                           bpm=caliBrate.msbpm, slits=caliBrate.slits,
-                                                           ignore_saturation=False), parset['scienceframe']['process'])
+        bgimg = buildimage.buildimage_fromlist(spectrograph, caliBrate.det, parset['scienceframe'],
+                                               list(bkg_files), bpm=caliBrate.msbpm,
+                                               slits=caliBrate.slits, ignore_saturation=False)
+        sciImg = sciImg.sub(bgimg)
 
     # DP: Should find_negative be True here? JFH: For quicklook yes!
     objFind = find_objects.FindObjects.get_instance(sciImg, caliBrate.slits, spectrograph, parset, 'science',
