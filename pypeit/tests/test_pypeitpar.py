@@ -160,7 +160,7 @@ def test_fail_badpar():
     cfg_lines = ['[calibrations]', '[[biasframe]]', '[[[process]]]', 'junk = True']
     with pytest.raises(ValueError):
         _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config(), 
-                                                merge_with=(cfg_lines,))
+                                                merge_with=cfg_lines) # Once as list
     
 def test_fail_badlevel():
     p = load_spectrograph('gemini_gnirs').default_pypeit_par()
@@ -170,6 +170,6 @@ def test_fail_badlevel():
     cfg_lines = ['[calibrations]', '[[biasframe]]', '[[process]]', 'cr_reject = True']
     with pytest.raises(ValueError):
         _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config(), 
-                                                merge_with=(cfg_lines,))
+                                                merge_with=(cfg_lines,))  #Once as tuple
 
 
