@@ -130,6 +130,5 @@ class ViewFits(scriptbase.ScriptBase):
             if not args.proc:
                 msgs.info("You need to use --proc with --showmask to show the mask.  Ignoring your argument")
             else:
-                embed(header='130 of view_fits')
                 viewer, ch_mask = display.show_image(Img.bpm, chname="BPM")
 
