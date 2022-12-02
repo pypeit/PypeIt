@@ -24,7 +24,7 @@ def check_for_openmp():
     curdir = os.getcwd()
     os.chdir(tmpdir)
 
-    if os.environ['CC']:
+    if 'CC' in os.environ:
         c_compiler = os.environ['CC']
     else:
         c_compiler = 'cc'
