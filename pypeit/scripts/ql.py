@@ -30,7 +30,7 @@ import numpy as np
 import configobj
 
 from pypeit import utils
-from pypeit.scripts import run_pypeit
+from pypeit import masterframe
 from pypeit import msgs
 from pypeit import pypeitsetup
 from pypeit import io
@@ -90,6 +90,7 @@ def generate_sci_pypeitfile(redux_path:str,
         master_calib_dir (str): Path to the master calib folder
         master_setup_and_bit (list): 
             Name of the master setup and bit (list of str)
+            The latter is used to tie the science frames to the Masters
         ps_sci (:class:`pypeit.pypeitsetup.PypeItSetup`):
             Setup object for the science frame(s)
         input_cfg_dict (dict, optional): 
@@ -144,14 +145,23 @@ def generate_sci_pypeitfile(redux_path:str,
             slitTrace = SlitTraceSet.from_file(sliittrace_file)
             if maskID in slitTrace.maskdef_id:
                 detname = slitTrace.detname
-                mosaic_id = np.where(ps_sci.spectrograph.list_detectors(mosaic=True) == detname)[0][0]
-                det_tuple = ps_sci.spectrograph.allowed_mosaics[mosaic_id]
+                # Mosaic?
+                mosaic = True if detname[0:3] == 'MSC' else False
+                det_id = np.where(
+                    ps_sci.spectrograph.list_detectors(
+                        mosaic=mosaic) == detname)[0][0]
+                # Set det
+                if mosaic:
+                    detnum = [ps_sci.spectrograph.allowed_mosaics[det_id]]
+                else:
+                    detnum = det_id+1 # 1-based indexing
+                # Break
                 break
         if detname is None:
             msgs.error('Could not find a SlitTrace file with maskID={}'.format(maskID))
 
         # Add to config
-        maskID_dict = dict(rdx=dict(detnum=[det_tuple],
+        maskID_dict = dict(rdx=dict(detnum=detnum,
                                     maskIDs=maskID))
         full_cfg.merge(configobj.ConfigObj(maskID_dict))
             
@@ -362,8 +372,9 @@ class QL(scriptbase.ScriptBase):
             masters_dir, 'Master*'))
         if len(master_files) == 0:
             msgs.error('No Master files found in {:s}'.format(masters_dir))
-        masters_setup_and_bit = os.path.basename(
-            master_files[0]).split('_')[1:3]
+        master_key, _ = masterframe.grab_key_mdir(
+            master_files[0], from_filename=True)
+        masters_setup_and_bit =  master_key.split(masterframe.sep1)[0:2]
 
         # Build the PypeIt file and link to Masters
         sci_pypeit_file, _ = \
