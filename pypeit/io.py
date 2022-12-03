@@ -32,7 +32,6 @@ import sklearn
 import pypeit
 import time
 
-
 # TODO -- Move this module to core/
 
 def init_record_array(shape, dtype):
@@ -80,7 +79,7 @@ def rec_to_fits_type(col_element, single_row=False):
     """
     _col_element = col_element if single_row else col_element[0]
     n = 1 if len(_col_element.shape) == 0 else _col_element.size
-    if col_element.dtype.type in [bool, numpy.bool, numpy.bool_]:
+    if col_element.dtype.type in [bool, numpy.bool_]:
         return '{0}L'.format(n)
     if col_element.dtype.type == numpy.uint8:
         return '{0}B'.format(n)
@@ -605,13 +604,14 @@ def write_to_fits(d, ofile, name=None, hdr=None, overwrite=False, checksum=True)
         ofile (:obj:`str`):
             File name (path) for the fits file.
         name (:obj:`str`, optional):
-            Name for the extension with the data. If None, the
-            extension is not given a name. However, if the input
-            object is a dictionary, see :func:`dict_to_hdu` for how
-            the name will overwrite any dictionary keyword associated
-            with the data to write.
+            Name for the extension with the data. If None, the extension is not
+            given a name. However, if the input object is a dictionary, see
+            :func:`dict_to_hdu` for how the name will overwrite any dictionary
+            keyword associated with the data to write.  Ignored if ``d`` is an
+            `astropy.io.fits.HDUList`_.
         hdr (`astropy.io.fits.Header`_, optional):
-            Base-level header to use for *all* HDUs.
+            Base-level header to use for *all* HDUs.  Ignored if ``d`` is an
+            `astropy.io.fits.HDUList`_.
         overwrite (:obj:`bool`, optional):
             Overwrite any existing file.
         checksum (:obj:`bool`, optional):

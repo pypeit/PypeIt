@@ -148,7 +148,6 @@ class Show2DSpec(scriptbase.ScriptBase):
         slid_IDs = spec2DObj.slits.slitord_id[gpm]
         maskdef_id = None if spec2DObj.slits.maskdef_id is None \
                             else spec2DObj.slits.maskdef_id[gpm]
-        bitMask = ImageBitMask()
 
         # Object traces from spec1d file
         spec1d_file = args.file.replace('spec2d', 'spec1d')
@@ -166,9 +165,8 @@ class Show2DSpec(scriptbase.ScriptBase):
         # Now show each image to a separate channel
 
         # Show the bitmask?
-        mask_in = None
         if args.showmask:
-            viewer, ch_mask = display.show_image(spec2DObj.bpmmask, chname="BPM",
+            viewer, ch_mask = display.show_image(spec2DObj.bpmmask, chname='MASK',
                                                  waveimg=spec2DObj.waveimg, 
                                                  clear=args.clear)
 
@@ -176,8 +174,8 @@ class Show2DSpec(scriptbase.ScriptBase):
         # SCIIMG
         if 0 in show_channels:
             image = spec2DObj.sciimg  # Processed science image
-            mean, med, sigma = sigma_clipped_stats(image[spec2DObj.bpmmask == 0], sigma_lower=5.0,
-                                                   sigma_upper=5.0)
+            gpm = spec2DObj.select_flag(invert=True)
+            mean, med, sigma = sigma_clipped_stats(image[gpm], sigma_lower=5.0, sigma_upper=5.0)
             cut_min = mean - 1.0 * sigma
             cut_max = mean + 4.0 * sigma
             chname_sci = args.prefix+f'sciimg-{detname}'
@@ -195,22 +193,18 @@ class Show2DSpec(scriptbase.ScriptBase):
 
         # SKYSUB
         if 1 in show_channels:
+            gpm = spec2DObj.select_flag(invert=True)
             if args.ignore_extract_mask:
-                # TODO -- Is there a cleaner way to do this?
-                gpm = (spec2DObj.bpmmask == 0) | (spec2DObj.bpmmask == 2**bitMask.bits['EXTRACT'])
-            else:
-                gpm = spec2DObj.bpmmask == 0
+                gpm |= spec2DObj.select_flag(flag='EXTRACT')
 
-            image = (spec2DObj.sciimg - spec2DObj.skymodel) * gpm
-            mean, med, sigma = sigma_clipped_stats(image[spec2DObj.bpmmask == 0], sigma_lower=5.0,
-                                                   sigma_upper=5.0)
+            image = (spec2DObj.sciimg - spec2DObj.skymodel) * gpm.astype(float)
+            mean, med, sigma = sigma_clipped_stats(image[gpm], sigma_lower=5.0, sigma_upper=5.0)
             cut_min = mean - 1.0 * sigma
             cut_max = mean + 4.0 * sigma
             chname_skysub = args.prefix+f'skysub-{detname}'
             viewer, ch_skysub = display.show_image(image, chname=chname_skysub,
-                                                   waveimg=spec2DObj.waveimg, bitmask=bitMask,
-                                                   mask=mask_in, cuts=(cut_min, cut_max),
-                                                   wcs_match=True)
+                                                   waveimg=spec2DObj.waveimg,
+                                                   cuts=(cut_min, cut_max), wcs_match=True)
             if not args.removetrace and sobjs is not None:
                     show_trace(sobjs, detname, viewer, ch_skysub)
             display.show_slits(viewer, ch_skysub, left, right, slit_ids=slid_IDs,
@@ -240,16 +234,14 @@ class Show2DSpec(scriptbase.ScriptBase):
         if 2 in show_channels:
             # the block below is repeated because if showing this channel but
             # not channel 1 it will crash
+            gpm = spec2DObj.select_flag(invert=True)
             if args.ignore_extract_mask:
-                # TODO -- Is there a cleaner way to do this?
-                gpm = (spec2DObj.bpmmask == 0) | (spec2DObj.bpmmask == 2**bitMask.bits['EXTRACT'])
-            else:
-                gpm = spec2DObj.bpmmask == 0
+                gpm |= spec2DObj.select_flag(flag='EXTRACT')
             chname_skyresids = args.prefix+f'sky_resid-{detname}'
-            image = (spec2DObj.sciimg - spec2DObj.skymodel) * np.sqrt(spec2DObj.ivarmodel) * gpm
+            image = (spec2DObj.sciimg - spec2DObj.skymodel) * np.sqrt(spec2DObj.ivarmodel) \
+                        * gpm.astype(float)
             viewer, ch_sky_resids = display.show_image(image, chname_skyresids,
-                                                       waveimg=spec2DObj.waveimg, cuts=(-5.0, 5.0),
-                                                       bitmask=bitMask, mask=mask_in)
+                                                       waveimg=spec2DObj.waveimg, cuts=(-5.0, 5.0))
             if not args.removetrace and sobjs is not None:
                     show_trace(sobjs, detname, viewer, ch_sky_resids)
             display.show_slits(viewer, ch_sky_resids, left, right, slit_ids=slid_IDs,
@@ -260,11 +252,12 @@ class Show2DSpec(scriptbase.ScriptBase):
         if 3 in show_channels:
             chname_resids = args.prefix+f'resid-{detname}'
             # full model residual map
+            gpm = spec2DObj.select_flag(invert=True)
             image = (spec2DObj.sciimg - spec2DObj.skymodel - spec2DObj.objmodel) \
-                        * np.sqrt(spec2DObj.ivarmodel) * (spec2DObj.bpmmask == 0)
+                        * np.sqrt(spec2DObj.ivarmodel) * gpm.astype(float)
             viewer, ch_resids = display.show_image(image, chname=chname_resids,
                                                    waveimg=spec2DObj.waveimg, cuts=(-5.0, 5.0),
-                                                   bitmask=bitMask, mask=mask_in, wcs_match=True)
+                                                   wcs_match=True)
             if not args.removetrace and sobjs is not None:
                     show_trace(sobjs, detname, viewer, ch_resids)
             display.show_slits(viewer, ch_resids, left, right, slit_ids=slid_IDs,

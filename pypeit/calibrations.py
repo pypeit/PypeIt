@@ -562,11 +562,13 @@ class Calibrations:
                 msgs.info('Subtracting lamp off flats using files: ')
                 for f in flatLoff_image_files:
                     msgs.prindent(f'{os.path.basename(f)}')
-                pixel_flat = pixel_flat.sub(buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                                           self.par['lampoffflatsframe'],
-                                                                           flatLoff_image_files, dark=self.msdark,
-                                                                           bias=self.msbias, bpm=self.msbpm),
-                                            self.par['pixelflatframe']['process'])
+                lampoff_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                              self.par['lampoffflatsframe'],
+                                                              flatLoff_image_files,
+                                                              dark=self.msdark, bias=self.msbias,
+                                                              bpm=self.msbpm)
+                pixel_flat = pixel_flat.sub(lampoff_flat)
+
             # Initialise the pixel flat
             pixelFlatField = flatfield.FlatField(pixel_flat, self.spectrograph,
                                                  self.par['flatfield'], self.slits, self.wavetilts,
@@ -590,11 +592,14 @@ class Calibrations:
                 msgs.info('Subtracting lamp off flats using files: ')
                 for f in flatLoff_image_files:
                     msgs.prindent(f'{os.path.basename(f)}')
-                illum_flat = illum_flat.sub(buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                                           self.par['lampoffflatsframe'],
-                                                                           flatLoff_image_files, dark=self.msdark,
-                                                                           bias=self.msbias, bpm=self.msbpm),
-                                                                           self.par['illumflatframe']['process'])
+                # TODO: Can we just use the one created above if it exists?
+                lampoff_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                              self.par['lampoffflatsframe'],
+                                                              flatLoff_image_files,
+                                                              dark=self.msdark, bias=self.msbias,
+                                                              bpm=self.msbpm)
+                illum_flat = illum_flat.sub(lampoff_flat)
+
             # Initialise the pixel flat
             illumFlatField = flatfield.FlatField(illum_flat, self.spectrograph,
                                                  self.par['flatfield'], self.slits, self.wavetilts,
@@ -690,11 +695,14 @@ class Calibrations:
                     msgs.info('Subtracting lamp off flats using files: ')
                     for f in flatLoff_image_files:
                         msgs.prindent(f'{os.path.basename(f)}')
-                    self.traceImage.sub(buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                                       self.par['lampoffflatsframe'],
-                                                                       flatLoff_image_files, dark=self.msdark,
-                                                                       bias=self.msbias, bpm=self.msbpm),
-                                        self.par['traceframe']['process'])
+                    # TODO: Can we just use the one created above if it exists?
+                    lampoff_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                                self.par['lampoffflatsframe'],
+                                                                flatLoff_image_files,
+                                                                dark=self.msdark, bias=self.msbias,
+                                                                bpm=self.msbpm)
+                    self.traceImage.sub(lampoff_flat)
+
                 self.edges = edgetrace.EdgeTraceSet(self.traceImage, self.spectrograph,
                                                     self.par['slitedges'], #bpm=self.msbpm,
                                                     auto=True)
