@@ -27,7 +27,7 @@ def check_for_openmp():
     if 'CC' in os.environ:
         c_compiler = os.environ['CC']
     else:
-        c_compiler = 'cc'
+        c_compiler = 'gcc'
 
     filename = r'test.c'
     with open(filename, 'w') as file:
