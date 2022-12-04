@@ -215,6 +215,7 @@ class ProcessImagesPar(ParSet):
                  n_lohi=None, #replace=None,
                  lamaxiter=None, grow=None,
                  comb_sigrej=None,
+                 master_setup_and_bit=None,
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None,
                  use_biasimage=None, use_overscan=None, use_darkimage=None,
                  dark_expscale=None,
@@ -411,6 +412,10 @@ class ProcessImagesPar(ParSet):
         dtypes['objlim'] = [int, float]
         descr['objlim'] = 'Object detection limit in LA cosmics routine'
 
+        defaults['master_setup_and_bit'] = None
+        dtypes['master_setup_and_bit'] = str
+        descr['master_setup_and_bit'] = 'Over-ride the master setup and bit.  Only recommended for use with quicklook'
+
         # Instantiate the parameter set
         super(ProcessImagesPar, self).__init__(list(pars.keys()),
                                                values=list(pars.values()),
@@ -429,9 +434,8 @@ class ProcessImagesPar(ParSet):
                    'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
                    'dark_expscale', 'spat_flexure_correct', 'use_illumflat', 'use_specillum',
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
-                   'satpix', #'cr_sigrej',
+                   'satpix', 'master_setup_and_bit',
                    'n_lohi', 'mask_cr',
-                   #'replace',
                    'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact', 'sigclip',
                    'sigfrac', 'objlim']
 

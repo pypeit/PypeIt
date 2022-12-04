@@ -280,6 +280,8 @@ class PypeIt:
     def calib_all(self, run=True):
         """
         Create calibrations for all setups
+        This is only run in lieu of a full run or
+        as part of the pypeit_parse_calib_id script
 
         This will not crash if not all of the standard set of files are not provided
 
@@ -304,8 +306,6 @@ class PypeIt:
             grp_frames = frame_indx[in_grp]
 
             # Find the detectors to reduce
-#            detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
-#                                                ndet=self.spectrograph.ndet)
             subset = self.par['rdx']['slitspatnum'] if self.par['rdx']['slitspatnum'] is not None \
                 else self.par['rdx']['detnum']
             detectors = self.spectrograph.select_detectors(subset=subset)
@@ -324,7 +324,7 @@ class PypeIt:
                     user_slits=slittrace.merge_user_slit(self.par['rdx']['slitspatnum'],
                                                          self.par['rdx']['maskIDs']))
                 # Do it
-                # TODO: Why isn't set_config part of the Calibrations.__init__ method?
+                # These need to be separate to accomodate COADD2D
                 self.caliBrate.set_config(grp_frames[0], self.det, self.par['calibrations'])
 
                 # Allow skipping the run (e.g. parse_calib_id.py script)
@@ -335,7 +335,7 @@ class PypeIt:
                                   f'that failed was {self.caliBrate.failed_step}.  Continuing by '
                                   f'skipping this detector.')
 
-                key = self.caliBrate.master_key_dict['frame']
+                key = self.fitstbl.master_key(grp_frames[0], det=self.det)
                 calib_dict[calib_grp][key] = {}
                 for step in self.caliBrate.steps:
                     if step in ['bpm', 'slits', 

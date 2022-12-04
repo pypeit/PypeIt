@@ -27,7 +27,6 @@ from pypeit.core import parse
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit import io
-from pypeit import utils
 
 
 class Calibrations:
@@ -200,9 +199,17 @@ class Calibrations:
         # Grab rows and files
         rows = self.fitstbl.find_frames(ctype, calib_ID=self.calib_ID, index=True)
         image_files = self.fitstbl.frame_paths(rows)
-        # Return
-        return image_files, self.fitstbl.master_key(rows[0] if len(rows) > 0 else self.frame,
+        # Set the master keys
+        if self.par[f'{ctype}frame']['process']['master_setup_and_bit'] is not None:
+            master_key = self.fitstbl.master_key(
+                -1, master_setup_and_bit=self.par[f'{ctype}frame']['process']['master_setup_and_bit'],
+                det=self.det)
+        else:
+            master_key =  self.fitstbl.master_key(rows[0] if len(rows) > 0 else self.frame,
                                                     det=self.det)
+        # Return
+        return image_files, master_key #self.fitstbl.master_key(rows[0] if len(rows) > 0 else self.frame,
+                                       #             det=self.det)
 
     def set_config(self, frame, det, par=None):
         """
@@ -219,7 +226,7 @@ class Calibrations:
 
         """
         # Reset internals to None
-        # NOTE: This sets empties calib_ID and master_key_dict so must
+        # NOTE: This sets calib_ID so must
         # be done here first before these things are initialized below.
 
         # Initialize for this setup
@@ -230,10 +237,6 @@ class Calibrations:
             self.par = par
         # Deal with binning
         self.binning = self.fitstbl['binning'][self.frame]
-
-        # Initialize the master key dict for this science/standard frame
-        self.master_key_dict['frame'] = self.fitstbl.master_key(frame, det=det)
-        # Initialize the master dict for input, output
 
     def get_arc(self):
         """
@@ -679,7 +682,6 @@ class Calibrations:
             if os.path.isfile(edge_masterframe_name) and self.reuse_masters:
                 self.edges = edgetrace.EdgeTraceSet.from_file(edge_masterframe_name)
             elif len(trace_image_files) == 0:
-                embed(header='682 of calibs')
                 msgs.warn("No frametype=trace files to build slits")
                 return None
             else:
