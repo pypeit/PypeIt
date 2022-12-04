@@ -130,10 +130,11 @@ def generate_sci_pypeitfile(redux_path:str,
         os.symlink(master_calib_dir, masters_dir)
         
     # Configure
-    user_cfg = ['[rdx]', 'spectrograph = {}'.format(ps_sci.spectrograph.name)]
+    user_cfg = ['[rdx]', f'spectrograph = {ps_sci.spectrograph.name}']
     if det is not None:
-        user_cfg += ['detnum = {}'.format(det)]
+        user_cfg += [f'detnum = {det}']
     user_cfg += ['quicklook = True']
+    user_cfg += ['[baseprocess]', f'master_setup_and_bit = {master_setup_and_bit[0]}_{master_setup_and_bit[1]}']
     full_cfg = configobj.ConfigObj(user_cfg)
 
     # Add input configs
