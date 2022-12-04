@@ -127,8 +127,6 @@ class Spec2DObj(datamodel.DataContainer):
         detnames = np.unique([hdu.name.split('-')[0] for hdu in hdul[1:]])
         if detname not in detnames:
             msgs.error(f'Your --det={detname} is not available. \n   Choose from: {detnames}')
-        slf = super().from_hdu(hdul, hdu_prefix=f'{detname}-', chk_version=chk_version)
-        slf.head0 = hdul[0].header
         with io.fits_open(file) as hdu:
             return cls.from_hdu(hdu, detname, chk_version=chk_version)
 
