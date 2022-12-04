@@ -23,7 +23,7 @@ def write_spec_table(path):
 
     data_table = numpy.empty((nspec+1, 9), dtype=object)
     data_table[0,:] = ['``PypeIt`` Name', '``PypeIt`` Class', 'Telescope', 'Camera', 'URL',
-                       'Pipeline', 'Supported', 'QL', 'Comments']
+                       'Pipeline', 'Supported', 'QL Tested', 'Comments']
     for i,cls in enumerate(spec.values()):
         data_table[i+1,0] = cls.name
         data_table[i+1,1] = ':class:`~' + cls.__module__ + '.' + cls.__name__ + '`'
