@@ -82,7 +82,13 @@ def generate_sci_pypeitfile(redux_path:str,
                             stack:bool=True):
     """
     Generate the PypeIt file for the science frames
-    from the calib PypeIt file
+    from the calib PypeIt file.
+
+    The primary steps are:
+      - Genreate the science reduction folder based on the science filenames
+      - Generate a soft-link to the Masters/ folder provided by master_calib_dir
+      - Build the configuration lines for the PypeIt file
+      - Write the PypeIt file to disk in the science reduction folder
     
     Args:
         redux_path (str): Path to the redux folder
@@ -392,6 +398,9 @@ class QL(scriptbase.ScriptBase):
         
         # Run it
         redux_path = os.path.dirname(sci_pypeit_file)  # Path to PypeIt file
-        pypeIt = pypeit.PypeIt(sci_pypeit_file,
+        pypeIt = pypeit.PypeIt(sci_pypeit_file, 
+                               reuse_masters=True,
                                redux_path=redux_path) 
+        pypeIt.reduce_all()
+        pypeIt.build_qa()
         msgs.info(f'Quicklook completed in {utils.get_time_string(time.perf_counter()-tstart)} seconds')

@@ -8,18 +8,12 @@ Overview
 PypeIt provides a quicklook script ``pypeit_ql`` for
 quick reductions, presumably at the telescope.
 
-At present, only a few spectrographs have been
-extensively tested:  
-``shane_kast_blue``, ``shane_kast_red``, ``keck_lris_red``, 
-``keck_deimos``.
-
 The approach is to (1) generate calibration files if needed 
 using an auto-generated :doc:`pypeit_file`
 and then (2) process the input science file(s) with
 a separate auto-generated :doc:`pypeit_file`.
 These are generally organized in separate directories
-along with the output products.
-
+along with the output products (see below).
 This script performs a boxcar (only) extraction of 
 long- or multi-slit observations.
 
@@ -27,6 +21,37 @@ The script usage can be displayed by calling the script with the
 ``-h`` option:
 
 .. include:: help/pypeit_ql.rst
+
+At present, only a few spectrographs have been
+extensively tested:  
+``shane_kast_blue``, ``shane_kast_red``, ``keck_lris_red``, 
+``keck_deimos``.
+
+Folder tree 
++++++++++++
+
+One or more folders are generated in a run with ``pypeit_ql``.
+
+The primary folder containts the science outputs 
+in ``Science/`` and QA products related to extraction
+and a soft-link to the ``Masters/`` folder.
+It is named after the input science file(s).  If there is only
+one file processed, the folder is given the name of the file
+with the ``.fits`` extension removed (e.g. ``b27.fits`` becomes
+``b27``).  
+If there are multiple files processed, the folder is given the
+root names of the first and last files separated by a dash
+(e.g. ``b27.fits`` and ``b28.fits`` become ``b27-b28``).
+This primary folder
+will appear in the path specified by ``--redux_path``, which
+defaults to the current working directory.
+
+If calibration files are generated, one folder per setup
+will appear in the path specified by ``--calib_dir``,
+which defaults to the path given by ``-redux_path``. 
+These will have names like ``instr_A`` where ``instr`` is the
+spectograph, e.g. ``keck_lris_red``, and ``A`` is the setup.
+
 
 Longslit
 ========

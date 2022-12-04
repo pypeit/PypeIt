@@ -83,7 +83,8 @@ class PypeIt:
         fitstbl (:obj:`pypeit.metadata.PypeItMetaData`): holds the meta info
 
     """
-    def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse_masters=False, logname=None,
+    def __init__(self, pypeit_file, verbosity=2, overwrite=True, 
+                 reuse_masters=False, logname=None,
                  show=False, redux_path=None, calib_only=False):
 
         # Set up logging

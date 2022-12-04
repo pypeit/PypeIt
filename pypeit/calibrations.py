@@ -679,6 +679,7 @@ class Calibrations:
             if os.path.isfile(edge_masterframe_name) and self.reuse_masters:
                 self.edges = edgetrace.EdgeTraceSet.from_file(edge_masterframe_name)
             elif len(trace_image_files) == 0:
+                embed(header='682 of calibs')
                 msgs.warn("No frametype=trace files to build slits")
                 return None
             else:
