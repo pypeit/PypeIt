@@ -122,6 +122,11 @@ class Spec2DObj(datamodel.DataContainer):
             :class:`~pypeit.spec2dobj.Spec2DObj`: 2D spectra object.
 
         """
+        hdul = io.fits_open(file)
+        # Quick check on det
+        detnames = np.unique([hdu.name.split('-')[0] for hdu in hdul[1:]])
+        if detname not in detnames:
+            msgs.error(f'Your --det={detname} is not available. \n   Choose from: {detnames}')
         with io.fits_open(file) as hdu:
             return cls.from_hdu(hdu, detname, chk_version=chk_version)
 

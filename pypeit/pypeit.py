@@ -9,12 +9,12 @@ import time
 import os
 import copy
 import json
+import datetime
 
 from IPython import embed
 
 import numpy as np
 
-from configobj import ConfigObj
 
 from astropy.io import fits
 from astropy.table import Table
@@ -30,13 +30,13 @@ from pypeit import find_objects
 from pypeit import extraction
 from pypeit import spec2dobj
 from pypeit.core import qa
-from pypeit.core import findobj_skymask
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
 from pypeit import utils
 from pypeit.history import History
 from pypeit.par import PypeItPar
+from pypeit.par.pypeitpar import ql_is_on
 from pypeit.metadata import PypeItMetaData
 from pypeit.manual_extract import ManualExtractionObj
 
@@ -83,7 +83,8 @@ class PypeIt:
         fitstbl (:obj:`pypeit.metadata.PypeItMetaData`): holds the meta info
 
     """
-    def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse_masters=False, logname=None,
+    def __init__(self, pypeit_file, verbosity=2, overwrite=True, 
+                 reuse_masters=False, logname=None,
                  show=False, redux_path=None, calib_only=False):
 
         # Set up logging
@@ -121,18 +122,27 @@ class PypeIt:
         self.spectrograph._check_extensions(config_specific_file)
         spectrograph_cfg_lines = self.spectrograph.config_specific_par(config_specific_file).to_config()
 
+        # Addtional parameters, including QL
+        merge = (self.pypeItFile.cfg_lines,)
+        if ql_is_on(self.pypeItFile.config):
+            merge = (self.spectrograph.ql_par(),) + merge
+
         #   - Build the full set, merging with any user-provided
         #     parameters
-        self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, 
-                                            merge_with=self.pypeItFile.cfg_lines)
+        self.par = PypeItPar.from_cfg_lines(
+            cfg_lines=spectrograph_cfg_lines, 
+            merge_with=merge)
         msgs.info('Built full PypeIt parameter set.')
 
         # Check the output paths are ready
         if redux_path is not None:
             self.par['rdx']['redux_path'] = redux_path
 
-        # TODO: Write the full parameter set here?
+        # Write the full parameter set here
         # --------------------------------------------------------------
+        par_file = pypeit_file.replace(
+            '.pypeit', f"_UTC_{datetime.datetime.utcnow().date()}.par")
+        self.par.to_config(par_file, include_descr=False)
 
         # --------------------------------------------------------------
         # Build the meta data
@@ -268,6 +278,8 @@ class PypeIt:
     def calib_all(self, run=True):
         """
         Create calibrations for all setups
+        This is only run in lieu of a full run or
+        as part of the pypeit_parse_calib_id script
 
         This will not crash if not all of the standard set of files are not provided
 
@@ -292,8 +304,6 @@ class PypeIt:
             grp_frames = frame_indx[in_grp]
 
             # Find the detectors to reduce
-#            detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
-#                                                ndet=self.spectrograph.ndet)
             subset = self.par['rdx']['slitspatnum'] if self.par['rdx']['slitspatnum'] is not None \
                 else self.par['rdx']['detnum']
             detectors = self.spectrograph.select_detectors(subset=subset)
@@ -312,7 +322,7 @@ class PypeIt:
                     user_slits=slittrace.merge_user_slit(self.par['rdx']['slitspatnum'],
                                                          self.par['rdx']['maskIDs']))
                 # Do it
-                # TODO: Why isn't set_config part of the Calibrations.__init__ method?
+                # These need to be separate to accomodate COADD2D
                 self.caliBrate.set_config(grp_frames[0], self.det, self.par['calibrations'])
 
                 # Allow skipping the run (e.g. parse_calib_id.py script)
@@ -323,7 +333,7 @@ class PypeIt:
                                   f'that failed was {self.caliBrate.failed_step}.  Continuing by '
                                   f'skipping this detector.')
 
-                key = self.caliBrate.master_key_dict['frame']
+                key = self.fitstbl.master_key(grp_frames[0], det=self.det)
                 calib_dict[calib_grp][key] = {}
                 for step in self.caliBrate.steps:
                     if step in ['bpm', 'slits', 

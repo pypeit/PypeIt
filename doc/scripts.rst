@@ -275,39 +275,20 @@ The script usage can be displayed by calling the script with the
 Quick-look Scripts
 ==================
 
-PypeIt provides a few scripts for faster, less robust data reductions for
+PypeIt provides a script for faster, less robust data reductions for
 quick-look assessments of the data.
 
-pypeit_ql_mos
--------------
+pypeit_ql
+---------
 
 This script performs a boxcar (only) extraction of a long-
 or multi-slit observation taken with one of PypeIt's
-spectrographs; see :ref:`pypeit-ql-mos`.
+spectrographs; see :doc:`quicklook` for full details.  
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
 
-.. include:: help/pypeit_ql_mos.rst
-
-pypeit_ql_multislit
--------------------
-
-**Deprecated!** Use :ref:`pypeit-ql-mos`.
-
-.. TODO: Make sure the above is true.  If so, can we remove pypeit/scripts/ql_mulitslit.py?
-
-pypeit_ql_keck_nires
---------------------
-
-Performs quick-look reductions specifically for Keck/NIRES; see :ref:`pypeit-ql-keck-nires`.
-
-pypeit_ql_keck_deimos
----------------------
-
-Performs quick-look reductions specifically for Keck/DEIMOS; see :ref:`pypeit-ql-deimos`.
-
-----
+.. include:: help/pypeit_ql.rst
 
 .. _further_proc_scripts:
 

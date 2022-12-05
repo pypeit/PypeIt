@@ -406,7 +406,7 @@ class PypeItMetaData:
         _cfg_keys = self.spectrograph.configuration_keys() if cfg_keys is None else cfg_keys
         return {k:self.table[k][indx] for k in _cfg_keys}
 
-    def master_key(self, row, det=1):
+    def master_key(self, row, det=1, master_setup_and_bit:str=None):
         """
         Construct the master key for the file in the provided row.
 
@@ -429,6 +429,9 @@ class PypeItMetaData:
                 detectors designated as a viable mosaic for
                 :attr:`spectrograph`; see
                 :func:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_mosaics`.
+            master_setup_and_bit (:obj:`str`, optional):
+                If provided, the master key is constructed using the
+                provided string and detector name.
 
         Returns:
             :obj:`str`: Master key with configuration, calibration group(s), and
@@ -443,7 +446,11 @@ class PypeItMetaData:
             msgs.error('Cannot provide master key string without setup and calibbit; '
                        'run set_configurations and set_calibration_groups.')
         det_name = self.spectrograph.get_det_name(det)
-        return f"{self['setup'][row]}_{self['calibbit'][row]}_{det_name}"
+        # Finish
+        if master_setup_and_bit is not None:
+            return master_setup_and_bit + '_' + det_name
+        else:
+            return f"{self['setup'][row]}_{self['calibbit'][row]}_{det_name}"
 
     def construct_obstime(self, row):
         """
