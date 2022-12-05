@@ -1,7 +1,8 @@
 .. code-block:: console
 
     $ pypeit_show_2dspec -h
-    usage: pypeit_show_2dspec [-h] [--list] [--det DET] [--showmask] [--removetrace]
+    usage: pypeit_show_2dspec [-h] [--list] [--det DET] [--spat_id SPAT_ID]
+                              [--maskID MASKID] [--showmask] [--removetrace]
                               [--embed] [--ignore_extract_mask]
                               [--sensfunc SENSFUNC] [--channels CHANNELS]
                               [--prefix PREFIX] [--no_clear] [-v VERBOSITY]
@@ -21,6 +22,9 @@
                             detector. If a string, it must match the name of the
                             detector object (e.g., DET01 for a detector, MSC01 for a
                             mosaic). (default: 1)
+      --spat_id SPAT_ID     Restrict plotting to this slit (PypeIt ID notation)
+                            (default: None)
+      --maskID MASKID       Restrict plotting to this maskID (default: None)
       --showmask            Overplot masked pixels (default: False)
       --removetrace         Do not overplot traces in the skysub, sky_resid, and
                             resid channels (default: False)

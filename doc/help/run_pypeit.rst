@@ -1,11 +1,10 @@
 .. code-block:: console
 
     $ run_pypeit -h
-    usage: run_pypeit [-h] [-v VERBOSITY] [-r REDUX_PATH] [-m] [-s] [-o]
-                      [-d DETECTOR] [-c]
+    usage: run_pypeit [-h] [-v VERBOSITY] [-r REDUX_PATH] [-m] [-s] [-o] [-c]
                       pypeit_file
     
-    ##  [1;37;42mPypeIt : The Python Spectroscopic Data Reduction Pipeline v1.10.1.dev260+g32de3d6d4[0m
+    ##  [1;37;42mPypeIt : The Python Spectroscopic Data Reduction Pipeline v1.11.1.dev266+g837e3669f.d20221122[0m
     ##  
     ##  Available spectrographs include:
     ##   bok_bc, gemini_flamingos1, gemini_flamingos2, gemini_gmos_north_e2v,
@@ -40,9 +39,5 @@
                             Requires remote control ginga session via "ginga
                             --modules=RC,SlitWavelength &"
       -o, --overwrite       Overwrite any existing files/directories
-      -d DETECTOR, --detector DETECTOR
-                            Detector to limit reductions on. If the output files
-                            exist and -o is used, the outputs for the input detector
-                            will be replaced.
       -c, --calib_only      Only run on calibrations
     
