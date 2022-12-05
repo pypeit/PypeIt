@@ -70,7 +70,9 @@ include:
         master_setup_and_bit = SETUP_BIT
 
 where ``SETUP`` and ``BIT`` are taken from the masters
-files found in the ``Masters/`` folder.  This should
+files found in the ``Masters/`` folder.  
+For example, ``SETUP_BIT`` may be ``A_7``. 
+This should
 ensure that the science data are processed using the
 correct calibrations.
 

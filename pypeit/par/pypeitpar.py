@@ -414,7 +414,7 @@ class ProcessImagesPar(ParSet):
 
         defaults['master_setup_and_bit'] = None
         dtypes['master_setup_and_bit'] = str
-        descr['master_setup_and_bit'] = 'Over-ride the master setup and bit.  Only recommended for use with quicklook'
+        descr['master_setup_and_bit'] = 'Over-ride the master setup and bit, e.g. "A_7".  Only recommended for use with quicklook'
 
         # Instantiate the parameter set
         super(ProcessImagesPar, self).__init__(list(pars.keys()),
