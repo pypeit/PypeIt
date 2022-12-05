@@ -292,10 +292,10 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
 
         # Binning Independent Masking 
         bpm_img[:,0:(2//binspatial)] = 1
-        # Mask out the 'hotspot' on the upper left coner
-        bpm_img[(3842//binspec):(3944//binspec), (43//binspatial):(185//binspatial)] = 1
+        # Mask out the 'hotspot' on the upper left coner 
+        bpm_img[(3842//binspec):(3944//binspec), (19//binspatial):(161//binspatial)] = 1
         # Mask out the 'bad columns' on the upper left coner
-        bpm_img[(2642//binspec):, (442//binspatial):(466//binspatial)] = 1
+        bpm_img[(2642//binspec):, (418//binspatial):(442//binspatial)] = 1
 
         # Return
         return bpm_img
