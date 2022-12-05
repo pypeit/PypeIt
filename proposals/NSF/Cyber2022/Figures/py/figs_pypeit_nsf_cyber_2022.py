@@ -4,7 +4,6 @@ import os, sys
 import numpy as np
 import scipy
 from scipy import stats
-from urllib.parse import urlparse
 import datetime
 import geopy
 
@@ -42,10 +41,10 @@ user_inst = [
     'Ohio State University',
     'Vanderbilt University',
     'AIP, Germany',
-    'Univeristy of Copenhagen',
+    'University of Copenhagen',
     'Washington State University',
     'UC Santa Cruz',
-    'University of Southhampton',
+    'University of Southampton, UK',
     'UC Los Angeles',
     'University of Illinois',
     'University of Melbourne',
@@ -60,9 +59,9 @@ user_inst = [
     'UC Santa Barbara',
     'University of Hawaii',
     'Caltech',
-    'Univeristy of Southern Queensland',
-    'Univeristy of Texas',
-    'Flatiron Institute',
+    'University of Southern Queensland, Australia',
+    'University of Texas, Austin',
+    'Flatiron Institute, NYC',
     'Weizmann Institute',
     'Tel Aviv University',
     'Observatoire de Paris',
@@ -70,20 +69,20 @@ user_inst = [
     'Stockholm University',
     'University of Cambridge',
     'University of Maryland',
-    'NASA Goddard',
+    'NASA Goddard, Greenbelt, Maryland',
     'University of Washington',
     'University of Portsmouth, UK',
     'Humboldt University, Berlin',
     'Universite Lyon',
-    'Kunkoly Observatory, Hungary',
+    'Konkoly Observatory, Budapest, Hungary',
     'University of Arizona',
     'ESO Garching',
     'Gemini Observatory, AZ',
     'Leiden University',
     'University of Birmingham',
-    'Technical Univeristy of Denmark',
-    'Warsaw Univeristy',
-    'Univeristy of Turku, Finland',
+    'Technical University of Denmark',
+    'Warsaw University',
+    'University of Turku, Finland',
     'Radboud University',
     'SRON, Netherlands',
     'Stockholm University',
@@ -96,29 +95,29 @@ user_inst = [
     'Tufts University',
     'UC Irvine',
     'CSIC Madrid',
-    'INAF Tieste',
-    'INAF Napoli',
+    'INAF Trieste',
+    'INAF Napoli, Italy',
     'Universidad Andres Bello, Santiago',
-    'Univeristy of Wisconsin',
-    'INAF Padova',
+    'University of Wisconsin',
+    'INAF Padova, Italy',
     'San Jose State',
-    'Univeristy of Waterloo',
-    'Univeristy of Oulu',
-    'Michigan State Univeristy',
-    'Swinburne Univeristy',
+    'University of Waterloo',
+    'University of Oulu',
+    'Michigan State University',
+    'Swinburne University',
     'RIT',
     'IAS, Princeton',
-    'Queens Univeristy',
+    'Queens University',
     'IAC, Canary Islands',
     'University of North Carolina',
     'Yale University',
     'CSIC Granada',
     'University of Manchester',
-    'NAOJ',
+    'National Astronomical Observatory of Japan',
     'Monash University',
     'Universidad de Zaragoza, Spain',
     'European University Cyprus, Spain',
-    'NASA JPL',
+    'Jet Propulsion Laboratory, Pasadena, CA',
     'Macquarie University',
     'UNIST, South Korea',
     'University of Firenze',
@@ -126,7 +125,7 @@ user_inst = [
     'University of Oslo',
     'INAF Bologna',
     'GEPI Meudon',
-    'University of Pisa',
+    'University of Pisa, Italy',
     'University of Minnesota',
     'LBNL',
     'Royal Observatory, Edinburgh',
@@ -134,7 +133,7 @@ user_inst = [
     'University of Tokyo',
     'University of Hertfordshire',
     'ASTRON',
-    'MPIR Bonn',
+    'Max Planck, Bonn',
     'CSIRO, Australia',
     'Curtin University',
     'SKA Observatory, UK',
@@ -142,7 +141,7 @@ user_inst = [
     'Pontificia Universidad Catolica de Valparaiso',
     'University of Oxford',
     'University of Chicago',
-    'INAF Naples',
+    'INAF Naples, Italy',
     'CNRS Marseille',
     'Peking University',
     'Kyungpook National University, South Korea',
@@ -153,7 +152,7 @@ user_inst = [
     'MPA, Garching',
     'University of Michigan',
     'Karl Remeis-Observatory and Erlangen Centre for Astroparticle Physics',
-    'South African Radio Astronomy Observatory',
+    'South African Radio Astronomy Observatory, Cape Town',
     'IUCAA, Pune',
     'NRAO Socorro',
     'University of Geneva',
@@ -188,7 +187,7 @@ def set_fontsize(ax, fsz):
         item.set_fontsize(fsz)
 
 
-def fig_spectrographs(outfile:str='fig_geo_spectrographs.png', 
+def fig_geo_spectrographs(outfile:str='fig_geo_spectrographs.png', 
                  debug=False): 
     """ Global geographic plot of PypeIt spectrographs
 
@@ -301,7 +300,7 @@ def fig_spectrographs(outfile:str='fig_geo_spectrographs.png',
     print('Wrote {:s}'.format(outfile))
 
 
-def fig_users(outfile:str='fig_geo_users.png', 
+def fig_geo_users(outfile:str='fig_geo_users.png', 
                  debug=False): 
     """ Global geographic plot of PypeIt users
 
@@ -309,19 +308,20 @@ def fig_users(outfile:str='fig_geo_users.png',
         outfile (str): 
         debug (bool, optional): _description_. Defaults to False.
     """
-
-    # Load up spectrographs 
-    spectrographs = spectrograph_classes()
+    # Init
+    geoloc = geopy.geocoders.Nominatim(user_agent='GoogleV3')
 
     # Grab the locations
     geo_dict = {}
-    for key in spectrographs.keys():
-        spectrograph = spectrographs[key]
-        geo_dict[key] = spectrograph.telescope['longitude'], spectrograph.telescope['latitude']
-        # Reset JWST
-        if 'jwst' in key:
-            geo_dict[key] = -76.615278, 39.289444
+    for institute in user_inst:
+        loc = geoloc.geocode(institute)
+        if loc is None:
+            print(f'No location for {institute}')
+            continue
+        geo_dict[institute] = loc.longitude, loc.latitude
+
     all_lats = np.array([geo_dict[key][1] for key in geo_dict.keys()])
+    all_lons = np.array([geo_dict[key][0] for key in geo_dict.keys()])
     specs = np.array(list(geo_dict.keys()))
 
     if debug:
@@ -335,62 +335,14 @@ def fig_users(outfile:str='fig_geo_users.png',
 
     ax = plt.axes(projection=tformP)
 
-
-    #cm = plt.get_cmap(color)
-    uni_lats = np.unique(all_lats)
-
-    # Plot em
-    for uni_lat in uni_lats:
-        idx = all_lats == uni_lat
-        if np.abs(uni_lat-19.8283333333333) < 1e-5:
-            # Gemini
-            idx = idx | (np.abs(all_lats - 19.82380144722) < 1e-5)
-        # Magellan/CTIO
-        if (np.abs(uni_lat+29.00333333333) < 1e-5): 
-            # 
-            idx = idx | (np.abs(all_lats + 30.240741666666672) < 1e-5)
-            idx = idx | (np.abs(all_lats + 29.256666666666) < 1e-5)
-        # Arziona
-        if np.abs(uni_lat-31.6809444444) < 1e-5: 
-            idx = idx | (np.abs(all_lats - 32.7015999999) < 1e-5) # LBT
-            idx = idx | (np.abs(all_lats - 34.744305000) < 1e-5) # LDT
-            idx = idx | (np.abs(all_lats - 31.963333333) < 1e-5)
-        lon, lat = geo_dict[specs[idx][0]][0], geo_dict[specs[idx][0]][1], 
-        # Plot
-        plt.plot(lon, lat, 'o', transform=tformP)
-        if (np.abs(uni_lat-32.) < 3.) & (
-            np.abs(uni_lat-31.68094444) > 1e-5) & (
-                np.abs(uni_lat-33.356000000) > 1e-5): # Arizona
-            continue
-        if np.abs(uni_lat+30.240741666666672) < 1e-5:
-            continue
-        if np.abs(uni_lat+29.256666666666) < 1e-5:
-            continue
-        if np.abs(uni_lat-19.82380144722) < 1e-5:
-            continue
-        # Label
-        lbl = ''
-        for spec in specs[idx]:
-            lbl += spec + '\n'
-        lbl = lbl[:-3]
-        if 'vlt' in lbl or 'shane' in lbl:
-            va = 'bottom'
-        else:
-            va = 'top'
-        if 'p200' in lbl:
-            ha = 'right'
-        else:
-            ha = 'left'
-        #lbl = specs[idx][0]
-        if np.abs(uni_lat-31.6809444) < 1e-5: 
-            lon += 2.
-        ax.text(lon, lat, lbl, transform=tformP,
-              fontsize=15, ha=ha, va=va)
-
+    # Plot
+    img = plt.scatter(x=all_lons,
+        y=all_lats, c='r', s=1,
+        transform=tformP)
     
     # Zoom in
-    ax.set_extent([-170, 10, -60, 60], 
-                  crs=ccrs.PlateCarree())
+    #ax.set_extent([-170, 10, -60, 60], 
+    #              crs=ccrs.PlateCarree())
     
     # Coast lines
     ax.coastlines(zorder=10)
@@ -455,47 +407,19 @@ def fig_learn_curve(outfile='fig_learn_curve.png'):
     plt.close()
     print('Wrote {:s}'.format(outfile))
 
-def fig_DT_vs_U0(outfile='fig_DT_vs_U0.png',
-                 local=None, table=None, nbins=40):
-    # Grab the data
-    modis_tbl = ssl_paper_analy.load_modis_tbl(local=local, table=table)
-
-    median, x_edge, y_edge, ibins = scipy.stats.binned_statistic_2d(
-        modis_tbl.U0, modis_tbl.U1, modis_tbl['DT'],
-        statistic='median', expand_binnumbers=True, bins=[nbins,1])
-
-    xvals = []
-    for kk in range(len(x_edge)-1):
-        xvals.append(np.mean(x_edge[kk:kk+2]))
-        
-    # Plot
-    fig = plt.figure(figsize=(10, 10))
-    plt.clf()
-    gs = gridspec.GridSpec(1,1)
-
-    ax = plt.subplot(gs[0])
-
-    ax.plot(xvals, median.flatten(), 'o')
-
-    #ax.legend(fontsize=15.)
-
-    # Label
-    ax.set_xlabel("U0")
-    ax.set_ylabel("Median DT")
-
-    plotting.set_fontsize(ax, 17.)
-    
-    plt.savefig(outfile, dpi=300)
-    plt.close()
-    print('Wrote {:s}'.format(outfile))
 
         
 #### ########################## #########################
 def main(pargs):
 
-    # UMAP gallery
+    # Geographical location of spectrographs
     if pargs.figure == 'geo_spec':
-        fig_spectrographs(debug=pargs.debug)
+        fig_geo_spectrographs(debug=pargs.debug)
+
+    # Geographical location of authors
+    if pargs.figure == 'geo_users':
+        fig_geo_users(debug=pargs.debug)
+
 
 
 def parse_option():
@@ -507,7 +431,7 @@ def parse_option():
     """
     parser = argparse.ArgumentParser("SSL Figures")
     parser.add_argument("figure", type=str, 
-                        help="function to execute: 'slopes, 2d_stats, slopevsDT, umap_LL, learning_curve'")
+                        help="function to execute: 'geo_spec'")
     parser.add_argument('--debug', default=False, action='store_true',
                         help='Debug?')
     args = parser.parse_args()
