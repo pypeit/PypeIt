@@ -17,6 +17,13 @@ along with the output products (see below).
 This script performs a boxcar (only) extraction of 
 long- or multi-slit observations.
 
+The script does expect (effectively requires) that 
+PypeIt will correctly frametype the input frames.  
+If this fails, so too will the script. 
+A future revision may allow the user to specify the
+frametypes.
+ 
+
 The script usage can be displayed by calling the script with the
 ``-h`` option:
 
