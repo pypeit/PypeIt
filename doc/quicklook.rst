@@ -116,8 +116,8 @@ Different file
 
 Simply re-running the script
 above but replacing the ``b27.fits.gz`` file with
-``b28.fits.gz`` will reuse the calibrations we 
-just made: 
+``b28.fits.gz`` 
+will reuse the calibrations we just made: 
 
 .. code-block:: bash
 
@@ -125,8 +125,10 @@ just made:
 
 Here the script will detect that the calibration
 files are already present and will only process the science
-frame.  In this case,
-you could force a re-generation of the calibrations
+frame.  Therefore, files ``b1.fits.gz`` and ``b10.fits.gz`` are 
+entirely ignored.
+
+You can, however, force a re-generation of the calibrations
 with ``--clobber_calibs``.
 
 
