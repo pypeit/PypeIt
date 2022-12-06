@@ -402,7 +402,8 @@ def zerolag_shift_stretch(theta, y1, y2):
     corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2_corr*y2_corr))
     corr_norm = corr_zero/corr_denom
     if corr_denom == 0.0:
-        msgs.error('The shifted and stretched spectrum is zero everywhere. Cross-correlation cannot be performed. There is likely a bug somewhere')
+        msgs.warn('The shifted and stretched spectrum is zero everywhere. Cross-correlation cannot be performed. There is likely a bug somewhere')
+        raise RuntimeError()
     return -corr_norm
 
 
@@ -661,10 +662,16 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
     bounds = [(shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]), stretch_mnmx]
     x0_guess = np.array([shift_cc, 1.0])
     # TODO Can we make the differential evolution run faster?
-    result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), x0=x0_guess, tol=toler, bounds=bounds, disp=False, polish=True, seed=seed)
-    corr_de = -result.fun
-    shift_de = result.x[0]
-    stretch_de = result.x[1]
+    try:
+        result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), x0=x0_guess, tol=toler, bounds=bounds, disp=False, polish=True, seed=seed)
+    except Exception:
+        msgs.warn("Differential evolution failed.")
+        return 0, None, None, None, None, None
+    else:
+        corr_de = -result.fun
+        shift_de = result.x[0]
+        stretch_de = result.x[1]
+
     if not result.success:
         msgs.warn('Fit for shift and stretch did not converge!')
 
