@@ -879,6 +879,7 @@ class MultiSlitFindObjects(FindObjects):
                                 objfindQA_filename=objfindQA_filename,
                                 debug_all=debug)
             # Record
+            embed(header='882 of find_objects.py')
             sobjs.add_sobj(sobjs_slit)
 
         # Steps
