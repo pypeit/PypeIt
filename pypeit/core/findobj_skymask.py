@@ -1401,8 +1401,9 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
     # Now deal with the hand apertures if a hand_extract_dict was passed in. Add these to the SpecObj objects
     if hand_extract_dict is not None:
         # First Parse the hand_dict
-        hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm = [
-            hand_extract_dict[key] for key in ['spec', 'spat', 'detname', 'fwhm']]
+        hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm, \
+            hand_extract_boxcar = [hand_extract_dict[key] for key in [
+                'spec', 'spat', 'detname', 'fwhm', 'boxcar_rad']]
 
         # Determine if these hand apertures land on the slit in question
         hand_on_slit = np.where(np.array(thismask[np.rint(hand_extract_spec).astype(int),
@@ -1489,6 +1490,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
                 keep[reg_ind[close]] = False
 
         sobjs = sobjs[keep]
+
 
     if len(sobjs) == 0:
         msgs.info('No hand or normal objects found on this slit. Returning')
