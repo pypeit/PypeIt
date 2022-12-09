@@ -24,6 +24,7 @@ import pandas
 import seaborn as sns
 
 import h5py
+from linetools import utils as ltu
 
 from pypeit.spectrographs import spectrograph_classes
 
@@ -69,7 +70,8 @@ user_inst = [
     'Stockholm University',
     'University of Cambridge',
     'University of Maryland',
-    'NASA Goddard, Greenbelt, Maryland',
+    #'NASA Goddard Space Flight Center, Greenbelt, Maryland',
+    'Greenbelt, Maryland',
     'University of Washington',
     'University of Portsmouth, UK',
     'Humboldt University, Berlin',
@@ -301,6 +303,7 @@ def fig_geo_spectrographs(outfile:str='fig_geo_spectrographs.png',
 
 
 def fig_geo_users(outfile:str='fig_geo_users.png', 
+    load_from_disk=False,
                  debug=False): 
     """ Global geographic plot of PypeIt users
 
@@ -312,13 +315,18 @@ def fig_geo_users(outfile:str='fig_geo_users.png',
     geoloc = geopy.geocoders.Nominatim(user_agent='GoogleV3')
 
     # Grab the locations
-    geo_dict = {}
-    for institute in user_inst:
-        loc = geoloc.geocode(institute)
-        if loc is None:
-            print(f'No location for {institute}')
-            continue
-        geo_dict[institute] = loc.longitude, loc.latitude
+    if load_from_disk:
+        geo_dict = ltu.loadjson('geo_dict.json')
+    else:
+        geo_dict = {}
+        for institute in user_inst:
+            loc = geoloc.geocode(institute)
+            if loc is None:
+                print(f'No location for {institute}')
+                continue
+            geo_dict[institute] = loc.longitude, loc.latitude
+        # Write
+        ltu.savejson('geo_dict.json', geo_dict, easy_to_read=True)
 
     all_lats = np.array([geo_dict[key][1] for key in geo_dict.keys()])
     all_lons = np.array([geo_dict[key][0] for key in geo_dict.keys()])
@@ -328,7 +336,7 @@ def fig_geo_users(outfile:str='fig_geo_users.png',
         embed(header='70 of fig_geo_spectrographs')
 
     # Figure
-    fig = plt.figure(figsize=(12,8))
+    fig = plt.figure(figsize=(12,5))
     plt.clf()
 
     tformP = ccrs.PlateCarree()
@@ -341,8 +349,8 @@ def fig_geo_users(outfile:str='fig_geo_users.png',
         transform=tformP)
     
     # Zoom in
-    #ax.set_extent([-170, 10, -60, 60], 
-    #              crs=ccrs.PlateCarree())
+    ax.set_extent([-165, -50, 10, 60], 
+                  crs=ccrs.PlateCarree())
     
     # Coast lines
     ax.coastlines(zorder=10)
@@ -350,7 +358,8 @@ def fig_geo_users(outfile:str='fig_geo_users.png',
         facecolor='lightgray', edgecolor='black')
 
     gl = ax.gridlines(crs=ccrs.PlateCarree(), linewidth=1, 
-        color='black', alpha=0.5, linestyle=':', draw_labels=True)
+        color='black', alpha=0.5, linestyle=':', 
+        draw_labels=True)
     #gl.xlabels_top = False
     #gl.ylabels_left = True
     #gl.ylabels_right=False
@@ -360,7 +369,7 @@ def fig_geo_users(outfile:str='fig_geo_users.png',
     #gl.xlabel_style = {'color': 'black'}# 'weight': 'bold'}
     #gl.ylabel_style = {'color': 'black'}# 'weight': 'bold'}
 
-    set_fontsize(ax, 19.)
+    set_fontsize(ax, 23.)
     plt.savefig(outfile, dpi=300)
     plt.close()
     print('Wrote {:s}'.format(outfile))
@@ -418,7 +427,7 @@ def main(pargs):
 
     # Geographical location of authors
     if pargs.figure == 'geo_users':
-        fig_geo_users(debug=pargs.debug)
+        fig_geo_users(debug=pargs.debug, load_from_disk=pargs.load)
 
 
 
@@ -432,6 +441,8 @@ def parse_option():
     parser = argparse.ArgumentParser("SSL Figures")
     parser.add_argument("figure", type=str, 
                         help="function to execute: 'geo_spec'")
+    parser.add_argument('--load', default=False, action='store_true',
+                        help='Load files from disk?')
     parser.add_argument('--debug', default=False, action='store_true',
                         help='Debug?')
     args = parser.parse_args()
