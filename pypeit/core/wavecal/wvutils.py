@@ -23,6 +23,7 @@ from astropy import constants
 from pypeit import msgs
 from pypeit import utils
 from pypeit.core import arc
+from pypeit.pypmsgs import PypeItError
 
 from IPython import embed
 
@@ -403,7 +404,7 @@ def zerolag_shift_stretch(theta, y1, y2):
     corr_norm = corr_zero/corr_denom
     if corr_denom == 0.0:
         msgs.warn('The shifted and stretched spectrum is zero everywhere. Cross-correlation cannot be performed. There is likely a bug somewhere')
-        raise RuntimeError()
+        raise PypeItError()
     return -corr_norm
 
 
@@ -664,7 +665,7 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
     # TODO Can we make the differential evolution run faster?
     try:
         result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), x0=x0_guess, tol=toler, bounds=bounds, disp=False, polish=True, seed=seed)
-    except Exception:
+    except PypeItError:
         msgs.warn("Differential evolution failed.")
         return 0, None, None, None, None, None
     else:
