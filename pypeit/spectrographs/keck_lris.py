@@ -514,7 +514,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
     def get_slitmask(self, filename:str):
         """
-        Parse the slitmask data from a DEIMOS file into :attr:`slitmask`, a
+        Parse the slitmask data from a LRIS file into :attr:`slitmask`, a
         :class:`~pypeit.spectrographs.slitmask.SlitMask` object.
 
         Args:

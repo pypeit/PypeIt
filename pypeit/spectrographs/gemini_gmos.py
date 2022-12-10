@@ -5,6 +5,10 @@ Module for Gemini GMOS specific methods.
 """
 import numpy as np
 
+from astropy.table import Table
+from astropy.coordinates import SkyCoord
+from astropy import units
+
 from pypeit import msgs
 from pypeit.spectrographs import spectrograph
 from pypeit import telescopes
@@ -14,6 +18,7 @@ from pypeit.core import parse
 from pypeit.images import detector_container
 from pypeit.images.mosaic import Mosaic
 from pypeit.core.mosaic import build_image_mosaic_transform
+from pypeit.spectrographs.slitmask import SlitMask
 
 from IPython import embed
 
@@ -486,6 +491,107 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     def default_mosaic(self):
         return self.allowed_mosaics[0]
 
+    
+    def get_slitmask(self, filename):
+        """
+        Parse the slitmask data from a MOSFIRE file into :attr:`slitmask`, a
+        :class:`~pypeit.spectrographs.slitmask.SlitMask` object.
+
+        This can be used for multi-object slitmask, but it it's not good
+        for "LONGSLIT" nor "long2pos". Both "LONGSLIT" and "long2pos" have emtpy/incomplete
+        binTable where the slitmask data are stored.
+
+
+        Args:
+            filename (:obj:`str`):
+                Name of the file to read.
+
+        Returns:
+            :class:`~pypeit.spectrographs.slitmask.SlitMask`: The slitmask
+            data read from the file. The returned object is the same as
+            :attr:`slitmask`.
+        """
+        # Open the file
+        mask_tbl = Table.read(filename)
+
+        # Projected distance (in arcsec) of the object from the left and right (top and bot) edges of the slit
+        slit_length = mask_tbl['slitsize_y'].to('arcsec').value # arcsec
+        topdist = np.round(slit_length/2. + 
+                           mask_tbl['slitpos_y'].to('arcsec').value, 3)
+        botdist = np.round(slit_length/2. - 
+                           mask_tbl['slitpos_y'].to('arcsec').value, 3)
+
+        # Coordinates
+        # WARNING -- GMOS TABLE IS ONLY IN FLOAT32!!!
+        obj_ra = mask_tbl['RA'].value * 15.  
+        obj_dec = mask_tbl['DEC'].value 
+        objname = mask_tbl['ID'].value.astype(str)
+
+        slitID = mask_tbl['ID'].value # Slit and objects are the same
+        embed(header='558 of gemini_gmos')
+
+        #   - Pull out the slit ID, object ID, name, object coordinates, top and bottom distance
+        objects = np.array([np.array(slitID, dtype=int),
+                           np.zeros(slitID.size, dtype=int),   # no object ID
+                           obj_ra,
+                           obj_dec,
+                           objname,
+                           np.array(mask_tbl['MAG'].value, dtype=float),
+                           ['None']*slitID.size,       # no magnitude band
+                           topdist,
+                           botdist]).T
+
+        # PA corresponding to positive x on detector (spatial)
+        posx_pa = mask_tbl.meta['MASK_PA'] # deg
+        if posx_pa < 0.:
+            posx_pa += 360.
+
+        # Slit positions
+        obj_coord = SkyCoord(ra=obj_ra, dec=obj_dec, unit='deg')
+        offsets = np.sqrt(
+                mask_tbl['slitpos_x'].to('arcsec').value**2 + 
+                mask_tbl['slitpos_y'].to('arcsec').value**2) 
+        # NOT READY FOR TILTS
+        if np.any(np.invert(np.isclose(mask_tbl['slittilt'].value, 0.))):
+            msgs.error('NOT READY FOR TILTED SLITS')
+        # NOT SURE WE HAVE THE TILT SIGN CORRECT
+        slit_pas = mask_tbl.meta['MASK_PA'] + mask_tbl['slittilt'].to('deg').value
+
+        slit_ra, slit_dec = [], []
+        for offset, coord, slit_pa in zip(offsets, obj_coord, slit_pas):
+            slit_coord = coord.directional_offset_by(
+                slit_pa*units.deg, offset*units.arcsec)
+            slit_ra.append(slit_coord.ra.deg)
+            slit_dec.append(slit_coord.dec.deg)
+
+        # Instantiate the slit mask object and return it
+        self.slitmask = SlitMask(
+            np.array(
+            [np.zeros(slitID.size),   # gemini_gmos maskdef has not slit corners
+             np.zeros(slitID.size),
+             np.zeros(slitID.size),
+             np.zeros(slitID.size),
+             np.zeros(slitID.size),
+             np.zeros(slitID.size),
+             np.zeros(slitID.size),
+             np.zeros(slitID.size)]).T.reshape(-1,4,2), 
+            slitid=np.array(slitID, dtype=int),
+            align=mask_tbl['priority'].value == b'0',
+            science=mask_tbl['priority'].value != b'0',
+            onsky=np.array([
+                slit_ra, slit_dec, 
+                np.array(mask_tbl['slitsize_y'].to('arcsec').value, dtype=float),
+                np.array(mask_tbl['slitsize_x'].to('arcsec').value, dtype=float),
+                slit_pas]).T,
+           objects=objects,
+           posx_pa=posx_pa)
+        return self.slitmask
+
+    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None):
+        if filename is not None:
+            self.get_slitmask(filename)
+        else:
+            msgs.error('The name of a ODF file should be provided in the PypeIt file')
 
 class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
     """
