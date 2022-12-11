@@ -107,7 +107,7 @@ class ManualExtractionObj(datamodel.DataContainer):
             if len(parse) >= 5:
                 idict['boxcar_rad'] += [float(parse[4])]
             else:
-                idict['boxcar_rad'] += -1.
+                idict['boxcar_rad'] += [-1.]
 
         # Build me
         return cls(frame=frame, spat=np.array(idict['spat']), 
