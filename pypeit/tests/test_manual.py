@@ -6,7 +6,6 @@ import numpy as np
 from pypeit.manual_extract import ManualExtractionObj
 from pypeit.spectrographs.util import load_spectrograph
 
-
 def test_instantiate():
 
     # Init

@@ -103,6 +103,7 @@ class ManualExtractionObj(datamodel.DataContainer):
             idict['spat'] += [float(parse[1])]
             idict['spec'] += [float(parse[2])]
             idict['fwhm'] += [float(parse[3])]
+
             # Boxcar?
             if len(parse) >= 5:
                 idict['boxcar_rad'] += [float(parse[4])]
