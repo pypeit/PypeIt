@@ -742,3 +742,22 @@ class Collate1DFile(InputFile):
 
         # Return
         return all_files
+
+class RawFiles(InputFile):
+    """Child class for a list of raw files
+    """
+    data_block = 'raw'  # Defines naming of data block
+    flavor = 'Raw'      
+    setup_required = False
+    datablock_required = True
+    required_columns = ['filename'] 
+
+    def vet(self):
+        """ Check for required bits and pieces of the .coadd2d file
+        besides the input objects themselves
+        """
+        super().vet()
+
+        # Done
+        msgs.info('.rawfiles file successfully vetted.')
+

@@ -1000,6 +1000,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     camera = 'LRISr'
     header_name = 'LRIS'
     supported = True
+    ql_supported = True
     comment = 'Red camera;  LBNL detector, 2kx4k; see :doc:`lris`'
     
     def get_detector_par(self, det, hdu=None):

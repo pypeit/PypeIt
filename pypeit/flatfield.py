@@ -558,8 +558,8 @@ class FlatField:
             # Note: This will only be performed if it is coded for each individual spectrograph.
             # Make a copy of the original flat
             rawflat_orig = self.rawflatimg.image.copy()
-            gpm = np.ones(rawflat_orig.shape, dtype=bool) if self.rawflatimg.bpm is None else \
-                (1 - self.rawflatimg.bpm).astype(bool)
+            # TODO: Should this be *any* flag, or just BPM?
+            gpm = self.rawflatimg.select_flag(flag='BPM', invert=True)
             niter = 1
             for ff in range(niter):
                 # Just get the spatial and spectral profiles for now
@@ -774,8 +774,8 @@ class FlatField:
         nspec, nspat = self.rawflatimg.image.shape
         rawflat = self.rawflatimg.image
         # Good pixel mask
-        gpm = np.ones_like(rawflat, dtype=bool) if self.rawflatimg.bpm is None else (
-                1-self.rawflatimg.bpm).astype(bool)
+        # TODO: Should this be *any* flag, or just BPM?
+        gpm = self.rawflatimg.select_flag(flag='BPM', invert=True)
 
         # Flat-field modeling is done in the log of the counts
         flat_log = np.log(np.fmax(rawflat, 1.0))
@@ -1360,7 +1360,7 @@ class FlatField:
         slitlen = int(np.median(this_right - this_left))
 
         # Prepare fitting coordinates
-        wgud = np.where(onslit_tweak & np.logical_not(self.rawflatimg.fullmask))
+        wgud = np.where(onslit_tweak & self.rawflatimg.select_flag(invert=True))
         cut = (wgud[0], wgud[1])
         ypos = cut[0] / (self.slits.nspec - 1)
         xpos_img = self.slits.spatial_coordinate_image(slitidx=slit_idx,
@@ -1434,7 +1434,8 @@ class FlatField:
         spat_illum = tmp_flats.fit2illumflat(self.slits, frametype='pixel')
         rawflat = rawflat_orig * utils.inverse(spat_illum)
         # Now fit the spectral profile
-        gpm = np.ones(rawflat.shape, dtype=bool) if self.rawflatimg.bpm is None else (1 - self.rawflatimg.bpm).astype(bool)
+        # TODO: Should this be *any* flag, or just BPM?
+        gpm = self.rawflatimg.select_flag(flag='BPM', invert=True)
         scale_model = illum_profile_spectral(rawflat, self.waveimg, self.slits,
                                              slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
                                              model=None, gpmask=gpm, skymask=None, trim=self.flatpar['slit_trim'],
@@ -1490,8 +1491,8 @@ class FlatField:
         rawflat = self.rawflatimg.image.copy() / self.msillumflat.copy()
         # Grab the GPM and the slit images
         if gpm is None:
-            gpm = np.ones_like(rawflat, dtype=bool) if self.rawflatimg.bpm is None else (
-                    1 - self.rawflatimg.bpm).astype(bool)
+            # TODO: Should this be *any* flag, or just BPM?
+            gpm = self.rawflatimg.select_flag(flag='BPM', invert=True)
 
         # Obtain relative spectral illumination
         return illum_profile_spectral(rawflat, self.waveimg, self.slits,
