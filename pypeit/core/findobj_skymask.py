@@ -970,6 +970,9 @@ def get_fwhm(fwhm_in, nsamp, smash_peakflux, spat_fracpos, flux_smash_smth):
         fwhm_out = np.sqrt(np.fmax(fwhm_measure ** 2 - fwhm_in ** 2, (fwhm_in / 2.0) ** 2))  # Set a floor of fwhm/2 on fwhm
     else:
         fwhm_out = fwhm_in
+        
+    if fwhm_out > 2.5:
+        fwhm_out = 2.5
 
     return fwhm_out
 
