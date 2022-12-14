@@ -23,7 +23,6 @@ class OpCanceledError(Exception):
     def __init__(self):
         super().__init__()
 
-
 class LogWatcher():
     def __init__(self, log_file):
         if log_file is not None:
@@ -51,6 +50,13 @@ class LogWatcher():
 
     def unwatch(self, name):
         del self._watches[name]
+
+class SpectrographProxy():
+    
+    @staticmethod
+    def available_spectrographs():
+        return spectrographs.available_spectrographs
+
 
 class PypeItMetadataProxy(QAbstractTableModel):
     def __init__(self, config="ObsLog"):
@@ -325,9 +331,21 @@ class PypeItParamsProxy(QAbstractItemModel):
             # Column is always 0, because 1 is reserved for leaf nodes which can't be parents
             return super().createIndex(row, 0, node.parent)
 
-
 class SetupConfigurationModel(QObject):
+    """
+    A model representing a single PypeIt configuration, consisting of file metadata, a common observing setup for all those files,
+    and PypeIt parameters. This is the information needed for a single .pypeit file.
 
+    Args: 
+    pypeit_setup (pypeit.pypeitsetup.PypeItSetup): The PypeItSetup object this configuration is a part of.
+    config_name (str): The name of this configuration.
+    config_dict (dict): The metadata for this configurations, as returned by PypeItMetadata.unique_configurations.
+    state (ModelState): The state of the model.  "CHANGED" if it was built by running setup or "UNCHANGED" if it came from loading
+                        an existing .pypeit file.
+
+    Signals:
+    stateChanged (str): Sent when the state of the configuration changes. The name of the configuration is sent as the signal parameter.
+    """
     stateChanged = Signal(str)
 
     def __init__(self, pypeit_setup, config_name, config_dict, state):
@@ -353,23 +371,26 @@ class SetupConfigurationModel(QObject):
         self.stateChanged.emit(self.name)
         
 
-class PypeItSetupModel(QObject):
+class PypeItSetupProxy(QObject):
     operation_progress = Signal(str)
     operation_complete = Signal(str)
     raw_data_dir_changed = Signal(str)
     configs_deleted = Signal(list)
+    configs_added = Signal(list)
+    spectrograph_changed = Signal(str)
 
 
-
-    def __init__(self, log_file, verbosity):
+    def __init__(self, logname):
         super().__init__()
         self._spectrograph = None
         self._pypeit_setup = None
         self.metadata_model = PypeItMetadataProxy()
         self.raw_data_directory = None
-        self._log_watcher = LogWatcher(log_file)
-        msgs.reset(verbosity=verbosity, log_object=self._log_watcher)
         self.configs = dict()
+
+    def setup_logging(self, logname, verbosity):
+        self._log_watcher = LogWatcher(logname)
+        msgs.reset(verbosity=verbosity, log_object=self._log_watcher)
 
 
     @property
@@ -390,6 +411,7 @@ class PypeItSetupModel(QObject):
     def set_spectrograph(self, new_spec):
         msgs.info(f"Spectrograph is now {new_spec}")
         self._spectrograph = new_spec
+        self.spectrograph_changed.emit(new_spec)
 
     @property
     def spectrograph(self):
@@ -406,27 +428,37 @@ class PypeItSetupModel(QObject):
         raw_data_dir_chasnged(new_directory)
         
         """
+        msgs.info(f"Setting raw directory: {new_directory}, current spec is {self._spectrograph}")
+        spectrograph = self._spectrograph
+        self.reset()
         self.raw_data_directory = new_directory
+        self._spectrograph = spectrograph
         self._pypeit_setup = PypeItSetup.from_file_root(new_directory, self._spectrograph) 
         # Set the default configuration params for a new pypeit file
         self._pypeit_setup.user_cfg = ['[rdx]', f'spectrograph = {self._spectrograph}']
-
         self.raw_data_dir_changed.emit(self.raw_data_directory)
+        self.spectrograph_changed.emit(self._spectrograph)
 
     def get_num_raw_files(self):
         return 0 if self._pypeit_setup is None else len(self._pypeit_setup.file_list)
 
     def reset(self):
+        msgs.info(f"Resetting to empty setup.")
         self._pypeit_setup = None
         self.metadata_model.reset()        
         self.raw_data_directory = None
-        self.raw_data_dir_changed.emit(self.raw_data_directory)
+        self.raw_data_dir_changed.emit(None)
+        self._spectrograph = None
+        self.spectrograph_changed.emit(None)
         self._setConfigurations({})
 
     def generate_obslog(self):
 
         try:
-            added_metadata_re = re.compile("Added metadata for (\S.*)$")
+            if self._pypeit_setup is None:
+                raise ValueError("No PypeItSetup object. set_raw_data_directory should be called before calling generate_obslog.")
+
+            added_metadata_re = re.compile("Adding metadata for (\S.*)$")
             self._log_watcher.watch("added_metadata", added_metadata_re, self._addedMetadata)
 
             # These were taken from the default parameters in pypeit_obslog
@@ -485,6 +517,7 @@ class PypeItSetupModel(QObject):
         self._pypeit_setup.fitstbl.get_frame_types(user=dict(zip(pf.data['filename'], pf.data['frametype'])))
         self.metadata_model.setMetadata(self._pypeit_setup.fitstbl)        
         self._spectrograph = self._pypeit_setup.spectrograph.name
+        self.spectrograph_changed.emit(self._spectrograph)
         self._setConfigurations(self._pypeit_setup.fitstbl.unique_configurations(), state=ModelState.UNCHANGED)
 
     def _addedMetadata(self, name, match):
@@ -516,3 +549,4 @@ class PypeItSetupModel(QObject):
             self.configs[config_name] = new_config_model
 
         msgs.info(f"Self configs: {self.configs}")
+        self.configs_added.emit(list(self.configs.values()))

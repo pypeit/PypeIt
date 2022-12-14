@@ -1,15 +1,10 @@
-import signal
-import sys
 import argparse
-import datetime
 
 from pypeit.scripts import scriptbase
 from pypeit.setup_gui.view import PypeItSetupView
-from pypeit.setup_gui.model import PypeItSetupModel
-from pypeit.setup_gui.controller import PypeItSetupController
+from pypeit.setup_gui.model import PypeItSetupProxy
+from pypeit.setup_gui.controller import SetupGUIController
 
-from qtpy.QtCore import QCoreApplication
-from qtpy.QtWidgets import QApplication
         
 
 class SetupGUI(scriptbase.ScriptBase):
@@ -37,27 +32,9 @@ class SetupGUI(scriptbase.ScriptBase):
 
         args = combined_args[0]
         qt_args = combined_args[1]
-
-        app = QApplication(qt_args)
-
-        QCoreApplication.setOrganizationName("PypeIt")
-        QCoreApplication.setApplicationName("SetupGUI")
-        QCoreApplication.setOrganizationDomain("pypeit.readthedocs.io")
         
-        timestamp = datetime.datetime.utcnow().strftime("%Y%m%d-%H%M")
-        logname = f"setup_gui_{timestamp}.log"
-        model = PypeItSetupModel(log_file=logname, verbosity=args.verbosity)
-
-        main_window = PypeItSetupView()
-        main_window.resize(1650,900)
-
-        controller = PypeItSetupController(model, main_window)
-        main_window.show()
-
-        # QT Gobbles up the Python Ctrl+C handling, so the default PypeIt Ctrl+C handler won't
-        # be called. So we reset it to the OS default
-        signal.signal(signal.SIGINT, signal.SIG_DFL)
-        sys.exit(app.exec_())
+        controller = SetupGUIController(args, qt_args)
+        controller.start()
 
 if __name__ == '__main__':
     SetupGUI.entry_point()
