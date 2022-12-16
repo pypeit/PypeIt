@@ -28,7 +28,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
     url = 'https://www.not.iac.es/instruments/alfosc/'
     header_name = 'ALFOSC_FASU'
     supported = True
-    comment = 'Grisms 4, 8, 17, 19'
+    comment = 'For use with the standard horizontal slits only. Grisms 4, 8, 17, 19'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -119,7 +119,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         # Wavelength calibration methods
         #par['calibrations']['wavelengths']['method'] = 'holy-grail'
         par['calibrations']['wavelengths']['method'] = 'full_template'
-        par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI', 'ThAr']
+        par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI', 'ArI', 'ArII']
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
@@ -128,7 +128,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures on this telescope
         par['calibrations']['standardframe']['exprng'] = [None, 120]
         par['scienceframe']['exprng'] = [10, None]
-        
+
         # Multiple arcs with different lamps, so can't median combine nor clip, also need to remove continuum
         par['calibrations']['arcframe']['process']['clip'] = False
         par['calibrations']['arcframe']['process']['combine'] = 'mean'
@@ -291,14 +291,8 @@ class NOTALFOSCSpectrographVert(NOTALFOSCSpectrograph):
     """
     Child to handle Vertical slits for NOT ALFOSC spectrograph
     """
-    ndet = 1
     name = 'not_alfosc_vert'
-    telescope = telescopes.NOTTelescopePar()
-    camera = 'ALFOSC'
-    url = 'https://www.not.iac.es/instruments/alfosc/'
-    header_name = 'ALFOSC_FASU'
-    supported = True
-    comment = 'For vertical slits only'
+    comment = 'Grisms 4, 8, 17, 19. For vertical slits only'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -358,11 +352,6 @@ class NOTALFOSCSpectrographVert(NOTALFOSCSpectrograph):
             gain            = gain,     # e-/ADU
             ronoise         = ronoise   # e-
         )
-
-#        # Parse datasec, oscancsec from the header
-#        head1 = hdu[1].header
-#        detector_dict['gain'] = np.atleast_1d(head1['GAIN'])  # e-/ADU
-#        detector_dict['ronoise'] = np.atleast_1d(head1['RDNOISE'])  # e-
 
         # Return
         return detector_container.DetectorContainer(**detector_dict)
