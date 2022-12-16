@@ -345,7 +345,7 @@ def fig_geo_users(outfile:str='fig_geo_users.png',
 
     # Plot
     img = plt.scatter(x=all_lons,
-        y=all_lats, c='r', s=1,
+        y=all_lats, c='r', s=5,
         transform=tformP)
     
     # Zoom in
@@ -459,3 +459,6 @@ if __name__ == '__main__':
 
 # Geographic location of Spectrographs
 # python py/figs_pypeit_nsf_cyber_2022.py geo_spec
+
+# Users
+# python py/figs_pypeit_nsf_cyber_2022.py geo_users --load
