@@ -280,8 +280,7 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
             specaxis        = 1,
             specflip        = False,
             spatflip        = False,
-            #platescale      = 0.25,
-            platescale      = 0.1178,
+            platescale      = 0.25,
             # Dark current nominally is < 360 electrons per hours
             # but the dark subtraction will effectively bring this to 0
             darkcurr        = 0.03,
@@ -299,18 +298,30 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
             # mimicked as 1
             numamplifiers   = 1,
             # The readout noise for LUCI are different for
-            # different readout modes. The LIR mode values will be
-            # commented in and the MER values will be uncommented:
+            # different readout modes. MER noise given here.
             gain= np.atleast_1d(2.21),
-            # ronoise= 10.3,
-            ronoise         = np.atleast_1d(9.6),
+            ronoise         = np.atleast_1d(5.1),
             datasec=np.atleast_1d('[5:2044,5:2044]'),
             # For Luci the first 4 pixels on each side can
             # technically be used for as a biassec. This is not
             # included here.
             oscansec= np.atleast_1d('[5:2044,1:4]'),
             )
-        return detector_container.DetectorContainer(**detector_dict)
+            
+        detector = detector_container.DetectorContainer(**detector_dict)
+        
+        if hdu is None:
+            return detector
+        
+        camera = hdu[0].header['CAMERA']
+        if camera == 'N3.75 Camera':
+            detector.platescale = 0.1178
+        
+        readmode = hdu[0].header['READMODE']
+        if readmode == 'LIR':
+            detector.ronoise = np.atleast_1d(9.6)
+            
+        return detector
 
     @classmethod
     def default_pypeit_par(cls):
@@ -441,7 +452,8 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
 
             # Raw image
             raw_img[i] = hdu[detectors[i]['dataext']].data.astype(float)
-            # Non-linearity correction.
+            # Average non-linearity correction applied to raw counts.
+            # See: https://scienceops.lbto.org/luci/instrument-characteristics/detector/
             raw_img[i] += 2.767e-6*(raw_img[i]**2.0)
             # Raw data from some spectrograph (i.e. FLAMINGOS2) have an addition
             # extention, so I add the following two lines. It's easier to change
@@ -549,7 +561,6 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.25,
-            #platescale      = 0.119,
             darkcurr        = 0.006,
             # Saturation is 55000, but will be set to dummy value for
             # now
@@ -558,11 +569,27 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
             mincounts       = -1e10,
             numamplifiers   = 1,
             gain            = np.atleast_1d(2.15),
-            ronoise         = np.atleast_1d(9.2),
+            # Read noise here assumes MER readout mode
+            ronoise         = np.atleast_1d(4.5),
             datasec= np.atleast_1d('[5:2044,5:2044]'),
             oscansec= np.atleast_1d('[5:2044,1:4]'),
             )
-        return detector_container.DetectorContainer(**detector_dict)
+            
+            
+        detector = detector_container.DetectorContainer(**detector_dict)
+        
+        if hdu is None:
+            return detector
+        
+        camera = hdu[0].header['CAMERA']
+        if camera == 'N3.75 Camera':
+            detector.platescale = 0.119
+        
+        readmode = hdu[0].header['READMODE']
+        if readmode == 'LIR':
+            detector.ronoise = np.atleast_1d(9.2)
+            
+        return detector
 
     @classmethod
     def default_pypeit_par(cls):
@@ -693,7 +720,8 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
 
             # Raw image
             raw_img[i] = hdu[detectors[i]['dataext']].data.astype(float)
-            # Non-linearity correction.
+            # Average non-linearity correction applied to raw counts.
+            # See: https://scienceops.lbto.org/luci/instrument-characteristics/detector/
             raw_img[i] += 2.898e-6*(raw_img[i]**2.0)
             # Raw data from some spectrograph (i.e. FLAMINGOS2) have an addition
             # extention, so I add the following two lines. It's easier to change

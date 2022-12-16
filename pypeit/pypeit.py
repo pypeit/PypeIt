@@ -782,7 +782,6 @@ class PypeIt:
             flatimages=self.caliBrate.flatimages,
             slits=self.caliBrate.slits,  # For flexure correction
             ignore_saturation=False)
-        spat_flex1 = sciImg['spat_flexure']
 
         # Background Image?
         if len(bg_frames) > 0:
