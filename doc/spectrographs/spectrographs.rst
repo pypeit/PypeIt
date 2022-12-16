@@ -47,7 +47,7 @@ instrument-specific details for running PypeIt.
    magellan_fire
    mmt_binospec
    mmt_mmirs
+   not_alfosc
    ntt_efosc2
    shane_kast
    xshooter
-

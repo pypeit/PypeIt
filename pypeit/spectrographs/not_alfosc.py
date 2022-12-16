@@ -111,7 +111,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
         par['calibrations']['slitedges']['bound_detector'] = True
-        # Not a multi-slit instrument but flats are sometimes quite ugly leading to erroneous detection of multiple slits. Setting a higher edge_thresh seems to fail because of the bound_detector.
+        # Flats are sometimes quite ugly due to dust on the slit which leads to the erroneous detection of multiple slits. Setting a higher edge_thresh seems to fail because of the bound_detector.
         par['calibrations']['slitedges']['minimum_slit_gap'] = 15
 
         # Set pixel flat combination method
