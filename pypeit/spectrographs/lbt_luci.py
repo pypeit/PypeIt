@@ -408,7 +408,7 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         # See: https://scienceops.lbto.org/luci/instrument-characteristics/detector/
         raw += 2.767e-6*(raw**2.0)
         
-        return mosaic, raw, hdu, texp, datasec, oscansec
+        return detector, raw, hdu, texp, datasec, oscansec
 
 # TODO: OUT OF DATE
 #    def check_headers(self, headers):
