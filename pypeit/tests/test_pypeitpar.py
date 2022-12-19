@@ -127,7 +127,7 @@ def test_mergecfg():
     assert os.path.isfile(user_file), 'User file was not written!'
 
     # Read it in as a config to merge with the defaults
-    p = pypeitpar.PypeItPar.from_cfg_file(merge_with=user_file)
+    p = pypeitpar.PypeItPar.from_cfg_file(merge_with=(user_file))
 
     # Check the values are correctly read in
     assert p['rdx']['spectrograph'] == 'keck_lris_blue', 'Test spectrograph is incorrect!'
@@ -159,7 +159,8 @@ def test_fail_badpar():
     # Faults because there's no junk parameter
     cfg_lines = ['[calibrations]', '[[biasframe]]', '[[[process]]]', 'junk = True']
     with pytest.raises(ValueError):
-        _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config(), merge_with=cfg_lines)
+        _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config(), 
+                                                merge_with=cfg_lines) # Once as list
     
 def test_fail_badlevel():
     p = load_spectrograph('gemini_gnirs').default_pypeit_par()
@@ -168,6 +169,7 @@ def test_fail_badlevel():
     # process parameter for CalibrationsPar)
     cfg_lines = ['[calibrations]', '[[biasframe]]', '[[process]]', 'cr_reject = True']
     with pytest.raises(ValueError):
-        _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config(), merge_with=cfg_lines)
+        _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config(), 
+                                                merge_with=(cfg_lines,))  #Once as tuple
 
 

@@ -11,6 +11,7 @@
 - Allow separate sky frame to be used for sky subtraction with IFU data
 - Limit the images written to the MasterEdges file to only the trace
   image, mask, and detector.
+- Refactor quicklook scripts
 
 1.11.0 (21 Oct 2022)
 --------------------

@@ -141,7 +141,8 @@ class Utilities:
         msgs.info('Loaded spectrograph {0}'.format(self.spectrograph.name))
         spectrograph_cfg_lines = self.spectrograph.config_specific_par(fname).to_config()
         # Load the parset
-        self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=self.cfg_lines)
+        self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, 
+                                            merge_with=(self.cfg_lines,))
         return
 
     def run_setup(self, root, extension=None, **kwargs):
