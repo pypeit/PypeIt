@@ -122,7 +122,7 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
     # Clean the edges
     wcl = np.where((ndimage.maximum_filter1d(sobel_sig, 10, axis=1) == sobel_sig) & (tedges == -1))
     wcr = np.where((ndimage.minimum_filter1d(sobel_sig, 10, axis=1) == sobel_sig) & (tedges == 1))
-    edge_img = np.zeros(sobel_sig.shape, dtype=np.int)
+    edge_img = np.zeros(sobel_sig.shape, dtype=int)
     edge_img[wcl] = -1
     edge_img[wcr] = 1
 
