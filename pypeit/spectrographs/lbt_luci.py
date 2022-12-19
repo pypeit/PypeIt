@@ -3,31 +3,15 @@ Module for LBT/LUCI specific methods.
 
 .. include:: ../include/links.rst
 """
-import glob
-import os
 from IPython import embed
-
-from pkg_resources import resource_filename
 
 import numpy as np
 
-from astropy.io import fits
-from astropy import time
-from astropy.coordinates import SkyCoord
-from astropy import units
-
-from linetools import utils as ltu
-
 from pypeit import msgs
 from pypeit import telescopes
-from pypeit import io
-from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
-from pypeit.spectrographs import slitmask
 from pypeit.images import detector_container
-from pypeit import data
-
 
 
 class LBTLUCISpectrograph(spectrograph.Spectrograph):
@@ -395,121 +379,35 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
 
         Returns
         -------
-        detector_par : :class:`~pypeit.images.detector_container.DetectorContainer`, :class:`~pypeit.images.mosaic.Mosaic`
+        detector : :class:`~pypeit.images.detector_container.DetectorContainer`, :class:`~pypeit.images.mosaic.Mosaic`
             Detector metadata parameters for one or more detectors.
-        raw_img : `numpy.ndarray`_
+        raw : `numpy.ndarray`_
             Raw image for this detector.  Shape is 2D if a single detector image
             is read and 3D if multiple detectors are read.  E.g., the image from
             the first detector in the tuple is accessed using ``raw_img[0]``.
         hdu : `astropy.io.fits.HDUList`_
             Opened fits file
-        exptime : :obj:`float`
+        texp : :obj:`float`
             Exposure time *in seconds*.
-        rawdatasec_img : `numpy.ndarray`_
+        rawdatasec : `numpy.ndarray`_
             Data (Science) section of the detector as provided by setting the
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.  Shape
             is identical to ``raw_img``.
-        oscansec_img : `numpy.ndarray`_
+        oscansec : `numpy.ndarray`_
             Overscan section of the detector as provided by setting the
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.  Shape
             is identical to ``raw_img``.
         """
-        # Check extension and then open
-        self._check_extensions(raw_file)
-        hdu = io.fits_open(raw_file)
-
-        # Validate the entered (list of) detector(s)
-        nimg, _det = self.validate_det(det)
-
-        # Grab the detector or mosaic parameters
-        mosaic = None if nimg == 1 else self.get_mosaic_par(det, hdu=hdu)
-        detectors = [self.get_detector_par(det, hdu=hdu)] if nimg == 1 else mosaic.detectors
-
-        # Grab metadata from the header
-        # NOTE: These metadata must be *identical* for all images when reading a
-        # mosaic
-        headarr = self.get_headarr(hdu)
-
-        # Exposure time (used by RawImage)
-        # NOTE: This *must* be (converted to) seconds.
-        exptime = self.get_meta_value(headarr, 'exptime')
-
-        # Rawdatasec, oscansec images
-        binning = self.get_meta_value(headarr, 'binning')
-        # NOTE: This means that `specaxis` must be the same for all detectors in
-        # a mosaic
-        if detectors[0]['specaxis'] == 1:
-            binning_raw = (',').join(binning.split(',')[::-1])
-        else:
-            binning_raw = binning
-
-        raw_img = [None]*nimg
-        rawdatasec_img = [None]*nimg
-        oscansec_img = [None]*nimg
-        for i in range(nimg):
-
-            # Raw image
-            raw_img[i] = hdu[detectors[i]['dataext']].data.astype(float)
-            # Average non-linearity correction applied to raw counts.
-            # See: https://scienceops.lbto.org/luci/instrument-characteristics/detector/
-            raw_img[i] += 2.767e-6*(raw_img[i]**2.0)
-            # Raw data from some spectrograph (i.e. FLAMINGOS2) have an addition
-            # extention, so I add the following two lines. It's easier to change
-            # here than writing another get_rawimage function in the
-            # spectrograph file.
-            # TODO: This feels dangerous, but not sure what to do about it...
-            if raw_img[i].ndim != 2:
-                raw_img[i] = np.squeeze(raw_img[i])
-            if raw_img[i].ndim != 2:
-                msgs.error(f"Raw images must be 2D; check extension {detectors[i]['dataext']} "
-                           f"of {raw_file}.")
-
-            for section in ['datasec', 'oscansec']:
-
-                # Get the data section
-                # Try using the image sections as header keywords
-                # TODO -- Deal with user windowing of the CCD (e.g. Kast red)
-                #  Code like the following maybe useful
-                #hdr = hdu[detector[det - 1]['dataext']].header
-                #image_sections = [hdr[key] for key in detector[det - 1][section]]
-                # Grab from Detector
-                image_sections = detectors[i][section]
-                #if not isinstance(image_sections, list):
-                #    image_sections = [image_sections]
-                # Always assume normal FITS header formatting
-                one_indexed = True
-                include_last = True
-
-                # Initialize the image (0 means no amplifier)
-                pix_img = np.zeros(raw_img[i].shape, dtype=int)
-                for j in range(detectors[i]['numamplifiers']):
-
-                    if image_sections is not None:  # and image_sections[i] is not None:
-                        # Convert the data section from a string to a slice
-                        datasec = parse.sec2slice(image_sections[j], one_indexed=one_indexed,
-                                                  include_end=include_last, require_dim=2,
-                                                  binning=binning_raw)
-                        # Assign the amplifier
-                        pix_img[datasec] = j+1
-
-                # Finish
-                if section == 'datasec':
-                    rawdatasec_img[i] = pix_img.copy()
-                else:
-                    oscansec_img[i] = pix_img.copy()
-
-        if nimg == 1:
-            # Return single image
-            return detectors[0], raw_img[0], hdu, exptime, rawdatasec_img[0], oscansec_img[0]
-
-        if any([img.shape != raw_img[0].shape for img in raw_img[1:]]):
-            msgs.error('All raw images in a mosaic must have the same shape.')
-        # Return all images for mosaic
-        return mosaic, np.array(raw_img), hdu, exptime, np.array(rawdatasec_img), \
-                np.array(oscansec_img)
-
+        
+        detector, raw, hdu, texp, datasec, oscansec = super().get_rawimage(raw_file, det)
+        
+        # Non-linearity correction
+        # See: https://scienceops.lbto.org/luci/instrument-characteristics/detector/
+        raw += 2.767e-6*(raw**2.0)
+        
+        return mosaic, raw, hdu, texp, datasec, oscansec
 
 # TODO: OUT OF DATE
 #    def check_headers(self, headers):
@@ -663,121 +561,35 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
 
         Returns
         -------
-        detector_par : :class:`~pypeit.images.detector_container.DetectorContainer`, :class:`~pypeit.images.mosaic.Mosaic`
+        detector : :class:`~pypeit.images.detector_container.DetectorContainer`, :class:`~pypeit.images.mosaic.Mosaic`
             Detector metadata parameters for one or more detectors.
-        raw_img : `numpy.ndarray`_
+        raw : `numpy.ndarray`_
             Raw image for this detector.  Shape is 2D if a single detector image
             is read and 3D if multiple detectors are read.  E.g., the image from
             the first detector in the tuple is accessed using ``raw_img[0]``.
         hdu : `astropy.io.fits.HDUList`_
             Opened fits file
-        exptime : :obj:`float`
+        texp : :obj:`float`
             Exposure time *in seconds*.
-        rawdatasec_img : `numpy.ndarray`_
+        rawdatasec : `numpy.ndarray`_
             Data (Science) section of the detector as provided by setting the
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.  Shape
             is identical to ``raw_img``.
-        oscansec_img : `numpy.ndarray`_
+        oscansec : `numpy.ndarray`_
             Overscan section of the detector as provided by setting the
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.  Shape
             is identical to ``raw_img``.
         """
-        # Check extension and then open
-        self._check_extensions(raw_file)
-        hdu = io.fits_open(raw_file)
-
-        # Validate the entered (list of) detector(s)
-        nimg, _det = self.validate_det(det)
-
-        # Grab the detector or mosaic parameters
-        mosaic = None if nimg == 1 else self.get_mosaic_par(det, hdu=hdu)
-        detectors = [self.get_detector_par(det, hdu=hdu)] if nimg == 1 else mosaic.detectors
-
-        # Grab metadata from the header
-        # NOTE: These metadata must be *identical* for all images when reading a
-        # mosaic
-        headarr = self.get_headarr(hdu)
-
-        # Exposure time (used by RawImage)
-        # NOTE: This *must* be (converted to) seconds.
-        exptime = self.get_meta_value(headarr, 'exptime')
-
-        # Rawdatasec, oscansec images
-        binning = self.get_meta_value(headarr, 'binning')
-        # NOTE: This means that `specaxis` must be the same for all detectors in
-        # a mosaic
-        if detectors[0]['specaxis'] == 1:
-            binning_raw = (',').join(binning.split(',')[::-1])
-        else:
-            binning_raw = binning
-
-        raw_img = [None]*nimg
-        rawdatasec_img = [None]*nimg
-        oscansec_img = [None]*nimg
-        for i in range(nimg):
-
-            # Raw image
-            raw_img[i] = hdu[detectors[i]['dataext']].data.astype(float)
-            # Average non-linearity correction applied to raw counts.
-            # See: https://scienceops.lbto.org/luci/instrument-characteristics/detector/
-            raw_img[i] += 2.898e-6*(raw_img[i]**2.0)
-            # Raw data from some spectrograph (i.e. FLAMINGOS2) have an addition
-            # extention, so I add the following two lines. It's easier to change
-            # here than writing another get_rawimage function in the
-            # spectrograph file.
-            # TODO: This feels dangerous, but not sure what to do about it...
-            if raw_img[i].ndim != 2:
-                raw_img[i] = np.squeeze(raw_img[i])
-            if raw_img[i].ndim != 2:
-                msgs.error(f"Raw images must be 2D; check extension {detectors[i]['dataext']} "
-                           f"of {raw_file}.")
-
-            for section in ['datasec', 'oscansec']:
-
-                # Get the data section
-                # Try using the image sections as header keywords
-                # TODO -- Deal with user windowing of the CCD (e.g. Kast red)
-                #  Code like the following maybe useful
-                #hdr = hdu[detector[det - 1]['dataext']].header
-                #image_sections = [hdr[key] for key in detector[det - 1][section]]
-                # Grab from Detector
-                image_sections = detectors[i][section]
-                #if not isinstance(image_sections, list):
-                #    image_sections = [image_sections]
-                # Always assume normal FITS header formatting
-                one_indexed = True
-                include_last = True
-
-                # Initialize the image (0 means no amplifier)
-                pix_img = np.zeros(raw_img[i].shape, dtype=int)
-                for j in range(detectors[i]['numamplifiers']):
-
-                    if image_sections is not None:  # and image_sections[i] is not None:
-                        # Convert the data section from a string to a slice
-                        datasec = parse.sec2slice(image_sections[j], one_indexed=one_indexed,
-                                                  include_end=include_last, require_dim=2,
-                                                  binning=binning_raw)
-                        # Assign the amplifier
-                        pix_img[datasec] = j+1
-
-                # Finish
-                if section == 'datasec':
-                    rawdatasec_img[i] = pix_img.copy()
-                else:
-                    oscansec_img[i] = pix_img.copy()
-
-        if nimg == 1:
-            # Return single image
-            return detectors[0], raw_img[0], hdu, exptime, rawdatasec_img[0], oscansec_img[0]
-
-        if any([img.shape != raw_img[0].shape for img in raw_img[1:]]):
-            msgs.error('All raw images in a mosaic must have the same shape.')
-        # Return all images for mosaic
-        return mosaic, np.array(raw_img), hdu, exptime, np.array(rawdatasec_img), \
-                np.array(oscansec_img)
-
+        
+        detector, raw, hdu, texp, datasec, oscansec = super().get_rawimage(raw_file, det)
+        
+        # Non-linearity correction
+        # See: https://scienceops.lbto.org/luci/instrument-characteristics/detector/
+        raw += 2.898e-6*(raw**2.0)
+        
+        return detector, raw, hdu, texp, datasec, oscansec
 
 # TODO: OUT OF DATE
 #    def check_headers(self, headers):
