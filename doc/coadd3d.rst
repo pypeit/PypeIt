@@ -111,6 +111,40 @@ the standard star cube in your ``coadd3d`` file as follows:
             standard_cube = standard_star_cube.fits
 
 
+Sky Subtraction
+===============
+
+The default behaviour of PypeIt is to subtract the model sky that is
+derived from the science frame during the reduction. If you would like
+to turn off sky subtraction, set the following keyword argument:
+
+.. code-block:: ini
+
+    [reduce]
+        [[cube]]
+            skysub_frame = None
+
+If you would like to use a dedicated sky frame for sky subtraction
+that is separate from the science frame, then you need to provide
+the relative path+file of the spec2d file that you would like to
+use. If you need a different sky frame for different science frames,
+then you can specify the ``skysub_frame`` in the ``spec2d`` block of the
+``.coadd3d`` file, similar to the way ``scale_corr`` is set in the example
+above. If you have dedicated sky frames, then it is generally
+recommended to reduce these frames as if they are regular science
+frames, but add the following keyword arguments at the top of your
+:doc:`pypeit_file`:
+
+.. code-block:: ini
+
+    [reduce]
+        [[skysub]]
+            joint_fit = True
+            user_regions = :50,50:
+
+This ensures that all pixels in the slit are used to generate a
+complete model of the sky.
+
 Grating correction
 ==================
 

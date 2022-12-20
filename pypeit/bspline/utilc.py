@@ -135,7 +135,7 @@ def solution_arrays(nn, npoly, nord, ydata, action, ivar, upper, lower):
 
     This method wraps a C function.
 
-    Args: 
+    Args:
         nn (:obj:`int`):
             Number of good break points.
         npoly (:obj:`int`):
@@ -164,17 +164,20 @@ def solution_arrays(nn, npoly, nord, ydata, action, ivar, upper, lower):
     """
     nfull = nn * npoly
     bw = npoly * nord
-    # NOTE: Declared as empty because the c code zeros them out
-    alpha = np.empty((bw, nfull+bw), dtype=float)
-    beta = np.empty((nfull+bw,), dtype=float)
+
+    alpha = np.zeros((bw, nfull+bw), dtype=float)
+    beta = np.zeros((nfull+bw,), dtype=float)
     upper = np.array(upper, dtype=np.int64)
     lower = np.array(lower, dtype=np.int64)
+
+    # need to convert action to fortran-style order and contiguous layout.
+    action_t = np.asfortranarray(np.transpose(action))
+
     # NOTE: Beware of the integer types for upper and lower. They must
     # match the argtypes above and in bspline.c explicitly!! np.int32
     # for int and np.int64 for long.
     # NOTE: `action` *must* be stored in fortran-style, column-major contiguous format.
-    solution_arrays_c(nn, npoly, nord, ydata.size, ydata, ivar, action,
-                      #np.ascontiguousarray(action),
+    solution_arrays_c(nn, npoly, nord, ydata.size, ydata, ivar, action_t,
                       upper, lower, alpha, alpha.shape[0], beta, beta.size)
     return alpha, beta
 #-----------------------------------------------------------------------
@@ -225,7 +228,7 @@ def cholesky_band(l, mininf=0.0, verbose=False):
 cholesky_solve_c = _bspline.cholesky_solve
 cholesky_solve_c.restype = None
 cholesky_solve_c.argtypes = [np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
-                             ctypes.c_int32, ctypes.c_int32, 
+                             ctypes.c_int32, ctypes.c_int32,
                              np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
                              ctypes.c_int32]
 

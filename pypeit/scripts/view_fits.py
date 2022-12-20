@@ -106,11 +106,12 @@ class ViewFits(scriptbase.ScriptBase):
 
                 if args.bkg_file is not None:
                     try:
-                        bkgImg = buildimage.buildimage_fromlist(spectrograph, _det, par, [args.bkg_file], mosaic=mosaic)
+                        bkgImg = buildimage.buildimage_fromlist(spectrograph, _det, par,
+                                                                [args.bkg_file], mosaic=mosaic)
                     except Exception as e:
                         msgs.error(bad_read_message
                                    + f'  Original exception -- {type(e).__name__}: {str(e)}')
-                    Img = Img.sub(bkgImg, par['process'])
+                    Img = Img.sub(bkgImg)
 
                 img = Img.image
 
