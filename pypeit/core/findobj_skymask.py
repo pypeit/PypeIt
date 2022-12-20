@@ -1207,7 +1207,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
     left_asym = slit_left[:,None] + np.outer(xsize/nsamp, np.arange(nsamp))
     righ_asym = left_asym + np.outer(xsize/nsamp, np.ones(int(nsamp)))
     # This extract_asymbox_boxcar call rectifies the image along the curved object traces
-    gpm_tot = thismask & inmask
+    gpm_tot = thismask & inmask & (ivar > 0.0)
 
     image_rect, gpm_rect, npix_rect, ivar_rect = extract.extract_asym_boxcar(image, left_asym, righ_asym, gpm=gpm_tot, ivar=ivar)
 
@@ -1311,7 +1311,6 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
     if show_peaks:
         # Show rectified image here? Add this to QA
         viewer, ch = display.show_image(image_rect*gpm_rect*np.sqrt(ivar_rect), chname='objs_in_slit_show', cuts=(-5.0,5.0))
-
     # QA
     objfind_QA(spat_peaks, snr_peaks_all, spat_vector, snr_smash_smth, snr_thresh, qa_title, peaks_gpm,
                near_edge_bpm, nperslit_bpm, objfindQA_filename=objfindQA_filename, show=show_peaks) #show_peaks)
