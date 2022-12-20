@@ -50,5 +50,4 @@ instrument-specific details for running PypeIt.
    not_alfosc
    ntt_efosc2
    shane_kast
-   soar_goodman
    xshooter

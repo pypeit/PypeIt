@@ -99,7 +99,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
     url = 'https://www2.keck.hawaii.edu/inst/deimos/'
     header_name = 'DEIMOS'
     supported = True
-    ql_supported = True
     comment = 'Supported gratings: 600ZD, 830G, 900ZD, 1200B, 1200G; see :doc:`deimos`'
 
     def __init__(self):

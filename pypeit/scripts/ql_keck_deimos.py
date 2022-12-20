@@ -70,7 +70,6 @@ class QLKeckDEIMOS(scriptbase.ScriptBase):
     @staticmethod
     def main(pargs):
 
-        raise IOError("RUN QL_MOS")
         spectrograph_name = 'keck_deimos'
 
         # Afternoon calibs

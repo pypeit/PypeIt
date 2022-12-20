@@ -47,11 +47,10 @@ class QLKeckNIRES(scriptbase.ScriptBase):
         file_bits[0] = bm.turn_on(file_bits[0], ['arc', 'science', 'tilt'])
         file_bits[1] = bm.turn_on(file_bits[0], ['arc', 'science', 'tilt'])
 
-        # Setup (this needs to be before set_combination_groups() since it's used there)
-        ps.fitstbl['setup'] = 'A'
         ps.fitstbl.set_frame_types(file_bits)
         ps.fitstbl.set_combination_groups()
         # Extras
+        ps.fitstbl['setup'] = 'A'
         # A-B
         ps.fitstbl['bkg_id'] = [2,1]
 

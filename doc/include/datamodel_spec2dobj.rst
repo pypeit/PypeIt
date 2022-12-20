@@ -1,13 +1,14 @@
 
 
-Version: 1.1.0
+Version: 1.0.5
 
 =====================  =========================  ==========  ================================================================================================================================================================================
 Obj Key                Obj Type                   Array Type  Description                                                                                                                                                                     
 =====================  =========================  ==========  ================================================================================================================================================================================
-``bpmmask``            ImageBitMaskArray                      2D bad-pixel mask for the image                                                                                                                                                 
+``bpmmask``            ndarray                    integer     2D bad-pixel mask for the image                                                                                                                                                 
 ``det``                int                                    Detector index                                                                                                                                                                  
 ``detector``           DetectorContainer, Mosaic              Detector or Mosaic metadata                                                                                                                                                     
+``imgbitm``            str                                    List of BITMASK keys from ImageBitMask                                                                                                                                          
 ``ivarmodel``          ndarray                    floating    2D ivar model image (float32)                                                                                                                                                   
 ``ivarraw``            ndarray                    floating    2D processed inverse variance image (float32)                                                                                                                                   
 ``maskdef_designtab``  Table                                  Table with slitmask design and object info                                                                                                                                      

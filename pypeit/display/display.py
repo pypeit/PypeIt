@@ -85,8 +85,8 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
     return viewer
 
 
-def show_image(inp, chname='Image', waveimg=None, mask=None, exten=0, cuts=None, clear=False,
-               wcs_match=False):
+def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten=0, cuts=None,
+               clear=False, wcs_match=False):
     """
     Display an image using Ginga.
 
@@ -102,9 +102,14 @@ def show_image(inp, chname='Image', waveimg=None, mask=None, exten=0, cuts=None,
             The name of the ginga channel to use.
         waveimg (:obj:`numpy.ndarray`, optional):
             Wavelength image
-        mask (:class:`~pypeit.images.ImageBitMaskArray`, optional):
-            A bitmask array that designates a pixel as being masked.  Currently
-            this is only used when displaying the spectral extraction result.
+        bitmask (:class:`pypeit.bitmask.BitMask`, optional):
+            The object used to unpack the mask values.  If this is
+            provided, mask must also be provided and the expectation is
+            that a extraction image is being shown.
+        mask (numpy.ndarray, optional):
+            A boolean or bitmask array that designates a pixel as being
+            masked.  Currently this is only used when displaying the
+            spectral extraction result.
         exten (:obj:`int`, optional):
             The extension of the fits file with the image to show.  This
             is only used if the input is a file name.
@@ -124,11 +129,14 @@ def show_image(inp, chname='Image', waveimg=None, mask=None, exten=0, cuts=None,
 
     Raises:
         ValueError:
-            Raised if `cuts` is provided and does not have two elements.
+            Raised if `cuts` is provided and does not have two elements
+            or if bitmask is provided but mask is not.
     """
     # Input checks
     if cuts is not None and len(cuts) != 2:
         raise ValueError('Input cuts must only have two elements, the lower and upper cut.')
+    if mask is not None and bitmask is None:
+        raise ValueError('If providing a mask, must also provide the bitmask.')
 
     # Instantiate viewer
     viewer = connect_to_ginga()
@@ -183,41 +191,34 @@ def show_image(inp, chname='Image', waveimg=None, mask=None, exten=0, cuts=None,
     # If bitmask was passed in, assume this is an extraction qa image
     # and use the mask to identify why each pixel was masked
     if mask is not None:
-        # Select pixels on any slit
-        onslit = mask.flagged('OFFSLITS', invert=True)
+        # Unpack the bitmask
+        bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask, ivarnanmask, extractmask \
+                = bitmask.unpack(mask)
 
         # These are the pixels that were masked by the bpm
-        spec_bpm, spat_bpm = np.where(mask.bpm & onslit)
+        spec_bpm, spat_bpm = np.where(bpm & ~offslitmask)
         nbpm = len(spec_bpm)
         # note: must cast numpy floats to regular python floats to pass the remote interface
         points_bpm = [dict(type='point', args=(float(spat_bpm[i]), float(spec_bpm[i]), 2),
                            kwargs=dict(style='plus', color='magenta')) for i in range(nbpm)]
 
         # These are the pixels that were masked by LACOSMICS
-        spec_cr, spat_cr = np.where(mask.cr & onslit)
+        spec_cr, spat_cr = np.where(crmask & ~offslitmask)
         ncr = len(spec_cr)
         # note: must cast numpy floats to regular python floats to pass the remote interface
         points_cr = [dict(type='point', args=(float(spat_cr[i]), float(spec_cr[i]), 2),
                              kwargs=dict(style='plus', color='cyan')) for i in range(ncr)]
 
         # These are the pixels that were masked by the extraction
-        spec_ext, spat_ext = np.where(mask.extract & onslit)
+        spec_ext, spat_ext = np.where(extractmask & ~offslitmask)
         next = len(spec_ext)
         # note: must cast numpy floats to regular python floats to pass the remote interface
         points_ext = [dict(type='point', args=(float(spat_ext[i]), float(spec_ext[i]), 2),
                             kwargs=dict(style='plus', color='red')) for i in range(next)]
 
-        # Get the "rest" of the flags
-        other_flags = list(mask.bit_keys())
-        other_flags.remove('OFFSLITS')
-        other_flags.remove('BPM')
-        other_flags.remove('CR')
-        other_flags.remove('EXTRACT')
-        # Determine where any of them are flagged
-        other_bpm = mask.flagged(flag=other_flags)
-
-        # These are the pixels that were masked for any other reason (and on a slit)
-        spec_oth, spat_oth = np.where(other_bpm & onslit)
+        # These are the pixels that were masked for any other reason
+        spec_oth, spat_oth = np.where(satmask | minmask | nanmask | ivar0mask | ivarnanmask
+                                      & ~offslitmask)
         noth = len(spec_oth)
         # note: must cast numpy floats to regular python floats to pass
         # the remote interface
@@ -248,7 +249,8 @@ def show_image(inp, chname='Image', waveimg=None, mask=None, exten=0, cuts=None,
 
 def show_points(viewer, ch, spec, spat, color='cyan', legend=None, legend_spec=None, legend_spat=None):
     """
-    Plot points in a ginga viewer
+
+
 
     Parameters
     ----------
@@ -285,8 +287,8 @@ def show_points(viewer, ch, spec, spat, color='cyan', legend=None, legend_spec=N
 
 
 # TODO: Should we continue to allow rotate as an option?
-def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=None, maskdef_ids=None, spec_vals = None,
-               rotate=False, pstep=50, clear=False, synced=True):
+def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=None, maskdef_ids=None, rotate=False,
+               pstep=50, clear=False, synced=True):
     r"""
     Overplot slits on the image in Ginga in the given channel
 
@@ -296,19 +298,14 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
         ch (ginga.util.grc._channel_proxy):
             Ginga channel
         left (`numpy.ndarray`_):
-            Array with spatial position of left slit edges. Shape must be :math:`(N_{\rm
+            Array with left slit edges. Shape must be :math:`(N_{\rm
             spec},)` or :math:`(N_{\rm spec}, N_{\rm l-edge})`, and
             can be different from ``right`` unless ``synced`` is
             True.
         right (`numpy.ndarray`_):
-            Array with spatial position of right slit edges. Shape must be :math:`(N_{\rm
+            Array with right slit edges. Shape must be :math:`(N_{\rm
             spec},)` or :math:`(N_{\rm spec}, N_{\rm r-edge})`, and
             can be different from ``left`` unless ``synced`` is True.
-        spec_vals (`numpy.ndarray`_, optional):
-            Array with spectral position of left and right slit edges. Shape must be :math:`(N_{\rm
-            spec},)` or :math:`(N_{\rm spec}, N_{\rm r-edge})`. Currently it is only possible to input
-            a single set of spec_vals for both ``left`` and ``right`` edges, but not possible to pass distinct
-            spec_vals for left and right. If not passed in the default of np.arange(:math:`(N_{\rm spec},)`) will be used.
         slit_ids (:obj:`int`, array-like, optional):
             PypeIt ID numbers for the slits. If None, IDs run from -1 to
             :math:`-N_{\rm slits}`. If not None, shape must be
@@ -354,12 +351,6 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
         # TODO: Any reason to remove this restriction?
         msgs.error('Input left and right edges have different spectral lengths.')
 
-    # Spectral pixel location
-    if spec_vals is not None:
-        y = spec_vals.reshape(-1,1) if spec_vals.ndim == 1 else spec_vals
-    else:
-        y = np.repeat(np.arange(nspec).astype(float)[:, np.newaxis], nright, axis=1)
-
     # Check input
     if synced:
         if left.shape != right.shape:
@@ -393,6 +384,8 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
     if clear:
         canvas.clear()
 
+    # Spectral pixel location
+    y = np.arange(nspec).astype(float)
 
     # Label positions
     top = int(2*nspec/3.)
@@ -401,13 +394,13 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
     # Plot lefts. Points need to be int or float. Use of .tolist() on
     # each array insures this
     for i in range(nleft):
-        points = list(zip(y[::pstep, i].tolist(), _left[::pstep,i].tolist())) if rotate \
-            else list(zip(_left[::pstep,i].tolist(), y[::pstep, i].tolist()))
+        points = list(zip(y[::pstep].tolist(), _left[::pstep,i].tolist())) if rotate \
+                    else list(zip(_left[::pstep,i].tolist(), y[::pstep].tolist()))
         canvas.add(str('path'), points, color=str('green'))
         if not synced:
             # Add text
-            xt, yt = float(_left_id_loc[top,i]), float(y[top, i])
-            xb, yb = float(_left_id_loc[bot,i]), float(y[bot, i])
+            xt, yt = float(_left_id_loc[top,i]), float(y[top])
+            xb, yb = float(_left_id_loc[bot,i]), float(y[bot])
             if rotate:
                 xt, yt = yt, xt
                 xb, yb = yb, xb
@@ -418,8 +411,8 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
     # Plot rights. Points need to be int or float. Use of .tolist() on
     # each array insures this
     for i in range(nright):
-        points = list(zip(y[::pstep, i].tolist(), _right[::pstep,i].tolist())) if rotate \
-                    else list(zip(_right[::pstep,i].tolist(), y[::pstep, i].tolist()))
+        points = list(zip(y[::pstep].tolist(), _right[::pstep,i].tolist())) if rotate \
+                    else list(zip(_right[::pstep,i].tolist(), y[::pstep].tolist()))
         canvas.add(str('path'), points, color=str('magenta'))
         if not synced:
             # Add text
@@ -437,8 +430,8 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
     if not synced:
         return
     for i in range(nslits):
-        xt, yt = float(_slit_id_loc[top,i]), float(y[top,i])
-        xb, yb = float(_slit_id_loc[bot,i]), float(y[bot,i])
+        xt, yt = float(_slit_id_loc[top,i]), float(y[top])
+        xb, yb = float(_slit_id_loc[bot,i]), float(y[bot])
         if rotate:
             xt, yt = yt, xt
             xb, yb = yb, xb
@@ -464,7 +457,7 @@ def show_trace(viewer, ch, trace, trc_name='Trace', color='blue', clear=False,
         ch (ginga.util.grc._channel_proxy):
             Ginga channel
         trace (np.ndarray):
-            Spatial positions on the detector. Shape = (nspec,)
+            x-positions on the detector
         trc_name (str, optional):
             Trace name
         color (str, optional):

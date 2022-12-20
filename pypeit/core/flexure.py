@@ -877,7 +877,7 @@ def spec_flexure_qa(slitords, bpm, basename, flex_list,
             is used.
     """
     plt.rcdefaults()
-    plt.rcParams['font.family'] = 'serif'
+    plt.rcParams['font.family'] = 'times new roman'
 
     # What type of QA are we doing
     slit_cen = False

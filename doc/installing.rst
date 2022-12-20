@@ -18,7 +18,7 @@ Installation
 
 .. warning::
 
-    Python 3.10 is not yet supported.
+    Python 3.10 is not yet supported.  
 
 Below, we provide detailed instructions for installing PypeIt.  For
 troubleshooting, please consult the PypeIt :ref:`community` and/or `submit
@@ -392,22 +392,6 @@ Some notes if you have problems installing the C code:
 
     - for some Mac users, you may also need to update your OS if you're using a
       particularly old version (e.g., 10.10 Yosemite)
-
-Some of the C code uses `OpenMP <https://www.openmp.org/>`_ to parallelize loops
-and take advantage of multiple cores/threads. This support is transparent and the code
-will work single-threaded if OpenMP is not available. GCC supports OpenMP
-out of the box, however the ``clang`` compiler that Apple's XCode provides does not. So
-for optimal performance on Apple hardware, you will want to install GCC via ``homebrew``
-or ``macports`` and specify its use when installing ``pypeit``. For example, if you installed
-GCC 12.x via ``homebrew``, you would get ``pypeit`` to use it by doing, for example:
-
-.. code-block:: console
-
-    CC=gcc-12 pip install "pypeit[pyqt5]"
-
-Basically, ``pypeit`` checks the ``CC`` environment variable for what compiler to use so configure
-that as needed to use your desired compiler. The ``pypeit_c_enabled`` script can be used to check if
-your compiler has OpenMP support.
 
 ginga Plugins
 -------------

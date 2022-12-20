@@ -113,7 +113,7 @@ class SensFunc(scriptbase.ScriptBase):
             sensFile = inputfiles.SensFile.from_file(args.sens_file)
             # Read sens file
             par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                merge_with=(sensFile.cfg_lines,))
+                merge_with=sensFile.cfg_lines)
         else:
             par = spectrograph_def_par 
 

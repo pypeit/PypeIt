@@ -189,6 +189,14 @@ class CombineImage:
             msgs.error(f'Unknown image combination method, {combine_method}.  Must be '
                        '"mean" or "median".')
 
+        # If not provided, generate the bpm for this spectrograph and detector.
+        # Regardless of the file used, this must result in the same bpm, so we
+        # just use the first one.
+        # TODO: Why is this done here?  It's the same thing as what's done if
+        # bpm is not passed to RawImage.process...
+#        if bpm is None:
+#            bpm = self.spectrograph.bpm(self.files[0], self.det)
+
         # Loop on the files
         for kk, ifile in enumerate(self.files):
             # Load raw image
@@ -306,8 +314,7 @@ class CombineImage:
         comb = pypeitimage.PypeItImage(image=comb_img, ivar=utils.inverse(comb_var), nimg=nstack,
                                        amp_img=pypeitImage.amp_img, det_img=pypeitImage.det_img,
                                        rn2img=comb_rn2, base_var=comb_basev, img_scale=comb_scl,
-                                       # NOTE: This *must* be a boolean.
-                                       bpm=np.logical_not(gpm), 
+                                       bpm=np.logical_not(gpm).astype(np.uint8),
                                        # NOTE: The detector is needed here so
                                        # that we can get the dark current later.
                                        detector=pypeitImage.detector,

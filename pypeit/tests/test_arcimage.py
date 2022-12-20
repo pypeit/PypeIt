@@ -16,15 +16,17 @@ from astropy.io import fits
 from pypeit.images import pypeitimage
 from pypeit.images import buildimage
 from pypeit import masterframe
-from pypeit.images import detector_container
-from pypeit.tests.test_detector import def_det
-from pypeit.tests.tstutils import data_path
+from pypeit.tests import test_detector
+
+def data_path(filename):
+    data_dir = os.path.join(os.path.dirname(__file__), 'files')
+    return os.path.join(data_dir, filename)
 
 def test_init():
     # Instantiate a simple pypeitImage
     pypeitImage = pypeitimage.PypeItImage(np.ones((1000, 1000)))
     pypeitImage.reinit_mask()
-    pypeitImage.detector = detector_container.DetectorContainer(**def_det)
+    pypeitImage.detector = test_detector.detector_container.DetectorContainer(**test_detector.def_det)
     # Now the arcimage
     arcImage = buildimage.ArcImage.from_pypeitimage(pypeitImage)
 
@@ -32,7 +34,7 @@ def test_master_io():
     # Instantiate a simple pypeitImage
     pypeitImage = pypeitimage.PypeItImage(np.ones((1000, 1000)))
     pypeitImage.reinit_mask()
-    pypeitImage.detector = detector_container.DetectorContainer(**def_det)
+    pypeitImage.detector = test_detector.detector_container.DetectorContainer(**test_detector.def_det)
     pypeitImage.PYP_SPEC = 'shane_kast_blue'
     # Now the arcimage
     arcImage = buildimage.ArcImage.from_pypeitimage(pypeitImage)
@@ -42,9 +44,7 @@ def test_master_io():
     arcImage.to_master_file(master_filename)
     # Read
     _arcImage = buildimage.ArcImage.from_file(master_filename)
-    assert isinstance(_arcImage.detector, detector_container.DetectorContainer), \
-            'detector has wrong type'
-    assert np.array_equal(_arcImage.fullmask.mask, arcImage.fullmask.mask), 'mask changed'
+    assert isinstance(_arcImage.detector, test_detector.detector_container.DetectorContainer)
     # Cleanup
     os.remove(master_filename)
 

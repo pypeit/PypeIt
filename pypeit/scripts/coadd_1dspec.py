@@ -190,7 +190,7 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
         # Parameters
         spectrograph_def_par = spectrograph.default_pypeit_par()
         par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                                                 merge_with=(coadd1dFile.cfg_lines,))
+                                                 merge_with=coadd1dFile.cfg_lines)
         # Write the par to disk
         print("Writing the parameters to {}".format(args.par_outfile))
         par.to_config(args.par_outfile)

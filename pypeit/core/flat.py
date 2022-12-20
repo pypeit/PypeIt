@@ -486,7 +486,7 @@ def flatfield(sciframe, flatframe, varframe=None):
 
     # New image
     retframe = np.zeros_like(sciframe)
-    gpm = (flatframe > 0.0) & np.isfinite(flatframe)
+    gpm = flatframe > 0.
     retframe[gpm] = sciframe[gpm]/flatframe[gpm]
     if varframe is None:
         return retframe, np.logical_not(gpm)
