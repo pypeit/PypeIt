@@ -179,14 +179,13 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             return binning
         elif 'lampstat' in meta_key:
             idx = int(meta_key[-2:])
-            try:
-                curr_date = time.Time(self.get_meta_value(headarr, 'mjd'), format='mjd')
-            except:
-                msgs.warn('No mjd in header. You either have bad headers, '
-                          'or incorrectly specified the wrong spectrograph, '
-                          'or are reading in other files from your directory.  '
-                          'Using 2022-01-01 as the date for parsing lamp info from headers')
-                curr_date =  time.Time("2022-01-01", format='isot')
+            curr_date = time.Time(self.get_meta_value(headarr, 'mjd'), format='mjd')
+            #except:
+            #    msgs.warn('No mjd in header. You either have bad headers, '
+            #              'or incorrectly specified the wrong spectrograph, '
+            #              'or are reading in other files from your directory.  '
+            #              'Using 2022-01-01 as the date for parsing lamp info from headers')
+            #    curr_date =  time.Time("2022-01-01", format='isot')
             # Modern -- Assuming the change occurred with the new red detector
             t_newlamp = time.Time("2014-02-15", format='isot')  # LAMPS changed in Header
             if curr_date > t_newlamp:
@@ -1000,7 +999,6 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     camera = 'LRISr'
     header_name = 'LRIS'
     supported = True
-    ql_supported = True
     comment = 'Red camera;  LBNL detector, 2kx4k; see :doc:`lris`'
     
     def get_detector_par(self, det, hdu=None):

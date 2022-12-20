@@ -110,7 +110,7 @@ class TellFit(scriptbase.ScriptBase):
         par = spectrograph_def_par if args.tell_file is None else \
                 pypeitpar.PypeItPar.from_cfg_lines(
                     cfg_lines=spectrograph_def_par.to_config(),
-                    merge_with=(tcfg_lines,))
+                    merge_with=tcfg_lines)
 
         # If args was provided override defaults. Note this does undo .tell file
         if args.objmodel is not None:

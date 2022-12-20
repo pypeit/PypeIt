@@ -106,8 +106,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             # NOTE `config_specific_par` works with the spec2d files because we construct the header
             # of those files to include all the relevant keywords from the raw file.
             spectrograph_cfg_lines = spectrograph.config_specific_par(spec2d_files[0]).to_config()
-            parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, 
-                                                  merge_with=(config_lines,))
+            parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=config_lines)
 
         elif args.obj is not None:
             # TODO: We should probably be reading the pypeit file and using
@@ -160,8 +159,6 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         parset['calibrations']['wavelengths']['refframe'] = 'observed'
         # TODO Flexure correction for coadd2d needs to be thought through. Currently turning it off.
         parset['flexure']['spec_method'] = 'skip'
-        # TODO This is currently the default for 2d coadds, but we need a way to toggle it on/off
-        parset['reduce']['findobj']['skip_skysub'] = True
         # Write the par to disk
         par_outfile = basename+'_coadd2d.par'
         print("Writing the parameters to {}".format(par_outfile))
@@ -194,7 +191,6 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             os.makedirs(master_dir)
 
         # Instantiate the sci_dict
-        # TODO Why do we need this sci_dict at all?? JFH
         sci_dict = OrderedDict()  # This needs to be ordered
         sci_dict['meta'] = {}
         sci_dict['meta']['vel_corr'] = 0.

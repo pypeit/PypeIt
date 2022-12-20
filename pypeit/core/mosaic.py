@@ -99,7 +99,7 @@ def build_image_mosaic_transform(shape, shift, rotation=0., binning=(1.,1.)):
         # Undo the offset to the image center
         tform += [dict(translation=((shape[0]-1)/2, (shape[1]-1)/2))]
     # Apply the shift
-    tform += [dict(translation=(shift[1] / binning[1], shift[0] / binning[0]))]
+    tform += [dict(translation=(shift[1]/binning[1], shift[0]/binning[0]))]
     # Compile into a single transformation and return
     return transform.affine_transform_series(tform)
 

@@ -439,7 +439,7 @@ class SensFunc(datamodel.DataContainer):
         msgs.info(f"Merging sensfunc for {self.norderdet} detectors {self.par['multi_spec_det']}")
         wave_splice_min = self.wave[self.wave > 1.0].min()
         wave_splice_max = self.wave[self.wave > 1.0].max()
-        wave_splice_1d, _, _ = wvutils.get_wave_grid(waves=self.wave, wave_method='linear',
+        wave_splice_1d, _, _ = wvutils.get_wave_grid(self.wave, wave_method='linear',
                                                      wave_grid_min=wave_splice_min,
                                                      wave_grid_max=wave_splice_max,
                                                      spec_samp_fact=1.0)

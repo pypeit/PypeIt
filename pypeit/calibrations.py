@@ -27,6 +27,7 @@ from pypeit.core import parse
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit import io
+from pypeit import utils
 
 
 class Calibrations:
@@ -199,17 +200,9 @@ class Calibrations:
         # Grab rows and files
         rows = self.fitstbl.find_frames(ctype, calib_ID=self.calib_ID, index=True)
         image_files = self.fitstbl.frame_paths(rows)
-        # Set the master keys
-        if self.par[f'{ctype}frame']['process']['master_setup_and_bit'] is not None:
-            master_key = self.fitstbl.master_key(
-                -1, master_setup_and_bit=self.par[f'{ctype}frame']['process']['master_setup_and_bit'],
-                det=self.det)
-        else:
-            master_key =  self.fitstbl.master_key(rows[0] if len(rows) > 0 else self.frame,
-                                                    det=self.det)
         # Return
-        return image_files, master_key #self.fitstbl.master_key(rows[0] if len(rows) > 0 else self.frame,
-                                       #             det=self.det)
+        return image_files, self.fitstbl.master_key(rows[0] if len(rows) > 0 else self.frame,
+                                                    det=self.det)
 
     def set_config(self, frame, det, par=None):
         """
@@ -226,7 +219,7 @@ class Calibrations:
 
         """
         # Reset internals to None
-        # NOTE: This sets calib_ID so must
+        # NOTE: This sets empties calib_ID and master_key_dict so must
         # be done here first before these things are initialized below.
 
         # Initialize for this setup
@@ -237,6 +230,10 @@ class Calibrations:
             self.par = par
         # Deal with binning
         self.binning = self.fitstbl['binning'][self.frame]
+
+        # Initialize the master key dict for this science/standard frame
+        self.master_key_dict['frame'] = self.fitstbl.master_key(frame, det=det)
+        # Initialize the master dict for input, output
 
     def get_arc(self):
         """
@@ -565,13 +562,11 @@ class Calibrations:
                 msgs.info('Subtracting lamp off flats using files: ')
                 for f in flatLoff_image_files:
                     msgs.prindent(f'{os.path.basename(f)}')
-                lampoff_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                              self.par['lampoffflatsframe'],
-                                                              flatLoff_image_files,
-                                                              dark=self.msdark, bias=self.msbias,
-                                                              bpm=self.msbpm)
-                pixel_flat = pixel_flat.sub(lampoff_flat)
-
+                pixel_flat = pixel_flat.sub(buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                                           self.par['lampoffflatsframe'],
+                                                                           flatLoff_image_files, dark=self.msdark,
+                                                                           bias=self.msbias, bpm=self.msbpm),
+                                            self.par['pixelflatframe']['process'])
             # Initialise the pixel flat
             pixelFlatField = flatfield.FlatField(pixel_flat, self.spectrograph,
                                                  self.par['flatfield'], self.slits, self.wavetilts,
@@ -595,14 +590,11 @@ class Calibrations:
                 msgs.info('Subtracting lamp off flats using files: ')
                 for f in flatLoff_image_files:
                     msgs.prindent(f'{os.path.basename(f)}')
-                # TODO: Can we just use the one created above if it exists?
-                lampoff_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                              self.par['lampoffflatsframe'],
-                                                              flatLoff_image_files,
-                                                              dark=self.msdark, bias=self.msbias,
-                                                              bpm=self.msbpm)
-                illum_flat = illum_flat.sub(lampoff_flat)
-
+                illum_flat = illum_flat.sub(buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                                           self.par['lampoffflatsframe'],
+                                                                           flatLoff_image_files, dark=self.msdark,
+                                                                           bias=self.msbias, bpm=self.msbpm),
+                                                                           self.par['illumflatframe']['process'])
             # Initialise the pixel flat
             illumFlatField = flatfield.FlatField(illum_flat, self.spectrograph,
                                                  self.par['flatfield'], self.slits, self.wavetilts,
@@ -698,14 +690,11 @@ class Calibrations:
                     msgs.info('Subtracting lamp off flats using files: ')
                     for f in flatLoff_image_files:
                         msgs.prindent(f'{os.path.basename(f)}')
-                    # TODO: Can we just use the one created above if it exists?
-                    lampoff_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                                self.par['lampoffflatsframe'],
-                                                                flatLoff_image_files,
-                                                                dark=self.msdark, bias=self.msbias,
-                                                                bpm=self.msbpm)
-                    self.traceImage.sub(lampoff_flat)
-
+                    self.traceImage.sub(buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                                       self.par['lampoffflatsframe'],
+                                                                       flatLoff_image_files, dark=self.msdark,
+                                                                       bias=self.msbias, bpm=self.msbpm),
+                                        self.par['traceframe']['process'])
                 self.edges = edgetrace.EdgeTraceSet(self.traceImage, self.spectrograph,
                                                     self.par['slitedges'], #bpm=self.msbpm,
                                                     auto=True)
@@ -726,16 +715,7 @@ class Calibrations:
 
         # User mask?
         if self.user_slits is not None:
-            # Parse the DET/MSC name
-            if isinstance(self.det, tuple):
-                detname = self.spectrograph.list_detectors(
-                mosaic=True)[self.spectrograph.allowed_mosaics.index(self.det)]
-            elif isinstance(self.det, int):
-                detname = self.spectrograph.list_detectors()[self.det-1]
-            else:
-                msgs.error("Bad type for self.det")
-
-            self.slits.user_mask(detname, self.user_slits)
+            self.slits.user_mask(self.det, self.user_slits)
 
         return self.slits
 
@@ -783,15 +763,9 @@ class Calibrations:
             is_arc = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID)
             lamps = self.spectrograph.get_lamps(self.fitstbl[is_arc]) \
                 if self.par['wavelengths']['lamps'] == ['use_header'] else self.par['wavelengths']['lamps']
-            meta_dict = dict(self.fitstbl[is_arc][0]) \
-                if self.spectrograph.pypeline == 'Echelle' and not self.spectrograph.ech_fixed_format else None
             # Instantiate
-            # TODO: Pull out and pass only the necessary parts of meta_dict to
-            # this, or include the relevant parts as parameters.  See comments
-            # in PRs #1454 and #1476 on this.
             self.waveCalib = wavecalib.BuildWaveCalib(self.msarc, self.slits, self.spectrograph,
                                                       self.par['wavelengths'], lamps,
-                                                      meta_dict = meta_dict,
                                                       binspectral=binspec, det=self.det,
                                                       master_key=self.master_key_dict['arc'],
                                                       qa_path=self.qa_path) #, msbpm=self.msbpm)
