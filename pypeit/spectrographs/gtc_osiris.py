@@ -320,7 +320,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             # par['calibrations']['wavelengths']['wv_cen'] = 5455.
             # par['calibrations']['wavelengths']['disp'] = 2.12
             par['calibrations']['wavelengths']['lamps'] = ['ArI,HgI,NeI']
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R1000B.fits'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_maat_R1000B.fits'#'gtc_osiris_R1000B.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'R1000R':
             # par['calibrations']['wavelengths']['wv_cen'] = 7430.
             # par['calibrations']['wavelengths']['disp'] = 2.62
