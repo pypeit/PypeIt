@@ -322,24 +322,27 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths'][
-            'rms_threshold'] = 0.20  # 0.20  # Might be grating dependent..
+            'rms_threshold'] = 0.30  # 0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
-        par['calibrations']['wavelengths']['fwhm'] = 5.0
+        par['calibrations']['wavelengths']['fwhm'] = 4.0
         par['calibrations']['wavelengths']['n_final'] = 4
-        par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
+        par['calibrations']['wavelengths']['lamps'] = ['OH_FIRE_Echelle']
         #par['calibrations']['wavelengths']['nonlinear_counts'] = \
         #self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
         # Reidentification parameters
-        par['calibrations']['slitedges']['edge_thresh'] = 300.
-        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        par['calibrations']['slitedges']['minimum_slit_length'] = 30.
+        par['calibrations']['slitedges']['edge_thresh'] = 40.
+        #par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.85
 
         # Extraction
-        # Model full slit currently turned on
+        # Model full slit currently turned off
         par['reduce']['extraction']['model_full_slit'] = False
         # Tailored profile nsigma parameter for the standard, trying 100 (30
         # was standard
-        par['reduce']['extraction']['std_prof_nsigma'] = 100.
+        #par['reduce']['extraction']['std_prof_nsigma'] = 100.
         # Do not perform global sky subtraction for standard stars
         par['reduce']['skysub']['global_sky_std'] = True
         par['reduce']['skysub']['bspline_spacing'] = 0.8
@@ -406,7 +409,9 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         
         # Non-linearity correction
         # See: https://scienceops.lbto.org/luci/instrument-characteristics/detector/
-        raw += 2.767e-6*(raw**2.0)
+        # I assume that the correction applies to each DIT, not the full exposure.
+        ndit = hdu[0].header['NDIT']
+        raw = ndit*(raw/ndit + 2.767e-6*((raw/ndit)**2.0))
         
         return detector, raw, hdu, texp, datasec, oscansec
 
@@ -504,24 +509,27 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths'][
-            'rms_threshold'] = 0.20  # 0.20  # Might be grating dependent..
+            'rms_threshold'] = 0.30  # 0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
-        par['calibrations']['wavelengths']['fwhm'] = 5.0
+        par['calibrations']['wavelengths']['fwhm'] = 4.0
         par['calibrations']['wavelengths']['n_final'] = 4
-        par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
+        par['calibrations']['wavelengths']['lamps'] = ['OH_FIRE_Echelle']
         #par['calibrations']['wavelengths']['nonlinear_counts'] = \
         #    self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.85
 
-        par['calibrations']['slitedges']['edge_thresh'] = 300
-        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-        par['calibrations']['slitedges']['fit_order'] = 8
+        par['calibrations']['slitedges']['minimum_slit_length'] = 30.
+        par['calibrations']['slitedges']['edge_thresh'] = 40.
+        #par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        #par['calibrations']['slitedges']['fit_order'] = 8
 
         # Extraction
         # Model full slit currently turned on
-        par['reduce']['extraction']['model_full_slit'] = True
+        par['reduce']['extraction']['model_full_slit'] = False
         # Tailored profile nsigma parameter for the standard
-        par['reduce']['extraction']['std_prof_nsigma'] = 100.
+        #par['reduce']['extraction']['std_prof_nsigma'] = 100.
         # Do not perform global sky subtraction for standard stars
         par['reduce']['skysub']['global_sky_std'] = False
         par['reduce']['skysub']['bspline_spacing'] = 0.8
@@ -588,7 +596,8 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         
         # Non-linearity correction
         # See: https://scienceops.lbto.org/luci/instrument-characteristics/detector/
-        raw += 2.898e-6*(raw**2.0)
+        ndit = hdu[0].header['NDIT']
+        raw = ndit*(raw/ndit+2.898e-6*((raw/ndit)**2.0))
         
         return detector, raw, hdu, texp, datasec, oscansec
 
