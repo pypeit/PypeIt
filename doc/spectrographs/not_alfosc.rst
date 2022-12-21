@@ -15,7 +15,7 @@ Common Items
 Grisms
 ++++++
 
-Currently only grisms 4, 8, 11, and 17 have full template solutions.
+Currently only grisms 4, 7, 8, 17, 18 and 19 have full template solutions.
 
 Vertical slits
 ++++++++++++++

@@ -28,7 +28,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
     url = 'https://www.not.iac.es/instruments/alfosc/'
     header_name = 'ALFOSC_FASU'
     supported = True
-    comment = 'For use with the standard horizontal slits only. Grisms 4, 8, 17, 19'
+    comment = 'For use with the standard horizontal slits only. Grisms 4, 7, 8, 17, 18, 19'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -82,7 +82,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
             darkcurr        = 1.3,      # e-/pix/hr
             saturation      = 700000.,  # ADU
             nonlinear       = 0.86,
-            datasec         = np.atleast_1d('[:,{}:{}]'.format(1, 2062)),  # Unbinned
+            datasec         = np.atleast_1d('[:,{}:{}]'.format(1, 2148)),  # Unbinned
             oscansec        = None,
             numamplifiers   = 1,
             gain            = gain,     # e-/ADU
@@ -272,10 +272,14 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == 'Grism_#4':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism4.fits'
+        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#7':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism7.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'Grism_#8':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism8.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'Grism_#17':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism17.fits'
+        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#18':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism18.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'Grism_#19':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism19.fits'
         else:
@@ -292,7 +296,7 @@ class NOTALFOSCSpectrographVert(NOTALFOSCSpectrograph):
     Child to handle Vertical slits for NOT ALFOSC spectrograph
     """
     name = 'not_alfosc_vert'
-    comment = 'Grisms 4, 8, 17, 19. For vertical slits only'
+    comment = 'Grisms 4, 7, 8, 17, 18, 19. For vertical slits only'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -346,7 +350,7 @@ class NOTALFOSCSpectrographVert(NOTALFOSCSpectrograph):
             darkcurr        = 1.3,      # e-/pix/hr
             saturation      = 700000.,  # ADU
             nonlinear       = 0.86,
-            datasec         = np.atleast_1d('[{}:{},:]'.format(1, 2148)),  # Unbinned
+            datasec         = np.atleast_1d('[{}:{},:]'.format(1, 2102)),  # Unbinned
             oscansec        = None,
             numamplifiers   = 1,
             gain            = gain,     # e-/ADU
