@@ -374,7 +374,7 @@ def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighti
             raise ValueError('First axis of col must match length of row.')
         if _row.ndim == 2 and _col.ndim == 2 and _col.shape != _row.shape:
             raise ValueError('col and row must have the same shape.')
-        if len(_row) == 1 and _col.ndim == 2 or _row.ndim == 2 and _col.ndim == 1:
+        if _row.ndim == 1 and _col.ndim == 2 or _row.ndim == 2 and _col.ndim == 1:
             raise ValueError('Invalid combination of row and col input shapes.')
     else:
         _row = np.arange(nrow)
