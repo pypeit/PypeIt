@@ -78,6 +78,7 @@ jobs:
       matrix:
         # Test CentOS 7
         centos_ver: [7]
+        python: [3.9]
         # Test both pip and conda for installing dependencies
         toxenv: [test-alldeps, conda]
 
