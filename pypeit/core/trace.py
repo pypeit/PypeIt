@@ -1538,7 +1538,7 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
 
 def parse_user_slits(add_slits, this_det, rm=False):
     """
-    Parse the parset syntax for adding slits
+    Parse the parset syntax for adding or removing slits
 
     Args:
         add_slits (str, list):
@@ -1550,8 +1550,8 @@ def parse_user_slits(add_slits, this_det, rm=False):
 
     Returns:
         list or None:
-          if list,  [[x0,x1,yrow]] for add with one or more entries
-          if list,  [[xcen,yrow]] for rm with one or more entries
+          if list,  [[x0,x1,yrow]] for add (rm=False) with one or more entries
+          if list,  [[xcen,yrow]] for rm=True with one or more entries
 
     """
     # Might not be a list yet (only a str)
@@ -1560,11 +1560,12 @@ def parse_user_slits(add_slits, this_det, rm=False):
     #
     user_slits = []
     for islit in add_slits:
+        # Add?
         if not rm:
             det, x0, x1, yrow = [int(ii) for ii in islit.split(':')]
             if det == this_det:
                 user_slits.append([x0,x1,yrow])
-        else:
+        else: # Remove
             det, xcen, yrow = [int(ii) for ii in islit.split(':')]
             if det == this_det:
                 user_slits.append([xcen,yrow])
