@@ -333,8 +333,9 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         # Reidentification parameters
         par['calibrations']['slitedges']['minimum_slit_length'] = 30.
         par['calibrations']['slitedges']['edge_thresh'] = 40.
-        #par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
         
+        # Large chunk of slit is lost with default tweak threshold.
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.85
 
         # Extraction
@@ -342,9 +343,9 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         par['reduce']['extraction']['model_full_slit'] = False
         # Tailored profile nsigma parameter for the standard, trying 100 (30
         # was standard
-        #par['reduce']['extraction']['std_prof_nsigma'] = 100.
+        par['reduce']['extraction']['std_prof_nsigma'] = 100.
         # Do not perform global sky subtraction for standard stars
-        par['reduce']['skysub']['global_sky_std'] = True
+        par['reduce']['skysub']['global_sky_std'] = False
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
 
@@ -354,7 +355,18 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         par.reset_all_processimages_par(**turn_off)
 
         # Flexure
-        par['flexure']['spec_method'] = 'skip'
+        # Parameters should work for long-slit N1.8 camera exposures
+        # N3.75 camera and/or multi-slit may require careful adjustment
+        # to avoid spurious peaks.
+        par['scienceframe']['process']['spat_flexure_correct'] = True
+        par['scienceframe']['process']['spat_flexure_maxshift'] = 30
+        par['scienceframe']['process']['spat_flexure_cont_samp'] = 12
+        par['scienceframe']['process']['spat_flexure_sigdetect'] = 3.
+        #par['calibrations']['tiltframe']['process']['spat_flexure_correct'] = True
+        #par['calibrations']['tiltframe']['process']['spat_flexure_maxshift'] = 50
+        #par['calibrations']['tiltframe']['process']['spat_flexure_cont_samp'] = 10
+        #par['calibrations']['tiltframe']['process']['spat_flexure_sigdetect'] = 3.
+
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] = 'nothing'
@@ -518,18 +530,19 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         #    self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
         
+        # Large chunk of slit is lost with default tweak threshold.
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.85
 
         par['calibrations']['slitedges']['minimum_slit_length'] = 30.
         par['calibrations']['slitedges']['edge_thresh'] = 40.
-        #par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
         #par['calibrations']['slitedges']['fit_order'] = 8
 
         # Extraction
         # Model full slit currently turned on
         par['reduce']['extraction']['model_full_slit'] = False
         # Tailored profile nsigma parameter for the standard
-        #par['reduce']['extraction']['std_prof_nsigma'] = 100.
+        par['reduce']['extraction']['std_prof_nsigma'] = 100.
         # Do not perform global sky subtraction for standard stars
         par['reduce']['skysub']['global_sky_std'] = False
         par['reduce']['skysub']['bspline_spacing'] = 0.8
@@ -542,6 +555,14 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
 
         # Flexure
         par['flexure']['spec_method'] = 'skip'
+        par['scienceframe']['process']['spat_flexure_correct'] = True
+        par['scienceframe']['process']['spat_flexure_maxshift'] = 30
+        par['scienceframe']['process']['spat_flexure_cont_samp'] = 10
+        par['scienceframe']['process']['spat_flexure_sigdetect'] = 3.
+#        par['calibrations']['tiltframe']['process']['spat_flexure_correct'] = True
+#        par['calibrations']['tiltframe']['process']['spat_flexure_maxshift'] = 50
+#        par['calibrations']['tiltframe']['process']['spat_flexure_cont_samp'] = 10
+#        par['calibrations']['tiltframe']['process']['spat_flexure_sigdetect'] = 3.
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] = 'nothing'
