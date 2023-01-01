@@ -47,8 +47,9 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             Object with the detector metadata.
         """
         binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
-        gain = 2.03 if hdu is None else self.get_headarr(hdu)[0]['GAIN']
-        msgs.warn("Readout noise not read from header... assuming RON=10")
+        msgs.warn("HACK FOR MAAT SIMS --- GAIN HARD-CODED")
+        gain = 2.03# if hdu is None else self.get_headarr(hdu)[0]['GAIN']
+        msgs.warn("HACK FOR MAAT SIMS --- Readout noise not read from header... assuming RON=10")
         ronoise = 10.0
 
         # Detector 1
@@ -162,8 +163,11 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            binspatial, binspec = parse.parse_binning(headarr[0]['HIERARCH P_BINNING'].split("_")[1])
+            msgs.warn("BINNING NEEDS TO BE UPDATED IN GTC_OSIRIS.PY - TEMPORARY HACK FOR MAAT SIMS")
+            binspatial, binspec = parse.parse_binning(headarr[0]['CCD-SUM'])
             binning = parse.binning2string(binspec, binspatial)[::-1]
+            # binspatial, binspec = parse.parse_binning(headarr[0]['HIERARCH P_BINNING'].split("_")[1])
+            # binning = parse.binning2string(binspec, binspatial)[::-1]
             return binning
         elif meta_key == 'pressure':
             try:
