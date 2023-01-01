@@ -1803,7 +1803,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         rel_humidity = spec.get_meta_value([spec2DObj.head0], 'humidity')
         coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
         location = spec.location  # TODO :: spec.location should probably end up in the TelescopePar (spec.telescope.location)
-        if pressure == 0.0:
+        if pressure == 0.0 or True:
             msgs.warn("Pressure is set to zero - DAR correction will not be performed")
         else:
             msgs.info("DAR correction parameters:"+msgs.newline() +

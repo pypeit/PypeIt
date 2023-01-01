@@ -482,7 +482,7 @@ class GTCMAATSpectrograph(GTCOSIRISSpectrograph):
 
         return par
 
-    def get_wcs(self, hdr, slits, platescale, wave0, dwv):
+    def get_wcs(self, hdr, slits, platescale, wave0, dwv, spatial_scale=None):
         """
         Construct/Read a World-Coordinate System for a frame.
 
@@ -511,6 +511,11 @@ class GTCMAATSpectrograph(GTCOSIRISSpectrograph):
         msgs.warn("HACK FOR MAAT SIMS --- SLICER SCALE = 0.305 arcsec")
         pxscl = platescale * binspat / 3600.0  # Need to convert arcsec to degrees
         slscl = self.get_meta_value([hdr], 'slitwid')
+        if spatial_scale is not None:
+            if pxscl > spatial_scale / 3600.0:
+                msgs.warn("Spatial scale requested ({0:f}'') is less than the pixel scale ({1:f}'')".format(spatial_scale, pxscl*3600.0))
+            # Update the pixel scale
+            pxscl = spatial_scale / 3600.0  # 3600 is to convert arcsec to degrees
 
         # Get the typical slit length (this changes by ~0.3% over all slits, so a constant is fine for now)
         slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
