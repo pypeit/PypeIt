@@ -11,8 +11,10 @@ from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
+from astropy import wcs, units
 import astropy.io.fits as fits
 from astropy.time import Time
+from astropy.coordinates import SkyCoord, EarthLocation
 
 
 class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
@@ -27,6 +29,10 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
     header_name = 'OSIRIS'
     supported = True
     comment = 'See :doc:`gtc_osiris`'
+
+    def __init__(self):
+        super().__init__()
+        self.location = EarthLocation.of_site('lapalma')
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -150,6 +156,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         self.meta['datasec'] = dict(ext=0, card='DETSIZE')
         self.meta['dichroic'] = dict(ext=0, card='FILTER1')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
+        self.meta['slitwid'] = dict(card=None, compound=True)
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -194,6 +201,9 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             return Time(headarr[0]['DATE-END'])
         elif meta_key == 'gain':
             return headarr[0]['GAIN']
+        elif meta_key == 'slitwid':
+            msgs.warn("HACK FOR MAAT SIMS --- NEED TO GET SLICER SCALE FROM HEADER, IDEALLY")
+            return 0.305/3600.0
 
     def configuration_keys(self):
         """
@@ -500,14 +510,14 @@ class GTCMAATSpectrograph(GTCOSIRISSpectrograph):
         # Get the pixel and slice scales
         msgs.warn("HACK FOR MAAT SIMS --- SLICER SCALE = 0.305 arcsec")
         pxscl = platescale * binspat / 3600.0  # Need to convert arcsec to degrees
-        slscl = 0.305 / 3600.0  # MAAT is fixed format, so hard code the value here. Need to convert arcsec to degrees
+        slscl = self.get_meta_value([hdr], 'slitwid')
 
         # Get the typical slit length (this changes by ~0.3% over all slits, so a constant is fine for now)
         slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
 
         # Get RA/DEC
-        raval = self.compound_meta([hdr], 'ra')
-        decval = self.compound_meta([hdr], 'dec')
+        raval = self.get_meta_value([hdr], 'ra')
+        decval = self.get_meta_value([hdr], 'dec')
 
         # Create a coordinate
         coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
@@ -547,31 +557,19 @@ class GTCMAATSpectrograph(GTCOSIRISSpectrograph):
         crpix2 = slitlength / 2.
         crpix3 = 1.
         # Get the offset
-        porg = hdr['PONAME']
-        ifunum = hdr['IFUNUM']
-        if 'IFU' in porg:
-            if ifunum == 1:  # Large slicer
-                off1 = 1.0
-                off2 = 4.0
-            elif ifunum == 2:  # Medium slicer
-                off1 = 1.0
-                off2 = 5.0
-            elif ifunum == 3:  # Small slicer
-                off1 = 0.05
-                off2 = 5.6
-            else:
-                msgs.warn("Unknown IFU number: {0:d}".format(ifunum))
-                off1 = 0.
-                off2 = 0.
-            off1 /= binspec
-            off2 /= binspat
-            crpix1 += off1
-            crpix2 += off2
+        msgs.warn("HACK FOR MAAT SIMS --- Need to obtain offset from header?")
+        off1 = 0.
+        off2 = 0.
+        off1 /= binspec
+        off2 /= binspat
+        crpix1 += off1
+        crpix2 += off2
 
         # Create a new WCS object.
+        msgs.warn("HACK FOR MAAT SIMS --- EQUINOX NOT IN HEADER... ASSUMING J2000")
         msgs.info("Generating MAAT WCS")
         w = wcs.WCS(naxis=3)
-        w.wcs.equinox = hdr['EQUINOX']
+        w.wcs.equinox = 2000.0
         w.wcs.name = 'MAAT'
         w.wcs.radesys = 'FK5'
         # Insert the coordinate frame
