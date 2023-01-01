@@ -57,7 +57,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             det             = 1,
             dataext         = 0,
             specaxis        = 1,
-            specflip        = False,
+            specflip        = True,
             spatflip        = False,
             platescale      = 0.127,  # arcsec per pixel
             darkcurr        = 0.0,

@@ -594,7 +594,7 @@ class BuildWaveTilts:
         self.final_tilts = np.zeros(self.shape_science,dtype=float)
         max_spat_dim = (np.asarray(self.par['spat_order']) + 1).max()
         max_spec_dim = (np.asarray(self.par['spec_order']) + 1).max()
-        self.coeffs = np.zeros((max_spec_dim, max_spat_dim,self.slits.nslits))
+        self.coeffs = np.zeros((max_spec_dim, max_spat_dim, self.slits.nslits))
         self.spat_order = np.zeros(self.slits.nslits, dtype=int)
         self.spec_order = np.zeros(self.slits.nslits, dtype=int)
 
@@ -605,11 +605,10 @@ class BuildWaveTilts:
         # Loop on all slits
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
             if self.tilt_bpm[slit_idx]:
-                msgs.info('Skipping bad slit {0}/{1}'.format(slit_idx, self.slits.nslits))
+                msgs.info('Skipping bad slit {0}/{1}'.format(slit_idx+1, self.slits.nslits))
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADTILTCALIB')
                 continue
-            #msgs.info('Computing tilts for slit {0}/{1}'.format(slit, self.slits.nslits-1))
-            msgs.info('Computing tilts for slit {0}/{1}'.format(slit_idx, self.slits.nslits))
+            msgs.info('Computing tilts for slit {0}/{1}'.format(slit_idx+1, self.slits.nslits))
             # Identify lines for tracing tilts
             msgs.info('Finding lines for tilt analysis')
             self.lines_spec, self.lines_spat \
