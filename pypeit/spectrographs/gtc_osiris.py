@@ -52,11 +52,13 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         msgs.warn("HACK FOR MAAT SIMS --- Readout noise not read from header... assuming RON=10")
         ronoise = 10.0
 
+        msgs.warn("HACK FOR MAAT SIMS --- dataext below should be 0, not 1")
+
         # Detector 1
         detector_dict1 = dict(
             binning         = binning,
             det             = 1,
-            dataext         = 0,
+            dataext         = 1,
             specaxis        = 1,
             specflip        = True,
             spatflip        = False,
