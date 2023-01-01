@@ -47,12 +47,15 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             Object with the detector metadata.
         """
         binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
+        gain = '2.03' if hdu is None else self.get_headarr(hdu)[0]['GAIN']
+        msgs.warn("Readout noise not read from header... assuming RON=10")
+        ronoise = 10.0
 
         # Detector 1
         detector_dict1 = dict(
             binning         = binning,
             det             = 1,
-            dataext         = 1,
+            dataext         = 0,
             specaxis        = 1,
             specflip        = False,
             spatflip        = False,
@@ -62,10 +65,10 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             nonlinear       = 0.95,
             mincounts       = 0,
             numamplifiers   = 1,
-            gain            = np.atleast_1d([0.95]),
-            ronoise         = np.atleast_1d([4.5]),
-            datasec         = np.atleast_1d('[50:4096,1:4096]'),
-            oscansec        = np.atleast_1d('[1:49,1:4096]')
+            gain            = np.atleast_1d([gain]),
+            ronoise         = np.atleast_1d([ronoise]),
+            datasec         = np.atleast_1d('[1:4112,50:4096]'),
+            oscansec        = np.atleast_1d('[1:4112,8:46]')  # Trim down the oscansec - looks like some bad pixels
             )
 
         detectors = [detector_dict1]
@@ -113,8 +116,8 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['tilts']['spat_order'] = 5
         par['calibrations']['tilts']['spec_order'] = 5
 
-        #Only extract one object per standard frame
-        par['reduce']['findobj']['maxnumber_std']=1
+        # Only extract one object per standard frame
+        par['reduce']['findobj']['maxnumber_std'] = 1
 
         # Turn off the 2D fit - this seems to be giving bad results for OSIRIS
         par['reduce']['skysub']['no_poly'] = True
@@ -134,13 +137,13 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         self.meta['target'] = dict(ext=0, card='object')
         self.meta['idname'] = dict(ext=0, card='obsmode')
         self.meta['decker'] = dict(ext=0, card='MASKNAME')
-        self.meta['binning'] = dict(card=None, compound=True)  # Uses CCDSUM
-        self.meta['detector']=dict(ext=0,card='detector')
+        self.meta['binning'] = dict(card=None, compound=True)
+        self.meta['detector'] = dict(ext=0, card='detector')
         self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         self.meta['dispname'] = dict(ext=0, card='GRISM')
-        self.meta['datasec'] = dict(ext=1, card='DATASEC')
+        self.meta['datasec'] = dict(ext=0, card='DETSIZE')
         self.meta['dichroic'] = dict(ext=0, card='FILTER1')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
@@ -159,7 +162,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            binspatial, binspec = parse.parse_binning(headarr[0]['CCD-SUM'])
+            binspatial, binspec = parse.parse_binning(headarr[0]['HIERARCH P_BINNING'].split("_")[1])
             binning = parse.binning2string(binspec, binspatial)[::-1]
             return binning
         elif meta_key == 'pressure':
@@ -182,6 +185,8 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
                 return 0.0
         elif meta_key == 'obstime':
             return Time(headarr[0]['DATE-END'])
+        elif meta_key == 'gain':
+            return headarr[0]['GAIN']
 
     def configuration_keys(self):
         """
@@ -220,19 +225,15 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['science','standard']:
-            return good_exp & (fitstbl['target'] != 'ArcLamp_Xe') \
-            & (fitstbl['target'] != 'ArcLamp_HgAr') \
-            & (fitstbl['target'] != 'ArcLamp_Ne') \
-            & (fitstbl['target'] != 'SpectralFlat') \
-                    & (fitstbl['target'] != 'BIAS')
+            return good_exp & (np.char.lower(fitstbl['target']) != 'arclamp') & \
+                   (np.char.lower(fitstbl['target']) != 'spectralflat') & \
+                   (np.char.lower(fitstbl['target']) != 'bias')
         if ftype in ['arc', 'tilt']:
-            return good_exp & ((fitstbl['target'] == 'ArcLamp_Xe') \
-            | (fitstbl['target'] == 'ArcLamp_HgAr') \
-            | (fitstbl['target'] == 'ArcLamp_Ne'))
+            return good_exp & (np.char.lower(fitstbl['target']) == 'arclamp')
         if ftype in ['pixelflat', 'trace', 'illumflat']:
-            return good_exp & (fitstbl['target'] == 'SpectralFlat')
+            return good_exp & (np.char.lower(fitstbl['target']) == 'spectralflat')
         if ftype == 'bias':
-            return good_exp & (fitstbl['target'] == 'BIAS')
+            return good_exp & (np.char.lower(fitstbl['target']) == 'bias')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
@@ -393,25 +394,28 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
 
         # Extract some header info
         head0 = fits.getheader(filename, ext=0)
-        binning = head0['CCD-SUM']
+        binning = self.get_meta_value([head0], 'binning')
+        #binning = head0['CCD-SUM']
 
-        # Construct a list of the bad columns
+        msgs.warn("Bad pixel mask is not available for det={0:d} binning={1:s}".format(det, binning))
         bc = []
-        if det == 1:
-            # No bad pixel columns on detector 1
-            pass
-        elif det == 2:
-            if binning == '1 1':
-                # The BPM is based on 2x2 binning data, so the 2x2 numbers are just multiplied by two
-                msgs.warn("BPM is likely over-estimated for 1x1 binning")
-                bc = [[220, 222, 3892, 4100],
-                      [952, 954, 2304, 4100]]
-            elif binning == '2 2':
-                bc = [[110, 111, 1946, 2050],
-                      [476, 477, 1154, 2050]]
-        else:
-            msgs.warn("Bad pixel mask is not available for det={0:d} binning={1:s}".format(det, binning))
-            bc = []
+        # Construct a list of the bad columns
+        # bc = []
+        # if det == 1:
+        #     # No bad pixel columns on detector 1
+        #     pass
+        # elif det == 2:
+        #     if binning == '1 1':
+        #         # The BPM is based on 2x2 binning data, so the 2x2 numbers are just multiplied by two
+        #         msgs.warn("BPM is likely over-estimated for 1x1 binning")
+        #         bc = [[220, 222, 3892, 4100],
+        #               [952, 954, 2304, 4100]]
+        #     elif binning == '2 2':
+        #         bc = [[110, 111, 1946, 2050],
+        #               [476, 477, 1154, 2050]]
+        # else:
+        #     msgs.warn("Bad pixel mask is not available for det={0:d} binning={1:s}".format(det, binning))
+        #     bc = []
 
         # Apply these bad columns to the mask
         for bb in range(len(bc)):
