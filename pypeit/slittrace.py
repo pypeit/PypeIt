@@ -461,8 +461,10 @@ class SlitTraceSet(datamodel.DataContainer):
         msgs.work("Spatial flexure is not currently implemented for the astrometric alignment")
         # Check if the user has skimage installed
         if skimageTransform is None or alignments is None:
-            if skimageTransform is None: msgs.warn("scikit-image is not installed - astrometric correction not implemented")
-            else: msgs.warn("Alignments were not provided - astrometric correction not implemented")
+            if skimageTransform is None:
+                    msgs.warn("scikit-image is not installed - astrometric correction not implemented")
+            else:
+                msgs.warn("Alignments were not provided - astrometric correction not implemented")
             astrometric = False
         # Prepare the parameters
         if not astrometric:
@@ -1390,7 +1392,8 @@ class SlitTraceSet(datamodel.DataContainer):
         """
         if user_slits['method'] == 'slitspat':
             # Parse
-            dets, spat_ids = parse.parse_slitspatnum(user_slits['slit_info'])
+            dets, spat_ids = parse.parse_slitspatnum(
+                user_slits['slit_info'])
             if det not in dets:
                 return
             # Cut down for convenience
@@ -1402,9 +1405,17 @@ class SlitTraceSet(datamodel.DataContainer):
                 #TODO -- Consider putting in a tolerance which if not met causes a crash
                 idx = np.argmin(np.abs(self.spat_id - slit_spat))
                 msk[idx] = False
-            self.mask[msk] = self.bitmask.turn_on(self.mask[msk], 'USERIGNORE')
+            self.mask[msk] = self.bitmask.turn_on(self.mask[msk], 
+                                                  'USERIGNORE')
         elif user_slits['method'] == 'maskIDs':
-            raise NotImplementedError("Not ready for maskID yet")
+            # Mask only the good one
+            msk = np.logical_not(np.isin(self.maskdef_id, user_slits['slit_info']))
+            # Set
+            self.mask[msk] = self.bitmask.turn_on(self.mask[msk], 
+                                                  'USERIGNORE')
+        else:
+            msgs.error('Not ready for this method: {:s}'.format(
+                user_slits['method']))
 
     def mask_flats(self, flatImages):
         """

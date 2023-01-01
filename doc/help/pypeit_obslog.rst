@@ -36,7 +36,7 @@
                             up through the wildcard (.e.g, /data/Kast/b). Use the
                             --extension option to set the types of files to search
                             for. Default is the current working directory. (default:
-                            /Users/westfall/Work/packages/pypeit/doc)
+                            /data/Projects/PypeIt-codes/PypeIt/doc)
       -k, --keys            Do not produce the log; simply list the pypeit-specific
                             metadata keys available for this spectrograph and their
                             associated header cards. Metadata keys with header cards
@@ -77,7 +77,7 @@
                             required. (default: .fits)
       -d OUTPUT_PATH, --output_path OUTPUT_PATH
                             Path to top-level output directory. (default:
-                            /Users/westfall/Work/packages/pypeit/doc)
+                            /data/Projects/PypeIt-codes/PypeIt/doc)
       -o, --overwrite       Overwrite any existing files/directories (default:
                             False)
       -f FILE, --file FILE  Name for the ascii output file. Any leading directory
