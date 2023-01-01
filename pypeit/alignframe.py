@@ -7,6 +7,7 @@ Module for generating an Alignment image to map constant spatial locations
 import inspect
 import numpy as np
 from IPython import embed
+from scipy.interpolate import interp1d, RegularGridInterpolator
 
 from pypeit.display import display
 from pypeit.core import findobj_skymask
@@ -323,3 +324,96 @@ def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
                                    color=color)
 
 
+class AlignmentSplines:
+    def __init__(self, traces, locations, tilts):
+        """Convenience class to build and transform between detector pixel coordinates and
+        WCS pixel coordinates (i.e. constant wavelength and spatial position).
+
+        Parameters
+        ----------
+        traces : `numpy.ndarray`
+            The alignments (traces) of the slits. This allows different slices
+            to be aligned correctly. Ideally, this variable will be assigned the
+            value of alignments.traces. However, this can also be assigned the
+            left and right slit edges:
+            traces = np.append(left.reshape((left.shape[0],1,left.shape[1])),
+                   right.reshape((left.shape[0],1,left.shape[1])), axis=1)
+            In this case, locations=np.array([0,1])
+        locations : `numpy.ndarray`_, list
+            locations along the slit of the alignment traces. Must
+            be a 1D array of the same length as alignments.traces.shape[1]
+        tilts : `numpy.ndarray`
+            Spectral tilts.
+        """
+        self.traces = traces
+        self.locations = locations
+        self.tilts = tilts
+        self.nspec, self.ntrace, self.nslit = traces.shape
+        # Transform between detector pixels and the locations:
+        self.spl_loc = self.nslit * [self.nspec*[None]]  # Splines - map (x,y) pixels ==> tilts
+        self.spl_slen = self.nslit * [None]  # Splines - map y pixel ==> slit length
+        self.spl_transform = self.nslit * [None]  # Splines - map x,y pixel ==> offset in pixels from the central trace
+        self.spl_fulltilts = RegularGridInterpolator((np.arange(tilts.shape[0]), np.arange(tilts.shape[1])),
+                                                     tilts * (self.nspec - 1), method='linear')
+        self.build_splines()
+
+    def build_splines(self):
+        """
+        Build the interpolation transforms for each slit
+        """
+        spldict = dict(kind='linear', bounds_error=False, fill_value="extrapolate")
+        ycoord = np.arange(self.nspec)
+        for sl in range(self.nslit):
+            msgs.info("Calculating astrometric transform of slit {0:d}/{1:d}".format(sl+1, self.nslit))
+            xlr, tlr = np.zeros((self.nspec, 2)), np.zeros((self.nspec, 2))
+            eval_trim = 2  # This evaluates the slit length inside the actual slit edges, due to edge effects.
+            for sp in range(self.nspec):
+                # Calculate x coordinate at the slit edges, and the spectral tilts at those locations
+                xlr[sp, :] = interp1d(self.locations, self.traces[sp,:,sl], **spldict)([0.0, 1.0])
+                tmptilt = self.spl_fulltilts([[sp, xlr[sp,0] + eval_trim],
+                                              [sp, xlr[sp,0] + eval_trim+1],
+                                              [sp, xlr[sp,1] - eval_trim],
+                                              [sp, xlr[sp,1] - eval_trim-1]])
+                tlr[sp, :] = [tmptilt[0]-eval_trim*(tmptilt[1]-tmptilt[0]),
+                              tmptilt[2]-eval_trim*(tmptilt[3]-tmptilt[2])]
+                # pseudo-2D alignments -> locations
+                self.spl_loc[sl][sp] = interp1d(self.traces[sp,:,sl], self.locations, **spldict)
+            # For a given tilt value, get the (x,y) coordinate of the right edge
+            tilt_ypos = interp1d(tlr[:,1], ycoord, **spldict)
+            ypos_xpos = interp1d(ycoord, xlr[:,1], **spldict)
+            ypos = tilt_ypos(tlr[:,0])
+            xpos = ypos_xpos(ypos)
+            # Calculate the slitlength from (xlr, y), (xpos, ypos) coordinates
+            slitlen = np.sqrt((ypos - np.arange(ypos.size)) ** 2 + (xpos - xlr[:, 0]) ** 2)
+            self.spl_slen[sl] = interp1d(ycoord, slitlen, **spldict)  # The tilt used to calculate the slit length corresponds to the left edge, so use ycoord for the first argument
+            # Construct a 2D Regular grid that interpolates over all coordinates
+            xcoord = np.arange(np.floor(np.min(xlr)), np.ceil(np.max(xlr))+1, 1.0)
+            out_transform = np.zeros((self.nspec, xcoord.size))
+            for sp in range(self.nspec):
+                out_transform[sp,:] = (self.spl_loc[sl][sp](xcoord) - 0.5) * self.spl_slen[sl](sp)
+            self.spl_transform[sl] = RegularGridInterpolator((ycoord, xcoord), out_transform, method='linear',
+                                                             bounds_error=False, fill_value=None) # This will extrapolate
+            # TODO :: Remove these notes...
+            # We now have everything we need to calculate the location and tilt of every pixel in the image.
+            # evalpos = (self.spl_loc[sl][ypixels](xpixels) - 0.5) * self.spl_slen[sl](ypixels)
+            # wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init] * (nspec - 1), 0)
+
+    def transform(self, slitnum, spatpix, specpix):
+        """
+        Convenience function to return the spatial offset in pixels
+        from the spatial centre of the slit.
+
+        Parameters
+        ----------
+        slitnum : `int`
+            Slit number
+        spatpix : `numpy.ndarray`
+            Detector pixel coordinate (spatial direction)
+        specpix : `numpy.ndarray`
+            Detector pixel coordinate (spectral direction)
+
+        Returns
+        -------
+        tuple : There are
+        """
+        return self.spl_transform[slitnum]((specpix, spatpix))

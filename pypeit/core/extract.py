@@ -693,6 +693,9 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
     waveimg: `numpy.ndarray`_
         Floating-point wavelength image. Must have the same shape as ``image``,
         :math:`(N_{\rm spec}, N_{\rm spat})`.
+    thismask : `numpy.ndarray`_
+        Boolean image indicating which pixels are on the slit/order in question.
+        Must have the same shape as ``sciimg``, :math:`(N_{\rm spec}, N_{\rm spat})`.
     spat_img: `numpy.ndarray`_
         Floating-point image containing the spatial location of pixels.
         Must have the same shape as ``image``, :math:`(N_{\rm spec}, N_{\rm spat})`.

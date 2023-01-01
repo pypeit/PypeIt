@@ -237,11 +237,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Set the slit edge parameters
         par['calibrations']['slitedges']['fit_order'] = 4
 
-        # Always correct for flexure, starting with default parameters
-        # slitcen must be used, because this is a slit-based IFU where
-        # no objects are extracted.
-        par['flexure']['spec_method'] = 'slitcen'
-
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['flatfield']['spec_samp_coarse'] = 20.0
@@ -286,6 +281,11 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['reduce']['skysub']['no_poly'] = True
         par['reduce']['skysub']['bspline_spacing'] = 0.6
         par['reduce']['skysub']['joint_fit'] = False
+
+        # Don't correct flexure by default, but you should use slitcen,
+        # because this is a slit-based IFU where no objects are extracted.
+        par['flexure']['spec_method'] = 'skip'
+        par['flexure']['spec_maxshift'] = 2.5  # Just in case someone switches on spectral flexure, this needs to be minimal
 
         # Flux calibration parameters
         par['sensfunc']['UVIS']['extinct_correct'] = False  # This must be False - the extinction correction is performed when making the datacube
@@ -795,7 +795,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         """
         return 'Mask' in hdr['BNASNAM']
 
-    def get_wcs(self, hdr, slits, platescale, wave0, dwv):
+    def get_wcs(self, hdr, slits, platescale, wave0, dwv, spatial_scale=None):
         """
         Construct/Read a World-Coordinate System for a frame.
 
@@ -807,11 +807,17 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 Slit traces.
             platescale (:obj:`float`):
                 The platescale of an unbinned pixel in arcsec/pixel (e.g.
-                detector.platescale).
+                detector.platescale). See also 'spatial_scale'
             wave0 (:obj:`float`):
                 The wavelength zeropoint.
             dwv (:obj:`float`):
                 Change in wavelength per spectral pixel.
+            spatial_scale (:obj:`float`, None, optional):
+                The spatial scale (units=arcsec/pixel) of the WCS to be used.
+                This variable is fixed, and is independent of the binning.
+                If spatial_scale is set, it will be used for the spatial size
+                of the WCS and the platescale will be ignored. If None, then
+                the platescale will be used.
 
         Returns:
             `astropy.wcs.wcs.WCS`_: The world-coordinate system.
@@ -821,8 +827,13 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         binspec, binspat = parse.parse_binning(self.get_meta_value([hdr], 'binning'))
 
         # Get the pixel and slice scales
-        pxscl = platescale * binspat / 3600.0  # Need to convert arcsec to degrees
+        pxscl = platescale * binspat / 3600.0  # 3600 is to convert arcsec to degrees
         slscl = self.get_meta_value([hdr], 'slitwid')
+        if spatial_scale is not None:
+            if pxscl > spatial_scale / 3600.0:
+                msgs.warn("Spatial scale requested ({0:f}'') is less than the pixel scale ({1:f}'')".format(spatial_scale, pxscl*3600.0))
+            # Update the pixel scale
+            pxscl = spatial_scale / 3600.0  # 3600 is to convert arcsec to degrees
 
         # Get the typical slit length (this changes by ~0.3% over all slits, so a constant is fine for now)
         slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
@@ -898,7 +909,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Insert the coordinate frame
         w.wcs.cname = ['KCWI RA', 'KCWI DEC', 'KCWI Wavelength']
         w.wcs.cunit = [units.degree, units.degree, units.Angstrom]
-        w.wcs.ctype = ["RA---TAN", "DEC--TAN", "AWAV"]
+        w.wcs.ctype = ["RA---TAN", "DEC--TAN", "WAVE"]  # Note, WAVE is vacuum wavelength
         w.wcs.crval = [ra, dec, wave0]  # RA, DEC, and wavelength zeropoints
         w.wcs.crpix = [crpix1, crpix2, crpix3]  # RA, DEC, and wavelength reference pixels
         w.wcs.cd = np.array([[cd11, cd12, 0.0], [cd21, cd22, 0.0], [0.0, 0.0, dwv]])

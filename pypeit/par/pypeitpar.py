@@ -1320,10 +1320,10 @@ class CubePar(ParSet):
     """
 
     def __init__(self, slit_spec=None, relative_weights=None, combine=None, output_filename=None,
-                 standard_cube=None, reference_image=None, save_whitelight=None,
+                 standard_cube=None, reference_image=None, save_whitelight=None, method=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None, astrometric=None, grating_corr=None, scale_corr=None,
-                 skysub_frame=None):
+                 skysub_frame=None, subsample=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1387,6 +1387,30 @@ class CubePar(ParSet):
                                    'so some spaxels in the 2D white light image may have different wavelength ' \
                                    'ranges. If combine=False, the individual spec3d files will have a suffix ' \
                                    '"_whitelight".'
+
+        defaults['method'] = "subsample"
+        dtypes['method'] = str
+        descr['method'] = 'What method should be used to generate the datacube. There are currently three options:' \
+                          '(1) "subsample" (default) - this algorithm subsamples each pixel in the spec2d frames ' \
+                          'and assigns each subpixel into a voxel of the datacube. Note that the resample algorithm ' \
+                          'exactly maps pixels to voxels, the subsample algorithm is much faster and performs just ' \
+                          'as well. Flux is conserved, but voxels are correlated, and the error spectrum does not ' \
+                          'account for covariance between adjacent voxels. ' \
+                          '(2) "resample" - this algorithm resamples the spec2d frames into a datacube. ' \
+                          'Flux is conserved, but voxels are correlated, and the error spectrum does not account ' \
+                          'for covariance between neighbouring pixels. ' \
+                          '(3) "NGP" (nearest grid point) - this algorithm is effectively a 3D histogram. Flux is ' \
+                          'conserved, voxels are not correlated, however this option suffers the same downsides as ' \
+                          'any histogram; the choice of bin sizes can change how the datacube appears. This algorithm ' \
+                          'takes each pixel on the spec2d frame and puts the flux of this pixel into one voxel in the ' \
+                          'datacube. Depending on the binning used, some voxels may be empty (zero flux) while a ' \
+                          'neighbouring voxel might contain the flux from two spec2d pixels.'
+
+        defaults['subsample'] = 10
+        dtypes['subsample'] = int
+        descr['subsample'] = 'Subpixellation scale of each pixel when method=subsample. The total number of ' \
+                             'subpixels in each pixel is given by subsample^2. The default option is to divide ' \
+                             'each spec2d pixel into 100 subpixels during datacube creation.'
 
         defaults['ra_min'] = None
         dtypes['ra_min'] = float
@@ -1472,8 +1496,8 @@ class CubePar(ParSet):
         k = np.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'reference_image',
-                   'save_whitelight', 'ra_min', 'ra_max', 'dec_min', 'dec_max', 'wave_min', 'wave_max',
+        parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'reference_image', 'save_whitelight',
+                   'method', 'subsample', 'ra_min', 'ra_max', 'dec_min', 'dec_max', 'wave_min', 'wave_max',
                    'spatial_delta', 'wave_delta', 'relative_weights', 'combine', 'astrometric', 'grating_corr',
                    'scale_corr', 'skysub_frame']
 
@@ -1487,7 +1511,9 @@ class CubePar(ParSet):
         return cls(**kwargs)
 
     def validate(self):
-        pass
+        allowed_methods = ["subsample", "resample", "NGP"]
+        if self.data['method'] not in allowed_methods:
+            raise ValueError("The 'method' must be one of:\n"+", ".join(allowed_methods))
 
 
 class FluxCalibratePar(ParSet):
@@ -2023,7 +2049,7 @@ class TelluricPar(ParSet):
         pars['pix_shift_bounds'] = tuple_force(pars['pix_shift_bounds'])
         defaults['pix_shift_bounds'] = (-5.0,5.0)
         dtypes['pix_shift_bounds'] = tuple
-        descr['pix_shift_bounds'] = ' Bounds for the pixel shift optimization in telluric model fit in units of pixels. ' \
+        descr['pix_shift_bounds'] = 'Bounds for the pixel shift optimization in telluric model fit in units of pixels. ' \
                                     'The atmosphere will be allowed to shift within this range during the fit.'
 
         pars['delta_coeff_bounds'] = tuple_force(pars['delta_coeff_bounds'])
@@ -2113,7 +2139,7 @@ class TelluricPar(ParSet):
 
         defaults['disp'] = False
         dtypes['disp'] = bool
-        descr['disp'] = 'Argument for scipy.optimize.differential_evolution which will  display status messages to the ' \
+        descr['disp'] = 'Argument for scipy.optimize.differential_evolution which will display status messages to the ' \
                         'screen indicating the status of the optimization. See documentation for telluric.Telluric ' \
                         'for a description of the output and how to know if things are working well.'
 
@@ -3567,9 +3593,9 @@ class FindObjPar(ParSet):
                              'For mulitslit maxnumber applies per slit, for echelle observations this ' \
                              'applies per order. Note that objects on a slit/order impact the sky-modeling and so ' \
                              'maxnumber should never be lower than the true number of detectable objects on your slit. ' \
-                             'For image differenced observations with positive and negative object traces, maxnumber applies' \
-                             'to the number of positive (or negative) traces individually. In other words, if you had two positive objects and' \
-                             'one negative object, then you would set maxnumber to be equal to two (not three). Note that if manually' \
+                             'For image differenced observations with positive and negative object traces, maxnumber applies ' \
+                             'to the number of positive (or negative) traces individually. In other words, if you had two positive objects and ' \
+                             'one negative object, then you would set maxnumber to be equal to two (not three). Note that if manually ' \
                              'extracted apertures are explicitly requested, they do not count against this maxnumber. If more than ' \
                              'maxnumber objects are detected, then highest S/N ratio objects will be the ones that are kept. ' \
                              'For multislit observations the choice here depends on the slit length. For echelle observations ' \
