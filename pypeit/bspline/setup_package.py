@@ -57,10 +57,14 @@ if not sys.platform.startswith('win'):
 
 if check_for_openmp():
     extra_compile_args.append('-fopenmp')
+    extra_link_args = ['-fopenmp']
+else:
+    extra_link_args = []
 
 def get_extensions():
     return [Extension(name='pypeit.bspline._bspline', sources=SRC_FILES,
                       extra_compile_args=extra_compile_args, language='c',
+                      extra_link_args=extra_link_args,
                       export_symbols=['bspline_model', 'solution_arrays',
                                       'cholesky_band', 'cholesky_solve',
                                       'intrv'])]

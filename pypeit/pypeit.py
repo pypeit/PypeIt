@@ -832,6 +832,7 @@ class PypeIt:
 
         # Do it
         initial_sky, sobjs_obj = objFind.run(std_trace=std_trace, show_peaks=self.show)
+
         # Return
         return initial_sky, sobjs_obj, sciImg, objFind
 

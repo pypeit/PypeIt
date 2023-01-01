@@ -12,6 +12,8 @@
 - Limit the images written to the MasterEdges file to only the trace
   image, mask, and detector.
 - Refactor quicklook scripts
+- OpenMP link fix
+- Enable boxcar_radius for manual extraction
 
 1.11.0 (21 Oct 2022)
 --------------------
