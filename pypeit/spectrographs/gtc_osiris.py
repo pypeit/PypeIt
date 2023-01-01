@@ -47,7 +47,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             Object with the detector metadata.
         """
         binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
-        gain = '2.03' if hdu is None else self.get_headarr(hdu)[0]['GAIN']
+        gain = 2.03 if hdu is None else self.get_headarr(hdu)[0]['GAIN']
         msgs.warn("Readout noise not read from header... assuming RON=10")
         ronoise = 10.0
 
