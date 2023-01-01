@@ -53,6 +53,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         ronoise = 10.0
 
         msgs.warn("HACK FOR MAAT SIMS --- dataext below should be 0, not 1")
+        msgs.warn("HACK FOR MAAT SIMS --- specflip below should be True, not False")
 
         # Detector 1
         detector_dict1 = dict(
@@ -60,7 +61,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             det             = 1,
             dataext         = 1,
             specaxis        = 1,
-            specflip        = True,
+            specflip        = False,
             spatflip        = False,
             platescale      = 0.127,  # arcsec per pixel
             darkcurr        = 0.0,
@@ -165,7 +166,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            msgs.warn("BINNING NEEDS TO BE UPDATED IN GTC_OSIRIS.PY - TEMPORARY HACK FOR MAAT SIMS")
+            msgs.warn("HACK FOR MAAT SIMS --- BINNING NEEDS TO BE UPDATED IN GTC_OSIRIS.PY")
             binspatial, binspec = parse.parse_binning(headarr[0]['CCD-SUM'])
             binning = parse.binning2string(binspec, binspatial)[::-1]
             # binspatial, binspec = parse.parse_binning(headarr[0]['HIERARCH P_BINNING'].split("_")[1])
@@ -231,11 +232,11 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['science','standard']:
-            return good_exp & (np.char.lower(fitstbl['target']) != 'arclamp') & \
+            return good_exp & (np.logical_not(np.char.startswith(np.char.lower(fitstbl['target']), 'arclamp'))) & \
                    (np.char.lower(fitstbl['target']) != 'spectralflat') & \
                    (np.char.lower(fitstbl['target']) != 'bias')
         if ftype in ['arc', 'tilt']:
-            return good_exp & (np.char.lower(fitstbl['target']) == 'arclamp')
+            return good_exp & (np.char.startswith(np.char.lower(fitstbl['target']), 'arclamp'))
         if ftype in ['pixelflat', 'trace', 'illumflat']:
             return good_exp & (np.char.lower(fitstbl['target']) == 'spectralflat')
         if ftype == 'bias':
@@ -471,6 +472,146 @@ class GTCMAATSpectrograph(GTCOSIRISSpectrograph):
 
         return par
 
+    def get_wcs(self, hdr, slits, platescale, wave0, dwv):
+        """
+        Construct/Read a World-Coordinate System for a frame.
+
+        Args:
+            hdr (`astropy.io.fits.Header`_):
+                The header of the raw frame. The information in this
+                header will be extracted and returned as a WCS.
+            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+                Slit traces.
+            platescale (:obj:`float`):
+                The platescale of an unbinned pixel in arcsec/pixel (e.g.
+                detector.platescale).
+            wave0 (:obj:`float`):
+                The wavelength zeropoint.
+            dwv (:obj:`float`):
+                Change in wavelength per spectral pixel.
+
+        Returns:
+            `astropy.wcs.wcs.WCS`_: The world-coordinate system.
+        """
+        msgs.info("Calculating the WCS")
+        # Get the x and y binning factors, and the typical slit length
+        binspec, binspat = parse.parse_binning(self.get_meta_value([hdr], 'binning'))
+
+        # Get the pixel and slice scales
+        msgs.warn("HACK FOR MAAT SIMS --- SLICER SCALE = 0.305 arcsec")
+        pxscl = platescale * binspat / 3600.0  # Need to convert arcsec to degrees
+        slscl = 0.305 / 3600.0  # MAAT is fixed format, so hard code the value here. Need to convert arcsec to degrees
+
+        # Get the typical slit length (this changes by ~0.3% over all slits, so a constant is fine for now)
+        slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
+
+        # Get RA/DEC
+        raval = self.compound_meta([hdr], 'ra')
+        decval = self.compound_meta([hdr], 'dec')
+
+        # Create a coordinate
+        coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
+
+        # Get rotator position
+        msgs.warn("HACK FOR MAAT SIMS --- NEED TO FIGURE OUT RPOS and RREF fFOR MAAT FROM HEADER INFO")
+        if 'ROTPOSN' in hdr:
+            rpos = hdr['ROTPOSN']
+        else:
+            rpos = 0.
+        if 'ROTREFAN' in hdr:
+            rref = hdr['ROTREFAN']
+        else:
+            rref = 0.
+        # Get the offset and PA
+        rotoff = 0.0  # IFU-SKYPA offset (degrees)
+        skypa = rpos + rref  # IFU position angle (degrees)
+        crota = np.radians(-(skypa + rotoff))
+
+        # Calculate the fits coordinates
+        cdelt1 = -slscl
+        cdelt2 = pxscl
+        if coord is None:
+            ra = 0.
+            dec = 0.
+            crota = 1
+        else:
+            ra = coord.ra.degree
+            dec = coord.dec.degree
+        # Calculate the CD Matrix
+        cd11 = cdelt1 * np.cos(crota)                          # RA degrees per column
+        cd12 = abs(cdelt2) * np.sign(cdelt1) * np.sin(crota)   # RA degrees per row
+        cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)  # DEC degress per column
+        cd22 = cdelt2 * np.cos(crota)                          # DEC degrees per row
+        # Get reference pixels (set these to the middle of the FOV)
+        crpix1 = 12   # i.e. see get_datacube_bins (12 is used as the reference point - somewhere in the middle of the FOV)
+        crpix2 = slitlength / 2.
+        crpix3 = 1.
+        # Get the offset
+        porg = hdr['PONAME']
+        ifunum = hdr['IFUNUM']
+        if 'IFU' in porg:
+            if ifunum == 1:  # Large slicer
+                off1 = 1.0
+                off2 = 4.0
+            elif ifunum == 2:  # Medium slicer
+                off1 = 1.0
+                off2 = 5.0
+            elif ifunum == 3:  # Small slicer
+                off1 = 0.05
+                off2 = 5.6
+            else:
+                msgs.warn("Unknown IFU number: {0:d}".format(ifunum))
+                off1 = 0.
+                off2 = 0.
+            off1 /= binspec
+            off2 /= binspat
+            crpix1 += off1
+            crpix2 += off2
+
+        # Create a new WCS object.
+        msgs.info("Generating MAAT WCS")
+        w = wcs.WCS(naxis=3)
+        w.wcs.equinox = hdr['EQUINOX']
+        w.wcs.name = 'MAAT'
+        w.wcs.radesys = 'FK5'
+        # Insert the coordinate frame
+        w.wcs.cname = ['MAAT RA', 'MAAT DEC', 'MAAT Wavelength']
+        w.wcs.cunit = [units.degree, units.degree, units.Angstrom]
+        w.wcs.ctype = ["RA---TAN", "DEC--TAN", "AWAV"]
+        w.wcs.crval = [ra, dec, wave0]  # RA, DEC, and wavelength zeropoints
+        w.wcs.crpix = [crpix1, crpix2, crpix3]  # RA, DEC, and wavelength reference pixels
+        w.wcs.cd = np.array([[cd11, cd12, 0.0], [cd21, cd22, 0.0], [0.0, 0.0, dwv]])
+        w.wcs.lonpole = 180.0  # Native longitude of the Celestial pole
+        w.wcs.latpole = 0.0  # Native latitude of the Celestial pole
+
+        return w
+
+    def get_datacube_bins(self, slitlength, minmax, num_wave):
+        r"""
+        Calculate the bin edges to be used when making a datacube.
+
+        Args:
+            slitlength (:obj:`int`):
+                Length of the slit in pixels
+            minmax (`numpy.ndarray`_):
+                An array with the minimum and maximum pixel locations on each
+                slit relative to the reference location (usually the centre
+                of the slit). Shape must be :math:`(N_{\rm slits},2)`, and is
+                typically the array returned by
+                :func:`~pypeit.slittrace.SlitTraceSet.get_radec_image`.
+            num_wave (:obj:`int`):
+                Number of wavelength steps.  Given by::
+                    int(round((wavemax-wavemin)/delta_wave))
+
+        Args:
+            :obj:`tuple`: Three 1D `numpy.ndarray`_ providing the bins to use
+            when constructing a histogram of the spec2d files. The elements
+            are :math:`(x,y,\lambda)`.
+        """
+        xbins = np.arange(1 + 23) - 12.0 - 0.5  # 23 is for 23 slices, and 12 is the reference slit
+        ybins = np.linspace(np.min(minmax[:, 0]), np.max(minmax[:, 1]), 1+slitlength) - 0.5
+        spec_bins = np.arange(1+num_wave) - 0.5
+        return xbins, ybins, spec_bins
 
 class GTCOSIRISSpectrographOld(spectrograph.Spectrograph):
     """
