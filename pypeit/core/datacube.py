@@ -1281,7 +1281,7 @@ def generate_cube_subsample(outfile, output_wcs, all_sci, all_ivar, all_wghts, a
     all_sltid = slitid_img_gpm[(slitid_img_gpm > 0)]
     all_var = utils.inverse(all_ivar)
     wave0, wave_delta = output_wcs.wcs.crval[2], output_wcs.wcs.cd[2, 2]
-    for sl, spatid in enumerate(s):
+    for sl, spatid in enumerate(slits.spat_id):
         msgs.info(f"Resampling slit {sl+1}/{slits.nslits} into the datacube")
         this_sl = np.where(all_sltid == spatid)
         wpix = np.where(slitid_img_gpm == spatid)
