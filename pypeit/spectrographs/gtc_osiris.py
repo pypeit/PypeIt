@@ -69,7 +69,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             specaxis        = 1,
             specflip        = False,
             spatflip        = False,
-            platescale      = 0.127,  # arcsec per pixel
+            platescale      = 0.125,  # arcsec per pixel
             darkcurr        = 0.0,
             saturation      = 65535., # ADU
             nonlinear       = 0.95,
@@ -558,7 +558,7 @@ class GTCMAATSpectrograph(GTCOSIRISSpectrograph):
         cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)  # DEC degress per column
         cd22 = cdelt2 * np.cos(crota)                          # DEC degrees per row
         # Get reference pixels (set these to the middle of the FOV)
-        crpix1 = 12   # i.e. see get_datacube_bins (12 is used as the reference point - somewhere in the middle of the FOV)
+        crpix1 = 11   # i.e. see get_datacube_bins (11 is used as the reference point - somewhere in the middle of the FOV)
         crpix2 = slitlength / 2.
         crpix3 = 1.
         # Get the offset
@@ -611,7 +611,7 @@ class GTCMAATSpectrograph(GTCOSIRISSpectrograph):
             when constructing a histogram of the spec2d files. The elements
             are :math:`(x,y,\lambda)`.
         """
-        xbins = np.arange(1 + 23) - 12.0 - 0.5  # 23 is for 23 slices, and 12 is the reference slit
+        xbins = np.arange(1 + 23) - 11.0 - 0.5  # 23 is for 23 slices, and 11 is the reference slit
         ybins = np.linspace(np.min(minmax[:, 0]), np.max(minmax[:, 1]), 1+slitlength) - 0.5
         spec_bins = np.arange(1+num_wave) - 0.5
         return xbins, ybins, spec_bins

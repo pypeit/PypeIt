@@ -663,18 +663,19 @@ def make_good_skymask(slitimg, tilts):
     # Initialise the GPM
     gpm = np.zeros(slitimg.shape, dtype=bool)
     # Find unique slits
-    unq = np.unique(slitimg[slitimg>0])
+    unq = np.unique(slitimg[slitimg > 0])
     for uu in range(unq.size):
         # Find the x,y pixels in this slit
-        ww = np.where(slitimg==unq[uu])
+        ww = np.where(slitimg == unq[uu])
         # Mask the bottom pixels first
         wb = np.where(ww[0] == 0)[0]
         wt = np.where(ww[0] == np.max(ww[0]))[0]
-        # Calculate the maximum tilt from the bottom row, and the miminum tilt from the top row
+        # Calculate the maximum tilt from the bottom row, and the minimum tilt from the top row
         maxtlt = np.max(tilts[0,  ww[1][wb]])
         mintlt = np.min(tilts[-1, ww[1][wt]])
-        # Mask all values below this maximum
-        gpm[ww] = (tilts[ww]>=maxtlt) & (tilts[ww]<=mintlt)  # The signs are correct here.
+        print(uu, mintlt, maxtlt)
+        # Mask all values below this minimum/maximum
+        gpm[ww] = (tilts[ww] >= maxtlt) & (tilts[ww] <= mintlt)  # The signs are correct here.
     return gpm
 
 
@@ -1209,6 +1210,7 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     final_cube = DataCube(datcube.T, varcube.T, specname, blaze_wave, blaze_spec, sensfunc=sensfunc, fluxed=fluxcal)
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
 
+
 def generate_cube_subsample(outfile, output_wcs, all_sci, all_ivar, all_wghts, all_wave, tilts, slits, slitid_img_gpm,
                             astrom_trans, bins, subsample=10, overwrite=False, blaze_wave=None, blaze_spec=None,
                             fluxcal=False, sensfunc=None, specname="PYP_SPEC", debug=False):
@@ -1277,8 +1279,8 @@ def generate_cube_subsample(outfile, output_wcs, all_sci, all_ivar, all_wghts, a
     wave0, wave_delta = output_wcs.wcs.crval[2], output_wcs.wcs.cd[2, 2]
     for sl, spatid in enumerate(slits.spat_id):
         msgs.info(f"Resampling slit {sl+1}/{slits.nslits} into the datacube")
-        this_sl = np.where(all_sltid==spatid)
-        wpix = np.where(slitid_img_gpm==spatid)
+        this_sl = np.where(all_sltid == spatid)
+        wpix = np.where(slitid_img_gpm == spatid)
         slitID = np.ones(wpix[0].size) * sl - output_wcs.wcs.crpix[0]
         # Generate a spline between spectral pixel position and wavelength
         yspl = tilts[wpix]*(slits.nspec - 1)
@@ -1625,6 +1627,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         spec2DObj = spec2dobj.Spec2DObj.from_file(fil, detname)
         detector = spec2DObj.detector
         flexure = None  #spec2DObj.sci_spat_flexure
+        initial = False  # TODO :: This should be True, but there's a spatial offset between the tilts and the slitid_img_init
 
         # Load the header
         hdr = fits.open(fil)[0].header
@@ -1731,7 +1734,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         msgs.info("Using wavelength solution: wave0={0:.3f}, dispersion={1:.3f} Angstrom/pixel".format(wave0, dwv))
 
         msgs.info("Constructing slit image")
-        slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=flexure)
+        slitid_img_init = slits.slit_img(pad=0, initial=initial, flexure=flexure)
 
         # Obtain the minimum and maximum wavelength of all slits
         if mnmx_wv is None:
@@ -1781,7 +1784,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             msgs.info("Astrometric correction will not be performed")
         # If nothing better was provided, use the slit edges
         if alignments is None:
-            left, right, _ = slits.select_edges(initial=True, flexure=flexure)
+            left, right, _ = slits.select_edges(initial=initial, flexure=flexure)
             locations = [0.0, 1.0]
             traces = np.append(left[:,None,:], right[:,None,:], axis=1)
         else:
@@ -1789,7 +1792,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         # Generate an RA/DEC image
         msgs.info("Generating RA/DEC image")
         raimg, decimg, minmax, ast_trans = slits.get_radec_image(frame_wcs, traces, spec2DObj.tilts, locations,
-                                                                 initial=True, flexure=flexure)
+                                                                 initial=initial, flexure=flexure)
 
         # Perform the DAR correction
         if wave_ref is None:
@@ -1927,7 +1930,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                 else: subsample = cubepar['subsample']
                 # Get the slit image and then unset pixels in the slit image that are bad
                 slitid_img_gpm = slitid_img_init.copy()
-                slitid_img_gpm[(bpmmask != 0) | (~sky_is_good)] = 0
+                slitid_img_gpm[(bpmmask.mask != 0) | (np.logical_not(sky_is_good))] = 0
                 generate_cube_subsample(outfile, output_wcs, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix),
                                         wave_ext, spec2DObj.tilts, slits, slitid_img_gpm, ast_trans, bins,
                                         overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
