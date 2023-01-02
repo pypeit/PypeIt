@@ -1758,7 +1758,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         # Construct a good pixel mask
         # TODO: This should use the mask function to figure out which elements
         # are masked.
-        onslit_gpm = (slitid_img_init > 0) & (bpmmask.mask == 0) & sky_is_good
+        onslit_gpm = (slitid_img_init > 0) & sky_is_good & (bpmmask.mask == 0)
 
         # Grab the WCS of this frame
         frame_wcs = spec.get_wcs(spec2DObj.head0, slits, detector.platescale, wave0, dwv)

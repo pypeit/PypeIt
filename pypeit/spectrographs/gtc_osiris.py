@@ -464,7 +464,7 @@ class GTCMAATSpectrograph(GTCOSIRISSpectrograph):
         par['scienceframe']['process']['spat_flexure_correct'] = False  # don't correct for spatial flexure - varying spatial illumination profile could throw this correction off. Also, there's no way to do astrometric correction if we can't correct for spatial flexure of the contbars frames
         par['scienceframe']['process']['use_biasimage'] = False
         par['scienceframe']['process']['use_darkimage'] = False
-
+        par['calibrations']['flatfield']['slit_illum_finecorr'] = False
         # Don't do 1D extraction for 3D data - it's meaningless because the DAR correction must be performed on the 3D data.
         par['reduce']['extraction']['skip_extraction'] = True  # Because extraction occurs before the DAR correction, don't extract
 
