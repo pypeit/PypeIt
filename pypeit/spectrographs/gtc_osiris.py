@@ -528,7 +528,7 @@ class GTCMAATSpectrograph(GTCOSIRISSpectrograph):
         coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
 
         # Get rotator position
-        msgs.warn("HACK FOR MAAT SIMS --- NEED TO FIGURE OUT RPOS and RREF fFOR MAAT FROM HEADER INFO")
+        msgs.warn("HACK FOR MAAT SIMS --- NEED TO FIGURE OUT RPOS and RREF FOR MAAT FROM HEADER INFO")
         if 'ROTPOSN' in hdr:
             rpos = hdr['ROTPOSN']
         else:
