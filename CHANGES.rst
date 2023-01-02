@@ -14,6 +14,7 @@
 - Refactor quicklook scripts
 - OpenMP link fix
 - Enable boxcar_radius for manual extraction
+- Prevent flexure crash
 
 1.11.0 (21 Oct 2022)
 --------------------
