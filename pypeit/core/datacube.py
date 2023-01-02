@@ -673,7 +673,6 @@ def make_good_skymask(slitimg, tilts):
         # Calculate the maximum tilt from the bottom row, and the minimum tilt from the top row
         maxtlt = np.max(tilts[0,  ww[1][wb]])
         mintlt = np.min(tilts[-1, ww[1][wt]])
-        print(uu, mintlt, maxtlt)
         # Mask all values below this minimum/maximum
         gpm[ww] = (tilts[ww] >= maxtlt) & (tilts[ww] <= mintlt)  # The signs are correct here.
     return gpm
@@ -815,16 +814,21 @@ def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, al
     """
     # Determine number of files
     numfiles = np.unique(all_idx).size
-
     if whitelightWCS is None:
         # Generate a master 2D WCS to register all frames
-        coord_min = [np.min(all_ra), np.min(all_dec), np.min(all_wave)]
+        minra, maxra = np.min(all_ra), np.max(all_ra)
+        mindec = np.min(all_dec)
+        if np.max(all_ra) - np.min(all_ra) > 180.0:
+            # Coordinates are around 0 degrees
+            minra = np.min(all_ra[all_ra > 180.0]-360.0)
+            maxra = np.max(all_ra[all_ra < 180.0])
+        coord_min = [minra, mindec, np.min(all_wave)]
         coord_dlt = [dspat, dspat, np.max(all_wave) - np.min(all_wave)]
         whitelightWCS = generate_masterWCS(coord_min, coord_dlt)
 
         # Generate coordinates
         cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
-        numra = 1+int((np.max(all_ra) - np.min(all_ra)) * cosdec / dspat)
+        numra = 1+int((maxra - minra) * cosdec / dspat)
         numdec = 1+int((np.max(all_dec) - np.min(all_dec)) / dspat)
     else:
         # If a WCS is supplied, the numra and numdec must be specified
@@ -1277,7 +1281,7 @@ def generate_cube_subsample(outfile, output_wcs, all_sci, all_ivar, all_wghts, a
     all_sltid = slitid_img_gpm[(slitid_img_gpm > 0)]
     all_var = utils.inverse(all_ivar)
     wave0, wave_delta = output_wcs.wcs.crval[2], output_wcs.wcs.cd[2, 2]
-    for sl, spatid in enumerate(slits.spat_id):
+    for sl, spatid in enumerate(s):
         msgs.info(f"Resampling slit {sl+1}/{slits.nslits} into the datacube")
         this_sl = np.where(all_sltid == spatid)
         wpix = np.where(slitid_img_gpm == spatid)
@@ -1289,7 +1293,7 @@ def generate_cube_subsample(outfile, output_wcs, all_sci, all_ivar, all_wghts, a
         wave_spl = interp1d(yspl[asrt], wspl[asrt], kind='linear', bounds_error=False, fill_value='extrapolate')
         for xx in range(subsample):
             for yy in range(subsample):
-                # Calculate the tranformation from detector pixels to voxels
+                # Calculate the transformation from detector pixels to voxels
                 spatpos = astrom_trans.transform(sl, wpix[1] + ssamp_offs[xx], wpix[0] + ssamp_offs[yy])
                 # TODO :: The tilts in the following line is evaluated at the pixel location, not the subsampled pixel location
                 # A simple fix is implemented for the spectral direction, but this is not so straightforward for the spatial direction
@@ -1601,6 +1605,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                       "scale correction will not be performed unless you have specified the correct " +
                       "scale_corr file in the spec2d block")
             cubepar['scale_corr'] = None
+    else:
+        msgs.info("Relative illumination of slices (scale_corr) will not be corrected")
     # Load the default sky frame to be used for sky subtraction
     skysub_default = "image"
     skysubImgDef = None  # This is the default behaviour (i.e. to use the "image" for the sky subtraction)
@@ -1806,6 +1812,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         rel_humidity = spec.get_meta_value([spec2DObj.head0], 'humidity')
         coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
         location = spec.location  # TODO :: spec.location should probably end up in the TelescopePar (spec.telescope.location)
+        #location = spec.telescope['location']
+        msgs.warn("HACK FOR MAAT SIMS --- remove 'or True' below - the simulations do not include DAR at the moment")
         if pressure == 0.0 or True:
             msgs.warn("Pressure is set to zero - DAR correction will not be performed")
         else:
