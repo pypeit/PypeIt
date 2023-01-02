@@ -1244,146 +1244,153 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
                                                                                 sigma_lower=3.0, sigma_upper=3.0)
     flux_smash_recen = flux_smash - flux_smash_med
 
-    if not np.any(gpm_smash):
-        msgs.info('No objects found')
-        # Instantiate a null specobj and return
-        return specobjs.SpecObjs()
+    # Return if none found and no hand extraction
+    if not np.any(gpm_smash): 
+        sobjs = specobjs.SpecObjs()
+        if hand_extract_dict is None:
+            # Instantiate a null specobj and return
+            msgs.info('No objects found automatically.  Consider manual extraction.')
+            return sobjs
+        else:
+            msgs.info('No objects found automatically.')
+            
+    else:
+        # Compute the formal corresponding variance over the set of pixels that are not masked by gpm_sigclip
+        var_rect = utils.inverse(ivar_rect)
+        var_sum_smash = np.sum((var_rect*gpm_sigclip)[find_min_max_out[0]:find_min_max_out[1]], axis=0)
+        var_smash = var_sum_smash/(npix_smash**2 + (npix_smash == 0.0))
+        ivar_smash = utils.inverse(var_smash)*gpm_smash
+        snr_smash = flux_smash_recen*np.sqrt(ivar_smash)
 
-    # Compute the formal corresponding variance over the set of pixels that are not masked by gpm_sigclip
-    var_rect = utils.inverse(ivar_rect)
-    var_sum_smash = np.sum((var_rect*gpm_sigclip)[find_min_max_out[0]:find_min_max_out[1]], axis=0)
-    var_smash = var_sum_smash/(npix_smash**2 + (npix_smash == 0.0))
-    ivar_smash = utils.inverse(var_smash)*gpm_smash
-    snr_smash = flux_smash_recen*np.sqrt(ivar_smash)
+        # Smooth this SNR image with a Gaussian set by the input fwhm
+        gauss_smth_sigma = (fwhm/2.3548)
+        snr_smash_smth = scipy.ndimage.filters.gaussian_filter1d(snr_smash, gauss_smth_sigma, mode='nearest')
+        flux_smash_smth = scipy.ndimage.filters.gaussian_filter1d(flux_smash_recen, gauss_smth_sigma, mode='nearest')
+        # Search for spatial direction peaks in the smoothed snr image
+        _, _, x_peaks_out, x_width, x_err, igood, _, _ = arc.detect_lines(
+            snr_smash_smth, input_thresh=snr_thresh, fit_frac_fwhm=1.5, fwhm=fwhm, min_pkdist_frac_fwhm=0.75,
+            max_frac_fwhm=10.0, cont_subtract=False, debug_peak_find=False)
 
-    # Smooth this SNR image with a Gaussian set by the input fwhm
-    gauss_smth_sigma = (fwhm/2.3548)
-    snr_smash_smth = scipy.ndimage.filters.gaussian_filter1d(snr_smash, gauss_smth_sigma, mode='nearest')
-    flux_smash_smth = scipy.ndimage.filters.gaussian_filter1d(flux_smash_recen, gauss_smth_sigma, mode='nearest')
-    # Search for spatial direction peaks in the smoothed snr image
-    _, _, x_peaks_out, x_width, x_err, igood, _, _ = arc.detect_lines(
-        snr_smash_smth, input_thresh=snr_thresh, fit_frac_fwhm=1.5, fwhm=fwhm, min_pkdist_frac_fwhm=0.75,
-        max_frac_fwhm=10.0, cont_subtract=False, debug_peak_find=False)
+        x_peaks_all = x_peaks_out[igood]
+        #x_peaks_all = arc.detect_peaks(snr_smash_smth, mph=snr_thresh, mpd=fwhm*0.75, show=False)
+        snr_peaks_all = np.interp(x_peaks_all, np.arange(nsamp), snr_smash_smth)
+        flux_peaks_all = np.interp(x_peaks_all, np.arange(nsamp), flux_smash_smth)
+        npeaks_all = len(x_peaks_all)
 
-    x_peaks_all = x_peaks_out[igood]
-    #x_peaks_all = arc.detect_peaks(snr_smash_smth, mph=snr_thresh, mpd=fwhm*0.75, show=False)
-    snr_peaks_all = np.interp(x_peaks_all, np.arange(nsamp), snr_smash_smth)
-    flux_peaks_all = np.interp(x_peaks_all, np.arange(nsamp), flux_smash_smth)
-    npeaks_all = len(x_peaks_all)
+        near_edge_bpm = (x_peaks_all < trim_edg[0]) | (x_peaks_all > (nsamp - trim_edg[1]))
+        npeak_not_near_edge = np.sum(np.logical_not(near_edge_bpm))
 
-    near_edge_bpm = (x_peaks_all < trim_edg[0]) | (x_peaks_all > (nsamp - trim_edg[1]))
-    npeak_not_near_edge = np.sum(np.logical_not(near_edge_bpm))
-
-    if np.any(near_edge_bpm):
-        msgs.warn('Discarding {:d}'.format(np.sum(near_edge_bpm)) +
-                  ' at spatial pixels spat = {:}'.format(x_peaks_all[near_edge_bpm]) +
-                  ' which land within trim_edg = (left, right) = {:}'.format(trim_edg) +
-                  ' pixels from the slit boundary for this nsamp = {:5.2f}'.format(nsamp) + ' wide slit')
-        msgs.warn('You must decrease from the current value of trim_edg in order to keep them')
-        msgs.warn('Such edge objects are often spurious')
+        if np.any(near_edge_bpm):
+            msgs.warn('Discarding {:d}'.format(np.sum(near_edge_bpm)) +
+                    ' at spatial pixels spat = {:}'.format(x_peaks_all[near_edge_bpm]) +
+                    ' which land within trim_edg = (left, right) = {:}'.format(trim_edg) +
+                    ' pixels from the slit boundary for this nsamp = {:5.2f}'.format(nsamp) + ' wide slit')
+            msgs.warn('You must decrease from the current value of trim_edg in order to keep them')
+            msgs.warn('Such edge objects are often spurious')
 
 
-    # If the user requested the nperslit most significant peaks have been requested, then only return these
-    if nperslit is not None:
-        # If the requested number is less than (the non-edge) number found, mask them out
-        if nperslit < npeak_not_near_edge:
-            snr_peaks_not_edge = np.sort(snr_peaks_all[np.logical_not(near_edge_bpm)])[::-1]
-            snr_thresh_perslit = snr_peaks_not_edge[nperslit-1]
-            nperslit_bpm = np.logical_not(near_edge_bpm) & (snr_peaks_all < snr_thresh_perslit)
+        # If the user requested the nperslit most significant peaks have been requested, then only return these
+        if nperslit is not None:
+            # If the requested number is less than (the non-edge) number found, mask them out
+            if nperslit < npeak_not_near_edge:
+                snr_peaks_not_edge = np.sort(snr_peaks_all[np.logical_not(near_edge_bpm)])[::-1]
+                snr_thresh_perslit = snr_peaks_not_edge[nperslit-1]
+                nperslit_bpm = np.logical_not(near_edge_bpm) & (snr_peaks_all < snr_thresh_perslit)
+            else:
+                nperslit_bpm = np.zeros(npeaks_all, dtype=bool)
         else:
             nperslit_bpm = np.zeros(npeaks_all, dtype=bool)
-    else:
-        nperslit_bpm = np.zeros(npeaks_all, dtype=bool)
 
-    if np.any(nperslit_bpm):
-        msgs.warn('Discarding {:d}'.format(np.sum(nperslit_bpm)) +
-                  ' at spatial pixels spat = {:} and SNR = {:}'.format(
-                      x_peaks_all[nperslit_bpm], snr_peaks_all[nperslit_bpm]) +
-                  ' which are below SNR_thresh={:5.3f} set because the maximum number of objects '.format(snr_thresh_perslit) +
-                  'requested nperslit={:d} was exceeded'.format(nperslit))
+        if np.any(nperslit_bpm):
+            msgs.warn('Discarding {:d}'.format(np.sum(nperslit_bpm)) +
+                    ' at spatial pixels spat = {:} and SNR = {:}'.format(
+                        x_peaks_all[nperslit_bpm], snr_peaks_all[nperslit_bpm]) +
+                    ' which are below SNR_thresh={:5.3f} set because the maximum number of objects '.format(snr_thresh_perslit) +
+                    'requested nperslit={:d} was exceeded'.format(nperslit))
 
-    peaks_gpm = np.logical_not(near_edge_bpm) & np.logical_not(nperslit_bpm)
+        peaks_gpm = np.logical_not(near_edge_bpm) & np.logical_not(nperslit_bpm)
 
-    spat_vector = slit_left[specmid] + xsize[specmid] * np.arange(nsamp) / nsamp
-    spat_peaks = slit_left[specmid] + xsize[specmid] * x_peaks_all/ nsamp
+        spat_vector = slit_left[specmid] + xsize[specmid] * np.arange(nsamp) / nsamp
+        spat_peaks = slit_left[specmid] + xsize[specmid] * x_peaks_all/ nsamp
 
-    # TODO: Change this to show_image or something
-    if show_peaks:
-        # Show rectified image here? Add this to QA
-        viewer, ch = display.show_image(image_rect*gpm_rect*np.sqrt(ivar_rect), chname='objs_in_slit_show', cuts=(-5.0,5.0))
-    # QA
-    objfind_QA(spat_peaks, snr_peaks_all, spat_vector, snr_smash_smth, snr_thresh, qa_title, peaks_gpm,
-               near_edge_bpm, nperslit_bpm, objfindQA_filename=objfindQA_filename, show=show_peaks) #show_peaks)
+        # TODO: Change this to show_image or something
+        if show_peaks:
+            # Show rectified image here? Add this to QA
+            viewer, ch = display.show_image(image_rect*gpm_rect*np.sqrt(ivar_rect), chname='objs_in_slit_show', cuts=(-5.0,5.0))
+        # QA
+        objfind_QA(spat_peaks, snr_peaks_all, spat_vector, snr_smash_smth, snr_thresh, qa_title, peaks_gpm,
+                near_edge_bpm, nperslit_bpm, objfindQA_filename=objfindQA_filename, show=show_peaks) #show_peaks)
 
-    nobj_reg = np.sum(peaks_gpm)
+        nobj_reg = np.sum(peaks_gpm)
 
-    # Instantiate a null specobj
-    sobjs = specobjs.SpecObjs()
-    # Trim to the good peaks
-    x_peaks = x_peaks_all[peaks_gpm]
-    snr_peaks = snr_peaks_all[peaks_gpm]
-    flux_peaks = flux_peaks_all[peaks_gpm]
+        # Instantiate a null specobj
+        sobjs = specobjs.SpecObjs()
+        # Trim to the good peaks
+        x_peaks = x_peaks_all[peaks_gpm]
+        snr_peaks = snr_peaks_all[peaks_gpm]
+        flux_peaks = flux_peaks_all[peaks_gpm]
 
-    # Now create SpecObj objects for all of these and assign preliminary traces to them.
-    for iobj in range(nobj_reg):
-        thisobj = specobj.SpecObj(**specobj_dict)
-        thisobj.SPAT_FRACPOS = x_peaks[iobj]/nsamp
-        thisobj.smash_peakflux = flux_peaks[iobj]
-        thisobj.smash_snr = snr_peaks[iobj]
-        sobjs.add_sobj(thisobj)
+        # Now create SpecObj objects for all of these and assign preliminary traces to them.
+        for iobj in range(nobj_reg):
+            thisobj = specobj.SpecObj(**specobj_dict)
+            thisobj.SPAT_FRACPOS = x_peaks[iobj]/nsamp
+            thisobj.smash_peakflux = flux_peaks[iobj]
+            thisobj.smash_snr = snr_peaks[iobj]
+            sobjs.add_sobj(thisobj)
 
-    for iobj in range(nobj_reg):
-        # Was a standard trace provided? If so, use that as a crutch.
-        if std_trace is not None:
-            # Print a status message for the first object
-            if iobj == 0:
-                msgs.info('Using input STANDARD star trace as crutch for object tracing')
+        for iobj in range(nobj_reg):
+            # Was a standard trace provided? If so, use that as a crutch.
+            if std_trace is not None:
+                # Print a status message for the first object
+                if iobj == 0:
+                    msgs.info('Using input STANDARD star trace as crutch for object tracing')
 
-            x_trace = np.interp(specmid, spec_vec, std_trace)
-            shift = np.interp(specmid, spec_vec,
-            slit_left + xsize * sobjs[iobj].SPAT_FRACPOS) - x_trace
-            sobjs[iobj].TRACE_SPAT = std_trace + shift
-            # If no standard trace is provided shift left slit boundary over to be initial trace
-        else:
-            # ToDO make this the average left and right boundary instead. That would be more robust.
-            sobjs[iobj].TRACE_SPAT = slit_left + xsize*sobjs[iobj].SPAT_FRACPOS
+                x_trace = np.interp(specmid, spec_vec, std_trace)
+                shift = np.interp(specmid, spec_vec,
+                slit_left + xsize * sobjs[iobj].SPAT_FRACPOS) - x_trace
+                sobjs[iobj].TRACE_SPAT = std_trace + shift
+                # If no standard trace is provided shift left slit boundary over to be initial trace
+            else:
+                # ToDO make this the average left and right boundary instead. That would be more robust.
+                sobjs[iobj].TRACE_SPAT = slit_left + xsize*sobjs[iobj].SPAT_FRACPOS
 
-        sobjs[iobj].trace_spec = spec_vec
-        sobjs[iobj].SPAT_PIXPOS = sobjs[iobj].TRACE_SPAT[specmid]
-        # Set the idx for any prelminary outputs we print out. These will be updated shortly
-        sobjs[iobj].set_name()
+            sobjs[iobj].trace_spec = spec_vec
+            sobjs[iobj].SPAT_PIXPOS = sobjs[iobj].TRACE_SPAT[specmid]
+            # Set the idx for any prelminary outputs we print out. These will be updated shortly
+            sobjs[iobj].set_name()
 
-        # assign FWHM to all these objects
-        if use_user_fwhm:
-            sobjs[iobj].FWHM = fwhm
-        else:
-            sobjs[iobj].FWHM = get_fwhm(fwhm, nsamp, sobjs[iobj].smash_peakflux, sobjs[iobj].SPAT_FRACPOS, flux_smash_smth)
+            # assign FWHM to all these objects
+            if use_user_fwhm:
+                sobjs[iobj].FWHM = fwhm
+            else:
+                sobjs[iobj].FWHM = get_fwhm(fwhm, nsamp, sobjs[iobj].smash_peakflux, sobjs[iobj].SPAT_FRACPOS, flux_smash_smth)
 
-        # assign BOX_RADIUS
-        sobjs[iobj].BOX_RADIUS = boxcar_rad
+            # assign BOX_RADIUS
+            sobjs[iobj].BOX_RADIUS = boxcar_rad
 
-    if (len(sobjs) == 0) & (hand_extract_dict is None):
-        # TODO: Why is this not done way above?
-        msgs.info('No objects found')
-        return specobjs.SpecObjs()
-    else:
-        # TODO: This else is not needed...
-        msgs.info("Automatic finding routine found {0:d} objects".format(len(sobjs)))
+        if len(sobjs) == 0 and hand_extract_dict is None:
+            # TODO: Why is this not done way above?
+            #  It appears possible to have an initial object detection, but then
+            #  have it go away..
+            msgs.info('No objects found automatically.  Consider manual extraction.')
+            return specobjs.SpecObjs()
+
+    msgs.info("Automatic finding routine found {0:d} objects".format(len(sobjs)))
 
     # Fit the object traces
-    msgs.info('Fitting the object traces')
     if len(sobjs) > 0:
+        msgs.info('Fitting the object traces')
         # Note the transpose is here to pass in the TRACE_SPAT correctly.
         xinit_fweight = np.copy(sobjs.TRACE_SPAT.T)
         spec_mask = (spec_vec >= spec_min_max_out[0]) & (spec_vec <= spec_min_max_out[1])
         trc_inmask = np.outer(spec_mask, np.ones(len(sobjs), dtype=bool))
         xfit_fweight = fit_trace(image, xinit_fweight, ncoeff, bpm=np.invert(inmask),
-                                 trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
-                                 idx=sobjs.NAME, debug=show_fits)[0]
+                                trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
+                                idx=sobjs.NAME, debug=show_fits)[0]
         xinit_gweight = np.copy(xfit_fweight)
         xfit_gweight = fit_trace(image, xinit_gweight, ncoeff, bpm=np.invert(inmask),
-                                 trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
-                                 weighting='gaussian', idx=sobjs.NAME, debug=show_fits)[0]
+                                trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
+                                weighting='gaussian', idx=sobjs.NAME, debug=show_fits)[0]
 
         # assign the final trace
         for iobj in range(nobj_reg):
@@ -1394,8 +1401,9 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
     # Now deal with the hand apertures if a hand_extract_dict was passed in. Add these to the SpecObj objects
     if hand_extract_dict is not None:
         # First Parse the hand_dict
-        hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm = [
-            hand_extract_dict[key] for key in ['spec', 'spat', 'detname', 'fwhm']]
+        hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm, \
+            hand_extract_boxcar = [hand_extract_dict[key] for key in [
+                'spec', 'spat', 'detname', 'fwhm', 'boxcar_rad']]
 
         # Determine if these hand apertures land on the slit in question
         hand_on_slit = np.where(np.array(thismask[np.rint(hand_extract_spec).astype(int),
@@ -1404,8 +1412,10 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
         hand_extract_spat = hand_extract_spat[hand_on_slit]
         hand_extract_det  = hand_extract_det[hand_on_slit]
         hand_extract_fwhm = hand_extract_fwhm[hand_on_slit]
+        hand_extract_boxcar = hand_extract_boxcar[hand_on_slit]
         nobj_hand = len(hand_extract_spec)
         msgs.info("Implementing hand apertures for {} sources on the slit".format(nobj_hand))
+
 
         # Decide how to assign a trace to the hand objects
         if nobj_reg > 0:  # Use brightest object on slit?
@@ -1448,8 +1458,11 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
                 thisobj.FWHM = med_fwhm_reg
             else:  # Otherwise just use the FWHM parameter input to the code (or the default value)
                 thisobj.FWHM = fwhm
-            # assign BOX_RADIUS
-            thisobj.BOX_RADIUS = boxcar_rad
+            # assign BOX_RADIUS (pixels!)
+            if hand_extract_boxcar[iobj] > 0.:
+                thisobj.BOX_RADIUS = hand_extract_boxcar[iobj]
+            else:
+                thisobj.BOX_RADIUS = boxcar_rad
             # Finish
             sobjs.add_sobj(thisobj)
 
@@ -1477,6 +1490,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
                 keep[reg_ind[close]] = False
 
         sobjs = sobjs[keep]
+
 
     if len(sobjs) == 0:
         msgs.info('No hand or normal objects found on this slit. Returning')

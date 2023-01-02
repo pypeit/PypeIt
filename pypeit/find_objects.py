@@ -157,7 +157,7 @@ class FindObjects:
         self.spectrograph = spectrograph
         self.objtype = objtype
         self.par = par
-        self.scaleimg = np.array([1.0], dtype=np.float)  # np.array([1]) applies no scale
+        self.scaleimg = np.array([1.0], dtype=float)  # np.array([1]) applies no scale
         self.basename = basename
         self.manual = manual
         self.sky_region_file = sky_region_file
@@ -659,7 +659,7 @@ class FindObjects:
             if os.path.exists(sky_region_file):
                 msgs.info("Loading SkyRegions file: " + msgs.newline() + sky_region_file)
                 skyreg = buildimage.SkyRegions.from_file(sky_region_file)
-                skymask = skyreg.image.astype(np.bool)
+                skymask = skyreg.image.astype(bool)
             else:
                 msgs.error("Master SkyRegions file does not exist. Create a Master SkyRegions frame, or set "+
                            msgs.newline()+"the percentage user_regions")
@@ -1227,7 +1227,7 @@ class IFUFindObjects(MultiSlitFindObjects):
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
         global_sky = np.zeros_like(self.sciImg.image)
         thismask = (self.slitmask > 0)
-        inmask = (self.sciImg.select_flag(invert=True) & thismask & skymask_now).astype(np.bool)
+        inmask = (self.sciImg.select_flag(invert=True) & thismask & skymask_now).astype(bool)
         # Convert the wavelength image to A/pixel, registered at pixel 0 (this gives something like
         # the tilts frame, but conserves wavelength position in each slit)
         wavemin = self.waveimg[self.waveimg != 0.0].min()
