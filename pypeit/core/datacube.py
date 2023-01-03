@@ -1704,8 +1704,16 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         waveimg = spec2DObj.waveimg
         bpmmask = spec2DObj.bpmmask
 
+        # Only consider pixels within the requested wave_min and wave_max ranges - zero out everything else
+        if cubepar['wave_min'] is not None:
+            waveimg[waveimg < cubepar['wave_min']] = 0
+        if cubepar['wave_max'] is not None:
+            waveimg[waveimg > cubepar['wave_max']] = 0
+
         # Grab the slit edges
         slits = spec2DObj.slits
+        if np.any(slits.mask != 0):
+            msgs.error("Some slits are masked - you need to re-reduce the data without errors before making a datacube")
 
         # debug = False
         # if debug:
@@ -1758,7 +1766,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         # Construct a good pixel mask
         # TODO: This should use the mask function to figure out which elements
         # are masked.
-        onslit_gpm = (slitid_img_init > 0) & sky_is_good & (bpmmask.mask == 0)
+        onslit_gpm = (slitid_img_init > 0) & sky_is_good & (bpmmask.mask == 0) & (waveimg != 0.0)
 
         # Grab the WCS of this frame
         frame_wcs = spec.get_wcs(spec2DObj.head0, slits, detector.platescale, wave0, dwv)
@@ -1798,7 +1806,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         # Generate an RA/DEC image
         msgs.info("Generating RA/DEC image")
         raimg, decimg, minmax, ast_trans = slits.get_radec_image(frame_wcs, traces, spec2DObj.tilts, locations,
-                                                                 initial=initial, flexure=flexure)
+                                                                 onslit_gpm, initial=initial, flexure=flexure)
 
         # Perform the DAR correction
         if wave_ref is None:
@@ -1938,7 +1946,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                 else: subsample = cubepar['subsample']
                 # Get the slit image and then unset pixels in the slit image that are bad
                 slitid_img_gpm = slitid_img_init.copy()
-                slitid_img_gpm[(bpmmask.mask != 0) | (np.logical_not(sky_is_good))] = 0
+                slitid_img_gpm[(bpmmask.mask != 0) | (np.logical_not(sky_is_good)) | (waveimg == 0)] = 0
                 generate_cube_subsample(outfile, output_wcs, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix),
                                         wave_ext, spec2DObj.tilts, slits, slitid_img_gpm, ast_trans, bins,
                                         overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
