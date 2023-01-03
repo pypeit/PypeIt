@@ -1,0 +1,494 @@
+{
+    "AIP, Germany": [
+        13.102954682740686,
+        52.40528165
+    ],
+    "ASTRON": [
+        40.25532160089522,
+        56.092875649999996
+    ],
+    "Arkansas Tech": [
+        -93.13553583865747,
+        35.293670500000005
+    ],
+    "Australian National University": [
+        149.11677886464528,
+        -35.28121335
+    ],
+    "CNRS Marseille": [
+        5.440560706984453,
+        43.231590499999996
+    ],
+    "CSIC Granada": [
+        -3.5912513550843217,
+        37.16572805
+    ],
+    "CSIC Madrid": [
+        -3.687914042709868,
+        40.4411642
+    ],
+    "CSIRO, Australia": [
+        151.72797060974074,
+        -32.88383965
+    ],
+    "Caltech": [
+        -118.1252882487961,
+        34.13701375
+    ],
+    "Carnegie Observatories": [
+        -118.13403954090164,
+        34.1558258
+    ],
+    "Cidade University, Brazil": [
+        -43.223002109384666,
+        -22.86266105
+    ],
+    "Curtin University": [
+        115.89279442554067,
+        -32.0056018
+    ],
+    "ESO Garching": [
+        11.67132889592557,
+        48.25962725
+    ],
+    "Harvard University": [
+        -71.12678237443698,
+        42.36790855
+    ],
+    "Humboldt University, Berlin": [
+        13.393597526084616,
+        52.518579349999996
+    ],
+    "IAC, Canary Islands": [
+        -16.308220753817487,
+        28.47470255
+    ],
+    "IAP, Paris": [
+        2.335250769900944,
+        48.8349945
+    ],
+    "IAS, Princeton": [
+        -74.6641549,
+        40.3312375
+    ],
+    "INAF Bologna": [
+        11.3391984,
+        44.5235663
+    ],
+    "INAF Florence": [
+        11.254407771648552,
+        43.75059725
+    ],
+    "INAF Napoli, Italy": [
+        12.645929362778272,
+        41.83880675
+    ],
+    "INAF Rome": [
+        12.704846389163823,
+        41.8118464
+    ],
+    "INAF Trieste": [
+        13.771989108426066,
+        45.644431350000005
+    ],
+    "INFN Fiorentino": [
+        11.195020803357743,
+        43.81846405
+    ],
+    "IUCAA, Pune": [
+        73.82636383741027,
+        18.5592934
+    ],
+    "Japan Aerospace Exploration Agency": [
+        139.55832752592323,
+        35.67924925
+    ],
+    "Jet Propulsion Laboratory, Pasadena, CA": [
+        -118.17288883784435,
+        34.2018154
+    ],
+    "Johns Hopkins University": [
+        -76.62185357858337,
+        39.33020225
+    ],
+    "Konkoly Observatory, Budapest, Hungary": [
+        18.96302935,
+        47.49973455
+    ],
+    "Korea Institute for Advanced Study": [
+        127.0457538735129,
+        37.5928947
+    ],
+    "Kyung Hee University, South Korea": [
+        127.05198672345011,
+        37.5971213
+    ],
+    "Kyungpook National University, South Korea": [
+        128.610855264775,
+        35.8905697
+    ],
+    "LBNL": [
+        -122.24563027311041,
+        37.87695875
+    ],
+    "Las Cumbres Observatory": [
+        -156.2575325,
+        20.7076889
+    ],
+    "Leiden University": [
+        4.45966305742133,
+        52.168633850000006
+    ],
+    "MIT": [
+        -71.0966272383055,
+        42.3582529
+    ],
+    "MPA, Garching": [
+        11.67159,
+        48.2612695
+    ],
+    "MPIA": [
+        19.9736,
+        -4.23251
+    ],
+    "Macquarie University": [
+        151.11269439194754,
+        -33.7740328
+    ],
+    "Maria Mitchell Observatory": [
+        -73.89328974945653,
+        41.688279300000005
+    ],
+    "Max Planck, Bonn": [
+        7.098502,
+        50.7350193
+    ],
+    "Michigan State University": [
+        -84.48032837503001,
+        42.7024238
+    ],
+    "Monash University": [
+        145.13480648790716,
+        -37.910776350000006
+    ],
+    "NRAO Socorro": [
+        -106.90761836892634,
+        34.06352425
+    ],
+    "National Astronomical Observatory of Japan": [
+        141.1333822,
+        39.1350928
+    ],
+    "Northwestern University": [
+        -87.67581113482166,
+        42.0551164
+    ],
+    "Observatoire de Paris": [
+        2.3357428483677243,
+        48.83589585
+    ],
+    "Ohio State University": [
+        -83.02866465596318,
+        40.00570905
+    ],
+    "Peking University": [
+        116.30393496863539,
+        39.99171495
+    ],
+    "Pontificia Universidad Catolica de Valparaiso": [
+        -71.5822164,
+        -33.0267664
+    ],
+    "Princeton University": [
+        -74.65836549131683,
+        40.33867515
+    ],
+    "Pusan National University, South Korea": [
+        129.07840680801058,
+        35.234349800000004
+    ],
+    "Queens University": [
+        -80.83332170343458,
+        35.18877165
+    ],
+    "RIT": [
+        -77.67291102378641,
+        43.08248835
+    ],
+    "Radboud University": [
+        5.863403442541042,
+        51.82151725
+    ],
+    "Royal Observatory, Edinburgh": [
+        -3.1881939560806947,
+        55.92289315
+    ],
+    "SRI, Moscow": [
+        37.62931146330749,
+        55.77784525
+    ],
+    "SRON, Netherlands": [
+        4.4576641,
+        52.1694032
+    ],
+    "STScI": [
+        -76.623172,
+        39.3329284
+    ],
+    "San Diego State University": [
+        -117.07330366921886,
+        32.7761529
+    ],
+    "San Jose State": [
+        -121.88122545292521,
+        37.33519025
+    ],
+    "Stockholm University": [
+        18.059592960559392,
+        59.366141
+    ],
+    "Swinburne University": [
+        145.0337135559002,
+        -37.82318845
+    ],
+    "Technical University of Denmark": [
+        12.520215144442094,
+        55.785414450000005
+    ],
+    "Tel Aviv University": [
+        34.8046101,
+        32.1037064
+    ],
+    "Tufts University": [
+        -71.11800725402092,
+        42.40649125
+    ],
+    "UC Berkeley": [
+        -122.23963364918777,
+        37.8753497
+    ],
+    "UC Davis": [
+        -121.79079892146456,
+        38.533790350000004
+    ],
+    "UC Irvine": [
+        139.21821,
+        -31.45875
+    ],
+    "UC Los Angeles": [
+        144.9579856,
+        -37.7935672
+    ],
+    "UC Riverside": [
+        -117.33978065170642,
+        33.96370575
+    ],
+    "UC Santa Barbara": [
+        -119.84581004701371,
+        34.414602450000004
+    ],
+    "UC Santa Cruz": [
+        -122.06221224829252,
+        37.00012445
+    ],
+    "UCL, London": [
+        -0.13515149671251314,
+        51.5217852
+    ],
+    "UNIST, South Korea": [
+        129.18972658449857,
+        35.57374845
+    ],
+    "Universidad Andres Bello, Santiago": [
+        -70.66818311376129,
+        -33.45160295
+    ],
+    "Universidad de Chile": [
+        -70.6510174,
+        -33.4439386
+    ],
+    "Universidad de Zaragoza, Spain": [
+        -0.5541882212221558,
+        42.5685618
+    ],
+    "Universita degli Studi di Milano Bicocca": [
+        9.213901761067177,
+        45.5182714
+    ],
+    "Universita di Firenze": [
+        11.283372482209664,
+        43.802247300000005
+    ],
+    "Universite Lyon": [
+        4.852220125743852,
+        45.746697850000004
+    ],
+    "University of Arizona": [
+        -112.06367894217559,
+        33.45205165
+    ],
+    "University of Birmingham": [
+        -1.9312856726008194,
+        52.4522956
+    ],
+    "University of Cambridge": [
+        0.1104744,
+        52.2006233
+    ],
+    "University of Chicago": [
+        -87.60084387193544,
+        41.79139685
+    ],
+    "University of Copenhagen": [
+        12.571574419652498,
+        55.6970372
+    ],
+    "University of Dublin": [
+        -6.254444724511822,
+        53.34366745
+    ],
+    "University of Edinburgh": [
+        -3.1883735563964555,
+        55.94407645
+    ],
+    "University of Firenze": [
+        11.2729461,
+        43.8041147
+    ],
+    "University of Geneva": [
+        -88.4805318,
+        42.6126851
+    ],
+    "University of Hawaii": [
+        -157.9218882,
+        21.3320662
+    ],
+    "University of Hertfordshire": [
+        -0.23904979445944738,
+        51.75174425
+    ],
+    "University of Hong Kong": [
+        13.389089,
+        54.0856448
+    ],
+    "University of Illinois": [
+        -88.23851575614376,
+        40.09911835
+    ],
+    "University of Manchester": [
+        -2.232734319907597,
+        53.4657087
+    ],
+    "University of Maryland": [
+        -76.9438585924238,
+        38.990412449999994
+    ],
+    "University of Melbourne": [
+        144.96130134414312,
+        -37.7970796
+    ],
+    "University of Michigan": [
+        -83.71003893509601,
+        42.2942142
+    ],
+    "University of Minnesota": [
+        -92.83111715445486,
+        48.3785292
+    ],
+    "University of New South Wales": [
+        151.22518231269635,
+        -33.9170154
+    ],
+    "University of North Carolina": [
+        -79.04775326525107,
+        35.90503535
+    ],
+    "University of Oslo": [
+        10.722768340750914,
+        59.9414173
+    ],
+    "University of Oulu": [
+        25.467357691873588,
+        65.05932770000001
+    ],
+    "University of Oxford": [
+        -1.2143299631547007,
+        51.75254605
+    ],
+    "University of Portsmouth, UK": [
+        -1.0935528683212405,
+        50.795245
+    ],
+    "University of Southampton, UK": [
+        -1.4050090771323005,
+        50.93703355
+    ],
+    "University of Southern Queensland, Australia": [
+        151.93012650030153,
+        -27.604583249999997
+    ],
+    "University of Sydney": [
+        151.1846613599298,
+        -33.896083000000004
+    ],
+    "University of Texas, Austin": [
+        -97.73389272663796,
+        30.2852198
+    ],
+    "University of Tokyo": [
+        139.76374569517452,
+        35.71171565
+    ],
+    "University of Toronto": [
+        -79.39775966248058,
+        43.663461999999996
+    ],
+    "University of Turku, Finland": [
+        22.28642788635114,
+        60.45614005
+    ],
+    "University of Washington": [
+        -122.30806059473039,
+        47.6543466
+    ],
+    "University of Waterloo": [
+        -80.54524293779451,
+        43.4701994
+    ],
+    "University of Wisconsin": [
+        -90.296735,
+        43.210308
+    ],
+    "University of the Western Cape": [
+        18.62864004583909,
+        -33.93273025
+    ],
+    "Vanderbilt University": [
+        -86.80281889095295,
+        36.14380105
+    ],
+    "W.M. Keck Observatory": [
+        -155.4745832004805,
+        19.826385199999997
+    ],
+    "Warsaw University": [
+        21.02022691677788,
+        52.18572665
+    ],
+    "Washington State University": [
+        -117.14976069286374,
+        46.7337724
+    ],
+    "Weizmann Institute": [
+        34.807378,
+        31.904187
+    ],
+    "Yale University": [
+        -72.98966960152231,
+        41.25713055
+    ],
+    "York University": [
+        -79.50474900961275,
+        43.77417545
+    ]
+}
