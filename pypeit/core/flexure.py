@@ -666,11 +666,12 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
             continue
 
         # get spectral FWHM (in Angstrom) if available
+        spec_fwhm = None
         if wv_calib is not None:
             iwv = np.where(wv_calib.spat_ids == slits.spat_id[islit])[0][0]
-            spec_fwhm = wv_calib.wv_fits[iwv].cen_disp*wv_calib.wv_fits[iwv].fwhm if wv_calib.wv_fits is not None else None
-        else:
-            spec_fwhm = None
+            # Allow for wavelength failures
+            if wv_calib.wv_fits is not None and wv_calib.wv_fits[iwv].fwhm is not None: 
+                spec_fwhm = wv_calib.wv_fits[iwv].cen_disp*wv_calib.wv_fits[iwv].fwhm 
 
         if slit_cen:
             # global flexure
