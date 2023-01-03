@@ -468,6 +468,10 @@ class GTCMAATSpectrograph(GTCOSIRISSpectrograph):
         # Don't do 1D extraction for 3D data - it's meaningless because the DAR correction must be performed on the 3D data.
         par['reduce']['extraction']['skip_extraction'] = True  # Because extraction occurs before the DAR correction, don't extract
 
+        # Decrease the wave tilts order, given the shorter slits of the IFU
+        par['calibrations']['tilts']['spat_order'] = 1
+        par['calibrations']['tilts']['spec_order'] = 4
+
         # Make sure that this is reduced as a slit (as opposed to fiber) spectrograph
         par['reduce']['cube']['slit_spec'] = True
         par['reduce']['cube']['combine'] = False  # Make separate spec3d files from the input spec2d files
@@ -476,6 +480,13 @@ class GTCMAATSpectrograph(GTCOSIRISSpectrograph):
         par['reduce']['skysub']['no_poly'] = True
         par['reduce']['skysub']['bspline_spacing'] = 0.6
         par['reduce']['skysub']['joint_fit'] = False
+        par['reduce']['findobj']['skip_skysub'] = True
+        par['reduce']['findobj']['skip_final_global'] = True
+
+        # Don't correct flexure by default, but you should use slitcen,
+        # because this is a slit-based IFU where no objects are extracted.
+        par['flexure']['spec_method'] = 'skip'
+        par['flexure']['spec_maxshift'] = 2.5  # Just in case someone switches on spectral flexure, this needs to be minimal
 
         # Flux calibration parameters
         par['sensfunc']['UVIS']['extinct_correct'] = False  # This must be False - the extinction correction is performed when making the datacube
@@ -615,6 +626,7 @@ class GTCMAATSpectrograph(GTCOSIRISSpectrograph):
         ybins = np.linspace(np.min(minmax[:, 0]), np.max(minmax[:, 1]), 1+slitlength) - 0.5
         spec_bins = np.arange(1+num_wave) - 0.5
         return xbins, ybins, spec_bins
+
 
 class GTCOSIRISSpectrographOld(spectrograph.Spectrograph):
     """

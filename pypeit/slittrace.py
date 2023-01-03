@@ -418,7 +418,7 @@ class SlitTraceSet(datamodel.DataContainer):
             slitlen = np.median(slitlen, axis=1)
         return slitlen
 
-    def get_radec_image(self, wcs, traces, tilts, locations, initial=True, flexure=None):
+    def get_radec_image(self, wcs, traces, tilts, locations, gpm, initial=True, flexure=None):
         """Generate an RA and DEC image for every pixel in the frame
         NOTE: This function is currently only used for IFU reductions.
 
@@ -439,7 +439,9 @@ class SlitTraceSet(datamodel.DataContainer):
         locations : `numpy.ndarray`_, list
             locations along the slit of the alignment traces. Must
             be a 1D array of the same length as alignments.traces.shape[1]
-        initial : bool
+        gpm : `numpy.ndarray`
+            2D good pixel mask with the same shape as tilts.
+        initial : bool, optional
             Select the initial slit edges?
         flexure : float, optional
             If provided, offset each slit by this amount.
@@ -471,7 +473,7 @@ class SlitTraceSet(datamodel.DataContainer):
         # Get the slit information
         slitid_img_init = self.slit_img(pad=0, initial=initial, flexure=flexure)
         for slit_idx, spatid in enumerate(self.spat_id):
-            onslit = (slitid_img_init == spatid)
+            onslit = (slitid_img_init == spatid) & gpm
             onslit_init = np.where(onslit)
             if self.mask[slit_idx] != 0:
                 msgs.error(f"Slit {spatid} ({slit_idx+1}/{self.spat_id.size}) is masked. Cannot generate RA/DEC image.")
