@@ -478,7 +478,7 @@ class GTCMAATSpectrograph(GTCOSIRISSpectrograph):
 
         # Decrease the wave tilts order, given the shorter slits of the IFU
         par['calibrations']['tilts']['spat_order'] = 1
-        par['calibrations']['tilts']['spec_order'] = 4
+        par['calibrations']['tilts']['spec_order'] = 1
 
         # Make sure that this is reduced as a slit (as opposed to fiber) spectrograph
         par['reduce']['cube']['slit_spec'] = True
