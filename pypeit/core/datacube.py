@@ -1473,6 +1473,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     # Grab the parset, if not provided
     if parset is None:
         parset = spec.default_pypeit_par()
+        parset = spec.config_specific_par(files[0], inp_par=parset)
     cubepar = parset['reduce']['cube']
     flatpar = parset['calibrations']['flatfield']
     senspar = parset['sensfunc']

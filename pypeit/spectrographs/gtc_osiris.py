@@ -312,6 +312,8 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['slitedges']['fit_min_spec_length'] = 0.25
             par['calibrations']['slitedges']['smash_range'] = [0.38,0.62]
             par['calibrations']['flatfield']['slit_illum_finecorr'] = False
+            par['reduce']['cube']['wave_min'] = 3600.0
+            par['reduce']['cube']['wave_max'] = 7200.0
         elif self.get_meta_value(scifile, 'dispname') == 'R300R':
             # par['calibrations']['wavelengths']['wv_cen'] = 6635.
             # par['calibrations']['wavelengths']['disp'] = 7.74
@@ -322,18 +324,24 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['slitedges']['fit_min_spec_length'] = 0.25
             par['calibrations']['slitedges']['smash_range'] = [0.38,0.62]
             par['calibrations']['flatfield']['slit_illum_finecorr'] = False
+            par['reduce']['cube']['wave_min'] = 4800.0
+            par['reduce']['cube']['wave_max'] = 10000.0
         elif self.get_meta_value(scifile, 'dispname') == 'R500B':
             # par['calibrations']['wavelengths']['wv_cen'] = 4745.
             # par['calibrations']['wavelengths']['disp'] = 3.54
             par['calibrations']['wavelengths']['lamps'] = ['HgI,NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500B.fits'
             par['reduce']['findobj']['find_min_max']=[500,2051]
+            par['reduce']['cube']['wave_min'] = 3600.0
+            par['reduce']['cube']['wave_max'] = 7200.0
         elif self.get_meta_value(scifile, 'dispname') == 'R500R':
             # par['calibrations']['wavelengths']['wv_cen'] = 7165.
             # par['calibrations']['wavelengths']['disp'] = 4.88
             par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500R.fits'
             par['reduce']['findobj']['find_min_max']=[450,2051]
+            par['reduce']['cube']['wave_min'] = 4800.0
+            par['reduce']['cube']['wave_max'] = 10000.0
         elif self.get_meta_value(scifile, 'dispname') == 'R1000B':
             # par['calibrations']['wavelengths']['wv_cen'] = 5455.
             # par['calibrations']['wavelengths']['disp'] = 2.12
