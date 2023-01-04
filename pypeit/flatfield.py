@@ -253,7 +253,7 @@ class FlatImages(datamodel.DataContainer):
         # Check if both BPMs are none
         if self.pixelflat_bpm is None and self.illumflat_bpm is None:
             msgs.warn("FlatImages contains no BPM - trying to generate one")
-            return np.zeros(self.shape(), dtype=np.int)
+            return np.zeros(self.shape(), dtype=int)
         # Now return the requested case, checking for None
         if frametype == 'illum':
             if self.illumflat_bpm is not None:
@@ -825,7 +825,7 @@ class FlatField:
         norm_spec = np.ones_like(rawflat)
         norm_spec_spat = np.ones_like(rawflat)
         twod_model = np.ones_like(rawflat)
-        twod_gpm_out = np.ones_like(rawflat, dtype=np.bool)
+        twod_gpm_out = np.ones_like(rawflat, dtype=bool)
 
         # #################################################
         # Model each slit independently
@@ -1450,7 +1450,7 @@ class FlatField:
         rawflat_corr = rawflat * utils.inverse(scale_model)
         hist, edge = np.histogram(self.waveimg[onslits], bins=wavebins, weights=rawflat_corr[onslits])
         cntr, edge = np.histogram(self.waveimg[onslits], bins=wavebins)
-        cntr = cntr.astype(np.float)
+        cntr = cntr.astype(float)
         spec_ref = hist * utils.inverse(cntr)
         wave_ref = 0.5 * (wavebins[1:] + wavebins[:-1])
         # Create a 1D model of the spectrum and assign a flux to each detector pixel
@@ -1714,7 +1714,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
     onslit_ref_trim = (slitid_img_trim == slits.spat_id[slit_illum_ref_idx]) & gpm & skymask_now
     hist, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins, weights=modelimg_copy[onslit_ref_trim])
     cntr, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins)
-    cntr = cntr.astype(np.float)
+    cntr = cntr.astype(float)
     norm = utils.inverse(cntr)
     spec_ref = hist * norm
     wave_ref = 0.5 * (wavebins[1:] + wavebins[:-1])
@@ -1734,7 +1734,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
             onslit_b_olap = onslit_b & gpm & (waveimg >= mnmx_wv[wvsrt[ss], 0]) & (waveimg <= mnmx_wv[wvsrt[ss], 1]) & skymask_now
             hist, edge = np.histogram(waveimg[onslit_b_olap], bins=wavebins, weights=modelimg_copy[onslit_b_olap])
             cntr, edge = np.histogram(waveimg[onslit_b_olap], bins=wavebins)
-            cntr = cntr.astype(np.float)
+            cntr = cntr.astype(float)
             cntr *= spec_ref
             norm = utils.inverse(cntr)
             arr = hist * norm
@@ -1749,7 +1749,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
             onslit_ref_trim = onslit_ref_trim | (onslit_b & gpm & skymask_now)
             hist, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins, weights=modelimg_copy[onslit_ref_trim]/relscl_model[onslit_ref_trim])
             cntr, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins)
-            cntr = cntr.astype(np.float)
+            cntr = cntr.astype(float)
             norm = utils.inverse(cntr)
             spec_ref = hist * norm
         minv, maxv = np.min(relscl_model), np.max(relscl_model)
@@ -1776,7 +1776,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
             hist, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins, weights=ricp[onslit_ref_trim]/scaleImg[onslit_ref_trim])
             histScl, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins, weights=scaleImg[onslit_ref_trim])
             cntr, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins)
-            cntr = cntr.astype(np.float)
+            cntr = cntr.astype(float)
             norm = (cntr != 0) / (cntr + (cntr == 0))
             this_spec = hist * norm
             scale_ref = histScl * norm

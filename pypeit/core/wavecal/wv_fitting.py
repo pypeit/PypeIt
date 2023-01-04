@@ -214,7 +214,7 @@ def fit_slit(spec, patt_dict, tcent, line_lists, vel_tol = 1.0, outroot=None, sl
 
     # TODO Profx maybe you can add a comment on what this is doing. Why do we have use_unknowns=True only to purge them later??
     # Purge UNKNOWNS from ifit
-    imsk = np.ones(len(ifit), dtype=np.bool)
+    imsk = np.ones(len(ifit), dtype=bool)
     for kk, idwv in enumerate(np.array(patt_dict['IDs'])[ifit]):
         if (np.min(np.abs(line_lists['wave'][NIST_lines] - idwv)))/idwv*3.0e5 > vel_tol:
             imsk[kk] = False

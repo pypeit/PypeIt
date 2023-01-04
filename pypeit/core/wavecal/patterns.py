@@ -614,7 +614,7 @@ def empty_patt_dict(nlines):
         An empty pattern dictionary
 
     """
-    patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., sign=1, mask=np.zeros(nlines, dtype=np.bool))
+    patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., sign=1, mask=np.zeros(nlines, dtype=bool))
     return patt_dict
 
 
@@ -655,7 +655,7 @@ def solve_xcorr(detlines, linelist, dindex, lindex, line_cc, nreid_min = 4, cc_l
     cc_avg = np.zeros(nlines)
     scores =np.zeros(nlines,dtype='<U50')
     scores[:] = 'None'
-    mask = np.zeros(nlines, dtype=np.bool)
+    mask = np.zeros(nlines, dtype=bool)
     ngd_match = 0
     for dd in range(nlines):
         # Grab all the instances of this detected line's pixel position index
@@ -668,7 +668,7 @@ def solve_xcorr(detlines, linelist, dindex, lindex, line_cc, nreid_min = 4, cc_l
         cc_per_match = np.zeros(unq.size,dtype=float)
         for iuniq, unq_val in enumerate(unq):
             cc_per_match[iuniq] = np.mean((line_cc[ww])[lindex[ww] == unq_val])
-        unq = unq.astype(np.int)
+        unq = unq.astype(int)
         # Assign the ID of this line to be wavelength whose index appears the largest number of times
         detids[dd] = linelist[unq[np.argmax(cnts)]]
         # Assign the cross-correlation of this line to be the average of when it was matched to this most often occurring wavelength
@@ -756,12 +756,12 @@ def solve_triangles(detlines, linelist, dindex, lindex, patt_dict=None):
     """
     nlines = detlines.size
     if patt_dict is None:
-        patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., mask=np.zeros(nlines, dtype=np.bool))
+        patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., mask=np.zeros(nlines, dtype=bool))
 
     # Find the best ID of each line
     detids = np.zeros(nlines)
     scores = ['None' for xx in range(nlines)]
-    mask = np.zeros(nlines, dtype=np.bool)
+    mask = np.zeros(nlines, dtype=bool)
     ngd_match = 0
     for dd in range(nlines):
         # Grab all the instances of this detected line's pixel position index
@@ -770,7 +770,7 @@ def solve_triangles(detlines, linelist, dindex, lindex, patt_dict=None):
             continue
         # Find the unique set of wavelength indices that this detected line has been matched to, and the number of times
         unq, cnts = np.unique(lindex[ww], return_counts=True)
-        unq = unq.astype(np.int)
+        unq = unq.astype(int)
         # Assign the ID of this line to be wavelength whose index appears the largest number of times
         detids[dd] = linelist[unq[np.argmax(cnts)]]
         # Give this ID a score based on the number of occurences

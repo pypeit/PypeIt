@@ -447,10 +447,10 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     colors = itertools.cycle(color_tuple)
 
     # Cross-correlate with each arxiv spectrum to identify lines
-    line_indx = np.array([], dtype=np.int)
-    det_indx = np.array([], dtype=np.int)
+    line_indx = np.array([], dtype=int)
+    det_indx = np.array([], dtype=int)
     line_cc = np.array([], dtype=float)
-    line_iarxiv = np.array([], dtype=np.int)
+    line_iarxiv = np.array([], dtype=int)
     wcen = np.zeros(narxiv)
     disp = np.zeros(narxiv)
     shift_vec = np.zeros(narxiv)
@@ -962,7 +962,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, ok_mask=No
     all_patt_dict = {}
     detections = {}
     wv_calib = {}
-    bad_orders = np.array([], dtype=np.int)
+    bad_orders = np.array([], dtype=int)
     # Reidentify each slit, and perform a fit
     for iord in range(norders):
         # ToDO should we still be populating wave_calib with an empty dict here?
@@ -1254,7 +1254,7 @@ class ArchiveReid:
         self.all_patt_dict = {}
         self.detections = {}
         self.wv_calib = {}
-        self.bad_slits = np.array([], dtype=np.int)
+        self.bad_slits = np.array([], dtype=int)
         # Reidentify each slit, and perform a fit
         for slit in range(self.nslits):
             # ToDO should we still be populating wave_calib with an empty dict here?
@@ -1528,7 +1528,7 @@ class HolyGrail:
         # ToDo This code appears to use the weak lines for everything throughout
         self._all_patt_dict = {}
         self._all_final_fit = {}
-        good_fit = np.zeros(self._nslit, dtype=np.bool)
+        good_fit = np.zeros(self._nslit, dtype=bool)
         self._det_weak = {}
         self._det_stro = {}
         for slit in range(self._nslit):
@@ -1576,7 +1576,7 @@ class HolyGrail:
             cntr = 2
             while obad_slits.size > 0:
                 msgs.info('Cross-correlation iteration #{:d}'.format(cntr))
-                good_fit = np.ones(self._nslit, dtype=np.bool)
+                good_fit = np.ones(self._nslit, dtype=bool)
                 good_fit[obad_slits] = False
                 bad_slits = self.cross_match(good_fit,self._det_weak)
                 if np.array_equal(bad_slits, obad_slits):
@@ -1638,7 +1638,7 @@ class HolyGrail:
 
         self._all_patt_dict = {}
         self._all_final_fit = {}
-        good_fit = np.zeros(self._nslit, dtype=np.bool)
+        good_fit = np.zeros(self._nslit, dtype=bool)
         self._det_weak = {}
         self._det_stro = {}
         for slit in range(self._nslit):
@@ -1748,11 +1748,11 @@ class HolyGrail:
         #self._debug = True
         # First, sort spectra according to increasing central wavelength
         ngd = good_fit.sum()
-        idx_gd = np.zeros(ngd, dtype=np.int)
-        wvc_gd = np.zeros(ngd, dtype=np.float)
-        dsp_gd = np.zeros(ngd, dtype=np.float)
-        wvc_gd_jfh = np.zeros(ngd, dtype=np.float)
-        dsp_gd_jfh = np.zeros(ngd, dtype=np.float)
+        idx_gd = np.zeros(ngd, dtype=int)
+        wvc_gd = np.zeros(ngd, dtype=float)
+        dsp_gd = np.zeros(ngd, dtype=float)
+        wvc_gd_jfh = np.zeros(ngd, dtype=float)
+        dsp_gd_jfh = np.zeros(ngd, dtype=float)
         xrng = np.arange(self._npix)
         xnpixmin1 = float(self._npix-1)
         cntr = 0
@@ -1782,7 +1782,7 @@ class HolyGrail:
         ccorr_val = np.zeros(ncrco)
         shift_val = np.zeros(ncrco)
         dwvc_val = np.zeros(ncrco)
-        slit_ids = np.zeros((ncrco, 2), dtype=np.int)
+        slit_ids = np.zeros((ncrco, 2), dtype=int)
         cntr = 0
         # JFH Consider adding something in here that takes advantage of the
         for gd in range(0, sort_idx.size-1):
@@ -1857,7 +1857,7 @@ class HolyGrail:
         #sign = self._all_patt_dict[str(good_slits[0])]['sign']
 
         # For all of the bad slits, estimate some line wavelengths
-        new_bad_slits = np.array([], dtype=np.int)
+        new_bad_slits = np.array([], dtype=int)
         for bs in bad_slits:
             if bs not in self._ok_mask:
                 continue
@@ -1866,8 +1866,8 @@ class HolyGrail:
                 self._bad_slits.append(bs)
                 continue
             bsdet, _ = self.get_use_tcent(sign, detections[str(bs)])
-            lindex = np.array([], dtype=np.int)
-            dindex = np.array([], dtype=np.int)
+            lindex = np.array([], dtype=int)
+            dindex = np.array([], dtype=int)
             wcen = np.zeros(good_slits.size)
             disp = np.zeros(good_slits.size)
             shift_vec = np.zeros(good_slits.size)
@@ -1936,7 +1936,7 @@ class HolyGrail:
             # Initialise the patterns dictionary
             patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0.,
                              sigdetect= wvutils.parse_param(self._par, 'sigdetect', bs),
-                             mask=np.zeros(bsdet.size, dtype=np.bool), scores = None)
+                             mask=np.zeros(bsdet.size, dtype=bool), scores = None)
             patt_dict['sign'] = sign
             patt_dict['bwv'] = np.median(wcen[wcen != 0.0])
             patt_dict['bdisp'] = np.median(disp[disp != 0.0])
@@ -1994,7 +1994,7 @@ class HolyGrail:
         # First determine the central wavelength and dispersion of every slit, using the known good solutions
         xplt = np.arange(self._nslit)
         yplt, dplt = np.zeros(self._nslit), np.zeros(self._nslit)
-        imsk = np.ones(self._nslit, dtype=np.int)
+        imsk = np.ones(self._nslit, dtype=int)
         for slit in range(self._nslit):
             if good_fit[slit]:
                 yplt[slit] = self._all_patt_dict[str(slit)]['bwv']
@@ -2023,7 +2023,7 @@ class HolyGrail:
             #embed()
 
         fact_nl = 1.2  # Non linear factor
-        new_good_fit = np.zeros(self._nslit, dtype=np.bool)
+        new_good_fit = np.zeros(self._nslit, dtype=bool)
         for slit in range(self._nslit):
             wmin = wavemodel[slit] - fact_nl*disp*self._npix/2
             wmax = wavemodel[slit] + fact_nl*disp*self._npix/2
@@ -2056,7 +2056,7 @@ class HolyGrail:
         maskord = np.where(extrapord)[0]
 
         coeffs = None
-        waves = np.zeros(xcen.shape, dtype=np.float)
+        waves = np.zeros(xcen.shape, dtype=float)
         for slit in range(self._nslit):
             if good_fit[slit]:
                 func = self._all_final_fit[str(slit)]['function']
@@ -2082,7 +2082,7 @@ class HolyGrail:
         #extrap_wave, outpar = pca.extrapolate(outpar, ords)
 
         # Determine if pixels correlate and anti-correlate with wavelength
-        signs = np.zeros(self._nslit, dtype=np.int)
+        signs = np.zeros(self._nslit, dtype=int)
         for slit in range(self._nslit):
             wvval = pca_wave[:, slit]
             if wvval[wvval.size//2] > wvval[wvval.size//2-1]:
@@ -2093,13 +2093,13 @@ class HolyGrail:
         if np.sum(signs) < 0:
             sign = -1
 
-        new_bad_slits = np.array([], dtype=np.int)
+        new_bad_slits = np.array([], dtype=int)
         # Using the first guesses at the wavelength solution, identify lines
         for slit in range(self._nslit):
             # Get the detections
             dets, _ = self.get_use_tcent(sign, self._det_weak[str(slit)])
-            lindex = np.array([], dtype=np.int)
-            dindex = np.array([], dtype=np.int)
+            lindex = np.array([], dtype=int)
+            dindex = np.array([], dtype=int)
             # Calculate wavelengths for the gsdet detections
             wvval = pca_wave[:, slit]
             wvcen = wvval[wvval.size//2]
@@ -2118,7 +2118,7 @@ class HolyGrail:
             # Initialise the patterns dictionary
             patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0.,
                              sigdetect=wvutils.parse_param(self._par, 'sigdetect', slit),
-                             mask=np.zeros(dets.size, dtype=np.bool))
+                             mask=np.zeros(dets.size, dtype=bool))
             patt_dict['sign'] = sign
             patt_dict['bwv'] = wvcen
             patt_dict['bdisp'] = disp
@@ -2164,7 +2164,7 @@ class HolyGrail:
             # First determine the central wavelength and dispersion of every slit, using the known good solutions
             xplt = np.arange(self._nslit)
             yplt, dplt = np.zeros(self._nslit), np.zeros(self._nslit)
-            imsk = np.ones(self._nslit, dtype=np.int)
+            imsk = np.ones(self._nslit, dtype=int)
             for slit in range(self._nslit):
                 if good_fit[slit]:
                     yplt[slit] = self._all_patt_dict[str(slit)]['bwv']
@@ -2315,8 +2315,8 @@ class HolyGrail:
         nindx = dindex.shape[1]
         wvdisp = np.zeros(ncols)
         wvcent = np.zeros(ncols)
-        dind = np.zeros((ncols, nindx), dtype=np.int)
-        lind = np.zeros((ncols, nindx), dtype=np.int)
+        dind = np.zeros((ncols, nindx), dtype=int)
+        lind = np.zeros((ncols, nindx), dtype=int)
         cnt = 0
         for x in range(nrows):
             for y in range(len(res[x])):
@@ -2527,7 +2527,7 @@ class HolyGrail:
         # Initialise the patterns dictionary
         patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0.,
                          sigdetect=wvutils.parse_param(self._par, 'sigdetect', slit),
-                         mask=np.zeros(use_tcent.size, dtype=np.bool))
+                         mask=np.zeros(use_tcent.size, dtype=bool))
         patterns.solve_triangles(use_tcent, self._wvdata, dindex, lindex, patt_dict)
         # Check if a solution was found
         if not patt_dict['acceptable']:
