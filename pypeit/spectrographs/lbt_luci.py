@@ -326,13 +326,13 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['fwhm'] = 4.0
         par['calibrations']['wavelengths']['n_final'] = 4
-        par['calibrations']['wavelengths']['lamps'] = ['OH_FIRE_Echelle']
+        par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
         #par['calibrations']['wavelengths']['nonlinear_counts'] = \
         #self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
         # Reidentification parameters
-        par['calibrations']['slitedges']['minimum_slit_length'] = 30.
-        par['calibrations']['slitedges']['edge_thresh'] = 40.
+        par['calibrations']['slitedges']['minimum_slit_length'] = 10.
+        par['calibrations']['slitedges']['edge_thresh'] = 30.
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
         
         # Large chunk of slit is lost with default tweak threshold.
@@ -359,13 +359,13 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         # N3.75 camera and/or multi-slit may require careful adjustment
         # to avoid spurious peaks.
         par['scienceframe']['process']['spat_flexure_correct'] = True
-        par['scienceframe']['process']['spat_flexure_maxshift'] = 30
-        par['scienceframe']['process']['spat_flexure_cont_samp'] = 12
-        par['scienceframe']['process']['spat_flexure_sigdetect'] = 3.
-        #par['calibrations']['tiltframe']['process']['spat_flexure_correct'] = True
-        #par['calibrations']['tiltframe']['process']['spat_flexure_maxshift'] = 50
-        #par['calibrations']['tiltframe']['process']['spat_flexure_cont_samp'] = 10
-        #par['calibrations']['tiltframe']['process']['spat_flexure_sigdetect'] = 3.
+        par['scienceframe']['process']['spat_flexure_maxshift'] = 100
+        par['scienceframe']['process']['spat_flexure_cont_samp'] = 2
+        par['scienceframe']['process']['spat_flexure_sigdetect'] = 2.
+        par['calibrations']['tiltframe']['process']['spat_flexure_correct'] = True
+        par['calibrations']['tiltframe']['process']['spat_flexure_maxshift'] = 100
+        par['calibrations']['tiltframe']['process']['spat_flexure_cont_samp'] = 2
+        par['calibrations']['tiltframe']['process']['spat_flexure_sigdetect'] = 2.
 
 
         par['scienceframe']['process']['sigclip'] = 20.0
@@ -525,7 +525,7 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['fwhm'] = 4.0
         par['calibrations']['wavelengths']['n_final'] = 4
-        par['calibrations']['wavelengths']['lamps'] = ['OH_FIRE_Echelle']
+        par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
         #par['calibrations']['wavelengths']['nonlinear_counts'] = \
         #    self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
@@ -533,8 +533,8 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         # Large chunk of slit is lost with default tweak threshold.
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.85
 
-        par['calibrations']['slitedges']['minimum_slit_length'] = 30.
-        par['calibrations']['slitedges']['edge_thresh'] = 40.
+        par['calibrations']['slitedges']['minimum_slit_length'] = 10.
+        par['calibrations']['slitedges']['edge_thresh'] = 30.
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
         #par['calibrations']['slitedges']['fit_order'] = 8
 
@@ -556,13 +556,13 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         # Flexure
         par['flexure']['spec_method'] = 'skip'
         par['scienceframe']['process']['spat_flexure_correct'] = True
-        par['scienceframe']['process']['spat_flexure_maxshift'] = 30
-        par['scienceframe']['process']['spat_flexure_cont_samp'] = 10
-        par['scienceframe']['process']['spat_flexure_sigdetect'] = 3.
-#        par['calibrations']['tiltframe']['process']['spat_flexure_correct'] = True
-#        par['calibrations']['tiltframe']['process']['spat_flexure_maxshift'] = 50
-#        par['calibrations']['tiltframe']['process']['spat_flexure_cont_samp'] = 10
-#        par['calibrations']['tiltframe']['process']['spat_flexure_sigdetect'] = 3.
+        par['scienceframe']['process']['spat_flexure_maxshift'] = 100
+        par['scienceframe']['process']['spat_flexure_cont_samp'] = 2
+        par['scienceframe']['process']['spat_flexure_sigdetect'] = 2.
+        par['calibrations']['tiltframe']['process']['spat_flexure_correct'] = True
+        par['calibrations']['tiltframe']['process']['spat_flexure_maxshift'] = 100
+        par['calibrations']['tiltframe']['process']['spat_flexure_cont_samp'] = 2
+        par['calibrations']['tiltframe']['process']['spat_flexure_sigdetect'] = 2.
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] = 'nothing'
