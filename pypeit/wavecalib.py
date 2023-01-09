@@ -549,18 +549,21 @@ class BuildWaveCalib:
                                              #debug=True, debug_reid=True, debug_xcorr=True)
         elif self.par['method'] == 'echelle':
             # Echelle calibration
-            msgs.error('Non-fixed format Echelle wavelength calibration is not yet full implemented')
+            #msgs.error('Non-fixed format Echelle wavelength calibration is not yet full implemented')
             # TODO: Get these from the spectrograph file later.
             angle_fits_file = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms', 'hires_wvcalib',
                                            'wvcalib_angle_fits.fits')
             composite_arc_file = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms', 'hires_wvcalib',
                                               'HIRES_composite_arc.fits')
             # Identify the echelle orders
+            msgs.info("Finding the echelle orders")
             order_vec, wave_soln_arxiv, arcspec_arxiv = echelle.identify_ech_orders(
                 arccen, self.meta_dict['echangle'], self.meta_dict['xdangle'], self.meta_dict['dispname'],
                 angle_fits_file, composite_arc_file, pad=3, debug=False)
             # Put the order numbers in the slit object
             self.slits.ech_order = order_vec
+            msgs.info(f"The observation covers the following orders: {order_vec}")
+
             # TODO:
             # HACK!!
             ok_mask_idx = ok_mask_idx[:-1]
@@ -594,13 +597,12 @@ class BuildWaveCalib:
         # Update mask
         self.update_wvmask()
 
-        #TODO For generalized echelle (not hard wired) assign order number here before, i.e. slits.ech_order
-
         # QA
         if not skip_QA:
             ok_mask_idx = np.where(np.invert(self.wvc_bpm))[0]
             for slit_idx in ok_mask_idx:
-                outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', slit=self.slits.slitord_id[slit_idx],
+                outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', 
+                                             slit=self.slits.slitord_id[slit_idx],
                                              out_dir=self.qa_path)
                 #
                 autoid.arc_fit_qa(self.wv_calib.wv_fits[slit_idx],
@@ -655,7 +657,6 @@ class BuildWaveCalib:
                                                           float(iorder)))
 
         # Fit
-        # THIS NEEDS TO BE DEVELOPED
         fit2d = arc.fit2darc(all_wave, all_pixel, all_order, nspec,
                                   nspec_coeff=self.par['ech_nspec_coeff'],
                                   norder_coeff=self.par['ech_norder_coeff'],
@@ -664,8 +665,6 @@ class BuildWaveCalib:
         self.steps.append(inspect.stack()[0][3])
 
         # QA
-        # TODO -- TURN QA BACK ON!
-        #skip_QA = True
         if not skip_QA:
             outfile_global = qa.set_qa_filename(self.master_key, 'arc_fit2d_global_qa',
                                                 out_dir=self.qa_path)

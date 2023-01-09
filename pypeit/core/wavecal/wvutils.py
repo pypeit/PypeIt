@@ -146,7 +146,8 @@ def get_sampling(waves, pix_per_R=3.0):
 
 # TODO: the other methods iref should be deprecated or removed
 def get_wave_grid(waves=None, masks=None, wave_method='linear', iref=0, wave_grid_min=None,
-                  wave_grid_max=None, dwave=None, dv=None, dloglam=None, wave_grid_input=None, spec_samp_fact=1.0):
+                  wave_grid_max=None, dwave=None, dv=None, dloglam=None, wave_grid_input=None, 
+                  spec_samp_fact=1.0):
     """
     Create a new wavelength grid for spectra to be rebinned and coadded.
 
@@ -186,7 +187,8 @@ def get_wave_grid(waves=None, masks=None, wave_method='linear', iref=0, wave_gri
             basically multiples the 'native' spectral pixels by
             ``spec_samp_fact``, i.e. units ``spec_samp_fact`` are pixels.
         wave_grid_input (`numpy.ndarray`_, optional):
-            User input wavelength grid to be used with the 'user_input' wave_method. Shape is (nspec_input,)
+            User input wavelength grid to be used with the 'user_input' wave_method. 
+            Shape is (nspec_input,)
 
     Returns:
         :obj:`tuple`: Returns two `numpy.ndarray`_ objects and a float:
@@ -271,7 +273,10 @@ def get_wave_grid(waves=None, masks=None, wave_method='linear', iref=0, wave_gri
 
 
     if wave_method in ['iref', 'concatenate', 'user_input']:
-        wave_grid_diff = np.diff(wave_grid)
+        try:
+            wave_grid_diff = np.diff(wave_grid)
+        except:
+            embed(header='277 of wvutils')
         wave_grid_diff = np.append(wave_grid_diff, wave_grid_diff[-1])
         wave_grid_mid = wave_grid + wave_grid_diff / 2.0
         dsamp = np.median(wave_grid_diff)

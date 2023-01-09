@@ -59,7 +59,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
     url = 'https://www2.keck.hawaii.edu/inst/hires/'
     pypeline = 'Echelle'
     ech_fixed_format = False
-    supported = True
+    supported = False
 
 
     # TODO: Place holder parameter set taken from X-shooter VIS for now.
