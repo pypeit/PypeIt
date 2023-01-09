@@ -260,14 +260,14 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             lamp_stat = [k for k in fitstbl.keys() if 'lampstat' in k]
             retarr = np.zeros((len(lamp_stat), len(fitstbl)), dtype=bool)
             for kk, key in enumerate(lamp_stat):
-                retarr[kk,:] = fitstbl[key].data.astype(np.int) == 0
+                retarr[kk,:] = fitstbl[key].data.astype(int) == 0
             return np.all(retarr, axis=0)
         if status == 'arcs':
             # Check if any arc lamps are on
             lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,6) ]
             retarr = np.zeros((len(lamp_stat), len(fitstbl)))
             for kk, key in enumerate(lamp_stat):
-                retarr[kk,:] = fitstbl[key].data.astype(np.int) == 1
+                retarr[kk,:] = fitstbl[key].data.astype(int) == 1
             return np.any(retarr, axis=0)
         if status == 'dome':
             return fitstbl['lampstat06'].data.astype(int) == 1

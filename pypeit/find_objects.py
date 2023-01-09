@@ -157,7 +157,7 @@ class FindObjects:
         self.spectrograph = spectrograph
         self.objtype = objtype
         self.par = par
-        self.scaleimg = np.array([1.0], dtype=np.float)  # np.array([1]) applies no scale
+        self.scaleimg = np.array([1.0], dtype=float)  # np.array([1]) applies no scale
         self.basename = basename
         self.manual = manual
         self.sky_region_file = sky_region_file
@@ -213,6 +213,7 @@ class FindObjects:
         self.skyimage = None
         self.initial_sky = None
         self.skymask = None
+        # TODO: Is this ever used?
         self.outmask = None
         self.extractmask = None
         # SpecObjs object
@@ -598,8 +599,9 @@ class FindObjects:
             # subtraction of the sky?
             self.sciImg.build_crmask(self.par['scienceframe']['process'],
                                      subtract_img=global_sky)
-            # Update the fullmask
-            self.sciImg.update_mask_cr(self.sciImg.crmask)
+            # TODO: This mask update is done *inside* build_crmask.
+#            # Update the fullmask
+#            self.sciImg.update_mask_cr(self.sciImg.crmask)
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -657,7 +659,7 @@ class FindObjects:
             if os.path.exists(sky_region_file):
                 msgs.info("Loading SkyRegions file: " + msgs.newline() + sky_region_file)
                 skyreg = buildimage.SkyRegions.from_file(sky_region_file)
-                skymask = skyreg.image.astype(np.bool)
+                skymask = skyreg.image.astype(bool)
             else:
                 msgs.error("Master SkyRegions file does not exist. Create a Master SkyRegions frame, or set "+
                            msgs.newline()+"the percentage user_regions")
@@ -707,17 +709,12 @@ class FindObjects:
         -------
 
         """
-
-        if showmask:
-            mask_in = self.sciImg.fullmask
-            bitmask_in = self.sciImg.bitmask
-        else:
-            mask_in = None
-            bitmask_in = None
+        mask_in = self.sciImg.fullmask if showmask else None
 
         img_gpm = self.sciImg.select_flag(invert=True)
 
-        if attr == 'global' and all([a is not None for a in [self.sciImg.image, global_sky, self.sciImg.fullmask]]):
+        if attr == 'global' and all([a is not None for a in [self.sciImg.image, global_sky,
+                                                             self.sciImg.fullmask]]):
             # global sky subtraction
             # sky subtracted image
             image = (self.sciImg.image - global_sky) * img_gpm.astype(float)
@@ -726,9 +723,8 @@ class FindObjects:
             cut_min = mean - 1.0 * sigma
             cut_max = mean + 4.0 * sigma
             ch_name = chname if chname is not None else f'global_sky_{self.detname}'
-            viewer, ch = display.show_image(image, chname=ch_name, bitmask=bitmask_in,
-                                            mask=mask_in, clear=clear, wcs_match=True)
-                                          #, cuts=(cut_min, cut_max))
+            viewer, ch = display.show_image(image, chname=ch_name, mask=mask_in, clear=clear,
+                                            wcs_match=True)
         elif attr == 'image':
             ch_name = chname if chname is not None else 'image'
             viewer, ch = display.show_image(image, chname=ch_name, clear=clear, wcs_match=True)
@@ -1231,7 +1227,7 @@ class IFUFindObjects(MultiSlitFindObjects):
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
         global_sky = np.zeros_like(self.sciImg.image)
         thismask = (self.slitmask > 0)
-        inmask = (self.sciImg.select_flag(invert=True) & thismask & skymask_now).astype(np.bool)
+        inmask = (self.sciImg.select_flag(invert=True) & thismask & skymask_now).astype(bool)
         # Convert the wavelength image to A/pixel, registered at pixel 0 (this gives something like
         # the tilts frame, but conserves wavelength position in each slit)
         wavemin = self.waveimg[self.waveimg != 0.0].min()
@@ -1274,10 +1270,10 @@ class IFUFindObjects(MultiSlitFindObjects):
 
         if update_crmask:
             # Find CRs with sky subtraction
+            # NOTE: There's no need to run `sciImg.update_mask_cr` after this.
+            # This operation updates the mask directly!
             self.sciImg.build_crmask(self.par['scienceframe']['process'],
                                      subtract_img=global_sky)
-            # Update the fullmask
-            self.sciImg.update_mask_cr(self.sciImg.crmask)
 
         # Step
         self.steps.append(inspect.stack()[0][3])
