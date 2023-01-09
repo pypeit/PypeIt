@@ -1218,6 +1218,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
     else:
         msgs.error('Number of specobjs in sobjs is not an integer multiple of the number or ordres!')
 
+    # Set bad obj to -nan
     order_snr = np.zeros((norders, nobjs))
     uni_objid = np.unique(sobjs[sobjs.sign > 0].ECH_OBJID)
     for iord in range(norders):

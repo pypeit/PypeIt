@@ -577,9 +577,8 @@ class PypeIt:
         detectors = self.spectrograph.select_detectors(subset=subset)
         msgs.info(f'Detectors to work on: {detectors}')
 
-        # Loop on Detectors
+        # Loop on Detectors -- Calibrate, process image, find objects
         # TODO: Attempt to put in a multiprocessing call here?
-        # objfind
         for self.det in detectors:
             msgs.info(f'Reducing detector {self.det}')
             # run calibration
@@ -597,8 +596,8 @@ class PypeIt:
             # in the slitmask stuff in between the two loops
             calib_slits.append(self.caliBrate.slits)
             # global_sky, skymask and sciImg are needed in the extract loop
-            initial_sky, sobjs_obj, sciImg, objFind = self.objfind_one(frames, self.det, bg_frames,
-                                                                       std_outfile=std_outfile)
+            initial_sky, sobjs_obj, sciImg, objFind = self.objfind_one(
+                frames, self.det, bg_frames, std_outfile=std_outfile)
             if len(sobjs_obj)>0:
                 all_specobjs_objfind.add_sobj(sobjs_obj)
             initial_sky_list.append(initial_sky)
@@ -711,7 +710,7 @@ class PypeIt:
 
         """
 
-        msgs.info(f'Building calibrations for detector {det}')
+        msgs.info(f'Building/loading calibrations for detector {det}')
         # Instantiate Calibrations class
         caliBrate = calibrations.Calibrations.get_instance(
             self.fitstbl, self.par['calibrations'], self.spectrograph,
@@ -893,7 +892,7 @@ class PypeIt:
         flagged_slits = np.where(objFind.reduce_bpm)[0]
         if len(flagged_slits) > 0:
             self.caliBrate.slits.mask[flagged_slits] = \
-                self.caliBrate.slits.bitmask.turn_on(self.caliBrate.slits.mask[flagged_slits], 'BADREDUCE')
+                self.caliBrate.slits.bitmask.turn_on(self.caliBrate.slits.mask[flagged_slits], 'BADSKYSUB')
 
         msgs.info("Extraction begins for {} on det={}".format(self.basename, det))
 
@@ -909,6 +908,7 @@ class PypeIt:
 
         if not self.par['reduce']['extraction']['skip_extraction']:
             # Perform the extraction
+            embed(header='911 of pypeit.py')
             skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, tilts = self.exTract.run()
             # Apply a reference frame correction to each object and the waveimg
             self.exTract.refframe_correct(self.fitstbl["ra"][frames[0]], self.fitstbl["dec"][frames[0]], self.obstime,
