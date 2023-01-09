@@ -8,6 +8,7 @@ import numpy as np
 from astropy.table import Table
 from astropy.coordinates import SkyCoord
 from astropy import units
+from astropy.io import fits 
 
 from pypeit import msgs
 from pypeit.spectrographs import spectrograph
@@ -528,7 +529,6 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         objname = mask_tbl['ID'].value.astype(str)
 
         slitID = mask_tbl['ID'].value # Slit and objects are the same
-        embed(header='558 of gemini_gmos')
 
         #   - Pull out the slit ID, object ID, name, object coordinates, top and bottom distance
         objects = np.array([np.array(slitID, dtype=int),
@@ -540,9 +540,12 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
                            ['None']*slitID.size,       # no magnitude band
                            topdist,
                            botdist]).T
+        # Mask pointing
+        mask_coord = SkyCoord(mask_tbl.meta['RA_IMAG'], mask_tbl.meta['DEC_IMAG'], 
+                              unit=("hourangle", "deg"))
 
         # PA corresponding to positive x on detector (spatial)
-        posx_pa = mask_tbl.meta['MASK_PA'] # deg
+        posx_pa = mask_tbl.meta['MASK_PA'] - 180. # deg
         if posx_pa < 0.:
             posx_pa += 360.
 
@@ -584,14 +587,55 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
                 np.array(mask_tbl['slitsize_x'].to('arcsec').value, dtype=float),
                 slit_pas]).T,
            objects=objects,
+           mask_radec=(mask_coord.ra.deg, mask_coord.dec.deg),
            posx_pa=posx_pa)
         return self.slitmask
 
-    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None):
+    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None, binning=None):
         if filename is not None:
             self.get_slitmask(filename)
         else:
             msgs.error('The name of a ODF file should be provided in the PypeIt file')
+
+        # THE CODE BELOW CAME FROM Keck/LRIS
+        #  IF WE DONT MODIFY IT MUCH, WE SHOULD EXTRACT IT FROM MOSFIRE AND GENERALIZE
+        
+        # Bits and pieces
+        platescale = self.get_detector_par(det=1)['platescale']
+        _, bin_spat = parse.parse_binning(binning) # binning needs to have been passed in
+
+
+        # Slit center
+        slit_coords = SkyCoord(ra=self.slitmask.onsky[:,0], 
+                               dec=self.slitmask.onsky[:,1], unit='deg')
+        mask_coord = SkyCoord(ra=self.slitmask.mask_radec[0],
+                              dec=self.slitmask.mask_radec[1], unit='deg')
+
+        # Testing
+        #mask_coord = mask_coord.directional_offset_by(
+        #    90*units.deg, 30*units.arcsec) 
+        self.slitmask.posx_pa = 1.1999999999999
+        #self.slitmask.posx_pa = 0.8355
+
+        left_edges = []
+        for islit in range(self.slitmask.nslits):
+            sep = mask_coord.separation(slit_coords[islit])
+            PA = mask_coord.position_angle(slit_coords[islit])
+            #
+            #alpha = sep.to('arcsec') * np.cos(PA-self.slitmask.posx_pa*units.deg)
+            alpha = sep.to('arcsec') * np.cos(PA-self.slitmask.posx_pa*units.deg)
+            dx_pix = (alpha.value-self.slitmask.onsky[islit,2]/2.) / (platescale*bin_spat)
+            # target is the slit number
+            left_edges.append(np.round(dx_pix))
+        left_edges = np.array(left_edges, dtype=int)
+
+        tbl = Table()
+        tbl['left'] = left_edges
+        tbl['ID'] = self.slitmask.slitid
+        tbl['left_off'] = left_edges + (1285-226)
+        tbl.sort('left')
+
+        embed(header='605 of gemini_gmos')
 
 class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
     """

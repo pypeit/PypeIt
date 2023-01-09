@@ -4292,7 +4292,8 @@ class EdgeTraceSet(DataContainer):
         omodel_bspat, omodel_tspat, sortindx, self.slitmask = \
             self.spectrograph.get_maskdef_slitedges(
                 ccdnum=self.traceimg.detector.det, 
-                filename=self.maskfile, debug=debug)
+                filename=self.maskfile, debug=debug,
+                binning=self.traceimg.detector.binning)
         
         if omodel_bspat[omodel_bspat!=-1].size < 3:
             msgs.warn('Less than 3 slits are expected on this detector, slitmask matching cannot be performed')
