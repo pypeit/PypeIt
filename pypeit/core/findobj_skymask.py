@@ -198,7 +198,7 @@ def ech_findobj_ineach_order(
 
     # Loop over orders and find objects
     sobjs = specobjs.SpecObjs()
-    for iord, iorder in order_vec:
+    for iord, iorder in enumerate(order_vec):
         if not orders_gpm[iord]:
             continue
         #
@@ -249,16 +249,43 @@ def ech_findobj_ineach_order(
 
     return sobjs
 
+def ech_gen_hand_sobjs(hand_extract_dict, slitmask, 
+                       slit_left, slit_righ, slit_spat,
+                       detname, objtype):
+    nspec, nspat = slitmask.shape
+    specobj_dict = {'SLITID': 999, 
+                    'DET': detname,
+                    'OBJTYPE': objtype,
+                    'PYPELINE': 'Echelle'}
+
+    # Loop over the input
+    f_spats = []
+    for spat, spec in zip(hand_extract_dict['spat'],
+                            hand_extract_dict['spec']):
+        # Find the input slit
+        ispec = int(np.clip(np.round(spec),0,nspec-1))
+        ispat = int(np.clip(np.round(spat),0,nspat-1))
+        slit = slitmask[ispec, ispat]
+        if slit < 0:
+            msgs.error('You are requesting a manual extraction at a position ' +
+                        f'(spat, spec)={spat, spec} that is not on one of the good echelle orders. Check your pypeit file.')
+        # Fractions
+        iord_hand = slit_spat.tolist().index(slit)
+        f_spat = (spat - slit_left[ispec, iord_hand]) / (
+            slit_righ[ispec, iord_hand] - slit_left[ispec, iord_hand])
+        f_spats.append(f_spat)
+        # Add object
+
+
 def ech_fof_sobjs(sobjs, 
                   slit_left:np.ndarray, 
                   slit_righ:np.ndarray, 
                   plate_scale_ord:np.ndarray, 
                   fof_link:float=1.5):
+    # Prep
     norders = slit_left.shape[1]
     slit_width = slit_righ - slit_left
     nfound = len(sobjs)
-
-    # Parse Hand extraction here
 
     #
     FOF_frac = fof_link/(np.median(np.median(slit_width,axis=0)*plate_scale_ord))
@@ -269,7 +296,7 @@ def ech_fof_sobjs(sobjs,
     if nfound>1:
         inobj_id, multobj_id, firstobj_id, nextobj_id \
                 = pydl.spheregroup(ra_fake, dec_fake, FOF_frac/1000.0)
-        # Modify to 1 based indexing
+        # Modify to 1-based indexing
         obj_id_init = inobj_id + 1
     elif nfound==1:
         obj_id_init = np.ones(1,dtype='int')
@@ -282,7 +309,8 @@ def ech_fof_sobjs(sobjs,
     nobj_init = len(uni_obj_id_init)
     for iobj in range(nobj_init):
         for iord in range(norders):
-            on_order = (obj_id_init == uni_obj_id_init[iobj]) & (sobjs.ECH_ORDERINDX == iord)
+            on_order = (obj_id_init == uni_obj_id_init[iobj]) & (
+                sobjs.ECH_ORDERINDX == iord)
             if (np.sum(on_order) > 1):
                 msgs.warn('Found multiple objects in a FOF group on order iord={:d}'.format(iord) + msgs.newline() +
                           'Spawning new objects to maintain a single object per order.')

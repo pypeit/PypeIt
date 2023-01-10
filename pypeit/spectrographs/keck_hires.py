@@ -48,8 +48,8 @@ class HIRESMosaicLookUp:
                   'red_det': {'shift': (2048.0 + 53.0, 0.), 'rotation': 0.}},
     }
 
-    #geometry = orig_geometry
-    geometry = new_geometry
+    geometry = orig_geometry
+    #geometry = new_geometry
 
 
 
