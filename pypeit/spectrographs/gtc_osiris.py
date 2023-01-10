@@ -59,7 +59,6 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         ronoise = 10.0
 
         msgs.warn("HACK FOR MAAT SIMS --- dataext below should be 0, not 1")
-        msgs.warn("HACK FOR MAAT SIMS --- specflip below should be True, not False")
 
         # Detector 1
         detector_dict1 = dict(
@@ -67,7 +66,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             det             = 1,
             dataext         = 1,
             specaxis        = 1,
-            specflip        = False,
+            specflip        = True,
             spatflip        = False,
             platescale      = 0.125,  # arcsec per pixel
             darkcurr        = 0.0,
