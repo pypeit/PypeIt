@@ -1026,20 +1026,24 @@ class EchelleFindObjects(FindObjects):
                 trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
                 fwhm=self.par['reduce']['findobj']['find_fwhm'],
                 use_user_fwhm=self.par['reduce']['extraction']['use_user_fwhm'],
-                nperorder=nperorder,
                 maxdev=self.par['reduce']['findobj']['find_maxdev'],
+                nperorder=nperorder,
                 max_snr=self.par['reduce']['findobj']['ech_find_max_snr'],
                 min_snr=self.par['reduce']['findobj']['ech_find_min_snr'],
                 nabove_min_snr=self.par['reduce']['findobj']['ech_find_nabove_min_snr'],
                 box_radius=self.par['reduce']['extraction']['boxcar_radius'],  # arcsec
                 show_trace=show_trace, objfindQA_filename=objfindQA_filename)
         else:
-            from importlib import reload
+            orders_gpm = np.invert(self.reduce_bpm)
             sobjs_in_orders = findobj_skymask.ech_findobj_ineach_order(
-                image, ivar, self.slitmask, self.slits_left, self.slits_right,
-                self.order_vec, self.reduce_bpm, det=self.det,
-                spec_min_max=np.vstack((self.slits.specmin, self.slits.specmax)),
-                inmask=inmask, plate_scale=plate_scale,
+                image, ivar, self.slitmask, self.slits_left, 
+                self.slits_right, self.slits.spat_id,
+                self.order_vec, orders_gpm,
+                np.vstack((self.slits.specmin,  
+                           self.slits.specmax)),
+                plate_scale,
+                det=self.det,
+                inmask=inmask, 
                 std_trace=std_trace,
                 specobj_dict=specobj_dict,
                 snr_thresh=self.par['reduce']['findobj']['snr_thresh'],
@@ -1071,6 +1075,34 @@ class EchelleFindObjects(FindObjects):
                   np.invert(self.reduce_bpm), 
                   self.slits.spat_id,
                   std_trace=std_trace)
+
+                # Cut on SNR and number of objects
+                sobjs_pre_final = findobj_skymask.ech_cutobj_on_snr(
+                    new_tmp, image, ivar, self.slitmask,
+                    self.order_vec[np.invert(self.reduce_bpm)],
+                    uni_obj_id, plate_scale, # Add the optional stuff too 
+                    inmask=inmask,
+                    nperorder=nperorder,
+                    max_snr=self.par['reduce']['findobj']['ech_find_max_snr'],
+                    min_snr=self.par['reduce']['findobj']['ech_find_min_snr'],
+                    nabove_min_snr=self.par['reduce']['findobj']['ech_find_nabove_min_snr'],
+                    box_radius=self.par['reduce']['extraction']['boxcar_radius'])  # arcsec
+
+                # PCA
+                findobj_skymask.ech_pca_traces(
+                    sobjs_pre_final, 
+                    image, self.slitmask, inmask, 
+                    self.order_vec[np.invert(self.reduce_bpm)],
+                    np.vstack((self.slits.specmin[np.invert(self.reduce_bpm)],  
+                           self.slits.specmax[np.invert(self.reduce_bpm)])),
+                   npca=None, 
+                   coeff_npoly=None,
+                   pca_explained_var=99.0, 
+                   ncoeff=5, 
+                   maxdev=2.0, 
+                   fwhm=3.0,
+                   show_trace=True, show_fits=False, show_pca=False)
+
 
         # Steps
         self.steps.append(inspect.stack()[0][3])
