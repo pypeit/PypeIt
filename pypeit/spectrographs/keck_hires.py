@@ -34,12 +34,22 @@ class HIRESMosaicLookUp:
     Similar to :class:`~pypeit.spectrographs.gemini_gmos.GeminiGMOSMosaicLookUp`
 
     """
-    geometry = {
+    new_geometry = {
+        'MSC01': {'default_shape': (6164, 3990),
+                  'blue_det': {'shift': (-2048.0 - 37.0, 0.0), 'rotation': 0.},
+                  'green_det': {'shift': (0., 0.), 'rotation': 0.},
+                  'red_det': {'shift': (2048.0 + 53.0, 0.), 'rotation': 0.}},
+    }
+    # Original
+    orig_geometry = {
         'MSC01': {'default_shape': (6168, 3990),
                   'blue_det': {'shift': (-2048.0 - 41.0, 0.0), 'rotation': 0.},
                   'green_det': {'shift': (0., 0.), 'rotation': 0.},
                   'red_det': {'shift': (2048.0 + 53.0, 0.), 'rotation': 0.}},
     }
+
+    #geometry = orig_geometry
+    geometry = new_geometry
 
 
 
@@ -547,6 +557,33 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         detector_dicts = [detector_dict1, detector_dict2, detector_dict3]
         return detector_container.DetectorContainer( **detector_dicts[det-1])
 
+    def order_platescale(self, order_vec, binning=None):
+        """
+        Return the platescale for each echelle order.
+
+        This routine is only defined for echelle spectrographs, and it is
+        undefined in the base class.
+
+        Args:
+            order_vec (`numpy.ndarray`_):
+                The vector providing the order numbers.
+            binning (:obj:`str`, optional):
+                The string defining the spectral and spatial binning.
+
+        Returns:
+            `numpy.ndarray`_: An array with the platescale for each order
+            provided by ``order``.
+        """
+        det = self.get_detector_par(1)
+        # VIS has no binning, but for an instrument with binning we would do this
+        binspectral, binspatial = parse.parse_binning(binning)
+
+        # ToDO Either assume a linear trend or measure this
+        # X-shooter manual says, but gives no exact numbers per order.
+        # VIS: 65.9 pixels (0.167"/pix) at order 17 to 72.0 pixels (0.153"/pix) at order 30.
+
+        # Right now I just assume a simple linear trend
+        return np.ones_like(order_vec)*det.platescale*binspatial
 
 def indexing(itt, postpix, det=None,xbin=1,ybin=1):
     """
