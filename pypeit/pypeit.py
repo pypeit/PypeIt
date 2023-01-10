@@ -888,11 +888,19 @@ class PypeIt:
             final_global_sky = objFind.global_skysub(previous_sky=initial_sky, skymask=skymask, show=self.show)
         scaleImg = objFind.scaleimg
 
+        # Each spec2d file includes the slits object with unique flagging
+        #  for extraction failures.  So we make a copy here before those flags
+        #  are modified.
+        maskdef_designtab = self.caliBrate.slits.maskdef_designtab
+        slits = copy.deepcopy(self.caliBrate.slits)
+        slits.maskdef_designtab = None
+
+
         # update here slits.mask since global_skysub modify reduce_bpm and we need to propagate it into extraction
         flagged_slits = np.where(objFind.reduce_bpm)[0]
         if len(flagged_slits) > 0:
-            self.caliBrate.slits.mask[flagged_slits] = \
-                self.caliBrate.slits.bitmask.turn_on(self.caliBrate.slits.mask[flagged_slits], 'BADSKYSUB')
+            slits.mask[flagged_slits] = \
+                slits.bitmask.turn_on(slits.mask[flagged_slits], 'BADSKYSUB')
 
         msgs.info("Extraction begins for {} on det={}".format(self.basename, det))
 
@@ -901,14 +909,13 @@ class PypeIt:
         # At instantiaton, the fullmask in self.sciImg is modified
         # TODO Are we repeating steps in the init for FindObjects and Extract??
         self.exTract = extraction.Extract.get_instance(
-            sciImg, self.caliBrate.slits, sobjs_obj, self.spectrograph,
+            sciImg, slits, sobjs_obj, self.spectrograph,
             self.par, self.objtype, global_sky=final_global_sky, waveTilts=self.caliBrate.wavetilts, wv_calib=self.caliBrate.wv_calib,
             bkg_redux=self.bkg_redux, return_negative=self.par['reduce']['extraction']['return_negative'],
             std_redux=self.std_redux, basename=self.basename, show=self.show)
 
         if not self.par['reduce']['extraction']['skip_extraction']:
             # Perform the extraction
-            embed(header='911 of pypeit.py')
             skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, tilts = self.exTract.run()
             # Apply a reference frame correction to each object and the waveimg
             self.exTract.refframe_correct(self.fitstbl["ra"][frames[0]], self.fitstbl["dec"][frames[0]], self.obstime,
@@ -933,13 +940,8 @@ class PypeIt:
 
         # Construct table of spectral flexure
         spec_flex_table = Table()
-        spec_flex_table['spat_id'] = self.caliBrate.slits.spat_id
+        spec_flex_table['spat_id'] = slits.spat_id
         spec_flex_table['sci_spec_flexure'] = self.exTract.slitshift
-
-        # pull out maskdef_designtab from caliBrate.slits
-        maskdef_designtab = self.caliBrate.slits.maskdef_designtab
-        slits = copy.deepcopy(self.caliBrate.slits)
-        slits.maskdef_designtab = None
 
         # Construct the Spec2DObj
         spec2DObj = spec2dobj.Spec2DObj(sciimg=sciImg.image,
