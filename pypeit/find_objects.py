@@ -13,14 +13,12 @@ import os
 from astropy import stats
 from abc import ABCMeta
 
-from scipy import interpolate
-from scipy.optimize import least_squares
 
 from pypeit import specobjs
 from pypeit import msgs, utils
-from pypeit import masterframe, flatfield
+from pypeit import flatfield
 from pypeit.display import display
-from pypeit.core import skysub, pixels, qa, parse, flat, flexure
+from pypeit.core import skysub, qa, parse, flat, flexure
 from pypeit.core import procimg
 from pypeit.images import buildimage
 from pypeit.core import findobj_skymask
@@ -1016,7 +1014,8 @@ class EchelleFindObjects(FindObjects):
                 image, ivar, self.slitmask, self.slits_left, self.slits_right,
                 self.order_vec, self.reduce_bpm, det=self.det,
                 spec_min_max=np.vstack((self.slits.specmin, self.slits.specmax)),
-                inmask=inmask, ncoeff=self.par['reduce']['findobj']['trace_npoly'],
+                inmask=inmask, 
+                ncoeff=self.par['reduce']['findobj']['trace_npoly'],
                 hand_extract_dict=manual_extract_dict, 
                 plate_scale=plate_scale,
                 std_trace=std_trace,
@@ -1034,11 +1033,11 @@ class EchelleFindObjects(FindObjects):
                 box_radius=self.par['reduce']['extraction']['boxcar_radius'],  # arcsec
                 show_trace=show_trace, objfindQA_filename=objfindQA_filename)
         else:
-            orders_gpm = np.invert(self.reduce_bpm)
+            order_gpm = np.invert(self.reduce_bpm)
             sobjs_in_orders = findobj_skymask.ech_findobj_ineach_order(
                 image, ivar, self.slitmask, self.slits_left, 
                 self.slits_right, self.slits.spat_id,
-                self.order_vec, orders_gpm,
+                self.order_vec, order_gpm,
                 np.vstack((self.slits.specmin,  
                            self.slits.specmax)),
                 plate_scale,
@@ -1058,7 +1057,7 @@ class EchelleFindObjects(FindObjects):
             if len(sobjs_in_orders) > 0 or manual_extract_dict is not None:
 
                 # Friend of friend algorithm to group objects
-                obj_id, uni_obj_id, uni_ind  = findobj_skymask.ech_fof_sobjs(
+                obj_id = findobj_skymask.ech_fof_sobjs(
                     sobjs_in_orders, self.slits_left,
                     self.slits_right, plate_scale)
 
@@ -1071,16 +1070,15 @@ class EchelleFindObjects(FindObjects):
                 new_tmp = findobj_skymask.ech_fill_in_orders(tmp_sobjs, #sobjs_in_orders, 
                   self.slits_left, self.slits_right,
                   self.order_vec, obj_id[tmp], 
-                  uni_obj_id, uni_ind,
-                  np.invert(self.reduce_bpm), 
+                  order_gpm,
                   self.slits.spat_id,
                   std_trace=std_trace)
 
                 # Cut on SNR and number of objects
                 sobjs_pre_final = findobj_skymask.ech_cutobj_on_snr(
                     new_tmp, image, ivar, self.slitmask,
-                    self.order_vec[np.invert(self.reduce_bpm)],
-                    uni_obj_id, plate_scale, # Add the optional stuff too 
+                    self.order_vec[order_gpm],
+                    plate_scale, # Add the optional stuff too 
                     inmask=inmask,
                     nperorder=nperorder,
                     max_snr=self.par['reduce']['findobj']['ech_find_max_snr'],
@@ -1089,19 +1087,16 @@ class EchelleFindObjects(FindObjects):
                     box_radius=self.par['reduce']['extraction']['boxcar_radius'])  # arcsec
 
                 # PCA
-                findobj_skymask.ech_pca_traces(
+                sobjs_ech = findobj_skymask.ech_pca_traces(
                     sobjs_pre_final, 
                     image, self.slitmask, inmask, 
-                    self.order_vec[np.invert(self.reduce_bpm)],
-                    np.vstack((self.slits.specmin[np.invert(self.reduce_bpm)],  
-                           self.slits.specmax[np.invert(self.reduce_bpm)])),
-                   npca=None, 
-                   coeff_npoly=None,
-                   pca_explained_var=99.0, 
-                   ncoeff=5, 
-                   maxdev=2.0, 
-                   fwhm=3.0,
-                   show_trace=True, show_fits=False, show_pca=False)
+                    self.order_vec[order_gpm],
+                    np.vstack((self.slits.specmin[order_gpm],
+                           self.slits.specmax[order_gpm])),
+                   ncoeff=self.par['reduce']['findobj']['trace_npoly'],
+                   maxdev=self.par['reduce']['findobj']['find_maxdev'],
+                   fwhm=self.par['reduce']['findobj']['find_fwhm'],
+                   show_trace=False, show_fits=False, show_pca=False)
 
 
         # Steps

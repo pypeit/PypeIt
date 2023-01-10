@@ -269,11 +269,10 @@ def ech_fof_sobjs(sobjs,
     if nfound>1:
         inobj_id, multobj_id, firstobj_id, nextobj_id \
                 = pydl.spheregroup(ra_fake, dec_fake, FOF_frac/1000.0)
-        # TODO spheregroup returns zero based indices but we use one based. We should probably add 1 to inobj_id here,
-        # i.e. obj_id_init = inobj_id + 1
-        obj_id_init = inobj_id.copy()
+        # Modify to 1 based indexing
+        obj_id_init = inobj_id + 1
     elif nfound==1:
-        obj_id_init = np.zeros(1,dtype='int')
+        obj_id_init = np.ones(1,dtype='int')
 
     uni_obj_id_init, uni_ind_init = np.unique(obj_id_init, return_index=True)
 
@@ -308,20 +307,20 @@ def ech_fof_sobjs(sobjs,
     nobj = len(uni_obj_id)
     msgs.info('FOF matching found {:d}'.format(nobj) + ' unique objects')
 
-    return obj_id, uni_obj_id, uni_ind
+    return obj_id
 
 def ech_fill_in_orders(sobjs, 
                   slit_left:np.ndarray, 
                   slit_righ:np.ndarray, 
                   order_vec:np.ndarray,
                   obj_id:np.ndarray,
-                  uni_obj_id:np.ndarray, 
-                  uni_ind:np.ndarray,
                   order_gpm:np.ndarray,
                   slit_spat_id,
                   std_trace=None,
                   show:bool=False):
+    # Prep
     nfound = len(sobjs)
+    uni_obj_id, uni_ind = np.unique(obj_id, return_index=True)
     nobj = len(uni_obj_id)
     fracpos = sobjs.SPAT_FRACPOS
 
@@ -468,7 +467,7 @@ def ech_fill_in_orders(sobjs,
     return sobjs_align
 
 def ech_cutobj_on_snr(sobjs_align, image, ivar, slitmask,
-                      gd_orders, uni_obj_id, 
+                      gd_orders, 
                       plate_scale_ord, max_snr=2.0,
                       nperorder=2, min_snr=1.0, 
                       nabove_min_snr=2,
@@ -480,6 +479,7 @@ def ech_cutobj_on_snr(sobjs_align, image, ivar, slitmask,
     # Prep
     nspec = image.shape[0]
     norders = gd_orders.size                     
+    uni_obj_id = np.unique(sobjs_align.ECH_OBJID)
     nobj = uni_obj_id.size
 
     # Loop over the objects and perform a quick and dirty extraction to assess S/N.
