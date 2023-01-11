@@ -3114,8 +3114,8 @@ class EdgeTracePar(ParSet):
         descr['use_maskdesign'] = 'Use slit-mask designs to identify slits.'
 
         defaults['maskdesign_filename'] = None
-        dtypes['maskdesign_filename'] = str
-        descr['maskdesign_filename'] = 'Mask design info contained in this file'
+        dtypes['maskdesign_filename'] = [str, list]
+        descr['maskdesign_filename'] = 'Mask design info contained in this file or files (comma separated)'
 
         defaults['maskdesign_maxsep'] = 50
         dtypes['maskdesign_maxsep'] = [int, float]

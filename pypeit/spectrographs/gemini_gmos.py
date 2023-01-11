@@ -8,6 +8,7 @@ import numpy as np
 from astropy.table import Table
 from astropy.coordinates import SkyCoord
 from astropy import units
+from astropy.wcs import wcs
 from astropy.io import fits 
 
 from pypeit import msgs
@@ -591,19 +592,15 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
            posx_pa=posx_pa)
         return self.slitmask
 
-    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None, binning=None):
+    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None, wcs_file=None,
+                              binning=None):
         if filename is not None:
             self.get_slitmask(filename)
         else:
             msgs.error('The name of a ODF file should be provided in the PypeIt file')
 
-        # THE CODE BELOW CAME FROM Keck/LRIS
-        #  IF WE DONT MODIFY IT MUCH, WE SHOULD EXTRACT IT FROM MOSFIRE AND GENERALIZE
-        
-        # Bits and pieces
-        platescale = self.get_detector_par(det=1)['platescale']
-        _, bin_spat = parse.parse_binning(binning) # binning needs to have been passed in
-
+        # Binning of flat
+        _, bin_spat= parse.parse_binning(binning) 
 
         # Slit center
         slit_coords = SkyCoord(ra=self.slitmask.onsky[:,0], 
@@ -611,31 +608,45 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         mask_coord = SkyCoord(ra=self.slitmask.mask_radec[0],
                               dec=self.slitmask.mask_radec[1], unit='deg')
 
-        # Testing
-        #mask_coord = mask_coord.directional_offset_by(
-        #    90*units.deg, 30*units.arcsec) 
-        self.slitmask.posx_pa = 1.1999999999999
-        #self.slitmask.posx_pa = 0.8355
+        # Load up the acquisition image (usually a sciframe)
+        hdul_acq = fits.open(wcs_file)
+        acq_binning = self.get_meta_value(self.get_headarr(hdul_acq), 'binning')
+        _, bin_spat_acq = parse.parse_binning(acq_binning) 
+        wcss = [wcs.WCS(hdul_acq[i].header) for i in range(1, len(hdul_acq))]
 
         left_edges = []
+        right_edges = []
         for islit in range(self.slitmask.nslits):
-            sep = mask_coord.separation(slit_coords[islit])
-            PA = mask_coord.position_angle(slit_coords[islit])
-            #
-            #alpha = sep.to('arcsec') * np.cos(PA-self.slitmask.posx_pa*units.deg)
-            alpha = sep.to('arcsec') * np.cos(PA-self.slitmask.posx_pa*units.deg)
-            dx_pix = (alpha.value-self.slitmask.onsky[islit,2]/2.) / (platescale*bin_spat)
-            # target is the slit number
-            left_edges.append(np.round(dx_pix))
-        left_edges = np.array(left_edges, dtype=int)
-
-        tbl = Table()
-        tbl['left'] = left_edges
-        tbl['ID'] = self.slitmask.slitid
-        tbl['left_off'] = left_edges + (1285-226)
-        tbl.sort('left')
-
-        embed(header='605 of gemini_gmos')
+            # DEBUGGING
+            islit = 14
+            # Left coord
+            left_coord = slit_coords[islit].directional_offset_by(
+                self.slitmask.onsky[islit,4]*units.deg,
+                self.slitmask.onsky[islit,2]*units.arcsec/2.)
+            right_coord = slit_coords[islit].directional_offset_by(
+                self.slitmask.onsky[islit,4]*units.deg-180.*units.deg,
+                self.slitmask.onsky[islit,2]*units.arcsec/2.)
+                
+            got_it = False
+            for kk, iwcs in enumerate(wcss):
+                pix_xy = iwcs.world_to_pixel(left_coord)
+                # Do we have the right WCS?
+                if float(pix_xy[0]) > 0 and float(pix_xy[0]) < (
+                    hdul_acq[kk+1].header['NAXIS1']-1) and not got_it:
+                    left_edges.append(float(pix_xy[1])*bin_spat_acq/bin_spat)
+                    # Right
+                    pix_xy2 = iwcs.world_to_pixel(right_coord)
+                    right_edges.append(float(pix_xy2[1])*bin_spat_acq/bin_spat)
+                    # Occasionally a slit thinks it is on 2 detectors -- this avoids that
+                    got_it = True
+                    print(f'matched to {kk}, {pix_xy}, {pix_xy2}')
+                
+        embed(header='641 of gemini_gmos')
+        # Recast as floats
+        left_edges = np.array(left_edges).astype(float)
+        right_edges = np.array(right_edges).astype(float)
+        sortindx = np.argsort(left_edges)
+        return left_edges, right_edges, sortindx, self.slitmask
 
 class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
     """

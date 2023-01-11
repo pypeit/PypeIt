@@ -652,13 +652,18 @@ class Spectrograph:
         msgs.error('This spectrograph does not support the use of mask design. '
                    'Set `use_maskdesign=False`')
 
-    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None, binning=None):
+    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None, wcs_file:str=None,
+                              binning:str=None):
         """
         Provides the slit edges positions predicted by the slitmask design.
 
         This method is not defined for all spectrographs. This base-class
         method raises an exception. This may be because ``use_maskdesign``
         has been set to True for a spectrograph that does not support it.
+
+        Args:
+            wcs_file(str, optional): Name of the file containing the WCS solution
+            binning(str, optional): spec,spat binning of the flat field image
         """
         msgs.error('This spectrograph does not support the use of mask design. '
                    'Set `use_maskdesign=False`')
