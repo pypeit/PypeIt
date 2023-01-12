@@ -344,8 +344,8 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         # Tailored profile nsigma parameter for the standard, trying 100 (30
         # was standard
         par['reduce']['extraction']['std_prof_nsigma'] = 100.
-        # Do not perform global sky subtraction for standard stars
-        par['reduce']['skysub']['global_sky_std'] = False
+        # Perform global sky subtraction for standard stars
+        par['reduce']['skysub']['global_sky_std'] = True
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
 
@@ -357,7 +357,6 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         # Flexure
         # Parameters should work for long-slit N1.8 camera exposures
         # N3.75 camera and/or multi-slit may require careful adjustment
-        # to avoid spurious peaks.
         par['scienceframe']['process']['spat_flexure_correct'] = True
         par['scienceframe']['process']['spat_flexure_maxshift'] = 100
         par['scienceframe']['process']['spat_flexure_cont_samp'] = 2
@@ -543,8 +542,8 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         par['reduce']['extraction']['model_full_slit'] = False
         # Tailored profile nsigma parameter for the standard
         par['reduce']['extraction']['std_prof_nsigma'] = 100.
-        # Do not perform global sky subtraction for standard stars
-        par['reduce']['skysub']['global_sky_std'] = False
+        # Perform global sky subtraction for standard stars
+        par['reduce']['skysub']['global_sky_std'] = True
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
 
