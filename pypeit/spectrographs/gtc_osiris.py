@@ -344,6 +344,8 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         elif self.get_meta_value(scifile, 'dispname') == 'R1000B':
             # par['calibrations']['wavelengths']['wv_cen'] = 5455.
             # par['calibrations']['wavelengths']['disp'] = 2.12
+            msgs.warn("MAAT HACK FOUND HERE!!!!! rmeove nsnippet")
+            par['calibrations']['wavelengths']['nsnippet'] = 1
             par['calibrations']['wavelengths']['lamps'] = ['ArI,HgI,NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_maat_R1000B.fits'#'gtc_osiris_R1000B.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'R1000R':
