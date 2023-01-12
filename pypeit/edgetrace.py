@@ -4531,7 +4531,6 @@ class EdgeTraceSet(DataContainer):
             self.edge_msk[:, 0] = self.bitmask.turn_on(self.edge_msk[:, 0], 'OFFDETECTOR')
 
         # sync
-        embed(header='4533 of traceimage')
         self.sync()
 
         # remove traces with a mismatch in the maskdef_id (it's better to remove the traces

@@ -559,14 +559,18 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         if np.any(np.invert(np.isclose(mask_tbl['slittilt'].value, 0.))):
             msgs.error('NOT READY FOR TILTED SLITS')
         # NOT SURE WE HAVE THE TILT SIGN CORRECT
-        slit_pas = mask_tbl.meta['MASK_PA'] + mask_tbl['slittilt'].to('deg').value
+        slit_pas = posx_pa + mask_tbl['slittilt'].to('deg').value
+        off_signs = np.ones_like(slit_pas)
+        negy = mask_tbl['slitpos_y'] < 0.
+        off_signs[negy] = -1.
 
         slit_ra, slit_dec = [], []
-        for offset, coord, slit_pa in zip(offsets, obj_coord, slit_pas):
+        for offset, coord, slit_pa, off_sign in zip(offsets, obj_coord, slit_pas, off_signs):
             slit_coord = coord.directional_offset_by(
-                slit_pa*units.deg, offset*units.arcsec)
+                slit_pa*units.deg, off_sign*offset*units.arcsec)
             slit_ra.append(slit_coord.ra.deg)
             slit_dec.append(slit_coord.dec.deg)
+            
 
         # Instantiate the slit mask object and return it
         self.slitmask = SlitMask(
@@ -618,13 +622,13 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         right_edges = []
         for islit in range(self.slitmask.nslits):
             # DEBUGGING
-            islit = 14
+            #islit = 14  # 10043
             # Left coord
             left_coord = slit_coords[islit].directional_offset_by(
-                self.slitmask.onsky[islit,4]*units.deg,
+                self.slitmask.onsky[islit,4]*units.deg - 180.*units.deg,
                 self.slitmask.onsky[islit,2]*units.arcsec/2.)
             right_coord = slit_coords[islit].directional_offset_by(
-                self.slitmask.onsky[islit,4]*units.deg-180.*units.deg,
+                self.slitmask.onsky[islit,4]*units.deg,
                 self.slitmask.onsky[islit,2]*units.arcsec/2.)
                 
             got_it = False
@@ -640,8 +644,16 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
                     # Occasionally a slit thinks it is on 2 detectors -- this avoids that
                     got_it = True
                     print(f'matched to {kk}, {pix_xy}, {pix_xy2}')
-                
-        embed(header='641 of gemini_gmos')
+
+
+#        DEBUGGING
+#        tbl = Table()
+#        tbl['left'] = left_edges                
+#        tbl['right'] = right_edges                
+#        tbl['ID'] = self.slitmask.slitid
+#        tbl.sort('left')
+#        embed(header='641 of gemini_gmos')
+
         # Recast as floats
         left_edges = np.array(left_edges).astype(float)
         right_edges = np.array(right_edges).astype(float)
