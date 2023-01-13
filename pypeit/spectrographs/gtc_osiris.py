@@ -57,6 +57,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         gain = 2.03# if hdu is None else self.get_headarr(hdu)[0]['GAIN']
         msgs.warn("HACK FOR MAAT SIMS --- Readout noise not read from header... assuming RON=10")
         ronoise = 10.0
+        msgs.warn("HACK FOR MAAT SIMS --- Saturation level assumed to be larger than it actually is by 10x")
 
         msgs.warn("HACK FOR MAAT SIMS --- dataext below should be 0, not 1")
 
@@ -70,7 +71,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             spatflip        = False,
             platescale      = 0.125,  # arcsec per pixel
             darkcurr        = 0.0,
-            saturation      = 65535., # ADU
+            saturation      = 655350., # ADU
             nonlinear       = 0.95,
             mincounts       = 0,
             numamplifiers   = 1,
@@ -344,8 +345,6 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         elif self.get_meta_value(scifile, 'dispname') == 'R1000B':
             # par['calibrations']['wavelengths']['wv_cen'] = 5455.
             # par['calibrations']['wavelengths']['disp'] = 2.12
-            msgs.warn("MAAT HACK FOUND HERE!!!!! rmeove nsnippet")
-            par['calibrations']['wavelengths']['nsnippet'] = 1
             par['calibrations']['wavelengths']['lamps'] = ['ArI,HgI,NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_maat_R1000B.fits'#'gtc_osiris_R1000B.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'R1000R':
