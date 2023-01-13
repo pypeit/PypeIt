@@ -4346,7 +4346,6 @@ class EdgeTraceSet(DataContainer):
                                                xlag_range=offsets_range, sigrej=self.par['maskdesign_sigrej'],
                                                print_matches=debug, edge='left')
 
-        debug=True
         if debug:
             plt.scatter(spat_bedge, omodel_bspat[ind_b], s=80, lw=2, marker='+', color='g', zorder=1,
                         label='Bottom edge: RMS={}'.format(round(sigres_b, 4)))
