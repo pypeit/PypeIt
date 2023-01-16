@@ -74,7 +74,7 @@ class PypeItMetadataProxy(QAbstractTableModel):
         super().endResetModel()
 
 
-    def rowCount(self, parent_index):
+    def rowCount(self, parent_index=QModelIndex()):
         """Overridden method from QAbstractTableModel. Returns number of rows in metadta"""
         if (parent_index.isValid() or # Per Qt docs for a table model
             self._metadata is None):
@@ -178,7 +178,7 @@ class _UserConfigTreeNode:
         self.parent = parent
         self.key = key
         if isinstance(node, dict):
-            self.children = [_UserConfigTreeNode(key=k, node=node[k], parent=self) for k in node.keys()]
+            self.children = [_UserConfigTreeNode(key=k, node=node[k], parent=self if key is not None else None) for k in node.keys()]
             self.value=None
         else:
             self.value=node
@@ -199,7 +199,7 @@ class PypeItParamsProxy(QAbstractItemModel):
         self.par = pypeit_setup.par
         self._userConfigTree = _UserConfigTreeNode(ConfigObj(pypeit_setup.user_cfg))
 
-    def rowCount(self, parent):
+    def rowCount(self, parent=QModelIndex()):
         """
         Returns the number of items under parent. Overridden from QAbstractItemModel.
         
@@ -214,12 +214,16 @@ class PypeItParamsProxy(QAbstractItemModel):
         else:
             # Otherwise, if the parent is an index created by the index() method, it
             # points to the parent node in its internalPointer()
+            if parent.column() == 1:
+                # Column 1 does not have children
+                return 0
+
             #msgs.info("rowCount valid")
             node = parent.internalPointer()
 
         return len(node.children)
 
-    def index(self, row, column, parent):
+    def index(self, row, column, parent=QModelIndex()):
         """
         Creates a QModelIndex that points to an item in the ParSet tree. Overridden from QAbstractItemModel.
         
@@ -240,23 +244,22 @@ class PypeItParamsProxy(QAbstractItemModel):
             # Use the root of the config tree as the parent
             parent_node = self._userConfigTree
         else:
+            if parent.column() == 1:
+                # Column one does not have children
+                return QModelIndex()
+
             # The parent is valid, we're creating an index to one of its children
             # Get the parent from the internal data created by this method earlier.
             parent_node = parent.internalPointer()
 
+
         # Find the child using the passed in row
         child_node = parent_node.children[row]
 
-        # Column 1 is for actual config values, not nested parameter sets
-        # (Or Column 1 is for leaves of the tree if that makes more sense)
-        # Return an invalid index to indicate there's nothing to display here
-        if column == 1 and child_node.value is None:
-            return QModelIndex()
-        else:
-            # Otherwise create the index.
-            return super().createIndex(row, column, child_node)
+        # Otherwise create the index
+        return super().createIndex(row, column, child_node)
 
-    def data(self, index, role):
+    def data(self, index, role=Qt.DisplayRole):
         """Returns data for a given index. Overridden from QAbstractItemModel.
 
         Args:
@@ -316,18 +319,18 @@ class PypeItParamsProxy(QAbstractItemModel):
         # This method is why the parent node is included in the _UserConfigTreeNode data.
         #msgs.info(f"parent: {repr(index)}")
         node = index.internalPointer()
-        if node.parent is None:
+        if node is None or node.parent is None:
             # Root node, there is no parent
             return QModelIndex()
         else:
             # Need to know the row # for the parent, which is in the grandparent
             grandparent = node.parent.parent
             if grandparent is None:
-                # The parent is the root node, it's row is 0
-                row = 0
-            else:
-                parent_and_siblings = [x.key for x in grandparent.children ]
-                row = parent_and_siblings.index(node.parent.key)
+                # The grandparent is the root node
+                grandparent = self._userConfigTree
+
+            parent_and_siblings = [x.key for x in grandparent.children ]
+            row = parent_and_siblings.index(node.parent.key)
             # Column is always 0, because 1 is reserved for leaf nodes which can't be parents
             return super().createIndex(row, 0, node.parent)
 
@@ -380,7 +383,7 @@ class PypeItSetupProxy(QObject):
     spectrograph_changed = Signal(str)
 
 
-    def __init__(self, logname):
+    def __init__(self):
         super().__init__()
         self._spectrograph = None
         self._pypeit_setup = None
@@ -458,7 +461,7 @@ class PypeItSetupProxy(QObject):
             if self._pypeit_setup is None:
                 raise ValueError("No PypeItSetup object. set_raw_data_directory should be called before calling generate_obslog.")
 
-            added_metadata_re = re.compile("Adding metadata for (\S.*)$")
+            added_metadata_re = re.compile("Adding metadata for (.*)$")
             self._log_watcher.watch("added_metadata", added_metadata_re, self._addedMetadata)
 
             # These were taken from the default parameters in pypeit_obslog
@@ -540,7 +543,9 @@ class PypeItSetupProxy(QObject):
         msgs.info(f"Unique Configs {unique_configs}")
 
         # Delete previous configurations
-        self.configs_deleted.emit(list(self.configs.keys()))
+        deleted_configs = list(self.configs.keys())
+        if len(deleted_configs) > 0:
+            self.configs_deleted.emit(deleted_configs)
 
         config_names = list(unique_configs.keys())
         self.configs = dict()
@@ -549,4 +554,5 @@ class PypeItSetupProxy(QObject):
             self.configs[config_name] = new_config_model
 
         msgs.info(f"Self configs: {self.configs}")
-        self.configs_added.emit(list(self.configs.values()))
+        if len(config_names) > 0:
+            self.configs_added.emit(list(self.configs.values()))

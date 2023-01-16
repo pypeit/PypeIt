@@ -27,10 +27,8 @@ class OperationThread(QThread):
 class SetupGUIController(QObject):
 
 
-    def __init__(self, args, qt_args):
+    def __init__(self, args):
         super().__init__()
-
-        self.app = QApplication(qt_args)
 
         QCoreApplication.setOrganizationName("PypeIt")
         QCoreApplication.setApplicationName("SetupGUI")
@@ -39,13 +37,13 @@ class SetupGUIController(QObject):
         timestamp = datetime.datetime.utcnow().strftime("%Y%m%d-%H%M")
         logname = f"setup_gui_{timestamp}.log"
 
-        self.model = PypeItSetupProxy(logname)
+        self.model = PypeItSetupProxy()
         self.model.setup_logging(logname, args.verbosity)
         self.view = SetupGUIMainWindow(self.model, self)
         self._thread = None
 
 
-    def start(self):
+    def start(self, app):
         """
         Start the PypeItSetupGUi
         """
@@ -54,7 +52,7 @@ class SetupGUIController(QObject):
         # QT Gobbles up the Python Ctrl+C handling, so the default PypeIt Ctrl+C handler won't
         # be called. So we reset it to the OS default
         signal.signal(signal.SIGINT, signal.SIG_DFL)
-        sys.exit(self.app.exec_())
+        sys.exit(app.exec_())
 
     def save_all(self, location):
         try:

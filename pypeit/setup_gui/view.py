@@ -120,7 +120,8 @@ class LocationPanel(QGroupBox):
             # and set the index
             idx = self._location.findText(new_location)
             if idx == -1:
-                self._history.insertRows(0, 1, new_location)
+                self._history.insertRows(0, 1)
+                self._history.setData(self._history.index(0, 0), new_location)
                 idx = 0
             self._location.setCurrentIndex(idx)
 
@@ -695,6 +696,7 @@ class SetupGUIMainWindow(QWidget):
         button.setToolTip("Open a .pypeit file.")
         button.clicked.connect(self.open_pypeit_file)
         button_layout.addWidget(button)
+        self.openButton = button
 
         button = QPushButton(text = 'Clear')
         button.setToolTip("Clear everything and start with a blank slate.")

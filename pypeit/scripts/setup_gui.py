@@ -1,10 +1,12 @@
 import argparse
+import sys
+
+from qtpy.QtWidgets import QApplication
 
 from pypeit.scripts import scriptbase
 from pypeit.setup_gui.view import PypeItSetupView
 from pypeit.setup_gui.model import PypeItSetupProxy
 from pypeit.setup_gui.controller import SetupGUIController
-
         
 
 class SetupGUI(scriptbase.ScriptBase):
@@ -31,10 +33,11 @@ class SetupGUI(scriptbase.ScriptBase):
     def main(combined_args):
 
         args = combined_args[0]
-        qt_args = combined_args[1]
-        
-        controller = SetupGUIController(args, qt_args)
-        controller.start()
+        # Set the Qt Arguments. Note QT expects the program name as arg 0
+        qt_args = [sys.argv[0]] + combined_args[1]
+        app = QApplication(qt_args)
+        controller = SetupGUIController(args)
+        controller.start(app)
 
 if __name__ == '__main__':
     SetupGUI.entry_point()
