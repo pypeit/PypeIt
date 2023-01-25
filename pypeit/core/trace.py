@@ -114,7 +114,7 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
     # TODO: why not match the sign of the Sobel image to the edge it
     # traces? I.e., why is the sign flipped?
     # Answer: I defined left as -1 (i.e. counting from left to right (-1, 0, +1) = (left, middle, right)
-    tedges = np.zeros(flux.shape, dtype=np.float)
+    tedges = np.zeros(flux.shape, dtype=float)
     tedges[np.where(sobel_sig > sigdetect)] = -1.0  # A positive gradient is a left edge
     tedges[np.where(sobel_sig < -sigdetect)] = 1.0  # A negative gradient is a right edge
 
@@ -122,7 +122,7 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
     # Clean the edges
     wcl = np.where((ndimage.maximum_filter1d(sobel_sig, 10, axis=1) == sobel_sig) & (tedges == -1))
     wcr = np.where((ndimage.minimum_filter1d(sobel_sig, 10, axis=1) == sobel_sig) & (tedges == 1))
-    edge_img = np.zeros(sobel_sig.shape, dtype=np.int)
+    edge_img = np.zeros(sobel_sig.shape, dtype=int)
     edge_img[wcl] = -1
     edge_img[wcr] = 1
 
@@ -1538,7 +1538,7 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
 
 def parse_user_slits(add_slits, this_det, rm=False):
     """
-    Parse the parset syntax for adding slits
+    Parse the parset syntax for adding or removing slits
 
     Args:
         add_slits (str, list):
@@ -1550,8 +1550,8 @@ def parse_user_slits(add_slits, this_det, rm=False):
 
     Returns:
         list or None:
-          if list,  [[x0,x1,yrow]] for add with one or more entries
-          if list,  [[xcen,yrow]] for rm with one or more entries
+          if list,  [[x0,x1,yrow]] for add (rm=False) with one or more entries
+          if list,  [[xcen,yrow]] for rm=True with one or more entries
 
     """
     # Might not be a list yet (only a str)
@@ -1560,11 +1560,12 @@ def parse_user_slits(add_slits, this_det, rm=False):
     #
     user_slits = []
     for islit in add_slits:
+        # Add?
         if not rm:
             det, x0, x1, yrow = [int(ii) for ii in islit.split(':')]
             if det == this_det:
                 user_slits.append([x0,x1,yrow])
-        else:
+        else: # Remove
             det, xcen, yrow = [int(ii) for ii in islit.split(':')]
             if det == this_det:
                 user_slits.append([xcen,yrow])

@@ -106,7 +106,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             # NOTE `config_specific_par` works with the spec2d files because we construct the header
             # of those files to include all the relevant keywords from the raw file.
             spectrograph_cfg_lines = spectrograph.config_specific_par(spec2d_files[0]).to_config()
-            parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=config_lines)
+            parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, 
+                                                  merge_with=(config_lines,))
 
         elif args.obj is not None:
             # TODO: We should probably be reading the pypeit file and using

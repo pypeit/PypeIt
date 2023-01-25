@@ -12,6 +12,10 @@
 - Limit the images written to the MasterEdges file to only the trace
   image, mask, and detector.
 - Implemented a resample algorithm when generating datacubes
+- Refactor quicklook scripts
+- OpenMP link fix
+- Enable boxcar_radius for manual extraction
+- Prevent flexure crash
 
 1.11.0 (21 Oct 2022)
 --------------------

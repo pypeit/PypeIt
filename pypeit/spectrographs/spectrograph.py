@@ -28,6 +28,7 @@ provide instrument-specific:
 
 from abc import ABCMeta
 import os
+from configobj import ConfigObj
 
 from IPython import embed
 
@@ -128,6 +129,14 @@ class Spectrograph:
     team.
     """
 
+    ql_supported = False
+    """
+    Flag that ``PypeIt`` code base has been sufficiently tested with data
+    from this spectrograph in quicklook mode
+    that it is officially supported by the development team.
+    """
+
+
     comment = None
     """
     A brief comment or description regarding ``PypeIt`` usage with this
@@ -216,6 +225,36 @@ class Spectrograph:
         """
 
         return par
+
+    def ql_par(self):
+        """ Generate a list of QL specific parameters 
+
+        The ones below are the default for any spectrograph.
+        They may be over-ridden by the specific spectrograph module
+
+        Returns:
+            list: List of QL specific parameters.  
+        """
+        # Calibration + misc
+        ql_cfg = ['[rdx]', 
+                  '    ignore_bad_headers = True',
+                        '[baseprocess]', 
+                            'use_biasimage = False', 
+                        '[calibrations]', 
+                        '    raise_chk_error = False',  # This allows for science frames only and "cooked" Masters
+                        '  [[flatfield]]', 
+                        '       saturated_slits = mask']
+        # Reduction parameters
+        ql_cfg += ['[scienceframe]',
+                        '    [[process]]',
+                        '        mask_cr = False',
+                        '[reduce]',
+                        '    [[extraction]]',
+                        '        skip_optimal = True',
+                        '    [[findobj]]',
+                        '        skip_second_find = True']
+        return ql_cfg
+
 
     def _check_extensions(self, filename):
         """
@@ -920,6 +959,16 @@ class Spectrograph:
 
         if isinstance(subset, str):
             _subset = parse.parse_slitspatnum(subset)[0].tolist()
+            # Convert detector to int/tuple
+            new_dets = []
+            for item in _subset:
+                if 'DET' in item:
+                    idx = np.where(self.list_detectors() == item)[0][0]
+                    new_dets.append(idx+1)
+                elif 'MSC' in item:
+                    idx = np.where(self.list_detectors(mosaic=True) == item)[0][0]
+                    new_dets.append(self.allowed_mosaics[idx])
+            _subset = new_dets
         elif isinstance(subset, (int, tuple)):
             _subset = [subset]
         else:

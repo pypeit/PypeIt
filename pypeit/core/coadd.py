@@ -2965,6 +2965,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     # sci_list_rebin[0] = rebinned weights image stack
     # sci_list_rebin[1:] = stacks of images that we want to weighted combine
     # sci_list_rebin[2] = rebinned sciimg-sky_model images that we used for the sigma clipping
+    # NOTE: outmask is a gpm
     sci_list_out, var_list_out, outmask, nused \
             = combine.weighted_combine(sci_list_rebin[0], sci_list_rebin[1:], var_list_rebin,
                                norm_rebin_stack != 0, sigma_clip=True,
@@ -3005,7 +3006,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
             dspat[nanpix] = dspat_img_fake[nanpix]
     else:
         dspat_img_fake = spat_img_coadd + dspat_mid[0]
-        dspat[np.invert(outmask)] = dspat_img_fake[np.invert(outmask)]
+        dspat[np.logical_not(outmask)] = dspat_img_fake[np.logical_not(outmask)]
 
     # initiate maskdef parameters
     # TODO I don't think this maskdef code belongs here. It should be rather be moved to the coadd2d class. This

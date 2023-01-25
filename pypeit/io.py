@@ -8,6 +8,7 @@ Provides a set of I/O routines.
 
 """
 import os
+import glob
 import sys
 import warnings
 import gzip
@@ -23,6 +24,7 @@ from astropy.table import Table
 
 from pypeit import msgs
 from pypeit import par
+from pypeit import inputfiles
 
 # These imports are largely just to make the versions available for
 # writing to the header. See `initialize_header`
@@ -31,7 +33,6 @@ import astropy
 import sklearn
 import pypeit
 import time
-
 
 # TODO -- Move this module to core/
 
@@ -80,7 +81,7 @@ def rec_to_fits_type(col_element, single_row=False):
     """
     _col_element = col_element if single_row else col_element[0]
     n = 1 if len(_col_element.shape) == 0 else _col_element.size
-    if col_element.dtype.type in [bool, numpy.bool, numpy.bool_]:
+    if col_element.dtype.type in [bool, numpy.bool_]:
         return '{0}L'.format(n)
     if col_element.dtype.type == numpy.uint8:
         return '{0}B'.format(n)
@@ -605,13 +606,14 @@ def write_to_fits(d, ofile, name=None, hdr=None, overwrite=False, checksum=True)
         ofile (:obj:`str`):
             File name (path) for the fits file.
         name (:obj:`str`, optional):
-            Name for the extension with the data. If None, the
-            extension is not given a name. However, if the input
-            object is a dictionary, see :func:`dict_to_hdu` for how
-            the name will overwrite any dictionary keyword associated
-            with the data to write.
+            Name for the extension with the data. If None, the extension is not
+            given a name. However, if the input object is a dictionary, see
+            :func:`dict_to_hdu` for how the name will overwrite any dictionary
+            keyword associated with the data to write.  Ignored if ``d`` is an
+            `astropy.io.fits.HDUList`_.
         hdr (`astropy.io.fits.Header`_, optional):
-            Base-level header to use for *all* HDUs.
+            Base-level header to use for *all* HDUs.  Ignored if ``d`` is an
+            `astropy.io.fits.HDUList`_.
         overwrite (:obj:`bool`, optional):
             Overwrite any existing file.
         checksum (:obj:`bool`, optional):
@@ -811,4 +813,63 @@ def create_symlink(filename, symlink_dir, relative_symlink=False, overwrite=Fals
     os.symlink(olink_src, olink_dest)
 
 
+def grab_rawfiles(raw_paths:list=None, 
+               file_of_files:str=None,
+               list_of_files:list=None,
+               extension:str='.fits'):
+    """ Grab the list of raw files
 
+    Args:
+        raw_paths (list, optional): 
+            List of paths to raw files
+        file_of_files (str, optional): 
+            File with list of raw files. PypeIt input file formatted
+        list_of_files (list, optional): 
+            List of raw files (str).  These are combined with raw_paths
+        extension (str, optional): 
+            File extension to search on.  Defaults to '.fits'.
+
+    Returns:
+        list: List of raw data filenames with full path
+    """
+
+    # Which option>
+    if file_of_files is not None: # PypeIt formatted list of files
+        iRaw = inputfiles.RawFiles.from_file(file_of_files)
+        data_files = iRaw.filenames
+    elif list_of_files is not None: # An actual list
+        data_files = []
+        for raw_path in raw_paths:
+            for ifile in list_of_files:
+                if os.path.isfile(os.path.join(raw_path, ifile)):
+                    data_files.append(os.path.join(raw_path, ifile))
+    else: # Search in raw_paths for files with the given extension
+        data_files = []
+        for raw_path in raw_paths:
+            data_files += files_from_extension(raw_path, 
+                                               extension)
+    # Finish
+    return data_files
+    
+
+def files_from_extension(raw_path:str,
+                         extension:str='fits'):
+    """ Grab the list of files with a given extension 
+
+        Args:
+            raw_path (str):
+                Path to raw files
+            extension (str, optional):
+                File extension to search on.  Defaults to '.fits'.
+
+        Returns:
+            list: List of raw data filenames (sorted) with full path
+    """
+    # Grab the list of files
+    dfname = os.path.join(raw_path, '*{0}*'.format(extension)) \
+                if os.path.isdir(raw_path) else '{0}*{1}*'.format(raw_path, extension)
+    data_files = glob.glob(dfname)
+    data_files.sort()
+
+    # Return
+    return data_files
