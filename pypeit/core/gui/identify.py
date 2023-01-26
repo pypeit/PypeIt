@@ -273,7 +273,6 @@ class Identify:
         thisarc = arccen[:, slit]
         if nonlinear_counts is None:
             nonlinear_counts = 1e10
-        fwhm=20
         tdetns, _, _, icut, _ = wvutils.arc_lines_from_spec(thisarc,
                                                             fwhm=fwhm,
                                                             sigdetect=sigdetect,
