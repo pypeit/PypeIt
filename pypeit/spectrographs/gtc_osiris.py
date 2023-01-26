@@ -71,7 +71,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             spatflip        = False,
             platescale      = 0.125,  # arcsec per pixel
             darkcurr        = 0.0,
-            saturation      = 655350., # ADU
+            saturation      = 65535.*1.0E7, # ADU
             nonlinear       = 0.95,
             mincounts       = 0,
             numamplifiers   = 1,
