@@ -8,7 +8,6 @@ General utility functions.
 import os
 import inspect
 import pickle
-import warnings
 import itertools
 from glob import glob
 from typing import List
@@ -349,6 +348,37 @@ def nearest_unmasked(arr, use_indices=False):
     nearest[np.diag_indices(arr.size)] = np.ma.masked
     # Return the location of the minimum value ignoring the masked values
     return np.ma.argmin(nearest, axis=1)
+
+
+def contiguous_true(m):
+    """
+    Find contiguous regions of True values in a boolean numpy array.
+
+    This is identically what is done by `numpy.ma.flatnotmasked_contiguous`_,
+    except the argument is the mask, not a masked array, and it selects
+    contiguous True regions instead of contiguous False regions.
+
+    Args:
+        m (array-like):
+            A boolean array.  Must be 1D.
+
+    Returns:
+        :obj:`list`: A list of slice objects that select contiguous regions of
+        True values in the provided array.
+    """
+    _m = np.atleast_1d(m)
+    if _m.ndim > 1:
+        raise ValueError('contiguous_true only accepts 1D arrays.')
+    if not np.any(_m):
+        return [slice(0, _m.size)]
+    i = 0
+    result = []
+    for (k, g) in itertools.groupby(_m.ravel()):
+        n = len(list(g))
+        if k:
+            result.append(slice(i, i + n))
+        i += n
+    return result
 
 
 def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest', replace='original'):

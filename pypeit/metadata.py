@@ -196,6 +196,7 @@ class PypeItMetaData:
             # Read the fits headers.  NOTE: If the file cannot be opened,
             # headarr will be None, and the subsequent loop over the meta keys
             # will fill the data dictionary with None values.
+            msgs.info('Adding metadata for {0}'.format(os.path.split(ifile)[1]))
             headarr = self.spectrograph.get_headarr(ifile, strict=strict)
 
             # Grab Meta
@@ -210,7 +211,6 @@ class PypeItMetaData:
                     msgs.warn('Removing troublesome # character from {0}.  Returning {1}.'.format(
                               meta_key, value))
                 data[meta_key].append(value)
-            msgs.info('Added metadata for {0}'.format(os.path.split(ifile)[1]))
 
         # JFH Changed the below to not crash if some files have None in
         # their MJD. This is the desired behavior since if there are
@@ -406,7 +406,7 @@ class PypeItMetaData:
         _cfg_keys = self.spectrograph.configuration_keys() if cfg_keys is None else cfg_keys
         return {k:self.table[k][indx] for k in _cfg_keys}
 
-    def master_key(self, row, det=1):
+    def master_key(self, row, det=1, master_setup_and_bit:str=None):
         """
         Construct the master key for the file in the provided row.
 
@@ -429,6 +429,9 @@ class PypeItMetaData:
                 detectors designated as a viable mosaic for
                 :attr:`spectrograph`; see
                 :func:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_mosaics`.
+            master_setup_and_bit (:obj:`str`, optional):
+                If provided, the master key is constructed using the
+                provided string and detector name.
 
         Returns:
             :obj:`str`: Master key with configuration, calibration group(s), and
@@ -443,7 +446,11 @@ class PypeItMetaData:
             msgs.error('Cannot provide master key string without setup and calibbit; '
                        'run set_configurations and set_calibration_groups.')
         det_name = self.spectrograph.get_det_name(det)
-        return f"{self['setup'][row]}_{self['calibbit'][row]}_{det_name}"
+        # Finish
+        if master_setup_and_bit is not None:
+            return master_setup_and_bit + '_' + det_name
+        else:
+            return f"{self['setup'][row]}_{self['calibbit'][row]}_{det_name}"
 
     def construct_obstime(self, row):
         """
@@ -1397,6 +1404,13 @@ class PypeItMetaData:
             # if get_comb_group() is not defined in the relevant spectrograph self.table is unchanged
             self.table = self.spectrograph.get_comb_group(self.table)
 
+            if 'calib' in self.keys():
+                # Re-set the calibbit in case calib was changed by get_comb_group().
+                # If calib was not changed, calibbit values will be unchanged
+                self._set_calib_group_bits()
+                # Check that the groups are valid
+                self._check_calib_groups()
+
     def set_user_added_columns(self):
         """
         Set columns that the user *might* add
@@ -1471,10 +1485,10 @@ class PypeItMetaData:
                 # calibration files are used for different setups. Here we update calib to have only the
                 # value relevant for this setup.
                 # find the calib value in this setup that is not a list (which is probably a science/standard)
-                no_list = np.array([',' not in cc for cc in subtbl['calib']])
+                no_list = np.array([',' not in str(cc) for cc in subtbl['calib']])
                 if np.any(no_list):
-                    # set the same calib value to the whole setup
-                    subtbl['calib'] = subtbl['calib'][no_list][0]
+                    # assign the calib value in this setup that is not a list to frames that have calib as a list
+                    subtbl['calib'][np.logical_not(no_list)] = subtbl['calib'][no_list][0]
 
             # Write the file
             ff.write('##########################################################\n')
@@ -1675,10 +1689,10 @@ class PypeItMetaData:
                 # calibration files are used for different setups. Here we update calib to have only the
                 # value relevant for this setup.
                 # find the calib value in this setup that is not a list (which is probably a science/standard)
-                no_list = np.array([',' not in cc for cc in subtbl['calib']])
+                no_list = np.array([',' not in str(cc) for cc in subtbl['calib']])
                 if np.any(no_list):
-                    # set the same calib value to the whole setup
-                    subtbl['calib'] = subtbl['calib'][no_list][0]
+                    # assign the calib value in this setup that is not a list to frames that have calib as a list
+                    subtbl['calib'][np.logical_not(no_list)] = subtbl['calib'][no_list][0]
             subtbl.sort(['frametype','filename'])
             #with io.StringIO() as ff:
             #    subtbl.write(ff, format='ascii.fixed_width')

@@ -853,7 +853,7 @@ def iter_continuum(spec, gpm=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_
 def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thresh=None,
                  cont_subtract=True, cont_frac_fwhm=1.0, max_frac_fwhm=3.0,
                  min_pkdist_frac_fwhm=0.75, cont_samp=30, nonlinear_counts=1e10, niter_cont=3,
-                 nfind=None, bpm=None, verbose=False, debug=False, debug_peak_find=False):
+                 nfind=None, bpm=None, verbose=False, debug=False, debug_peak_find=False, debug_cont=False):
     """
     Identify peaks in an input arc spectrum that satisfy a series of criteria:
 
@@ -943,6 +943,10 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     debug: bool, default = False
        Make plots showing results of peak finding and final arc lines that are used.
 
+    debug_cont: bool, default = False
+       Make plots showing results of continuum fitting
+
+
     Returns
     -------
     tampl : `numpy.ndarray`_
@@ -961,7 +965,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
       The continuum sutracted arc used to find detections.
     nsig : `numpy.ndarray`_
       The significance of each line detected relative to the 1sigma
-      variation in the continuum subtracted arc in the the line free
+      variation in the continuum subtracted arc in the  line free
       region. Bad lines are assigned a significance of -1, since they
       don't have an amplitude fit
     """
@@ -982,11 +986,11 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     # Need to use bpm since when arc spectrum is padded, the padding can make the thresh low and also will screw up
     # continuum fitting
     bpm_out = censpec == 0.0 if bpm is None else bpm
-    xrng = np.arange(censpec.size, dtype=np.float)
+    xrng = np.arange(censpec.size, dtype=float)
 
     if cont_subtract:
         cont_now, cont_mask = iter_continuum(censpec, gpm=np.logical_not(bpm_out), fwhm=fwhm, niter_cont=niter_cont,
-                                             cont_samp=cont_samp, cont_frac_fwhm=cont_frac_fwhm)
+                                             cont_samp=cont_samp, cont_frac_fwhm=cont_frac_fwhm, debug=debug_cont)
     else:
         cont_mask = np.ones(censpec.size, dtype=bool)
         cont_now = np.zeros_like(censpec)
@@ -1031,7 +1035,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
                 & (np.abs(tcent-pixt) < fwhm*0.75)
 
     # Get the indices of the good measurements
-    ww = np.where(good)
+    ww = np.where(good)[0]
     # Compute the significance of each line, set the significance of bad lines to be -1
     nsig = (tampl - med)/stddev
 
@@ -1048,7 +1052,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
             tcent = tcent[ikeep]
             twid = twid[ikeep]
             centerr = centerr[ikeep]
-            ww = np.where(good[ikeep])
+            ww = np.where(good[ikeep])[0]
             nsig = nsig[ikeep]
             good = good[ikeep]
 

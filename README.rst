@@ -71,6 +71,11 @@ cross-dispersed echelle spectra.  **The spectrogaphs that PypeIt can be used
 with are listed** `here
 <https://pypeit.readthedocs.io/en/release/spectrographs/spectrographs.html>`__.
 
+Also note that `this link
+<https://pypeit.readthedocs.io/en/release/spectrographs/spectrographs.html#instrument-specific-details>`__
+contains some useful information about reducing data
+with certain instruments that you might also find helpful.
+
 In addition to our primary code base, we maintain an extensive `development
 suite <https://github.com/pypeit/PypeIt-development-suite>`__ primarily used to
 perform multiple layers of code testing, from basic unit tests to full
