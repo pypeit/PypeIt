@@ -898,7 +898,7 @@ def polyval2d(x, y, m):
         z += a * x**i * y**j
     return z
 
-
+# TODO: Any reason to keep this?
 '''
 def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
                    function="polynomial", initialmask=None, forceimask=False,
@@ -1049,8 +1049,10 @@ def yamlify(obj, debug=False):
         :class:`numpy.ndarray` is converted to :class:`list`,
         :class:`numpy.int64` is converted to :class:`int`, etc.
     """
+    # TODO: Change to np.floating?
     if isinstance(obj, (np.float64, np.float32)):
         obj = float(obj)
+    # TODO: Change to np.integer?
     elif isinstance(obj, (np.int32, np.int64, np.int16)):
         obj = int(obj)
     elif isinstance(obj, np.bool_):
