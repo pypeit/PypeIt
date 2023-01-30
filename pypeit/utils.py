@@ -899,83 +899,6 @@ def polyval2d(x, y, m):
     return z
 
 
-'''
-def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
-                   function="polynomial", initialmask=None, forceimask=False,
-                   minx=None, maxx=None, guesses=None, bspline_par=None, verbose=True):
-    """
-    A robust (equally weighted) polynomial fit is performed to the xarray, yarray pairs
-    mask[i] = 1 are masked values
-
-    :param xarray: independent variable values
-    :param yarray: dependent variable values
-    :param order: the order of the polynomial to be used in the fitting
-    :param weights: weights to be used in the fitting (weights = 1/sigma)
-    :param maxone: If True, only the most deviant point in a given iteration will be removed
-    :param sigma: confidence interval for rejection
-    :param function: which function should be used in the fitting (valid inputs: 'polynomial', 'legendre', 'chebyshev', 'bspline')
-    :param initialmask: a mask can be supplied as input, these values will be masked for the first iteration. 1 = value masked
-    :param forceimask: if True, the initialmask will be forced for all iterations
-    :param minx: minimum value in the array (or the left limit for a legendre/chebyshev polynomial)
-    :param maxx: maximum value in the array (or the right limit for a legendre/chebyshev polynomial)
-    :return: mask, ct -- mask is an array of the masked values, ct is the coefficients of the robust polyfit.
-    """
-    # Setup the initial mask
-    if initialmask is None:
-        mask = np.zeros(xarray.size, dtype=np.int)
-        if forceimask:
-            msgs.warn("Initial mask cannot be enforced -- no initital mask supplied")
-            forceimask = False
-    else:
-        mask = initialmask.copy()
-    mskcnt = np.sum(mask)
-    # Iterate, and mask out new values on each iteration
-    ct = guesses
-
-    while True:
-        w = np.where(mask == 0)
-        xfit = xarray[w]
-        yfit = yarray[w]
-        if weights is not None:
-            wfit = weights[w]
-        else:
-            wfit = None
-        ct = func_fit(xfit, yfit, function, order, w=wfit,
-                      guesses=ct, minx=minx, maxx=maxx, bspline_par=bspline_par)
-        yrng = func_val(ct, xarray, function, minx=minx, maxx=maxx)
-        sigmed = 1.4826*np.median(np.abs(yfit-yrng[w]))
-        #if xarray.size-np.sum(mask) <= order+2: JFH fixed this bug
-        if xarray.size - np.sum(mask) <= order + 1:
-            if verbose:
-                msgs.warn("More parameters than data points - fit might be undesirable")
-            break  # More data was masked than allowed by order
-        if maxone:  # Only remove the most deviant point
-            tst = np.abs(yarray[w]-yrng[w])
-            m = np.argmax(tst)
-            if tst[m] > sigma*sigmed:
-                mask[w[0][m]] = 1
-        else:
-            if forceimask:
-                w = np.where((np.abs(yarray-yrng) > sigma*sigmed) | (initialmask==1))
-            else:
-                w = np.where(np.abs(yarray-yrng) > sigma*sigmed)
-            mask[w] = 1
-        if mskcnt == np.sum(mask): break  # No new values have been included in the mask
-        mskcnt = np.sum(mask)
-
-    # Final fit
-    w = np.where(mask == 0)
-    xfit = xarray[w]
-    yfit = yarray[w]
-    if weights is not None:
-        wfit = weights[w]
-    else:
-        wfit = None
-    ct = func_fit(xfit, yfit, function, order, w=wfit, minx=minx, maxx=maxx, bspline_par=bspline_par)
-    return mask, ct
-'''
-
-
 def subsample(frame):
     """
     Used by LACosmic
@@ -1049,8 +972,10 @@ def yamlify(obj, debug=False):
         :class:`numpy.ndarray` is converted to :class:`list`,
         :class:`numpy.int64` is converted to :class:`int`, etc.
     """
+    # TODO: Change to np.floating?
     if isinstance(obj, (np.float64, np.float32)):
         obj = float(obj)
+    # TODO: Change to np.integer?
     elif isinstance(obj, (np.int32, np.int64, np.int16)):
         obj = int(obj)
     elif isinstance(obj, np.bool_):

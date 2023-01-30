@@ -95,6 +95,7 @@ def test_add_reduce():
     spectrograph_def_par = spectrograph.default_pypeit_par()
     ftype_bitmask = FrameTypeBitMask()
 
+    # TODO: Does this need to use np.int_?  Can we just use 'int'?
     science_value = ftype_bitmask.turn_on(np.int_(0),'science')
     standard_value = ftype_bitmask.turn_on(np.int_(0),'standard')
     arc_value = ftype_bitmask.turn_on(np.int_(0),'arc')

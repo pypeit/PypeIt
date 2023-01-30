@@ -283,7 +283,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                                                           skymodel=sci_dict[coadd.detname]['skymodel'],
                                                           objmodel=sci_dict[coadd.detname]['objmodel'],
                                                           ivarmodel=sci_dict[coadd.detname]['ivarmodel'],
-                                                          scaleimg=np.array([1.0], dtype=np.float),
+                                                          scaleimg=np.array([1.0], dtype=float),
                                                           bpmmask=sci_dict[coadd.detname]['outmask'],
                                                           detector=sci_dict[coadd.detname]['detector'],
                                                           slits=slits,
