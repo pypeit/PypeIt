@@ -70,6 +70,7 @@ slit-imaging spectrograph, including long-slit, multi-slit, as well as
 cross-dispersed echelle spectra.  **The spectrogaphs that PypeIt can be used
 with are listed** `here
 <https://pypeit.readthedocs.io/en/release/spectrographs/spectrographs.html>`__.
+
 Also note that `this link
 <https://pypeit.readthedocs.io/en/release/spectrographs/spectrographs.html#instrument-specific-details>`__
 contains some useful information about reducing data
