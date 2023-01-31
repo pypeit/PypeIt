@@ -1,7 +1,7 @@
 .. code-block:: console
 
-    # Auto-generated PypeIt input file using PypeIt version: 1.11.1.dev266+g837e3669f.d20221122
-    # UTC 2022-12-05T18:02:36.772
+    # Auto-generated PypeIt input file using PypeIt version: 1.11.1.dev409+g0d070dc01
+    # UTC 2023-01-31T16:50:55.778
     
     # User-defined execution parameters
     [rdx]
@@ -20,7 +20,7 @@
     
     # Data block 
     data read
-     path /scratch/PypeIt-development-suite/RAW_DATA/keck_deimos/1200G_M_7750
+     path /Users/westfall/Work/packages/PypeIt-development-suite/RAW_DATA/keck_deimos/1200G_M_7750
                      filename |                 frametype |                 ra |                dec |  target | dispname | decker | binning |          mjd |    airmass | exptime |     dispangle |      amp | filter1 |  lampstat01 |    dateobs |         utc | frameno
     DE.20170425.09554.fits.gz |                  arc,tilt |  57.99999999999999 |               45.0 | unknown |    1200G |  dra11 |     1,1 | 57868.110529 | 1.41291034 |     1.0 | 7699.95654297 | SINGLE:B |   OG550 | Kr Xe Ar Ne | 2017-04-25 | 02:39:14.41 |      49
     DE.20170425.09632.fits.gz | pixelflat,illumflat,trace |  57.99999999999999 |               45.0 | unknown |    1200G |  dra11 |     1,1 | 57868.111418 | 1.41291034 |    12.0 | 7699.95654297 | SINGLE:B |   OG550 |          Qz | 2017-04-25 | 02:40:32.06 |      50
