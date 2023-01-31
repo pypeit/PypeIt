@@ -29,6 +29,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
     header_name = 'MagE'
     telescope = telescopes.MagellanTelescopePar()
     pypeline = 'Echelle'
+    ech_fixed_format = True
     supported = True
     comment = 'See :doc:`mage`'
 
@@ -103,7 +104,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
 
         # Reidentification parameters
         par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_mage.fits'
-        par['calibrations']['wavelengths']['ech_fix_format'] = True
+#        par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4

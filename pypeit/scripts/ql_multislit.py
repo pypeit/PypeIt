@@ -66,6 +66,7 @@ def config_lines(args):
     cfg_lines = ['[rdx]']
     cfg_lines += ['    spectrograph = {0}'.format(args.spectrograph)]
     cfg_lines += ['    redux_path = {0}'.format(args.redux_path)]
+    cfg_lines += ['    quicklook = True']
     cfg_lines += ['    scidir = Science_QL']
     # Calibrations
     cfg_lines += ['[baseprocess]']
@@ -240,20 +241,23 @@ def reduce(files, caliBrate, spectrograph, parset, bkg_files=None, show=False, s
 
     if bkg_files is not None:
         # Background Image?
-        sciImg = sciImg.sub(buildimage.buildimage_fromlist(spectrograph, caliBrate.det, parset['scienceframe'], list(bkg_files),
-                                                           bpm=caliBrate.msbpm, slits=caliBrate.slits,
-                                                           ignore_saturation=False), parset['scienceframe']['process'])
+        bgimg = buildimage.buildimage_fromlist(spectrograph, caliBrate.det, parset['scienceframe'],
+                                               list(bkg_files), bpm=caliBrate.msbpm,
+                                               slits=caliBrate.slits, ignore_saturation=False)
+        sciImg = sciImg.sub(bgimg)
 
     # DP: Should find_negative be True here? JFH: For quicklook yes!
-    objFind = find_objects.FindObjects.get_instance(sciImg, spectrograph, parset, caliBrate, 'science',
+    objFind = find_objects.FindObjects.get_instance(sciImg, caliBrate.slits, spectrograph, parset, 'science',
+                                                    waveTilts=caliBrate.wavetilts,
                                                     bkg_redux=bkg_redux, find_negative=bkg_redux, show=show)
 
     global_sky, sobjs_obj = objFind.run(std_trace=std_trace, show_peaks=show)
 
     # Instantiate Extract object
-    extract = extraction.Extract.get_instance(sciImg, sobjs_obj, spectrograph, parset, caliBrate, 'science',
-                                              global_sky=global_sky, bkg_redux=bkg_redux, return_negative=bkg_redux,
-                                              show=show)
+    extract = extraction.Extract.get_instance(sciImg, caliBrate.slits, sobjs_obj, spectrograph, parset, 'science',
+                                              global_sky=global_sky, waveTilts=caliBrate.wavetilts,
+                                              wv_calib=caliBrate.wv_calib,
+                                              bkg_redux=bkg_redux, return_negative=bkg_redux, show=show)
     skymodel, objmodel, ivarmodel, outmask, sobjs, waveimg, tilts = extract.run()
 
     # TODO -- Do this upstream
@@ -312,7 +316,7 @@ def reduce(files, caliBrate, spectrograph, parset, bkg_files=None, show=False, s
 
 
 
-class QL_MOS(scriptbase.ScriptBase):
+class QL_Multislit(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
@@ -384,7 +388,7 @@ class QL_MOS(scriptbase.ScriptBase):
         spectrograph = load_spectrograph(args.spectrograph)
         spectrograph_cfg_lines = spectrograph.config_specific_par(files[0]).to_config()
         parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines,
-                                              merge_with=config_lines(args))
+                                              merge_with=(config_lines(args),))
         _det = parse_det(args.det, spectrograph)
 
         target = spectrograph.get_meta_value(files[0], 'target')

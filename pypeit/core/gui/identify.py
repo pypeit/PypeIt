@@ -117,8 +117,8 @@ class Identify:
         self._detnsy = self.get_ann_ypos()  # Get the y locations of the annotations
         self._line_lists = line_lists
         self._lines = np.sort(line_lists['wave'].data)  # Remove mask (if any) and then sort
-        self._lineids = np.zeros(self._detns.size, dtype=np.float)
-        self._lineflg = np.zeros(self._detns.size, dtype=np.int)  # Flags: 0=no ID, 1=user ID, 2=auto ID, 3=flag reject
+        self._lineids = np.zeros(self._detns.size, dtype=float)
+        self._lineflg = np.zeros(self._detns.size, dtype=int)  # Flags: 0=no ID, 1=user ID, 2=auto ID, 3=flag reject
         self._lflag_color = lflag_color
         self.par = par
         # Auto ID
@@ -165,7 +165,7 @@ class Identify:
         # Interaction variables
         self._detns_idx = -1
         self._fitr = None  # Matplotlib shaded fit region (for refitting lines)
-        self._fitregions = np.zeros(self.specdata.size, dtype=np.int)  # Mask of the pixels to be included in a fit
+        self._fitregions = np.zeros(self.specdata.size, dtype=int)  # Mask of the pixels to be included in a fit
         self._addsub = 0   # Adding a region (1) or removing (0)
         self._msedown = False  # Is the mouse button being held down (i.e. dragged)
         self._respreq = [False, None]  # Does the user need to provide a response before any other operation will be permitted? Once the user responds, the second element of this array provides the action to be performed.
@@ -231,7 +231,7 @@ class Identify:
         fwhm : float, optional
             FWHM of arc lines in pixels for detection
         sigdetect : float, optional
-            sigma detection limit for arc lines; defaults to par['sigdetect'] 
+            sigma detection limit for arc lines; defaults to par['sigdetect']
         pxtoler : float, optional
             Tolerance in pixels for adding lines with the auto option
         specname : str, optional
@@ -351,7 +351,7 @@ class Identify:
 
         axes = dict(main=ax, fit=axfit, resid=axres, info=axinfo)
         # Initialise the identify window and display to screen
-        fig.canvas.set_window_title('PypeIt - Identify')
+        fig.canvas.manager.set_window_title('PypeIt - Identify')
         ident = Identify(fig.canvas, axes, spec, specres, detns, line_lists, par,
                          lflag_color, slit=slit, y_log=y_log, wv_calib=wv_calib,
                          spatid=str(slits.spat_id[slit]), pxtoler=pxtoler,
@@ -797,7 +797,7 @@ class Identify:
 
                 # Print some helpful information
                 print("\n\nPlease visit the following site if you want to include your solution in PypeIt:")
-                print("https://pypeit.readthedocs.io/en/latest/construct_template.html#creating-the-template\n")
+                print("https://pypeit.readthedocs.io/en/release/calibrations/construct_template.html")
                 print("You will need the following information:")
                 print("  (1) spectral binning = {0:d}".format(binspec))
                 print("  (2) slit spat_id = {0:s}".format(self._spatid))

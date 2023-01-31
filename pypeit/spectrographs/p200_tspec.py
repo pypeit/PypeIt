@@ -25,6 +25,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
     url = 'https://sites.astro.caltech.edu/palomar/observer/200inchResources/tspeccookbook.html'
     header_name = 'TSPEC_SPEC'
     pypeline = 'Echelle'
+    ech_fixed_format = True
     supported = True
     comment = 'TripleSpec spectrograph'
 
@@ -130,7 +131,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
 
         # Reidentification parameters
         par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_triplespec.fits'
-        par['calibrations']['wavelengths']['ech_fix_format'] = True
+#        par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4

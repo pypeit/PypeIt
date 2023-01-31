@@ -461,8 +461,10 @@ class SlitTraceSet(datamodel.DataContainer):
         msgs.work("Spatial flexure is not currently implemented for the astrometric alignment")
         # Check if the user has skimage installed
         if skimageTransform is None or alignments is None:
-            if skimageTransform is None: msgs.warn("scikit-image is not installed - astrometric correction not implemented")
-            else: msgs.warn("Alignments were not provided - astrometric correction not implemented")
+            if skimageTransform is None:
+                    msgs.warn("scikit-image is not installed - astrometric correction not implemented")
+            else:
+                msgs.warn("Alignments were not provided - astrometric correction not implemented")
             astrometric = False
         # Prepare the parameters
         if not astrometric:
@@ -487,11 +489,15 @@ class SlitTraceSet(datamodel.DataContainer):
         for slit_idx, spatid in enumerate(self.spat_id):
             onslit = (slitid_img_init == spatid)
             onslit_init = np.where(onslit)
+            if self.mask[slit_idx] != 0:
+                msgs.error("Slit {0:d} ({1:d}/{2:d}) is masked. Cannot generate RA/DEC image.".format(spatid,
+                                                                                                      slit_idx+1,
+                                                                                                      self.spat_id.size))
             if astrometric:
                 # Calculate the typical pixel difference in the spatial direction
                 medpixdiff = np.median(np.diff(alignments.traces[:, :, slit_idx], axis=1))
-                nspecpix = np.int(np.ceil(nspec / medpixdiff))
-                specpix = np.round(np.linspace(0.0, nspec-1, nspecpix)).astype(np.int)
+                nspecpix = int(np.ceil(nspec / medpixdiff))
+                specpix = np.round(np.linspace(0.0, nspec-1, nspecpix)).astype(int)
                 # Calculate the source locations (pixel space)
                 xsrc = alignments.traces[specpix, :, slit_idx].flatten()
                 ysrc = specpix.repeat(nloc).flatten()
@@ -1386,7 +1392,8 @@ class SlitTraceSet(datamodel.DataContainer):
         """
         if user_slits['method'] == 'slitspat':
             # Parse
-            dets, spat_ids = parse.parse_slitspatnum(user_slits['slit_info'])
+            dets, spat_ids = parse.parse_slitspatnum(
+                user_slits['slit_info'])
             if det not in dets:
                 return
             # Cut down for convenience
@@ -1398,9 +1405,17 @@ class SlitTraceSet(datamodel.DataContainer):
                 #TODO -- Consider putting in a tolerance which if not met causes a crash
                 idx = np.argmin(np.abs(self.spat_id - slit_spat))
                 msk[idx] = False
-            self.mask[msk] = self.bitmask.turn_on(self.mask[msk], 'USERIGNORE')
+            self.mask[msk] = self.bitmask.turn_on(self.mask[msk], 
+                                                  'USERIGNORE')
         elif user_slits['method'] == 'maskIDs':
-            raise NotImplementedError("Not ready for maskID yet")
+            # Mask only the good one
+            msk = np.logical_not(np.isin(self.maskdef_id, user_slits['slit_info']))
+            # Set
+            self.mask[msk] = self.bitmask.turn_on(self.mask[msk], 
+                                                  'USERIGNORE')
+        else:
+            msgs.error('Not ready for this method: {:s}'.format(
+                user_slits['method']))
 
     def mask_flats(self, flatImages):
         """
