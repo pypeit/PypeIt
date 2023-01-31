@@ -1,4 +1,10 @@
 
+1.12.1dev
+---------
+
+- (Hotfix) Specify sphinx versions to correctly work with
+  sphinx_rtd_theme
+
 1.12.0 (31 Jan 2023)
 --------------------
 
