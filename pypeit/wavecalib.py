@@ -159,7 +159,7 @@ class WaveCalib(datamodel.DataContainer):
                     iwavefit = wv_fitting.WaveFit(ihdu.header['SPAT_ID'])
                 else:
                     # TODO -- Replace the following with WaveFit._parse() and pass that back!!
-                    iwavefit = wv_fitting.WaveFit.from_hdu(ihdu, chk_version=False)
+                    iwavefit = wv_fitting.WaveFit.from_hdu(ihdu)# , chk_version=False)
                     parsed_hdus += ihdu.name
                     if iwavefit.version != wv_fitting.WaveFit.version:
                         msgs.warn("Your WaveFit is out of date!!")
