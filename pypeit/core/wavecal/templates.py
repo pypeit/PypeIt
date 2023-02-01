@@ -256,7 +256,7 @@ def pypeit_arcspec(in_file, slit, binspec, binning=None):
         #                   minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
         flux = np.array(iwv_calib['spec']).flatten()
     elif '.fits' in in_file:
-        wvcalib = wavecalib.WaveCalib.from_file(in_file)
+        wvcalib = wavecalib.WaveCalib.from_file(in_file, chk_version=False)
         idx = np.where(wvcalib.spat_ids == slit)[0][0]
         flux = wvcalib.arc_spectra[:,idx]
         #

@@ -158,7 +158,8 @@ class WaveCalib(datamodel.DataContainer):
                 if len(ihdu.data) == 0:
                     iwavefit = wv_fitting.WaveFit(ihdu.header['SPAT_ID'])
                 else:
-                    iwavefit = wv_fitting.WaveFit.from_hdu(ihdu)
+                    # TODO -- Replace the following with WaveFit._parse() and pass that back!!
+                    iwavefit = wv_fitting.WaveFit.from_hdu(ihdu, chk_version=False)
                     parsed_hdus += ihdu.name
                     if iwavefit.version != wv_fitting.WaveFit.version:
                         msgs.warn("Your WaveFit is out of date!!")
@@ -171,6 +172,7 @@ class WaveCalib(datamodel.DataContainer):
                 # Grab SPAT_ID for checking
                 spat_ids.append(iwavefit.spat_id)
             elif ihdu.name == 'PYPEITFIT': # 2D fit
+                # TODO -- Replace the following with PypeItFit._parse() and pass that back!!
                 _d['wv_fit2d'] = fitting.PypeItFit.from_hdu(ihdu)
                 parsed_hdus += ihdu.name
         # Check
@@ -749,7 +751,8 @@ class BuildWaveCalib:
         self.arccen, self.wvc_bpm = self.extract_arcs()
 
         # Fill up the calibrations and generate QA
-        self.wv_calib = self.build_wv_calib(self.arccen, self.par['method'], skip_QA=skip_QA)
+        self.wv_calib = self.build_wv_calib(self.arccen, 
+                                            self.par['method'], skip_QA=skip_QA)
 
         # Fit 2D?
         if self.par['echelle']:

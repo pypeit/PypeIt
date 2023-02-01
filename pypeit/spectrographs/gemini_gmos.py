@@ -489,6 +489,43 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         """
         return [(1,2,3)]
 
+    def list_detectors(self, mosaic=False):
+        """
+        List the *names* of the detectors in this spectrograph.
+
+        This is primarily used :func:`~pypeit.slittrace.average_maskdef_offset`
+        to measure the mean offset between the measured and expected slit
+        locations.
+
+        Detectors separated along the dispersion direction should be ordered
+        along the first axis of the returned array.  For example, Keck/DEIMOS
+        returns:
+        
+        .. code-block:: python
+        
+            dets = np.array([['DET01', 'DET02', 'DET03', 'DET04'],
+                             ['DET05', 'DET06', 'DET07', 'DET08']])
+
+        such that all the bluest detectors are in ``dets[0]``, and the slits
+        found in detectors 1 and 5 are just from the blue and red counterparts
+        of the same slit.
+
+        Args:
+            mosaic (:obj:`bool`, optional):
+                Is this a mosaic reduction?
+                It is used to determine how to list the detector, i.e., 'DET' or 'MSC'.
+
+        Returns:
+            `numpy.ndarray`_: The list of detectors in a `numpy.ndarray`_.  If
+            the array is 2D, there are detectors separated along the dispersion
+            axis.
+        """
+        if mosaic:
+            return np.array([self.get_det_name(_det) for _det in self.allowed_mosaics])
+        else:
+            return np.array([detector_container.DetectorContainer.get_name(i+1)
+                             for i in range(self.ndet)]).reshape(2,-1)
+
     @property
     def default_mosaic(self):
         return self.allowed_mosaics[0]
@@ -785,8 +822,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
 
         Args:
             filename (:obj:`str`):
-                An example file to use to get the image shape.  **Cannot** be
-                None.
+                An example file to use to get the image shape.  **Cannot** be None.
             det (:obj:`int`, :obj:`tuple`):
                 1-indexed detector(s) to read.  An image mosaic is selected
                 using a :obj:`tuple` with the detectors in the mosaic, which
@@ -814,37 +850,40 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         _bpm_img = np.expand_dims(bpm_img, 0) if nimg == 1 else bpm_img
 
         # Get the binning
-        # TODO: By definition this line means that filename cannot be None.
         # TODO: We're opening the file too many times...
-        hdu = io.fits_open(filename)
-        # TODO: Why aren't we usig get_meta_value for this?
-        binning = hdu[1].header['CCDSUM']
-        xbin = int(binning.split(' ')[0])
-        hdu.close()
+        hdrs = self.get_headarr(filename)
+        binning = self.get_meta_value(hdrs, 'binning')
+        mjd = self.get_meta_value(hdrs, 'mjd')
+        bin_spec, bin_spat= parse.parse_binning(binning) 
 
         # Add the detector-specific, hard-coded bad columns
         if 1 in _det:
             msgs.info("Using hard-coded BPM for det=1 on GMOSs")
             i = _det.index(1)
             # Apply the mask
-            badc = 616//xbin
+            badc = 616//bin_spec
             _bpm_img[i,badc,:] = 1
         if 2 in _det:
             msgs.info("Using hard-coded BPM for det=2 on GMOSs")
             i = _det.index(2)
             # Apply the mask
             # Up high
-            badr = (902*2)//xbin # Transposed
-            _bpm_img[i,badr:badr+(3*2)//xbin,:] = 1
+            badr = (902*2)//bin_spec # Transposed
+            _bpm_img[i,badr:badr+(3*2)//bin_spec,:] = 1
             # Down low
-            badr = (161*2)//xbin # Transposed
+            badr = (161*2)//bin_spec # Transposed
             _bpm_img[i,badr,:] = 1
+            # Bad amp as of January 28, 2022
+            # https://gemini.edu/sciops/instruments/gmos/GMOS-S_badamp5_ops_3.pdf
+            if mjd > 2022.07:
+                badr = (768*2)//bin_spec 
+                _bpm_img[i,badr:,:] = 1
         if 3 in _det:
             msgs.info("Using hard-coded BPM for det=3 on GMOSs")
             i = _det.index(3)
             # Apply the mask
-            badr = (281*2)//xbin # Transposed
-            _bpm_img[i,badr:badr+(2*2)//xbin,:] = 1
+            badr = (281*2)//bin_spec # Transposed
+            _bpm_img[i,badr:badr+(2*2)//bin_spec,:] = 1
         # Done
         return _bpm_img[0] if nimg == 1 else _bpm_img
 
@@ -872,6 +911,13 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_ham.fits'
         elif self.get_meta_value(scifile, 'dispname')[0:4] == 'B600':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_b600_ham.fits'
+
+        # The bad amp needs a larger follow_span for slit edge tracing
+        mjd = self.get_meta_value(scifile, 'mjd')
+        binning = self.get_meta_value(scifile, 'binning')
+        bin_spec, bin_spat= parse.parse_binning(binning) 
+        if mjd > 2022.07:
+            par['calibrations']['slitedges']['follow_span'] = 290*bin_spec
         #
         return par
 
