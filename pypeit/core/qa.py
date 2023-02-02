@@ -114,7 +114,7 @@ def get_dimen(x, maxp=25):
             xt = maxp
         else:
             xt = xr
-        ypg = int(np.sqrt(np.float(xt)))
+        ypg = int(np.sqrt(float(xt)))
         if int(xt) % ypg == 0:
             xpg = int(xt)/ypg
         else:

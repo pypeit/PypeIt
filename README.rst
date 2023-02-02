@@ -70,6 +70,7 @@ slit-imaging spectrograph, including long-slit, multi-slit, as well as
 cross-dispersed echelle spectra.  **The spectrogaphs that PypeIt can be used
 with are listed** `here
 <https://pypeit.readthedocs.io/en/release/spectrographs/spectrographs.html>`__.
+
 Also note that `this link
 <https://pypeit.readthedocs.io/en/release/spectrographs/spectrographs.html#instrument-specific-details>`__
 contains some useful information about reducing data
@@ -97,8 +98,7 @@ follow our `Code of Conduct
 Along with our extensive `online documentation
 <https://pypeit.readthedocs.io/en/release/>`__, we encourage the PypeIt user
 base to communicate via our `PypeIt Users Slack <pypeit-users.slack.com>`__.
-All are welcome to join using invitation links that are periodically updated via
-PypeIt issue `676 <https://github.com/pypeit/PypeIt/issues/676>`__.
+All are welcome to join using `this invitation link <https://join.slack.com/t/pypeit-users/shared_invite/zt-1kc4rxhsj-vKU1JnUA~8PZE~tPlu~aTg>`__.
 
 If you find a bug (particularly one that is experienced by others in the Users
 Slack) or have a feature request, please `submit an issue
