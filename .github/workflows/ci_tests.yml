@@ -84,6 +84,7 @@ jobs:
     steps:
     - name: Install base CentOS dependencies
       run: |
+        yum install -y https://packages.endpointdev.com/rhel/7/os/x86_64/endpoint-repo.x86_64.rpm
         yum update -y && yum install -y wget git gcc
     - name: Check out repository
       uses: actions/checkout@v3
