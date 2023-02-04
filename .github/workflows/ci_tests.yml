@@ -87,8 +87,6 @@ jobs:
         yum update -y && yum install -y wget git gcc
     - name: Check out repository
       uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
     - name: Install and configure miniconda
       # Restrict to 3.9 until we migrate to 3.10
       run: |
