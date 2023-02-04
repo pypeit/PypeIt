@@ -85,9 +85,11 @@ jobs:
     - name: Install base CentOS dependencies
       run: |
         yum install -y https://packages.endpointdev.com/rhel/7/os/x86_64/endpoint-repo.x86_64.rpm
-        yum update -y && yum install -y wget git gcc
+        yum update -y && yum install -y wget git gcc libgomp
     - name: Check out repository
       uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
     - name: Install and configure miniconda
       # Restrict to 3.9 until we migrate to 3.10
       run: |
