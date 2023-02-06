@@ -270,7 +270,9 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
         # Wavelength calibrations
-        if self.get_meta_value(scifile, 'dispname') == 'Grism_#4':
+        if self.get_meta_value(scifile, 'dispname') == 'Grism_#3':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism3.fits'
+        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#4':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism4.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'Grism_#7':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism7.fits'
