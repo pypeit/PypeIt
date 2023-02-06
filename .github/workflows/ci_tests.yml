@@ -102,7 +102,7 @@ jobs:
         source ~/.bashrc && python -m pip install --upgrade pip tox && python --version
     - name: Test with tox
       run: |
-        source ~/.bashrc && pip install -e . && tox -e ${{ matrix.toxenv }}
+        source ~/.bashrc && tox -e --develop ${{ matrix.toxenv }}
 
   codestyle:
     runs-on: ubuntu-latest
