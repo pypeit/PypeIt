@@ -4,6 +4,8 @@
 
 - (Hotfix) Specify sphinx versions to correctly work with
   sphinx_rtd_theme
+- (Hotfix) Fixed error when showing flats in Ginga when the fine correction is not performed
+- Implemented the upgraded GTC/OSIRIS+
 
 1.12.0 (31 Jan 2023)
 --------------------
