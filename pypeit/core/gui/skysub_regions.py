@@ -581,7 +581,7 @@ class SkySubGUI(object):
                 outfil = 'temp.fits'
                 msgs.warn("File exists:\n{0:s}\nSaving regions to 'temp.fits'")
                 self._overwrite = True
-            msskyreg = buildimage.SkyRegions(image=inmask.astype(np.float), PYP_SPEC=self.spectrograph)
+            msskyreg = buildimage.SkyRegions(image=inmask.astype(float), PYP_SPEC=self.spectrograph)
             msskyreg.to_master_file(master_filename=outfil)
         return
 

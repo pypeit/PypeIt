@@ -496,8 +496,8 @@ class SlitTraceSet(datamodel.DataContainer):
             if astrometric:
                 # Calculate the typical pixel difference in the spatial direction
                 medpixdiff = np.median(np.diff(alignments.traces[:, :, slit_idx], axis=1))
-                nspecpix = np.int(np.ceil(nspec / medpixdiff))
-                specpix = np.round(np.linspace(0.0, nspec-1, nspecpix)).astype(np.int)
+                nspecpix = int(np.ceil(nspec / medpixdiff))
+                specpix = np.round(np.linspace(0.0, nspec-1, nspecpix)).astype(int)
                 # Calculate the source locations (pixel space)
                 xsrc = alignments.traces[specpix, :, slit_idx].flatten()
                 ysrc = specpix.repeat(nloc).flatten()

@@ -62,6 +62,7 @@ Instrument                    Det  specaxis  specflip  spatflip  namp      gain 
 ``mmt_bluechannel``           1    0         False     False     1         ``None``                    ``None``                0.0       -1.0e+10  65535.0       0.9500     0.3000    
 ``mmt_mmirs``                 1    0         False     False     1         0.95                        3.14                    0.01      -1.0e+10  700000.0      1.0000     0.2012    
 ``not_alfosc``                1    0         True      False     1         ``None``                    ``None``                1.3       -1.0e+10  700000.0      0.8600     0.2138    
+``not_alfosc_vert``           1    1         False     False     1         ``None``                    ``None``                1.3       -1.0e+10  700000.0      0.8600     0.2138    
 ``ntt_efosc2``                1    0         False     False     1         0.91                        10.0                    0.0       -1.0e+10  65535         0.8000     0.1200    
 ``p200_dbsp_blue``            1    0         True      False     1         0.72                        2.5                     0.0       -1.0e+10  65000.0       0.9538     0.3890    
 ``p200_dbsp_red``             1    1         False     False     1         2.8                         8.5                     0.0       -1.0e+10  45000.0       0.8889     0.2930    
