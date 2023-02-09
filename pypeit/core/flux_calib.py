@@ -974,6 +974,8 @@ def get_mask(wave_star, flux_star, ivar_star, mask_star,
     mask_star: bool, optional
         whether you need to mask Hydrogen recombination line region. 
         If False, the returned msk_star are all good.
+    mask_abs_lines: bool, optional
+        whether you need to mask absorption lines (primarily hydrogen)
     mask_tell: bool, optional
         whether you need to mask telluric region. If False, the returned msk_tell are all good.
     balm_mask_wid: float
@@ -1049,6 +1051,14 @@ def get_mask(wave_star, flux_star, ivar_star, mask_star,
         for line_pfund in lines_pfund:
             ipfund = np.abs(wave_star - line_pfund) <= balm_mask_wid
             mask_balm[ipfund] = False
+
+        # Mask HeII
+        msgs.info(" Masking HeII lines")
+        lines_heII = np.array([4200., 5412., 4686.])
+        for line_heII in lines_heII:
+            iheII = np.abs(wave_star - line_heII) < balm_mask_wid
+            mask_balm[iheII] = False
+
 
     if mask_telluric:
         ## Mask telluric region in the optical
@@ -1177,6 +1187,7 @@ def compute_zeropoint(wave, N_lam, N_lam_gpm, flam_std_star, tellmodel=None):
     zeropoint = -2.5*np.log10(S_nu_dimless + (S_nu_dimless <= 0.0)) + ZP_UNIT_CONST
     zeropoint_gpm = N_lam_gpm & np.isfinite(zeropoint) & (N_lam > 0.0) & (S_nu_dimless > 0.0) & \
                     np.isfinite(flam_std_star) & (wave > 1.0)
+    msgs.test(f"Number of masked pixels in zeropoint: {np.logical_not(zeropoint_gpm).sum()}")
     return zeropoint, zeropoint_gpm
 
 #def throughput_from_sensfile(sensfile):
@@ -1329,9 +1340,19 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
     if mask_balm is None:
         mask_balm = np.ones_like(wave, dtype=bool)
 
+    msgs.test("Mask information:")
+    msgs.test(f"Number of masked pixels in Nlam_gpm: {np.logical_not(Nlam_gpm).sum()}")
+    msgs.test(f"Number of masked pixels in mask_balm: {np.logical_not(mask_balm).sum()}")
+    msgs.test(f"Number of masked pixels in mask_tell: {np.logical_not(mask_tell).sum()}")
+
+
+
     zeropoint_data, zeropoint_data_gpm = compute_zeropoint(wave, Nlam, Nlam_gpm, flam_true)
 
     zeropoint_fitmask = zeropoint_data_gpm & mask_tell & mask_balm
+
+    msgs.test(f"Number of masked pixels in zeropoint_fitmask: {np.logical_not(zeropoint_fitmask).sum()}")
+
     wave_min = wave[wave > 1.0].min()
     wave_max = wave[wave > 1.0].max()
 
@@ -1339,6 +1360,8 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
                                 minx=wave_min, maxx=wave_max, in_gpm=zeropoint_fitmask,
                                 lower=lower, upper=upper, groupbadpix=False,
                                 grow=0, sticky=True, use_mad=True)
+
+    msgs.test(f"Number of masked pixels in pypeitFit.bool_gpm: {np.logical_not(pypeitFit.bool_gpm).sum()}")
 
     zeropoint_poly = pypeitFit.eval(wave)
     # Robustly characterize the standard deviation for the b-spline fitting.
@@ -1354,6 +1377,7 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
     zeropoint_clean_gpm = zeropoint_data_gpm.copy()
     # Polynomial corrections on Hydrogen Recombination lines
     if (np.sum(zeropoint_fitmask) > 0.5 * len(zeropoint_fitmask)) & polycorrect:
+        msgs.info("Doing some black magic with the Hydrogen recombination lines")
         ## Only correct Hydrogen Recombination lines with polyfit in the telluric free region
         balmer_clean = np.zeros_like(wave, dtype=bool)
         # Commented out the bluest recombination lines since they are weak for spectroscopic standard stars.
@@ -1400,9 +1424,16 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
 
     # init_breakpoints = fullbkpt
     msgs.info("Bspline fit on zeropoint. ")
-    # TODO: This is a hack, but the mask sent to iterfit is not truly applied
+
+    # TODO: TPEB 2/2/23.  The `finite_gpm` is a hack, but the mask sent to
+    #       iterfit is not truly applied.  The variable `zeropoint_fitmask`
+    #       should include all points where `zeropoint_clean` is finite, so
+    #       `finite_gpm` shouldn't be required.  In `iterfit()`, the `inmask`
+    #       is incorporated into `maskwork`, so should work, but doesn't when
+    #       `zeropoint_clean` contains non-finite values.
+
     # Do not send non-finite points to the iterfit(), else `bset1` will be np.nan
-    finite_gpm = np.isfinite(zeropoint_clean)
+    finite_gpm = np.ones_like(zeropoint_clean, dtype=bool) #np.isfinite(zeropoint_clean)
     bset1, bmask = fitting.iterfit(wave[finite_gpm], zeropoint_clean[finite_gpm], invvar=zeropoint_ivar[finite_gpm],
                                 inmask=zeropoint_fitmask[finite_gpm], upper=upper, lower=lower,
                                 fullbkpt=init_breakpoints, maxiter=maxiter, kwargs_bspline=kwargs_bspline,
@@ -1420,7 +1451,7 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
                  label='masked zeropoint')
         plt.plot(wave[np.invert(zeropoint_fitmask)], zeropoint_bspl[np.invert(zeropoint_fitmask)], '+', color='red', markersize=5.0,
                  label='masked zeropoint_bspl_fit')
-        plt.plot(init_breakpoints, zeropoint_bspl_bkpt, '.', color='green', markersize=4.0, label='breakpoints')
+        plt.plot(init_breakpoints, zeropoint_bspl_bkpt, '.', color='cyan', markersize=8.0, label='breakpoints')
         plt.plot(init_breakpoints, np.interp(init_breakpoints, wave, zeropoint_data), '.', color='green',
                  markersize=4.0,
                  label='data interpolated onto breakpoints')
