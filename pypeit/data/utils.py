@@ -69,7 +69,7 @@ to the Vega example above.
 """
 import os
 import shutil
-import urllib
+import urllib.error
 
 import astropy.utils.data
 import github
@@ -695,7 +695,12 @@ def _get_s3_hostname():
         filepath = astropy.utils.data.download_file(
             remote_url, cache="update", timeout=10, pkgname="pypeit"
         )
-    except (requests.exceptions.ConnectionError, urllib.error.URLError, github.GithubException):
+    except (
+        requests.exceptions.ConnectionError,
+        requests.exceptions.RequestException,
+        urllib.error.URLError,
+        github.GithubException
+    ):
         filepath = os.path.join(Paths.data, "s3_url.txt")
 
     # Open the file and return the URL
