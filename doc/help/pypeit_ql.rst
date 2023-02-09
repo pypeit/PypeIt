@@ -26,12 +26,12 @@
                             lbt_mods1r, lbt_mods2b, lbt_mods2r, ldt_deveny,
                             magellan_fire, magellan_fire_long, magellan_mage,
                             mdm_osmos_mdm4k, mmt_binospec, mmt_bluechannel,
-                            mmt_mmirs, not_alfosc, ntt_efosc2, p200_dbsp_blue,
-                            p200_dbsp_red, p200_tspec, shane_kast_blue,
-                            shane_kast_red, shane_kast_red_ret, soar_goodman_red,
-                            tng_dolores, vlt_fors2, vlt_sinfoni, vlt_xshooter_nir,
-                            vlt_xshooter_uvb, vlt_xshooter_vis, wht_isis_blue,
-                            wht_isis_red
+                            mmt_mmirs, not_alfosc, not_alfosc_vert, ntt_efosc2,
+                            p200_dbsp_blue, p200_dbsp_red, p200_tspec,
+                            shane_kast_blue, shane_kast_red, shane_kast_red_ret,
+                            soar_goodman_red, tng_dolores, vlt_fors2, vlt_sinfoni,
+                            vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
+                            wht_isis_blue, wht_isis_red
     
     optional arguments:
       -h, --help            show this help message and exit
@@ -55,7 +55,7 @@
                             (default: None)
       --redux_path REDUX_PATH
                             Full path to where QL reduction should be run. (default:
-                            /data/Projects/PypeIt-codes/PypeIt/doc)
+                            /Users/westfall/Work/packages/pypeit/doc)
       --calib_dir CALIB_DIR
                             Location folders of calibration reductions (default:
                             None)
