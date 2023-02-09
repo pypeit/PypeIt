@@ -758,7 +758,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            binspatial, binspec = parse.parse_binning(headarr[0]['CCD-SUM'])
+            binspatial, binspec = parse.parse_binning(headarr[0]['CCDSUM'])
             binning = parse.binning2string(binspec, binspatial)
             return binning
         elif meta_key == 'obstime':
@@ -944,7 +944,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
 
         # Extract some header info
         head0 = fits.getheader(filename, ext=0)
-        binning = head0['CCD-SUM']
+        binning = head0['CCDSUM']
 
         # Construct a list of the bad columns
         bc = []
