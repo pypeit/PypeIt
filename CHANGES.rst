@@ -4,6 +4,8 @@
 
 - (Hotfix) Specify sphinx versions to correctly work with
   sphinx_rtd_theme
+- (Hotfix) Fixed bug that caused crash of sensfunc routines using
+  telluric grids in offline processing
 
 1.12.0 (31 Jan 2023)
 --------------------
