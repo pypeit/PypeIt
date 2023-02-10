@@ -6,6 +6,7 @@
   sphinx_rtd_theme
 - (Hotfix) Fixed error when showing flats in Ginga when the fine correction is not performed
 - Implemented the upgraded GTC/OSIRIS+
+- (Hotfix) keymap error when displaying GUIs
 
 1.12.0 (31 Jan 2023)
 --------------------
