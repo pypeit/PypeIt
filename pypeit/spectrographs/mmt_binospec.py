@@ -206,6 +206,16 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'mmt_binospec_270.fits'
             par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI', 'ArI', 'ArII']
 
+        if self.get_meta_value(scifile, 'dispname') == 'x600':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'mmt_binospec_600.fits'
+            par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI', 'ArI', 'ArII']
+
+        if self.get_meta_value(scifile, 'dispname') == 'x1000':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'mmt_binospec_1000.fits'
+            par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI', 'ArI', 'ArII']
+
         return par
 
     def bpm(self, filename, det, shape=None, msbias=None):
