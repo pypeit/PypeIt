@@ -1026,48 +1026,15 @@ def get_mask(wave_star, flux_star, ivar_star, mask_star,
     atms_cutoff = wave_star <= 3000.0
     mask_bad[atms_cutoff] = False
 
-    # TODO JFH replace with mask_star_lines from telluric.py
     if mask_hydrogen_lines:
-        # Mask Balmer, Paschen, Brackett, and Pfund recombination lines
-        msgs.info("Masking recombination lines:")
-        # Mask Balmer
-        msgs.info(" Masking Balmer")
-        lines_balm = np.array([3836.4, 3969.6, 3890.1, 4102.8, 4102.8, 4341.6, 4862.7, 5407.0,
-                               6564.6, 8224.8, 8239.2])
-        for line_balm in lines_balm:
-            ibalm = np.abs(wave_star - line_balm) <= balm_mask_wid
-            mask_balm[ibalm] = False
-        # Mask Paschen
-        msgs.info(" Masking Paschen")
-        # air wavelengths from:
-        # https://www.subarutelescope.org/Science/Resources/lines/hi.html
-        lines_pasc = np.array([8203.6, 8440.3, 8469.6, 8504.8, 8547.7, 8600.8, 8667.4, 8752.9,
-                               8865.2, 9017.4, 9229.0, 9546.0, 10049.4, 10938.1,
-                               12818.1, 18751.0])
-        for line_pasc in lines_pasc:
-            ipasc = np.abs(wave_star - line_pasc) <= balm_mask_wid
-            mask_balm[ipasc] = False
-        # Mask Brackett
-        msgs.info(" Masking Brackett")
-        # air wavelengths from:
-        # https://www.subarutelescope.org/Science/Resources/lines/hi.html
-        lines_brac = np.array([14584.0, 18174.0, 19446.0, 21655.0,26252.0, 40512.0])
-        for line_brac in lines_brac:
-            ibrac = np.abs(wave_star - line_brac) <= balm_mask_wid
-            mask_balm[ibrac] = False
-        # Mask Pfund
-        msgs.info(" Masking Pfund")
-        # air wavelengths from:
-        # https://www.subarutelescope.org/Science/Resources/lines/hi.html
-        lines_pfund = np.array([22788.0, 32961.0, 37395.0, 46525.0,74578.0])
-        for line_pfund in lines_pfund:
-            ipfund = np.abs(wave_star - line_pfund) <= balm_mask_wid
-            mask_balm[ipfund] = False
+        mask_balm = mask_stellar_hydrogen(
+            wave_star, mask_width=balm_mask_wid, mask_star=mask_balm
+        )
 
     if mask_helium_lines:
         # Mask HeII
         msgs.info(" Masking HeII lines")
-        lines_heII = np.array([4200., 5412., 4686.])
+        lines_heII = np.array([4200., 4686., 5412.])
         for line_heII in lines_heII:
             iheII = np.abs(wave_star - line_heII) < balm_mask_wid
             mask_balm[iheII] = False
@@ -1113,6 +1080,71 @@ def get_mask(wave_star, flux_star, ivar_star, mask_star,
             msgs.info('Your spectrum is bluer than 9100A, only optical telluric regions are masked.')
 
     return mask_bad, mask_balm, mask_tell
+
+
+def mask_stellar_hydrogen(wave_star, mask_width=10.0, mask_star=None):
+    """
+    Routine to mask stellar hydrogen recombination lines
+
+    ..note ::
+        This function is pulled out separate from :func:`get_mask` because
+        it is used in the ``telluric`` module, independent of the remainder
+        of the functionality in :func:`get_mask`.
+
+    Args:
+        wave_star (`numpy.ndarray`_):
+            Wavelength of the stellar spectrum
+            shape (nspec,) or (nspec, nimgs)
+        mask_width (float, optional):
+            width to mask around each line centers in Angstroms
+        mask_star (`numpy.ndarray`_, optional):
+            Incoming star mask to which to add the hydrogen lines
+            (Default: None)
+
+    Returns:
+        `numpy.ndarray`_:  bool mask.
+           same shape as wave_star, True=Good (i.e. does not hit a stellar absorption line)
+    """
+
+    if mask_star is None:
+        mask_star = np.ones_like(wave_star, dtype=bool)
+    # Mask Balmer, Paschen, Brackett, and Pfund recombination lines
+    msgs.info("Masking hydrogen recombination lines")
+    # Mask Balmer
+    msgs.info(" Masking Balmer")
+    lines_balm = np.array([3836.4, 3969.6, 3890.1, 4102.8, 4102.8, 4341.6, 4862.7, 5407.0,
+                           6564.6, 8224.8, 8239.2])
+    for line_balm in lines_balm:
+        ibalm = np.abs(wave_star - line_balm) <= mask_width
+        mask_star[ibalm] = False
+    # Mask Paschen
+    msgs.info(" Masking Paschen")
+    # air wavelengths from:
+    # https://www.subarutelescope.org/Science/Resources/lines/hi.html
+    lines_pasc = np.array([8203.6, 8440.3, 8469.6, 8504.8, 8547.7, 8600.8, 8667.4, 8752.9,
+                           8865.2, 9017.4, 9229.0, 9546.0, 10049.4, 10938.1,
+                           12818.1, 18751.0])
+    for line_pasc in lines_pasc:
+        ipasc = np.abs(wave_star - line_pasc) <= mask_width
+        mask_star[ipasc] = False
+    # Mask Brackett
+    msgs.info(" Masking Brackett")
+    # air wavelengths from:
+    # https://www.subarutelescope.org/Science/Resources/lines/hi.html
+    lines_brac = np.array([14584.0, 18174.0, 19446.0, 21655.0, 26252.0, 40512.0])
+    for line_brac in lines_brac:
+        ibrac = np.abs(wave_star - line_brac) <= mask_width
+        mask_star[ibrac] = False
+    # Mask Pfund
+    msgs.info(" Masking Pfund")
+    # air wavelengths from:
+    # https://www.subarutelescope.org/Science/Resources/lines/hi.html
+    lines_pfund = np.array([22788.0, 32961.0, 37395.0, 46525.0, 74578.0])
+    for line_pfund in lines_pfund:
+        ipfund = np.abs(wave_star - line_pfund) <= mask_width
+        mask_star[ipfund] = False
+
+    return mask_star
 
 
 # These are physical limits on the allowed values of the zeropoint in magnitudes

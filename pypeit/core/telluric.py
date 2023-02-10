@@ -1179,61 +1179,6 @@ def eval_poly_model(theta, obj_dict):
     return polymodel, (polymodel > 0.0)
 
 
-
-def mask_star_lines(wave_star, mask_width=10.0):
-    """
-    Routine to mask stellar recombination lines
-
-    Args:
-        wave_star (`numpy.ndarray`_):
-            Wavelength of the stellar spectrum
-            shape (nspec,) or (nspec, nimgs)
-        mask_width (float, optional):
-            width to mask around each line centers in Angstroms
-    Returns:
-        `numpy.ndarray`_:  bool mask.
-           same shape as wave_star, True=Good (i.e. does not hit a stellar absorption line)
-    """
-
-    mask_star = np.ones_like(wave_star, dtype=bool)
-    # Mask Balmer, Paschen, Brackett, and Pfund recombination lines
-    msgs.info("Masking stellar lines: Balmer, Paschen, Brackett, Pfund")
-    # Mask Balmer
-    msgs.info(" Masking Balmer")
-    lines_balm = np.array([3836.4, 3969.6, 3890.1, 4102.8, 4102.8, 4341.6, 4862.7, 5407.0,
-                           6564.6, 8224.8, 8239.2])
-    for line_balm in lines_balm:
-        ibalm = np.abs(wave_star - line_balm) <= mask_width
-        mask_star[ibalm] = False
-    # Mask Paschen
-    msgs.info(" Masking Paschen")
-    # air wavelengths from:
-    # https://www.subarutelescope.org/Science/Resources/lines/hi.html
-    lines_pasc = np.array([8203.6, 8440.3, 8469.6, 8504.8, 8547.7, 8600.8, 8667.4, 8752.9,
-                           8865.2, 9017.4, 9229.0, 9546.0, 10049.4, 10938.1,
-                           12818.1, 18751.0])
-    for line_pasc in lines_pasc:
-        ipasc = np.abs(wave_star - line_pasc) <= mask_width
-        mask_star[ipasc] = False
-    # Mask Brackett
-    msgs.info(" Masking Brackett")
-    # air wavelengths from:
-    # https://www.subarutelescope.org/Science/Resources/lines/hi.html
-    lines_brac = np.array([14584.0, 18174.0, 19446.0, 21655.0, 26252.0, 40512.0])
-    for line_brac in lines_brac:
-        ibrac = np.abs(wave_star - line_brac) <= mask_width
-        mask_star[ibrac] = False
-    # Mask Pfund
-    msgs.info(" Masking Pfund")
-    # air wavelengths from:
-    # https://www.subarutelescope.org/Science/Resources/lines/hi.html
-    lines_pfund = np.array([22788.0, 32961.0, 37395.0, 46525.0, 74578.0])
-    for line_pfund in lines_pfund:
-        ipfund = np.abs(wave_star - line_pfund) <= mask_width
-        mask_star[ipfund] = False
-
-    return mask_star
-
 def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
                       telgridfile, ech_orders=None, polyorder=8, mask_hydrogen_lines=True,
                       resln_guess=None, resln_frac_bounds=(0.5, 1.5),
@@ -1379,7 +1324,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
                       debug=debug_init)
 
     # Optionally, mask prominent stellar absorption features
-    mask_tot = (mask_star_lines(wave) & counts_mask) if mask_hydrogen_lines else counts_mask
+    mask_tot = (flux_calib.mask_stellar_hydrogen(wave) & counts_mask) if mask_hydrogen_lines else counts_mask
 
     # Since we are fitting a sensitivity function, first compute counts per second per angstrom.
     TelObj = Telluric(wave, counts, counts_ivar, mask_tot, telgridfile, obj_params,
@@ -1644,7 +1589,7 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
 
     # Optionally, mask prominent stellar absorption features
     if mask_hydrogen_lines:
-        inmask = mask_star_lines(wave)
+        inmask = flux_calib.mask_stellar_hydrogen(wave)
         mask_tot = inmask & mask
     else:
         mask_tot = mask
