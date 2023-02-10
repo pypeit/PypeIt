@@ -1583,7 +1583,7 @@ class SensFuncPar(ParSet):
     """
     def __init__(self, extrap_blu=None, extrap_red=None, samp_fact=None, multi_spec_det=None, algorithm=None, UVIS=None,
                  IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None,
-                 star_dec=None, mask_abs_lines=None):
+                 star_dec=None, mask_hydrogen_lines=None, mask_helium_lines=None):
         # Grab the parameter names and values from the function arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         pars = OrderedDict([(k, values[k]) for k in args[1:]])
@@ -1662,9 +1662,13 @@ class SensFuncPar(ParSet):
         dtypes['star_dec'] = float
         descr['star_dec'] = 'DEC of the standard star. This will override values in the header, i.e. if they are wrong or absent'
 
-        defaults['mask_abs_lines'] = True
-        dtypes['mask_abs_lines'] = bool
-        descr['mask_abs_lines'] = 'Mask Balmer, Paschen, Brackett, and Pfund lines in sensitivity function fit'
+        defaults['mask_hydrogen_lines'] = True
+        dtypes['mask_hydrogen_lines'] = bool
+        descr['mask_hydrogen_lines'] = 'Mask hydrogen Balmer, Paschen, Brackett, and Pfund recombination lines in the sensitivity function fit'
+
+        defaults['mask_helium_lines'] = False
+        dtypes['mask_helium_lines'] = bool
+        descr['mask_helium_lines'] = 'Mask certain ``HeII`` recombination lines prominent in O- and early B-type stars in the sensitivity function fit'
 
         # Instantiate the parameter set
         super(SensFuncPar, self).__init__(list(pars.keys()),
@@ -1681,7 +1685,7 @@ class SensFuncPar(ParSet):
 
         # Single element parameters
         parkeys = ['extrap_blu', 'extrap_red', 'samp_fact', 'multi_spec_det', 'algorithm',
-                   'polyorder', 'star_type', 'star_mag', 'star_ra', 'star_dec', 'mask_abs_lines']
+                   'polyorder', 'star_type', 'star_mag', 'star_ra', 'star_dec', 'mask_hydrogen_lines', 'mask_helium_lines']
 
         # All parameters, including nested ParSets
         allkeys = parkeys + ['UVIS', 'IR']
@@ -1973,7 +1977,7 @@ class TelluricPar(ParSet):
                  sticky=None, lower=None, upper=None, seed=None, tol=None, popsize=None, recombination=None, polish=None,
                  disp=None, objmodel=None, redshift=None, delta_redshift=None, pca_file=None, npca=None,
                  bal_wv_min_max=None, bounds_norm=None, tell_norm_thresh=None, only_orders=None, pca_lower=None,
-                 pca_upper=None, star_type=None, star_mag=None, star_ra=None, star_dec=None, mask_abs_lines=None,
+                 pca_upper=None, star_type=None, star_mag=None, star_ra=None, star_dec=None,
                  func=None, model=None, polyorder=None, fit_wv_min_max=None, mask_lyman_a=None):
 
         # Grab the parameter names and values from the function
@@ -2173,7 +2177,6 @@ class TelluricPar(ParSet):
         dtypes['mask_lyman_a'] = bool
         descr['mask_lyman_a'] = 'Mask the blueward of Lyman-alpha line during the fitting?'
 
-
         ### Start parameters for star_telluric
         defaults['star_type'] = None
         dtypes['star_type'] = str
@@ -2190,10 +2193,6 @@ class TelluricPar(ParSet):
         defaults['star_dec'] = None
         dtypes['star_dec'] = float
         descr['star_dec'] = 'Object declination in decimal deg'
-
-        defaults['mask_abs_lines'] = True
-        dtypes['mask_abs_lines'] = bool
-        descr['mask_abs_lines'] = 'Mask stellar absorption line?'
 
         ### parameters for both star_telluric and poly_telluric
         defaults['func'] = 'legendre'
@@ -2233,7 +2232,7 @@ class TelluricPar(ParSet):
                    'popsize', 'recombination', 'polish', 'disp', 'objmodel','redshift', 'delta_redshift',
                    'pca_file', 'npca', 'bal_wv_min_max', 'bounds_norm',
                    'tell_norm_thresh', 'only_orders', 'pca_lower', 'pca_upper',
-                   'star_type','star_mag','star_ra','star_dec','mask_abs_lines',
+                   'star_type','star_mag','star_ra','star_dec',
                    'func','model','polyorder','fit_wv_min_max','mask_lyman_a']
 
         badkeys = np.array([pk not in parkeys for pk in k])

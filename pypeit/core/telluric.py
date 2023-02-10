@@ -1235,7 +1235,7 @@ def mask_star_lines(wave_star, mask_width=10.0):
     return mask_star
 
 def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
-                      telgridfile, ech_orders=None, polyorder=8, mask_abs_lines=True,
+                      telgridfile, ech_orders=None, polyorder=8, mask_hydrogen_lines=True,
                       resln_guess=None, resln_frac_bounds=(0.5, 1.5),
                       delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
                       sn_clip=30.0, ballsize=5e-4, only_orders=None, maxiter=3, lower=3.0,
@@ -1279,8 +1279,8 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
         If passed, provides the true order numbers for the spectra provided.
     polyorder : :obj:`int`, optional, default = 8
         Polynomial order for the sensitivity function fit.
-    mask_abs_lines : :obj:`bool`, optional, default=True
-        Mask proiminent stellar absorption lines?
+    mask_hydrogen_lines : :obj:`bool`, optional, default=True
+        Mask proiminent hydrogen stellar absorption lines?
     resln_guess : :obj:`float`, optional
         A guess for the resolution of your spectrum expressed as
         lambda/dlambda. The resolution is fit explicitly as part of the
@@ -1379,7 +1379,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
                       debug=debug_init)
 
     # Optionally, mask prominent stellar absorption features
-    mask_tot = (mask_star_lines(wave) & counts_mask) if mask_abs_lines else counts_mask
+    mask_tot = (mask_star_lines(wave) & counts_mask) if mask_hydrogen_lines else counts_mask
 
     # Since we are fitting a sensitivity function, first compute counts per second per angstrom.
     TelObj = Telluric(wave, counts, counts_ivar, mask_tot, telgridfile, obj_params,
@@ -1591,7 +1591,7 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
 
 def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None, star_mag=None,
                   star_ra=None, star_dec=None, func='legendre', model='exp', polyorder=5,
-                  mask_abs_lines=True, delta_coeff_bounds=(-20.0, 20.0),
+                  mask_hydrogen_lines=True, delta_coeff_bounds=(-20.0, 20.0),
                   minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, maxiter=3,
                   tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
                   debug_init=False, debug=False, show=False):
@@ -1643,7 +1643,7 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
                       debug=debug_init)
 
     # Optionally, mask prominent stellar absorption features
-    if mask_abs_lines:
+    if mask_hydrogen_lines:
         inmask = mask_star_lines(wave)
         mask_tot = inmask & mask
     else:

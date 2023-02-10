@@ -1202,7 +1202,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         # Calculate the sensitivity curve
         zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm =\
             fit_zeropoint(wave.value, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
-                          mask_abs_lines=senspar['mask_abs_lines'], balm_mask_wid=senspar['UVIS']['balm_mask_wid'],
+                          mask_hydrogen_lines=senspar['mask_hydrogen_lines'], mask_helium_line=senspar['mask_helium_lines'],
+                          balm_mask_wid=senspar['UVIS']['balm_mask_wid'],
                           nresln=senspar['UVIS']['nresln'], resolution=senspar['UVIS']['resolution'],
                           trans_thresh=senspar['UVIS']['trans_thresh'], polyorder=senspar['polyorder'],
                           polycorrect=senspar['UVIS']['polycorrect'], polyfunc=senspar['UVIS']['polyfunc'])
