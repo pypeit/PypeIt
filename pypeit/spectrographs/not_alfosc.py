@@ -28,7 +28,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
     url = 'https://www.not.iac.es/instruments/alfosc/'
     header_name = 'ALFOSC_FASU'
     supported = True
-    comment = 'For use with the standard horizontal slits only. Grisms 3, 4, 5, 7, 8, 17, 18, 19, 20'
+    comment = 'For use with the standard horizontal slits only. Grisms 3, 4, 5, 7, 8, 10, 11, 17, 18, 19, 20'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -280,6 +280,10 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism7.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'Grism_#8':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism8.fits'
+        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#10':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism10.fits'
+        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#11':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism11.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'Grism_#17':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism17.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'Grism_#18':
@@ -302,7 +306,7 @@ class NOTALFOSCSpectrographVert(NOTALFOSCSpectrograph):
     Child to handle Vertical slits for NOT ALFOSC spectrograph
     """
     name = 'not_alfosc_vert'
-    comment = 'Grisms 3, 4, 5, 7, 8, 17, 18, 19, 20. For vertical slits only'
+    comment = 'Grisms 3, 4, 5, 7, 8, 10, 11, 17, 18, 19, 20. For vertical slits only'
 
     def get_detector_par(self, det, hdu=None):
         """
