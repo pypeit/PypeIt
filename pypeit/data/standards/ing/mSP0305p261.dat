@@ -1,17 +1,17 @@
-*
-*                   H D 1 9 4 4 5
-*
-*   Table file for HD19445 flux standard, based on data
-*   from Oke and Gunn, Ap.J. 266,713-717 Mar 1983.  These data
-*   represent directly measured fluxes, and should be used accordingly.
-*   This file is designed for use with the Figaro routine GSPIKE.
-*
-SET .Z.UNITS = "AB Magnitudes"
-SET .Z.LABEL = "Flux"
-SET .Z.REVSCALE = 1
-SET .Z.MAGFLAG = 1
-SET .TABLE.BANDWIDTH = 40
-*
+#*
+#*                   H D 1 9 4 4 5
+#*
+#*   Table file for HD19445 flux standard, based on data
+#*   from Oke and Gunn, Ap.J. 266,713-717 Mar 1983.  These data
+#*   represent directly measured fluxes, and should be used #accordingly.
+#*   This file is designed for use with the Figaro routine GSPIKE.
+#*
+#SET .Z.UNITS = "AB Magnitudes"
+#SET .Z.LABEL = "Flux"
+#SET .Z.REVSCALE = 1
+#SET .Z.MAGFLAG = 1
+#SET .TABLE.BANDWIDTH = 40
+#*
 3080 9.476 40
 3160 9.391 40
 3240 9.310 40

@@ -1,16 +1,16 @@
-*
-*                   B D  + 2 6   2 6 0 6
-*
-*   Table file for the flux standard star BD+26 2606, taken from
-*   Oke and Gunn, Ap.J. 266, 713 (1983).  Note that the data
-*   points are all for 40 A bands. This file is designed for
-*   use with the Figaro routine GSPIKE.
-*
-SET .Z.UNITS = "AB Magnitudes"
-SET .Z.LABEL = "Flux"
-SET .Z.REVSCALE = 1
-SET .TABLE.BANDWIDTH = 40
-*
+#*
+#*                   B D  + 2 6   2 6 0 6
+#*
+#*   Table file for the flux standard star BD+26 2606, taken from
+#*   Oke and Gunn, Ap.J. 266, 713 (1983).  Note that the data
+#*   points are all for 40 A bands. This file is designed for
+#*   use with the Figaro routine GSPIKE.
+#*
+#SET .Z.UNITS = "AB Magnitudes"
+#SET .Z.LABEL = "Flux"
+#SET .Z.REVSCALE = 1
+#SET .TABLE.BANDWIDTH = 40
+#*
  3080  11.155 40
  3160  11.072 40
  3240  10.988 40

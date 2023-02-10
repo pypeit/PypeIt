@@ -1,16 +1,16 @@
-*
-*                   H D 8 4 9 3 7
-*
-*   Table file for the flux standard star HD84937, taken from
-*   Oke and Gunn, Ap.J. 266, 713 (1983).  Note that the data
-*   points are all for 40 A bands. This file is designed for
-*   use with the Figaro routine GSPIKE.
-*
-SET .Z.UNITS = "AB Magnitudes"
-SET .Z.LABEL = "Flux"
-SET .Z.REVSCALE = 1
-SET .TABLE.BANDWIDTH = 40
-*
+#*
+#*                   H D 8 4 9 3 7
+#*
+#*   Table file for the flux standard star HD84937, taken from
+#*   Oke and Gunn, Ap.J. 266, 713 (1983).  Note that the data
+#*   points are all for 40 A bands. This file is designed for
+#*   use with the Figaro routine GSPIKE.
+#*
+#SET .Z.UNITS = "AB Magnitudes"
+#SET .Z.LABEL = "Flux"
+#SET .Z.REVSCALE = 1
+#SET .TABLE.BANDWIDTH = 40
+#*
  3080  9.677 40
  3160  9.610 40
  3240  9.542 40
