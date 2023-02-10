@@ -1,12 +1,20 @@
 
-1.11.1dev
+1.12.1dev
 ---------
+
+- (Hotfix) Specify sphinx versions to correctly work with
+  sphinx_rtd_theme
+- (Hotfix) Fixed error when showing flats in Ginga when the fine correction is not performed
+- Implemented the upgraded GTC/OSIRIS+
+
+1.12.0 (31 Jan 2023)
+--------------------
 
 - (Hotfix) Fixed bug that allowed science frames to be assigned to multiple
   instrument configurations
 - (Hotfix) Fixed typo related to GitHub download for offline processing
 - Started modifications and support for JWST.
-- LRISr header issue
+- Limit LRISr header crashes
 - Added spectral flexure and reference frame corrections for IFU data
 - Allow separate sky frame to be used for sky subtraction with IFU data
 - Limit the images written to the MasterEdges file to only the trace
@@ -15,6 +23,11 @@
 - OpenMP link fix
 - Enable boxcar_radius for manual extraction
 - Prevent flexure crash
+- Fixed error with deprecated numpy types
+- Improved optimization of bspline c code
+- Parse Keck/NIRES dither patterns, similar to MOSFIRE
+- Introduce BitMaskArray class to ease use of bitmasks
+- Fixed memory hogging by matplotlib when using version >= 3.6.1
 
 1.11.0 (21 Oct 2022)
 --------------------
