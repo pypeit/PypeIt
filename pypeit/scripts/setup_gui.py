@@ -1,11 +1,16 @@
-import argparse
+"""
+An interactive GUI for creaing pypeit input files.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
+"""
 import sys
 
 from qtpy.QtWidgets import QApplication
 
 from pypeit.scripts import scriptbase
 from pypeit.setup_gui.view import PypeItSetupView
-from pypeit.setup_gui.model import PypeItSetupProxy
+from pypeit.setup_gui.model import PypeItSetupModel
 from pypeit.setup_gui.controller import SetupGUIController
         
 
@@ -13,8 +18,9 @@ class SetupGUI(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
-        parser = argparse.ArgumentParser("Interactive GUI for creating and editing PypeIt input files.",
-                                         epilog="Additional Qt arguments can also be used. See https://doc.qt.io/qt-5/qapplication.html#QApplication")
+        parser = super().get_parser(description="Interactive GUI for creating and editing PypeIt input files. "
+                                                "Additional Qt arguments can also be used. See https://doc.qt.io/qt-5/qapplication.html#QApplication", 
+                                    width=width)
         parser.add_argument('-v', '--verbosity', type=int, default=2,
                             help='Verbosity level between 0 [none] and 2 [all]. Default: 2. '
                                  'Level 2 writes a log with filename setup_gui_YYYYMMDD-HHMM.log')

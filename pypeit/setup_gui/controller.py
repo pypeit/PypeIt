@@ -1,31 +1,44 @@
+"""
+The controller portion of the PypeIt Setup GUI.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
+"""
 import traceback
 import signal
 import sys
 import datetime
 
 from qtpy.QtCore import QCoreApplication
-from qtpy.QtWidgets import QApplication
-from qtpy.QtCore import QObject, Qt, QThread, QSettings
+from qtpy.QtCore import QObject, Qt, QThread
 
 
-from pypeit.pypmsgs import PypeItError
 from pypeit.setup_gui.view import SetupGUIMainWindow, DialogResponses
-from pypeit.setup_gui.model import PypeItSetupProxy, ModelState
+from pypeit.setup_gui.model import PypeItSetupModel, ModelState
 from pypeit import msgs
-from pathlib import Path
 
 class OperationThread(QThread):
+    """Thread to run a background operation.
+    
+    Args:
+        operation (:obj:`collections.abc.Callable`): The callable function or object that performs the operation."""
 
     def __init__(self, operation):
         super().__init__()
         self._operation = operation
 
     def run(self):
+        """Runs an operation in a background thread."""
         self._operation()
 
 
 class SetupGUIController(QObject):
-
+    """Controller for the PypeIt setup gui. It is responsible for initializing the GUI,
+    and performing actions requested by the user.
+    
+    Args:
+        args (:class:`argparse.Namespace`): The non-QT command line arguments used to start the GUI.
+    """
 
     def __init__(self, args):
         super().__init__()
@@ -37,7 +50,7 @@ class SetupGUIController(QObject):
         timestamp = datetime.datetime.utcnow().strftime("%Y%m%d-%H%M")
         logname = f"setup_gui_{timestamp}.log"
 
-        self.model = PypeItSetupProxy()
+        self.model = PypeItSetupModel()
         self.model.setup_logging(logname, args.verbosity)
         self.view = SetupGUIMainWindow(self.model, self)
         self._thread = None
@@ -45,7 +58,12 @@ class SetupGUIController(QObject):
 
     def start(self, app):
         """
-        Start the PypeItSetupGUi
+        Starts the PypeItSetupGUi event loop. Exits the GUI when the GUI is closed.
+
+        Args:
+            app (QApplication): The Qt application object for the GUI. The caller is expected
+                                to pass any Qt specific command line arguments to this object
+                                before calling start(). 
         """
         self.view.show()
 
@@ -54,20 +72,48 @@ class SetupGUIController(QObject):
         signal.signal(signal.SIGINT, signal.SIG_DFL)
         sys.exit(app.exec_())
 
-    def save_all(self, location):
+    def save_all(self):
+        """"
+        Save all unique configurations as pypeit files. Called in response to the user
+        clicking the "Save All" button.
+        """
         try:
-            self.model.save_all(location)
+            response = DialogResponses.CANCEL
+            location = None
+            for file_model in self.model.pypeit_files.values():
+                if file_model.save_location is None:
+                    if location is None or response != DialogResponses.ACCEPT_FOR_ALL:
+                        (location, response) = self.view.prompt_for_save_location(file_model.config.name, True)
+                        if response == DialogResponses.CANCEL:
+                            # Cancel was pressed
+                            return
+
+                file_model.save_location = location
+                file_model.save()
+
         except Exception as e:
             self.view.display_error(str(e))
 
-
-    def save_tab(self, tab_name, location):    
-        try:
-            self.model.save_config(tab_name, location)
+    def save_one(self):
+        """ Saves the currently selected configuration as a pypeit file. Called in response to the user
+        clicking the "Save Tab" button."""
+        try:            
+            config_name = self.view.setup_view.currentWidget().name            
+            file_model = self.model.pypeit_files[config_name]
+            if file_model.save_location is None:
+                location, response = self.view.prompt_for_save_location(config_name)
+                if response == DialogResponses.CANCEL:
+                    return
+                else:
+                    file_model.save_location = location
+            file_model.save()
         except Exception as e:
             self.view.display_error(str(e))
 
     def clear(self):
+        """Resets the GUI to it's initial state. Called in response to the user
+        clicking the "Clear" button. This will prompt the user if they want to save
+        any unsaved changes first."""
 
         # Prompt to save unsaved changes
         if self.model.state == ModelState.CHANGED:
@@ -80,6 +126,8 @@ class SetupGUIController(QObject):
         self.model.reset()
 
     def exit(self):
+        """Exits the GUI. Called in response to the user clicking the "Exit" button.
+        This will prompt the user if they want to save any unsaved changes first."""
 
         # Prompt to save unsaved changes
         if self.model.state == ModelState.CHANGED:
@@ -92,7 +140,10 @@ class SetupGUIController(QObject):
         sys.exit(0)
 
     def open_pypeit_file(self):
-
+        """Opens a PypeIt file. Called in response to the user the clicking the "Open" button. 
+           This method prompts the user to discard or save any current changes,
+           prompts the user for a pypeit to open, and opens it.
+        """
         # Prompt to save current changes if needed
         if self.model.state == ModelState.CHANGED:
             response = self.view.prompt_for_save()
@@ -101,23 +152,9 @@ class SetupGUIController(QObject):
             elif response == DialogResponses.CANCEL:
                 return
 
-        # Get history from settings
-        settings = QSettings()
-        settings.beginGroup("OpenPypeItFile")
-        history = settings.value("History")
-        if history is None:
-            history = []
-        elif isinstance(history, str):
-            history = [history]
+        file_to_open = self.view.prompt_for_open_file("Select PypeIt File", filter="PypeIt input files (*.pypeit)")
 
-        file_to_open = self.view.prompt_for_file("Select PypeIt File", filter="PypeIt input files (*.pypeit)", history = history)
         if file_to_open is not None:
-            # The FileDialog only wants paths in its history
-            path = str(Path(file_to_open).parent)
-            if path not in history:
-                history.append(path)
-                settings.setValue("History", history)
-
             try:
                 self.model.open_pypeit_file(file_to_open)
             except Exception as e:
@@ -126,8 +163,40 @@ class SetupGUIController(QObject):
                 self.view.display_error(f"Failed to open {file_to_open}\n{e}")
                 self.model.reset()
 
+    def run_setup(self):
+        """Runs setup on the currently selected raw data directories. 
+           Called in response to the user the clicking the "Run Setup" button. 
+           This will prompt the user if they want to save any unsaved changes first and
+           start the operation in a background thread.
+        """
+
+        if self.model.state == ModelState.CHANGED:
+            response = self.view.prompt_for_save()
+            if response == DialogResponses.SAVE:
+                self.save_all()
+            elif response == DialogResponses.CANCEL:
+                return
+
+        num_raw_data_files =  self.model.scan_raw_data_directories()
+        if num_raw_data_files == 0:
+            self.view.display_error(self.tr("Could not find any files in any of the raw data paths."))
+            return
+
+        # Start the setup operation in a different thread
+        self.start_operation("Reading Files...", self.model.run_setup, self.run_setup_complete, num_raw_data_files)
 
     def start_operation(self, op_name, op_function, op_cleanup_func, max_progress_value):
+        """Start a background operation.  The operation runs in the background and displays a progress
+        dialog to the user.
+        
+        Args:
+            op_name (str):            The name of the operation to display the user.
+            max_progress_value (int): The maximum progress value for the progress dialog. The progress
+                                      always starts at 0 and is increased until it reaches this maximum value.
+            op_function (:class:`collections.abc.Callable`):     The callable function or object to perform the operation.
+            op_cleanup_func (:class:`collections.abc.Callable`): The callable function or object responsible for cleaning up after
+                                                                 the operation.
+        """
         
         self.view.start_operation_progress(op_name, max_progress_value, self._cancel_op)
 
@@ -140,15 +209,26 @@ class SetupGUIController(QObject):
         self._thread.start()
 
     def _cancel_op(self):
+        """Cancels an in progress background operation when the user cancels the progress dialog."""
         if self._thread is not None:
             self._thread.requestInterruption()
 
     def _op_progress(self, progress_message=None):
+        """Signal handler that receives progress information from the model as a background
+        operation proceeds. It passes this to the view to increase the value showing in the
+        progress dialog."""
         msgs.info(f"New Progress: {progress_message}")
 
         self.view.increase_operation_progress(increase=1, message = progress_message)
 
     def _op_complete(self, error_message):
+        """Signal handler that is notified when a background operation completes.
+        
+        Args:
+            error_message (str): An error message if the operation failed, "CANCEL" if the
+                                 operation was canceled, or a blank string if the operation 
+                                 succeeded.
+        """
         msgs.info("Op complete")
         self._thread.wait()
         self.model.operation_progress.disconnect(self._op_progress)
@@ -159,48 +239,13 @@ class SetupGUIController(QObject):
                 self.view.display_error(error_message)
             self.model.reset()
 
-    def spectrograph_changed(self, new_spec):
-        if new_spec == self.model.spectrograph:
-            return
+    def run_setup_complete(self, error_message):
+        """Cleans up after setup has been run.
 
-        msgs.info(f"New spectrograph '{repr(new_spec)}' new index: {self.view.spectrograph.currentIndex()}")
-
-        if self.model.state == ModelState.CHANGED:
-            response = self.view.prompt_for_save()
-            if response == DialogResponses.SAVE:
-                self.save_all()
-            elif response == DialogResponses.CANCEL:
-                return
-
-        self.model.reset()
-        if new_spec in self.model.available_spectrographs:
-            self.model.set_spectrograph(new_spec)
-        else:
-            self.model.set_spectrograph(None)
-
-    def run_setup(self, new_raw_data_directory):
-        if new_raw_data_directory is None or not isinstance(new_raw_data_directory, str) or new_raw_data_directory == "":
-            # We're re-running with the old directory
-            new_raw_data_directory = self.model.raw_data_directory
-
-        if self.model.state == ModelState.CHANGED:
-            response = self.view.prompt_for_save()
-            if response == DialogResponses.SAVE:
-                self.save_all()
-            elif response == DialogResponses.CANCEL:
-                return
-
-        try:
-            self.model.set_raw_data_directory(new_raw_data_directory)
-        except PypeItError:
-            self.view.display_error(f"Could not find any files in {new_raw_data_directory}")
-            return
-
-        num_raw_data_files =  self.model.get_num_raw_files()
-        
-        # Start the setup operation in a different thread
-        self.start_operation("Reading Files...", self.model.generate_obslog, self.generate_obslog_complete, num_raw_data_files)
-
-    def generate_obslog_complete(self, error_message):
+        Args:
+            error_message (str): An error message if the operation failed, "CANCEL" if the 
+                                 operation was canceled, or a blank string if the operation 
+                                 succeeded.
+        """
         self._op_complete(error_message)
-        self.model.operation_complete.disconnect(self.generate_obslog_complete)
+        self.model.operation_complete.disconnect(self.run_setup_complete)

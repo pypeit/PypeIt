@@ -91,7 +91,7 @@ class ViewFits(scriptbase.ScriptBase):
                 mosaic = len(_det) > 1
                 if not mosaic:
                     _det = _det[0]
-
+                print(f"Mosaic {mosaic} {_det}")
             if args.proc:
                 # Use the biasframe processing parameters because processing
                 # these frames is independent of any other frames (ie., does not
