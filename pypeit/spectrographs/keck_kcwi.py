@@ -681,7 +681,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             # Deal with the different locations of the overscan regions in 2- and 4- amp mode
             if num_amps == 2:
                 cmin = 1+np.max(pixs[0])
-                frame = raw_img[cmin:, rmin:rmax].astype(np.float64)
+                frame = raw_img[cmin:, rmin:rmax].astype(float)
             elif num_amps == 4:
                 if amp in [1, 2]:
                     pixalt = np.where((rawdatasec_img == amp+2) | (oscansec_img == amp+2))
@@ -691,7 +691,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                     pixalt = np.where((rawdatasec_img == amp-2) | (oscansec_img == amp-2))
                     cmax = 1+np.min(pixs[0])
                     cmin = (np.max(pixalt[0]) + cmax)//2
-                frame = raw_img[cmin:cmax, rmin:rmax].astype(np.float64)
+                frame = raw_img[cmin:cmax, rmin:rmax].astype(float)
             # Calculate the pattern frequency
             freq = procimg.pattern_frequency(frame)
             patt_freqs.append(freq)
