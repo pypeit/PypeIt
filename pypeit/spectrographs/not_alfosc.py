@@ -236,8 +236,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         if ftype == 'science':
             return good_exp & (fitstbl['idname'] == 'OBJECT')
         if ftype == 'standard':
-            return good_exp & ((fitstbl['target'] == 'STD')
-                                | (fitstbl['target'] == 'STD,SLIT'))
+            return good_exp & ((fitstbl['idname'] == 'STD') | (fitstbl['target'] == 'STD') | (fitstbl['target'] == 'STD,SLIT'))
         if ftype == 'bias':
             return good_exp & (fitstbl['idname'] == 'BIAS')
         if ftype in ['pixelflat', 'trace', 'illumflat']:
