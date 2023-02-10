@@ -1110,36 +1110,42 @@ def mask_stellar_hydrogen(wave_star, mask_width=10.0, mask_star=None):
         mask_star = np.ones_like(wave_star, dtype=bool)
     # Mask Balmer, Paschen, Brackett, and Pfund recombination lines
     msgs.info("Masking hydrogen recombination lines")
+
     # Mask Balmer
     msgs.info(" Masking Balmer")
-    lines_balm = np.array([3836.4, 3969.6, 3890.1, 4102.8, 4102.8, 4341.6, 4862.7, 5407.0,
-                           6564.6, 8224.8, 8239.2])
+    # Vacuum Wavelengths from NIST (TEB, 2023-02-10)
+    lines_balm = np.array([6564.6, 4862.7, 4341.7, 4102.9,
+                           3971.2, 3890.2, 3836.4])
+    # Extra lines previously in the list, source unknown:
+    #      [5407.0, 8224.8, 8239.2]
     for line_balm in lines_balm:
         ibalm = np.abs(wave_star - line_balm) <= mask_width
         mask_star[ibalm] = False
+
     # Mask Paschen
     msgs.info(" Masking Paschen")
-    # air wavelengths from:
-    # https://www.subarutelescope.org/Science/Resources/lines/hi.html
-    lines_pasc = np.array([8203.6, 8440.3, 8469.6, 8504.8, 8547.7, 8600.8, 8667.4, 8752.9,
-                           8865.2, 9017.4, 9229.0, 9546.0, 10049.4, 10938.1,
-                           12818.1, 18751.0])
+    # Vacuum Wavelengths from NIST (TEB, 2023-02-10)
+    lines_pasc = np.array([18756.4, 12821.6, 10941.2, 10052.6,
+                           9548.8, 9232.2, 9017.8, 8865.3,
+                           8752.9, 8667.4, 8600.8, 8547.7,
+                           8504.8, 8469.6, 8440.3, 8203.6])
     for line_pasc in lines_pasc:
         ipasc = np.abs(wave_star - line_pasc) <= mask_width
         mask_star[ipasc] = False
+
     # Mask Brackett
     msgs.info(" Masking Brackett")
-    # air wavelengths from:
-    # https://www.subarutelescope.org/Science/Resources/lines/hi.html
-    lines_brac = np.array([14584.0, 18174.0, 19446.0, 21655.0, 26252.0, 40512.0])
+    # Vacuum Wavelengths from NIST (TEB, 2023-02-10)
+    lines_brac = np.array([40522.8, 26258.7, 21661.2, 19446.0,
+                           18179.2, 17366.9, 14584.0])
     for line_brac in lines_brac:
         ibrac = np.abs(wave_star - line_brac) <= mask_width
         mask_star[ibrac] = False
+
     # Mask Pfund
     msgs.info(" Masking Pfund")
-    # air wavelengths from:
-    # https://www.subarutelescope.org/Science/Resources/lines/hi.html
-    lines_pfund = np.array([22788.0, 32961.0, 37395.0, 46525.0, 74578.0])
+    # Vacuum Wavelengths from NIST (TEB, 2023-02-10)
+    lines_pfund = np.array([74599.0, 46537.8, 37405.8, 32969.8, 22788.0])
     for line_pfund in lines_pfund:
         ipfund = np.abs(wave_star - line_pfund) <= mask_width
         mask_star[ipfund] = False
