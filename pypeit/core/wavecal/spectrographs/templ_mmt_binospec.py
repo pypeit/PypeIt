@@ -47,12 +47,12 @@ def mmt_binospec_600(overwrite=False):
     outroot = 'mmt_binospec_600.fits'
     wpath = os.path.join(templates.template_path, 'MMTO_Binospec', '600')
 
-    basefiles = ['mmto_binospec_600_6500.fits', 'mmto_binospec_600_8750.fits']
+    basefiles = ['mmto_binospec_600_5650.fits', 'mmto_binospec_600_6500.fits', 'mmto_binospec_600_8750.fits']
     wfiles = [os.path.join(wpath, basefile) for basefile in basefiles]
 
-    ifiles = [0, 1]
-    slits = [2062, 2060]
-    wv_cuts = [7700]
+    ifiles = [0, 1, 2]
+    slits = [249, 2062, 2060]
+    wv_cuts = [6000, 7700]
     det_cut = None
 
     templates.build_template(
