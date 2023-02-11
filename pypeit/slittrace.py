@@ -10,6 +10,7 @@ import inspect
 from IPython import embed
 
 import numpy as np
+from collections import Counter
 
 from astropy.table import Table
 from astropy.coordinates import SkyCoord, Angle
@@ -1095,6 +1096,25 @@ class SlitTraceSet(datamodel.DataContainer):
 
         # Return
         return sobjs
+
+    def det_of_slit(self, spat_id:int, det_img:np.ndarray,
+                    slit_img:np.ndarray=None):
+        # Grab slit image?
+        if slit_img is None:
+            slit_img = self.slit_img()
+        # Detector values
+        slit_pix = slit_img == spat_id
+        det_vals = det_img[slit_pix].flatten()
+        # Remove 0s and find most common
+        det_vals = det_vals[det_vals > 0].tolist()
+        data = Counter(det_vals)
+        ordr_det = data.most_common(1)[0][0]
+
+        # Return
+        return ordr_det
+
+        
+
 
     def get_maskdef_objpos(self, plate_scale, det_buffer):
         """

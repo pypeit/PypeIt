@@ -72,7 +72,7 @@ def test_wavecalib():
 
     waveCalib = wavecalib.WaveCalib(wv_fits=np.asarray([waveFit]),
                                     nslits=1, spat_ids=np.asarray([232]),
-                                    wv_fit2d=pypeitFit2)
+                                    wv_fit2d=np.array([pypeitFit2]))
 
     # Write
     waveCalib.to_file(out_file)
