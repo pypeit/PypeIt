@@ -816,7 +816,7 @@ class PypeItSetupModel(QObject):
         self._pypeit_setup.fitstbl.get_frame_types(user=dict(zip(pf.data['filename'], pf.data['frametype'])))
         self.metadata_model.setMetadata(self._pypeit_setup.fitstbl)        
         self._spectrograph = self._pypeit_setup.spectrograph
-        self.spectrograph_changed.emit(self._spectrograph)
+        self.spectrograph_changed.emit(self.spectrograph)
         self._setConfigurations(self._pypeit_setup.fitstbl.unique_configurations(), state=ModelState.UNCHANGED)
         self.state_changed.emit()
 

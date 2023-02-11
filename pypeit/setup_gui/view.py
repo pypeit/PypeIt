@@ -342,7 +342,11 @@ class ConfigValuesPanel(QGroupBox):
                             form_widget_margins.top() + form_widget_margins.bottom())
 
         # Set horizontal policy to use our minimum size, and vertical to use the fixed size we just set
-        self.setSizePolicy(QSizePolicy(horizontal=QSizePolicy.Minimum, vertical = QSizePolicy.Fixed, type=QSizePolicy.DefaultType))
+        policy = QSizePolicy()
+        policy.setHorizontalPolicy(QSizePolicy.Minimum)
+        policy.setVerticalPolicy(QSizePolicy.Fixed)
+        policy.setControlType(QSizePolicy.DefaultType)
+        self.setSizePolicy(policy)
         
         layout.addWidget(scroll_area)
 
@@ -595,12 +599,12 @@ class SpectrographValidator(QValidator):
         """
         if str_input is not None:
             if str_input.lower() in self._supported_spectrographs:
-                return QValidator.Acceptable
+                return QValidator.Acceptable, str_input, int_input
             else:
                 for spectrograph in self._supported_spectrographs:
                     if spectrograph.startswith(str_input.lower()):
-                        return QValidator.Intermediate
-        return QValidator.Invalid
+                        return QValidator.Intermediate, str_input, int_input
+        return QValidator.Invalid, str_input, int_input
 
 class PypeItSetupView(QTabWidget):
     """
@@ -792,6 +796,8 @@ class SetupGUIMainWindow(QWidget):
             if path not in history:
                 history.append(path)
                 settings.setValue("History", history)
+        else:
+            file_dialog.selected_path = None
 
         return file_dialog.selected_path
 
@@ -831,6 +837,8 @@ class SetupGUIMainWindow(QWidget):
             if save_dialog.selected_path not in history:
                 history.append(save_dialog.selected_path)
                 settings.setValue("History", history)
+        else:
+            save_dialog.selected_path = None
 
         return (save_dialog.selected_path, response)
 
