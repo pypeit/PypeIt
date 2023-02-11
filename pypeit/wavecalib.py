@@ -50,7 +50,7 @@ class WaveCalib(datamodel.DataContainer):
                  #'wv_fit2d': dict(otype=fitting.PypeItFit,
                  #                 descr='2D wavelength solution (echelle)'),
                  'wv_fit2d': dict(otype=np.ndarray, atype=fitting.PypeItFit,
-                                  descr='2D wavelength solution (echelle)'),
+                                  descr='2D wavelength solution(s) (echelle).  If there is more than one, they must be aligned to the separate detectors analyzed'),
                  'det_img': dict(otype=np.ndarray, atype=np.integer,
                                   descr='Detector image; used occasionally by echelle'),
                  'arc_spectra': dict(otype=np.ndarray, atype=np.floating,
@@ -104,7 +104,8 @@ class WaveCalib(datamodel.DataContainer):
             if self[key] is None:
                 continue
             # Array?
-            if self.datamodel[key]['otype'] == np.ndarray and key != 'wv_fits':
+            if self.datamodel[key]['otype'] == np.ndarray and \
+                key not in ['wv_fits', 'wv_fit2d']:
                 _d.append({key: self[key]})
             # TODO: Can we put all the WAVEFIT and PYPEITFIT at the end of the
             # list of HDUs?  This would mean ARC_SPECTRA is always in the same
@@ -116,7 +117,7 @@ class WaveCalib(datamodel.DataContainer):
                     # behavior?  Why?
                     # Naming
                     # TODO: Shouldn't this name match the dkey below?
-                    #  I have removed the lines below and we'll see what happens
+                    #   Oddly enough it is coded correctly below
                     dkey = 'WAVEFIT-{}'.format(self.spat_ids[ss])
                     # Generate a dummy?
                     if wv_fit is None:
@@ -124,12 +125,14 @@ class WaveCalib(datamodel.DataContainer):
                     else:
                         kwv_fit = wv_fit
                     # This is required to deal with a single HDU WaveFit() bundle
-                    #if kwv_fit.pypeitfit is None:
-                    #    dkey = 'SPAT_ID-{}_WAVEFIT'.format(self.spat_ids[ss])
+                    if kwv_fit.pypeitfit is None:
+                        dkey = 'SPAT_ID-{}_WAVEFIT'.format(self.spat_ids[ss])
                     # Save
                     _d.append({dkey: kwv_fit})
             elif key == 'wv_fit2d':
-                _d.append({key: self[key]})
+                for ss, wv_fit2d in enumerate(self[key]):
+                    dkey = f'WAVE2DFIT-{ss}'
+                    _d.append({dkey: wv_fit2d})
             else: # Add to header of the spat_id image
                 _d[0][key] = self[key]
         # Return
@@ -158,6 +161,7 @@ class WaveCalib(datamodel.DataContainer):
         _d, dm_version_passed, dm_type_passed, parsed_hdus = super(WaveCalib, cls)._parse(hdu)
         # Now the wave_fits
         list_of_wave_fits = []
+        list_of_wave2d_fits = []
         spat_ids = []
         for ihdu in hdu:
             if 'WAVEFIT' in ihdu.name:
@@ -177,14 +181,20 @@ class WaveCalib(datamodel.DataContainer):
                 list_of_wave_fits.append(iwavefit)
                 # Grab SPAT_ID for checking
                 spat_ids.append(iwavefit.spat_id)
-            elif ihdu.name == 'PYPEITFIT': # 2D fit
-                _d['wv_fit2d'] = fitting.PypeItFit.from_hdu(ihdu)
+            elif 'WAVE2DFIT' in ihdu.name:
+                iwave2dfit = fitting.PypeItFit.from_hdu(ihdu)
+                list_of_wave2d_fits.append(iwave2dfit)
                 parsed_hdus += ihdu.name
+            #elif ihdu.name == 'PYPEITFIT': # 2D fit
+            #    _d['wv_fit2d'] = fitting.PypeItFit.from_hdu(ihdu)
+            #    parsed_hdus += ihdu.name
         # Check
         if spat_ids != _d['spat_ids'].tolist():
             msgs.error("Bad parsing of WaveCalib")
         # Finish
         _d['wv_fits'] = np.asarray(list_of_wave_fits)
+        if len(list_of_wave2d_fits) > 0:
+            _d['wv_fit2d'] = np.asarray(list_of_wave2d_fits)
         return _d, dm_version_passed, dm_type_passed, parsed_hdus
 
     @property

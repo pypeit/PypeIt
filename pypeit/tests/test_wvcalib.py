@@ -84,7 +84,7 @@ def test_wavecalib():
     assert np.array_equal(waveCalib.spat_ids, waveCalib2.spat_ids), 'Bad spat_ids'
     assert np.array_equal(waveCalib.wv_fits[0].pypeitfit.fitc,
                           waveCalib2.wv_fits[0].pypeitfit.fitc), 'Bad fitc'
-    assert np.array_equal(waveCalib.wv_fit2d.xval, waveCalib2.wv_fit2d.xval)
+    assert np.array_equal(waveCalib.wv_fit2d[0].xval, waveCalib2.wv_fit2d[0].xval)
 
     # Write again!
     waveCalib2.to_file(out_file, overwrite=True)
@@ -97,7 +97,7 @@ def test_wavecalib():
     spat_ids = np.asarray([232, 949])
     waveCalib3 = wavecalib.WaveCalib(wv_fits=np.asarray([waveFit, wv_fitting.WaveFit(949)]),
                                     nslits=2, spat_ids=spat_ids,
-                                    wv_fit2d=pypeitFit2)
+                                    wv_fit2d=np.array([pypeitFit2, pypeitFit2]))
     waveCalib3.to_file(out_file)
     waveCalib4 = wavecalib.WaveCalib.from_file(out_file)
 
@@ -108,6 +108,27 @@ def test_wavecalib():
                          nspat=2, PYP_SPEC='dummy')
     slits.mask_wvcalib(waveCalib3)
     assert slits.bitmask.flagged(slits.mask[1], flag='BADWVCALIB')
+
+    # Finish
+    os.remove(out_file)
+
+def test_wvcalib_no2d():
+    """ Test WaveCalib without a 2D fit (not echelle) """
+    out_file = data_path('test_wavecalib.fits')
+    if os.path.isfile(out_file):
+        os.remove(out_file)
+    # Pieces
+    pypeitFit = fitting.PypeItFit(fitc=np.arange(5).astype(float), xval=np.linspace(1,100., 100))
+    waveFit = wv_fitting.WaveFit(232, pypeitfit=pypeitFit, pixel_fit=np.arange(10).astype(float),
+                                 wave_fit=np.linspace(1.,10.,10))
+
+    # With None (failed wave)
+    spat_ids = np.asarray([232, 949])
+    waveCalib = wavecalib.WaveCalib(wv_fits=np.asarray([waveFit, wv_fitting.WaveFit(949)]),
+                                    nslits=2, spat_ids=spat_ids)
+    waveCalib.to_file(out_file)
+    waveCalib2 = wavecalib.WaveCalib.from_file(out_file)
+
 
     # Finish
     os.remove(out_file)
