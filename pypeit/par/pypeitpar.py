@@ -1668,7 +1668,7 @@ class SensFuncPar(ParSet):
 
         defaults['mask_helium_lines'] = False
         dtypes['mask_helium_lines'] = bool
-        descr['mask_helium_lines'] = 'Mask certain ``HeII`` recombination lines prominent in O- and early B-type stars in the sensitivity function fit'
+        descr['mask_helium_lines'] = 'Mask certain ``HeII`` recombination lines prominent in O-type stars in the sensitivity function fit'
 
         # Instantiate the parameter set
         super(SensFuncPar, self).__init__(list(pars.keys()),

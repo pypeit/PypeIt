@@ -1009,7 +1009,7 @@ def get_mask(wave_star, flux_star, ivar_star, mask_star,
 
     # Mask (True = good pixels)
     # mask for recombination lines
-    mask_balm = np.ones_like(flux_star).astype(bool)
+    mask_recomb = np.ones_like(flux_star).astype(bool)
     # mask for telluric regions
     mask_tell = np.ones_like(flux_star).astype(bool)
 
@@ -1027,17 +1027,23 @@ def get_mask(wave_star, flux_star, ivar_star, mask_star,
     mask_bad[atms_cutoff] = False
 
     if mask_hydrogen_lines:
-        mask_balm = mask_stellar_hydrogen(
-            wave_star, mask_width=balm_mask_wid, mask_star=mask_balm
+        mask_recomb = mask_stellar_hydrogen(
+            wave_star, mask_width=balm_mask_wid, mask_star=mask_recomb
         )
 
     if mask_helium_lines:
         # Mask HeII
         msgs.info(" Masking HeII lines")
-        lines_heII = np.array([4200., 4686., 5412.])
+        # Prominent HeII lines not overlapped by hydrogen lines:
+        #    Vacuum wavelengths from Hubeney & Milhas (2015)
+        #    "Theory of Stellar Atmospheres", p. 191.
+        lines_heII = np.array([4687.2,   # 3 -> 4
+                               4542.9,   # 4 -> 9
+                               5413.1,   # 4 -> 7
+                               10126.6]) # 4 -> 5
         for line_heII in lines_heII:
             iheII = np.abs(wave_star - line_heII) < balm_mask_wid
-            mask_balm[iheII] = False
+            mask_recomb[iheII] = False
 
 
     if mask_telluric:
@@ -1079,7 +1085,7 @@ def get_mask(wave_star, flux_star, ivar_star, mask_star,
         else:
             msgs.info('Your spectrum is bluer than 9100A, only optical telluric regions are masked.')
 
-    return mask_bad, mask_balm, mask_tell
+    return mask_bad, mask_recomb, mask_tell
 
 
 def mask_stellar_hydrogen(wave_star, mask_width=10.0, mask_star=None):
