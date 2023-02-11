@@ -437,24 +437,12 @@ class SOARGoodmanBlueSpectrograph(SOARGoodmanSpectrograph):
             numamplifiers=1,
             gain=gain,
             ronoise=ronoise,
-            datasec=datasec,
-            oscansec=oscansec
+            datasec=np.asarray(['[:,20:4112]']),
+            oscansec=np.asarray(['[:,2:16]'])
         )
 
         if hdu is None:
             return detector_container.DetectorContainer(**detector_dict)
-
-        # Only tested for 2x2
-        if binning == '2,2':
-            # parse TRIMSEC
-            col0 = int(hdu[1].header['TRIMSEC'][1:].split(':')[0])
-            dsec = f"[:,{col0 * 2}:]"  # rows, columns on the raw frame
-            detector_dict['datasec'] = np.atleast_1d(dsec)
-            # Overscan
-            osec = f"[:,1:{int(col0 * 2) - 2}:]"
-            detector_dict['oscansec'] = np.atleast_1d(osec)
-        else:
-            msgs.error("Ask the developers to add your binning.  Or add it yourself.")
 
         # Return
         return detector_container.DetectorContainer(**detector_dict)
