@@ -1245,7 +1245,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
     # Print out a status message
     str_out = ''
     for iord in srt_order_snr:
-        if np.isfinite(order_snr[iord,ibright]):
+        if order_snr_gpm[iord,ibright]:
             str_out += '{:<8d}{:<8d}{:>10.2f}'.format(slit_vec[iord], order_vec[iord], order_snr[iord,ibright]) + msgs.newline()
     dash = '-'*27
     dash_big = '-'*40
@@ -1255,7 +1255,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
     # Loop over orders in order of S/N ratio (from highest to lowest) for the brightest object
     for iord in srt_order_snr:
         # Is this a bad slit?
-        if not np.any(np.isfinite(order_snr[iord,:])):
+        if not np.any(order_snr_gpm[iord,:]):
             continue
         order = order_vec[iord]
         msgs.info("Local sky subtraction and extraction for slit/order: {:d}/{:d}".format(iord,order))
@@ -1292,7 +1292,10 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                         spec.FWHM = fwhm_this_ord
 
                     str_out = ''
-                    for slit_now, order_now, snr_now, fwhm_now in zip(slit_vec[other_orders], order_vec[other_orders],order_snr[other_orders,ibright], fwhm_here[other_orders]):
+                    for slit_now, order_now, snr_now, fwhm_now in zip(
+                        slit_vec[other_orders], order_vec[other_orders],
+                        order_snr[other_orders,ibright], 
+                        fwhm_here[other_orders]):
                         str_out += '{:<8d}{:<8d}{:>10.2f}{:>10.2f}'.format(slit_now, order_now, snr_now, fwhm_now) + msgs.newline()
                     msgs.info(msgs.newline() + 'Using' +  fwhm_str + ' for FWHM of object={:d}'.format(uni_objid[iobj]) +
                               ' on slit/order: {:d}/{:d}'.format(iord,order) + msgs.newline() + dash_big +
