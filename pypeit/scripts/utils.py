@@ -175,7 +175,7 @@ class Utilities:
     def select_science_frame(self, use_first=False, standard=False):
         """Find all of the indices that correspond to science frames
         """
-        sciidx = np.array([], dtype=np.int)
+        sciidx = np.array([], dtype=int)
         cntr = 0
         print("\nList of science frames:")
         for tt in range(len(self.usrdata)):

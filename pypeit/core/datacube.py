@@ -1461,7 +1461,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             wavebins = np.linspace(np.min(waveimg[onslit]), np.max(waveimg[onslit]), slits.nspec)
             hist, edge = np.histogram(waveimg[onslit], bins=wavebins, weights=flatframe[onslit]/scale_model[onslit])
             cntr, edge = np.histogram(waveimg[onslit], bins=wavebins)
-            cntr = cntr.astype(np.float)
+            cntr = cntr.astype(float)
             norm = (cntr != 0) / (cntr + (cntr == 0))
             spec_spl = hist * norm
             wave_spl = 0.5 * (wavebins[1:] + wavebins[:-1])

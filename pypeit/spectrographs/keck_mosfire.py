@@ -1000,7 +1000,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         # build an array of values containing the bottom (right) edge of the slits
         # starting edge
         edge = self._starting_edge(filename)
-        bot_edges = np.array([edge], dtype=np.int)
+        bot_edges = np.array([edge], dtype=int)
         for i in range(self.slitmask.nslits - 1):
             # target is the slit number
             edge -= (self.slitmask.onsky[:,2][i]/platescale + slit_gap)
