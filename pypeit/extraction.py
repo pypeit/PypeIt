@@ -266,15 +266,6 @@ class Extract:
         else:
             return 0
 
-#    @property
-#    def nobj_to_extract(self):
-#        """
-#        Number of objects to extract. Defined in children
-#        Returns:
-#
-#        """
-#        return None
-
     def initialise_slits(self, slits, initial=False):
         """
         Gather all the :class:`SlitTraceSet` attributes
@@ -688,16 +679,6 @@ class MultiSlitExtract(Extract):
         super().__init__(sciImg, slits, sobjs_obj, spectrograph, par, objtype, **kwargs)
 
 
-#    @property
-#    def nobj_to_extract(self):
-#        """
-#        See parent method docs.
-#
-#        Returns:
-#
-#        """
-#        return self.nsobj_to_extract
-
     # TODO: JFH Should we reduce the number of iterations for standards or
     # near-IR redux where the noise model is not being updated?
     def local_skysub_extract(self, global_sky, sobjs, spat_pix=None, model_noise=True,
@@ -835,22 +816,6 @@ class EchelleExtract(Extract):
         if self.order_vec is None:
             msgs.error('Unable to set Echelle orders, likely because they were incorrectly '
                        'assigned in the relevant SlitTraceSet.')
-
-
-#    @property
-#    def nobj_to_extract(self):
-#        """
-#        See parent method docs.
-#
-#        Returns:
-#
-#        """
-#
-#        norders = self.order_vec.size
-#        if (self.nsobj_to_extract % norders) == 0:
-#            return int(self.nsobj_to_extract/norders)
-#        else:
-#            msgs.error('Number of specobjs in sobjs is not an integer multiple of the number or orders!')
 
     # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
     # being updated?

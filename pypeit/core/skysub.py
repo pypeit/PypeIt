@@ -1222,23 +1222,26 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
     uni_objid = np.unique(sobjs[sobjs.sign > 0].ECH_OBJID)
     nobjs = len(uni_objid)
     order_snr = np.zeros((norders, nobjs))
+    order_snr_gpm = np.ones_like(order_snr) 
     for iord in range(norders):
         for iobj in range(nobjs):
             ind = (sobjs.ECH_ORDERINDX == iord) & (sobjs.ECH_OBJID == uni_objid[iobj])
             # Allow for missed/bad order
             if np.sum(ind) == 0:
-                order_snr[iord,iobj] = -np.nan
+                order_snr_gpm[iord,iobj] = False
             else:
                 order_snr[iord,iobj] = sobjs[ind].ech_snr
 
     # Compute the average SNR and find the brightest object
-    snr_bar = np.nanmean(order_snr,axis=0)
+    snr_bar = np.sum(order_snr,axis=0) / np.sum(order_snr_gpm,axis=0)
     srt_obj = snr_bar.argsort()[::-1]
     ibright = srt_obj[0] # index of the brightest object
+
     # Now extract the orders in descending order of S/N for the brightest object
     srt_order_snr = order_snr[:,ibright].argsort()[::-1]
     fwhm_here = np.zeros(norders)
     fwhm_was_fit = np.zeros(norders,dtype=bool)
+
     # Print out a status message
     str_out = ''
     for iord in srt_order_snr:

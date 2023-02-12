@@ -45,7 +45,7 @@ class SlitTraceBitMask(BitMask):
             ('BADTILTCALIB', 'Tilts analysis failed for this slit'),
             ('SKIPFLATCALIB', 'Flat field generation failed for this slit. Skip flat fielding'),
             ('BADFLATCALIB', 'Flat field generation failed for this slit. Ignore it fully.'),
-            ('BADREDUCE', 'Reduction failed for this slit'), # THIS IS DEPRECATED BUT STAYS HERE TO ALLOW FOR BACKWARDS COMPATIBILITY
+            ('BADREDUCE', 'Reduction failed for this slit'), # THIS IS DEPRECATED (we may remove in v1.13) BUT STAYS HERE TO ALLOW FOR BACKWARDS COMPATIBILITY
             ('BADSKYSUB', 'Skysub failed for this slit'),
             ('BADEXTRACT', 'Extraction failed for this slit'),
         ])
