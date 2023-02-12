@@ -30,6 +30,7 @@
 - Parse Keck/NIRES dither patterns, similar to MOSFIRE
 - Introduce BitMaskArray class to ease use of bitmasks
 - Fixed memory hogging by matplotlib when using version >= 3.6.1
+- Allow for bad orders during extraction (without crashing)
 
 1.11.0 (21 Oct 2022)
 --------------------
