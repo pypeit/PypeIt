@@ -1062,15 +1062,19 @@ class EchelleFindObjects(FindObjects):
                     sobjs_in_orders, self.slits_left,
                     self.slits_right, plate_scale)
 
+                '''
                 # For testing
                 tmp = np.ones(sobjs_in_orders.nobj, dtype=bool)
                 tmp[10] = False
                 tmp_sobjs = sobjs_in_orders[tmp]
+                '''
 
                 # Fill in Orders
-                new_tmp = findobj_skymask.ech_fill_in_orders(tmp_sobjs, #sobjs_in_orders, 
+                #new_tmp = findobj_skymask.ech_fill_in_orders(tmp_sobjs, #sobjs_in_orders, 
+                new_tmp = findobj_skymask.ech_fill_in_orders(
+                    sobjs_in_orders, 
                   self.slits_left, self.slits_right,
-                  self.order_vec, obj_id[tmp], 
+                  self.order_vec, obj_id, #obj_id[tmp], 
                   order_gpm,
                   self.slits.spat_id,
                   std_trace=std_trace)

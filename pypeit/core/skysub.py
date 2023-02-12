@@ -1323,7 +1323,10 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                     spec.FWHM = sobjs[indx_bri].FWHM
 
         thisobj = (sobjs.ECH_ORDERINDX == iord) # indices of objects for this slit
-        thismask = slitmask == gdslit_spat[iord] # pixels for this slit
+        try:
+            thismask = slitmask == gdslit_spat[iord] # pixels for this slit
+        except:
+            embed(header='1329 of skysub')
         # True  = Good, False = Bad for inmask
         inmask = fullmask.flagged(invert=True) & thismask
         # Local sky subtraction and extraction

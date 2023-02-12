@@ -352,6 +352,10 @@ def ech_fill_in_orders(sobjs,
     nobj = len(uni_obj_id)
     fracpos = sobjs.SPAT_FRACPOS
 
+    # Check standard star
+    if std_trace is not None and std_trace.shape[1] != len(order_vec):
+        msgs.error('Standard star trace does not match the number of orders in the echelle data.')
+
     # Prep
     ngd_orders = np.sum(order_gpm)
     gd_orders = order_vec[order_gpm]
@@ -438,7 +442,8 @@ def ech_fill_in_orders(sobjs,
             frac_mean_new = np.full(gd_orders.size, uni_frac[iobj])
 
 
-        # Now loop over the orders and add objects on the ordrers for which the current object was not found
+        # Now loop over the orders and add objects on the orders for 
+        #  which the current object was not found
         for iord in range(order_vec.size):
             iorder = order_vec[iord]
             if iorder not in gd_orders:
@@ -458,9 +463,10 @@ def ech_fill_in_orders(sobjs,
                 thisobj.SPAT_FRACPOS = uni_frac[iobj]
                 # Assign traces using the fractional position fit above
                 if std_trace is not None:
-                    embed(header='need to check these are aligned!')
                     x_trace = np.interp(slit_spec_pos, spec_vec, std_trace[:,iord])
-                    shift = np.interp(slit_spec_pos, spec_vec,slit_left[:,iord] + slit_width[:,iord]*frac_mean_new[iord]) - x_trace
+                    shift = np.interp(
+                        slit_spec_pos, spec_vec, slit_left[:,iord] + 
+                        slit_width[:,iord]*frac_mean_new[iord]) - x_trace
                     thisobj.TRACE_SPAT = std_trace[:,iord] + shift
                 else:
                     thisobj.TRACE_SPAT = slit_left[:, iord] + slit_width[:, iord] * frac_mean_new[iord]  # new trace
