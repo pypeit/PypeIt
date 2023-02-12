@@ -1097,6 +1097,9 @@ class EchelleFindObjects(FindObjects):
                    maxdev=self.par['reduce']['findobj']['find_maxdev'],
                    fwhm=self.par['reduce']['findobj']['find_fwhm'],
                    show_trace=False, show_fits=False, show_pca=False)
+            else:
+                # Emtpy SObjs object
+                sobjs_ech = sobjs_in_orders
 
 
         # Steps

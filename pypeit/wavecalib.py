@@ -266,9 +266,8 @@ class WaveCalib(datamodel.DataContainer):
             #    msgs.error('wv_calib and ok_slits do not line up. Something is very wrong!')
 
         # TODO - make the following a par
-        separate_dets = True
-        if separate_dets:
-            slit_img = self.slits.slit_img()
+        if self.par['ech_separate_2d']:
+            slit_img = slits.slit_img()
         
         # Unpack some 2-d fit parameters if this is echelle
         for islit in np.where(ok_slits)[0]:
@@ -278,8 +277,8 @@ class WaveCalib(datamodel.DataContainer):
                 msgs.error("Something failed in wavelengths or masking..")
             if self.par['echelle']:
                 # evaluate solution --
-                if separate_dets:
-                    ordr_det = self.slits.det_of_slit(
+                if self.par['ech_separate_2d']:
+                    ordr_det = slits.det_of_slit(
                         slit_spat, self.det_img,
                         slit_img=slit_img)
                     idx_fit2d = ordr_det-1  # There are ways for this to go sour..
@@ -622,7 +621,6 @@ class BuildWaveCalib:
                                   arc_spectra=arccen,
                                   nslits=self.slits.nslits,
                                   spat_ids=self.slits.spat_id,
-                                  det_img=self.msarc.det_img.copy(),
                                   PYP_SPEC=self.spectrograph.name,
                                   lamps=','.join(self.lamps))
 
@@ -737,8 +735,7 @@ class BuildWaveCalib:
         nspec = self.msarc.image.shape[0]
 
         # TODO -- Make this a par
-        separate_detectors = True 
-        if separate_detectors:
+        if self.par['ech_separate_2d']:
             slit_img = self.slits.slit_img()
             ndet = self.spectrograph.ndet
         else:
@@ -761,7 +758,7 @@ class BuildWaveCalib:
                     continue
 
                 # Correct detector?
-                if separate_detectors:
+                if self.par['ech_separate_2d']:
                     spat_id = wv_calib.spat_ids[ii]
                     # What is the most common detector for this order?
                     ordr_det = self.slits.det_of_slit(
@@ -788,7 +785,7 @@ class BuildWaveCalib:
             # QA
             if not skip_QA:
                 # Separate detectors?
-                if separate_detectors:
+                if self.par['ech_separate_2d']:
                     det_str = f'_{idet}'
                 else:
                     det_str = ''
@@ -885,6 +882,10 @@ class BuildWaveCalib:
         if self.par['echelle']:
             fit2ds = self.echelle_2dfit(self.wv_calib, skip_QA = skip_QA, debug=debug)
             self.wv_calib.wv_fit2d = np.array(fit2ds)
+            # det_img?
+            # TODO -- Use the par here
+            if self.par['ech_separate_2d']:
+                self.wv_calib.det_img = self.msarc.det_img.copy()
 
         # Deal with mask
         self.update_wvmask()
