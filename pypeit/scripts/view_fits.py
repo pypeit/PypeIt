@@ -33,11 +33,14 @@ class ViewFits(scriptbase.ScriptBase):
                             help='Show a FITS extension in the raw file. Note --proc and --mosaic '
                                  'will not work with this option.')
         parser.add_argument('--det', type=str, default='1', nargs='*',
-                            help='Detector(s) to show.  If more than one, the list of detectors '
-                                 'must be one of the allowed mosaics hard-coded for the selected '
+                            help='Detector(s) to show.  If more than one, the list of detectors, i.e. --det 4 8 '
+                                 'to show detectors 4 and 8. This combination must be one of the allowed '
+                                 'mosaics hard-coded for the selected '
                                  'spectrograph.  Using "mosaic" for gemini_gmos, keck_deimos, or '
                                  'keck_lris will show the mosaic of all detectors.')
         parser.add_argument('--chname', type=str, default='Image', help='Name of Ginga tab')
+        parser.add_argument('--embed', default=False, action='store_true',
+                            help='Upon completion embed in ipython shell')
         return parser
 
     @staticmethod
@@ -125,4 +128,7 @@ class ViewFits(scriptbase.ScriptBase):
         display.connect_to_ginga(raise_err=True, allow_new=True)
         display.show_image(img, chname=args.chname)
 
+
+        if args.embed:
+            embed()
 
