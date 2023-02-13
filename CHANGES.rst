@@ -8,6 +8,7 @@
 - Implemented the upgraded GTC/OSIRIS+
 - (Hotfix) keymap error when displaying GUIs
 - Added support for more NOT/ALFOSC grisms as well as NOT recommended standards
+- Implemented the SOAR/Goodman (blue) M1 only
 
 1.12.0 (31 Jan 2023)
 --------------------
