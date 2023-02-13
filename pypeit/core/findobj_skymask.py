@@ -187,6 +187,9 @@ def ech_findobj_ineach_order(
             Right boundary of orders to be extracted (given as floating point
             pixels).  Shape is (nspec, norders), where norders is the total
             number of traced echelle orders.
+        slit_spats (`numpy.ndarray`_):
+            slit_spat values (spatial position 1/2 way up the detector)
+            for the orders 
         order_vec (`numpy.ndarray`_):
             Vector identifying the Echelle orders for each pair of order edges
             found.  This is saved to the output :class:`~pypeit.specobj.SpecObj`
@@ -281,26 +284,6 @@ def ech_findobj_ineach_order(
     if inmask is None:
         inmask = allmask
 
-    '''
-    if hand_extract_dict is not None:
-        f_spats = []
-        for ss, spat, spec in zip(range(len(hand_extract_dict['spec'])),
-                                  hand_extract_dict['spat'],
-                                  hand_extract_dict['spec']):
-            # Find the input slit
-            ispec = int(np.clip(np.round(spec),0,nspec-1))
-            ispat = int(np.clip(np.round(spat),0,nspat-1))
-            slit = slitmask[ispec, ispat]
-            if slit == -1:
-                msgs.error('You are requesting a manual extraction at a position ' +
-                           f'(spat, spec)={spat, spec} that is not on one of the echelle orders. Check your pypeit file.')
-            # Fractions
-            iord_hand = gdslit_spat.tolist().index(slit)
-            f_spat = (spat - slit_left[ispec, iord_hand]) / (
-                slit_righ[ispec, iord_hand] - slit_left[ispec, iord_hand])
-            f_spats.append(f_spat)
-    '''
-
     # Loop over orders and find objects
     sobjs = specobjs.SpecObjs()
     for iord, iorder in enumerate(order_vec):
@@ -352,16 +335,24 @@ def ech_findobj_ineach_order(
                 objfindQA_filename=ech_objfindQA_filename)
         sobjs.add_sobj(sobjs_slit)
 
+    # Return
     return sobjs
 
-def ech_gen_hand_sobjs(hand_extract_dict, slitmask, 
-                       slit_left, slit_righ, slit_spat,
-                       detname, objtype):
+'''
+def ech_gen_hand_sobjs(hand_extract_dict:dict, slitmask:np.ndarray, 
+                       slit_left:np.ndarray, slit_righ:np.ndarray, 
+                       slit_spat:np.ndarray):
+    """ Generate a SpecObjs object for manual extractions
+
+    Args:
+        hand_extract_dict (dict): _description_
+        slitmask (np.ndarray): _description_
+        slit_left (np.ndarray): _description_
+        slit_righ (np.ndarray): _description_
+        slit_spat (np.ndarray): _description_
+    """
+    # Parse
     nspec, nspat = slitmask.shape
-    specobj_dict = {'SLITID': 999, 
-                    'DET': detname,
-                    'OBJTYPE': objtype,
-                    'PYPELINE': 'Echelle'}
 
     # Loop over the input
     f_spats = []
@@ -380,13 +371,45 @@ def ech_gen_hand_sobjs(hand_extract_dict, slitmask,
             slit_righ[ispec, iord_hand] - slit_left[ispec, iord_hand])
         f_spats.append(f_spat)
         # Add object
+'''
 
 
-def ech_fof_sobjs(sobjs, 
+def ech_fof_sobjs(sobjs:specobjs.SpecObjs, 
                   slit_left:np.ndarray, 
                   slit_righ:np.ndarray, 
                   plate_scale_ord:np.ndarray, 
                   fof_link:float=1.5):
+    """
+    Links together objects previously found using a 
+    friends-of-friends algorithm on fractional order position.
+
+
+    Args:
+        sobjs (:class:`~pypeit.specobj.SpecObj`):
+            Previously found objects
+        slit_left (`numpy.ndarray`_):
+            Left boundary of orders to be extracted (given as floating point
+            pixels).  Shape is (nspec, norders), where norders is the total
+            number of traced echelle orders.
+        slit_righ (`numpy.ndarray`_):
+            Right boundary of orders to be extracted (given as floating point
+            pixels).  Shape is (nspec, norders), where norders is the total
+            number of traced echelle orders.
+        plate_scale_ord (`numpy.ndarray`_):
+            An array with shape (norders,) providing the plate 
+            scale of each order in arcsec/pix, 
+        fof_link (:obj:`float`, optional):
+            Friends-of-friends linking length in arcseconds used to link
+            together traces across orders. The routine links together at
+            the same fractional slit position and links them together
+            with a friends-of-friends algorithm using this linking
+            length.
+
+    Returns:
+        `numpy.ndarray`_: An array containing the 
+        object IDs of the objects linked together.
+        This array is aligned with sobjs
+    """
     # Prep
     norders = slit_left.shape[1]
     slit_width = slit_righ - slit_left
@@ -436,21 +459,62 @@ def ech_fof_sobjs(sobjs,
                 #obj_id[ind_rest] = (np.arange(len(ind_rest)) + 1) + obj_id_init.max()
                 obj_id[ind_rest] = (np.arange(len(ind_rest)) + 1) + obj_id.max()
 
+    # Finish
     uni_obj_id, uni_ind = np.unique(obj_id, return_index=True)
     nobj = len(uni_obj_id)
     msgs.info('FOF matching found {:d}'.format(nobj) + ' unique objects')
 
     return obj_id
 
-def ech_fill_in_orders(sobjs, 
+def ech_fill_in_orders(sobjs:specobjs.SpecObjs, 
                   slit_left:np.ndarray, 
                   slit_righ:np.ndarray, 
                   order_vec:np.ndarray,
-                  obj_id:np.ndarray,
                   order_gpm:np.ndarray,
-                  slit_spat_id,
-                  std_trace=None,
+                  obj_id:np.ndarray,
+                  slit_spat_id:np.ndarray,
+                  std_trace:specobjs.SpecObjs=None,
                   show:bool=False):
+    """
+    For objects which were only found on some orders, the standard (or
+        the slit boundaries) are placed at the appropriate fractional
+        position along the order.
+
+
+    Args:
+        sobjs (:class:`~pypeit.specobj.SpecObj`):
+            Objects found on some orders thus far
+        slit_left (`numpy.ndarray`_):
+            Left boundary of orders to be extracted (given as floating point
+            pixels).  Shape is (nspec, norders), where norders is the total
+            number of traced echelle orders.
+        slit_righ (`numpy.ndarray`_):
+            Right boundary of orders to be extracted (given as floating point
+            pixels).  Shape is (nspec, norders), where norders is the total
+            number of traced echelle orders.
+        order_vec (`numpy.ndarray`_):
+            Vector identifying the Echelle orders for each pair of order edges
+            found.  This is saved to the output :class:`~pypeit.specobj.SpecObj`
+            objects.  If the orders are not known, this can be 
+            ``np.arange(norders)`` (but this is *not* recommended).
+        order_gpm (`numpy.ndarray`_):
+            Boolean array indicating which orders are good (True),
+            i.e. have good calibrations (wavelengths, etc.).  Shape is
+        obj_id (`numpy.ndarray`_):
+            Object IDs of the objects linked together.
+        slit_spat_id (`numpy.ndarray`_):
+            slit_spat values (spatial position 1/2 way up the detector)
+            for the orders 
+        std_trace (:class:`~pypeit.specobjs.SpecObjs`, optional): _description_. Defaults to None.
+            Standard star objects (including the traces)
+        show (bool, optional): 
+            Plot diagnostics related to filling the
+            missing orders
+
+    Returns:
+        ~pypeit.specobjs.SpecObjs:  
+            A new SpecObjs object with the filled in orders
+    """
     # Prep
     nfound = len(sobjs)
     uni_obj_id, uni_ind = np.unique(obj_id, return_index=True)

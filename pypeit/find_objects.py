@@ -1073,8 +1073,9 @@ class EchelleFindObjects(FindObjects):
             new_tmp = findobj_skymask.ech_fill_in_orders(
                 sobjs_in_orders, 
                 self.slits_left, self.slits_right,
-                self.order_vec, obj_id, #obj_id[tmp], 
+                self.order_vec, 
                 order_gpm,
+                obj_id, #obj_id[tmp], 
                 self.slits.spat_id,
                 std_trace=std_trace)
 
