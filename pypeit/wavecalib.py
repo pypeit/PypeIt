@@ -14,15 +14,14 @@ from matplotlib import pyplot as plt
 
 from linetools import utils as ltu
 from astropy.table import Table
-from astropy.io import fits
 
 from pypeit import msgs
 from pypeit.core import arc, qa
 from pypeit.core import fitting
-from pypeit.core.wavecal import autoid, waveio, wv_fitting
+from pypeit.core.wavecal import autoid, wv_fitting
 from pypeit.core.gui.identify import Identify
 from pypeit import datamodel
-from pypeit.core.wavecal import echelle, wvutils
+from pypeit.core.wavecal import echelle
 
 
 from IPython import embed
@@ -258,15 +257,12 @@ class WaveCalib(datamodel.DataContainer):
         image = np.zeros_like(tilts)
         slitmask = slits.slit_img(flexure=spat_flexure, exclude_flag=slits.bitmask.exclude_for_reducing)
 
-        # If this is echelle print out a status message and do some error checking
-        if self.par['echelle']:
-            msgs.info('Evaluating 2-d wavelength solution for echelle....')
-            # TODO UPDATE THIS!!
-            #if len(wv_calib['fit2d']['orders']) != np.sum(ok_slits):
-            #    msgs.error('wv_calib and ok_slits do not line up. Something is very wrong!')
-
-        # TODO - make the following a par
+        # Separate detectors for the 2D solutions?
         if self.par['ech_separate_2d']:
+            # Error checking
+            if self.det_img is None:
+                msgs.error("This WaveCalib object was not generated with ech_separate_2d=True")
+            # Grab slit_img
             slit_img = slits.slit_img()
         
         # Unpack some 2-d fit parameters if this is echelle
@@ -643,7 +639,7 @@ class BuildWaveCalib:
         self.steps.append(inspect.stack()[0][3])
         return self.wv_calib
 
-    # TODO: Point to the datamodel for wv_calib in the docstring
+    # TODO -- Remove this
     def orig_echelle_2dfit(self, wv_calib, debug=False, skip_QA=False):
         """
         Fit a two-dimensional wavelength solution for echelle data.
@@ -723,6 +719,8 @@ class BuildWaveCalib:
 
         Returns:
             list:  list of :class:`pypeit.fitting.PypeItFit`: objects containing information from 2-d fit.
+                Frequently a list of 1 fit.  The main exception is for
+                a mosaic when one sets echelle_separate_2d=True
         """
         if self.spectrograph.pypeline != 'Echelle':
             msgs.error('Cannot execute echelle_2dfit for a non-echelle spectrograph.')
@@ -734,17 +732,19 @@ class BuildWaveCalib:
         ok_mask_order = self.slits.slitord_id[ok_mask_idx]
         nspec = self.msarc.image.shape[0]
 
-        # TODO -- Make this a par
+        # Prep
         if self.par['ech_separate_2d']:
             slit_img = self.slits.slit_img()
-            ndet = self.spectrograph.ndet
+            # Grab the detectors in the mosaice (1-based indexing)
+            dets = np.unique(self.msarc.det_img)
+            dets = dets[dets > 0]
         else:
-            ndet = 1
+            # The value here is irrelevant
+            dets = [1]
 
         # Loop on detectors
         fit2ds = []
-        for ii in range(ndet):
-            idet = ii + 1 # Detector number (1-based indexing)
+        for idet in dets:
             msgs.info('Fitting detector {:d}'.format(idet))
             # Init
             all_wave = np.array([], dtype=float)
@@ -757,13 +757,14 @@ class BuildWaveCalib:
                 if iorder not in ok_mask_order:
                     continue
 
-                # Correct detector?
+                # Separate detector analysis?
                 if self.par['ech_separate_2d']:
                     spat_id = wv_calib.spat_ids[ii]
                     # What is the most common detector for this order?
                     ordr_det = self.slits.det_of_slit(
                         spat_id, self.msarc.det_img,
                         slit_img=slit_img)
+                    # Correct detector?
                     if ordr_det != idet:
                         continue
 
@@ -880,10 +881,11 @@ class BuildWaveCalib:
 
         # Fit 2D?
         if self.par['echelle']:
+            # Fit
             fit2ds = self.echelle_2dfit(self.wv_calib, skip_QA = skip_QA, debug=debug)
+            # Save
             self.wv_calib.wv_fit2d = np.array(fit2ds)
-            # det_img?
-            # TODO -- Use the par here
+            # Save det_img?
             if self.par['ech_separate_2d']:
                 self.wv_calib.det_img = self.msarc.det_img.copy()
 
