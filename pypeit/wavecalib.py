@@ -51,7 +51,7 @@ class WaveCalib(datamodel.DataContainer):
                  'wv_fit2d': dict(otype=np.ndarray, atype=fitting.PypeItFit,
                                   descr='2D wavelength solution(s) (echelle).  If there is more than one, they must be aligned to the separate detectors analyzed'),
                  'det_img': dict(otype=np.ndarray, atype=np.integer,
-                                  descr='Detector image; used occasionally by echelle'),
+                                  descr='Detector image; used occasionally by echelle.  Currently only saved if ech_separate_2d=True'),
                  'arc_spectra': dict(otype=np.ndarray, atype=np.floating,
                                      descr='2D array: 1D extracted spectra, slit by slit '
                                            '(nspec, nslits)'),
@@ -574,13 +574,10 @@ class BuildWaveCalib:
                                              nsnippet=self.par['nsnippet'])
                                              #debug=True, debug_reid=True, debug_xcorr=True)
         elif self.par['method'] == 'echelle':
-            # Echelle calibration
-            #msgs.error('Non-fixed format Echelle wavelength calibration is not yet full implemented')
-            # TODO: Get these from the spectrograph file later.
-            angle_fits_file = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms', 'hires_wvcalib',
-                                           'wvcalib_angle_fits.fits')
-            composite_arc_file = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms', 'hires_wvcalib',
-                                              'HIRES_composite_arc.fits')
+
+            # Echelle calibration files
+            angle_fits_file, composite_arc_file = self.spectrograph.get_echelle_angle_files()
+
             # Identify the echelle orders
             msgs.info("Finding the echelle orders")
             order_vec, wave_soln_arxiv, arcspec_arxiv = echelle.identify_ech_orders(

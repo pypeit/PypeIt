@@ -160,6 +160,13 @@ def ech_findobj_ineach_order(
     """
     Find objects in each echelle order, individually.
 
+    This routine:
+
+        - Loops over the good orders
+
+        - Calls the objs_in_slit() method to find objects in the order.
+        See that method for further details
+
     Args:
         image (`numpy.ndarray`_):
             (Floating-point) Image to use for object search with shape (nspec,
@@ -256,8 +263,8 @@ def ech_findobj_ineach_order(
 
             If None, the dictionary is filled with the following placeholders::
 
-                specobj_dict = {'SLITID': 999, 'DET': 'DET01',
-                                'OBJTYPE': 'unknown', 'PYPELINE': 'unknown'}
+                specobj_dict = {'SLITID': 999, 'DET': det, 'ECH_ORDERINDX': 999,
+                                'OBJTYPE': 'unknown', 'PYPELINE': 'Echelle'}
 
         trim_edg (:obj:`tuple`, optional):
             A two-tuple of integers or floats used to ignore objects within this
@@ -298,22 +305,6 @@ def ech_findobj_ineach_order(
         specobj_dict['ECH_ORDERINDX'] = iord
         specobj_dict['ECH_ORDER'] = iorder
         std_in = None if std_trace is None else std_trace[:, iord]
-
-        '''
-        # TODO JFH: Fix this. The way this code works, you should only need to create a single hand object,		
-        # not one at every location on the order            
-        if hand_extract_dict is not None:
-            new_hand_extract_dict = copy.deepcopy(hand_extract_dict)
-            for ss, spat, spec, f_spat in zip(range(len(hand_extract_dict['spec'])),
-                                              hand_extract_dict['spat'],
-                                              hand_extract_dict['spec'], f_spats):
-                ispec = int(spec)
-                new_hand_extract_dict['spec'][ss] = ispec
-                new_hand_extract_dict['spat'][ss] = slit_left[ispec,iord] + f_spat*(
-                    slit_righ[ispec,iord]-slit_left[ispec,iord])
-        else:
-            new_hand_extract_dict = None
-        '''
 
         # Get SLTIORD_ID for the objfind QA
         ech_objfindQA_filename = objfindQA_filename.replace('S0999', 'S{:04d}'.format(order_vec[iord])) \
@@ -383,6 +374,7 @@ def ech_fof_sobjs(sobjs:specobjs.SpecObjs,
     Links together objects previously found using a 
     friends-of-friends algorithm on fractional order position.
 
+    Each source from each order is then assigned an obj_id value
 
     Args:
         sobjs (:class:`~pypeit.specobj.SpecObj`):
@@ -480,6 +472,17 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
         the slit boundaries) are placed at the appropriate fractional
         position along the order.
 
+    This routine:
+
+        - Assigns each specobj a fractional order position and an obj_id number
+
+        - Fills in missing objects. Fit the fraction slit position of
+        the good orders where an object was found and use that fit to predict the fractional slit position 
+        on the bad orders where no object was found
+
+        - Now loop over the orders and add objects on the orders for 
+        which the current object was not found
+
 
     Args:
         sobjs (:class:`~pypeit.specobj.SpecObj`):
@@ -512,7 +515,7 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
             missing orders
 
     Returns:
-        ~pypeit.specobjs.SpecObjs:  
+        :class:`~pypeit.specobjs.SpecObjs`:  
             A new SpecObjs object with the filled in orders
     """
     # Prep
@@ -572,11 +575,8 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
         if (nthisobj_id > 3) and (nthisobj_id<ngd_orders):
             thisorderindx = sobjs_align[indx_obj_id].ECH_ORDERINDX
             thisorder = sobjs_align[indx_obj_id].ECH_ORDER
-            #goodorder = np.zeros(ngd_orders, dtype=bool)
             # Allow for masked orders
-            #badorder = np.invert(goodorder)
             xcen_good = (sobjs_align[indx_obj_id].TRACE_SPAT).T
-            #slit_frac_good = (xcen_good-slit_left[:,goodorder])/slit_width[:,goodorder]
             slit_frac_good = (xcen_good-slit_left[:,thisorderindx])/slit_width[:,thisorderindx]
             # Fractional slit position averaged across the spectral direction for each order
             frac_mean_good = np.mean(slit_frac_good, 0)
@@ -678,6 +678,16 @@ def ech_cutobj_on_snr(
     nabove_min_snr:int=2,
     box_radius:float=2.0, inmask:np.ndarray=None):
     """Cut down objects based on S/N
+
+    This routine:
+
+        - Loops over the objects and perform a quick and dirty extraction to assess S/N.
+
+        - Purge objects with low SNR that don't show up in enough orders, sort the list of objects with respect to obj_id and orderindx
+    
+        -  Loop over objects from highest SNR to lowest SNR. Apply the S/N constraints. 
+        Once we hit the maximum number objects requested exit, except keep 
+        any hand apertures that were requested.
 
     Args:
         sobjs_align (:class:`~pypeit.specobj.SpecObj`):
@@ -847,6 +857,7 @@ def ech_pca_traces(
     show_pca:bool=False):
     """
     A PCA fit to the traces is performed using the routine pca_fit
+    It then applies iterative flux-weighted centroiding to refine the traces
 
     Args:
         sobjs_final (:class:`~pypeit.specobj.SpecObj`):
