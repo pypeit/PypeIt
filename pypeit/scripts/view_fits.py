@@ -8,6 +8,7 @@ This script enables the viewing of a raw FITS file
 from IPython import embed
 
 from pypeit.scripts import scriptbase
+from pypeit import utils
 
 
 class ViewFits(scriptbase.ScriptBase):
@@ -130,5 +131,5 @@ class ViewFits(scriptbase.ScriptBase):
 
 
         if args.embed:
-            embed()
+            embed(header=utils.embed_header())
 

@@ -18,6 +18,7 @@ from pypeit import msgs
 from pypeit import slittrace
 from pypeit import specobjs
 from pypeit import io
+from pypeit import utils
 
 from pypeit.display import display
 from pypeit.images.imagebitmask import ImageBitMask
@@ -284,7 +285,8 @@ class Show2DSpec(scriptbase.ScriptBase):
                                         {})
 
         if args.embed:
-            embed()
+            embed(header=utils.embed_header())
+
 
         # Playing with some mask stuff
         #out = shell.start_operation('TVMask')
