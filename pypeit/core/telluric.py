@@ -627,12 +627,25 @@ def general_spec_reader(specfile, ret_flam=False):
         The 6th is a :obj:`dict` of metadata.  And the 7th is an
         `astropy.io.fits.Header`_ object with the primary header from the input file.
     """
-
     # Place holder routine that provides a generic spectrum reader
     bonus = {}
-    try: #TODO JFH Please fix this try except issue. Can we determine datatype from file header?
-        # Read in the standard spec1d file produced by Pypeit
-        #sobjs, head = load.load_specobjs(specfile)
+    # Figure out which flavor input file
+    hdul = fits.open(specfile)
+    if 'DMODCLS' in hdul[1].header and hdul[1].header['DMODCLS'] == 'OneSpec':
+        # Load
+        spec = onespec.OneSpec.from_file(specfile)
+        # Unpack
+        wave = spec.wave
+        # wavelength grid evaluated at the bin centers, uniformly-spaced in lambda or log10-lambda/velocity.
+        # see core.wavecal.wvutils.py for more info.
+        # variable defaults to None if datamodel for this is also None (which is the case for spec1d file).
+        wave_grid_mid = spec.wave_grid_mid
+        counts = spec.flux
+        counts_ivar = spec.ivar
+        counts_gpm = spec.mask.astype(bool)
+        spect_dict = spec.spect_meta
+        head = spec.head0
+    else:
         sobjs = specobjs.SpecObjs.from_fitsfile(specfile, chk_version=False)
         if np.sum(sobjs.OPT_WAVE) is None:
             raise ValueError("This is an ugly hack until the DataContainer bug is fixed")
@@ -656,22 +669,6 @@ def general_spec_reader(specfile, ret_flam=False):
             spectrograph = load_spectrograph('shane_kast_blue')
         spect_dict = spectrograph.parse_spec_header(head)
         head['PYP_SPEC'] = spectrograph.name
-    except:
-        #TODO Make it so that we can type a file based on the DataContainer file header
-        msgs.warn('Ignore the error message above. This is a hack for now until DataContainer is tightened up')
-        # Load
-        spec = onespec.OneSpec.from_file(specfile)
-        # Unpack
-        wave = spec.wave
-        # wavelength grid evaluated at the bin centers, uniformly-spaced in lambda or log10-lambda/velocity.
-        # see core.wavecal.wvutils.py for more info.
-        # variable defaults to None if datamodel for this is also None (which is the case for spec1d file).
-        wave_grid_mid = spec.wave_grid_mid
-        counts = spec.flux
-        counts_ivar = spec.ivar
-        counts_gpm = spec.mask.astype(bool)
-        spect_dict = spec.spect_meta
-        head = spec.head0
 
     # Build this
     meta_spec = dict(bonus=bonus)

@@ -40,7 +40,8 @@ class Show1DSpec(scriptbase.ScriptBase):
         from pypeit import specobjs
         from pypeit import msgs
 
-        sobjs = specobjs.SpecObjs.from_fitsfile(args.file, chk_version=False)
+        sobjs = specobjs.SpecObjs.from_fitsfile(args.file, 
+                                                chk_version=False)
 
         # List only?
         if args.list:
