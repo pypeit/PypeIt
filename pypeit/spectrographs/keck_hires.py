@@ -34,23 +34,13 @@ class HIRESMosaicLookUp:
     Similar to :class:`~pypeit.spectrographs.gemini_gmos.GeminiGMOSMosaicLookUp`
 
     """
-    new_geometry = {
-        'MSC01': {'default_shape': (6164, 3990),
-                  'blue_det': {'shift': (-2048.0 - 37.0, 0.0), 'rotation': 0.},
-                  'green_det': {'shift': (0., 0.), 'rotation': 0.},
-                  'red_det': {'shift': (2048.0 + 53.0, 0.), 'rotation': 0.}},
-    }
     # Original
-    orig_geometry = {
+    geometry = {
         'MSC01': {'default_shape': (6168, 3990),
                   'blue_det': {'shift': (-2048.0 - 41.0, 0.0), 'rotation': 0.},
                   'green_det': {'shift': (0., 0.), 'rotation': 0.},
                   'red_det': {'shift': (2048.0 + 53.0, 0.), 'rotation': 0.}},
     }
-
-    geometry = orig_geometry
-    #geometry = new_geometry
-
 
 
 class KECKHIRESSpectrograph(spectrograph.Spectrograph):
@@ -577,14 +567,9 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             provided by ``order``.
         """
         det = self.get_detector_par(1)
-        # VIS has no binning, but for an instrument with binning we would do this
         binspectral, binspatial = parse.parse_binning(binning)
 
-        # ToDO Either assume a linear trend or measure this
-        # X-shooter manual says, but gives no exact numbers per order.
-        # VIS: 65.9 pixels (0.167"/pix) at order 17 to 72.0 pixels (0.153"/pix) at order 30.
-
-        # Right now I just assume a simple linear trend
+        # Assume no significant variation (which is likely true)
         return np.ones_like(order_vec)*det.platescale*binspatial
 
 def indexing(itt, postpix, det=None,xbin=1,ybin=1):

@@ -10,12 +10,8 @@ import os
 
 from matplotlib import pyplot as plt
 
-from scipy.ndimage.filters import gaussian_filter
-from scipy.signal import resample
 import scipy
-from scipy.optimize import curve_fit
 
-import astropy.stats
 from astropy.table import Table
 from astropy import convolution
 from astropy import constants
@@ -274,10 +270,7 @@ def get_wave_grid(waves=None, masks=None, wave_method='linear', iref=0, wave_gri
 
 
     if wave_method in ['iref', 'concatenate', 'user_input']:
-        try:
-            wave_grid_diff = np.diff(wave_grid)
-        except:
-            embed(header='277 of wvutils')
+        wave_grid_diff = np.diff(wave_grid)
         wave_grid_diff = np.append(wave_grid_diff, wave_grid_diff[-1])
         wave_grid_mid = wave_grid + wave_grid_diff / 2.0
         dsamp = np.median(wave_grid_diff)

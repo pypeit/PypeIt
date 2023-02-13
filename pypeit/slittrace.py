@@ -1107,6 +1107,24 @@ class SlitTraceSet(datamodel.DataContainer):
 
     def det_of_slit(self, spat_id:int, det_img:np.ndarray,
                     slit_img:np.ndarray=None):
+        """ Identify the 'best' detector for this slit/order
+        The metric is the detector where the slit appears
+        the most frequently.
+
+        Only sensibly used for mosaic images
+
+        Args:
+            spat_id (`int`): 
+                spat_id value for the slit of interest
+            det_img (`numpy.ndarray`_): 
+                :obj:`int` image specifying the detector number
+                (1-based) for each pixel in the mosaic
+            slit_img (`numpy.ndarray`_, optional): 
+                image identifying each pixel with its associated slit.
+
+        Returns:
+            :obj:`int`: Detector number for the slit (1-based)
+        """
         # Grab slit image?
         if slit_img is None:
             slit_img = self.slit_img()
