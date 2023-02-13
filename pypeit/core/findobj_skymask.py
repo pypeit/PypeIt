@@ -148,13 +148,9 @@ def create_skymask(sobjs, thismask, slit_left, slit_righ, box_rad_pix=None, trim
 
 
 def ech_findobj_ineach_order(
-    image, ivar, slitmask, 
-    slit_left, slit_righ, slit_spats,
-    order_vec, orders_gpm,
-    spec_min_max, plate_scale_ord,
-    det='DET01',
-    inmask=None, 
-    std_trace=None, ncoeff=5, 
+    image, ivar, slitmask, slit_left, slit_righ, slit_spats,
+    order_vec, orders_gpm, spec_min_max, plate_scale_ord,
+    det='DET01', inmask=None, std_trace=None, ncoeff=5, 
     box_radius=2.0, fwhm=3.0,
     use_user_fwhm=False, maxdev=2.0, nperorder=2,
     extract_maskwidth=3.0, snr_thresh=10.0,
@@ -163,7 +159,116 @@ def ech_findobj_ineach_order(
     show_single_trace=False, objfindQA_filename=None):
     """
     Find objects in each echelle order, individually.
-    
+
+    Args:
+        image (`numpy.ndarray`_):
+            (Floating-point) Image to use for object search with shape (nspec,
+            nspat).  The first dimension (nspec) is spectral, and second
+            dimension (nspat) is spatial. Note this image can either have the
+            sky background in it, or have already been sky subtracted.  Object
+            finding works best on sky-subtracted images. Ideally, object finding
+            is run in another routine, global sky-subtraction performed, and
+            then this code should be run. However, it is also possible to run
+            this code on non-sky-subtracted images.
+        ivar (`numpy.ndarray`_):
+            Floating-point inverse variance image for the input image.  Shape
+            must match ``image``, (nspec, nspat).
+        slitmask (`numpy.ndarray`_):
+            Integer image indicating the pixels that belong to each order.
+            Pixels that are not on an order have value -1, and those that are on
+            an order have a value equal to the slit number (i.e. 0 to nslits-1
+            from left to right on the image).  Shape must match ``image``,
+            (nspec, nspat).
+        slit_left (`numpy.ndarray`_):
+            Left boundary of orders to be extracted (given as floating point
+            pixels).  Shape is (nspec, norders), where norders is the total
+            number of traced echelle orders.
+        slit_righ (`numpy.ndarray`_):
+            Right boundary of orders to be extracted (given as floating point
+            pixels).  Shape is (nspec, norders), where norders is the total
+            number of traced echelle orders.
+        order_vec (`numpy.ndarray`_):
+            Vector identifying the Echelle orders for each pair of order edges
+            found.  This is saved to the output :class:`~pypeit.specobj.SpecObj`
+            objects.  If the orders are not known, this can be 
+            ``np.arange(norders)`` (but this is *not* recommended).
+        order_gpm (`numpy.ndarray`_):
+            Boolean array indicating which orders are good (True),
+            i.e. have good calibrations (wavelengths, etc.).  Shape is
+        spec_min_max (`numpy.ndarray`_):
+            2D array defining the minimum and maximum pixel in the spectral
+            direction with useable data for each order.  Shape must be (2,
+            norders).  This should only be used for echelle spectrographs for
+            which the orders do not entirely cover the detector. PCA tracing
+            will re-map the traces such that they all have the same length,
+            compute the PCA, and then re-map the orders back.  This improves
+            performance for echelle spectrographs by removing the nonlinear
+            shrinking of the orders so that the linear pca operation can better
+            predict the traces. If None, the minimum and maximum values will be
+            determined automatically from ``slitmask``.
+        plate_scale_ord (`numpy.ndarray`_):
+            An array with shape (norders,) providing the plate 
+            scale of each order in arcsec/pix, 
+        det (:obj:`str`, optional):
+            The name of the detector containing the object.  Only used if
+            ``specobj_dict`` is None.
+        inmask (`numpy.ndarray`_, optional):
+            Good-pixel mask for input image.  Must have the same shape as
+            ``image``.  If None, all pixels in ``slitmask`` with non-negative
+            values are considered good.
+        std_trace (`numpy.ndarray`_, optional):
+            Vector with the standard star trace, which is used as a crutch for
+            tracing.  Shape must be (nspec,).  If None, the slit boundaries are
+            used as the crutch.
+        ncoeff (:obj:`int`, optional):
+            Order of polynomial fit to traces.
+        box_radius (:obj:`float`, optional):
+            Box_car extraction radius in arcseconds to assign to each detected
+            object and to be used later for boxcar extraction. In this method
+            ``box_radius`` is converted into pixels using ``plate_scale``.
+            ``box_radius`` is also used for SNR calculation and trimming.
+        fwhm (:obj:`float`, optional):
+            Estimated fwhm of the objects in pixels
+        use_user_fwhm (:obj:`bool`, optional):
+            If True, ``PypeIt`` will use the spatial profile FWHM input by the
+            user (see ``fwhm``) rather than determine the spatial FWHM from the
+            smashed spatial profile via the automated algorithm.
+        maxdev (:obj:`float`, optional):
+            Maximum deviation of pixels from polynomial fit to trace
+            used to reject bad pixels in trace fitting.
+        nperorder (:obj:`int`, optional):
+            Maximum number of objects allowed per order.  If there are more
+            detections than this number, the code will select the ``nperorder``
+            most significant detections. However, hand apertures will always be
+            returned and do not count against this budget.
+        specobj_dict (:obj:`dict`, optional):
+            Dictionary containing meta-data for the objects that will be
+            propagated into the :class:`~pypeit.specobj.SpecObj` objects.  The
+            expected components are:
+            
+                - SLITID: The slit ID number
+                - DET: The detector identifier
+                - OBJTYPE: The object type
+                - PYPELINE: The class of pipeline algorithms applied
+
+            If None, the dictionary is filled with the following placeholders::
+
+                specobj_dict = {'SLITID': 999, 'DET': 'DET01',
+                                'OBJTYPE': 'unknown', 'PYPELINE': 'unknown'}
+
+        trim_edg (:obj:`tuple`, optional):
+            A two-tuple of integers or floats used to ignore objects within this
+            many pixels of the left and right slit boundaries, respectively.
+        show_peaks (:obj:`bool`, optional):
+            Plot the QA of the object peak finding in each order.
+        show_single_fits (:obj:`bool`, optional):
+            Plot trace fitting for single order fits.
+        show_single_trace (:obj:`bool`, optional):
+            Display the object traces on top of the single order.
+        objfindQA_filename (:obj:`str`, optional):
+            Full path (directory and filename) for the object profile QA plot.
+            If None, not plot is produced and saved.
+     
     Returns:
         :class:`~pypeit.specobjs.SpecObjs`: Object containing the objects
         detected.
