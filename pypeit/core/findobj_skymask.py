@@ -670,12 +670,66 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
     # Return
     return sobjs_align
 
-def ech_cutobj_on_snr(sobjs_align, image, ivar, slitmask,
-                      gd_orders, 
-                      plate_scale_ord, max_snr=2.0,
-                      nperorder=2, min_snr=1.0, 
-                      nabove_min_snr=2,
-                      box_radius=2.0, inmask=None):
+def ech_cutobj_on_snr(
+    sobjs_align, image:np.ndarray, ivar:np.ndarray, 
+    slitmask:np.ndarray, gd_orders:np.ndarray, 
+    plate_scale_ord:np.ndarray, max_snr:float=2.0,
+    nperorder:int=2, min_snr:float=1.0, 
+    nabove_min_snr:int=2,
+    box_radius:float=2.0, inmask:np.ndarray=None):
+    """Cut down objects based on S/N
+
+    Args:
+        sobjs_align (:class:`~pypeit.specobj.SpecObj`):
+            Previously found objects
+        image (`numpy.ndarray`_):
+            (Floating-point) Image to use for object search with shape (nspec,
+            nspat).  The first dimension (nspec) is spectral, and second
+            dimension (nspat) is spatial. Note this image can either have the
+            sky background in it, or have already been sky subtracted.  Object
+            finding works best on sky-subtracted images. Ideally, object finding
+            is run in another routine, global sky-subtraction performed, and
+            then this code should be run. However, it is also possible to run
+            this code on non-sky-subtracted images.
+        ivar (`numpy.ndarray`_):
+            Floating-point inverse variance image for the input image.  Shape
+            must match ``image``, (nspec, nspat).
+        slitmask (`numpy.ndarray`_):
+            Integer image indicating the pixels that belong to each order.
+            Pixels that are not on an order have value -1, and those that are on
+            an order have a value equal to the slit number (i.e. 0 to nslits-1
+            from left to right on the image).  Shape must match ``image``,
+            (nspec, nspat).
+        gd_orders (`numpy.ndarray`_):
+            `int` array of good orders 
+        plate_scale_ord (`numpy.ndarray`_):
+            An array with shape (norders,) providing the plate 
+            scale of each order in arcsec/pix, 
+        max_snr (:obj:`float`, optional):
+            For an object to be included in the output object, it must have a
+            max S/N ratio above this value.
+        min_snr (:obj:`float`, optional):
+            For an object to be included in the output object, it must have a
+            a median S/N ratio above this value for at least
+            ``nabove_min_snr`` orders (see below).
+        nabove_min_snr (:obj:`int`, optional):
+            The required number of orders that an object must have with median
+            SNR greater than ``min_snr`` in order to be included in the output
+            object.
+        box_radius (:obj:`float`, optional):
+            Box_car extraction radius in arcseconds to assign to each detected
+            object and to be used later for boxcar extraction. In this method
+            ``box_radius`` is converted into pixels using ``plate_scale``.
+            ``box_radius`` is also used for SNR calculation and trimming.
+        inmask (`numpy.ndarray`_, optional):
+            Good-pixel mask for input image.  Must have the same shape as
+            ``image``.  If None, all pixels in ``slitmask`` with non-negative
+            values are considered good.
+
+    Returns:
+        :class:`~pypeit.specobjs.SpecObjs`: 
+            The final set of objects
+    """
 
     allmask = slitmask > -1
     if inmask is None:
@@ -782,12 +836,76 @@ def ech_cutobj_on_snr(sobjs_align, image, ivar, slitmask,
     return sobjs_final
 
 
-def ech_pca_traces(sobjs_final, image, slitmask, inmask, 
-                   gd_orders, spec_min_max,
-                   npca=None, coeff_npoly=None,
-                   pca_explained_var=99.0, 
-                   ncoeff=5, maxdev=2.0, fwhm=3.0,
-                   show_trace=False, show_fits=False, show_pca=False):
+def ech_pca_traces(
+    sobjs_final:specobjs.SpecObjs, image:np.ndarray, 
+    slitmask:np.ndarray, inmask:np.ndarray, 
+    gd_orders:np.ndarray, spec_min_max,
+    npca:int=None, coeff_npoly:int=None,
+    pca_explained_var:float=99.0, 
+    ncoeff:int=5, maxdev:float=2.0, fwhm:float=3.0,
+    show_trace:bool=False, show_fits:bool=False, 
+    show_pca:bool=False):
+    """
+    A PCA fit to the traces is performed using the routine pca_fit
+
+    Args:
+        sobjs_final (:class:`~pypeit.specobj.SpecObj`):
+            Final set of objects ready for tracing
+        image (`numpy.ndarray`_):
+            (Floating-point) Image to use for object search with shape (nspec,
+            nspat).  The first dimension (nspec) is spectral, and second
+            dimension (nspat) is spatial. Note this image can either have the
+            sky background in it, or have already been sky subtracted.  Object
+            finding works best on sky-subtracted images. Ideally, object finding
+            is run in another routine, global sky-subtraction performed, and
+            then this code should be run. However, it is also possible to run
+            this code on non-sky-subtracted images.
+        slitmask (`numpy.ndarray`_):
+            Integer image indicating the pixels that belong to each order.
+            Pixels that are not on an order have value -1, and those that are on
+            an order have a value equal to the slit number (i.e. 0 to nslits-1
+            from left to right on the image).  Shape must match ``image``,
+            (nspec, nspat).
+        inmask (`numpy.ndarray`_, optional):
+            Good-pixel mask for input image.  Must have the same shape as
+            ``image``.  If None, all pixels in ``slitmask`` with non-negative
+            values are considered good.
+        gd_orders (`numpy.ndarray`_):
+            `int` array of good orders 
+        spec_min_max (_type_): _description_
+            `float` array of shape (2, norders) with the minimum and maximum
+            spectral value for each order
+        npca (:obj:`int`, optional):
+            Number of PCA components to keep during PCA decomposition of the
+            object traces.  If None, the number of components set by requiring
+            the PCA accounts for approximately 99% of the variance.
+        coeff_npoly (:obj:`int`, optional):
+            Order of polynomial used for PCA coefficients fitting.  If None,
+            value set automatically, see
+            :func:`~pypeit.tracepca.pca_trace_object`.
+        pca_explained_var (:obj:`float`, optional):
+            The percentage (i.e., not the fraction) of the variance in the data
+            accounted for by the PCA used to truncate the number of PCA
+            coefficients to keep (see ``npca``). Ignored if ``npca`` is provided
+            directly; see :func:`~pypeit.tracepca.pca_trace_object`.
+        ncoeff (:obj:`int`, optional):
+            Order of polynomial fit to traces.
+        maxdev (:obj:`float`, optional):
+            Maximum deviation of pixels from polynomial fit to trace
+            used to reject bad pixels in trace fitting.
+        fwhm (:obj:`float`, optional):
+            Estimated fwhm of the objects in pixels
+        show_trace (:obj:`bool`, optional):
+            Display the object traces on top of the image.
+        show_fits (:obj:`bool`, optional):
+            Plot trace fitting for final fits using PCA as crutch.
+        show_pca (:obj:`bool`, optional):
+            Display debugging plots for the PCA decomposition.
+
+    Returns:
+        :class:`~pypeit.specobj.SpecObj`:
+            Final set of objects, traced 
+    """
 
     # Prep
     nspec, nspat = image.shape
@@ -1095,6 +1213,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         :class:`~pypeit.specobjs.SpecObjs`: Object containing the objects
         detected.
     """
+    raise DeprecationWarning
+    msgs.error("This ginormous method as been Deprecated")
 
     #debug_all=True
     if debug_all:
