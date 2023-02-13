@@ -516,6 +516,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
         # Detector 1
         # TODO -- Fill these in properly for HIRES
+        # https://www2.keck.hawaii.edu/inst/hires/instrument_specifications.html
         detector_dict1 = dict(
             binning         = binning,
             det             = 1,
