@@ -352,14 +352,15 @@ def ech_fill_in_orders(sobjs,
     nobj = len(uni_obj_id)
     fracpos = sobjs.SPAT_FRACPOS
 
-    # Check standard star
-    if std_trace is not None and std_trace.shape[1] != len(order_vec):
-        msgs.error('Standard star trace does not match the number of orders in the echelle data.')
-
     # Prep
     ngd_orders = np.sum(order_gpm)
     gd_orders = order_vec[order_gpm]
     slit_width = slit_righ - slit_left
+
+    # Check standard star
+    if std_trace is not None and std_trace.shape[1] != ngd_orders:
+        msgs.error('Standard star trace does not match the number of orders in the echelle data.')
+
     # For traces
     nspec = slit_left.shape[0]
     spec_vec = np.arange(nspec)
