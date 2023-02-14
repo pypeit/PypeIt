@@ -1070,7 +1070,7 @@ class EchelleFindObjects(FindObjects):
 
             # Fill in Orders
             #new_tmp = findobj_skymask.ech_fill_in_orders(tmp_sobjs, #sobjs_in_orders, 
-            new_tmp = findobj_skymask.ech_fill_in_orders(
+            sobjs_filled = findobj_skymask.ech_fill_in_orders(
                 sobjs_in_orders, 
                 self.slits_left, self.slits_right,
                 self.order_vec, 
@@ -1081,7 +1081,7 @@ class EchelleFindObjects(FindObjects):
 
             # Cut on SNR and number of objects
             sobjs_pre_final = findobj_skymask.ech_cutobj_on_snr(
-                new_tmp, image, ivar, self.slitmask,
+                sobjs_filled, image, ivar, self.slitmask,
                 self.order_vec[order_gpm],
                 plate_scale, # Add the optional stuff too 
                 inmask=inmask,
