@@ -289,7 +289,7 @@ Currently ``instrument_name`` is
 taken from the ``camera`` attribute of the relevant
 :class:`~pypeit.spectrographs.spectrograph.Spectrograph` class.
 
-The format of the 1D coadd file follows follows the general
+The format of the 1D coadd file follows the general
 class :class:`~pypeit.onespec.OneSpec`, such 
 that its file extensions are:
 
