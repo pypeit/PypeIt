@@ -883,7 +883,7 @@ def ech_pca_traces(
             values are considered good.
         gd_orders (`numpy.ndarray`_):
             `int` array of good orders 
-        spec_min_max (_type_): _description_
+        spec_min_max (`numpy.ndarray`_): _description_
             `float` array of shape (2, norders) with the minimum and maximum
             spectral value for each order
         npca (:obj:`int`, optional):
@@ -1035,7 +1035,270 @@ def ech_pca_traces(
 
     return sobjs_final
 
-def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslits, det='DET01',
+
+def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, slits_bpm, 
+                slit_spat_id, spec_min_max,
+                det='DET01',
+                inmask=None, 
+                fof_link=1.5, plate_scale=0.2,
+                std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0,
+                nabove_min_snr=2, pca_explained_var=99.0, box_radius=2.0, fwhm=3.0,
+                use_user_fwhm=False, maxdev=2.0, hand_extract_dict=None, nperorder=2,
+                extract_maskwidth=3.0, snr_thresh=10.0,
+                specobj_dict=None, trim_edg=(5,5),
+                show_peaks=False, show_fits=False, show_single_fits=False,
+                show_trace=False, show_single_trace=False, show_pca=False,
+                debug_all=False, objfindQA_filename=None):
+    """
+    Object finding routine for Echelle spectrographs.
+    
+    This routine:
+
+        #. Runs object finding on each order individually
+
+        #. Links the objects found together using a friends-of-friends algorithm
+           on fractional order position.
+
+        #. For objects which were only found on some orders, the standard (or
+           the slit boundaries) are placed at the appropriate fractional
+           position along the order.
+
+        #. A PCA fit to the traces is performed using the routine above pca_fit
+
+    Args:
+        image (`numpy.ndarray`_):
+            (Floating-point) Image to use for object search with shape (nspec,
+            nspat).  The first dimension (nspec) is spectral, and second
+            dimension (nspat) is spatial. Note this image can either have the
+            sky background in it, or have already been sky subtracted.  Object
+            finding works best on sky-subtracted images. Ideally, object finding
+            is run in another routine, global sky-subtraction performed, and
+            then this code should be run. However, it is also possible to run
+            this code on non-sky-subtracted images.
+        ivar (`numpy.ndarray`_):
+            Floating-point inverse variance image for the input image.  Shape
+            must match ``image``, (nspec, nspat).
+        slitmask (`numpy.ndarray`_):
+            Integer image indicating the pixels that belong to each order.
+            Pixels that are not on an order have value -1, and those that are on
+            an order have a value equal to the slit number (i.e. 0 to nslits-1
+            from left to right on the image).  Shape must match ``image``,
+            (nspec, nspat).
+        slit_left (`numpy.ndarray`_):
+            Left boundary of orders to be extracted (given as floating point
+            pixels).  Shape is (nspec, norders), where norders is the total
+            number of traced echelle orders.
+        slit_righ (`numpy.ndarray`_):
+            Right boundary of orders to be extracted (given as floating point
+            pixels).  Shape is (nspec, norders), where norders is the total
+            number of traced echelle orders.
+        order_vec (`numpy.ndarray`_):
+            Vector identifying the Echelle orders for each pair of order edges
+            found.  This is saved to the output :class:`~pypeit.specobj.SpecObj`
+            objects.  If the orders are not known, this can be 
+            ``np.arange(norders)`` (but this is *not* recommended).
+        slits_bpm (`numpy.ndarray`_):
+            Boolean array selecting orders that should be ignored (i.e., good
+            orders are False, bad orders are True).  Shape must be (norders,).
+        slit_spat_id (`numpy.ndarray`_):
+            slit_spat values (spatial position 1/2 way up the detector)
+            for the orders 
+        spec_min_max (`numpy.ndarray`_):
+            2D array defining the minimum and maximum pixel in the spectral
+            direction with useable data for each order.  Shape must be (2,
+            norders).  This should only be used for echelle spectrographs for
+            which the orders do not entirely cover the detector. PCA tracing
+            will re-map the traces such that they all have the same length,
+            compute the PCA, and then re-map the orders back.  This improves
+            performance for echelle spectrographs by removing the nonlinear
+            shrinking of the orders so that the linear pca operation can better
+            predict the traces. If None, the minimum and maximum values will be
+            determined automatically from ``slitmask``.
+        det (:obj:`str`, optional):
+            The name of the detector containing the object.  Only used if
+            ``specobj_dict`` is None.
+        inmask (`numpy.ndarray`_, optional):
+            Good-pixel mask for input image.  Must have the same shape as
+            ``image``.  If None, all pixels in ``slitmask`` with non-negative
+            values are considered good.
+        fof_link (:obj:`float`, optional):
+            Friends-of-friends linking length in arcseconds used to link
+            together traces across orders. The routine links together at
+            the same fractional slit position and links them together
+            with a friends-of-friends algorithm using this linking
+            length.
+        plate_scale (:obj:`float`, `numpy.ndarray`_, optional):
+            Plate scale in arcsec/pix. This can either be a single float for
+            every order, or an array with shape (norders,) providing the plate
+            scale of each order.
+        std_trace (`numpy.ndarray`_, optional):
+            Vector with the standard star trace, which is used as a crutch for
+            tracing.  Shape must be (nspec,).  If None, the slit boundaries are
+            used as the crutch.
+        ncoeff (:obj:`int`, optional):
+            Order of polynomial fit to traces.
+        npca (:obj:`int`, optional):
+            Number of PCA components to keep during PCA decomposition of the
+            object traces.  If None, the number of components set by requiring
+            the PCA accounts for approximately 99% of the variance.
+        coeff_npoly (:obj:`int`, optional):
+            Order of polynomial used for PCA coefficients fitting.  If None,
+            value set automatically, see
+            :func:`~pypeit.tracepca.pca_trace_object`.
+        max_snr (:obj:`float`, optional):
+            For an object to be included in the output object, it must have a
+            max S/N ratio above this value.
+        min_snr (:obj:`float`, optional):
+            For an object to be included in the output object, it must have a
+            a median S/N ratio above this value for at least
+            ``nabove_min_snr`` orders (see below).
+        nabove_min_snr (:obj:`int`, optional):
+            The required number of orders that an object must have with median
+            SNR greater than ``min_snr`` in order to be included in the output
+            object.
+        pca_explained_var (:obj:`float`, optional):
+            The percentage (i.e., not the fraction) of the variance in the data
+            accounted for by the PCA used to truncate the number of PCA
+            coefficients to keep (see ``npca``). Ignored if ``npca`` is provided
+            directly; see :func:`~pypeit.tracepca.pca_trace_object`.
+        box_radius (:obj:`float`, optional):
+            Box_car extraction radius in arcseconds to assign to each detected
+            object and to be used later for boxcar extraction. In this method
+            ``box_radius`` is converted into pixels using ``plate_scale``.
+            ``box_radius`` is also used for SNR calculation and trimming.
+        fwhm (:obj:`float`, optional):
+            Estimated fwhm of the objects in pixels
+        use_user_fwhm (:obj:`bool`, optional):
+            If True, ``PypeIt`` will use the spatial profile FWHM input by the
+            user (see ``fwhm``) rather than determine the spatial FWHM from the
+            smashed spatial profile via the automated algorithm.
+        maxdev (:obj:`float`, optional):
+            Maximum deviation of pixels from polynomial fit to trace
+            used to reject bad pixels in trace fitting.
+        hand_extract_dict (:obj:`dict`, optional):
+            Dictionary with info on manual extraction; see
+            :class:`~pypeit.manual_extract.ManualExtractionObj`.
+        nperorder (:obj:`int`, optional):
+            Maximum number of objects allowed per order.  If there are more
+            detections than this number, the code will select the ``nperorder``
+            most significant detections. However, hand apertures will always be
+            returned and do not count against this budget.
+        extract_maskwidth (:obj:`float`, optional):
+            Determines the initial size of the region in units of FWHM that will
+            be used for local sky subtraction; See :func:`objs_in_slit` and
+            :func:`~pypeit.core.skysub.local_skysub_extract`.
+        snr_thresh (:obj:`float`, optional):
+            SNR threshold for finding objects
+        specobj_dict (:obj:`dict`, optional):
+            Dictionary containing meta-data for the objects that will be
+            propagated into the :class:`~pypeit.specobj.SpecObj` objects.  The
+            expected components are:
+            
+                - SLITID: The slit ID number
+                - DET: The detector identifier
+                - OBJTYPE: The object type
+                - PYPELINE: The class of pipeline algorithms applied
+
+            If None, the dictionary is filled with the following placeholders::
+
+                specobj_dict = {'SLITID': 999, 'DET': 'DET01',
+                                'OBJTYPE': 'unknown', 'PYPELINE': 'unknown'}
+
+        trim_edg (:obj:`tuple`, optional):
+            A two-tuple of integers or floats used to ignore objects within this
+            many pixels of the left and right slit boundaries, respectively.
+        show_peaks (:obj:`bool`, optional):
+            Plot the QA of the object peak finding in each order.
+        show_fits (:obj:`bool`, optional):
+            Plot trace fitting for final fits using PCA as crutch.
+        show_single_fits (:obj:`bool`, optional):
+            Plot trace fitting for single order fits.
+        show_trace (:obj:`bool`, optional):
+            Display the object traces on top of the image.
+        show_single_trace (:obj:`bool`, optional):
+            Display the object traces on top of the single order.
+        show_pca (:obj:`bool`, optional):
+            Display debugging plots for the PCA decomposition.
+        debug_all (:obj:`bool`, optional):
+            Show all the debugging plots.  If True, this also overrides any
+            provided values for ``show_peaks``, ``show_trace``, and
+            ``show_pca``, setting them to True.
+        objfindQA_filename (:obj:`str`, optional):
+            Full path (directory and filename) for the object profile QA plot.
+            If None, not plot is produced and saved.
+
+    Returns:
+        :class:`~pypeit.specobjs.SpecObjs`: Object containing the objects
+        detected.
+    """
+    # Loop over the orders and find the objects within them (if any)
+    order_gpm = np.invert(slits_bpm)
+    sobjs_in_orders = ech_findobj_ineach_order(
+        image, ivar, slitmask, slit_left, 
+        slit_righ, slit_spat_id,
+        order_vec, order_gpm,
+        spec_min_max, plate_scale,
+        det=det,
+        inmask=inmask, 
+        std_trace=std_trace,
+        specobj_dict=specobj_dict,
+        snr_thresh=snr_thresh,
+        show_peaks=show_peaks, 
+        trim_edg=trim_edg,
+        fwhm=fwhm,
+        use_user_fwhm=use_user_fwhm,
+        nperorder=nperorder,
+        maxdev=maxdev,
+        box_radius=box_radius,
+        objfindQA_filename=objfindQA_filename)
+
+    # Additional work for slits with sources (or manual extraction)
+    if len(sobjs_in_orders) > 0 or manual_extract_dict is not None:
+
+        # Friend of friend algorithm to group objects
+        obj_id = ech_fof_sobjs(
+            sobjs_in_orders, slit_left,
+            slit_righ, plate_scale)
+
+        # Fill in Orders
+        #new_tmp = findobj_skymask.ech_fill_in_orders(tmp_sobjs, #sobjs_in_orders, 
+        sobjs_filled = ech_fill_in_orders(
+            sobjs_in_orders, 
+            slit_left, slit_righ,
+            order_vec, order_gpm,
+            obj_id, #obj_id[tmp], 
+            slit_spat_id,
+            std_trace=std_trace)
+
+        # Cut on SNR and number of objects
+        sobjs_pre_final = ech_cutobj_on_snr(
+            sobjs_filled, image, ivar, slitmask,
+            order_vec[order_gpm],
+            plate_scale, # Add the optional stuff too 
+            inmask=inmask,
+            nperorder=nperorder,
+            max_snr=max_snr,
+            min_snr=min_snr,
+            nabove_min_snr=nabove_min_snr,
+            box_radius=box_radius)
+
+        # PCA
+        sobjs_ech = ech_pca_traces(
+            sobjs_pre_final, 
+            image, slitmask, inmask, 
+            order_vec[order_gpm],
+            spec_min_max,
+            ncoeff=self.par['reduce']['findobj']['trace_npoly'],
+            maxdev=self.par['reduce']['findobj']['find_maxdev'],
+            fwhm=self.par['reduce']['findobj']['find_fwhm'],
+            show_trace=False, show_fits=False, show_pca=False)
+    else:
+        # Emtpy SObjs object
+        sobjs_ech = sobjs_in_orders
+
+
+
+def orig_ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslits, det='DET01',
                 inmask=None, spec_min_max=None, fof_link=1.5, plate_scale=0.2,
                 std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0,
                 nabove_min_snr=2, pca_explained_var=99.0, box_radius=2.0, fwhm=3.0,
