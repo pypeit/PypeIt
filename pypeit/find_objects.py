@@ -1009,7 +1009,7 @@ class EchelleFindObjects(FindObjects):
         nperorder =  self.par['reduce']['findobj']['maxnumber_std'] if self.std_redux \
             else self.par['reduce']['findobj']['maxnumber_sci']
 
-        orig = True
+        orig = False
         if orig:
             sobjs_ech = findobj_skymask.ech_objfind(
                 image, ivar, self.slitmask, self.slits_left, self.slits_right,
@@ -1019,7 +1019,7 @@ class EchelleFindObjects(FindObjects):
                 det=self.det,
                 inmask=inmask, 
                 ncoeff=self.par['reduce']['findobj']['trace_npoly'],
-                hand_extract_dict=manual_extract_dict, 
+                manual_extract_dict=manual_extract_dict, 
                 plate_scale=plate_scale,
                 std_trace=std_trace,
                 specobj_dict=specobj_dict,

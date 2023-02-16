@@ -1260,8 +1260,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, slits_bp
         specobj_dict=specobj_dict,
         snr_thresh=snr_thresh,
         show_peaks=show_peaks, 
-        show_fits=show_single_fits,
-        show_trace=show_single_trace,
+        show_single_fits=show_single_fits,
+        show_single_trace=show_single_trace,
         extract_maskwidth=extract_maskwidth,
         trim_edg=trim_edg,
         fwhm=fwhm,
@@ -1281,7 +1281,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, slits_bp
             fof_link=fof_link)
 
         # Fill in Orders
-        #new_tmp = findobj_skymask.ech_fill_in_orders(tmp_sobjs, #sobjs_in_orders, 
         sobjs_filled = ech_fill_in_orders(
             sobjs_in_orders, 
             slit_left, slit_righ,
@@ -1294,7 +1293,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, slits_bp
         sobjs_pre_final = ech_cutobj_on_snr(
             sobjs_filled, image, ivar, slitmask,
             order_vec[order_gpm],
-            plate_scale, # Add the optional stuff too 
+            plate_scale, 
             inmask=inmask,
             nperorder=nperorder,
             max_snr=max_snr,
@@ -1307,7 +1306,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, slits_bp
             sobjs_pre_final, 
             image, slitmask, inmask, 
             order_vec[order_gpm],
-            spec_min_max,
+            spec_min_max[:, order_gpm],
             coeff_npoly=coeff_npoly,
             ncoeff=ncoeff, npca=npca,
             pca_explained_var=pca_explained_var,
@@ -1316,7 +1315,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, slits_bp
             show_trace=show_trace, show_fits=show_fits, 
             show_pca=show_pca)
     else:
-        # Emtpy SObjs object
         sobjs_ech = sobjs_in_orders
 
     return sobjs_ech
