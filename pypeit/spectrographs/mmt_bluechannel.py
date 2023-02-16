@@ -289,19 +289,20 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         Returns:
             lamps (:obj:`list`) : List used arc lamps
         """
-        lampstr = fitstbl['lampstat01'][0]
+        lampspecs = fitstbl['lampstat01']
         lamps = []
 
-        if 'Ne' in lampstr:
-            lamps += ['NeI']
-        if 'HeAr' in lampstr:
-            lamps += ['HeI', 'ArI', 'ArII']
-        if 'ThAr' in lampstr:
-            lamps += ['ThAr']
-        if 'HgCd' in lampstr:
-            lamps += ['HgI', 'CdI']
+        for lampstr in lampspecs:
+            if 'Ne' in lampstr:
+                lamps += ['NeI']
+            if 'HeAr' in lampstr:
+                lamps += ['HeI', 'ArI', 'ArII']
+            if 'ThAr' in lampstr:
+                lamps += ['ThAr']
+            if 'HgCd' in lampstr:
+                lamps += ['HgI', 'CdI']
 
-        return lamps
+        return list(set(lamps))
 
     def configuration_keys(self):
         """
