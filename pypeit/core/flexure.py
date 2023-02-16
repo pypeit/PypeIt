@@ -255,8 +255,8 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm=None, mxsh
     subpix_grid = np.linspace(max_corr-3., max_corr+3., 7)
 
     #Fit a 2-degree polynomial to peak of correlation function. JFH added this if/else to not crash for bad slits
-    if np.any(np.isfinite(corr[subpix_grid.astype(np.int)])):
-        fit = fitting.PypeItFit(xval=subpix_grid, yval=corr[subpix_grid.astype(np.int)],
+    if np.any(np.isfinite(corr[subpix_grid.astype(int)])):
+        fit = fitting.PypeItFit(xval=subpix_grid, yval=corr[subpix_grid.astype(int)],
                                 func='polynomial', order=np.atleast_1d(2))
         fit.fit()
         max_fit = -0.5 * fit.fitc[1] / fit.fitc[2]
@@ -310,7 +310,7 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm=None, mxsh
     #model = (fit[2]*(subpix_grid**2.))+(fit[1]*subpix_grid)+fit[0]
 
     return dict(polyfit=fit, shift=shift, subpix=subpix_grid,
-                corr=corr[subpix_grid.astype(np.int)], sky_spec=obj_skyspec, arx_spec=arx_skyspec,
+                corr=corr[subpix_grid.astype(int)], sky_spec=obj_skyspec, arx_spec=arx_skyspec,
                 corr_cen=corr.size/2, smooth=smooth_fwhm_pix, method=method)
 
 
@@ -666,11 +666,12 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
             continue
 
         # get spectral FWHM (in Angstrom) if available
+        spec_fwhm = None
         if wv_calib is not None:
             iwv = np.where(wv_calib.spat_ids == slits.spat_id[islit])[0][0]
-            spec_fwhm = wv_calib.wv_fits[iwv].cen_disp*wv_calib.wv_fits[iwv].fwhm if wv_calib.wv_fits is not None else None
-        else:
-            spec_fwhm = None
+            # Allow for wavelength failures
+            if wv_calib.wv_fits is not None and wv_calib.wv_fits[iwv].fwhm is not None: 
+                spec_fwhm = wv_calib.wv_fits[iwv].cen_disp*wv_calib.wv_fits[iwv].fwhm 
 
         if slit_cen:
             # global flexure

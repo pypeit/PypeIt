@@ -646,7 +646,6 @@ class bspline(datamodel.DataContainer):
         nn = goodbk.sum()
         if nn < self.nord:
             warnings.warn('Fewer good break points than order of b-spline. Returning...')
-            # KBW: Why is the dtype set to 'f' = np.float32?
             return -2, np.zeros(ydata.shape, dtype=float)
 
         alpha, beta = solution_arrays(nn, self.npoly, self.nord, ydata, action, invvar, upper,

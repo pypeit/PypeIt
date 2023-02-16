@@ -1373,7 +1373,9 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         sky_is_good = make_good_skymask(slitid_img_init, spec2DObj.tilts)
 
         # Construct a good pixel mask
-        onslit_gpm = (slitid_img_init > 0) & (bpmmask == 0) & sky_is_good
+        # TODO: This should use the mask function to figure out which elements
+        # are masked.
+        onslit_gpm = (slitid_img_init > 0) & (bpmmask.mask == 0) & sky_is_good
 
         # Grab the WCS of this frame
         frame_wcs = spec.get_wcs(spec2DObj.head0, slits, detector.platescale, wave0, dwv)
@@ -1459,7 +1461,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             wavebins = np.linspace(np.min(waveimg[onslit]), np.max(waveimg[onslit]), slits.nspec)
             hist, edge = np.histogram(waveimg[onslit], bins=wavebins, weights=flatframe[onslit]/scale_model[onslit])
             cntr, edge = np.histogram(waveimg[onslit], bins=wavebins)
-            cntr = cntr.astype(np.float)
+            cntr = cntr.astype(float)
             norm = (cntr != 0) / (cntr + (cntr == 0))
             spec_spl = hist * norm
             wave_spl = 0.5 * (wavebins[1:] + wavebins[:-1])

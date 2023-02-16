@@ -226,8 +226,8 @@ def fit2darc_orders_qa(pypeitFit, nspec, outfile=None):
     spec_vec_norm = np.arange(nspec)/xnspecmin1
 
     # set the size of the plot
-    nrow = np.int(2)
-    ncol = np.int(np.ceil(len(orders) / 2.))
+    nrow = int(2)
+    ncol = int(np.ceil(len(orders) / 2.))
     fig = plt.figure(figsize=(5 * ncol, 6 * nrow))
 
     outer = gridspec.GridSpec(nrow, ncol, wspace=0.3, hspace=0.2)
@@ -986,7 +986,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     # Need to use bpm since when arc spectrum is padded, the padding can make the thresh low and also will screw up
     # continuum fitting
     bpm_out = censpec == 0.0 if bpm is None else bpm
-    xrng = np.arange(censpec.size, dtype=np.float)
+    xrng = np.arange(censpec.size, dtype=float)
 
     if cont_subtract:
         cont_now, cont_mask = iter_continuum(censpec, gpm=np.logical_not(bpm_out), fwhm=fwhm, niter_cont=niter_cont,

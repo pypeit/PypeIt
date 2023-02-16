@@ -424,7 +424,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         if det in [1, 2]:
             nx = nx // 2
             n_ext = n_ext // 2
-            det_idx = np.arange(n_ext, dtype=np.int) + (det - 1) * n_ext
+            det_idx = np.arange(n_ext, dtype=int) + (det - 1) * n_ext
         elif det is None:
             det_idx = np.arange(n_ext).astype(int)
         else:
@@ -1000,6 +1000,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     camera = 'LRISr'
     header_name = 'LRIS'
     supported = True
+    ql_supported = True
     comment = 'Red camera;  LBNL detector, 2kx4k; see :doc:`lris`'
     
     def get_detector_par(self, det, hdu=None):

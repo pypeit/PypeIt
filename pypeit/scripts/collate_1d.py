@@ -506,7 +506,8 @@ def build_parameters(args):
 
     if cfg_lines is not None:
         # Build using config file
-        params = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(), merge_with=cfg_lines)
+        params = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(), 
+                                                    merge_with=(cfg_lines,))
     else:
         # No config file, use the defaults and supplement with command line args
         params = spectrograph_def_par
