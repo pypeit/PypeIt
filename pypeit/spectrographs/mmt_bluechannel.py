@@ -160,14 +160,14 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
                 return headarr[0]['COMPLAMP']
             else:
                 return 'off'
-        
+
         msgs.error(f"Not ready for compound meta, {meta_key}, for MMT Blue Channel.")
 
     @classmethod
     def default_pypeit_par(cls):
         """
         Return the default parameters to use for this instrument.
-        
+
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
             all of ``PypeIt`` methods.
@@ -310,8 +310,9 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             # i think the bright lamp, BC, is the only one ever used for this. imagetyp should always be set to flat.
             return good_exp & (fitstbl['lampstat01'] == 'BC') & (fitstbl['idname'] == 'flat')
         if ftype in ['illumflat']:
-            # these can be set to flat or object depending if they're twilight or dark sky
-            return good_exp & (fitstbl['idname'] in ['flat', 'object']) & (fitstbl['lampstat01'] == 'off')
+            # may need to edit image headers to denote which images to use for illumination correction if it wasn't
+            # specified correctly at the telescope
+            return good_exp & (fitstbl['idname'] == 'flat') & (fitstbl['lampstat01'] == 'off')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
