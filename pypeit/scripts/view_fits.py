@@ -117,7 +117,9 @@ class ViewFits(scriptbase.ScriptBase):
                     except Exception as e:
                         msgs.error(bad_read_message
                                    + f'  Original exception -- {type(e).__name__}: {str(e)}')
-                    Img = Img.sub(bkgImg, par['process'])
+
+
+                    Img = Img.sub(bkgImg)
 
                 img = Img.image
 
