@@ -116,6 +116,9 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='DISPERSE')
         self.meta['idname'] = dict(ext=0, card='IMAGETYP')
+        self.meta['dispangle'] = dict(ext=0, card=None, compound=True, rtol=0.005)
+        self.meta['cenwave'] = dict(ext=0, card=None, compound=True, rtol=5.0)
+        self.meta['filter1'] = dict(ext=0, card='INSFILTE')
 
         # used for arc and continuum lamps
         self.meta['lampstat01'] = dict(ext=0, card=None, compound=True)
@@ -142,6 +145,12 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             binspec, binspatial = headarr[0]['CCDSUM'].split()
             binning = parse.binning2string(binspec, binspatial)
             return binning
+        elif meta_key == 'cenwave':
+            cenwave = int(headarr[0]['CENWAVE'])
+            return cenwave
+        elif meta_key == 'dispangle':
+            dispangle = float(headarr[0]['TILTPOS'])
+            return dispangle
         elif meta_key == 'mjd':
             """
             Need to combine 'DATE-OBS' and 'UT' headers and then use astropy to make an mjd.
@@ -178,9 +187,10 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.5
         par['calibrations']['wavelengths']['sigdetect'] = 5.
-        par['calibrations']['wavelengths']['fwhm']= 5.0
-        # HeNeAr is by far most commonly used, though ThAr is used for some situations.
-        par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII', 'HeI', 'NeI']
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
+
+        # Parse the lamps used from the image header.
+        par['calibrations']['wavelengths']['lamps'] = ['use_header']
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
 
         # Processing steps
@@ -190,6 +200,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
+
         ## Do not perform global sky subtraction for standard stars
         par['reduce']['skysub']['global_sky_std']  = False
 
@@ -204,15 +215,15 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         # short exposures for flats to avoid saturation, but the 1200 and 832
         # can use much longer exposures due to the higher resolution and the
         # continuum lamp not being very bright in the blue/near-UV.
-        par['calibrations']['pixelflatframe']['exprng'] = [None, 100]
-        par['calibrations']['traceframe']['exprng'] = [None, 100]
+        par['calibrations']['pixelflatframe']['exprng'] = [None, 600]
+        par['calibrations']['traceframe']['exprng'] = [None, 600]
         par['calibrations']['standardframe']['exprng'] = [None, 600]
         par['calibrations']['arcframe']['exprng'] = [10, None]
         par['calibrations']['darkframe']['exprng'] = [300, None]
 
         # less than 30 sec implies conditions are bright enough for scattered
         # light to be significant which affects the illumination of the slit.
-        par['calibrations']['illumflatframe']['exprng'] = [30, None]
+        par['calibrations']['illumflatframe']['exprng'] = [1, None]
 
         # Need to specify this for long-slit data
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
@@ -263,6 +274,35 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
 
         return bpm_img
 
+    def get_lamps(self, fitstbl):
+        """
+        Extract the list of arc lamps used from header
+
+        .. note::
+
+            Blue channel uses a variety of lamps depending on grating and wavelength range. HeNeAr covers
+            the vast majority of cases, but ThAr, HgCd, and CuAr have important use cases.
+
+        Args:
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more arc frames.
+        Returns:
+            lamps (:obj:`list`) : List used arc lamps
+        """
+        lampstr = fitstbl['lampstat01'][0]
+        lamps = []
+
+        if 'Ne' in lampstr:
+            lamps += ['NeI']
+        if 'HeAr' in lampstr:
+            lamps += ['HeI', 'ArI', 'ArII']
+        if 'ThAr' in lampstr:
+            lamps += ['ThAr']
+        if 'HgCd' in lampstr:
+            lamps += ['HgI', 'CdI']
+
+        return lamps
+
     def configuration_keys(self):
         """
         Return the metadata keys that define a unique instrument
@@ -277,7 +317,18 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['dispname']
+        return ['dispname', 'dispangle', 'filter1']
+
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard ``PypeIt`` file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        return super().pypeit_file_keys() + ['cenwave','lampstat01']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -305,14 +356,16 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'object')
         if ftype in ['arc', 'tilt']:
             # should flesh this out to include all valid arc lamp combos
-            return good_exp & (fitstbl['lampstat01'] != 'off') & (fitstbl['idname'] == 'comp') & (fitstbl['decker'] != '5.0x180')
-        if ftype in ['trace', 'pixelflat']:
+            return (
+                good_exp
+                & (fitstbl['lampstat01'] != 'off')
+                & (fitstbl['idname'] == 'comp')
+                & (fitstbl['decker'] != '5.0x180')
+                & (fitstbl['target'] != 'focus')
+            )
+        if ftype in ['trace', 'pixelflat', 'illumflat']:
             # i think the bright lamp, BC, is the only one ever used for this. imagetyp should always be set to flat.
             return good_exp & (fitstbl['lampstat01'] == 'BC') & (fitstbl['idname'] == 'flat')
-        if ftype in ['illumflat']:
-            # may need to edit image headers to denote which images to use for illumination correction if it wasn't
-            # specified correctly at the telescope
-            return good_exp & (fitstbl['idname'] == 'flat') & (fitstbl['lampstat01'] == 'off')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
