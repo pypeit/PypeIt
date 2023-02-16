@@ -172,10 +172,10 @@ class SlitTraceSet(datamodel.DataContainer):
                                     'is Nslits.'),
                 'slitbitm': dict(otype=str, descr='List of BITMASK keys from SlitTraceBitMask'),
                 'specmin': dict(otype=np.ndarray, atype=np.floating,
-                                descr='Minimum spectral position allowed for each slit/order.  '
+                                descr='Minimum spectral position (pixel units) allowed for each slit/order.  '
                                       'Shape is Nslits.'),
                 'specmax': dict(otype=np.ndarray, atype=np.floating,
-                                descr='Maximum spectral position allowed for each slit/order.  '
+                                descr='Maximum spectral position (pixel units) allowed for each slit/order.  '
                                       'Shape is Nslits.')}
     """Provides the class data model."""
 
