@@ -79,6 +79,10 @@ class SpecObjs:
         slf.header = hdul[0].header
         # Keep track of HDUList for closing later
 
+        # Catch common error of trying to read a OneSpec file
+        if 'DMODCLS' in hdul[1].header and hdul[1].header['DMODCLS'] == 'OneSpec':
+            msgs.error('This is a OneSpec file.  You are treating it like a SpecObjs file.')
+
         detector_hdus = {}
         # Loop for Detectors first as we need to add these to the objects
         for hdu in hdul[1:]:
