@@ -4,6 +4,8 @@
 
 - (Hotfix) Specify sphinx versions to correctly work with
   sphinx_rtd_theme
+- (Hotfix) Fixed bug that caused crash of sensfunc routines using
+  telluric grids in offline processing
 - (Hotfix) Fixed error when showing flats in Ginga when the fine correction is not performed
 - Implemented the upgraded GTC/OSIRIS+
 - (Hotfix) keymap error when displaying GUIs
