@@ -864,7 +864,7 @@ class Calibrations:
             if not self.success:
                 self.failed_step = f'get_{step}'
                 return
-        msgs.info("Calibration complete!")
+        msgs.info("Calibration complete and/or fully loaded!")
         msgs.info("#######################################################################")
 
     def _chk_set(self, items):
