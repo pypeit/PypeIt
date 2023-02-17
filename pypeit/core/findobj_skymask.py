@@ -151,6 +151,7 @@ def ech_findobj_ineach_order(
     image, ivar, slitmask, slit_left, slit_righ, slit_spats,
     order_vec, orders_gpm, spec_min_max, plate_scale_ord,
     det='DET01', inmask=None, std_trace=None, ncoeff=5, 
+    hand_extract_dict=None,
     box_radius=2.0, fwhm=3.0,
     use_user_fwhm=False, maxdev=2.0, nperorder=2,
     extract_maskwidth=3.0, snr_thresh=10.0,
@@ -317,7 +318,7 @@ def ech_findobj_ineach_order(
                 spec_min_max=spec_min_max[:,iord],
                 inmask=inmask_iord,std_trace=std_in, 
                 ncoeff=ncoeff, fwhm=fwhm, use_user_fwhm=use_user_fwhm, maxdev=maxdev,
-                #hand_extract_dict=new_hand_extract_dict,  
+                hand_extract_dict=hand_extract_dict,  
                 nperslit=nperorder, extract_maskwidth=extract_maskwidth,
                 snr_thresh=snr_thresh, trim_edg=trim_edg, 
                 boxcar_rad=box_radius/plate_scale_ord[iord],
@@ -328,41 +329,6 @@ def ech_findobj_ineach_order(
 
     # Return
     return sobjs
-
-'''
-def ech_gen_hand_sobjs(hand_extract_dict:dict, slitmask:np.ndarray, 
-                       slit_left:np.ndarray, slit_righ:np.ndarray, 
-                       slit_spat:np.ndarray):
-    """ Generate a SpecObjs object for manual extractions
-
-    Args:
-        hand_extract_dict (dict): _description_
-        slitmask (np.ndarray): _description_
-        slit_left (np.ndarray): _description_
-        slit_righ (np.ndarray): _description_
-        slit_spat (np.ndarray): _description_
-    """
-    # Parse
-    nspec, nspat = slitmask.shape
-
-    # Loop over the input
-    f_spats = []
-    for spat, spec in zip(hand_extract_dict['spat'],
-                            hand_extract_dict['spec']):
-        # Find the input slit
-        ispec = int(np.clip(np.round(spec),0,nspec-1))
-        ispat = int(np.clip(np.round(spat),0,nspat-1))
-        slit = slitmask[ispec, ispat]
-        if slit < 0:
-            msgs.error('You are requesting a manual extraction at a position ' +
-                        f'(spat, spec)={spat, spec} that is not on one of the good echelle orders. Check your pypeit file.')
-        # Fractions
-        iord_hand = slit_spat.tolist().index(slit)
-        f_spat = (spat - slit_left[ispec, iord_hand]) / (
-            slit_righ[ispec, iord_hand] - slit_left[ispec, iord_hand])
-        f_spats.append(f_spat)
-        # Add object
-'''
 
 
 def ech_fof_sobjs(sobjs:specobjs.SpecObjs, 
@@ -623,6 +589,7 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
                 sobjs_align.ECH_ORDER == iorder)
             num_on_order = np.sum(on_order)
             if num_on_order == 0:
+                msgs.info(f"Adding object={uni_obj_id[iobj]} to order={iorder}")
                 # If it is not, create a new sobjs and add to sobjs_align and assign required tags
                 thisobj = specobj.SpecObj('Echelle', sobjs_align[0].DET,
                                              OBJTYPE=sobjs_align[0].OBJTYPE,
@@ -647,6 +614,7 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
                 # Assign to the fwhm of the nearest detected order
                 imin = np.argmin(np.abs(sobjs_align[this_obj_id].ECH_ORDERINDX - iord))
                 thisobj.FWHM = sobjs_align[imin].FWHM
+                thisobj.hand_extract_flag = sobjs_align[imin].hand_extract_flag
                 thisobj.maskwidth = sobjs_align[imin].maskwidth
                 thisobj.smash_peakflux = sobjs_align[imin].smash_peakflux
                 thisobj.smash_snr = sobjs_align[imin].smash_snr
@@ -757,7 +725,14 @@ def ech_cutobj_on_snr(
     mask_box = np.zeros((nspec, norders, nobj))
     SNR_arr = np.zeros((norders, nobj))
     slitfracpos_arr = np.zeros((norders, nobj))
+    hand_flag = np.zeros(nobj, dtype=bool)
+
     for iobj in range(nobj):
+        # Hand extraction?
+        mt_obj = sobjs_align.ECH_OBJID == uni_obj_id[iobj]
+        if np.any(sobjs_align[mt_obj].hand_extract_flag):
+            hand_flag[iobj] = True
+        # SNR
         for iord in range(norders):
             iorder_vec = gd_orders[iord]
             indx = sobjs_align.slitorder_objid_indices(
@@ -793,20 +768,17 @@ def ech_cutobj_on_snr(
     # Purge objects with low SNR that don't show up in enough orders, sort the list of objects with respect to obj_id
     # and orderindx
     keep_obj = np.zeros(nobj,dtype=bool)
+    # Empty specobjs object to hold the final objects
     sobjs_trim = specobjs.SpecObjs()
     # objids are 1 based so that we can easily asign the negative to negative objects
     iobj_keep = 1
     iobj_keep_not_hand = 1
 
-    # TODO JFH: Fix this ugly and dangerous hack that was added to accomodate hand apertures
-    #hand_frac = [-1000] if hand_extract_dict is None else [int(np.round(ispat*1000)) for ispat in f_spats]
-
     ## Loop over objects from highest SNR to lowest SNR. Apply the S/N constraints. Once we hit the maximum number
     # objects requested exit, except keep the hand apertures that were requested.
     isort_SNR_max = np.argsort(np.median(SNR_arr,axis=0))[::-1]
     for iobj in isort_SNR_max:
-        #hand_ap_flag = int(np.round(slitfracpos_arr[0, iobj]*1000)) in hand_frac
-        hand_ap_flag = False
+        hand_ap_flag = hand_flag[iobj]
         SNR_constraint = (SNR_arr[:,iobj].max() > max_snr) or (
             np.sum(SNR_arr[:,iobj] > min_snr) >= nabove_min_snr)
         nperorder_constraint = (iobj_keep-1) < nperorder
@@ -1247,6 +1219,12 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, slits_bp
         show_pca = True
         #show_single_trace = True
 
+    if specobj_dict is None:
+        specobj_dict = {'SLITID': 999, 
+                        'ECH_ORDERINDX': 999,
+                        'DET': det, 'OBJTYPE': 'unknown', 
+                        'PYPELINE': 'Echelle'}
+
     # Loop over the orders and find the objects within them (if any)
     order_gpm = np.invert(slits_bpm)
     sobjs_in_orders = ech_findobj_ineach_order(
@@ -1269,10 +1247,11 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, slits_bp
         nperorder=nperorder,
         maxdev=maxdev,
         box_radius=box_radius,
-        objfindQA_filename=objfindQA_filename)
+        objfindQA_filename=objfindQA_filename,
+        hand_extract_dict=manual_extract_dict)
 
-    # Additional work for slits with sources (or manual extraction)
-    if len(sobjs_in_orders) > 0 or manual_extract_dict is not None:
+    # Lots of additional work for slits with sources (found or input manually)
+    if len(sobjs_in_orders) > 0: # or manual_extract_dict is not None:
 
         # Friend of friend algorithm to group objects
         obj_id = ech_fof_sobjs(

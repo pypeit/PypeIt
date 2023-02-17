@@ -987,9 +987,10 @@ class EchelleFindObjects(FindObjects):
         plate_scale = self.spectrograph.order_platescale(self.order_vec, binning=self.binning)
         inmask = self.sciImg.select_flag(invert=True)
         # Find objects
-        # TODO -- Eliminate this specobj_dict thing
         # TODO: Not sure how this fairs if self.det is a tuple...
-        specobj_dict = {'SLITID': 999, 'DET': self.sciImg.detector.name, 'OBJTYPE': self.objtype,
+        specobj_dict = {'SLITID': 999, 'DET': self.sciImg.detector.name, 
+                        'ECH_ORDERINDX': 999,
+                        'OBJTYPE': self.objtype,
                         'PYPELINE': self.pypeline}
 
         # Set objfind QA filename
@@ -1009,7 +1010,7 @@ class EchelleFindObjects(FindObjects):
         nperorder =  self.par['reduce']['findobj']['maxnumber_std'] if self.std_redux \
             else self.par['reduce']['findobj']['maxnumber_sci']
 
-        orig = False
+        orig = True
         if orig:
             sobjs_ech = findobj_skymask.ech_objfind(
                 image, ivar, self.slitmask, self.slits_left, self.slits_right,
@@ -1049,6 +1050,7 @@ class EchelleFindObjects(FindObjects):
                 inmask=inmask, 
                 std_trace=std_trace,
                 specobj_dict=specobj_dict,
+                hand_extract_dict=manual_extract_dict, 
                 snr_thresh=self.par['reduce']['findobj']['snr_thresh'],
                 show_peaks=show_peaks, 
                 trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
@@ -1060,7 +1062,7 @@ class EchelleFindObjects(FindObjects):
                 objfindQA_filename=objfindQA_filename)
 
             # Additional work for slits with sources (or manual extraction)
-            if len(sobjs_in_orders) > 0 or manual_extract_dict is not None:
+            if len(sobjs_in_orders) > 0:
 
                 # Friend of friend algorithm to group objects
                 obj_id = findobj_skymask.ech_fof_sobjs(
