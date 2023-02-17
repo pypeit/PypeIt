@@ -505,8 +505,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
-        # TODO -- Fill these in properly for HIRES
-        # https://www2.keck.hawaii.edu/inst/hires/instrument_specifications.html
+
         detector_dict1 = dict(
             binning         = binning,
             det             = 1,
@@ -517,34 +516,45 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             platescale      = 0.135,
             darkcurr        = 0.0,
             saturation      = 65535.,
-            nonlinear       = 0.86,
+            nonlinear       = 0.7, # Website says 0.6, but we'll push it a bit
             mincounts       = -1e10,
             numamplifiers   = 1,
-            # TODO THese are place holders at present. Getting these numbers right requires parsing headers to determine
-            # which readout mode is being used.
             gain            = np.atleast_1d([1.]),
-            ronoise         = np.atleast_1d([3.]),
+            ronoise         = np.atleast_1d([2.8]),
             )
 
-        # Detector 2. HACK
+        # Detector 2. 
         detector_dict2 = detector_dict1.copy()
         detector_dict2.update(dict(
             det=2,
             dataext=2,
             gain=np.atleast_1d([1.]),
-            ronoise=np.atleast_1d([3.])
+            ronoise=np.atleast_1d([3.1])
         ))
 
 
-        # Detector 3,. HACK
+        # Detector 3,. 
         detector_dict3 = detector_dict1.copy()
         detector_dict3.update(dict(
             det=3,
             dataext=3,
             gain=np.atleast_1d([1.]),
-            ronoise=np.atleast_1d([3.])
+            ronoise=np.atleast_1d([3.1])
         ))
 
+        # Set gain 
+        # https://www2.keck.hawaii.edu/inst/hires/instrument_specifications.html
+        if hdu[0].header['CCDGAIN'].strip() == 'low':
+            detector_dict1['gain'][0] = 1.9
+            detector_dict2['gain'][0] = 2.1
+            detector_dict3['gain'][0] = 2.1
+        elif hdu[0].header['CCDGAIN'].strip() == 'high':
+            detector_dict1['gain'][0] = 0.78
+            detector_dict2['gain'][0] = 0.86
+            detector_dict3['gain'][0] = 0.84
+        else:
+            msgs.error("Bad CCDGAIN mode for HIRES")
+            
         # Instantiate
         detector_dicts = [detector_dict1, detector_dict2, detector_dict3]
         return detector_container.DetectorContainer( **detector_dicts[det-1])

@@ -51,7 +51,7 @@ class WaveCalib(datamodel.DataContainer):
                  'wv_fit2d': dict(otype=np.ndarray, atype=fitting.PypeItFit,
                                   descr='2D wavelength solution(s) (echelle).  If there is more than one, they must be aligned to the separate detectors analyzed'),
                  'det_img': dict(otype=np.ndarray, atype=np.integer,
-                                  descr='Detector image; used occasionally by echelle.  Currently only saved if ech_separate_2d=True'),
+                                  descr='Detector image which indicates which pixel in the mosaic corresponds to which detector; used occasionally by echelle.  Currently only saved if ech_separate_2d=True'),
                  'arc_spectra': dict(otype=np.ndarray, atype=np.floating,
                                      descr='2D array: 1D extracted spectra, slit by slit '
                                            '(nspec, nslits)'),
