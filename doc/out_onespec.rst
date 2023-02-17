@@ -22,7 +22,7 @@ i.e. it can be anything you wish.
 
 The header of the primary extension includes the
 `core_meta` of PypeIt, e.g. RA, DEC, MJD, and 
-configuration parmaeters of the instrument.
+configuration parameters of the instrument.
 
 Inspection
 ==========
