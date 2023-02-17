@@ -443,7 +443,7 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
         # Update the iteration
         iIter += 1
     if (iIter == maxiter) & (maxiter != 0) & verbose:
-        msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_polyfit_djs')
+        msgs.warn(f'Maximum number of iterations maxiter={maxiter} reached in robust_polyfit_djs')
 
     # Do the final fit
     pypeitFit = PypeItFit(xval=xarray.astype(float), yval=yarray.astype(float),

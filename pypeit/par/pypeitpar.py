@@ -1794,7 +1794,7 @@ class SensfuncUVISPar(ParSet):
 
         defaults['nresln'] = 20
         dtypes['nresln'] = [int, float]
-        descr['nresln'] = 'Parameter governing the spacing of the bspline breakpoints.'
+        descr['nresln'] = 'Parameter governing the spacing of the bspline breakpoints in terms of number of resolution elements.'
 
 
         defaults['resolution'] = 3000.0
