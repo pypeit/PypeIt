@@ -1278,7 +1278,7 @@ class Spectrograph:
                 value = headarr[self.meta[meta_key]['ext']][self.meta[meta_key]['card']]
         except (KeyError, TypeError) as e:
             if ignore_bad_header or not required:
-                msgs.warn("Bad Header, but we'll try to continue on..") 
+                msgs.warn("Bad Header key ({0:s}), but we'll try to continue on..".format(meta_key))
             else:
                 raise e
 

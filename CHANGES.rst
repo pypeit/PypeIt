@@ -6,6 +6,11 @@
   sphinx_rtd_theme
 - (Hotfix) Fixed bug that caused crash of sensfunc routines using
   telluric grids in offline processing
+- (Hotfix) Fixed error when showing flats in Ginga when the fine correction is not performed
+- Implemented the upgraded GTC/OSIRIS+
+- (Hotfix) keymap error when displaying GUIs
+- Added support for more NOT/ALFOSC grisms as well as NOT recommended standards
+- Implemented the SOAR/Goodman (blue) M1 only
 
 1.12.0 (31 Jan 2023)
 --------------------
@@ -28,6 +33,9 @@
 - Parse Keck/NIRES dither patterns, similar to MOSFIRE
 - Introduce BitMaskArray class to ease use of bitmasks
 - Fixed memory hogging by matplotlib when using version >= 3.6.1
+- New docs on OneSpec 
+- Modify install notes to allow 3.10
+- Allow for bad orders during extraction  (without crashing)
 
 1.11.0 (21 Oct 2022)
 --------------------
