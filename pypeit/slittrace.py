@@ -1128,19 +1128,11 @@ class SlitTraceSet(datamodel.DataContainer):
         # Grab slit image?
         if slit_img is None:
             slit_img = self.slit_img()
-        # Detector values
-        slit_pix = slit_img == spat_id
-        det_vals = det_img[slit_pix].flatten()
-        # Remove 0s and find most common
-        det_vals = det_vals[det_vals > 0].tolist()
-        data = Counter(det_vals)
-        ordr_det = data.most_common(1)[0][0]
-
-        # Return
-        return ordr_det
-
-        
-
+        # Find the most common detector value
+        det, cnt = np.unique(
+            det_img[(slit_img == spat_id) & (det_img > 0)], 
+            return_counts=True)
+        return det[np.argmax(cnt)]
 
     def get_maskdef_objpos(self, plate_scale, det_buffer):
         """

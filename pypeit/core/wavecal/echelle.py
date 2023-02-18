@@ -188,6 +188,7 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname, angle_fits_file,
     pad : int, optional
         Number of orders to pad the coverage by on the blue and red side.
     debug : bool, optional
+        Passed to xcorr_shift
 
     Returns
     -------

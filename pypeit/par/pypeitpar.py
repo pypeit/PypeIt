@@ -2395,8 +2395,7 @@ class WavelengthSolutionPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
     """
-    def __init__(self, reference=None, method=None, echelle=None, ech_fix_format=None,
-                 ech_nspec_coeff=None, ech_norder_coeff=None, ech_sigrej=None, lamps=None,
+    def __init__(self, reference=None, method=None, echelle=None, ech_nspec_coeff=None, ech_norder_coeff=None, ech_sigrej=None, lamps=None,
                  sigdetect=None, fwhm=None, fwhm_fromlines=None, reid_arxiv=None,
                  nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
                  rms_threshold=None, match_toler=None, func=None, n_first=None, n_final=None,
@@ -2473,12 +2472,6 @@ class WavelengthSolutionPar(ParSet):
         defaults['ech_separate_2d'] = False
         dtypes['ech_separate_2d'] = bool
         descr['ech_separate_2d'] = 'For echelle spectrographs, fit the 2D solutions on separate detectors separately'
-
-        defaults['ech_fix_format'] = True
-        dtypes['ech_fix_format'] = bool
-        descr['ech_fix_format'] = 'Is this a fixed format echelle?  If so reidentification ' \
-                                  'will assume that each order in the data is aligned with a ' \
-                                  'single order in the reid arxiv.'
 
         # TODO: These needs to be tidied up so we can check for valid
         # lamps. Right now I'm not checking.
@@ -2663,7 +2656,7 @@ class WavelengthSolutionPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['reference', 'method', 'echelle', 'ech_fix_format', 'ech_nspec_coeff',
+        parkeys = ['reference', 'method', 'echelle', 'ech_nspec_coeff',
                    'ech_norder_coeff', 'ech_sigrej', 'ech_separate_2d', 'lamps', 'sigdetect',
                    'fwhm', 'fwhm_fromlines', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',

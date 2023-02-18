@@ -277,7 +277,12 @@ class WaveCalib(datamodel.DataContainer):
                     ordr_det = slits.det_of_slit(
                         slit_spat, self.det_img,
                         slit_img=slit_img)
-                    idx_fit2d = ordr_det-1  # There are ways for this to go sour..
+                    # There are ways for this to go sour..
+                    #  if the seperate solutions are not aligned with the detectors
+                    #  or if one reruns with a different number of detectors
+                    #  without regeneating
+                    #  But that would be bad practice
+                    idx_fit2d = ordr_det-1  
                 else:
                     idx_fit2d = 0
                 image[thismask] = self.wv_fit2d[idx_fit2d].eval(
@@ -574,6 +579,7 @@ class BuildWaveCalib:
                                              nsnippet=self.par['nsnippet'])
                                              #debug=True, debug_reid=True, debug_xcorr=True)
         elif self.par['method'] == 'echelle':
+            # TODO -- Merge this with reidentify for fixed echelle formats
 
             # Echelle calibration files
             angle_fits_file, composite_arc_file = self.spectrograph.get_echelle_angle_files()
@@ -636,69 +642,6 @@ class BuildWaveCalib:
         self.steps.append(inspect.stack()[0][3])
         return self.wv_calib
 
-    # TODO -- Remove this
-    def orig_echelle_2dfit(self, wv_calib, debug=False, skip_QA=False):
-        """
-        Fit a two-dimensional wavelength solution for echelle data.
-
-        Primarily a wrapper for :func:`pypeit.core.arc.fit2darc`,
-        using data unpacked from the ``wv_calib`` dictionary.
-
-        Args:
-            wv_calib (:class:`pypeit.wavecalib.WaveCalib`):
-                Wavelength calibration object
-            debug (:obj:`bool`, optional):
-                Show debugging info
-            skip_QA (:obj:`bool`, optional):
-                Flag to skip construction of the nominal QA plots.
-
-        Returns:
-            :class:`pypeit.fitting.PypeItFit`: object containing information from 2-d fit.
-        """
-        if self.spectrograph.pypeline != 'Echelle':
-            msgs.error('Cannot execute echelle_2dfit for a non-echelle spectrograph.')
-
-        msgs.info('Fitting 2-d wavelength solution for echelle....')
-        all_wave = np.array([], dtype=float)
-        all_pixel = np.array([], dtype=float)
-        all_order = np.array([],dtype=float)
-
-        # Obtain a list of good slits
-        ok_mask_idx = np.where(np.invert(self.wvc_bpm))[0]
-        ok_mask_order = self.slits.slitord_id[ok_mask_idx]
-        nspec = self.msarc.image.shape[0]
-
-        # Loop
-        for ii in range(wv_calib.nslits):
-            iorder = self.slits.ech_order[ii]
-            if iorder not in ok_mask_order:
-                continue
-            # Slurp
-            mask_now = wv_calib.wv_fits[ii].pypeitfit.bool_gpm
-            all_wave = np.append(all_wave, wv_calib.wv_fits[ii]['wave_fit'][mask_now])
-            all_pixel = np.append(all_pixel, wv_calib.wv_fits[ii]['pixel_fit'][mask_now])
-            all_order = np.append(all_order, np.full_like(wv_calib.wv_fits[ii]['pixel_fit'][mask_now],
-                                                          float(iorder)))
-
-        # Fit
-        fit2d = arc.fit2darc(all_wave, all_pixel, all_order, nspec,
-                                  nspec_coeff=self.par['ech_nspec_coeff'],
-                                  norder_coeff=self.par['ech_norder_coeff'],
-                                  sigrej=self.par['ech_sigrej'], debug=debug)
-
-        self.steps.append(inspect.stack()[0][3])
-
-        # QA
-        if not skip_QA:
-            outfile_global = qa.set_qa_filename(self.master_key, 'arc_fit2d_global_qa',
-                                                out_dir=self.qa_path)
-            arc.fit2darc_global_qa(fit2d, nspec, outfile=outfile_global)
-            outfile_orders = qa.set_qa_filename(self.master_key, 'arc_fit2d_orders_qa',
-                                                out_dir=self.qa_path)
-            arc.fit2darc_orders_qa(fit2d, nspec, outfile=outfile_orders)
-
-        return fit2d
-
     def echelle_2dfit(self, wv_calib, debug=False, skip_QA=False):
         """
         Fit a two-dimensional wavelength solution for echelle data.
@@ -725,7 +668,7 @@ class BuildWaveCalib:
         msgs.info('Fitting 2-d wavelength solution for echelle....')
 
         # Obtain a list of good slits
-        ok_mask_idx = np.where(np.invert(self.wvc_bpm))[0]
+        ok_mask_idx = np.where(np.logical_not(self.wvc_bpm))[0]
         ok_mask_order = self.slits.slitord_id[ok_mask_idx]
         nspec = self.msarc.image.shape[0]
 
@@ -745,7 +688,7 @@ class BuildWaveCalib:
             msgs.info('Fitting detector {:d}'.format(idet))
             # Init
             all_wave = np.array([], dtype=float)
-            all_pixel = np.array([], dtype=float)
+            all_pixel = np.array([],dtype=float)
             all_order = np.array([],dtype=float)
 
             # Loop to grab the good orders

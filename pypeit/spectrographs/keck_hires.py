@@ -60,6 +60,10 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
     pypeline = 'Echelle'
     ech_fixed_format = False
     supported = False
+    # TODO before support = True
+    # 1. Implement flat fielding
+    # 2. Test on several different setups
+    # 3. Implement PCA extrapolation into the blue 
 
 
     # TODO: Place holder parameter set taken from X-shooter VIS for now.
@@ -519,7 +523,6 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             nonlinear       = 0.7, # Website says 0.6, but we'll push it a bit
             mincounts       = -1e10,
             numamplifiers   = 1,
-            gain            = np.atleast_1d([1.]),
             ronoise         = np.atleast_1d([2.8]),
             )
 
@@ -528,7 +531,6 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         detector_dict2.update(dict(
             det=2,
             dataext=2,
-            gain=np.atleast_1d([1.]),
             ronoise=np.atleast_1d([3.1])
         ))
 
@@ -538,20 +540,19 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         detector_dict3.update(dict(
             det=3,
             dataext=3,
-            gain=np.atleast_1d([1.]),
             ronoise=np.atleast_1d([3.1])
         ))
 
         # Set gain 
         # https://www2.keck.hawaii.edu/inst/hires/instrument_specifications.html
-        if hdu[0].header['CCDGAIN'].strip() == 'low':
-            detector_dict1['gain'][0] = 1.9
-            detector_dict2['gain'][0] = 2.1
-            detector_dict3['gain'][0] = 2.1
+        if hdu is None or hdu[0].header['CCDGAIN'].strip() == 'low':
+            detector_dict1['gain'][0] = np.atleast_1d([1.9])
+            detector_dict2['gain'][0] = np.atleast_1d([2.1])
+            detector_dict3['gain'][0] = np.atleast_1d([2.1])
         elif hdu[0].header['CCDGAIN'].strip() == 'high':
-            detector_dict1['gain'][0] = 0.78
-            detector_dict2['gain'][0] = 0.86
-            detector_dict3['gain'][0] = 0.84
+            detector_dict1['gain'][0] = np.atleast_1d([0.78])
+            detector_dict2['gain'][0] = np.atleast_1d([0.86])
+            detector_dict3['gain'][0] = np.atleast_1d([0.84])
         else:
             msgs.error("Bad CCDGAIN mode for HIRES")
             

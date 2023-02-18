@@ -344,7 +344,8 @@ def ech_fof_sobjs(sobjs:specobjs.SpecObjs,
 
     Args:
         sobjs (:class:`~pypeit.specobj.SpecObj`):
-            Previously found objects
+            Previously found objects.  
+            There needs to be at least 1.
         slit_left (`numpy.ndarray`_):
             Left boundary of orders to be extracted (given as floating point
             pixels).  Shape is (nspec, norders), where norders is the total
@@ -386,6 +387,8 @@ def ech_fof_sobjs(sobjs:specobjs.SpecObjs,
         obj_id_init = inobj_id + 1
     elif nfound==1:
         obj_id_init = np.ones(1,dtype='int')
+    else:
+        msgs.error('No objects found in ech_fof_sobjs. Should not have called this routine')
 
     uni_obj_id_init, uni_ind_init = np.unique(obj_id_init, return_index=True)
 
@@ -474,8 +477,9 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
         slit_spat_id (`numpy.ndarray`_):
             slit_spat values (spatial position 1/2 way up the detector)
             for the orders 
-        std_trace (:class:`~pypeit.specobjs.SpecObjs`, optional): _description_. Defaults to None.
+        std_trace (:class:`~pypeit.specobjs.SpecObjs`, optional): 
             Standard star objects (including the traces)
+            Defaults to None.
         show (bool, optional): 
             Plot diagnostics related to filling the
             missing orders
@@ -814,8 +818,7 @@ def ech_cutobj_on_snr(
     # the linking that is performed above, and also making sure the hand apertures don't get removed.
     SNR_arr_trim = SNR_arr[:,keep_obj]
 
-    sobjs_final = sobjs_trim.copy()
-    return sobjs_final
+    return sobjs_trim
 
 
 def ech_pca_traces(
@@ -950,7 +953,7 @@ def ech_pca_traces(
         for iord, spec in enumerate(sobjs_final[indx_obj_id]):
             # JFH added the condition on ech_frac_was_fit with S/N cut on 7-7-19.
             # TODO is this robust against half the order being masked?
-            if spec.ech_frac_was_fit & (spec.ech_snr > 1.0):
+            if spec.ech_frac_was_fit and (spec.ech_snr > 1.0):
                     spec.TRACE_SPAT = xfit_gweight[:,iord]
                     spec.SPAT_PIXPOS = spec.TRACE_SPAT[specmid]
 
@@ -1250,51 +1253,52 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, slits_bp
         objfindQA_filename=objfindQA_filename,
         hand_extract_dict=manual_extract_dict)
 
-    # Lots of additional work for slits with sources (found or input manually)
-    if len(sobjs_in_orders) > 0: # or manual_extract_dict is not None:
+    # No sources and no manual?
+    if len(sobjs_in_orders) == 0: 
+        return sobjs_in_orders
 
-        # Friend of friend algorithm to group objects
-        obj_id = ech_fof_sobjs(
-            sobjs_in_orders, slit_left,
-            slit_righ, plate_scale,
-            fof_link=fof_link)
+    # Additional work for slits with sources (found or input manually)
 
-        # Fill in Orders
-        sobjs_filled = ech_fill_in_orders(
-            sobjs_in_orders, 
-            slit_left, slit_righ,
-            order_vec, order_gpm,
-            obj_id, #obj_id[tmp], 
-            slit_spat_id,
-            std_trace=std_trace)
+    # Friend of friend algorithm to group objects
+    obj_id = ech_fof_sobjs(
+        sobjs_in_orders, slit_left,
+        slit_righ, plate_scale,
+        fof_link=fof_link)
 
-        # Cut on SNR and number of objects
-        sobjs_pre_final = ech_cutobj_on_snr(
-            sobjs_filled, image, ivar, slitmask,
-            order_vec[order_gpm],
-            plate_scale, 
-            inmask=inmask,
-            nperorder=nperorder,
-            max_snr=max_snr,
-            min_snr=min_snr,
-            nabove_min_snr=nabove_min_snr,
-            box_radius=box_radius)
+    # Fill in Orders
+    sobjs_filled = ech_fill_in_orders(
+        sobjs_in_orders, 
+        slit_left, slit_righ,
+        order_vec, order_gpm,
+        obj_id, #obj_id[tmp], 
+        slit_spat_id,
+        std_trace=std_trace)
 
-        # PCA
-        sobjs_ech = ech_pca_traces(
-            sobjs_pre_final, 
-            image, slitmask, inmask, 
-            order_vec[order_gpm],
-            spec_min_max[:, order_gpm],
-            coeff_npoly=coeff_npoly,
-            ncoeff=ncoeff, npca=npca,
-            pca_explained_var=pca_explained_var,
-            maxdev=maxdev,
-            fwhm=fwhm,
-            show_trace=show_trace, show_fits=show_fits, 
-            show_pca=show_pca)
-    else:
-        sobjs_ech = sobjs_in_orders
+    # Cut on SNR and number of objects
+    sobjs_pre_final = ech_cutobj_on_snr(
+        sobjs_filled, image, ivar, slitmask,
+        order_vec[order_gpm],
+        plate_scale, 
+        inmask=inmask,
+        nperorder=nperorder,
+        max_snr=max_snr,
+        min_snr=min_snr,
+        nabove_min_snr=nabove_min_snr,
+        box_radius=box_radius)
+
+    # PCA
+    sobjs_ech = ech_pca_traces(
+        sobjs_pre_final, 
+        image, slitmask, inmask, 
+        order_vec[order_gpm],
+        spec_min_max[:, order_gpm],
+        coeff_npoly=coeff_npoly,
+        ncoeff=ncoeff, npca=npca,
+        pca_explained_var=pca_explained_var,
+        maxdev=maxdev,
+        fwhm=fwhm,
+        show_trace=show_trace, show_fits=show_fits, 
+        show_pca=show_pca)
 
     return sobjs_ech
 
