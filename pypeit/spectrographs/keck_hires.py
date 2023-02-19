@@ -546,13 +546,13 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         # Set gain 
         # https://www2.keck.hawaii.edu/inst/hires/instrument_specifications.html
         if hdu is None or hdu[0].header['CCDGAIN'].strip() == 'low':
-            detector_dict1['gain'][0] = np.atleast_1d([1.9])
-            detector_dict2['gain'][0] = np.atleast_1d([2.1])
-            detector_dict3['gain'][0] = np.atleast_1d([2.1])
+            detector_dict1['gain'] = np.atleast_1d([1.9])
+            detector_dict2['gain'] = np.atleast_1d([2.1])
+            detector_dict3['gain'] = np.atleast_1d([2.1])
         elif hdu[0].header['CCDGAIN'].strip() == 'high':
-            detector_dict1['gain'][0] = np.atleast_1d([0.78])
-            detector_dict2['gain'][0] = np.atleast_1d([0.86])
-            detector_dict3['gain'][0] = np.atleast_1d([0.84])
+            detector_dict1['gain'] = np.atleast_1d([0.78])
+            detector_dict2['gain'] = np.atleast_1d([0.86])
+            detector_dict3['gain'] = np.atleast_1d([0.84])
         else:
             msgs.error("Bad CCDGAIN mode for HIRES")
             
