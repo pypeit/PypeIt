@@ -185,7 +185,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
         # self.meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
         # Dithering
-        self.meta['dither'] = dict(ext=0, card='HIERARCH ESO SEQ CUMOFFSETY',
+        self.meta['dithoff'] = dict(ext=0, card='HIERARCH ESO SEQ CUMOFFSETY',
                                    required_ftypes=['science', 'standard'])
 
     def compound_meta(self, headarr, meta_key):
@@ -243,7 +243,8 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         # TODO: Why are these added here? See
         # pypeit.metadata.PypeItMetaData.set_pypeit_cols
         pypeit_keys += ['calib', 'comb_id', 'bkg_id']
-        return pypeit_keys
+        return pypeit_keys + ['dithoff']
+
 
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
