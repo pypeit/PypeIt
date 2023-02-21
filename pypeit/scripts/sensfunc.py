@@ -111,7 +111,10 @@ class SensFunc(scriptbase.ScriptBase):
         # Construct a primary FITS header that includes the spectrograph's
         #   config keys for inclusion in the output sensfunc file
         primary_hdr = io.initialize_header()
-        add_keys = ['PYP_SPEC'] + spectrograph.configuration_keys()
+        add_keys = (
+            ['PYP_SPEC', 'DATE-OBS', 'TELESCOP', 'INSTRUME', 'DETECTOR']
+            + spectrograph.configuration_keys()
+        )
         for key in add_keys:
             if key.upper() in header.keys():
                 primary_hdr[key.upper()] = header[key.upper()]
