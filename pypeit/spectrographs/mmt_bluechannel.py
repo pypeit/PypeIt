@@ -116,7 +116,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='DISPERSE')
         self.meta['idname'] = dict(ext=0, card='IMAGETYP')
-        self.meta['dispangle'] = dict(ext=0, card=None, compound=True, rtol=0.005)
+        self.meta['dispangle'] = dict(ext=0, card=None, compound=True, rtol=0.002)
         self.meta['cenwave'] = dict(ext=0, card=None, compound=True, rtol=5.0)
         self.meta['filter1'] = dict(ext=0, card='INSFILTE')
 
@@ -218,8 +218,9 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['exprng'] = [None, 600]
         par['calibrations']['traceframe']['exprng'] = [None, 600]
         par['calibrations']['standardframe']['exprng'] = [None, 600]
-        par['calibrations']['arcframe']['exprng'] = [10, None]
+        par['calibrations']['arcframe']['exprng'] = [1, None]
         par['calibrations']['darkframe']['exprng'] = [300, None]
+        par['calibrations']['illumflatframe']['exprng'] = [None, 3600]
 
         # less than 30 sec implies conditions are bright enough for scattered
         # light to be significant which affects the illumination of the slit.
@@ -298,7 +299,8 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             if 'HeAr' in lampstr:
                 lamps += ['HeI', 'ArI', 'ArII']
             if 'ThAr' in lampstr:
-                lamps += ['ThAr']
+                # this is a hack to work around non-functional ThAr lamp at time test data was taken
+                lamps += ['ArI', 'ArII']
             if 'HgCd' in lampstr:
                 lamps += ['HgI', 'CdI']
 
@@ -353,20 +355,35 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype == 'bias':
             return fitstbl['idname'] == 'zero'
+        if ftype == 'dark':
+            return fitstbl['idname'] == 'dark'
         if ftype in ['science', 'standard']:
-            return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'object')
-        if ftype in ['arc', 'tilt']:
+            return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'object') & (fitstbl['target'] != 'skyflat')
+        if ftype in ['arc']:
             # should flesh this out to include all valid arc lamp combos
             return (
                 good_exp
                 & (fitstbl['lampstat01'] != 'off')
+                & (fitstbl['lampstat01'] != 'BC')
                 & (fitstbl['idname'] == 'comp')
                 & (fitstbl['decker'] != '5.0x180')
                 & (fitstbl['target'] != 'focus')
             )
-        if ftype in ['trace', 'pixelflat', 'illumflat']:
+        if ftype in ['tilt']:
+            # should flesh this out to include all valid arc lamp combos
+            return (
+                good_exp
+                & (fitstbl['lampstat01'] != 'off')
+                & (fitstbl['lampstat01'] != 'BC')
+                & (fitstbl['idname'] == 'comp')
+                & (fitstbl['decker'] != '5.0x180')
+            )
+        if ftype in ['trace', 'pixelflat']:
+            # i think the bright lamp, BC, is the only one ever used for this. imagetyp should always be set to flat, but sometimes not.
+            return good_exp & (fitstbl['lampstat01'] == 'BC')
+        if ftype in ['illumflat']:
             # i think the bright lamp, BC, is the only one ever used for this. imagetyp should always be set to flat.
-            return good_exp & (fitstbl['lampstat01'] == 'BC') & (fitstbl['idname'] == 'flat')
+            return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['target'] == 'skyflat')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
