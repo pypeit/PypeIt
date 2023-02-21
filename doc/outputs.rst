@@ -93,6 +93,15 @@ Importantly note that:
 
     - the output of :ref:`pypeit_collate_1d` is identical to :ref:`pypeit_coadd_1dspec`
 
+Generally, the further processing scripts that produce 1D spectra that do *not*
+make direct changes to the :ref:`spec-1d-output`, produce ``OneSpec`` files.
+See:
+
+.. toctree::
+   :maxdepth: 1
+
+   out_onespec
+
 ----
 
 Common Output Components
