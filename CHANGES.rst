@@ -10,7 +10,8 @@
 - Implemented the upgraded GTC/OSIRIS+
 - (Hotfix) keymap error when displaying GUIs
 - Added support for more NOT/ALFOSC grisms as well as NOT recommended standards
-- Implemented the SOAR/Goodman (blue) M1 only
+- Implemented the SOAR/Goodman blue 400 grating (setup M1)
+- Added support for SOAR/Goodman red 600 grating (setup RED)
 
 1.12.0 (31 Jan 2023)
 --------------------
