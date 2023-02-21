@@ -26,7 +26,9 @@ class ArcImage(pypeitimage.PypeItImage):
     version = pypeitimage.PypeItImage.version
 
     # I/O
-    output_to_disk = ('ARC_IMAGE', 'ARC_FULLMASK', 'ARC_DETECTOR')
+    output_to_disk = ('ARC_IMAGE', 'ARC_FULLMASK', 'ARC_DETECTOR',
+                      'ARC_DET_IMG', # For echelle multi-detector wavelengths
+                      )
     hdu_prefix = 'ARC_'
 
     # Master fun

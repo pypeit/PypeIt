@@ -796,6 +796,9 @@ class Calibrations:
                                                       master_key=self.master_key_dict['arc'],
                                                       qa_path=self.qa_path) #, msbpm=self.msbpm)
             self.wv_calib = self.waveCalib.run(skip_QA=(not self.write_qa))
+            # If orders were found, save slits to disk
+            if self.spectrograph.pypeline == 'Echelle' and not self.spectrograph.ech_fixed_format:
+                self.slits.to_master_file()
             # Save to Masters
             self.wv_calib.to_master_file(masterframe_name)
 
@@ -861,7 +864,7 @@ class Calibrations:
             if not self.success:
                 self.failed_step = f'get_{step}'
                 return
-        msgs.info("Calibration complete!")
+        msgs.info("Calibration complete and/or fully loaded!")
         msgs.info("#######################################################################")
 
     def _chk_set(self, items):

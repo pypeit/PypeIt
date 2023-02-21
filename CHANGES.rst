@@ -33,9 +33,12 @@
 - Parse Keck/NIRES dither patterns, similar to MOSFIRE
 - Introduce BitMaskArray class to ease use of bitmasks
 - Fixed memory hogging by matplotlib when using version >= 3.6.1
+- Allow for bad orders during extraction (without crashing)
 - New docs on OneSpec 
 - Modify install notes to allow 3.10
-- Allow for bad orders during extraction  (without crashing)
+- Enables a beta version for keck_hires reductions
+- Refactoring of I/O for WAVEFIT2D objects in WaveCalib
+- Significant refactoring of ech_objfind()
 
 1.11.0 (21 Oct 2022)
 --------------------
