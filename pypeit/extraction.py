@@ -55,6 +55,8 @@ class Extract:
             Global spectral flexure correction for each slit (in pixels)
         vel_corr (float):
             Relativistic reference frame velocity correction (e.g. heliocentyric/barycentric/topocentric)
+        extract_bpm (`numpy.ndarray`_):
+            Bad pixel mask for extraction
 
     """
 
@@ -231,13 +233,17 @@ class Extract:
 
         # Now apply a global flexure correction to each slit provided it's not a standard star
         if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
+            # Update slitshift values
             self.spec_flexure_correct(mode='global')
-            if self.nobj_to_extract > 0:
-                for iobj in range(self.sobjs_obj.nobj):
-                    islit = self.slits.spatid_to_zero(self.sobjs_obj[iobj].SLITID)
-                    self.sobjs_obj[iobj].update_flex_shift(self.slitshift[islit], flex_type='global')
+            # Apply?
+            for iobj in range(self.sobjs_obj.nobj):
+                # Ignore negative sources
+                if self.sobjs_obj[iobj].sign < 0 and not self.return_negative:
+                    continue
+                islit = self.slits.spatid_to_zero(self.sobjs_obj[iobj].SLITID)
+                self.sobjs_obj[iobj].update_flex_shift(self.slitshift[islit], flex_type='global')
 
-        # remove objects found in `BOXSLIT` (we don't want to extract those)
+        # Remove objects rejected for one or another reasons (we don't want to extract those)
         remove_idx = []
         for i, sobj in enumerate(self.sobjs_obj):
             if sobj.SLITID in list(self.slits.spat_id[self.extract_bpm]):
@@ -259,15 +265,6 @@ class Extract:
             return len(self.sobjs_obj) if self.return_negative else np.sum(self.sobjs_obj.sign > 0)
         else:
             return 0
-
-    @property
-    def nobj_to_extract(self):
-        """
-        Number of objects to extract. Defined in children
-        Returns:
-
-        """
-        return None
 
     def initialise_slits(self, slits, initial=False):
         """
@@ -400,9 +397,8 @@ class Extract:
                See main doc string for description
 
         """
-
         # Do we have any detected objects to extract?
-        if self.nobj_to_extract > 0:
+        if self.nsobj_to_extract > 0:
             # Extract + Return
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
                 = self.extract(self.global_sky, model_noise=model_noise, spat_pix=spat_pix)
@@ -436,9 +432,8 @@ class Extract:
         # TODO: change slits.mask > 2 to use named flags.
         reduce_masked = np.where(np.invert(self.extract_bpm_init) & self.extract_bpm & (self.slits.mask > 2))[0]
         if len(reduce_masked) > 0:
-            # TODO Change BADREDUCE to BADEXTRACT
             self.slits.mask[reduce_masked] = self.slits.bitmask.turn_on(
-                self.slits.mask[reduce_masked], 'BADREDUCE')
+                self.slits.mask[reduce_masked], 'BADEXTRACT')
 
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, self.waveimg, self.tilts
@@ -684,16 +679,6 @@ class MultiSlitExtract(Extract):
         super().__init__(sciImg, slits, sobjs_obj, spectrograph, par, objtype, **kwargs)
 
 
-    @property
-    def nobj_to_extract(self):
-        """
-        See parent method docs.
-
-        Returns:
-
-        """
-        return self.nsobj_to_extract
-
     # TODO: JFH Should we reduce the number of iterations for standards or
     # near-IR redux where the noise model is not being updated?
     def local_skysub_extract(self, global_sky, sobjs, spat_pix=None, model_noise=True,
@@ -831,22 +816,6 @@ class EchelleExtract(Extract):
         if self.order_vec is None:
             msgs.error('Unable to set Echelle orders, likely because they were incorrectly '
                        'assigned in the relevant SlitTraceSet.')
-
-
-    @property
-    def nobj_to_extract(self):
-        """
-        See parent method docs.
-
-        Returns:
-
-        """
-
-        norders = self.order_vec.size
-        if (self.nsobj_to_extract % norders) == 0:
-            return int(self.nsobj_to_extract/norders)
-        else:
-            msgs.error('Number of specobjs in sobjs is not an integer multiple of the number or ordres!')
 
     # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
     # being updated?

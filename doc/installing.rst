@@ -18,7 +18,7 @@ Installation
 
 .. warning::
 
-    Python 3.10 is not yet supported.
+    Python 3.11 is not yet supported.
 
 Below, we provide detailed instructions for installing PypeIt.  For
 troubleshooting, please consult the PypeIt :ref:`community` and/or `submit

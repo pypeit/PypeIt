@@ -1563,6 +1563,15 @@ class Spectrograph:
 #
 #        return self.detector[det-1]['platescale']/tel_platescale
 
+    def get_echelle_angle_files(self):
+        """ Pass back the files required
+        to run the echelle method of wavecalib
+
+        Returns:
+            list: List of files
+        """
+        msgs.error(f'Echelle angle files not ready for {self.name}')
+
     def order_platescale(self, order_vec, binning=None):
         """
         Return the platescale for each echelle order.
