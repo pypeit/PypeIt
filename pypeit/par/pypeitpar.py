@@ -2395,14 +2395,14 @@ class WavelengthSolutionPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
     """
-    def __init__(self, reference=None, method=None, echelle=None, ech_fix_format=None,
-                 ech_nspec_coeff=None, ech_norder_coeff=None, ech_sigrej=None, lamps=None,
+    def __init__(self, reference=None, method=None, echelle=None, ech_nspec_coeff=None, ech_norder_coeff=None, ech_sigrej=None, lamps=None,
                  sigdetect=None, fwhm=None, fwhm_fromlines=None, reid_arxiv=None,
                  nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
                  rms_threshold=None, match_toler=None, func=None, n_first=None, n_final=None,
                  sigrej_first=None, sigrej_final=None, numsearch=None,
                  nfitpix=None, IDpixels=None, IDwaves=None, refframe=None,
-                 nsnippet=None, use_instr_flag=None, wvrng_arxiv=None):
+                 nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
+                 ech_separate_2d=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2468,6 +2468,10 @@ class WavelengthSolutionPar(ParSet):
         dtypes['ech_sigrej'] = [int,float]
         descr['ech_sigrej'] = 'For echelle spectrographs, this is the sigma-clipping rejection ' \
                               'threshold in the 2d fit to spectral and order dimensions'
+
+        defaults['ech_separate_2d'] = False
+        dtypes['ech_separate_2d'] = bool
+        descr['ech_separate_2d'] = 'For echelle spectrographs, fit the 2D solutions on separate detectors separately'
 
         # TODO: These needs to be tidied up so we can check for valid
         # lamps. Right now I'm not checking.
@@ -2574,12 +2578,6 @@ class WavelengthSolutionPar(ParSet):
                              'computation for each arc line. If not an odd number one will ' \
                              'be added to it to make it odd.'
 
-        defaults['ech_fix_format'] = True
-        dtypes['ech_fix_format'] = bool
-        descr['ech_fix_format'] = 'Is this a fixed format echelle?  If so reidentification ' \
-                                  'will assume that each order in the data is aligned with a ' \
-                                  'single order in the reid arxiv.'
-
         # These are the parameters used for the iterative fitting of the arc lines
         defaults['rms_threshold'] = 0.15
         dtypes['rms_threshold'] = [float, list, np.ndarray]
@@ -2658,8 +2656,8 @@ class WavelengthSolutionPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['reference', 'method', 'echelle', 'ech_fix_format', 'ech_nspec_coeff',
-                   'ech_norder_coeff', 'ech_sigrej', 'lamps', 'sigdetect',
+        parkeys = ['reference', 'method', 'echelle', 'ech_nspec_coeff',
+                   'ech_norder_coeff', 'ech_sigrej', 'ech_separate_2d', 'lamps', 'sigdetect',
                    'fwhm', 'fwhm_fromlines', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
