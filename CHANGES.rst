@@ -1,12 +1,21 @@
 
-1.12.1dev
----------
+1.12.1 (21 Feb 2023)
+--------------------
 
 - (Hotfix) Specify sphinx versions to correctly work with
   sphinx_rtd_theme
+- (Hotfix) Fixed bug that caused crash of sensfunc routines using
+  telluric grids in offline processing
 - (Hotfix) Fixed error when showing flats in Ginga when the fine correction is not performed
 - Implemented the upgraded GTC/OSIRIS+
 - (Hotfix) keymap error when displaying GUIs
+- Added support for more NOT/ALFOSC grisms as well as NOT recommended standards
+- Implemented the SOAR/Goodman blue 400 grating (setup M1)
+- Added support for SOAR/Goodman red 600 grating (setup RED)
+- Implemented the SOAR/Goodman (blue) M1 only
+- New docs on OneSpec
+- Modify install notes to allow python 3.10; python3.8 not longer explicitly supported
+- Allow for bad orders during extraction  (without crashing)
 
 1.12.0 (31 Jan 2023)
 --------------------
