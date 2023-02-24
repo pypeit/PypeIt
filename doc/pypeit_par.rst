@@ -1798,6 +1798,114 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
 
+.. _instr_par-gtc_maat:
+
+GTC OSIRIS (``gtc_maat``)
+-------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = gtc_maat
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 1
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          exprng = 999999, None
+          [[[process]]]
+              mask_cr = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              clip = False
+              use_pixelflat = False
+              use_illumflat = False
+              subtract_continuum = True
+      [[tiltframe]]
+          [[[process]]]
+              clip = False
+              use_pixelflat = False
+              use_illumflat = False
+              subtract_continuum = True
+      [[pixelflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = None, 180
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[flatfield]]
+          slit_illum_finecorr = False
+      [[wavelengths]]
+          method = full_template
+          lamps = XeI,HgI,NeI,ArI
+      [[slitedges]]
+          sync_predict = nearest
+          bound_detector = True
+      [[tilts]]
+          spat_order = 1
+          spec_order = 1
+  [scienceframe]
+      exprng = 90, None
+      [[process]]
+          mask_cr = True
+          sigclip = 4.0
+          objlim = 1.5
+          use_biasimage = False
+          noise_floor = 0.01
+          use_illumflat = False
+  [reduce]
+      [[findobj]]
+          maxnumber_std = 1
+          skip_final_global = True
+          skip_skysub = True
+      [[skysub]]
+          no_poly = True
+      [[extraction]]
+          skip_extraction = True
+  [flexure]
+      spec_maxshift = 2.5
+  [sensfunc]
+      [[UVIS]]
+          extinct_correct = False
+
 .. _instr_par-gtc_osiris:
 
 GTC OSIRIS (``gtc_osiris``)
@@ -1808,6 +1916,99 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = gtc_osiris
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 1
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          exprng = 999999, None
+          [[[process]]]
+              mask_cr = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              clip = False
+              use_pixelflat = False
+              use_illumflat = False
+              subtract_continuum = True
+      [[tiltframe]]
+          [[[process]]]
+              clip = False
+              use_pixelflat = False
+              use_illumflat = False
+              subtract_continuum = True
+      [[pixelflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = None, 180
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[wavelengths]]
+          method = full_template
+          lamps = XeI,HgI,NeI,ArI
+      [[slitedges]]
+          sync_predict = nearest
+          bound_detector = True
+      [[tilts]]
+          spat_order = 5
+          spec_order = 5
+  [scienceframe]
+      exprng = 90, None
+      [[process]]
+          mask_cr = True
+          noise_floor = 0.01
+  [reduce]
+      [[findobj]]
+          maxnumber_std = 1
+      [[skysub]]
+          no_poly = True
+
+.. _instr_par-gtc_osiris_plus:
+
+GTC OSIRIS (``gtc_osiris_plus``)
+--------------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = gtc_osiris_plus
   [calibrations]
       [[biasframe]]
           exprng = None, 1
@@ -4868,6 +5069,7 @@ Alterations to the default parameters are:
           lamps = HeI, NeI, ArI, ArII
           sigdetect = 10.0
       [[slitedges]]
+          edge_thresh = 30
           sync_predict = nearest
           bound_detector = True
           minimum_slit_gap = 15
@@ -4969,6 +5171,7 @@ Alterations to the default parameters are:
           lamps = HeI, NeI, ArI, ArII
           sigdetect = 10.0
       [[slitedges]]
+          edge_thresh = 30
           sync_predict = nearest
           bound_detector = True
           minimum_slit_gap = 15
@@ -5647,6 +5850,103 @@ Alterations to the default parameters are:
           noise_floor = 0.01
   [flexure]
       spec_method = boxcar
+
+.. _instr_par-soar_goodman_blue:
+
+SOAR blue (``soar_goodman_blue``)
+---------------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = soar_goodman_blue
+  [calibrations]
+      [[biasframe]]
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          exprng = None, 30
+          [[[process]]]
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          [[[process]]]
+              use_biasimage = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = None, 120
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+              noise_floor = 0.01
+      [[wavelengths]]
+          lamps = NeI, ArI, HgI
+          fwhm = 5.0
+          rms_threshold = 0.5
+      [[slitedges]]
+          sync_predict = nearest
+          bound_detector = True
+  [scienceframe]
+      exprng = 90, None
+      [[process]]
+          mask_cr = True
+          use_biasimage = False
+          noise_floor = 0.01
+  [flexure]
+      spec_method = boxcar
+  [sensfunc]
+      [[IR]]
+          telgridfile = TelFit_LasCampanas_3100_26100_R20000.fits
 
 .. _instr_par-soar_goodman_red:
 

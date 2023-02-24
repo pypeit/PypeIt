@@ -335,8 +335,14 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
         # Wavelength calibrations
+        # Here is a useful website with an arc atlas
+        # http://soartelescope.org/soar/content/goodman-comparison-lamps
         if self.get_meta_value(scifile, 'dispname') == '400_SYZY':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'soar_goodman_red_400_SYZY.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+        elif self.get_meta_value(scifile, 'dispname') == '600_SYZY_OLD':
+            par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'HgI']
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'soar_goodman_red_600_SYZY_OLD.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
 
         # Return
@@ -521,6 +527,8 @@ class SOARGoodmanBlueSpectrograph(SOARGoodmanSpectrograph):
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
         # Wavelength calibrations
+        # Here is a useful website with an arc atlas
+        # http://soartelescope.org/soar/content/goodman-comparison-lamps
         if self.get_meta_value(scifile, 'dispname') == '400_SYZY':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'soar_goodman_blue_400_SYZY.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
