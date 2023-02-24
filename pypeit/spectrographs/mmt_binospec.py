@@ -201,17 +201,19 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         """
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
-        if self.get_meta_value(scifile, 'dispname') == 'x270':
+        grating = self.get_meta_value(scifile, 'dispname')
+
+        if grating == 'x270':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'mmt_binospec_270.fits'
             par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI', 'ArI', 'ArII']
 
-        if self.get_meta_value(scifile, 'dispname') == 'x600':
+        if grating == 'x600':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'mmt_binospec_600.fits'
             par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI', 'ArI', 'ArII']
 
-        if self.get_meta_value(scifile, 'dispname') == 'x1000':
+        if grating == 'x1000':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'mmt_binospec_1000.fits'
             par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI', 'ArI', 'ArII']
