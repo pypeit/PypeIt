@@ -1,6 +1,6 @@
 
-1.12.1dev
----------
+1.12.1 (21 Feb 2023)
+--------------------
 
 - (Hotfix) Specify sphinx versions to correctly work with
   sphinx_rtd_theme
@@ -12,6 +12,10 @@
 - Added support for more NOT/ALFOSC grisms as well as NOT recommended standards
 - Implemented the SOAR/Goodman blue 400 grating (setup M1)
 - Added support for SOAR/Goodman red 600 grating (setup RED)
+- Implemented the SOAR/Goodman (blue) M1 only
+- New docs on OneSpec
+- Modify install notes to allow python 3.10; python3.8 not longer explicitly supported
+- Allow for bad orders during extraction  (without crashing)
 
 1.12.0 (31 Jan 2023)
 --------------------
@@ -34,12 +38,6 @@
 - Parse Keck/NIRES dither patterns, similar to MOSFIRE
 - Introduce BitMaskArray class to ease use of bitmasks
 - Fixed memory hogging by matplotlib when using version >= 3.6.1
-- Allow for bad orders during extraction (without crashing)
-- New docs on OneSpec 
-- Modify install notes to allow 3.10
-- Enables a beta version for keck_hires reductions
-- Refactoring of I/O for WAVEFIT2D objects in WaveCalib
-- Significant refactoring of ech_objfind()
 
 1.11.0 (21 Oct 2022)
 --------------------

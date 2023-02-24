@@ -15,7 +15,7 @@ spectrum per source, fully calibrated and (as desired)
 with a :doc:`telluric` performed.
 
 The standard way to generate this file is 
-with the :ref:`_pypeit_coadd_1dspec` script.
+with the :ref:`pypeit_coadd_1dspec` script.
 
 The naming of this file is user-generated,
 i.e. it can be anything you wish.
@@ -49,4 +49,5 @@ first HDU of the file.
 .. include:: include/datamodel_onespec.rst
 
 All wavelengths are in vacuum and flux units
-depend on whether :doc:`Fluxing` was performed.
+depend on whether :doc:`fluxing` was performed.
+
