@@ -146,10 +146,16 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             binning = parse.binning2string(binspec, binspatial)
             return binning
         elif meta_key == 'cenwave':
-            cenwave = int(headarr[0]['CENWAVE'])
+            if headarr[0]['CENWAVE'] == 'moving':
+                cenwave = None
+            else:
+                cenwave = int(headarr[0]['CENWAVE'])
             return cenwave
         elif meta_key == 'dispangle':
-            dispangle = float(headarr[0]['TILTPOS'])
+            if headarr[0]['TILTPOS'] == 'moving':
+                dispangle = None
+            else:
+                dispangle = float(headarr[0]['TILTPOS'])
             return dispangle
         elif meta_key == 'mjd':
             """
@@ -194,7 +200,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
 
         # Processing steps
-        turn_off = dict(use_biasimage=False, use_darkimage=False)
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
 
         # Extraction
@@ -234,6 +240,44 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['polyorder'] = 7
 
         return par
+
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the ``PypeIt`` parameters to hard-wired values used for
+        specific instrument configurations.
+
+        Args:
+            scifile (:obj:`str`):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
+            adjusted for configuration specific parameter values.
+        """
+        par = super().config_specific_par(scifile, inp_par=inp_par)
+
+        grating = self.get_meta_value(scifile, 'dispname')
+        cenwave = self.get_meta_value(scifile, 'cenwave')
+
+        if grating in ['300GPM', '500GPM', '800GPM', '1200GPM']:
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = f"mmt_bluechannel_{grating}.fits"
+
+        # the 832 GPM grating can be used in 1st or 2nd order and therefore needs two templates.
+        # the blue, 2nd order setting has a usable range from 3200-5500 A while the red, 1st order
+        # setting is usable from 6400-10000 A. of course, why one would use a "blue" channel that far
+        # into the red is a valid question...
+        if grating == '832GPM' and cenwave < 6000:
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = f"mmt_bluechannel_{grating}_order2.fits"
+
+        if grating == '832GPM' and cenwave >= 6000:
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = f"mmt_bluechannel_{grating}_order1.fits"
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
@@ -357,8 +401,16 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             return fitstbl['idname'] == 'zero'
         if ftype == 'dark':
             return fitstbl['idname'] == 'dark'
-        if ftype in ['science', 'standard']:
+        if ftype in ['science']:
             return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'object') & (fitstbl['target'] != 'skyflat')
+        if ftype in ['standard']:
+            return (
+                good_exp
+                & (fitstbl['lampstat01'] == 'off')
+                & (fitstbl['idname'] == 'object')
+                & (fitstbl['target'] != 'skyflat')
+                & (fitstbl['decker'] == '5.0x180')
+            )
         if ftype in ['arc']:
             # should flesh this out to include all valid arc lamp combos
             return (
