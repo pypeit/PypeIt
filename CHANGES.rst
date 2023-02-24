@@ -1,3 +1,7 @@
+1.12.2dev
+--------------------
+
+- Implemented a resample algorithm when generating datacubes
 
 1.12.1 (21 Feb 2023)
 --------------------
@@ -29,7 +33,6 @@
 - Allow separate sky frame to be used for sky subtraction with IFU data
 - Limit the images written to the MasterEdges file to only the trace
   image, mask, and detector.
-- Implemented a resample algorithm when generating datacubes
 - Refactor quicklook scripts
 - OpenMP link fix
 - Enable boxcar_radius for manual extraction
