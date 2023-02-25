@@ -555,9 +555,9 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # Projected distance (in arcsec) of the object from the left and right (top and bot) edges of the slit
         slit_length = mask_tbl['slitsize_y'].to('arcsec').value # arcsec
-        topdist = np.round(slit_length/2. + 
+        topdist = np.round(slit_length/2. - 
                            mask_tbl['slitpos_y'].to('arcsec').value, 3)
-        botdist = np.round(slit_length/2. - 
+        botdist = np.round(slit_length/2. + 
                            mask_tbl['slitpos_y'].to('arcsec').value, 3)
 
         # Coordinates
