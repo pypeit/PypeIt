@@ -27,8 +27,8 @@ and ensure your :ref:`pypeit_file` shows:
     [rdx]
         spectrograph = gemini_gmos_north_ham_ns
 
-Slits
-=====
+Long Slit
+=========
 
 1.
 Somewhat too frequently when using the longslit, the "3" slits are not all
@@ -91,8 +91,11 @@ In this case, you should check your wavelength solution, and try to adjust the
 wavelength parameters. This issue may be solved now that by reducing the
 detectors as a mosaic by default.
 
-Arcs
-====
+Wavelength Solution
+===================
+
+Faint Lamps
+-----------
 
 The CuAr lamps are pretty faint in the blue which lead
 to some "unique" challenges.  At present we have
@@ -106,6 +109,8 @@ lowered the default ``tracethresh`` parameter to 10, i.e.:
 
 It is possible you will want to increase this, but unlikely.
 
+FWHM
+----
 
 We also have a report (issue #1467) that the default value of the parameter
 ``fwhm_fromline=True`` can sometimes lead to poor wavelength calibration.  If
@@ -117,4 +122,32 @@ your RMS is a factor of 2-3 too high, consider setting:
         [[wavelengths]]
             fwhm_fromlines = False
 
+
+MultiSlit
+=========
+
+Mask Definition
+---------------
+
+PypeIt can now take advantage of the mask definition file
+generated when one designs a GMOS mask.  To do so, one needs
+to provide two additional files and specify them 
+with the :doc:`pypeit_file`:
+
+#.  The mask definition file, aka ODF file
+#.  An aligment image (taken with the spectra)
+
+The modifications to the :doc:`pypeit_file` will look like:
+
+.. code-block:: ini
+
+    [calibrations]
+        [[slitedges]]
+            maskdesign_filename = ../GS2022BQ137-05_ODF.fits,../raw/S20221128S0038.fit
+s
+            use_maskdesign = True
+    [reduce]
+        [[slitmask]]
+            extract_missing_objs = True
+            assign_obj = True
 
