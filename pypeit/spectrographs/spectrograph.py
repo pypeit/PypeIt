@@ -1283,7 +1283,7 @@ class Spectrograph:
                 value = headarr[self.meta[meta_key]['ext']][self.meta[meta_key]['card']]
         except (KeyError, TypeError) as e:
             if ignore_bad_header or not required:
-                msgs.warn("Bad Header, but we'll try to continue on..") 
+                msgs.warn("Bad Header key ({0:s}), but we'll try to continue on..".format(meta_key))
             else:
                 raise e
 
@@ -1567,6 +1567,15 @@ class Spectrograph:
 #            raise ValueError('Incomplete information to calculate mm per pixel.')
 #
 #        return self.detector[det-1]['platescale']/tel_platescale
+
+    def get_echelle_angle_files(self):
+        """ Pass back the files required
+        to run the echelle method of wavecalib
+
+        Returns:
+            list: List of files
+        """
+        msgs.error(f'Echelle angle files not ready for {self.name}')
 
     def order_platescale(self, order_vec, binning=None):
         """

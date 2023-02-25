@@ -288,6 +288,11 @@ class FlatImages(datamodel.DataContainer):
             fctxt = "fine correction to the "
             pixel_bsplines = self.pixelflat_finecorr
             illum_bsplines = self.illumflat_finecorr
+            # Do a quick check if no data exist
+            if pixel_bsplines is not None and pixel_bsplines[0].xval is None:
+                pixel_bsplines = None
+            if illum_bsplines is not None and illum_bsplines[0].xval is None:
+                illum_bsplines = None
         else:
             fctxt = ""
             pixel_bsplines = self.pixelflat_spat_bsplines

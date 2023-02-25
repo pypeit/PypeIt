@@ -982,8 +982,7 @@ class EdgeTraceSet(DataContainer):
         # land in slit gaps.
 
         # Only after the correction for the bad column, update the bmp with the
-        # regions to exclude from slit tracing
-
+        # - regions to exclude from slit tracing
         if self.par['exclude_regions'] is not None:
             reg_start, reg_end = self._parse_exclude_regions()
             for i in range(reg_start.size):

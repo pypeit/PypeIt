@@ -28,7 +28,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
     url = 'https://www.not.iac.es/instruments/alfosc/'
     header_name = 'ALFOSC_FASU'
     supported = True
-    comment = 'For use with the standard horizontal slits only. Grisms 4, 7, 8, 17, 18, 19'
+    comment = 'For use with the standard horizontal slits only. Grisms 3, 4, 5, 7, 8, 10, 11, 17, 18, 19, 20'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -111,7 +111,8 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
         par['calibrations']['slitedges']['bound_detector'] = True
-        # Flats are sometimes quite ugly due to dust on the slit which leads to the erroneous detection of multiple slits. Setting a higher edge_thresh seems to fail because of the bound_detector.
+        # Flats are sometimes quite ugly due to dust on the slit which leads to the erroneous detection of multiple slits. So set a higher edge_thresh and minimum_slit_gap.
+        par['calibrations']['slitedges']['edge_thresh'] = 30
         par['calibrations']['slitedges']['minimum_slit_gap'] = 15
 
         # Set pixel flat combination method
@@ -235,8 +236,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         if ftype == 'science':
             return good_exp & (fitstbl['idname'] == 'OBJECT')
         if ftype == 'standard':
-            return good_exp & ((fitstbl['target'] == 'STD')
-                                | (fitstbl['target'] == 'STD,SLIT'))
+            return good_exp & ((fitstbl['idname'] == 'STD') | (fitstbl['target'] == 'STD') | (fitstbl['target'] == 'STD,SLIT'))
         if ftype == 'bias':
             return good_exp & (fitstbl['idname'] == 'BIAS')
         if ftype in ['pixelflat', 'trace', 'illumflat']:
@@ -270,18 +270,28 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
         # Wavelength calibrations
-        if self.get_meta_value(scifile, 'dispname') == 'Grism_#4':
+        if self.get_meta_value(scifile, 'dispname') == 'Grism_#3':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism3.fits'
+        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#4':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism4.fits'
+        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#5':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism5.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'Grism_#7':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism7.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'Grism_#8':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism8.fits'
+        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#10':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism10.fits'
+        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#11':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism11.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'Grism_#17':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism17.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'Grism_#18':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism18.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'Grism_#19':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism19.fits'
+        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#20':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism20.fits'
         else:
             msgs.warn('not_alfosc.py: YOU NEED TO ADD IN THE WAVELENGTH SOLUTION FOR THIS GRISM')
 
@@ -296,7 +306,7 @@ class NOTALFOSCSpectrographVert(NOTALFOSCSpectrograph):
     Child to handle Vertical slits for NOT ALFOSC spectrograph
     """
     name = 'not_alfosc_vert'
-    comment = 'Grisms 4, 7, 8, 17, 18, 19. For vertical slits only'
+    comment = 'Grisms 3, 4, 5, 7, 8, 10, 11, 17, 18, 19, 20. For vertical slits only'
 
     def get_detector_par(self, det, hdu=None):
         """
