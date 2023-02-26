@@ -143,7 +143,7 @@ The modifications to the :doc:`pypeit_file` will look like:
 
     [calibrations]
         [[slitedges]]
-            maskdesign_filename = ../GS2022BQ137-05_ODF.fits,../raw/S20221128S0038.fit
+            maskdesign_filename = GS2022BQ137-05_ODF.fits,S20221128S0038.fit
 s
             use_maskdesign = True
     [reduce]
@@ -151,3 +151,5 @@ s
             extract_missing_objs = True
             assign_obj = True
 
+The two files provided must be located in the path(s) 
+of the raw files provided in the :ref:`data_block`.

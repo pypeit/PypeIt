@@ -4286,11 +4286,20 @@ class EdgeTraceSet(DataContainer):
         # `traceimg` must have knowledge of the flat frame that built it
         wcs_file = None
         if self.par['maskdesign_filename'] is not None: 
+            fpath = os.path.dirname(self.traceimg.files[0])
             if isinstance(self.par['maskdesign_filename'], str):
                 self.maskfile = self.par['maskdesign_filename']
+                # Add path?
+                if not os.path.isfile(self.maskfile):
+                    self.maskfile = os.path.join(fpath, self.maskfile)
             elif isinstance(self.par['maskdesign_filename'], list):
                 self.maskfile = self.par['maskdesign_filename'][0]
                 wcs_file = self.par['maskdesign_filename'][1]
+                # Add path?
+                if not os.path.isfile(self.maskfile):
+                    self.maskfile = os.path.join(fpath, self.maskfile)
+                if not os.path.isfile(wcs_file):
+                    wcs_file = os.path.join(fpath, wcs_file)
         else:
             self.maskfile = self.traceimg.files[0] 
 
