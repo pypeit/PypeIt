@@ -2158,10 +2158,6 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
         Boolean mask for stacked
         spectrum on wave_stack wavelength grid. True=Good.
         shape=(ngrid,)
-    outmask: `numpy.ndarray`_
-              Output mask indicating which pixels are rejected in each exposure of
-              the original input spectra after performing all of the
-              iterations of combine/rejection. Boolean array shape = (nspec, nexp):
     '''
 
     # We cast to float64 because of a bug in np.histogram
@@ -2170,10 +2166,11 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
     ivars = np.float64(ivars)
 
     # Generate a giant wave_grid
-    wave_grid, wave_grid_mid, _ = wvutils.get_wave_grid(waves, masks = masks, wave_method=wave_method,
-                                            wave_grid_min=wave_grid_min,
-                                            wave_grid_max=wave_grid_max, dwave=dwave, dv=dv,
-                                            dloglam=dloglam, spec_samp_fact=spec_samp_fact)
+    wave_grid, wave_grid_mid, _ = wvutils.get_wave_grid(
+        waves=waves, masks = masks, wave_method=wave_method, 
+        wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max, 
+        wave_grid_input=wave_grid_input, 
+        dwave=dwave, dv=dv, dloglam=dloglam, spec_samp_fact=spec_samp_fact)
 
     # Evaluate the sn_weights. This is done once at the beginning
     rms_sn, weights = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights, verbose=verbose)

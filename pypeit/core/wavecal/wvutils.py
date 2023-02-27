@@ -10,12 +10,8 @@ import os
 
 from matplotlib import pyplot as plt
 
-from scipy.ndimage.filters import gaussian_filter
-from scipy.signal import resample
 import scipy
-from scipy.optimize import curve_fit
 
-import astropy.stats
 from astropy.table import Table
 from astropy import convolution
 from astropy import constants
@@ -147,7 +143,8 @@ def get_sampling(waves, pix_per_R=3.0):
 
 # TODO: the other methods iref should be deprecated or removed
 def get_wave_grid(waves=None, masks=None, wave_method='linear', iref=0, wave_grid_min=None,
-                  wave_grid_max=None, dwave=None, dv=None, dloglam=None, wave_grid_input=None, spec_samp_fact=1.0):
+                  wave_grid_max=None, dwave=None, dv=None, dloglam=None, wave_grid_input=None, 
+                  spec_samp_fact=1.0):
     """
     Create a new wavelength grid for spectra to be rebinned and coadded.
 
@@ -187,7 +184,8 @@ def get_wave_grid(waves=None, masks=None, wave_method='linear', iref=0, wave_gri
             basically multiples the 'native' spectral pixels by
             ``spec_samp_fact``, i.e. units ``spec_samp_fact`` are pixels.
         wave_grid_input (`numpy.ndarray`_, optional):
-            User input wavelength grid to be used with the 'user_input' wave_method. Shape is (nspec_input,)
+            User input wavelength grid to be used with the 'user_input' wave_method. 
+            Shape is (nspec_input,)
 
     Returns:
         :obj:`tuple`: Returns two `numpy.ndarray`_ objects and a float:
