@@ -24,12 +24,14 @@ Before reducing your data with PypeIt, you first have to prepare a
 
     pypeit_setup -r $HOME/Work/packages/PypeIt-development-suite/RAW_DATA/keck_nires/NIRES/ -s keck_nires -b -c A 
 
-where ``-b`` indicates that the data uses background images and includes the
+where the ``-r`` argument should be replaced by your local directory and the
+``-b`` indicates that the data uses background images and should include the
 ``calib``, ``comb_id``, ``bkg_id`` in the pypeit file.  This directory only has
 one instrument configuration (NIRES only has one configuration anyway), so
 setting ``-c A`` and ``-c all`` is equivalent.
 
-The resulting pypeit file looks like this:
+This will make a directory called ``keck_nires_A`` that holds a pypeit file
+called ``keck_nires_A.pypeit`` that looks like this:
 
 .. include:: ../include/keck_nires_A.pypeit.rst
 
@@ -104,8 +106,11 @@ To perform the core processing of the NIRES data, use :ref:`run-pypeit`:
 
     run_pypeit keck_nires_A.pypeit
 
-See :doc:`../running`.  Processing of this example dataset takes roughly 10
-minutes (on a 2020 MacBook Pro with 16 GB of RAM and a 2GHz i5 processor).
+The code will run uninterrupted until the basic data-reduction procedures
+(wavelength calibration, field flattening, object finding, sky subtraction, and
+spectral extraction) are complete; see :doc:`../running`.  Processing of this
+example dataset takes roughly 10 minutes (on a 2020 MacBook Pro with 16 GB of
+RAM and a 2GHz i5 processor).
 
 As the code processes your data, it will produce a number of files and QA plots
 for you to inspect:
@@ -122,14 +127,19 @@ same.  To show the results of the trace, run, e.g.:
     pypeit_chk_edges Masters/MasterEdges_A_7_DET01.fits.gz
 
 which will show the image and overlay the traces (green is the left edge;
-magenta is the right edge).  Here is the result from this example dataset:
+magenta is the right edge); this should open a ``ginga`` window for you if one
+is not open already.  Here is the result from this example dataset:
 
 .. image:: ../figures/nires_trace.png
    :scale: 60%
 
-An important check is to ensure that the code as correctly traces the bluest
-(left-most) order.  PypeIt currently expects to find all 5 orders and will fault
-if it does not.
+.. tip::
+
+    An important check is to ensure that the code has correctly traced the
+    bluest (left-most) order.  PypeIt currently expects to find all 5 orders and
+    will fault if it does not.  If PypeIt faults because it did not find all 5
+    orders, try adjusting the ``edge_thresh`` parameter; see the
+    :ref:`parameters` and specifically the :ref:`edgetracepar`.
 
 Wavelength Calibration
 ----------------------
