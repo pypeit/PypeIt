@@ -4284,30 +4284,16 @@ class EdgeTraceSet(DataContainer):
             return
 
         # `traceimg` must have knowledge of the flat frame that built it
-        wcs_file = None
-        if self.par['maskdesign_filename'] is not None: 
-            fpath = os.path.dirname(self.traceimg.files[0])
-            if isinstance(self.par['maskdesign_filename'], str):
-                self.maskfile = self.par['maskdesign_filename']
-                # Add path?
-                if not os.path.isfile(self.maskfile):
-                    self.maskfile = os.path.join(fpath, self.maskfile)
-            elif isinstance(self.par['maskdesign_filename'], list):
-                self.maskfile = self.par['maskdesign_filename'][0]
-                wcs_file = self.par['maskdesign_filename'][1]
-                # Add path?
-                if not os.path.isfile(self.maskfile):
-                    self.maskfile = os.path.join(fpath, self.maskfile)
-                if not os.path.isfile(wcs_file):
-                    wcs_file = os.path.join(fpath, wcs_file)
-        else:
-            self.maskfile = self.traceimg.files[0] 
-
+        maskfiles = self.traceimg.files[0] if self.par['maskdesign_filename'] is None \
+            else self.par['maskdesign_filename']
+        self.maskfile = maskfiles[0] if isinstance(maskfiles, list) else maskfiles
         omodel_bspat, omodel_tspat, sortindx, self.slitmask = \
             self.spectrograph.get_maskdef_slitedges(
                 ccdnum=self.traceimg.detector.det, 
-                wcs_file=wcs_file, binning=self.traceimg.detector.binning,
-                filename=self.maskfile, debug=debug)
+                binning=self.traceimg.detector.binning, 
+                filename=maskfiles, 
+                trc_path = os.path.dirname(self.traceimg.files[0]),
+                debug=debug)
 
         if omodel_bspat[omodel_bspat!=-1].size < 3:
             msgs.warn('Less than 3 slits are expected on this detector, slitmask matching cannot be performed')

@@ -4,6 +4,7 @@ Module for Gemini GMOS specific methods.
 .. include:: ../include/links.rst
 """
 import numpy as np
+import os
 
 from astropy.table import Table
 from astropy.coordinates import SkyCoord
@@ -522,8 +523,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         """
         if mosaic:
             return np.array([self.get_det_name(_det) for _det in self.allowed_mosaics])
-        else:
-            return np.array([detector_container.DetectorContainer.get_name(i+1)
+
+        return np.array([detector_container.DetectorContainer.get_name(i+1)
                              for i in range(self.ndet)]).reshape(2,-1)
 
     @property
@@ -633,12 +634,40 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
            posx_pa=posx_pa)
         return self.slitmask
 
-    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None, wcs_file=None,
-                              binning=None):
-        if filename is not None:
-            self.get_slitmask(filename)
-        else:
-            msgs.error('The name of a ODF file should be provided in the PypeIt file')
+    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None,
+                              trc_path:str=None, binning=None):
+        """ Determine the slit edges from the mask file
+
+        Here, we take advantage of the WCS solution from the input
+        `wcs_file`, which should be an alighment image from the observations.
+
+        Args:
+            binning (_type_, optional): _description_. Defaults to None.
+            binning(str, optional): spec,spat binning of the flat field image
+            filename (:obj:`list`, optional): Names 
+                the mask design info and wcs_file in that order
+            debug (:obj:`bool`, optional): Debug
+            ccdnum (:obj:`int`, optional): detector number
+
+        Returns:
+            :obj:`tuple`: Three `numpy.ndarray`_ and a :class:`~pypeit.spectrographs.slitmask.SlitMask`.
+            Two arrays are the predictions of the slit edges from the slitmask design and
+            one contains the indices to order the slits from left to right in the PypeIt orientation
+        """
+        if not isinstance(filename, list):
+            msgs.error('The mask design file input should be a comma separated list of two files')
+
+        # Parse
+        maskfile = filename[0]
+        wcs_file = filename[1]
+        # Add path?
+        if not os.path.isfile(maskfile):
+            maskfile = os.path.join(trc_path, maskfile)
+        if not os.path.isfile(wcs_file):
+            wcs_file = os.path.join(trc_path, wcs_file)
+
+        # Slurp in the slitmask info
+        self.get_slitmask(maskfile)
 
         # Binning of flat
         _, bin_spat= parse.parse_binning(binning) 
@@ -672,15 +701,14 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             for kk, iwcs in enumerate(wcss):
                 pix_xy = iwcs.world_to_pixel(left_coord)
                 # Do we have the right WCS?
-                if float(pix_xy[0]) > 0 and float(pix_xy[0]) < (
-                    hdul_acq[kk+1].header['NAXIS1']-1) and not got_it:
+                if 0 < float(pix_xy[0]) < hdul_acq[kk+1].header['NAXIS1']-1:
                     left_edges.append(float(pix_xy[1])*bin_spat_acq/bin_spat)
                     # Right
                     pix_xy2 = iwcs.world_to_pixel(right_coord)
                     right_edges.append(float(pix_xy2[1])*bin_spat_acq/bin_spat)
                     # Occasionally a slit thinks it is on 2 detectors -- this avoids that
-                    got_it = True
                     print(f'matched to {kk}, {pix_xy}, {pix_xy2}')
+                    break
 
 
 #        DEBUGGING
@@ -853,7 +881,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         # TODO: We're opening the file too many times...
         hdrs = self.get_headarr(filename)
         binning = self.get_meta_value(hdrs, 'binning')
-        mjd = self.get_meta_value(hdrs, 'mjd')
+        obs_epoch = self.get_meta_value(hdrs, 'mjd')
         bin_spec, bin_spat= parse.parse_binning(binning) 
 
         # Add the detector-specific, hard-coded bad columns
@@ -875,7 +903,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             _bpm_img[i,badr,:] = 1
             # Bad amp as of January 28, 2022
             # https://gemini.edu/sciops/instruments/gmos/GMOS-S_badamp5_ops_3.pdf
-            if mjd > 2022.07:
+            if obs_epoch > 2022.07:
                 badr = (768*2)//bin_spec 
                 _bpm_img[i,badr:,:] = 1
         if 3 in _det:
@@ -913,10 +941,10 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_b600_ham.fits'
 
         # The bad amp needs a larger follow_span for slit edge tracing
-        mjd = self.get_meta_value(scifile, 'mjd')
+        obs_epoch = self.get_meta_value(scifile, 'mjd')
         binning = self.get_meta_value(scifile, 'binning')
         bin_spec, bin_spat= parse.parse_binning(binning) 
-        if mjd > 2022.07:
+        if obs_epoch > 2022.07:
             par['calibrations']['slitedges']['follow_span'] = 290*bin_spec
         #
         return par
