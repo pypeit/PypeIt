@@ -4,7 +4,8 @@ from pathlib import Path
 
 from qtpy.QtWidgets import QGroupBox, QHBoxLayout, QVBoxLayout, QComboBox, QToolButton, QFileDialog, QWidget, QGridLayout, QFormLayout
 from qtpy.QtWidgets import QMessageBox, QTabWidget, QTreeView, QLayout, QLabel, QScrollArea, QListWidget, QTableView, QPushButton, QProgressDialog, QDialog, QHeaderView, QSizePolicy, QCheckBox, QDialog
-from qtpy.QtGui import QIcon, QPalette, QColor, QValidator
+from qtpy.QtWidgets import QPlainTextEdit
+from qtpy.QtGui import QIcon, QPalette, QColor, QValidator, QFont, QFontDatabase, QFontMetrics, QTextCharFormat, QTextCursor
 from qtpy.QtCore import Qt, QSize, Signal,QSettings, QStringListModel, QAbstractItemModel, QModelIndex, QMargins
 
 from pypeit.setup_gui.model import ModelState, ObservingConfigModel, available_spectrographs
@@ -38,14 +39,20 @@ class FileDialog():
         file_mode (QFileDialog.FileMode):  The file mode for the dialog.
         filter (str):                      The filter to use for files in the file dialog. For example: "PypeIt input files (\*.pypeit)"
         history (list of str):             The list of paths to populate the history of the dialog.
-        save_all (bool):                   Whether the dialog should present a "Use this location for everything" option
-                                           when saving.
+        save (bool, Optional):             Whether the dialog is a save dialog. If False it is treated as an open dialog. Defaults to False.
+        ask_for_all (bool, Optional):      Whether the dialog should present a "Use this location for everything" option
+                                           when saving. Defaults to False.
      """
-    def __init__(self, parent, caption, file_mode, filter=None, history=[], save_all=False):
+    def __init__(self, parent, caption, file_mode, filter=None, history=[], save=False, ask_for_all=False):
         self._dialog = QFileDialog(parent, caption=parent.tr(caption), filter=filter)
-        self._save_all = save_all
+        self._ask_for_all = ask_for_all
 
         self._dialog.setOption(QFileDialog.Option.DontUseNativeDialog)
+        if save:
+            self._dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
+        else:
+            self._dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptOpen)
+
         self._dialog.setFileMode(file_mode)
         if len(history) > 0:
             self._dialog.setDirectory(history[-1])
@@ -53,7 +60,7 @@ class FileDialog():
 
         # Adding a checkbox like this only works for non-native dialogs. And if the 
         # default layout of the QFileDialog ever changes this could stop working.
-        if self._save_all:
+        if self._ask_for_all:
             sd_layout = self._dialog.layout()
             row_count = sd_layout.rowCount()
             self.use_for_all_checkbox = QCheckBox(self._dialog.tr("Use this location for everthing."), self._dialog)
@@ -73,7 +80,7 @@ class FileDialog():
             return DialogResponses.CANCEL
         else:
             self.selected_path = self._dialog.selectedFiles()[0]
-            if self._save_all and self.use_for_all_checkbox.isChecked():
+            if self._ask_for_all and self.use_for_all_checkbox.isChecked():
                 return DialogResponses.ACCEPT_FOR_ALL
             else:
                 return DialogResponses.ACCEPT
@@ -710,6 +717,154 @@ class PypeItSetupView(QTabWidget):
                 self.setTabText(tab_index+1, self._file_tabs[tab_index].tab_name)
                 break
 
+
+class LogWindow(QWidget):
+    """Window showing PypeIt log messages as they occur. The log messages can also be saved to a text file.
+    
+    Args:
+        main_window(SetupGUIMainWindow): The main window of the PypeIt Setup GUI.
+        logBuffer(:obj:`pypeit.setup_gui.model.LogBuffer`): The log buffer holding the log messages.
+    """
+
+    closed = Signal()
+    """Signal sent when the log window is closed."""
+
+    newMessage = Signal(str)
+    """Signal sent when a new log message is logged."""
+
+    def __init__(self, main_window, logBuffer):
+        super().__init__()
+        self._logBuffer = logBuffer
+        self._main_window = main_window
+        self.setWindowIcon(QIcon(str(Path(__file__).parent / "images/window_icon.png")))
+        self.setWindowTitle(self.tr("PypeIt Setup Log"))
+        logLayout = QVBoxLayout(self)
+
+        # Get a fixed width font
+        fixed_font = QFont()
+        fixed_font.setFamilies(["Monospace", "Courier"])
+        fixed_font.setFixedPitch(True)
+        fixed_font.setPointSize(12)
+
+        # Create the log viewer widget
+        self.logViewer=QPlainTextEdit(parent=self)
+        self.logViewer.setFont(fixed_font)
+        self.logViewer.document().setMaximumBlockCount(self._logBuffer.maxlen)
+        self.logViewer.setReadOnly(True)
+
+        # Set the log window size to 100x50 characters
+        viewer_margins = self.logViewer.contentsMargins()
+        layout_margins = logLayout.contentsMargins()
+        parent_margins = self.contentsMargins()
+        font_metrics = self.logViewer.fontMetrics()
+        char_width = font_metrics.averageCharWidth()*100
+        char_height = font_metrics.height()*50
+        
+        self.resize(parent_margins.left() + parent_margins.right() +
+                    layout_margins.left() + layout_margins.right() +
+                    viewer_margins.left() + viewer_margins.right() +
+                    char_width, 
+                    parent_margins.top() + parent_margins.bottom() +
+                    layout_margins.top() + layout_margins.bottom() +
+                    viewer_margins.top() + viewer_margins.bottom() +
+                    char_height)
+
+        logLayout.addWidget(self.logViewer)
+
+        # Listen for new log messages and append them to the viewer
+        # This is done with a callbackto self._messageLogged, which then
+        # emits an event from self.newMessage to notify self._addMessage.
+        # This is done so that log messages from a different thread are
+        # properly queued to the GUIs event thread.
+        self.newMessage.connect(self._addMessage,Qt.QueuedConnection)
+        self._logBuffer.watch("log window", None, self._messageLogged)
+
+        # Fill the log viewer with previously logged messages.
+        for message in self._logBuffer:
+            self._addMessage(message)
+
+
+        # Buttons
+        buttonLayout = QHBoxLayout()
+        logLayout.addLayout(buttonLayout)
+
+        # Button to save the log
+        self.saveButton = QPushButton(text=self.tr("Save Log..."))
+        self.saveButton.clicked.connect(self.save)
+        buttonLayout.addWidget(self.saveButton)
+        buttonLayout.addStretch()
+
+        # Close button
+        self.closeButton = QPushButton(text=self.tr("Close"))
+        self.closeButton.clicked.connect(self.close)
+        buttonLayout.addWidget(self.closeButton)
+
+    def save(self):
+        """Save the log to a file."""
+
+        # Get history
+        settings = QSettings()
+        settings.beginGroup("LogDirectory")
+        history = settings.value("History")
+        if history is None:
+            history = []
+        elif not isinstance(history, list):
+            history = [history]
+
+        # Create the dialog.
+        save_dialog = FileDialog(self, self.tr(f"Enter name for logfile."),
+                                 QFileDialog.AnyFile, history=history, filter="Log Files (`*`.log)", save=True)
+
+        # Show the dialog.
+        response = save_dialog.show()
+        if response  != DialogResponses.CANCEL:            
+            # the User selected a directory
+            # save it to the history if it's new            
+            if save_dialog.selected_path not in history:
+                history.append(save_dialog.selected_path)
+                settings.setValue("History", history)
+
+            # Save the file
+            try:
+                with open(save_dialog.selected_path, "w") as f:
+                    for message in self._logBuffer:
+                        f.write(message)
+                msgs.info(f"Log saved to {save_dialog.selected_path}.")
+            except Exception as e:
+                self._main_window.display_error(str(e))
+
+    def closeEvent(self, event):
+        """Event handle for closing the log window. Overridden from QWidget.
+
+        Args:
+            event (QEvent): The close event. Not used by this implementation.
+        """
+        # Stop watching the log, and notify the main window.
+        self.newMessage.disconnect(self._addMessage)
+        self._logBuffer.unwatch("log window")
+        self.closed.emit()
+        return super().closeEvent(event)
+
+    def _messageLogged(self, message):
+        """Callback that is notified by the log buffer for each message logged.
+
+        Args:
+            message (str): The log message
+        """
+        # Emit the message so it can be picked up in the GUI's event thread.
+        self.newMessage.emit(message)
+
+    def _addMessage(self, message):
+        """Signal handler that is notified on the GUI event thread of a new message.
+        
+        Args:
+            message (str): The message logged.
+        """
+
+        # Add the message to our internal text document
+        self.logViewer.appendPlainText(message.strip())
+
+
 class SetupGUIMainWindow(QWidget):
     """Main window widget for the PypeIt Setup GUI
 
@@ -733,6 +888,8 @@ class SetupGUIMainWindow(QWidget):
         self.setup_view = PypeItSetupView(self.model) 
         self.layout.addWidget(self.setup_view)
         self.layout.addLayout(self._create_button_box())
+
+        self._logWindow = None
 
 
         # Setup application/window icon TODO this doesn't work in windows. Mac???
@@ -827,7 +984,7 @@ class SetupGUIMainWindow(QWidget):
 
         # Create the dialog.
         save_dialog = FileDialog(self, self.tr(f"Select location to save tab {config_name}."),
-                                 QFileDialog.Directory, history=history, save_all=prompt_for_all)
+                                 QFileDialog.Directory, history=history, save=True, ask_for_all=prompt_for_all)
 
         # Show the dialog.
         response = save_dialog.show()
@@ -905,8 +1062,19 @@ class SetupGUIMainWindow(QWidget):
         self.clearButton.setEnabled(self.setup_view.state!=ModelState.NEW)
         self.update_save_tab_button()
 
+    def _showLog(self):
+        """Signal handler that opens the log window."""
+        if self._logWindow is not None:
+            self._logWindow.activateWindow()
+        else:
+            self._logWindow = LogWindow(self, self.model.log_buffer)
+            self._logWindow.closed.connect(self._logClosed)
+            self._logWindow.show()
 
-
+    def _logClosed(self):
+        """Signal handler that clears the log window when it closes."""
+        self._logWindow = None
+            
     def _create_button_box(self):
         """Create the box with action buttons.
         
@@ -951,6 +1119,12 @@ class SetupGUIMainWindow(QWidget):
         self.saveAllButton = button
 
         button_layout.addStretch()
+
+        button = QPushButton(text = 'View log')
+        button.setToolTip("Opens a window containing the log.")
+        button.clicked.connect(self._showLog)
+        button_layout.addWidget(button)
+        self.logButton = button
 
         button = QPushButton(text = 'Exit')
         button.setToolTip("Quits this application.")

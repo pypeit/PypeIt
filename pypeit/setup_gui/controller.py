@@ -8,6 +8,7 @@ import traceback
 import signal
 import sys
 import datetime
+from pathlib import Path
 
 from qtpy.QtCore import QCoreApplication
 from qtpy.QtCore import QObject, Qt, QThread
@@ -47,11 +48,15 @@ class SetupGUIController(QObject):
         QCoreApplication.setApplicationName("SetupGUI")
         QCoreApplication.setOrganizationDomain("pypeit.readthedocs.io")
 
-        timestamp = datetime.datetime.utcnow().strftime("%Y%m%d-%H%M")
-        logname = f"setup_gui_{timestamp}.log"
-
+        if args.logfile is not None:
+            logpath = Path(args.logfile)
+            if logpath.exists():
+                timestamp = datetime.datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+                old_log=logpath.parent / (logpath.stem + f".{timestamp}" + logpath.suffix)
+                logpath.rename(old_log)
+                
         self.model = PypeItSetupModel()
-        self.model.setup_logging(logname, args.verbosity)
+        self.model.setup_logging(args.logfile, verbosity=args.verbosity)
         self.view = SetupGUIMainWindow(self.model, self)
         self._thread = None
 

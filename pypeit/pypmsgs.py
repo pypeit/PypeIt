@@ -12,6 +12,7 @@ import getpass
 import glob
 import textwrap
 import inspect
+import io
 
 # Imported for versioning
 import scipy
@@ -40,10 +41,8 @@ class Messages:
 
     Parameters
     ----------
-    log : str or None
+    log : str, file-like object, or None
       Name of saved log file (no log will be saved if log=="")
-    log_object: file-like object or None
-      Already opened file-like object to receive logs.
     verbosity : int (0,1,2)
       Level of verbosity:
         0 = No output
@@ -53,7 +52,7 @@ class Messages:
       If true, the screen output will have colors, otherwise
       normal screen output will be displayed
     """
-    def __init__(self, log=None, verbosity=None, colors=True, log_object=None):
+    def __init__(self, log=None, verbosity=None, colors=True):
 
         # Initialize other variables
         self._defverb = 1
@@ -68,6 +67,7 @@ class Messages:
             self._defverb = 2
         self._verbosity = self._defverb if verbosity is None else verbosity
 
+
         # TODO: Why are these two necessary?  It would seem better to
         # provide Messages with member functions that can operate on
         # sciexp and pypeit_file instead of having them kept within the
@@ -77,8 +77,9 @@ class Messages:
         self.qa_path = None
 
         # Initialize the log
+        self._log_to_stderr = self._verbosity != 0
         self._log = None
-        self._initialize_log_file(log=log, log_object=log_object)
+        self._initialize_log_file(log=log)
 
         # Use colors?
         self._start = None
@@ -123,23 +124,23 @@ class Messages:
         """
         devmsg = self._devmsg() if printDevMsg else ''
         _msg = premsg+devmsg+msg
-        if self._verbosity != 0:
+        if self._log_to_stderr != 0:
             print(_msg, file=sys.stderr)
         if self._log:
             clean_msg = self._cleancolors(_msg)
             self._log.write(clean_msg+'\n' if last else clean_msg)
 
-    def _initialize_log_file(self, log=None, log_object=None):
+    def _initialize_log_file(self, log=None):
         """
         Expects self._log is already None.
         """
 
         if log is not None:
-            # Initialize the log
-            self._log = open(log, 'w')
-        elif log_object is not None:
-            # Use already opened log file-like object
-            self._log = log_object
+            if isinstance(log, io.IOBase):
+                self._log = log
+            else:
+                # Initialize the log
+                self._log = open(log, 'w')
         else:
             return
 
@@ -152,7 +153,7 @@ class Messages:
         self._log.write("You are using astropy version={:s}\n\n".format(astropy.__version__))
         self._log.write("------------------------------------------------------\n\n")
 
-    def reset(self, log=None, verbosity=None, colors=True, log_object=None):
+    def reset(self, log=None, verbosity=None, colors=True, log_to_stderr=None):
         """
         Reinitialize the object.
 
@@ -161,16 +162,21 @@ class Messages:
         """
         # Initialize other variables
         self._verbosity = self._defverb if verbosity is None else verbosity
-        self.reset_log_file(log, log_object)
+        if log_to_stderr is None:
+            self._log_to_stderr = self._verbosity != 0
+        else:
+            self._log_to_stderr = log_to_stderr
+
+        self.reset_log_file(log)
         self.disablecolors()
         if colors:
             self.enablecolors()
 
-    def reset_log_file(self, log, log_object=None):
+    def reset_log_file(self, log):
         if self._log:
             self._log.close()
             self._log = None
-        self._initialize_log_file(log=log, log_object=log_object)
+        self._initialize_log_file(log=log)
 
     def close(self):
         '''

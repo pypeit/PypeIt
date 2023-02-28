@@ -6,14 +6,16 @@ The controller portion of the PypeIt Setup GUI.
 """
 
 import os
+from collections import deque
 import re
 import traceback
 import enum
 import glob
-
 import numpy as np
+import io
 
 from qtpy.QtCore import QAbstractTableModel, QAbstractItemModel, QModelIndex, Qt, Signal, QObject, QThread
+from qtpy.QtGui import QTextDocument, QTextCursor
 
 from configobj import ConfigObj
 
@@ -39,21 +41,31 @@ class OpCanceledError(Exception):
     def __init__(self):
         super().__init__()
 
-class LogWatcher():
-    """Imitation file object that is passed to the PypeIt msgs logging system. It monitors log messages
-    for matching log messages and notifies clients when they appear. Used to monitor progress of 
-    background operations.
+
+class LogBuffer(io.TextIOBase):
+    """Imitation file object that is passed to the PypeIt msgs logging system. It maintains a buffer
+    of log messages that the user can view through the GUI. It is also used to monitor progress of 
+    background operations, by registering regular expressions to watch the log for.
 
     Args:
         log_file (str): The log file to receive the log messages. If this is None the log is not
                         written to a file.
+        verbosity (int): The verbosity of log messages to pass on. 0 = No logging. 1 = INFO,
+                         BUG, WARNING, and ERROR only, 2 = All.
+        max_len (int,Optional):   The maximum number of log lines to buffer. Defaults to 1000.
     """
-    def __init__(self, log_file):
+
+    def __init__(self, log_file, verbosity, max_len=1000):
+        super().__init__()
+
         if log_file is not None:
             self._log = open(os.fspath(log_file), "w")
         else:
             self._log = None
+        self._verbosity = verbosity
         self._watches = dict()
+        self.maxlen = max_len
+        self._buffer = deque([], maxlen=max_len)
 
     def write(self, message):
         """Simulates the write method of a file object to monitors log messages for for matching messages.
@@ -62,13 +74,28 @@ class LogWatcher():
         Args:
             message (str): The log message being written to the log.
         """
+
+        # Store the message
+        self._buffer.append(message)
+
+        # Notify clients for specific watched log messages
+        for watch in self._watches.items():
+            re = watch[1][0]
+            if re is None:
+                watch[1][1](message)
+            else:
+                match = re.search(message)
+                if match is not None:
+                    watch[1][1](watch[0], match)
+
+        # Enforce verbosity
+        if self._verbosity == 0:
+            return
+
+        # Write to the log file if one was given
         if self._log is not None:
             self._log.write(message)
             self._log.flush()
-        for watch in self._watches.items():
-            match = watch[1][0].search(message)
-            if match is not None:
-                watch[1][1](watch[0], match)
 
 
     def close(self):
@@ -82,14 +109,14 @@ class LogWatcher():
         is called.
 
         Args:
-            name (str):                                   Name to register the regular expression under. This can be
-                                                          passed to :meth:`unwatch` to stop monitoring for that expression.
-            compiled_re (:class:`typing.Pattern`):        A compiled Python regular expression to match log messages
-                                                          against.
-            callback (:class:`collections.abc.Callable`): A function or object that will be called when a matching log
-                                                          message is found. It is called with two arguments: the name
-                                                          used to register the expression and the Match object regurned by
-                                                          the regular expression.
+            name (str):                                      Name to register the regular expression under. This can be
+                                                             passed to :meth:`unwatch` to stop monitoring for that expression.
+            callback (:class:`collections.abc.Callable`):    A function or object that will be called when a matching log
+                                                             message is found. It is called with two arguments: the name
+                                                             used to register the expression and the Match object regurned by
+                                                             the regular expression.
+            compiled_re (:class:`typing.Pattern`, Optional): A compiled Python regular expression to match log messages
+                                                             against. If this is not given, the caller is notified of all log messages.
         """
         self._watches[name] = (compiled_re, callback)
 
@@ -101,6 +128,25 @@ class LogWatcher():
         """
         if name in self._watches:
             del self._watches[name]
+
+    def __iter__(self):
+        """Allow iteration through the log buffer.
+        
+        Returns:
+            (:obj:`collections.abc.Iterator`): An iterator over the lines in  the log buffer."""
+        return self._buffer.__iter__()
+
+    def __len__(self):
+        """Return the number of lines in the buffer.
+        
+        Returns:
+            int
+        """
+        return len(self._buffer)
+
+    def __bool__(self):
+        """Return a true status indicating we're ready to receive data"""
+        return True
 
 def available_spectrographs():
     """Return a list of the supported spectrographs"""
@@ -587,7 +633,7 @@ class PypeItFileModel(QObject):
     """
 
     state_changed = Signal(str)
-    """Signal(str): Signal sent when the state of the configuration changes. The name of the configuration is sent as the signal parameter."""
+    """Signal(str): Signal sent when the state of the file model changes. The config nasme of the file is sent as the signal parameter."""
 
     def __init__(self, pypeit_setup, config_name, config_dict, state):
         super().__init__()
@@ -660,6 +706,7 @@ class PypeItSetupModel(QObject):
         self.raw_data_dirs = []
         self.raw_data_files = []
         self.pypeit_files = dict()
+        self.log_buffer = None
 
     def setup_logging(self, logname, verbosity):
         """
@@ -670,8 +717,9 @@ class PypeItSetupModel(QObject):
             logname (str): The filename to log to.
             verbosity (int): The verbosity level to log at.
         """
-        self._log_watcher = LogWatcher(logname)
-        msgs.reset(verbosity=verbosity, log_object=self._log_watcher)
+        self.log_buffer = LogBuffer(logname,verbosity)
+        msgs.reset(verbosity=verbosity, log=self.log_buffer, log_to_stderr=False)
+
 
     @property
     def state(self):
@@ -760,26 +808,36 @@ class PypeItSetupModel(QObject):
             self._pypeit_setup = PypeItSetup.from_rawfiles(self.raw_data_files, self._spectrograph.name)
 
             added_metadata_re = re.compile("Adding metadata for (.*)$")
-            self._log_watcher.watch("added_metadata", added_metadata_re, self._addedMetadata)
+
+            #def test_decorator(f):
+            #    @wraps(f)
+            #    def wrapper(*args, **kargs):
+            #        newargs = ["HAPPY INFO " + args[0]]
+            #        return f(*newargs, **kargs)
+            #    return wrapper
+            #old_info = msgs.info
+            #msgs.info = test_decorator(msgs.info)
+            self.log_buffer.watch("added_metadata", added_metadata_re, self._addedMetadata)
 
             # These were taken from the default parameters in pypeit_obslog
             self._pypeit_setup.run(setup_only=True,
                                 write_files=False, 
                                 groupings=True,
                                 clean_config=False)
-            self._log_watcher.unwatch("added_metadata")
+            self.log_buffer.unwatch("added_metadata")
+            #msgs.info = old_info
             self.metadata_model.setMetadata(self._pypeit_setup.fitstbl)
             self._setConfigurations(self._pypeit_setup.fitstbl.unique_configurations())
             self.operation_complete.emit("")
             self.state_changed.emit()
         except OpCanceledError:
             # The operation was canceled, reset pypeit_setup and return
-            self._log_watcher.unwatch("added_metadata")
+            self.log_buffer.unwatch("added_metadata")
             msgs.info("OpCanceled")
             self._pypeit_setup = None
             self.operation_complete.emit("CANCEL")
         except Exception as e:
-            self._log_watcher.unwatch("added_metadata")
+            self.log_buffer.unwatch("added_metadata")
             msgs.info("Exception")
             msgs.info(traceback.format_exc())
             # Any other exception is an error reading the metadata
