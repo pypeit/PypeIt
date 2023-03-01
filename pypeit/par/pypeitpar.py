@@ -1924,6 +1924,7 @@ class SlitMaskPar(ParSet):
                                      'parameter ``use_user_fwhm`` in ``ExtractionPar`` to True. ' \
                                      'If ``missing_objs_fwhm`` is ``None`` (which is the default) PypeIt will use ' \
                                      'the median FWHM of all the detected objects.'
+
         defaults['missing_objs_boxcar_rad'] = 1.0
         dtypes['missing_objs_boxcar_rad'] = [int, float]
         descr['missing_objs_boxcar_rad'] = 'Indicates the boxcar radius in arcsec for the force ' \
@@ -2736,7 +2737,8 @@ class EdgeTracePar(ParSet):
                  length_range=None, minimum_slit_gap=None, clip=None, order_match=None,
                  order_offset=None, overlap=None, use_maskdesign=None, maskdesign_maxsep=None,
                  maskdesign_step=None, maskdesign_sigrej=None, pad=None, add_slits=None,
-                 add_predict=None, rm_slits=None):
+                 add_predict=None, rm_slits=None,
+                 maskdesign_filename=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3109,6 +3111,10 @@ class EdgeTracePar(ParSet):
         dtypes['use_maskdesign'] = bool
         descr['use_maskdesign'] = 'Use slit-mask designs to identify slits.'
 
+        defaults['maskdesign_filename'] = None
+        dtypes['maskdesign_filename'] = [str, list]
+        descr['maskdesign_filename'] = 'Mask design info contained in this file or files (comma separated)'
+
         defaults['maskdesign_maxsep'] = 50
         dtypes['maskdesign_maxsep'] = [int, float]
         descr['maskdesign_maxsep'] = 'Maximum allowed offset in pixels between the slit edges ' \
@@ -3206,7 +3212,8 @@ class EdgeTracePar(ParSet):
                    'sync_to_edge', 'bound_detector', 'minimum_slit_dlength', 'dlength_range', 
                    'minimum_slit_length', 'minimum_slit_length_sci', 'length_range',
                    'minimum_slit_gap', 'clip', 'order_match', 'order_offset', 'overlap',
-                   'use_maskdesign', 'maskdesign_maxsep', 'maskdesign_step', 'maskdesign_sigrej',
+                   'use_maskdesign', 'maskdesign_maxsep', 'maskdesign_step', 
+                   'maskdesign_sigrej', 'maskdesign_filename',
                    'pad', 'add_slits', 'add_predict', 'rm_slits']
 
         badkeys = np.array([pk not in parkeys for pk in k])
