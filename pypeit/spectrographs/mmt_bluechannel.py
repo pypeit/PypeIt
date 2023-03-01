@@ -279,6 +279,8 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = f"mmt_bluechannel_{grating}_order1.fits"
 
+        return par
+
     def bpm(self, filename, det, shape=None, msbias=None):
         """
         Generate a default bad-pixel mask.
