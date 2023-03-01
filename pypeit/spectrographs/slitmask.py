@@ -1004,4 +1004,3 @@ def load_keck_deimoslris(filename:str, instr:str):
     # Return
     return slitmask
 
-
