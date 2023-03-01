@@ -55,6 +55,8 @@ class Setup(scriptbase.ScriptBase):
                                  'pypeit_obslog; i.e., you have to tell pypeit_setup to keep '
                                  'these frames, whereas you have to tell pypeit_obslog to remove '
                                  'them.')
+        parser.add_argument('-G', '--gui', default=False, action='store_true',
+                            help='Run setup in a GUI')        
         return parser
 
     @staticmethod
@@ -72,6 +74,11 @@ class Setup(scriptbase.ScriptBase):
                              + '\tOptions are: {0}\n'.format(', '.join(available_spectrographs))
                              + '\tSelect an available instrument or consult the documentation '
                              + 'on how to add a new instrument.')
+
+        if args.gui:
+            from pypeit.scripts.setup_gui import SetupGUI
+            gui_args = SetupGUI.parse_args(["-s", args.spectrograph, "-r", args.root, "-e", args.extension])
+            SetupGUI.main(gui_args)
 
         # Get the output directory
         sort_dir = os.path.join(args.output_path, 'setup_files')

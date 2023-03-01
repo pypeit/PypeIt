@@ -5,12 +5,12 @@ An interactive GUI for creaing pypeit input files.
 .. include:: ../include/links.rst
 """
 import sys
-
+import os
 from qtpy.QtWidgets import QApplication
 
 from pypeit.scripts import scriptbase
 from pypeit.setup_gui.controller import SetupGUIController
-        
+from pypeit.setup_gui import model
 
 class SetupGUI(scriptbase.ScriptBase):
 
@@ -19,6 +19,17 @@ class SetupGUI(scriptbase.ScriptBase):
         parser = super().get_parser(description="Interactive GUI for creating and editing PypeIt input files. "
                                                 "Additional Qt arguments can also be used. See https://doc.qt.io/qt-5/qapplication.html#QApplication", 
                                     width=width)
+        parser.add_argument('-s', '--spectrograph', default=None, type=str,
+                            help='A valid spectrograph identifier: {0}'.format(
+                                    ', '.join(model.available_spectrographs())))
+        parser.add_argument('-r', '--root', default=None, type=str,
+                            help='Root to search for data files.  You can provide the top-level '
+                                 'directory  (e.g., /data/Kast) or the search string up through '
+                                 'the wildcard (.e.g, /data/Kast/b).  Use the --extension option '
+                                 'to set the types of files to search for.  Default is the '
+                                 'current working directory.')
+        parser.add_argument('-e', '--extension', default='.fits',
+                            help='File extension; compression indicators (e.g. .gz) not required.')
         parser.add_argument('-l', '--logfile', type=str, default=None, 
                             help="Write the PypeIt logs to the given file. If the file exists it will be renamed.")
         parser.add_argument('-v', '--verbosity', type=int, default=2,

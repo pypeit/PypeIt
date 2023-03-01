@@ -707,6 +707,7 @@ class PypeItSetupModel(QObject):
         self.raw_data_files = []
         self.pypeit_files = dict()
         self.log_buffer = None
+        self.default_extension = ".fits"
 
     def setup_logging(self, logname, verbosity):
         """
@@ -774,14 +775,20 @@ class PypeItSetupModel(QObject):
         """
         allowed_extensions = self._spectrograph.allowed_extensions
         if allowed_extensions is None or len(allowed_extensions) == 0:
-            # Most spectrographs don't set the allowed extensions, just use fits*
-            # for fits or compressed fits
-            allowed_extensions = [".fits*"]
+            # Most spectrographs don't set the allowed extensions, just use the
+            # default from the command line. Append a "*" to match compressed files
+            allowed_extensions = [self.default_extension + "*"]
 
         self.raw_data_files = []
         for directory in self.raw_data_dirs:
             for extension in allowed_extensions:
-                self.raw_data_files += glob.glob(os.path.join(directory, "*" + extension))
+                #  The command line may set a root, which isn't a directory but a prefix
+                if not os.path.isdir(directory):
+                    glob_pattern = directory + "*" + extension
+                else:
+                    glob_pattern = os.path.join(directory, "*" + extension)
+
+                self.raw_data_files += glob.glob(glob_pattern)
 
         return len(self.raw_data_files)
 

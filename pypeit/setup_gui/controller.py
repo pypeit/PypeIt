@@ -57,6 +57,16 @@ class SetupGUIController(QObject):
                 
         self.model = PypeItSetupModel()
         self.model.setup_logging(args.logfile, verbosity=args.verbosity)
+        if args.spectrograph is not None:
+            self.model.set_spectrograph(args.spectrograph)
+        if args.root is not None:
+            self.model.add_raw_data_directory(args.root)
+        if args.spectrograph is not None and args.root is not None:
+            self.run_setup_at_startup = True
+        else:
+            self.run_setup_at_startup = False
+
+        self.model.default_extension = args.extension
         self.view = SetupGUIMainWindow(self.model, self)
         self._thread = None
 
@@ -71,6 +81,8 @@ class SetupGUIController(QObject):
                                 before calling start(). 
         """
         self.view.show()
+        if self.run_setup_at_startup:
+            self.run_setup()
 
         # QT Gobbles up the Python Ctrl+C handling, so the default PypeIt Ctrl+C handler won't
         # be called. So we reset it to the OS default
