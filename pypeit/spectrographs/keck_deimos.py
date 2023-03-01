@@ -1320,7 +1320,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Use the detector map to convert to the detector coordinates
         return (x_img, y_img) + self.detector_map.ccd_coordinates(x_img, y_img, in_mm=False)
 
-    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None):
+    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None,
+                              trc_path=None, binning=None):
         """
         Provides the slit edges positions predicted by the slitmask design using
         the mask coordinates already converted from mm to pixels by the method

@@ -982,7 +982,7 @@ class EdgeTraceSet(DataContainer):
         # land in slit gaps.
 
         # Only after the correction for the bad column, update the bmp with the
-        # regions to exclude from slit tracing
+        # - regions to exclude from slit tracing
         if self.par['exclude_regions'] is not None:
             reg_start, reg_end = self._parse_exclude_regions()
             for i in range(reg_start.size):
@@ -4284,10 +4284,16 @@ class EdgeTraceSet(DataContainer):
             return
 
         # `traceimg` must have knowledge of the flat frame that built it
-        self.maskfile = self.traceimg.files[0]
-
+        maskfiles = self.traceimg.files[0] if self.par['maskdesign_filename'] is None \
+            else self.par['maskdesign_filename']
+        self.maskfile = maskfiles[0] if isinstance(maskfiles, list) else maskfiles
         omodel_bspat, omodel_tspat, sortindx, self.slitmask = \
-            self.spectrograph.get_maskdef_slitedges(ccdnum=self.traceimg.detector.det, filename=self.maskfile, debug=debug)
+            self.spectrograph.get_maskdef_slitedges(
+                ccdnum=self.traceimg.detector.det, 
+                binning=self.traceimg.detector.binning, 
+                filename=maskfiles, 
+                trc_path = os.path.dirname(self.traceimg.files[0]),
+                debug=debug)
 
         if omodel_bspat[omodel_bspat!=-1].size < 3:
             msgs.warn('Less than 3 slits are expected on this detector, slitmask matching cannot be performed')

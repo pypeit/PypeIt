@@ -13,14 +13,12 @@ import os
 from astropy import stats
 from abc import ABCMeta
 
-from scipy import interpolate
-from scipy.optimize import least_squares
 
 from pypeit import specobjs
 from pypeit import msgs, utils
-from pypeit import masterframe, flatfield
+from pypeit import flatfield
 from pypeit.display import display
-from pypeit.core import skysub, pixels, qa, parse, flat, flexure
+from pypeit.core import skysub, qa, parse, flat, flexure
 from pypeit.core import procimg
 from pypeit.images import buildimage
 from pypeit.core import findobj_skymask
@@ -989,9 +987,10 @@ class EchelleFindObjects(FindObjects):
         plate_scale = self.spectrograph.order_platescale(self.order_vec, binning=self.binning)
         inmask = self.sciImg.select_flag(invert=True)
         # Find objects
-        # TODO -- Eliminate this specobj_dict thing
         # TODO: Not sure how this fairs if self.det is a tuple...
-        specobj_dict = {'SLITID': 999, 'DET': self.sciImg.detector.name, 'OBJTYPE': self.objtype,
+        specobj_dict = {'SLITID': 999, 'DET': self.sciImg.detector.name, 
+                        'ECH_ORDERINDX': 999,
+                        'OBJTYPE': self.objtype,
                         'PYPELINE': self.pypeline}
 
         # Set objfind QA filename
@@ -1013,10 +1012,14 @@ class EchelleFindObjects(FindObjects):
 
         sobjs_ech = findobj_skymask.ech_objfind(
             image, ivar, self.slitmask, self.slits_left, self.slits_right,
-            self.order_vec, self.reduce_bpm, det=self.det,
-            spec_min_max=np.vstack((self.slits.specmin, self.slits.specmax)),
-            inmask=inmask, ncoeff=self.par['reduce']['findobj']['trace_npoly'],
-            hand_extract_dict=manual_extract_dict, plate_scale=plate_scale,
+            self.order_vec, self.reduce_bpm, 
+            self.slits.spat_id,
+            np.vstack((self.slits.specmin, self.slits.specmax)),
+            det=self.det,
+            inmask=inmask, 
+            ncoeff=self.par['reduce']['findobj']['trace_npoly'],
+            manual_extract_dict=manual_extract_dict, 
+            plate_scale=plate_scale,
             std_trace=std_trace,
             specobj_dict=specobj_dict,
             snr_thresh=self.par['reduce']['findobj']['snr_thresh'],
@@ -1024,8 +1027,8 @@ class EchelleFindObjects(FindObjects):
             trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
             fwhm=self.par['reduce']['findobj']['find_fwhm'],
             use_user_fwhm=self.par['reduce']['extraction']['use_user_fwhm'],
-            nperorder=nperorder,
             maxdev=self.par['reduce']['findobj']['find_maxdev'],
+            nperorder=nperorder,
             max_snr=self.par['reduce']['findobj']['ech_find_max_snr'],
             min_snr=self.par['reduce']['findobj']['ech_find_min_snr'],
             nabove_min_snr=self.par['reduce']['findobj']['ech_find_nabove_min_snr'],
