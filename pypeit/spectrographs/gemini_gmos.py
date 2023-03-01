@@ -552,7 +552,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             :attr:`slitmask`.
         """
         # Open the file
-        mask_tbl = Table.read(filename)
+        mask_tbl = Table.read(filename, format='fits')
 
         # Projected distance (in arcsec) of the object from the left and right (top and bot) edges of the slit
         slit_length = mask_tbl['slitsize_y'].to('arcsec').value # arcsec

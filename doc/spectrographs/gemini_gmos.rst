@@ -137,6 +137,16 @@ with the :doc:`pypeit_file`:
 #.  The mask definition file, aka ODF file
 #.  An aligment image (taken with the spectra)
 
+The mask definition file must be the output generated from 
+GMMPRS and in FITS format. We do not support ASCII 
+mask files currently.
+
+For the alignment image,
+ensure that the alignment stars in the image are centered 
+in the mask's square alignment slits. i.e. choose the 
+final image in the sequence of alignment images from 
+the observations.
+
 The modifications to the :doc:`pypeit_file` will look like:
 
 .. code-block:: ini
