@@ -543,7 +543,7 @@ class ObsLogTab(QWidget):
             model (:class:`pypeit.setup_gui.model.PypeItSetupModel`): The new metadata model
         """
         self._model=model
-        self.raw_data_paths.set_locations(model.raw_data_dirs) #metadata_model.get_metadata_paths())
+        self.raw_data_paths.set_locations(model.raw_data_dirs)
         if model.spectrograph is not None:
             self.spectrograph.setCurrentIndex(self.spectrograph.findText(model.spectrograph))
             msgs.info(f"Set current text to {model.spectrograph}, current index {self.spectrograph.currentIndex()}")

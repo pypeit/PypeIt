@@ -341,7 +341,7 @@ class PypeItMetadataProxy(QAbstractTableModel):
             list of str: The list of directories holding raw data files.
         """
         if self._metadata is not None:
-            return list(np.unique(self._metadata.table['directory']))
+            return list(np.unique(self._metadata.table[self._displayIdx]['directory']))
         else:
             return []
 
