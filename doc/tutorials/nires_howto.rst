@@ -92,12 +92,33 @@ Dither sequence
 ---------------
 
 As stated above, the automated algorithms in :ref:`pypeit_setup` don't correctly
-set the :ref:`a-b_differencing` pattern for this dataset, handled by the
-``comb_id`` and ``bkg_id`` columns.  This dataset is a simple case were we have
-observed two offset positions for both the science object and the standard star.
-The numbers in the ``comb_id`` and ``bkg_id`` columns (in the corrected
-:ref:`pypeit_file`) indicate that we create both A-B and B-A images for both the
-standard and science frames.
+set the dither pattern for this dataset, as handled by the
+``comb_id`` and ``bkg_id`` columns.  See :ref:`here <nires_config_report>` for
+an example where the frame typing and dither pattern determinations *are*
+correct by default.
+
+In this example dataset, the science object and the standard star are both only
+observed at two offset positions.  We use the :ref:`pypeit_file` (see the
+corrected version above) to indicate this using the ``comb_id`` and ``bkg_id``
+columns, as described by :ref:`a-b_differencing` (specifically, see
+:ref:`ab-image-differencing`).
+
+By setting ``comb_id=1`` and ``bkg_id=2`` for frame ``s190519_0059.fits``, we
+are indicating that this frame should be treated as frame "1" (A) and that frame
+"2" (B) should be used as its background.  We reverse the values of ``comb_id``
+and ``bkg_id`` for frame ``s190519_0060.fits``, which indicates that this frame
+should be treated as frame "2" (B) and that frame "1" (A) should be used as its
+background.  I.e., the ``comb_id`` column effectively sets the numeric identity
+of each frame, and the ``bkg_id`` column selects the numeric identity of the
+frame that should be used as the background image.
+
+When PypeIt reduces the frames in this example, it constructs two images, A-B
+and B-A, such that the positive residuals in each image are the observed
+source flux for that observation, which can be combined using :ref:`2D coadding
+<coadd2d>`.
+
+The use of the ``comb_id`` and ``bkg_id`` integers is very flexible, allowing
+for many, more complicated dithering scenarios; see :ref:`a-b_differencing`.
 
 ----
 
@@ -186,13 +207,14 @@ for each order of each the combined arc image used for each calibration group.
    :width: 70%
 
    The wavelength-calibration QA plot for the reddest Keck/NIRES order
-   (order=3).  The left panel shows the arc spectrum extracted down the center
-   of the order, with green text and lines marking lines used by the wavelength
-   calibration.  Gray lines mark detected features that were *not* included in
-   the wavelength solution.  The top-right panel shows the fit (red) to the
-   observed trend in wavelength as a function of spectral pixel (blue crosses);
-   gray circles are features that were rejected by the wavelength solution.  The
-   bottom-right panel shows the fit residuals (i.e., data - model).
+   (order=3), called ``Arc_1dfit_A_2_DET01_S0003.png``.  The left panel shows
+   the arc spectrum extracted down the center of the order, with green text and
+   lines marking lines used by the wavelength calibration.  Gray lines mark
+   detected features that were *not* included in the wavelength solution.  The
+   top-right panel shows the fit (red) to the observed trend in wavelength as a
+   function of spectral pixel (blue crosses); gray circles are features that
+   were rejected by the wavelength solution.  The bottom-right panel shows the
+   fit residuals (i.e., data - model).
 
 In addition, the script :ref:`pypeit-chk-wavecalib` provides a summary of the
 wavelength calibration for all orders. We can run it with this simple call:
@@ -217,6 +239,23 @@ terminal to see the full output):
       4    885 18895.7  21806.9 24686.8 2.827   84 18914.824 - 24627.748            98.6          2.0 0.165
 
 See :ref:`pypeit-chk-wavecalib` for a detailed description of all the columns.
+
+.. warning::
+
+    A common failure mode for wavelength calibration that uses the sky lines is
+    that the exposures are too short.  When **collecting** NIRES observations,
+    either (1) make sure at least some of the on-sky exposures are sufficiently
+    long to provide good signal in the sky lines *in all orders* or (2) take arc
+    lamp exposures.  If you've already collected your data and you didn't do
+    either of these, you can try using archive observations or ask the Keck
+    staff to take arc lamps for you, given that NIRES is a fixed-format
+    spectrograph.
+    
+    **PypeIt currently does not have a pre-cooked arc-lamp wavelength solution
+    for NIRES.**  If you want to perform wavelength calibration with arc lamp
+    spectra, you'll need to change the default approach; see :ref:`wave_calib`,
+    and see :ref:`instr_par-keck_nires` for the current default wavelength
+    calibration approach.
 
 2D Wavelength Solution
 ++++++++++++++++++++++
