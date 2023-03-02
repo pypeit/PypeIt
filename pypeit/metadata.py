@@ -946,6 +946,7 @@ class PypeItMetaData:
         # provided, regardless of whether or not a science frame is
         # assigned to that group.
         ngroups = 0
+        embed(header='949 of metadata.py')
         for i in range(len(self)):
             if self['calib'][i] in ['all', 'None']:
                 # No information, keep going

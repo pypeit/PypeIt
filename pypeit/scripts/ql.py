@@ -303,6 +303,10 @@ class QL(scriptbase.ScriptBase):
         parser.add_argument('--no_stack', dest='stack', default=True, 
                             action="store_false",
                             help='Do *not* stack multiple science frames')
+        parser.add_argument("--bkg_redux", default=False, action='store_true',
+                            help='If set the script will perform difference imaging quicklook. Namely it will identify '
+                                 'sequences of AB pairs based on the dither pattern and perform difference imaging sky '
+                                 'subtraction and fit for residuals')
         return parser
 
 
@@ -339,6 +343,7 @@ class QL(scriptbase.ScriptBase):
                     msgs.info('Master files already exist.  Skipping calibration.')
                     continue
                 # Run
+                #embed(header='346 of ql.py')
                 pypeIt = pypeit.PypeIt(calib_pypeit_file,
                                        redux_path=redux_path, 
                                        calib_only=True)
@@ -355,6 +360,11 @@ class QL(scriptbase.ScriptBase):
 
         if np.sum(sci_idx) == 0:
             msgs.error('No science frames found in the provided files.  Add at least one or specify using --sci_files.')
+
+        if args.bkg_redux:
+            dither_pattern, dither_id, offset_arcsec = \
+                ps.spectrograph.parse_dither_pattern(files)
+        embed(header='366 of ql.py')
 
         # Generate science setup object
         full_scifiles = [os.path.join(dir_path, sci_file) for dir_path, sci_file in zip(

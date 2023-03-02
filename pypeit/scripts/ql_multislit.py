@@ -9,8 +9,6 @@ import os
 import copy
 import time
 
-from pkg_resources import resource_filename
-
 from IPython import embed
 
 import numpy as np
@@ -21,9 +19,7 @@ from astropy.stats import sigma_clipped_stats
 
 from pypeit import utils
 from pypeit import data
-from pypeit import pypeit
 from pypeit import par, msgs
-from pypeit import pypeitsetup
 from pypeit import wavecalib
 from pypeit import wavetilts
 from pypeit import spec2dobj
