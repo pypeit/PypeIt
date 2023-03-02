@@ -10,7 +10,7 @@
     positional arguments:
       file               Spectral file
     
-    optional arguments:
+    options:
       -h, --help         show this help message and exit
       --list             List the extensions only? (default: False)
       --exten EXTEN      FITS extension (default: 1)

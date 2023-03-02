@@ -74,10 +74,6 @@ testing PypeIt (see below): ``RAW_DATA``, and ``CALIBS``.
         ln -s /Volumes/GoogleDrive/My\ Drive/PypeIt-development-suite/RAW_DATA  RAW_DATA
         ln -s /Volumes/GoogleDrive/My\ Drive/PypeIt-development-suite/CALIBS  CALIBS
 
-.. in the "development" doc in the main pypeit repo, we had discussion
-.. of the amount of memory needed for some of these tests, is it worth
-.. adding those details here?
-
 Testing PypeIt
 --------------
 
@@ -201,43 +197,44 @@ The contents of the report contain complete pytest output and additional informa
 
     -------------------------
     Directories:
-             Raw data: /home/dusty/work/PypeIt-development-suite/RAW_DATA/shane_kast_blue/830_3460_d46
-        PypeIt output: /home/dusty/work/PypeIt-development-suite/REDUX_OUT/shane_kast_blue/830_3460_d46
+            Raw data: /tmp/PypeIt-development-suite/RAW_DATA/shane_kast_blue/830_3460_d46
+        PypeIt output: /tmp/REDUX_OUT/shane_kast_blue/830_3460_d46
     Files:
         .pypeit file: None
     Std .pypeit file: None
-
     Tests:
     ----
     shane_kast_blue/830_3460_d46 pypeit  Result: --- PASSED
 
-    Logfile:    /home/dusty/work/PypeIt-development-suite/REDUX_OUT/shane_kast_blue/830_3460_d46/shane_kast_blue_830_3460_d46.test.2.log
-    Process Id: 20204
-    Start time: Tue Jun 14 18:36:14 2022
-    End time:   Tue Jun 14 18:36:34 2022
-    Duration:   0:00:19.866937
-    Command:    coverage run --source pypeit --omit *PypeIt/pypeit/tests/*,*PypeIt/pypeit/deprecated/* --parallel-mode /home/dusty/work/anaconda3/envs/pypeit/bin/run_pypeit /home/dusty/work/PypeIt-development-suite/REDUX_OUT/shane_kast_blue/830_3460_d46/shane_kast_blue_830_3460_d46.pypeit -o
+    Logfile:    /tmp/REDUX_OUT/shane_kast_blue/830_3460_d46/shane_kast_blue_830_3460_d46.test.log
+    Process Id: 1188
+    Start time: Thu Jan  5 07:20:05 2023
+    End time:   Thu Jan  5 07:21:18 2023
+    Duration:   0:01:13.575440
+    Mem Usage:  1100517376
+    Command:    run_pypeit /tmp/REDUX_OUT/shane_kast_blue/830_3460_d46/shane_kast_blue_830_3460_d46.pypeit -o
 
     Error Messages:
 
     End of Log:
-    [INFO]    :: run_pypeit.py 146 main() - Generating QA HTML
-    Wrote: /home/dusty/work/PypeIt-development-suite/REDUX_OUT/shane_kast_blue/830_3460_d46/QA/MF_A.html
-    Wrote: /home/dusty/work/PypeIt-development-suite/REDUX_OUT/shane_kast_blue/830_3460_d46/QA/MF_A.html
+    [INFO]    :: run_pypeit.py 111 main() - Generating QA HTML
+    Wrote: /tmp/REDUX_OUT/shane_kast_blue/830_3460_d46/QA/MF_A.html
+    Wrote: /tmp/REDUX_OUT/shane_kast_blue/830_3460_d46/QA/MF_A.html
 
     ...
 
     Test Summary
     --------------------------------------------------------
-    --- PYTEST PYPEIT UNIT TESTS PASSED  193 passed, 1182 warnings in 285.37s (0:04:45) ---
-    --- PYTEST UNIT TESTS PASSED  109 passed, 1602 warnings in 978.85s (0:16:18) ---
-    --- PYTEST VET TESTS PASSED  24 passed, 1474 warnings in 871.64s (0:14:31) ---
-    --- PYPEIT DEVELOPMENT SUITE PASSED 151/151 TESTS  ---
+    --- PYTEST PYPEIT UNIT TESTS PASSED  205 passed, 137 warnings in 212.65s (0:03:32) ---
+    --- PYTEST UNIT TESTS PASSED  118 passed, 260 warnings in 956.59s (0:15:56) ---
+    --- PYTEST VET TESTS PASSED  29 passed, 160 warnings in 813.29s (0:13:33) ---
+    --- PYPEIT DEVELOPMENT SUITE PASSED 155/155 TESTS  ---
     Coverage results:
-    TOTAL                                                              39076  26977    31%
-    Testing Started at 2022-06-11T02:33:59.381096
-    Testing Completed at 2022-06-11T12:27:52.299049
-    Total Time: 9:53:52.917953
+    TOTAL                                              41653  12057    71%
+
+    Testing Started at 2023-01-04T21:35:25.696424
+    Testing Completed at 2023-01-05T07:35:30.909205
+    Total Time: 10:00:05.212781
 
 Code coverage
 -------------
@@ -266,6 +263,29 @@ For example:
     ------------------------------------------------------------------------------------------------
     TOTAL                                                              41785  22139    47%
 
+Performance Statistics
+----------------------
+
+The dev suite collects performance information about how fast each test
+runs and how much memory it uses. This can be output to a CSV file using
+the ``-csv`` option.
+
+.. code-block:: console
+
+    $ cd $PYPEIT_DEV
+    $ ./pypeit_test all --csv performance.csv
+
+The output contains the duration of each test and its memory usage. For example (spaces added for clarity):
+
+.. code-block:: console
+
+    Setup,                       Test Type,        Start Time,                 End Time,                   Duration(s), Memory Usage (bytes), Duration (D:H:M:S), Memory Usage (MiB)
+    gemini_gmos/GS_HAM_R400_860, pypeit,           2023-01-06 13:18:44.050069, 2023-01-06 14:42:15.791558, 5011.741489, 5697548288,           1:23:31.741489,     5433.60546875
+    gemini_gmos/GS_HAM_R400_860, pypeit standards, 2023-01-06 14:42:15.791808, 2023-01-06 14:45:43.122017, 207.330209,  2606161920,           0:03:27.330209,     2485.4296875
+    gemini_gmos/GS_HAM_R400_860, pypeit_sensfunc,  2023-01-06 14:45:43.124685, 2023-01-06 14:47:07.308025, 84.18334,    272601088,            0:01:24.183340,     259.97265625
+    gemini_gmos/GS_HAM_R400_860, pypeit_flux_setup,2023-01-06 14:47:07.308275, 2023-01-06 14:47:08.978942, 1.670667,    249856,               0:00:01.670667,     0.23828125
+    gemini_gmos/GS_HAM_R400_860, pypeit_flux,      2023-01-06 14:47:08.979198, 2023-01-06 14:47:12.503334, 3.524136,    210182144,            0:00:03.524136,     200.4453125
+
 Parallel Testing
 ----------------
 
@@ -277,8 +297,28 @@ sped up by running parallel tests:
     ./pypeit_test -t 2 all
 
 The number of threads that can be run depends on the amount of memory
-available. As a rule of thumb 1 thread per 16G of available memory
-should be safe.  For systems with more virtual CPUs than physical CPU
+available. Based on testing, the memory requirements of the devsuite are:
+
++------------+--------------+
+| Number of  | Memory Usage |
+|  Threads   |              |
++============+==============+
+|        1   |  20 GiB      |
++------------+--------------+
+|        2   |  40 GiB      |
++------------+--------------+
+|        4   |  58 GiB      |
++------------+--------------+
+|        6   |  78 GiB      |
++------------+--------------+
+|        8   |  98 GiB      |
++------------+--------------+
+|       12   | 133 GiB      |
++------------+--------------+
+|       16   | 148 GiB      |
++------------+--------------+
+
+For systems with more virtual CPUs than physical CPU
 cores (i.e. Hyperthreading) the number of threads should not exceed the
 number of physical cores, or else there could be a performance hit as
 threads compete for resources.  
@@ -387,9 +427,9 @@ Additional Options
 
     $ $PYPEIT_DEV/pypeit_test -h
     usage: pypeit_test [-h] [-o OUTPUTDIR] [-i INSTRUMENTS [INSTRUMENTS ...]]
-                       [-s SETUPS [SETUPS ...]] [--debug] [-p] [-m] [-t THREADS]
-                       [-q] [-v] [--coverage COVERAGE] [-r REPORT] [-w]
-                       tests [tests ...]
+                   [-s SETUPS [SETUPS ...]] [--debug] [-p] [-m] [-t THREADS]
+                   [-q] [-v] [--coverage COVERAGE] [-r REPORT] [-c CSV] [-w]
+                   tests [tests ...]
 
     Run pypeit tests on a set of instruments. Typical call for testing pypeit when
     developing new code is `./pypeit_test all`. Execution requires you to have a
@@ -401,41 +441,43 @@ Additional Options
     'afterburn''. Use 'list' to view all supported setups.
 
     positional arguments:
-      tests                 Which test types to run. Options are: pypeit_tests,
+    tests                 Which test types to run. Options are: pypeit_tests,
                             unit, reduce, afterburn, ql, vet, or all. Use list to
                             show all supported instruments and setups.
 
     optional arguments:
-      -h, --help            show this help message and exit
-      -o OUTPUTDIR, --outputdir OUTPUTDIR
+    -h, --help            show this help message and exit
+    -o OUTPUTDIR, --outputdir OUTPUTDIR
                             Output folder. (default: REDUX_OUT)
-      -i INSTRUMENTS [INSTRUMENTS ...], --instruments INSTRUMENTS [INSTRUMENTS ...]
+    -i INSTRUMENTS [INSTRUMENTS ...], --instruments INSTRUMENTS [INSTRUMENTS ...]
                             One or more instruments to run tests for. Use
                             "pypeit_test list" to see all supported instruments.
                             (default: None)
-      -s SETUPS [SETUPS ...], --setups SETUPS [SETUPS ...]
+    -s SETUPS [SETUPS ...], --setups SETUPS [SETUPS ...]
                             One or more setups to run tests for. Use "pypeit_test
                             list" to see all supported setups. (default: None)
-      --debug               Debug using only blue setups (default: False)
-      -p, --prep_only       Only prepare to execute run_pypeit, but do not
+    --debug               Debug using only blue setups (default: False)
+    -p, --prep_only       Only prepare to execute run_pypeit, but do not
                             actually run it. (default: False)
-      -m, --do_not_reuse_masters
+    -m, --do_not_reuse_masters
                             run pypeit without using any existing masters
                             (default: False)
-      -t THREADS, --threads THREADS
+    -t THREADS, --threads THREADS
                             Run THREADS number of parallel tests. (default: 1)
-      -q, --quiet           Supress all output to stdout. If -r is not a given, a
+    -q, --quiet           Supress all output to stdout. If -r is not a given, a
                             report file will be written to
                             <outputdir>/pypeit_test_results.txt (default: False)
-      -v, --verbose         Output additional detailed information while running
+    -v, --verbose         Output additional detailed information while running
                             the tests and output a detailed report at the end of
                             testing. This has no effect if -q is given (default:
                             False)
-      --coverage COVERAGE   Collect code coverage information. and write it to the
+    --coverage COVERAGE   Collect code coverage information. and write it to the
                             given file. (default: None)
-      -r REPORT, --report REPORT
+    -r REPORT, --report REPORT
                             Write a detailed test report to REPORT. (default:
                             None)
-      -w, --show_warnings   Show warnings when running unit tests and vet tests.
+    -c CSV, --csv CSV     Write performance numbers to a CSV file. (default:
+                            None)
+    -w, --show_warnings   Show warnings when running unit tests and vet tests.
                             (default: False)
 

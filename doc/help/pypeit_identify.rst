@@ -14,7 +14,7 @@
       arc_file              PypeIt MasterArc file
       slits_file            PypeIt MasterSlits file
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       --lamps LAMPS         Comma separated list of calibration lamps (no spaces)
                             (default: None)

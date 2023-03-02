@@ -83,7 +83,7 @@ If ``bound_detector`` is True, the code will artificially add left and right edg
 In some cases, the slits were detected, but then rejected due to a failure of
 wavelength calibration. The appearance of this issue is very similar to that of
 item 1 above, you will see a lack of slits in skiing, the difference is that, there will be
-such information on slit detection in log files: Not enough useful IDs. 
+such information on slit detection in log files: Not enough useful IDs.
 
 .. TODO: skiing?  see sentence above
 
@@ -131,30 +131,29 @@ Mask Definition
 
 PypeIt can now take advantage of the mask definition file
 generated when one designs a GMOS mask.  To do so, one needs
-to provide two additional files and specify them 
-with the :doc:`pypeit_file`:
+to provide two additional files and specify them
+with the :ref:`pypeit_file`:
 
 #.  The mask definition file, aka ODF file
 #.  An aligment image (taken with the spectra)
 
-The mask definition file must be the output generated from 
-GMMPRS and in FITS format. We do not support ASCII 
+The mask definition file must be the output generated from
+GMMPRS and in FITS format. We do not support ASCII
 mask files currently.
 
 For the alignment image,
-ensure that the alignment stars in the image are centered 
-in the mask's square alignment slits. i.e. choose the 
-final image in the sequence of alignment images from 
+ensure that the alignment stars in the image are centered
+in the mask's square alignment slits. i.e. choose the
+final image in the sequence of alignment images from
 the observations.
 
-The modifications to the :doc:`pypeit_file` will look like:
+The modifications to the :ref:`pypeit_file` will look like:
 
 .. code-block:: ini
 
     [calibrations]
         [[slitedges]]
-            maskdesign_filename = GS2022BQ137-05_ODF.fits,S20221128S0038.fit
-s
+            maskdesign_filename = GS2022BQ137-05_ODF.fits,S20221128S0038.fits
             use_maskdesign = True
     [reduce]
         [[slitmask]]
