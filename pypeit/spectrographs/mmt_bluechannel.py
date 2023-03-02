@@ -403,9 +403,9 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             return fitstbl['idname'] == 'zero'
         if ftype == 'dark':
             return fitstbl['idname'] == 'dark'
-        if ftype in ['science']:
+        if ftype == 'science':
             return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'object') & (fitstbl['target'] != 'skyflat')
-        if ftype in ['standard']:
+        if ftype == 'standard':
             return (
                 good_exp
                 & (fitstbl['lampstat01'] == 'off')
@@ -413,7 +413,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
                 & (fitstbl['target'] != 'skyflat')
                 & (fitstbl['decker'] == '5.0x180')
             )
-        if ftype in ['arc']:
+        if ftype == 'arc':
             # should flesh this out to include all valid arc lamp combos
             return (
                 good_exp
@@ -423,7 +423,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
                 & (fitstbl['decker'] != '5.0x180')
                 & (fitstbl['target'] != 'focus')
             )
-        if ftype in ['tilt']:
+        if ftype == 'tilt':
             # should flesh this out to include all valid arc lamp combos
             return (
                 good_exp
@@ -435,7 +435,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         if ftype in ['trace', 'pixelflat']:
             # i think the bright lamp, BC, is the only one ever used for this. imagetyp should always be set to flat, but sometimes not.
             return good_exp & (fitstbl['lampstat01'] == 'BC')
-        if ftype in ['illumflat']:
+        if ftype == 'illumflat':
             # i think the bright lamp, BC, is the only one ever used for this. imagetyp should always be set to flat.
             return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['target'] == 'skyflat')
 
