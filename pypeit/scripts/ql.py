@@ -363,8 +363,7 @@ class QL(scriptbase.ScriptBase):
 
         if args.bkg_redux:
             dither_pattern, dither_id, offset_arcsec = \
-                ps.spectrograph.parse_dither_pattern(files)
-        embed(header='366 of ql.py')
+                ps.spectrograph.parse_dither_pattern(np.array(files)[sci_idx])
 
         # Generate science setup object
         full_scifiles = [os.path.join(dir_path, sci_file) for dir_path, sci_file in zip(

@@ -5,6 +5,8 @@ Module for Keck/NIRES specific methods.
 """
 import numpy as np
 
+from astropy.io import fits
+
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
@@ -463,5 +465,39 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         return np.full(order_vec.size, 0.15)
 
 
+    def parse_dither_pattern(self, file_list, ext=None):
+        """
+        Parse headers from a file list to determine the dither pattern.
+
+        Parameters
+        ----------
+        file_list (list of strings):
+            List of files for which dither pattern is desired
+        ext (int, optional):
+            Extension containing the relevant header for these files. Default=None. If None, code uses
+            self.primary_hdrext
+
+        Returns
+        -------
+        dither_pattern, dither_id, offset_arcsec
+
+        dither_pattern (str `numpy.ndarray`_):
+            Array of dither pattern names
+        dither_id (str `numpy.ndarray`_):
+            Array of dither pattern IDs
+        offset_arc (float `numpy.ndarray`_):
+            Array of dither pattern offsets
+        """
+        nfiles = len(file_list)
+        offset_arcsec = np.zeros(nfiles)
+        dither_pattern = []
+        dither_id = []
+        for ifile, file in enumerate(file_list):
+            hdr = fits.getheader(file, self.primary_hdrext if ext is None else ext)
+            # TODO REPLACE THIS WITH PROPER CODE
+            dither_pattern.append(hdr['PATTERN'])
+            dither_id.append(ifile)
+            offset_arcsec[ifile] = ifile + 1.
+        return np.array(dither_pattern), np.array(dither_id), np.array(offset_arcsec)
 
 

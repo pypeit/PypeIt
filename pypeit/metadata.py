@@ -946,14 +946,16 @@ class PypeItMetaData:
         # provided, regardless of whether or not a science frame is
         # assigned to that group.
         ngroups = 0
-        embed(header='949 of metadata.py')
         for i in range(len(self)):
             if self['calib'][i] in ['all', 'None']:
                 # No information, keep going
                 continue
             # Convert to a list of numbers (after recasting to str)
-            l = np.amax([ 0 if len(n) == 0 else int(n)
+            try:
+                l = np.amax([ 0 if len(n) == 0 else int(n)
                                 for n in str(self['calib'][i]).replace(':',',').split(',')])
+            except:
+                embed(header='958 of metadata.py')
             # Check against current maximum
             ngroups = max(l+1, ngroups)
 

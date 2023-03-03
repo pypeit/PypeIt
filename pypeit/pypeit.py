@@ -154,6 +154,9 @@ class PypeIt:
                                       strict=True)
         #   - Interpret automated or user-provided data from the PypeIt
         #   file
+        # HACK ME!!
+        self.fitstbl.table['calib'] = ['1', '1', 'all', 'all', 'all']
+        #
         self.fitstbl.finalize_usr_build(
             self.pypeItFile.frametypes, 
             self.pypeItFile.setup_name)
