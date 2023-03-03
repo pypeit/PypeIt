@@ -495,8 +495,9 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         for ifile, file in enumerate(file_list):
             hdr = fits.getheader(file, self.primary_hdrext if ext is None else ext)
             # TODO REPLACE THIS WITH PROPER CODE
+            did = 'A' if ifile == 0 else 'B'
             dither_pattern.append(hdr['PATTERN'])
-            dither_id.append(ifile)
+            dither_id.append(did)
             offset_arcsec[ifile] = ifile + 1.
         return np.array(dither_pattern), np.array(dither_id), np.array(offset_arcsec)
 

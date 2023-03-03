@@ -29,12 +29,15 @@ import numpy as np
 
 import configobj
 
+from astropy.io import fits
+
 from pypeit import utils
 from pypeit import masterframe
 from pypeit import msgs
 from pypeit import pypeitsetup
 from pypeit import io
 from pypeit import pypeit
+from pypeit.core.parse import get_dnum, parse_binning
 from pypeit.scripts import scriptbase
 from pypeit.spectrographs import available_spectrographs
 from pypeit.slittrace import SlitTraceSet 
@@ -79,6 +82,8 @@ def generate_sci_pypeitfile(redux_path:str,
                             slitspatnum:str=None,
                             maskID:str=None,
                             boxcar_radius:float=None,
+                            bkg_redux:bool=False,
+                            dither_id:np.ndarray=None,
                             stack:bool=True):
     """
     Generate the PypeIt file for the science frames
@@ -108,6 +113,8 @@ def generate_sci_pypeitfile(redux_path:str,
         maskID (str, optional): Mask ID to isolate for QL.  Defaults to None.
         boxcar_radius (float, optional): Boxcar radius for extraction.  
             In units of arcsec.  Defaults to None.
+        dither_id (np.ndarray, optional): Dither ID for each science frame.
+        bkg_redux (bool, optional): Setup for A-B subtraction.  Defaults to False.
         stack (bool, optional): Stack the science frames.  Defaults to True.
 
     Returns: 
@@ -200,6 +207,21 @@ def generate_sci_pypeitfile(redux_path:str,
     # Stack?
     if len(sci_files) > 1 and stack:
         ps_sci.fitstbl['comb_id'] = 1
+
+    # A-B?
+    if bkg_redux:
+        new_comb = np.zeros_like(ps_sci.fitstbl['comb_id'], dtype=int)
+        new_bkg = np.zeros_like(ps_sci.fitstbl['bkg_id'], dtype=int)
+        As = dither_id == 'A'
+        Bs = dither_id == 'B'
+        # Set
+        new_comb[As] = 1
+        new_comb[Bs] = 2
+        new_bkg[As] = 2
+        new_bkg[Bs] = 1
+        # Finish
+        ps_sci.fitstbl['comb_id'] = new_comb
+        ps_sci.fitstbl['bkg_id'] = new_bkg
 
     # Generate
     pypeitFile = inputfiles.PypeItFile(
@@ -362,8 +384,24 @@ class QL(scriptbase.ScriptBase):
             msgs.error('No science frames found in the provided files.  Add at least one or specify using --sci_files.')
 
         if args.bkg_redux:
+            sci_files = np.array(files)[sci_idx]
             dither_pattern, dither_id, offset_arcsec = \
-                ps.spectrograph.parse_dither_pattern(np.array(files)[sci_idx])
+                ps.spectrograph.parse_dither_pattern(sci_files)
+            # TODO -- Add a check here that we have A and B
+            _det = parse_det(args.det if args.det is not None else '1', 
+                             ps.spectrograph)
+            det_container = ps.spectrograph.get_detector_par(
+                _det, hdu=fits.open(files[0]))
+            binspectral, binspatial = parse_binning(
+                det_container['binning'])
+            platescale = det_container['platescale']*binspatial
+            target = ps.spectrograph.get_meta_value(sci_files[0], 'target')
+            print_offset_report(sci_files, dither_pattern, dither_id, 
+                                offset_arcsec, target, platescale)
+        else:
+            dither_pattern = None
+            dither_id = None
+            offset_arcsec = None
 
         # Generate science setup object
         full_scifiles = [os.path.join(dir_path, sci_file) for dir_path, sci_file in zip(
@@ -404,6 +442,8 @@ class QL(scriptbase.ScriptBase):
                     slitspatnum=args.slitspatnum,
                     det=args.det,
                     boxcar_radius=args.boxcar_radius,
+                    bkg_redux=args.bkg_redux,
+                    dither_id=dither_id,
                     stack=args.stack)
         
         # Run it
@@ -411,6 +451,49 @@ class QL(scriptbase.ScriptBase):
         pypeIt = pypeit.PypeIt(sci_pypeit_file, 
                                reuse_masters=True,
                                redux_path=redux_path) 
+        embed(header='454 of ql.py')
         pypeIt.reduce_all()
         pypeIt.build_qa()
         msgs.info(f'Quicklook completed in {utils.get_time_string(time.perf_counter()-tstart)} seconds')
+
+def print_offset_report(files:list, dither_pattern:np.array, dither_id:np.array, 
+                        offset_arcsec:np.array, target:str, platescale:float):
+
+    if len(np.unique(dither_pattern)) > 1:
+        msgs.error('Script only supported for a single type of dither pattern.')
+    A_files = files[dither_id == 'A']
+    B_files = files[dither_id == 'B']
+    nA = len(A_files)
+    nB = len(B_files)
+
+    # Print out a report on the offsets
+    msg_string = msgs.newline() + '*******************************************************'
+    msg_string += msgs.newline() + ' Summary of offsets for target {:s} with dither pattern:   {:s}'.format(target,
+                                                                                                            dither_pattern[
+                                                                                                                0])
+    msg_string += msgs.newline() + '*******************************************************'
+    msg_string += msgs.newline() + 'filename     Position         arcsec    pixels    '
+    msg_string += msgs.newline() + '----------------------------------------------------'
+    for iexp, file in enumerate(files):
+        msg_string += msgs.newline() + '    {:s}    {:s}   {:6.2f}    {:6.2f}'.format(
+            os.path.basename(file), dither_id[iexp], offset_arcsec[iexp], offset_arcsec[iexp] / platescale)
+    msg_string += msgs.newline() + '********************************************************'
+    msgs.info(msg_string)
+
+#TODO Need a utility routine to deal with this
+#  I bet one already exists.  KW?
+def parse_det(det, spectrograph):
+    if 'mosaic' in det:
+        mosaic = True
+        _det = spectrograph.default_mosaic
+        if _det is None:
+            msgs.error(f'{spectrograph.name} does not have a known mosaic')
+    else:
+        try:
+            _det = tuple(int(d) for d in det)
+        except:
+            msgs.error(f'Could not convert detector input to integer.')
+        mosaic = len(_det) > 1
+        if not mosaic:
+            _det = _det[0]
+    return _det
