@@ -1,11 +1,7 @@
 1.12.2dev
---------------------
+---------
 
 - Implemented a resample algorithm when generating datacubes
-
-1.12.1.dev (22 Feb 2023)
-------------------------
-
 - Gemini/GMOS mask design slurping and usage
 - New GMOS wavelength solution
 
