@@ -170,6 +170,40 @@ class DataCube(datamodel.DataContainer):
         super(DataCube, self).to_file(ofile, primary_hdr=primary_hdr, hdr=hdr, **kwargs)
 
 
+def get_alignments(traces, locations, tilts):
+    """Generate an RA and DEC image for every pixel in the frame
+    NOTE: This function is currently only used for IFU reductions.
+
+    Parameters
+    ----------
+    traces : `numpy.ndarray`
+        The alignments (traces) of the slits. This allows different slices
+        to be aligned correctly. Ideally, this variable will be assigned the
+        value of alignments.traces. However, this can also be assigned the
+        left and right slit edges:
+        traces = np.append(left.reshape((left.shape[0],1,left.shape[1])),
+               right.reshape((left.shape[0],1,left.shape[1])), axis=1)
+        In this case, locations=np.array([0,1])
+    tilts : `numpy.ndarray`
+        Spectral tilts.
+    locations : `numpy.ndarray`_, list
+        locations along the slit of the alignment traces. Must
+        be a 1D array of the same length as alignments.traces.shape[1]
+
+    Returns
+    -------
+    `pypeit.alignframe.AlignmentSplines` : An instance of the AlignmentSplines class that allows
+    one to build and transform between detector pixel coordinates and WCS pixel coordinates.
+    """
+    msgs.work("Spatial flexure is not currently implemented for the astrometric alignment")
+    if type(locations) is list:
+        locations = np.array(locations)
+    if locations.size != traces.shape[1]:
+        msgs.error("The size of locations must be the same as traces.shape[1]")
+    # Calculate and return the astrometric transform
+    return alignframe.AlignmentSplines(traces, locations, tilts)
+
+
 def dar_fitfunc(radec, coord_ra, coord_dec, datfit, wave, obstime, location, pressure, temperature, rel_humidity):
     """ Generates a fitting function to calculate the offset due to differential atmospheric refraction
 
@@ -1788,7 +1822,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             traces = alignments.traces
         # Generate an RA/DEC image
         msgs.info("Generating RA/DEC image")
-        raimg, decimg, minmax, ast_trans = slits.get_radec_image(frame_wcs, traces, spec2DObj.tilts, locations,
+        alignSplines = get_alignments(traces, locations, tilts)
+        raimg, decimg, minmax, ast_trans = slits.get_radec_image(frame_wcs, alignSplines, spec2DObj.tilts,
                                                                  initial=True, flexure=flexure)
 
         # Perform the DAR correction

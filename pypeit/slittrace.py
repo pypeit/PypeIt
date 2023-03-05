@@ -21,7 +21,6 @@ from scipy.interpolate import RegularGridInterpolator, interp1d
 from pypeit import msgs
 from pypeit import datamodel
 from pypeit import specobj
-from pypeit import alignframe
 from pypeit.bitmask import BitMask
 from pypeit.core import parse
 
@@ -427,7 +426,7 @@ class SlitTraceSet(datamodel.DataContainer):
             slitlen = np.median(slitlen, axis=1)
         return slitlen
 
-    def get_radec_image(self, wcs, traces, tilts, locations, initial=True, flexure=None):
+    def get_radec_image(self, wcs, alignSplines, tilts, initial=True, flexure=None):
         """Generate an RA and DEC image for every pixel in the frame
         NOTE: This function is currently only used for IFU reductions.
 
@@ -435,19 +434,11 @@ class SlitTraceSet(datamodel.DataContainer):
         ----------
         wcs : astropy.wcs
             The World Coordinate system of a science frame
-        traces : `numpy.ndarray`
-            The alignments (traces) of the slits. This allows different slices
-            to be aligned correctly. Ideally, this variable will be assigned the
-            value of alignments.traces. However, this can also be assigned the
-            left and right slit edges:
-            traces = np.append(left.reshape((left.shape[0],1,left.shape[1])),
-                   right.reshape((left.shape[0],1,left.shape[1])), axis=1)
-            In this case, locations=np.array([0,1])
+        alignSplines : `pypeit.alignframe.AlignmentSplines`
+            An instance of the AlignmentSplines class that allows
+            one to build and transform between detector pixel coordinates and WCS pixel coordinates.
         tilts : `numpy.ndarray`
             Spectral tilts.
-        locations : `numpy.ndarray`_, list
-            locations along the slit of the alignment traces. Must
-            be a 1D array of the same length as alignments.traces.shape[1]
         initial : bool
             Select the initial slit edges?
         flexure : float, optional
@@ -464,15 +455,6 @@ class SlitTraceSet(datamodel.DataContainer):
                 the transformation between detector pixel coordinates and the WCS pixel
                 coordinates.
         """
-        msgs.work("Spatial flexure is not currently implemented for the astrometric alignment")
-        if type(locations) is list:
-            locations = np.array(locations)
-        if locations.size != traces.shape[1]:
-            msgs.error("The size of locations must be the same as traces.shape[1]")
-
-        # Calculate the astrometric transform
-        alignSplines = alignframe.AlignmentSplines(traces, locations, tilts)
-
         # Initialise the output
         raimg = np.zeros((self.nspec, self.nspat))
         decimg = np.zeros((self.nspec, self.nspat))
