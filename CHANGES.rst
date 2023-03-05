@@ -3,6 +3,12 @@
 
 - Implemented a resample algorithm when generating datacubes
 
+1.12.1.dev (22 Feb 2023)
+------------------------
+
+- Gemini/GMOS mask design slurping and usage
+- New GMOS wavelength solution
+
 1.12.1 (21 Feb 2023)
 --------------------
 
@@ -18,7 +24,7 @@
 - Added support for SOAR/Goodman red 600 grating (setup RED)
 - Implemented the SOAR/Goodman (blue) M1 only
 - New docs on OneSpec
-- Modify install notes to allow python 3.10; python3.8 not longer explicitly supported
+- Modify install notes to allow python 3.10; python3.8 no longer explicitly supported
 - Allow for bad orders during extraction  (without crashing)
 
 1.12.0 (31 Jan 2023)
