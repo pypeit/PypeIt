@@ -434,9 +434,9 @@ class SlitTraceSet(datamodel.DataContainer):
         ----------
         wcs : astropy.wcs
             The World Coordinate system of a science frame
-        alignSplines : `pypeit.alignframe.AlignmentSplines`
-            An instance of the AlignmentSplines class that allows
-            one to build and transform between detector pixel coordinates and WCS pixel coordinates.
+        alignSplines : :class:`pypeit.alignframe.AlignmentSplines`
+            An instance of the AlignmentSplines class that allows one to build and
+            transform between detector pixel coordinates and WCS pixel coordinates.
         tilts : `numpy.ndarray`
             Spectral tilts.
         initial : bool
@@ -446,14 +446,12 @@ class SlitTraceSet(datamodel.DataContainer):
 
         Returns
         -------
-        tuple : There are four elements in the tuple. The first two are 2D numpy arrays
+        tuple : There are three elements in the tuple. The first two are 2D numpy arrays
                 of shape (nspec, nspat), where the first ndarray is the RA image, and the
                 second ndarray is the DEC image. RA and DEC are in units degrees. The third
                 element of the tuple stores the minimum and maximum difference (in pixels)
                 between the WCS reference (usually the centre of the slit) and the edges of
-                the slits. The third array has a shape of (nslits, 2). The fourth contains
-                the transformation between detector pixel coordinates and the WCS pixel
-                coordinates.
+                the slits. The third array has a shape of (nslits, 2).
         """
         # Initialise the output
         raimg = np.zeros((self.nspec, self.nspat))
@@ -476,7 +474,7 @@ class SlitTraceSet(datamodel.DataContainer):
             # Set the RA first and DEC next
             raimg[onslit] = world_ra.copy()
             decimg[onslit] = world_dec.copy()
-        return raimg, decimg, minmax, alignSplines
+        return raimg, decimg, minmax
 
     def select_edges(self, initial=False, flexure=None):
         """

@@ -1124,10 +1124,8 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     ra0, dec0 = np.zeros(nslice), np.zeros(nslice)
     offsimg = np.zeros_like(waveimg)
     varimgsq = utils.inverse(ivarimg ** 2)
-    import time
-    atime = time.time()
     for sl, spat_id in enumerate(slits.spat_id):
-        msgs.info(f"Calculating voxel geometry for slit {spat_id} -- {(time.time()-atime)/60}")
+        msgs.info(f"Calculating voxel geometry for slit {spat_id}")
         # Calculate RA and Dec of central traces
         wsl = np.where(slitimg == spat_id)
         this_ra, this_dec, this_wave = raimg[wsl], decimg[wsl], waveimg[wsl]
@@ -1199,8 +1197,6 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
         # Create a Sort-Tile-Recursive tree of the detector pixels to quickly query overlapping voxels
         detgeom = shapely.strtree.STRtree(detpix_polys)
         # Loop through all voxels for this slice and calculate the overlapping area
-        #all_area = np.zeros_like(fluximg)
-        #atime=time.time()
         for wv in range(nvox_wave):
             for sp in range(nvox_spat):
                 # Generate the voxel coordinates in detector pixel space (points must be counter-clockwise)
@@ -1223,7 +1219,6 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
                         this_flx += area * fluximg[pix_spec, pix_spat]
                         this_var += area**2 * varimgsq[pix_spec, pix_spat]
                         this_area += area
-                    #all_area[pix_spec, pix_spat] += area
                 # Fill in the datacube
                 this_area = 1 if this_area == 0 else this_area
                 datcube[sl, sp, wv] = this_flx / this_area
@@ -1242,6 +1237,7 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     msgs.info("Saving datacube as: {0:s}".format(outfile))
     final_cube = DataCube(datcube.T, varcube.T, specname, blaze_wave, blaze_spec, sensfunc=sensfunc, fluxed=fluxcal)
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
+
 
 def generate_cube_subsample(outfile, output_wcs, all_sci, all_ivar, all_wghts, all_wave, tilts, slits, slitid_img_gpm,
                             astrom_trans, bins, subsample=10, overwrite=False, blaze_wave=None, blaze_spec=None,
@@ -1732,20 +1728,6 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         # Grab the slit edges
         slits = spec2DObj.slits
 
-        # debug = False
-        # if debug:
-        #     embed()
-        #     assert(False)
-        #     from matplotlib import pyplot as plt
-        #     colors = plt.cm.jet(np.linspace(0, 1, slits.nslits))
-        #     left, right, _ = slits.select_edges(initial=True, flexure=None)
-        #     mid = np.round(0.5*(left+right)).astype(np.int)
-        #     for ss in range(slits.nslits):
-        #         wv = waveimg[(np.arange(waveimg.shape[0]),mid[:,ss],)]
-        #         fx = sciimg[(np.arange(waveimg.shape[0]),mid[:,ss],)]
-        #         plt.plot(wv,fx, color=colors[ss])
-        #     plt.show()
-
         wave0 = waveimg[waveimg != 0.0].min()
         # Calculate the delta wave in every pixel on the slit
         waveimp = np.roll(waveimg, 1, axis=0)
@@ -1823,7 +1805,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         # Generate an RA/DEC image
         msgs.info("Generating RA/DEC image")
         alignSplines = get_alignments(traces, locations, tilts)
-        raimg, decimg, minmax, ast_trans = slits.get_radec_image(frame_wcs, alignSplines, spec2DObj.tilts,
+        raimg, decimg, minmax = slits.get_radec_image(frame_wcs, alignSplines, spec2DObj.tilts,
                                                                  initial=True, flexure=flexure)
 
         # Perform the DAR correction
@@ -1964,7 +1946,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                 slitid_img_gpm = slitid_img_init.copy()
                 slitid_img_gpm[(bpmmask != 0) | (~sky_is_good)] = 0
                 generate_cube_subsample(outfile, output_wcs, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix),
-                                        wave_ext, spec2DObj.tilts, slits, slitid_img_gpm, ast_trans, bins,
+                                        wave_ext, spec2DObj.tilts, slits, slitid_img_gpm, alignSplines, bins,
                                         overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
                                         fluxcal=fluxcal, specname=specname, subsample=subsample)
             elif method == 'resample':
