@@ -542,9 +542,12 @@ class PypeItSetup:
             self.user_cfg += [f'detnum = {det}']
         self.user_cfg += ['quicklook = True']
 
+        # TODO -- Remove this if we can
         # Calib ID
         if calib_IDs is None:
             self.fitstbl.table['calib'] = '0'
+        else:
+            self.fitstbl.table['calib'] = calib_IDs
 
         # Write the PypeIt files
         pypeit_files = self.fitstbl.write_pypeit(

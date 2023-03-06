@@ -951,11 +951,8 @@ class PypeItMetaData:
                 # No information, keep going
                 continue
             # Convert to a list of numbers (after recasting to str)
-            try:
-                l = np.amax([ 0 if len(n) == 0 else int(n)
-                                for n in str(self['calib'][i]).replace(':',',').split(',')])
-            except:
-                embed(header='958 of metadata.py')
+            l = np.amax([ 0 if len(n) == 0 else int(n)
+                            for n in str(self['calib'][i]).replace(':',',').split(',')])
             # Check against current maximum
             ngroups = max(l+1, ngroups)
 

@@ -154,10 +154,6 @@ class PypeIt:
                                       strict=True)
         #   - Interpret automated or user-provided data from the PypeIt
         #   file
-        # HACK ME!!
-            #self.fitstbl.table['calib'] = ['1', '1', 'all', 'all', 'all']
-        #self.fitstbl.table['calib'] = '1'
-        #
         self.fitstbl.finalize_usr_build(
             self.pypeItFile.frametypes, 
             self.pypeItFile.setup_name)
@@ -328,10 +324,7 @@ class PypeIt:
                                                          self.par['rdx']['maskIDs']))
                 # Do it
                 # These need to be separate to accomodate COADD2D
-                try:
-                    self.caliBrate.set_config(grp_frames[0], self.det, self.par['calibrations'])
-                except:
-                    embed(header='334 of pypeit')
+                self.caliBrate.set_config(grp_frames[0], self.det, self.par['calibrations'])
 
                 # Allow skipping the run (e.g. parse_calib_id.py script)
                 if run:

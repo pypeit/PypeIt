@@ -209,6 +209,7 @@ def generate_sci_pypeitfile(redux_path:str,
         ps_sci.fitstbl['comb_id'] = 1
 
     # A-B?
+    # TODO -- Remove this if we can replace with spectrograph.get_comb_group() 
     if bkg_redux:
         new_comb = np.zeros_like(ps_sci.fitstbl['comb_id'], dtype=int)
         new_bkg = np.zeros_like(ps_sci.fitstbl['bkg_id'], dtype=int)
@@ -383,8 +384,10 @@ class QL(scriptbase.ScriptBase):
         if np.sum(sci_idx) == 0:
             msgs.error('No science frames found in the provided files.  Add at least one or specify using --sci_files.')
 
+        # Dither pattern?
         if args.bkg_redux:
             sci_files = np.array(files)[sci_idx]
+            # TODO -- Remove this if we can replace with spectrograph.get_comb_group() 
             dither_pattern, dither_id, offset_arcsec = \
                 ps.spectrograph.parse_dither_pattern(sci_files)
             # TODO -- Add a check here that we have A and B
