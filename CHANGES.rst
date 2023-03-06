@@ -5,6 +5,8 @@
 - Gemini/GMOS mask design slurping and usage
 - New GMOS wavelength solution
 - Added NIRES tutorial doc
+- Calibration group numbers can now be anything, as long as there are no more
+  than 63 unique integers.
 
 1.12.1 (21 Feb 2023)
 --------------------

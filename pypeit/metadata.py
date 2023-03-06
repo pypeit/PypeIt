@@ -937,45 +937,40 @@ class PypeItMetaData:
         # And remove 'em
         self.table = self.table[good]
 
+    # TODO: Make some tests for this!
     def _set_calib_group_bits(self):
         """
         Set the calibration group bit based on the string values of the
         'calib' column.
         """
-        # Find the number groups by searching for the maximum number
-        # provided, regardless of whether or not a science frame is
-        # assigned to that group.
-        ngroups = 0
-        for i in range(len(self)):
-            if self['calib'][i] in ['all', 'None']:
-                # No information, keep going
-                continue
-            # Convert to a list of numbers (after recasting to str)
-            l = np.amax([ 0 if len(n) == 0 else int(n)
-                                for n in str(self['calib'][i]).replace(':',',').split(',')])
-            # Check against current maximum
-            ngroups = max(l+1, ngroups)
-
-        # TODO: Change this so that the calib_ID does *not* have to be a
-        # sequential number.  As it is, if the user defines calibration groups
-        # 1, 2, there ends up being 3 groups, identified as 0, 1, 2.  I.e., we
-        # shouldn't have to force the user to know to start the group IDs at 0
-        # and force them to be sequential.  They can be anything as long as
-        # there are less than 64 unique values.
+        # Collect and expand any lists
+        group_names = np.unique(np.concatenate(
+                        [s.split(',') for s in self['calib'] if s not in ['all', 'None']]))
+        # Expand any ranges
+        keep_group = np.ones(group_names.size, dtype=bool)
+        added_groups = []
+        for i, name in enumerate(group_names):
+            if ':' in name:
+                # Parse the range
+                keep_group[i] = False
+                added_groups += [str(n) for n in parse.str2list(name)]
+        # Combine and find the unique *integer* identifiers
+        group_names = np.unique(np.asarray(added_groups + 
+                                            (group_names[keep_group]).tolist()).astype(int))
 
         # Define the bitmask and initialize the bits
-        self.calib_bitmask = BitMask(np.arange(ngroups))
+        self.calib_bitmask = BitMask(group_names)
         self['calibbit'] = 0
 
-        # Set the calibration bits
+        # Set the bits based on the selected groups
         for i in range(len(self)):
-            # Convert the string to the group list
-            grp = parse.str2list(str(self['calib'][i]), ngroups)
-            if grp is None:
-                # No group selected
+            if self['calib'][i] == 'None':
                 continue
-            # Assign the group; ensure the integers are unique
-            self['calibbit'][i] = self.calib_bitmask.turn_on(self['calibbit'][i], grp)
+            if self['calib'][i] == 'all':
+                self['calibbit'][i] = self.calib_bitmask.turn_on(self['calibbit'][i], group_names)
+                continue
+            self['calibbit'][i] = self.calib_bitmask.turn_on(self['calibbit'][i], 
+                                                             parse.str2list(self['calib'][i]))
 
     def _check_calib_groups(self):
         """
