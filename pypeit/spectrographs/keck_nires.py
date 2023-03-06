@@ -5,8 +5,6 @@ Module for Keck/NIRES specific methods.
 """
 import numpy as np
 
-from astropy.io import fits
-
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
