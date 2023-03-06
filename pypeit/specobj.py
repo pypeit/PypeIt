@@ -54,7 +54,7 @@ class SpecObj(datamodel.DataContainer):
             Running index for the order.
     """
 
-    version = '1.1.6'
+    version = '1.1.7'
     """
     Current datamodel version number.
     """
@@ -128,6 +128,8 @@ class SpecObj(datamodel.DataContainer):
                  'BOX_CHI2': dict(otype=np.ndarray, atype=float,
                                   descr='Reduced chi2 of the model fit for this spectral pixel'),
                  'BOX_RADIUS': dict(otype=float, descr='Size of boxcar radius (pixels)'),
+                 'S2N': dict(otype=float, descr='Median signal to noise ratio of the extracted spectrum'
+                                                '(OPT if available, otherwise BOX)'),
                  #
                  'FLEX_SHIFT_GLOBAL': dict(otype=float, descr='Global shift of the spectrum to correct for spectral'
                                                               'flexure (pixels). This is based on the sky spectrum at'
@@ -329,7 +331,7 @@ class SpecObj(datamodel.DataContainer):
                 break
         return mnx
 
-    @property
+    # @property
     def med_s2n(self):
         """Return median S/N of the spectrum
         Uses OPT_COUNTS if present and then BOX_COUNTS
