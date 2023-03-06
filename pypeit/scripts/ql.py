@@ -354,7 +354,7 @@ class QL(scriptbase.ScriptBase):
             # Generate PypeIt files (and folders)
             calib_pypeit_files = ps.generate_ql_calib_pypeit_files(
                 calib_dir, det=args.det, configs='all',
-                clobber=args.clobber_calibs)
+                clobber=args.clobber_calibs, bkg_redux=args.bkg_redux)
             # Process them
             for calib_pypeit_file in calib_pypeit_files: 
                 redux_path = os.path.dirname(calib_pypeit_file)  # Path to PypeIt file
@@ -451,7 +451,6 @@ class QL(scriptbase.ScriptBase):
         pypeIt = pypeit.PypeIt(sci_pypeit_file, 
                                reuse_masters=True,
                                redux_path=redux_path) 
-        embed(header='454 of ql.py')
         pypeIt.reduce_all()
         pypeIt.build_qa()
         msgs.info(f'Quicklook completed in {utils.get_time_string(time.perf_counter()-tstart)} seconds')
