@@ -10,9 +10,14 @@ Keck/NIRES HOWTO
 Overview
 ========
 
-This doc goes through a full run of PypeIt on one of the Keck/NIRES datasets
-(specifically the ``NIRES`` dataset) in the `PypeIt Development Suite`_ (see
-:ref:`here <dev-suite>`).
+This doc goes through a full run of PypeIt on one of our example Keck/NIRES
+datasets (specifically the ``NIRES`` dataset).  If you're having trouble
+reducing your data, we encourage you to try going through this tutorial using
+this example dataset first.  See :ref:`here <dev-suite>` to find the example
+dataset, please join our `PypeIt Users Slack <pypeit-users.slack.com>`__ (using
+`this invitation link
+<https://join.slack.com/t/pypeit-users/shared_invite/zt-1kc4rxhsj-vKU1JnUA~8PZE~tPlu~aTg>`__)
+to ask for help, and/or `Submit an issue`_ to Github if you find a bug!
 
 ----
 
@@ -77,13 +82,13 @@ would mean assigning all 4 science and standard frames to the same calibration
 group.
 
 The main data-reduction script (:ref:`run-pypeit`) does *not* perform the
-telluric correction; this is done by a separate script.  However, and even if
-you don't intend to telluric-correct or flux-calibrate your data, it's useful to
-include the standard star observations along with the reductions of your main
-science target, particularly if the science target is faint.  If your object is
-faint, tracing the object spectrum for extraction can be difficult using only
-the signal from the source itself.  PypeIt will resort to a "tracing crutch" if
-the source signal becomes too weak.  Without the bright standard star trace, the
+telluric correction; this is done by a separate script.  Even if you don't
+intend to telluric-correct or flux-calibrate your data, it's useful to include
+the standard star observations along with the reductions of your main science
+target, particularly if the science target is faint.  If your object is faint,
+tracing the object spectrum for extraction can be difficult using only the
+signal from the source itself.  PypeIt will resort to a "tracing crutch" if the
+source signal becomes too weak.  Without the bright standard star trace, the
 tracing crutch used is the slit/order edge, which will not include the effects
 of differential atmospheric refraction on the object centroid and therefore
 yield a poorer spectral extraction.
@@ -281,7 +286,8 @@ Field Flattening
 PypeIt computes a number of multiplicative corrections to correct the 2D
 spectral response for pixel-to-pixel detector throughput variations and
 lower-order spatial and spectral illumination and throughput corrections.  We
-collectively refer to these as flat-field corrections.
+collectively refer to these as flat-field corrections; see :ref:`here
+<flat_fielding>` and :ref:`here <master_flat>`.
 
 You can inspect the flat-field corrections using the following script:
 
@@ -380,10 +386,13 @@ channel looks like pure noise (see also :ref:`pypeit_chk_noise_2dspec`).
 -----------------------
 
 Each "combination group" will also produce a fits file containing 1D spectral
-extractions; see :ref:`spec-1d-output` for more information about these files.
-An ASCII text file is also produced that provides a summary of the extracted
-spectra.  For the same standard star frame shown above, the file looks like
-this:
+extractions; see :ref:`spec-1d-output` for more information about these files
+(including the nameing convention).  The name of the file is:
+``spec1d_s190519_0059-GD153_NIRES_20190519T083811.995.fits``.  An ASCII text
+file, named ``spec1d_s190519_0059-GD153_NIRES_20190519T083811.995.txt`` (i.e.,
+the same name but with the extension changed from ``.fits`` to ``.txt``), is also
+produced that provides a summary of the extracted spectra.  For the same
+standard star frame shown above, the file looks like this:
 
 .. code-block:: bash
 

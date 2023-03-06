@@ -24,7 +24,7 @@ class Show1DSpec(scriptbase.ScriptBase):
                             help="Extraction method. Default is OPT. ['BOX', 'OPT']")
         parser.add_argument("--flux", default=False, action="store_true",
                             help="Show fluxed spectrum?")
-        parser.add_argument('-m', '--masked', default=False, action='store_true',
+        parser.add_argument('-m', '--unmasked', dest='masked', default=True, action='store_false',
                             help='Only show unmasked data.')
         return parser
 
