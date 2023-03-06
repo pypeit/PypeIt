@@ -1,9 +1,10 @@
 
-1.12.1.dev (22 Feb 2023)
+1.12.2.dev (22 Feb 2023)
 ------------------------
 
 - Gemini/GMOS mask design slurping and usage
 - New GMOS wavelength solution
+- Include the S/N of extracted spectra in the SpecObj datamodel
 
 1.12.1 (21 Feb 2023)
 --------------------
