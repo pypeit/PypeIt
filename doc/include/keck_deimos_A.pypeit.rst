@@ -1,7 +1,7 @@
 .. code-block:: console
 
     # Auto-generated PypeIt input file using PypeIt version: 1.12.1.dev1+gee479d62d.d20230131
-    # UTC 2023-03-01T23:17:55.246
+    # UTC 2023-03-06T20:55:27.440
     
     # User-defined execution parameters
     [rdx]

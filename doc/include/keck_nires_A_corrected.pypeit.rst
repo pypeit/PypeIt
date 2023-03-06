@@ -26,14 +26,14 @@
     # Read in the data
     data read
      path RAW
-    |          filename |         frametype |               ra |              dec |     target | dispname |  decker | binning |              mjd |          airmass | exptime | calib | comb_id | bkg_id |
-    | s190519_0059.fits | arc,standard,tilt | 194.259151362434 | 22.0313494322493 |      GD153 |     spec | default |     1,1 | 58622.3598610573 | 1.03675819208546 |   200.0 |     1 |       1 |      2 |
-    | s190519_0060.fits | arc,standard,tilt | 194.260349844733 | 22.0313316699865 |      GD153 |     spec | default |     1,1 |  58622.362605849 | 1.04142552296712 |   200.0 |     1 |       2 |      1 |
-    | s190519_0067.fits |  arc,science,tilt | 222.661173514297 | 33.0367669564831 | J1450+3302 |     spec | default |     1,1 | 58622.4110204323 | 1.03169892034606 |   300.0 |     2 |       3 |      4 |
-    | s190519_0068.fits |  arc,science,tilt | 222.660207102656 | 33.0382234687118 | J1450+3302 |     spec | default |     1,1 | 58622.4152114045 | 1.03446078772601 |   300.0 |     2 |       4 |      3 |
-    | s190519_0010.fits |   pixelflat,trace |             58.0 |             45.0 |       flat |     spec | default |     1,1 | 58622.0743023767 | 1.41291034446565 |   100.0 |   all |      -1 |     -1 |
-    | s190519_0012.fits |   pixelflat,trace |             58.0 |             45.0 |       flat |     spec | default |     1,1 | 58622.0769763351 | 1.41291034446565 |   100.0 |   all |      -1 |     -1 |
-    | s190519_0014.fits |   pixelflat,trace |             58.0 |             45.0 |       flat |     spec | default |     1,1 | 58622.0796502934 | 1.41291034446565 |   100.0 |   all |      -1 |     -1 |
+    |          filename |        frametype |               ra |              dec |     target | dispname |  decker | binning |              mjd |          airmass | exptime | calib | comb_id | bkg_id |
+    | s190519_0059.fits |         standard | 194.259151362434 | 22.0313494322493 |      GD153 |     spec | default |     1,1 | 58622.3598610573 | 1.03675819208546 |   200.0 |     1 |       1 |      2 |
+    | s190519_0060.fits |         standard | 194.260349844733 | 22.0313316699865 |      GD153 |     spec | default |     1,1 |  58622.362605849 | 1.04142552296712 |   200.0 |     1 |       2 |      1 |
+    | s190519_0067.fits | arc,science,tilt | 222.661173514297 | 33.0367669564831 | J1450+3302 |     spec | default |     1,1 | 58622.4110204323 | 1.03169892034606 |   300.0 |     1 |       3 |      4 |
+    | s190519_0068.fits | arc,science,tilt | 222.660207102656 | 33.0382234687118 | J1450+3302 |     spec | default |     1,1 | 58622.4152114045 | 1.03446078772601 |   300.0 |     2 |       4 |      3 |
+    | s190519_0010.fits |  pixelflat,trace |             58.0 |             45.0 |       flat |     spec | default |     1,1 | 58622.0743023767 | 1.41291034446565 |   100.0 |   all |      -1 |     -1 |
+    | s190519_0012.fits |  pixelflat,trace |             58.0 |             45.0 |       flat |     spec | default |     1,1 | 58622.0769763351 | 1.41291034446565 |   100.0 |   all |      -1 |     -1 |
+    | s190519_0014.fits |  pixelflat,trace |             58.0 |             45.0 |       flat |     spec | default |     1,1 | 58622.0796502934 | 1.41291034446565 |   100.0 |   all |      -1 |     -1 |
     data end
     
 
