@@ -780,7 +780,6 @@ class Spectrograph:
         Returns:
             `astropy.table.Table`_: modified fitstbl.
         """
-
         return fitstbl
 
     def pypeit_file_keys(self):

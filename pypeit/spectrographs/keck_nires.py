@@ -252,7 +252,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                         # set different calib for different targs
                         if 'science' in fitstbl['frametype'][targ_idx][0] or \
                            ('standard' in fitstbl['frametype'][targ_idx][0] and 'arc' in fitstbl['frametype'][targ_idx][0]):
-                            fitstbl['calib'][targ_idx] = targ_calib
+                            fitstbl['calib'][targ_idx] = str(targ_calib)
                         elif 'standard' in fitstbl['frametype'][targ_idx]:
                             # find the science frames
                             sci_in_cfg = sci_idx & np.array([setup in _set for _set in fitstbl['setup']])
