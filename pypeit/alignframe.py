@@ -332,19 +332,29 @@ class AlignmentSplines:
         Parameters
         ----------
         traces : `numpy.ndarray`
-            The alignments (traces) of the slits. This allows different slices
-            to be aligned correctly. Ideally, this variable will be assigned the
+            3D array containing the alignments (traces) of the slits. This allows different
+            slices to be aligned correctly. Ideally, this variable will be assigned the
             value of alignments.traces. However, this can also be assigned the
             left and right slit edges:
-            traces = np.append(left.reshape((left.shape[0],1,left.shape[1])),
-                   right.reshape((left.shape[0],1,left.shape[1])), axis=1)
-            In this case, locations=np.array([0,1])
+            .. code-block:: python
+
+                traces = np.append(left.reshape((left.shape[0], 1, left.shape[1])),
+                       right.reshape((left.shape[0], 1, left.shape[1])), axis=1)
+                # In this case, you should set the locations argument to
+                locations=np.array([0,1])
         locations : `numpy.ndarray`_, list
             locations along the slit of the alignment traces. Must
             be a 1D array of the same length as alignments.traces.shape[1]
         tilts : `numpy.ndarray`
             Spectral tilts.
         """
+        # Perform some checks
+        msgs.work("Spatial flexure is not currently implemented for the astrometric alignment")
+        if type(locations) is list:
+            locations = np.array(locations)
+        if locations.size != traces.shape[1]:
+            msgs.error("The size of locations must be the same as traces.shape[1]")
+        # Store the relevant input
         self.traces = traces
         self.locations = locations
         self.tilts = tilts
@@ -401,7 +411,7 @@ class AlignmentSplines:
     def transform(self, slitnum, spatpix, specpix):
         """
         Convenience function to return the spatial offset in pixels
-        from the spatial centre of the slit.
+        from the spatial center of the slit.
 
         Parameters
         ----------
@@ -414,6 +424,7 @@ class AlignmentSplines:
 
         Returns
         -------
-        tuple : There are
+        spl_transform : `numpy.ndarray`
+            The spatial offset (measured in pixels) from the center of the slit.
         """
         return self.spl_transform[slitnum]((specpix, spatpix))
