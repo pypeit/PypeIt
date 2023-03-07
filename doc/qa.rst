@@ -41,6 +41,7 @@ Generally, the title describes the type of QA and the
 sub-title indicates the user who ran PypeIt and the
 date of the processing.
 
+.. _qa-wave-fit:
 
 Wavelength Fit QA
 -----------------
@@ -59,6 +60,7 @@ calibration.
 
 See :doc:`calibrations/master_wvcalib` for more discussion of this QA.
 
+.. _qa-wave-tilt:
 
 Wavelength Tilts QA
 -------------------
