@@ -10,7 +10,6 @@ import inspect
 from IPython import embed
 
 import numpy as np
-from collections import Counter
 
 from astropy.table import Table
 from astropy.coordinates import SkyCoord, Angle

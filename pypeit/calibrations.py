@@ -231,7 +231,13 @@ class Calibrations:
 
         # Initialize for this setup
         self.frame = frame
-        self.calib_ID = int(self.fitstbl['calib'][frame])
+        # Find the calibration groups associated with this frame.  Note
+        # find_frame_calib_groups *always* returns a list.  Science frames only
+        # have one calibration group, but calibration frames can have many.  So
+        # for both science and calibration frames, we just set the calibration
+        # group to the first in the returned list.
+        self.calib_ID = self.fitstbl.find_frame_calib_groups(self.frame)[0]
+#        self.calib_ID = int(self.fitstbl['calib'][frame])
         self.det = det
         if par is not None:
             self.par = par

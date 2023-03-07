@@ -4,6 +4,7 @@
 
 - Gemini/GMOS mask design slurping and usage
 - New GMOS wavelength solution
+- Added NIRES tutorial doc
 
 1.12.1 (21 Feb 2023)
 --------------------
