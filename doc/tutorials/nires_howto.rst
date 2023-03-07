@@ -70,7 +70,14 @@ By setting the science and standard frames to also be ``arc`` and ``tilt``
 frames, we're indicating that the OH sky lines should be used to perform the
 wavelength calibration.  The wavelength calibration for these two sets of frames
 will be performed *independently* because we assign them to different
-:ref:`calibration-groups`.
+:ref:`calibration-groups`.  However, you can assign them to the same calibration
+group, which means that the 2 standard star and 2 science exposures will be
+combined into a single "arc/tilt" frame used for the wavelength calibration of
+all frames; this is potentially the preferred approach.
+
+.. TODO: Clear up the above.  Should we simply recommend that you combine all
+   frames into a single calibration group?  Does NIRES have any appreciable
+   flexure?
 
 The observations of the standard star in this dataset are sufficiently long that
 there is good signal in the sky lines that allows for use of the OH lines for
