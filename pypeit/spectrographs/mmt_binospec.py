@@ -145,7 +145,8 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['fwhm']= 5.0
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII']
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        par['calibrations']['wavelengths']['method'] = 'full_template'
+        par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI', 'ArI', 'ArII']
 
         # Tilt and slit parameters
         par['calibrations']['tilts']['tracethresh'] =  10.0
@@ -204,19 +205,13 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         grating = self.get_meta_value(scifile, 'dispname')
 
         if grating == 'x270':
-            par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'mmt_binospec_270.fits'
-            par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI', 'ArI', 'ArII']
 
         if grating == 'x600':
-            par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'mmt_binospec_600.fits'
-            par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI', 'ArI', 'ArII']
 
         if grating == 'x1000':
-            par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'mmt_binospec_1000.fits'
-            par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI', 'ArI', 'ArII']
 
         return par
 
