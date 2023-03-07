@@ -1395,15 +1395,15 @@ class CubePar(ParSet):
                           'and assigns each subpixel into a voxel of the datacube. Flux is conserved, but voxels ' \
                           'are correlated, and the error spectrum does not account for covariance between adjacent ' \
                           'voxels. ' \
-                          # '(2) "resample" - this algorithm resamples the spec2d frames into a datacube. ' \
-                          # 'Flux is conserved, but voxels are correlated, and the error spectrum does not account ' \
-                          # 'for covariance between neighbouring pixels. ' \
                           '(2) "NGP" (nearest grid point) - this algorithm is effectively a 3D histogram. Flux is ' \
                           'conserved, voxels are not correlated, however this option suffers the same downsides as ' \
                           'any histogram; the choice of bin sizes can change how the datacube appears. This algorithm ' \
                           'takes each pixel on the spec2d frame and puts the flux of this pixel into one voxel in the ' \
                           'datacube. Depending on the binning used, some voxels may be empty (zero flux) while a ' \
                           'neighbouring voxel might contain the flux from two spec2d pixels.'
+        # '(3) "resample" - this algorithm resamples the spec2d frames into a datacube. ' \
+        # 'Flux is conserved, but voxels are correlated, and the error spectrum does not account ' \
+        # 'for covariance between neighbouring pixels. ' \
 
         defaults['subsample'] = 10
         dtypes['subsample'] = int

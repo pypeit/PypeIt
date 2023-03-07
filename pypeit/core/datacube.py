@@ -25,10 +25,10 @@ from pypeit.core.procimg import grow_mask
 from pypeit.spectrographs.util import load_spectrograph
 
 # Shapely is needed if using the resample algorithm
-try:
-    import shapely
-except ImportError:
-    shapely = None
+# try:
+#     import shapely
+# except ImportError:
+#     shapely = None
 
 from IPython import embed
 
