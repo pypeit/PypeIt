@@ -572,17 +572,26 @@ class SpecObj(datamodel.DataContainer):
         # Return
         return self[swave], self[sflux], self[sivar], self[smask]
 
-    def to_xspec1d(self, **kwargs):
+    def to_xspec1d(self, masked=False, **kwargs):
         """
-        Push the data in :class:`SpecObj` into an XSpectrum1D object
+        Create an `XSpectrum1D <linetools.spectra.xspectrum1d.XSpectrum1D>`_
+        using this spectrum.
 
+        Args:
+            masked (:obj:`bool`, optional):
+                If True, only unmasked data are included.
+            kwargs (:obj:`dict`, optional):
+                Passed directly to :func:`to_arrays`.
 
         Returns:
-            linetools.spectra.xspectrum1d.XSpectrum1D:  Spectrum object
-
+            `linetools.spectra.xspectrum1d.XSpectrum1D`_: Spectrum object
         """
-        wave, flux, ivar, _ = self.to_arrays(**kwargs)
+        wave, flux, ivar, gpm = self.to_arrays(**kwargs)
         sig = np.sqrt(utils.inverse(ivar))
+        if masked:
+            wave = wave[gpm]
+            flux = flux[gpm]
+            sig = sig[gpm]
         # Create
         return xspectrum1d.XSpectrum1D.from_tuple((wave, flux, sig))
 
