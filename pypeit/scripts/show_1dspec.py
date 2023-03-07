@@ -24,6 +24,8 @@ class Show1DSpec(scriptbase.ScriptBase):
                             help="Extraction method. Default is OPT. ['BOX', 'OPT']")
         parser.add_argument("--flux", default=False, action="store_true",
                             help="Show fluxed spectrum?")
+        parser.add_argument('-m', '--unmasked', dest='masked', default=True, action='store_false',
+                            help='Only show unmasked data.')
         return parser
 
     @staticmethod
@@ -73,7 +75,8 @@ class Show1DSpec(scriptbase.ScriptBase):
             if sobjs[exten]['OPT_WAVE'] is None: #not in sobjs[exten]._data.keys():
                     msgs.error("Spectrum not extracted with OPT.  Try --extract BOX")
 
-        spec = sobjs[exten].to_xspec1d(extraction=args.extract, fluxed=args.flux)
+        spec = sobjs[exten].to_xspec1d(masked=args.masked, extraction=args.extract,
+                                       fluxed=args.flux)
 
         # Setup
         app = QApplication(sys.argv)

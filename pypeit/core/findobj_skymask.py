@@ -165,8 +165,8 @@ def ech_findobj_ineach_order(
 
         - Loops over the good orders
 
-        - Calls the objs_in_slit() method to find objects in the order.
-        See that method for further details
+        - Calls the :func:`objs_in_slit` method to find objects in the order.
+          See that method for further details.
 
     Args:
         image (`numpy.ndarray`_):
@@ -443,14 +443,14 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
 
     This routine:
 
-        - Assigns each specobj a fractional order position and an obj_id number
+        - Assigns each specobj a fractional order position and an obj_id number.
 
-        - Fills in missing objects. Fit the fraction slit position of
-        the good orders where an object was found and use that fit to predict the fractional slit position 
-        on the bad orders where no object was found
+        - Fills in missing objects. Fit the fraction slit position of the good
+          orders where an object was found and use that fit to predict the
+          fractional slit position on the bad orders where no object was found.
 
         - Now loop over the orders and add objects on the orders for 
-        which the current object was not found
+          which the current object was not found.
 
 
     Args:
@@ -485,8 +485,8 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
             missing orders
 
     Returns:
-        :class:`~pypeit.specobjs.SpecObjs`:  
-            A new SpecObjs object with the filled in orders
+        :class:`~pypeit.specobjs.SpecObjs`:  A new SpecObjs object with the
+        filled in orders
     """
     # Prep
     nfound = len(sobjs)
@@ -653,13 +653,15 @@ def ech_cutobj_on_snr(
 
     This routine:
 
-        - Loops over the objects and perform a quick and dirty extraction to assess S/N.
+        - Loops over the objects and perform a quick and dirty extraction to
+          assess S/N.
 
-        - Purge objects with low SNR that don't show up in enough orders, sort the list of objects with respect to obj_id and orderindx
-    
-        -  Loop over objects from highest SNR to lowest SNR. Apply the S/N constraints. 
-        Once we hit the maximum number objects requested exit, except keep 
-        any hand apertures that were requested.
+        - Purge objects with low SNR that don't show up in enough orders, sort
+          the list of objects with respect to obj_id and orderindx.
+        
+        - Loop over objects from highest SNR to lowest SNR. Apply the S/N
+          constraints.  Once we hit the maximum number objects requested exit,
+          except keep any hand apertures that were requested.
 
     Args:
         sobjs_align (:class:`~pypeit.specobj.SpecObj`):
@@ -709,8 +711,7 @@ def ech_cutobj_on_snr(
             values are considered good.
 
     Returns:
-        :class:`~pypeit.specobjs.SpecObjs`: 
-            The final set of objects
+        :class:`~pypeit.specobjs.SpecObjs`: The final set of objects
     """
 
     allmask = slitmask > -1
@@ -889,8 +890,7 @@ def ech_pca_traces(
             Display debugging plots for the PCA decomposition.
 
     Returns:
-        :class:`~pypeit.specobj.SpecObj`:
-            Final set of objects, traced 
+        :class:`~pypeit.specobj.SpecObj`: Final set of objects, traced 
     """
 
     # Prep
