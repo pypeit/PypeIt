@@ -30,14 +30,14 @@
                             vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
                             wht_isis_blue, wht_isis_red
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       -r ROOT, --root ROOT  Root to search for data files. You can provide the top-
                             level directory (e.g., /data/Kast) or the search string
                             up through the wildcard (.e.g, /data/Kast/b). Use the
                             --extension option to set the types of files to search
                             for. Default is the current working directory. (default:
-                            /Users/westfall/Work/packages/pypeit/doc)
+                            /Users/tim/MMT/pypeit/doc)
       -k, --keys            Do not produce the log; simply list the pypeit-specific
                             metadata keys available for this spectrograph and their
                             associated header cards. Metadata keys with header cards
@@ -78,7 +78,7 @@
                             required. (default: .fits)
       -d OUTPUT_PATH, --output_path OUTPUT_PATH
                             Path to top-level output directory. (default:
-                            /Users/westfall/Work/packages/pypeit/doc)
+                            /Users/tim/MMT/pypeit/doc)
       -o, --overwrite       Overwrite any existing files/directories (default:
                             False)
       -f FILE, --file FILE  Name for the ascii output file. Any leading directory

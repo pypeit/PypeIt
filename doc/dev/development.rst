@@ -16,9 +16,9 @@ Installation
 If you plan to develop/alter the ``PypeIt`` code directly, you should install
 the software via git, instead of pip or conda.  See :ref:`developer_install`.
 
-This isn't required, but to simplify some of the commands below, I
-assume that you have an environmental variable that points to your
-installation of the ``PypeIt`` repository.  E.g., add the following to your
+This isn't required, but to simplify some of the commands below, I assume that
+you have an environmental variable that points to your installation of the
+``PypeIt`` repository.  E.g., add something like the following to your
 ``~/.zshrc`` or ``~/.bash_profile``:
 
 .. code-block:: console
@@ -32,18 +32,19 @@ Branches
 
  * ``release``: This is the primary stable version of the code.  Modulo any
    recent hotfixes, this is the version of the code that is installed when
-   using `pip`_ and its the version that is used to produce latest
+   using `pip`_ and its the version that is used to produce the latest
    `documentation`_.  Pull requests to this branch are only done before tagging
    a new release of the code or to perform critical bug hotfixes.  The release
-   schedule is decided by the core developers.
+   schedule is irregular and decided by the core developers.
 
  * ``develop``: This is the main development version of the code.  It should be
    stable enough to use, but it may contain experimental, unsupported code that
    is work in progress.
 
 When editing the code, please create a new branch stemming from the ``develop``
-branch.  You are also **strongly** encouraged to pull and merge in the most
-recent version of the ``release`` branch:
+branch.  You should also pull and merge in the most recent version of the
+``release`` branch to make sure your new branch includes any very recent
+hot-fixes.  On the command line, you can do this as follows:
 
 .. code-block:: bash
 
@@ -59,7 +60,8 @@ recent version of the ``release`` branch:
 
     In terms of the merge with the release branch, beware that you may need to
     start a new section of the ``CHANGES.rst`` file to reflect a jump in the
-    version number.
+    version number.  This should only be necessary if your branch is the first
+    one after a new tag is released.
 
 Development Principles and Communication
 ----------------------------------------
@@ -124,9 +126,9 @@ process.  This leads to a few important guidelines:
    development team will need to discuss the merge order to ensure a smooth
    process.
 
-Our primary means of **communication** for development is the `PypeIt
-developers Slack <https://pypeit.slack.com>`_.  Contact `X Prochaska`_ for
-access.
+Our primary means of **communication** for development is the `PypeIt developers
+Slack <https://pypeit.slack.com>`_ and a biweekly telecon.  Contact `X
+Prochaska`_ for Slack access and/or the relevant Zoom link.
 
 Testing the Code
 ----------------
@@ -134,9 +136,6 @@ Testing the Code
 ``PypeIt`` performs extensive testing using the :ref:`dev-suite`; follow that
 link for more details on executing the tests.  What follows describes how to add
 new tests.
-
-.. TODO: SHOULD WE INSTEAD ADD THESE DETAILS TO THE DEVSUITE README DOC?  FOR
-.. BOTH THE DEV-SUITE AND UNIT TESTS?
 
 .. _dev-suite-tests:
 
@@ -166,7 +165,7 @@ To add new tests to the development suite
        the ``test_priority_file`` will be updated with the new test. This file
        tells the test scripts what order to run the tests in for optimum CPU
        utilization.  Commit ``test_priority_list`` and any other files added to
-       the repository and submit a pull request.
+       the dev-suite repository and submit a pull request.
 
 .. _unit-tests:
 
@@ -196,15 +195,15 @@ failing.
 .. warning::
 
     Running these tests generates some files that should be ignored.  **Please
-    do not add these test files to the repository.**  We're in the process of
-    including some automatic clean-up in the testing functions.
+    do not add these test files to the repository.**  We try to include clean-up
+    as part of the tests, but these are not always caught.
 
 Note also that the use of `pytest`_ requires the test dependencies to be
 installed, e.g. via ``pip install -e .[test]``. It is also possible, and often
 preferable, to run tests within their own isolated environments using `tox
 <https://tox.readthedocs.io/en/latest/>`_. This provides the capability to
 easily run tests against different versions of the various dependencies,
-including different versions python. The available ``tox`` environments are
+including different python versions. The available ``tox`` environments are
 defined in ``$PYPEIT_DIR/tox.ini`` and can be listed by running ``tox -a``. To
 run tests against the default dependencies using the default python, do:
 
@@ -232,10 +231,10 @@ Similar ``dev`` dependencies are configured for ``numpy``, ``ginga``, and
 ``linetools``, as well.
 
 Unit tests included in the main PypeIt repo should *not* require large data
-files.  Some files are kept in the repo for this purpose, but they should be
-minimized to keep the size of the package distribution manageable.  Unit tests
-that require input data files should instead be added to the `PypeIt Development
-Suite`_.
+files.  Some files are kept in the repo for this purpose (see the
+``pypeit/tests/files`` directory), but they should be minimized to keep the size
+of the package distribution manageable.  Unit tests that require input data
+files should instead be added to the `PypeIt Development Suite`_.
 
 Workflow
 --------
@@ -248,9 +247,12 @@ A typical ``PypeIt`` development workflow is as follows:
    .. code-block:: bash
 
         cd $PYPEIT_DIR
+        git checkout release
+        git pull
         git checkout develop
         git pull
         git checkout -b my_new_feature
+        git merge --no-ff release
 
  * Develop and debug the feature
 
@@ -276,10 +278,25 @@ A typical ``PypeIt`` development workflow is as follows:
         cd $PYPEIT_DEV
         ./pypeit_test develop
 
+   .. warning::
+
+        The `Development Suite`_ is *extensive* and takes significant computing
+        resources and time.  The PypeIt development team consistently executes
+        these tests using cloud computing.  We recommend you ensure that your
+        pypeit branch successfully runs on either a specific instrument of
+        interest or ``shane_kast_blue`` first, and then someone on the PypeIt
+        development team can execute the tests in the cloud.  From the top-level
+        directory of the `Development Suite`_, you can run all tests for
+        ``shane_kast_blue`` as follows:
+
+        .. code-block:: bash
+
+            ./pypeit_test all -i shane_kast_blue
+
  * Edit ``$PYPEIT_DIR/CHANGES.rst`` to reflect your key developments and
-   update the API `documentation`_.  You can compile the docs as follows, which
-   is just a simple convenience script for executing ``make clean ; make html``
-   in the ``doc`` directory.
+   update the `documentation`_.  You can compile the docs using the
+   ``update_docs`` script (see below), which is just a simple convenience script
+   for executing ``make clean ; make html`` in the ``doc`` directory.
 
    .. code-block:: bash
 
@@ -317,9 +334,6 @@ A typical ``PypeIt`` development workflow is as follows:
 Pull Request Acceptance Requirements
 ------------------------------------
 
-.. TODO: SOME OF THIS NEEDS TO BE UPDATED, PARTICULARLY HOW THE RESULTS OF THE
-.. TESTS SHOULD BE POSTED TO THE PR
-
 Once you've submitted a pull request, we'll review your PR and provide
 comments on the code.  The minimum requirements for acceptance of a PR
 are as follows:
@@ -335,8 +349,9 @@ are as follows:
  * The CI tests run by GitHub (see the Checks tab of the PR) on the remote
    repository must pass.
 
- * You have to post a successful report resulting from your execution of
-   both the `Unit Tests`_ and the `Development Suite`_.  
+ * You (or someone running the tests on your behalf) must post a successful
+   report resulting from your execution of the `Development Suite`_, which
+   should look like this:
 
    .. figure:: ../figures/tests_success.png
 
@@ -348,13 +363,17 @@ are as follows:
 
  * All new methods and classes must be at least minimally documented.
    "Minimally documented" means that each method has a docstring that
-   gives at least (1) a one sentence description of the purpose of the
-   method, (2) a complete list of the required and optional arguments
-   and their meaning, (3) a description of the returned objects, if
-   there are any.  Documentation is expected to adhere to `Sphinx`_
-   syntax; i.e., the docstrings should be `reStructuredText`_.  We
-   accept both `Google-format docstrings`_ and `Numpy-format
-   docstrings`_, but the former is preferred.
+   gives at least:
+   
+    #. a one sentence description of the purpose of the method,
+
+    #. a complete list of the required and optional arguments and their meaning,
+    
+    #. a description of the returned objects, if there are any.
+   
+   Documentation is expected to adhere to `Sphinx`_ syntax; i.e., the docstrings
+   should be `reStructuredText`_.  We accept both `Google-format docstrings`_
+   and `Numpy-format docstrings`_, but the former is preferred.
 
  * The docstrings for any changes to existing methods that were altered
    must have been modified so that they are up-to-date and accurate.
@@ -389,17 +408,9 @@ tagging process is as follows:
    and then a `PR <https://github.com/pypeit/PypeIt/compare>`_ is issued
    to merge ``staged`` into ``release``.  This merge must meet the same
    `Pull Request Acceptance Requirements`_ when merging new branches
-   into ``develop``.  However, typically the unit and development-suite
-   tests do not need to be run because ``develop`` has already passed
-   these tests and ``staged`` will not make any substantive changes to
-   the code.
-
-   .. code-block:: bash
-
-        cd $PYPEIT_DIR
-        git checkout develop
-        git pull
-        git checkout -b staged
+   into ``develop``.  However, typically the tests do not need to be run because
+   ``develop`` has already passed these tests and ``staged`` will not make any
+   substantive changes to the code.
 
  * **Before being merged into release**, the code is tagged as follows:
 
@@ -412,11 +423,9 @@ tagging process is as follows:
         git add -u
         git commit -m 'tag CHANGES'
 
-        # Create a tag of the form X.Y.Z (using 1.4.2 here as an example).
-        # The current autogenerated version is found in pypeit/version.py
-        # and the tag used here should be everything in front of the 'dev'
-        # string in the current version.
-        git tag 1.4.2
+        # Create a tag of the form X.Y.Z (using 1.12.1 here as an example).
+        # The current autogenerated version is found in pypeit/version.py.
+        git tag 1.12.1
 
         # Push the changes and the new tag
         git push
@@ -481,15 +490,13 @@ as
 This document was developed and mutually agreed upon by: Kyle Westfall,
 J. Xavier Prochaska, Joseph Hennawi.
 
-*Last Modified: 12 Oct 2022*
+*Last Modified: 28 Feb 2023*
 
 ----
 
 
 Additional Developer Links
 --------------------------
-
-.. TODO: UPDATE THESE
 
 Here are some developer-specific docs:
 

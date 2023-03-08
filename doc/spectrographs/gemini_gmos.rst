@@ -132,7 +132,7 @@ Mask Definition
 PypeIt can now take advantage of the mask definition file
 generated when one designs a GMOS mask.  To do so, one needs
 to provide two additional files and specify them 
-with the :doc:`pypeit_file`:
+with the :ref:`pypeit_file`:
 
 #.  The mask definition file, aka ODF file
 #.  An aligment image (taken with the spectra)
@@ -147,14 +147,13 @@ in the mask's square alignment slits. i.e. choose the
 final image in the sequence of alignment images from 
 the observations.
 
-The modifications to the :doc:`pypeit_file` will look like:
+The modifications to the :ref:`pypeit_file` will look like:
 
 .. code-block:: ini
 
     [calibrations]
         [[slitedges]]
-            maskdesign_filename = GS2022BQ137-05_ODF.fits,S20221128S0038.fit
-s
+            maskdesign_filename = GS2022BQ137-05_ODF.fits,S20221128S0038.fits
             use_maskdesign = True
     [reduce]
         [[slitmask]]

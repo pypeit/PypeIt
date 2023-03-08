@@ -576,6 +576,8 @@ The script usage can be displayed by calling the script with the
 
 .. include:: help/pypeit_show_2dspec.rst
 
+.. _pypeit_chk_noise_2dspec:
+
 pypeit_chk_noise_2dspec
 -----------------------
 
@@ -589,7 +591,7 @@ chi values are unit Gaussian distributed.
 The script usage can be displayed by calling the script with the
 ``-h`` option:
 
-.. include:: help/pypeit_chk_noise_1dspec.rst
+.. include:: help/pypeit_chk_noise_2dspec.rst
 
 Here is an example from the Dev Suite:
 

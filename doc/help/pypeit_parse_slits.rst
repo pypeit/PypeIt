@@ -8,6 +8,6 @@
     positional arguments:
       input_file  Either a spec2D or MasterSlits filename
     
-    optional arguments:
+    options:
       -h, --help  show this help message and exit
     

@@ -95,6 +95,8 @@
 .. linetools
 .. _linetools: https://linetools.readthedocs.io/en/latest/
 .. _linetools.spectra.xspectrum1d.XSpectrum1D: https://linetools.readthedocs.io/en/latest/xspectrum1d.html
+.. _XSpecGUI: https://linetools.readthedocs.io/en/latest/xspecgui.html
+.. _XSpecGUI keystrokes: https://linetools.readthedocs.io/en/latest/xspecgui.html#navigating-these-key-strokes-help-you-explore-the-spectrum-be-sure-to-click-in-the-spectrum-panel-first
 
 .. sphinx
 .. _Sphinx: https://www.sphinx-doc.org/en/master/index.html
@@ -117,7 +119,6 @@
 .. _bottleneck: https://bottleneck.readthedocs.io/en/latest/
 
 .. ginga
-
 .. _ginga: https://ginga.readthedocs.io/en/stable/
 .. _AstroImage: https://ginga.readthedocs.io/en/stable/dev_manual/image_wrappers.html#astroimage
 .. _ginga GlobalPlugin: https://ginga.readthedocs.io/en/stable/dev_manual/developers.html#writing-a-global-plugin
@@ -139,5 +140,3 @@
 .. _L.A.Cosmic: http://www.astro.yale.edu/dokkum/lacosmic/
 .. _van Dokkum (2001, PASP, 113, 1420): https://ui.adsabs.harvard.edu/abs/2001PASP..113.1420V/abstract
 .. _LowRedux: http://www.ucolick.org/~xavier/LowRedux/
-
-

@@ -113,6 +113,48 @@ def make_example_gnirs_pypeit_files():
         f.write('\n\n')
 
 
+def make_example_nires_pypeit_files():
+
+    oroot = Path(resource_filename('pypeit', '')).resolve().parent / 'doc' / 'include'
+    if (oroot / 'setup_files').exists():
+        shutil.rmtree(oroot / 'setup_files')
+
+    # Create the default pypeit file
+    droot = Path(os.getenv('PYPEIT_DEV')).resolve() / 'RAW_DATA' / 'keck_nires' / 'NIRES'
+    
+    pargs = setup.Setup.parse_args(['-r', str(droot), '-s', 'keck_nires', '-b', '-c', 'A',
+                                    '-d', str(oroot)])
+    setup.Setup.main(pargs)
+
+    shutil.rmtree(oroot / 'setup_files')
+
+    ofile = oroot / 'keck_nires_A.pypeit.rst'
+    with open(ofile, 'w') as f:
+        with open(oroot / 'keck_nires_A' / 'keck_nires_A.pypeit', 'r') as p:
+            lines = p.readlines()
+        f.write('.. code-block:: console\n')
+        f.write('\n')
+        for l in lines:
+            f.write('    '+l)
+        f.write('\n\n')
+
+    shutil.rmtree(oroot / 'keck_nires_A')
+
+    # Copy over the one that is actually used by the dev-suite
+    dev = Path(os.getenv('PYPEIT_DEV')).resolve() \
+                / 'pypeit_files' / 'keck_nires_nires.pypeit'
+
+    ofile = oroot / 'keck_nires_A_corrected.pypeit.rst'
+    with open(ofile, 'w') as f:
+        with open(dev, 'r') as p:
+            lines = p.readlines()
+        f.write('.. code-block:: console\n')
+        f.write('\n')
+        for l in lines:
+            f.write('    '+l)
+        f.write('\n\n')
+
+
 def make_example_sorted_file():
 
     root = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'keck_deimos')
@@ -170,10 +212,12 @@ if __name__ == '__main__':
     make_example_kast_pypeit_file()
     print('Making keck_deimos_A.pypeit.rst')
     make_example_deimos_pypeit_file()
-    print('Making gemini_gnirs_A.pypeit.rst')
+    print('Making gemini_gnirs files')
     make_example_gnirs_pypeit_files()
     print('Making keck_deimos.sorted.rst')
     make_example_sorted_file()
+    print('Making keck_nires files')
+    make_example_nires_pypeit_files()
     print('Make meta examples')
     make_meta_examples()
     print('Elapsed time: {0} seconds'.format(time.perf_counter() - t))
