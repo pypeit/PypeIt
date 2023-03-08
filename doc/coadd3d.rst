@@ -96,6 +96,42 @@ Then run the script:
 
     pypeit_coadd_datacube BB1245p4238.coadd3d -o
 
+Combination options
+===================
+
+PypeIt currently supports two different methods to convert an spec2d frame into a datacube;
+these options are called ``subsample`` (default) and ``NGP`` (which is short for, nearest grid point),
+and can be set using the following keyword arguments:
+
+.. code-block:: ini
+
+    [reduce]
+        [[cube]]
+            method = ngp
+
+The default option is called ``subsample``, which subsamples each pixel in the spec2d frame
+and assigns each subpixel into a voxel of the datacube. Flux is conserved, but voxels are
+correlated, and the error spectrum does not account for covariance between adjacent voxels.
+If you would like to change the subsampling factor from the default value (10), you can set
+the ``subsample`` keyword as follows:
+
+.. code-block:: ini
+
+    [reduce]
+        [[cube]]
+            method = subsample
+            subsample = 5
+
+The total number of subpixels generated for each detector pixel on the spec2d frame is
+subsample^2. The default option (subsample=10) divides each spec2d pixel into 100 subpixels
+during datacube creation. As an alternative, you can convert the spec2d frames into a datacube
+which the ``NGP`` method. This algorithm is effectively a 3D histogram. This approach is faster
+than ``subsample``, flux is conserved, and voxels are not correlated. However, this option suffers
+the same downsides as any histogram; the choice of bin sizes can change how the datacube appears.
+This algorithm takes each pixel on the spec2d frame and puts the flux of this pixel into one voxel
+in the datacube. Depending on the binning used, some voxels may be empty (zero flux) while a
+neighbouring voxel might contain the flux from two spec2d pixels.
+
 Flux calibration
 ================
 
