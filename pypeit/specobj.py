@@ -331,7 +331,6 @@ class SpecObj(datamodel.DataContainer):
                 break
         return mnx
 
-    # @property
     def med_s2n(self):
         """Return median S/N of the spectrum
         Uses OPT_COUNTS if present and then BOX_COUNTS
