@@ -408,10 +408,10 @@ class PypeIt:
 
         # Standard Star(s) Loop
         # Iterate over each calibration group and reduce the standards
-        for i in range(self.fitstbl.n_calib_groups):
+        for calib_ID in self.fitstbl.calib_groups:
 
             # Find all the frames in this calibration group
-            in_grp = self.fitstbl.find_calib_group(i)
+            in_grp = self.fitstbl.find_calib_group(calib_ID)
 
             if not np.any(is_standard & in_grp):
                 continue
@@ -419,20 +419,22 @@ class PypeIt:
             # Find the indices of the standard frames in this calibration group:
             grp_standards = frame_indx[is_standard & in_grp]
 
-            msgs.info(f'Found {len(grp_standards)} standard frames in calibration group {i+1}.')
+            msgs.info(f'Found {len(grp_standards)} standard frames in calibration group '
+                      f'{calib_ID}.')
 
             # Reduce all the standard frames, loop on unique comb_id
             u_combid_std = np.unique(self.fitstbl['comb_id'][grp_standards])
             for j, comb_id in enumerate(u_combid_std):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
-                # Find all frames whose comb_id matches the current frames bkg_id (same as for science frames).
-                bg_frames = np.where((self.fitstbl['comb_id'] == self.fitstbl['bkg_id'][frames][0]) &
-                                     (self.fitstbl['comb_id'] >= 0))[0]
+                # Find all frames whose comb_id matches the current frames
+                # bkg_id (same as for science frames).
+                bg_frames = np.where((self.fitstbl['comb_id'] == self.fitstbl['bkg_id'][frames][0])
+                                     & (self.fitstbl['comb_id'] >= 0))[0]
                 if not self.outfile_exists(frames[0]) or self.overwrite:
-                    # Build history to document what contributd to the reduced
+                    # Build history to document what contributed to the reduced
                     # exposure
                     history = History(self.fitstbl.frame_paths(frames[0]))
-                    history.add_reduce(i, self.fitstbl, frames, bg_frames)
+                    history.add_reduce(calib_ID, self.fitstbl, frames, bg_frames)
                     std_spec2d, std_sobjs = self.reduce_exposure(frames, bg_frames=bg_frames)
 
                     # TODO come up with sensible naming convention for save_exposure for combined files
@@ -443,20 +445,21 @@ class PypeIt:
 
         # Science Frame(s) Loop
         # Iterate over each calibration group again and reduce the science frames
-        for i in range(self.fitstbl.n_calib_groups):
+        for calib_ID in self.fitstbl.calib_groups:
             # Find all the frames in this calibration group
-            in_grp = self.fitstbl.find_calib_group(i)
+            in_grp = self.fitstbl.find_calib_group(calib_ID)
 
             if not np.any(is_science & in_grp):
                 continue
 
             # Find the indices of the science frames in this calibration group:
             grp_science = frame_indx[is_science & in_grp]
-            msgs.info(f'Found {len(grp_science)} science frames in calibration group {i+1}.')
+            msgs.info(f'Found {len(grp_science)} science frames in calibration group {calib_ID}.')
 
             # Associate standards (previously reduced above) for this setup
             std_outfile = self.get_std_outfile(frame_indx[is_standard])
-            # Reduce all the science frames; keep the basenames of the science frames for use in flux calibration
+            # Reduce all the science frames; keep the basenames of the science
+            # frames for use in flux calibration
             science_basename = [None]*len(grp_science)
             # Loop on unique comb_id
             u_combid = np.unique(self.fitstbl['comb_id'][grp_science])
@@ -464,35 +467,38 @@ class PypeIt:
             for j, comb_id in enumerate(u_combid):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
                 # Find all frames whose comb_id matches the current frames bkg_id.
-                bg_frames = np.where((self.fitstbl['comb_id'] == self.fitstbl['bkg_id'][frames][0]) &
-                                     (self.fitstbl['comb_id'] >= 0))[0]
-                # JFH changed the syntax below to that above, which allows frames to be used more than once
-                # as a background image. The syntax below would require that we could somehow list multiple
-                # numbers for the bkg_id which is impossible without a comma separated list
+                bg_frames = np.where((self.fitstbl['comb_id'] == self.fitstbl['bkg_id'][frames][0])
+                                     & (self.fitstbl['comb_id'] >= 0))[0]
+                # JFH changed the syntax below to that above, which allows
+                # frames to be used more than once as a background image. The
+                # syntax below would require that we could somehow list multiple
+                # numbers for the bkg_id which is impossible without a comma
+                # separated list
 #                bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
                 if not self.outfile_exists(frames[0]) or self.overwrite:
 
                     # Build history to document what contributd to the reduced
                     # exposure
                     history = History(self.fitstbl.frame_paths(frames[0]))
-                    history.add_reduce(i, self.fitstbl, frames, bg_frames)
+                    history.add_reduce(calib_ID, self.fitstbl, frames, bg_frames)
 
                     # TODO -- Should we reset/regenerate self.slits.mask for a new exposure
                     sci_spec2d, sci_sobjs = self.reduce_exposure(frames, bg_frames=bg_frames,
-                                                    std_outfile=std_outfile)
+                                                                 std_outfile=std_outfile)
                     science_basename[j] = self.basename
 
-                    # TODO come up with sensible naming convention for save_exposure for combined files
+                    # TODO: come up with sensible naming convention for
+                    # save_exposure for combined files
                     if len(sci_spec2d.detectors) > 0:
                         self.save_exposure(frames[0], sci_spec2d, sci_sobjs, self.basename, history)
                     else:
                         msgs.warn('No spec2d and spec1d saved to file because the '
                                   'calibration/reduction was not successful for all the detectors')
                 else:
-                    msgs.warn('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
-                              '. Set overwrite=True to recreate and overwrite.')
+                    msgs.warn(f'Output file: {self.fitstbl.construct_basename(frames[0])} already '
+                              '  exists. Set overwrite=True to recreate and overwrite.')
 
-            msgs.info('Finished calibration group {0}'.format(i))
+            msgs.info(f'Finished calibration group {calib_ID}')
 
         # Finish
         self.print_end_time()

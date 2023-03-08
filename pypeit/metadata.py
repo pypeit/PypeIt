@@ -943,6 +943,12 @@ class PypeItMetaData:
         Set the calibration group bit based on the string values of the
         'calib' column.
         """
+        # NOTE: This is a hack to ensure the type of the *elements* of the calib
+        # column are all strings, but that the type of the column remains as
+        # "object".  I'm calling this a hack because doing this is easier than
+        # trying to track down everywhere calib is changed to values that may or
+        # may not be integers instead of strings.
+        self['calib'] = np.array([str(c) for c in self['calib']], dtype=object)
         # Collect and expand any lists
         group_names = np.unique(np.concatenate(
                         [s.split(',') for s in self['calib'] if s not in ['all', 'None']]))
@@ -993,6 +999,11 @@ class PypeItMetaData:
     def n_calib_groups(self):
         """Return the number of calibration groups."""
         return None if self.calib_bitmask is None else self.calib_bitmask.nbits
+                
+    @property
+    def calib_groups(self):
+        """Return the calibration group identifiers."""
+        return None if self.calib_bitmask is None else self.calib_bitmask.keys()
                 
     def set_calibration_groups(self, global_frames=None, default=False, force=False):
         """

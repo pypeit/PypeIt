@@ -998,13 +998,14 @@ def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):
     # Frame indices
     frame_indx = np.arange(len(fitstbl))
 
-    for i in range(fitstbl.n_calib_groups):
-        in_grp = fitstbl.find_calib_group(i)
+    for calib_ID in fitstbl.calib_groups:
+        in_grp = fitstbl.find_calib_group(calib_ID)
+        if not np.any(is_science & in_grp & cut_cfg):
+            continue
         grp_science = frame_indx[is_science & in_grp & cut_cfg]
         u_combid = np.unique(fitstbl['comb_id'][grp_science])
         for j, comb_id in enumerate(u_combid):
             frames = np.where(fitstbl['comb_id'] == comb_id)[0]
-            calib_ID = int(fitstbl['calib'][frames[0]])
             # Arc, tilt, science
             for ftype in ['arc', 'tilt', 'science', 'trace']:
                 rows = fitstbl.find_frames(ftype, calib_ID=calib_ID, index=True)
