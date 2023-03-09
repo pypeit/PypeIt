@@ -9,7 +9,7 @@
     
     Coadd 2D spectra produced by PypeIt
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       --file FILE           File to guide 2d coadds (default: None)
       --det DET             1-indexed detector or list of detectors that the user

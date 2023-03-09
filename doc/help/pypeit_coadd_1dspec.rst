@@ -50,7 +50,7 @@
                             placed in the same directory as the first spec1d file.
                              
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       --debug               show debug plots?
       --show                show QA during coadding process

@@ -12,7 +12,7 @@
       file                  spec1d Spectral file
       skyfile               Archived PypeIt sky file (e.g. paranal_sky.fits)
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       --exten EXTEN         FITS extension (default: None)
       --optimal             Show Optimal? Default is boxcar (default: False)

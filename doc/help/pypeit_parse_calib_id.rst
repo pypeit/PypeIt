@@ -8,6 +8,6 @@
     positional arguments:
       pypeit_file  PypeIt reduction file (must have .pypeit extension)
     
-    optional arguments:
+    options:
       -h, --help   show this help message and exit
     
