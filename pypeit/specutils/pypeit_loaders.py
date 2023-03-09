@@ -15,7 +15,7 @@ for analysis.  The result is either a Spectrum1D object (for one extracted
 object in a given spec1d file) or a SpectrumList (containing all extracted
 objects in the spec1d file).
 
-Until this loader is incorportated into Specutils proper, it may be used by
+Until this loader is incorporated into Specutils proper, it may be used by
 copying it into the user's Specutils cache (nominally ~/.specutils/).
 
 Version History:
@@ -23,35 +23,41 @@ Version History:
     2022-09-16: Correct an import error and add module docstring
 """
 
+from IPython import embed
+
 import astropy.io.fits
 import astropy.nddata
-import astropy.table
 import astropy.units
 
 from specutils.io.parsing_utils import read_fileobj_or_hdulist
 from specutils.io.registers import data_loader
 from specutils import Spectrum1D, SpectrumList
 
+from pypeit import __version__
+from pypeit.pypmsgs import PypeItError
 from pypeit import specobjs
-
+from pypeit import onespec
 
 
 # Identifier Functions =======================================================#
-# Identify a PypeIt file in the most general sense
 def _identify_pypeit(*args, **kwargs):
     """
-    Check if a file is a PypeIt output file.
+    Check if a file is a PypeIt output file, in the most general sense.
+
+    This currently only checks if ``VERSPYP`` is in the primary header.
     """
     with read_fileobj_or_hdulist(*args, **kwargs) as hdu:
         # Check for header keywords that should be unique to pypeit
-        print(f'is pypeit: {"VERSPYP" in hdu[0].header and "PYPELINE" in hdu[0].header}')
-        return 'VERSPYP' in hdu[0].header and 'PYPELINE' in hdu[0].header
+        return 'VERSPYP' in hdu[0].header
 
 
-# Define the base PypeIt identifier based on FITS header information.
-def _identify_pypeit_spec1d(*args, **kwargs):
+def identify_pypeit_spec1d(origin, *args, **kwargs):
     """
-    Test if the file is a PypeIt spec1d file.
+    Check if a file is a PypeIt spec1d file.
+
+    In addition to checking if it is a PypeIt file (see
+    :func:`_identify_pypeit`), this also checks that the datamodel classes are
+    correct.
     """
     with read_fileobj_or_hdulist(*args, **kwargs) as hdu:
         return _identify_pypeit(*args, **kwargs) \
@@ -59,190 +65,131 @@ def _identify_pypeit_spec1d(*args, **kwargs):
                     and hdu[1].header.get('DMODCLS') == 'SpecObj'
 
 
-def identify_pypeit_multislit(origin, *args, **kwargs):
+def identify_pypeit_onespec(origin, *args, **kwargs):
     """
-    Check whether the given file is a PypeIt spec1d from the MultiSlit pipeline
-    with a single extracted spectrum.
-    """
-    is_pypeit = _identify_pypeit_spec1d(*args, **kwargs)
-    with read_fileobj_or_hdulist(*args, **kwargs) as hdulist:
-        return (
-            is_pypeit
-            and hdulist[0].header.get("PYPELINE") == "MultiSlit"
-            and hdulist[0].header.get("NSPEC") == 1
-        )
+    Check if a file is a PypeIt file that follows the
+    :class:`pypeit.onespec.OneSpec` datamodel.
 
-
-def identify_pypeit_multislit_list(origin, *args, **kwargs):
+    In addition to checking if it is a PypeIt file (see
+    :func:`_identify_pypeit`), this also checks that the datamodel classes are
+    correct.
     """
-    Check whether the given file is a PypeIt spec1d from the MultiSlit pipeline
-    with multiple extracted spectra.
-    """
-    is_pypeit = _identify_pypeit_spec1d(*args, **kwargs)
-    with read_fileobj_or_hdulist(*args, **kwargs) as hdulist:
-        return (
-            is_pypeit
-            and hdulist[0].header.get("PYPELINE") == "MultiSlit"
-            and hdulist[0].header.get("NSPEC") > 1
-        )
-
-
-def identify_pypeit_echelle(origin, *args, **kwargs):
-    """
-    Check whether the given file is a PypeIt spec1d from the Echelle pipeline.
-    NOTE: Loader functionality not yet implemented.
-    """
-    is_pypeit = _identify_pypeit_spec1d(*args, **kwargs)
-    with read_fileobj_or_hdulist(*args, **kwargs) as hdulist:
-        return is_pypeit and hdulist[0].header.get("PYPELINE") == "Echelle"
-
-
-def identify_pypeit_ifu(origin, *args, **kwargs):
-    """
-    Check whether the given file is a PypeIt spec1d from the IFU pipeline.
-    NOTE: Loader functionality not yet implemented.
-    """
-    is_pypeit = _identify_pypeit_spec1d(*args, **kwargs)
-    with read_fileobj_or_hdulist(*args, **kwargs) as hdulist:
-        return is_pypeit and hdulist[0].header.get("PYPELINE") == "IFU"
+    with read_fileobj_or_hdulist(*args, **kwargs) as hdu:
+        return _identify_pypeit(*args, **kwargs) \
+                    and hdu[1].header.get('DMODCLS') == 'OneSpec'
 
 
 # Loader Functions ===========================================================#
-@data_loader(
-    "PypeIt MultiSlit",
-    identifier=identify_pypeit_multislit,
-    extensions=["fits"],
-    priority=10,
-    dtype=Spectrum1D,
-)
-def pypeit_multislit_single_loader(file_name, **kwargs):
+@data_loader('PypeIt spec1d',
+             identifier=identify_pypeit_spec1d,
+             extensions=["fits"],
+             priority=10,
+             dtype=SpectrumList)
+def pypeit_spec1d_loader(filename, extract=None, fluxed=True, **kwargs):
     """
-    Loader for PypeIt MultiSlit single-spectrum files.
+    Load spectra from a PypeIt spec1d file into a SpectrumList.
 
     Parameters
     ----------
     filename : str
         The path to the FITS file
+    extract : str, optional
+        The extraction used to produce the spectrum.  Must be either None,
+        ``'BOX'`` (for a boxcar extraction), or ``'OPT'`` for optimal
+        extraction.  If None, the optimal extraction will be returned, if it
+        exists, otherwise the boxcar extraction will be returned.
+    fluxed : bool, optional
+        If True, return the flux-calibrated spectrum, if it exists.  If the flux
+        calibration hasn't been performed or ``fluxed=False``, the spectrum is
+        returned in counts.
 
     Returns
     -------
-    Spectrum1D
-        The spectrum contained in the file.
+    spec : SpectrumList
+        Contains all spectra in the PypeIt spec1d file
     """
-    spectrum_list = _pypeit_multislit_loader(file_name, **kwargs)
-    if len(spectrum_list) == 1:
-        return spectrum_list[0]
-    if len(spectrum_list) > 1:
-        raise RuntimeError(
-            f"Input data has {len(spectrum_list)} spectra. "
-            "Use SpectrumList.read() instead."
-        )
-    raise RuntimeError(f"Input data has {len(spectrum_list)} spectra.")
+    # Try to load the file and ignoring any version mismatch
+    try:
+        sobjs = specobjs.SpecObjs.from_fitsfile(filename, chk_version=False)
+    except PypeItError:
+        file_pypeit_version = astropy.io.fits.getval(filename, 'VERSPYP', 'PRIMARY')
+        raise PypeItError(f'Unable to ingest {filename} using pypeit.specobjs module from your '
+                          f'version of PypeIt ({__version__}).  The version used to write the '
+                          f'file is {file_pypeit_version}.  If these are different, you may need '
+                          'to re-reduce your data using your current PypeIt version or install '
+                          'the matching version of PypeIt (e.g., pip install pypeit==1.11.0).')
+
+    spec = []
+    for sobj in sobjs:
+        # Check that the file has the requested data
+        _ext, _cal = sobj.best_ext_match(extract=extract, fluxed=fluxed)
+        _wave, _flux, _ivar, _gpm = sobj.get_box_ext(fluxed=_cal) if _ext == 'BOX' \
+                                        else sobj.get_opt_ext(fluxed=_cal)
+
+        flux_unit = astropy.units.Unit("1e-17 erg/(s cm^2 Angstrom)" if _cal else "electron")
+        spec += \
+            [Spectrum1D(flux=astropy.units.Quantity(_flux * flux_unit),
+                        uncertainty=astropy.nddata.InverseVariance(_ivar / flux_unit**2),
+                        meta={'name': sobj.NAME, 'extract': _ext, 'fluxed': _cal},
+                        spectral_axis=astropy.units.Quantity(_wave * astropy.units.angstrom),
+                        velocity_convention="doppler_optical",
+                        bin_specification="centers")]
+    return SpectrumList(spec)
 
 
-@data_loader(
-    "PypeIt MultiSlit list",
-    identifier=identify_pypeit_multislit_list,
-    extensions=["fits"],
-    priority=10,
-    dtype=SpectrumList,
-)
-def pypeit_multislit_multi_loader(filename, **kwargs):
+@data_loader('PypeIt onespec',
+             identifier=identify_pypeit_onespec,
+             extensions=["fits"],
+             priority=10,
+             dtype=Spectrum1D)
+def pypeit_onespec_loader(filename, grid=False, **kwargs):
     """
-    Loader for PypeIt MultiSlit multiple-spectra files.
+    Load a spectrum from a PypeIt OneSpec file into a Spectrum1D object.
 
     Parameters
     ----------
     filename : str
         The path to the FITS file
+    grid : bool, optional
+        Use the uniform grid wavelengths, instead of the contribution-weighted
+        center.
 
     Returns
     -------
-    Spectrum1D
-        The spectrum contained in the file.
+    spec : Spectrum1D
+        Spectrum in the PypeIt OneSpec file
     """
-    return _pypeit_multislit_loader(filename, **kwargs)
+    # Try to load the file and ignoring any version mismatch
+    try:
+        spec = onespec.OneSpec.from_file(filename)
+    except PypeItError:
+        file_pypeit_version = astropy.io.fits.getval(filename, 'VERSPYP', 'PRIMARY')
+        raise PypeItError(f'Unable to ingest {filename} using pypeit.onespec module from your '
+                          f'version of PypeIt ({__version__}).  The version used to write the '
+                          f'file is {file_pypeit_version}.  If these are different, you may need '
+                          'to re-reduce your data using your current PypeIt version or install '
+                          'the matching version of PypeIt (e.g., pip install pypeit==1.11.0).')
+
+    flux_unit = astropy.units.Unit("1e-17 erg/(s cm^2 Angstrom)" if spec.fluxed else "ct/s")
+    wave = spec.wave_grid_mid if grid else spec.wave
+    # If the input filename is actually a string, assign it as the spectrum
+    # name.  Otherwise, try assuming it's a _io.FileIO object, and if that
+    # doesn't work assign an empty string as the name.
+    if isinstance(filename, str):
+        name = filename
+    else:
+        try:
+            name = filename.name    # Needed for _io.FileIO objects
+        except AttributeError:
+            name = ''
+
+    return Spectrum1D(flux=astropy.units.Quantity(spec.flux * flux_unit),
+                      uncertainty=astropy.nddata.InverseVariance(spec.ivar / flux_unit**2),
+                      meta={'name': name, 'extract': spec.ext_mode, 'fluxed': spec.fluxed,
+                            'grid': grid},
+                      spectral_axis=astropy.units.Quantity(wave * astropy.units.angstrom),
+                      velocity_convention="doppler_optical",
+                      bin_specification="centers")
 
 
-@data_loader(
-    "PypeIt Echelle",
-    identifier=identify_pypeit_echelle,
-    extensions=["fits"],
-    priority=10,
-)
-def pypeit_echelle_loader(file_name, **kwargs):
-    """
-    Loader for PypeIt Echelle spectra files.
-    """
-    raise NotImplementedError("PypeIt Echelle loading not yet implemented.")
-
-
-@data_loader(
-    "PypeIt IFU", identifier=identify_pypeit_ifu, extensions=["fits"], priority=10
-)
-def pypeit_ifu_loader(file_name, **kwargs):
-    """
-    Loader for PypeIt IFU spectra files.
-    """
-    raise NotImplementedError("PypeIt IFU loading not yet implemented.")
-
-
-# Internal loading functions =================================================#
-def _pypeit_multislit_loader(file_name, **kwargs):
-    """
-    Do the heavy lifting for MultiSlit spectra, to be returned as a
-    SpectrumList().
-    """
-    with astropy.io.fits.open(file_name, **kwargs) as hdulist:
-
-        # Loop through the HDUs looking for spectra
-        spectra = []
-        for hdu in hdulist:
-
-            # Skip non-spectral HDUs
-            # All PypeIt spectra HDUs have EXTNAME starting with 'SPAT'
-            if "EXTNAME" not in hdu.header or hdu.header["EXTNAME"][:4] != "SPAT":
-                continue
-
-            # Read in this BinTable
-            spec_obj = astropy.table.Table.read(hdu)
-
-            # Combine the primary header with the header for this BinTable
-            meta = {"header": hdulist[0].header + hdu.header}
-
-            # Check for Optimal extraction... else use Boxcar
-            extract_type = "OPT" if "OPT_COUNTS" in spec_obj.colnames else "BOX"
-            # Check for fluxed spectrum, else use counts
-            if f"{extract_type}_FLAM" in spec_obj.colnames:
-                flux_type = "FLAM"
-                flux_unit = astropy.units.Unit("1e-17 erg/(s cm^2 Angstrom)")
-            else:
-                flux_type = "COUNTS"
-                flux_unit = astropy.units.Unit("electron")
-
-            data = astropy.units.Quantity(
-                spec_obj[f"{extract_type}_{flux_type}"] * flux_unit
-            )
-            uncert = astropy.nddata.InverseVariance(
-                spec_obj[f"{extract_type}_{flux_type}_IVAR"] / flux_unit**2
-            )
-
-            # Wavelength
-            wavl = astropy.units.Quantity(
-                spec_obj[f"{extract_type}_WAVE"] * astropy.units.Unit("angstrom")
-            )
-
-            # Package the spectrum as a Spectrum1d() object
-            spec = Spectrum1D(
-                flux=data,
-                uncertainty=uncert,
-                meta=meta,
-                spectral_axis=wavl,
-                velocity_convention="doppler_optical",
-                bin_specification="centers",
-            )
-            spectra.append(spec)
-
-        # Package and return
-        return SpectrumList(spectra)
 
