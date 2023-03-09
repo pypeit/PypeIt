@@ -230,6 +230,18 @@ Here are the steps to do so:
 
     #. TILSOTUA has estimated the `TopDist` and `BotDist` in the `SlitObjMap` table correctly.
 
+One may append the binary tables from the outputs as additional `HDUs` in the LRIS trace files. e.g.
+
+    .. code-block:: python
+
+        from astropy.io import fits
+
+        tracehdus = fits.open("trace_rawframe.fits")
+        autoslithdus = fits.open("yourmaskname_output.fits")
+
+        tracehdus.append(autoslithdus[1:])
+        tracehdus.writeto("trace_with_maskinfo.fits")
+        
 If processed correctly, PypeIt should now fully utilize its 
 arsenal of slitmask processing tools to reduce and coadd spectra 
 with the WCS information incorporated.
