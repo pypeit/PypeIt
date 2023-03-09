@@ -1,26 +1,57 @@
-# -*- coding: utf-8 -*-
-#
-#  This Source Code Form is subject to the terms of the Mozilla Public
-#  License, v. 2.0. If a copy of the MPL was not distributed with this
-#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
-#
-#  Created on 04-Feb-2022
-#
-#  @author: tbowers
+"""
+.. include:: ../include/links.rst
 
-""" Specutils loader for PypeIt spec1d data
+Data parsers for use with `specutils`_.
 
-This is a custom loader for importing PypeIt spec1d data files into specutils
-for analysis.  The result is either a Spectrum1D object (for one extracted
-object in a given spec1d file) or a SpectrumList (containing all extracted
-objects in the spec1d file).
+Usage
+-----
 
-Until this loader is incorporated into Specutils proper, it may be used by
-copying it into the user's Specutils cache (nominally ~/.specutils/).
+To read a PypeIt spec1d file:
 
-Version History:
-    2022-02-04: Initial Version
-    2022-09-16: Correct an import error and add module docstring
+.. code-block:: python
+
+    from pypeit.specutils import SpectrumList
+    spec = SpectrumList.read(spec1d_file)
+
+where ``spec1d_file`` is the relative or absolute path to a PypeIt spec1d file.
+
+To read a PypeIt OneSpec file:
+
+.. code-block:: python
+
+    from pypeit.specutils import Spectrum1D
+    spec = Spectrum1D.read(onespec_file)
+
+where ``onespec_file`` is the relative or absolute path to a PypeIt OneSpec file.
+
+.. note::
+
+    The imports above are from the ``pypeit.specutils`` module, but the objects
+    themselves are identical to the `specutils`_ objects.  The reason they are
+    imported from within PypeIt is that, under the hood, the import also
+    "registers" the PypeIt-specific loaders with the relevant `specutils`_
+    module.  This circumvents the need to place any pypeit specific code in a
+    ``~/.specutils`` directory and keeps the import statement to one line.  That
+    is, 
+
+    .. code-block:: python
+
+        from pypeit.specutils import Spectrum1D
+
+    is really just shorthand for
+
+    .. code-block:: python
+
+        from specutils import Spectrum1D
+        from pypeit.specutils import pypeit_loaders
+
+Version History
+---------------
+
+    2022-02-04: Initial Version (tbowers)
+    2022-09-16: Correct an import error and add module docstring (tbowers)
+    2023-03-09: Moved into the main pypeit repo and refactored (KBW)
+
 """
 
 from IPython import embed

@@ -117,6 +117,7 @@
 .. _shapely: https://shapely.readthedocs.io/en/stable/manual.html
 .. _scikit-image: https://scikit-image.org/
 .. _bottleneck: https://bottleneck.readthedocs.io/en/latest/
+.. _specutils: https://specutils.readthedocs.io/en/stable/
 
 .. ginga
 .. _ginga: https://ginga.readthedocs.io/en/stable/
