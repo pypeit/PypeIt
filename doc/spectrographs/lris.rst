@@ -180,7 +180,7 @@ processing with PypeIt if they are desirous of incorporating
 the abovementioned features into their reduction. 
 Here are the steps to do so:
 
-#. Obtain the mask design files. The design file include:
+#. Obtain the mask design files. The design files include:
 
     #. The AUTOSLIT-generated mask design files.
         #. One file with the ".file3" extension containing milling information.
@@ -239,7 +239,8 @@ One may append the binary tables from the outputs as additional `HDUs` in the LR
         tracehdus = fits.open("trace_rawframe.fits")
         autoslithdus = fits.open("yourmaskname_output.fits")
 
-        tracehdus.append(autoslithdus[1:])
+        for hdu in autoslithdus[1:]:
+            tracehdus.append(hdu)
         tracehdus.writeto("trace_with_maskinfo.fits")
         
 If processed correctly, PypeIt should now fully utilize its 
