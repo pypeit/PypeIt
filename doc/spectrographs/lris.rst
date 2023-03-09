@@ -180,16 +180,16 @@ processing with PypeIt if they are desirous of incorporating
 the abovementioned features into their reduction. 
 Here are the steps to do so:
 
-#. Obtain the mask design files. The design files can be in one of two forms:
+#. Obtain the mask design files. The design file include:
 
-    #. The AUTOSLIT-generated mask design files (those with the ".file3" extension). 
+    #. The AUTOSLIT-generated mask design files.
+        #. One file with the ".file3" extension containing milling information.
+        #. One file with the ".file1" extension containing the object catalog corresponding to the mask slits.
+    #. The ASCII object list file fed as input to AUTOSLIT to generate the files above.
 
-    #. FITS files of the mask designs from UCO/Lick: As of 2022 Jan 27th, when
-       the AUTOSLIT mask design files (ascii files that end with ".file3" by
-       default) are fed to the slitmask database, a FITS file is generated with
-       the milling blueprint. The FITS files have HDUs akin to DEIMOS raw files
-       (sans the raw image of course). Please contact Steve Allen of UCO/Lick
-       (UCSC) to procure these files.
+    ".file3" is mandatory while the other two files can be optionally excluded to debug
+    `TILSOTUA
+   <https://github.com/jsulli27/tilsotua>`__.
     
 #. Process the design files with `TILSOTUA
    <https://github.com/jsulli27/tilsotua>`__ : The design files contain the
@@ -205,8 +205,22 @@ Here are the steps to do so:
 
    .. code-block:: python
     
-        xytowcs(input_file_name,output_file_base)
+        xytowcs(input_file_name="yourmaskname.file3",output_file_base="yourmaskname_output.fits")
+    
+    Replace 
 
+#. The `ObjectCat` and `SlitObjMap` are only populated if ".file1" and the object list are provided.
+    e.g.
+
+    .. code-block:: python
+
+        xytowcs(input_file_name="yourmaskname.file3",output_file_base="yourmaskname_output.fits",
+                obj_file="yourtargets.obj", file1="yourmaskname.file1")
+
+    It is assumed that the entries in `file1` and `obj_file` have unique `Name` values. i.e. Make
+    sure you have a unique identifier for each object. Without this, it is not possible to correctly
+    reconcile the two tables.
+    
 #. Append TILSOTUA's output to your raw trace files: Once the user is satisfied
    with the processed FITS file from TILSOTUA, append the binary tables to the
    trace FITS files. The user must first verify that TILSOTUA has indeed
