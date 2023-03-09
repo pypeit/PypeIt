@@ -1203,7 +1203,6 @@ class DataContainer:
         """
         return self.datamodel.keys()
 
-    # TODO: This could be moved to DataContainer ...
     def check_populated(self, dm_items):
         """
         Check that a set of datamodel items are populated.
