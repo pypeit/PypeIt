@@ -60,9 +60,13 @@ import astropy.io.fits
 import astropy.nddata
 import astropy.units
 
-from specutils.io.parsing_utils import read_fileobj_or_hdulist
-from specutils.io.registers import data_loader
-from specutils import Spectrum1D, SpectrumList
+try:
+    from specutils.io.parsing_utils import read_fileobj_or_hdulist
+    from specutils.io.registers import data_loader
+    from specutils import Spectrum1D, SpectrumList
+except ModuleNotFoundError:
+    raise ModuleNotFoundError('Unable to import specutils.  Install pypeit with the specutils '
+                              'option to use the pypeit.specutils module.')
 
 from pypeit import __version__
 from pypeit.pypmsgs import PypeItError
