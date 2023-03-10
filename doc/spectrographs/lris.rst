@@ -206,8 +206,6 @@ Here are the steps to do so:
    .. code-block:: python
     
         xytowcs(input_file_name="yourmaskname.file3",output_file_base="yourmaskname_output.fits")
-    
-    Replace 
 
 #. The `ObjectCat` and `SlitObjMap` are only populated if ".file1" and the object list are provided.
     e.g.
