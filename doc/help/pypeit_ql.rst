@@ -34,7 +34,7 @@
                             vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
                             wht_isis_blue, wht_isis_red
     
-    options:
+    optional arguments:
       -h, --help            show this help message and exit
       --rawfile_list RAWFILE_LIST
                             File providing raw files to reduce including their
@@ -56,7 +56,7 @@
                             (default: None)
       --redux_path REDUX_PATH
                             Full path to where QL reduction should be run. (default:
-                            /Users/tim/MMT/pypeit/doc)
+                            /Users/westfall/Work/packages/pypeit/doc)
       --calib_dir CALIB_DIR
                             Location folders of calibration reductions (default:
                             None)

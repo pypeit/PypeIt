@@ -89,23 +89,6 @@ to select the ``PyQT5`` QT bindings or
 
 to select ``PySide2``; see :ref:`interactive`.
 
-If you are generating datacubes (and performing an astrometric correction), you
-will also need the `scikit-image`_ package. It can be installed by including it
-in the optional dependencies, e.g.:
-
-.. code-block:: console
-
-    pip install "pypeit[pyside2,scikit-image]"
-
-Also, PypeIt will use the `bottleneck`_ package to speed up a few
-calculations, if it is available.  To include bottleneck in the PypeIt
-installation and take advantage of these speed gains, instead install by
-running, e.g.:
-
-.. code-block:: console
-
-    pip install "pypeit[pyqt5,bottleneck]"
-
 .. note::
 
     Whether or not it is correct syntax to use the quotes in the commands above
@@ -114,6 +97,36 @@ running, e.g.:
     copying these commands from your browser since the unicode for quotation
     marks may not be correct, leading to errors when they are directly pasted
     into a terminal window.
+
+Optional Dependencies
+^^^^^^^^^^^^^^^^^^^^^
+
+PypeIt has a number of optional dependencies that improve and/or expand functionality.
+
+    - If you are generating datacubes (and performing an astrometric
+      correction), you will also need the `scikit-image`_ package. It can be
+      installed by including it in the optional dependencies, e.g.:
+
+      .. code-block:: console
+
+        pip install "pypeit[pyside2,scikit-image]"
+
+    - PypeIt can use the `bottleneck`_ package to speed up a few calculations,
+      if it is available.  To include bottleneck in the PypeIt installation and
+      take advantage of these speed gains, instead install by running, e.g.:
+
+      .. code-block:: console
+
+        pip install "pypeit[pyqt5,bottleneck]"
+
+    - To take advantage of an interface that allows you to ingest PypeIt outputs
+      into its ``Spectrum1D`` and ``SpectrumList`` objects (see
+      :ref:`spec-1d-output`), you can include `specutils`_ in the installation
+      like so:
+    
+      .. code-block:: console
+
+        pip install "pypeit[pyqt5,specutils]"
 
 Upgrading to a new version via ``pip``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -1,12 +1,12 @@
 .. code-block:: console
 
     # Auto-generated PypeIt input file using PypeIt version: 1.12.1.dev1+gee479d62d.d20230131
-    # UTC 2023-03-06T23:58:37.202
-
+    # UTC 2023-03-09T23:57:15.245
+    
     # User-defined execution parameters
     [rdx]
         spectrograph = gemini_gnirs
-
+    
     # Setup
     setup read
     Setup A:
@@ -14,8 +14,8 @@
       dispangle: 6.1887
       dispname: 32/mmSB_G5533
     setup end
-
-    # Data block
+    
+    # Data block 
     data read
      path /Users/westfall/Work/packages/PypeIt-development-suite/RAW_DATA/gemini_gnirs/32_SB_SXD
                 filename |         frametype |           ra |         dec |   target |      dispname |           decker | binning |              mjd | airmass | exptime | dispangle |           dithoff | calib | comb_id | bkg_id
@@ -48,6 +48,6 @@
     cN20170331S0260.fits |   pixelflat,trace | 205.53380833 |  9.47733611 | GCALflat | 32/mmSB_G5533 | 0.68arcsec_G5530 |     1,1 | 57843.4650775156 |   1.055 |    0.84 |    6.1887 |               0.0 |     0 |      -1 |     -1
     cN20170331S0261.fits |   pixelflat,trace | 205.53380833 |  9.47733611 | GCALflat | 32/mmSB_G5533 | 0.68arcsec_G5530 |     1,1 | 57843.4651915202 |   1.055 |    0.84 |    6.1887 |               0.0 |     0 |      -1 |     -1
     data end
-
+    
 
 
