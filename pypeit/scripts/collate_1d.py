@@ -81,7 +81,7 @@ def get_report_metadata(object_header_keys, spec_obj_keys, file_info):
         header = file_info.spec1d_header_list[i]
 
         # Get the spec1d header metadata needed for the report
-        # Use getattr for the spec_obj data because one of the attributes is actually a property (med_s2n)
+        # NO LONGER: Use getattr for the spec_obj data because one of the attributes is actually a property (med_s2n)
         spec_obj_data = [getattr(spec_obj, x) for x in spec_obj_keys]
         spec1d_filename =  os.path.basename(file_info.spec1d_file_list[i])
         header_data = [header[x] if x in header else None for x in object_header_keys]
@@ -570,7 +570,7 @@ def create_report_archive(par):
     COADDED_SPEC1D_HEADER_KEYS  = ['DISPNAME', 'DECKER',   'BINNING', 'MJD', 'AIRMASS', 'EXPTIME','GUIDFWHM', 'PROGPI', 'SEMESTER', 'PROGID']
     COADDED_SPEC1D_COLUMN_NAMES = ['dispname', 'slmsknam', 'binning', 'mjd', 'airmass', 'exptime','guidfwhm', 'progpi', 'semester', 'progid']
 
-    COADDED_SOBJ_KEYS  =        ['MASKDEF_OBJNAME', 'MASKDEF_ID', 'NAME',        'DET', 'RA',    'DEC',    'med_s2n', 'MASKDEF_EXTRACT', 'WAVE_RMS']
+    COADDED_SOBJ_KEYS  =        ['MASKDEF_OBJNAME', 'MASKDEF_ID', 'NAME',        'DET', 'RA',    'DEC',    'S2N', 'MASKDEF_EXTRACT', 'WAVE_RMS']
     COADDED_SOBJ_COLUMN_NAMES = ['maskdef_objname', 'maskdef_id', 'pypeit_name', 'det', 'objra', 'objdec', 's2n',     'maskdef_extract', 'wave_rms']
 
     report_names = ['filename'] + \
