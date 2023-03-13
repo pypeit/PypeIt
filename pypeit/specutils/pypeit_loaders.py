@@ -179,7 +179,8 @@ def pypeit_onespec_loader(filename, grid=False, **kwargs):
             name = ''
 
     return Spectrum1D(flux=astropy.units.Quantity(spec.flux * flux_unit),
-                      uncertainty=astropy.nddata.InverseVariance(spec.ivar / flux_unit**2),
+                      uncertainty=None if spec.ivar is None 
+                        else astropy.nddata.InverseVariance(spec.ivar / flux_unit**2),
                       meta={'name': name, 'extract': spec.ext_mode, 'fluxed': spec.fluxed,
                             'grid': grid},
                       spectral_axis=astropy.units.Quantity(wave * astropy.units.angstrom),
