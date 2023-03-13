@@ -5073,7 +5073,7 @@ Alterations to the default parameters are:
               noise_floor = 0.01
       [[wavelengths]]
           method = full_template
-          lamps = HeI, NeI, ArI, ArII
+          lamps = HeI, NeI, ArI
           sigdetect = 10.0
       [[slitedges]]
           edge_thresh = 30
@@ -5175,7 +5175,7 @@ Alterations to the default parameters are:
               noise_floor = 0.01
       [[wavelengths]]
           method = full_template
-          lamps = HeI, NeI, ArI, ArII
+          lamps = HeI, NeI, ArI
           sigdetect = 10.0
       [[slitedges]]
           edge_thresh = 30

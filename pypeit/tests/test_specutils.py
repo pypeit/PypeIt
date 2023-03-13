@@ -15,7 +15,11 @@ from pypeit import specobjs
 from pypeit.specutils import Spectrum1D, SpectrumList
 from pypeit.tests import tstutils
 
+import pytest
+specutils_required = pytest.mark.skipif(Spectrum1D is None or SpectrumList is None,
+                                        reason='specutils not installed')
 
+@specutils_required
 def test_onespec_io():
     rng = np.random.default_rng()
     grid_wave = np.linspace(3500,10000,1000)
@@ -36,6 +40,7 @@ def test_onespec_io():
     ofile.unlink()
 
 
+@specutils_required
 def test_spec1d_io():
 
     ofile = Path(tstutils.data_path('tmp.fits')).resolve()
