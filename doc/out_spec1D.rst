@@ -203,6 +203,14 @@ also provided for each spectrum (see :ref:`radec_object_report`).
 specutils Interface
 ===================
 
+We provide an interface to the `specutils`_ package to facilitate use of PypeIt
+output spectra with code that uses, e.g., `specutils.Spectrum1D`_.  Use of this
+interface requires you to install the `specutils`_ package.  This can be done
+using PypeIt's :ref:`optional-dependencies`, or simply by directly installing
+`specutils`_ within the same python environment as you've installed PypeIt.
+
+.. include:: include/specutils_usage.rst
+
 ----
 
 .. _spec1D-datamodel:

@@ -98,6 +98,8 @@ to select ``PySide2``; see :ref:`interactive`.
     marks may not be correct, leading to errors when they are directly pasted
     into a terminal window.
 
+.. _optional-dependencies:
+
 Optional Dependencies
 ^^^^^^^^^^^^^^^^^^^^^
 

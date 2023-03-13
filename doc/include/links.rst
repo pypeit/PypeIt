@@ -118,7 +118,9 @@
 .. _scikit-image: https://scikit-image.org/
 .. _bottleneck: https://bottleneck.readthedocs.io/en/latest/
 .. _specutils: https://specutils.readthedocs.io/en/stable/
+.. _specutils.Spectrum1D: https://specutils.readthedocs.io/en/stable/api/specutils.Spectrum1D.html
 .. _jdaviz: https://jdaviz.readthedocs.io/en/latest/
+.. _jupyter notebook: https://jupyter.org/
 
 .. ginga
 .. _ginga: https://ginga.readthedocs.io/en/stable/
