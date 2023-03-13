@@ -1365,7 +1365,7 @@ class MultiSlitFlexure(DataContainer):
         self['SN'] = np.zeros((self.ndet, self.nslits), dtype=float)
         self['mn_wv'] = np.zeros((self.ndet, self.nslits), dtype=float)
         for det in range(self.ndet):
-            self['SN'][det] = [sobj.med_s2n for sobj in self.specobjs[self.sobj_idx[det]]]
+            self['SN'][det] = [sobj.S2N for sobj in self.specobjs[self.sobj_idx[det]]]
             self['mn_wv'][det] = [sobj.mnx_wave[0] for sobj in self.specobjs[self.sobj_idx[det]]]
 
     def fit_mask_surfaces(self):
