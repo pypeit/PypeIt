@@ -39,6 +39,8 @@ def test_onespec_io():
 
     ofile.unlink()
 
+test_onespec_io()
+
 
 @specutils_required
 def test_spec1d_io():
