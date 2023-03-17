@@ -1388,8 +1388,11 @@ class FlatField:
 
         # Mask the edges and fit
         gpmfit = gpm[cut]
-        # TODO :: cut on pixels and fraction (choose the minimum).
-        gpmfit[np.where((xpos < 0.1)|(xpos > 0.9))] = False
+        # Trim by 5% of the slit length, or at least 3 pixels
+        xfrac = 0.05
+        if xfrac * slitlen < 3:
+            xfrac = 3/slitlen
+        gpmfit[np.where((xpos < xfrac) | (xpos > 1-xfrac))] = False
         fullfit = fitting.robust_fit(xpos, normed[cut], np.array([3, 6]), x2=ypos, weights=normed[cut],
                                      in_gpm=gpmfit, function='legendre2d', upper=2, lower=2, maxdev=1.0,
                                      minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
