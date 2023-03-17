@@ -985,5 +985,4 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         phase, angle = 0.0, -45.34  # No phase, and a decent guess at the angle
         p0 = [amp, scale, phase, wavelength, angle]
         popt, pcov = curve_fit(sinfunc2d, (xx[gpmask], yy[gpmask]), det_resp[gpmask], p0=p0)
-        embed()
         return sinfunc2d((xx, yy), *popt)
