@@ -7,7 +7,6 @@ Module to define the SlitMask class
 from collections import OrderedDict
 import warnings
 import numpy
-import numpy as np
 from scipy import optimize, fftpack, signal
 from matplotlib import pyplot
 
