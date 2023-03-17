@@ -327,8 +327,7 @@ class Extract:
             self.sobjs = self.sobjs_obj.copy()
 
             # Quick loop over the objects
-            for iobj in range(self.sobjs.nobj):
-                sobj = self.sobjs[iobj]
+            for sobj in self.sobjs:
                 # True  = Good, False = Bad for inmask
                 thismask = self.slitmask == sobj.SLITID  # pixels for this slit
                 inmask = self.sciImg.select_flag(invert=True) & thismask
@@ -345,6 +344,7 @@ class Extract:
             # a boolean (e.g., bad pixel) mask.
             self.outmask = self.sciImg.fullmask.copy()
             self.skymodel = global_sky.copy()
+
         else:  # Local sky subtraction and optimal extraction.
             model_noise_1 = not self.bkg_redux if model_noise is None else model_noise
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
@@ -354,7 +354,7 @@ class Extract:
                                           show_profile=self.extract_show,
                                           show=self.extract_show)
 
-        # Remove sobjs that don't have both OPT_COUNTS and BOX_COUNTS
+        # Remove sobjs that don't have either OPT_COUNTS or BOX_COUNTS
         remove_idx = []
         for idx, sobj in enumerate(self.sobjs):
             # Find them
@@ -368,6 +368,10 @@ class Extract:
         # Remove them
         if len(remove_idx) > 0:
             self.sobjs.remove_sobj(remove_idx)
+
+        # Add the S/N ratio for each extracted object
+        for sobj in self.sobjs:
+            sobj.S2N = sobj.med_s2n()
 
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs

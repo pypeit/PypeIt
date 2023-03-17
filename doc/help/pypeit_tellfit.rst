@@ -11,7 +11,7 @@
     positional arguments:
       spec1dfile            spec1d file that will be used for telluric correction.
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       --objmodel {qso,star,poly}
                             science object model used in the fitting. The options
