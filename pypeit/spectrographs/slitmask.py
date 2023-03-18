@@ -945,7 +945,7 @@ def correct_slitpa(slitpa, maskpa):
     maskpa, _ = positive_pa(maskpa)
 
     # create a new array of slitpa
-    newslitpa = np.atleast_1d(slitpa).copy()
+    newslitpa = numpy.atleast_1d(slitpa).copy()
 
     for i in range(slitpa.size):
         # make slitpa positive (if it's not)
