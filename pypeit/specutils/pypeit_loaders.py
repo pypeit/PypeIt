@@ -30,6 +30,7 @@ except ModuleNotFoundError:
 
 from pypeit import __version__
 from pypeit.pypmsgs import PypeItError
+from pypeit import msgs
 from pypeit import specobjs
 from pypeit import onespec
 
@@ -108,11 +109,11 @@ def pypeit_spec1d_loader(filename, extract=None, fluxed=True, **kwargs):
         sobjs = specobjs.SpecObjs.from_fitsfile(filename, chk_version=False)
     except PypeItError:
         file_pypeit_version = astropy.io.fits.getval(filename, 'VERSPYP', 'PRIMARY')
-        raise PypeItError(f'Unable to ingest {filename} using pypeit.specobjs module from your '
-                          f'version of PypeIt ({__version__}).  The version used to write the '
-                          f'file is {file_pypeit_version}.  If these are different, you may need '
-                          'to re-reduce your data using your current PypeIt version or install '
-                          'the matching version of PypeIt (e.g., pip install pypeit==1.11.0).')
+        msgs.error(f'Unable to ingest {filename} using pypeit.specobjs module from your version '
+                   f'of PypeIt ({__version__}).  The version used to write the file is '
+                   f'{file_pypeit_version}.  If these are different, you may need to re-reduce '
+                   'your data using your current PypeIt version or install the matching version '
+                   'of PypeIt (e.g., pip install pypeit==1.11.0).')
 
     spec = []
     for sobj in sobjs:
@@ -159,11 +160,11 @@ def pypeit_onespec_loader(filename, grid=False, **kwargs):
         spec = onespec.OneSpec.from_file(filename)
     except PypeItError:
         file_pypeit_version = astropy.io.fits.getval(filename, 'VERSPYP', 'PRIMARY')
-        raise PypeItError(f'Unable to ingest {filename} using pypeit.onespec module from your '
-                          f'version of PypeIt ({__version__}).  The version used to write the '
-                          f'file is {file_pypeit_version}.  If these are different, you may need '
-                          'to re-reduce your data using your current PypeIt version or install '
-                          'the matching version of PypeIt (e.g., pip install pypeit==1.11.0).')
+        msgs.error(f'Unable to ingest {filename} using pypeit.specobjs module from your version '
+                   f'of PypeIt ({__version__}).  The version used to write the file is '
+                   f'{file_pypeit_version}.  If these are different, you may need to re-reduce '
+                   'your data using your current PypeIt version or install the matching version '
+                   'of PypeIt (e.g., pip install pypeit==1.11.0).')
 
     flux_unit = astropy.units.Unit("1e-17 erg/(s cm^2 Angstrom)" if spec.fluxed else "ct/s")
     wave = spec.wave_grid_mid if grid else spec.wave

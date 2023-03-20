@@ -734,21 +734,20 @@ class SpecObj(datamodel.DataContainer):
             for uncalibrated counts).
         """
         # If not set, prefer the optimal extraction over the boxcar one.
-        _extract = 'OPT' if extract is None else 'BOX'
-        _fluxed = fluxed
+        _extract = 'OPT' if extract is None else extract
+        if _extract not in ['OPT', 'BOX']:
+            msgs.error(f'Extraction type ({_extract}) not understood; must be OPT or BOX.')
         if _extract == 'OPT':
-            if self.has_opt_ext(fluxed=_fluxed):
-                return _extract, _fluxed
+            if self.has_opt_ext(fluxed=fluxed):
+                return 'OPT', fluxed
             # If we make it here, expect that fluxed was True.  Try flipping it.
-            _fluxed = False
-            if self.has_opt_ext(fluxed=_fluxed):
-                return _extract, _fluxed
+            if self.has_opt_ext(fluxed=False):
+                return 'OPT', False
 
         # If we make it here, either extract was BOX from the start, or none of
         # the optimal extraction options were available
-        _extract = 'BOX'
         if self.has_box_ext(fluxed=fluxed):
-            return _extract, fluxed
+            return 'BOX', fluxed
         # If we make it here, assume fluxed was True.  Try flipping it.
         if self.has_box_ext(fluxed=False):
             return 'BOX', False
