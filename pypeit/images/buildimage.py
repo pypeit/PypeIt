@@ -4,26 +4,22 @@
 .. include:: ../include/links.rst
 """
 
-import os
+from IPython import embed
+
 import numpy as np
 
 from pypeit import msgs
 from pypeit.par import pypeitpar
 from pypeit.images import combineimage
 from pypeit.images import pypeitimage
-from pypeit.core import procimg
 from pypeit.core.framematch import valid_frametype
-from pypeit import utils
-
-from IPython import embed
 
 
-class ArcImage(pypeitimage.PypeItImage):
+class ArcImage(pypeitimage.PypeItCalibrationImage):
     """
     Simple DataContainer for the Arc Image
     """
-    # Peg the version of this class to that of PypeItImage
-    version = pypeitimage.PypeItImage.version
+    # version is inherited from PypeItImage
 
     # I/O
     output_to_disk = ('ARC_IMAGE', 'ARC_FULLMASK', 'ARC_DETECTOR',
@@ -32,78 +28,66 @@ class ArcImage(pypeitimage.PypeItImage):
     hdu_prefix = 'ARC_'
 
     # Master fun
-    master_type = 'Arc'
-    master_file_format = 'fits'
+    calib_type = 'Arc'
 
 
-class AlignImage(pypeitimage.PypeItImage):
+class AlignImage(pypeitimage.PypeItCalibrationImage):
     """
     Simple DataContainer for the Alignment Image
     """
-    # Peg the version of this class to that of PypeItImage
-    version = pypeitimage.PypeItImage.version
+    # version is inherited from PypeItImage
 
     # I/O
     output_to_disk = ('ALIGN_IMAGE', 'ALIGN_FULLMASK', 'ALIGN_DETECTOR')
     hdu_prefix = 'ALIGN_'
 
     # Master fun
-    master_type = 'Align'
-    master_file_format = 'fits'
+    calib_type = 'Align'
 
 
-class BiasImage(pypeitimage.PypeItImage):
+class BiasImage(pypeitimage.PypeItCalibrationImage):
     """
     Simple DataContainer for the Bias Image
     """
-    # Set the version of this class
-    version = pypeitimage.PypeItImage.version
+    # version is inherited from PypeItImage
 
     # Output to disk
     output_to_disk = ('BIAS_IMAGE', 'BIAS_IVAR', 'BIAS_DETECTOR')
     hdu_prefix = 'BIAS_'
-    master_type = 'Bias'
-    master_file_format = 'fits'
+    calib_type = 'Bias'
 
 
-class DarkImage(pypeitimage.PypeItImage):
+class DarkImage(pypeitimage.PypeItCalibrationImage):
     """
     Simple DataContainer for the Dark Image
     """
-    # Set the version of this class
-    version = pypeitimage.PypeItImage.version
+    # version is inherited from PypeItImage
 
     # Output to disk
     output_to_disk = ('DARK_IMAGE', 'DARK_IVAR', 'DARK_DETECTOR')
     hdu_prefix = 'DARK_'
-    master_type = 'Dark'
-    master_file_format = 'fits'
+    calib_type = 'Dark'
 
 
-class TiltImage(pypeitimage.PypeItImage):
+class TiltImage(pypeitimage.PypeItCalibrationImage):
     """
     Simple DataContainer for the Tilt Image
     """
-
-    # Peg the version of this class to that of PypeItImage
-    version = pypeitimage.PypeItImage.version
+    # version is inherited from PypeItImage
 
     # I/O
     output_to_disk = ('TILT_IMAGE', 'TILT_FULLMASK', 'TILT_DETECTOR')
     hdu_prefix = 'TILT_'
 
     # Master fun
-    master_type = 'Tiltimg'
-    master_file_format = 'fits'
+    calib_type = 'Tiltimg'
 
 
-class TraceImage(pypeitimage.PypeItImage):
+class TraceImage(pypeitimage.PypeItCalibrationImage):
     """
     Simple DataContainer for the Trace Image
     """
-
-    # Peg the version of this class to that of PypeItImage
-    version = pypeitimage.PypeItImage.version
+    # version is inherited from PypeItImage
 
     # I/O
     output_to_disk = ('TRACE_IMAGE', 'TRACE_FULLMASK', 'TRACE_DETECTOR')
@@ -119,20 +103,19 @@ class TraceImage(pypeitimage.PypeItImage):
                     if any(np.isin(list(_d.keys()), ['image', 'fullmask', 'detector']))]
 
 
-class SkyRegions(pypeitimage.PypeItImage):
+class SkyRegions(pypeitimage.PypeItCalibrationImage):
     """
     Simple DataContainer for the SkyRegions Image
     """
-    # Peg the version of this class to that of PypeItImage
-    version = pypeitimage.PypeItImage.version
+    # version is inherited from PypeItImage
 
     # I/O
     output_to_disk = ('SKYREG_IMAGE')
     hdu_prefix = 'SKYREG_'
 
     # Master fun
-    master_type = 'SkyRegions'
-    master_file_format = 'fits.gz'
+    calib_type = 'SkyRegions'
+    calib_file_format = 'fits.gz'
 
 
 # Convert frame type into an Image

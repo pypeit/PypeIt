@@ -121,7 +121,6 @@ from pypeit import msgs
 from pypeit import io
 from pypeit import utils
 from pypeit import sampling
-from pypeit import masterframe
 from pypeit import slittrace
 from pypeit.datamodel import DataContainer
 from pypeit.images.mosaic import Mosaic

@@ -160,7 +160,7 @@ class FlatImages(datamodel.DataContainer):
         # Return
         return d
 
-    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None, limit_hdus=None):
+    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None): #, limit_hdus=None):
         """ Over-ride for force_to_bintbl
 
         See :class:`pypeit.datamodel.DataContainer.to_hdu` for Arguments
@@ -170,7 +170,8 @@ class FlatImages(datamodel.DataContainer):
             where the type depends on the value of ``add_primary``.
         """
         return super(FlatImages, self).to_hdu(hdr=hdr, add_primary=add_primary, primary_hdr=primary_hdr,
-                                              limit_hdus=limit_hdus, force_to_bintbl=True)
+                                              #limit_hdus=limit_hdus,
+                                              force_to_bintbl=True)
 
     # TODO: Although I don't like doing it, kwargs is here to catch the
     # extraneous keywords that can be passed to _parse from the base class but

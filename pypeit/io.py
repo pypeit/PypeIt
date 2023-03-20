@@ -248,32 +248,29 @@ def parse_hdr_key_group(hdr, prefix='F'):
         return []
 
 
-def initialize_header(hdr=None, primary=False):
+def initialize_header(hdr=None):
     """
-    Initialize a FITS header.
+    Initialize FITS header for all PypeIt output fits images.
 
     Args:
         hdr (`astropy.io.fits.Header`, optional):
-            Header object to update with basic summary
-            information. The object is modified in-place and also
-            returned. If None, an empty header is instantiated,
-            edited, and returned.
-        primary (bool, optional):
-            If true and hdr is None, generate a Primary header
+            Header object to update with basic summary information. The object
+            is modified in-place and also returned. If None, an empty header is
+            instantiated, edited, and returned.
 
     Returns:
         `astropy.io.fits.Header`: The initialized (or edited)
         fits header.
     """
-    # Add versioning; this hits the highlights but should it add
-    # the versions of all packages included in the requirements.txt
-    # file?
     if hdr is None:
-        if primary:
-            hdr = fits.PrimaryHDU().header
-        else:
-            hdr = fits.Header()
-    hdr['VERSPYT'] = ('.'.join([ str(v) for v in sys.version_info[:3]]), 'Python version')
+        # NOTE: It's not necessary to distinguish between a generic header and
+        # PrimaryHDU header here.  Astropy takes care of the difference when it
+        # constructs the PrimaryHDU in the HDUList.
+        hdr = fits.Header()
+
+    # Add versioning
+    # TODO: Include additional packages?
+    hdr['VERSPYT'] = ('.'.join([str(v) for v in sys.version_info[:3]]), 'Python version')
     hdr['VERSNPY'] = (numpy.__version__, 'Numpy version')
     hdr['VERSSCI'] = (scipy.__version__, 'Scipy version')
     hdr['VERSAST'] = (astropy.__version__, 'Astropy version')
@@ -282,8 +279,6 @@ def initialize_header(hdr=None, primary=False):
 
     # Save the date of the reduction
     hdr['DATE'] = (time.strftime('%Y-%m-%d',time.gmtime()), 'UTC date created')
-
-    # TODO: Anything else?
 
     # Return
     return hdr
@@ -294,6 +289,7 @@ def header_version_check(hdr, warning_only=True):
     Check the package versions in the header match the system versions.
 
     .. note::
+
         The header must contain the keywords written by
         :func:`initialize_header`.
 

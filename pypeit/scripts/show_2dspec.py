@@ -23,7 +23,6 @@ from pypeit import utils
 from pypeit.display import display
 from pypeit.images.imagebitmask import ImageBitMask
 from pypeit.images.detector_container import DetectorContainer
-from pypeit import masterframe
 from pypeit import spec2dobj
 from pypeit.scripts import scriptbase
 
