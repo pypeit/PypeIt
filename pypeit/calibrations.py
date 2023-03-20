@@ -128,28 +128,26 @@ class Calibrations:
         self.par = par
         self.spectrograph = spectrograph
 
-        # Masters
+        # Calibrations
         self.reuse_calibrations = reuse_calibrations
         self.calib_dir = Path(caldir).resolve()
-
-        # Restrict on slits?
-        self.user_slits = user_slits
+        if not self.calib_dir.exists():
+            self.calib_dir.mkdir(parents=True)
 
         # QA
         self.qa_path = None if qadir is None else Path(qadir).resolve()
         if self.qa_path is not None:
             # TODO: This should only be defined in one place!  Where?...
             qa_png_path = self.qa_path / 'PNGs'
-        self.write_qa = qadir is not None
-        self.show = show
-
-        # Check the directories exist
-        # TODO: This should be done when the calibrations are saved
-        if not self.calib_dir.exists():
-            self.calib_dir.mkdir(parents=True)
-        # TODO: This should be done when the qa plots are saved
+        self.write_qa = self.qa_path is not None
         if self.write_qa and not qa_png_path.exists():
             qa_png_path.mkdir(parents=True)
+
+        # Debugging
+        self.show = show
+
+        # Restrict on slits?
+        self.user_slits = user_slits
 
         # Attributes
         self.det = None
@@ -171,7 +169,6 @@ class Calibrations:
         self.wavetilts = None
         self.flatimages = None
         self.calib_ID = None
-        self.calib_key_dict = {}
 
         # Steps
         self.steps = []
@@ -180,8 +177,8 @@ class Calibrations:
 
     def _prep_calibrations(self, frametype):
         """
-        Find all frames matching a given calibration type and initialize the
-        calibration key.
+        Find all frames matching a given calibration type and return the
+        necessary calibration identifiers.
 
         Args:
             frametype (:obj:`str`):
@@ -190,7 +187,7 @@ class Calibrations:
 
         Returns:
             :obj:`tuple`:  Returns a :obj:`list` of image files matching the
-            input type and a :obj:`str` with the calibration key.
+            input type, the setup/configuration string, and the calibration group string.
         """
         # NOTE: This will raise an exception if the frametype is not valid!
         valid = framematch.valid_frametype(frametype, raise_error=True)
@@ -200,18 +197,18 @@ class Calibrations:
         if len(rows) == 0:
             return [], None
 
-        # Set the calibration key
+        # Grab the setup and calibration id(s)
         if self.par[f'{frametype}frame']['process']['calib_setup_and_bit'] is None:
             setup, calib_id \
                     = self.par[f'{frametype}frame']['process']['calib_setup_and_bit'].split('_')
-            calib_id = ','.join(calib_id.split('-'))
+            # Here calib_id is a list of strings
+            calib_id = calib_id.split('-')
         else:
             setup = self.fitstbl['setup'][rows[0]]
+            # Here calib_id is a string of comma-separated values
             calib_id = self.fitstbl['calib'][rows[0]]
-        detname = self.spectrograph.get_det_name(self.det)
-        
-        return self.fitstbl.frame_paths(rows), \
-                CalibFrame.construct_calib_key(setup, calib_id, detname)
+
+        return self.fitstbl.frame_paths(rows), setup, CalibFrame.ingest_calib_id(calib_id)
 
     def set_config(self, frame, det, par=None):
         """
@@ -400,25 +397,34 @@ class Calibrations:
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        bias_files, self.calib_key_dict['bias'] = self._prep_calibrations('bias')
+        bias_files, setup, calib_id = self._prep_calibrations('bias')
 
         if len(bias_files) == 0:
+            # There are no bias files, so we're done!
             self.msbias = None
             return self.msbias
 
-        bias_file = buildimage.BiasImage.construct_file_name(self.calib_key_dict['bias'],
-                                                             calib_dir=self.calib_dir)
-        bias_file = Path(bias_file).resolve()
+        # Construct the detector/mosaic identifier
+        detname = self.spectrograph.get_det_name(self.det)
+
+        # Construct the expected calibration frame file name
+        bias_file = Path(buildimage.BiasImage.construct_file_name(
+                            CalibFrame.construct_calib_key(setup, calib_id, detname),
+                            calib_dir=self.calib_dir)).resolve()
+
+        # If it exists and we want to reuse it, do so:
         if bias_file.exists() and self.reuse_calibrations:
             self.msbias = buildimage.BiasImage.from_file(bias_file)
             return self.msbias
 
-        setup, calib_id, detname \
-                = buildimage.BiasImage.parse_calib_key(self.calib_key_dict['bias'])
+        # Otherwise, create the processed file.
         self.msbias = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                     self.par['biasframe'], bias_files)
-        self.msbias.set_paths(self, self.calib_dir, setup, calib_id, detname)
+                                                     self.par['biasframe'], bias_files,
+                                                     calib_dir=self.calib_dir, setup=setup,
+                                                     calib_id=calib_id)
+        # Save the result
         self.msbias.to_file()
+        # Return it
         return self.msbias
 
     def get_dark(self):

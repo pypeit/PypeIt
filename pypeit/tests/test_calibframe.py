@@ -12,6 +12,7 @@ from pypeit.calibframe import CalibFrame
 from pypeit import io
 from pypeit.tests.tstutils import data_path
 
+
 class NoTypeCalibFrame(CalibFrame):
     # These are the minimal things that need to be defined to actually
     # instantiate a derive class of CalibFrame

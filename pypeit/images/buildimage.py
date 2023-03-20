@@ -118,7 +118,8 @@ class SkyRegions(pypeitimage.PypeItCalibrationImage):
     calib_file_format = 'fits.gz'
 
 
-# Convert frame type into an Image
+# Convert frame type into an Image.  These all should subclass from
+# PypeItCalibrationImage.
 frame_image_classes = dict(
     bias=BiasImage,
     dark=DarkImage,
@@ -126,6 +127,10 @@ frame_image_classes = dict(
     tilt=TiltImage,
     trace=TraceImage,
     align=AlignImage)
+"""
+The list of classes that :func:`buildimage_fromlist` should use to decorate for
+the specified frame types.
+"""
 
 
 def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=None, dark=None,
@@ -183,14 +188,31 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
             flexure between the image and the slits, and for constructing the
             slit-illumination correction.  See
             :class:`pypeit.images.rawimage.RawImage.process`.
+        mosaic (:obj:`bool`, optional):
+            Flag processed image will be a mosaic of multiple detectors.  By
+            default, this is determined by the format of ``det`` and whether or
+            not this is a bias or dark frame.  *Only used for testing purposes.*
+        calib_dir (:obj:`str`, `Path`_, optional):
+            The directory for processed calibration files.  Required for
+            elements of :attr:`frame_image_classes`, ignored otherwise.
+        setup (:obj:`str`, optional):
+            The setup/configuration identifier to use for this dataset.
+            Required for elements of :attr:`frame_image_classes`, ignored
+            otherwise.
+        calib_id (:obj:`str`, optional):
+            The string listing the set of calibration groups associated with
+            this dataset.  Required for elements of :attr:`frame_image_classes`,
+            ignored otherwise.
 
     Returns:
-        :class:`~pypeit.images.pypeitimage.PypeItImage`:  The processed and
-        combined image.
+        :class:`~pypeit.images.pypeitimage.PypeItImage`,
+        :class:`~pypeit.images.pypeitimage.PypeItCalibrationImage`:  The
+        processed and combined image.
     """
     # Check
     if not isinstance(frame_par, pypeitpar.FrameGroupPar):
-        msgs.error('Provided ParSet for must be type FrameGroupPar.')
+        msgs.error('Provided ParSet for must be type FrameGroupPar, not '
+                   f'{frame_par.__class__.__name__}.')
     if not valid_frametype(frame_par['frametype'], quiet=True):
         # NOTE: This should not be necessary because FrameGroupPar explicitly
         # requires frametype to be valid
@@ -208,11 +230,16 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
                                    maxiters=maxiters, ignore_saturation=ignore_saturation,
                                    slits=slits, combine_method=frame_par['process']['combine'],
                                    mosaic=mosaic)
-    # Decorate according to the type of calibration, primarily as needed for
-    # handling MasterFrames.  WARNING: Any internals (i.e., the ones defined by
-    # the _init_internals method) in pypeitImage are lost here.
-    return frame_image_classes[frame_par['frametype']].from_pypeitimage(pypeitImage) \
-            if frame_par['frametype'] in frame_image_classes.keys() else pypeitImage
 
+    # Return class type, if returning any of the frame_image_classes
+    cls = frame_image_classes[frame_par['frametype']] \
+            if frame_par['frametype'] in frame_image_classes.keys() else None
+
+    # Decorate and return according to the type of calibration, primarily as
+    # needed for handling calibration images.  WARNING: Any internals (i.e., the
+    # ones defined by the _init_internals method) in pypeitImage are lost here.
+    return pypeitImage if cls is None \
+            else cls.from_pypeitimage(pypeitImage, calib_dir, setup, calib_id,
+                                      spectrograph.get_det_name(det))
 
 

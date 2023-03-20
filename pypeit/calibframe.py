@@ -139,8 +139,7 @@ class CalibFrame(datamodel.DataContainer):
         # TODO: This used to set overwrite=True, but overwrite should be part of
         # kwargs.  The default of DataContainer is overwrite=False, so I need to
         # make sure that the behavior is maintained.
-        ofile = self.__class__.construct_file_name(self.calib_key, calib_dir=self.calib_dir)
-        super().to_file(ofile, hdr=hdr, **kwargs)
+        super().to_file(self.get_path(), hdr=hdr, **kwargs)
 
     @classmethod
     def from_hdu(cls, hdu, chk_version=True, **kwargs):
@@ -308,7 +307,6 @@ class CalibFrame(datamodel.DataContainer):
         setup, calib_id, detname = calib_key.split('_')
         return setup, ','.join(calib_id.split('-')), detname
 
-    # TODO: Change the name of this to get_path or something
     @classmethod
     def construct_file_name(cls, calib_key, calib_dir=None):
         """
@@ -326,12 +324,28 @@ class CalibFrame(datamodel.DataContainer):
             :obj:`str`: File path or file name
         """
         if None in [cls.calib_type, cls.calib_file_format]:
-            msgs.error(f'CODING ERROR: {cls..__name__} does not have all '
+            msgs.error(f'CODING ERROR: {cls.__name__} does not have all '
                        'the attributes needed to construct its filename.')
+        if calib_key is None:
+            msgs.error('CODING ERROR: calib_key cannot be None when constructing the '
+                       f'{cls.__name__} file name.')
         filename = f'{cls.calib_type}_{calib_key}.{cls.calib_file_format}'
         if calib_dir is None:
             return filename
         return str(Path(calib_dir).resolve() / filename)
+
+    def get_path(self):
+        """
+        Return the path to the output file.
+
+        This is a simple wrapper for the :func:`construct_file_name` classmethod
+        that uses the existing values of :attr:`calib_key` and :attr`calib_dir`.
+
+        Returns:
+            :obj:`str`: File path or file name.  This is always the full path if
+            :attr:`calib_dir` is defined.
+        """
+        return self.__class__.construct_file_name(self.calib_key, calib_dir=self.calib_dir)
 
     def build_header(self, hdr=None):
         """
@@ -356,9 +370,12 @@ class CalibFrame(datamodel.DataContainer):
         # name is changed.
         _hdr['CALIBTYP'] = (self.calib_type, 'PypeIt: Calibration frame type')
         _hdr['CALIBVER'] = (self.version, 'PypeIt: Calibration datamodel version')
-        _hdr['CALIBDIR'] = (self.calib_dir, 'PypeIt: Calibration file directory')
-        _hdr['CALIBKEY'] = (self.calib_key, 'PypeIt: Calibration key')
-        _hdr['CALIBID'] = (','.join(self.calib_id), 'PypeIt: Calibration key')
+        if self.calib_dir is not None:
+            _hdr['CALIBDIR'] = (self.calib_dir, 'PypeIt: Calibration file directory')
+        if self.calib_key is not None:
+            _hdr['CALIBKEY'] = (self.calib_key, 'PypeIt: Calibration key')
+        if self.calib_id is not None:
+            _hdr['CALIBID'] = (','.join(self.calib_id), 'PypeIt: Calibration key')
 
         # Return
         return _hdr

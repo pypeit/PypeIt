@@ -922,7 +922,8 @@ class PypeItCalibrationImage(PypeItImage, CalibFrame):
         return self
 
     @classmethod
-    def from_pypeitimage(cls, pypeitImage, calib_dir, setup, calib_id, detname):
+    def from_pypeitimage(cls, pypeitImage, calib_dir=None, setup=None, calib_id=None,
+                         detname=None):
         """
         Instantiate the object from an existing :class:`PypeItImage`.
 
@@ -936,16 +937,10 @@ class PypeItCalibrationImage(PypeItImage, CalibFrame):
             pypeitImage (:class:`PypeItImage`):
                 The input image to convert into the appropriate type.
         """
-        _d = {}
-        for key in pypeitImage.datamodel.keys():
-            if pypeitImage[key] is None:
-                continue
-            _d[key] = pypeitImage[key]
-        # Instantiate using the derived class
-        self = cls(**_d)
-        # Copy the PypeItImage internals
-        for attr in pypeitImage.internals:
-            setattr(self, attr, getattr(pypeitImage, attr))
+        # Instantiate from a PypeItImage
+        self = super().from_pypeitimage(pypeitImage)
+        if None in [calib_dir, setup, calib_id, detname]:
+            return self
         # Set the output paths
         self.set_paths(calib_dir, setup, calib_id, detname)
         # Done
