@@ -22,7 +22,7 @@ def data_path(filename):
     return os.path.join(data_dir, filename)
 
 
-@pytest.fixture
+#@pytest.fixture
 def fitstbl():
     if os.getenv('PYPEIT_DEV') is None:
         fitstbl = dummy_fitstbl(directory=data_path(''))
@@ -43,7 +43,7 @@ def fitstbl():
     return fitstbl
 
 
-@pytest.fixture
+#@pytest.fixture
 def multi_caliBrate(fitstbl):
     # Grab a science file for configuration specific parameters
     for idx, row in enumerate(fitstbl):
@@ -61,8 +61,9 @@ def multi_caliBrate(fitstbl):
     #calib_par['biasframe']['useframe'] = 'none' # Only use overscan
     calib_par['slitedges']['sync_predict'] = 'nearest'
 
-    multi_caliBrate = calibrations.MultiSlitCalibrations(fitstbl, calib_par, spectrograph,
-                                                         data_path('Masters'))
+    caldir = data_path('Calibrations')
+
+    multi_caliBrate = calibrations.MultiSlitCalibrations(fitstbl, calib_par, spectrograph, caldir)
     return reset_calib(multi_caliBrate)
 
 
@@ -78,11 +79,25 @@ def reset_calib(calib):
 ###################################################
 # TESTS BEGIN HERE
 
-def test_instantiate(fitstbl):
-    par = pypeitpar.PypeItPar()
+def test_abstract_init(fitstbl):
+    par = pypeitpar.CalibrationsPar()
     spectrograph = load_spectrograph('shane_kast_blue')
-    caliBrate = calibrations.MultiSlitCalibrations(fitstbl, par['calibrations'], spectrograph,
-                                                   data_path('Masters'))
+    caldir = data_path('Calibrations')
+    calib = calibrations.Calibrations.get_instance(fitstbl, par, spectrograph, caldir)
+    assert isinstance(calib, calibrations.MultiSlitCalibrations), 'Wrong calibration object type'
+    spectrograph = load_spectrograph('keck_nires')
+    calib = calibrations.Calibrations.get_instance(fitstbl, par, spectrograph, caldir)
+    assert isinstance(calib, calibrations.MultiSlitCalibrations), 'Wrong calibration object type'
+    spectrograph = load_spectrograph('keck_kcwi')
+    calib = calibrations.Calibrations.get_instance(fitstbl, par, spectrograph, caldir)
+    assert isinstance(calib, calibrations.IFUCalibrations), 'Wrong calibration object type'
+
+
+def test_instantiate(fitstbl):
+    par = pypeitpar.CalibrationsPar()
+    spectrograph = load_spectrograph('shane_kast_blue')
+    caldir = data_path('Calibrations')
+    caliBrate = calibrations.MultiSlitCalibrations(fitstbl, par, spectrograph, caldir)
 
 
 def test_bias(multi_caliBrate):
@@ -93,6 +108,8 @@ def test_bias(multi_caliBrate):
 
     """
     multi_caliBrate.get_bias()
+
+test_bias(multi_caliBrate(fitstbl()))
 
 
 def test_arc(multi_caliBrate):

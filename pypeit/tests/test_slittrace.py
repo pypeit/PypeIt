@@ -7,7 +7,7 @@ import pytest
 import numpy as np
 
 from pypeit.slittrace import SlitTraceSet, SlitTraceBitMask
-from pypeit import masterframe
+#from pypeit import masterframe
 
 master_key = 'dummy'
 master_dir = os.getcwd()

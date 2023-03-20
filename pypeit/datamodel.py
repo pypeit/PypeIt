@@ -471,7 +471,6 @@ from astropy.io import fits
 from astropy.table import Table
 
 from pypeit import io
-#from pypeit import masterframe
 from pypeit import msgs
 
 # TODO: There are methods in, e.g., doc/scripts/build_specobj_rst.py that output
@@ -1347,10 +1346,7 @@ class DataContainer:
         if _primary_hdr is not None:
             hdr_keys = np.array([k.upper() for k in self.keys()])
             indx = np.isin(hdr_keys, list(_primary_hdr.keys()))
-            # TODO: This is a hack to deal with PYP_SPEC, but this
-            # needs to be cleaned up, as does masterframe more
-            # generally...
-            if np.sum(indx) > 1: # or (np.sum(indx) == 1 and hdr_keys[indx] != 'PYP_SPEC'):
+            if np.sum(indx) > 1:
                 msgs.error('CODING ERROR: Primary header should not contain keywords that are the '
                            'same as the datamodel for {0}.'.format(self.__class__.__name__))
 
@@ -1493,45 +1489,6 @@ class DataContainer:
         io.write_to_fits(self.to_hdu(add_primary=True, **kwargs),
                          ofile, overwrite=overwrite, checksum=checksum)
 
-    # TODO: This should be moved to a new class that subclasses from
-    # DataContainer.
-#    def to_master_file(self, master_filename=None, **kwargs):
-#        """
-#        Wrapper on to_file() that deals with masterframe naming and header
-#
-#        This also sets master_key and master_dir internally if
-#        when master_filename is provided
-#
-#        self.hdu_prefix and self.output_to_disk must be set (or None)
-#
-#        Args:
-#            master_filename (str, optional):
-#                Name of masterfile;  if provided, parsed for master_key, master_dir
-#                If not provided, constructed from internal master_key, master_dir
-#            **kwargs: passed to to_file()
-#        """
-#        # Output file
-#        if master_filename is None:
-#            master_filename = masterframe.construct_file_name(self, self.master_key,
-#                                                              master_dir=self.master_dir)
-#        else:
-#            self.master_key, self.master_dir = masterframe.grab_key_mdir(
-#                master_filename, from_filename=True)
-#        # Header
-#        if hasattr(self, 'process_steps'):
-#            steps = self.process_steps
-#        else:
-#            steps = None
-#        if hasattr(self, 'files'):
-#            raw_files = self.files
-#        else:
-#            raw_files = None
-#        hdr = masterframe.build_master_header(self, self.master_key, self.master_dir,
-#                                              steps=steps, raw_files=raw_files)
-#        # Finish
-#        self.to_file(master_filename, primary_hdr=hdr,
-#                     limit_hdus=self.output_to_disk, overwrite=True, **kwargs)
-
     @classmethod
     def from_file(cls, ifile, verbose=True, chk_version=True, **kwargs):
         """
@@ -1571,18 +1528,6 @@ class DataContainer:
 #            if hasattr(obj, 'filename'):
 #                obj.filename = ifile
 #
-#            # Master this and that
-#            if hasattr(cls, 'master_type'):
-#                obj.master_key, obj.master_dir = masterframe.grab_key_mdir(ifile)
-#                if hasattr(obj, 'head0'):
-#                    if 'MSTRTYP' in obj.head0.keys():
-#                        if obj.head0['MSTRTYP'] != cls.master_type:
-#                            msgs.error('Master Type read from header incorrect!  '
-#                                       'Found {0}; expected {1}'.format(obj.head0['MSTRTYP'],
-#                                                                        cls.master_type))
-#                    else:
-#                        msgs.warn('DataContainer has `master_type` attribute but is missing the '
-#                                  'MSTRTYP header keyword!')
 #        return obj
 
     def __repr__(self):

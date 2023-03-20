@@ -877,13 +877,6 @@ class PypeItCalibrationImage(PypeItImage, CalibFrame):
     Combines internals from both base classes.
     """
     
-    def build_header(self, hdr=None):
-        """
-        Override the base class functions to combine the operations of both base
-        classes.
-        """
-        return CalibFrame.build_header(self, hdr=PypeItImage.build_header(self, hdr=hdr))
-
     @classmethod
     def from_hdu(cls, hdu, chk_version=True, hdu_prefix=None, **kwargs):
         """
@@ -927,4 +920,41 @@ class PypeItCalibrationImage(PypeItImage, CalibFrame):
         self.calib_id = self.ingest_calib_id(hdr_to_parse['CALIBID'].split(','))
 
         return self
+
+    @classmethod
+    def from_pypeitimage(cls, pypeitImage, calib_dir, setup, calib_id, detname):
+        """
+        Instantiate the object from an existing :class:`PypeItImage`.
+
+        This allows for the general construction of a :class:`PypeItImage` that
+        can then be subsequently decorated by an appropriate type with default
+        attributes.  See, e.g., :class:`~pypeit.images.buildimage.ArcImage`.
+
+        Note that this is *not* a deep copy.
+
+        Args:
+            pypeitImage (:class:`PypeItImage`):
+                The input image to convert into the appropriate type.
+        """
+        _d = {}
+        for key in pypeitImage.datamodel.keys():
+            if pypeitImage[key] is None:
+                continue
+            _d[key] = pypeitImage[key]
+        # Instantiate using the derived class
+        self = cls(**_d)
+        # Copy the PypeItImage internals
+        for attr in pypeitImage.internals:
+            setattr(self, attr, getattr(pypeitImage, attr))
+        # Set the output paths
+        self.set_paths(calib_dir, setup, calib_id, detname)
+        # Done
+        return self
+
+    def build_header(self, hdr=None):
+        """
+        Override the base class functions to combine the operations of both base
+        classes.
+        """
+        return CalibFrame.build_header(self, hdr=PypeItImage.build_header(self, hdr=hdr))
 

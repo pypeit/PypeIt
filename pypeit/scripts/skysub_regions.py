@@ -42,7 +42,7 @@ class SkySubRegions(scriptbase.ScriptBase):
         from pypeit.core.gui.skysub_regions import SkySubGUI
         from pypeit.core import flexure
         from pypeit.scripts import utils
-        from pypeit import masterframe
+        #from pypeit import masterframe
         from pypeit.images import buildimage
 
         # Set the verbosity, and create a logfile if verbosity == 2

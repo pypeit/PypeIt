@@ -20,7 +20,7 @@ from pypeit import utils
 from pypeit import bspline
 
 from pypeit import datamodel
-from pypeit import masterframe
+#from pypeit import masterframe
 from pypeit.display import display
 from pypeit.core import qa
 from pypeit.core import flat

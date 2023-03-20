@@ -130,7 +130,7 @@ frame_image_classes = dict(
 
 def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=None, dark=None,
                         flatimages=None, maxiters=5, ignore_saturation=True, slits=None,
-                        mosaic=None):
+                        mosaic=None, calib_dir=None, setup=None, calib_id=None):
     """
     Perform basic image processing on a list of images and combine the results.
 

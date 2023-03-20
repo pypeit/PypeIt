@@ -102,3 +102,18 @@ def test_exptime():
                           np.array([False, False, False, False]))
 
 
+def test_valid_frametype():
+
+    assert framematch.valid_frametype('arc'), 'arc should be a valid frametype'
+    assert framematch.valid_frametype('arc', quiet=True), 'arc should be a valid frametype'
+    assert not framematch.valid_frametype('junk', quiet=True, raise_error=False), \
+            'junk should not be a valid frametype'
+    assert not framematch.valid_frametype('junk', quiet=False, raise_error=False), \
+            'junk should not be a valid frametype'
+    # These should raise errors
+    with pytest.raises(PypeItError):
+        framematch.valid_frametype('junk', quiet=False, raise_error=True)
+    with pytest.raises(PypeItError):
+        framematch.valid_frametype('junk', quiet=True, raise_error=True)
+
+

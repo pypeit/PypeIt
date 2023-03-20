@@ -18,7 +18,7 @@ from pypeit.metadata import PypeItMetaData
 from pypeit.core import procimg
 from pypeit import msgs
 from pypeit import slittrace
-from pypeit import masterframe
+#from pypeit import masterframe
 from pypeit.pypeitsetup import PypeItSetup
 from pypeit.inputfiles import PypeItFile
 

@@ -67,7 +67,7 @@ class TraceEdges(scriptbase.ScriptBase):
         from pypeit import slittrace
         from pypeit.pypeit import PypeIt
         from pypeit.images import buildimage
-        from pypeit import masterframe
+        #from pypeit import masterframe
 
         from IPython import embed
 

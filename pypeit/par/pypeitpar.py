@@ -145,7 +145,7 @@ class FrameGroupPar(ParSet):
         # TODO: JFH This is not documented. What are the options for useframe and what the  does it do?
         defaults['useframe'] = None
         dtypes['useframe'] = str
-        descr['useframe'] = 'A master calibrations file to use if it exists.'
+        descr['useframe'] = 'A calibrations file to use if it exists.'
 
         defaults['exprng'] = [None, None]
         dtypes['exprng'] = list
@@ -215,7 +215,7 @@ class ProcessImagesPar(ParSet):
                  n_lohi=None, #replace=None,
                  lamaxiter=None, grow=None,
                  comb_sigrej=None,
-                 master_setup_and_bit=None,
+                 calib_setup_and_bit=None,
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None,
                  use_biasimage=None, use_overscan=None, use_darkimage=None,
                  dark_expscale=None,
@@ -412,9 +412,10 @@ class ProcessImagesPar(ParSet):
         dtypes['objlim'] = [int, float]
         descr['objlim'] = 'Object detection limit in LA cosmics routine'
 
-        defaults['master_setup_and_bit'] = None
-        dtypes['master_setup_and_bit'] = str
-        descr['master_setup_and_bit'] = 'Over-ride the master setup and bit, e.g. "A_7".  Only recommended for use with quicklook'
+        defaults['calib_setup_and_bit'] = None
+        dtypes['calib_setup_and_bit'] = str
+        descr['calib_setup_and_bit'] = 'Over-ride the calibration setup and bit, e.g. "A_7".  ' \
+                                       'Only recommended for use with quicklook.'
 
         # Instantiate the parameter set
         super(ProcessImagesPar, self).__init__(list(pars.keys()),
@@ -434,7 +435,7 @@ class ProcessImagesPar(ParSet):
                    'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
                    'dark_expscale', 'spat_flexure_correct', 'use_illumflat', 'use_specillum',
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
-                   'satpix', 'master_setup_and_bit',
+                   'satpix', 'calib_setup_and_bit',
                    'n_lohi', 'mask_cr',
                    'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact', 'sigclip',
                    'sigfrac', 'objlim']
@@ -3758,7 +3759,7 @@ class SkySubPar(ParSet):
                                 'a comma separated list of percentages to apply to _all_ slits ' \
                                 ' For example: The following string   :10,35:65,80:   would select the ' \
                                 'first 10%, the inner 30%, and the final 20% of _all_ slits. Alternatively, you ' \
-                                'can also set the argument to be "master", which will load a MasterSkyRegions ' \
+                                'can also set the argument to be "calib", which will load a SkyRegions ' \
                                 'file that the user has generated with the pypeit_skysub_regions tool.'
 
         defaults['mask_by_boxcar'] = False
@@ -3921,7 +3922,7 @@ class CalibrationsPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
     """
-    def __init__(self, master_dir=None, setup=None, bpm_usebias=None, biasframe=None,
+    def __init__(self, calib_dir=None, setup=None, bpm_usebias=None, biasframe=None,
                  darkframe=None, arcframe=None, tiltframe=None, pixelflatframe=None,
                  pinholeframe=None, alignframe=None, alignment=None, traceframe=None,
                  illumflatframe=None, lampoffflatsframe=None, skyframe=None,
@@ -3943,15 +3944,17 @@ class CalibrationsPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        defaults['master_dir'] = 'Masters'
-        dtypes['master_dir'] = str
-        descr['master_dir'] = 'If provided, it should be the name of the folder to ' \
-                          'write master files. NOT A PATH. '
+        defaults['calib_dir'] = 'Calibrations'
+        dtypes['calib_dir'] = str
+        descr['calib_dir'] = 'If provided, it should be the name of the folder to ' \
+                             'write processed calibration files.  This is not a full path name.'
 
+        # TODO: Is this ever used?  This feels like an outdated parameter.
+        # There is no "masters" parameter...
         dtypes['setup'] = str
         descr['setup'] = 'If masters=\'force\', this is the setup name to be used: e.g., ' \
                          'C_02_aa .  The detector number is ignored but the other information ' \
-                         'must match the Master Frames in the master frame folder.'
+                         'must match the calibration frames in the relevant folder.'
 
         defaults['raise_chk_error'] = True
         dtypes['raise_chk_error'] = bool
@@ -4089,7 +4092,7 @@ class CalibrationsPar(ParSet):
         k = np.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = [ 'master_dir', 'setup', 'bpm_usebias', 'raise_chk_error']
+        parkeys = [ 'calib_dir', 'setup', 'bpm_usebias', 'raise_chk_error']
 
         allkeys = parkeys + ['biasframe', 'darkframe', 'arcframe', 'tiltframe', 'pixelflatframe',
                              'illumflatframe', 'lampoffflatsframe',

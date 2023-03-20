@@ -5,6 +5,7 @@ Class for guiding calibration object generation in PypeIt
 .. include:: ../include/links.rst
 """
 import os
+from pathlib import Path
 
 from abc import ABCMeta
 from collections import Counter
@@ -17,13 +18,14 @@ from pypeit import msgs
 from pypeit import alignframe
 from pypeit import flatfield
 from pypeit import edgetrace
-from pypeit import masterframe
 from pypeit import slittrace
 from pypeit import wavecalib
 from pypeit import wavetilts
+from pypeit.calibframe import CalibFrame
 from pypeit.images import buildimage
 from pypeit.metadata import PypeItMetaData
 from pypeit.core import parse
+from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit import io
@@ -31,11 +33,11 @@ from pypeit import io
 
 class Calibrations:
     """
-    This class is primarily designed to guide the generation of
-    calibration images and objects in PypeIt.
+    Class designed to guide the generation of calibration images and objects in
+    PypeIt.
 
-    To avoid rebuilding MasterFrames that were generated during this execution
-    of PypeIt, the class performs book-keeping of these master frames
+    It also keeps track of existing processed calibration frames to avoid
+    rebuilding those that were generated during this execution of PypeIt.
 
     Args:
         fitstbl (:class:`pypeit.metadata.PypeItMetaData`, None):
@@ -52,7 +54,7 @@ class Calibrations:
         qadir (:obj:`str`, optional):
             Path for quality assessment output.  If not provided, no QA
             plots are saved.
-        reuse_masters (:obj:`bool`, optional):
+        reuse_calibrations (:obj:`bool`, optional):
             Load calibration files from disk if they exist
         show (:obj:`bool`, optional):
             Show plots of PypeIt's results as the code progesses.
@@ -83,7 +85,7 @@ class Calibrations:
         par (:class:`pypeit.par.pypeitpar.CalibrationsPar`):
         full_par (:class:`pypeit.par.pypeitpar.PypeItPar`):
         redux_path
-        master_dir
+        calib_dir
         det
         frame (:obj:`int`):
             0-indexed row of the frame being calibrated in
@@ -97,29 +99,19 @@ class Calibrations:
     """
     __metaclass__ = ABCMeta
 
-    @classmethod
-    def get_instance(cls, fitstbl, par, spectrograph, caldir, qadir=None,
-                     reuse_masters=False, show=False, user_slits=None):
+    @staticmethod
+    def get_instance(fitstbl, par, spectrograph, caldir, **kwargs):
         """
         Get the instance of the appropriate subclass of :class:`Calibrations` to
         use for reducing data from the provided ``spectrograph``.  For argument
         descriptions, see :class:`Calibrations`.
         """
-        # TODO: This is overly complicated.  Instead:
-#        calibclass = MultiSlitCalibrations if spectrograph.pypeline in ['MultiSlit', 'Echelle'] \
-#                        else IFUCalibrations
-#        return calibclass(fitstbl, par, spectrograph, caldir, qadir=qadir,
-#                          reuse_masters=reuse_masters, show=show, slitspat_num=slitspat_num)
-        pypeline = spectrograph.pypeline
-        if spectrograph.pypeline == 'Echelle':
-            pypeline = 'MultiSlit'
-        return next(c for c in cls.__subclasses__()
-                    if c.__name__ == (pypeline + 'Calibrations'))(
-            fitstbl, par, spectrograph, caldir, qadir=qadir,
-                     reuse_masters=reuse_masters, show=show, user_slits=user_slits)
+        calibclass = MultiSlitCalibrations if spectrograph.pypeline in ['MultiSlit', 'Echelle'] \
+                        else IFUCalibrations
+        return calibclass(fitstbl, par, spectrograph, caldir, **kwargs)
 
     def __init__(self, fitstbl, par, spectrograph, caldir, qadir=None,
-                 reuse_masters=False, show=False, user_slits=None):
+                 reuse_calibrations=False, show=False, user_slits=None):
 
         # Check the types
         # TODO -- Remove this None option once we have data models for all the Calibrations
@@ -137,24 +129,27 @@ class Calibrations:
         self.spectrograph = spectrograph
 
         # Masters
-        self.reuse_masters = reuse_masters
-        self.master_dir = caldir
+        self.reuse_calibrations = reuse_calibrations
+        self.calib_dir = Path(caldir).resolve()
 
         # Restrict on slits?
         self.user_slits = user_slits
 
         # QA
-        self.qa_path = qadir
+        self.qa_path = None if qadir is None else Path(qadir).resolve()
+        if self.qa_path is not None:
+            # TODO: This should only be defined in one place!  Where?...
+            qa_png_path = self.qa_path / 'PNGs'
         self.write_qa = qadir is not None
         self.show = show
 
         # Check the directories exist
-        # TODO: This should be done when the masters are saved
-        if caldir is not None and not os.path.isdir(self.master_dir):
-            os.makedirs(self.master_dir)
+        # TODO: This should be done when the calibrations are saved
+        if not self.calib_dir.exists():
+            self.calib_dir.mkdir(parents=True)
         # TODO: This should be done when the qa plots are saved
-        if self.write_qa and not os.path.isdir(os.path.join(self.qa_path, 'PNGs')):
-            os.makedirs(os.path.join(self.qa_path, 'PNGs'))
+        if self.write_qa and not qa_png_path.exists():
+            qa_png_path.mkdir(parents=True)
 
         # Attributes
         self.det = None
@@ -176,40 +171,47 @@ class Calibrations:
         self.wavetilts = None
         self.flatimages = None
         self.calib_ID = None
-        self.master_key_dict = {}
+        self.calib_key_dict = {}
 
         # Steps
         self.steps = []
         self.success = False
         self.failed_step = None
 
-    def _prep_calibrations(self, ctype):
+    def _prep_calibrations(self, frametype):
         """
-        Parse :attr:`fitstbl` for rows matching the calibration type and
-        initialize the :attr:`master_key_dict`
+        Find all frames matching a given calibration type and initialize the
+        calibration key.
 
         Args:
-            ctype (:obj:`str`):
-                Calibration type, e.g. 'flat', 'arc', 'bias'
+            frametype (:obj:`str`):
+                Calibration frame type.  Must be a valid frame type; see
+                :func:`~pypeit.core.framematch.valid_frametype`.
 
         Returns:
             :obj:`tuple`:  Returns a :obj:`list` of image files matching the
-            input type and a :obj:`str` with the master key.
+            input type and a :obj:`str` with the calibration key.
         """
+        # NOTE: This will raise an exception if the frametype is not valid!
+        valid = framematch.valid_frametype(frametype, raise_error=True)
+
         # Grab rows and files
-        rows = self.fitstbl.find_frames(ctype, calib_ID=self.calib_ID, index=True)
-        image_files = self.fitstbl.frame_paths(rows)
-        # Set the master keys
-        if self.par[f'{ctype}frame']['process']['master_setup_and_bit'] is not None:
-            master_key = self.fitstbl.master_key(
-                -1, master_setup_and_bit=self.par[f'{ctype}frame']['process']['master_setup_and_bit'],
-                det=self.det)
+        rows = self.fitstbl.find_frames(frametype, calib_ID=self.calib_ID, index=True)
+        if len(rows) == 0:
+            return [], None
+
+        # Set the calibration key
+        if self.par[f'{frametype}frame']['process']['calib_setup_and_bit'] is None:
+            setup, calib_id \
+                    = self.par[f'{frametype}frame']['process']['calib_setup_and_bit'].split('_')
+            calib_id = ','.join(calib_id.split('-'))
         else:
-            master_key =  self.fitstbl.master_key(rows[0] if len(rows) > 0 else self.frame,
-                                                    det=self.det)
-        # Return
-        return image_files, master_key #self.fitstbl.master_key(rows[0] if len(rows) > 0 else self.frame,
-                                       #             det=self.det)
+            setup = self.fitstbl['setup'][rows[0]]
+            calib_id = self.fitstbl['calib'][rows[0]]
+        detname = self.spectrograph.get_det_name(self.det)
+        
+        return self.fitstbl.frame_paths(rows), \
+                CalibFrame.construct_calib_key(setup, calib_id, detname)
 
     def set_config(self, frame, det, par=None):
         """
@@ -236,6 +238,7 @@ class Calibrations:
         # have one calibration group, but calibration frames can have many.  So
         # for both science and calibration frames, we just set the calibration
         # group to the first in the returned list.
+        # TODO: May need to revisit this...
         self.calib_ID = self.fitstbl.find_frame_calib_groups(self.frame)[0]
 #        self.calib_ID = int(self.fitstbl['calib'][frame])
         self.det = det
@@ -261,7 +264,11 @@ class Calibrations:
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        arc_files, self.master_key_dict['arc'] = self._prep_calibrations('arc')
+        arc_files, self.calib_key_dict['arc'] = self._prep_calibrations('arc')
+
+        embed()
+        exit()
+
         masterframe_name = masterframe.construct_file_name(
             buildimage.ArcImage, self.master_key_dict['arc'], master_dir=self.master_dir)
 
@@ -393,28 +400,25 @@ class Calibrations:
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        bias_files, self.master_key_dict['bias'] = self._prep_calibrations('bias')
-        # Construct the name, in case we need it
-        masterframe_name = masterframe.construct_file_name(buildimage.BiasImage,
-                                                           self.master_key_dict['bias'],
-                                                           master_dir=self.master_dir)
+        bias_files, self.calib_key_dict['bias'] = self._prep_calibrations('bias')
 
-        if self.par['biasframe']['useframe'] is not None:
-            msgs.error("Not ready to load from disk")
-
-        # Try to load?
-        if os.path.isfile(masterframe_name) and self.reuse_masters:
-            self.msbias = buildimage.BiasImage.from_file(masterframe_name)
-        elif len(bias_files) == 0:
+        if len(bias_files) == 0:
             self.msbias = None
-        else:
-            # Build it
-            self.msbias = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                         self.par['biasframe'], bias_files)
-            # Save it?
-            self.msbias.to_master_file(masterframe_name)
+            return self.msbias
 
-        # Return
+        bias_file = buildimage.BiasImage.construct_file_name(self.calib_key_dict['bias'],
+                                                             calib_dir=self.calib_dir)
+        bias_file = Path(bias_file).resolve()
+        if bias_file.exists() and self.reuse_calibrations:
+            self.msbias = buildimage.BiasImage.from_file(bias_file)
+            return self.msbias
+
+        setup, calib_id, detname \
+                = buildimage.BiasImage.parse_calib_key(self.calib_key_dict['bias'])
+        self.msbias = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                     self.par['biasframe'], bias_files)
+        self.msbias.set_paths(self, self.calib_dir, setup, calib_id, detname)
+        self.msbias.to_file()
         return self.msbias
 
     def get_dark(self):

@@ -21,7 +21,7 @@ from astropy.table import Table
 
 from pypeit import inputfiles
 from pypeit.core import parse
-from pypeit import masterframe
+#from pypeit import masterframe
 from pypeit import msgs
 from pypeit import calibrations
 from pypeit.images import buildimage

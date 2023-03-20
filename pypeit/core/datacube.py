@@ -17,7 +17,7 @@ from scipy.interpolate import interp1d
 import numpy as np
 
 from pypeit import msgs
-from pypeit import alignframe, datamodel, flatfield, io, masterframe, specobj, spec2dobj, utils
+from pypeit import alignframe, datamodel, flatfield, io, specobj, spec2dobj, utils
 from pypeit.core.flux_calib import load_extinction_data, extinction_correction, fit_zeropoint, get_standard_spectrum, ZP_UNIT_CONST, PYPEIT_FLUX_SCALE
 from pypeit.core.flexure import calculate_image_phase
 from pypeit.core import coadd, extract, findobj_skymask, parse, skysub

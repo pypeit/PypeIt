@@ -139,7 +139,8 @@ class CalibFrame(datamodel.DataContainer):
         # TODO: This used to set overwrite=True, but overwrite should be part of
         # kwargs.  The default of DataContainer is overwrite=False, so I need to
         # make sure that the behavior is maintained.
-        super().to_file(self.construct_file_name(), hdr=hdr, **kwargs)
+        ofile = self.__class__.construct_file_name(self.calib_key, calib_dir=self.calib_dir)
+        super().to_file(ofile, hdr=hdr, **kwargs)
 
     @classmethod
     def from_hdu(cls, hdu, chk_version=True, **kwargs):
@@ -290,29 +291,47 @@ class CalibFrame(datamodel.DataContainer):
         _calib_id = CalibFrame.ingest_calib_id(calib_id)
         return f'{setup}_{"-".join(_calib_id)}_{detname}'
 
-    # TODO: Change the name of this to get_path or something
-    def construct_file_name(self, full=True):
+    @staticmethod
+    def parse_calib_key(calib_key):
         """
-        Generate a calibration frame filename
+        Given the calibration key identifier, parse its different components.
+
+        To see how the key is constructed, see :func:`construct_calib_key`.
 
         Args:
-            full (:obj:`bool`, optional):
-                If True, return the full path.  If False, only return the file
-                name.
+            calib_key (:obj:`str`):
+                The calibration key identifier to parse.
+
+        Returns:
+            :obj:`tuple`: The three components of the calibration key.
+        """
+        setup, calib_id, detname = calib_key.split('_')
+        return setup, ','.join(calib_id.split('-')), detname
+
+    # TODO: Change the name of this to get_path or something
+    @classmethod
+    def construct_file_name(cls, calib_key, calib_dir=None):
+        """
+        Generate a calibration frame filename.
+
+        Args:
+            calib_key (:obj:`str`):
+                String identifier of the calibration group.  See
+                :func:`construct_calib_key`.
+            calib_dir (:obj:`str`, `Path`_, optional):
+                If provided, return the full path to the file given this
+                directory.
 
         Returns:
             :obj:`str`: File path or file name
         """
-        if None in [self.calib_type, self.calib_key, self.calib_file_format]:
-            msgs.error(f'CODING ERROR: Instance of {self.__class__.__name__} does not have all '
+        if None in [cls.calib_type, cls.calib_file_format]:
+            msgs.error(f'CODING ERROR: {cls..__name__} does not have all '
                        'the attributes needed to construct its filename.')
-        filename = f'{self.calib_type}_{self.calib_key}.{self.calib_file_format}'
-        if not full:
+        filename = f'{cls.calib_type}_{calib_key}.{cls.calib_file_format}'
+        if calib_dir is None:
             return filename
-        if self.calib_dir is None:
-            msgs.error(f'CODING ERROR: Instance of {self.__class__.__name__} has not defined the '
-                       'directory for the calibration files.')
-        return str(Path(self.calib_dir).resolve() / filename)
+        return str(Path(calib_dir).resolve() / filename)
 
     def build_header(self, hdr=None):
         """

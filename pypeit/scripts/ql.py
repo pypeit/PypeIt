@@ -30,7 +30,7 @@ import numpy as np
 import configobj
 
 from pypeit import utils
-from pypeit import masterframe
+#from pypeit import masterframe
 from pypeit import msgs
 from pypeit import pypeitsetup
 from pypeit import io
