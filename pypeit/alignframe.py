@@ -336,12 +336,14 @@ class AlignmentSplines:
             slices to be aligned correctly. Ideally, this variable will be assigned the
             value of alignments.traces. However, this can also be assigned the
             left and right slit edges:
+
             .. code-block:: python
 
                 traces = np.append(left.reshape((left.shape[0], 1, left.shape[1])),
                        right.reshape((left.shape[0], 1, left.shape[1])), axis=1)
                 # In this case, you should set the locations argument to
                 locations=np.array([0,1])
+
         locations : `numpy.ndarray`_, list
             locations along the slit of the alignment traces. Must
             be a 1D array of the same length as alignments.traces.shape[1]
