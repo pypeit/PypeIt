@@ -10,7 +10,7 @@
     positional arguments:
       file                  PypeIt file
     
-    options:
+    optional arguments:
       -h, --help            show this help message and exit
       --det DET             Detector (default: 1)
       -o, --overwrite       Overwrite any existing files/directories (default:

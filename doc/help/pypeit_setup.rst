@@ -8,7 +8,7 @@
     Parse data files to construct a pypeit file in preparation for reduction using
     'run_pypeit'
     
-    options:
+    optional arguments:
       -h, --help            show this help message and exit
       -s SPECTROGRAPH, --spectrograph SPECTROGRAPH
                             A valid spectrograph identifier: bok_bc,
@@ -35,13 +35,13 @@
                             up through the wildcard (.e.g, /data/Kast/b). Use the
                             --extension option to set the types of files to search
                             for. Default is the current working directory. (default:
-                            /Users/tim/MMT/pypeit/doc)
+                            current working directory)
       -e EXTENSION, --extension EXTENSION
                             File extension; compression indicators (e.g. .gz) not
                             required. (default: .fits)
       -d OUTPUT_PATH, --output_path OUTPUT_PATH
-                            Path to top-level output directory. (default:
-                            /Users/tim/MMT/pypeit/doc)
+                            Path to top-level output directory. (default: current
+                            working directory)
       -o, --overwrite       Overwrite any existing files/directories (default:
                             False)
       -c CFG_SPLIT, --cfg_split CFG_SPLIT

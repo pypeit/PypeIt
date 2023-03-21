@@ -804,6 +804,10 @@ class SpecObjs:
                 opt_fwhm.append(np.median(specobj.FWHMFIT) * binspatial * platescale)
             else:  # Optimal is not required to occur
                 opt_fwhm.append(0.)
+            # TODO: S2N was None in the test Keck/KCWI reductions, which was
+            # causing the code to fault.  I (KBW) added this to get around it.
+            if specobj.S2N is None:
+                specobj.S2N = specobj.med_s2n()
             s2n.append(specobj.S2N)
             # Manual extraction?
             manual_extract.append(specobj.hand_extract_flag)

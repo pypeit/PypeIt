@@ -3,54 +3,14 @@
 
 Data parsers for use with `specutils`_.
 
-Usage
------
-
-To read a PypeIt spec1d file:
-
-.. code-block:: python
-
-    from pypeit.specutils import SpectrumList
-    spec = SpectrumList.read(spec1d_file)
-
-where ``spec1d_file`` is the relative or absolute path to a PypeIt spec1d file.
-
-To read a PypeIt OneSpec file:
-
-.. code-block:: python
-
-    from pypeit.specutils import Spectrum1D
-    spec = Spectrum1D.read(onespec_file)
-
-where ``onespec_file`` is the relative or absolute path to a PypeIt OneSpec file.
-
-.. note::
-
-    The imports above are from the ``pypeit.specutils`` module, but the objects
-    themselves are identical to the `specutils`_ objects.  The reason they are
-    imported from within PypeIt is that, under the hood, the import also
-    "registers" the PypeIt-specific loaders with the relevant `specutils`_
-    module.  This circumvents the need to place any pypeit specific code in a
-    ``~/.specutils`` directory and keeps the import statement to one line.  That
-    is, 
-
-    .. code-block:: python
-
-        from pypeit.specutils import Spectrum1D
-
-    is really just shorthand for
-
-    .. code-block:: python
-
-        from specutils import Spectrum1D
-        from pypeit.specutils import pypeit_loaders
+.. include:: ../include/specutils_usage.rst
 
 Version History
 ---------------
 
-    2022-02-04: Initial Version (tbowers)
-    2022-09-16: Correct an import error and add module docstring (tbowers)
-    2023-03-09: Moved into the main pypeit repo and refactored (KBW)
+- 2022-02-04: Initial Version (tbowers)
+- 2022-09-16: Correct an import error and add module docstring (tbowers)
+- 2023-03-09: Moved into the main pypeit repo and refactored (KBW)
 
 """
 
@@ -70,6 +30,7 @@ except ModuleNotFoundError:
 
 from pypeit import __version__
 from pypeit.pypmsgs import PypeItError
+from pypeit import msgs
 from pypeit import specobjs
 from pypeit import onespec
 
@@ -148,11 +109,11 @@ def pypeit_spec1d_loader(filename, extract=None, fluxed=True, **kwargs):
         sobjs = specobjs.SpecObjs.from_fitsfile(filename, chk_version=False)
     except PypeItError:
         file_pypeit_version = astropy.io.fits.getval(filename, 'VERSPYP', 'PRIMARY')
-        raise PypeItError(f'Unable to ingest {filename} using pypeit.specobjs module from your '
-                          f'version of PypeIt ({__version__}).  The version used to write the '
-                          f'file is {file_pypeit_version}.  If these are different, you may need '
-                          'to re-reduce your data using your current PypeIt version or install '
-                          'the matching version of PypeIt (e.g., pip install pypeit==1.11.0).')
+        msgs.error(f'Unable to ingest {filename} using pypeit.specobjs module from your version '
+                   f'of PypeIt ({__version__}).  The version used to write the file is '
+                   f'{file_pypeit_version}.  If these are different, you may need to re-reduce '
+                   'your data using your current PypeIt version or install the matching version '
+                   'of PypeIt (e.g., pip install pypeit==1.11.0).')
 
     spec = []
     for sobj in sobjs:
@@ -199,11 +160,11 @@ def pypeit_onespec_loader(filename, grid=False, **kwargs):
         spec = onespec.OneSpec.from_file(filename)
     except PypeItError:
         file_pypeit_version = astropy.io.fits.getval(filename, 'VERSPYP', 'PRIMARY')
-        raise PypeItError(f'Unable to ingest {filename} using pypeit.onespec module from your '
-                          f'version of PypeIt ({__version__}).  The version used to write the '
-                          f'file is {file_pypeit_version}.  If these are different, you may need '
-                          'to re-reduce your data using your current PypeIt version or install '
-                          'the matching version of PypeIt (e.g., pip install pypeit==1.11.0).')
+        msgs.error(f'Unable to ingest {filename} using pypeit.specobjs module from your version '
+                   f'of PypeIt ({__version__}).  The version used to write the file is '
+                   f'{file_pypeit_version}.  If these are different, you may need to re-reduce '
+                   'your data using your current PypeIt version or install the matching version '
+                   'of PypeIt (e.g., pip install pypeit==1.11.0).')
 
     flux_unit = astropy.units.Unit("1e-17 erg/(s cm^2 Angstrom)" if spec.fluxed else "ct/s")
     wave = spec.wave_grid_mid if grid else spec.wave
@@ -219,7 +180,8 @@ def pypeit_onespec_loader(filename, grid=False, **kwargs):
             name = ''
 
     return Spectrum1D(flux=astropy.units.Quantity(spec.flux * flux_unit),
-                      uncertainty=astropy.nddata.InverseVariance(spec.ivar / flux_unit**2),
+                      uncertainty=None if spec.ivar is None 
+                        else astropy.nddata.InverseVariance(spec.ivar / flux_unit**2),
                       meta={'name': name, 'extract': spec.ext_mode, 'fluxed': spec.fluxed,
                             'grid': grid},
                       spectral_axis=astropy.units.Quantity(wave * astropy.units.angstrom),

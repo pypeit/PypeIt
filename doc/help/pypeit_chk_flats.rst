@@ -8,7 +8,7 @@
     positional arguments:
       master_file  PypeIt MasterFlat file [e.g. MasterFlat_A_1_01.fits]
     
-    options:
+    optional arguments:
       -h, --help   show this help message and exit
       --type TYPE  Which flats to display. Must be one of: pixel, illum, all
                    (default: all)

@@ -81,7 +81,7 @@ def get_report_metadata(object_header_keys, spec_obj_keys, file_info):
         header = file_info.spec1d_header_list[i]
 
         # Get the spec1d header metadata needed for the report
-        # NO LONGER: Use getattr for the spec_obj data because one of the attributes is actually a property (med_s2n)
+        # Use getattr for the spec_obj data
         spec_obj_data = [getattr(spec_obj, x) for x in spec_obj_keys]
         spec1d_filename =  os.path.basename(file_info.spec1d_file_list[i])
         header_data = [header[x] if x in header else None for x in object_header_keys]

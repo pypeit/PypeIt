@@ -8,7 +8,7 @@
     positional arguments:
       file        Arxiv filename, e.g. gemini_gmos_r831_ham.fits
     
-    options:
+    optional arguments:
       -h, --help  show this help message and exit
       --det DET   Detector number (default: 1)
     
