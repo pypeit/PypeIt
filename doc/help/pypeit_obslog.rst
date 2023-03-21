@@ -36,8 +36,7 @@
                             level directory (e.g., /data/Kast) or the search string
                             up through the wildcard (.e.g, /data/Kast/b). Use the
                             --extension option to set the types of files to search
-                            for. Default is the current working directory. (default:
-                            current working directory)
+                            for. (default: current working directory)
       -k, --keys            Do not produce the log; simply list the pypeit-specific
                             metadata keys available for this spectrograph and their
                             associated header cards. Metadata keys with header cards

@@ -34,8 +34,7 @@
                             level directory (e.g., /data/Kast) or the search string
                             up through the wildcard (.e.g, /data/Kast/b). Use the
                             --extension option to set the types of files to search
-                            for. Default is the current working directory. (default:
-                            current working directory)
+                            for. (default: current working directory)
       -e EXTENSION, --extension EXTENSION
                             File extension; compression indicators (e.g. .gz) not
                             required. (default: .fits)
