@@ -985,5 +985,16 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         phase, angle = 0.0, -45.34  # No phase, and a decent guess at the angle
         p0 = [amp, scale, phase, wavelength, angle]
         popt, pcov = curve_fit(sinfunc2d, (xx[gpmask], yy[gpmask]), det_resp[gpmask], p0=p0)
-        embed()
+        # TODO :: REMOVE THIS CODE BEFORE MERGING THE PR!!
+        debug = True
+        if debug:
+            embed()
+            mmm = sinfunc2d((xx, yy), *popt)
+            plt.subplot(131)
+            plt.imshow(det_resp, vmin=np.min(mmm), vmax=np.max(mmm))
+            plt.subplot(132)
+            plt.imshow(mmm, vmin=np.min(mmm), vmax=np.max(mmm))
+            plt.subplot(133)
+            plt.imshow(det_resp - mmm, vmin=np.min(mmm - 1), vmax=np.max(mmm - 1))
+            plt.show()
         return sinfunc2d((xx, yy), *popt)
