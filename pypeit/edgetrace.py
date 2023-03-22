@@ -26,11 +26,14 @@ in debugging mode, use the `--show` and/or `--debug` options:
 
 Programmatically, if you have a :ref:`pypeit_file` and a path for the reductions
 (`redux_path`), an example of how to trace the slits in a single
-detector is as follows::
+detector is as follows:A
+
+.. code-block:: python
 
     # Imports
     from pypeit.pypeit import PypeIt
-    from pypeit import traceimage, edgetrace
+    from pypeit import edgetrace
+    from pypeit.images import buildimage
 
     # Instantiate the PypeIt class to perform the necessary setup
     rdx = PypeIt(pypeit_file, redux_path=redux_path)
@@ -45,8 +48,9 @@ detector is as follows::
 
     # Setup the output paths for the trace file; these can be anything but
     # the defaults are below
-    master_dir = rdx.par['calibrations']['caldir']
-    master_key = rdx.fitstbl.master_key(tbl_rows[0], det=det)
+    calib_dir = rdx.par['calibrations']['caldir']
+    setup = rdx.fitstbl['setup'][tbl_rows[0]]
+    calib_id = rdx.fitstbl['calib'][tbl_rows[0]]
 
     # Skip the bias subtraction, if reasonable; see
     # pypeit.biasframe.BiasFrame to construct a bias to subtract from
@@ -54,28 +58,30 @@ detector is as follows::
     rdx.par['calibrations']['traceframe']['process']['bias'] = 'skip'
 
     # Construct the TraceImage
-    # TODO -- Update this doc
-    traceImage = pypeit.images.buildcalibration.TraceImage(rdx.spectrograph, files=files, det=det,
-                                       par=rdx.par['calibrations']['traceframe'])
-    traceImage.build_image()
+    traceImage = buildimage.buildimage_fromlist(rdx.spectrograph, det,
+                                                rdx.par['calibrations']['traceframe'],
+                                                files, calib_dir=self.calib_dir,
+                                                setup=setup, calib_id=calib_id)
 
     # Then run the edge tracing.  This performs the automatic tracing.
-    edges = edgetrace.EdgeTraceSet(rdx.spectrograph, rdx.par['calibrations']['slitedges'],
-                                   master_key=master_key, master_dir=master_dir, img=traceImage,
-                                   det=det, auto=True)
+    edges = edgetrace.EdgeTraceSet(traceImage, rdx.spectrograph,
+                                   rdx.par['calibrations']['slitedges'], auto=True)
     # You can look at the results using the show method:
-    edges.show(thin=10, include_img=True, idlabel=True)
+    edges.show()
     # Or in ginga viewer
-    edges.show(thin=10, in_ginga=True)
+    edges.show(in_ginga=True)
     # And you can save the results to a file
-    edges.save()
+    edges.to_file()
 
 If you want to instead start without a pypeit file, you could do the
 following for, e.g., a single unbinned Keck DEIMOS flat-field
 exposure in a fits file called `trace_file`::
 
+.. code-block:: python
+
     import os
-    from pypeit import traceimage, edgetrace
+    from pypeit import edgetrace
+    from pypeit.images import buildimage
     from pypeit.spectrographs.util import load_spectrograph
 
     spec = load_spectrograph('keck_deimos')
@@ -83,17 +89,15 @@ exposure in a fits file called `trace_file`::
     par['calibrations']['traceframe']['process']['bias'] = 'skip'
     # Make any desired changes to the parameters here
     det = 3
-    master_dir = os.path.split(os.path.abspath(trace_file))[0]
-    master_key = 'test_trace_{0}'.format(det)
+    calib_dir = par['calibrations']['caldir']
 
-    # TODO - update this
-    traceImage = traceimage.TraceImage(spec, files=[trace_file], det=det,
-                                       par=par['calibrations']['traceframe'])
-    traceImage.build_image()
+    # Construct the TraceImage
+    traceImage = buildimage.buildimage_fromlist(spec, det, par['calibrations']['traceframe'],
+                                                [trace_file], calib_dir=self.calib_dir,
+                                                setup='A', calib_id=1)
 
-    edges = edgetrace.EdgeTraceSet(spec, par['calibrations']['slitedges'], master_key=master_key,
-                                   master_dir=master_dir, img=traceImage, det=det, auto=True)
-    edges.save()
+    edges = edgetrace.EdgeTraceSet(traceImage, spec, par['calibrations']['slitedges'], auto=True)
+    edges.to_file()
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
@@ -123,6 +127,7 @@ from pypeit import utils
 from pypeit import sampling
 from pypeit import slittrace
 from pypeit.datamodel import DataContainer
+from pypeit import calibframe
 from pypeit.images.mosaic import Mosaic
 from pypeit.bitmask import BitMask
 from pypeit.display import display
@@ -209,7 +214,7 @@ class EdgeTraceBitMask(BitMask):
         return self.insert_flags + self.order_flags + ['BOXSLIT']
 
 
-class EdgeTraceSet(DataContainer):
+class EdgeTraceSet(calibframe.CalibFrame):
     r"""
     Core class that identifies, traces, and pairs edges in an image
     to define the slit apertures.
@@ -234,11 +239,9 @@ class EdgeTraceSet(DataContainer):
 
     The success of the tracing critically depends on the parameters
     used. The defaults are tuned for each spectrograph based on
-    testing using data in the pypeit development suite. See
+    testing using data in the PypeIt development suite. See
     :ref:`pypeitpar` for the full documentation of the
-    :class:`pypeit.par.pypeitpar.EdgeTracePar` parameters. Note that
-    the :class:`pypeit.par.pypeitpar.TraceSlitsPar` parameter group
-    has been deprecated.
+    :class:`pypeit.par.pypeitpar.EdgeTracePar` parameters.
 
     Finally, note that the :attr:`design` and :attr:`object` data are
     currently empty, as part of a development path for matching slits
@@ -256,7 +259,7 @@ class EdgeTraceSet(DataContainer):
         - Provide some guidance for the parameters to use.
 
     Args:
-        traceimg (:class:`pypeit.images.buildcalibration.TraceImage`):
+        traceimg (:class:`pypeit.images.buildimage.TraceImage`):
             Two-dimensional image used to trace slit edges.  The object provides
             the image, the bad-pixel mask, the detector information, and (one
             of) the original raw file name when matching slits to a design file.
@@ -266,11 +269,6 @@ class EdgeTraceSet(DataContainer):
         par (:class:`pypeit.par.pypeitpar.EdgeTracePar`):
             The parameters used to guide slit tracing. Used to set
             :attr:`par`.
-        master_key (:obj:`str`, optional):
-            The string identifier for the instrument configuration.  See
-            :class:`pypeit.masterframe.MasterFrame`.
-        master_dir (:obj:`str`, optional):
-            Path to master frames.
         qa_path (:obj:`str`, optional):
             Directory for QA output. If None, no QA plots are
             provided.
@@ -391,20 +389,50 @@ class EdgeTraceSet(DataContainer):
             Full path to the file used to extract slit-mask information
     """
 
-    master_type = 'Edges'
-    """Root name for the master frame file."""
+    calib_type = 'Edges'
+    """Root name for the calibration frame file."""
 
-    master_file_format = 'fits.gz'
-    """Master frame file format."""
+    calib_file_format = 'fits.gz'
+    """Calibration frame file format."""
 
     bitmask = EdgeTraceBitMask()
-    """BitMask instance."""
+    """Bit interpreter for the edge tracing mask."""
 
     version = '1.0.1'
     """DataContainer datamodel version."""
 
+    # TODO: Add this to the DataContainer base class?
     output_float_dtype = np.float32
     """Regardless of datamodel, output floating-point data have this fixed bit size."""
+
+    internals = calibframe.CalibFrame.internals \
+                 + ['spectrograph',     # Spectrograph instance
+                    'par',              # EdgeTracePar instance
+                    'qa_path',          # Path for the QA plots
+                    'edge_img',         # Array with the spatial pixel nearest to each trace edge.
+                    'sobelsig_left',    # Sobel filtered image used to trace left edges
+                    'sobelsig_right',   # Sobel filtered image used to trace right edges
+                    'design',           # Table that collates slit-mask design data matched to
+                                        #   the edge traces
+                    'objects',          # Table that collates object information, if available
+                                        #   in the slit-mask design, matched to the `design` table.
+                    'log',              # Log of methods applied
+                    'omodel_bspat',     # Left edges predicted by the optical model
+                                        #   (before x-correlation)
+                    'omodel_tspat',     # Right edges predicted by the optical model
+                                        #   (before x-correlation)
+                    'cc_params_b',      # Parameters of the x-correlation between LEFT edges
+                                        #   predicted by the slitmask design and the one traced 
+                                        #   on the image.
+                    'cc_params_t',      # Parameters of the x-correlation between RIGHT edges
+                                        #   predicted by the slitmask design and the one traced
+                                        #   on the image.
+                    'maskfile',         # File used to slurp in slit-mask design
+                    'slitmask',         # SlitMask instance that hold info on slitmask design
+                    'success']          # Flag that the automatic edge tracing was successful 
+    """
+    Attributes kept separate from the datamodel.
+    """
 
     datamodel = {'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
                  'dispname': dict(otype=str,
@@ -479,8 +507,6 @@ class EdgeTraceSet(DataContainer):
         if not isinstance(par, EdgeTracePar):
             msgs.error('Input par must be an EdgeTracePar object.')
 
-        # TODO:
-        #   - Change self.PYP_SPEC to self.specname
         self.traceimg = traceimg                        # Input TraceImage
         self.nspec, self.nspat = self.traceimg.shape    # The shape of the trace image
         self.spectrograph = spectrograph                # Spectrograph used to take the data
@@ -491,40 +517,21 @@ class EdgeTraceSet(DataContainer):
         self.maskdef_id = None                          # Slit ID number from slit-mask design
                                                         # matched to traced slits
 
+        # Inherit the calibration frame attributes from the trace image:
+        self.calib_id = self.traceimg.calib_id
+        self.calib_key = self.traceimg.calib_key
+        self.calib_dir = self.traceimg.calib_dir
+
         # NOTE: This means that, no matter what, every instance of
         # EdgeTraceSet should have a sobelsig attribute that is *not*
         # None.
+        self.success = False
         if auto:
             # Run the automatic tracing
             self.auto_trace(debug=debug, show_stages=show_stages)
         else:
             # Only get the initial trace
             self.initial_trace()
-
-    def _init_internals(self):
-        """Add any attributes that are *not* part of the datamodel."""
-        self.spectrograph = None        # Spectrograph instance
-        self.par = None                 # EdgeTracePar instance
-        self.qa_path = None             # Path for the QA plots
-        self.edge_img = None            # Array with the spatial pixel nearest to each trace edge.
-        self.sobelsig_left = None      # Sobel filtered image used to trace left edges
-        self.sobelsig_right = None     # Sobel filtered image used to trace right edges
-        self.design = None              # Table that collates slit-mask design data matched to
-                                        # the edge traces
-        self.objects = None             # Table that collates object information, if available
-                                        # in the slit-mask design, matched to the `design` table.
-        self.log = None                 # Log of methods applied
-        self.master_key = None          # Calibration key for master frame
-        self.master_dir = None          # Directory for Master frames
-        self.omodel_bspat = None        # Left edges predicted by the optical model (before x-correlation)
-        self.omodel_tspat = None        # Right edges predicted by the optical model (before x-correlation)
-        self.cc_params_b = None         # Parameters of the x-correlation between LEFT edges predicted
-                                        # by the slitmask design and the one traced on the image.
-        self.cc_params_t = None         # Parameters of the x-correlation between RIGHT edges predicted
-                                        # by the slitmask design and the one traced on the image.
-        self.maskfile = None            # File used to slurp in slit-mask design
-        self.slitmask = None            # SlitMask instance that hold info on slitmask design
-        self.success = False            # Flag that the automatic edge tracing was successful
 
     def _reinit_trace_data(self):
         """

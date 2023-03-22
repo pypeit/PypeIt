@@ -2,6 +2,7 @@
 Module to run tests on FlatField class
 Requires files in Development suite and an Environmental variable
 """
+from pathlib import Path
 import os
 
 import pytest
@@ -11,18 +12,14 @@ import shutil
 import numpy as np
 
 from pypeit import calibrations
+from pypeit.images import buildimage
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 from IPython import embed
 
-from pypeit.tests.tstutils import dummy_fitstbl
+from pypeit.tests.tstutils import dummy_fitstbl, data_path
 
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
-
-
-#@pytest.fixture
+@pytest.fixture
 def fitstbl():
     if os.getenv('PYPEIT_DEV') is None:
         fitstbl = dummy_fitstbl(directory=data_path(''))
@@ -43,7 +40,7 @@ def fitstbl():
     return fitstbl
 
 
-#@pytest.fixture
+@pytest.fixture
 def multi_caliBrate(fitstbl):
     # Grab a science file for configuration specific parameters
     for idx, row in enumerate(fitstbl):
@@ -109,28 +106,38 @@ def test_bias(multi_caliBrate):
     """
     multi_caliBrate.get_bias()
 
-test_bias(multi_caliBrate(fitstbl()))
-
 
 def test_arc(multi_caliBrate):
     arc = multi_caliBrate.get_arc()
-    assert arc.image.shape == (2048,350)
+    assert isinstance(arc, buildimage.ArcImage), 'arc has wrong type'
+    assert Path(arc.get_path()).exists(), 'No Arc file written'
+    assert arc.image.shape == (2048,350), 'Arc has wrong shape'
 
     # Cleanup
-    shutil.rmtree(multi_caliBrate.master_dir)
+    shutil.rmtree(multi_caliBrate.calib_dir)
 
 
 def test_tiltimg(multi_caliBrate):
     tilt = multi_caliBrate.get_tiltimg()
+    assert isinstance(tilt, buildimage.TiltImage), 'tilt has wrong type'
+    assert Path(tilt.get_path()).exists(), 'No Tilt file written'
     assert tilt.image.shape == (2048,350)
 
     # Cleanup
-    shutil.rmtree(multi_caliBrate.master_dir)
+    shutil.rmtree(multi_caliBrate.calib_dir)
+
 
 def test_bpm(multi_caliBrate):
-    # Prep
-    multi_caliBrate.shape = (2048,350)
     # Build
     bpm = multi_caliBrate.get_bpm()
     assert bpm.shape == (2048,350)
     assert np.sum(bpm) == 0.
+
+# TODO: Add tests for:
+#   - get_dark
+#   - get_flats
+#   - get_slits
+#   - get_wv_calib
+#   - get_tilts
+
+

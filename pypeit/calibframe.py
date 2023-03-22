@@ -117,6 +117,7 @@ class CalibFrame(datamodel.DataContainer):
 
     # NOTE: Only need to overload to_file because the only thing special about
     # CalibFrame is that the paths are pre-defined.
+    # TODO: Allow the file path to be passed directly to this function?
     def to_file(self, **kwargs):
         """
         Overrides the base-class function, forcing the naming convention.
@@ -171,7 +172,11 @@ class CalibFrame(datamodel.DataContainer):
         # NOTE: If multiple HDUs are parsed, this assumes that the information
         # necessary to set all the calib internals is always in *every* header.
         # BEWARE!
-        hdr_to_parse = hdu[parsed_hdus[0]].header
+        try:
+            hdr_to_parse = hdu[parsed_hdus[0]].header
+        except:
+            embed()
+            exit()
         # TODO: Consider making the next two lines a function so that they don't
         # need to be repeated in PypeItCalibrationImage.
         self.calib_key, self.calib_dir = CalibFrame.parse_key_dir(hdr_to_parse)

@@ -49,14 +49,14 @@ def test_init():
     calib = MinimalCalibFrame()
     odir = Path(data_path('')).resolve()
     calib.set_paths(odir, 'A', '1', 'DET01')
-    ofile = calib.construct_file_name(full=False)
+    ofile = Path(calib.get_path()).name
     assert ofile == 'Minimal_A_1_DET01.fits', 'Wrong file name'
-    opath = Path(calib.construct_file_name()).resolve() # Now with the full path
+    opath = Path(calib.get_path()).resolve() # Now with the full path
     assert opath.parent == odir, 'Wrong parent directory'
     assert opath.name == ofile, 'Wrong file name'
 
     calib.set_paths(odir, 'A', ['1','2'], 'DET01')
-    ofile = calib.construct_file_name(full=False)
+    ofile = Path(calib.get_path()).name
     assert ofile == 'Minimal_A_1-2_DET01.fits', 'Wrong file name'
 
 
@@ -65,7 +65,7 @@ def test_io():
     odir = Path(data_path('')).resolve()
     calib.set_paths(odir, 'A', '1', 'DET01')
     calib.PYP_SPEC = 'this is a test'
-    opath = Path(calib.construct_file_name()).resolve()
+    opath = Path(calib.get_path()).resolve()
     calib.to_file(overwrite=True)
 
     with io.fits_open(str(opath)) as hdu:
@@ -83,7 +83,7 @@ def test_io():
 
     calib.set_paths(odir, 'A', [1,2], 'DET01')
     calib.to_file(overwrite=True)
-    opath = Path(calib.construct_file_name()).resolve()
+    opath = Path(calib.get_path()).resolve()
     with io.fits_open(str(opath)) as hdu:
         assert hdu[1].header['CALIBID'] == '1,2', 'Calibration ID incorrect'
     _calib = MinimalCalibFrame.from_file(str(opath))
@@ -119,7 +119,7 @@ def test_parse_key_dir():
     odir = Path(data_path('')).resolve()
     calib.set_paths(odir, 'A', '1', 'DET01')
     calib.PYP_SPEC = 'this is a test'
-    opath = Path(calib.construct_file_name()).resolve()
+    opath = Path(calib.get_path()).resolve()
     calib.to_file(overwrite=True)
 
     key, _odir = CalibFrame.parse_key_dir(str(opath), from_filename=True)
@@ -133,7 +133,6 @@ def test_parse_key_dir():
         assert key == calib.calib_key, 'Key parsed incorrectly'
         assert _odir == calib.calib_dir, 'Key parsed incorrectly'
 
-test_parse_key_dir()
 
 def test_hdr():
     calib = MinimalCalibFrame()
