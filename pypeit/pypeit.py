@@ -20,8 +20,8 @@ from astropy.io import fits
 from astropy.table import Table
 
 from pypeit import inputfiles
+from pypeit.calibframe import CalibFrame
 from pypeit.core import parse
-#from pypeit import masterframe
 from pypeit import msgs
 from pypeit import calibrations
 from pypeit.images import buildimage
@@ -61,7 +61,7 @@ class PypeIt:
 
         overwrite (:obj:`bool`, optional):
             Flag to overwrite any existing files/directories.
-        reuse_masters (:obj:`bool`, optional):
+        reuse (:obj:`bool`, optional):
             Reuse any pre-existing calibration files
         logname (:obj:`str`, optional):
             The name of an ascii log file with the details of the
@@ -83,8 +83,7 @@ class PypeIt:
         fitstbl (:obj:`pypeit.metadata.PypeItMetaData`): holds the meta info
 
     """
-    def __init__(self, pypeit_file, verbosity=2, overwrite=True, 
-                 reuse_masters=False, logname=None,
+    def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse=False, logname=None,
                  show=False, redux_path=None, calib_only=False):
 
         # Set up logging
@@ -168,12 +167,12 @@ class PypeIt:
         self.overwrite = overwrite
 
         # Currently the runtime argument determines the behavior for
-        # reuse_masters.
-        self.reuse_masters = reuse_masters
+        # reusin calibrations
+        self.reuse = reuse
         self.show = show
 
         # Set paths
-        self.calibrations_path = os.path.join(self.par['rdx']['redux_path'], self.par['calibrations']['master_dir'])
+        self.calibrations_path = os.path.join(self.par['rdx']['redux_path'], self.par['calibrations']['calib_dir'])
 
         # Check for calibrations
         if not self.calib_only:
@@ -182,7 +181,7 @@ class PypeIt:
 
         # Report paths
         msgs.info('Setting reduction path to {0}'.format(self.par['rdx']['redux_path']))
-        msgs.info('Master calibration data output to: {0}'.format(self.calibrations_path))
+        msgs.info('Calibration frames saved to: {0}'.format(self.calibrations_path))
         msgs.info('Science data output to: {0}'.format(self.science_path))
         msgs.info('Quality assessment plots output to: {0}'.format(self.qa_path))
         # TODO: Is anything written to the qa dir or only to qa/PNGs?
@@ -318,7 +317,7 @@ class PypeIt:
                 # Instantiate Calibrations class
                 self.caliBrate = calibrations.Calibrations.get_instance(
                     self.fitstbl, self.par['calibrations'], self.spectrograph,
-                    self.calibrations_path, qadir=self.qa_path, reuse_masters=self.reuse_masters,
+                    self.calibrations_path, qadir=self.qa_path, reuse=self.reuse,
                     show=self.show,
                     user_slits=slittrace.merge_user_slit(self.par['rdx']['slitspatnum'],
                                                          self.par['rdx']['maskIDs']))
@@ -337,8 +336,7 @@ class PypeIt:
                 key = self.fitstbl.master_key(grp_frames[0], det=self.det)
                 calib_dict[calib_grp][key] = {}
                 for step in self.caliBrate.steps:
-                    if step in ['bpm', 'slits', 
-                                'wv_calib', 'tilts', 'flats']:
+                    if step in ['bpm', 'slits', 'wv_calib', 'tilts', 'flats']:
                         continue
                     elif step == 'tiltimg':  # Annoying kludge
                         step = 'tilt'
@@ -561,7 +559,7 @@ class PypeIt:
         sciImg_list = []
         # List of detectors with successful calibration
         calibrated_det = []
-        # list of successful MasterSlits calibrations to be used in the extraction loop
+        # list of successful slits calibrations to be used in the extraction loop
         calib_slits = []
         # List of objFind objects
         objFind_list = []
@@ -602,7 +600,7 @@ class PypeIt:
             # we save only the detectors that had a successful calibration,
             # and we use only those in the extract loop below
             calibrated_det.append(self.det)
-            # we also save the successful MasterSlits calibrations because they are used and modified
+            # we also save the successful slit calibrations because they are used and modified
             # in the slitmask stuff in between the two loops
             calib_slits.append(self.caliBrate.slits)
             # global_sky, skymask and sciImg are needed in the extract loop
@@ -682,7 +680,7 @@ class PypeIt:
         Returns:
             5 objects are returned::
                 - str: Object type;  science or standard
-                - str: Setup string from master_key()
+                - str: Setup/configuration string
                 - astropy.time.Time: Time of observation
                 - str: Basename of the frame
                 - str: Binning of the detector
@@ -694,15 +692,16 @@ class PypeIt:
         obstime  = self.fitstbl.construct_obstime(frame)
         basename = self.fitstbl.construct_basename(frame, obstime=obstime)
         objtype  = self.fitstbl['frametype'][frame]
-        if 'science' in objtype:
+        if objtype == 'science':
             objtype_out = 'science'
-        elif 'standard' in objtype:
+        elif objtype == 'standard':
             objtype_out = 'standard'
         else:
             msgs.error('Unrecognized objtype')
-        setup = self.fitstbl.master_key(frame, det=det)
-        return objtype_out, setup, obstime, basename, binning
-
+        calib_key = CalibFrame.construct_calib_key(self.fitstbl['setup'][frame],
+                                                   self.fitstbl['calib'][frame],
+                                                   self.spectrograph.get_det_name(det))
+        return objtype_out, calib_key, obstime, basename, binning
 
     def calib_one(self, frames, det):
         """
@@ -725,8 +724,7 @@ class PypeIt:
         caliBrate = calibrations.Calibrations.get_instance(
             self.fitstbl, self.par['calibrations'], self.spectrograph,
             self.calibrations_path, qadir=self.qa_path, 
-            reuse_masters=self.reuse_masters,
-            show=self.show, 
+            reuse=self.reuse, show=self.show, 
             user_slits=slittrace.merge_user_slit(
                 self.par['rdx']['slitspatnum'], self.par['rdx']['maskIDs']))
             #slitspat_num=self.par['rdx']['slitspatnum'])
@@ -804,7 +802,7 @@ class PypeIt:
                                                    ignore_saturation=False)
             sciImg = sciImg.sub(bgimg)
 
-        # Check if the user has manually created a Master sky regions
+        # Check if the user has manually created a sky region file
         sky_region_file = None
         if self.par['reduce']['skysub']['user_regions'] == 'master':
             # Check if a master Sky Regions file exists for this science frame
@@ -1049,8 +1047,7 @@ class PypeIt:
         # Build header
         pri_hdr = all_spec2d.build_primary_hdr(head2d, self.spectrograph,
                                                redux_path=self.par['rdx']['redux_path'],
-                                               master_key_dict=self.caliBrate.master_key_dict,
-                                               master_dir=self.caliBrate.master_dir,
+                                               calib_dir=self.caliBrate.calib_dir,
                                                subheader=subheader,
                                                history=history)
 

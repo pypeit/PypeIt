@@ -5,14 +5,17 @@ Class for guiding calibration object generation in PypeIt.
 .. include:: ../include/links.rst
 """
 from pathlib import Path
-
+from datetime import datetime
+from copy import deepcopy
 from abc import ABCMeta
 from collections import Counter
 
 from IPython import embed
 
 import numpy as np
+import yaml
 
+from pypeit import __version__
 from pypeit import msgs
 from pypeit import alignframe
 from pypeit import flatfield
@@ -28,6 +31,7 @@ from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit import io
+from pypeit import utils
 
 
 class Calibrations:
@@ -954,6 +958,118 @@ class Calibrations:
                                                           self.calib_ID)
         txt += '>'
         return txt
+
+    @staticmethod
+    def association_summary(ofile, fitstbl, spectrograph, caldir, subset=None, det=None,
+                            overwrite=False):
+        """
+        Write a file listing the associations between the processed calibration
+        frames and their source raw files for every setup and every calibration
+        group.
+
+        Args:
+            ofile (:obj:`str`, `Path`_):
+                Full path to the output file.
+            fitstbl (:class:`pypeit.metadata.PypeItMetaData`):
+                The class holding the metadata for all the frames to process.
+            spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
+                Spectrograph object
+            caldir (:obj:`str`, `Path`_):
+                Path for the processed calibration frames.
+            subset (`numpy.ndarray`_, optional):
+                A boolean array selecting a subset of rows from ``fitstbl`` for
+                output.
+            det (:obj:`int`, :obj:`tuple`, optional):
+                The specific detector (or mosaic) to use when constructing the
+                output processed calibration group file names.  If None, a
+                placeholder is used.
+            overwrite (:obj:`bool`, optional):
+                Overwrite any existing file of the same name.
+        """
+        if fitstbl.calib_groups is None:
+            msgs.error('Calibration groups have not been defined!')
+
+        _ofile = Path(ofile).resolve()
+        if _ofile.exists() and not overwrite:
+            msgs.error(f'{_ofile} exists!  To overwrite, set overwrite=True.')
+
+        _caldir = str(Path(caldir).resolve())
+
+        # This defines the classes used by each frametype that results in an
+        # output calibration frame:
+        frame_calibrations = {'align': [alignframe.Alignments],
+                              'arc': [buildimage.ArcImage, wavecalib.WaveCalib],
+                              'bias': [buildimage.BiasImage],
+                              'dark': [buildimage.DarkImage],
+                              'pixelflat': [flatfield.FlatImages],
+                              'illumflat': [flatfield.FlatImages],
+                              'lampoffflats': [flatfield.FlatImages], 
+                              'trace': [edgetrace.EdgeTraceSet, slittrace.SlitTraceSet],
+                              'tilt': [buildimage.TiltImage, wavetilts.WaveTilts]
+                             }
+
+        # Get the name of the detector/mosaic
+        detname = spectrograph.get_det_name(1 if det is None else det)
+
+        # Find the unique configuations in the metaddata
+        setups = fitstbl.unique_configurations(copy=True, rm_none=True)
+
+        # Subset to output
+        if subset is None:
+            subset = np.ones(len(fitstbl), dtype=bool)
+
+        cfg = {}
+        # Iterate through each setup
+        for setup in setups.keys():
+            cfg[setup] = {}
+            cfg[setup]['--'] = deepcopy(setups[setup])
+            in_setup = fitstbl.find_configuration(setup) & subset
+            if not any(in_setup):
+                continue
+            # Iterate through each calibration group
+            for calib_ID in fitstbl.calib_groups:
+                # Find all the frames in this calibration group
+                in_grp = fitstbl.find_calib_group(calib_ID) & in_setup
+                if not any(in_grp):
+                    continue
+
+                cfg[setup][calib_ID] = {}
+
+                # First list the science and standard (and sky?) frames in this
+                # calibration group
+                for frametype in ['science', 'standard']:
+                    indx = fitstbl.find_frames(frametype) & in_grp
+                    if not any(indx):
+                        continue
+                    cfg[setup][calib_ID][frametype] = fitstbl.frame_paths(indx)
+
+                # Iterate through each frame type
+                for frametype, calib_classes in frame_calibrations.items():
+                    indx = fitstbl.find_frames(frametype) & in_grp
+                    if not any(indx):
+                        continue
+                    if not all(fitstbl['calib'][indx] == fitstbl['calib'][indx][0]):
+                        msgs.error(f'CODING ERROR: All {frametype} frames in group {calib_ID} '
+                                   'are not all associated with the same subset of calibration '
+                                   'groups; calib for the first file is '
+                                   f'{fitstbl["calib"][indx][0]}.')
+                    calib_key = CalibFrame.construct_calib_key(setup, fitstbl['calib'][indx][0],
+                                                               detname)
+                    cfg[setup][calib_ID][frametype] = {}
+                    cfg[setup][calib_ID][frametype]['raw'] = fitstbl.frame_paths(indx)
+                    cfg[setup][calib_ID][frametype]['proc'] \
+                            = [calib_class.construct_file_name(calib_key, calib_dir=_caldir)
+                                for calib_class in frame_calibrations[frametype]]
+
+        # Write it
+        with open(_ofile, 'w') as ff:
+            ff.write('# Auto-generated calibration association file using PypeIt version: '
+                     f' {__version__}\n')
+            ff.write(f'# UTC {datetime.utcnow().isoformat(timespec="milliseconds")}\n')
+            if det is None:
+                ff.write(f'# NOTE: {detname} is a placeholder for the reduced detectors/mosaics\n')
+            ff.write(yaml.dump(utils.yamlify(cfg)))
+        msgs.info(f'Calibration association file written to: {_ofile}')
 
 
 class MultiSlitCalibrations(Calibrations):

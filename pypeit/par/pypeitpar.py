@@ -3949,12 +3949,12 @@ class CalibrationsPar(ParSet):
         descr['calib_dir'] = 'If provided, it should be the name of the folder to ' \
                              'write processed calibration files.  This is not a full path name.'
 
-        # TODO: Is this ever used?  This feels like an outdated parameter.
-        # There is no "masters" parameter...
-        dtypes['setup'] = str
-        descr['setup'] = 'If masters=\'force\', this is the setup name to be used: e.g., ' \
-                         'C_02_aa .  The detector number is ignored but the other information ' \
-                         'must match the calibration frames in the relevant folder.'
+#        # TODO: Is this ever used?  This feels like an outdated parameter.
+#        # There is no "masters" parameter...
+#        dtypes['setup'] = str
+#        descr['setup'] = 'If masters=\'force\', this is the setup name to be used: e.g., ' \
+#                         'C_02_aa .  The detector number is ignored but the other information ' \
+#                         'must match the calibration frames in the relevant folder.'
 
         defaults['raise_chk_error'] = True
         dtypes['raise_chk_error'] = bool

@@ -5,6 +5,7 @@ Provides a class that handles the fits metadata required by PypeIt.
 .. include:: ../include/links.rst
 """
 import os
+from pathlib import Path
 import io
 import string
 from copy import deepcopy
@@ -688,8 +689,7 @@ class PypeItMetaData:
             uniq, indx = np.unique(self['setup'], return_index=True)
             ignore = uniq == 'None'
             if np.sum(ignore) > 0:
-                msgs.warn('Ignoring {0} frames with configuration set to None.'.format(
-                            np.sum(ignore)))
+                msgs.warn(f'Ignoring {np.sum(ignore)} frames with configuration set to None.')
             self.configs = {}
             for i in range(len(uniq)):
                 if ignore[i]:
@@ -936,6 +936,33 @@ class PypeItMetaData:
         msgs.warn(msg)
         # And remove 'em
         self.table = self.table[good]
+
+    def find_configuration(self, setup, index=False):
+        """
+        Find all frames associated with the provided setup/configuration.
+
+        Args:
+            setup (:obj:`str`):
+                The setup/configuration to search on.
+            index (:obj:`bool`, optional):
+                Return an array of 0-indexed indices instead of a
+                boolean array.
+
+        Returns:
+            numpy.ndarray: A boolean array, or an integer array if
+            ``index=True``, with the table rows associated with the requested
+            setup/configuration.
+        """
+        if 'setup' not in self.keys():
+            msgs.error('Configurations not set; first execute self.unique_configurations.')
+
+        # NOTE: frames can be associated with multiple setups (namely biases),
+        # meaning that we have to split the string by any separating commas.
+        # This has the added benefit that ``'A' in 'AA'`` is True (a bug in our
+        # setup naming system in the albeit crazy case when someone is trying to
+        # parse more than 26 setups), but ``'A' in 'AA'.split(',')`` is False.
+        in_cfg = np.array([setup in _set.split(',') for _set in self.table['setup']])
+        return np.where(in_cfg)[0] if index else in_cfg
 
     # TODO: Make some tests for this!
     def _set_calib_group_bits(self):
@@ -1364,13 +1391,13 @@ class PypeItMetaData:
             table>
         """
         # Columns for output
-        columns = self.spectrograph.pypeit_file_keys()
+        columns = self.spectrograph.pypeit_file_keys() + ['calib']
 
         extras = []
 
         # comb, bkg columns
         if write_bkg_pairs:
-            extras += ['calib', 'comb_id', 'bkg_id']
+            extras += ['comb_id', 'bkg_id']
         # manual
         if write_manual:
             extras += ['manual']
@@ -1452,7 +1479,7 @@ class PypeItMetaData:
               consider reformatting/removing it.
 
         Args:
-            ofile (:obj:`str`):
+            ofile (:obj:`str`, `Path`_):
                 Name for the output sorted file.
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file with the same name.
@@ -1472,8 +1499,9 @@ class PypeItMetaData:
             msgs.error('Cannot write sorted instrument configuration table without \'setup\' '
                        'column; run set_configurations.')
 
-        if os.path.isfile(ofile) and not overwrite:
-            msgs.error('{0} already exists.  Use ovewrite=True to overwrite.'.format(ofile))
+        _ofile = Path(ofile).resolve()    
+        if _ofile.exists() and not overwrite:
+            msgs.error(f'{_ofile} already exists.  Use ovewrite=True to overwrite.')
 
         # Grab output columns
         output_cols = self.set_pypeit_cols(write_bkg_pairs=write_bkg_pairs,
@@ -1486,7 +1514,7 @@ class PypeItMetaData:
                     del cfgs[key]
 
         # Construct file
-        ff = open(ofile, 'w')
+        ff = open(_ofile, 'w')
         for setup in cfgs.keys():
             # Get the subtable of frames taken in this configuration
             indx = np.array([setup in _set for _set in self['setup']])
@@ -1518,92 +1546,87 @@ class PypeItMetaData:
         ff.write('##end\n')
         ff.close()
 
-    # TODO: Do we need a calib file?
-    def write_calib(self, ofile, overwrite=True, ignore=None):
-        """
-        Write the calib file.
-
-        The calib file provides the unique instrument configurations
-        (setups) and the association of each frame from that
-        configuration with a given calibration group.
-
-        .. todo::
-            - This is for backwards compatibility, but we should
-              consider reformatting/removing it.
-            - This is complicated by allowing some frame types to have
-              no association with an instrument configuration
-            - This is primarily used for QA now;  but could probably use the pypeit file instead
-
-        Args:
-            ofile (:obj:`str`):
-                Name for the output sorted file.
-            overwrite (:obj:`bool`, optional):
-                Overwrite any existing file with the same name.
-            ignore (:obj:`list`, optional):
-                Ignore calibration groups in the provided list.
-
-        Raises:
-            PypeItError:
-                Raised if the 'setup' or 'calibbit' columns haven't been
-                defined.
-        """
-        if 'setup' not in self.keys() or 'calibbit' not in self.keys():
-            msgs.error('Cannot write calibration groups without \'setup\' and \'calibbit\' '
-                       'columns; run set_configurations and set_calibration_groups.')
-
-        if os.path.isfile(ofile) and not overwrite:
-            msgs.error('{0} already exists.  Use ovewrite=True to overwrite.'.format(ofile))
-
-        # Construct the setups dictionary
-        cfg = self.unique_configurations(copy=True, rm_none=True)
-
-        # TODO: We should edit the relevant follow-on code so that we
-        # don't have to do these gymnastics. Or better yet, just stop
-        # producing/using the *.calib file.
-        _cfg = {}
-        for setup in cfg.keys():
-            _cfg[setup] = {}
-            _cfg[setup]['--'] = deepcopy(cfg[setup])
-        cfg = _cfg
-
-        # Iterate through the calibration bit names as these are the root of the
-        #   MasterFrames and QA
-        for icbit in np.unique(self['calibbit'].data):
-            cbit = int(icbit) # for yaml
-            # Skip this group
-            if ignore is not None and cbit in ignore:
-                continue
-
-            # Find the frames in this group
-            #in_group = self.find_calib_group(i)
-            in_cbit = self['calibbit'] == cbit
-
-            # Find the unique configurations in this group, ignoring any
-            # undefined ('None') configurations
-            #setup = np.unique(self['setup'][in_group]).tolist()
-            setup = np.unique(self['setup'][in_cbit]).tolist()
-            if 'None' in setup:
-                setup.remove('None')
-
-            # Make sure that each calibration group should only contain
-            # frames from a single configuration
-            if len(setup) != 1:
-                msgs.error('Each calibration group must be from one and only one instrument '
-                           'configuration with a valid letter identifier; i.e., the '
-                           'configuration cannot be None.')
-
-            # Find the frames of each type in this group
-            cfg[setup[0]][cbit] = {}
-            for key in self.type_bitmask.keys():
-                #ftype_in_group = self.find_frames(key) & in_group
-                ftype_in_group = self.find_frames(key) & in_cbit
-                cfg[setup[0]][cbit][key] = [ os.path.join(d,f)
-                                                for d,f in zip(self['directory'][ftype_in_group],
-                                                               self['filename'][ftype_in_group])]
-        # Write it
-        ff = open(ofile, 'w')
-        ff.write(yaml.dump(utils.yamlify(cfg)))
-        ff.close()
+#    def write_calib(self, ofile, overwrite=True, ignore=None):
+#        """
+#        Write the calib file.
+#
+#        The calib file provides the unique instrument configurations
+#        (setups) and the association of each frame from that
+#        configuration with a given calibration group.
+#
+#        .. todo::
+#            - This is complicated by allowing some frame types to have
+#              no association with an instrument configuration
+#            - This is primarily used for QA now.  Should allow this file to be
+#              generated using the pypeit file instead.
+#
+#        Args:
+#            ofile (:obj:`str`, `Path`_):
+#                Name for the output sorted file.
+#            overwrite (:obj:`bool`, optional):
+#                Overwrite any existing file with the same name.
+#            ignore (:obj:`list`, optional):
+#                Ignore calibration groups in the provided list.
+#
+#        Raises:
+#            PypeItError:
+#                Raised if the 'setup' or 'calibbit' columns haven't been
+#                defined.
+#        """
+#        if 'setup' not in self.keys() or 'calibbit' not in self.keys():
+#            msgs.error('Cannot write calibration groups without \'setup\' and \'calibbit\' '
+#                       'columns; run set_configurations and set_calibration_groups.')
+#
+#        _ofile = Path(ofile).resolve()
+#        if _ofile.exists() and not overwrite:
+#            msgs.error(f'{_ofile} already exists.  Use ovewrite=True to overwrite.')
+#
+#        # Construct the setups dictionary
+#        cfg = self.unique_configurations(copy=True, rm_none=True)
+#
+#        _cfg = {}
+#        for setup in cfg.keys():
+#            _cfg[setup] = {}
+#            _cfg[setup]['--'] = deepcopy(cfg[setup])
+#        cfg = _cfg
+#
+#        # Iterate through the calibration bit names as these are the root of the
+#        #   MasterFrames and QA
+#        for icbit in np.unique(self['calibbit'].data):
+#            cbit = int(icbit) # for yaml
+#            # Skip this group
+#            if ignore is not None and cbit in ignore:
+#                continue
+#
+#            # Find the frames in this group
+#            #in_group = self.find_calib_group(i)
+#            in_cbit = self['calibbit'] == cbit
+#
+#            # Find the unique configurations in this group, ignoring any
+#            # undefined ('None') configurations
+#            #setup = np.unique(self['setup'][in_group]).tolist()
+#            setup = np.unique(self['setup'][in_cbit]).tolist()
+#            if 'None' in setup:
+#                setup.remove('None')
+#
+#            # Make sure that each calibration group should only contain
+#            # frames from a single configuration
+#            if len(setup) != 1:
+#                msgs.error('Each calibration group must be from one and only one instrument '
+#                           'configuration with a valid letter identifier; i.e., the '
+#                           'configuration cannot be None.')
+#
+#            # Find the frames of each type in this group
+#            cfg[setup[0]][cbit] = {}
+#            for key in self.type_bitmask.keys():
+#                #ftype_in_group = self.find_frames(key) & in_group
+#                ftype_in_group = self.find_frames(key) & in_cbit
+#                cfg[setup[0]][cbit][key] = [ os.path.join(d,f)
+#                                                for d,f in zip(self['directory'][ftype_in_group],
+#                                                               self['filename'][ftype_in_group])]
+#        # Write it
+#        with open(_ofile, 'w') as ff:
+#            ff.write(yaml.dump(utils.yamlify(cfg)))
 
     def write_pypeit(self, output_path=None, cfg_lines=None,
                      write_bkg_pairs=False, write_manual=False,
@@ -1641,7 +1664,6 @@ class PypeItMetaData:
                 the configurations matched to this provided string or
                 list of strings (e.g., ['A','C']). See
                 :attr:`configs`.
-
 
         Raises:
             PypeItError:

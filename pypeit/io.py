@@ -855,22 +855,25 @@ def grab_rawfiles(raw_paths:list=None,
 
 def files_from_extension(raw_path:str,
                          extension:str='fits'):
-    """ Grab the list of files with a given extension 
+    """
+    Grab the list of files with a given extension 
 
-        Args:
-            raw_path (str):
-                Path to raw files
-            extension (str, optional):
-                File extension to search on.  Defaults to '.fits'.
+    Args:
+        raw_path (str):
+            Path to raw files, which may or may not include the prefix of the
+            files to search for.  For example, this can be the directory
+            ``'/path/to/files/'`` or the directory plus the file prefix
+            ``'/path/to/files/prefix'``, which yeilds the search strings
+            ``'/path/to/files/*fits'`` or ``'/path/to/files/prefix*fits'``,
+            respectively.
+        extension (str, optional):
+            File extension to search on.
 
-        Returns:
-            list: List of raw data filenames (sorted) with full path
+    Returns:
+        list: List of raw data filenames (sorted) with full path
     """
     # Grab the list of files
     dfname = os.path.join(raw_path, '*{0}*'.format(extension)) \
                 if os.path.isdir(raw_path) else '{0}*{1}*'.format(raw_path, extension)
-    data_files = glob.glob(dfname)
-    data_files.sort()
+    return sorted(glob.glob(dfname))
 
-    # Return
-    return data_files

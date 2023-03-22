@@ -482,7 +482,7 @@ class AllSpec2DObj:
         """Get an item directly from the internal dict."""
         return self.__dict__[item]
 
-    def build_primary_hdr(self, raw_header, spectrograph, master_key_dict=None, master_dir=None,
+    def build_primary_hdr(self, raw_header, spectrograph, calib_dir=None,
                           redux_path=None, subheader=None, history=None):
         """
         Build the primary header for a spec2d file
@@ -492,10 +492,8 @@ class AllSpec2DObj:
                 Header from the raw FITS file (i.e. original header)
             spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
                 Spectrograph used to obtain the data.
-            master_key_dict (:obj:`dict`, optional):
-                Dictionary of master keys from :class:`~pypeit.calibrations.Calibrations`.
-            master_dir (:obj:`str`):
-                Path to the ``Masters`` folder
+            calib_dir (:obj:`str`):
+                Path to the folder with processed calibration frames
             redux_path (:obj:`str`, optional):
                 Full path to the reduction output files.
             subheader (:obj:`dict`, optional):
@@ -531,17 +529,18 @@ class AllSpec2DObj:
         hdr['PYP_SPEC'] = spectrograph.name
         hdr['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%m-%d'))
 
-        # MasterFrame info
-        # TODO -- Should this be in the header of the individual HDUs ?
-        if master_key_dict is not None:
-            if 'bias' in master_key_dict.keys():
-                hdr['BIASMKEY'] = master_key_dict['bias']
-            if 'arc' in master_key_dict.keys():
-                hdr['ARCMKEY'] = master_key_dict['arc']
-            if 'trace' in master_key_dict.keys():
-                hdr['TRACMKEY'] = master_key_dict['trace']
-            if 'flat' in master_key_dict.keys():
-                hdr['FLATMKEY'] = master_key_dict['flat']
+        # TODO: Add these things to the HISTORY
+#        # MasterFrame info
+#        # TODO -- Should this be in the header of the individual HDUs ?
+#        if master_key_dict is not None:
+#            if 'bias' in master_key_dict.keys():
+#                hdr['BIASMKEY'] = master_key_dict['bias']
+#            if 'arc' in master_key_dict.keys():
+#                hdr['ARCMKEY'] = master_key_dict['arc']
+#            if 'trace' in master_key_dict.keys():
+#                hdr['TRACMKEY'] = master_key_dict['trace']
+#            if 'flat' in master_key_dict.keys():
+#                hdr['FLATMKEY'] = master_key_dict['flat']
 
         # Processing steps
         # TODO: Assumes processing steps for all detectors are the same...  Does
@@ -551,8 +550,8 @@ class AllSpec2DObj:
             hdr['PROCSTEP'] = (','.join(self[det].process_steps), 'Completed reduction steps')
 
         # Some paths
-        if master_dir is not None:
-            hdr['PYPMFDIR'] = str(master_dir)
+        if calib_dir is not None:
+            hdr['CALIBDIR'] = str(calib_dir)
         if redux_path is not None:
             hdr['PYPRDXP'] = redux_path
         # Sky sub mode
