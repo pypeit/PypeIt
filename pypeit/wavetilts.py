@@ -9,22 +9,23 @@ import os
 import copy
 import inspect
 
+from IPython import embed
+
 import numpy as np
 from matplotlib import pyplot as plt
 
 from astropy import stats, visualization
 
 from pypeit import msgs, datamodel
+from pypeit import calibframe
 from pypeit.display import display
 from pypeit.core import arc
 from pypeit.core import tracewave
 
-from IPython import embed
 
-
-class WaveTilts(datamodel.DataContainer):
+class WaveTilts(calibframe.CalibFrame):
     """
-    Simple DataContainer for the output from BuildWaveTilts
+    Calibration frame containing the wavelength tilt calibration.
 
     All of the items in the datamodel are required for instantiation, although
     they can be None (but shouldn't be)
@@ -41,11 +42,17 @@ class WaveTilts(datamodel.DataContainer):
     """
     version = '1.1.0'
 
-    # MasterFrame fun
-    master_type = 'Tilts'
-    master_file_format = 'fits'
+    # Calibration frame attributes
+    calib_type = 'Tilts'
+    calib_file_format = 'fits'
 
-    datamodel = {'coeffs': dict(otype=np.ndarray, atype=np.floating,
+    # NOTE:
+    #   - Internals are identical to the base class
+    #   - Datamodel already contains CalibFrame base elements, so no need to
+    #     include it here.
+
+    datamodel = {'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
+                 'coeffs': dict(otype=np.ndarray, atype=np.floating,
                                 descr='2D coefficents for the fit on the initial slits.  One '
                                       'set per slit/order (3D array).'),
                  'bpmtilts': dict(otype=np.ndarray, atype=np.integer,
@@ -59,7 +66,6 @@ class WaveTilts(datamodel.DataContainer):
                  'spec_order': dict(otype=np.ndarray, atype=np.integer,
                                     descr='Order for spectral fit (nslit)'),
                  'func2d': dict(otype=str, descr='Function used for the 2D fit'),
-                 'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
                  'spat_flexure': dict(otype=float, descr='Flexure shift from the input TiltImage')}
 
     def __init__(self, coeffs, nslit, spat_id, spat_order, spec_order, func2d, bpmtilts=None,
@@ -70,11 +76,6 @@ class WaveTilts(datamodel.DataContainer):
         d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
-
-    def _init_internals(self):
-        # Master stuff
-        self.master_key = None
-        self.master_dir = None
 
     def _bundle(self):
         """
@@ -171,8 +172,6 @@ class BuildWaveTilts:
 
     Attributes:
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-        tilts_dict (dict):
-            Holds the tilts data
         steps : list
         mask : ndarray, bool
           True = Ignore this slit
@@ -203,7 +202,6 @@ class BuildWaveTilts:
         self.slits = slits
         self.det = det
         self.qa_path = qa_path
-        self.master_key = master_key
         self.spat_flexure = spat_flexure
 
         # Get the non-linear count level
@@ -212,11 +210,6 @@ class BuildWaveTilts:
             self.nonlinear_counts = self.mstilt.detector.nonlinear_counts()
         except:
             self.nonlinear_counts = 1e10
-
-#        # Get the non-linear count level
-#        self.nonlinear_counts = 1e10 if self.spectrograph is None \
-#            else self.mstilt.detector.nonlinear_counts()
-##            else self.spectrograph.nonlinear_counts(self.mstilt.detector)
 
         # Set the slitmask and slit boundary related attributes that the
         # code needs for execution. This also deals with arcimages that
@@ -708,13 +701,16 @@ class BuildWaveTilts:
             if np.any(bpm):
                 bpmtilts[bpm] = self.slits.bitmask.turn_on(bpmtilts[bpm], flag)
 
-        # Build and return DataContainer
-        tilts_dict = {'coeffs':self.coeffs,
-                      'func2d':self.par['func2d'], 'nslit':self.slits.nslits,
-                      'spat_order':self.spat_order, 'spec_order':self.spec_order,
-                      'spat_id':self.slits.spat_id, 'bpmtilts': bpmtilts,
-                      'spat_flexure': self.spat_flexure, 'PYP_SPEC': self.spectrograph.name}
-        return WaveTilts(**tilts_dict)
+        # Build and return the calibration frame
+        tilts = WaveTilts(self.coeffs, self.slits.nslits, self.slits.spat_id, self.spat_order,
+                          self.spec_order, self.par['func2d'], bpmtilts=bpmtilts,
+                          spat_flexure=self.spat_flexure, PYP_SPEC=self.spectrograph.name)
+        # Inherit the calibration frame naming from self.mstilts
+        # TODO: Should throw an error here if these calibration frame naming
+        # elements are not defined by self.mstilts...
+        tilts.set_paths(self.mstilts.calib_dir, self.mstilts.setup, self.mstilts.calib_id,
+                                self.spectrograph.get_det_name(self.mstilts.detector.det))
+        return tilts
 
     def _parse_param(self, par, key, slit):
         """

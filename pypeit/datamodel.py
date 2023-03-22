@@ -459,8 +459,7 @@ With this implementation:
 .. include:: ../include/links.rst
 
 """
-import os
-import warnings
+from pathlib import Path
 
 from IPython import embed
 
@@ -1485,7 +1484,7 @@ class DataContainer:
         written fits file is *always* an empty primary header.
 
         Args:
-            ofile (:obj:`str`):
+            ofile (:obj:`str`, `Path`_):
                 Fits file for the data. File names with '.gz'
                 extensions will be gzipped; see
                 :func:`pypeit.io.write_to_fits`.
@@ -1501,7 +1500,7 @@ class DataContainer:
         # because the first argument of the function is always an
         # astropy.io.fits.HDUList.
         io.write_to_fits(self.to_hdu(add_primary=True, **kwargs),
-                         ofile, overwrite=overwrite, checksum=checksum)
+                         str(ofile), overwrite=overwrite, checksum=checksum)
 
     @classmethod
     def from_file(cls, ifile, verbose=True, chk_version=True, **kwargs):
@@ -1511,7 +1510,7 @@ class DataContainer:
         This is a convenience wrapper for :func:`from_hdu`.
         
         Args:
-            ifile (:obj:`str`):
+            ifile (:obj:`str`, `Path`_):
                 Fits file with the data to read
             verbose (:obj:`bool`, optional):
                 Print informational messages
@@ -1524,14 +1523,15 @@ class DataContainer:
             FileNotFoundError:
                 Raised if the specified file does not exist.
         """
-        if not os.path.isfile(ifile):
+        _ifile = Path(ifile).resolve()
+        if not ifile.exists():
             raise FileNotFoundError(f'{ifile} does not exist!')
 
         if verbose:
             msgs.info(f'Loading {cls.__name__} from {ifile}')
 
         # Do it
-        with io.fits_open(ifile) as hdu:
+        with io.fits_open(str(ifile)) as hdu:
             return cls.from_hdu(hdu, chk_version=chk_version, **kwargs)
 
 #            obj = cls.from_hdu(hdu, chk_version=chk_version, **kwargs)

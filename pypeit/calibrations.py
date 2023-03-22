@@ -4,7 +4,6 @@ Class for guiding calibration object generation in PypeIt.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import os
 from pathlib import Path
 
 from abc import ABCMeta
@@ -73,7 +72,7 @@ class Calibrations:
         msdark (:class:`pypeit.images.buildimage.DarkImage`):
         msbpm (`numpy.ndarray`_):
         msarc (:class:`pypeit.images.buildimage.ArcImage`):
-            Master arc-lamp image.
+            Arc-lamp calibration frame.
         alignments (:class:`pypeit.alignframe.Alignments`):
         wv_calib (:class:`pypeit.wavecalib.WaveCalib`):
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
@@ -574,7 +573,7 @@ class Calibrations:
         if len(raw_pixel_files) > 0:
             msgs.info('Creating pixel-flat calibration frame using files: ')
             for f in pixflat_image_files:
-                msgs.prindent(f'{os.path.basename(f)}')
+                msgs.prindent(f'{Path(f).name}')
             pixel_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['pixelflatframe'],
                                                         raw_pixel_files, dark=self.msdark,
@@ -584,7 +583,7 @@ class Calibrations:
             if len(raw_lampoff_files) > 0:
                 msgs.info('Subtracting lamp off flats using files: ')
                 for f in raw_lampoff_files:
-                    msgs.prindent(f'{os.path.basename(f)}')
+                    msgs.prindent(f'{Path(f).name}')
                 lampoff_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                               self.par['lampoffflatsframe'],
                                                               raw_lampoff_files,
@@ -608,7 +607,7 @@ class Calibrations:
         if not pix_is_illum and len(raw_illum_files) > 0:
             msgs.info('Creating illumination flat calibration frame using files: ')
             for f in illum_image_files:
-                msgs.prindent(f'{os.path.basename(f)}')
+                msgs.prindent(f'{Path(f).name}')
             illum_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['illumflatframe'], raw_illum_files,
                                                         dark=self.msdark, bias=self.msbias,
@@ -618,7 +617,7 @@ class Calibrations:
             if len(raw_lampoff_files) > 0:
                 msgs.info('Subtracting lamp off flats using files: ')
                 for f in raw_lampoff_files:
-                    msgs.prindent(f'{os.path.basename(f)}')
+                    msgs.prindent(f'{Path(f).name}')
                 if lampoff_flat is None:
                     lampoff_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                                   self.par['lampoffflatsframe'],
@@ -717,10 +716,10 @@ class Calibrations:
         edges_file = Path(edgetrace.EdgeTraceSet.construct_file_name(
                             CalibFrame.construct_calib_key(setup, calib_id, detname),
                             calib_dir=self.calib_dir)).resolve()
-        # Reuse master frame?
+        # Reuse an exising calibration frame?
         if edges_file.exists() and self.reuse:
             self.slits = edgetrace.EdgeTraceSet.from_file(edges_file).get_slits()
-            self.slits.to_file(slits_file)
+            self.slits.to_file()
             if self.user_slits is not None:
                 self.slits.user_mask(detname, self.user_slits)            
             return self.slits
@@ -728,7 +727,7 @@ class Calibrations:
         # Build the trace image
         msgs.info('Creating edge tracing calibration frame using files: ')
         for f in raw_trace_files:
-            msgs.prindent(f'{os.path.basename(f)}')
+            msgs.prindent(f'{Path(f).name}')
         self.traceImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                          self.par['traceframe'], raw_trace_files,
                                                          bias=self.msbias, bpm=self.msbpm,
@@ -738,7 +737,7 @@ class Calibrations:
         if len(raw_lampoff_files) > 0:
             msgs.info('Subtracting lamp off flats using files: ')
             for f in raw_lampoff_files:
-                msgs.prindent(f'{os.path.basename(f)}')
+                msgs.prindent(f'{Path(f).name}')
             lampoff_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                           self.par['lampoffflatsframe'],
                                                           raw_lampoff_files, dark=self.msdark,
@@ -785,12 +784,17 @@ class Calibrations:
         """
         Load or generate the 1D wavelength calibrations
 
-        Requirements:
-          msarc, msbpm, slits, det, par
-
         Returns:
-            dict: :attr:`wv_calib` calibration dict and the updated slit mask array
+            :class:`~pypeit.wavecalib.WaveCalib`: Object containing wavelength
+            calibrations and the updated slit mask array.
         """
+        # No wavelength calibration requested
+        if self.par['wavelengths']['reference'] == 'pixel':
+            msgs.info('Wavelength "reference" parameter set to "pixel"; no wavelength '
+                      'calibration will be performed.')
+            self.wv_calib = None
+            return self.wv_calib
+
         # Check for existing data
         if not self._chk_objs(['msarc', 'msbpm', 'slits']):
             msgs.warn('Not enough information to load/generate the wavelength calibration. '
@@ -799,68 +803,67 @@ class Calibrations:
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
-        if 'arc' not in self.master_key_dict.keys():
-            msgs.error('Arc master key not set.  First run get_arc.')
 
-        # No wavelength calibration requested
-        if self.par['wavelengths']['reference'] == 'pixel':
-            msgs.info("A wavelength calibration will not be performed")
-            self.wv_calib = None
-            return self.wv_calib
+        # Prep
+        _, setup, calib_id = self._prep_calibrations('arc')
+
+        # Construct the detector/mosaic identifier
+        detname = self.spectrograph.get_det_name(self.det)
 
         # Grab arc binning (may be different from science!)
         # TODO : Do this internally when we have a wv_calib DataContainer
         binspec, binspat = parse.parse_binning(self.msarc.detector.binning)
 
-        masterframe_name = masterframe.construct_file_name(wavecalib.WaveCalib,
-                                                           self.master_key_dict['arc'],
-                                                           master_dir=self.master_dir)
-        if os.path.isfile(masterframe_name) and self.reuse:
-            self.wv_calib = wavecalib.WaveCalib.from_file(masterframe_name)
+        # Construct the expected calibration frame file name
+        wvcalib_file = Path(wavecalib.WaveCalib.construct_file_name(
+                            CalibFrame.construct_calib_key(setup, calib_id, detname),
+                            calib_dir=self.calib_dir)).resolve()
+
+        # If it exists and we want to reuse it, do so:
+        if wvcalib_file.exists() and self.reuse:
+            self.wv_calib = wavecalib.WaveCalib.from_file(wvcalib_file)
             self.wv_calib.chk_synced(self.slits)
             self.slits.mask_wvcalib(self.wv_calib)
-        else:
-            # Determine lamp list to use for wavecalib
-            # Find all the arc frames in this calibration group
-            is_arc = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID)
-            lamps = self.spectrograph.get_lamps(self.fitstbl[is_arc]) \
-                if self.par['wavelengths']['lamps'] == ['use_header'] else self.par['wavelengths']['lamps']
-            meta_dict = dict(self.fitstbl[is_arc][0]) \
-                if self.spectrograph.pypeline == 'Echelle' and not self.spectrograph.ech_fixed_format else None
-            # Instantiate
-            # TODO: Pull out and pass only the necessary parts of meta_dict to
-            # this, or include the relevant parts as parameters.  See comments
-            # in PRs #1454 and #1476 on this.
-            self.waveCalib = wavecalib.BuildWaveCalib(self.msarc, self.slits, self.spectrograph,
-                                                      self.par['wavelengths'], lamps,
-                                                      meta_dict = meta_dict,
-                                                      binspectral=binspec, det=self.det,
-                                                      master_key=self.master_key_dict['arc'],
-                                                      qa_path=self.qa_path) #, msbpm=self.msbpm)
-            self.wv_calib = self.waveCalib.run(skip_QA=(not self.write_qa))
-            # If orders were found, save slits to disk
-            if self.spectrograph.pypeline == 'Echelle' and not self.spectrograph.ech_fixed_format:
-                self.slits.to_master_file()
-            # Save to Masters
-            self.wv_calib.to_master_file(masterframe_name)
+            return self.wv_calib
+
+        # Determine lamp list to use for wavecalib
+        # Find all the arc frames in this calibration group
+        is_arc = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID)
+        lamps = self.spectrograph.get_lamps(self.fitstbl[is_arc]) \
+                    if self.par['wavelengths']['lamps'] == ['use_header'] \
+                    else self.par['wavelengths']['lamps']
+        meta_dict = dict(self.fitstbl[is_arc][0]) \
+                    if self.spectrograph.pypeline == 'Echelle' \
+                        and not self.spectrograph.ech_fixed_format else None
+        # Instantiate
+        # TODO: Pull out and pass only the necessary parts of meta_dict to
+        # this, or include the relevant parts as parameters.  See comments
+        # in PRs #1454 and #1476 on this.
+        msgs.info(f'Preparing a {wavecalib.WaveCalib.calib_type} calibration frame.')
+        self.waveCalib = wavecalib.BuildWaveCalib(self.msarc, self.slits, self.spectrograph,
+                                                  self.par['wavelengths'], lamps,
+                                                  meta_dict=meta_dict, binspectral=binspec,
+                                                  det=self.det, qa_path=self.qa_path)
+        self.wv_calib = self.waveCalib.run(skip_QA=(not self.write_qa))
+        # If orders were found, save slits to disk
+        if self.spectrograph.pypeline == 'Echelle' and not self.spectrograph.ech_fixed_format:
+            self.slits.to_file()
+        # Save calibration frame
+        self.wv_calib.to_file()
 
         # Return
         return self.wv_calib
 
     def get_tilts(self):
         """
-        Load or generate the tilts image
-
-        Requirements:
-           mstilt, slits, wv_calib
-           det, par, spectrograph
+        Load or generate the wavelength tilts calibration frame
 
         Returns:
-            :class:`pypeit.wavetilts.WaveTilts`:
-
+            :class:`~pypeit.wavetilts.WaveTilts`: Object containing the
+            wavelength tilt calibration.
         """
         # Check for existing data
-        #TODO add mstilt_inmask to this list when it gets implemented.
+        # TODO: add mstilt_inmask to this list when it gets implemented.
         if not self._chk_objs(['mstilt', 'msbpm', 'slits', 'wv_calib']):
             msgs.warn('Do not have all the necessary objects for tilts.  Skipping and may crash '
                       'down the line.')
@@ -868,32 +871,33 @@ class Calibrations:
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
-        if 'tilt' not in self.master_key_dict.keys():
-            msgs.error('Tilt master key not set.  First run get_tiltimage.')
 
         # Load up?
-        masterframe_name = masterframe.construct_file_name(wavetilts.WaveTilts,
-                                                           self.master_key_dict['tilt'],
-                                                           master_dir=self.master_dir)
-        if os.path.isfile(masterframe_name) and self.reuse:
-            self.wavetilts = wavetilts.WaveTilts.from_file(masterframe_name)
+        _, setup, calib_id = self._prep_calibrations('tilt')
+        detname = self.spectrograph.get_det_name(self.det)
+        tilts_file = Path(wavetilts.WaveTilts.construct_file_name(
+                            CalibFrame.construct_calib_key(setup, calib_id, detname),
+                            calib_dir=self.calib_dir)).resolve()
+
+        if tilts_file.exists() and self.reuse:
+            self.wavetilts = wavetilts.WaveTilts.from_file(tilts_file)
             self.wavetilts.is_synced(self.slits)
             self.slits.mask_wavetilts(self.wavetilts)
-        else: # Build
-            # Flexure
-            _spat_flexure = self.mstilt.spat_flexure \
-                if self.par['tiltframe']['process']['spat_flexure_correct'] else None
-            # Instantiate
-            buildwaveTilts = wavetilts.BuildWaveTilts(
-                self.mstilt, self.slits, self.spectrograph, self.par['tilts'],
-                self.par['wavelengths'], det=self.det, qa_path=self.qa_path,
-                master_key=self.master_key_dict['tilt'], spat_flexure=_spat_flexure)
+            return self.wavetilts
 
-            # TODO still need to deal with syntax for LRIS ghosts. Maybe we don't need it
-            self.wavetilts = buildwaveTilts.run(doqa=self.write_qa, show=self.show)
-            # Save?
-            self.wavetilts.to_master_file(masterframe_name)
+        # Get flexure
+        _spat_flexure = self.mstilt.spat_flexure \
+            if self.par['tiltframe']['process']['spat_flexure_correct'] else None
 
+        # Build
+        buildwaveTilts = wavetilts.BuildWaveTilts(
+            self.mstilt, self.slits, self.spectrograph, self.par['tilts'],
+            self.par['wavelengths'], det=self.det, qa_path=self.qa_path,
+            spat_flexure=_spat_flexure)
+
+        # TODO still need to deal with syntax for LRIS ghosts. Maybe we don't need it
+        self.wavetilts = buildwaveTilts.run(doqa=self.write_qa, show=self.show)
+        self.wavetilts.to_file()
         return self.wavetilts
 
     def run_the_steps(self):
