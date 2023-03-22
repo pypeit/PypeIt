@@ -988,7 +988,7 @@ def get_mask(wave_star, flux_star, ivar_star, mask_star,
         whether you need to mask hydrogen absorption lines
     mask_helium_lines: bool, optional
         whether you need to mask hydrogen absorption lines
-    mask_tell: bool, optional
+    mask_telluric: bool, optional
         whether you need to mask telluric region. If False, the returned msk_tell are all good.
     balm_mask_wid: float
       in units of angstrom
