@@ -46,7 +46,7 @@
                             spectrographs: keck_deimos
                              
     
-    options:
+    optional arguments:
       -h, --help            show this help message and exit
       --debug               show debug plots?
       --par_outfile         Output to save the parameters

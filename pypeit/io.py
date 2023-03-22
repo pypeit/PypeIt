@@ -745,7 +745,12 @@ def fits_open(filename, **kwargs):
     Raises:
         PypeItError: Raised if the file does not exist.
     """
-    if not os.path.isfile(filename):
+    # TODO: Need to allow for filename to be an _io.FileIO object for use with
+    # specutils loaders.  This simple hack first checks that the filename is a
+    # string before checking that it exists.  There should be a more robust way
+    # to do this!  Is there are more appropriate os.path function that allows
+    # for this different type of object?
+    if isinstance(filename, str) and not os.path.isfile(filename):
         msgs.error(f'{filename} does not exist!')
     try:
         return fits.open(filename, **kwargs)

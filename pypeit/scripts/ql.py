@@ -282,7 +282,7 @@ class QL(scriptbase.ScriptBase):
                             help='space separated list of raw frames e.g. img1.fits img2.fits.  These must exist within --full_rawpath')
         parser.add_argument('--sci_files', type=str, nargs='+',
                             help='space separated list of raw frames to be specified as science exposures (over-rides PypeIt frame typing)')
-        parser.add_argument("--redux_path", type=str, default=os.getcwd(),
+        parser.add_argument("--redux_path", type=str, default='current working directory',
                             help="Full path to where QL reduction should be run.")
         parser.add_argument("--calib_dir", type=str, 
                             help="Location folders of calibration reductions")
