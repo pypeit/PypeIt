@@ -9,6 +9,6 @@
       input_file  PypeIt MasterWaveCalib file [e.g. MasterWaveCalib_A_1_01.fits] or
                   spec2d file
     
-    options:
+    optional arguments:
       -h, --help  show this help message and exit
     

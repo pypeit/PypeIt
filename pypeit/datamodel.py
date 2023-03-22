@@ -1203,6 +1203,20 @@ class DataContainer:
         """
         return self.datamodel.keys()
 
+    def check_populated(self, dm_items):
+        """
+        Check that a set of datamodel items are populated.
+
+        Args:
+            dm_items (:obj:`list`, :obj:`str`):
+                One or more items in the datamodel to check.
+
+        Returns:
+            :obj:`bool`: Flag that *all* the requested datamodel items are
+            populated (not None).
+        """
+        return np.all([key in self.keys() and self[key] is not None for key in dm_items])
+
     def _primary_header(self, hdr=None):
         """
         Construct a primary header that is included with the primary

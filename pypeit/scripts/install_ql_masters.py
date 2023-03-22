@@ -23,7 +23,7 @@ class InstallQLMasters(scriptbase.ScriptBase):
                                 'PypeIt Google Drive')
         group.add_argument('--ql_path', type=str, default=None,
                            help='An existing directory to symlink as the QL_MASTERS directory.')
-        parser.add_argument('--odir', type=str, default=os.getcwd(),
+        parser.add_argument('--odir', type=str, default='current working directory',
                             help='The directory in which to extract the zip file.  Ignored if a '
                                  'direct path is provided using --ql_path.')
         parser.add_argument('--rmzip', default=False, action='store_true',
