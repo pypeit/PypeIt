@@ -9,12 +9,12 @@ Installation
 
 .. warning::
 
-    **Apple Silicon (e.g. M1 or M1 Pro) Users**: We have a solution that works
-    for installation on newer Apple hardware.  It *requires* `conda`_ and a specific
-    miniconda installer. If you're an Apple Silicon Mac user, skip to the :ref:`m1_macs`
-    section for details.
-
-.. TODO: DO WE HAVE A RELEVANT LINK FOR THE PYPEIT USERS SLACK?
+    **Apple Silicon users** have had issues in the past installing PypeIt using
+    pip; however, we do not think this is an issue any longer.  If you have
+    trouble installing PypeIt on your Apple machine following the pip
+    installation instructions, first try following the `conda`_ instructions
+    instead.  If that also fails, please `Submit an issue`_ and/or reach out to
+    our user :ref:`community`.
 
 .. warning::
 
@@ -44,8 +44,7 @@ Both methods discussed below for installing PypeIt (via `pip`_ or `conda`_)
 also install or upgrade its :ref:`dependencies`.  For this reason, we highly
 (!!) recommended you first set up a clean python environment in which to install
 PypeIt.  This mitigates any possible dependency conflicts with other
-packages you use. Note that users of Apple Silicon-based computers must use `conda`_
-because some key dependencies are not yet available via `pip`_.
+packages you use.
 
 You can setup a new python environment using `virtualenv`_:
 
@@ -103,7 +102,7 @@ to select ``PySide2``; see :ref:`interactive`.
 Optional Dependencies
 ^^^^^^^^^^^^^^^^^^^^^
 
-PypeIt has a number of optional dependencies that improve and/or expand functionality.
+PypeIt has a few optional dependencies that improve and/or expand functionality.
 
     - If you are generating datacubes (and performing an astrometric
       correction), you will also need the `scikit-image`_ package. It can be
@@ -135,8 +134,8 @@ If this causes problems (e.g., a new PypeIt script is unavailable or
 you encounter script errors), first try uninstalling (e.g., ``pip uninstall pypeit``)
 and then reinstalling.
 
-Install via ``conda`` (recommended overall and *required for Apple Silicon*)
-----------------------------------------------------------------------------
+Install via ``conda`` (recommended overall)
+-------------------------------------------
 
 `conda`_ is a popular and widely-used package and environment manager. We
 provide a yaml file that can be used to setup a conda environment called
@@ -164,12 +163,14 @@ To use this:
 
             conda env list
 
-This environment should now be ready to use and contain the latest official ``pypeit`` release.
+This environment should now be ready to use and contain the latest official
+``pypeit`` release.
 
 Upgrading to a new version via ``conda``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Upgrading PypeIt within your ``pypeit`` ``conda`` environment should simply be a matter of executing:
+Upgrading PypeIt within your ``pypeit`` ``conda`` environment should simply be a
+matter of executing:
 
 .. code-block:: console
 
@@ -184,27 +185,12 @@ you encounter script errors), simply remove the conda environment
 User Installation on Apple Silicon-based Macs
 ---------------------------------------------
 
-The `conda`_ installation method described above is currently the *only* reliable way to
-natively install ``pypeit`` on new Macs based on Apple Silicon processors (e.g. M1 and M1 Pro).
-It requires that `conda`_ was installed via a Apple Silicon native installer, though.
-There is now an official `miniconda <https://docs.conda.io/en/latest/miniconda.html>`__ installer
-for Apple Silicon and we recommend using that. The `miniforge <https://github.com/conda-forge/miniforge>`__
-installer for Apple Silicon should also work, but is not as well tested. The full Anaconda installers will
-not work and do not yet support Apple Silicon.
+Both the `pip`_ and `conda`_ installation methods should be successful for Macs
+that uses Apple Silicon processors.  The full Anaconda installers also now
+include support for Apple Silicon.
 
-It is also possible to install and run ``pypeit`` using Mac OS's Rosetta emulator. To do so, bring up
-a command-line in emulation mode:
-
-.. code-block:: console
-
-    arch -x86_64 /bin/zsh
-
-Then follow one of the installation methods described above. However, we only recommend this
-approach if there is some unforeseen problem with one of the native miniconda installers. Rosetta
-emulation works exceedingly well, but does incur a 15-30% performance penalty compared to native.
-
-Solutions/Recommendations/Feedback for these installation options are welcome; please `Submit an
-issue`_.
+Solutions/Recommendations/Feedback for these installation options are welcome;
+please `Submit an issue`_.
 
 ----
 
