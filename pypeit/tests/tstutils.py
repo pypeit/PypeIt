@@ -52,8 +52,8 @@ bspline_ext_required = pytest.mark.skipif(not bspline_ext, reason='Could not imp
 
 
 def data_path(filename):
-    data_dir = pathlib.Path(__file__).parent.absolute() / 'files'
-    return str((data_dir / filename).resolve())
+    data_dir = pathlib.Path(__file__).parent.absolute().joinpath('files')
+    return str(data_dir.joinpath(filename).resolve())
 
 
 def get_kastb_detector():
