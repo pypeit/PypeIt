@@ -54,7 +54,7 @@ class SpecObj(datamodel.DataContainer):
             Running index for the order.
     """
 
-    version = '1.1.7'
+    version = '1.1.8'
     """
     Current datamodel version number.
     """
@@ -177,6 +177,9 @@ class SpecObj(datamodel.DataContainer):
                  'DEC': dict(otype=float, descr='Declination (J2000) decimal degree'),
                  'MASKDEF_ID': dict(otype=(int, np.integer), descr='Slitmask definition ID'),
                  'MASKDEF_OBJNAME': dict(otype=str, descr='Name of the object from the slitmask definition'),
+                 'MASKDEF_OBJMAG': dict(otype=str, descr='Magnitude of the object from the slitmask definition'),
+                 'MASKDEF_OBJMAG_BAND': dict(otype=str, descr='Magnitude band of the object from the slitmask '
+                                                              'definition'),
                  'MASKDEF_EXTRACT': dict(otype=bool, descr='Boolean indicating if this is a forced extraction '
                                                            'at the expected location from slitmask design. '),
                  'hand_extract_flag': dict(otype=bool, descr='Boolean indicating if this is a forced extraction '
@@ -632,7 +635,8 @@ class SpecObj(datamodel.DataContainer):
             if hasattr(self, attr) and getattr(self, attr) is not None:
                 # Special ones
                 if attr in ['DET', 'SLITID', 'SPAT_PIXPOS', 'NAME', 'RA', 
-                            'DEC', 'MASKDEF_ID', 'MASKDEF_OBJNAME', 'MASKDEF_EXTRACT']:
+                            'DEC', 'MASKDEF_ID', 'MASKDEF_OBJNAME', 'MASKDEF_EXTRACT',
+                            'MASKDEF_OBJMAG', 'MASKDEF_OBJMAG_BAND']:
                     rdict[attr] = getattr(self,attr)
                 else:
                     rdict[attr] = True
