@@ -64,7 +64,7 @@ def init_pca(filename,wave_grid,redshift, npca):
     # and the Gaussian mixture model prior (mix_fit)
 
     # The PCA file location is provided by data.Paths.tel_model
-    file_with_path = data.Paths.tel_model.joinpath(filename)
+    file_with_path = data.Paths.tel_model / filename
 
     loglam = np.log10(wave_grid)
     dloglam = np.median(loglam[1:] - loglam[:-1])

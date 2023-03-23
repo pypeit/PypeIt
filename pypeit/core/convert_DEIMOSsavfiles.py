@@ -32,7 +32,7 @@ def sav_to_fits(savfile):
 
     io.write_to_fits(
         sav,
-        data.Paths.static_calibs.joinpath('keck_deimos', f'{savfile_name}.fits'),
+        data.Paths.static_calibs / 'keck_deimos', f'{savfile_name}.fits',
         overwrite=True
     )
 

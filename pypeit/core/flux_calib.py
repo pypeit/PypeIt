@@ -152,8 +152,8 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     closest = dict(sep=999 * units.deg)
 
     for sset in std_sets:
-        stds_path = data.Paths.standards.joinpath(sset)
-        star_file = stds_path.joinpath(f"{sset}_info.txt")
+        stds_path = data.Paths.standards / sset
+        star_file = stds_path / f"{sset}_info.txt"
         if not star_file.is_file():
             msgs.warn(f"File does not exist!: {star_file}")
             continue
@@ -170,7 +170,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
 
             # Generate a dict
             _idx = int(idx)
-            std_dict = dict(cal_file=stds_path.joinpath(star_tbl[_idx]['File']),
+            std_dict = dict(cal_file=stds_path / star_tbl[_idx]['File'],
                             name=star_tbl[_idx]['Name'],
 #                            std_ra=star_tbl[_idx]['RA_2000'],
 #                            std_dec=star_tbl[_idx]['DEC_2000'])
@@ -303,7 +303,7 @@ def stellar_model(V, sptype):
     logg_sol = np.log10(6.67259e-8) + np.log10(1.989e33) - 2.0 * np.log10(6.96e10)
 
     # Load Schmidt-Kaler (1982) table
-    sk82_file = data.Paths.standards.joinpath('kurucz93', 'schmidt-kaler_table.txt')
+    sk82_file = data.Paths.standards / 'kurucz93' / 'schmidt-kaler_table.txt'
     sk82_tab = ascii.read(sk82_file, names=('Sp', 'logTeff', 'Teff', '(B-V)_0', 'M_V', 'B.C.', 'M_bol', 'L/L_sol'))
 
     # TODO, currently this only works on select stellar types. Add ability to interpolate across types.
@@ -348,7 +348,7 @@ def stellar_model(V, sptype):
     indg = np.argmin(np.abs(loggk - logg))
 
     # Grab Kurucz filename
-    std_file = data.Paths.standards.joinpath('kurucz93', 'kp00', f'kp00_{int(Tk[indT])}.fits.gz')
+    std_file = data.Paths.standards / 'kurucz93' / 'kp00' / f'kp00_{int(Tk[indT])}.fits.gz'
     std = table.Table.read(std_file)
 
     # Grab specific spectrum
@@ -407,7 +407,7 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
         if 'A0' in star_type:
             msgs.info('Getting vega spectrum')
             ## Vega model from TSPECTOOL
-            vega_file = data.Paths.standards.joinpath('vega_tspectool_vacuum.dat')
+            vega_file = data.Paths.standards / 'vega_tspectool_vacuum.dat'
             vega_data = table.Table.read(vega_file, comment='#', format='ascii')
             std_dict = dict(cal_file='vega_tspectool_vacuum', name=star_type, Vmag=star_mag,
                             std_ra=ra, std_dec=dec)
@@ -456,7 +456,7 @@ def load_extinction_data(longitude, latitude, extinctfilepar,
         # Observation coordinates
         obs_coord = coordinates.SkyCoord(longitude, latitude, frame='gcrs', unit=units.deg)
         # Read list
-        extinct_summ = data.Paths.extinction.joinpath('README')
+        extinct_summ = data.Paths.extinction / 'README'
         extinct_files = table.Table.read(extinct_summ, comment='#', format='ascii')
         # Coords
         ext_coord = coordinates.SkyCoord(extinct_files['Lon'], extinct_files['Lat'], frame='gcrs',
@@ -1464,7 +1464,7 @@ def load_filter_file(filter):
 
     """
 
-    filter_file = data.Paths.filters.joinpath('filter_list.ascii')
+    filter_file = data.Paths.filters / 'filter_list.ascii'
     tbl = table.Table.read(filter_file, format='ascii')
 
     allowed_options = tbl['filter'].data
@@ -1473,7 +1473,7 @@ def load_filter_file(filter):
     if filter not in allowed_options:
         msgs.error("PypeIt is not ready for filter = {}".format(filter))
 
-    trans_file = data.Paths.filters.joinpath('filtercurves.fits')
+    trans_file = data.Paths.filters / 'filtercurves.fits'
     trans = io.fits_open(trans_file)
     wave = trans[filter].data['lam']  # Angstroms
     instr = trans[filter].data['Rlam']  # Am keeping in atmospheric terms

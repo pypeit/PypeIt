@@ -1297,7 +1297,7 @@ class MultiSlitFlexure(DataContainer):
         self.specobjs = specobjs.SpecObjs.from_fitsfile(self.s1dfile, chk_version=False) 
         #  Sky lines -- This one is ASCII, so don't use load_sky_spectrum()
         sky_file = 'sky_single_mg.dat'
-        self.sky_table = ascii.read(data.Paths.sky_spec.joinpath(sky_file))
+        self.sky_table = ascii.read(data.Paths.sky_spec / sky_file)
 
     def _init_internals(self):
         # Parameters (FlexurePar)
@@ -1527,7 +1527,7 @@ class MultiSlitFlexure(DataContainer):
         """
 
         # Generate QA folder as need be
-        qa_dir = pathlib.Path(plot_dir).joinpath('QA')
+        qa_dir = pathlib.Path(plot_dir) / 'QA'
         if not qa_dir.is_dir():
             qa_dir.mkdir()
         

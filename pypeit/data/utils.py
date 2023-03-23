@@ -31,7 +31,7 @@ class.  For instance, the NIR spectrophotometry for Vega is accessed via:
 
 .. code-block:: python
 
-    vega_file = data.Paths.standards.joinpath('vega_tspectool_vacuum.dat')
+    vega_file = data.Paths.standards / 'vega_tspectool_vacuum.dat'
 
 For some directories, however, the size of the included files is large enough
 that it was beginning to cause problems with distributing the package via PyPI.
@@ -104,27 +104,27 @@ class Paths:
     _data = pathlib.Path(resource_filename('pypeit', 'data'))
 
     # Telluric Corrections
-    _telgrid = _data.joinpath('telluric', 'atm_grids')
-    _tel_model = _data.joinpath('telluric', 'models')
+    _telgrid = _data / 'telluric' / 'atm_grids'
+    _tel_model = _data / 'telluric' / 'models'
 
     # Wavelength Calibrations
-    _arclines = _data.joinpath('arc_lines')
-    _reid_arxiv = _arclines.joinpath('reid_arxiv')
-    _linelist = _arclines.joinpath('lists')
-    _nist = _arclines.joinpath('NIST')
-    _arc_plot = _arclines.joinpath('plots')
+    _arclines = _data / 'arc_lines'
+    _reid_arxiv = _arclines / 'reid_arxiv'
+    _linelist = _arclines / 'lists'
+    _nist = _arclines / 'NIST'
+    _arc_plot = _arclines /'plots'
 
     # Flux Calibrations
-    _standards = _data.joinpath('standards')
-    _extinction = _data.joinpath('extinction')
-    _skisim = _data.joinpath('skisim')
-    _filters = _data.joinpath('filters')
-    _sensfuncs = _data.joinpath('sensfuncs')
+    _standards = _data / 'standards'
+    _extinction = _data / 'extinction'
+    _skisim = _data / 'skisim'
+    _filters = _data / 'filters'
+    _sensfuncs = _data / 'sensfuncs'
 
     # Other
-    _sky_spec = _data.joinpath('sky_spec')
-    _static_calibs = _data.joinpath('static_calibs')
-    _spectrographs = _data.joinpath('spectrographs')
+    _sky_spec = _data / 'sky_spec'
+    _static_calibs = _data / 'static_calibs'
+    _spectrographs = _data / 'spectrographs'
 
     @classmethod
     @property
@@ -245,7 +245,7 @@ def get_reid_arxiv_filepath(arxiv_file: str) -> tuple[pathlib.Path, str]:
            * arxiv_fmt (:obj:`str`): The extension of the ``reid_arxiv`` file (format)
     """
     # Full path within the package data structure:
-    reid_path = Paths.reid_arxiv.joinpath(arxiv_file)
+    reid_path = Paths.reid_arxiv / arxiv_file
     arxiv_fmt = arxiv_file.split(".")[-1].lower()
 
     # Check if the file does NOT exist in the package directory
@@ -292,7 +292,7 @@ def get_skisim_filepath(skisim_file: str) -> pathlib.Path:
         :obj:`pathlib.Path`: The full path to the ``skisim`` file
     """
     # Full path within the package data structure:
-    skisim_path = Paths.skisim.joinpath(skisim_file)
+    skisim_path = Paths.skisim / skisim_file
 
     # Check if the file does NOT exist in the package directory
     # NOTE: This should be the case for all but from-source installations
@@ -341,7 +341,7 @@ def get_sensfunc_filepath(sensfunc_file: str, symlink_in_pkgdir=False) -> pathli
         :obj:`pthlib.Path`: The full path to the ``sensfunc`` file
     """
     # Full path within the package data structure:
-    sensfunc_path = Paths.sensfuncs.joinpath(sensfunc_file)
+    sensfunc_path = Paths.sensfuncs / sensfunc_file
 
     # Check if the file does NOT exist in the package directory
     # NOTE: This should be the case for all but from-source installations
@@ -355,7 +355,7 @@ def get_sensfunc_filepath(sensfunc_file: str, symlink_in_pkgdir=False) -> pathli
 
         # If requested, copy to package data directory and point the path there
         if symlink_in_pkgdir:
-            path_in_pkgdir = Paths.sensfuncs.joinpath(sensfunc_file)
+            path_in_pkgdir = Paths.sensfuncs / sensfunc_file
             # Create the symlink
             path_in_pkgdir.symlink_to(sensfunc_path)
             # Return the path to the symlink in the package directory
@@ -390,7 +390,7 @@ def get_telgrid_filepath(telgrid_file: str) -> pathlib.Path:
         :obj:`pathlib.Path`: The full path to the ``telgrid`` file
     """
     # Full path within the package data structure:
-    telgrid_path = Paths.telgrid.joinpath(telgrid_file)
+    telgrid_path = Paths.telgrid / telgrid_file
 
     # Check if the file does NOT exist in the package directory
     # NOTE: This should be the case for most installations
@@ -404,8 +404,8 @@ def get_telgrid_filepath(telgrid_file: str) -> pathlib.Path:
 
         # If a development version, MOVE into the package directory, point path there
         if ".dev" in __version__:
-            shutil.move(telgrid_path, Paths.telgrid.joinpath(telgrid_file))
-            telgrid_path = Paths.telgrid.joinpath(telgrid_file)
+            shutil.move(telgrid_path, Paths.telgrid / telgrid_file)
+            telgrid_path = Paths.telgrid / telgrid_file
 
     # Return the path to the `telgrid` file
     return telgrid_path
@@ -441,7 +441,7 @@ def get_linelist_filepath(linelist_file: str) -> pathlib.Path:
         :obj:`pathlib.Path`: The full path to the ``linelist`` file
     """
     # Full path within the package data structure:
-    linelist_path = Paths.linelist.joinpath(linelist_file)
+    linelist_path = Paths.linelist / linelist_file
 
     # Check if the file does NOT exist in the package directory
     # NOTE: This should only be the case for user-installed line lists
@@ -474,7 +474,7 @@ def get_extinctfile_filepath(extinction_file: str) -> pathlib.Path:
         :obj:`pathlib.Path`: The full path to the ``extinction`` file
     """
     # Full path within the package data structure:
-    extinction_path = Paths.extinction.joinpath(extinction_file)
+    extinction_path = Paths.extinction / extinction_file
 
     # Check if the file does NOT exist in the package directory
     # NOTE: This should be the case only for user-installed extinction files
@@ -725,7 +725,7 @@ def _get_s3_hostname():
         urllib.error.URLError,
         github.GithubException
     ):
-        filepath = Paths.data.joinpath("s3_url.txt")
+        filepath = Paths.data / "s3_url.txt"
 
     # Open the file and return the URL
     with open(filepath, "r", encoding="utf-8") as fileobj:
@@ -776,7 +776,7 @@ def load_thar_spec():
     Returns:
         (:obj:`astropy.io.fits.HDUList`): ThAr Spectrum FITS HDU list
     """
-    return io.fits_open(Paths.arclines.joinpath('thar_spec_MM201006.fits'))
+    return io.fits_open(Paths.arclines / 'thar_spec_MM201006.fits')
 
 
 def load_sky_spectrum(sky_file):
@@ -795,4 +795,4 @@ def load_sky_spectrum(sky_file):
     Returns:
         (:obj:`XSpectrum1D`): Sky spectrum
     """
-    return xspectrum1d.XSpectrum1D.from_file(str(Paths.sky_spec.joinpath(sky_file)))
+    return xspectrum1d.XSpectrum1D.from_file(str(Paths.sky_spec / sky_file))

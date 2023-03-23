@@ -434,7 +434,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         if det == 1:
-            bpm_dir = data.Paths.static_calibs.joinpath('vlt_xshoooter')
+            bpm_dir = data.Paths.static_calibs / 'vlt_xshoooter'
             try :
                 bpm_loc = np.loadtxt(os.path.join(bpm_dir, 'BP_MAP_RP_NIR.dat'),
                                      usecols=(0,1))

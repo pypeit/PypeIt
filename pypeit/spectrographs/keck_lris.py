@@ -1371,14 +1371,16 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
             amp_mode = hdu[0].header['AMPMODE']
             msgs.info("AMPMODE = {:s}".format(amp_mode))
             # Load up translation dict
-            ampmode_translate_file = data.Paths.data.joinpath('spectrographs',
-                'keck_lris_red_mark4', 'dict_for_ampmode.json')
+            ampmode_translate_file = (
+                data.Paths.data / 'spectrographs' / 'keck_lris_red_mark4' / 'dict_for_ampmode.json'
+            )
             ampmode_translate_dict = ltu.loadjson(ampmode_translate_file)
             # Load up the corrected header
             swap_binning = f"{binning[-1]},{binning[0]}"  # LRIS convention is oppopsite ours
-            header_file = data.Paths.data.joinpath(
-                'spectrographs',
-                'keck_lris_red_mark4', 
+            header_file = (
+                data.Paths.data /
+                'spectrographs' /
+                'keck_lris_red_mark4' /
                 f'header{ampmode_translate_dict[amp_mode]}_{swap_binning.replace(",","_")}.fits'
             )
             correct_header = fits.getheader(header_file)

@@ -377,7 +377,7 @@ class QL_Multislit(scriptbase.ScriptBase):
 
         tstart = time.time()
         # Parse the files sort by MJD
-        files = np.array([pathlib.Path(args.full_rawpath).joinpath(file) for file in args.files])
+        files = np.array([pathlib.Path(args.full_rawpath) / file for file in args.files])
         nfiles = len(files)
 
 
@@ -398,9 +398,9 @@ class QL_Multislit(scriptbase.ScriptBase):
         # Get the master path
 
         # Calibration Master directory
-        master_dir = data.Paths.data.joinpath('QL_MASTERS') if args.master_dir is None else pathlib.Path(args.master_dir)
+        master_dir = data.Paths.data / 'QL_MASTERS' if args.master_dir is None else pathlib.Path(args.master_dir)
         master_subdir = spectrograph.get_ql_master_dir(files[0])
-        master_path = master_dir.joinpath(master_subdir)
+        master_path = master_dir / master_subdir
         if not master_path.is_dir():
             msgs.error(f'{master_path} does not exist!  You must install the QL_MASTERS '
                        'directory; download the data from the PypeIt dev-suite Google Drive and '
@@ -408,17 +408,17 @@ class QL_Multislit(scriptbase.ScriptBase):
                        'pypeit_install_ql_masters script.')
 
         bias_masterframe_name = \
-            utils.find_single_file(master_path.joinpath("MasterBias*"))
+            utils.find_single_file(master_path / "MasterBias*")
         slit_masterframe_name = \
-            utils.find_single_file(master_path.joinpath("MasterSlits*"))
+            utils.find_single_file(master_path / "MasterSlits*")
         tilts_masterframe_name = \
-            utils.find_single_file(master_path.joinpath("MasterTilts*"))
+            utils.find_single_file(master_path / "MasterTilts*")
         wvcalib_masterframe_name = \
-            utils.find_single_file(master_path.joinpath("MasterWaveCalib*"))
+            utils.find_single_file(master_path / "MasterWaveCalib*")
         std_spec1d_file = \
-            utils.find_single_file(master_path.joinpath("spec1d_*"))
+            utils.find_single_file(master_path / "spec1d_*")
         sensfunc_masterframe_name = \
-            utils.find_single_file(master_path.joinpath("sens_*"))
+            utils.find_single_file(master_path / "sens_*")
 
 
         # TODO Implement some kind of checking for minimal masters. If --flux is set check for sensfunc etc.

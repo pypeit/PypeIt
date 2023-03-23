@@ -66,8 +66,11 @@ def test_search_cache():
     assert data.search_cache('junkymcjunkface.txt') == []
 
     # Place a file in the cache, and retrieve it
-    data.write_file_to_cache(data.Paths.linelist.joinpath('ArI_lines.dat'),
-                             'totally_special_argon_lines.dat', 'arc_lines/reid_arxiv')
+    data.write_file_to_cache(
+        data.Paths.linelist / 'ArI_lines.dat',
+        'totally_special_argon_lines.dat',
+        'arc_lines/reid_arxiv'
+    )
     assert data.search_cache('totally_special')[0].is_file()
 
 
