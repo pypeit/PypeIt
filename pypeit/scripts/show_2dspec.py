@@ -226,7 +226,7 @@ class Show2DSpec(scriptbase.ScriptBase):
         # TODO Place holder for putting in sensfunc
         #if args.sensfunc:
         #    # Load the sensitivity function
-        #    wave_sens, sfunc, _, _, _ = sensfunc.SensFunc.load(sensfunc_masterframe_name)
+        #    wave_sens, sfunc, _, _, _ = sensfunc.SensFunc.load(sensfunc_name)
         #    # Interpolate the sensitivity function onto the wavelength grid of the data. Since the image is rectified
         #    # this is trivial and we don't need to do a 2d interpolation
         #    sens_factor = flux_calib.get_sensfunc_factor(

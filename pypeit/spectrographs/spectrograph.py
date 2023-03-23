@@ -241,7 +241,7 @@ class Spectrograph:
                         '[baseprocess]', 
                             'use_biasimage = False', 
                         '[calibrations]', 
-                        '    raise_chk_error = False',  # This allows for science frames only and "cooked" Masters
+                        '    raise_chk_error = False',  # This allows for science frames only and "cooked" calibrations
                         '  [[flatfield]]', 
                         '       saturated_slits = mask']
         # Reduction parameters
@@ -505,11 +505,11 @@ class Spectrograph:
 
     def bpm_frombias(self, msbias, bpm_img, thresh=10.):
         """
-        Generate a bad-pixel mask from a master bias frame.
+        Generate a bad-pixel mask from a processed bias frame.
 
         Args:
             msbias (:class:`~pypeit.images.pypeitimage.PypeItImage`):
-                Master bias frame used to identify bad pixels.
+                Processed bias frame used to identify bad pixels.
             bpm_img (`numpy.ndarray`_):
                 Zeroth-order bad pixel mask; i.e., generated using
                 :func:`~pypeit.spectrographs.spectrograph.Spectrograph.empty_bpm`.
@@ -524,7 +524,7 @@ class Spectrograph:
         """
         # Check that the bias has the correct shape
         if msbias.image.shape != bpm_img.shape:
-            msgs.error(f'Shape mismatch between master bias {msbias.image.shape} and expected '
+            msgs.error(f'Shape mismatch between processed bias {msbias.image.shape} and expected '
                        f'BPM {bpm_img.shape}.')
         # Setup
         nimg = 1 if bpm_img.ndim == 2 else bpm_img.shape[0]
@@ -565,7 +565,7 @@ class Spectrograph:
                 Processed image shape.  If ``filename`` is None, this *must* be
                 provided; otherwise, this is ignored.
             msbias (:class:`~pypeit.images.pypeitimage.PypeItImage`, optional):
-                Master bias frame.  If provided, it is used by
+                Processed bias frame.  If provided, it is used by
                 :func:`~pypeit.spectrographs.spectrograph.Spectrograph.bpm_frombias`
                 to identify bad pixels.
 

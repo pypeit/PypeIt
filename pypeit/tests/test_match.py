@@ -61,18 +61,19 @@ def test_calibration_groups(fitstbl):
 #        fitstbl.match_to_science(par['calibrations'], par['rdx']['calwin'], par['fluxcalib'])
 
 
+# TODO: FIX THIS
 def test_instr_setup(fitstbl):
     """ Test instrument setup naming convention
     Tickles most of the arsetup methods
     """
     par = fitstbl.spectrograph.default_pypeit_par()
 
-    # Check the master key
-    assert fitstbl.master_key(0) == 'A_1_DET01'
+    # Check the calibration  key
+    assert fitstbl.calib_key(0) == 'A_1_DET01'
     # Invalid detector
     with pytest.raises(PypeItError):
         # Shane kast blue doesn't have a second detector
-        fitstbl.master_key(0, det=2)
+        fitstbl.calib_key(0, det=2)
 
 
 # TODO: Need a test that adds a calibration group and checks the result

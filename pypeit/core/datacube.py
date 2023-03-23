@@ -756,7 +756,7 @@ def make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_i
     coord_dlt = refwcs.wcs.cdelt
     coord_min[2] = np.min(all_wave)
     coord_dlt[2] = np.max(all_wave) - np.min(all_wave)  # For white light, we want to bin all wavelength pixels
-    wlwcs = generate_masterWCS(coord_min, coord_dlt)
+    wlwcs = generate_WCS(coord_min, coord_dlt)
 
     # Generate white light images
     whitelight_imgs, _, _ = make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
@@ -810,10 +810,10 @@ def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, al
     numfiles = np.unique(all_idx).size
 
     if whitelightWCS is None:
-        # Generate a master 2D WCS to register all frames
+        # Generate a 2D WCS to register all frames
         coord_min = [np.min(all_ra), np.min(all_dec), np.min(all_wave)]
         coord_dlt = [dspat, dspat, np.max(all_wave) - np.min(all_wave)]
-        whitelightWCS = generate_masterWCS(coord_min, coord_dlt)
+        whitelightWCS = generate_WCS(coord_min, coord_dlt)
 
         # Generate coordinates
         cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
@@ -859,7 +859,7 @@ def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, al
     return whitelight_Imgs, whitelight_ivar, whitelightWCS
 
 
-def generate_masterWCS(crval, cdelt, equinox=2000.0, name="Instrument Unknown"):
+def generate_WCS(crval, cdelt, equinox=2000.0, name="Instrument Unknown"):
     """
     Generate a WCS that will cover all input spec2D files
 
@@ -877,7 +877,7 @@ def generate_masterWCS(crval, cdelt, equinox=2000.0, name="Instrument Unknown"):
         `astropy.wcs.wcs.WCS`_ : astropy WCS to be used for the combined cube
     """
     # Create a new WCS object.
-    msgs.info("Generating Master WCS")
+    msgs.info("Generating WCS")
     w = wcs.WCS(naxis=3)
     w.wcs.equinox = equinox
     w.wcs.name = name
@@ -940,10 +940,10 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
     idx_max = np.unravel_index(np.argmax(whitelight_img), whitelight_img.shape)
     msgs.info("Highest S/N object located at spaxel (x, y) = {0:d}, {1:d}".format(idx_max[0], idx_max[1]))
 
-    # Generate a master 2D WCS to register all frames
+    # Generate a 2D WCS to register all frames
     coord_min = [np.min(all_ra), np.min(all_dec), np.min(all_wave)]
     coord_dlt = [dspat, dspat, dwv]
-    whitelightWCS = generate_masterWCS(coord_min, coord_dlt)
+    whitelightWCS = generate_WCS(coord_min, coord_dlt)
     # Make the bin edges to be at +/- 1 pixels around the maximum (i.e. summing 9 pixels total)
     numwav = int((np.max(all_wave) - np.min(all_wave)) / dwv)
     xbins = np.array([idx_max[0]-1, idx_max[0]+2]) - 0.5
@@ -1645,10 +1645,10 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     wav_max = cubepar['wave_max'] if cubepar['wave_max'] is not None else np.max(all_wave)
     if cubepar['wave_delta'] is not None: dwv = cubepar['wave_delta']
 
-    # Generate a master WCS to register all frames
+    # Generate a WCS to register all frames
     coord_min = [ra_min, dec_min, wav_min]
     coord_dlt = [dspat, dspat, dwv]
-    masterwcs = generate_masterWCS(coord_min, coord_dlt, name=specname)
+    coord_wcs = generate_WCS(coord_min, coord_dlt, name=specname)
     msgs.info(msgs.newline()+"-"*40 +
               msgs.newline() + "Parameters of the WCS:" +
               msgs.newline() + "RA   min, max = {0:f}, {1:f}".format(ra_min, ra_max) +
@@ -1669,12 +1669,12 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
     # Make the cube
     msgs.info("Generating pixel coordinates")
-    pix_coord = masterwcs.wcs_world2pix(all_ra, all_dec, all_wave * 1.0E-10, 0)
-    hdr = masterwcs.to_header()
+    pix_coord = coord_wcs.wcs_world2pix(all_ra, all_dec, all_wave * 1.0E-10, 0)
+    hdr = coord_wcs.to_header()
 
     sensfunc = None
     if flux_spline is not None:
-        wcs_wav = masterwcs.wcs_pix2world(np.vstack((np.zeros(numwav), np.zeros(numwav), np.arange(numwav))).T, 0)
+        wcs_wav = coord_wcs.wcs_pix2world(np.vstack((np.zeros(numwav), np.zeros(numwav), np.arange(numwav))).T, 0)
         senswave = wcs_wav[:, 2] * 1.0E10
         sensfunc = flux_spline(senswave)
 

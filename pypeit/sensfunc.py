@@ -32,7 +32,6 @@ from pypeit import datamodel
 
 # TODO Add the data model up here as a standard thing using DataContainer.
 
-# TODO Should this be a master frame? I think not.
 # TODO Standard output location for sensfunc?
 
 # TODO Add some QA plots, and plots to the screen if show is set.

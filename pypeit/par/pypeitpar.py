@@ -4144,13 +4144,6 @@ class CalibrationsPar(ParSet):
     # be called for all the sub parameter sets, but this can do higher
     # level checks, if necessary.
 
-    # JFH I'm not sure what to do about this function? Commentingo out for now.
-    #def validate(self):
-    #    if self.data['masters'] == 'force' \
-    #            and (self.data['setup'] is None or len(self.data['setup']) == 0):
-    #        raise ValueError('When forcing use of master frames, you must specify the setup to '
-    #                         'be used using the \'setup\' keyword.')
-
 #-----------------------------------------------------------------------------
 # Parameters superset
 class PypeItPar(ParSet):

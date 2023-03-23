@@ -40,7 +40,7 @@ def test_io():
     slits.to_file(overwrite=True)
     assert ofile.exists(), 'File not written'
 
-    # Instantiate an empty SlitTraceSet with the same master file, and
+    # Instantiate an empty SlitTraceSet with the same file, and
     # indicate it should be reused
     _slits = SlitTraceSet.from_file(ofile)
     assert np.array_equal(_slits.left_init, np.full((1000,3), 2, dtype=float)), 'Bad left read'

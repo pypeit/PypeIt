@@ -36,7 +36,7 @@ class ParseSlits(scriptbase.ScriptBase):
     def get_parser(cls, width=None):
         parser = super().get_parser(description='Print info on slits from a input file',
                                     width=width)
-        parser.add_argument('input_file', type=str, help='Either a spec2D or MasterSlits filename')
+        parser.add_argument('input_file', type=str, help='Either a spec2D or Slits filename')
         return parser
 
 
@@ -53,13 +53,13 @@ class ParseSlits(scriptbase.ScriptBase):
         hdul = fits.open(pargs.input_file)
         head0 = hdul[0].header
         if 'MSTRTYP' in head0.keys() and head0['MSTRTYP'].strip() == 'Slits':
-            file_type = 'MasterSlits'
+            file_type = 'Slits'
         elif 'PYP_CLS' in head0.keys() and head0['PYP_CLS'].strip() == 'AllSpec2DObj':
             file_type = 'AllSpec2D'
         else:
             raise IOError("Bad file type input!")
 
-        if file_type == 'MasterSlits':
+        if file_type == 'Slits':
             slits = slittrace.SlitTraceSet.from_file(pargs.input_file)#, chk_version=False)
             print_slits(slits)
         elif file_type == 'AllSpec2D':

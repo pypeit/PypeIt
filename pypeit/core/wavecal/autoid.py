@@ -1567,7 +1567,7 @@ class HolyGrail:
             good_fit[slit] = self.report_prelim(slit, best_patt_dict, best_final_fit)
 
         # Now that all slits have been inspected, cross match to generate a
-        # master list of all lines in every slit, and refit all spectra
+        # list of all lines in every slit, and refit all spectra
         if self._nslit > 1:
             msgs.info('Checking wavelength solution by cross-correlating with all slits')
 

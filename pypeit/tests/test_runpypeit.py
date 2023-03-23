@@ -77,7 +77,7 @@ def test_run_pypeit():
     assert isinstance(par, pypeitpar.PypeItPar)
                                
 
-    # Now re-use those master files
+    # Now re-use those calibration files
     pargs = RunPypeIt.parse_args([pyp_file, '-o', '-r', configdir])
     RunPypeIt.main(pargs)
 

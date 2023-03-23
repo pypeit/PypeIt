@@ -27,7 +27,7 @@ class ArcImage(pypeitimage.PypeItCalibrationImage):
                       )
     hdu_prefix = 'ARC_'
 
-    # Master fun
+    # Calibration type
     calib_type = 'Arc'
 
 
@@ -41,7 +41,7 @@ class AlignImage(pypeitimage.PypeItCalibrationImage):
     output_to_disk = ('ALIGN_IMAGE', 'ALIGN_FULLMASK', 'ALIGN_DETECTOR')
     hdu_prefix = 'ALIGN_'
 
-    # Master fun
+    # Calibration type
     calib_type = 'Align'
 
 
@@ -79,7 +79,7 @@ class TiltImage(pypeitimage.PypeItCalibrationImage):
     output_to_disk = ('TILT_IMAGE', 'TILT_FULLMASK', 'TILT_DETECTOR')
     hdu_prefix = 'TILT_'
 
-    # Master fun
+    # Calibration type
     calib_type = 'Tiltimg'
 
 
@@ -113,7 +113,7 @@ class SkyRegions(pypeitimage.PypeItCalibrationImage):
     output_to_disk = ('SKYREG_IMAGE')
     hdu_prefix = 'SKYREG_'
 
-    # Master fun
+    # Calibration type and file format
     calib_type = 'SkyRegions'
     calib_file_format = 'fits.gz'
 
@@ -137,10 +137,6 @@ class SkyRegions(pypeitimage.PypeItCalibrationImage):
         """
         filename = super().construct_file_name(calib_key, calib_dir=calib_dir)
         return filename.replace(f'.{cls.calib_file_format}', f'_{basename}.{cls.calib_file_format}')
-        
-        filename.replace
-
-
 
 
 # Convert frame type into an Image.  These all should subclass from

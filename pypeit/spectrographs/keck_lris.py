@@ -440,7 +440,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         rawdatasec_img = np.zeros_like(array, dtype=int)
         oscansec_img = np.zeros_like(array, dtype=int)
 
-        # insert extensions into master image...
+        # insert extensions into calibration image...
         for amp, i in enumerate(order[det_idx]):
 
             # grab complete extension...
@@ -834,7 +834,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
@@ -981,7 +981,7 @@ class KeckLRISBOrigSpectrograph(KeckLRISBSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels. **This is
+                Processed bias frame used to identify bad pixels. **This is
                 always ignored.**
 
         Returns:
@@ -1147,20 +1147,18 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
 
         return par
 
-    def get_ql_master_dir(self, file):
+    def get_ql_calib_dir(self, file):
         """
-        Returns master file directory for quicklook reductions.
+        Returns calibration file directory for quicklook reductions.
 
         Args:
             file (str):
               Image file
 
         Returns:
-            master_dir (str):
-              Quicklook Master directory
+            :obj:`str`: Quicklook calibrations directory
 
         """
-
         lris_grating = self.get_meta_value(file, 'dispname')
         lris_dichroic = self.get_meta_value(file, 'dichroic')
         setup_path = lris_grating.replace('/','_') + '_d' + lris_dichroic
@@ -1273,7 +1271,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels.
+                Processed bias frame used to identify bad pixels.
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
@@ -1632,7 +1630,7 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels. **This is
+                Processed bias frame used to identify bad pixels. **This is
                 always ignored.**
 
         Returns:

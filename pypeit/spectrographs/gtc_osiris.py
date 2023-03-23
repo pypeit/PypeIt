@@ -382,7 +382,7 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels. **This is
+                Processe bias frame used to identify bad pixels. **This is
                 ignored for KCWI.**
 
         Returns:
@@ -931,7 +931,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels. **This is
+                Processed bias frame used to identify bad pixels. **This is
                 ignored for KCWI.**
 
         Returns:

@@ -1,5 +1,5 @@
 """
-Module to run tests on armasters
+Module to run tests on calibration frames
 """
 from pathlib import Path
 

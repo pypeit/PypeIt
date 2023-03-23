@@ -425,7 +425,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
@@ -798,7 +798,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
@@ -979,7 +979,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         .. code-block:: python
 
             from pypeit import edgetrace
-            edges = edgetrace.EdgeTraceSet.from_file('MasterEdges_A_1_DET01.fits.gz')
+            edges = edgetrace.EdgeTraceSet.from_file('Edges_A_1_DET01.fits.gz')
 
             nrm_edges = edges.edge_fit[edges.nspec//2,:] / edges.nspat
             slit_cen = ((nrm_edges + np.roll(nrm_edges,1))/2)[np.arange(nrm_edges.size//2)*2+1]
@@ -1059,7 +1059,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set

@@ -97,7 +97,8 @@ class WaveTilts(calibframe.CalibFrame):
 
         """
         if not np.array_equal(self.spat_id, slits.spat_id):
-            msgs.error("Your tilt solutions are out of sync with your slits.  Remove Masters and start from scratch")
+            msgs.error('Your tilt solutions are out of sync with your slits.  Remove calibrations '
+                       'and restart from scratch.')
 
     def fit2tiltimg(self, slitmask, flexure=None):
         """
@@ -152,7 +153,9 @@ class BuildWaveTilts:
     Class to guide arc/sky tracing
 
     Args:
-        mstilt (:class:`pypeit.images.buildimage.TiltImage`): Tilt image
+        mstilt (:class:`pypeit.images.buildimage.TiltImage`):
+            Tilt image.  QA file naming inherits the calibration key
+            (``calib_key``) from this object.
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
             Slit edges
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
@@ -164,7 +167,6 @@ class BuildWaveTilts:
         det (int): Detector index
         qa_path (:obj:`str`, optional):
             Directory for QA output.
-        master_key (:obj:`str`, optional):  For naming QA only
         spat_flexure (float, optional):
             If input, the slitmask and slit edges are shifted prior
             to tilt analysis.
@@ -191,7 +193,7 @@ class BuildWaveTilts:
 
     # TODO This needs to be modified to take an inmask
     def __init__(self, mstilt, slits, spectrograph, par, wavepar, det=1, qa_path=None,
-                 master_key=None, spat_flexure=None):
+                 spat_flexure=None):
 
         # TODO: Perform type checking
         self.spectrograph = spectrograph
@@ -355,7 +357,7 @@ class BuildWaveTilts:
                 = tracewave.fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=spat_order,
                                       spec_order=spec_order,maxdev=self.par['maxdev2d'],
                                       sigrej=self.par['sigrej2d'], func2d=self.par['func2d'],
-                                      doqa=doqa, master_key=self.master_key,
+                                      doqa=doqa, calib_key=self.mstilt.calib_key,
                                       slitord_id=self.slits.slitord_id[slit_idx],
                                       minmax_extrap=self.par['minmax_extrap'],
                                       show_QA=show_QA, out_dir=self.qa_path)
@@ -572,7 +574,7 @@ class BuildWaveTilts:
                 ax = fig.add_axes([0.15/3, 0.1, 0.8/3, 0.8])
                 ax.imshow(self.mstilt.image, origin='lower', interpolation='nearest',
                           aspect='auto', vmin=vmin, vmax=vmax)
-                ax.set_title('MasterArc')
+                ax.set_title('Arc')
                 ax = fig.add_axes([1.15/3, 0.1, 0.8/3, 0.8])
                 ax.imshow(continuum, origin='lower', interpolation='nearest',
                           aspect='auto', vmin=vmin, vmax=vmax)
@@ -580,7 +582,7 @@ class BuildWaveTilts:
                 ax = fig.add_axes([2.15/3, 0.1, 0.8/3, 0.8])
                 ax.imshow(_mstilt, origin='lower', interpolation='nearest',
                           aspect='auto', vmin=vmin, vmax=vmax)
-                ax.set_title('MasterArc - Continuum')
+                ax.set_title('Arc - Continuum')
                 plt.show()
 
         # Final tilts image
