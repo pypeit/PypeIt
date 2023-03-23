@@ -4,10 +4,12 @@
 .. include:: ../include/links.rst
 
 """
+import copy
 import inspect
+import pathlib
 
 import numpy as np
-import copy, os
+
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
 import matplotlib
@@ -1295,7 +1297,7 @@ class MultiSlitFlexure(DataContainer):
         self.specobjs = specobjs.SpecObjs.from_fitsfile(self.s1dfile, chk_version=False) 
         #  Sky lines -- This one is ASCII, so don't use load_sky_spectrum()
         sky_file = 'sky_single_mg.dat'
-        self.sky_table = ascii.read(os.path.join(data.Paths.sky_spec, sky_file))
+        self.sky_table = ascii.read(data.Paths.sky_spec.joinpath(sky_file))
 
     def _init_internals(self):
         # Parameters (FlexurePar)
@@ -1525,9 +1527,9 @@ class MultiSlitFlexure(DataContainer):
         """
 
         # Generate QA folder as need be
-        qa_dir = os.path.join(plot_dir, 'QA')
-        if not os.path.isdir(qa_dir):
-            os.mkdir(qa_dir)
+        qa_dir = pathlib.Path(plot_dir).joinpath('QA')
+        if not qa_dir.is_dir():
+            qa_dir.mkdir()
         
         '''
         # Slopes

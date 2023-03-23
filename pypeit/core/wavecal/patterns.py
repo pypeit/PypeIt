@@ -1,8 +1,8 @@
 """ Module for finding patterns in arc line spectra
 """
 import numpy as np
-from scipy.ndimage.filters import maximum_filter
-from scipy.ndimage.morphology import generate_binary_structure, binary_erosion
+from scipy.ndimage import maximum_filter
+from scipy.ndimage import generate_binary_structure, binary_erosion
 #import numba as nb
 
 

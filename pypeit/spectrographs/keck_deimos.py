@@ -4,8 +4,6 @@ files.
 
 .. include:: ../include/links.rst
 """
-import os
-import glob
 import re
 import warnings
 
@@ -217,7 +215,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             # raw frame date in mjd
             date = time.Time(self.get_meta_value(self.get_headarr(hdu), 'mjd'), format='mjd').value
             # get the measurements files
-            measure_files = np.array(glob.glob(os.path.join(data.Paths.spectrographs, "keck_deimos/gain_ronoise", "*")))
+            measure_files = np.array(data.Paths.spectrographs.joinpath("keck_deimos", "gain_ronoise").glob("*"))
             # Parse the dates recorded in the name of the files
             measure_dates = np.array([os.path.basename(f).split('.')[2] for f in measure_files])
             # convert into datetime format
@@ -1187,7 +1185,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Grating slider
         slider = hdu[0].header['GRATEPOS']
 
-        mp_dir = os.path.join(data.Paths.static_calibs, 'keck_deimos')
+        mp_dir = data.Paths.static_calibs.joinpath('keck_deimos')
 
         if slider in [3,4]:
             self.amap = fits.getdata(os.path.join(mp_dir, f'amap.s{slider}.2003mar04.fits'))

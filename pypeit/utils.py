@@ -8,19 +8,19 @@ General utility functions.
 import os
 import inspect
 import pickle
+import pathlib
 import itertools
-from glob import glob
-from typing import List
+import glob
 
 from IPython import embed
 
 import numpy as np
 from numpy.lib.stride_tricks import as_strided
 
-from scipy import ndimage
+import scipy.ndimage
 
 import matplotlib
-from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
 
 from astropy import units
 from astropy import stats
@@ -421,11 +421,11 @@ def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest', replace='original'):
 
     if wgt is None:
         # No weights so just smooth
-        return ndimage.convolve(img, kernel, mode='nearest')
+        return scipy.ndimage.convolve(img, kernel, mode='nearest')
 
     # Weighted smoothing
-    cimg = ndimage.convolve(img*wgt, kernel, mode='nearest')
-    wimg = ndimage.convolve(wgt, kernel, mode='nearest')
+    cimg = scipy.ndimage.convolve(img*wgt, kernel, mode='nearest')
+    wimg = scipy.ndimage.convolve(wgt, kernel, mode='nearest')
     smoothed_img = np.ma.divide(cimg, wimg)
     if replace == 'original':
         smoothed_img[smoothed_img.mask] = img[smoothed_img.mask]
@@ -630,7 +630,7 @@ def fast_running_median(seq, window_size):
     The input is extended by reflecting about the edge of the last pixel.
 
     This code has been confirmed to produce identical results to
-    scipy.ndimage.filters.median_filter with the reflect boundary
+    scipy.ndimage.median_filter with the reflect boundary
     condition, but is ~ 100 times faster.
 
     Args:
@@ -641,7 +641,7 @@ def fast_running_median(seq, window_size):
         ndarray: median filtered values
 
     Code originally contributed by Peter Otten, made to be consistent with
-    scipy.ndimage.filters.median_filter by Joe Hennawi.
+    scipy.ndimage.median_filter by Joe Hennawi.
 
     Now makes use of the Bottleneck library https://pypi.org/project/Bottleneck/.
     """
@@ -660,7 +660,7 @@ def fast_running_median(seq, window_size):
     result = move_median.move_median(seq_pad, window_size)
 
     # This takes care of the offset produced by the original code deducec by trial and error comparison with
-    # scipy.ndimage.filters.medfilt
+    # scipy.ndimage.medfilt
 
     result = np.roll(result, -window_size//2 + 1)
     return result[window_size:-window_size]
@@ -1311,27 +1311,27 @@ def is_float(s):
 
     return True
 
-def find_single_file(file_pattern):
+def find_single_file(file_pattern) -> pathlib.Path:
     """Find a single file matching a wildcard pattern.
 
     Args:
         file_pattern (str): A filename pattern, see the python 'glob' module.
 
     Returns:
-        str: A file name, or None if no filename was found. This will give a warning
+        :obj:`pathlib.Path`: A file name, or None if no filename was found. This will give a warning
              if multiple files are found and return the first one.
     """
 
-    files = glob(file_pattern)
+    files = glob.glob(file_pattern)
     if len(files) == 1:
-        return files[0]
+        return pathlib.Path(files[0])
     elif len(files) == 0:
         return None
     else:
         msgs.warn(f'Found multiple files matching {file_pattern}; using the first one.')
-        return files[0]
+        return pathlib.Path(files[0])
 
-def DFS(v: int, visited: List[bool], group: List[int], adj: np.ndarray):
+def DFS(v: int, visited: list[bool], group: list[int], adj: np.ndarray):
     """
     Depth-First Search of graph given by matrix `adj` starting from `v`.
     Updates `visited` and `group`.
