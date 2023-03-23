@@ -87,7 +87,7 @@ class CalibFrame(datamodel.DataContainer):
         Set the internals necessary to construct the IO path for the calibration
         file.
 
-        Nothing is returned; this function is used to set :attr:`calib_dir` and
+        Nothing is returned; this function is used to set :attr:`calib_dir`, :attr:`calib_id`, and
         :attr:`calib_key`.
 
         Args:
@@ -114,6 +114,17 @@ class CalibFrame(datamodel.DataContainer):
         self.calib_dir = str(self.calib_dir)
         self.calib_id = CalibFrame.ingest_calib_id(calib_id)
         self.calib_key = self.construct_calib_key(setup, self.calib_id, detname)
+
+    def copy_calib_keys(self, other):
+        """
+        Copy the key internals from this :class:`CalibFrame` to another.
+
+        Args:
+            other (:class:`CalibFrame`):
+                Object to copy from.
+        """
+        for n in CalibFrame.internals:
+            setattr(self, n, getattr(other, n))
 
     # NOTE: Only need to overload to_file because the only thing special about
     # CalibFrame is that the paths are pre-defined.

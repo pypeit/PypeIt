@@ -39,6 +39,7 @@ class SkySubRegions(scriptbase.ScriptBase):
         import os
 
         from pypeit import msgs
+        from pypeit import io
         from pypeit.core.gui.skysub_regions import SkySubGUI
         from pypeit.core import flexure
         from pypeit.scripts import utils
@@ -66,13 +67,10 @@ class SkySubRegions(scriptbase.ScriptBase):
 
         # Derive an appropriate output filename
         file_base = info.get_basename()
-        prefix = os.path.splitext(file_base)
-        outname = os.path.splitext(prefix[0])[0] if prefix[1] == ".gz" else prefix[0]
-
         info.load_calib_dir()
         calib_key = info.get_calib_key(iFile=iFile)
         regfile = buildimage.SkyRegions.construct_file_name(calib_key, calib_dir=info.calib_dir,
-                                                            basename=outname)
+                                                            basename=io.remove_suffix(file_base))
 
         # Finally, initialise the GUI
         skyreg = SkySubGUI.initialize(args.det, frame, slits, info.spectrograph.pypeline,

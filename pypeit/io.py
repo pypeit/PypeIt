@@ -8,6 +8,7 @@ Provides a set of I/O routines.
 
 """
 import os
+from pathlib import Path
 import glob
 import sys
 import warnings
@@ -200,6 +201,37 @@ def compress_file(ifile, overwrite=False, rm_original=True):
         # Remove the uncompressed file
         os.remove(ifile)
 
+
+def remove_suffix(file):
+    """
+    Remove the suffix of a file name.
+
+    For normal filenames, this simply returns the file string without its last
+    suffix.  For gzipped files, this removes both the '.gz' suffix, and the one
+    preceding it.
+
+    Args:
+        file (:obj:`str`):
+            File name or full path to use
+
+    Returns:
+        :obj:`str`: The file without its suffix or its input path, if provided.
+
+    Examples:
+
+        >>> remove_suffix('unzipped_file.txt')
+        'unzipped_file'
+        >>> remove_suffix('/path/to/unzipped_file.fits')
+        'unzipped_file'
+        >>> remove_suffix('dot.separated.file.name.txt')
+        'dot.separated.file.name'
+        >>> remove_suffix('gzipped_file.fits.gz')
+        'gzipped_file'
+
+    """
+    _file = Path(file)
+    return (_file.with_suffix('')).with_suffix('').name \
+                    if _file.suffix == '.gz' else _file.with_suffix('').name
 
 def parse_hdr_key_group(hdr, prefix='F'):
     """

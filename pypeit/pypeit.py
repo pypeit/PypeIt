@@ -743,20 +743,18 @@ class PypeIt:
                                                    ignore_saturation=False)
             sciImg = sciImg.sub(bgimg)
 
-        # Check if the user has manually created a sky region file
-        sky_region_file = None
-        if self.par['reduce']['skysub']['user_regions'] == 'master':
-            # Check if a master Sky Regions file exists for this science frame
-            file_base = os.path.basename(sciImg.files[0])
-            prefix = os.path.splitext(file_base)
-            if prefix[1] == ".gz":
-                sciName = os.path.splitext(prefix[0])[0]
-            else:
-                sciName = prefix[0]
-
-            master_dir = self.caliBrate.master_dir
-            master_key = self.caliBrate.fitstbl.master_key(0, det=self.det) + "_" + sciName
-            sky_region_file = masterframe.construct_file_name(buildimage.SkyRegions, master_key, master_dir=master_dir)
+        # TODO: The spatial flexure is not copied to the PypeItImage object if
+        # the image (science or otherwise) is from a combination of multiple
+        # frames.  Is that okay for this usage?
+        # Flexure
+        spat_flexure_shift = None
+        if (self.objtype == 'science'
+                and self.par['scienceframe']['process']['spat_flexure_correct']) or \
+           (self.objtype == 'standard'
+                and self.par['calibrations']['standardframe']['process']['spat_flexure_correct']):
+            spat_flexure_shift = self.sciImg.spat_flexure
+        initial_skymask = self.load_skyregions(sciImg.files[0], frames[0], spat_flexure,
+                                               initial_slits=self.spectrograph.pypeline != 'IFU')
 
         # Deal with manual extraction
         row = self.fitstbl[frames[0]]
@@ -770,7 +768,7 @@ class PypeIt:
                                                         self.par, self.objtype,
                                                         wv_calib=self.caliBrate.wv_calib,
                                                         waveTilts=self.caliBrate.wavetilts,
-                                                        sky_region_file=sky_region_file,
+                                                        initial_skymask=initial_skymask,
                                                         bkg_redux=self.bkg_redux,
                                                         manual=manual_obj,
                                                         find_negative=self.find_negative,
@@ -783,6 +781,83 @@ class PypeIt:
 
         # Return
         return initial_sky, sobjs_obj, sciImg, objFind
+
+    def load_skyregions(self, scifile, frame, spat_flexure, initial_slits=False):
+        """
+        Generate or load sky regions, if defined by the user.
+
+        Sky regions are defined by the internal provided parameters; see
+        ``user_regions`` in :class:`~pypeit.par.pypeitpar.SkySubPar`.  If
+        included in the in the pypeit file like so, 
+
+        .. code-block:: ini
+
+            [reduce]
+                [[skysub]]
+                    user_regions = :25,75:
+
+        The first and last 25% of all slits are used as sky.  If the user has
+        used the pypeit_skysub_regions GUI to generate a sky mask for a given
+        frame, this can be searched for and loaded by setting the parameter to
+        ``user``:
+
+        .. code-block:: ini
+
+            [reduce]
+                [[skysub]]
+                    user_regions = user
+
+        Parameters
+        ----------
+        frame : :obj:`int`
+            The index of the frame used to set the basename
+
+        Returns
+        -------
+        skymask : `numpy.ndarray`_
+            A boolean array of used to select sky pixels; i.e., True is a pixel
+            that corresponds to a sky region.  If the ``user_regions`` parameter
+            is not set (or an empty string), the returned value is None.
+        """
+        if self.par['reduce']['skysub']['user_regions'] in [None, '']:
+            return None
+
+        # First priority given to user_regions first
+        if self.par['reduce']['skysub']['user_regions'] == 'user':
+            # Build the file name
+            setup = self.fitstbl['setup'][frame]
+            calib_id = CalibFrame.ingest_calib_id(self.fitstbl['calib'][frame])
+            detname = self.spectrograph.get_det_name(self.det)
+            calib_key = CalibFrame.construct_calib_key(setup, calib_id, detname)
+            regfile = buildimage.SkyRegions.construct_file_name(calib_key,
+                                                                calib_dir=self.calibrations_path,
+                                                                basename=io.remove_suffix(scifile))
+            regfile = Path(regfile).resolve()
+            if not regfile.exists():
+                msgs.error(f'Unable to find SkyRegions file: {regfile} . Create a SkyRegions '
+                           'frame using pypeit_skysub_regions, or change the user_regions to '
+                           'the percentage format.  See documentation.')
+            
+            msgs.info(f'Loading SkyRegions file: {regfile}')
+            return buildimage.SkyRegions.from_file(sky_region_file).image.astype(bool)
+
+        skyregtxt = self.par['reduce']['skysub']['user_regions']
+        if isinstance(skyregtxt, list):
+            skyregtxt = ",".join(skyregtxt)
+        msgs.info(f'Generating skysub mask based on the user defined regions: {skyregtxt}')
+        # The resolution probably doesn't need to be a user parameter
+        slits_left, slits_right, _ \
+            = self.caliBrate.slits.select_edges(initial=initial_slits, flexure=spat_flexure)
+
+        maxslitlength = np.max(slits_right-slits_left)
+        # Get the regions
+        status, regions = skysub.read_userregions(skyregtxt, self.caliBrate.slits.nslits,
+                                                  maxslitlength)
+        # Generate and return image
+        # TODO: Is this applying the spatial flexure twice?
+        return skysub.generate_mask(self.spectrograph.pypeline, regions, self.caliBrate.slits,
+                                    slits_left, slits_right, spat_flexure=spat_flexure)
+
 
     def extract_one(self, frames, det, sciImg, objFind, initial_sky, sobjs_obj):
         """

@@ -29,7 +29,7 @@ operations = dict({'cursor': "Add sky region (LMB drag)\n" +
                    })
 
 
-class SkySubGUI(object):
+class SkySubGUI:
     """
     GUI to interactively define the sky regions. The GUI can be run within
     PypeIt during data reduction, or as a standalone script outside of
@@ -678,3 +678,4 @@ class SkySubGUI(object):
         """
         self._skyreg = [np.zeros(self._resolution, dtype=np.bool) for all in range(self._nslits)]
         self._allreg[:] = False
+
