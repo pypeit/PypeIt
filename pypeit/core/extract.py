@@ -868,7 +868,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
         if((nbad2 > 0) or (ngood0 > 0)):
             spline_flux1[indbad2] = np.median(spline_flux1[np.invert(badpix)])
         # take a 5-pixel median to filter out some hot pixels
-        spline_flux1 = scipy.ndimage.median_filter(spline_flux1,size=5,mode ='reflect')
+        spline_flux1 = scipy.ndimage.median_filter(spline_flux1,size=5,mode='reflect')
 
         # Create the normalized object image
         if np.any(totmask):
