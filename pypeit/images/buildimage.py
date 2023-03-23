@@ -117,6 +117,31 @@ class SkyRegions(pypeitimage.PypeItCalibrationImage):
     calib_type = 'SkyRegions'
     calib_file_format = 'fits.gz'
 
+    @classmethod
+    def construct_file_name(cls, calib_key, calib_dir=None, basename=None):
+        """
+        Override the base-class filename construction to optionally include a basename.
+
+        Args:
+            calib_key (:obj:`str`):
+                String identifier of the calibration group.  See
+                :func:`construct_calib_key`.
+            calib_dir (:obj:`str`, `Path`_, optional):
+                If provided, return the full path to the file given this
+                directory.
+            basename (:Obj:`str`, optional):
+                If provided include this in the output file name.
+
+        Returns:
+            :obj:`str`: File path or file name
+        """
+        filename = super().construct_file_name(calib_key, calib_dir=calib_dir)
+        return filename.replace(f'.{cls.calib_file_format}', f'_{basename}.{cls.calib_file_format}')
+        
+        filename.replace
+
+
+
 
 # Convert frame type into an Image.  These all should subclass from
 # PypeItCalibrationImage.

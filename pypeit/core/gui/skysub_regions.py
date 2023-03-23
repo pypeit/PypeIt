@@ -232,7 +232,7 @@ class SkySubGUI(object):
         print("mouse button to click and drag over the sky background region.")
         print("Use the right mouse button (click and drag) to delete a region.")
         print("If you click 'Continue (and save changes)' the sky background")
-        print("regions file will be saved to the Masters directory.")
+        print("regions file will be saved to the Calibrations directory.")
         print("")
         print("To assign regions to all slits simultaneously, click and drag")
         print("over the gray regions on the right toolbar. Alternatively,")
@@ -582,8 +582,7 @@ class SkySubGUI(object):
                 msgs.warn("File exists:\n{0:s}\nSaving regions to 'temp.fits'")
                 self._overwrite = True
             msskyreg = buildimage.SkyRegions(image=inmask.astype(float), PYP_SPEC=self.spectrograph)
-            msskyreg.to_master_file(master_filename=outfil)
-        return
+            msskyreg.to_file(file_path=outfil)
 
     def recenter(self):
         xlim = self.axes['main'].get_xlim()

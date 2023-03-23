@@ -14,6 +14,10 @@
 - Removed use of the term "master", renamed to calibration frames/files.
 - Calibration frame naming now done via ``calibframe.CalibFrame`` class.
 - Start to deprecate use of ``os.path`` in favor of ``pathlib``
+- Deprecated ``pypeit_parse_calib_id`` script, but improved the ``.calib`` file
+  provided by ``pypeit_setup``.  The ``.calib`` file is now always written, and
+  provides a direct association between input raw files and output calibration
+  files.  Discussed in new docs.
 
 1.12.1 (21 Feb 2023)
 --------------------

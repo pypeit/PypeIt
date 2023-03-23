@@ -106,11 +106,11 @@ class Setup(scriptbase.ScriptBase):
             if not output_path.exists():
                 output_path.mkdir(parents=True)
             # Write the pypeit files.
-            pypeit_files = ps.fitstbl.write_pypeit(
-                                    output_path=output_path, cfg_lines=ps.user_cfg, 
-                                    write_bkg_pairs=args.background,
-                                    write_manual=args.manual_extraction,
-                                    configs=[item.strip() for item in args.cfg_split.split(',')])
+            configs = [item.strip() for item in args.cfg_split.split(',')]
+            pypeit_files = ps.fitstbl.write_pypeit(output_path=output_path, cfg_lines=ps.user_cfg, 
+                                                   write_bkg_pairs=args.background,
+                                                   write_manual=args.manual_extraction,
+                                                   configs=configs)
 
             # Write the calib file for each written pypeit file.
             setups = [Path(p).resolve().name.split('.')[0].split('_')[-1] for p in pypeit_files]

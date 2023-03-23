@@ -118,11 +118,18 @@ class CalibFrame(datamodel.DataContainer):
     # NOTE: Only need to overload to_file because the only thing special about
     # CalibFrame is that the paths are pre-defined.
     # TODO: Allow the file path to be passed directly to this function?
-    def to_file(self, **kwargs):
+    def to_file(self, file_path=None, **kwargs):
         """
         Overrides the base-class function, forcing the naming convention.
 
         Args:
+            file_path (:obj:`str`, `Path`_, optional):
+                Full path for the file to be written.  This should be used
+                *very* rarely.  The whole point of the :class:`CalibFrame` is to
+                follow a known/rigid I/O naming structure, and use of this
+                option circumvents that.  You should instead typically use
+                :func:`set_paths` so that the file path is defined
+                automatically.
             **kwargs (optional):
                 Passed directly to
                 :func:`~pypeit.datamodel.DataContainer.to_file`.  One of the
@@ -140,7 +147,8 @@ class CalibFrame(datamodel.DataContainer):
         # TODO: This used to set overwrite=True, but overwrite should be part of
         # kwargs.  The default of DataContainer is overwrite=False, so I need to
         # make sure that the behavior is maintained.
-        super().to_file(self.get_path(), hdr=hdr, **kwargs)
+        _file_path = self.get_path() if file_path is None else str(Path(file_path).resolve())
+        super().to_file(_file_path, hdr=hdr, **kwargs)
 
     @classmethod
     def from_hdu(cls, hdu, chk_version=True, **kwargs):

@@ -42,45 +42,37 @@ class SkySubRegions(scriptbase.ScriptBase):
         from pypeit.core.gui.skysub_regions import SkySubGUI
         from pypeit.core import flexure
         from pypeit.scripts import utils
-        #from pypeit import masterframe
         from pypeit.images import buildimage
 
         # Set the verbosity, and create a logfile if verbosity == 2
         msgs.set_logfile_and_verbosity('skysub_regions', args.verbosity)
 
         # Generate a utilities class
-        info = utils.Utilities(None, pypeit_file=args.file, det=args.det)
+        info = utils.Utilities(pypeit_file=args.file, det=args.det)
 
         # Interactively select a science frame
         sciIdx = info.select_science_frame(standard=args.standard)
 
         # Load the spectrograph and parset
-        info.load_spectrograph_parset(sciIdx)
-
-        # Get the master key and directory
-        mdir, mkey = info.get_master_dirkey()
+        info.load_par(iFile=sciIdx)
+        info.load_metadata()
 
         # Load the image data
-        frame = info.load_frame(sciIdx)
+        frame = info.load_frame()
 
         # Load the slits information
-        slits = utils.get_slits(mkey, mdir)
-        spat_flexure = None
-        if args.flexure:
-            spat_flexure = flexure.spat_flexure_shift(frame, slits)
+        slits = info.get_slits()
+        spat_flexure = flexure.spat_flexure_shift(frame, slits) if args.flexure else None
 
         # Derive an appropriate output filename
-        file_base = info.get_basename(sciIdx)
+        file_base = info.get_basename()
         prefix = os.path.splitext(file_base)
-        if prefix[1] == ".gz":
-            outname = os.path.splitext(prefix[0])[0]
-        else:
-            outname = prefix[0]
-        ext = buildimage.SkyRegions.master_file_format
-        regfile = masterframe.construct_file_name(buildimage.SkyRegions, master_key=mkey,
-                                                  master_dir=mdir)
-        regfile = regfile.replace(".{0:s}".format(ext), "_{0:s}.{1:s}".format(outname, ext))
-        #outname = "{0:s}/MasterSkyRegions_{1:s}_{2:s}.fits.gz".format(mdir, mkey, outname)
+        outname = os.path.splitext(prefix[0])[0] if prefix[1] == ".gz" else prefix[0]
+
+        info.load_calib_dir()
+        calib_key = info.get_calib_key(iFile=iFile)
+        regfile = buildimage.SkyRegions.construct_file_name(calib_key, calib_dir=info.calib_dir,
+                                                            basename=outname)
 
         # Finally, initialise the GUI
         skyreg = SkySubGUI.initialize(args.det, frame, slits, info.spectrograph.pypeline,

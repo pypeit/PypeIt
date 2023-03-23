@@ -157,12 +157,6 @@ class PypeIt:
             self.pypeItFile.frametypes, 
             self.pypeItFile.setup_name)
 
-        
-        # --------------------------------------------------------------
-        #   - Write .calib file (For QA naming amongst other things)
-        calib_file = pypeit_file.replace('.pypeit', '.calib')
-        self.fitstbl.write_calib(calib_file)
-
         # Other Internals
         self.overwrite = overwrite
 
@@ -179,21 +173,20 @@ class PypeIt:
             calibrations.check_for_calibs(self.par, self.fitstbl,
                                           raise_error=self.par['calibrations']['raise_chk_error'])
 
+        # --------------------------------------------------------------
+        #   - Write .calib file (For QA naming amongst other things)
+        calib_file = pypeit_file.replace('.pypeit', '.calib')
+        calibrations.Calibrations.association_summary(calib_file, self.fitstbl, self.spectrograph,
+                                                      self.calibrations_path, overwrite=True)
+
         # Report paths
         msgs.info('Setting reduction path to {0}'.format(self.par['rdx']['redux_path']))
         msgs.info('Calibration frames saved to: {0}'.format(self.calibrations_path))
         msgs.info('Science data output to: {0}'.format(self.science_path))
         msgs.info('Quality assessment plots output to: {0}'.format(self.qa_path))
-        # TODO: Is anything written to the qa dir or only to qa/PNGs?
-        # Should we have separate calibration and science QA
-        # directories?
-        # An html file wrapping them all too
 
         # Init
-        # TODO: I don't think this ever used
-
         self.det = None
-
         self.tstart = None
         self.basename = None
         self.sciI = None
@@ -274,33 +267,20 @@ class PypeIt:
             msgs.error('Could not find standard file: {0}'.format(std_outfile))
         return std_outfile
 
-    def calib_all(self, run=True):
+    def calib_all(self):
         """
-        Create calibrations for all setups
-        This is only run in lieu of a full run or
-        as part of the pypeit_parse_calib_id script
+        Process all calibration frames.
 
-        This will not crash if not all of the standard set of files are not provided
-
-        Args:
-            run (bool, optional):
-                If False, only print the calib names and do not actually run.
-                Only used with the ``pypeit_parse_calib_id`` script.
-
-        Returns:
-            dict: A simple dict summarizing the calibration names
+        Provides an avenue to reduce a dataset without (or omitting) any
+        science/standard frames.
         """
-        calib_dict = {}
-
-        self.tstart = time.time()
+        self.tstart = time.perf_counter()
 
         # Frame indices
         frame_indx = np.arange(len(self.fitstbl))
-        for i in range(self.fitstbl.n_calib_groups):
-            # 1-indexed calib number
-            calib_grp = str(i+1)
+        for calib_ID in fitstbl.calib_groups:
             # Find all the frames in this calibration group
-            in_grp = self.fitstbl.find_calib_group(i)
+            in_grp = self.fitstbl.find_calib_group(calib_ID)
             grp_frames = frame_indx[in_grp]
 
             # Find the detectors to reduce
@@ -309,11 +289,9 @@ class PypeIt:
             detectors = self.spectrograph.select_detectors(subset=subset)
             msgs.info(f'Detectors to work on: {detectors}')
 
-            calib_dict[calib_grp] = {}
-
             # Loop on Detectors
             for self.det in detectors:
-                msgs.info("Working on detector {0}".format(self.det))
+                msgs.info(f'Working on detector {self.det}')
                 # Instantiate Calibrations class
                 self.caliBrate = calibrations.Calibrations.get_instance(
                     self.fitstbl, self.par['calibrations'], self.spectrograph,
@@ -325,51 +303,14 @@ class PypeIt:
                 # These need to be separate to accomodate COADD2D
                 self.caliBrate.set_config(grp_frames[0], self.det, self.par['calibrations'])
 
-                # Allow skipping the run (e.g. parse_calib_id.py script)
-                if run:
-                    self.caliBrate.run_the_steps()
-                    if not self.caliBrate.success:
-                        msgs.warn(f'Calibrations for detector {self.det} were unsuccessful!  The step '
-                                  f'that failed was {self.caliBrate.failed_step}.  Continuing by '
-                                  f'skipping this detector.')
-
-                key = self.fitstbl.master_key(grp_frames[0], det=self.det)
-                calib_dict[calib_grp][key] = {}
-                for step in self.caliBrate.steps:
-                    if step in ['bpm', 'slits', 'wv_calib', 'tilts', 'flats']:
-                        continue
-                    elif step == 'tiltimg':  # Annoying kludge
-                        step = 'tilt'
-                    # Prep
-                    raw_files, self.caliBrate.master_key_dict[step] = self.caliBrate._prep_calibrations(step)
-                    masterframe_name = masterframe.construct_file_name(
-                        buildimage.frame_image_classes[step],
-                        self.caliBrate.master_key_dict[step], 
-                        master_dir=self.caliBrate.master_dir)
-
-                    # Add to dict
-                    if len(raw_files) > 0:
-                        calib_dict[calib_grp][key][step] = {}
-                        calib_dict[calib_grp][key][step]['master_key'] = self.caliBrate.master_key_dict[step]
-                        calib_dict[calib_grp][key][step]['master_name'] = os.path.basename(masterframe_name)
-                        calib_dict[calib_grp][key][step]['raw_files'] = [os.path.basename(ifile) for ifile in raw_files]
-
-        # Print the results
-        print(json.dumps(calib_dict, sort_keys=True, indent=4))
-
-        # Write
-        msgs.info('Writing calib file')
-        # TODO: Why are we writing this in addition to the *.calib file (see the
-        # __init__ function)?  I think this *.calib_ids file is actually less
-        # informative and likely wrong...
-        calib_file = self.pypeit_file.replace('.pypeit', '.calib_ids')
-        ltu.savejson(calib_file, calib_dict, overwrite=True, easy_to_read=True)
+                self.caliBrate.run_the_steps()
+                if not self.caliBrate.success:
+                    msgs.warn(f'Calibrations for detector {self.det} were unsuccessful!  The step '
+                              f'that failed was {self.caliBrate.failed_step}.  Continuing to next '
+                              f'detector.')
 
         # Finish
         self.print_end_time()
-
-        # Return
-        return calib_dict
 
     def reduce_all(self):
         """
@@ -382,7 +323,7 @@ class PypeIt:
         # Validate the parameter set
         self.par.validate_keys(required=['rdx', 'calibrations', 'scienceframe', 'reduce',
                                          'flexure'])
-        self.tstart = time.time()
+        self.tstart = time.perf_counter()
 
         # Find the standard frames
         is_standard = self.fitstbl.find_frames('standard')
@@ -1070,7 +1011,7 @@ class PypeIt:
         Print the elapsed time
         """
         # Capture the end time and print it to user
-        msgs.info(utils.get_time_string(time.time()-self.tstart))
+        msgs.info(utils.get_time_string(time.perf_counter()-self.tstart))
 
     # TODO: Move this to fitstbl?
     def show_science(self):

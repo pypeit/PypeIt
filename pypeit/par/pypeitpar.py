@@ -3946,15 +3946,10 @@ class CalibrationsPar(ParSet):
         # *not* None (i.e., the ones that are defined) need to be set
         defaults['calib_dir'] = 'Calibrations'
         dtypes['calib_dir'] = str
-        descr['calib_dir'] = 'If provided, it should be the name of the folder to ' \
-                             'write processed calibration files.  This is not a full path name.'
-
-#        # TODO: Is this ever used?  This feels like an outdated parameter.
-#        # There is no "masters" parameter...
-#        dtypes['setup'] = str
-#        descr['setup'] = 'If masters=\'force\', this is the setup name to be used: e.g., ' \
-#                         'C_02_aa .  The detector number is ignored but the other information ' \
-#                         'must match the calibration frames in the relevant folder.'
+        descr['calib_dir'] = 'The name of the directory for the processed calibration frames.  '
+                             'The host path for the directory is set by the redux_path (see '
+                             ':class:`ReduxPar`).  Beware that success when changing the default '
+                             'value is not well tested!'
 
         defaults['raise_chk_error'] = True
         dtypes['raise_chk_error'] = bool
