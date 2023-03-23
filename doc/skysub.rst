@@ -95,11 +95,9 @@ and then use the following command:
 
 .. code-block:: console
 
-    pypeit_skysub_regions filename.pypeit
+    pypeit_skysub_regions spec2d_file.fits
 
-You will be provided a list of science frames that you want to
-define the sky regions for. Do this one science frame at a time.
-Enter the corresponding number on the terminal and press enter.
+You will need to manually define the sky regions for each spec2d file.
 You will see a GUI where you can click and drag regions on each
 slit to define the sky regions. Hover the mouse over the window
 and press the ``?`` key. This will print a list of options in the
