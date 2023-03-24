@@ -163,8 +163,36 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         # Dithering
         self.meta['dithpat'] = dict(ext=0, card='DPATNAME')
-        self.meta['dithpos'] = dict(ext=0, card='DPATIPOS')
+        self.meta['dithpos'] = dict(card=None, compound=True)
         self.meta['dithoff'] = dict(ext=0, card='YOFFSET')
+
+    def compound_meta(self, headarr, meta_key):
+        """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
+
+        Args:
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
+
+        Returns:
+            object: Metadata value read from the header(s).
+        """
+        if meta_key == 'dithpos':
+            # the dither positions in NIRES are expressed in numbers 1,2,3,4.
+            # We want to convert those into A,B,C. We need to know the dither pattern to do so.
+            dpat = headarr[0].get('DPATNAME')
+            dpos = headarr[0].get('DPATIPOS')
+            if dpos is not None and ((dpos in [1, 2, 3, 4] and dpat in ["ABBA", "ABBAprime", "ABAB"]) or
+                                     (dpos in [1, 2, 3] and dpat == 'ABC') or
+                                     (dpos in [1, 2] and dpat == 'ABpat')):
+                return dpat[dpos-1]
+            else:
+                return None
+        else:
+            msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -202,7 +230,6 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         comb_id and bkg_id will not assigned if:
 
             - dither offset is zero for every frames of a dither sequence
-            - a dither position within a specific dither sequence is missing
             - dither pattern recorded in the header is NONE or MANUAL, or is none of the above patterns.
 
         Args:
@@ -277,12 +304,12 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                             # get default combid and bkgid
                             combid = np.copy(fitstbl['comb_id'][dpat_idx].data)
                             bkgid = np.copy(fitstbl['bkg_id'][dpat_idx].data)
-                            dpos = fitstbl[dpat_idx]['dithpos']
+                            dpos = fitstbl[dpat_idx]['dithpos'].data
 
                             if dpat == "ABAB":
                                 # find the starting index of the ABAB sequence
-                                dpos_idx = np.where((dpos == "1") & (np.roll(dpos, -1) == "2") &
-                                                    (np.roll(dpos, -2) == "3") & (np.roll(dpos, -3) == "4"))[0]
+                                dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B") &
+                                                    (np.roll(dpos, -2) == "A") & (np.roll(dpos, -3) == "B"))[0]
                                 for i in dpos_idx:
                                     # make sure that that dither offsets are correct
                                     if i < len(dpos) - 3 and doff[i] == doff[i+2] and doff[i+1] == doff[i+3]:
@@ -295,8 +322,8 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
                             elif dpat in ["ABBA", "ABBAprime"]:
                                 # find the starting index of the ABBA sequence
-                                dpos_idx = np.where((dpos == "1") & (np.roll(dpos, -1) == "2") &
-                                                    (np.roll(dpos, -2) == "3") & (np.roll(dpos, -3) == "4"))[0]
+                                dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B") &
+                                                    (np.roll(dpos, -2) == "B") & (np.roll(dpos, -3) == "A"))[0]
                                 for i in dpos_idx:
                                     # make sure that that dither offsets are correct
                                     if i < len(dpos) - 3 and doff[i] == doff[i+3] and doff[i+1] == doff[i+2]:
@@ -308,8 +335,8 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                                         bkgid[i+3] = bkgid[i]
 
                             elif dpat == "ABpat":
-                                # find the starting index of the AB sequence
-                                dpos_idx = np.where((dpos == "1") & (np.roll(dpos, -1) == "2"))[0]
+                                # find the starting index of the ABpat sequence
+                                dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B"))[0]
                                 for i in dpos_idx:
                                     # exclude when np.roll counts the 1st element of dpos to be in a
                                     # sequence with the last element
@@ -319,42 +346,37 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
                             elif dpat == "ABC":
                                 # find the starting index of the ABC sequence
-                                dpos_idx = np.where((dpos == "1") & (np.roll(dpos, -1) == "2") &
-                                                    (np.roll(dpos, -2) == "3"))[0]
+                                dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B") &
+                                                    (np.roll(dpos, -2) == "C"))[0]
                                 for i in dpos_idx:
                                     # exclude when np.roll counts the 1st element of dpos to be in a
                                     # sequence with the last element
                                     if i < len(dpos) - 2:
                                         bkgid[i] = combid[i+1]
                                         bkgid[i+1] = combid[i+2]
-                                        bkgid[i+2] = bkgid[i+1]
+                                        bkgid[i+2] = combid[i+1]
 
-                            # # assign bkgid for files that are part of an incomplete sequence
-                            # # but have regular dither positions
-                            # if np.all([d in ['1','2','3','4'] for d in dpos.value]):
-                            #     for i in range(len(fitstbl[dpat_idx])):
-                            #         # if A frame doesn't have bkgid assigned
-                            #         if bkgid[i] == -1 and \
-                            #                 (fitstbl[dpat_idx]['dithpos'][i] == "A" or fitstbl[dpat_idx]['dithpos'][i] == "A'"):
-                            #             # find closest (in mjd) B frame to subtract from this A
-                            #             if fitstbl[dpat_idx]['dithpos'][i] == "A":
-                            #                 pos_idx = fitstbl[dpat_idx]['dithpos'] == "B"
-                            #             elif fitstbl[dpat_idx]['dithpos'][i] == "A'":
-                            #                 pos_idx = fitstbl[dpat_idx]['dithpos'] == "B'"
-                            #             if np.any(pos_idx):
-                            #                 close_idx = np.argmin(np.absolute(fitstbl[dpat_idx][pos_idx]['mjd'] - fitstbl[dpat_idx]['mjd'][i]))
-                            #                 bkgid[i] = combid[pos_idx][close_idx]
-                            #         # if B frame doesn't have bkgid assigned
-                            #         if bkgid[i] == -1 and \
-                            #                 (fitstbl[dpat_idx]['dithpos'][i] == "B" or fitstbl[dpat_idx]['dithpos'][i] == "B'"):
-                            #             # find closest (in mjd) A frame to subtract from this B
-                            #             if fitstbl[dpat_idx]['dithpos'][i] == "B":
-                            #                 pos_idx = np.where(fitstbl[dpat_idx]['dithpos'] == "A")[0]
-                            #             elif fitstbl[dpat_idx]['dithpos'][i] == "B'":
-                            #                 pos_idx = np.where(fitstbl[dpat_idx]['dithpos'] == "A'")[0]
-                            #             if np.any(pos_idx):
-                            #                 close_idx = np.argmin(np.absolute(fitstbl[dpat_idx][pos_idx]['mjd'] - fitstbl[dpat_idx]['mjd'][i]))
-                            #                 bkgid[i] = combid[pos_idx][close_idx]
+                            # assign bkgid for files that are part of an incomplete sequence
+                            for i in range(len(fitstbl[dpat_idx])):
+                                # initialize pos_idx
+                                pos_idx = None
+                                # if A frame doesn't have bkgid assigned
+                                if bkgid[i] == -1 and (fitstbl[dpat_idx]['dithpos'][i] == "A"):
+                                    # find B frames to subtract from this A
+                                    pos_idx = fitstbl[dpat_idx]['dithpos'] == "B"
+                                # if B frame doesn't have bkgid assigned
+                                elif bkgid[i] == -1 and (fitstbl[dpat_idx]['dithpos'][i] == "B"):
+                                    # find A frames to subtract from this B
+                                    pos_idx = fitstbl[dpat_idx]['dithpos'] == "A"
+                                # if C frame doesn't have bkgid assigned
+                                elif bkgid[i] == -1 and (fitstbl[dpat_idx]['dithpos'][i] == "C"):
+                                    # find A or B frames to subtract from this C
+                                    pos_idx = (fitstbl[dpat_idx]['dithpos'] == "A") | (fitstbl[dpat_idx]['dithpos'] == "B")
+                                # assign bkgid
+                                if pos_idx is not None and np.any(pos_idx):
+                                    # pick closest (in mjd)
+                                    close_idx = np.argmin(np.absolute(fitstbl[dpat_idx][pos_idx]['mjd'] - fitstbl[dpat_idx]['mjd'][i]))
+                                    bkgid[i] = combid[pos_idx][close_idx]
 
                             fitstbl['bkg_id'][dpat_idx] = bkgid
                             fitstbl['comb_id'][dpat_idx] = combid
@@ -399,17 +421,19 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype == 'standard':
             return good_exp & ((fitstbl['idname'] == 'object') | (fitstbl['idname'] == 'Object') |
-                               (fitstbl['idname'] == 'standard') | (fitstbl['idname'] == 'telluric'))
+                               (fitstbl['idname'] == 'standard') | (fitstbl['idname'] == 'telluric')) \
+                   & (fitstbl['target'] != 'DOME PHLAT')
         if ftype == 'lampoffflats':
             return good_exp & ((fitstbl['idname'] == 'dark') | (fitstbl['idname'] == 'Dark'))
         if ftype in ['pixelflat', 'trace']:
-            return fitstbl['idname'] == 'domeflat'
+            return (fitstbl['idname'] == 'domeflat') | (fitstbl['idname'] == 'DomeFlat')
         if ftype in 'science':
-            return good_exp & ((fitstbl['idname'] == 'object') | (fitstbl['idname'] == 'Object'))
+            return good_exp & ((fitstbl['idname'] == 'object') | (fitstbl['idname'] == 'Object')) \
+                   & (fitstbl['target'] != 'DOME PHLAT')
         if ftype in ['arc', 'tilt']:
-            return good_exp & ((fitstbl['idname'] == 'object') | (fitstbl['idname'] == 'Object'))
+            return good_exp & ((fitstbl['idname'] == 'object') | (fitstbl['idname'] == 'Object')) \
+                   & (fitstbl['target'] != 'DOME PHLAT')
         return np.zeros(len(fitstbl), dtype=bool)
-
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
