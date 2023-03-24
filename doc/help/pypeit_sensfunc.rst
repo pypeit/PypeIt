@@ -12,7 +12,7 @@
       spec1dfile            spec1d file for the standard that will be used to
                             compute the sensitivity function
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       --algorithm {UVIS,IR}
                             Override the default algorithm for computing the

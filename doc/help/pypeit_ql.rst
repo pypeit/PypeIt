@@ -34,7 +34,7 @@
                             vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
                             wht_isis_blue, wht_isis_red
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       --rawfile_list RAWFILE_LIST
                             File providing raw files to reduce including their
