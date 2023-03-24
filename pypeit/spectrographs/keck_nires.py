@@ -27,6 +27,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
     pypeline = 'Echelle'
     ech_fixed_format = True
     supported = True
+    comment = 'see :doc:`keck_nires`'
 
 
     def get_detector_par(self, det, hdu=None):
