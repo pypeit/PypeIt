@@ -53,6 +53,9 @@ bspline_ext_required = pytest.mark.skipif(not bspline_ext, reason='Could not imp
 
 def data_path(filename):
     data_dir = pathlib.Path(__file__).parent.absolute().joinpath('files')
+    # TODO: This really should have the `.resolve()`, but it crashes the
+    #       Windows/python3.9 CI test (only that one).  When PypeIt advances
+    #       to python>=3.10, reinstate the last part of the following line:
     return str(data_dir.joinpath(filename))#.resolve())
 
 
