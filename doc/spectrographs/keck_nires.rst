@@ -58,7 +58,7 @@ The NIRES calibration GUI/scripts provide the option to take flats with the lamp
 PypeIt is able to recognize those frames and it will assign them the
 ``lampoffflats`` frame type. Whenever ``lampoffflats`` frames are identified in the PypeIt file, PypeIt
 will subtract them from the frames taken with the lamps on before creating the
-:doc:`../calibrations/master_edges` and :doc:`../calibrations/master_flat`
+:doc:`../calibrations/edges` and :doc:`../calibrations/flat`
 frames. The user is responsible for ensuring that the ``lampoffflats`` frames
 in the PypeIt file have the same exposure times as the ``trace`` and ``pixelflat`` frames.
 

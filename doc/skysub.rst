@@ -125,21 +125,21 @@ the sky regions, press the "Continue (and don't save changes)" button.
 The menu bar at the top of the screen will prompt you if you
 wish to save these sky regions (click on either YES or NO).
 If you chose to save the regions file, the regions will be
-saved in your ``Masters/`` folder, with a prefix ``MasterSkyRegions``.
-A given ``MasterSkyRegions`` file is linked to a science frame
-based on the name of the ``MasterSkyRegions`` file.
+saved in your ``Calibrations/`` folder, with a prefix ``SkyRegions``.
+A given ``SkyRegions`` file is linked to a science frame
+based on the name of the ``SkyRegions`` file.
 
-.. TODO: We should document the datamodel of these MasterSkyRegions files
+.. TODO: We should document the datamodel of these SkyRegions files
 .. somewhere...
 
 Once you have defined all of the sky regions manually, re-run
-the reduction. If a sky regions file exists in the ``Masters/`` folder
+the reduction. If a sky regions file exists in the ``Calibrations/`` folder
 for a corresponding science frame, it will be used as a default.
 
 .. note::
 
     If you manually create a sky regions file - this will be used by default in
-    PypeIt. You should either delete or rename the ``MasterSkyRegions`` file if
+    PypeIt. You should either delete or rename the ``SkyRegions`` file if
     you later want to use the automatic PypeIt algorithm.
 
 

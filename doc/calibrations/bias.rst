@@ -1,16 +1,16 @@
 
 .. include:: ../include/links.rst
 
-==========
-MasterBias
-==========
+====
+Bias
+====
 
 Overview
 ========
 
-This file describes the data model for the ``MasterBias`` image.
+This file describes the data model for the ``Bias`` image.
 This is written to disk as a multi-extension FITS file prefixed by
-``MasterBias`` in the ``Masters/`` folder.
+``Bias`` in the ``Calibrations/`` folder.
 
 This is generally a simple combination of all input bias frames.
 
@@ -22,7 +22,7 @@ any standard image viewer, e.g.:
 
 .. code-block:: console
 
-    ginga Masters/MasterBias_A_1_01.fits
+    ginga Calibrations/Bias_A_1_01.fits
 
 It should resemble any one of your input bias frames aside from:
 

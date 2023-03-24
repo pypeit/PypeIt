@@ -289,40 +289,40 @@ includes a :doc:`pypeit_file` for each instrument and setup used during
 development testing.
 
 
-Quick-Look Master Files
------------------------
+Quick-Look Calibration Files
+----------------------------
 
 .. note::
 
     We continue to work on cleaner installation solutions for these data
-    products, particularly for the quick-look master files.  In the meantime,
-    note that you will likely need to re-run the data-specific installation
-    scripts described below every time you upgrade your installation (via
-    `pip`_ or `conda`_).
+    products, particularly for the quick-look calibration files.  In the
+    meantime, note that you will likely need to re-run the data-specific
+    installation scripts described below every time you upgrade your
+    installation (via `pip`_ or `conda`_).
 
-Some of the quick-look reductions provided by PypeIt require canned master
+Some of the quick-look reductions provided by PypeIt require canned calibration 
 files to speed up the data-reduction process, as appropriate for a quick-look
-result.  These files are hosted in the ``QL_MASTERS`` directory in the `PypeIt
+result.  These files are hosted in the ``QL_CALIB`` directory in the `PypeIt
 dev-suite Google Drive`_.
 
-To install the quick-look master files:
+To install the quick-look calibration files:
 
-    #. Right-click on the ``QL_MASTERS`` folder in the `PypeIt dev-suite
+    #. Right-click on the ``QL_CALIB`` folder in the `PypeIt dev-suite
        Google Drive`_ and select the "Download" option from the drop-down menu.
        This will download a zip file containing the full directory contents.
        Its current size (as of 22 July 2021) is about 35 MB.
 
-    #. Run the ``pypeit_install_ql_masters`` script.  E.g.:
+    #. Run the ``pypeit_install_ql_calibs`` script.  E.g.:
 
         .. code-block:: console
 
-            $ pypeit_install_ql_masters --zip ~/Downloads/QL_MASTERS-20210722T162355Z-001.zip --odir my_path
+            $ pypeit_install_ql_calibs --zip ~/Downloads/QL_CALIB-20210722T162355Z-001.zip --odir my_path
 
-The ``pypeit_install_ql_masters`` script will unzip the downloaded file in the
+The ``pypeit_install_ql_calibs`` script will unzip the downloaded file in the
 ``my_path`` directory and create a symlink to the extracted directory in the
 ``pypeit/data/`` directory of your PypeIt installation.  The script can
 automatically delete the zip file using the ``--rmzip`` option.  If you already
-have the ``QL_MASTERS`` directory, you can also use the script to simply create
+have the ``QL_CALIB`` directory, you can also use the script to simply create
 the symlink using the ``--ql_path`` option.
 
 .. warning::

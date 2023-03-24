@@ -118,7 +118,7 @@ Products
 ========
 
 As the calibrations are completed, PypeIt will save the results to files in the
-``Masters/`` folder (see :ref:`outputs-dir`).  Unless otherwise indicated, all
+``Calibrations/`` folder (see :ref:`outputs-dir`).  Unless otherwise indicated, all
 output files are in FITS format.
 
 Saving the results of each calibration step to a file allows:
@@ -129,7 +129,7 @@ Saving the results of each calibration step to a file allows:
    cases where the code crashed, things were fixed, and then one re-runs the
    script.
 
-Below is the full list of possible master frame produced by PypeIt.  For any
+Below is the full list of possible calibration frames produced by PypeIt.  For any
 given run, the files actually produced will depend on the :doc:`spectrograph
 <../spectrographs/spectrographs>` and the files listed in the
 :ref:`pypeit_file`.
@@ -137,24 +137,25 @@ given run, the files actually produced will depend on the :doc:`spectrograph
 .. toctree::
    :maxdepth: 1
 
-   Alignment Image (MasterAlignment; IFU only) <master_align>
-   Processed arc spectral image (MasterArc) <master_arc>
-   Processed bias image (MasterBias) <master_bias>
-   Processed dark image (MasterDark) <master_dark>
-   Images used to trace slit edges (MasterEdges) <master_edges>
-   Consolidated slit traces (MasterSlits) <master_slits>
-   Normalized flat field images (MasterFlat) <master_flat>
-   Image used to trace wavelengths within each slit (MasterTiltimg) <master_tilt>
-   Mapping of pixels to constant wavelength (MasterTilts) <master_tilts>
-   Solution of 1D wavelength calibration (MasterWaveCalib) <master_wvcalib>
+   Alignment Image (Alignment; IFU only) <align>
+   Processed arc spectral image (Arc) <arc>
+   Processed bias image (Bias) <bias>
+   Processed dark image (Dark) <dark>
+   Images used to trace slit edges (Edges) <edges>
+   Consolidated slit traces (Slits) <slits>
+   Normalized flat field images (Flat) <flat>
+   Image used to trace wavelengths within each slit (Tiltimg) <tilt>
+   Mapping of pixels to constant wavelength (Tilts) <tilts>
+   Solution of 1D wavelength calibration (WaveCalib) <wvcalib>
 
-.. _master-naming:
+.. _calib-naming:
 
-Master Frame Naming
--------------------
+Calibration Frame Naming
+------------------------
 
-All reduced calibration frames are given the file name prefix ``Master`` (e.g.,
-``MasterArc``).  They are also assigned a unique identifier that is a combination of:
+All reduced calibration frames are named according to their primary calibration
+type (e.g., ``Arc``).  They are also assigned a unique identifier that is a
+combination of:
 
     - the instrument configuration (setup) identifier (e.g., ``A``),
 
@@ -163,15 +164,16 @@ All reduced calibration frames are given the file name prefix ``Master`` (e.g.,
     - the detector or mosaic identifier (e.g., ``DET01`` or ``MSC01``).
 
 Importantly, note that the calibration group **bit** identifier is used and not
-a specific calibration group ID number.  This is because master frames can
+a specific calibration group ID number.  This is because calibration frames can
 belong to multiple calibration groups.  For example, if there are 3 calibration
 groups (groups 1, 2, and 3) and a set of bias frames are used for all three
-groups, the resulting master bias frame will be called
-``MasterBias_A_7_DET01.fits`` for detector 1 in setup A.  The ``7`` comes from
+groups, the resulting processed bias frame will be called
+``Bias_A_7_DET01.fits`` for detector 1 in setup A.  The ``7`` comes from
 the bitwise calculation :math:`2^{1-1} + 2^{2-1} + 2^{3-1} = 7`.
 
 Although convenient from a development perspective, this abstraction of the
-master file names can make it difficult to associate each master frame with its
-source input frames.  To help with this, see the :ref:`calibrations-calibfile`.
+calibration file names can make it difficult to associate each calibration frame
+with its source input frames.  To help with this, see the
+:ref:`calibrations-calibfile`.
 
 
