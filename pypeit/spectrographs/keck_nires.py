@@ -124,10 +124,8 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 60]
-        # DP: I don't think we need these. Do we?
-        # par['calibrations']['arcframe']['exprng'] = [100, None]
-        # par['calibrations']['tiltframe']['exprng'] = [100, None]
-        # par['calibrations']['darkframe']['exprng'] = [60, None]
+        par['calibrations']['arcframe']['exprng'] = [61, None]
+        par['calibrations']['tiltframe']['exprng'] = [61, None]
         par['scienceframe']['exprng'] = [61, None]
 
         # Sensitivity function parameters
