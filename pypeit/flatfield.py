@@ -580,7 +580,7 @@ class FlatField:
                 if doqa:
                     # TODO :: Probably need to pass in det eventually...
                     outfile = qa.set_qa_filename("DetectorStructure_" + self.master_key, 'detector_structure',
-                                                 det=None, out_dir=self.qa_path)
+                                                 det="DET01", out_dir=self.qa_path)
                     detector_structure_qa(det_resp, det_resp_model, outfile=outfile)
             # Perform a final 2D fit with the cleaned image
             self.fit(spat_illum_only=self.spat_illum_only, doqa=doqa, debug=debug)
@@ -1664,16 +1664,16 @@ def detector_structure_qa(det_resp, det_resp_model, outfile=None, title="Detecto
     gs = gridspec.GridSpec(1, 3)
     ax_data = plt.subplot(gs[0])
     ax_data.imshow(det_resp, vmin=vmin, vmax=vmax)
-    ax_data.set_xlabel("data", fontsize='small')
+    ax_data.set_xlabel("data", fontsize='medium')
     ax_data.axis('off')
     ax_modl = plt.subplot(gs[1])
     ax_modl.imshow(det_resp_model, vmin=vmin, vmax=vmax)
-    ax_modl.set_title(title, fontsize='small')
-    ax_modl.set_xlabel("model")
+    ax_modl.set_title(title, fontsize='medium')
+    ax_modl.set_xlabel("model", fontsize='medium')
     ax_modl.axis('off')
-    ax_resd = plt.subplot(gs[3])
+    ax_resd = plt.subplot(gs[2])
     ax_resd.imshow(det_resp-det_resp_model, vmin=vmin-1, vmax=vmax-1)
-    ax_resd.set_xlabel("data-model", fontsize='small')
+    ax_resd.set_xlabel("data-model", fontsize='medium')
     ax_resd.axis('off')
     # Add a colorbar
     # cax = plt.subplot(gs[4])
