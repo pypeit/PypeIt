@@ -567,9 +567,9 @@ class FlatField:
             gpm = self.rawflatimg.select_flag(flag='BPM', invert=True)
             niter = 2  # Need two iterations, particularly for the fine spatial illumination correction.
             for ff in range(niter):
+                msgs.info("Iteration {0:d} of 2D detector response extraction".format(ff+1))
                 # Just get the spatial and spectral profiles for now
                 self.fit(spat_illum_only=self.spat_illum_only, doqa=doqa, debug=debug)
-                msgs.info("Iteration {0:d} of 2D detector response extraction".format(ff+1))
                 # Extract a detector response image
                 det_resp = self.extract_structure(rawflat_orig)
                 gpmask = (self.waveimg != 0.0) & gpm
@@ -577,6 +577,11 @@ class FlatField:
                 det_resp_model = self.spectrograph.fit_2d_det_response(det_resp, gpmask)
                 # Apply this model
                 self.rawflatimg.image = rawflat_orig * utils.inverse(det_resp_model)
+                if doqa:
+                    # TODO :: Probably need to pass in det eventually...
+                    outfile = qa.set_qa_filename("DetectorStructure_" + self.master_key, 'detector_structure',
+                                                 det=None, out_dir=self.qa_path)
+                    detector_structure_qa(det_resp, det_resp_model, outfile=outfile)
             # Perform a final 2D fit with the cleaned image
             self.fit(spat_illum_only=self.spat_illum_only, doqa=doqa, debug=debug)
             # fold in the spectrograph specific flatfield, and reset the rawimg
@@ -1559,11 +1564,12 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, ypos, cut, outfile=None
     xmn, xmx, ymn, ymx = np.min(cut[0]), 1+np.max(cut[0]), np.min(cut[1]), 1+np.max(cut[1])
     norm_cut = normed[xmn:xmx, ymn:ymx]
     fcor_cut = finecorr[xmn:xmx, ymn:ymx]
-    vmin, vmax = np.min(fcor_cut), np.max(fcor_cut)
+    vmin, vmax = max(0.95, np.min(fcor_cut)), min(1.05, np.max(fcor_cut))  # Show maximum corrections of ~5%
 
     # Plot
-    cutrat = 8.5*norm_cut.shape[1]/norm_cut.shape[0]  # 11 is the height of the figure on the next line
-    plt.figure(figsize=(5 + 3.25*cutrat, 8.5))
+    fighght = 8.5
+    cutrat = fighght*norm_cut.shape[1]/norm_cut.shape[0]
+    plt.figure(figsize=(5 + 3.25*cutrat, fighght))
     plt.clf()
     # Single panel plot
     gs = gridspec.GridSpec(1, 5, height_ratios=[1], width_ratios=[4.0, cutrat, cutrat, cutrat, cutrat*0.25])
@@ -1624,6 +1630,63 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, ypos, cut, outfile=None
     else:
         plt.savefig(outfile, dpi=400)
         msgs.info("Saved QA:"+msgs.newline()+outfile)
+
+    plt.close()
+    plt.rcdefaults()
+    return
+
+
+def detector_structure_qa(det_resp, det_resp_model, outfile=None, title="Detector Structure Correction"):
+    """
+    Plot the QA for the fine correction fits to the spatial illumination profile
+
+    Parameters
+    ----------
+    det_resp : `numpy.ndarray`_
+        Image data showing the detector structure, generated with extract_structure
+    det_resp_model : `numpy.ndarray`_
+        Image containing the structure correction model
+    outfile : str, optional
+        Output file name
+    title : str, optional
+        A title to be printed on the QA
+    """
+    plt.rcdefaults()
+    plt.rcParams['font.family'] = 'serif'
+    msgs.info("Generating QA for flat field structure correction")
+    vmin, vmax = np.min(det_resp_model), np.max(det_resp_model)
+
+    # Plot
+    fighght = 8.5
+    plt.figure(figsize=(3*fighght, fighght))
+    plt.clf()
+    # Single panel plot
+    gs = gridspec.GridSpec(1, 3)
+    ax_data = plt.subplot(gs[0])
+    ax_data.imshow(det_resp, vmin=vmin, vmax=vmax)
+    ax_data.set_xlabel("data", fontsize='small')
+    ax_data.axis('off')
+    ax_modl = plt.subplot(gs[1])
+    ax_modl.imshow(det_resp_model, vmin=vmin, vmax=vmax)
+    ax_modl.set_title(title, fontsize='small')
+    ax_modl.set_xlabel("model")
+    ax_modl.axis('off')
+    ax_resd = plt.subplot(gs[3])
+    ax_resd.imshow(det_resp-det_resp_model, vmin=vmin-1, vmax=vmax-1)
+    ax_resd.set_xlabel("data-model", fontsize='small')
+    ax_resd.axis('off')
+    # Add a colorbar
+    # cax = plt.subplot(gs[4])
+    # cbar = plt.colorbar(im, cax=cax)  # , fraction=0.046, pad=0.04)
+    # cbar.set_label('Percentage deviation', rotation=270, labelpad=10)
+    # Finish
+    plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+    plt.subplots_adjust(wspace=0.03, hspace=0, left=0.12, right=0.9, bottom=0.05, top=0.94)
+    if outfile is None:
+        plt.show()
+    else:
+        plt.savefig(outfile, dpi=400)
+        msgs.info("Saved QA:" + msgs.newline() + outfile)
 
     plt.close()
     plt.rcdefaults()
