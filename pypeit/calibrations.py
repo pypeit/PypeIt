@@ -231,7 +231,13 @@ class Calibrations:
 
         # Initialize for this setup
         self.frame = frame
-        self.calib_ID = int(self.fitstbl['calib'][frame])
+        # Find the calibration groups associated with this frame.  Note
+        # find_frame_calib_groups *always* returns a list.  Science frames only
+        # have one calibration group, but calibration frames can have many.  So
+        # for both science and calibration frames, we just set the calibration
+        # group to the first in the returned list.
+        self.calib_ID = self.fitstbl.find_frame_calib_groups(self.frame)[0]
+#        self.calib_ID = int(self.fitstbl['calib'][frame])
         self.det = det
         if par is not None:
             self.par = par
@@ -796,6 +802,9 @@ class Calibrations:
                                                       master_key=self.master_key_dict['arc'],
                                                       qa_path=self.qa_path) #, msbpm=self.msbpm)
             self.wv_calib = self.waveCalib.run(skip_QA=(not self.write_qa))
+            # If orders were found, save slits to disk
+            if self.spectrograph.pypeline == 'Echelle' and not self.spectrograph.ech_fixed_format:
+                self.slits.to_master_file()
             # Save to Masters
             self.wv_calib.to_master_file(masterframe_name)
 
@@ -861,7 +870,7 @@ class Calibrations:
             if not self.success:
                 self.failed_step = f'get_{step}'
                 return
-        msgs.info("Calibration complete!")
+        msgs.info("Calibration complete and/or fully loaded!")
         msgs.info("#######################################################################")
 
     def _chk_set(self, items):

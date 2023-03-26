@@ -171,10 +171,10 @@ class SlitTraceSet(datamodel.DataContainer):
                                     'is Nslits.'),
                 'slitbitm': dict(otype=str, descr='List of BITMASK keys from SlitTraceBitMask'),
                 'specmin': dict(otype=np.ndarray, atype=np.floating,
-                                descr='Minimum spectral position allowed for each slit/order.  '
+                                descr='Minimum spectral position (pixel units) allowed for each slit/order.  '
                                       'Shape is Nslits.'),
                 'specmax': dict(otype=np.ndarray, atype=np.floating,
-                                descr='Maximum spectral position allowed for each slit/order.  '
+                                descr='Maximum spectral position (pixel units) allowed for each slit/order.  '
                                       'Shape is Nslits.')}
     """Provides the class data model."""
 
@@ -1103,6 +1103,35 @@ class SlitTraceSet(datamodel.DataContainer):
 
         # Return
         return sobjs
+
+    def det_of_slit(self, spat_id:int, det_img:np.ndarray,
+                    slit_img:np.ndarray=None):
+        """ Identify the 'best' detector for this slit/order
+        The metric is the detector where the slit appears
+        the most frequently.
+
+        Only sensibly used for mosaic images
+
+        Args:
+            spat_id (`int`): 
+                spat_id value for the slit of interest
+            det_img (`numpy.ndarray`_): 
+                :obj:`int` image specifying the detector number
+                (1-based) for each pixel in the mosaic
+            slit_img (`numpy.ndarray`_, optional): 
+                image identifying each pixel with its associated slit.
+
+        Returns:
+            :obj:`int`: Detector number for the slit (1-based)
+        """
+        # Grab slit image?
+        if slit_img is None:
+            slit_img = self.slit_img()
+        # Find the most common detector value
+        det, cnt = np.unique(
+            det_img[(slit_img == spat_id) & (det_img > 0)], 
+            return_counts=True)
+        return det[np.argmax(cnt)]
 
     def get_maskdef_objpos(self, plate_scale, det_buffer):
         """

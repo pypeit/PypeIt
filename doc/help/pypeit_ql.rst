@@ -56,7 +56,7 @@
                             (default: None)
       --redux_path REDUX_PATH
                             Full path to where QL reduction should be run. (default:
-                            /Users/westfall/Work/packages/pypeit/doc)
+                            current working directory)
       --calib_dir CALIB_DIR
                             Location folders of calibration reductions (default:
                             None)
