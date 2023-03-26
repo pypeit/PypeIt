@@ -986,7 +986,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         p0 = [amp, scale, phase, wavelength, angle]
         popt, pcov = curve_fit(sinfunc2d, (xx[gpmask], yy[gpmask]), det_resp[gpmask], p0=p0)
         # TODO :: REMOVE THIS CODE BEFORE MERGING THE PR!!
-        debug = True
+        debug = False
         if debug:
             embed()
             mmm = sinfunc2d((xx, yy), *popt)

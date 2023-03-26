@@ -565,7 +565,7 @@ class FlatField:
             rawflat_orig = self.rawflatimg.image.copy()
             # TODO: Should this be *any* flag, or just BPM?
             gpm = self.rawflatimg.select_flag(flag='BPM', invert=True)
-            niter = 1
+            niter = 2  # Need two iterations, particularly for the fine spatial illumination correction.
             for ff in range(niter):
                 # Just get the spatial and spectral profiles for now
                 self.fit(spat_illum_only=self.spat_illum_only, doqa=doqa, debug=debug)
@@ -1435,12 +1435,20 @@ class FlatField:
         msgs.info("Extracting flatfield structure")
         # Build the mask and make a temporary instance of FlatImages
         bpmflats = self.build_mask()
+        # Initialise bad splines (for when the fit goes wrong)
+        if self.list_of_spat_bsplines is None:
+            self.list_of_spat_bsplines = [bspline.bspline(None) for all in self.slits.spat_id]
+        if self.list_of_finecorr_fits is None:
+            self.list_of_finecorr_fits = [fitting.PypeItFit(None) for all in self.slits.spat_id]
+        # Generate a dummy FlatImages
         tmp_flats = FlatImages(illumflat_raw=self.rawflatimg.image,
                                illumflat_spat_bsplines=np.asarray(self.list_of_spat_bsplines),
+                               illumflat_finecorr=np.asarray(self.list_of_finecorr_fits),
                                illumflat_bpm=bpmflats, PYP_SPEC=self.spectrograph.name,
                                spat_id=self.slits.spat_id)
         # Divide by the spatial profile
-        spat_illum = tmp_flats.fit2illumflat(self.slits, frametype='pixel')
+        spat_illum = tmp_flats.fit2illumflat(self.slits, frametype='illum', finecorr=False)
+        spat_illum *= tmp_flats.fit2illumflat(self.slits, frametype='illum', finecorr=True)
         rawflat = rawflat_orig * utils.inverse(spat_illum)
         # Now fit the spectral profile
         # TODO: Should this be *any* flag, or just BPM?
