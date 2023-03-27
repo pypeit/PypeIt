@@ -32,9 +32,10 @@ class SlitTraceBitMask(BitMask):
     """
     Mask bits used during slit tracing.
     """
-    version = '1.0.0'
+    version = '1.0.1'
 
     def __init__(self):
+        # Only ever append new bits (and don't remove old ones)
         mask = dict([
             ('SHORTSLIT', 'Slit formed by left and right edge is too short. Not ignored for flexure'),
             ('BOXSLIT', 'Slit formed by left and right edge is valid (large enough to be a valid '
@@ -44,7 +45,9 @@ class SlitTraceBitMask(BitMask):
             ('BADTILTCALIB', 'Tilts analysis failed for this slit'),
             ('SKIPFLATCALIB', 'Flat field generation failed for this slit. Skip flat fielding'),
             ('BADFLATCALIB', 'Flat field generation failed for this slit. Ignore it fully.'),
-            ('BADREDUCE', 'Skysub/extraction failed for this slit'),
+            ('BADREDUCE', 'Reduction failed for this slit'), # THIS IS DEPRECATED (we may remove in v1.13) BUT STAYS HERE TO ALLOW FOR BACKWARDS COMPATIBILITY
+            ('BADSKYSUB', 'Skysub failed for this slit'),
+            ('BADEXTRACT', 'Extraction failed for this slit'),
         ])
         super(SlitTraceBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
 
@@ -58,7 +61,7 @@ class SlitTraceBitMask(BitMask):
         # Ignore these flags when performing a flexure calculation
         #  Currently they are *all* of the flags..
         return ['SHORTSLIT', 'USERIGNORE', 'BADWVCALIB', 'BADTILTCALIB',
-                'SKIPFLATCALIB', 'BADFLATCALIB', 'BADREDUCE']
+                'SKIPFLATCALIB', 'BADFLATCALIB', 'BADSKYSUB', 'BADEXTRACT']
 
 
 
@@ -168,10 +171,10 @@ class SlitTraceSet(datamodel.DataContainer):
                                     'is Nslits.'),
                 'slitbitm': dict(otype=str, descr='List of BITMASK keys from SlitTraceBitMask'),
                 'specmin': dict(otype=np.ndarray, atype=np.floating,
-                                descr='Minimum spectral position allowed for each slit/order.  '
+                                descr='Minimum spectral position (pixel units) allowed for each slit/order.  '
                                       'Shape is Nslits.'),
                 'specmax': dict(otype=np.ndarray, atype=np.floating,
-                                descr='Maximum spectral position allowed for each slit/order.  '
+                                descr='Maximum spectral position (pixel units) allowed for each slit/order.  '
                                       'Shape is Nslits.')}
     """Provides the class data model."""
 
@@ -258,9 +261,14 @@ class SlitTraceSet(datamodel.DataContainer):
         if self.slitbitm is None:
             self.slitbitm = ','.join(list(self.bitmask.keys()))
         else:
-            # Validate
-            if self.slitbitm != ','.join(list(self.bitmask.keys())):
-                msgs.error("Input BITMASK keys differ from current data model!")
+            # Validate -- All of the keys must be present and in current order, but new ones can exist
+            bitms = self.slitbitm.split(',')
+            curbitm = list(self.bitmask.keys())
+            for kk, bit in enumerate(bitms):
+                if curbitm[kk] != bit:
+                    msgs.error("Input BITMASK keys differ from current data model!")
+            # Update to current, no matter what
+            self.slitbitm = ','.join(list(self.bitmask.keys()))
         # Mask
         if self.mask is None:
             self.mask = self.mask_init.copy()
@@ -496,8 +504,8 @@ class SlitTraceSet(datamodel.DataContainer):
             if astrometric:
                 # Calculate the typical pixel difference in the spatial direction
                 medpixdiff = np.median(np.diff(alignments.traces[:, :, slit_idx], axis=1))
-                nspecpix = np.int(np.ceil(nspec / medpixdiff))
-                specpix = np.round(np.linspace(0.0, nspec-1, nspecpix)).astype(np.int)
+                nspecpix = int(np.ceil(nspec / medpixdiff))
+                specpix = np.round(np.linspace(0.0, nspec-1, nspecpix)).astype(int)
                 # Calculate the source locations (pixel space)
                 xsrc = alignments.traces[specpix, :, slit_idx].flatten()
                 ysrc = specpix.repeat(nloc).flatten()
@@ -1095,6 +1103,35 @@ class SlitTraceSet(datamodel.DataContainer):
 
         # Return
         return sobjs
+
+    def det_of_slit(self, spat_id:int, det_img:np.ndarray,
+                    slit_img:np.ndarray=None):
+        """ Identify the 'best' detector for this slit/order
+        The metric is the detector where the slit appears
+        the most frequently.
+
+        Only sensibly used for mosaic images
+
+        Args:
+            spat_id (`int`): 
+                spat_id value for the slit of interest
+            det_img (`numpy.ndarray`_): 
+                :obj:`int` image specifying the detector number
+                (1-based) for each pixel in the mosaic
+            slit_img (`numpy.ndarray`_, optional): 
+                image identifying each pixel with its associated slit.
+
+        Returns:
+            :obj:`int`: Detector number for the slit (1-based)
+        """
+        # Grab slit image?
+        if slit_img is None:
+            slit_img = self.slit_img()
+        # Find the most common detector value
+        det, cnt = np.unique(
+            det_img[(slit_img == spat_id) & (det_img > 0)], 
+            return_counts=True)
+        return det[np.argmax(cnt)]
 
     def get_maskdef_objpos(self, plate_scale, det_buffer):
         """

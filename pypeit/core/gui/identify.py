@@ -117,8 +117,8 @@ class Identify:
         self._detnsy = self.get_ann_ypos()  # Get the y locations of the annotations
         self._line_lists = line_lists
         self._lines = np.sort(line_lists['wave'].data)  # Remove mask (if any) and then sort
-        self._lineids = np.zeros(self._detns.size, dtype=np.float)
-        self._lineflg = np.zeros(self._detns.size, dtype=np.int)  # Flags: 0=no ID, 1=user ID, 2=auto ID, 3=flag reject
+        self._lineids = np.zeros(self._detns.size, dtype=float)
+        self._lineflg = np.zeros(self._detns.size, dtype=int)  # Flags: 0=no ID, 1=user ID, 2=auto ID, 3=flag reject
         self._lflag_color = lflag_color
         self.par = par
         # Auto ID
@@ -139,19 +139,11 @@ class Identify:
         self.anntexts = []
 
         # Unset some of the matplotlib keymaps
-        matplotlib.pyplot.rcParams['keymap.fullscreen'] = ''        # toggling fullscreen (Default: f, ctrl+f)
-        matplotlib.pyplot.rcParams['keymap.home'] = ''              # home or reset mnemonic (Default: h, r, home)
-        matplotlib.pyplot.rcParams['keymap.back'] = ''              # forward / backward keys to enable (Default: left, c, backspace)
-        matplotlib.pyplot.rcParams['keymap.forward'] = ''           # left handed quick navigation (Default: right, v)
-        #matplotlib.pyplot.rcParams['keymap.pan'] = ''              # pan mnemonic (Default: p)
-        matplotlib.pyplot.rcParams['keymap.zoom'] = ''              # zoom mnemonic (Default: o)
-        matplotlib.pyplot.rcParams['keymap.save'] = ''              # saving current figure (Default: s)
-        matplotlib.pyplot.rcParams['keymap.quit'] = ''              # close the current figure (Default: ctrl+w, cmd+w)
-        matplotlib.pyplot.rcParams['keymap.grid'] = ''              # switching on/off a grid in current axes (Default: g)
-        matplotlib.pyplot.rcParams['keymap.grid_minor'] = ''        # switching on/off a (minor) grid in current axes (Default: G)
-        matplotlib.pyplot.rcParams['keymap.yscale'] = ''            # toggle scaling of y-axes ('log'/'linear') (Default: l)
-        matplotlib.pyplot.rcParams['keymap.xscale'] = ''            # toggle scaling of x-axes ('log'/'linear') (Default: L, k)
-        #matplotlib.pyplot.rcParams['keymap.all_axes'] = ''          # enable all axes (Default: a)
+        for key in plt.rcParams.keys():
+            if 'keymap' in key:
+                plt.rcParams[key] = []
+        # Enable some useful ones, though
+        matplotlib.pyplot.rcParams['keymap.pan'] = ['p']
 
         # Initialise the main canvas tools
         canvas.mpl_connect('draw_event', self.draw_callback)
@@ -165,7 +157,7 @@ class Identify:
         # Interaction variables
         self._detns_idx = -1
         self._fitr = None  # Matplotlib shaded fit region (for refitting lines)
-        self._fitregions = np.zeros(self.specdata.size, dtype=np.int)  # Mask of the pixels to be included in a fit
+        self._fitregions = np.zeros(self.specdata.size, dtype=int)  # Mask of the pixels to be included in a fit
         self._addsub = 0   # Adding a region (1) or removing (0)
         self._msedown = False  # Is the mouse button being held down (i.e. dragged)
         self._respreq = [False, None]  # Does the user need to provide a response before any other operation will be permitted? Once the user responds, the second element of this array provides the action to be performed.

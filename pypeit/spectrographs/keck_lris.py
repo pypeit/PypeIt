@@ -424,7 +424,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         if det in [1, 2]:
             nx = nx // 2
             n_ext = n_ext // 2
-            det_idx = np.arange(n_ext, dtype=np.int) + (det - 1) * n_ext
+            det_idx = np.arange(n_ext, dtype=int) + (det - 1) * n_ext
         elif det is None:
             det_idx = np.arange(n_ext).astype(int)
         else:
@@ -514,7 +514,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
     def get_slitmask(self, filename:str):
         """
-        Parse the slitmask data from a DEIMOS file into :attr:`slitmask`, a
+        Parse the slitmask data from a LRIS file into :attr:`slitmask`, a
         :class:`~pypeit.spectrographs.slitmask.SlitMask` object.
 
         Args:
@@ -529,7 +529,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self.slitmask = slitmask.load_keck_deimoslris(filename, self.name)
         return self.slitmask
 
-    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None):
+    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None,
+                              trc_path=None, binning=None):
         """
         Provides the slit edges positions predicted by the slitmask design using
         the mask coordinates already converted from mm to pixels by the method
@@ -557,7 +558,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         if filename is not None:
             self.get_slitmask(filename)
         else:
-            msgs.error('The name of a science file should be provided')
+            msgs.error('The name of a science file should be provided for the mask info')
 
         if self.slitmask is None:
             msgs.error('Unable to read slitmask design info. Provide a file.')

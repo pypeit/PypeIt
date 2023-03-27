@@ -632,7 +632,7 @@ def iraf_datareader(database_dir, id_file):
             lines_database.append(line.split())
             feat_line = re.search(r'features\t(\d+)', line)
             if feat_line is not None:
-                N_lines = np.int(feat_line.group(1))
+                N_lines = int(feat_line.group(1))
 
     msgs.info("The number of IDs in the IRAF database {} is {}".format(id_file, N_lines))
 

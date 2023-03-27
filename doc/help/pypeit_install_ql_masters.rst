@@ -14,6 +14,6 @@
                          directory. (default: None)
       --odir ODIR        The directory in which to extract the zip file. Ignored if
                          a direct path is provided using --ql_path. (default:
-                         /data/Projects/PypeIt-codes/PypeIt/doc)
+                         current working directory)
       --rmzip            Remove the downloaded zip file (default: False)
     

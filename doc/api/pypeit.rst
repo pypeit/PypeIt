@@ -17,6 +17,7 @@ Subpackages
    pypeit.scripts
    pypeit.setup_gui
    pypeit.spectrographs
+   pypeit.specutils
 
 Submodules
 ----------

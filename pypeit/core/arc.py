@@ -226,8 +226,8 @@ def fit2darc_orders_qa(pypeitFit, nspec, outfile=None):
     spec_vec_norm = np.arange(nspec)/xnspecmin1
 
     # set the size of the plot
-    nrow = np.int(2)
-    ncol = np.int(np.ceil(len(orders) / 2.))
+    nrow = int(2)
+    ncol = int(np.ceil(len(orders) / 2.))
     fig = plt.figure(figsize=(5 * ncol, 6 * nrow))
 
     outer = gridspec.GridSpec(nrow, ncol, wspace=0.3, hspace=0.2)

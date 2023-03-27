@@ -540,10 +540,8 @@ This is a screenshot from the GUI showing the 1D spectrum:
 
 .. image:: ../figures/mosfire_spec1d.png
 
-This uses the
-`XSpecGUI <https://linetools.readthedocs.io/en/latest/xspecgui.html>`_
-from the `linetools`_ package.  The black line is the flux and the
-red line is the estimated error.
+This uses the `XSpecGUI`_ from the `linetools`_ package.  The black line is the
+flux and the red line is the estimated error.
 
 See :doc:`../out_spec1D` for further details.
 

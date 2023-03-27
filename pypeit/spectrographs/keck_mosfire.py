@@ -961,7 +961,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                                  posx_pa=posx_pa)
         return self.slitmask
 
-    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None):
+    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None,
+                              trc_path=None, binning=None):
         """
         Provides the slit edges positions predicted by the slitmask design using
         the mask coordinates already converted from mm to pixels by the method
@@ -1000,7 +1001,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         # build an array of values containing the bottom (right) edge of the slits
         # starting edge
         edge = self._starting_edge(filename)
-        bot_edges = np.array([edge], dtype=np.int)
+        bot_edges = np.array([edge], dtype=int)
         for i in range(self.slitmask.nslits - 1):
             # target is the slit number
             edge -= (self.slitmask.onsky[:,2][i]/platescale + slit_gap)

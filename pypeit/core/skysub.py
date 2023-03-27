@@ -801,8 +801,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         min_spat = np.fmax(np.floor(min(min_spat1)), imin)
         max_spat = np.fmin(np.ceil(max(max_spat1)), imax)
         nc = int(max_spat - min_spat + 1)
-        spec_vec = np.arange(nspec, dtype=np.intp)
-        spat_vec = np.arange(min_spat, min_spat + nc, dtype=np.intp)
+        spec_vec = np.arange(nspec, dtype=int) #np.intp)
+        spat_vec = np.arange(min_spat, min_spat + nc, dtype=int) #np.intp)
         ipix = np.ix_(spec_vec, spat_vec)
         obj_profiles = np.zeros((nspec, nspat, objwork), dtype=float)
         sigrej_eff = sigrej
@@ -1210,33 +1210,43 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
 
     # Find the spat IDs
     gdslit_spat = np.unique(slitmask[slitmask >= 0]).astype(int)  # Unique sorts
-    if gdslit_spat.size != norders:
-        msgs.error("You have not dealt with masked orders properly")
+    #if gdslit_spat.size != norders:
+    #    msgs.error("You have not dealt with masked orders properly")
 
-    if (np.sum(sobjs.sign > 0) % norders) == 0:
-        nobjs = int((np.sum(sobjs.sign > 0)/norders))
-    else:
-        msgs.error('Number of specobjs in sobjs is not an integer multiple of the number or ordres!')
+    #if (np.sum(sobjs.sign > 0) % norders) == 0:
+    #    nobjs = int((np.sum(sobjs.sign > 0)/norders))
+    #else:
+    #    msgs.error('Number of specobjs in sobjs is not an integer multiple of the number or ordres!')
 
-    order_snr = np.zeros((norders, nobjs))
+    # Set bad obj to -nan
     uni_objid = np.unique(sobjs[sobjs.sign > 0].ECH_OBJID)
+    nobjs = len(uni_objid)
+    order_snr = np.zeros((norders, nobjs))
+    order_snr_gpm = np.ones_like(order_snr) 
     for iord in range(norders):
         for iobj in range(nobjs):
             ind = (sobjs.ECH_ORDERINDX == iord) & (sobjs.ECH_OBJID == uni_objid[iobj])
-            order_snr[iord,iobj] = sobjs[ind].ech_snr
+            # Allow for missed/bad order
+            if np.sum(ind) == 0:
+                order_snr_gpm[iord,iobj] = False
+            else:
+                order_snr[iord,iobj] = sobjs[ind].ech_snr
 
     # Compute the average SNR and find the brightest object
-    snr_bar = np.mean(order_snr,axis=0)
+    snr_bar = np.sum(order_snr,axis=0) / np.sum(order_snr_gpm,axis=0)
     srt_obj = snr_bar.argsort()[::-1]
     ibright = srt_obj[0] # index of the brightest object
+
     # Now extract the orders in descending order of S/N for the brightest object
     srt_order_snr = order_snr[:,ibright].argsort()[::-1]
     fwhm_here = np.zeros(norders)
     fwhm_was_fit = np.zeros(norders,dtype=bool)
+
     # Print out a status message
     str_out = ''
     for iord in srt_order_snr:
-        str_out += '{:<8d}{:<8d}{:>10.2f}'.format(slit_vec[iord], order_vec[iord], order_snr[iord,ibright]) + msgs.newline()
+        if order_snr_gpm[iord,ibright]:
+            str_out += '{:<8d}{:<8d}{:>10.2f}'.format(slit_vec[iord], order_vec[iord], order_snr[iord,ibright]) + msgs.newline()
     dash = '-'*27
     dash_big = '-'*40
     msgs.info(msgs.newline() + 'Reducing orders in order of S/N of brightest object:' + msgs.newline() + dash +
@@ -1244,6 +1254,9 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
               msgs.newline() + str_out)
     # Loop over orders in order of S/N ratio (from highest to lowest) for the brightest object
     for iord in srt_order_snr:
+        # Is this a bad slit?
+        if not np.any(order_snr_gpm[iord,:]):
+            continue
         order = order_vec[iord]
         msgs.info("Local sky subtraction and extraction for slit/order: {:d}/{:d}".format(iord,order))
         other_orders = (fwhm_here > 0) & np.invert(fwhm_was_fit)
@@ -1279,7 +1292,10 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                         spec.FWHM = fwhm_this_ord
 
                     str_out = ''
-                    for slit_now, order_now, snr_now, fwhm_now in zip(slit_vec[other_orders], order_vec[other_orders],order_snr[other_orders,ibright], fwhm_here[other_orders]):
+                    for slit_now, order_now, snr_now, fwhm_now in zip(
+                        slit_vec[other_orders], order_vec[other_orders],
+                        order_snr[other_orders,ibright], 
+                        fwhm_here[other_orders]):
                         str_out += '{:<8d}{:<8d}{:>10.2f}{:>10.2f}'.format(slit_now, order_now, snr_now, fwhm_now) + msgs.newline()
                     msgs.info(msgs.newline() + 'Using' +  fwhm_str + ' for FWHM of object={:d}'.format(uni_objid[iobj]) +
                               ' on slit/order: {:d}/{:d}'.format(iord,order) + msgs.newline() + dash_big +
@@ -1471,7 +1487,9 @@ def generate_mask(pypeline, skyreg, slits, slits_left, slits_right, spat_flexure
 
     # Now that we have sky region traces, utilise the SlitTraceSet to define the regions.
     # We will then use the slit_img task to create a mask of the sky regions.
-    slmsk = np.zeros(left_edg.shape[1], dtype=np.int16)
+    # TODO: I don't understand why slmsk needs to be instantiated.  SlitTraceSet
+    # does this internally.
+    slmsk = np.zeros(left_edg.shape[1], dtype=slittrace.SlitTraceSet.bitmask.minimum_dtype())
     slitreg = slittrace.SlitTraceSet(left_edg, righ_edg, pypeline, nspec=slits.nspec, nspat=slits.nspat,
                                      mask=slmsk, specmin=spec_min, specmax=spec_max,
                                      binspec=slits.binspec, binspat=slits.binspat, pad=0)
