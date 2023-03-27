@@ -9,6 +9,7 @@
 - Various bug fixes and enhancements to mmt_bluechannel and mmt_binospec support
 - Include the S/N of extracted spectra in the SpecObj datamodel
 - Added new specutils interface
+- Make pypeit_show_2dspec (somewhat) backwards compatible.
 
 1.12.1 (21 Feb 2023)
 --------------------
