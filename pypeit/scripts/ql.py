@@ -30,6 +30,7 @@ import numpy as np
 import configobj
 
 from astropy.io import fits
+import astropy
 
 from pypeit import utils
 from pypeit import masterframe
@@ -113,7 +114,6 @@ def generate_sci_pypeitfile(redux_path:str,
         maskID (str, optional): Mask ID to isolate for QL.  Defaults to None.
         boxcar_radius (float, optional): Boxcar radius for extraction.  
             In units of arcsec.  Defaults to None.
-        dither_id (np.ndarray, optional): Dither ID for each science frame.
         bkg_redux (bool, optional): Setup for A-B subtraction.  Defaults to False.
         stack (bool, optional): Stack the science frames.  Defaults to True.
 
@@ -210,19 +210,20 @@ def generate_sci_pypeitfile(redux_path:str,
 
     # A-B?
     # TODO -- Remove this if we can replace with spectrograph.get_comb_group() 
-    if bkg_redux:
-        new_comb = np.zeros_like(ps_sci.fitstbl['comb_id'], dtype=int)
-        new_bkg = np.zeros_like(ps_sci.fitstbl['bkg_id'], dtype=int)
-        As = dither_id == 'A'
-        Bs = dither_id == 'B'
-        # Set
-        new_comb[As] = 1
-        new_comb[Bs] = 2
-        new_bkg[As] = 2
-        new_bkg[Bs] = 1
-        # Finish
-        ps_sci.fitstbl['comb_id'] = new_comb
-        ps_sci.fitstbl['bkg_id'] = new_bkg
+    #if bkg_redux:
+    #    new_comb = np.zeros_like(ps_sci.fitstbl['comb_id'], dtype=int)
+    #    new_bkg = np.zeros_like(ps_sci.fitstbl['bkg_id'], dtype=int)
+    #    As = dither_id == 'A'
+    #    Bs = dither_id == 'B'
+    #    # Set
+    #    new_comb[As] = 1
+    #    new_comb[Bs] = 2
+    #    new_bkg[As] = 2
+    #    new_bkg[Bs] = 1
+    #    # Finish
+    #    ps_sci.fitstbl['comb_id'] = new_comb
+    #    ps_sci.fitstbl['bkg_id'] = new_bkg
+    embed(header='226 of ql')
 
     # Generate
     pypeitFile = inputfiles.PypeItFile(
@@ -388,23 +389,19 @@ class QL(scriptbase.ScriptBase):
         if args.bkg_redux:
             sci_files = np.array(files)[sci_idx]
             # TODO -- Remove this if we can replace with spectrograph.get_comb_group() 
-            dither_pattern, dither_id, offset_arcsec = \
-                ps.spectrograph.parse_dither_pattern(sci_files)
-            # TODO -- Add a check here that we have A and B
+            #dither_pattern, dither_id, offset_arcsec = \
+            #    ps.spectrograph.parse_dither_pattern(sci_files)
+            # Binning
+            binspectral, binspatial = parse_binning(
+                ps.fitstbl['binning'][sci_idx][0])
+            # Plate scale
             _det = parse_det(args.det if args.det is not None else '1', 
                              ps.spectrograph)
             det_container = ps.spectrograph.get_detector_par(
                 _det, hdu=fits.open(files[0]))
-            binspectral, binspatial = parse_binning(
-                det_container['binning'])
             platescale = det_container['platescale']*binspatial
-            target = ps.spectrograph.get_meta_value(sci_files[0], 'target')
-            print_offset_report(sci_files, dither_pattern, dither_id, 
-                                offset_arcsec, target, platescale)
-        else:
-            dither_pattern = None
-            dither_id = None
-            offset_arcsec = None
+            # Report
+            print_offset_report(sci_files, ps.fitstbl[sci_idx], platescale)
 
         # Generate science setup object
         full_scifiles = [os.path.join(dir_path, sci_file) for dir_path, sci_file in zip(
@@ -446,7 +443,6 @@ class QL(scriptbase.ScriptBase):
                     det=args.det,
                     boxcar_radius=args.boxcar_radius,
                     bkg_redux=args.bkg_redux,
-                    dither_id=dither_id,
                     stack=args.stack)
         
         # Run it
@@ -458,9 +454,16 @@ class QL(scriptbase.ScriptBase):
         pypeIt.build_qa()
         msgs.info(f'Quicklook completed in {utils.get_time_string(time.perf_counter()-tstart)} seconds')
 
-def print_offset_report(files:list, dither_pattern:np.array, dither_id:np.array, 
-                        offset_arcsec:np.array, target:str, platescale:float):
+def print_offset_report(files:list, fitstbl:astropy.table.Table,
+                        platescale:float):
 
+    # Parse
+    offset_arcsec = fitstbl['dithoff'].data
+    dither_pattern = fitstbl['dithpat'].data
+    dither_id = fitstbl['dithpos'].data
+    target = fitstbl['target'].data[0]
+
+    # Proceed
     if len(np.unique(dither_pattern)) > 1:
         msgs.error('Script only supported for a single type of dither pattern.')
     A_files = files[dither_id == 'A']
