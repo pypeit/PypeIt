@@ -6,7 +6,6 @@ Script for quick-look reductions for Multislit observations.
 """
 
 import copy
-import os
 import pathlib
 import time
 
@@ -109,7 +108,7 @@ def print_offset_report(files, dither_pattern, dither_id, offset_arcsec, target,
     msg_string += msgs.newline() + '----------------------------------------------------'
     for iexp, file in enumerate(files):
         msg_string += msgs.newline() + '    {:s}    {:s}   {:6.2f}    {:6.2f}'.format(
-            os.path.basename(file), dither_id[iexp], offset_arcsec[iexp], offset_arcsec[iexp] / platescale)
+            file.name, dither_id[iexp], offset_arcsec[iexp], offset_arcsec[iexp] / platescale)
     msg_string += msgs.newline() + '********************************************************'
     msgs.info(msg_string)
 

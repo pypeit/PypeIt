@@ -69,7 +69,7 @@ def load_line_list(line):
     line_list : Table
 
     """
-    line_file = data.Paths.nist.jopinpath(f'{line}_vacuum.ascii')
+    line_file = data.Paths.nist / f'{line}_vacuum.ascii'
 
     # Check the NIST lines file exists
     if not line_file.is_file():

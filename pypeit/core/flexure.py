@@ -1529,7 +1529,7 @@ class MultiSlitFlexure(DataContainer):
         # Generate QA folder as need be
         qa_dir = pathlib.Path(plot_dir) / 'QA'
         if not qa_dir.is_dir():
-            qa_dir.mkdir()
+            qa_dir.mkdir(parents=True)
         
         '''
         # Slopes
