@@ -8,6 +8,7 @@
 - reid_arxiv templates for all MMTO Blue Channel gratings and for MMTO Binospec G600 and G1000
 - Various bug fixes and enhancements to mmt_bluechannel and mmt_binospec support
 - Include the S/N of extracted spectra in the SpecObj datamodel
+- Added new specutils interface
 
 1.12.1 (21 Feb 2023)
 --------------------
