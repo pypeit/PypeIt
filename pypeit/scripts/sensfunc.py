@@ -113,7 +113,7 @@ class SensFunc(scriptbase.ScriptBase):
         primary_hdr = io.initialize_header()
         add_keys = (
             ['PYP_SPEC', 'DATE-OBS', 'TELESCOP', 'INSTRUME', 'DETECTOR']
-            + spectrograph.configuration_keys()
+            + spectrograph.configuration_keys() + spectrograph.raw_header_cards()
         )
         for key in add_keys:
             if key.upper() in header.keys():

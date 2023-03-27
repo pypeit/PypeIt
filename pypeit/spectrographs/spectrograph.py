@@ -188,7 +188,7 @@ class Spectrograph:
         par['rdx']['spectrograph'] = cls.name
         return par
 
-    def config_specific_par(self, scifile, inp_par=None, config=None):
+    def config_specific_par(self, scifile, inp_par=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
@@ -200,10 +200,6 @@ class Spectrograph:
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
-            config (:obj:`dict`):
-                A dictionary of configuration-specific keys and their
-                values, used to produce config-specific parameter sets
-                from, `e.g.`, ``spec1d`` files.
 
         Returns:
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
