@@ -608,8 +608,7 @@ class BuildWaveCalib:
         # Inherit the calibration frame naming from self.msarc
         # TODO: Should throw an error here if these calibration frame naming
         # elements are not defined by self.msarc...
-        self.wv_calib.set_paths(self.msarc.calib_dir, self.msarc.setup, self.msarc.calib_id,
-                                self.spectrograph.get_det_name(self.msarc.detector.det))
+        self.wv_calib.copy_calib_keys(self.msarc)
 
         # Update mask
         self.update_wvmask()

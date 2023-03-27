@@ -93,8 +93,6 @@ class TraceEdges(scriptbase.ScriptBase):
             tbl_rows = rdx.fitstbl.find_frames('trace', calib_ID=int(group), index=True)
             setup = rdx.fitstbl['setup'][tbl_rows[0]]
             calib_id = rdx.fitstbl['calib'][tbl_rows[0]]
-            # Master keyword
-            #master_key_base = '_'.join(rdx.fitstbl.master_key(tbl_rows[0]).split('_')[:2])
             # Save the binning
             binning = rdx.fitstbl['binning'][tbl_rows[0]]
             # Save the full file paths
@@ -180,10 +178,8 @@ class TraceEdges(scriptbase.ScriptBase):
                                            qa_path=qa_path)
 
             print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))
-            # Write the MasterEdges file
+            # Write the two calibration frames
             edges.to_file()
-
-            # Write the MasterSlits file
             edges.get_slits().to_file()
 
         return 0

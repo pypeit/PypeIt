@@ -707,11 +707,10 @@ class BuildWaveTilts:
         tilts = WaveTilts(self.coeffs, self.slits.nslits, self.slits.spat_id, self.spat_order,
                           self.spec_order, self.par['func2d'], bpmtilts=bpmtilts,
                           spat_flexure=self.spat_flexure, PYP_SPEC=self.spectrograph.name)
-        # Inherit the calibration frame naming from self.mstilts
+        # Inherit the calibration frame naming from self.mstilt
         # TODO: Should throw an error here if these calibration frame naming
         # elements are not defined by self.mstilts...
-        tilts.set_paths(self.mstilts.calib_dir, self.mstilts.setup, self.mstilts.calib_id,
-                                self.spectrograph.get_det_name(self.mstilts.detector.det))
+        tilts.copy_calib_keys(self.mstilt)
         return tilts
 
     def _parse_param(self, par, key, slit):

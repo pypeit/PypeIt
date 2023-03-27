@@ -524,8 +524,8 @@ class Calibrations:
         if not self._chk_objs(['msarc', 'msbpm', 'slits', 'wv_calib']):
             msgs.warn('Must have the arc, bpm, slits, and wv_calib defined to make flats!  '
                       'Skipping and may crash down the line')
-            # TODO: Why is this an empty object and not None?
-            self.flatimages = flatfield.FlatImages()
+            # TODO: Why was this an empty object and not None?
+            self.flatimages = None #flatfield.FlatImages()
             return self.flatimages
 
         # Slit and tilt traces are required to flat-field the data
@@ -533,8 +533,8 @@ class Calibrations:
             # TODO: Why doesn't this fault?
             msgs.warn('Flats were requested, but there are quantities missing necessary to '
                       'create flats.  Proceeding without flat fielding....')
-            # TODO: Why is this an empty object and not None?
-            self.flatimages = flatfield.FlatImages()
+            # TODO: Why was this an empty object and not None?
+            self.flatimages = None #flatfield.FlatImages()
             return self.flatimages
 
         # Check internals
@@ -550,9 +550,9 @@ class Calibrations:
         detname = self.spectrograph.get_det_name(self.det)
 
         # Construct the expected calibration frame file name
-        flat_file = Path(flatfield.FlatImages.construct_file_name(
-                            CalibFrame.construct_calib_key(setup, calib_id, detname),
-                            calib_dir=self.calib_dir)).resolve()
+        calib_key = CalibFrame.construct_calib_key(setup, calib_id, detname)
+        flat_file = Path(flatfield.FlatImages.construct_file_name(calib_key,
+                         calib_dir=self.calib_dir)).resolve()
 
         # If it exists and we want to reuse it, do so:
         if flat_file.exists() and self.reuse:
@@ -573,17 +573,15 @@ class Calibrations:
         pixelflatImages, illumflatImages = None, None
         lampoff_flat = None
         # Check if the image files are the same
-        pix_is_illum = Counter(illum_image_files) == Counter(pixflat_image_files)
+        pix_is_illum = Counter(raw_illum_files) == Counter(raw_pixel_files)
         if len(raw_pixel_files) > 0:
             msgs.info('Creating pixel-flat calibration frame using files: ')
-            for f in pixflat_image_files:
+            for f in raw_pixel_files:
                 msgs.prindent(f'{Path(f).name}')
             pixel_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['pixelflatframe'],
                                                         raw_pixel_files, dark=self.msdark,
-                                                        bias=self.msbias, bpm=self.msbpm,
-                                                        calib_dir=self.calib_dir, setup=setup,
-                                                        calib_id=calib_id)
+                                                        bias=self.msbias, bpm=self.msbpm)
             if len(raw_lampoff_files) > 0:
                 msgs.info('Subtracting lamp off flats using files: ')
                 for f in raw_lampoff_files:
@@ -592,16 +590,14 @@ class Calibrations:
                                                               self.par['lampoffflatsframe'],
                                                               raw_lampoff_files,
                                                               dark=self.msdark, bias=self.msbias,
-                                                              bpm=self.msbpm,
-                                                              calib_dir=self.calib_dir, setup=setup,
-                                                              calib_id=calib_id)
+                                                              bpm=self.msbpm)
                 pixel_flat = pixel_flat.sub(lampoff_flat)
 
             # Initialise the pixel flat
             pixelFlatField = flatfield.FlatField(pixel_flat, self.spectrograph,
                                                  self.par['flatfield'], self.slits, self.wavetilts,
                                                  self.wv_calib, qa_path=self.qa_path,
-                                                 calib_key=pixel_flat.calib_key)
+                                                 calib_key=calib_key)
             # Generate
             pixelflatImages = pixelFlatField.run(doqa=self.write_qa, show=self.show)
             # Set flatimages in case we want to apply the pixel-to-pixel sensitivity corrections to the illumflat
@@ -610,14 +606,12 @@ class Calibrations:
         # Only build illum_flat if the input files are different from the pixel flat
         if not pix_is_illum and len(raw_illum_files) > 0:
             msgs.info('Creating illumination flat calibration frame using files: ')
-            for f in illum_image_files:
+            for f in raw_illum_files:
                 msgs.prindent(f'{Path(f).name}')
             illum_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['illumflatframe'], raw_illum_files,
                                                         dark=self.msdark, bias=self.msbias,
-                                                        flatimages=self.flatimages, bpm=self.msbpm,
-                                                        calib_dir=self.calib_dir, setup=setup,
-                                                        calib_id=calib_id)
+                                                        flatimages=self.flatimages, bpm=self.msbpm)
             if len(raw_lampoff_files) > 0:
                 msgs.info('Subtracting lamp off flats using files: ')
                 for f in raw_lampoff_files:
@@ -627,17 +621,14 @@ class Calibrations:
                                                                   self.par['lampoffflatsframe'],
                                                                   raw_lampoff_files,
                                                                   dark=self.msdark,
-                                                                  bias=self.msbias, bpm=self.msbpm,
-                                                                  calib_dir=self.calib_dir,
-                                                                  setup=setup, calib_id=calib_id)
+                                                                  bias=self.msbias, bpm=self.msbpm)
                 illum_flat = illum_flat.sub(lampoff_flat)
 
             # Initialise the pixel flat
             illumFlatField = flatfield.FlatField(illum_flat, self.spectrograph,
                                                  self.par['flatfield'], self.slits, self.wavetilts,
                                                  self.wv_calib, spat_illum_only=True,
-                                                 qa_path=self.qa_path,
-                                                 calib_key=illum_flat.calib_key)
+                                                 qa_path=self.qa_path, calib_key=calib_key)
             # Generate
             illumflatImages = illumFlatField.run(doqa=self.write_qa, show=self.show)
 
@@ -654,6 +645,7 @@ class Calibrations:
             self.flatimages = illumflatImages
 
         if self.flatimages is not None:
+            self.flatimages.set_paths(self.calib_dir, setup, calib_id, detname)
             # Save flat images
             self.flatimages.to_file()
             # Save slits too, in case they were tweaked
@@ -1058,7 +1050,7 @@ class Calibrations:
                     cfg[setup][calib_ID][frametype] = {}
                     cfg[setup][calib_ID][frametype]['raw'] = fitstbl.frame_paths(indx)
                     cfg[setup][calib_ID][frametype]['proc'] \
-                            = [calib_class.construct_file_name(calib_key, calib_dir=_caldir)
+                            = [str(calib_class.construct_file_name(calib_key, calib_dir=_caldir))
                                 for calib_class in frame_calibrations[frametype]]
 
         # Write it

@@ -38,7 +38,7 @@ def test_history_header_access():
     """Test building a History object from a fits header"""
 
     # Get a blank header
-    header = initialize_header(primary=True)
+    header = initialize_header()
 
     history1 = History()
 
@@ -65,7 +65,7 @@ def test_write_and_append_history():
     """Test appending to a History object and writing the history to a fits header"""
 
     # Get a blank header
-    header = initialize_header(primary=True)
+    header = initialize_header()
     history = History(header)
 
     # Append a test history with and without a date

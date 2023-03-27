@@ -96,15 +96,6 @@ class TraceImage(pypeitimage.PypeItCalibrationImage):
     # Calibration type
     calib_type = 'Trace'
 
-#    # TODO: This is a hack to limit the arrays written to the MasterEdges object
-#    # to just the selection above.  The reason this doesn't work like the other
-#    # master images above is because the `to_master_file` function is not used
-#    # to build the output MasterEdges file.  We might want to come up with a
-#    # better long-term fix for this.
-#    def _bundle(self):
-#        return [_d for _d in super()._bundle() 
-#                    if any(np.isin(list(_d.keys()), ['image', 'fullmask', 'detector']))]
-
 
 class SkyRegions(pypeitimage.PypeItCalibrationImage):
     """

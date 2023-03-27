@@ -753,7 +753,7 @@ class PypeIt:
            (self.objtype == 'standard'
                 and self.par['calibrations']['standardframe']['process']['spat_flexure_correct']):
             spat_flexure_shift = self.sciImg.spat_flexure
-        initial_skymask = self.load_skyregions(sciImg.files[0], frames[0], spat_flexure,
+        initial_skymask = self.load_skyregions(sciImg.files[0], frames[0], spat_flexure_shift,
                                                initial_slits=self.spectrograph.pypeline != 'IFU')
 
         # Deal with manual extraction

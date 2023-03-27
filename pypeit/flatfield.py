@@ -1816,23 +1816,31 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
 
 def merge(init_cls, merge_cls):
     """
-    Merge merge_cls into init_cls, and return a merged :class:`pypeit.flatfield.FlatImages` class.
-    If an element exists in both init_cls and merge_cls, the merge_cls value is taken
+    Merge ``merge_cls`` into ``init_cls``, and return a merged
+    :class:`~pypeit.flatfield.FlatImages` class.
+
+    If ``init_cls`` is None, the returned value is ``merge_cls``, and vice
+    versa.  If an element exists in both init_cls and merge_cls, the merge_cls
+    value is taken
 
     Parameters
     ----------
-    init_cls : :class:`pypeit.flatfield.FlatImages`
-        Initial class (the elements of this class will be considered the default)
-    merge_cls : :class:`pypeit.flatfield.FlatImages`
-        The non-zero elements will be merged into init_cls.
+    init_cls : :class:`~pypeit.flatfield.FlatImages`
+        Initial class (the elements of this class will be considered the
+        default).  Can be None.
+    merge_cls : :class:`~pypeit.flatfield.FlatImages`
+        The non-zero elements will be merged into init_cls.  Can be None.
 
     Returns
     -------
-    :class:`pypeit.flatfield.FlatImages` : A new instance of the FlatImages class with merged properties.
+    flats : :class:`~pypeit.flatfield.FlatImages`
+        A new instance of the FlatImages class with merged properties.
     """
     # Check the class to be merged in is not None
     if merge_cls is None:
         return init_cls
+    if init_cls is None:
+        return merge_cls
     # Initialise variables
     # extract all elements that are prefixed with 'pixelflat_' or 'illumflat_'
     keys = [a for a in list(init_cls.__dict__.keys()) if '_' in a and a.split('_')[0] in ['illumflat', 'pixelflat']]
@@ -1845,6 +1853,8 @@ def merge(init_cls, merge_cls):
     for key in keys:
         mrg = False
         val = None
+        # TODO: Why are we using exec here?  Can we use setattr and getattr
+        # instead?
         namespace = dict({'val': val, 'init_cls':init_cls, 'merge_cls':merge_cls, 'mrg':mrg})
         exec("val = init_cls.{0:s}".format(key), namespace)
         exec("mrg = merge_cls.{0:s} is not None".format(key), namespace)

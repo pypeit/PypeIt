@@ -664,7 +664,7 @@ class SpecObjs:
             _specobjs = self.specobjs
 
         # Build up the Header
-        header = io.initialize_header(primary=True)
+        header = io.initialize_header()
         for key in subheader.keys():
             if key.upper() == 'HISTORY':
                 if history is None:
@@ -674,9 +674,8 @@ class SpecObjs:
                 header[key.upper()] = subheader[key]
 
         # Init
-        prihdu = fits.PrimaryHDU()
+        prihdu = fits.PrimaryHDU(header=header)
         hdus = [prihdu]
-        prihdu.header = header
 
         # Add class info
         prihdu.header['DMODCLS'] = (self.__class__.__name__, 'Datamodel class')
@@ -732,8 +731,9 @@ class SpecObjs:
         # A few more for the header
         prihdu.header['NSPEC'] = nspec
 
-        # Code versions
-        io.initialize_header(hdr=prihdu.header)
+        # THIS IS DONE ABOVE
+#        # Code versions
+#        io.initialize_header(hdr=prihdu.header)
 
         # Finish
         hdulist = fits.HDUList(hdus)

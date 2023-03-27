@@ -503,8 +503,10 @@ class AllSpec2DObj:
         Returns:
             `astropy.io.fits.Header`_: The primary header for the output fits file.
         """
-        hdr = io.initialize_header(primary=True)
+        # Instantiate the header
+        hdr = io.initialize_header()
 
+        # Copy most of the information from the raw header
         hdukeys = ['BUNIT', 'COMMENT', '', 'BITPIX', 'NAXIS', 'NAXIS1', 'NAXIS2',
                    'HISTORY', 'EXTEND', 'DATASEC']
         for key in raw_header.keys():
@@ -513,11 +515,12 @@ class AllSpec2DObj:
                 continue
             # Update unused ones
             hdr[key] = raw_header[key]
-        # History
+
+        # Add the History
         if history is not None:
             history.write_to_header(hdr)
 
-        # Sub-header
+        # Add the spectrograph-specific sub-header
         if subheader is not None:
             for key in subheader.keys():
                 hdr[key.upper()] = subheader[key]
@@ -645,10 +648,7 @@ class AllSpec2DObj:
                         self[det] = _allspecobj[det]
 
         # Primary HDU for output
-        prihdu = fits.PrimaryHDU()
-        # Header
-        if pri_hdr is not None:
-            prihdu.header = pri_hdr
+        prihdu = fits.PrimaryHDU(header=pri_hdr)
 
         # Add class name
         prihdu.header['PYP_CLS'] = self.__class__.__name__

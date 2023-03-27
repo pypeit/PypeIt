@@ -150,7 +150,7 @@ class DataCube(datamodel.DataContainer):
 
         """
         if primary_hdr is None:
-            primary_hdr = io.initialize_header(primary=True)
+            primary_hdr = io.initialize_header()
         # Build the header
         if self.head0 is not None and self.PYP_SPEC is not None:
             spectrograph = load_spectrograph(self.PYP_SPEC)

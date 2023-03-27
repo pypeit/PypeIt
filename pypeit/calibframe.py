@@ -147,20 +147,10 @@ class CalibFrame(datamodel.DataContainer):
                 default!
             **kwargs (optional):
                 Passed directly to
-                :func:`~pypeit.datamodel.DataContainer.to_file`.  One of the
-                keyword arguments *cannot* be ``'filename'``.  The filenames for
-                :class:`CalibFrame` objects are predefined.  If ``'hdr'`` is a
-                provided keyword, the CalibFrame-specific keywords are added
-                using :func:`build_header` and passed to on to 
                 :func:`~pypeit.datamodel.DataContainer.to_file`.
         """
-        if 'hdr' in kwargs:
-            hdr = self.build_header(hdr=kwargs['hdr'])
-            kwargs.pop('hdr')
-        else:
-            hdr = self.build_header()
         _file_path = self.get_path() if file_path is None else Path(file_path).resolve()
-        super().to_file(_file_path, hdr=hdr, overwrite=overwrite, **kwargs)
+        super().to_file(_file_path, overwrite=overwrite, **kwargs)
 
     @classmethod
     def from_hdu(cls, hdu, chk_version=True, **kwargs):
@@ -192,26 +182,11 @@ class CalibFrame(datamodel.DataContainer):
         # NOTE: If multiple HDUs are parsed, this assumes that the information
         # necessary to set all the calib internals is always in *every* header.
         # BEWARE!
-        try:
-            hdr_to_parse = hdu[parsed_hdus[0]].header
-        except:
-            embed()
-            exit()
+        hdr_to_parse = hdu[parsed_hdus[0]].header
         # TODO: Consider making the next two lines a function so that they don't
         # need to be repeated in PypeItCalibrationImage.
         self.calib_key, self.calib_dir = CalibFrame.parse_key_dir(hdr_to_parse)
         self.calib_id = self.ingest_calib_id(hdr_to_parse['CALIBID'].split(','))
-        # Check that the parsed HDUs are for the correct calibration frame type.
-        # TODO: This is superfluous because the _parse statement above will
-        # already check that the datamodel type passed.  I.e., we allow
-        # circumventing the datamodel version, but we never allow circumventing
-        # the datamodel *type*.
-#        if 'CALIBTYP' in hdr_to_parse:
-#            if hdr_to_parse['CALIBTYP'] != cls.calib_type:
-#                msgs.error(f'Primary header of {_ifile} does not have the correct calibration '
-#                            f'frame type!  Found {hdr_to_parse["CALIBTYP"]}, but expected '
-#                            f'{cls.calib_type}.')
-
         return self
 
     @staticmethod
@@ -372,12 +347,10 @@ class CalibFrame(datamodel.DataContainer):
         """
         return self.__class__.construct_file_name(self.calib_key, calib_dir=self.calib_dir)
 
-    def build_header(self, hdr=None):
+    def _base_header(self, hdr=None):
         """
-        Initialize the calibration frame header.
-
-        This builds a generic header that is written to all PypeIt calibration
-        frames.
+        Override the base class method to add useful/identifying internals to
+        the header.
 
         Args:
             hdr (`astropy.io.fits.Header`, optional):
@@ -389,12 +362,11 @@ class CalibFrame(datamodel.DataContainer):
             `astropy.io.fits.Header`_: The initialized (or edited) fits header.
         """
         # Standard init
-        _hdr = io.initialize_header(hdr)
+        _hdr = super()._base_header(hdr=hdr)
 
         # Save the calibration frame type and key and version, in case the file
         # name is changed.
         _hdr['CALIBTYP'] = (self.calib_type, 'PypeIt: Calibration frame type')
-        _hdr['CALIBVER'] = (self.version, 'PypeIt: Calibration datamodel version')
         if self.calib_dir is not None:
             _hdr['CALIBDIR'] = (self.calib_dir, 'PypeIt: Calibration file directory')
         if self.calib_key is not None:
