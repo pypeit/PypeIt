@@ -64,7 +64,7 @@
                             (negative) B image to the left. (default: None)
       --redux_path REDUX_PATH
                             Location where reduction outputs should be stored.
-                            (default: /Users/westfall/Work/packages/pypeit/doc)
+                            (default: current working directory)
       --master_dir MASTER_DIR
                             Location of PypeIt Master files used for the reduction.
                             (default: None)

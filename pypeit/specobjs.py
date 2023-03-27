@@ -802,18 +802,12 @@ class SpecObjs:
             # S2N -- default to boxcar
             if specobj.FWHMFIT is not None and specobj.OPT_COUNTS is not None:
                 opt_fwhm.append(np.median(specobj.FWHMFIT) * binspatial * platescale)
-                # S2N -- optimal
-                ivar = specobj.OPT_COUNTS_IVAR
-                is2n = np.median(specobj.OPT_COUNTS * np.sqrt(ivar))
-                s2n.append(is2n)
             else:  # Optimal is not required to occur
                 opt_fwhm.append(0.)
-                if specobj.BOX_COUNTS is None:
-                    is2n = 0.
-                else:
-                    ivar = specobj.BOX_COUNTS_IVAR
-                    is2n = np.median(specobj.BOX_COUNTS * np.sqrt(ivar))
-                s2n.append(is2n)
+            # NOTE: Below requires that S2N not be None, otherwise the code will
+            # fault.  If the code gets here and S2N is None, check that 1D
+            # extractions have been performed.
+            s2n.append(specobj.S2N)
             # Manual extraction?
             manual_extract.append(specobj.hand_extract_flag)
             # Slitmask info

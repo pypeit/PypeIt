@@ -19,5 +19,5 @@
       --extract EXTRACT  Extraction method. Default is OPT. ['BOX', 'OPT'] (default:
                          OPT)
       --flux             Show fluxed spectrum? (default: False)
-      -m, --masked       Only show unmasked data. (default: False)
+      -m, --unmasked     Only show unmasked data. (default: True)
     

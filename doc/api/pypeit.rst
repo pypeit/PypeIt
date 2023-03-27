@@ -16,6 +16,7 @@ Subpackages
    pypeit.par
    pypeit.scripts
    pypeit.spectrographs
+   pypeit.specutils
 
 Submodules
 ----------

@@ -10,9 +10,14 @@ Keck/NIRES HOWTO
 Overview
 ========
 
-This doc goes through a full run of PypeIt on one of the Keck/NIRES datasets
-(specifically the ``NIRES`` dataset) in the `PypeIt Development Suite`_ (see
-:ref:`here <dev-suite>`).
+This doc goes through a full run of PypeIt on one of our example Keck/NIRES
+datasets (specifically the ``NIRES`` dataset).  If you're having trouble
+reducing your data, we encourage you to try going through this tutorial using
+this example dataset first.  See :ref:`here <dev-suite>` to find the example
+dataset, please join our `PypeIt Users Slack <pypeit-users.slack.com>`__ (using
+`this invitation link
+<https://join.slack.com/t/pypeit-users/shared_invite/zt-1kc4rxhsj-vKU1JnUA~8PZE~tPlu~aTg>`__)
+to ask for help, and/or `Submit an issue`_ to Github if you find a bug!
 
 ----
 
@@ -38,20 +43,24 @@ called ``keck_nires_A.pypeit`` that looks like this:
 .. include:: ../include/keck_nires_A.pypeit.rst
 
 For this example dataset, the details of the default pypeit file are not
-correct; see :ref:`here <nires_config_report>` for an example where the frame
+completely correct; see :ref:`here <nires_config_report>` for an example where the frame
 typing and dither pattern determinations *are* correct by default.
 
 The issue with this dataset is that only two pointings in the ABBA pattern for
 the standard star observations are available, the exposure time of the standard
-observations is longer than expected, and the dither pattern of the science
-frames are set to MANUAL.  All of this means you need to edit the pypeit file to
-correct specific errors.  The corrections needed are:
+observations is longer than expected (and PypeIt set it as science frame),
+and the dither pattern of the science frames are set to MANUAL.
+PypeIt attempts to assign ``comb_id`` and ``bkg_id`` to the two standard star
+pointings, however, you need to edit the pypeit file to
+correct the other errors.  The corrections needed are:
 
     - Set the frametypes for ``s190519_0059.fits`` and ``s190519_0060.fits`` to
-      ``arc,standard,tilt`` (i.e., change ``science`` to ``standard`` for these
-      frames).
+      ``standard`` .
 
-    - Set the ``bkg_id`` for the ``standard`` and ``science`` frames; see below
+    - Assign the same calibration group to the standard and science frames
+      (i.e., same ``calib`` value).
+
+    - Set the ``bkg_id`` for the ``science`` frames; see below
       and :ref:`a-b_differencing`.
 
 The corrected version looks like this (pulled directly from the :ref:`dev-suite`):
@@ -61,29 +70,28 @@ The corrected version looks like this (pulled directly from the :ref:`dev-suite`
 Use of the standard frame
 -------------------------
 
-By setting the science and standard frames to also be ``arc`` and ``tilt``
+By setting the science frames to also be ``arc`` and ``tilt``
 frames, we're indicating that the OH sky lines should be used to perform the
-wavelength calibration.  The wavelength calibration for these two sets of frames
-will be performed *independently* because we assign them to different
-:ref:`calibration-groups`.
+wavelength calibration. Generally the standard star observations are not
+sufficiently long to have good signal in the sky lines to perform the
+wavelength calibration. This is why, generally, we do not
+set the standard frames to be also ``arc`` and ``tilt`` frames, but we use
+the wavelength calibration obtained from the science frame (this is why we
+give to the standard frames the same ``calib`` value as the science frames).
 
-The observations of the standard star in this dataset are sufficiently long that
-there is good signal in the sky lines that allows for use of the OH lines for
-its wavelength calibration.  More generally, beware that short exposures may not
-allow for this, in which case you should not designate your ``standard`` frames
-as also being ``arc,tilt`` frames and you must assign the standard frames to a
-calibration group that includes ``arc,tilt`` frames.  In this example, that
-would mean assigning all 4 science and standard frames to the same calibration
-group.
+We note, however, that in this specific case the observations of the standard star
+are sufficiently long to allow for good signal in the sky lines. Therefore, if
+desired, you could set the standard frames to be also ``arc`` and ``tilt`` frames.
+
 
 The main data-reduction script (:ref:`run-pypeit`) does *not* perform the
-telluric correction; this is done by a separate script.  However, and even if
-you don't intend to telluric-correct or flux-calibrate your data, it's useful to
-include the standard star observations along with the reductions of your main
-science target, particularly if the science target is faint.  If your object is
-faint, tracing the object spectrum for extraction can be difficult using only
-the signal from the source itself.  PypeIt will resort to a "tracing crutch" if
-the source signal becomes too weak.  Without the bright standard star trace, the
+telluric correction; this is done by a separate script.  Even if you don't
+intend to telluric-correct or flux-calibrate your data, it's useful to include
+the standard star observations along with the reductions of your main science
+target, particularly if the science target is faint.  If your object is faint,
+tracing the object spectrum for extraction can be difficult using only the
+signal from the source itself.  PypeIt will resort to a "tracing crutch" if the
+source signal becomes too weak.  Without the bright standard star trace, the
 tracing crutch used is the slit/order edge, which will not include the effects
 of differential atmospheric refraction on the object centroid and therefore
 yield a poorer spectral extraction.
@@ -91,23 +99,21 @@ yield a poorer spectral extraction.
 Dither sequence
 ---------------
 
-As stated above, the automated algorithms in :ref:`pypeit_setup` don't correctly
-set the dither pattern for this dataset, as handled by the
-``comb_id`` and ``bkg_id`` columns.  See :ref:`here <nires_config_report>` for
-an example where the frame typing and dither pattern determinations *are*
-correct by default.
-
 In this example dataset, the science object and the standard star are both only
-observed at two offset positions.  We use the :ref:`pypeit_file` (see the
-corrected version above) to indicate this using the ``comb_id`` and ``bkg_id``
-columns, as described by :ref:`a-b_differencing` (specifically, see
+observed at two offset positions. Although PypeIt is able to correctly assign
+``comb_id`` and ``bkg_id`` for the standard frames (by using the information
+on the dither pattern and dither offset), the same is not possible for the
+science frames, for which a "MANUAL" dither pattern was used.
+We, therefore, edit the :ref:`pypeit_file` (see the
+corrected version above) to assign ``comb_id`` and ``bkg_id`` to the science frames
+as described by :ref:`a-b_differencing` (specifically, see
 :ref:`ab-image-differencing`).
 
-By setting ``comb_id=1`` and ``bkg_id=2`` for frame ``s190519_0059.fits``, we
-are indicating that this frame should be treated as frame "1" (A) and that frame
-"2" (B) should be used as its background.  We reverse the values of ``comb_id``
-and ``bkg_id`` for frame ``s190519_0060.fits``, which indicates that this frame
-should be treated as frame "2" (B) and that frame "1" (A) should be used as its
+By setting ``comb_id=3`` and ``bkg_id=4`` for frame ``s190519_0067.fits``, we
+are indicating that this frame should be treated as frame A and that frame
+B should be used as its background.  We reverse the values of ``comb_id``
+and ``bkg_id`` for frame ``s190519_0068.fits``, which indicates that this frame
+should be treated as frame B and that frame A should be used as its
 background.  I.e., the ``comb_id`` column effectively sets the numeric identity
 of each frame, and the ``bkg_id`` column selects the numeric identity of the
 frame that should be used as the background image.
@@ -281,7 +287,9 @@ Field Flattening
 PypeIt computes a number of multiplicative corrections to correct the 2D
 spectral response for pixel-to-pixel detector throughput variations and
 lower-order spatial and spectral illumination and throughput corrections.  We
-collectively refer to these as flat-field corrections.
+collectively refer to these as flat-field corrections; see :ref:`here
+<flat_fielding>` and :ref:`here <master_flat>`. For NIRES observations, flats
+with lamps off, if available, are also subtracted.
 
 You can inspect the flat-field corrections using the following script:
 
@@ -380,10 +388,13 @@ channel looks like pure noise (see also :ref:`pypeit_chk_noise_2dspec`).
 -----------------------
 
 Each "combination group" will also produce a fits file containing 1D spectral
-extractions; see :ref:`spec-1d-output` for more information about these files.
-An ASCII text file is also produced that provides a summary of the extracted
-spectra.  For the same standard star frame shown above, the file looks like
-this:
+extractions; see :ref:`spec-1d-output` for more information about these files
+(including the nameing convention).  The name of the file is:
+``spec1d_s190519_0059-GD153_NIRES_20190519T083811.995.fits``.  An ASCII text
+file, named ``spec1d_s190519_0059-GD153_NIRES_20190519T083811.995.txt`` (i.e.,
+the same name but with the extension changed from ``.fits`` to ``.txt``), is also
+produced that provides a summary of the extracted spectra.  For the same
+standard star frame shown above, the file looks like this:
 
 .. code-block:: bash
 
