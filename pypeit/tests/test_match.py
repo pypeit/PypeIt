@@ -7,6 +7,7 @@ import pytest
 
 import numpy as np
 
+from pypeit.calibframe import CalibFrame
 from pypeit.core import framematch
 from pypeit.tests.tstutils import dummy_fitstbl
 from pypeit.pypmsgs import PypeItError
@@ -61,19 +62,20 @@ def test_calibration_groups(fitstbl):
 #        fitstbl.match_to_science(par['calibrations'], par['rdx']['calwin'], par['fluxcalib'])
 
 
-# TODO: FIX THIS
 def test_instr_setup(fitstbl):
-    """ Test instrument setup naming convention
-    Tickles most of the arsetup methods
     """
-    par = fitstbl.spectrograph.default_pypeit_par()
+    Test instrument setup naming convention
+    """
+    detname = fitstbl.spectrograph.get_det_name(1)
+    calib_key = CalibFrame.construct_calib_key(fitstbl['setup'][0], fitstbl['calib'][0], detname)
 
     # Check the calibration  key
-    assert fitstbl.calib_key(0) == 'A_1_DET01'
+    assert calib_key == 'A_0_DET01'
     # Invalid detector
     with pytest.raises(PypeItError):
         # Shane kast blue doesn't have a second detector
-        fitstbl.calib_key(0, det=2)
+        fitstbl.spectrograph.get_det_name(2)
+
 
 
 # TODO: Need a test that adds a calibration group and checks the result

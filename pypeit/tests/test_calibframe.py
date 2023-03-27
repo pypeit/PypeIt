@@ -139,15 +139,14 @@ def test_hdr():
     odir = Path(data_path('')).resolve()
     calib.set_paths(odir, 'A', '1', 'DET01')
 
-    hdr = calib.build_header()
+    hdr = calib._base_header()
     assert 'CALIBTYP' in hdr, 'Missing keyword'
     assert hdr['CALIBTYP'] == calib.calib_type
-    assert 'CALIBVER' in hdr, 'Missing keyword'
-    assert hdr['CALIBVER'] == calib.version
     assert 'CALIBDIR' in hdr, 'Missing keyword'
     assert hdr['CALIBDIR'] == calib.calib_dir
     assert 'CALIBKEY' in hdr, 'Missing keyword'
     assert hdr['CALIBKEY'] == calib.calib_key
     assert 'CALIBID' in hdr, 'Missing keyword'
     assert hdr['CALIBID'] == ','.join(calib.calib_id)
+
 

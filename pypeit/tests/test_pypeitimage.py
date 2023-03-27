@@ -214,7 +214,7 @@ def test_calib_io():
     odir = Path(data_path('')).resolve()
     img.set_paths(odir, 'A', '1', 'DET01')
     assert img.calib_dir == str(odir), 'Bad output directory'
-    opath = Path(img.construct_file_name()).resolve()
+    opath = Path(img.get_path()).resolve()
 
     img.to_file(overwrite=True)
     assert opath.exists(), 'File not written'

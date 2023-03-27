@@ -93,7 +93,7 @@ class OneSpec(datamodel.DataContainer):
                 Filename holding the object
         """
         hdul = io.fits_open(ifile)
-        slf = super(OneSpec, cls).from_hdu(hdul)
+        slf = super().from_hdu(hdul)
 
         # Internals
         slf.filename = ifile
@@ -139,7 +139,7 @@ class OneSpec(datamodel.DataContainer):
 
         """
         if primary_hdr is None:
-            primary_hdr = io.initialize_header(primary=True)
+            primary_hdr = io.initialize_header()
         # Build the header
         if self.head0 is not None and self.PYP_SPEC is not None:
             spectrograph = load_spectrograph(self.PYP_SPEC)
@@ -156,7 +156,7 @@ class OneSpec(datamodel.DataContainer):
             history.write_to_header(primary_hdr)
 
         # Do it
-        super(OneSpec, self).to_file(ofile, primary_hdr=primary_hdr, **kwargs)
+        super().to_file(ofile, primary_hdr=primary_hdr, **kwargs)
 
 
 
