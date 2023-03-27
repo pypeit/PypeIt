@@ -8,8 +8,8 @@ import inspect
 from IPython import embed
 
 import numpy as np
-import scipy
-from matplotlib import pyplot as plt
+import scipy.interpolate
+import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
 from astropy.io import fits

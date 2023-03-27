@@ -106,7 +106,7 @@ class SensFunc(scriptbase.ScriptBase):
         # Determine the spectrograph
         header = fits.getheader(args.spec1dfile)
         spectrograph = load_spectrograph(header['PYP_SPEC'])
-        spectrograph_def_par = spectrograph.default_pypeit_par()
+        spectrograph_config_par = spectrograph.config_specific_par(header)
 
         # Construct a primary FITS header that includes the spectrograph's
         #   config keys for inclusion in the output sensfunc file
@@ -124,10 +124,10 @@ class SensFunc(scriptbase.ScriptBase):
         if args.sens_file is not None:
             sensFile = inputfiles.SensFile.from_file(args.sens_file)
             # Read sens file
-            par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
+            par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_config_par.to_config(),
                 merge_with=(sensFile.cfg_lines,))
         else:
-            par = spectrograph_def_par 
+            par = spectrograph_config_par 
 
         # If algorithm was provided override defaults. Note this does undo .sens
         # file since they cannot both be passed

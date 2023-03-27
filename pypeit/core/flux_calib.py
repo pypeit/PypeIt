@@ -941,7 +941,7 @@ def fit_zeropoint(wave, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
             plt.show()
 
     # Get masks from observed star spectrum. True = Good pixels
-    mask_bad, mask_balm, mask_tell = get_mask(wave, Nlam_star, Nlam_ivar_star, gpm_star,
+    mask_bad, mask_recomb, mask_tell = get_mask(wave, Nlam_star, Nlam_ivar_star, gpm_star,
                                               mask_hydrogen_lines=mask_hydrogen_lines,
                                               mask_helium_lines=mask_helium_lines,
                                               mask_telluric=True, balm_mask_wid=balm_mask_wid,
@@ -949,7 +949,7 @@ def fit_zeropoint(wave, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
 
     # Get zeropoint
     zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm = standard_zeropoint(
-        wave, Nlam_star, Nlam_ivar_star, mask_bad, flux_true, mask_balm=mask_balm,
+        wave, Nlam_star, Nlam_ivar_star, mask_bad, flux_true, mask_recomb=mask_recomb,
         mask_tell=mask_tell, maxiter=35, upper=3, lower=3, polyorder=polyorder,
         balm_mask_wid=balm_mask_wid, nresln=nresln, resolution=resolution,
         polycorrect=polycorrect, polyfunc=polyfunc, debug=debug)
@@ -1335,7 +1335,7 @@ def zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, z
 
 
 
-def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=None, mask_tell=None,
+def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_recomb=None, mask_tell=None,
                        maxiter=35, upper=3.0, lower=3.0, func = 'polynomial', polyorder=5, balm_mask_wid=50.,
                        nresln=20., resolution=2700., polycorrect=True, debug=False, polyfunc=False):
     """
@@ -1353,8 +1353,8 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
       mask for bad pixels. True is good.
     flam_true : Quantity array
       standard star true flux (erg/s/cm^2/A)
-    mask_balm: `numpy.ndarray`_
-      mask for hydrogen recombination lines. True is good.
+    mask_recomb: `numpy.ndarray`_
+      mask for hydrogen (and/or helium II) recombination lines. True is good.
     mask_tell: `numpy.ndarray`_
       mask for telluric regions. True is good.
     maxiter : integer
@@ -1369,6 +1369,8 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
       in units of angstrom
       Mask parameter for Balmer absorption. A region equal to
       balm_mask_wid is masked.
+    nresln: integer/float
+      number of resolution elements between breakpoints
     resolution: integer/float.
       spectra resolution
       This paramters should be removed in the future. The resolution should be estimated from spectra directly.
@@ -1393,12 +1395,12 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
     # check masks
     if mask_tell is None:
         mask_tell = np.ones_like(wave,dtype=bool)
-    if mask_balm is None:
-        mask_balm = np.ones_like(wave, dtype=bool)
+    if mask_recomb is None:
+        mask_recomb = np.ones_like(wave, dtype=bool)
 
     zeropoint_data, zeropoint_data_gpm = compute_zeropoint(wave, Nlam, Nlam_gpm, flam_true)
 
-    zeropoint_fitmask = zeropoint_data_gpm & mask_tell & mask_balm
+    zeropoint_fitmask = zeropoint_data_gpm & mask_tell & mask_recomb
     wave_min = wave[wave > 1.0].min()
     wave_max = wave[wave > 1.0].max()
 
@@ -1456,6 +1458,7 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
         nresln = std_res / std_pix
 
     # Output some helpful information for double-checking input params are correct
+    msgs.test(f" This is the passed-in R: {resolution}")
     msgs.info(f" This is the standard pixel: {std_pix:.2f} Å")
     msgs.info(f" This is the standard resolution element: {std_res:.2f} Å")
     msgs.info(f" Breakpoint spacing: {std_res * nresln:.2f} pixels")

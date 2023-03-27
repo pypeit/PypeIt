@@ -188,7 +188,7 @@ class Spectrograph:
         par['rdx']['spectrograph'] = cls.name
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(self, scifile, inp_par=None, config=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
@@ -200,6 +200,10 @@ class Spectrograph:
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
+            config (:obj:`dict`):
+                A dictionary of configuration-specific keys and their
+                values, used to produce config-specific parameter sets
+                from, `e.g.`, ``spec1d`` files.
 
         Returns:
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
@@ -377,7 +381,7 @@ class Spectrograph:
             subheader[key] = row_fitstbl[key]
 
         # The following are pulled from the original header, if available
-        header_cards = ['INSTRUME', 'DETECTOR', 'DATE-OBS']
+        header_cards = ['INSTRUME', 'DETECTOR', 'DATE-OBS'] + self.raw_header_cards()
         if extra_header_cards is not None:
             header_cards += extra_header_cards  # For specDB and more
         for card in header_cards:
@@ -698,6 +702,23 @@ class Spectrograph:
             object.
         """
         return ['dispname', 'dichroic', 'decker']
+    
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards that should be propagated in
+        the output files
+
+        In general, these should be the FITS keywords used to construct the
+        :meth:`~pypeit.spectrograph.Spectrograph.compound_meta` metadata keys.
+
+        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return []
 
     def modify_config(self, fitstbl, cfg):
         """
