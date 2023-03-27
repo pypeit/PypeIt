@@ -33,7 +33,7 @@ def test_io():
     arcImage = buildimage.ArcImage.from_pypeitimage(pypeitImage)
     # Set paths and check name
     arcImage.set_paths(data_path(''), 'A', ['1'], 'DET01')
-    ofile = Path(arcImage.construct_file_name()).resolve()
+    ofile = Path(arcImage.get_path()).resolve()
     assert str(ofile) == data_path('Arc_A_1_DET01.fits'), 'Calibration file name changed'
     # Write
     arcImage.to_file(overwrite=True)
@@ -54,6 +54,5 @@ def test_io():
     # Cleanup
     ofile.unlink()
 
-test_io()
 
 

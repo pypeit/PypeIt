@@ -4985,4 +4985,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # Copy the CalibFrame internals (also identical to the self.traceimg internals)
         slits.copy_calib_keys(self)
 
+        return slits
+
 

@@ -100,6 +100,27 @@ class SensFunc(datamodel.DataContainer):
 #                                                 'measurements')}
     """DataContainer datamodel."""
 
+    internals = ['sensfile',
+                 'spectrograph',
+                 'par',
+                 'qafile',
+                 'thrufile',
+                 'debug',
+                 'wave_cnts',
+                 'counts',
+                 'counts_ivar',
+                 'counts_mask',
+                 'nspec_in',
+                 'norderdet',
+                 'wave_splice',
+                 'zeropoint_splice',
+                 'throughput_splice',
+                 'steps',
+                 'splice_multi_det',
+                 'meta_spec',
+                 'std_dict'
+                ]
+
     _algorithm = None
     """Algorithm used for the sensitivity calculation."""
 
@@ -220,29 +241,6 @@ class SensFunc(datamodel.DataContainer):
         self.std_dict = flux_calib.get_standard_spectrum(star_type=self.par['star_type'],
                                                          star_mag=self.par['star_mag'],
                                                          ra=star_ra, dec=star_dec)
-
-    def _init_internals(self):
-        """Add any attributes that are *not* part of the datamodel."""
-
-        self.sensfile = None
-        self.spectrograph = None
-        self.par = None
-        self.qafile = None
-        self.thrufile = None
-        self.debug = None
-        self.wave_cnts = None
-        self.counts = None
-        self.counts_ivar = None
-        self.counts_mask = None
-        self.nspec_in = None
-        self.norderdet = None
-        self.wave_splice = None
-        self.zeropoint_splice = None
-        self.throughput_splice = None
-        self.steps = None
-        self.splice_multi_det = None
-        self.meta_spec = None
-        self.std_dict = None
 
     def _bundle(self):
         """

@@ -93,6 +93,9 @@ class TraceImage(pypeitimage.PypeItCalibrationImage):
     output_to_disk = ('TRACE_IMAGE', 'TRACE_FULLMASK', 'TRACE_DETECTOR')
     hdu_prefix = 'TRACE_'
 
+    # Calibration type
+    calib_type = 'Trace'
+
 #    # TODO: This is a hack to limit the arrays written to the MasterEdges object
 #    # to just the selection above.  The reason this doesn't work like the other
 #    # master images above is because the `to_master_file` function is not used

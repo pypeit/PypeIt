@@ -128,8 +128,7 @@ class CalibFrame(datamodel.DataContainer):
 
     # NOTE: Only need to overload to_file because the only thing special about
     # CalibFrame is that the paths are pre-defined.
-    # TODO: Allow the file path to be passed directly to this function?
-    def to_file(self, file_path=None, **kwargs):
+    def to_file(self, file_path=None, overwrite=True, **kwargs):
         """
         Overrides the base-class function, forcing the naming convention.
 
@@ -137,10 +136,15 @@ class CalibFrame(datamodel.DataContainer):
             file_path (:obj:`str`, `Path`_, optional):
                 Full path for the file to be written.  This should be used
                 *very* rarely.  The whole point of the :class:`CalibFrame` is to
-                follow a known/rigid I/O naming structure, and use of this
+                follow a deterministic I/O naming structure, and use of this
                 option circumvents that.  You should instead typically use
                 :func:`set_paths` so that the file path is defined
                 automatically.
+            overwrite (:obj:`bool`, optional):
+                Flag to overwrite any existing files.  This overrides the
+                default of the base class, meaning that anytime a calibration
+                frame is written to disk it will overwrite any existing files by
+                default!
             **kwargs (optional):
                 Passed directly to
                 :func:`~pypeit.datamodel.DataContainer.to_file`.  One of the
@@ -155,11 +159,8 @@ class CalibFrame(datamodel.DataContainer):
             kwargs.pop('hdr')
         else:
             hdr = self.build_header()
-        # TODO: This used to set overwrite=True, but overwrite should be part of
-        # kwargs.  The default of DataContainer is overwrite=False, so I need to
-        # make sure that the behavior is maintained.
-        _file_path = self.get_path() if file_path is None else str(Path(file_path).resolve())
-        super().to_file(_file_path, hdr=hdr, **kwargs)
+        _file_path = self.get_path() if file_path is None else Path(file_path).resolve()
+        super().to_file(_file_path, hdr=hdr, overwrite=overwrite, **kwargs)
 
     @classmethod
     def from_hdu(cls, hdu, chk_version=True, **kwargs):
@@ -345,7 +346,7 @@ class CalibFrame(datamodel.DataContainer):
                 directory.
 
         Returns:
-            :obj:`str`: File path or file name
+            :obj:`str`, `Path`_: File path or file name
         """
         if None in [cls.calib_type, cls.calib_file_format]:
             msgs.error(f'CODING ERROR: {cls.__name__} does not have all '
@@ -356,7 +357,7 @@ class CalibFrame(datamodel.DataContainer):
         filename = f'{cls.calib_type}_{calib_key}.{cls.calib_file_format}'
         if calib_dir is None:
             return filename
-        return str(Path(calib_dir).resolve() / filename)
+        return Path(calib_dir).resolve() / filename
 
     def get_path(self):
         """

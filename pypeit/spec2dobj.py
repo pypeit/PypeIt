@@ -103,6 +103,11 @@ class Spec2DObj(datamodel.DataContainer):
                  'detector': dict(otype=(DetectorContainer, Mosaic),
                                   descr='Detector or Mosaic metadata') }
 
+    internals = ['process_steps',
+                 'head0',
+                 'chk_version'          # Mainly for viewing/using old versions
+                ]
+
     @classmethod
     def from_file(cls, file, detname, chk_version=True):
         """
@@ -177,11 +182,6 @@ class Spec2DObj(datamodel.DataContainer):
         _d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
-
-    def _init_internals(self):
-        self.process_steps = None
-        self.head0 = None
-        self.chk_version = None  # Mainly for viewing/using old versions
 
     def _validate(self):
         """

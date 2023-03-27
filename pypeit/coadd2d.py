@@ -498,12 +498,12 @@ class CoAdd2D:
                     maskdef_designtab = vstack([maskdef_designtab, coadd_dict['maskdef_designtab']])
 
         slits_pseudo \
-                = slittrace.SlitTraceSet(slit_left, slit_righ, self.pypeline, detname=self.detname, nspat=nspat_pseudo,
-                                         PYP_SPEC=self.spectrograph.name, specmin=spec_min1, specmax=spec_max1,
-                                         maskdef_id=maskdef_id, maskdef_objpos=maskdef_objpos, maskdef_offset=0.,
-                                         maskdef_slitcen=maskdef_slitcen, maskdef_designtab=maskdef_designtab)
-                                         #master_key=self.stack_dict['master_key_dict']['trace'],
-                                         #master_dir=self.master_dir)
+                = slittrace.SlitTraceSet(slit_left, slit_righ, self.pypeline, detname=self.detname,
+                                         nspat=nspat_pseudo, PYP_SPEC=self.spectrograph.name,
+                                         specmin=spec_min1, specmax=spec_max1,
+                                         maskdef_id=maskdef_id, maskdef_objpos=maskdef_objpos,
+                                         maskdef_offset=0., maskdef_slitcen=maskdef_slitcen,
+                                         maskdef_designtab=maskdef_designtab)
 
         # change value of spat_id in maskdef_designtab
         # needs to be done here because spat_id is computed in slittrace
@@ -797,8 +797,6 @@ class CoAdd2D:
             dict: Dictionary containing all the images and keys required
             for perfomring 2d coadds.
         """
-
-        # Get the master dir
         redux_path = os.getcwd()
 
         # Grab the files

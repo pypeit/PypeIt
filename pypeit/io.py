@@ -230,8 +230,7 @@ def remove_suffix(file):
 
     """
     _file = Path(file)
-    return (_file.with_suffix('')).with_suffix('').name \
-                    if _file.suffix == '.gz' else _file.with_suffix('').name
+    return (_file.with_suffix('')).stem if _file.suffix == '.gz' else _file.stem
 
 def parse_hdr_key_group(hdr, prefix='F'):
     """
@@ -766,7 +765,7 @@ def fits_open(filename, **kwargs):
     bytes.
 
     Args:
-        filename (:obj:`str`):
+        filename (:obj:`str`, `Path`_):
             File name for the fits file to open.
         **kwargs:
             Passed directly to `astropy.io.fits.open`_.
@@ -782,7 +781,7 @@ def fits_open(filename, **kwargs):
     # string before checking that it exists.  There should be a more robust way
     # to do this!  Is there are more appropriate os.path function that allows
     # for this different type of object?
-    if isinstance(filename, str) and not os.path.isfile(filename):
+    if isinstance(filename, str) and not Path(filename).resolve().exists():
         msgs.error(f'{filename} does not exist!')
     try:
         return fits.open(filename, **kwargs)

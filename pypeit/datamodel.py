@@ -1294,7 +1294,6 @@ class DataContainer:
     # or a normal list?
     # NOTE: This function should *not* include **kwargs.
     def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None,
-               #limit_hdus=None,
                force_to_bintbl=False, hdu_prefix=None):
         """
         Construct one or more HDU extensions with the data.
@@ -1330,8 +1329,6 @@ class DataContainer:
                 are identical.
             primary_hdr (`astropy.io.fits.Header`, optional):
                 Header to add to the primary if add_primary=True
-            limit_hdus (:obj:`list`, optional):
-                Limit the HDUs that can be written to the items in this list
             force_to_bintbl (:obj:`bool`, optional):
                 Force construction of a `astropy.io.fits.BinTableHDU`_ instead
                 of an `astropy.io.fits.ImageHDU`_ when either there are no
@@ -1402,9 +1399,6 @@ class DataContainer:
             for ihdu in hdu:
                 ihdu.name = f'{_hdu_prefix}{ihdu.name}'
         # Limit?
-        # TODO: Change this to always use self.output_to_disk?
-#        if limit_hdus:
-#            hdu = [h for h in hdu if h.name in limit_hdus]
         if self.output_to_disk is not None:
             hdu = [h for h in hdu if h.name in self.output_to_disk]
 
@@ -1524,14 +1518,14 @@ class DataContainer:
                 Raised if the specified file does not exist.
         """
         _ifile = Path(ifile).resolve()
-        if not ifile.exists():
-            raise FileNotFoundError(f'{ifile} does not exist!')
+        if not _ifile.exists():
+            raise FileNotFoundError(f'{_ifile} does not exist!')
 
         if verbose:
-            msgs.info(f'Loading {cls.__name__} from {ifile}')
+            msgs.info(f'Loading {cls.__name__} from {_ifile}')
 
         # Do it
-        with io.fits_open(str(ifile)) as hdu:
+        with io.fits_open(_ifile) as hdu:
             return cls.from_hdu(hdu, chk_version=chk_version, **kwargs)
 
 #            obj = cls.from_hdu(hdu, chk_version=chk_version, **kwargs)

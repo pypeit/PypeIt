@@ -58,7 +58,7 @@ class Alignments(calibframe.CalibFrame):
 
     # NOTE: If you make changes to how this object is bundled into the output
     # datamodel, make sure you update the documentation in
-    # doc/calibrations/master_align.rst!
+    # doc/calibrations/align.rst!
     def _bundle(self):
         """
         Override the base class method simply to set the HDU extension name.

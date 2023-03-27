@@ -150,7 +150,7 @@ class CoAdd1D:
         if obj_model is not None:
             onespec.obj_model = obj_model[wave_gpm]
         # Write
-        onespec.to_file(coaddfile, history = history, overwrite=overwrite)
+        onespec.to_file(coaddfile, history=history, overwrite=overwrite)
 
     def coadd(self):
         """

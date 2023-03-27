@@ -73,6 +73,12 @@ class DataCube(datamodel.DataContainer):
                  'PYP_SPEC': dict(otype=str, descr='PypeIt: Spectrograph name'),
                  'fluxed': dict(otype=bool, descr='Boolean indicating if the datacube is fluxed.')}
 
+    internals = ['head0',
+                 'filename',
+                 'spectrograph',
+                 'spect_meta'
+                ]
+
     @classmethod
     def from_file(cls, ifile):
         """
@@ -99,12 +105,6 @@ class DataCube(datamodel.DataContainer):
         _d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
-
-    def _init_internals(self):
-        self.head0 = None
-        self.filename = None
-        self.spectrograph = None
-        self.spect_meta = None
 
     def _bundle(self):
         """
@@ -1123,6 +1123,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
     # Grab the parset, if not provided
     if parset is None:
+        # TODO: Use config_specific_par instead?
         parset = spec.default_pypeit_par()
     cubepar = parset['reduce']['cube']
     flatpar = parset['calibrations']['flatfield']

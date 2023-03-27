@@ -76,6 +76,12 @@ class OneSpec(datamodel.DataContainer):
                  # the datamodel?
                  'spect_meta': dict(otype=dict, descr='header dict')}
 
+    internals = ['head0',
+                 'filename',
+                 'spectrograph',
+                 'spect_meta',
+                 'history']
+
     @classmethod
     def from_file(cls, ifile):
         """
@@ -121,13 +127,6 @@ class OneSpec(datamodel.DataContainer):
         """
         return np.sqrt(utils.inverse(self.ivar))
         
-    def _init_internals(self):
-        self.head0 = None
-        self.filename = None
-        self.spectrograph = None
-        self.spect_meta = None
-        self.history = []
-
     def to_file(self, ofile, primary_hdr=None, history=None, **kwargs):
         """
         Over-load :func:`pypeit.datamodel.DataContainer.to_file`
