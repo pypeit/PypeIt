@@ -1,6 +1,6 @@
 
-1.12.2.dev
-----------
+1.12.2 (29 Mar 2023)
+--------------------
 
 - Gemini/GMOS mask design slurping and usage
 - New GMOS wavelength solution
