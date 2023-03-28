@@ -284,8 +284,9 @@ class PypeIt:
         This will not crash if not all of the standard set of files are not provided
 
         Args:
-            run (bool, optional): If False, only print the calib names and do
-            not actually run.  Only used with the pypeit_parse_calib_id script
+            run (bool, optional):
+                If False, only print the calib names and do not actually run.
+                Only used with the ``pypeit_parse_calib_id`` script.
 
         Returns:
             dict: A simple dict summarizing the calibration names
@@ -301,6 +302,8 @@ class PypeIt:
             calib_grp = str(i+1)
             # Find all the frames in this calibration group
             in_grp = self.fitstbl.find_calib_group(i)
+            if not any(in_grp):
+                continue
             grp_frames = frame_indx[in_grp]
 
             # Find the detectors to reduce
@@ -360,6 +363,9 @@ class PypeIt:
 
         # Write
         msgs.info('Writing calib file')
+        # TODO: Why are we writing this in addition to the *.calib file (see the
+        # __init__ function)?  I think this *.calib_ids file is actually less
+        # informative and likely wrong...
         calib_file = self.pypeit_file.replace('.pypeit', '.calib_ids')
         ltu.savejson(calib_file, calib_dict, overwrite=True, easy_to_read=True)
 
@@ -1015,7 +1021,7 @@ class PypeIt:
 
         subheader = self.spectrograph.subheader_for_spec(row_fitstbl, head2d)
         # 1D spectra
-        if all_specobjs.nobj > 0:
+        if all_specobjs.nobj > 0 and not self.par['reduce']['extraction']['skip_extraction']:
             # Spectra
             outfile1d = os.path.join(self.science_path, 'spec1d_{:s}.fits'.format(basename))
             # TODO

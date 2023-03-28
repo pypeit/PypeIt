@@ -357,7 +357,7 @@ class QL_Multislit(scriptbase.ScriptBase):
                                  'dither pattern was not executed.  The offset convention is '
                                  'such that a negative offset will move the (negative) B image '
                                  'to the left.')
-        parser.add_argument("--redux_path", type=str, default=os.getcwd(),
+        parser.add_argument("--redux_path", type=str, default='current working directory',
                             help="Location where reduction outputs should be stored.")
         parser.add_argument("--master_dir", type=str, default=os.getenv('QL_MASTERS'),
                             help="Location of PypeIt Master files used for the reduction.")

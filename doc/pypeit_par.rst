@@ -355,6 +355,7 @@ Key                          Type              Options                          
 ``gap_offset``               int, float        ..                                           5.0             Offset (pixels) used for the slit edge gap width when inserting slit edges (see `sync_center`) or when nudging predicted slit edges to avoid slit overlaps.  This should be larger than `minimum_slit_gap` when converted to arcseconds.                                                                                                                                                                                                                                                                                                                                                              
 ``left_right_pca``           bool              ..                                           False           Construct a PCA decomposition for the left and right traces separately.  This can be important for cross-dispersed echelle spectrographs (e.g., Keck-NIRES)                                                                                                                                                                                                                                                                                                                                                                                                                                           
 ``length_range``             int, float        ..                                           ..              Allowed range in slit length compared to the median slit length.  For example, a value of 0.3 means that slit lengths should not vary more than 30%.  Relatively shorter or longer slits are masked or clipped.  Most useful for echelle or multi-slit data where the slits should have similar or identical lengths.                                                                                                                                                                                                                                                                                 
+``maskdesign_filename``      str, list         ..                                           ..              Mask design info contained in this file or files (comma separated)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
 ``maskdesign_maxsep``        int, float        ..                                           50              Maximum allowed offset in pixels between the slit edges defined by the slit-mask design and the traced edges.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
 ``maskdesign_sigrej``        int, float        ..                                           3               Number of sigma for sigma-clipping rejection during slit-mask design matching.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
 ``maskdesign_step``          int, float        ..                                           1               Step in pixels used to generate a list of possible offsets (within +/- `maskdesign_maxsep`) between the slit edges defined by the mask design and the traced edges.                                                                                                                                                                                                                                                                                                                                                                                                                                   
@@ -439,9 +440,9 @@ Key                   Type                       Options                        
 ``IDwaves``           int, float, list           ..                                                                            ..                Wavelengths of the manually identified lines                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
 ``cc_local_thresh``   float                      ..                                                                            0.7               Threshold for the *local* cross-correlation coefficient, evaluated at each reidentified line,  between an input spectrum and the shifted and stretched archive spectrum above which a line must be to be considered a good line for reidentification. The local cross-correlation is evaluated at each candidate reidentified line (using a window of nlocal_cc), and is then used to score the the reidentified lines to arrive at the final set of good reidentifications.                                                                                                                                                                                                                                                                                                                                 
 ``cc_thresh``         float, list, ndarray       ..                                                                            0.7               Threshold for the *global* cross-correlation coefficient between an input spectrum and member of the archive required to attempt reidentification.  Spectra from the archive with a lower cross-correlation are not used for reidentification. This can be a single number or a list/array providing the value for each slit.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
-``ech_fix_format``    bool                       ..                                                                            True              Is this a fixed format echelle?  If so reidentification will assume that each order in the data is aligned with a single order in the reid arxiv.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
 ``ech_norder_coeff``  int                        ..                                                                            4                 For echelle spectrographs, this is the order of the final 2d fit to the order dimension.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 ``ech_nspec_coeff``   int                        ..                                                                            4                 For echelle spectrographs, this is the order of the final 2d fit to the spectral dimension.  You should choose this to be the n_final of the fits to the individual orders.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+``ech_separate_2d``   bool                       ..                                                                            False             For echelle spectrographs, fit the 2D solutions on separate detectors separately                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
 ``ech_sigrej``        int, float                 ..                                                                            2.0               For echelle spectrographs, this is the sigma-clipping rejection threshold in the 2d fit to spectral and order dimensions                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 ``echelle``           bool                       ..                                                                            False             Is this an echelle spectrograph? If yes an additional 2-d fit wavelength fit will be performed as a function of spectral pixel and order number to improve the wavelength solution                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
 ``func``              str                        ..                                                                            ``legendre``      Function used for wavelength solution fits                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
@@ -2477,6 +2478,7 @@ Alterations to the default parameters are:
           cc_thresh = 0.5
           cc_local_thresh = 0.5
           rms_threshold = 0.5
+          ech_separate_2d = True
       [[slitedges]]
           edge_thresh = 8.0
           max_shift_adj = 0.5
@@ -4716,7 +4718,8 @@ Alterations to the default parameters are:
               use_biasimage = False
               noise_floor = 0.01
       [[wavelengths]]
-          lamps = ArI, ArII
+          method = full_template
+          lamps = HeI, NeI, ArI, ArII
           fwhm = 5.0
           rms_threshold = 0.5
       [[slitedges]]
@@ -4770,7 +4773,7 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
-          exprng = 10, None
+          exprng = 1, None
           [[[process]]]
               use_biasimage = False
               use_pixelflat = False
@@ -4781,7 +4784,7 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
-          exprng = None, 100
+          exprng = None, 600
           [[[process]]]
               satpix = nothing
               use_biasimage = False
@@ -4790,6 +4793,7 @@ Alterations to the default parameters are:
       [[pinholeframe]]
           [[[process]]]
               use_biasimage = False
+              use_illumflat = False
       [[alignframe]]
           [[[process]]]
               satpix = nothing
@@ -4797,13 +4801,13 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
-          exprng = None, 100
+          exprng = None, 600
           [[[process]]]
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[illumflatframe]]
-          exprng = 30, None
+          exprng = 1, None
           [[[process]]]
               satpix = nothing
               use_biasimage = False
@@ -4820,15 +4824,17 @@ Alterations to the default parameters are:
               mask_cr = True
               use_biasimage = False
               noise_floor = 0.01
+              use_illumflat = False
       [[standardframe]]
           exprng = None, 600
           [[[process]]]
               mask_cr = True
               use_biasimage = False
               noise_floor = 0.01
+              use_illumflat = False
       [[wavelengths]]
-          lamps = ArI, ArII, HeI, NeI
-          fwhm = 5.0
+          lamps = use_header
+          fwhm_fromlines = True
           rms_threshold = 0.5
       [[slitedges]]
           sync_predict = nearest
@@ -4840,6 +4846,7 @@ Alterations to the default parameters are:
           objlim = 2.0
           use_biasimage = False
           noise_floor = 0.01
+          use_illumflat = False
   [reduce]
       [[skysub]]
           bspline_spacing = 0.8
@@ -5066,7 +5073,7 @@ Alterations to the default parameters are:
               noise_floor = 0.01
       [[wavelengths]]
           method = full_template
-          lamps = HeI, NeI, ArI, ArII
+          lamps = HeI, NeI, ArI
           sigdetect = 10.0
       [[slitedges]]
           edge_thresh = 30
@@ -5168,7 +5175,7 @@ Alterations to the default parameters are:
               noise_floor = 0.01
       [[wavelengths]]
           method = full_template
-          lamps = HeI, NeI, ArI, ArII
+          lamps = HeI, NeI, ArI
           sigdetect = 10.0
       [[slitedges]]
           edge_thresh = 30

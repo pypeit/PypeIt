@@ -1,4 +1,22 @@
 
+1.12.3dev
+---------
+
+- Hotfix to docs to ensure pypeit_loaders api doc is generated
+
+1.12.2 (29 Mar 2023)
+--------------------
+
+- Gemini/GMOS mask design slurping and usage
+- New GMOS wavelength solution
+- Added NIRES tutorial doc
+- reid_arxiv templates for all MMTO Blue Channel gratings and for MMTO Binospec G600 and G1000
+- Various bug fixes and enhancements to mmt_bluechannel and mmt_binospec support
+- Include the S/N of extracted spectra in the SpecObj datamodel
+- Added new specutils interface
+- Fixed bugs when only performing calibrations and (1) calib groups are all set
+  to 'all' or (2) anything other than '0'.
+
 1.12.1 (21 Feb 2023)
 --------------------
 
@@ -10,9 +28,11 @@
 - Implemented the upgraded GTC/OSIRIS+
 - (Hotfix) keymap error when displaying GUIs
 - Added support for more NOT/ALFOSC grisms as well as NOT recommended standards
+- Implemented the SOAR/Goodman blue 400 grating (setup M1)
+- Added support for SOAR/Goodman red 600 grating (setup RED)
 - Implemented the SOAR/Goodman (blue) M1 only
-- New docs on OneSpec 
-- Modify install notes to allow python 3.10; python3.8 not longer explicitly supported
+- New docs on OneSpec
+- Modify install notes to allow python 3.10; python3.8 no longer explicitly supported
 - Allow for bad orders during extraction  (without crashing)
 
 1.12.0 (31 Jan 2023)

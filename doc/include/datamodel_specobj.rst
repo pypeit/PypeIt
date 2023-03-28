@@ -1,6 +1,6 @@
 
 
-Version: 1.1.6
+Version: 1.1.7
 
 ======================  =========================  =================  ====================================================================================================================================================================================
 Obj Key                 Obj Type                   Array Type         Description                                                                                                                                                                         
@@ -54,6 +54,7 @@ Obj Key                 Obj Type                   Array Type         Descriptio
 ``OPT_WAVE``            ndarray                    float              Optimal Wavelengths in vacuum (Angstroms)                                                                                                                                           
 ``PYPELINE``            str                                           Name of the PypeIt pipeline mode                                                                                                                                                    
 ``RA``                  float                                         Right Ascension (J2000) decimal degree                                                                                                                                              
+``S2N``                 float                                         Median signal to noise ratio of the extracted spectrum(OPT if available, otherwise BOX)                                                                                             
 ``SLITID``              int, integer                                  PypeIt slit ID (aka SPAT_ID).                                                                                                                                                       
 ``SPAT_FRACPOS``        float, floating                               Fractional location of the object on the slit                                                                                                                                       
 ``SPAT_PIXPOS``         float, floating                               Spatial location of the trace on detector (pixel) at half-way                                                                                                                       

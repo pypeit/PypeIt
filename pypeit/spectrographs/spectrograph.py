@@ -652,13 +652,22 @@ class Spectrograph:
         msgs.error('This spectrograph does not support the use of mask design. '
                    'Set `use_maskdesign=False`')
 
-    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None):
+    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None, 
+                              binning:str=None, trc_path:str=None):
         """
         Provides the slit edges positions predicted by the slitmask design.
 
         This method is not defined for all spectrographs. This base-class
         method raises an exception. This may be because ``use_maskdesign``
         has been set to True for a spectrograph that does not support it.
+
+        Args:
+            trc_path(str, optional): Path to the first trace file used to generate the trace flat
+            binning(str, optional): spec,spat binning of the flat field image
+            filename (:obj:`str` or :obj:`list`, optional): Name of the file holding the mask design info
+                or the maskfile and wcs_file in that order
+            debug (:obj:`bool`, optional): Debug
+            ccdnum (:obj:`int`, optional): detector number
         """
         msgs.error('This spectrograph does not support the use of mask design. '
                    'Set `use_maskdesign=False`')
@@ -1562,6 +1571,15 @@ class Spectrograph:
 #            raise ValueError('Incomplete information to calculate mm per pixel.')
 #
 #        return self.detector[det-1]['platescale']/tel_platescale
+
+    def get_echelle_angle_files(self):
+        """ Pass back the files required
+        to run the echelle method of wavecalib
+
+        Returns:
+            list: List of files
+        """
+        msgs.error(f'Echelle angle files not ready for {self.name}')
 
     def order_platescale(self, order_vec, binning=None):
         """

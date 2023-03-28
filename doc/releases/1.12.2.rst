@@ -1,0 +1,30 @@
+
+Version 1.12.2
+==============
+
+Instrument-specific Updates
+---------------------------
+
+- Include Gemini/GMOS mask design slurping and usage documentation
+- New Gemini/GMOS wavelength solution
+- Added NIRES tutorial doc
+- reid_arxiv templates for all MMTO Blue Channel gratings and for MMTO Binospec G600 and G1000
+
+Usage Updates
+-------------
+
+- Added new specutils interface
+
+Datamodel Updates
+-----------------
+
+- Include the S/N of extracted spectra in the SpecObj datamodel
+
+Hotfixes
+--------
+
+- Various bug fixes and enhancements to mmt_bluechannel and mmt_binospec support
+- Fixed bugs when only performing calibrations and (1) calib groups are all set
+  to 'all' or (2) anything other than '0'.
+
+

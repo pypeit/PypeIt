@@ -183,13 +183,17 @@ Here are the steps to do so:
 #. Obtain the mask design files. The design files include:
 
     #. The AUTOSLIT-generated mask design files.
-        #. One file with the ".file3" extension containing milling information.
-        #. One file with the ".file1" extension containing the object catalog corresponding to the mask slits.
-    #. The ASCII object list file fed as input to AUTOSLIT to generate the files above.
 
-    ".file3" is mandatory while the other two files can be optionally excluded to debug
-    `TILSOTUA
-   <https://github.com/jsulli27/tilsotua>`__.
+        #. One file with the ".file3" extension containing milling information.
+
+        #. One file with the ".file1" extension containing the object catalog
+           corresponding to the mask slits.
+
+    #. The ASCII object list file fed as input to AUTOSLIT to generate the files
+       above.
+
+   ".file3" is mandatory while the other two files can be optionally excluded to
+   debug `TILSOTUA <https://github.com/jsulli27/tilsotua>`__.
     
 #. Process the design files with `TILSOTUA
    <https://github.com/jsulli27/tilsotua>`__ : The design files contain the

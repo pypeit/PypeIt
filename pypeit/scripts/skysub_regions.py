@@ -18,8 +18,8 @@ class SkySubRegions(scriptbase.ScriptBase):
                                                 'define the sky regions using a GUI. Run in the '
                                                 'same folder as your .pypeit file',
                                     width=width)
-        parser.add_argument('file', type = str, default=None, help='PypeIt file')
-        parser.add_argument('--det', default=1, type=int, help="Detector")
+        parser.add_argument('file', type=str, default=None, help='spec2d file')
+        parser.add_argument('--det', default='1', type=str, help="Detector")
         parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                             help='Overwrite any existing files/directories')
         parser.add_argument('-i', '--initial', default=False, action='store_true',
@@ -35,58 +35,59 @@ class SkySubRegions(scriptbase.ScriptBase):
 
     @staticmethod
     def main(args):
-
+        from pypeit import spec2dobj
         import os
-
+        import astropy.io.fits as fits
         from pypeit import msgs
         from pypeit.core.gui.skysub_regions import SkySubGUI
-        from pypeit.core import flexure
-        from pypeit.scripts import utils
         from pypeit import masterframe
         from pypeit.images import buildimage
+        from pypeit.images.detector_container import DetectorContainer
 
-        # Set the verbosity, and create a logfile if verbosity == 2
-        msgs.set_logfile_and_verbosity('skysub_regions', args.verbosity)
+        # Parse the detector name
+        try:
+            det = int(args.det)
+        except:
+            detname = args.det
+        else:
+            detname = DetectorContainer.get_name(det)
 
-        # Generate a utilities class
-        info = utils.Utilities(None, pypeit_file=args.file, det=args.det)
+        # Load it up
+        spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, detname, chk_version=True)
+        frame = spec2DObj.sciimg
+        hdr = fits.open(args.file)[0].header
+        fname = hdr["FILENAME"]
+        mdir, mkey = hdr['PYPMFDIR'], hdr['TRACMKEY']
+        pypeline, specname = hdr['PYPELINE'], hdr['PYP_SPEC']
 
-        # Interactively select a science frame
-        sciIdx = info.select_science_frame(standard=args.standard)
+        # Use the appropriate class to get the "detector" number
+        det = spec2DObj.detector.parse_name(detname)
 
-        # Load the spectrograph and parset
-        info.load_spectrograph_parset(sciIdx)
+        # Setup for PypeIt imports
+        msgs.reset(verbosity=args.verbosity)
 
-        # Get the master key and directory
-        mdir, mkey = info.get_master_dirkey()
+        # Grab the slit edges
+        slits = spec2DObj.slits
 
-        # Load the image data
-        frame = info.load_frame(sciIdx)
-
-        # Load the slits information
-        slits = utils.get_slits(mkey, mdir)
+        # Get the spatial flexure
         spat_flexure = None
         if args.flexure:
-            spat_flexure = flexure.spat_flexure_shift(frame, slits)
+            spat_flexure = spec2DObj.sci_spat_flexure
 
         # Derive an appropriate output filename
-        file_base = info.get_basename(sciIdx)
+        file_base = os.path.basename(fname)
         prefix = os.path.splitext(file_base)
         if prefix[1] == ".gz":
             outname = os.path.splitext(prefix[0])[0]
         else:
             outname = prefix[0]
         ext = buildimage.SkyRegions.master_file_format
-        regfile = masterframe.construct_file_name(buildimage.SkyRegions, master_key=mkey,
-                                                  master_dir=mdir)
+        regfile = masterframe.construct_file_name(buildimage.SkyRegions, master_key=mkey, master_dir=mdir)
         regfile = regfile.replace(".{0:s}".format(ext), "_{0:s}.{1:s}".format(outname, ext))
-        #outname = "{0:s}/MasterSkyRegions_{1:s}_{2:s}.fits.gz".format(mdir, mkey, outname)
 
         # Finally, initialise the GUI
-        skyreg = SkySubGUI.initialize(args.det, frame, slits, info.spectrograph.pypeline,
-                                      info.spectrograph.name, outname=regfile,
-                                      overwrite=args.overwrite, runtime=False, printout=True,
-                                      initial=args.initial, flexure=spat_flexure)
+        skyreg = SkySubGUI.initialize(det, frame, slits, pypeline, specname, outname=regfile, overwrite=args.overwrite,
+                                      runtime=False, printout=True, initial=args.initial, flexure=spat_flexure)
 
         # Get the results
         skyreg.get_result()

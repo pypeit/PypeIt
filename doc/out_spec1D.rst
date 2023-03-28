@@ -7,6 +7,12 @@
 Spec1D Output 
 =============
 
+.. contents:: 
+    :depth: 1
+    :local:
+
+----
+
 Overview
 ========
 
@@ -18,6 +24,8 @@ There are, however, several methods
 of extraction, calibration, etc. that yield various data
 products. Additionally, a `.txt` file with `Extraction Information`_ for
 each extracted 1D spectrum is also produced.
+
+----
 
 .. _spec1d-naming:
 
@@ -47,6 +55,8 @@ For example::
 
     SPAT0176-SLIT0185-DET01
 
+----
+
 .. _spec1d-extraction:
 
 Extraction
@@ -69,6 +79,8 @@ by the extraction mode.
 
 Therefore, the integrated counts for a boxcar extraction are given by the
 ``BOX_COUNTS`` array with inverse variance ``BOX_COUNTS_IVAR``.
+
+----
 
 .. _pypeit_show_1dspec:
 
@@ -148,6 +160,8 @@ Choice of :ref:`spec1d-extraction` method.
 
 Show the fluxed spectrum (only if it has been fluxed!)
 
+----
+
 .. _spec1d-extract_info:
 
 Extraction Information
@@ -181,6 +195,23 @@ In addition, if reducing :doc:`spectrographs/deimos` or
 :doc:`spectrographs/mosfire` data and slit-mask design matching is performed,
 ``maskdef_id``, ``objname``, ``objra``, ``objdec``, and ``maskdef_extract``  are
 also provided for each spectrum (see :ref:`radec_object_report`).
+
+----
+
+.. _spec1D-specutils:
+
+specutils Interface
+===================
+
+We provide an interface to the `specutils`_ package to facilitate use of PypeIt
+output spectra with code that uses, e.g., `specutils.Spectrum1D`_.  Use of this
+interface requires you to install the `specutils`_ package.  This can be done
+using PypeIt's :ref:`optional-dependencies`, or simply by directly installing
+`specutils`_ within the same python environment as you've installed PypeIt.
+
+.. include:: include/specutils_usage.rst
+
+----
 
 .. _spec1D-datamodel:
 

@@ -95,11 +95,9 @@ and then use the following command:
 
 .. code-block:: console
 
-    pypeit_skysub_regions filename.pypeit
+    pypeit_skysub_regions spec2d_file.fits
 
-You will be provided a list of science frames that you want to
-define the sky regions for. Do this one science frame at a time.
-Enter the corresponding number on the terminal and press enter.
+You will need to manually define the sky regions for each spec2d file.
 You will see a GUI where you can click and drag regions on each
 slit to define the sky regions. Hover the mouse over the window
 and press the ``?`` key. This will print a list of options in the
@@ -132,14 +130,15 @@ based on the name of the ``MasterSkyRegions`` file.
 .. TODO: We should document the datamodel of these MasterSkyRegions files
 .. somewhere...
 
-Once you have defined all of the sky regions manually, re-run
-the reduction. If a sky regions file exists in the ``Masters/`` folder
-for a corresponding science frame, it will be used as a default.
+Once you have defined all of the sky regions manually, you will need to explicitly
+tell PypeIt to use the manually defined sky regions file by adding the following
+lines to your :ref:`pypeit_file`:
 
-.. note::
+.. code-block:: ini
 
-    If you manually create a sky regions file - this will be used by default in
-    PypeIt. You should either delete or rename the ``MasterSkyRegions`` file if
-    you later want to use the automatic PypeIt algorithm.
+    [reduce]
+       [[skysub]]
+          user_regions = master
 
+and then re-run the reduction.
 
