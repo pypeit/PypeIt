@@ -1,6 +1,12 @@
 
-1.12.2.dev
-----------
+1.12.3dev
+---------
+
+- Hotfix to docs to ensure pypeit_loaders api doc is generated
+- Make pypeit_show_2dspec (somewhat) backwards compatible.
+
+1.12.2 (29 Mar 2023)
+--------------------
 
 - Gemini/GMOS mask design slurping and usage
 - New GMOS wavelength solution
@@ -9,7 +15,8 @@
 - Various bug fixes and enhancements to mmt_bluechannel and mmt_binospec support
 - Include the S/N of extracted spectra in the SpecObj datamodel
 - Added new specutils interface
-- Make pypeit_show_2dspec (somewhat) backwards compatible.
+- Fixed bugs when only performing calibrations and (1) calib groups are all set
+  to 'all' or (2) anything other than '0'.
 
 1.12.1 (21 Feb 2023)
 --------------------

@@ -302,6 +302,8 @@ class PypeIt:
             calib_grp = str(i+1)
             # Find all the frames in this calibration group
             in_grp = self.fitstbl.find_calib_group(i)
+            if not any(in_grp):
+                continue
             grp_frames = frame_indx[in_grp]
 
             # Find the detectors to reduce
