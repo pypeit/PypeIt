@@ -797,7 +797,7 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
             msgs.error('You must specify longitude and latitude if we are extinction correcting')
         # Apply Extinction if optical bands
         msgs.info("Applying extinction correction")
-        msgs.warn("Extinction correction applyed only if the spectra covers <10000Ang.")
+        msgs.warn("Extinction correction applied only if the spectra covers <10000Ang.")
         extinct = load_extinction_data(longitude, latitude, extinctfilepar)
         ext_corr = extinction_correction(wave * units.AA, airmass, extinct)
         senstot = sensfunc_obs * ext_corr
