@@ -765,8 +765,8 @@ class PypeIt:
         # Instantiate Reduce object
         # Required for pypeline specific object
         # At instantiaton, the fullmask in self.sciImg is modified
-        objFind = find_objects.FindObjects.get_instance(sciImg, self.caliBrate.slits, self.spectrograph,
-                                                        self.par, self.objtype,
+        objFind = find_objects.FindObjects.get_instance(sciImg, self.caliBrate.slits,
+                                                        self.spectrograph, self.par, self.objtype,
                                                         wv_calib=self.caliBrate.wv_calib,
                                                         waveTilts=self.caliBrate.wavetilts,
                                                         initial_skymask=initial_skymask,
