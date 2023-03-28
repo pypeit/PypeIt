@@ -904,7 +904,7 @@ def files_from_extension(raw_path:str,
         list: List of raw data filenames (sorted) with full path
     """
     # Grab the list of files
-    dfname = os.path.join(raw_path, '*{0}*'.format(extension)) \
-                if os.path.isdir(raw_path) else '{0}*{1}*'.format(raw_path, extension)
+    dfname = os.path.join(raw_path, f'*{extension}*') \
+                if os.path.isdir(raw_path) else f'{raw_path}*{extension}*'
     return sorted(glob.glob(dfname))
 

@@ -1474,7 +1474,11 @@ class PypeItMetaData:
             indx = np.array([setup in _set for _set in self['setup']])
             if not np.any(indx):
                 continue
-            subtbl = self.table[output_cols][indx]
+            try:
+                subtbl = self.table[output_cols][indx]
+            except:
+                embed()
+                exit()
             if 'calib' in output_cols:
                 # calib can be a str with a list of values because in some cases (e.g. MOSFIRE) the same
                 # calibration files are used for different setups. Here we update calib to have only the

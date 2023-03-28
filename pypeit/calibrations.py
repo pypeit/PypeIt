@@ -541,10 +541,18 @@ class Calibrations:
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        raw_illum_files, setup, calib_id = self._prep_calibrations('illumflat')
+        raw_pixel_files, pixel_setup, pixel_calib_id = self._prep_calibrations('pixelflat')
         # Using _prep_calibrations is a bit overkill here...
-        raw_pixel_files = self._prep_calibrations('pixelflat')[0]
+        raw_illum_files, illum_setup, illum_calib_id = self._prep_calibrations('illumflat')
         raw_lampoff_files = self._prep_calibrations('lampoffflats')[0]
+
+        if len(raw_pixel_files) == 0 and len(raw_illum_files) == 0:
+            self.flatimages = None
+            msgs.warn('No frametype=pixelflat or illumflat files to build flat-field images')
+            return self.flatimages
+
+        setup = illum_setup if len(raw_pixel_files) == 0 else pixel_setup
+        calib_id = illum_calib_id if len(raw_pixel_files) == 0 else pixel_calib_id
 
         # Construct the detector/mosaic identifier
         detname = self.spectrograph.get_det_name(self.det)
@@ -687,6 +695,11 @@ class Calibrations:
         raw_trace_files, setup, calib_id = self._prep_calibrations('trace')
         raw_lampoff_files = self._prep_calibrations('lampoffflats')[0]
 
+        if len(raw_trace_files) == 0:
+            self.slits = None
+            msgs.warn('No frametype=trace files to build slits')
+            return self.slits
+
         # Construct the detector/mosaic identifier
         detname = self.spectrograph.get_det_name(self.det)
 
@@ -701,11 +714,6 @@ class Calibrations:
             self.slits.mask = self.slits.mask_init.copy()
             if self.user_slits is not None:
                 self.slits.user_mask(detname, self.user_slits)            
-            return self.slits
-
-        if len(raw_trace_files) == 0:
-            self.slits = None
-            msgs.warn('No frametype=trace files to build slits')
             return self.slits
 
         # Slits don't exist or we're not resusing them
@@ -801,7 +809,12 @@ class Calibrations:
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        _, setup, calib_id = self._prep_calibrations('arc')
+        raw_files, setup, calib_id = self._prep_calibrations('arc')
+        if len(raw_files) == 0:
+            # There are no arc files, so we're done!
+            self.wv_calib = None
+            msgs.warn('No frametype=arc files available!')
+            return self.wv_calib
 
         # Construct the detector/mosaic identifier
         detname = self.spectrograph.get_det_name(self.det)
@@ -869,7 +882,13 @@ class Calibrations:
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Load up?
-        _, setup, calib_id = self._prep_calibrations('tilt')
+        raw_files, setup, calib_id = self._prep_calibrations('tilt')
+        if len(raw_files) == 0:
+            # There are no tilt files, so we're done!
+            self.wavetilts = None
+            msgs.warn('No frametype=tilt files available!')
+            return self.wavetilts
+
         detname = self.spectrograph.get_det_name(self.det)
         tilts_file = Path(wavetilts.WaveTilts.construct_file_name(
                             CalibFrame.construct_calib_key(setup, calib_id, detname),

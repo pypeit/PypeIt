@@ -278,7 +278,7 @@ class PypeIt:
 
         # Frame indices
         frame_indx = np.arange(len(self.fitstbl))
-        for calib_ID in fitstbl.calib_groups:
+        for calib_ID in self.fitstbl.calib_groups:
             # Find all the frames in this calibration group
             in_grp = self.fitstbl.find_calib_group(calib_ID)
             grp_frames = frame_indx[in_grp]

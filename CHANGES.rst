@@ -18,6 +18,8 @@
   provided by ``pypeit_setup``.  The ``.calib`` file is now always written, and
   provides a direct association between input raw files and output calibration
   files.  Discussed in new docs.
+- The ``'calib'`` column is now always added to the pypeit file, regardless of
+  whether or not you also request the ``'comb_id'`` and ``'bkg_id'`` columns.
 
 1.12.1 (21 Feb 2023)
 --------------------
