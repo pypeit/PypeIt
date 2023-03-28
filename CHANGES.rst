@@ -1,4 +1,9 @@
 
+1.12.3dev
+---------
+
+- Hotfix to docs to ensure pypeit_loaders api doc is generated
+
 1.12.2 (29 Mar 2023)
 --------------------
 
