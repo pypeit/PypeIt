@@ -12,6 +12,7 @@
 .. _collections.OrderedDict: https://docs.python.org/3/library/collections.html#collections.OrderedDict
 .. _str.splitlines: https://docs.python.org/3/library/stdtypes.html#str.splitlines
 .. _textwrap.wrap: https://docs.python.org/3/library/textwrap.html#textwrap.wrap
+.. _Path: https://docs.python.org/3/library/pathlib.html
 
 .. numpy
 .. _numpy: https://numpy.org/

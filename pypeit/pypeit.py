@@ -166,7 +166,8 @@ class PypeIt:
         self.show = show
 
         # Set paths
-        self.calibrations_path = os.path.join(self.par['rdx']['redux_path'], self.par['calibrations']['calib_dir'])
+        self.calibrations_path = os.path.join(self.par['rdx']['redux_path'],
+                                              self.par['calibrations']['calib_dir'])
 
         # Check for calibrations
         if not self.calib_only:
@@ -752,7 +753,7 @@ class PypeIt:
                 and self.par['scienceframe']['process']['spat_flexure_correct']) or \
            (self.objtype == 'standard'
                 and self.par['calibrations']['standardframe']['process']['spat_flexure_correct']):
-            spat_flexure_shift = self.sciImg.spat_flexure
+            spat_flexure_shift = sciImg.spat_flexure
         initial_skymask = self.load_skyregions(sciImg.files[0], frames[0], spat_flexure_shift,
                                                initial_slits=self.spectrograph.pypeline != 'IFU')
 

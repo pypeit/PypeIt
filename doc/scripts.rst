@@ -161,7 +161,7 @@ to the screen; e.g.:
 
     setups pass     scifiles
     ------ -------- ---------------
-         A False ALDc200205.fits
+         A False    ALDc200205.fits
       None True
 
 pypeit_obslog

@@ -1,4 +1,3 @@
-# TODO: This docstring needs to be updated!!
 """
 The primary purpose of this module is to provide the classes/methods
 used to trace slit edges.
@@ -26,7 +25,7 @@ in debugging mode, use the `--show` and/or `--debug` options:
 
 Programmatically, if you have a :ref:`pypeit_file` and a path for the reductions
 (`redux_path`), an example of how to trace the slits in a single
-detector is as follows:A
+detector is as follows:
 
 .. code-block:: python
 
@@ -75,7 +74,7 @@ detector is as follows:A
 
 If you want to instead start without a pypeit file, you could do the
 following for, e.g., a single unbinned Keck DEIMOS flat-field
-exposure in a fits file called `trace_file`::
+exposure in a fits file called `trace_file`:
 
 .. code-block:: python
 

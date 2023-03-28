@@ -32,25 +32,20 @@ calibrations are used with each science frame, you could split the data between
 two :ref:`PypeIt Files<pypeit_file>` or you can use PypeIt's *calibration group*
 designations.
 
-To assign specific calibration frames to each science frame, you need to
-include the ``-b`` option when running :ref:`pypeit_setup` to add the ``calib``,
-``comb_id`` and ``bkg_id`` columns to the :ref:`data_block` of the
-:ref:`pypeit_file`, although you only need the ``calib`` column and can leave
-the other two at their default values (-1).
-
-The ``calib`` column is used to pair science frames with calibration frames.
-Here's an example:
+To assign specific calibration frames to each science frame, you must edit the
+``calib`` column in the :ref:`data_block` of the :ref:`pypeit_file`, which is 
+used to pair science frames with calibration frames.  Here's an example:
     
 .. code-block:: console
 
-                     filename |                 frametype | ... | calib | comb_id | bkg_id
-    DE.20170425.09554.fits.gz |                  arc,tilt | ... |   all |      -1 |     -1
-    DE.20170425.09632.fits.gz | pixelflat,illumflat,trace | ... |   1,2 |      -1 |     -1
-    DE.20170425.09722.fits.gz | pixelflat,illumflat,trace | ... |   1,2 |      -1 |     -1
-    DE.20170425.09803.fits.gz | pixelflat,illumflat,trace | ... |     3 |      -1 |     -1
-    DE.20170425.50487.fits.gz |                   science | ... |     1 |      -1 |     -1
-    DE.20170425.51771.fits.gz |                   science | ... |     2 |      -1 |     -1
-    DE.20170425.53065.fits.gz |                   science | ... |     3 |      -1 |     -1
+                     filename |                 frametype | ... | calib |
+    DE.20170425.09554.fits.gz |                  arc,tilt | ... |   all |
+    DE.20170425.09632.fits.gz | pixelflat,illumflat,trace | ... |   1,2 |
+    DE.20170425.09722.fits.gz | pixelflat,illumflat,trace | ... |   1,2 |
+    DE.20170425.09803.fits.gz | pixelflat,illumflat,trace | ... |     3 |
+    DE.20170425.50487.fits.gz |                   science | ... |     1 |
+    DE.20170425.51771.fits.gz |                   science | ... |     2 |
+    DE.20170425.53065.fits.gz |                   science | ... |     3 |
 
 Here, the ``arc,tilt`` frame is used for the calibration of every science frame,
 so the value in its ``calib`` entry can be set to ``all`` (``1,2,3`` also
@@ -59,38 +54,58 @@ are used for the calibration of the first two science frames, while the third is
 used for the calibration of the third science frame.
 
 .. note::
-    
-    Importantly, because all of the ``comb_id`` and ``bkg_id`` values are -1,
-    none of the science frames will be combined.  To perform a simple
-    combination of science frames (i.e., combine the pixel values in the frames
-    after :ref:`image_proc` **without** accounting for any shifts in the
-    wavelength calibration or slit traces), see :ref:`2d_combine`.
+
+    - Calibration group numbers **must** be integers and unique for each group;
+      however, they do not need to follow any particular sequence.  
+
+    - There is currently a limit of no more than 63 calibration groups.
 
 .. _calibrations-calibfile:
 
-Output calib File
------------------
+".calib" File
+-------------
 
-When PypeIt runs successful, a file with a ``.calib`` extension is generated
-that provides a summary of the calibration groups used during the reduction.
-The file lists all the source file of each frame type ordered by their
-calibration group.  It looks roughly like this:
+A PypeIt ``.calib`` file is written both when running :ref:`pypeit_setup` and
+:ref:`run-pypeit`, a yaml file that provides a summary of the calibration groups
+used during the reduction.  The file lists all the source file of each frame
+type ordered by their calibration group and looks roughly like this:
 
-.. code-block:: console
+.. code-block:: yaml
 
+    # Auto-generated calibration association file using PypeIt version:  1.12.2.dev137+g95b15695a
+    # UTC 2023-03-28T17:09:20.359
+    # NOTE: DET01 is a placeholder for the reduced detectors/mosaics
     A:
-    --:
-        SETUP DETAILS
-    1:
-        align: []
+      --:
+        dichroic: d55
+        dispname: 600/4310
+      0:
         arc:
-        - /arc/file/1
-        - /arc/file/2
-        bias: []
+          proc:
+          - /rdx/path/shane_kast_blue_A/Calibrations/Arc_A_0_DET01.fits
+          - /rdx/path/shane_kast_blue_A/Calibrations/WaveCalib_A_0_DET01.fits
+          raw:
+          - /raw/path/b1.fits.gz
+        bias:
+          proc:
+          - /rdx/path/shane_kast_blue_A/Calibrations/Bias_A_0_DET01.fits
+          raw:
+          - /raw/path/b14.fits.gz
+          ...
+        science:
+        - /raw/path/b27.fits.gz
+        - /raw/path/b28.fits.gz
+        standard:
+        - /raw/path/b24.fits.gz
         ...
 
-You may generate a similar (and perhaps more readable) file using the
-:ref:`pypeit-parse-calib-id` script.
+The outermost element gives the setup/configuration identifier, ``A`` in this
+case.  This is immediately followed by the instrument configuration details.
+Then, for each calibration group, the file provides the associated raw science
+and standard files, the raw calibration files, and the processed calibration
+files the code *expects* to create.  Whether or not the processed calibration
+files exist after executing :ref:`run-pypeit` will depend on the success of the
+run and any relevant user-based parameters.
 
 ----
 
@@ -159,21 +174,13 @@ combination of:
 
     - the instrument configuration (setup) identifier (e.g., ``A``),
 
-    - the calibration group **bit** identifier (e.g., ``7``), and
+    - the list of associated calibration groups (e.g., ``1-2`` or ``all``), and
 
     - the detector or mosaic identifier (e.g., ``DET01`` or ``MSC01``).
 
-Importantly, note that the calibration group **bit** identifier is used and not
-a specific calibration group ID number.  This is because calibration frames can
-belong to multiple calibration groups.  For example, if there are 3 calibration
-groups (groups 1, 2, and 3) and a set of bias frames are used for all three
-groups, the resulting processed bias frame will be called
-``Bias_A_7_DET01.fits`` for detector 1 in setup A.  The ``7`` comes from
-the bitwise calculation :math:`2^{1-1} + 2^{2-1} + 2^{3-1} = 7`.
+.. note::
 
-Although convenient from a development perspective, this abstraction of the
-calibration file names can make it difficult to associate each calibration frame
-with its source input frames.  To help with this, see the
-:ref:`calibrations-calibfile`.
+    If you have a lot of calibration groups in your pypeit file, you may end up
+    with very long file names!
 
 

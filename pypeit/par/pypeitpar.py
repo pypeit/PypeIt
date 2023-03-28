@@ -3922,12 +3922,11 @@ class CalibrationsPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
     """
-    def __init__(self, calib_dir=None, setup=None, bpm_usebias=None, biasframe=None,
-                 darkframe=None, arcframe=None, tiltframe=None, pixelflatframe=None,
-                 pinholeframe=None, alignframe=None, alignment=None, traceframe=None,
-                 illumflatframe=None, lampoffflatsframe=None, skyframe=None,
-                 standardframe=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None,
-                 raise_chk_error=None):
+    def __init__(self, calib_dir=None, bpm_usebias=None, biasframe=None, darkframe=None,
+                 arcframe=None, tiltframe=None, pixelflatframe=None, pinholeframe=None,
+                 alignframe=None, alignment=None, traceframe=None, illumflatframe=None,
+                 lampoffflatsframe=None, skyframe=None, standardframe=None, flatfield=None,
+                 wavelengths=None, slitedges=None, tilts=None, raise_chk_error=None):
 
 
         # Grab the parameter names and values from the function
@@ -4087,7 +4086,7 @@ class CalibrationsPar(ParSet):
         k = np.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = [ 'calib_dir', 'setup', 'bpm_usebias', 'raise_chk_error']
+        parkeys = [ 'calib_dir', 'bpm_usebias', 'raise_chk_error']
 
         allkeys = parkeys + ['biasframe', 'darkframe', 'arcframe', 'tiltframe', 'pixelflatframe',
                              'illumflatframe', 'lampoffflatsframe',
