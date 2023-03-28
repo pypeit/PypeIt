@@ -1,14 +1,8 @@
 
-1.12.2.dev
-----------
+1.12.3dev
+---------
 
-- Gemini/GMOS mask design slurping and usage
-- New GMOS wavelength solution
-- Added NIRES tutorial doc
-- reid_arxiv templates for all MMTO Blue Channel gratings and for MMTO Binospec G600 and G1000
-- Various bug fixes and enhancements to mmt_bluechannel and mmt_binospec support
-- Include the S/N of extracted spectra in the SpecObj datamodel
-- Added new specutils interface
+- Hotfix to docs to ensure pypeit_loaders api doc is generated
 - Calibration group numbers can now be anything, as long as there are no more
   than 63 unique integers.
 - Removed use of the term "master", renamed to calibration frames/files.
@@ -20,6 +14,19 @@
   files.  Discussed in new docs.
 - The ``'calib'`` column is now always added to the pypeit file, regardless of
   whether or not you also request the ``'comb_id'`` and ``'bkg_id'`` columns.
+
+1.12.2 (29 Mar 2023)
+--------------------
+
+- Gemini/GMOS mask design slurping and usage
+- New GMOS wavelength solution
+- Added NIRES tutorial doc
+- reid_arxiv templates for all MMTO Blue Channel gratings and for MMTO Binospec G600 and G1000
+- Various bug fixes and enhancements to mmt_bluechannel and mmt_binospec support
+- Include the S/N of extracted spectra in the SpecObj datamodel
+- Added new specutils interface
+- Fixed bugs when only performing calibrations and (1) calib groups are all set
+  to 'all' or (2) anything other than '0'.
 
 1.12.1 (21 Feb 2023)
 --------------------

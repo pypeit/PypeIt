@@ -18,8 +18,8 @@ class SkySubRegions(scriptbase.ScriptBase):
                                                 'define the sky regions using a GUI. Run in the '
                                                 'same folder as your .pypeit file',
                                     width=width)
-        parser.add_argument('file', type = str, default=None, help='PypeIt file')
-        parser.add_argument('--det', default=1, type=int, help="Detector")
+        parser.add_argument('file', type=str, default=None, help='spec2d file')
+        parser.add_argument('--det', default='1', type=str, help="Detector")
         parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                             help='Overwrite any existing files/directories')
         parser.add_argument('-i', '--initial', default=False, action='store_true',
@@ -35,46 +35,56 @@ class SkySubRegions(scriptbase.ScriptBase):
 
     @staticmethod
     def main(args):
-
+        from pypeit import spec2dobj
         import os
-
+        import astropy.io.fits as fits
         from pypeit import msgs
         from pypeit import io
         from pypeit.core.gui.skysub_regions import SkySubGUI
-        from pypeit.core import flexure
-        from pypeit.scripts import utils
+#        from pypeit.core import flexure
+#        from pypeit.scripts import utils
         from pypeit.images import buildimage
+        from pypeit.images.detector_container import DetectorContainer
 
-        # Set the verbosity, and create a logfile if verbosity == 2
-        msgs.set_logfile_and_verbosity('skysub_regions', args.verbosity)
+        # Parse the detector name
+        try:
+            det = int(args.det)
+        except:
+            detname = args.det
+        else:
+            detname = DetectorContainer.get_name(det)
 
-        # Generate a utilities class
-        info = utils.Utilities(pypeit_file=args.file, det=args.det)
+#        info = utils.Utilities(pypeit_file=args.file, det=args.det)
 
-        # Interactively select a science frame
-        sciIdx = info.select_science_frame(standard=args.standard)
+        # Load it up
+        spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, detname, chk_version=True)
+        frame = spec2DObj.sciimg
+        hdr = fits.open(args.file)[0].header
+        fname = hdr["FILENAME"]
+        mdir, mkey = hdr['PYPMFDIR'], hdr['TRACMKEY']
+        pypeline, specname = hdr['PYPELINE'], hdr['PYP_SPEC']
 
-        # Load the spectrograph and parset
-        info.load_par(iFile=sciIdx)
-        info.load_metadata()
+        # Use the appropriate class to get the "detector" number
+        det = spec2DObj.detector.parse_name(detname)
 
-        # Load the image data
-        frame = info.load_frame()
+        # Setup for PypeIt imports
+        msgs.reset(verbosity=args.verbosity)
 
-        # Load the slits information
-        slits = info.get_slits()
-        spat_flexure = flexure.spat_flexure_shift(frame, slits) if args.flexure else None
+        # Grab the slit edges
+        slits = spec2DObj.slits
+
+        # Get the spatial flexure
+        spat_flexure = None
+        if args.flexure:
+            spat_flexure = spec2DObj.sci_spat_flexure
 
         # Derive an appropriate output filename
-        file_base = info.get_basename()
-        info.load_calib_dir()
-        calib_key = info.get_calib_key(iFile=iFile)
-        regfile = buildimage.SkyRegions.construct_file_name(calib_key, calib_dir=info.calib_dir,
+        file_base = os.path.basename(fname)
+        regfile = buildimage.SkyRegions.construct_file_name(mkey, calib_dir=mdir,
                                                             basename=io.remove_suffix(file_base))
 
         # Finally, initialise the GUI
-        skyreg = SkySubGUI.initialize(args.det, frame, slits, info.spectrograph.pypeline,
-                                      info.spectrograph.name, outname=regfile,
+        skyreg = SkySubGUI.initialize(det, frame, slits, pypeline, specname, outname=regfile,
                                       overwrite=args.overwrite, runtime=False, printout=True,
                                       initial=args.initial, flexure=spat_flexure)
 
