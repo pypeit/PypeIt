@@ -87,8 +87,8 @@ class CalibFrame(datamodel.DataContainer):
         Set the internals necessary to construct the IO path for the calibration
         file.
 
-        Nothing is returned; this function is used to set :attr:`calib_dir`, :attr:`calib_id`, and
-        :attr:`calib_key`.
+        Nothing is returned; this function is used to set :attr:`calib_dir`,
+        :attr:`calib_id`, and :attr:`calib_key`.
 
         Args:
             odir (:obj:`str`, `Path`_):
@@ -100,7 +100,7 @@ class CalibFrame(datamodel.DataContainer):
                 Identifiers for one or more calibration groups for this
                 calibration frame.  The individual string and the string
                 elements of the list must be single numbers.  The only exception
-                is the string 'all'.
+                is the string `'all'`.
             detname (:obj:`str`):
                 The identifier used for the detector or detector mosaic for the
                 relevant instrument; see

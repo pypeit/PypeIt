@@ -156,8 +156,6 @@ class Calibrations:
         self.frame = None
         self.binning = None
 
-#        self.shape = None
-
         self.msarc = None
         self.mstilt = None
         self.alignments = None
