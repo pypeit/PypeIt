@@ -9,6 +9,8 @@
 - Various bug fixes and enhancements to mmt_bluechannel and mmt_binospec support
 - Include the S/N of extracted spectra in the SpecObj datamodel
 - Added new specutils interface
+- Fixed bugs when only performing calibrations and (1) calib groups are all set
+  to 'all' or (2) anything other than '0'.
 - Deprecate use of python 3.8 with PypeIt
 
 1.12.1 (21 Feb 2023)
