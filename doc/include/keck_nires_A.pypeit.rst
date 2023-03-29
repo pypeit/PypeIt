@@ -1,21 +1,21 @@
 .. code-block:: console
 
-    # Auto-generated PypeIt input file using PypeIt version: 1.12.2.dev137+g95b15695a
-    # UTC 2023-03-21T16:11:04.477
-    
+    # Auto-generated PypeIt input file using PypeIt version: 1.12.2.dev118+g6905096d0
+    # UTC 2023-03-25T04:05:16.591
+
     # User-defined execution parameters
     [rdx]
         spectrograph = keck_nires
-    
+
     # Setup
     setup read
     Setup A:
       dispname: spec
     setup end
-    
-    # Data block 
+
+    # Data block
     data read
-     path /Users/westfall/Work/packages/PypeIt-development-suite/RAW_DATA/keck_nires/NIRES
+     path /Users/dpelliccia/Pypeit/PypeIt-development-suite/RAW_DATA/keck_nires/ABBA_wstandard
              filename |        frametype |               ra |              dec |     target | dispname |    decker | binning |              mjd |          airmass | exptime | dithpat | dithpos | dithoff | frameno | calib | comb_id | bkg_id
     s190519_0059.fits | arc,science,tilt | 194.259151362434 | 22.0313494322493 |      GD153 |     spec | 0.55 slit |     1,1 | 58622.3598610573 | 1.03675819208546 |   200.0 |    ABBA |       A |     2.0 |      59 |     1 |       1 |      2
     s190519_0060.fits | arc,science,tilt | 194.260349844733 | 22.0313316699865 |      GD153 |     spec | 0.55 slit |     1,1 |  58622.362605849 | 1.04142552296712 |   200.0 |    ABBA |       B |    -2.0 |      60 |     1 |       2 |      1

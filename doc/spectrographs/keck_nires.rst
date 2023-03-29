@@ -77,5 +77,5 @@ to the development of PypeIt for use with NIRES data:
 
    ../dev/niresframes
    ../dev/niresconfig
-    ../tutorials/nires_howto
+   ../tutorials/nires_howto
 

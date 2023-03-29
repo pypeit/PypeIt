@@ -188,26 +188,26 @@ The test requires that you have downloaded the ``PypeIt``
 :ref:`dev-suite` and defined the ``PYPEIT_DEV`` environmental
 variable that points to the relevant directory.
 
-The algorithm for this test is as follows:
+The algorithm for this test is run on three datasets,
+'ABpat_wstandard', 'ABC_nostandard', 'ABBA_nostandard', and is as follows:
 
-1. Collect the names of all files in the following directory:
+1. Collect the names of all files from the following directory:
 
 .. code-block:: ini
 
-    ${PYPEIT_DEV}/RAW_DATA/keck_nires/ERIS
+    ${PYPEIT_DEV}/RAW_DATA/keck_nires/{dataset}
 
 2. Use :class:`~pypeit.pypeitsetup.PypeItSetup` to automatically
    identify the configurations for these files.
 
-3. Check that the code found one configuration and wrote the pypeit file for it.
+3. Check that the code found one setup.
 
-4. Read the pypeit file.
+4. Read in a pre-generated .pypeit file with the correct calibration, combination, and background ids.
 
-5. Check that the ``calib`` values for science/standard and calibration frames are correct.
-
-6. Check that ``comb_id`` and ``bkg_id`` for the science frames are what expected. The
-   dither sequence used here is: "ABBA".
+5. Check that the ``calib``, ``comb_id``, and ``bkg_id`` values for science frames in the automatically
+identified files are the same as the ones in the pre-generated .pypeit file.
 
 
+The dither sequences used here are: "ABBA", "ABC", "ABpat".
 Because this test is now included in the ``PypeIt`` :ref:`unit-tests`, these configuration checks
 are performed by the developers for every new version of the code.

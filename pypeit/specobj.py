@@ -343,8 +343,9 @@ class SpecObj(datamodel.DataContainer):
         """
         SN = 0.
         for pref in ['OPT', 'BOX']:
-            if self[pref+'_COUNTS'] is not None:
-                SN = np.median(self[pref+'_COUNTS'] * np.sqrt(self[pref+'_COUNTS_IVAR']))
+            if self[pref+'_COUNTS'] is not None and np.any(self[pref+'_MASK']):
+                SN = np.median(self[pref+'_COUNTS'][self[pref+'_MASK']] *
+                               np.sqrt(self[pref+'_COUNTS_IVAR'][self[pref+'_MASK']]))
             if SN != 0.:
                 break
         return SN

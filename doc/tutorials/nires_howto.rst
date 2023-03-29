@@ -11,7 +11,7 @@ Overview
 ========
 
 This doc goes through a full run of PypeIt on one of our example Keck/NIRES
-datasets (specifically the ``NIRES`` dataset).  If you're having trouble
+datasets (specifically the ``ABBA_wstandard`` dataset).  If you're having trouble
 reducing your data, we encourage you to try going through this tutorial using
 this example dataset first.  See :ref:`here <dev-suite>` to find the example
 dataset, please join our `PypeIt Users Slack <pypeit-users.slack.com>`__ (using
@@ -29,7 +29,7 @@ Before reducing your data with PypeIt, you first have to prepare a
 
 .. code-block:: bash
 
-    pypeit_setup -r $HOME/Work/packages/PypeIt-development-suite/RAW_DATA/keck_nires/NIRES/ -s keck_nires -b -c A 
+    pypeit_setup -r $HOME/Work/packages/PypeIt-development-suite/RAW_DATA/keck_nires/ABBA_wstandard/ -s keck_nires -b -c A
 
 where the ``-r`` argument should be replaced by your local directory and the
 ``-b`` indicates that the data uses background images and should include the
@@ -55,7 +55,7 @@ pointings, however, you need to edit the pypeit file to
 correct the other errors.  The corrections needed are:
 
     - Set the frametypes for ``s190519_0059.fits`` and ``s190519_0060.fits`` to
-      ``standard`` .
+      ``standard``.
 
     - Assign the same calibration group to the standard and science frames
       (i.e., same ``calib`` value).
