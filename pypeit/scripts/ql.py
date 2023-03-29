@@ -205,25 +205,8 @@ def generate_sci_pypeitfile(redux_path:str,
     file_paths = np.unique([os.path.dirname(ff) for ff in sci_files]).tolist()
 
     # Stack?
-    if len(sci_files) > 1 and stack:
+    if len(sci_files) > 1 and stack and not bkg_redux:
         ps_sci.fitstbl['comb_id'] = 1
-
-    # A-B?
-    # TODO -- Remove this if we can replace with spectrograph.get_comb_group() 
-    #if bkg_redux:
-    #    new_comb = np.zeros_like(ps_sci.fitstbl['comb_id'], dtype=int)
-    #    new_bkg = np.zeros_like(ps_sci.fitstbl['bkg_id'], dtype=int)
-    #    As = dither_id == 'A'
-    #    Bs = dither_id == 'B'
-    #    # Set
-    #    new_comb[As] = 1
-    #    new_comb[Bs] = 2
-    #    new_bkg[As] = 2
-    #    new_bkg[Bs] = 1
-    #    # Finish
-    #    ps_sci.fitstbl['comb_id'] = new_comb
-    #    ps_sci.fitstbl['bkg_id'] = new_bkg
-    embed(header='226 of ql')
 
     # Generate
     pypeitFile = inputfiles.PypeItFile(
@@ -388,9 +371,6 @@ class QL(scriptbase.ScriptBase):
         # Dither pattern?
         if args.bkg_redux:
             sci_files = np.array(files)[sci_idx]
-            # TODO -- Remove this if we can replace with spectrograph.get_comb_group() 
-            #dither_pattern, dither_id, offset_arcsec = \
-            #    ps.spectrograph.parse_dither_pattern(sci_files)
             # Binning
             binspectral, binspatial = parse_binning(
                 ps.fitstbl['binning'][sci_idx][0])
