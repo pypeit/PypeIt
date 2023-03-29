@@ -1003,10 +1003,11 @@ class PypeIt:
                                         maskdef_designtab=maskdef_designtab)
         spec2DObj.process_steps = sciImg.process_steps
 
-        spec2DObj.calib_asn = calibrations.Calibrations.get_association(
+        spec2DObj.calibs = calibrations.Calibrations.get_association(
                                     self.fitstbl, self.spectrograph, self.calibrations_path,
                                     self.fitstbl[frames[0]]['setup'],
-                                    self.fitstbl.find_frame_calib_groups(frames[0])[0], det)
+                                    self.fitstbl.find_frame_calib_groups(frames[0])[0], det,
+                                    must_exist=True, proc_only=True)
 
         # QA
         spec2DObj.gen_qa()

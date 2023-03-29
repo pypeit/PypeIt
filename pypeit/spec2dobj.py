@@ -104,7 +104,7 @@ class Spec2DObj(datamodel.DataContainer):
                  'detector': dict(otype=(DetectorContainer, Mosaic),
                                   descr='Detector or Mosaic metadata') }
 
-    internals = ['calib_asn',           # Dictionary containing the associated calibration frames
+    internals = ['calibs',              # Dictionary containing the processed calibration frames
                  'process_steps',       # List of image processing steps
                  'head0'                # Raw header
                 ]
@@ -170,6 +170,20 @@ class Spec2DObj(datamodel.DataContainer):
         if has_mask:
             self.bpmmask = imagebitmask.ImageBitMaskArray.from_hdu(hdu[mask_ext], ext_pseudo='MASK',
                                                                    chk_version=chk_version)
+        # Try to fill the internals based on the header of the first parsed
+        # extension
+        hdr = hdu[ext[0]].header
+        if 'CLBS_DIR' in hdr:
+            self.calibs = {}
+            self.calibs['DIR'] = hdr['CLBS_DIR']
+            for key in hdr.keys():
+                if key.startswith('CLBS_') \
+                        and (Path(self.calibs['DIR']).resolve() / hdr[key]).exists():
+                    self.calibs['_'.join(key.split('_')[1:])] = hdr[key]
+
+        if 'PROCSTEP' in hdr:
+            self.process_steps = hdr['PROCSTEP'].split(',')
+
         self.head0 = hdu[0].header
         return self
 
@@ -256,19 +270,13 @@ class Spec2DObj(datamodel.DataContainer):
         _hdr = super()._base_header(hdr=hdr)
         # Add the calibration association info.  Ideally, the association should
         # only include files that exist.
-        if self.calib_asn is not None:
-            for key, val in self.calib_asn.items():
-                if not isinstance(val, dict) or 'proc' not in val:
-                    continue
-                for file in val['proc']:
-                    _file = Path(file).resolve()
-                    if not _file.exists():
-                        continue
-                    calib_type = _file.name.split('_')[0].upper()
-                    _hdr['CALIBDIR'] = str(_file.parent)
-                    # NOTE: Obnoxious _F needed so that the name is different
-                    # from the datamodel attributes.
-                    _hdr[f'{calib_type}_F'] = _file.name
+        if self.calibs is not None:
+            for key, val in self.calibs.items():
+                # NOTE: Adding 'CLBS_' serves two purposes:  It keeps some
+                # entries from being identical to names given to elements of the
+                # datamodel, and it allows the keywords to be found!  For the
+                # latter, see `from_hdu`.
+                _hdr[f'CLBS_{key}'] = val
 
         # Add the processing steps
         if self.process_steps is not None:

@@ -955,7 +955,7 @@ class Calibrations:
 
     @staticmethod
     def get_association(fitstbl, spectrograph, caldir, setup, calib_ID, det, must_exist=True,
-                        subset=None, include_science=False):
+                        subset=None, include_science=False, proc_only=False):
         """
         Construct a dictionary with the association between raw files and
         processed calibration frames.
@@ -981,15 +981,30 @@ class Calibrations:
                 A boolean array selecting a subset of rows from ``fitstbl`` for
                 output.
             include_science (:obj:`bool`, optional):
-                Include science and standard frames in the association.
+                Include science and standard frames in the association.  This
+                parameter is mutually exclusive with ``proc_only``; if both are
+                true, ``proc_only`` takes precedence.
+            proc_only (:obj:`bool`, optional):
+                If True, only return a dictionary with the names of the
+                processed calibration frames.  The dictionary sets the
+                calibration directory to CALIBDIR, and the other keys are the
+                capitalized versions of the calibration type keywords; e.g.,
+                dict['ARC'] is the processed arc frame.  This parameter is
+                mutually exclusive with ``include_science``; if both are true,
+                ``proc_only`` takes precedence.
 
         Returns:
             :obj:`dict`: The set of raw and processed calibration frames
-            associated with the selected calibration group.  This does *not*
-            include any science or standard frames.
+            associated with the selected calibration group.  This only includes
+            the processed frames if ``proc_only`` is True, and it includes the
+            science/standard frames if ``include_science`` is True.
         """
         if fitstbl.calib_groups is None:
             msgs.error('Calibration groups have not been defined!')
+
+        if include_science and proc_only:
+            msgs.warn('Requested to include the science/standard frames and to only return the '
+                      'processed calibration frames.  Ignoring former request.')
 
         _caldir = str(Path(caldir).resolve())
 
@@ -1048,6 +1063,18 @@ class Calibrations:
             if must_exist:
                 asn[frametype]['proc'] \
                     = [file for file in asn[frametype]['proc'] if Path(file).exists()]
+
+        if proc_only:
+            files = {}
+            for key, val in asn.items():
+                if not isinstance(val, dict) or 'proc' not in val:
+                    continue
+                for file in val['proc']:
+                    _file = Path(file).resolve()
+                    calib_type = _file.name.split('_')[0].upper()
+                    files['DIR'] = str(_file.parent)
+                    files[calib_type] = _file.name
+            return files
 
         if include_science:
             # Add any science and standard (and sky?) frames
