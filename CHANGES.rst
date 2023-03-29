@@ -11,6 +11,8 @@
 - Added new specutils interface
 - Fixed bugs when only performing calibrations and (1) calib groups are all set
   to 'all' or (2) anything other than '0'.
+- Added `MASKDEF_OBJMAG` and `MASKDEF_OBJMAG_BAND` in spec1d datamodel.
+- Improved NIRES dither pattern parsing and automatic assignment of `comb_id` and `bkg_id`.
 
 1.12.1 (21 Feb 2023)
 --------------------
