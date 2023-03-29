@@ -778,7 +778,7 @@ class PypeItImage(datamodel.DataContainer):
         # TODO: Instead raise an error if they're not the same
         new_units = self.units if self.units == other.units else None
 
-        # Create the new image
+        # Create the new image.
         # TODO: We should instead *copy* the detector object; otherwise, it's
         # possible that it will be shared between multiple images.  Nominally,
         # this should be okay because the detector data is meant to be static,
@@ -792,7 +792,11 @@ class PypeItImage(datamodel.DataContainer):
         if self.files is not None and other.files is not None:
             new_pypeitImage.files = self.files + other.files
 
-        return new_pypeitImage
+        # Return the result using the `from_pypeitimage` instantiation method to
+        # ensure the type of the output image is identical to the type of self.
+        # It does not matter whether it's done here or above when instantiating
+        # new_pypeitimage.  Both properly propagate the `files` attribute.
+        return self.__class__.from_pypeitimage(new_pypeitImage)
 
     def show(self):
         """
@@ -952,4 +956,13 @@ class PypeItCalibrationImage(PypeItImage, CalibFrame):
         classes.
         """
         return CalibFrame.build_header(self, hdr=PypeItImage.build_header(self, hdr=hdr))
+
+    def sub(self, other):
+        """
+        Over-ride subtraction function from :class:`PypeItImage` to ensure that
+        the internals are propagated.
+        """
+        result = super().sub(other)
+        result.copy_calib_keys(self)
+        return result
 

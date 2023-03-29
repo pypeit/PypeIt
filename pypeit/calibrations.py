@@ -743,9 +743,7 @@ class Calibrations:
             lampoff_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                           self.par['lampoffflatsframe'],
                                                           raw_lampoff_files, dark=self.msdark,
-                                                          bias=self.msbias, bpm=self.msbpm,
-                                                          calib_dir=self.calib_dir, setup=setup,
-                                                          calib_id=calib_id)
+                                                          bias=self.msbias, bpm=self.msbpm)
             self.traceImage = self.traceImage.sub(lampoff_flat)
 
         self.edges = edgetrace.EdgeTraceSet(self.traceImage, self.spectrograph,
@@ -766,19 +764,6 @@ class Calibrations:
         self.slits.to_file()
         if self.user_slits is not None:
             self.slits.user_mask(detname, self.user_slits)            
-
-        # User mask?
-#        if self.user_slits is not None:
-#            # Parse the DET/MSC name
-#            if isinstance(self.det, tuple):
-#                detname = self.spectrograph.list_detectors(
-#                mosaic=True)[self.spectrograph.allowed_mosaics.index(self.det)]
-#            elif isinstance(self.det, int):
-#                detname = self.spectrograph.list_detectors()[self.det-1]
-#            else:
-#                msgs.error("Bad type for self.det")
-#
-#            self.slits.user_mask(detname, self.user_slits)
 
         return self.slits
 
@@ -969,6 +954,112 @@ class Calibrations:
         return txt
 
     @staticmethod
+    def get_association(fitstbl, spectrograph, caldir, setup, calib_ID, det, must_exist=True,
+                        subset=None, include_science=False):
+        """
+        Construct a dictionary with the association between raw files and
+        processed calibration frames.
+
+        Args:
+            fitstbl (:class:`pypeit.metadata.PypeItMetaData`):
+                The class holding the metadata for all the frames to process.
+            spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
+                Spectrograph object
+            caldir (:obj:`str`, `Path`_):
+                Path for the processed calibration frames.
+            setup (:obj:`str`):
+                The setup/configuration of the association.
+            calib_ID (:obj:`str`, :obj:`int`):
+                The *single* calibration group of the association.
+            det (:obj:`int`, :obj:`tuple`):
+                The detector/mosaic of the association.
+            must_exist (:obj:`bool`, optional):
+                If True, only *existing* calibration frames in the association
+                are included.  If False, the nominal set of calibration file
+                names are returned.
+            subset (`numpy.ndarray`_, optional):
+                A boolean array selecting a subset of rows from ``fitstbl`` for
+                output.
+            include_science (:obj:`bool`, optional):
+                Include science and standard frames in the association.
+
+        Returns:
+            :obj:`dict`: The set of raw and processed calibration frames
+            associated with the selected calibration group.  This does *not*
+            include any science or standard frames.
+        """
+        if fitstbl.calib_groups is None:
+            msgs.error('Calibration groups have not been defined!')
+
+        _caldir = str(Path(caldir).resolve())
+
+        # This defines the classes used by each frametype that results in an
+        # output calibration frame:
+        frame_calibrations = {'align': [alignframe.Alignments],
+                              'arc': [buildimage.ArcImage, wavecalib.WaveCalib],
+                              'bias': [buildimage.BiasImage],
+                              'dark': [buildimage.DarkImage],
+                              'pixelflat': [flatfield.FlatImages],
+                              'illumflat': [flatfield.FlatImages],
+                              'lampoffflats': [flatfield.FlatImages], 
+                              'trace': [edgetrace.EdgeTraceSet, slittrace.SlitTraceSet],
+                              'tilt': [buildimage.TiltImage, wavetilts.WaveTilts]
+                             }
+
+        # Get the name of the detector/mosaic
+        detname = spectrograph.get_det_name(det)
+
+        # Find the unique configuations in the metaddata
+        asn = {}
+        setups = fitstbl.unique_configurations(copy=True, rm_none=True)
+        if setup not in setups:
+            return asn
+
+        # Subset to output
+        if subset is None:
+            subset = np.ones(len(fitstbl), dtype=bool)
+
+        in_setup = fitstbl.find_configuration(setup) & subset
+        if not any(in_setup):
+            return asn
+
+        # Find all the frames in this calibration group
+        in_grp = fitstbl.find_calib_group(calib_ID) & in_setup
+        if not any(in_grp):
+            return asn
+
+        # Iterate through each frame type
+        for frametype, calib_classes in frame_calibrations.items():
+            indx = fitstbl.find_frames(frametype) & in_grp
+            if not any(indx):
+                continue
+            if not all(fitstbl['calib'][indx] == fitstbl['calib'][indx][0]):
+                msgs.error(f'CODING ERROR: All {frametype} frames in group {calib_ID} '
+                           'are not all associated with the same subset of calibration '
+                           'groups; calib for the first file is '
+                           f'{fitstbl["calib"][indx][0]}.')
+            calib_key = CalibFrame.construct_calib_key(setup, fitstbl['calib'][indx][0],
+                                                       detname)
+            asn[frametype] = {}
+            asn[frametype]['raw'] = fitstbl.frame_paths(indx)
+            asn[frametype]['proc'] \
+                    = [str(calib_class.construct_file_name(calib_key, calib_dir=_caldir))
+                        for calib_class in frame_calibrations[frametype]]
+            if must_exist:
+                asn[frametype]['proc'] \
+                    = [file for file in asn[frametype]['proc'] if Path(file).exists()]
+
+        if include_science:
+            # Add any science and standard (and sky?) frames
+            for frametype in ['science', 'standard']:
+                indx = fitstbl.find_frames(frametype) & in_grp
+                if not any(indx):
+                    continue
+                asn[frametype] = fitstbl.frame_paths(indx)
+
+        return asn
+
+    @staticmethod
     def association_summary(ofile, fitstbl, spectrograph, caldir, subset=None, det=None,
                             overwrite=False):
         """
@@ -1002,36 +1093,21 @@ class Calibrations:
         if _ofile.exists() and not overwrite:
             msgs.error(f'{_ofile} exists!  To overwrite, set overwrite=True.')
 
-        _caldir = str(Path(caldir).resolve())
-
-        # This defines the classes used by each frametype that results in an
-        # output calibration frame:
-        frame_calibrations = {'align': [alignframe.Alignments],
-                              'arc': [buildimage.ArcImage, wavecalib.WaveCalib],
-                              'bias': [buildimage.BiasImage],
-                              'dark': [buildimage.DarkImage],
-                              'pixelflat': [flatfield.FlatImages],
-                              'illumflat': [flatfield.FlatImages],
-                              'lampoffflats': [flatfield.FlatImages], 
-                              'trace': [edgetrace.EdgeTraceSet, slittrace.SlitTraceSet],
-                              'tilt': [buildimage.TiltImage, wavetilts.WaveTilts]
-                             }
-
-        # Get the name of the detector/mosaic
-        detname = spectrograph.get_det_name(1 if det is None else det)
-
-        # Find the unique configuations in the metaddata
-        setups = fitstbl.unique_configurations(copy=True, rm_none=True)
+        _det = 1 if det is None else det
+        detname = spectrograph.get_det_name(_det)
 
         # Subset to output
         if subset is None:
             subset = np.ones(len(fitstbl), dtype=bool)
 
-        cfg = {}
+        # Find the unique configuations in the metaddata
+        setups = fitstbl.unique_configurations(copy=True, rm_none=True)
+
+        asn = {}
         # Iterate through each setup
         for setup in setups.keys():
-            cfg[setup] = {}
-            cfg[setup]['--'] = deepcopy(setups[setup])
+            asn[setup] = {}
+            asn[setup]['--'] = deepcopy(setups[setup])
             in_setup = fitstbl.find_configuration(setup) & subset
             if not any(in_setup):
                 continue
@@ -1042,33 +1118,10 @@ class Calibrations:
                 if not any(in_grp):
                     continue
 
-                cfg[setup][calib_ID] = {}
-
-                # First list the science and standard (and sky?) frames in this
-                # calibration group
-                for frametype in ['science', 'standard']:
-                    indx = fitstbl.find_frames(frametype) & in_grp
-                    if not any(indx):
-                        continue
-                    cfg[setup][calib_ID][frametype] = fitstbl.frame_paths(indx)
-
-                # Iterate through each frame type
-                for frametype, calib_classes in frame_calibrations.items():
-                    indx = fitstbl.find_frames(frametype) & in_grp
-                    if not any(indx):
-                        continue
-                    if not all(fitstbl['calib'][indx] == fitstbl['calib'][indx][0]):
-                        msgs.error(f'CODING ERROR: All {frametype} frames in group {calib_ID} '
-                                   'are not all associated with the same subset of calibration '
-                                   'groups; calib for the first file is '
-                                   f'{fitstbl["calib"][indx][0]}.')
-                    calib_key = CalibFrame.construct_calib_key(setup, fitstbl['calib'][indx][0],
-                                                               detname)
-                    cfg[setup][calib_ID][frametype] = {}
-                    cfg[setup][calib_ID][frametype]['raw'] = fitstbl.frame_paths(indx)
-                    cfg[setup][calib_ID][frametype]['proc'] \
-                            = [str(calib_class.construct_file_name(calib_key, calib_dir=_caldir))
-                                for calib_class in frame_calibrations[frametype]]
+                asn[setup][calib_ID] \
+                        = Calibrations.get_association(fitstbl, spectrograph, caldir, setup,
+                                                       calib_ID, _det, must_exist=False,
+                                                       subset=subset, include_science=True)
 
         # Write it
         with open(_ofile, 'w') as ff:
@@ -1077,7 +1130,7 @@ class Calibrations:
             ff.write(f'# UTC {datetime.utcnow().isoformat(timespec="milliseconds")}\n')
             if det is None:
                 ff.write(f'# NOTE: {detname} is a placeholder for the reduced detectors/mosaics\n')
-            ff.write(yaml.dump(utils.yamlify(cfg)))
+            ff.write(yaml.dump(utils.yamlify(asn)))
         msgs.info(f'Calibration association file written to: {_ofile}')
 
 

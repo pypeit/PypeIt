@@ -166,13 +166,13 @@ class Spec2DObj(datamodel.DataContainer):
         if has_mask:
             ext.remove(mask_ext)
 
-        slf = super().from_hdu(hdu, ext=ext, hdu_prefix=f'{detname}-', chk_version=chk_version)
+        self = super().from_hdu(hdu, ext=ext, hdu_prefix=f'{detname}-', chk_version=chk_version)
         if has_mask:
-            slf.bpmmask = imagebitmask.ImageBitMaskArray.from_hdu(hdu[mask_ext], ext_pseudo='MASK',
-                                                                  chk_version=chk_version)
-        slf.head0 = hdu[0].header
-        slf.chk_version = chk_version
-        return slf
+            self.bpmmask = imagebitmask.ImageBitMaskArray.from_hdu(hdu[mask_ext], ext_pseudo='MASK',
+                                                                   chk_version=chk_version)
+        self.head0 = hdu[0].header
+        self.chk_version = chk_version
+        return self
 
     def __init__(self, sciimg, ivarraw, skymodel, objmodel, ivarmodel,
                  scaleimg, waveimg, bpmmask, detector, sci_spat_flexure, sci_spec_flexure,

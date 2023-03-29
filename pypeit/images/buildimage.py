@@ -133,8 +133,6 @@ class SkyRegions(pypeitimage.PypeItCalibrationImage):
         return filename.replace(f'.{cls.calib_file_format}', f'_{basename}.{cls.calib_file_format}')
 
 
-# Convert frame type into an Image.  These all should subclass from
-# PypeItCalibrationImage.
 frame_image_classes = dict(
     bias=BiasImage,
     dark=DarkImage,
@@ -143,8 +141,11 @@ frame_image_classes = dict(
     trace=TraceImage,
     align=AlignImage)
 """
-The list of classes that :func:`buildimage_fromlist` should use to decorate for
-the specified frame types.
+The list of classes that :func:`buildimage_fromlist` should use to decorate the
+output for the specified frame types.
+
+All of these **must** subclass from
+:class:`~pypeit.images.pypeitimage.PypeItCalibrationImage`.
 """
 
 
@@ -250,11 +251,11 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
     cls = frame_image_classes[frame_par['frametype']] \
             if frame_par['frametype'] in frame_image_classes.keys() else None
 
-    # Decorate and return according to the type of calibration, primarily as
-    # needed for handling calibration images.  WARNING: Any internals (i.e., the
-    # ones defined by the _init_internals method) in pypeitImage are lost here.
+    # Either return the image directly, or decorate and return according to the
+    # type of calibration.  For the latter, this specific use of
+    # from_pypeitimage means that the class must be a subclass of
+    # PypeItCalibrationImage!
     return pypeitImage if cls is None \
-            else cls.from_pypeitimage(pypeitImage, calib_dir, setup, calib_id,
-                                      spectrograph.get_det_name(det))
-
+            else cls.from_pypeitimage(pypeitImage, calib_dir=calib_dir, setup=setup,
+                                      calib_id=calib_id, detname=spectrograph.get_det_name(det))
 

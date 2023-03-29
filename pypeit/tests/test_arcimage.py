@@ -30,9 +30,9 @@ def test_io():
     pypeitImage.detector = detector_container.DetectorContainer(**def_det)
     pypeitImage.PYP_SPEC = 'shane_kast_blue'
     # Now the arcimage
-    arcImage = buildimage.ArcImage.from_pypeitimage(pypeitImage)
+    arcImage = buildimage.ArcImage.from_pypeitimage(pypeitImage, calib_dir=data_path(''),
+                                                    setup='A', calib_id=['1'])
     # Set paths and check name
-    arcImage.set_paths(data_path(''), 'A', ['1'], 'DET01')
     ofile = Path(arcImage.get_path()).resolve()
     assert str(ofile) == data_path('Arc_A_1_DET01.fits'), 'Calibration file name changed'
     # Write

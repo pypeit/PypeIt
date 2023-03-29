@@ -379,6 +379,8 @@ class PypeIt:
                     history.add_reduce(calib_ID, self.fitstbl, frames, bg_frames)
                     std_spec2d, std_sobjs = self.reduce_exposure(frames, bg_frames=bg_frames)
 
+                    embed()
+                    exit()
                     # TODO come up with sensible naming convention for save_exposure for combined files
                     self.save_exposure(frames[0], std_spec2d, std_sobjs, self.basename, history)
                 else:
@@ -635,13 +637,14 @@ class PypeIt:
         binning = self.fitstbl['binning'][frame]
         obstime  = self.fitstbl.construct_obstime(frame)
         basename = self.fitstbl.construct_basename(frame, obstime=obstime)
-        objtype  = self.fitstbl['frametype'][frame]
-        if objtype == 'science':
+        types  = self.fitstbl['frametype'][frame].split(',')
+        if 'science' in types:
             objtype_out = 'science'
-        elif objtype == 'standard':
+        elif 'standard' in types:
             objtype_out = 'standard'
         else:
-            msgs.error('Unrecognized objtype')
+            msgs.error('get_sci_metadata() should only be run on standard or science frames.  '
+                       f'Types of this frame are: {types}')
         calib_key = CalibFrame.construct_calib_key(self.fitstbl['setup'][frame],
                                                    self.fitstbl['calib'][frame],
                                                    self.spectrograph.get_det_name(det))
@@ -715,7 +718,7 @@ class PypeIt:
         msgs.info("Object finding begins for {} on det={}".format(self.basename, det))
 
         # Is this a standard star?
-        self.std_redux = 'standard' in self.objtype
+        self.std_redux = self.objtype == 'standard'
         frame_par = self.par['calibrations']['standardframe'] if self.std_redux else self.par['scienceframe']
         # Get the standard trace if need be
 
