@@ -287,9 +287,7 @@ class PypeIt:
             grp_frames = frame_indx[in_grp]
 
             # Find the detectors to reduce
-            subset = self.par['rdx']['slitspatnum'] if self.par['rdx']['slitspatnum'] is not None \
-                else self.par['rdx']['detnum']
-            detectors = self.spectrograph.select_detectors(subset=subset)
+            detectors = self.select_detectors()
             msgs.info(f'Detectors to work on: {detectors}')
 
             # Loop on Detectors
@@ -378,9 +376,6 @@ class PypeIt:
                     history = History(self.fitstbl.frame_paths(frames[0]))
                     history.add_reduce(calib_ID, self.fitstbl, frames, bg_frames)
                     std_spec2d, std_sobjs = self.reduce_exposure(frames, bg_frames=bg_frames)
-
-                    embed()
-                    exit()
                     # TODO come up with sensible naming convention for save_exposure for combined files
                     self.save_exposure(frames[0], std_spec2d, std_sobjs, self.basename, history)
                 else:
@@ -446,6 +441,23 @@ class PypeIt:
 
         # Finish
         self.print_end_time()
+
+    def select_detectors(self):
+        """
+        Get the set of detectors to be reduced.
+
+        This is mostly a wrapper for
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.select_detectors`,
+        except that it applies any limitations set by the
+        :class:`~pypeit.par.pypeitpar.ReduxPar` parameters.
+
+        Returns:
+            :obj:`list`: List of unique detectors or detector mosaics to be
+            reduced.
+        """
+        subset = self.par['rdx']['slitspatnum'] if self.par['rdx']['slitspatnum'] is not None \
+                    else self.par['rdx']['detnum']
+        return self.spectrograph.select_detectors(subset=subset)
 
     def reduce_exposure(self, frames, bg_frames=None, std_outfile=None):
         """
@@ -526,9 +538,7 @@ class PypeIt:
             msgs.info(bg_msgs_string)
 
         # Find the detectors to reduce
-        subset = self.par['rdx']['slitspatnum'] if self.par['rdx']['slitspatnum'] is not None \
-                    else self.par['rdx']['detnum']
-        detectors = self.spectrograph.select_detectors(subset=subset)
+        detectors = self.select_detectors()
         msgs.info(f'Detectors to work on: {detectors}')
 
         # Loop on Detectors -- Calibrate, process image, find objects
@@ -992,6 +1002,11 @@ class PypeIt:
                                         wavesol=self.caliBrate.wv_calib.wave_diagnostics(print_diag=False),
                                         maskdef_designtab=maskdef_designtab)
         spec2DObj.process_steps = sciImg.process_steps
+
+        spec2DObj.calib_asn = calibrations.Calibrations.get_association(
+                                    self.fitstbl, self.spectrograph, self.calibrations_path,
+                                    self.fitstbl[frames[0]]['setup'],
+                                    self.fitstbl.find_frame_calib_groups(frames[0])[0], det)
 
         # QA
         spec2DObj.gen_qa()

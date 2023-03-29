@@ -956,7 +956,8 @@ class Spectrograph:
                 description above.  Note detectors are 1-indexed.
 
         Returns:
-            :obj:`list`: Uniqe List of detectors or detector mosaics to be reduced.
+            :obj:`list`: List of unique detectors or detector mosaics to be
+            reduced.
 
         Raises:
             PypeItError: Raised if any of the detectors or detector mosaics

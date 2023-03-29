@@ -5,6 +5,7 @@ Module for the Spec2DObj class
 .. include:: ../include/links.rst
 
 """
+from pathlib import Path
 import os
 import inspect
 import datetime
@@ -103,16 +104,16 @@ class Spec2DObj(datamodel.DataContainer):
                  'detector': dict(otype=(DetectorContainer, Mosaic),
                                   descr='Detector or Mosaic metadata') }
 
-    internals = ['process_steps',
-                 'head0',
-                 'chk_version'          # Mainly for viewing/using old versions
+    internals = ['calib_asn',           # Dictionary containing the associated calibration frames
+                 'process_steps',       # List of image processing steps
+                 'head0'                # Raw header
                 ]
 
     @classmethod
-    def from_file(cls, file, detname, chk_version=True):
+    def from_file(cls, file, detname, **kwargs):
         """
-        Overload :func:`pypeit.datamodel.DataContainer.from_file` to allow det
-        input and to slurp the header
+        Override base-class :func:`~pypeit.datamodel.DataContainer.from_file` to
+        specify detector to read.
 
         Args:
             file (:obj:`str`):
@@ -120,26 +121,25 @@ class Spec2DObj(datamodel.DataContainer):
             detname (:obj:`str`):
                 The string identifier for the detector or mosaic used to select
                 the data that is read.
-            chk_version (:obj:`bool`, optional):
-                If False, allow a mismatch in datamodel to proceed
+            **kwargs:
+                Passed directly to :func:`from_hdu`.
 
         Returns:
             :class:`~pypeit.spec2dobj.Spec2DObj`: 2D spectra object.
-
         """
-        hdul = io.fits_open(file)
-        # Quick check on det
-        detnames = np.unique([hdu.name.split('-')[0] for hdu in hdul[1:]])
-        if detname not in detnames:
-            msgs.error(f'Your --det={detname} is not available. \n   Choose from: {detnames}')
         with io.fits_open(file) as hdu:
-            return cls.from_hdu(hdu, detname, chk_version=chk_version)
+            # Check detname is valid
+            detnames = np.unique([h.name.split('-')[0] for h in hdu[1:]])
+            if detname not in detnames:
+                msgs.error(f'Your --det={detname} is not available. \n   Choose from: {detnames}')
+            return cls.from_hdu(hdu, detname, **kwargs)
 
+    # TODO: Allow for **kwargs here?
     @classmethod
     def from_hdu(cls, hdu, detname, chk_version=True):
         """
-        Overload :func:`pypeit.datamodel.DataContainer.from_hdu` to allow det
-        input and to slurp the header
+        Override base-class :func:`~pypeit.datamodel.DataContainer.from_hdu` to
+        specify detector to read.
 
         Args:
             hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
@@ -171,7 +171,6 @@ class Spec2DObj(datamodel.DataContainer):
             self.bpmmask = imagebitmask.ImageBitMaskArray.from_hdu(hdu[mask_ext], ext_pseudo='MASK',
                                                                    chk_version=chk_version)
         self.head0 = hdu[0].header
-        self.chk_version = chk_version
         return self
 
     def __init__(self, sciimg, ivarraw, skymodel, objmodel, ivarmodel,
@@ -238,6 +237,44 @@ class Spec2DObj(datamodel.DataContainer):
                 d[0][key] = self[key]
         # Return
         return d
+
+    def _base_header(self, hdr=None):
+        """
+        Override the base class method to add useful/identifying internals to
+        the header.
+
+        Args:
+            hdr (`astropy.io.fits.Header`, optional):
+                Header object to update.  The object is modified in-place and
+                also returned. If None, an empty header is instantiated, edited,
+                and returned.
+
+        Returns:
+            `astropy.io.fits.Header`_: The initialized (or edited) fits header.
+        """
+        # Standard init
+        _hdr = super()._base_header(hdr=hdr)
+        # Add the calibration association info.  Ideally, the association should
+        # only include files that exist.
+        if self.calib_asn is not None:
+            for key, val in self.calib_asn.items():
+                if not isinstance(val, dict) or 'proc' not in val:
+                    continue
+                for file in val['proc']:
+                    _file = Path(file).resolve()
+                    if not _file.exists():
+                        continue
+                    calib_type = _file.name.split('_')[0].upper()
+                    _hdr['CALIBDIR'] = str(_file.parent)
+                    # NOTE: Obnoxious _F needed so that the name is different
+                    # from the datamodel attributes.
+                    _hdr[f'{calib_type}_F'] = _file.name
+
+        # Add the processing steps
+        if self.process_steps is not None:
+            _hdr['PROCSTEP'] = (','.join(self.process_steps), 'Completed reduction steps')
+
+        return _hdr
 
     @property
     def detname(self):
@@ -409,18 +446,18 @@ class AllSpec2DObj:
         # Instantiate
         self = cls()
         # Open
-        hdul = io.fits_open(filename)
-        # Meta
-        for key in hdul[0].header.keys():
-            if key == self.hdr_prefix+'DETS':
-                continue
-            if self.hdr_prefix in key:
-                meta_key = key.split(self.hdr_prefix)[-1].lower()
-                self['meta'][meta_key] = hdul[0].header[key]
-        # Detectors included
-        detectors = hdul[0].header[self.hdr_prefix+'DETS']
-        for detname in detectors.split(','):
-            self[detname] = Spec2DObj.from_hdu(hdul, detname, chk_version=chk_version)
+        with io.fits_open(filename) as hdu:
+            # Meta
+            for key in hdu[0].header.keys():
+                if key == self.hdr_prefix+'DETS':
+                    continue
+                if self.hdr_prefix in key:
+                    meta_key = key.split(self.hdr_prefix)[-1].lower()
+                    self['meta'][meta_key] = hdu[0].header[key]
+            # Detectors included
+            detectors = hdu[0].header[self.hdr_prefix+'DETS']
+            for detname in detectors.split(','):
+                self[detname] = Spec2DObj.from_hdu(hdu, detname, chk_version=chk_version)
         return self
 
     def __init__(self):
@@ -507,6 +544,7 @@ class AllSpec2DObj:
         hdr = io.initialize_header()
 
         # Copy most of the information from the raw header
+        # TODO: Does astropy provide a way to intelligently merge headers?
         hdukeys = ['BUNIT', 'COMMENT', '', 'BITPIX', 'NAXIS', 'NAXIS1', 'NAXIS2',
                    'HISTORY', 'EXTEND', 'DATASEC']
         for key in raw_header.keys():
@@ -531,26 +569,6 @@ class AllSpec2DObj:
         hdr['PYPELINE'] = spectrograph.pypeline
         hdr['PYP_SPEC'] = spectrograph.name
         hdr['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%m-%d'))
-
-        # TODO: Add these things to the HISTORY
-#        # MasterFrame info
-#        # TODO -- Should this be in the header of the individual HDUs ?
-#        if master_key_dict is not None:
-#            if 'bias' in master_key_dict.keys():
-#                hdr['BIASMKEY'] = master_key_dict['bias']
-#            if 'arc' in master_key_dict.keys():
-#                hdr['ARCMKEY'] = master_key_dict['arc']
-#            if 'trace' in master_key_dict.keys():
-#                hdr['TRACMKEY'] = master_key_dict['trace']
-#            if 'flat' in master_key_dict.keys():
-#                hdr['FLATMKEY'] = master_key_dict['flat']
-
-        # Processing steps
-        # TODO: Assumes processing steps for all detectors are the same...  Does
-        # this matter?
-        det = self.detectors[0]
-        if self[det].process_steps is not None:
-            hdr['PROCSTEP'] = (','.join(self[det].process_steps), 'Completed reduction steps')
 
         # Some paths
         if calib_dir is not None:
