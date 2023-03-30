@@ -567,9 +567,13 @@ class FlatField:
             gpm = self.rawflatimg.select_flag(flag='BPM', invert=True)
             niter = 2  # Need two iterations, particularly for the fine spatial illumination correction.
             for ff in range(niter):
-                msgs.info("Iteration {0:d} of 2D detector response extraction".format(ff+1))
                 # Just get the spatial and spectral profiles for now
                 self.fit(spat_illum_only=self.spat_illum_only, doqa=doqa, debug=debug)
+                # If we're only doing the spatial illumination profile, the detector structure
+                # has already been divided out by the pixel flat.
+                if self.spat_illum_only:
+                    break
+                msgs.info("Iteration {0:d} of 2D detector response extraction".format(ff+1))
                 # Extract a detector response image
                 det_resp = self.extract_structure(rawflat_orig)
                 gpmask = (self.waveimg != 0.0) & gpm
@@ -582,11 +586,13 @@ class FlatField:
                     outfile = qa.set_qa_filename("DetectorStructure_" + self.master_key, 'detector_structure',
                                                  det="DET01", out_dir=self.qa_path)
                     detector_structure_qa(det_resp, det_resp_model, outfile=outfile)
-            # Perform a final 2D fit with the cleaned image
-            self.fit(spat_illum_only=self.spat_illum_only, doqa=doqa, debug=debug)
+            # Now that the detector structure is modelled, include it in the full model
+            if not self.spat_illum_only:
+                # Perform a final 2D fit with the cleaned image
+                self.fit(spat_illum_only=self.spat_illum_only, doqa=doqa, debug=debug)
+                self.flat_model *= det_resp_model
+                self.mspixelflat *= det_resp_model
             # fold in the spectrograph specific flatfield, and reset the rawimg
-            self.flat_model *= det_resp_model
-            self.mspixelflat *= det_resp_model
             self.rawflatimg.image = rawflat_orig
 
         if show:
