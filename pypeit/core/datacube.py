@@ -1268,7 +1268,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         flexure = None  #spec2DObj.sci_spat_flexure
 
         # Load the header
-        hdr = fits.open(fil)[0].header
+        hdr = spec2DObj.head0 #fits.open(fil)[0].header
 
         # Get the exposure time
         exptime = hdr['EXPTIME']
@@ -1397,14 +1397,15 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         astrometric = cubepar['astrometric']
         alignments = None
         if astrometric:
-            alignfile = masterframe.construct_file_name(alignframe.Alignments, hdr['TRACMKEY'],
-                                                        master_dir=hdr['PYPMFDIR'])
-            if os.path.exists(alignfile) and cubepar['astrometric']:
-                msgs.info("Loading alignments")
-                alignments = alignframe.Alignments.from_file(alignfile)
+            key = alignframe.Alignments.calib_type.upper()
+            if key in spec2DObj.calibs:
+                alignfile = os.path.join(spec2DObj.calibs['DIR'], spec2DObj.calibs[key])
+                if os.path.exists(alignfile) and cubepar['astrometric']:
+                    msgs.info("Loading alignments")
+                    alignments = alignframe.Alignments.from_file(alignfile)
             else:
-                msgs.warn("Could not find Master Alignment frame:"+msgs.newline()+alignfile)
-                msgs.warn("Astrometric correction will not be performed")
+                msgs.warn(f'Processed Alignment frame not recorded or not found: {alignfile}.  '
+                          'Astrometric correction will not be performed.')
                 astrometric = False
         else:
             msgs.info("Astrometric correction will not be performed")
@@ -1446,7 +1447,11 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
         # Correct for sensitivity as a function of grating angle
         # (this assumes the spectrum of the flatfield lamp has the same shape for all setups)
-        flatfile = masterframe.construct_file_name(flatfield.FlatImages, hdr['FLATMKEY'], master_dir=hdr['PYPMFDIR'])
+        key = flatfield.FlatImages.calib_type.upper()
+        if key not in spec2DObj.calibs:
+            msgs.error('Processed flat calibration file not recorded by spec2d file!')
+        flatfile = os.path.join(spec2DObj.calibs['DIR'], spec2DObj.calibs[key])
+        # TODO: Check that the file exists?
         if cubepar['grating_corr'] and flatfile not in flat_splines.keys():
             msgs.info("Calculating relative sensitivity for grating correction")
             flatimages = flatfield.FlatImages.from_file(flatfile)
@@ -1684,3 +1689,5 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bins, overwrite=overwrite,
                       blaze_wave=blaze_wave, blaze_spec=blaze_spec, sensfunc=sensfunc, fluxcal=fluxcal,
                       specname=specname)
+
+

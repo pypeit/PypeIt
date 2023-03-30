@@ -442,7 +442,7 @@ class AllSpec2DObj:
         """
 
         Args:
-            filename (:obj:`str`):
+            filename (:obj:`str`, `Path`_):
                 Name of the file to read.
             chk_version (:obj:`bool`, optional):
                 If True, demand the on-disk datamodel equals the current one.
@@ -602,7 +602,7 @@ class AllSpec2DObj:
         Write the spec2d FITS file
 
         Args:
-            outfile (:obj:`str`):
+            outfile (:obj:`str`, `Path`_):
                 Output filename
             pri_hdr (:class:`astropy.io.fits.Header`, optional):
                 Header to be used in lieu of default
@@ -628,13 +628,14 @@ class AllSpec2DObj:
                 combination of this and ``update_det`` may also alter this
                 object based on the existing file.
         """
-        if os.path.isfile(outfile):
+        _outfile = Path(outfile).resolve()
+        if _outfile.exists():
             # Clobber?
             if not overwrite:
-                msgs.warn("File {} exits.  Use -o to overwrite.".format(outfile))
+                msgs.warn(f'File {_outfile} exits.  Use -o to overwrite.')
                 return
             # Load up the original
-            _allspecobj = AllSpec2DObj.from_fits(outfile)
+            _allspecobj = AllSpec2DObj.from_fits(_outfile)
             # Replace the newly reduced detector?
             if update_det is not None:
                 for det in _allspecobj.detectors:
@@ -688,7 +689,7 @@ class AllSpec2DObj:
                 continue
             if key.lower() != key:
                 msgs.warn('Keywords in the meta dictionary are always read back in as lower case. '
-                          f'Subsequent reads of {outfile} will have converted {key} to '
+                          f'Subsequent reads of {_outfile} will have converted {key} to '
                           f'{key.lower()}!')
 
         # Loop on em (in order of detector)
@@ -710,8 +711,8 @@ class AllSpec2DObj:
 
         # Finish
         hdulist = fits.HDUList(hdus)
-        hdulist.writeto(outfile, overwrite=overwrite)
-        msgs.info("Wrote: {:s}".format(outfile))
+        hdulist.writeto(_outfile, overwrite=overwrite)
+        msgs.info(f'Wrote: {_outfile}')
 
     def __repr__(self):
         # Generate sets string

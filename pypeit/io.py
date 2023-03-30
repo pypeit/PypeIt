@@ -781,7 +781,7 @@ def fits_open(filename, **kwargs):
     # string before checking that it exists.  There should be a more robust way
     # to do this!  Is there are more appropriate os.path function that allows
     # for this different type of object?
-    if isinstance(filename, str) and not Path(filename).resolve().exists():
+    if isinstance(filename, (str, Path)) and not Path(filename).resolve().exists():
         msgs.error(f'{filename} does not exist!')
     try:
         return fits.open(filename, **kwargs)
@@ -792,7 +792,7 @@ def fits_open(filename, **kwargs):
             return fits.open(filename, ignore_missing_end=True, **kwargs)
         except OSError as e:
             msgs.error(f'That failed, too!  Astropy is unable to open {filename} and reports the '
-                      f'following error: {e}')
+                       f'following error: {e}')
 
 
 def create_symlink(filename, symlink_dir, relative_symlink=False, overwrite=False, quiet=False):

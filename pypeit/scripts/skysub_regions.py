@@ -45,6 +45,7 @@ class SkySubRegions(scriptbase.ScriptBase):
 #        from pypeit.scripts import utils
         from pypeit.images import buildimage
         from pypeit.images.detector_container import DetectorContainer
+        from pypeit.edgetrace import EdgeTraceSet
 
         # Parse the detector name
         try:
@@ -60,9 +61,17 @@ class SkySubRegions(scriptbase.ScriptBase):
         spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, detname, chk_version=True)
         frame = spec2DObj.sciimg
         hdr = fits.open(args.file)[0].header
-        fname = hdr["FILENAME"]
-        mdir, mkey = hdr['PYPMFDIR'], hdr['TRACMKEY']
-        pypeline, specname = hdr['PYPELINE'], hdr['PYP_SPEC']
+        fname = hdr['FILENAME']
+        calib_dir = hdr['CALIBDIR']
+        pypeline = hdr['PYPELINE']
+        specname = hdr['PYP_SPEC']
+
+        # Use the edges calibration frame to set the calibration key
+        key = EdgeTraceSet.calib_type.upper()
+        if key not in spec2DObj.calibs:
+            # TODO: Until I can figure out a better approach...
+            msgs.error(f'EdgeTrace calibration frame not recorded in {args.file}!')
+        calib_key, _ = EdgeTraceSet.parse_calib_key(spec2DObj.calibs[key], from_filename=True)
 
         # Use the appropriate class to get the "detector" number
         det = spec2DObj.detector.parse_name(detname)
@@ -80,7 +89,7 @@ class SkySubRegions(scriptbase.ScriptBase):
 
         # Derive an appropriate output filename
         file_base = os.path.basename(fname)
-        regfile = buildimage.SkyRegions.construct_file_name(mkey, calib_dir=mdir,
+        regfile = buildimage.SkyRegions.construct_file_name(calib_key, calib_dir=calib_dir,
                                                             basename=io.remove_suffix(file_base))
 
         # Finally, initialise the GUI

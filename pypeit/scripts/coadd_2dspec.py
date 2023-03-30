@@ -4,6 +4,7 @@ Script for performing 2d coadds of PypeIt data.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
+from pathlib import Path
 import os
 import glob
 import copy
@@ -81,7 +82,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         # Set the verbosity, and create a logfile if verbosity == 2
         msgs.set_logfile_and_verbosity('coadd_2dspec', args.verbosity)
 
-        msgs.info('PATH =' + os.getcwd())
+        #msgs.info('PATH =' + os.getcwd())
         # Load the file
         if args.file is not None:
             # Read
@@ -136,7 +137,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         spec1d_files = [files.replace('spec2d', 'spec1d') for files in spec2d_files]
         head1d = None
         for spec1d_file in spec1d_files:
-            if os.path.isfile(spec1d_file):
+            if Path(spec1d_file).exists():
                 head1d = fits.getheader(spec1d_file)
                 break
         if head1d is None:
@@ -146,8 +147,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         head2d = fits.getheader(spec2d_files[0])
         if args.basename is None:
             #TODO Fix this, currently does not work if target names have - or _
-            filename_first = os.path.basename(spec2d_files[0])
-            filename_last = os.path.basename(spec2d_files[-1])
+            filename_first = Path(spec2d_files[0]).resolve().name
+            filename_last = Path(spec2d_files[-1]).resolve().name
             prefix_first = (filename_first.split('_')[1]).split('-')[0]
             prefix_last = (filename_last.split('_')[1]).split('-')[0]
             objname = (filename_first.split('-')[1]).split('_')[0]
@@ -180,18 +181,19 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         msgs_string += 'Searching for objects that are {:s}'.format(findobj_mode)
         msgs_string += msgs.newline() + 'Combining frames in 2d coadd:' + msgs.newline()
         for f, file in enumerate(spec2d_files):
-            msgs_string += 'Exp {0}: {1:s}'.format(f, os.path.basename(file)) + msgs.newline()
+            msgs_string += f'Exp {f}: {Path(file).name}' + msgs.newline()
         msgs.info(msgs_string)
 
-        # TODO: This needs to be added to the parameter list for rdx
-        redux_path = os.getcwd()
-        master_dirname = os.path.basename(head2d['PYPMFDIR']) + '_coadd'
-        master_dir = os.path.join(redux_path, master_dirname)
+        # TODO: This needs to be added to the parameter list for rdx.  Why does
+        # this not use parset['rdx']['redux_path'], which is used below to set
+        # the qa_path?
+        redux_path = Path().resolve()
+        calib_dir = redux_path / f'{Path(head2d["CALIBDIR"]).name}_coadd'
 
-        # Make the new Master dir
-        if not os.path.isdir(master_dir):
-            msgs.info('Creating directory for Master output: {0}'.format(master_dir))
-            os.makedirs(master_dir)
+        # If the calibrations directory doesn't exist, make it.
+        if not calib_dir.exists():
+            msgs.info(f'Creating directory for calibration output: {calib_dir}')
+            calib_dir.mkdir(parents=True)
 
         # Instantiate the sci_dict
         # TODO Why do we need this sci_dict at all?? JFH
@@ -203,16 +205,12 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
         # Make QA coadd directory
         parset['rdx']['qadir'] += '_coadd'
-        qa_path = os.path.join(parset['rdx']['redux_path'], parset['rdx']['qadir'], 'PNGs')
-        if not os.path.isdir(qa_path):
-            os.makedirs(qa_path)
+        qa_path = Path(parset['rdx']['redux_path']).resolve() / parset['rdx']['qadir'] / 'PNGs'
+        if not qa_path.exists():
+            qa_path.mkdir(parents=True)
 
         # Find the detectors to reduce
-#        detectors = PypeIt.select_detectors(detnum=parset['rdx']['detnum'], ndet=spectrograph.ndet)
         detectors = spectrograph.select_detectors(subset=parset['rdx']['detnum'])
-#        if len(detectors) != spectrograph.ndet:
-#            msgs.warn('Not reducing detectors: {0}'.format(' '.join([str(d) for d in
-#            set(np.arange(spectrograph.ndet) + 1) - set(detectors)])))
         msgs.info(f'Detectors to work on: {detectors}')
 
         # Only_slits?
@@ -296,37 +294,34 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                                                           vel_type=None,
                                                           maskdef_designtab=maskdef_designtab)
 
-            # Save pseudo image master files
-            #coadd.save_masters()
-
         # SAVE TO DISK
 
         # Make the new Science dir
         # TODO: This needs to be defined by the user
-        scipath = os.path.join(redux_path, 'Science_coadd')
-        if not os.path.isdir(scipath):
-            msgs.info('Creating directory for Science output: {0}'.format(scipath))
-            os.makedirs(scipath)
+        scipath = redux_path / 'Science_coadd'
+        if not scipath.exists():
+            msgs.info(f'Creating directory for Science output: {scipath}')
+            scipath.mkdir(parents=True)
 
         # THE FOLLOWING MIMICS THE CODE IN pypeit.save_exposure()
         subheader = spectrograph.subheader_for_spec(head2d, head2d)
         # Write spec1D
         if all_specobjs.nobj > 0:
-            outfile1d = os.path.join(scipath, 'spec1d_{:s}.fits'.format(basename))
+            outfile1d = scipath / f'spec1d_{basename}.fits'
             all_specobjs.write_to_fits(subheader, outfile1d)
 
             # Info
-            outfiletxt = os.path.join(scipath, 'spec1d_{:s}.txt'.format(basename))
+            outfiletxt = scipath / f'spec1d_{basename}.txt'
             sobjs = specobjs.SpecObjs.from_fitsfile(outfile1d, chk_version=False)
             sobjs.write_info(outfiletxt, spectrograph.pypeline)
 
         # Build header for spec2d
-        outfile2d = os.path.join(scipath, 'spec2d_{:s}.fits'.format(basename))
+        outfile2d = scipath / f'spec2d_{basename}.fits'
         pri_hdr = all_spec2d.build_primary_hdr(head2d, spectrograph,
                                                subheader=subheader,
                                                # TODO -- JFH :: Decide if we need any of these
-                                               redux_path=None, master_key_dict=None,
-                                               master_dir=None)
+                                               redux_path=None)
+                                               #, master_key_dict=None, master_dir=None)
         # Write spec2d
         all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr)
 
