@@ -35,7 +35,8 @@ class CalibFrame(datamodel.DataContainer):
     ``'fits.gz'`` (for gzipped output).
     """
 
-    # TODO: Add an astropy.Table with the metadata?    
+    # TODO: Add an astropy.Table into the base-class data model that includes
+    # the subset of `fitstbl` with the metadata for the raw calibration frames?
     datamodel = {'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name')}
     """
     Default datamodel for any :class:`CalibFrame`.  Derived classes should
@@ -107,17 +108,17 @@ class CalibFrame(datamodel.DataContainer):
                 :func:`~pypeit.spectrograph.spectrograph.Spectrograph.get_det_name`.
         """
         self.calib_dir = Path(odir).resolve()
-        # TODO: Keep this, or throw an error if the directory doesn't exist instead.
+        # TODO: Keep this, or throw an error if the directory doesn't exist instead?
         if not self.calib_dir.exists():
             self.calib_dir.mkdir(parents=True)
-        # TODO: Would like to transition to using Path objects instead of strings!
+        # TODO: Use Path object instead of string here?
         self.calib_dir = str(self.calib_dir)
         self.calib_id = CalibFrame.ingest_calib_id(calib_id)
         self.calib_key = self.construct_calib_key(setup, self.calib_id, detname)
 
-    def copy_calib_keys(self, other):
+    def copy_calib_internals(self, other):
         """
-        Copy the key internals from this :class:`CalibFrame` to another.
+        Copy the internals from this :class:`CalibFrame` to another.
 
         Args:
             other (:class:`CalibFrame`):
@@ -186,7 +187,7 @@ class CalibFrame(datamodel.DataContainer):
         # TODO: Consider making the next two lines a function so that they don't
         # need to be repeated in PypeItCalibrationImage.
         self.calib_key, self.calib_dir = CalibFrame.parse_key_dir(hdr_to_parse)
-        self.calib_id = self.ingest_calib_id(hdr_to_parse['CALIBID'].split(','))
+        self.calib_id = self.ingest_calib_id(hdr_to_parse['CALIBID'])
         return self
 
     @staticmethod
@@ -235,18 +236,38 @@ class CalibFrame(datamodel.DataContainer):
         Ingest the calibration group IDs, converting the input into a list of strings.
 
         Args:
-            calib_id (:obj:`list`, :obj:`str`, :obj:`int`):
+            calib_id (:obj:`str`, :obj:`list`, :obj:`int`):
                 Identifiers for one or more calibration groups for this
-                calibration frame.  The individual string and the string
-                elements of the list must be single numbers.  The only exception
-                is the string 'all'.
+                calibration frame.  Strings (either as individually entered or
+                as elements of a provided list) can be single or comma-separated
+                integers.  Otherwise, all strings must be convertible to
+                integers, with the only exception is the string 'all'.
 
         Returns:
             :obj:`list`: List of string representations of single calibration
-            groups.
+            group integer identifiers.
+
+        Examples:
+
+            >>> CalibFrame.ingest_calib_id('all')
+            ['all']
+            >>> CalibFrame.ingest_calib_id(['all', 1])
+            [WARNING] :: Calibration groups set to ['1' 'all'], resetting to simply "all".
+            ['all']
+            >>> CalibFrame.ingest_calib_id('1,2')
+            ['1', '2']
+            >>> CalibFrame.ingest_calib_id(['1,2', '5,8', '3'])
+            ['1', '2', '3', '5', '8']
+            >>> CalibFrame.ingest_calib_id([2, 1, 2]) == ['1', '2']
+
         """
-        _calib_id = calib_id if isinstance(calib_id, list) else [calib_id]
-        _calib_id = np.unique([str(c) for c in _calib_id])
+        if isinstance(calib_id, str):
+            _calib_id = calib_id.split(',')
+        elif isinstance(calib_id, list):
+            _calib_id = calib_id
+        else:
+            _calib_id = [calib_id]
+        _calib_id = np.unique(np.concatenate([str(c).split(',') for c in _calib_id]))
         if 'all' in _calib_id and len(_calib_id) != 1:
             msgs.warn(f'Calibration groups set to {_calib_id}, resetting to simply "all".')
             _calib_id = np.array(['all'])
@@ -267,18 +288,18 @@ class CalibFrame(datamodel.DataContainer):
 
         The identifier is the combination of the configuration, the calibration
         group, and the detector.  The configuration ID is the same as included
-        in the configuration column (A, B, C, etc), the calibration group is the
-        same as the calibration bit number, and the detector identifier.
+        in the configuration column (A, B, C, etc), the calibration group is a
+        dash-separated list of the calibration group identifiers or "all", and
+        the detector/mosaic identifier (see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.get_det_name`).
 
         Args:
             setup (:obj:`str`):
                 The string identifier for the instrument setup/configuration;
                 see :func:`~pypeit.metadata.PypeItMetaData.unique_configurations`.
-            calib_id (:obj:`list`, :obj:`str`, :obj:`int`):
+            calib_id (:obj:`str`, :obj:`list`, :obj:`int`):
                 Identifiers for one or more calibration groups for this
-                calibration frame.  The individual string and the string
-                elements of the list must be single numbers.  The only exception
-                is the string 'all'.
+                calibration frame.  See :func:`CalibFrame.ingest_calib_id`.
             detname (:obj:`str`):
                 The identifier used for the detector or detector mosaic for the
                 relevant instrument; see
@@ -330,9 +351,7 @@ class CalibFrame(datamodel.DataContainer):
             msgs.error('CODING ERROR: calib_key cannot be None when constructing the '
                        f'{cls.__name__} file name.')
         filename = f'{cls.calib_type}_{calib_key}.{cls.calib_file_format}'
-        if calib_dir is None:
-            return filename
-        return Path(calib_dir).resolve() / filename
+        return filename if calib_dir is None else Path(calib_dir).resolve() / filename
 
     def get_path(self):
         """
@@ -342,8 +361,8 @@ class CalibFrame(datamodel.DataContainer):
         that uses the existing values of :attr:`calib_key` and :attr`calib_dir`.
 
         Returns:
-            :obj:`str`: File path or file name.  This is always the full path if
-            :attr:`calib_dir` is defined.
+            :obj:`str`, `Path`_: File path or file name.  This is always the
+            full path if :attr:`calib_dir` is defined.
         """
         return self.__class__.construct_file_name(self.calib_key, calib_dir=self.calib_dir)
 
@@ -354,12 +373,11 @@ class CalibFrame(datamodel.DataContainer):
 
         Args:
             hdr (`astropy.io.fits.Header`, optional):
-                Header object to update.  The object is modified in-place and
-                also returned. If None, an empty header is instantiated, edited,
-                and returned.
+                Header object to update.  The provided object is *not* edited,
+                only copied.
 
         Returns:
-            `astropy.io.fits.Header`_: The initialized (or edited) fits header.
+            `astropy.io.fits.Header`_: The new/edited fits header.
         """
         # Standard init
         _hdr = super()._base_header(hdr=hdr)

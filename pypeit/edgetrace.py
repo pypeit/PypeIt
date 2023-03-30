@@ -516,7 +516,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
                                                         # matched to traced slits
 
         # Inherit the calibration frame attributes from the trace image:
-        self.copy_calib_keys(self.traceimg)
+        self.copy_calib_internals(self.traceimg)
 
         # NOTE: This means that, no matter what, every instance of
         # EdgeTraceSet should have a sobelsig attribute that is *not*
@@ -4982,7 +4982,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
                                        maskdef_posx_pa=_posx_pa, maskfile=self.maskfile,
                                        ech_order=ech_order)
         # Copy the CalibFrame internals (also identical to the self.traceimg internals)
-        slits.copy_calib_keys(self)
+        slits.copy_calib_internals(self)
 
         return slits
 

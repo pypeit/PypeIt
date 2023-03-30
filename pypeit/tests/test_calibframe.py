@@ -106,6 +106,8 @@ def test_construct_calib_key():
 def test_ingest_calib_id():
     assert CalibFrame.ingest_calib_id('all') == ['all'], 'Bad ingest'
     assert CalibFrame.ingest_calib_id(['all', 1]) == ['all'], 'Bad ingest'
+    assert CalibFrame.ingest_calib_id('1,2') == ['1', '2'], 'Bad ingest'
+    assert CalibFrame.ingest_calib_id(['1,2']) == ['1', '2'], 'Bad ingest'
     assert CalibFrame.ingest_calib_id([1, 2]) == ['1', '2'], 'Bad ingest'
     assert CalibFrame.ingest_calib_id([2, 1]) == ['1', '2'], 'Bad ingest'
     assert CalibFrame.ingest_calib_id([2, 1, 2]) == ['1', '2'], 'Bad ingest'

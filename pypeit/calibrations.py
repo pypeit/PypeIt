@@ -9,11 +9,11 @@ from datetime import datetime
 from copy import deepcopy
 from abc import ABCMeta
 from collections import Counter
+import yaml
 
 from IPython import embed
 
 import numpy as np
-import yaml
 
 from pypeit import __version__
 from pypeit import msgs
@@ -39,17 +39,14 @@ class Calibrations:
     Class designed to guide the generation of calibration images and objects in
     PypeIt.
 
-    It also keeps track of existing processed calibration frames to avoid
-    rebuilding those that were generated during this execution of PypeIt.
-
     Args:
-        fitstbl (:class:`pypeit.metadata.PypeItMetaData`, None):
+        fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
             The class holding the metadata for all the frames in this PypeIt run.
             If None, we are using this class as a glorified dict to hold the objects.
-        par (:class:`pypeit.par.pypeitpar.CalibrationsPar`):
+        par (:class:`~pypeit.par.pypeitpar.CalibrationsPar`):
             Parameter set defining optional parameters of PypeIt's algorithms
             for Calibrations
-        spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
+        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph object
         caldir (:obj:`str`, `Path`_):
             Path to write the output calibrations.
@@ -67,37 +64,58 @@ class Calibrations:
             :func:`~pypeit.slittrace.SlitTraceSet.user_mask`.
 
     Attributes:
-        fitstbl (:class:`pypeit.metadata.PypeItMetaData`):
-            Table with metadata for all fits files to reduce.
-        wavetilts (:class:`pypeit.wavetilts.WaveTilts`):
-        mstilt (:class:`pypeit.images.buildimage.TiltImage`):
-        flatimages (:class:`pypeit.flatfield.FlatImages`):
-        msbias (:class:`pypeit.images.buildimage.BiasImage`):
-        msdark (:class:`pypeit.images.buildimage.DarkImage`):
-        msbpm (`numpy.ndarray`_):
-        msarc (:class:`pypeit.images.buildimage.ArcImage`):
-            Arc-lamp calibration frame.
-        alignments (:class:`pypeit.alignframe.Alignments`):
-        wv_calib (:class:`pypeit.wavecalib.WaveCalib`):
-        slits (:class:`pypeit.slittrace.SlitTraceSet`):
-
-        write_qa
-        show
-        spectrograph
-        par (:class:`pypeit.par.pypeitpar.CalibrationsPar`):
-        full_par (:class:`pypeit.par.pypeitpar.PypeItPar`):
-        redux_path
-        calib_dir
-        det
+        fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
+            See instantiation arguments.
+        par (:class:`~pypeit.par.pypeitpar.CalibrationsPar`):
+            See instantiation arguments.
+        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+            See instantiation arguments.
+        calib_dir (`Path`_):
+            Path to write the output calibrations.
+        qa_path (`Path`_):
+            Path to write the QA.
+        reuse (:obj:`bool`):
+            See instantiation arguments.
+        show (:obj:`bool`):
+            See instantiation arguments.
+        user_slits (:obj:`dict`):
+            See instantiation arguments.
+        det (:obj:`int`, :obj:`tuple`):
+            The single detector or set of detectors in a mosaic to process.
         frame (:obj:`int`):
-            0-indexed row of the frame being calibrated in
-            :attr:`fitstbl`.
+            The index of a raw in :attr:`fitstbl` used to set the calibration
+            group.
         calib_ID (:obj:`int`):
-            calib group ID of the current frame
-        user_slits (:obj:`list, optional):
-            Identifies a slit or slits to restrict the analysis on
-            Used in :func:`get_slits` and propagated beyond
-
+            The calibration group associated with :attr:`frame`.
+        msarc (:class:`~pypeit.images.buildimage.ArcImage`):
+            Arc calibration frame
+        mstilt (:class:`~pypeit.images.buildimage.TiltImage`):
+            Tilt calibration frame
+        alignments (:class:`~pypeit.alignframe.Alignments`):
+            Alignment calibration frame
+        msbias (:class:`~pypeit.buildimage.BiasImage`):
+            Bias calibration frame
+        msdark (:class:`~pypeit.buildimage.DarkImage`):
+            Dark calibration frame
+        msbpm (`numpy.ndarray`_):
+            Boolean array with the bad-pixel mask (pixels that should masked are
+            set to True).
+        wv_calib (:class:`~pypeit.wavecalib.WaveCalib`):
+            Wavelength calibration frame
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+            Slit tracing calibration frame
+        wavetilts (:class:`~pypeit.wavetilts.WaveTilts`):
+            Tilts calibration frame
+        flatimages (:class:`~pypeit.flatfield.FlatImages`):
+            Flat-field calibration frame
+        steps (:obj:`list`):
+            A list of strings setting the set of processing steps to be
+            completed (not necessarily those that were successful).
+        success (:obj:`bool`):
+            Flag that the calibrations were all generated successfully.
+        failed_step (:obj:`str`):
+            If the calibrations were unsuccessful, this is the step that
+            led to the fault.
     """
     __metaclass__ = ABCMeta
 
@@ -154,7 +172,7 @@ class Calibrations:
         # Attributes
         self.det = None
         self.frame = None
-        self.binning = None
+#        self.binning = None
 
         self.msarc = None
         self.mstilt = None
@@ -165,7 +183,6 @@ class Calibrations:
         self.wv_calib = None
         self.slits = None
 
-        self.wavecalib = None
         self.wavetilts = None
         self.flatimages = None
         self.calib_ID = None
@@ -212,17 +229,23 @@ class Calibrations:
 
     def set_config(self, frame, det, par=None):
         """
-        Specify the parameters of the Calibrations class and reset all
-        the internals to None.
+        Specify the critical attributes of the class to perform a set of calibrations.
+
+        Operations are:
+
+            - Set the frame
+            - Use the frame to find the calibration group
+            - Set the detector/mosaic
+            - Set the parameters
 
         Args:
             frame (:obj:`int`):
                 Frame index in the fitstbl
             det (:obj:`int`):
                 Detector number
-            par (:class:`~pypeit.par.pypeitpar.CalibrationsPar`):
-                Parameters used by the calibration procedures.
-
+            par (:class:`~pypeit.par.pypeitpar.CalibrationsPar`, optional):
+                Parameters used by the calibration procedures.  If None, use
+                :attr:`par`.
         """
         # Reset internals to None
         # NOTE: This sets calib_ID so must
@@ -235,14 +258,12 @@ class Calibrations:
         # have one calibration group, but calibration frames can have many.  So
         # for both science and calibration frames, we just set the calibration
         # group to the first in the returned list.
-        # TODO: May need to revisit this...
         self.calib_ID = self.fitstbl.find_frame_calib_groups(self.frame)[0]
-#        self.calib_ID = int(self.fitstbl['calib'][frame])
         self.det = det
         if par is not None:
             self.par = par
-        # Deal with binning
-        self.binning = self.fitstbl['binning'][self.frame]
+#        # Deal with binning
+#        self.binning = self.fitstbl['binning'][self.frame]
 
     def get_arc(self):
         """
@@ -264,12 +285,12 @@ class Calibrations:
             msgs.warn('No frametype=arc files available!')
             return self.msarc
 
-        # Construct the detector/mosaic identifier
+        # Construct the calibration key
         detname = self.spectrograph.get_det_name(self.det)
+        calib_key = CalibFrame.construct_calib_key(setup, calib_id, detname)
 
         # Construct the expected calibration frame file name
-        arc_file = Path(buildimage.ArcImage.construct_file_name(
-                            CalibFrame.construct_calib_key(setup, calib_id, detname),
+        arc_file = Path(buildimage.ArcImage.construct_file_name(calib_key,
                             calib_dir=self.calib_dir)).resolve()
 
         # If it exists and we want to reuse it, do so:
@@ -309,12 +330,12 @@ class Calibrations:
             msgs.warn('No frametype=tilt files available!')
             return self.mstilt
 
-        # Construct the detector/mosaic identifier
+        # Construct the calibration key
         detname = self.spectrograph.get_det_name(self.det)
+        calib_key = CalibFrame.construct_calib_key(setup, calib_id, detname)
 
         # Construct the expected calibration frame file name
-        tilt_file = Path(buildimage.TiltImage.construct_file_name(
-                            CalibFrame.construct_calib_key(setup, calib_id, detname),
+        tilt_file = Path(buildimage.TiltImage.construct_file_name(calib_key,
                             calib_dir=self.calib_dir)).resolve()
 
         # If it exists and we want to reuse it, do so:
@@ -360,12 +381,12 @@ class Calibrations:
             self.alignments = None
             return self.alignments
 
-        # Construct the detector/mosaic identifier
+        # Construct the calibration key
         detname = self.spectrograph.get_det_name(self.det)
+        calib_key = CalibFrame.construct_calib_key(setup, calib_id, detname)
 
         # Construct the expected calibration frame file name
-        align_file = Path(alignframe.Alignments.construct_file_name(
-                            CalibFrame.construct_calib_key(setup, calib_id, detname),
+        align_file = Path(alignframe.Alignments.construct_file_name(calib_key,
                             calib_dir=self.calib_dir)).resolve()
 
         # If it exists and we want to reuse it, do so:
@@ -415,12 +436,12 @@ class Calibrations:
             self.msbias = None
             return self.msbias
 
-        # Construct the detector/mosaic identifier
+        # Construct the calibration key
         detname = self.spectrograph.get_det_name(self.det)
+        calib_key = CalibFrame.construct_calib_key(setup, calib_id, detname)
 
         # Construct the expected calibration frame file name
-        bias_file = Path(buildimage.BiasImage.construct_file_name(
-                            CalibFrame.construct_calib_key(setup, calib_id, detname),
+        bias_file = Path(buildimage.BiasImage.construct_file_name(calib_key,
                             calib_dir=self.calib_dir)).resolve()
 
         # If it exists and we want to reuse it, do so:
@@ -457,12 +478,12 @@ class Calibrations:
             self.msdark = None
             return self.msdark
 
-        # Construct the detector/mosaic identifier
+        # Construct the calibration key
         detname = self.spectrograph.get_det_name(self.det)
+        calib_key = CalibFrame.construct_calib_key(setup, calib_id, detname)
 
         # Construct the expected calibration frame file name
-        dark_file = Path(buildimage.DarkImage.construct_file_name(
-                            CalibFrame.construct_calib_key(setup, calib_id, detname),
+        dark_file = Path(buildimage.DarkImage.construct_file_name(calib_key,
                             calib_dir=self.calib_dir)).resolve()
 
         # If it exists and we want to reuse it, do so:
@@ -552,13 +573,13 @@ class Calibrations:
         setup = illum_setup if len(raw_pixel_files) == 0 else pixel_setup
         calib_id = illum_calib_id if len(raw_pixel_files) == 0 else pixel_calib_id
 
-        # Construct the detector/mosaic identifier
+        # Construct the calibration key
         detname = self.spectrograph.get_det_name(self.det)
+        calib_key = CalibFrame.construct_calib_key(setup, calib_id, detname)
 
         # Construct the expected calibration frame file name
-        calib_key = CalibFrame.construct_calib_key(setup, calib_id, detname)
         flat_file = Path(flatfield.FlatImages.construct_file_name(calib_key,
-                         calib_dir=self.calib_dir)).resolve()
+                            calib_dir=self.calib_dir)).resolve()
 
         # If it exists and we want to reuse it, do so:
         if flat_file.exists() and self.reuse:
@@ -698,12 +719,12 @@ class Calibrations:
             msgs.warn('No frametype=trace files to build slits')
             return self.slits
 
-        # Construct the detector/mosaic identifier
+        # Construct the calibration key
         detname = self.spectrograph.get_det_name(self.det)
+        calib_key = CalibFrame.construct_calib_key(setup, calib_id, detname)
 
         # Construct the expected calibration frame file name
-        slits_file = Path(slittrace.SlitTraceSet.construct_file_name(
-                            CalibFrame.construct_calib_key(setup, calib_id, detname),
+        slits_file = Path(slittrace.SlitTraceSet.construct_file_name(calib_key,
                             calib_dir=self.calib_dir)).resolve()
 
         # If it exists and we want to reuse it, do so:
@@ -715,8 +736,7 @@ class Calibrations:
             return self.slits
 
         # Slits don't exist or we're not resusing them
-        edges_file = Path(edgetrace.EdgeTraceSet.construct_file_name(
-                            CalibFrame.construct_calib_key(setup, calib_id, detname),
+        edges_file = Path(edgetrace.EdgeTraceSet.construct_file_name(calib_key,
                             calib_dir=self.calib_dir)).resolve()
         # Reuse an exising calibration frame?
         if edges_file.exists() and self.reuse:
@@ -799,16 +819,12 @@ class Calibrations:
             msgs.warn('No frametype=arc files available!')
             return self.wv_calib
 
-        # Construct the detector/mosaic identifier
+        # Construct the calibration key
         detname = self.spectrograph.get_det_name(self.det)
-
-        # Grab arc binning (may be different from science!)
-        # TODO : Do this internally when we have a wv_calib DataContainer
-        binspec, binspat = parse.parse_binning(self.msarc.detector.binning)
+        calib_key = CalibFrame.construct_calib_key(setup, calib_id, detname)
 
         # Construct the expected calibration frame file name
-        wvcalib_file = Path(wavecalib.WaveCalib.construct_file_name(
-                            CalibFrame.construct_calib_key(setup, calib_id, detname),
+        wvcalib_file = Path(wavecalib.WaveCalib.construct_file_name(calib_key,
                             calib_dir=self.calib_dir)).resolve()
 
         # If it exists and we want to reuse it, do so:
@@ -827,16 +843,19 @@ class Calibrations:
         meta_dict = dict(self.fitstbl[is_arc][0]) \
                     if self.spectrograph.pypeline == 'Echelle' \
                         and not self.spectrograph.ech_fixed_format else None
+        # Grab arc binning (may be different from science!)
+        # TODO : Do this internally when we have a wv_calib DataContainer
+        binspec, binspat = parse.parse_binning(self.msarc.detector.binning)
         # Instantiate
         # TODO: Pull out and pass only the necessary parts of meta_dict to
         # this, or include the relevant parts as parameters.  See comments
         # in PRs #1454 and #1476 on this.
         msgs.info(f'Preparing a {wavecalib.WaveCalib.calib_type} calibration frame.')
-        self.waveCalib = wavecalib.BuildWaveCalib(self.msarc, self.slits, self.spectrograph,
+        waveCalib = wavecalib.BuildWaveCalib(self.msarc, self.slits, self.spectrograph,
                                                   self.par['wavelengths'], lamps,
                                                   meta_dict=meta_dict, binspectral=binspec,
                                                   det=self.det, qa_path=self.qa_path)
-        self.wv_calib = self.waveCalib.run(skip_QA=(not self.write_qa))
+        self.wv_calib = waveCalib.run(skip_QA=(not self.write_qa))
         # If orders were found, save slits to disk
         if self.spectrograph.pypeline == 'Echelle' and not self.spectrograph.ech_fixed_format:
             self.slits.to_file()
@@ -872,9 +891,12 @@ class Calibrations:
             msgs.warn('No frametype=tilt files available!')
             return self.wavetilts
 
+        # Construct the calibration key
         detname = self.spectrograph.get_det_name(self.det)
-        tilts_file = Path(wavetilts.WaveTilts.construct_file_name(
-                            CalibFrame.construct_calib_key(setup, calib_id, detname),
+        calib_key = CalibFrame.construct_calib_key(setup, calib_id, detname)
+
+        # Construct the expected calibration frame file name
+        tilts_file = Path(wavetilts.WaveTilts.construct_file_name(calib_key,
                             calib_dir=self.calib_dir)).resolve()
 
         if tilts_file.exists() and self.reuse:
@@ -1053,13 +1075,12 @@ class Calibrations:
                            'are not all associated with the same subset of calibration '
                            'groups; calib for the first file is '
                            f'{fitstbl["calib"][indx][0]}.')
-            calib_key = CalibFrame.construct_calib_key(setup, fitstbl['calib'][indx][0],
-                                                       detname)
+            calib_key = CalibFrame.construct_calib_key(setup, fitstbl['calib'][indx][0], detname)
             asn[frametype] = {}
             asn[frametype]['raw'] = fitstbl.frame_paths(indx)
             asn[frametype]['proc'] \
                     = [str(calib_class.construct_file_name(calib_key, calib_dir=_caldir))
-                        for calib_class in frame_calibrations[frametype]]
+                            for calib_class in frame_calibrations[frametype]]
             if must_exist:
                 asn[frametype]['proc'] \
                     = [file for file in asn[frametype]['proc'] if Path(file).exists()]

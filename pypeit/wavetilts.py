@@ -710,7 +710,7 @@ class BuildWaveTilts:
         # Inherit the calibration frame naming from self.mstilt
         # TODO: Should throw an error here if these calibration frame naming
         # elements are not defined by self.mstilts...
-        tilts.copy_calib_keys(self.mstilt)
+        tilts.copy_calib_internals(self.mstilt)
         return tilts
 
     def _parse_param(self, par, key, slit):

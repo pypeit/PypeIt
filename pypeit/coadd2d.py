@@ -580,7 +580,7 @@ class CoAdd2D:
         caliBrate = calibrations.Calibrations(None, self.par['calibrations'], self.spectrograph, None)
         caliBrate.slits = pseudo_dict['slits']
         caliBrate.det = self.det
-        caliBrate.binning = self.binning
+#        caliBrate.binning = self.binning
 
         # Manual extraction.
         manual_obj = None

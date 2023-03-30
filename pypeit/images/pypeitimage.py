@@ -963,6 +963,6 @@ class PypeItCalibrationImage(PypeItImage, CalibFrame):
         the internals are propagated.
         """
         result = super().sub(other)
-        result.copy_calib_keys(self)
+        result.copy_calib_internals(self)
         return result
 
