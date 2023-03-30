@@ -566,6 +566,7 @@ class FlatField:
             # TODO: Should this be *any* flag, or just BPM?
             gpm = self.rawflatimg.select_flag(flag='BPM', invert=True)
             niter = 2  # Need two iterations, particularly for the fine spatial illumination correction.
+            det_resp_model = 1  # Default value that doesn't change anything
             for ff in range(niter):
                 # Just get the spatial and spectral profiles for now
                 self.fit(spat_illum_only=self.spat_illum_only, doqa=doqa, debug=debug)
