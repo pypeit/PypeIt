@@ -7,6 +7,8 @@
 - Calibration group numbers can now be anything, as long as there are no more
   than 63 unique integers.
 - Removed use of the term "master", renamed to calibration frames/files.
+  Default output directory for calibration frames is now ``Calibrations``.
+  Calibration frames renamed; e.g., ``MasterArc`` is now ``Arc``.
 - Calibration frame naming now done via ``calibframe.CalibFrame`` class.
 - Start to deprecate use of ``os.path`` in favor of ``pathlib``
 - Deprecated ``pypeit_parse_calib_id`` script, but improved the ``.calib`` file
