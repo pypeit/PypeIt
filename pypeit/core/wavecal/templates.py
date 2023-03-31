@@ -17,7 +17,7 @@ from scipy.interpolate import interp1d
 from astropy.table import Table
 from astropy import units
 
-from linetools import utils as ltu
+import linetools.utils
 
 from pypeit import msgs
 from pypeit import utils
@@ -244,7 +244,8 @@ def pypeit_arcspec(in_file, slit, binspec, binning=None):
 
     """
     if '.json' in in_file:
-        wv_dict = ltu.loadjson(in_file)
+        # Force any possible pathlib.Path object to string before `loadjson`
+        wv_dict = linetools.utils.loadjson(str(in_file))
         iwv_calib = wv_dict[str(slit)]
         pypeitFitting = fitting.PypeItFit(fitc=np.array(iwv_calib['fitc']),
                                           func=iwv_calib['function'],

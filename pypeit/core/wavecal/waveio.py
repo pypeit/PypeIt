@@ -29,6 +29,7 @@ def load_wavelength_calibration(filename: pathlib.Path) -> dict:
     if not filename.is_file():
         msgs.error(f"File does not exist: {filename}")
 
+    # Force any possible pathlib.Path object to string before `loadjson`
     wv_calib = linetools.utils.loadjson(str(filename))
 
     # Recast a few items as arrays
