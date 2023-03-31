@@ -874,6 +874,7 @@ class MultiSlitFindObjects(FindObjects):
                                 boxcar_rad=self.par['reduce']['extraction']['boxcar_radius'] / self.get_platescale(),  #pixels
                                 maxdev=self.par['reduce']['findobj']['find_maxdev'],
                                 find_min_max=self.par['reduce']['findobj']['find_min_max'],
+                                extract_maskwidth=self.par['reduce']['skysub']['local_maskwidth'],
                                 qa_title=qa_title, nperslit=maxnumber,
                                 objfindQA_filename=objfindQA_filename,
                                 debug_all=debug)

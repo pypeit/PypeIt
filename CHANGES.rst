@@ -1,6 +1,12 @@
 
-1.12.2.dev
-----------
+1.12.3dev
+---------
+
+- Hotfix to docs to ensure pypeit_loaders api doc is generated
+- Allow user control of the local sky subtraction window
+
+1.12.2 (29 Mar 2023)
+--------------------
 
 - Gemini/GMOS mask design slurping and usage
 - New GMOS wavelength solution
