@@ -26,8 +26,6 @@ class ArcImage(pypeitimage.PypeItCalibrationImage):
                       'ARC_DET_IMG', # For echelle multi-detector wavelengths
                       )
     hdu_prefix = 'ARC_'
-
-    # Calibration type
     calib_type = 'Arc'
 
 
@@ -40,8 +38,6 @@ class AlignImage(pypeitimage.PypeItCalibrationImage):
     # I/O
     output_to_disk = ('ALIGN_IMAGE', 'ALIGN_FULLMASK', 'ALIGN_DETECTOR')
     hdu_prefix = 'ALIGN_'
-
-    # Calibration type
     calib_type = 'Align'
 
 
@@ -78,8 +74,6 @@ class TiltImage(pypeitimage.PypeItCalibrationImage):
     # I/O
     output_to_disk = ('TILT_IMAGE', 'TILT_FULLMASK', 'TILT_DETECTOR')
     hdu_prefix = 'TILT_'
-
-    # Calibration type
     calib_type = 'Tiltimg'
 
 
@@ -92,8 +86,6 @@ class TraceImage(pypeitimage.PypeItCalibrationImage):
     # I/O
     output_to_disk = ('TRACE_IMAGE', 'TRACE_FULLMASK', 'TRACE_DETECTOR')
     hdu_prefix = 'TRACE_'
-
-    # Calibration type
     calib_type = 'Trace'
 
 
@@ -106,8 +98,6 @@ class SkyRegions(pypeitimage.PypeItCalibrationImage):
     # I/O
     output_to_disk = ('SKYREG_IMAGE')
     hdu_prefix = 'SKYREG_'
-
-    # Calibration type and file format
     calib_type = 'SkyRegions'
     calib_file_format = 'fits.gz'
 
@@ -130,6 +120,8 @@ class SkyRegions(pypeitimage.PypeItCalibrationImage):
             :obj:`str`: File path or file name
         """
         filename = super().construct_file_name(calib_key, calib_dir=calib_dir)
+        if basename is None:
+            return filename
         return filename.replace(f'.{cls.calib_file_format}', f'_{basename}.{cls.calib_file_format}')
 
 
@@ -253,7 +245,7 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
 
     # Either return the image directly, or decorate and return according to the
     # type of calibration.  For the latter, this specific use of
-    # from_pypeitimage means that the class must be a subclass of
+    # from_pypeitimage means that the class *must* be a subclass of
     # PypeItCalibrationImage!
     return pypeitImage if cls is None \
             else cls.from_pypeitimage(pypeitImage, calib_dir=calib_dir, setup=setup,

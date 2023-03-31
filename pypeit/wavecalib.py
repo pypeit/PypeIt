@@ -16,6 +16,7 @@ from astropy.table import Table
 from pypeit import msgs
 from pypeit.core import arc, qa
 from pypeit.core import fitting
+from pypeit.core import parse
 from pypeit.core.wavecal import autoid, wv_fitting
 from pypeit.core.gui.identify import Identify
 from pypeit import datamodel
@@ -362,8 +363,6 @@ class BuildWaveCalib:
         par (:class:`pypeit.par.pypeitpar.WaveSolutionPar`):
             The parameters used for the wavelength solution
             Uses ['calibrations']['wavelengths']
-        binspectral (int, optional):
-            Binning of the Arc in the spectral dimension
         meta_dict (dict: optional):
             Dictionary containing meta information required for wavelength
             calibration. Specifically for non-fixed format echelles this dict
@@ -404,8 +403,8 @@ class BuildWaveCalib:
     # TODO: Is this used anywhere?
     frametype = 'wv_calib'
 
-    def __init__(self, msarc, slits, spectrograph, par, lamps, binspectral=None, meta_dict=None,
-                 det=1, qa_path=None, msbpm=None):
+    def __init__(self, msarc, slits, spectrograph, par, lamps, meta_dict=None, det=1, qa_path=None,
+                 msbpm=None):
 
         # TODO: This should be a stop-gap to avoid instantiation of this with
         # any Nones.
@@ -414,6 +413,7 @@ class BuildWaveCalib:
 
         # Required parameters
         self.msarc = msarc
+        self.binspectral = parse.parse_binning(self.msarc.detector.binning)[0]
         self.slits = slits
         self.spectrograph = spectrograph
         self.par = par
@@ -424,7 +424,6 @@ class BuildWaveCalib:
         self.bpm = self.msarc.select_flag(flag='BPM') if msbpm is None else msbpm.astype(bool)
         if self.bpm.shape != self.msarc.shape:
             msgs.error('Bad-pixel mask is not the same shape as the arc image.')
-        self.binspectral = binspectral
         self.qa_path = qa_path
         self.det = det
 

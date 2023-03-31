@@ -41,8 +41,6 @@ class SkySubRegions(scriptbase.ScriptBase):
         from pypeit import msgs
         from pypeit import io
         from pypeit.core.gui.skysub_regions import SkySubGUI
-#        from pypeit.core import flexure
-#        from pypeit.scripts import utils
         from pypeit.images import buildimage
         from pypeit.images.detector_container import DetectorContainer
         from pypeit.edgetrace import EdgeTraceSet
@@ -54,8 +52,6 @@ class SkySubRegions(scriptbase.ScriptBase):
             detname = args.det
         else:
             detname = DetectorContainer.get_name(det)
-
-#        info = utils.Utilities(pypeit_file=args.file, det=args.det)
 
         # Load it up
         spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, detname, chk_version=True)

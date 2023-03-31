@@ -1528,16 +1528,6 @@ class DataContainer:
         with io.fits_open(_ifile) as hdu:
             return cls.from_hdu(hdu, chk_version=chk_version, **kwargs)
 
-#            obj = cls.from_hdu(hdu, chk_version=chk_version, **kwargs)
-#            # TODO: This stuff should be moved to a new class that subclasses
-#            # from DataContainer.
-#            if hasattr(obj, 'head0'):
-#                obj.head0 = hdu[0].header
-#            if hasattr(obj, 'filename'):
-#                obj.filename = ifile
-#
-#        return obj
-
     def __repr__(self):
         """ Over-ride print representation
 

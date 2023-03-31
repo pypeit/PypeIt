@@ -48,7 +48,6 @@ class Identify(scriptbase.ScriptBase):
         import numpy as np
         
         from pypeit import msgs
-        from pypeit import calibframe
         from pypeit.spectrographs.util import load_spectrograph
         from pypeit.core.gui.identify import Identify
         from pypeit.core.wavecal import waveio
@@ -80,7 +79,7 @@ class Identify(scriptbase.ScriptBase):
         # Check if a solution exists
         solnname = WaveCalib.construct_file_name(msarc.calib_key, calib_dir=msarc.calib_dir)
         wv_calib = WaveCalib.from_file(solnname) \
-                if os.path.exists(solnname) and args.solution else None
+                        if os.path.exists(solnname) and args.solution else None
 
         # Load the calibration frame (if it exists and is desired).  Bad-pixel mask
         # set to any flagged pixel in Arc.

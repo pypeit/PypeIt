@@ -287,7 +287,7 @@ class QL(scriptbase.ScriptBase):
         parser.add_argument("--calib_dir", type=str, 
                             help="Location folders of calibration reductions")
         parser.add_argument("--masters_dir", type=str, 
-                            help="Location of PypeIt calibration files used for the reduction.")
+                            help="Location of PypeIt Master files used for the reduction.")
         parser.add_argument("--calibs_only", default=False, action="store_true",
                             help='Reduce only the calibrations?')
         parser.add_argument("--clobber_calibs", default=False, 

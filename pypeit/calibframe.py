@@ -97,11 +97,12 @@ class CalibFrame(datamodel.DataContainer):
             setup (:obj:`str`):
                 The string identifier for the instrument setup/configuration;
                 see :func:`~pypeit.metadata.PypeItMetaData.unique_configurations`.
-            calib_id (:obj:`list`, :obj:`str`, :obj:`int`):
+            calib_id (:obj:`str`, :obj:`list`, :obj:`int`):
                 Identifiers for one or more calibration groups for this
-                calibration frame.  The individual string and the string
-                elements of the list must be single numbers.  The only exception
-                is the string `'all'`.
+                calibration frame.  Strings (either as individually entered or
+                as elements of a provided list) can be single or comma-separated
+                integers.  Otherwise, all strings must be convertible to
+                integers, with the only exception is the string 'all'.
             detname (:obj:`str`):
                 The identifier used for the detector or detector mosaic for the
                 relevant instrument; see

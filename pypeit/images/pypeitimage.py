@@ -247,7 +247,7 @@ class PypeItImage(datamodel.DataContainer):
         return d
 
     @classmethod
-    def from_hdu(cls, hdu, chk_version=True, hdu_prefix=None, **kwargs):
+    def from_hdu(cls, hdu, chk_version=True, hdu_prefix=None):
         """
         Instantiate the object from an HDU extension.
 
@@ -267,8 +267,6 @@ class PypeItImage(datamodel.DataContainer):
                 Only parse HDUs with extension names matched to this prefix. If
                 None, :attr:`hdu_prefix` is used. If the latter is also None, no
                 prefix is expected.
-            **kwargs:
-                Passed directly to :func:`~pypeit.datamodel.DataContainer._parse`.
         """
         # TODO: Is there a way to read the mask array directly using the
         # ext_pseudo functionality?
@@ -817,7 +815,7 @@ class PypeItImage(datamodel.DataContainer):
         repr = repr + '>'
         return repr
 
-    def build_header(self, hdr=None):
+    def _base_header(self, hdr=None):
         """
         Build the generic header written to all PypeIt images.
 
@@ -935,11 +933,34 @@ class PypeItCalibrationImage(PypeItImage, CalibFrame):
         can then be subsequently decorated by an appropriate type with default
         attributes.  See, e.g., :class:`~pypeit.images.buildimage.ArcImage`.
 
-        Note that this is *not* a deep copy.
+        .. note::
+
+            - This is *not* a deep copy.
+
+            - To appropriately set the relevant
+              :class:`~pypeit.calibframe.CalibFrame` internals, **all** of the
+              optional arguments must be provided.
 
         Args:
             pypeitImage (:class:`PypeItImage`):
                 The input image to convert into the appropriate type.
+            calib_dir (:obj:`str`, `Path`_, optional):
+                Output directory for the processed calibration frames
+            setup (:obj:`str`, optional):
+                The string identifier for the instrument setup/configuration;
+                see :func:`~pypeit.metadata.PypeItMetaData.unique_configurations`.
+            calib_id (:obj:`str`, :obj:`list`, :obj:`int`):
+                Identifiers for one or more calibration groups for this
+                calibration frame.  See
+                :func:`~pypeit.calibframe.CalibFrame.ingest_calib_id`.
+            detname (:obj:`str`):
+                The identifier used for the detector or detector mosaic for the
+                relevant instrument; see
+                :func:`~pypeit.spectrograph.spectrograph.Spectrograph.get_det_name`.
+
+        Returns:
+            :class:`PypeItImage`: Image with the appropriate type and
+            :class:`~pypeit.calibframe.CalibFrame` internals.
         """
         # Instantiate from a PypeItImage
         self = super().from_pypeitimage(pypeitImage)
@@ -950,12 +971,12 @@ class PypeItCalibrationImage(PypeItImage, CalibFrame):
         # Done
         return self
 
-    def build_header(self, hdr=None):
+    def _base_header(self, hdr=None):
         """
         Override the base class functions to combine the operations of both base
         classes.
         """
-        return CalibFrame.build_header(self, hdr=PypeItImage.build_header(self, hdr=hdr))
+        return CalibFrame._base_header(self, hdr=PypeItImage._base_header(self, hdr=hdr))
 
     def sub(self, other):
         """

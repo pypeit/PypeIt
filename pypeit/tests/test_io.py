@@ -11,5 +11,4 @@ def test_remove_suffix():
             'bad many suffix removal'
     assert io.remove_suffix('gzipped_file.fits.gz') == 'gzipped_file', 'bad gzipped removal'
 
-test_remove_suffix()
 

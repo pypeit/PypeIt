@@ -102,7 +102,6 @@ class Setup(scriptbase.ScriptBase):
             ps.fitstbl.write(output=obslog_file, columns='pypeit', sort_col='mjd', overwrite=True,
                              header=header)
         else:
-            # Output directory is hard-coded to be 'setup_files'
             if not output_path.exists():
                 output_path.mkdir(parents=True)
             # Write the pypeit files.

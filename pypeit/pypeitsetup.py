@@ -268,28 +268,6 @@ class PypeItSetup:
         self.fitstbl.get_frame_types(flag_unknown=flag_unknown, user=self.frametype)
 
     def run(self, setup_only=False, clean_config=True, groupings=True):
-#            sort_dir=None, 
-#            write_bkg_pairs=False, write_manual=False,
-#            , obslog=False, write_files=True,
-#            no_write_sorted=False):
-#            calibration_check (obj:`bool`, optional):
-#                Only check that the calibration frames are
-#                appropriately setup and exist on disk. ``PypeIt`` is
-#                expected to execute in a way that ends after this
-#                class is fully instantiated such that the user can
-#                inspect the results before proceeding.
-#            sort_dir (:obj:`str`, `Path`_, optional):
-#                The directory to put the '.sorted' file.
-#            write_bkg_pairs (:obj:`bool`, optional):
-#                Include columns with the (unassigned) background
-#                image pairs. This is a convenience so that users can
-#                more easily add/edit the background pair ID numbers.
-#            write_manual (:obj:`bool`, optional):
-#                Add additional ``PypeIt`` columns for manual extraction
-#            write_files (:obj:`bool`, optional):
-#                Write the standard files
-#            no_write_sorted (:obj:`bool`, optional):
-#                Do not write the .sorted file
         """
         Once instantiated, this is the main method used to construct the
         object.
@@ -360,102 +338,7 @@ class PypeItSetup:
             # Set default comb_id
             self.fitstbl.set_combination_groups()
 
-#        # Write the output files
-#        if write_files:
-#            self.write(output_path=sort_dir, setup_only=setup_only,
-#                       calibration_check=calibration_check, 
-#                       write_bkg_pairs=write_bkg_pairs,
-#                       write_manual=write_manual,
-#                       obslog=obslog, no_write_sorted=no_write_sorted)
-
         return self.par, self.spectrograph, self.fitstbl
-
-#    def write(self, output_path=None, setup_only=False, calibration_check=False, 
-#              write_bkg_pairs=False, obslog=False, write_manual=False,
-#              no_write_sorted=False):
-#        """
-#        Write the set of pypeit setup files.
-#
-#        Args:
-#            output_path (:obj:`str`, `Path`_, optional):
-#                Directory for the output files.  If None, use the current
-#                working directory, or the path associated with
-#                :attr:`pypeit_file`.  If the path does not exist, this function
-#                will create it!
-#            setup_only (:obj:`bool`, optional):
-#                Only this setup will be performed. ``PypeIt`` is
-#                expected to execute in a way that ends after this
-#                class is fully instantiated such that the user can
-#                inspect the results before proceeding. This has the
-#                effect of providing more output describing the
-#                success of the setup and how to proceed, and provides
-#                warnings (instead of errors) for issues that may
-#                cause the reduction itself to fail.
-#            calibration_check (obj:`bool`, optional):
-#                Only check that the calibration frames are
-#                appropriately setup and exist on disk. ``PypeIt`` is
-#                expected to execute in a way that ends after this
-#                class is fully instantiated such that the user can
-#                inspect the results before proceeding.
-#            write_bkg_pairs (:obj:`bool`, optional):
-#                Include columns with the (unassigned) background
-#                image pairs. This is a convenience so that users can
-#                more easily add/edit the background pair ID numbers.
-#            write_manual (:obj:`bool`, optional):
-#                Add additional ``PypeIt`` columns for manual extraction
-#            clean_config (:obj:`bool`, optional):
-#                Remove files with metadata that indicate an
-#                instrument configuration that ``PypeIt`` cannot
-#                reduce. See
-#                :func:`~pypeit.spectrographs.spectrograph.Spectrograph.valid_configuration_values`.
-#            groupings (:obj:`bool`, optional):
-#                Group frames into instrument configurations and calibration
-#                sets, and add the default combination-group columns.
-#            no_write_sorted (:obj:`bool`, optional):
-#                Do not write the .sorted file
-#        """
-#        pypeit_file = self.spectrograph.name + '.pypeit' \
-#                            if self.pypeit_file is None or len(self.pypeit_file) == 0 \
-#                            else self.pypeit_file
-#        _output_path = Path(pypeit_file).resolve().parent if output_path is None \
-#                            else Path(output_path).resolve()
-#        if not _output_path.exists():
-#            _output_path.mkdir(parents=True)
-#        pypeit_file = Path(pypeit_file).name
-#
-#        if setup_only:
-#            # Collate all matching files and write .sorted Table (on pypeit_setup only)
-#            sorted_file = _output_path / pypeit_file.replace('.pypeit', '.sorted')
-#            if not no_write_sorted:
-#                self.fitstbl.write_sorted(sorted_file, write_bkg_pairs=write_bkg_pairs,
-#                                          write_manual=write_manual)
-#                msgs.info(f'Wrote sorted file: {sorted_file}')
-#        else:
-#            # Write the calib file
-#            # This is currently needed for QA
-#            calib_file = _output_path / pypeit_file.replace('.pypeit', '.calib')
-#            self.fitstbl.write_calib(calib_file)
-#
-#        if obslog:
-#            log_file = pypeit_file.replace('.pypeit', '.obslog')
-#            log_file = os.path.join(_output_path, os.path.split(log_file)[1])
-#            header = ['Auto-generated PypeIt Observing Log',
-#                      '{0}'.format(time.strftime("%a %d %b %Y %H:%M:%S", time.localtime()))]
-#            self.fitstbl.write(output=log_file, columns='pypeit', sort_col='mjd',
-#                               overwrite=True, header=header)
-#
-#        # Finish (depends on PypeIt run mode)
-#        # TODO: Do we need this?
-#        if calibration_check:
-#            msgs.info("Inspect the .calib file: {:s}".format(calib_file))
-#            msgs.info("*********************************************************")
-#            msgs.info("Calibration check complete and successful!")
-#            msgs.info("*********************************************************")
-#
-#        if setup_only:
-#            msgs.info("Setup is complete.")
-#            msgs.info("Inspect the .sorted file")
-
 
     def generate_ql_calib_pypeit_files(self, output_path:str, 
                                        det:str=None, 

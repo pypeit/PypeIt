@@ -26,7 +26,6 @@ from pypeit import wavetilts
 from pypeit.calibframe import CalibFrame
 from pypeit.images import buildimage
 from pypeit.metadata import PypeItMetaData
-from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph
@@ -83,8 +82,8 @@ class Calibrations:
         det (:obj:`int`, :obj:`tuple`):
             The single detector or set of detectors in a mosaic to process.
         frame (:obj:`int`):
-            The index of a raw in :attr:`fitstbl` used to set the calibration
-            group.
+            The index of a raw file in :attr:`fitstbl` used to set the
+            calibration group.
         calib_ID (:obj:`int`):
             The calibration group associated with :attr:`frame`.
         msarc (:class:`~pypeit.images.buildimage.ArcImage`):
@@ -110,7 +109,8 @@ class Calibrations:
             Flat-field calibration frame
         steps (:obj:`list`):
             A list of strings setting the set of processing steps to be
-            completed (not necessarily those that were successful).
+            completed (not necessarily those that were successful).  See the
+            ``default_steps`` functions of each subclass.
         success (:obj:`bool`):
             Flag that the calibrations were all generated successfully.
         failed_step (:obj:`str`):
@@ -172,7 +172,7 @@ class Calibrations:
         # Attributes
         self.det = None
         self.frame = None
-#        self.binning = None
+#        self.binning = None    # NEVER USED
 
         self.msarc = None
         self.mstilt = None
@@ -188,7 +188,7 @@ class Calibrations:
         self.calib_ID = None
 
         # Steps
-        self.steps = []
+        self.steps = self.__class__.default_steps()
         self.success = False
         self.failed_step = None
 
@@ -270,7 +270,7 @@ class Calibrations:
         Load or generate the arc calibration frame.
 
         Returns:
-            :class:`pypeit.images.buildimage.ArcImage`: The processed
+            :class:`~pypeit.images.buildimage.ArcImage`: The processed
             calibration image.
         """
         # Check internals
@@ -315,7 +315,7 @@ class Calibrations:
         Load or generate the tilt calibration frame.
 
         Returns:
-            :class:`pypeit.images.buildimage.TiltImage`: The processed
+            :class:`~pypeit.images.buildimage.TiltImage`: The processed
             calibration image.
         """
         # Check internals
@@ -325,7 +325,7 @@ class Calibrations:
         raw_files, setup, calib_id = self._prep_calibrations('tilt')
 
         if len(raw_files) == 0:
-            # There are no arc files, so we're done!
+            # There are no tilt files, so we're done!
             self.mstilt = None
             msgs.warn('No frametype=tilt files available!')
             return self.mstilt
@@ -360,10 +360,8 @@ class Calibrations:
         """
         Load or generate the alignment calibration frame.
 
-        Requires: :attr:`slits`, :attr:`det`, :attr:`par`
-
         Returns:
-            :class:`pypeit.alignframe.Alignments`: The processed alignment
+            :class:`~pypeit.alignframe.Alignments`: The processed alignment
             image.
         """
         # Check for existing data
@@ -404,8 +402,9 @@ class Calibrations:
                                                  setup=setup, calib_id=calib_id)
 
         # Extract some header info needed by the algorithm
-        # TODO: We have the fitstbl, can we get it from there, instead of having
-        # to reread the file?
+        # TODO: There seems like there are a number of ways of getting this
+        # without having to re-read the file.  E.g., can TraceAlignments pull it
+        # directly from msalign?
         binning = self.spectrograph.get_meta_value(raw_files[0], 'binning')
 
         # Instantiate
@@ -422,7 +421,7 @@ class Calibrations:
         Load or generate the bias calibration frame.
 
         Returns:
-            :class:`pypeit.images.buildimage.BiasImage`: The processed
+            :class:`~pypeit.images.buildimage.BiasImage`: The processed
             calibration image.
         """
         # Check internals
@@ -464,7 +463,7 @@ class Calibrations:
         Load or generate the dark calibration frame.
 
         Returns:
-            :class:`pypeit.images.buildimage.DarkImage`: The processed
+            :class:`~pypeit.images.buildimage.DarkImage`: The processed
             calibration image.
         """
         # Check internals
@@ -561,7 +560,6 @@ class Calibrations:
 
         # Prep
         raw_pixel_files, pixel_setup, pixel_calib_id = self._prep_calibrations('pixelflat')
-        # Using _prep_calibrations is a bit overkill here...
         raw_illum_files, illum_setup, illum_calib_id = self._prep_calibrations('illumflat')
         raw_lampoff_files = self._prep_calibrations('lampoffflats')[0]
 
@@ -682,10 +680,11 @@ class Calibrations:
         # NOTE: These are the *final* images, not just a stack, and it will
         # over-ride what is generated below (if generated).
 
-        # TODO: Why is this done after writing the image above?  If we did,  we
-        # wouldn't need to re-read the user-provided file when ingesting the
-        # existing flat file.  Is this to allow the user to change the pixel
-        # flat file?  Should we allow the user to change the file name?
+        # TODO: Why is this done after writing the image above?  If we instead
+        # wrote the file after applying this user-defined pixelflat, we wouldn't
+        # need to re-read the user-provided file when ingesting the existing
+        # flat file.  Is this to allow the user to change the pixel flat file?
+        # Should we allow that?
         if self.par['flatfield']['pixelflat_file'] is not None:
             # Load
             msgs.info(f'Using user-defined file: {self.par["flatfield"]["pixelflat_file"]}')
@@ -700,7 +699,7 @@ class Calibrations:
         Load or generate the definition of the slit boundaries.
 
         Returns:
-            :class:`pypeit.slittrace.SlitTraceSet`: Traces of the
+            :class:`~pypeit.slittrace.SlitTraceSet`: Traces of the
             slit edges; also kept internally as :attr:`slits`.
         """
         # Check for existing data
@@ -735,27 +734,29 @@ class Calibrations:
                 self.slits.user_mask(detname, self.user_slits)            
             return self.slits
 
-        # Slits don't exist or we're not resusing them
+        # Slits don't exist or we're not resusing them.  See if the Edges
+        # calibration frame exists.
         edges_file = Path(edgetrace.EdgeTraceSet.construct_file_name(calib_key,
                             calib_dir=self.calib_dir)).resolve()
-        # Reuse an exising calibration frame?
+        # If so, reuse it?
         if edges_file.exists() and self.reuse:
+            # Yep!  Load it and parse it into slits.
             self.slits = edgetrace.EdgeTraceSet.from_file(edges_file).get_slits()
+            # Write the slits calibration file
             self.slits.to_file()
             if self.user_slits is not None:
                 self.slits.user_mask(detname, self.user_slits)            
             return self.slits
 
-        # Build the trace image
+        # Need to build everything from scratch.  Start with the trace image.
         msgs.info('Creating edge tracing calibration frame using files: ')
         for f in raw_trace_files:
             msgs.prindent(f'{Path(f).name}')
-        self.traceImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                         self.par['traceframe'], raw_trace_files,
-                                                         bias=self.msbias, bpm=self.msbpm,
-                                                         dark=self.msdark,
-                                                         calib_dir=self.calib_dir,
-                                                         setup=setup, calib_id=calib_id)
+        traceImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                    self.par['traceframe'], raw_trace_files,
+                                                    bias=self.msbias, bpm=self.msbpm,
+                                                    dark=self.msdark, calib_dir=self.calib_dir,
+                                                    setup=setup, calib_id=calib_id)
         if len(raw_lampoff_files) > 0:
             msgs.info('Subtracting lamp off flats using files: ')
             for f in raw_lampoff_files:
@@ -764,23 +765,27 @@ class Calibrations:
                                                           self.par['lampoffflatsframe'],
                                                           raw_lampoff_files, dark=self.msdark,
                                                           bias=self.msbias, bpm=self.msbpm)
-            self.traceImage = self.traceImage.sub(lampoff_flat)
+            traceImage = traceImage.sub(lampoff_flat)
 
-        self.edges = edgetrace.EdgeTraceSet(self.traceImage, self.spectrograph,
-                                            self.par['slitedges'], auto=True)
-        if not self.edges.success:
+        edges = edgetrace.EdgeTraceSet(traceImage, self.spectrograph, self.par['slitedges'],
+                                       auto=True)
+        if not edges.success:
+            # Something went amiss
+            msgs.warn('Edge tracing failed.  Continuing, but likely to fail soon...')
             self.success = False
             return None
-        self.edges.to_file()
+        # Save the result
+        edges.to_file()
 
         # Show the result if requested
         if self.show:
-            self.edges.show(in_ginga=True)
+            edges.show(in_ginga=True)
 
         # Get the slits from the result of the edge tracing, delete
         # the edges object, and save the slits, if requested
-        self.slits = self.edges.get_slits()
-        self.edges = None
+        self.slits = edges.get_slits()
+        traceImage = None
+        edges = None
         self.slits.to_file()
         if self.user_slits is not None:
             self.slits.user_mask(detname, self.user_slits)            
@@ -843,18 +848,17 @@ class Calibrations:
         meta_dict = dict(self.fitstbl[is_arc][0]) \
                     if self.spectrograph.pypeline == 'Echelle' \
                         and not self.spectrograph.ech_fixed_format else None
-        # Grab arc binning (may be different from science!)
-        # TODO : Do this internally when we have a wv_calib DataContainer
-        binspec, binspat = parse.parse_binning(self.msarc.detector.binning)
         # Instantiate
         # TODO: Pull out and pass only the necessary parts of meta_dict to
         # this, or include the relevant parts as parameters.  See comments
         # in PRs #1454 and #1476 on this.
+        # TODO: (Added 30 Mar 2023) The need for the meta_dict is for echelle
+        # wavelength calibration.  Create EchelleCalibrations and
+        # EchelleBuildWaveCalib subclasses instead..
         msgs.info(f'Preparing a {wavecalib.WaveCalib.calib_type} calibration frame.')
         waveCalib = wavecalib.BuildWaveCalib(self.msarc, self.slits, self.spectrograph,
-                                                  self.par['wavelengths'], lamps,
-                                                  meta_dict=meta_dict, binspectral=binspec,
-                                                  det=self.det, qa_path=self.qa_path)
+                                             self.par['wavelengths'], lamps, meta_dict=meta_dict,
+                                             det=self.det, qa_path=self.qa_path)
         self.wv_calib = waveCalib.run(skip_QA=(not self.write_qa))
         # If orders were found, save slits to disk
         if self.spectrograph.pypeline == 'Echelle' and not self.spectrograph.ech_fixed_format:
@@ -983,7 +987,7 @@ class Calibrations:
         processed calibration frames.
 
         Args:
-            fitstbl (:class:`pypeit.metadata.PypeItMetaData`):
+            fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
                 The class holding the metadata for all the frames to process.
             spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
                 Spectrograph object
@@ -1118,7 +1122,7 @@ class Calibrations:
         Args:
             ofile (:obj:`str`, `Path`_):
                 Full path to the output file.
-            fitstbl (:class:`pypeit.metadata.PypeItMetaData`):
+            fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
                 The class holding the metadata for all the frames to process.
             spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
                 Spectrograph object
@@ -1185,7 +1189,7 @@ class Calibrations:
 class MultiSlitCalibrations(Calibrations):
     """
     Calibration class for performing multi-slit calibrations (and also long-slit
-    and echelle).  See :class:`~pypeit.calibrations.Calibrations` for arguments.
+    and echelle).  See :class:`Calibrations` for arguments.
 
     .. note::
 
@@ -1194,10 +1198,6 @@ class MultiSlitCalibrations(Calibrations):
         eventually required for the set of processing steps (see
         :func:`default_steps`).
     """
-    def __init__(self, fitstbl, par, spectrograph, caldir, **kwargs):
-        super().__init__(fitstbl, par, spectrograph, caldir, **kwargs)
-        self.steps = MultiSlitCalibrations.default_steps()
-
     @staticmethod
     def default_steps():
         """
@@ -1214,14 +1214,9 @@ class MultiSlitCalibrations(Calibrations):
 
 class IFUCalibrations(Calibrations):
     """
-    Child of Calibrations class for performing IFU calibrations.
-    See :class:`pypeit.calibrations.Calibrations` for arguments.
+    Child of Calibrations class for performing IFU calibrations.  See
+    :class:`Calibrations` for arguments.
     """
-
-    def __init__(self, fitstbl, par, spectrograph, caldir, **kwargs):
-        super().__init__(fitstbl, par, spectrograph, caldir, **kwargs)
-        self.steps = IFUCalibrations.default_steps()
-
     @staticmethod
     def default_steps():
         """
@@ -1242,8 +1237,8 @@ def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):
     the science frames
 
     Args:
-        par (:class:`pypeit.par.pypeitpar.PypeItPar`):
-        fitstbl (:class:`pypeit.metadata.PypeItMetaData`, None):
+        par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
+        fitstbl (:class:`~pypeit.metadata.PypeItMetaData`, None):
             The class holding the metadata for all the frames in this
             PypeIt run.
         raise_error (:obj:`bool`, optional):

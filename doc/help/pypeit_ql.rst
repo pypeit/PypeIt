@@ -61,8 +61,8 @@
                             Location folders of calibration reductions (default:
                             None)
       --masters_dir MASTERS_DIR
-                            Location of PypeIt calibration files used for the
-                            reduction. (default: None)
+                            Location of PypeIt Master files used for the reduction.
+                            (default: None)
       --calibs_only         Reduce only the calibrations? (default: False)
       --clobber_calibs      Clobber existing calibration files? (default: False)
       --slitspatnum SLITSPATNUM

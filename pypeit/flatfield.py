@@ -110,7 +110,7 @@ class FlatImages(calibframe.CalibFrame):
         Barfs if not
 
         Args:
-            slits (:class:`pypeit.slittrace.SlitTraceSet`):
+            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
 
         """
         if not np.array_equal(self.spat_id, slits.spat_id):
@@ -338,7 +338,7 @@ class FlatImages(calibframe.CalibFrame):
         Construct the model flat using the spatial bsplines.
 
         Args:
-            slits (:class:`pypeit.slittrace.SlitTraceSet`):
+            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
                 Definition of the slit edges
             frametype (str, optional):
                 The frame type should be 'illum' to return the illumflat
@@ -397,7 +397,7 @@ class FlatImages(calibframe.CalibFrame):
                 String used to select the flats to be displayed.  The frame type
                 should be 'illum' to show the illumflat version, 'pixel' to show
                 the pixelflat version, or 'all' to show both.
-            slits (:class:`pypeit.slittrace.SlitTraceSet`):
+            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
                 Definition of the slit edges
             wcs_match (:obj:`bool`, optional):
                 (Attempt to) Match the WCS coordinates of the output images in
@@ -461,18 +461,17 @@ class FlatField:
     For the primary methods, see :func:`run`.
 
     Args:
-        rawflatimg (:class:`pypeit.images.pypeitimage.PypeItImage`):
+        rawflatimg (:class:`~pypeit.images.pypeitimage.PypeItImage`):
             Processed, combined set of pixelflat images
-        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             The `Spectrograph` instance that sets the instrument used to
-            take the observations.  See usage by
-            :class:`pypeit.processimages.ProcessImages` base class.
-        flatpar (:class:`pypeit.par.pypeitpar.FlatFieldPar`):
+            take the observations.
+        flatpar (:class:`~pypeit.par.pypeitpar.FlatFieldPar`):
             User-level parameters for constructing the flat-field
             corrections.  If None, the default parameters are used.
-        slits (:class:`pypeit.slittrace.SlitTraceSet`):
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`):
             The current slit traces.
-        wavetilts (:class:`pypeit.wavetilts.WaveTilts`):
+        wavetilts (:class:`~pypeit.wavetilts.WaveTilts`):
             The current wavelength tilt traces; see
         wv_calib (??):
             ??
@@ -487,7 +486,7 @@ class FlatField:
             ??
 
     Attributes:
-        rawflatimg (:class:`pypeit.images.pypeitimage.PypeItImage`):
+        rawflatimg (:class:`~pypeit.images.pypeitimage.PypeItImage`):
         mspixelflat (`numpy.ndarray`_):
             Normalized flat
         msillumflat (`numpy.ndarray`_):
@@ -547,7 +546,7 @@ class FlatField:
         Generate normalized pixel and illumination flats.
 
         This is a simple wrapper for the main flat-field methods:
-            
+
             - Flat-field images are processed using :func:`build_pixflat`.
 
             - Full 2D model, illumination flat, and pixel flat images are
@@ -679,7 +678,7 @@ class FlatField:
 
             - Collapse the flat-field data spatially using the
               wavelength coordinates provided by the fit to the arc-line
-              traces (:class:`pypeit.wavetilts.WaveTilts`), and fit the
+              traces (:class:`~pypeit.wavetilts.WaveTilts`), and fit the
               result with a bspline.  This provides the
               spatially-averaged spectral response of the instrument.
               The data used in the fit is trimmed toward the slit
@@ -735,11 +734,11 @@ class FlatField:
         attributes are altered internally.  If the slit edges are to be
         tweaked using the 1D illumination profile (``tweak_slits`` in
         :attr:`flatpar`), the tweaked slit edge arrays in the internal
-        :class:`pypeit.edgetrace.SlitTraceSet` object, :attr:`slits`,
+        :class:`~pypeit.edgetrace.SlitTraceSet` object, :attr:`slits`,
         are also altered.
 
         Used parameters from :attr:`flatpar`
-        (:class:`pypeit.par.pypeitpar.FlatFieldPar`) are
+        (:class:`~pypeit.par.pypeitpar.FlatFieldPar`) are
         ``spec_samp_fine``, ``spec_samp_coarse``, ``spat_samp``,
         ``tweak_slits``, ``tweak_slits_thresh``,
         ``tweak_slits_maxfrac``, ``rej_sticky``, ``slit_trim``,
@@ -1305,7 +1304,7 @@ class FlatField:
                  - exit_status (int):
                  - spat_coo_data
                  - spat_flat_data
-                 - spat_bspl (:class:`pypeit.bspline.bspline.bspline`): Bspline model of the spatial fit.  Used for illumflat
+                 - spat_bspl (:class:`~pypeit.bspline.bspline.bspline`): Bspline model of the spatial fit.  Used for illumflat
                  - spat_gpm_fit
                  - spat_flat_fit
                  - spat_flat_data_raw
@@ -1647,7 +1646,7 @@ def show_flats(image_list, wcs_match=True, slits=None, waveimg=None):
         flat_model (`numpy.ndarray`_):
         spec_illum (`numpy.ndarray`_ or None):
         wcs_match (bool, optional):
-        slits (:class:`pypeit.slittrace.SlitTraceSet`, optional):
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`, optional):
         waveimg (`numpy.ndarray`_ or None):
 
     Returns:
@@ -1685,7 +1684,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
         Image data that will be used to estimate the spectral relative sensitivity
     waveimg : `numpy.ndarray`_
         Wavelength image
-    slits : :class:`pypeit.slittrace.SlitTraceSet`
+    slits : :class:`~pypeit.slittrace.SlitTraceSet`
         Information stored about the slits
     slit_illum_ref_idx : int
         Index of slit that is used as the reference.
@@ -1851,16 +1850,17 @@ def merge(init_cls, merge_cls):
     dd['PYP_SPEC'] = merge_cls.PYP_SPEC if init_cls.PYP_SPEC is None else init_cls.PYP_SPEC
     dd['spat_id'] = merge_cls.spat_id if init_cls.spat_id is None else init_cls.spat_id
     for key in keys:
-        mrg = False
-        val = None
-        # TODO: Why are we using exec here?  Can we use setattr and getattr
-        # instead?
-        namespace = dict({'val': val, 'init_cls':init_cls, 'merge_cls':merge_cls, 'mrg':mrg})
-        exec("val = init_cls.{0:s}".format(key), namespace)
-        exec("mrg = merge_cls.{0:s} is not None".format(key), namespace)
-        if namespace['mrg']:
-            exec("val = merge_cls.{0:s}".format(key), namespace)
-        dd[key] = namespace['val']
+        dd[key] = getattr(init_cls, key) if getattr(merge_cls, key) is None \
+                    else getattr(merge_cls, key)
+#    for key in keys:
+#        mrg = False
+#        val = None
+#        namespace = dict({'val': val, 'init_cls':init_cls, 'merge_cls':merge_cls, 'mrg':mrg})
+#        exec("val = init_cls.{0:s}".format(key), namespace)
+#        exec("mrg = merge_cls.{0:s} is not None".format(key), namespace)
+#        if namespace['mrg']:
+#            exec("val = merge_cls.{0:s}".format(key), namespace)
+#        dd[key] = namespace['val']
     # Construct the merged class
     return FlatImages(**dd)
 

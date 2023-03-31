@@ -435,7 +435,7 @@ class PypeIt:
                                   'calibration/reduction was not successful for all the detectors')
                 else:
                     msgs.warn(f'Output file: {self.fitstbl.construct_basename(frames[0])} already '
-                              '  exists. Set overwrite=True to recreate and overwrite.')
+                              'exists. Set overwrite=True to recreate and overwrite.')
 
             msgs.info(f'Finished calibration group {calib_ID}')
 
