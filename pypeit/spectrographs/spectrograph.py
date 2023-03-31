@@ -27,12 +27,14 @@ provide instrument-specific:
 """
 
 from abc import ABCMeta
+from pathlib import Path
 import os
 from configobj import ConfigObj
 
 from IPython import embed
 
 import numpy as np
+from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import utils
@@ -44,7 +46,6 @@ from pypeit.core import meta
 from pypeit.par import pypeitpar
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
-from astropy.io.fits import Header
 
 
 # TODO: Create an EchelleSpectrograph derived class that holds all of
@@ -261,15 +262,15 @@ class Spectrograph:
         Check if this filename has an allowed extension
 
         Args:
-            filename (:obj:`str`):
+            filename (:obj:`str`, `Path`_):
                 Input raw fits filename
         """
         if self.allowed_extensions is not None:
-            if os.path.splitext(filename)[1] not in self.allowed_extensions:
-                msgs.error("The input filename:"+msgs.newline()+
-                           filename+msgs.newline()+
-                           f"has the wrong extension. The allowed extensions for {self.name} include:"+msgs.newline()+
-                           ",".join(self.allowed_extensions))
+            _filename = Path(filename).resolve()
+            if _filename.suffix not in self.allowed_extensions:
+                msgs.error(f'The input file ({_filename.name}) does not have a recognized '
+                           f'extension ({_filename.suffix}).  The allowed extensions for '
+                           f'{self.name} include {",".join(self.allowed_extensions)}.')
 
     def _check_telescope(self):
         """Check the derived class has properly defined the telescope."""
@@ -1043,7 +1044,7 @@ class Spectrograph:
 
         Parameters
         ----------
-        raw_file : :obj:`str`
+        raw_file : :obj:`str`, `Path`_
             File to read
         det : :obj:`int`, :obj:`tuple`
             1-indexed detector(s) to read.  An image mosaic is selected using a
@@ -1231,11 +1232,11 @@ class Spectrograph:
         Returns:
             Value recovered for (each) keyword.  Can be None.
         """
-        if isinstance(inp, str):
+        if isinstance(inp, (str, Path)):
             headarr = self.get_headarr(inp)
         elif inp is None or isinstance(inp, list):
             headarr = inp
-        elif isinstance(inp, Header):
+        elif isinstance(inp, fits.Header):
             headarr = [inp]
         else:
             msgs.error('Unrecognized type for input')
@@ -1458,7 +1459,7 @@ class Spectrograph:
         Read the header data from all the extensions in the file.
 
         Args:
-            inp (:obj:`str`, `astropy.io.fits.HDUList`_):
+            inp (:obj:`str`, `Path`_, `astropy.io.fits.HDUList`_):
                 Name of the file to read or the previously opened HDU list.  If
                 None, the function will simply return None.
             strict (:obj:`bool`, optional):
@@ -1477,20 +1478,22 @@ class Spectrograph:
 
         # Faster to open the whole file and then assign the headers,
         # particularly for gzipped files (e.g., DEIMOS)
-        if isinstance(inp, str):
+        if isinstance(inp, (str, Path)):
             self._check_extensions(inp)
             try:
                 hdu = io.fits_open(inp)
             except:
                 if strict:
-                    msgs.error('Problem opening {0}.'.format(inp))
+                    msgs.error(f'Cannot open {inp}.')
                 else:
-                    msgs.warn('Problem opening {0}.'.format(inp) + msgs.newline()
-                              + 'Proceeding, but should consider removing this file!')
-                    return None #['None']*999 # self.numhead
-        else:
+                    msgs.warn(f'Cannot open {inp}.  Proceeding, but consider removing this file!')
+                    return None
+        elif isinstance(inp, (list, fits.HDUList)):
+            # TODO: If a list, check that the list elements are HDUs?
             hdu = inp
-        return [hdu[k].header for k in range(len(hdu))]
+        else:
+            msgs.error(f'Input to get_headarr has incorrect type: {type(inp)}.')
+        return [h.header for h in hdu]
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

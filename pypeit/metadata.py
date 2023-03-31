@@ -178,27 +178,29 @@ class PypeItMetaData:
 
         # Build the table
         for idx, ifile in enumerate(_files):
+            _ifile = Path(ifile).resolve()
             # User data (for frame type)
             if usrdata is None:
                 usr_row = None
             else:
                 # TODO: This check should be done elsewhere
                 # Check
-                if os.path.basename(ifile) != usrdata['filename'][idx]:
+                if _ifile.name != usrdata['filename'][idx]:
                     msgs.error('File name list does not match user-provided metadata table.  See '
                                'usrdata argument of instantiation of PypeItMetaData.')
                 usr_row = usrdata[idx]
 
             # Add the directory and file name to the table
-            data['directory'][idx], data['filename'][idx] = os.path.split(ifile)
+            data['directory'][idx] = str(_ifile.parent)
+            data['filename'][idx] = _ifile.name
             if not data['directory'][idx]:
                 data['directory'][idx] = '.'
 
             # Read the fits headers.  NOTE: If the file cannot be opened,
             # headarr will be None, and the subsequent loop over the meta keys
             # will fill the data dictionary with None values.
-            msgs.info('Adding metadata for {0}'.format(os.path.split(ifile)[1]))
-            headarr = self.spectrograph.get_headarr(ifile, strict=strict)
+            msgs.info(f'Adding metadata for {data["filename"][idx]}')
+            headarr = self.spectrograph.get_headarr(_ifile, strict=strict)
 
             # Grab Meta
             for meta_key in self.spectrograph.meta.keys():

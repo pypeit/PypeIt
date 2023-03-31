@@ -172,7 +172,6 @@ class Calibrations:
         # Attributes
         self.det = None
         self.frame = None
-#        self.binning = None    # NEVER USED
 
         self.msarc = None
         self.mstilt = None
@@ -262,8 +261,6 @@ class Calibrations:
         self.det = det
         if par is not None:
             self.par = par
-#        # Deal with binning
-#        self.binning = self.fitstbl['binning'][self.frame]
 
     def get_arc(self):
         """

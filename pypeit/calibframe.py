@@ -125,8 +125,8 @@ class CalibFrame(datamodel.DataContainer):
             other (:class:`CalibFrame`):
                 Object to copy from.
         """
-        for n in CalibFrame.internals:
-            setattr(self, n, getattr(other, n))
+        for attr in CalibFrame.internals:
+            setattr(self, attr, getattr(other, attr))
 
     # NOTE: Only need to overload to_file because the only thing special about
     # CalibFrame is that the paths are pre-defined.
