@@ -2,18 +2,22 @@
 
     # Auto-generated PypeIt input file using PypeIt version: 1.12.2.dev118+g6905096d0
     # UTC 2023-03-25T04:05:16.591
-
+    
     # User-defined execution parameters
     [rdx]
         spectrograph = keck_nires
-
+    [reduce]
+        [[findobj]]
+            snr_thresh = 5
+            maxnumber_std = 2
+    
     # Setup
     setup read
     Setup A:
       dispname: spec
     setup end
-
-    # Data block
+    
+    # Data block 
     data read
      path /Users/dpelliccia/Pypeit/PypeIt-development-suite/RAW_DATA/keck_nires/ABBA_wstandard
              filename |        frametype |               ra |              dec |     target | dispname |    decker | binning |              mjd |          airmass | exptime | dithpat | dithpos | dithoff | frameno | calib | comb_id | bkg_id
@@ -28,8 +32,6 @@
     s190519_0012.fits |  pixelflat,trace |             58.0 |             45.0 | DOME PHLAT |     spec | 0.55 slit |     1,1 | 58622.0769763351 | 1.41291034446565 |   100.0 |    none |    None |     0.0 |      12 |   all |      -1 |     -1
     s190519_0014.fits |  pixelflat,trace |             58.0 |             45.0 | DOME PHLAT |     spec | 0.55 slit |     1,1 | 58622.0796502934 | 1.41291034446565 |   100.0 |    none |    None |     0.0 |      14 |   all |      -1 |     -1
     data end
-
-
     
 
 
