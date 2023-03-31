@@ -38,6 +38,7 @@ def test_full():
     assert np.array_equal(_pypeitImage.fullmask.mask, pypeitImage.fullmask.mask), \
                 'mask array changed'
 
+
 def test_sub():
     shape = (10,10)
     # Create two images

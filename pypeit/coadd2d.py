@@ -576,12 +576,6 @@ class CoAdd2D:
         parcopy = copy.deepcopy(self.par)
         parcopy['reduce']['findobj']['trace_npoly'] = 3        # Low order traces since we are rectified
 
-        # Build the Calibrate object
-        caliBrate = calibrations.Calibrations(None, self.par['calibrations'], self.spectrograph, None)
-        caliBrate.slits = pseudo_dict['slits']
-        caliBrate.det = self.det
-#        caliBrate.binning = self.binning
-
         # Manual extraction.
         manual_obj = None
         if self.par['coadd2d']['manual'] is not None and len(self.par['coadd2d']['manual']) > 0:

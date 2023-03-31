@@ -829,7 +829,7 @@ class PypeItImage(datamodel.DataContainer):
             `astropy.io.fits.Header`_: The initialized (or edited) fits header.
         """
         # Standard init
-        _hdr = io.initialize_header(hdr)
+        _hdr = super()._base_header(hdr=hdr)
 
         #   - List the completed steps
         if self.process_steps is not None:

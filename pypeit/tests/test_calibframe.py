@@ -135,6 +135,8 @@ def test_parse_key_dir():
         assert key == calib.calib_key, 'Key parsed incorrectly'
         assert _odir == calib.calib_dir, 'Key parsed incorrectly'
 
+    opath.unlink()
+
 
 def test_hdr():
     calib = MinimalCalibFrame()
