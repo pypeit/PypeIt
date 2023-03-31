@@ -568,7 +568,6 @@ class PypeIt:
             sciImg_list.append(sciImg)
             objFind_list.append(objFind)
 
-
         # slitmask stuff
         if len(calibrated_det) > 0 and self.par['reduce']['slitmask']['assign_obj']:
             # get object positions from slitmask design and slitmask offsets for all the detectors
@@ -576,13 +575,12 @@ class PypeIt:
             # Grab platescale with binning
             bin_spec, bin_spat = parse.parse_binning(self.binning)
             platescale = np.array([ss.detector.platescale*bin_spat for ss in sciImg_list])
-            # get the dither offset if available
+            # get the dither offset if available and if desired
+            dither_off = None
             if self.par['reduce']['slitmask']['use_dither_offset']:
-                dither = self.spectrograph.parse_dither_pattern(
-                    [self.fitstbl.frame_paths(frames[0])])
-                dither_off = dither[2][0] if dither is not None else None
-            else:
-                dither_off = None
+                if 'dithoff' in self.fitstbl.keys():
+                    dither_off = self.fitstbl['dithoff'][frames[0]]
+
             calib_slits = slittrace.get_maskdef_objpos_offset_alldets(
                 all_specobjs_objfind, calib_slits, spat_flexure, platescale,
                 self.par['calibrations']['slitedges']['det_buffer'],

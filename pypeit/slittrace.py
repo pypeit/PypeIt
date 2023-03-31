@@ -908,6 +908,8 @@ class SlitTraceSet(calibframe.CalibFrame):
             thisobj.RA = self.maskdef_designtab['OBJRA'][oidx]
             thisobj.DEC = self.maskdef_designtab['OBJDEC'][oidx]
             thisobj.MASKDEF_OBJNAME = self.maskdef_designtab['OBJNAME'][oidx]
+            thisobj.MASKDEF_OBJMAG = self.maskdef_designtab['OBJMAG'][oidx]
+            thisobj.MASKDEF_OBJMAG_BAND = self.maskdef_designtab['OBJMAG_BAND'][oidx]
             thisobj.MASKDEF_ID = self.maskdef_designtab['MASKDEF_ID'][oidx]
             thisobj.MASKDEF_EXTRACT = True
             thisobj.hand_extract_flag = False
@@ -1048,6 +1050,8 @@ class SlitTraceSet(calibframe.CalibFrame):
                 sobj.RA = self.maskdef_designtab['OBJRA'][oidx]
                 sobj.DEC = self.maskdef_designtab['OBJDEC'][oidx]
                 sobj.MASKDEF_OBJNAME = self.maskdef_designtab['OBJNAME'][oidx]
+                sobj.MASKDEF_OBJMAG = self.maskdef_designtab['OBJMAG'][oidx]
+                sobj.MASKDEF_OBJMAG_BAND = self.maskdef_designtab['OBJMAG_BAND'][oidx]
                 sobj.MASKDEF_EXTRACT = False
                 # Remove that idx value
                 idx = idx.tolist()

@@ -129,7 +129,7 @@ def make_example_nires_pypeit_files():
 
     # Copy over the one that is actually used by the dev-suite
     dev = Path(os.getenv('PYPEIT_DEV')).resolve() \
-                / 'pypeit_files' / 'keck_nires_nires.pypeit'
+                / 'pypeit_files' / 'keck_nires_abba_wstandard.pypeit'
 
     ofile = oroot / 'keck_nires_A_corrected.pypeit.rst'
     with open(ofile, 'w') as f:
