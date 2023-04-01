@@ -1363,6 +1363,8 @@ class FlatField:
             Save the QA?
         """
         # TODO :: Include fit_order in the parset??
+        if slit_idx==0 and self.spat_illum_only:
+            embed()
         fit_order = np.array([3, 6])
         msgs.info("Performing a fine correction to the spatial illumination (slit={0:d})".format(slit_spat))
         # initialise
