@@ -1362,6 +1362,8 @@ class FlatField:
         doqa : :obj:`bool`, optional:
             Save the QA?
         """
+        # TODO :: Include fit_order in the parset??
+        fit_order = np.array([3, 6])
         msgs.info("Performing a fine correction to the spatial illumination (slit={0:d})".format(slit_spat))
         # initialise
         illumflat_finecorr = np.ones_like(self.rawflatimg.image)
@@ -1379,7 +1381,8 @@ class FlatField:
         # Prepare fitting coordinates
         wgud = np.where(onslit_tweak & self.rawflatimg.select_flag(invert=True))
         cut = (wgud[0], wgud[1])
-        ypos = cut[0] / (self.slits.nspec - 1)
+        thiswave = self.waveimg[cut]
+        ypos = (thiswave - thiswave.min()) / (thiswave.max() - thiswave.min())
         xpos_img = self.slits.spatial_coordinate_image(slitidx=slit_idx,
                                                        initial=True,
                                                        slitid_img=slitimg,
@@ -1405,7 +1408,7 @@ class FlatField:
         if xfrac * slitlen < 3:
             xfrac = 3/slitlen
         gpmfit[np.where((xpos < xfrac) | (xpos > 1-xfrac))] = False
-        fullfit = fitting.robust_fit(xpos, normed[cut], np.array([3, 6]), x2=ypos, weights=normed[cut],
+        fullfit = fitting.robust_fit(xpos, normed[cut], fit_order, x2=ypos,
                                      in_gpm=gpmfit, function='legendre2d', upper=2, lower=2, maxdev=1.0,
                                      minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
 
@@ -1419,7 +1422,10 @@ class FlatField:
 
         # Prepare QA
         if doqa:
-            outfile = qa.set_qa_filename("Spatillum_FineCorr_"+self.master_key, 'spatillum_finecorr', slit=slit_spat,
+            prefix = "Spatillum_FineCorr_"
+            if self.spat_illum_only:
+                prefix += "illumflat_"
+            outfile = qa.set_qa_filename(prefix+self.master_key, 'spatillum_finecorr', slit=slit_spat,
                                          out_dir=self.qa_path)
             title = "Fine correction to spatial illumination (slit={0:d})".format(slit_spat)
             normed[np.logical_not(onslit_tweak)] = 1  # For the QA, make everything off the slit equal to 1
@@ -1808,7 +1814,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
     sn_smooth_npix = wave_ref.size // smooth_npix if (smooth_npix is not None) else wave_ref.size // 10
 
     # Iterate until convergence
-    maxiter = 10
+    maxiter = 5
     lo_prev, hi_prev = 1.0E-32, 1.0E32
     for rr in range(maxiter):
         # Reset the relative scaling for this iteration
