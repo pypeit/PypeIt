@@ -1323,7 +1323,7 @@ class CubePar(ParSet):
                  standard_cube=None, reference_image=None, save_whitelight=None, method=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None, astrometric=None, grating_corr=None, scale_corr=None,
-                 skysub_frame=None, subsample=None):
+                 skysub_frame=None, spec_subsample=None, spat_subsample=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1394,22 +1394,35 @@ class CubePar(ParSet):
                           '(1) "subsample" (default) - this algorithm subsamples each pixel in the spec2d frames ' \
                           'and assigns each subpixel into a voxel of the datacube. Flux is conserved, but voxels ' \
                           'are correlated, and the error spectrum does not account for covariance between adjacent ' \
-                          'voxels. ' \
+                          'voxels. See also, spec_subsample and spat_subsample.' \
                           '(2) "NGP" (nearest grid point) - this algorithm is effectively a 3D histogram. Flux is ' \
                           'conserved, voxels are not correlated, however this option suffers the same downsides as ' \
                           'any histogram; the choice of bin sizes can change how the datacube appears. This algorithm ' \
                           'takes each pixel on the spec2d frame and puts the flux of this pixel into one voxel in the ' \
                           'datacube. Depending on the binning used, some voxels may be empty (zero flux) while a ' \
-                          'neighbouring voxel might contain the flux from two spec2d pixels.'
+                          'neighboring voxel might contain the flux from two spec2d pixels. Note that all spec2d ' \
+                          'pixels that contribute to the same voxel are inverse variance weighted (e.g. if two ' \
+                          'pixels have the same variance, the voxel would be assigned the average flux of the two ' \
+                          'pixels).'
         # '(3) "resample" - this algorithm resamples the spec2d frames into a datacube. ' \
         # 'Flux is conserved, but voxels are correlated, and the error spectrum does not account ' \
         # 'for covariance between neighbouring pixels. ' \
 
-        defaults['subsample'] = 10
-        dtypes['subsample'] = int
-        descr['subsample'] = 'Subpixellation scale of each pixel when method=subsample. The total number of ' \
-                             'subpixels in each pixel is given by subsample^2. The default option is to divide ' \
-                             'each spec2d pixel into 100 subpixels during datacube creation.'
+        defaults['spec_subsample'] = 10
+        dtypes['spec_subsample'] = int
+        descr['spec_subsample'] = 'When method=subsample, spec_subsample sets the subpixellation scale of ' \
+                                  'each detector pixel in the spectral direction. The total number of subpixels ' \
+                                  'in each pixel is given by spec_subsample x spat_subsample. The default option ' \
+                                  'is to divide each spec2d pixel into 100 subpixels during datacube creation. ' \
+                                  'See also, spat_subsample.'
+
+        defaults['spat_subsample'] = 10
+        dtypes['spat_subsample'] = int
+        descr['spat_subsample'] = 'When method=subsample, spat_subsample sets the subpixellation scale of ' \
+                                  'each detector pixel in the spatial direction. The total number of subpixels ' \
+                                  'in each pixel is given by spec_subsample x spat_subsample. The default option ' \
+                                  'is to divide each spec2d pixel into 100 subpixels during datacube creation. ' \
+                                  'See also, spec_subsample.'
 
         defaults['ra_min'] = None
         dtypes['ra_min'] = float
@@ -1496,9 +1509,9 @@ class CubePar(ParSet):
 
         # Basic keywords
         parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'reference_image', 'save_whitelight',
-                   'method', 'subsample', 'ra_min', 'ra_max', 'dec_min', 'dec_max', 'wave_min', 'wave_max',
-                   'spatial_delta', 'wave_delta', 'relative_weights', 'combine', 'astrometric', 'grating_corr',
-                   'scale_corr', 'skysub_frame']
+                   'method', 'spec_subsample', 'spat_subsample', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
+                   'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'relative_weights', 'combine',
+                   'astrometric', 'grating_corr', 'scale_corr', 'skysub_frame']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
