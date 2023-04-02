@@ -38,8 +38,11 @@ class DataCube(datamodel.DataContainer):
     Args:
         flux (`numpy.ndarray`_):
             The science datacube (nwave, nspaxel_y, nspaxel_x)
-        variance (`numpy.ndarray`_):
-            The variance datacube (nwave, nspaxel_y, nspaxel_x)
+        sig (`numpy.ndarray`_):
+            The error datacube (nwave, nspaxel_y, nspaxel_x)
+        bpm (`numpy.ndarray`_):
+            The bad pixel mask of the datacube (nwave, nspaxel_y, nspaxel_x).
+            True values indicate a bad pixel
         blaze_wave (`numpy.ndarray`_):
             Wavelength array of the spectral blaze function
         blaze_spec (`numpy.ndarray`_):
@@ -62,11 +65,12 @@ class DataCube(datamodel.DataContainer):
             Build from PYP_SPEC
 
     """
-    version = '1.0.3'
+    version = '1.1.0'
 
-    datamodel = {'flux': dict(otype=np.ndarray, atype=np.floating, descr='Flux array in units of counts/s/Ang/arcsec^2'
+    datamodel = {'flux': dict(otype=np.ndarray, atype=np.floating, descr='Flux datacube in units of counts/s/Ang/arcsec^2'
                                                                          'or 10^-17 erg/s/cm^2/Ang/arcsec^2'),
-                 'variance': dict(otype=np.ndarray, atype=np.floating, descr='Variance array (matches units of flux)'),
+                 'sig': dict(otype=np.ndarray, atype=np.floating, descr='Error datacube (matches units of flux)'),
+                 'bpm': dict(otype=np.ndarray, atype=np.bool, descr='Bad pixel mask of th edatacube (True=bad)'),
                  'blaze_wave': dict(otype=np.ndarray, atype=np.floating, descr='Wavelength array of the spectral blaze function'),
                  'blaze_spec': dict(otype=np.ndarray, atype=np.floating, descr='The spectral blaze function'),
                  'sensfunc': dict(otype=np.ndarray, atype=np.floating, descr='Sensitivity function 10^-17 erg/(counts/cm^2)'),
@@ -93,7 +97,7 @@ class DataCube(datamodel.DataContainer):
         slf.spect_meta = slf.spectrograph.parse_spec_header(slf.head0)
         return slf
 
-    def __init__(self, flux, variance, PYP_SPEC, blaze_wave, blaze_spec, sensfunc=None, fluxed=None):
+    def __init__(self, flux, sig, bpm, PYP_SPEC, blaze_wave, blaze_spec, sensfunc=None, fluxed=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
@@ -1099,7 +1103,9 @@ def generate_cube_subsample(outfile, output_wcs, all_sci, all_ivar, all_wghts, a
     nc_inverse = utils.inverse(normcube)
     datacube *= nc_inverse
     varcube *= nc_inverse**2
-    if debug: residcube *= nc_inverse
+    bpmcube = normcube == 0
+    if debug:
+        residcube *= nc_inverse
 
     # Prepare the header, and add the unit of flux to the header
     hdr = output_wcs.to_header()
@@ -1110,7 +1116,7 @@ def generate_cube_subsample(outfile, output_wcs, all_sci, all_ivar, all_wghts, a
 
     # Write out the datacube
     msgs.info("Saving datacube as: {0:s}".format(outfile))
-    final_cube = DataCube(datacube.T, varcube.T, specname, blaze_wave, blaze_spec, sensfunc=sensfunc, fluxed=fluxcal)
+    final_cube = DataCube(datacube.T, np.sqrt(varcube.T), bpmcube, specname, blaze_wave, blaze_spec, sensfunc=sensfunc, fluxed=fluxcal)
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
 
     # Save a residuals cube, if requested
@@ -1167,27 +1173,29 @@ def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bin
 
     # Use NGP to generate the cube - this ensures errors between neighbouring voxels are not correlated
     datacube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci * all_wghts)
-    norm, edges = np.histogramdd(pix_coord, bins=bins, weights=all_wghts)
-    norm_cube = utils.inverse(norm)
-    datacube *= norm_cube
+    normcube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_wghts)
+    nc_inverse = utils.inverse(normcube)
+    datacube *= nc_inverse
     # Create the variance cube, including weights
     msgs.info("Generating variance cube")
     all_var = utils.inverse(all_ivar)
     var_cube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_var * all_wghts**2)
-    var_cube *= norm_cube**2
+    var_cube *= nc_inverse**2
+    bpmcube = normcube == 0
 
     # Save the datacube
     if debug:
         datacube_resid, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci*np.sqrt(all_ivar))
-        norm, edges = np.histogramdd(pix_coord, bins=bins)
-        norm_cube = utils.inverse(norm)
+        normcube, edges = np.histogramdd(pix_coord, bins=bins)
+        nc_inverse = utils.inverse(normcube)
         outfile_resid = "datacube_resid.fits"
         msgs.info("Saving datacube as: {0:s}".format(outfile_resid))
-        hdu = fits.PrimaryHDU((datacube_resid*norm_cube).T, header=hdr)
+        hdu = fits.PrimaryHDU((datacube_resid*nc_inverse).T, header=hdr)
         hdu.writeto(outfile_resid, overwrite=overwrite)
 
     msgs.info("Saving datacube as: {0:s}".format(outfile))
-    final_cube = DataCube(datacube.T, var_cube.T, specname, blaze_wave, blaze_spec, sensfunc=sensfunc, fluxed=fluxcal)
+    final_cube = DataCube(datacube.T, np.sqrt(var_cube.T), bpmcube, specname, blaze_wave, blaze_spec,
+                          sensfunc=sensfunc, fluxed=fluxcal)
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
 
 
