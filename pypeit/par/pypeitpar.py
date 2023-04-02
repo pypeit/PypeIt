@@ -1408,20 +1408,20 @@ class CubePar(ParSet):
         # 'Flux is conserved, but voxels are correlated, and the error spectrum does not account ' \
         # 'for covariance between neighbouring pixels. ' \
 
-        defaults['spec_subsample'] = 10
+        defaults['spec_subsample'] = 5
         dtypes['spec_subsample'] = int
         descr['spec_subsample'] = 'When method=subsample, spec_subsample sets the subpixellation scale of ' \
                                   'each detector pixel in the spectral direction. The total number of subpixels ' \
                                   'in each pixel is given by spec_subsample x spat_subsample. The default option ' \
-                                  'is to divide each spec2d pixel into 100 subpixels during datacube creation. ' \
+                                  'is to divide each spec2d pixel into 25 subpixels during datacube creation. ' \
                                   'See also, spat_subsample.'
 
-        defaults['spat_subsample'] = 10
+        defaults['spat_subsample'] = 5
         dtypes['spat_subsample'] = int
         descr['spat_subsample'] = 'When method=subsample, spat_subsample sets the subpixellation scale of ' \
                                   'each detector pixel in the spatial direction. The total number of subpixels ' \
                                   'in each pixel is given by spec_subsample x spat_subsample. The default option ' \
-                                  'is to divide each spec2d pixel into 100 subpixels during datacube creation. ' \
+                                  'is to divide each spec2d pixel into 25 subpixels during datacube creation. ' \
                                   'See also, spec_subsample.'
 
         defaults['ra_min'] = None

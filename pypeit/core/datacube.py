@@ -1030,12 +1030,12 @@ def generate_cube_subsample(outfile, output_wcs, all_sci, all_ivar, all_wghts, a
             A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and z wavelength coordinates
         spec_subsample (`int`, optional):
             What is the subsampling factor in the spectral direction. Higher values give more reliable results, but note
-            that the time required goes as (spec_subsample * spat_subsample). The default value is 10, which subsamples
-            each detector pixel into 10 subpixels in the spectral direction.
+            that the time required goes as (spec_subsample * spat_subsample). The default value is 5, which subsamples
+            each detector pixel into 5 subpixels in the spectral direction.
         spat_subsample (`int`, optional):
             What is the subsampling factor in the spatial direction. Higher values give more reliable results, but note
-            that the time required goes as (spec_subsample * spat_subsample). The default value is 10, which subsamples
-            each detector pixel into 10 subpixels in the spatial direction.
+            that the time required goes as (spec_subsample * spat_subsample). The default value is 5, which subsamples
+            each detector pixel into 5 subpixels in the spatial direction.
         overwrite (`bool`, optional):
             If True, the output cube will be overwritten.
         blaze_wave (`numpy.ndarray`_, optional):
@@ -1076,15 +1076,14 @@ def generate_cube_subsample(outfile, output_wcs, all_sci, all_ivar, all_wghts, a
         wspl = all_wave[this_sl]
         asrt = np.argsort(yspl)
         wave_spl = interp1d(yspl[asrt], wspl[asrt], kind='linear', bounds_error=False, fill_value='extrapolate')
-        embed() # TODO :: Currently deciding if wpix[1] (and wpix[0]) should have spec_offs or spat_offs
-        for xx in range(subsample):
-            for yy in range(subsample):
+        for xx in range(spat_subsample):
+            for yy in range(spec_subsample):
                 # Calculate the transformation from detector pixels to voxels
-                spatpos = astrom_trans.transform(sl, wpix[1] + ssamp_offs[xx], wpix[0] + ssamp_offs[yy])
+                spatpos = astrom_trans.transform(sl, wpix[1] + spat_offs[xx], wpix[0] + spec_offs[yy])
                 # TODO :: The tilts in the following line is evaluated at the pixel location, not the subsampled pixel location
                 # A simple fix is implemented for the spectral direction, but this is not so straightforward for the spatial direction
                 # Probably, the correction in the spatial direction is so tiny, that this doesn't matter...
-                specpos = (wave_spl(tilts[wpix]*(slits.nspec - 1) + ssamp_offs[yy]) - wave0) / wave_delta
+                specpos = (wave_spl(tilts[wpix]*(slits.nspec - 1) + spec_offs[yy]) - wave0) / wave_delta
                 # Now assemble this position of the datacube
                 pix_coord = np.column_stack((slitID, spatpos, specpos))
                 tmp_dc, _ = np.histogramdd(pix_coord, bins=bins, weights=all_sci[this_sl] * all_wght_subsmp[this_sl])
@@ -1701,7 +1700,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                     spec_subsample, spat_subsample = cubepar['spec_subsample'], cubepar['spat_subsample']
                 # Get the slit image and then unset pixels in the slit image that are bad
                 slitid_img_gpm = slitid_img_init.copy()
-                slitid_img_gpm[(bpmmask != 0) | (~sky_is_good)] = 0
+                slitid_img_gpm[(bpmmask.mask != 0) | (~sky_is_good)] = 0
                 generate_cube_subsample(outfile, output_wcs, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix),
                                         wave_ext, spec2DObj.tilts, slits, slitid_img_gpm, alignSplines, bins,
                                         overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
