@@ -70,7 +70,7 @@ class DataCube(datamodel.DataContainer):
     datamodel = {'flux': dict(otype=np.ndarray, atype=np.floating, descr='Flux datacube in units of counts/s/Ang/arcsec^2'
                                                                          'or 10^-17 erg/s/cm^2/Ang/arcsec^2'),
                  'sig': dict(otype=np.ndarray, atype=np.floating, descr='Error datacube (matches units of flux)'),
-                 'bpm': dict(otype=np.ndarray, atype=np.bool, descr='Bad pixel mask of th edatacube (True=bad)'),
+                 'bpm': dict(otype=np.ndarray, atype=np.bool_, descr='Bad pixel mask of the datacube (True=bad)'),
                  'blaze_wave': dict(otype=np.ndarray, atype=np.floating, descr='Wavelength array of the spectral blaze function'),
                  'blaze_spec': dict(otype=np.ndarray, atype=np.floating, descr='The spectral blaze function'),
                  'sensfunc': dict(otype=np.ndarray, atype=np.floating, descr='Sensitivity function 10^-17 erg/(counts/cm^2)'),
@@ -131,6 +131,8 @@ class DataCube(datamodel.DataContainer):
                 tmp = {}
                 if self.datamodel[key]['atype'] == np.floating:
                     tmp[key] = self[key].astype(np.float32)
+                elif self.datamodel[key]['atype'] == np.bool_:
+                    tmp[key] = self[key].astype(np.bool_)
                 else:
                     tmp[key] = self[key]
                 d.append(tmp)
@@ -1127,7 +1129,7 @@ def generate_cube_subsample(outfile, output_wcs, all_sci, all_ivar, all_wghts, a
         hdu.writeto(outfile_resid, overwrite=overwrite)
 
 
-def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bins,
+def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, vox_coord, bins,
                       overwrite=False, blaze_wave=None, blaze_spec=None, fluxcal=False,
                       sensfunc=None, specname="PYP_SPEC", debug=False):
     """
@@ -1144,10 +1146,10 @@ def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bin
             1D flattened array containing the inverse variance of each pixel from all spec2d files
         all_wghts (`numpy.ndarray`_):
             1D flattened array containing the weights of each pixel to be used in the combination
-        pix_coord (`numpy.ndarray`_):
-            The NGP pixel coordinates corresponding to the RA,DEC,WAVELENGTH of each individual
-            pixel in the processed spec2d frames. After setting up an astropy WCS, pix_coord is
-            returned by the function: `astropy.wcs.WCS.wcs_world2pix_`
+        vox_coord (`numpy.ndarray`_):
+            The voxel coordinates of each pixel in the spec2d frames. vox_coord is returned by the
+            function `astropy.wcs.WCS.wcs_world2pix_` once a WCS is setup and every spec2d detector
+            pixel has an RA, DEC, and WAVELENGTH.
         bins (tuple):
             A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and z wavelength coordinates
         overwrite (`bool`):
@@ -1172,21 +1174,21 @@ def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bin
         hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
 
     # Use NGP to generate the cube - this ensures errors between neighbouring voxels are not correlated
-    datacube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci * all_wghts)
-    normcube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_wghts)
+    datacube, edges = np.histogramdd(vox_coord, bins=bins, weights=all_sci * all_wghts)
+    normcube, edges = np.histogramdd(vox_coord, bins=bins, weights=all_wghts)
     nc_inverse = utils.inverse(normcube)
     datacube *= nc_inverse
     # Create the variance cube, including weights
     msgs.info("Generating variance cube")
     all_var = utils.inverse(all_ivar)
-    var_cube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_var * all_wghts**2)
+    var_cube, edges = np.histogramdd(vox_coord, bins=bins, weights=all_var * all_wghts ** 2)
     var_cube *= nc_inverse**2
     bpmcube = normcube == 0
 
     # Save the datacube
     if debug:
-        datacube_resid, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci*np.sqrt(all_ivar))
-        normcube, edges = np.histogramdd(pix_coord, bins=bins)
+        datacube_resid, edges = np.histogramdd(vox_coord, bins=bins, weights=all_sci * np.sqrt(all_ivar))
+        normcube, edges = np.histogramdd(vox_coord, bins=bins)
         nc_inverse = utils.inverse(normcube)
         outfile_resid = "datacube_resid.fits"
         msgs.info("Saving datacube as: {0:s}".format(outfile_resid))
