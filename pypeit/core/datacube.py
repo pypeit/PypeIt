@@ -70,7 +70,7 @@ class DataCube(datamodel.DataContainer):
     datamodel = {'flux': dict(otype=np.ndarray, atype=np.floating, descr='Flux datacube in units of counts/s/Ang/arcsec^2'
                                                                          'or 10^-17 erg/s/cm^2/Ang/arcsec^2'),
                  'sig': dict(otype=np.ndarray, atype=np.floating, descr='Error datacube (matches units of flux)'),
-                 'bpm': dict(otype=np.ndarray, atype=np.bool_, descr='Bad pixel mask of the datacube (True=bad)'),
+                 'bpm': dict(otype=np.ndarray, atype=np.uint8, descr='Bad pixel mask of the datacube (0=good, 1=bad)'),
                  'blaze_wave': dict(otype=np.ndarray, atype=np.floating, descr='Wavelength array of the spectral blaze function'),
                  'blaze_spec': dict(otype=np.ndarray, atype=np.floating, descr='The spectral blaze function'),
                  'sensfunc': dict(otype=np.ndarray, atype=np.floating, descr='Sensitivity function 10^-17 erg/(counts/cm^2)'),
@@ -100,7 +100,7 @@ class DataCube(datamodel.DataContainer):
     def __init__(self, flux, sig, bpm, PYP_SPEC, blaze_wave, blaze_spec, sensfunc=None, fluxed=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        _d = dict([(k,values[k]) for k in args[1:]])
+        _d = dict([(k, values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
 
@@ -131,8 +131,6 @@ class DataCube(datamodel.DataContainer):
                 tmp = {}
                 if self.datamodel[key]['atype'] == np.floating:
                     tmp[key] = self[key].astype(np.float32)
-                elif self.datamodel[key]['atype'] == np.bool_:
-                    tmp[key] = self[key].astype(np.bool_)
                 else:
                     tmp[key] = self[key]
                 d.append(tmp)
@@ -1105,7 +1103,7 @@ def generate_cube_subsample(outfile, output_wcs, all_sci, all_ivar, all_wghts, a
     nc_inverse = utils.inverse(normcube)
     datacube *= nc_inverse
     varcube *= nc_inverse**2
-    bpmcube = normcube == 0
+    bpmcube = (normcube == 0).astype(np.uint8)
     if debug:
         residcube *= nc_inverse
 
@@ -1183,7 +1181,7 @@ def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, vox_coord, bin
     all_var = utils.inverse(all_ivar)
     var_cube, edges = np.histogramdd(vox_coord, bins=bins, weights=all_var * all_wghts ** 2)
     var_cube *= nc_inverse**2
-    bpmcube = normcube == 0
+    bpmcube = (normcube == 0).astype(np.uint8)
 
     # Save the datacube
     if debug:
