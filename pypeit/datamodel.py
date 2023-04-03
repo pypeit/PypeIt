@@ -459,8 +459,8 @@ With this implementation:
 .. include:: ../include/links.rst
 
 """
+import pathlib
 import os
-import warnings
 
 from IPython import embed
 
@@ -1174,6 +1174,9 @@ class DataContainer:
         if value is None:
             self.__dict__[item] = value
             return
+        # Convert pathlib.Path objects to string for saving in the datamodel
+        if isinstance(value, pathlib.Path):
+            value = str(value)
         # Check data type
         if not isinstance(value, self.datamodel[item]['otype']):
             raise TypeError(f'Cannot assign object of type {type(value)} to {item}.\n'
