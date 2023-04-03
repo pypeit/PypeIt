@@ -404,6 +404,8 @@ class Calibrations:
                                               self.par['alignment'], det=self.det,
                                               qa_path=self.qa_path, msbpm=self.msbpm)
         self.alignments = alignment.run(show=self.show)
+        # NOTE: The alignment object inherets the calibration frame naming from
+        # the msalign image.
         self.alignments.to_file()
         return self.alignments
 

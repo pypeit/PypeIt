@@ -250,13 +250,14 @@ class TraceAlignment:
         if show:
             show_alignment(self.rawalignimg.image, align_traces=align_traces, slits=self.slits)
 
-        return Alignments(alignframe=self.rawalignimg.image,
-                          nspec=self.nspec,
-                          nalign=align_traces.shape[1],
-                          nslits=self.nslits,
-                          traces=align_traces,
-                          PYP_SPEC=self.PYP_SPEC,
-                          spat_id=self.slits.spat_id)
+        # Build the alignment calibration frame
+        align = Alignments(alignframe=self.rawalignimg.image, nspec=self.nspec,
+                           nalign=align_traces.shape[1], nslits=self.nslits, traces=align_traces,
+                           PYP_SPEC=self.PYP_SPEC, spat_id=self.slits.spat_id)
+        # Copy the internals from the processed alignment image
+        align.copy_calib_internals(self.rawalignimg)
+        # Return
+        return align
 
 
 def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
