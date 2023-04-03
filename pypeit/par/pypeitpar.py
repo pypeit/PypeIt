@@ -1599,7 +1599,7 @@ class SensFuncPar(ParSet):
         descr['extrap_blu'] = 'Fraction of minimum wavelength coverage to grow the wavelength coverage of the ' \
                               'sensitivitity function in the blue direction, i.e. if the standard star spectrum' \
                               'cuts off at wave_min, the sensfunc will be extrapolated to cover down to ' \
-                              ' (1.0-extrap_blu)*wave_min'
+                              ' (1.0 - ``extrap_blu``) * ``wave_min``'
 
 
         defaults['extrap_red'] = 0.1
@@ -1607,7 +1607,7 @@ class SensFuncPar(ParSet):
         descr['extrap_red'] = 'Fraction of maximum wavelength coverage to grow the wavelength coverage of the ' \
                               'sensitivitity function in the red direction, i.e. if the standard star spectrum' \
                               'cuts off at wave_max, the sensfunc will be extrapolated to cover up to ' \
-                              ' (1.0 + extrap_red)*wave_max'
+                              ' (1.0 + ``extrap_red``) * ``wave_max``'
 
         defaults['samp_fact'] = 1.5
         dtypes['samp_fact'] = float
@@ -1627,9 +1627,9 @@ class SensFuncPar(ParSet):
         dtypes['algorithm'] = str
         options['algorithm'] = SensFuncPar.valid_algorithms()
         descr['algorithm'] = "Specify the algorithm for computing the sensitivity function. The options are: " \
-                             r" (1) UVIS = Should be used for data with :math:`\lambda < 7000`A." \
+                             r" (1) UVIS = Should be used for data with :math:`\lambda < 7000` A. " \
                              "No detailed model of telluric absorption but corrects for atmospheric extinction." \
-                             r" (2) IR = Should be used for data with :math:`\lambda > 7000`A." \
+                             r" (2) IR = Should be used for data with :math:`\lambda > 7000` A. " \
                              "Peforms joint fit for sensitivity function and telluric absorption using HITRAN models."
 
 
@@ -1674,7 +1674,7 @@ class SensFuncPar(ParSet):
         defaults['mask_helium_lines'] = False
         dtypes['mask_helium_lines'] = bool
         descr['mask_helium_lines'] = 'Mask certain ``HeII`` recombination lines prominent in O-type stars in the sensitivity function fit ' \
-                                     r'A region equal to :math:`0.5 \times` ``hydrogen_mask_wid`` on either side of the line center is masked.'
+                                     'A region equal to 0.5 * ``hydrogen_mask_wid`` on either side of the line center is masked.'
 
         # Instantiate the parameter set
         super(SensFuncPar, self).__init__(list(pars.keys()),
