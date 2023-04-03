@@ -61,7 +61,7 @@ class PypeIt:
 
         overwrite (:obj:`bool`, optional):
             Flag to overwrite any existing files/directories.
-        reuse (:obj:`bool`, optional):
+        reuse_calibs (:obj:`bool`, optional):
             Reuse any pre-existing calibration files
         logname (:obj:`str`, optional):
             The name of an ascii log file with the details of the
@@ -83,7 +83,7 @@ class PypeIt:
         fitstbl (:obj:`pypeit.metadata.PypeItMetaData`): holds the meta info
 
     """
-    def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse=False, logname=None,
+    def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse_calibs=False, logname=None,
                  show=False, redux_path=None, calib_only=False):
 
         # Set up logging
@@ -161,8 +161,8 @@ class PypeIt:
         self.overwrite = overwrite
 
         # Currently the runtime argument determines the behavior for
-        # reusin calibrations
-        self.reuse = reuse
+        # reusing calibrations
+        self.reuse_calibs = reuse_calibs
         self.show = show
 
         # Set paths
@@ -296,7 +296,7 @@ class PypeIt:
                 # Instantiate Calibrations class
                 self.caliBrate = calibrations.Calibrations.get_instance(
                     self.fitstbl, self.par['calibrations'], self.spectrograph,
-                    self.calibrations_path, qadir=self.qa_path, reuse=self.reuse,
+                    self.calibrations_path, qadir=self.qa_path, reuse_calibs=self.reuse_calibs,
                     show=self.show,
                     user_slits=slittrace.merge_user_slit(self.par['rdx']['slitspatnum'],
                                                          self.par['rdx']['maskIDs']))
@@ -679,7 +679,7 @@ class PypeIt:
         caliBrate = calibrations.Calibrations.get_instance(
             self.fitstbl, self.par['calibrations'], self.spectrograph,
             self.calibrations_path, qadir=self.qa_path, 
-            reuse=self.reuse, show=self.show, 
+            reuse_calibs=self.reuse_calibs, show=self.show, 
             user_slits=slittrace.merge_user_slit(
                 self.par['rdx']['slitspatnum'], self.par['rdx']['maskIDs']))
             #slitspat_num=self.par['rdx']['slitspatnum'])
@@ -755,20 +755,15 @@ class PypeIt:
                                                    flatimages=self.caliBrate.flatimages,
                                                    slits=self.caliBrate.slits,
                                                    ignore_saturation=False)
+
+            # NOTE: If the spatial flexure exists for sciImg, the subtraction
+            # function propagates that to the subtracted image, ignoring any
+            # spatial flexure determined for the background image.
             sciImg = sciImg.sub(bgimg)
 
-        # TODO: The spatial flexure is not copied to the PypeItImage object if
-        # the image (science or otherwise) is from a combination of multiple
-        # frames.  Is that okay for this usage?
-        # Flexure
-        spat_flexure_shift = None
-        if (self.objtype == 'science'
-                and self.par['scienceframe']['process']['spat_flexure_correct']) or \
-           (self.objtype == 'standard'
-                and self.par['calibrations']['standardframe']['process']['spat_flexure_correct']):
-            spat_flexure_shift = sciImg.spat_flexure
-        initial_skymask = self.load_skyregions(sciImg.files[0], frames[0], spat_flexure_shift,
-                                               initial_slits=self.spectrograph.pypeline != 'IFU')
+        # Build the initial sky mask
+        initial_skymask = self.load_skyregions(initial_slits=self.spectrograph.pypeline != 'IFU',
+                                               scifile=sciImg.files[0], frame=frames[0])
 
         # Deal with manual extraction
         row = self.fitstbl[frames[0]]
@@ -796,7 +791,7 @@ class PypeIt:
         # Return
         return initial_sky, sobjs_obj, sciImg, objFind
 
-    def load_skyregions(self, scifile, frame, spat_flexure, initial_slits=False):
+    def load_skyregions(self, initial_slits=False, scifile=None, frame=None):
         """
         Generate or load sky regions, if defined by the user.
 
@@ -811,9 +806,9 @@ class PypeIt:
                     user_regions = :25,75:
 
         The first and last 25% of all slits are used as sky.  If the user has
-        used the pypeit_skysub_regions GUI to generate a sky mask for a given
-        frame, this can be searched for and loaded by setting the parameter to
-        ``user``:
+        used the ``pypeit_skysub_regions`` GUI to generate a sky mask for a
+        given frame, this can be searched for and loaded by setting the
+        parameter to ``user``:
 
         .. code-block:: ini
 
@@ -823,8 +818,16 @@ class PypeIt:
 
         Parameters
         ----------
-        frame : :obj:`int`
-            The index of the frame used to set the basename
+        initial_slits : :obj:`bool`, optional
+            Flag to use the initial slits before any tweaking based on the
+            slit-illumination profile; see
+            :func:`~pypeit.slittrace.SlitTraceSet.select_edges`.
+        scifile : :obj:`str`, optional
+            The file name used to define the user-based sky regions.  Only used
+            if ``user_regions = user``.
+        frame : :obj:`int`, optional
+            The index of the frame used to construct the calibration key.  Only
+            used if ``user_regions = user``.
 
         Returns
         -------
@@ -854,6 +857,14 @@ class PypeIt:
             
             msgs.info(f'Loading SkyRegions file: {regfile}')
             return buildimage.SkyRegions.from_file(sky_region_file).image.astype(bool)
+
+        # Flexure
+        spat_flexure = None
+        if (self.objtype == 'science'
+                and self.par['scienceframe']['process']['spat_flexure_correct']) or \
+           (self.objtype == 'standard'
+                and self.par['calibrations']['standardframe']['process']['spat_flexure_correct']):
+            spat_flexure = sciImg.spat_flexure
 
         skyregtxt = self.par['reduce']['skysub']['user_regions']
         if isinstance(skyregtxt, list):

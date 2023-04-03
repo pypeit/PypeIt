@@ -52,7 +52,7 @@ class Calibrations:
         qadir (:obj:`str`, optional):
             Path for quality assessment output.  If not provided, no QA
             plots are saved.
-        reuse (:obj:`bool`, optional):
+        reuse_calibs (:obj:`bool`, optional):
             Instead of reprocessing them, load existing calibration files from
             disk if they exist.
         show (:obj:`bool`, optional):
@@ -73,7 +73,7 @@ class Calibrations:
             Path to write the output calibrations.
         qa_path (`Path`_):
             Path to write the QA.
-        reuse (:obj:`bool`):
+        reuse_calibs (:obj:`bool`):
             See instantiation arguments.
         show (:obj:`bool`):
             See instantiation arguments.
@@ -131,7 +131,7 @@ class Calibrations:
         return calibclass(fitstbl, par, spectrograph, caldir, **kwargs)
 
     def __init__(self, fitstbl, par, spectrograph, caldir, qadir=None,
-                 reuse=False, show=False, user_slits=None):
+                 reuse_calibs=False, show=False, user_slits=None):
 
         # Check the types
         # TODO -- Remove this None option once we have data models for all the Calibrations
@@ -149,7 +149,7 @@ class Calibrations:
         self.spectrograph = spectrograph
 
         # Calibrations
-        self.reuse = reuse
+        self.reuse_calibs = reuse_calibs
         self.calib_dir = Path(caldir).resolve()
         if not self.calib_dir.exists():
             self.calib_dir.mkdir(parents=True)
@@ -291,7 +291,7 @@ class Calibrations:
                             calib_dir=self.calib_dir)).resolve()
 
         # If it exists and we want to reuse it, do so:
-        if arc_file.exists() and self.reuse:
+        if arc_file.exists() and self.reuse_calibs:
             self.msarc = buildimage.ArcImage.from_file(arc_file)
             return self.msarc
 
@@ -336,7 +336,7 @@ class Calibrations:
                             calib_dir=self.calib_dir)).resolve()
 
         # If it exists and we want to reuse it, do so:
-        if tilt_file.exists() and self.reuse:
+        if tilt_file.exists() and self.reuse_calibs:
             self.mstilt = buildimage.TiltImage.from_file(tilt_file)
             return self.mstilt
 
@@ -385,7 +385,7 @@ class Calibrations:
                             calib_dir=self.calib_dir)).resolve()
 
         # If it exists and we want to reuse it, do so:
-        if align_file.exists() and self.reuse:
+        if align_file.exists() and self.reuse_calibs:
             self.alignments = alignframe.Alignments.from_file(align_file)
             self.alignments.is_synced(self.slits)
             return self.alignments
@@ -398,16 +398,10 @@ class Calibrations:
                                                  dark=self.msdark, calib_dir=self.calib_dir,
                                                  setup=setup, calib_id=calib_id)
 
-        # Extract some header info needed by the algorithm
-        # TODO: There seems like there are a number of ways of getting this
-        # without having to re-read the file.  E.g., can TraceAlignments pull it
-        # directly from msalign?
-        binning = self.spectrograph.get_meta_value(raw_files[0], 'binning')
-
         # Instantiate
         # TODO: From JFH: Do we need the bpm here?  Check that this was in the previous code.
         alignment = alignframe.TraceAlignment(msalign, self.slits, self.spectrograph,
-                                              self.par['alignment'], det=self.det, binning=binning,
+                                              self.par['alignment'], det=self.det,
                                               qa_path=self.qa_path, msbpm=self.msbpm)
         self.alignments = alignment.run(show=self.show)
         self.alignments.to_file()
@@ -441,7 +435,7 @@ class Calibrations:
                             calib_dir=self.calib_dir)).resolve()
 
         # If it exists and we want to reuse it, do so:
-        if bias_file.exists() and self.reuse:
+        if bias_file.exists() and self.reuse_calibs:
             self.msbias = buildimage.BiasImage.from_file(bias_file)
             return self.msbias
 
@@ -483,7 +477,7 @@ class Calibrations:
                             calib_dir=self.calib_dir)).resolve()
 
         # If it exists and we want to reuse it, do so:
-        if dark_file.exists() and self.reuse:
+        if dark_file.exists() and self.reuse_calibs:
             self.msdark = buildimage.DarkImage.from_file(dark_file)
             return self.msdark
 
@@ -577,7 +571,7 @@ class Calibrations:
                             calib_dir=self.calib_dir)).resolve()
 
         # If it exists and we want to reuse it, do so:
-        if flat_file.exists() and self.reuse:
+        if flat_file.exists() and self.reuse_calibs:
             self.flatimages = flatfield.FlatImages.from_file(flat_file)
             self.flatimages.is_synced(self.slits)
             # Load user defined files
@@ -724,7 +718,7 @@ class Calibrations:
                             calib_dir=self.calib_dir)).resolve()
 
         # If it exists and we want to reuse it, do so:
-        if slits_file.exists() and self.reuse:
+        if slits_file.exists() and self.reuse_calibs:
             self.slits = slittrace.SlitTraceSet.from_file(slits_file)
             self.slits.mask = self.slits.mask_init.copy()
             if self.user_slits is not None:
@@ -736,7 +730,7 @@ class Calibrations:
         edges_file = Path(edgetrace.EdgeTraceSet.construct_file_name(calib_key,
                             calib_dir=self.calib_dir)).resolve()
         # If so, reuse it?
-        if edges_file.exists() and self.reuse:
+        if edges_file.exists() and self.reuse_calibs:
             # Yep!  Load it and parse it into slits.
             self.slits = edgetrace.EdgeTraceSet.from_file(edges_file).get_slits()
             # Write the slits calibration file
@@ -830,7 +824,7 @@ class Calibrations:
                             calib_dir=self.calib_dir)).resolve()
 
         # If it exists and we want to reuse it, do so:
-        if wvcalib_file.exists() and self.reuse:
+        if wvcalib_file.exists() and self.reuse_calibs:
             self.wv_calib = wavecalib.WaveCalib.from_file(wvcalib_file)
             self.wv_calib.chk_synced(self.slits)
             self.slits.mask_wvcalib(self.wv_calib)
@@ -900,7 +894,7 @@ class Calibrations:
         tilts_file = Path(wavetilts.WaveTilts.construct_file_name(calib_key,
                             calib_dir=self.calib_dir)).resolve()
 
-        if tilts_file.exists() and self.reuse:
+        if tilts_file.exists() and self.reuse_calibs:
             self.wavetilts = wavetilts.WaveTilts.from_file(tilts_file)
             self.wavetilts.is_synced(self.slits)
             self.slits.mask_wavetilts(self.wavetilts)
@@ -998,8 +992,9 @@ class Calibrations:
                 The detector/mosaic of the association.
             must_exist (:obj:`bool`, optional):
                 If True, only *existing* calibration frames in the association
-                are included.  If False, the nominal set of calibration file
-                names are returned.
+                are included.  If False, the nominal set of processed
+                calibration frame file names are returned, regardless of whether
+                or not they exist.
             subset (`numpy.ndarray`_, optional):
                 A boolean array selecting a subset of rows from ``fitstbl`` for
                 output.
@@ -1010,9 +1005,9 @@ class Calibrations:
             proc_only (:obj:`bool`, optional):
                 If True, only return a dictionary with the names of the
                 processed calibration frames.  The dictionary sets the
-                calibration directory to CALIBDIR, and the other keys are the
+                calibration directory to ``DIR``, and the other keys are the
                 capitalized versions of the calibration type keywords; e.g.,
-                dict['ARC'] is the processed arc frame.  This parameter is
+                ``asn['ARC']`` is the processed arc frame.  This parameter is
                 mutually exclusive with ``include_science``; if both are true,
                 ``proc_only`` takes precedence.
 
@@ -1029,6 +1024,7 @@ class Calibrations:
             msgs.warn('Requested to include the science/standard frames and to only return the '
                       'processed calibration frames.  Ignoring former request.')
 
+        # Set the calibrations path
         _caldir = str(Path(caldir).resolve())
 
         # This defines the classes used by each frametype that results in an
@@ -1051,6 +1047,7 @@ class Calibrations:
         asn = {}
         setups = fitstbl.unique_configurations(copy=True, rm_none=True)
         if setup not in setups:
+            msgs.warn(f'Requested setup {setup} is invalid.  Choose from {",".join(setups)}.')
             return asn
 
         # Subset to output
@@ -1059,14 +1056,17 @@ class Calibrations:
 
         in_setup = fitstbl.find_configuration(setup) & subset
         if not any(in_setup):
+            # There are no frames in this configuration
             return asn
 
         # Find all the frames in this calibration group
         in_grp = fitstbl.find_calib_group(calib_ID) & in_setup
         if not any(in_grp):
+            # There are no frames in this calibration group
             return asn
 
-        # Iterate through each frame type
+        # Iterate through each frame type and add the raw and processed
+        # calibration frames
         for frametype, calib_classes in frame_calibrations.items():
             indx = fitstbl.find_frames(frametype) & in_grp
             if not any(indx):
@@ -1083,23 +1083,35 @@ class Calibrations:
                     = [str(calib_class.construct_file_name(calib_key, calib_dir=_caldir))
                             for calib_class in frame_calibrations[frametype]]
             if must_exist:
+                # Only include the processed calibration frames found on disk
                 asn[frametype]['proc'] \
                     = [file for file in asn[frametype]['proc'] if Path(file).exists()]
 
         if proc_only:
+            # Trim down the dictionary to only include the calibration directory
+            # and the processed calibration frames.  This is a bit of a hack so
+            # that this function can be used to construct some of the header
+            # keys for the spec2d files.
             files = {}
             for key, val in asn.items():
                 if not isinstance(val, dict) or 'proc' not in val:
                     continue
                 for file in val['proc']:
                     _file = Path(file).resolve()
+                    # NOTE: This assumes the calib_type (i.e., the class
+                    # attribute of the processed calibration frame) is the first
+                    # element of the output file name.  If we change the
+                    # calibration frame naming convention, this will need to be
+                    # updated.
                     calib_type = _file.name.split('_')[0].upper()
                     files['DIR'] = str(_file.parent)
                     files[calib_type] = _file.name
             return files
 
         if include_science:
-            # Add any science and standard (and sky?) frames
+            # Include the raw science and standard frames associated with this
+            # calibration group.  This does *not* include any processed
+            # spec2d/spec1d file names.
             for frametype in ['science', 'standard']:
                 indx = fitstbl.find_frames(frametype) & in_grp
                 if not any(indx):

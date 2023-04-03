@@ -109,8 +109,9 @@ class Spec2DObj(datamodel.DataContainer):
                  'head0'                # Raw header
                 ]
 
+    # TODO: Allow for **kwargs here?
     @classmethod
-    def from_file(cls, file, detname, **kwargs):
+    def from_file(cls, file, detname, chk_version=True):
         """
         Override base-class :func:`~pypeit.datamodel.DataContainer.from_file` to
         specify detector to read.
@@ -121,8 +122,8 @@ class Spec2DObj(datamodel.DataContainer):
             detname (:obj:`str`):
                 The string identifier for the detector or mosaic used to select
                 the data that is read.
-            **kwargs:
-                Passed directly to :func:`from_hdu`.
+            chk_version (:obj:`bool`, optional):
+                If False, allow a mismatch in datamodel to proceed
 
         Returns:
             :class:`~pypeit.spec2dobj.Spec2DObj`: 2D spectra object.
@@ -132,7 +133,7 @@ class Spec2DObj(datamodel.DataContainer):
             detnames = np.unique([h.name.split('-')[0] for h in hdu[1:]])
             if detname not in detnames:
                 msgs.error(f'Your --det={detname} is not available. \n   Choose from: {detnames}')
-            return cls.from_hdu(hdu, detname, **kwargs)
+            return cls.from_hdu(hdu, detname, chk_version=chk_version)
 
     # TODO: Allow for **kwargs here?
     @classmethod

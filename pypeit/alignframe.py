@@ -108,9 +108,6 @@ class TraceAlignment:
             The parameters used for the align traces
         det (:obj:`int`, optional):
             Detector number
-        binning (:obj:`str`, optional):
-            Detector binning in comma separated numbers for the
-            spectral and spatial binning.
         qa_path (:obj:`str`, optional):
             Directory for QA plots
         msbpm (`numpy.ndarray`_, optional):
@@ -124,13 +121,12 @@ class TraceAlignment:
         slits (:class:`~pypeit.slittrace.SlitTraceSet`):
             Slit edge traces.
     """
-    def __init__(self, rawalignimg, slits, spectrograph, alignpar, det=1,
-                 binning=None, qa_path=None, msbpm=None):
+    def __init__(self, rawalignimg, slits, spectrograph, alignpar, det=1, qa_path=None,
+                 msbpm=None):
 
         # Defaults
         self.spectrograph = spectrograph
         self.PYP_SPEC = spectrograph.name
-        self.binning = binning
         # Alignment parameters
         self.alignpar = alignpar
 

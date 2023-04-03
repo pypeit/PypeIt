@@ -95,7 +95,7 @@ class RunPypeIt(scriptbase.ScriptBase):
 
         # Instantiate the main pipeline reduction object
         pypeIt = pypeit.PypeIt(args.pypeit_file, verbosity=args.verbosity,
-                               reuse=np.invert(args.do_not_reuse_calibs),
+                               reuse_calibs=np.invert(args.do_not_reuse_calibs),
                                overwrite=args.overwrite,
                                redux_path=args.redux_path,
                                calib_only=args.calib_only,

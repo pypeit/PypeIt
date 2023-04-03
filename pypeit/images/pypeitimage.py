@@ -702,6 +702,11 @@ class PypeItImage(datamodel.DataContainer):
             - the detector from the first image (``self``) is used for the
               returned image and the detector for the ``other`` image is
               *ignored*
+            - if the spatial flexure is defined for the first image, it is
+              propagated regardless of the value for the 2nd image.  If it is
+              also defined for the 2nd image and the flexure is different from
+              the first image, a warning is issued.  If the flexure is only
+              defined for the 2nd image, it is ignored.
 
         Args:
             other (:class:`~pypeit.images.pypeitimage.PypeItImage`):
@@ -776,6 +781,13 @@ class PypeItImage(datamodel.DataContainer):
         # TODO: Instead raise an error if they're not the same
         new_units = self.units if self.units == other.units else None
 
+        # Spatial flexure
+        spat_flexure = self.spat_flexure
+        if other.spat_flexure is not None and spat_flexure is not None \
+                and other.spat_flexure != spat_flexure:
+            msgs.warn(f'Spatial flexure different for images being subtracted ({spat_flexure} '
+                      f'vs. {other.spat_flexure}).  Adopting {spat_flexure}.')
+
         # Create the new image.
         # TODO: We should instead *copy* the detector object; otherwise, it's
         # possible that it will be shared between multiple images.  Nominally,
@@ -784,7 +796,8 @@ class PypeItImage(datamodel.DataContainer):
         new_pypeitImage = PypeItImage(newimg, ivar=new_ivar, nimg=new_nimg, rn2img=new_rn2,
                                       base_var=new_base, img_scale=new_img_scale,
                                       fullmask=new_fullmask, detector=self.detector,
-                                      PYP_SPEC=new_spec, units=new_units)
+                                      spat_flexure=spat_flexure, PYP_SPEC=new_spec,
+                                      units=new_units)
 
         # Files
         if self.files is not None and other.files is not None:
@@ -843,6 +856,7 @@ class PypeItImage(datamodel.DataContainer):
                         = (self.files[i], 'PypeIt: Processed raw file')
         # Return
         return _hdr
+
 
 class PypeItCalibrationImage(PypeItImage, CalibFrame):
     """
