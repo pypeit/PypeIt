@@ -87,6 +87,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['reduce']['findobj']['find_trim_edge'] = [2,2]    # Slit is too short to trim 5,5 especially
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['skysub']['global_sky_std']  = False    # Do not perform global sky subtraction for standard stars
+        # TODO: JFH: Is this the correct behavior?  (Is why we have sky-subtraction problems for GNIRS?)
         par['reduce']['skysub']['no_poly'] = True             # Do not use polynomial degree of freedom for global skysub
         par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
         par['reduce']['findobj']['maxnumber_sci'] = 2  # Slit is narrow so allow one object per order
