@@ -1497,6 +1497,9 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         waveimg = spec2DObj.waveimg
         bpmmask = spec2DObj.bpmmask
 
+        # TODO :: Need to include the spectral flexure correction here.
+        waveimg = correct_spec_flexure(waveimg)
+
         # Grab the slit edges
         slits = spec2DObj.slits
 
