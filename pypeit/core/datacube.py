@@ -474,13 +474,13 @@ def rebinND(img, shape):
     return img_out
 
 
-def extract_standard_spec(stdcube, subsample=20, method='boxcar'):
+def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
     """ Extract a spectrum of a standard star from a datacube
 
     Args:
         std_cube (`astropy.io.fits.HDUList`_):
             An HDU list of fits files
-        subsample (int):
+        subpixel (int):
             Number of pixels to subpixelate spectrum when creating mask
         method (str):
             Method used to extract standard star spectrum. Currently, only 'boxcar' is supported
@@ -507,12 +507,12 @@ def extract_standard_spec(stdcube, subsample=20, method='boxcar'):
     wid = max(popt[3], popt[4])
 
     # Setup the coordinates of the mask
-    x = np.linspace(0, flxcube.shape[0] - 1, flxcube.shape[0] * subsample)
-    y = np.linspace(0, flxcube.shape[1] - 1, flxcube.shape[1] * subsample)
+    x = np.linspace(0, flxcube.shape[0] - 1, flxcube.shape[0] * subpixel)
+    y = np.linspace(0, flxcube.shape[1] - 1, flxcube.shape[1] * subpixel)
     xx, yy = np.meshgrid(x, y, indexing='ij')
 
     # Generate a mask
-    newshape = (flxcube.shape[0] * subsample, flxcube.shape[1] * subsample)
+    newshape = (flxcube.shape[0] * subpixel, flxcube.shape[1] * subpixel)
     mask = np.zeros(newshape)
     nsig = 4  # 4 sigma should be far enough... Note: percentage enclosed for 2D Gaussian = 1-np.exp(-0.5 * nsig**2)
     ww = np.where((np.sqrt((xx - popt[1]) ** 2 + (yy - popt[2]) ** 2) < nsig * wid))
@@ -520,7 +520,7 @@ def extract_standard_spec(stdcube, subsample=20, method='boxcar'):
     mask = rebinND(mask, (flxcube.shape[0], flxcube.shape[1])).reshape(flxcube.shape[0], flxcube.shape[1], 1)
 
     # Generate a sky mask
-    newshape = (flxcube.shape[0] * subsample, flxcube.shape[1] * subsample)
+    newshape = (flxcube.shape[0] * subpixel, flxcube.shape[1] * subpixel)
     smask = np.zeros(newshape)
     nsig = 8  # 8 sigma should be far enough
     ww = np.where((np.sqrt((xx - popt[1]) ** 2 + (yy - popt[2]) ** 2) < nsig * wid))
@@ -1281,8 +1281,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     method = cubepar['method'].lower()
 
     # Determine what method is requested
-    if method == "subsample":
-        msgs.info("Adopting the subsample algorithm to generate the datacube.")
+    if method == "subpixel":
+        msgs.info("Adopting the subpixel algorithm to generate the datacube.")
     elif method == "ngp":
         msgs.info("Adopting the nearest grid point (NGP) algorithm to generate the datacube.")
     else:
