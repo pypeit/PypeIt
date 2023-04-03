@@ -1583,7 +1583,7 @@ class SensFuncPar(ParSet):
     """
     def __init__(self, extrap_blu=None, extrap_red=None, samp_fact=None, multi_spec_det=None, algorithm=None, UVIS=None,
                  IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None,
-                 star_dec=None, mask_hydrogen_lines=None, mask_helium_lines=None):
+                 star_dec=None, mask_hydrogen_lines=None, mask_helium_lines=None, hydrogen_mask_wid=None):
         # Grab the parameter names and values from the function arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         pars = OrderedDict([(k, values[k]) for k in args[1:]])
@@ -1627,9 +1627,9 @@ class SensFuncPar(ParSet):
         dtypes['algorithm'] = str
         options['algorithm'] = SensFuncPar.valid_algorithms()
         descr['algorithm'] = "Specify the algorithm for computing the sensitivity function. The options are: " \
-                             " (1) UVIS = Should be used for data with lambda < 7000A." \
+                             r" (1) UVIS = Should be used for data with :math:`\lambda < 7000`A." \
                              "No detailed model of telluric absorption but corrects for atmospheric extinction." \
-                             " (2) IR = Should be used for data with lambbda > 7000A." \
+                             r" (2) IR = Should be used for data with :math:`\lambda > 7000`A." \
                              "Peforms joint fit for sensitivity function and telluric absorption using HITRAN models."
 
 
@@ -1664,11 +1664,17 @@ class SensFuncPar(ParSet):
 
         defaults['mask_hydrogen_lines'] = True
         dtypes['mask_hydrogen_lines'] = bool
-        descr['mask_hydrogen_lines'] = 'Mask hydrogen Balmer, Paschen, Brackett, and Pfund recombination lines in the sensitivity function fit'
+        descr['mask_hydrogen_lines'] = 'Mask hydrogen Balmer, Paschen, Brackett, and Pfund recombination lines in the sensitivity function fit. ' \
+                                       'A region equal to ``hydrogen_mask_wid`` on either side of the line center is masked.'
+
+        defaults['hydrogen_mask_wid'] = 10.0
+        dtypes['hydrogen_mask_wid'] = float
+        descr['hydrogen_mask_wid'] = 'Mask width from line center for hydrogen recombination lines in Angstroms (total mask width is 2x this value).'
 
         defaults['mask_helium_lines'] = False
         dtypes['mask_helium_lines'] = bool
-        descr['mask_helium_lines'] = 'Mask certain ``HeII`` recombination lines prominent in O-type stars in the sensitivity function fit'
+        descr['mask_helium_lines'] = 'Mask certain ``HeII`` recombination lines prominent in O-type stars in the sensitivity function fit ' \
+                                     r'A region equal to :math:`0.5 \times` ``hydrogen_mask_wid`` on either side of the line center is masked.'
 
         # Instantiate the parameter set
         super(SensFuncPar, self).__init__(list(pars.keys()),
@@ -1685,7 +1691,8 @@ class SensFuncPar(ParSet):
 
         # Single element parameters
         parkeys = ['extrap_blu', 'extrap_red', 'samp_fact', 'multi_spec_det', 'algorithm',
-                   'polyorder', 'star_type', 'star_mag', 'star_ra', 'star_dec', 'mask_hydrogen_lines', 'mask_helium_lines']
+                   'polyorder', 'star_type', 'star_mag', 'star_ra', 'star_dec',
+                   'mask_hydrogen_lines', 'mask_helium_lines', 'hydrogen_mask_wid']
 
         # All parameters, including nested ParSets
         allkeys = parkeys + ['UVIS', 'IR']
@@ -1722,7 +1729,7 @@ class SensfuncUVISPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
     """
-    def __init__(self, balm_mask_wid=None, std_file=None, std_obj_id=None, sensfunc=None, extinct_correct=None,
+    def __init__(self, std_file=None, std_obj_id=None, sensfunc=None, extinct_correct=None,
                  extinct_file=None, telluric_correct=None, telluric=None, polycorrect=None,
                  polyfunc=None, nresln=None, resolution=None, trans_thresh=None):
 
@@ -1738,12 +1745,7 @@ class SensfuncUVISPar(ParSet):
         descr = OrderedDict.fromkeys(pars.keys())
 
 
-        # TODO these masks should be set in Angstroms not pixels!!
         # These are the UV sensfunc parameters
-        defaults['balm_mask_wid'] = 10.0
-        dtypes['balm_mask_wid'] = float
-        descr['balm_mask_wid'] = 'Mask width for Balmer lines in Angstroms.'
-
         dtypes['std_file'] = str
         descr['std_file'] = 'Standard star file to generate sensfunc'
 
@@ -1818,7 +1820,7 @@ class SensfuncUVISPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['balm_mask_wid',  'sensfunc', 'extinct_correct', 'extinct_file', 'telluric_correct', 'std_file',
+        parkeys = ['sensfunc', 'extinct_correct', 'extinct_file', 'telluric_correct', 'std_file',
                    'std_obj_id', 'telluric', 'polyfunc','polycorrect', 'nresln', 'resolution', 'trans_thresh']
 
         badkeys = np.array([pk not in parkeys for pk in k])

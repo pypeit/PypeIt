@@ -1182,7 +1182,7 @@ def eval_poly_model(theta, obj_dict):
 
 def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
                       telgridfile, ech_orders=None, polyorder=8, mask_hydrogen_lines=True,
-                      resln_guess=None, resln_frac_bounds=(0.5, 1.5),
+                      mask_helium_lines=False, hydrogen_mask_wid=10., resln_guess=None, resln_frac_bounds=(0.5, 1.5),
                       delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
                       sn_clip=30.0, ballsize=5e-4, only_orders=None, maxiter=3, lower=3.0,
                       upper=3.0, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
@@ -1225,8 +1225,14 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
         If passed, provides the true order numbers for the spectra provided.
     polyorder : :obj:`int`, optional, default = 8
         Polynomial order for the sensitivity function fit.
-    mask_hydrogen_lines : :obj:`bool`, optional, default=True
-        Mask proiminent hydrogen stellar absorption lines?
+    mask_hydrogen_lines : :obj:`bool`, optional
+        If True, mask stellar hydrogen absorption lines before fitting sensitivity function. Default = True
+    mask_helium_lines : :obj:`bool`, optional
+        If True, mask stellar helium absorption lines before fitting sensitivity function. Default = False
+    hydrogen_mask_wid : :obj:`float`, optional
+        Parameter describing the width of the mask for or stellar absorption lines (`i.e.`, ``mask_hydrogen_lines=True``)
+        in Angstroms.  A region equal to ``hydrogen_mask_wid`` on either side of the line center is masked.
+        Default = 10A
     resln_guess : :obj:`float`, optional
         A guess for the resolution of your spectrum expressed as
         lambda/dlambda. The resolution is fit explicitly as part of the
@@ -1325,7 +1331,11 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
                       debug=debug_init)
 
     # Optionally, mask prominent stellar absorption features
-    mask_tot = (flux_calib.mask_stellar_hydrogen(wave) & counts_mask) if mask_hydrogen_lines else counts_mask
+    mask_tot = flux_calib.get_mask(
+        wave, counts, counts_ivar, counts_mask, mask_telluric=False,
+        mask_hydrogen_lines=mask_hydrogen_lines, mask_helium_lines=mask_helium_lines,
+        hydrogen_mask_wid=hydrogen_mask_wid,
+    )
 
     # Since we are fitting a sensitivity function, first compute counts per second per angstrom.
     TelObj = Telluric(wave, counts, counts_ivar, mask_tot, telgridfile, obj_params,

@@ -36,7 +36,7 @@ from pypeit import datamodel
 # TODO Add some QA plots, and plots to the screen if show is set.
 
 class SensFunc(datamodel.DataContainer):
-    """
+    r"""
     Base class for generating sensitivity functions from a standard-star
     spectrum.
 
@@ -703,7 +703,7 @@ class SensFunc(datamodel.DataContainer):
 
 
 class IRSensFunc(SensFunc):
-    """
+    r"""
     Determine a sensitivity functions from standard-star spectra. Should only
     be used with NIR spectra (:math:`\lambda > 7000` angstrom).
 
@@ -828,7 +828,7 @@ class IRSensFunc(SensFunc):
 
 
 class UVISSensFunc(SensFunc):
-    """
+    r"""
     Determine a sensitivity functions from standard-star spectra. Should only
     be used with UVIS spectra (:math:`\lambda < 7000` angstrom).
 
@@ -866,7 +866,7 @@ class UVISSensFunc(SensFunc):
                                                     self.par['UVIS']['extinct_file'],
                                                     self.meta_spec['ECH_ORDERS'],
                                                     polyorder=self.par['polyorder'],
-                                                    balm_mask_wid=self.par['UVIS']['balm_mask_wid'],
+                                                    hydrogen_mask_wid=self.par['hydrogen_mask_wid'],
                                                     mask_hydrogen_lines=self.par['mask_hydrogen_lines'],
                                                     mask_helium_lines=self.par['mask_helium_lines'],
                                                     nresln=self.par['UVIS']['nresln'],
