@@ -1139,7 +1139,6 @@ def calculate_image_offset(im_ref, image, nfit=3):
     return xoff + popt[1] - ccorr.shape[0]//2, yoff+popt[2] - ccorr.shape[1]//2
 
 
-
 def sky_em_residuals(wave:np.ndarray, flux:np.ndarray,
                      ivar:np.ndarray, sky_waves:np.ndarray,
                      plot=False, noff=5., nfit_min=20):
@@ -1232,7 +1231,8 @@ def sky_em_residuals(wave:np.ndarray, flux:np.ndarray,
     # Cut on quality
     m=(diff_err < 0.1) & (diff_err > 0.0)
     # Return
-    return dwave[m],diff[m],diff_err[m],los[m],los_err[m]
+    return dwave[m], diff[m], diff_err[m], los[m], los_err[m]
+
 
 # TODO -- Consider separating the methods from the DataContainer as per calibrations
 class MultiSlitFlexure(DataContainer):
