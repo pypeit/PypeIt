@@ -103,6 +103,7 @@ class CoAdd1D:
             wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, meta_spec, header = \
                     sobjs[indx].unpack_object(ret_flam=self.par['flux_value'], extract_type=self.par['ex_value'])
             # Allocate arrays on first iteration
+            # TODO :: We should refactor to use a list of numpy arrays, instead of a 2D numpy array.
             if iexp == 0:
                 waves = np.zeros(wave_iexp.shape + (self.nexp,))
                 fluxes = np.zeros_like(waves)
@@ -113,6 +114,7 @@ class CoAdd1D:
                     header_out['RA_OBJ']  = sobjs[indx][0]['RA']
                     header_out['DEC_OBJ'] = sobjs[indx][0]['DEC']
             # Check if the arrays need to be padded
+            # TODO :: Remove the if/elif statement below once these 2D arrays have been converted to a list of 1D arrays
             if wave_iexp.shape[0] > waves.shape[0]:
                 padv = [(0, wave_iexp.shape[0]-waves.shape[0]), (0, 0)]
                 waves = np.pad(waves, padv, mode='constant', constant_values=(0, 0))
