@@ -5,9 +5,8 @@ Module for LRIS specific methods.
 """
 import glob
 import os
-from IPython import embed
 
-from pkg_resources import resource_filename
+from IPython import embed
 
 import numpy as np
 
@@ -16,7 +15,7 @@ from astropy import time
 from astropy.coordinates import SkyCoord 
 from astropy import units
 
-from linetools import utils as ltu
+import linetools.utils
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -1370,14 +1369,19 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
             amp_mode = hdu[0].header['AMPMODE']
             msgs.info("AMPMODE = {:s}".format(amp_mode))
             # Load up translation dict
-            ampmode_translate_file = os.path.join(data.Paths.data, 'spectrographs',
-                'keck_lris_red_mark4', 'dict_for_ampmode.json')
-            ampmode_translate_dict = ltu.loadjson(ampmode_translate_file)
+            ampmode_translate_file = (
+                data.Paths.data / 'spectrographs' / 'keck_lris_red_mark4' / 'dict_for_ampmode.json'
+            )
+            # Force any possible pathlib.Path object to string before `loadjson`
+            ampmode_translate_dict = linetools.utils.loadjson(str(ampmode_translate_file))
             # Load up the corrected header
             swap_binning = f"{binning[-1]},{binning[0]}"  # LRIS convention is oppopsite ours
-            header_file = os.path.join(data.Paths.data, 'spectrographs',
-                'keck_lris_red_mark4', 
-                f'header{ampmode_translate_dict[amp_mode]}_{swap_binning.replace(",","_")}.fits')
+            header_file = (
+                data.Paths.data /
+                'spectrographs' /
+                'keck_lris_red_mark4' /
+                f'header{ampmode_translate_dict[amp_mode]}_{swap_binning.replace(",","_")}.fits'
+            )
             correct_header = fits.getheader(header_file)
         else:
             correct_header = hdu[0].header

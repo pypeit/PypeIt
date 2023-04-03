@@ -2,16 +2,8 @@
 Module to do a full run of PypeIt on good ole Kastb
 """
 from pathlib import Path
-import sys
-import glob
 import shutil
 from IPython.terminal.embed import embed
-
-from configobj import ConfigObj
-
-import pytest
-
-import numpy as np
 
 import matplotlib
 matplotlib.use('agg')  
@@ -21,7 +13,6 @@ from pypeit.scripts.run_pypeit import RunPypeIt
 from pypeit.tests.tstutils import data_path
 from pypeit import specobjs
 from pypeit.par import pypeitpar 
-
 
 def test_run_pypeit():
 

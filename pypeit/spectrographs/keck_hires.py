@@ -12,8 +12,6 @@ from IPython import embed
 import numpy as np
 from scipy.io import readsav
 
-from pkg_resources import resource_filename
-
 from astropy.table import Table
 
 from pypeit import msgs

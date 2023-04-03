@@ -2,7 +2,6 @@
 Module to test the various routines in `pypeit.data.utils`
 """
 
-import os
 import requests
 
 from linetools.spectra import xspectrum1d
@@ -46,12 +45,12 @@ def test_filepath_routines():
 
     # reid_arxiv (returns tuple):
     filepath, _ = data.get_reid_arxiv_filepath("keck_deimos_600ZD.fits")
-    assert os.path.isfile(filepath)
+    assert filepath.is_file()
 
     # others (return just the filepath):
-    assert os.path.isfile(data.get_skisim_filepath("mktrans_zm_10_10.dat"))
-    assert os.path.isfile(data.get_sensfunc_filepath("keck_deimos_600ZD_sensfunc.fits"))
-    assert os.path.isfile(data.get_linelist_filepath("ArI_lines.dat"))
+    assert data.get_skisim_filepath("mktrans_zm_10_10.dat").is_file()
+    assert data.get_sensfunc_filepath("keck_deimos_600ZD_sensfunc.fits").is_file()
+    assert data.get_linelist_filepath("ArI_lines.dat").is_file()
 
 
 def test_load_sky_spectrum():
@@ -67,9 +66,12 @@ def test_search_cache():
     assert data.search_cache('junkymcjunkface.txt') == []
 
     # Place a file in the cache, and retrieve it
-    data.write_file_to_cache(os.path.join(data.Paths.linelist, 'ArI_lines.dat'),
-                             'totally_special_argon_lines.dat', 'arc_lines/reid_arxiv')
-    assert os.path.isfile(data.search_cache('totally_special')[0])
+    data.write_file_to_cache(
+        data.Paths.linelist / 'ArI_lines.dat',
+        'totally_special_argon_lines.dat',
+        'arc_lines/reid_arxiv'
+    )
+    assert data.search_cache('totally_special')[0].is_file()
 
 
 def test_waveio_load_reid_arxiv():
