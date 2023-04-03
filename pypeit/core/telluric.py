@@ -1547,7 +1547,8 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
 
 def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None, star_mag=None,
                   star_ra=None, star_dec=None, func='legendre', model='exp', polyorder=5,
-                  mask_hydrogen_lines=True, delta_coeff_bounds=(-20.0, 20.0),
+                  mask_hydrogen_lines=True, mask_helium_lines=False, hydrogen_mask_wid=10.,
+                  delta_coeff_bounds=(-20.0, 20.0),
                   minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, maxiter=3,
                   tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
                   debug_init=False, debug=False, show=False):
@@ -1599,11 +1600,11 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
                       debug=debug_init)
 
     # Optionally, mask prominent stellar absorption features
-    if mask_hydrogen_lines:
-        inmask = flux_calib.mask_stellar_hydrogen(wave)
-        mask_tot = inmask & mask
-    else:
-        mask_tot = mask
+    mask_tot = flux_calib.get_mask(
+        wave, flux, ivar, mask, mask_telluric=False,
+        mask_hydrogen_lines=mask_hydrogen_lines, mask_helium_lines=mask_helium_lines,
+        hydrogen_mask_wid=hydrogen_mask_wid,
+    )
 
     # parameters lowered for testing
     TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, obj_params, init_star_model,
