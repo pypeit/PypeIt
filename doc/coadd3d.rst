@@ -100,7 +100,7 @@ Combination options
 ===================
 
 PypeIt currently supports two different methods to convert an spec2d frame into a datacube;
-these options are called ``subsample`` (default) and ``NGP`` (which is short for, nearest grid point),
+these options are called ``subpixel`` (default) and ``NGP`` (which is short for, nearest grid point),
 and can be set using the following keyword arguments:
 
 .. code-block:: ini
@@ -109,24 +109,27 @@ and can be set using the following keyword arguments:
         [[cube]]
             method = ngp
 
-The default option is called ``subsample``, which subsamples each pixel in the spec2d frame
-and assigns each subpixel into a voxel of the datacube. Flux is conserved, but voxels are
-correlated, and the error spectrum does not account for covariance between adjacent voxels.
-If you would like to change the subsampling factor from the default value (10), you can set
-the ``subsample`` keyword as follows:
+The default option is called ``subpixel``, which divides each pixel in the spec2d frame
+into many subpixels, and assigns each subpixel to a voxel of the datacube. Flux is conserved,
+but voxels are correlated, and the error spectrum does not account for covariance between
+adjacent voxels. The subpixellation scale can be separately set in the spatial and spectral
+direction on the 2D detector. If you would like to change the subpixellation factors from
+the default values (5), you can set the ``spec_subpixel`` and  ``spat_subpixel`` keywords
+as follows:
 
 .. code-block:: ini
 
     [reduce]
         [[cube]]
-            method = subsample
-            subsample = 5
+            method = subpixel
+            spec_subpixel = 8
+            spat_subpixel = 10
 
 The total number of subpixels generated for each detector pixel on the spec2d frame is
-subsample^2. The default option (subsample=10) divides each spec2d pixel into 100 subpixels
+spec_subpixel x spat_subpixel. The default values (5) divide each spec2d pixel into 25 subpixels
 during datacube creation. As an alternative, you can convert the spec2d frames into a datacube
-which the ``NGP`` method. This algorithm is effectively a 3D histogram. This approach is faster
-than ``subsample``, flux is conserved, and voxels are not correlated. However, this option suffers
+with the ``NGP`` method. This algorithm is effectively a 3D histogram. This approach is faster
+than ``subpixel``, flux is conserved, and voxels are not correlated. However, this option suffers
 the same downsides as any histogram; the choice of bin sizes can change how the datacube appears.
 This algorithm takes each pixel on the spec2d frame and puts the flux of this pixel into one voxel
 in the datacube. Depending on the binning used, some voxels may be empty (zero flux) while a
@@ -289,22 +292,20 @@ plot a wavelength slice of the cube:
 
     from matplotlib import pyplot as plt
     from astropy.visualization import ZScaleInterval, ImageNormalize
-    import astropy.io.fits as fits
-    from astropy.wcs import WCS
+    from pypeit.core.datacube import DataCube
 
     filename = "datacube.fits"
-    cube = fits.open(filename)
-    hdu_sci = cube['FLUX']
-    hdu_var = cube['VARIANCE']
-    wcs = WCS(hdu_sci.header)
+    cube = DataCube.from_file(filename)
+    flux_cube = cube.flux  # Flux datacube
+    error_cube = cube.sig  # Errors associated with each voxel of the flux datacube
+    ivar_cube = cube.ivar  # Inverse variance cube
+    wcs = cube.wcs
     wave_slice = 1000
-    norm = ImageNormalize(hdu_sci.data[wave_slice,:,:], interval=ZScaleInterval())
+    norm = ImageNormalize(flux_cube[wave_slice,:,:], interval=ZScaleInterval())
     fig = plt.figure()
     fig.add_subplot(111, projection=wcs, slices=('x', 'y', wave_slice))
-    plt.imshow(hdu_sci.data[wave_slice,:,:], origin='lower', cmap=plt.cm.viridis, norm=norm)
+    plt.imshow(flux_cube[wave_slice,:,:], origin='lower', cmap=plt.cm.viridis, norm=norm)
     plt.xlabel('RA')
     plt.ylabel('Dec')
     plt.show()
-
-.. TODO: This needs an actual datamodel
 

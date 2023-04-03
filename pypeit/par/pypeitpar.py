@@ -1323,7 +1323,7 @@ class CubePar(ParSet):
                  standard_cube=None, reference_image=None, save_whitelight=None, method=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None, astrometric=None, grating_corr=None, scale_corr=None,
-                 skysub_frame=None, spec_subsample=None, spat_subsample=None):
+                 skysub_frame=None, spec_subpixel=None, spat_subpixel=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1388,13 +1388,13 @@ class CubePar(ParSet):
                                    'ranges. If combine=False, the individual spec3d files will have a suffix ' \
                                    '"_whitelight".'
 
-        defaults['method'] = "subsample"
+        defaults['method'] = "subpixel"
         dtypes['method'] = str
-        descr['method'] = 'What method should be used to generate the datacube. There are currently two options:' \
-                          '(1) "subsample" (default) - this algorithm subsamples each pixel in the spec2d frames ' \
-                          'and assigns each subpixel into a voxel of the datacube. Flux is conserved, but voxels ' \
-                          'are correlated, and the error spectrum does not account for covariance between adjacent ' \
-                          'voxels. See also, spec_subsample and spat_subsample.' \
+        descr['method'] = 'What method should be used to generate the datacube. There are currently two options: ' \
+                          '(1) "subpixel" (default) - this algorithm divides each pixel in the spec2d frames ' \
+                          'into subpixels, and assigns each subpixel to a voxel of the datacube. Flux is conserved, ' \
+                          'but voxels are correlated, and the error spectrum does not account for covariance between ' \
+                          'adjacent voxels. See also, spec_subpixel and spat_subpixel.' \
                           '(2) "NGP" (nearest grid point) - this algorithm is effectively a 3D histogram. Flux is ' \
                           'conserved, voxels are not correlated, however this option suffers the same downsides as ' \
                           'any histogram; the choice of bin sizes can change how the datacube appears. This algorithm ' \
@@ -1408,21 +1408,21 @@ class CubePar(ParSet):
         # 'Flux is conserved, but voxels are correlated, and the error spectrum does not account ' \
         # 'for covariance between neighbouring pixels. ' \
 
-        defaults['spec_subsample'] = 5
-        dtypes['spec_subsample'] = int
-        descr['spec_subsample'] = 'When method=subsample, spec_subsample sets the subpixellation scale of ' \
-                                  'each detector pixel in the spectral direction. The total number of subpixels ' \
-                                  'in each pixel is given by spec_subsample x spat_subsample. The default option ' \
-                                  'is to divide each spec2d pixel into 25 subpixels during datacube creation. ' \
-                                  'See also, spat_subsample.'
+        defaults['spec_subpixel'] = 5
+        dtypes['spec_subpixel'] = int
+        descr['spec_subpixel'] = 'When method=subpixel, spec_subpixel sets the subpixellation scale of ' \
+                                 'each detector pixel in the spectral direction. The total number of subpixels ' \
+                                 'in each pixel is given by spec_subpixel x spat_subpixel. The default option ' \
+                                 'is to divide each spec2d pixel into 25 subpixels during datacube creation. ' \
+                                 'See also, spat_subpixel.'
 
-        defaults['spat_subsample'] = 5
-        dtypes['spat_subsample'] = int
-        descr['spat_subsample'] = 'When method=subsample, spat_subsample sets the subpixellation scale of ' \
-                                  'each detector pixel in the spatial direction. The total number of subpixels ' \
-                                  'in each pixel is given by spec_subsample x spat_subsample. The default option ' \
-                                  'is to divide each spec2d pixel into 25 subpixels during datacube creation. ' \
-                                  'See also, spec_subsample.'
+        defaults['spat_subpixel'] = 5
+        dtypes['spat_subpixel'] = int
+        descr['spat_subpixel'] = 'When method=subpixel, spat_subpixel sets the subpixellation scale of ' \
+                                 'each detector pixel in the spatial direction. The total number of subpixels ' \
+                                 'in each pixel is given by spec_subpixel x spat_subpixel. The default option ' \
+                                 'is to divide each spec2d pixel into 25 subpixels during datacube creation. ' \
+                                 'See also, spec_subpixel.'
 
         defaults['ra_min'] = None
         dtypes['ra_min'] = float
@@ -1509,7 +1509,7 @@ class CubePar(ParSet):
 
         # Basic keywords
         parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'reference_image', 'save_whitelight',
-                   'method', 'spec_subsample', 'spat_subsample', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
+                   'method', 'spec_subpixel', 'spat_subpixel', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
                    'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'relative_weights', 'combine',
                    'astrometric', 'grating_corr', 'scale_corr', 'skysub_frame']
 
@@ -1523,7 +1523,7 @@ class CubePar(ParSet):
         return cls(**kwargs)
 
     def validate(self):
-        allowed_methods = ["subsample", "NGP"]#, "resample"
+        allowed_methods = ["subpixel", "NGP"]#, "resample"
         if self.data['method'] not in allowed_methods:
             raise ValueError("The 'method' must be one of:\n"+", ".join(allowed_methods))
 
