@@ -6,6 +6,7 @@ Script for quick-look reductions for Multislit observations.
 """
 
 import copy
+import os
 import pathlib
 import time
 
@@ -178,11 +179,11 @@ def run(files, dither_id, offset_arcsec, caliBrate, spectrograph, platescale, pa
                 msgs.warn('Skpping files that do not have an A-B match with the same throw:')
                 for iexp in range(len(A_files_uni)):
                     msg_string += msgs.newline() + '    {:s}    {:s}   {:6.2f}    {:6.2f}'.format(
-                        os.path.basename(A_files_uni[iexp]), A_dither_id_uni[iexp],
+                        A_files_uni[iexp].name, A_dither_id_uni[iexp],
                         A_offset[iexp], A_offset[iexp] / platescale)
                 for iexp in range(len(B_files_uni)):
                     msg_string += msgs.newline() + '    {:s}    {:s}   {:6.2f}    {:6.2f}'.format(
-                        os.path.basename(B_files_uni[iexp]), B_dither_id_uni[iexp],
+                        B_files_uni[iexp].name, B_dither_id_uni[iexp],
                         B_offset[iexp], B_offset[iexp] / platescale)
         else:
             msgs.info('Reducing images for offset = {:}'.format(A_offset[0]))
