@@ -167,6 +167,10 @@ class DataCube(datamodel.DataContainer):
         # Do it
         super(DataCube, self).to_file(ofile, primary_hdr=primary_hdr, hdr=hdr, **kwargs)
 
+    @property
+    def ivar(self):
+        return utils.inverse(self.sig**2)
+
 
 def dar_fitfunc(radec, coord_ra, coord_dec, datfit, wave, obstime, location, pressure, temperature, rel_humidity):
     """ Generates a fitting function to calculate the offset due to differential atmospheric refraction
@@ -993,20 +997,21 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
     return all_wghts
 
 
-def generate_cube_subsample(outfile, output_wcs, all_sci, all_ivar, all_wghts, all_wave, tilts, slits, slitid_img_gpm,
-                            astrom_trans, bins, spec_subsample=10, spat_subsample=10, overwrite=False, blaze_wave=None,
-                            blaze_spec=None, fluxcal=False, sensfunc=None, specname="PYP_SPEC", debug=False):
+def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, all_wave, tilts, slits, slitid_img_gpm,
+                           astrom_trans, bins, spec_subpixel=10, spat_subpixel=10, overwrite=False, blaze_wave=None,
+                           blaze_spec=None, fluxcal=False, sensfunc=None, specname="PYP_SPEC", debug=False):
     """
-    Save a datacube using the subsample algorithm. This algorithm splits
+    Save a datacube using the subpixel algorithm. This algorithm splits
     each detector pixel into multiple subpixels, and then assigns each
-    subpixel to a voxel. For example, if subsample=10, then each detector
-    pixel is subsampled by 10^2=100 subpixels. When subsample=1, this
-    corresponds to the nearest grid point (NGP) algorithm.
+    subpixel to a voxel. For example, if spec_subpixel = spat_subpixel = 10,
+    then each detector pixel is divided into 10^2=100 subpixels. Alternatively,
+    when spec_subpixel = spat_subpixel = 1, this corresponds to the nearest
+    grid point (NGP) algorithm.
 
-    Important Note: If subsample > 1, the errors are correlated, and the
-    covariance is not being tracked, so the errors will not be (quite) right.
-    There is a tradeoff one has to make between sampling and better looking
-    cubes, versus no sampling and better behaved errors.
+    Important Note: If spec_subpixel > 1 or spat_subpixel > 1, the errors will
+    be correlated, and the covariance is not being tracked, so the errors will
+    not be (quite) right. There is a tradeoff one has to make between sampling
+    and better looking cubes, versus no sampling and better behaved errors.
 
     Args:
         outfile (`str`):
@@ -1032,14 +1037,14 @@ def generate_cube_subsample(outfile, output_wcs, all_sci, all_ivar, all_wghts, a
             A Class containing the transformation between detector pixel coordinates and WCS pixel coordinates
         bins (tuple):
             A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and z wavelength coordinates
-        spec_subsample (`int`, optional):
-            What is the subsampling factor in the spectral direction. Higher values give more reliable results, but note
-            that the time required goes as (spec_subsample * spat_subsample). The default value is 5, which subsamples
-            each detector pixel into 5 subpixels in the spectral direction.
-        spat_subsample (`int`, optional):
-            What is the subsampling factor in the spatial direction. Higher values give more reliable results, but note
-            that the time required goes as (spec_subsample * spat_subsample). The default value is 5, which subsamples
-            each detector pixel into 5 subpixels in the spatial direction.
+        spec_subpixel (`int`, optional):
+            What is the subpixellation factor in the spectral direction. Higher values give more reliable results,
+            but note that the time required goes as (spec_subpixel * spat_subpixel). The default value is 5,
+            which divides each detector pixel into 5 subpixels in the spectral direction.
+        spat_subpixel (`int`, optional):
+            What is the subpixellation factor in the spatial direction. Higher values give more reliable results,
+            but note that the time required goes as (spec_subpixel * spat_subpixel). The default value is 5,
+            which divides each detector pixel into 5 subpixels in the spatial direction.
         overwrite (`bool`, optional):
             If True, the output cube will be overwritten.
         blaze_wave (`numpy.ndarray`_, optional):
@@ -1061,11 +1066,11 @@ def generate_cube_subsample(outfile, output_wcs, all_sci, all_ivar, all_wghts, a
     outshape = (bins[0].size-1, bins[1].size-1, bins[2].size-1)
     datacube, varcube, normcube = np.zeros(outshape), np.zeros(outshape), np.zeros(outshape)
     if debug: residcube = np.zeros(outshape)
-    # Subsample each pixel
-    spec_offs = np.arange(0.5/spec_subsample, 1, 1/spec_subsample) - 0.5  # -0.5 is to offset from the centre of each pixel.
-    spat_offs = np.arange(0.5/spat_subsample, 1, 1/spat_subsample) - 0.5  # -0.5 is to offset from the centre of each pixel.
-    area = 1 / (spec_subsample * spat_subsample)
-    all_wght_subsmp = all_wghts * area
+    # Divide each pixel into subpixels
+    spec_offs = np.arange(0.5/spec_subpixel, 1, 1/spec_subpixel) - 0.5  # -0.5 is to offset from the centre of each pixel.
+    spat_offs = np.arange(0.5/spat_subpixel, 1, 1/spat_subpixel) - 0.5  # -0.5 is to offset from the centre of each pixel.
+    area = 1 / (spec_subpixel * spat_subpixel)
+    all_wght_subpix = all_wghts * area
     # Loop through all slits
     all_sltid = slitid_img_gpm[(slitid_img_gpm > 0)]
     all_var = utils.inverse(all_ivar)
@@ -1080,19 +1085,19 @@ def generate_cube_subsample(outfile, output_wcs, all_sci, all_ivar, all_wghts, a
         wspl = all_wave[this_sl]
         asrt = np.argsort(yspl)
         wave_spl = interp1d(yspl[asrt], wspl[asrt], kind='linear', bounds_error=False, fill_value='extrapolate')
-        for xx in range(spat_subsample):
-            for yy in range(spec_subsample):
+        for xx in range(spat_subpixel):
+            for yy in range(spec_subpixel):
                 # Calculate the transformation from detector pixels to voxels
                 spatpos = astrom_trans.transform(sl, wpix[1] + spat_offs[xx], wpix[0] + spec_offs[yy])
-                # TODO :: The tilts in the following line is evaluated at the pixel location, not the subsampled pixel location
+                # TODO :: The tilts in the following line is evaluated at the pixel location, not the subpixel locations
                 # A simple fix is implemented for the spectral direction, but this is not so straightforward for the spatial direction
                 # Probably, the correction in the spatial direction is so tiny, that this doesn't matter...
                 specpos = (wave_spl(tilts[wpix]*(slits.nspec - 1) + spec_offs[yy]) - wave0) / wave_delta
                 # Now assemble this position of the datacube
                 pix_coord = np.column_stack((slitID, spatpos, specpos))
-                tmp_dc, _ = np.histogramdd(pix_coord, bins=bins, weights=all_sci[this_sl] * all_wght_subsmp[this_sl])
-                tmp_vr, _ = np.histogramdd(pix_coord, bins=bins, weights=all_var[this_sl] * all_wght_subsmp[this_sl]**2)
-                tmp_nm, _ = np.histogramdd(pix_coord, bins=bins, weights=all_wght_subsmp[this_sl])
+                tmp_dc, _ = np.histogramdd(pix_coord, bins=bins, weights=all_sci[this_sl] * all_wght_subpix[this_sl])
+                tmp_vr, _ = np.histogramdd(pix_coord, bins=bins, weights=all_var[this_sl] * all_wght_subpix[this_sl]**2)
+                tmp_nm, _ = np.histogramdd(pix_coord, bins=bins, weights=all_wght_subpix[this_sl])
                 if debug:
                     tmp_rsd, _ = np.histogramdd(pix_coord, bins=bins, weights=all_sci[this_sl] * np.sqrt(all_ivar[this_sl]))
                     residcube += tmp_rsd
@@ -1701,19 +1706,19 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             cd_spat = cubepar['spatial_delta'] if cubepar['spatial_delta'] is not None else px_deg * 3600.0
             output_wcs = spec.get_wcs(spec2DObj.head0, slits, detector.platescale, crval_wv, cd_wv, spatial_scale=cd_spat)
             # Make the datacube
-            if method in ['subsample', 'ngp']:
+            if method in ['subpixel', 'ngp']:
                 if method == 'ngp':
-                    spec_subsample, spat_subsample = 1, 1
+                    spec_subpixel, spat_subpixel = 1, 1
                 else:
-                    spec_subsample, spat_subsample = cubepar['spec_subsample'], cubepar['spat_subsample']
+                    spec_subpixel, spat_subpixel = cubepar['spec_subpixel'], cubepar['spat_subpixel']
                 # Get the slit image and then unset pixels in the slit image that are bad
                 slitid_img_gpm = slitid_img_init.copy()
                 slitid_img_gpm[(bpmmask.mask != 0) | (~sky_is_good)] = 0
-                generate_cube_subsample(outfile, output_wcs, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix),
-                                        wave_ext, spec2DObj.tilts, slits, slitid_img_gpm, alignSplines, bins,
-                                        overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
-                                        fluxcal=fluxcal, specname=specname,
-                                        spec_subsample=spec_subsample, spat_subsample=spat_subsample)
+                generate_cube_subpixel(outfile, output_wcs, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix),
+                                       wave_ext, spec2DObj.tilts, slits, slitid_img_gpm, alignSplines, bins,
+                                       overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
+                                       fluxcal=fluxcal, specname=specname,
+                                       spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
             # elif method == 'resample':
             #     fluximg, ivarimg = np.zeros_like(raimg), np.zeros_like(raimg)
             #     fluximg[onslit_gpm] = flux_sav[resrt]
