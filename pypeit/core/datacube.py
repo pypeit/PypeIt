@@ -77,26 +77,6 @@ class DataCube(datamodel.DataContainer):
                  'PYP_SPEC': dict(otype=str, descr='PypeIt: Spectrograph name'),
                  'fluxed': dict(otype=bool, descr='Boolean indicating if the datacube is fluxed.')}
 
-    @classmethod
-    def from_file(cls, ifile):
-        """
-        Over-load :func:`pypeit.datamodel.DataContainer.from_file`
-        to deal with the header
-
-        Args:
-            ifile (str):  Filename holding the object
-        """
-        hdul = fits.open(ifile)
-        slf = super(DataCube, cls).from_hdu(hdul)
-
-        # Internals
-        slf.filename = ifile
-        slf.head0 = hdul[0].header
-        # Meta
-        slf.spectrograph = load_spectrograph(slf.PYP_SPEC)
-        slf.spect_meta = slf.spectrograph.parse_spec_header(slf.head0)
-        return slf
-
     def __init__(self, flux, sig, bpm, PYP_SPEC, blaze_wave, blaze_spec, sensfunc=None, fluxed=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -167,9 +147,34 @@ class DataCube(datamodel.DataContainer):
         # Do it
         super(DataCube, self).to_file(ofile, primary_hdr=primary_hdr, hdr=hdr, **kwargs)
 
+    @classmethod
+    def from_file(cls, ifile):
+        """
+        Over-load :func:`pypeit.datamodel.DataContainer.from_file`
+        to deal with the header
+
+        Args:
+            ifile (str):  Filename holding the object
+        """
+        # Load the file as usual
+        slf = super(DataCube, cls).from_file(ifile)
+
+        # Set the internals
+        hdul = fits.open(ifile)
+        slf.filename = ifile
+        slf.head0 = hdul[1].header  # Actually use the first extension here, since it contains the WCS
+        # Meta
+        slf.spectrograph = load_spectrograph(slf.PYP_SPEC)
+        slf.spect_meta = slf.spectrograph.parse_spec_header(hdul[0].header)
+        return slf
+
     @property
     def ivar(self):
         return utils.inverse(self.sig**2)
+
+    @property
+    def wcs(self):
+        return wcs.WCS(self.head0)
 
 
 def dar_fitfunc(radec, coord_ra, coord_dec, datfit, wave, obstime, location, pressure, temperature, rel_humidity):

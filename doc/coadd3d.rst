@@ -292,22 +292,20 @@ plot a wavelength slice of the cube:
 
     from matplotlib import pyplot as plt
     from astropy.visualization import ZScaleInterval, ImageNormalize
-    import astropy.io.fits as fits
-    from astropy.wcs import WCS
+    from pypeit.core.datacube import DataCube
 
     filename = "datacube.fits"
-    cube = fits.open(filename)
-    hdu_sci = cube['FLUX']
-    hdu_var = cube['VARIANCE']
-    wcs = WCS(hdu_sci.header)
+    cube = DataCube.from_file(filename)
+    flux_cube = cube.flux  # Flux datacube
+    error_cube = cube.sig  # Errors associated with each voxel of the flux datacube
+    ivar_cube = cube.ivar  # Inverse variance cube
+    wcs = cube.wcs
     wave_slice = 1000
-    norm = ImageNormalize(hdu_sci.data[wave_slice,:,:], interval=ZScaleInterval())
+    norm = ImageNormalize(flux_cube[wave_slice,:,:], interval=ZScaleInterval())
     fig = plt.figure()
     fig.add_subplot(111, projection=wcs, slices=('x', 'y', wave_slice))
-    plt.imshow(hdu_sci.data[wave_slice,:,:], origin='lower', cmap=plt.cm.viridis, norm=norm)
+    plt.imshow(flux_cube[wave_slice,:,:], origin='lower', cmap=plt.cm.viridis, norm=norm)
     plt.xlabel('RA')
     plt.ylabel('Dec')
     plt.show()
-
-.. TODO: This needs an actual datamodel
 
