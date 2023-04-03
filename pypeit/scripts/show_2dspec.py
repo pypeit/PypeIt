@@ -194,9 +194,11 @@ class Show2DSpec(scriptbase.ScriptBase):
                                         if 'maskdef_id' in slit_columns else None
                     if 'SCI_SPAT_FLEXURE' in hdu[f'{detname}-SCIIMG'].header \
                             and slit_left is not None and slit_right is not None:
-                        slit_left += float(hdu[f'{detname}-SCIIMG'].header['SCI_SPAT_FLEXURE'])
-                        slit_right += float(hdu[f'{detname}-SCIIMG'].header['SCI_SPAT_FLEXURE'])
-                        msgs.info("Offseting slits by {}".format(sci_spat_flexure))
+                        sci_spat_flexure \
+                                = float(hdu[f'{detname}-SCIIMG'].header['SCI_SPAT_FLEXURE'])
+                        slit_left += sci_spat_flexure
+                        slit_right += sci_spat_flexure
+                        msgs.info(f'Offseting slits by {sci_spat_flexure} pixels.')
                     pypeline = hdu[f'{detname}-SCIIMG'].header['PYPELINE'] \
                                     if 'PYPELINE' in hdu[f'{detname}-SCIIMG'].header else None
                     if pypeline in ['MultiSlit', 'IFU']:
