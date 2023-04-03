@@ -8,7 +8,7 @@
     GUI. Run in the same folder as your .pypeit file
     
     positional arguments:
-      file                  PypeIt file
+      file                  spec2d file
     
     optional arguments:
       -h, --help            show this help message and exit
