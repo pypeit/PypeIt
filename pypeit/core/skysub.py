@@ -704,8 +704,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         Model object flux where ``thismask`` is true.
     modelivar : `numpy.ndarray`_
         Model inverse variance where ``thismask`` is true.
-    outmask : `numpy.ndarray`_
-        Model mask where ``thismask`` is true.
+    outmask : :class:`~pypeit.images.imagebitmask.ImageBitMaskArray`
+        Copy of ``fullmask`` but with added flags were the image was extracted.
     """
     # Check input
     if model_noise and base_var is None:
@@ -801,8 +801,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         min_spat = np.fmax(np.floor(min(min_spat1)), imin)
         max_spat = np.fmin(np.ceil(max(max_spat1)), imax)
         nc = int(max_spat - min_spat + 1)
-        spec_vec = np.arange(nspec, dtype=np.intp)
-        spat_vec = np.arange(min_spat, min_spat + nc, dtype=np.intp)
+        spec_vec = np.arange(nspec, dtype=int) #np.intp)
+        spat_vec = np.arange(min_spat, min_spat + nc, dtype=int) #np.intp)
         ipix = np.ix_(spec_vec, spat_vec)
         obj_profiles = np.zeros((nspec, nspat, objwork), dtype=float)
         sigrej_eff = sigrej
@@ -1038,12 +1038,11 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
     sciimg : `numpy.ndarray`_
         science image, usually with a global sky subtracted.
         shape = (nspec, nspat)
-    fullmask: `numpy.ndarray`_
-        bool mask of the full image.
-        True = masked (bad pixel mask)
     sciivar : `numpy.ndarray`_
         inverse variance of science image.
         shape = (nspec, nspat)
+    fullmask : :class:`~pypeit.images.imagebitmask.ImageBitMaskArray`
+        Image bitmask array.
     tilts : `numpy.ndarray`_
         spectral tilts.
         shape=(nspec, nspat)
@@ -1193,12 +1192,10 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
         Same object as passed in
 
     """
-    bitmask = imagebitmask.ImageBitMask()
-
     # Allocate the images that are needed
     # Initialize to mask in case no objects were found
-    outmask = np.copy(fullmask)
-    extractmask = fullmask == 0
+    outmask = fullmask.copy()
+    extractmask = fullmask.flagged(invert=True)
     # TODO case of no objects found should be properly dealt with by local_skysub_extract
     # Initialize to zero in case no objects were found
     objmodel = np.zeros_like(sciimg)
@@ -1315,7 +1312,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
         thisobj = (sobjs.ECH_ORDERINDX == iord) # indices of objects for this slit
         thismask = slitmask == gdslit_spat[iord] # pixels for this slit
         # True  = Good, False = Bad for inmask
-        inmask = (fullmask == 0) & thismask
+        inmask = fullmask.flagged(invert=True) & thismask
         # Local sky subtraction and extraction
         skymodel[thismask], objmodel[thismask], ivarmodel[thismask], extractmask[thismask] \
                 = local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask,
@@ -1339,9 +1336,9 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
 
     # Set the bit for pixels which were masked by the extraction.
     # For extractmask, True = Good, False = Bad
-    iextract = (fullmask == 0) & (extractmask == False)
+    iextract = fullmask.flagged(invert=True) & np.logical_not(extractmask)
     # Undefined inverse variances
-    outmask[iextract] = bitmask.turn_on(outmask[iextract], 'EXTRACT')
+    outmask.turn_on('EXTRACT', select=iextract)
 
     # Return
     return skymodel, objmodel, ivarmodel, outmask, sobjs
@@ -1474,7 +1471,9 @@ def generate_mask(pypeline, skyreg, slits, slits_left, slits_right, spat_flexure
 
     # Now that we have sky region traces, utilise the SlitTraceSet to define the regions.
     # We will then use the slit_img task to create a mask of the sky regions.
-    slmsk = np.zeros(left_edg.shape[1], dtype=np.int16)
+    # TODO: I don't understand why slmsk needs to be instantiated.  SlitTraceSet
+    # does this internally.
+    slmsk = np.zeros(left_edg.shape[1], dtype=slittrace.SlitTraceSet.bitmask.minimum_dtype())
     slitreg = slittrace.SlitTraceSet(left_edg, righ_edg, pypeline, nspec=slits.nspec, nspat=slits.nspat,
                                      mask=slmsk, specmin=spec_min, specmax=spec_max,
                                      binspec=slits.binspec, binspat=slits.binspat, pad=0)

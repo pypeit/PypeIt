@@ -30,9 +30,7 @@ from pypeit.scripts import obslog
 from pypeit.scripts import parse_calib_id
 from pypeit.scripts import parse_slits
 from pypeit.scripts import qa_html
-from pypeit.scripts import ql_keck_deimos
-from pypeit.scripts import ql_keck_nires
-from pypeit.scripts import ql_mos
+from pypeit.scripts import ql
 from pypeit.scripts import ql_multislit
 from pypeit.scripts import run_pypeit
 from pypeit.scripts import sensfunc

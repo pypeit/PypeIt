@@ -7,18 +7,45 @@ import shutil
 
 from IPython import embed
 
-import numpy as np
-
 import pytest
+
+from astropy.table import Table
 
 from pypeit.scripts.setup import Setup
 from pypeit.inputfiles import PypeItFile
+from pypeit.inputfiles import RawFiles
 from pypeit.tests.tstutils import data_path
 
 
 def expected_file_extensions():
     return ['sorted']
 
+def test_read_list_rawfiles():
+    """ Read in a file which is a 
+    list of raw data files for setting up
+    """
+    tst_file = data_path('test.rawfiles')
+    if os.path.isfile(tst_file):
+        os.remove(tst_file)
+
+    # Bulid
+    tbl = Table()
+    tbl['filename'] = ['b11.fits.gz', 'b12.fits.gz']
+    iRaw = RawFiles(file_paths=[data_path('')],
+                    data_table=tbl)
+
+    # Write
+    iRaw.write(tst_file)
+    
+    # Read
+    tst = RawFiles.from_file(tst_file)
+
+    # Test
+    assert os.path.basename(tst.filenames[0]) == 'b11.fits.gz'
+
+    # Clean up
+    if os.path.isfile(tst_file):
+        os.remove(tst_file)
 
 def test_run_setup():
     """ Test the setup script

@@ -65,7 +65,7 @@ def test_fit_det_response():
     spec = load_spectrograph('keck_kcwi')
     # Generate a good pixel mask
     frsize = 4100
-    gpm = np.ones((frsize,frsize), dtype=np.bool)
+    gpm = np.ones((frsize,frsize), dtype=bool)
     # Generate a fake image
     sinemodel = lambda xx, yy, amp, scl, phase, wavelength, angle: 1 + (amp + xx * scl) * np.sin(
                 2 * np.pi * (xx * np.cos(angle*np.pi / 180.0) + yy * np.sin(angle*np.pi / 180.0)) / wavelength + phase)

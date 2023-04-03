@@ -28,7 +28,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
     url = 'https://www.not.iac.es/instruments/alfosc/'
     header_name = 'ALFOSC_FASU'
     supported = True
-    comment = 'Grisms 4, 19'
+    comment = 'For use with the standard horizontal slits only. Grisms 3, 4, 5, 7, 8, 10, 11, 17, 18, 19, 20'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -82,7 +82,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
             darkcurr        = 1.3,      # e-/pix/hr
             saturation      = 700000.,  # ADU
             nonlinear       = 0.86,
-            datasec         = np.atleast_1d('[:,{}:{}]'.format(1, 2062)),  # Unbinned
+            datasec         = np.atleast_1d('[:,{}:{}]'.format(1, 2148)),  # Unbinned
             oscansec        = None,
             numamplifiers   = 1,
             gain            = gain,     # e-/ADU
@@ -101,7 +101,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
     def default_pypeit_par(cls):
         """
         Return the default parameters to use for this instrument.
-        
+
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
             all of ``PypeIt`` methods.
@@ -111,13 +111,16 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
         par['calibrations']['slitedges']['bound_detector'] = True
+        # Flats are sometimes quite ugly due to dust on the slit which leads to the erroneous detection of multiple slits. So set a higher edge_thresh and minimum_slit_gap.
+        par['calibrations']['slitedges']['edge_thresh'] = 30
+        par['calibrations']['slitedges']['minimum_slit_gap'] = 15
 
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         # Wavelength calibration methods
         #par['calibrations']['wavelengths']['method'] = 'holy-grail'
         par['calibrations']['wavelengths']['method'] = 'full_template'
-        par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI']
+        par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI', 'ArI', 'ArII']
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
@@ -125,7 +128,16 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures on this telescope
         par['calibrations']['standardframe']['exprng'] = [None, 120]
-        par['scienceframe']['exprng'] = [90, None]
+        par['scienceframe']['exprng'] = [10, None]
+
+        # Multiple arcs with different lamps, so can't median combine nor clip, also need to remove continuum
+        par['calibrations']['arcframe']['process']['clip'] = False
+        par['calibrations']['arcframe']['process']['combine'] = 'mean'
+        par['calibrations']['arcframe']['process']['subtract_continuum'] = True
+        par['calibrations']['tiltframe']['process']['clip'] = False
+        par['calibrations']['tiltframe']['process']['combine'] = 'mean'
+        par['calibrations']['tiltframe']['process']['subtract_continuum'] = True
+
 
         # No overscan region!
         turn_off = dict(use_overscan=False)
@@ -224,8 +236,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         if ftype == 'science':
             return good_exp & (fitstbl['idname'] == 'OBJECT')
         if ftype == 'standard':
-            return good_exp & ((fitstbl['target'] == 'STD')
-                                | (fitstbl['target'] == 'STD,SLIT'))
+            return good_exp & ((fitstbl['idname'] == 'STD') | (fitstbl['target'] == 'STD') | (fitstbl['target'] == 'STD,SLIT'))
         if ftype == 'bias':
             return good_exp & (fitstbl['idname'] == 'BIAS')
         if ftype in ['pixelflat', 'trace', 'illumflat']:
@@ -259,13 +270,102 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
         # Wavelength calibrations
-        if self.get_meta_value(scifile, 'dispname') == 'Grism_#4':
+        if self.get_meta_value(scifile, 'dispname') == 'Grism_#3':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism3.fits'
+        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#4':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism4.fits'
+        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#5':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism5.fits'
+        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#7':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism7.fits'
+        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#8':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism8.fits'
+        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#10':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism10.fits'
+        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#11':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism11.fits'
+        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#17':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism17.fits'
+        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#18':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism18.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'Grism_#19':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism19.fits'
+        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#20':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism20.fits'
         else:
             msgs.warn('not_alfosc.py: YOU NEED TO ADD IN THE WAVELENGTH SOLUTION FOR THIS GRISM')
 
         # Return
         return par
 
+
+
+
+class NOTALFOSCSpectrographVert(NOTALFOSCSpectrograph):
+    """
+    Child to handle Vertical slits for NOT ALFOSC spectrograph
+    """
+    name = 'not_alfosc_vert'
+    comment = 'Grisms 3, 4, 5, 7, 8, 10, 11, 17, 18, 19, 20. For vertical slits only'
+
+    def get_detector_par(self, det, hdu=None):
+        """
+        Return metadata for the selected detector.
+
+        Detector data from `here
+        <http://www.not.iac.es/instruments/detectors/CCD14/>`__.
+
+        .. warning::
+
+            Many of the necessary detector parameters are read from the file
+            header, meaning the ``hdu`` argument is effectively **required** for
+            NOT/ALFOSC.  The optional use of ``hdu`` is only viable for
+            automatically generated documentation.
+
+        Args:
+            det (:obj:`int`):
+                1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
+
+        Returns:
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
+        """
+        # http://www.not.iac.es/instruments/detectors/CCD14/
+
+        if hdu is None:
+            binning = '1,1'
+            gain = None
+            ronoise = None
+        else:
+            binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+            gain = np.atleast_1d(hdu[1].header['GAIN'])  # e-/ADU
+            ronoise = np.atleast_1d(hdu[1].header['RDNOISE'])  # e-
+
+        # Detector 1
+        detector_dict = dict(
+            binning         = binning,
+            det             = 1,
+            dataext         = 1,
+            specaxis        = 1, #Vertical slits have horizontal spectral dispersion
+            specflip        = False,
+            spatflip        = False,
+            xgap            = 0.,
+            ygap            = 0.,
+            ysize           = 1.,
+            platescale      = 0.2138,
+            mincounts       = -1e10,
+            darkcurr        = 1.3,      # e-/pix/hr
+            saturation      = 700000.,  # ADU
+            nonlinear       = 0.86,
+            datasec         = np.atleast_1d('[{}:{},:]'.format(1, 2102)),  # Unbinned
+            oscansec        = None,
+            numamplifiers   = 1,
+            gain            = gain,     # e-/ADU
+            ronoise         = ronoise   # e-
+        )
+
+        # Return
+        return detector_container.DetectorContainer(**detector_dict)
