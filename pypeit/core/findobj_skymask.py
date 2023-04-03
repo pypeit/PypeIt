@@ -6,10 +6,11 @@
 import copy
 
 import numpy as np
-import scipy
-from matplotlib import pyplot as plt
+import scipy.interpolate
+import scipy.ndimage
+import matplotlib.pyplot as plt
 
-from astropy import stats
+import astropy.stats
 
 from pypeit import msgs
 from pypeit import utils
@@ -762,8 +763,10 @@ def ech_cutobj_on_snr(
             flux_box[:,iord,iobj] = flux_tmp*mask_tmp
             ivar_box[:,iord,iobj] = np.fmax(ivar_tmp*mask_tmp,0.0)
             mask_box[:,iord,iobj] = mask_tmp
-            mean, med_sn, stddev = stats.sigma_clipped_stats(flux_box[mask_tmp,iord,iobj]*np.sqrt(ivar_box[mask_tmp,iord,iobj]),
-                                                             sigma_lower=5.0,sigma_upper=5.0)
+            mean, med_sn, stddev = astropy.stats.sigma_clipped_stats(
+                flux_box[mask_tmp,iord,iobj]*np.sqrt(ivar_box[mask_tmp,iord,iobj]),
+                sigma_lower=5.0,sigma_upper=5.0
+            )
             # ToDO assign this to sobjs_align for use in the extraction
             SNR_arr[iord,iobj] = med_sn
             sobjs_align[indx][0].ech_snr = med_sn
@@ -922,7 +925,7 @@ def ech_pca_traces(
     for iobj in range(nobj_trim):
         indx_obj_id = sobjs_final.ECH_OBJID == (iobj + 1)
         # PCA predict all the orders now (where we have used the standard or slit boundary for the bad orders above)
-        msgs.info('Fitting echelle object finding PCA for object {:d}\{:d} with median SNR = {:5.3f}'.format(
+        msgs.info('Fitting echelle object finding PCA for object {:d}/{:d} with median SNR = {:5.3f}'.format(
             iobj + 1,nobj_trim,np.median(sobjs_final[indx_obj_id].ech_snr)))
         pca_fits[:,:,iobj] \
                 = tracepca.pca_trace_object(
@@ -1819,8 +1822,10 @@ def orig_ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, mas
             flux_box[:,iord,iobj] = flux_tmp*mask_tmp
             ivar_box[:,iord,iobj] = np.fmax(ivar_tmp*mask_tmp,0.0)
             mask_box[:,iord,iobj] = mask_tmp
-            mean, med_sn, stddev = stats.sigma_clipped_stats(flux_box[mask_tmp,iord,iobj]*np.sqrt(ivar_box[mask_tmp,iord,iobj]),
-                                                             sigma_lower=5.0,sigma_upper=5.0)
+            mean, med_sn, stddev = astropy.stats.sigma_clipped_stats(
+                flux_box[mask_tmp,iord,iobj]*np.sqrt(ivar_box[mask_tmp,iord,iobj]),
+                sigma_lower=5.0,sigma_upper=5.0
+            )
             # ToDO assign this to sobjs_align for use in the extraction
             SNR_arr[iord,iobj] = med_sn
             sobjs_align[indx][0].ech_snr = med_sn
@@ -1893,7 +1898,7 @@ def orig_ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, mas
     for iobj in range(nobj_trim):
         indx_obj_id = sobjs_final.ECH_OBJID == (iobj + 1)
         # PCA predict all the orders now (where we have used the standard or slit boundary for the bad orders above)
-        msgs.info('Fitting echelle object finding PCA for object {:d}\{:d} with median SNR = {:5.3f}'.format(
+        msgs.info('Fitting echelle object finding PCA for object {:d}/{:d} with median SNR = {:5.3f}'.format(
             iobj + 1,nobj_trim,np.median(sobjs_final[indx_obj_id].ech_snr)))
         pca_fits[:,:,iobj] \
                 = tracepca.pca_trace_object(sobjs_final[indx_obj_id].TRACE_SPAT.T,
@@ -2386,8 +2391,9 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
     find_min_max_gpm[find_min_max_out[0]: find_min_max_out[1], :] = True
     data = np.ma.MaskedArray(
         image_rect, mask=np.logical_not(gpm_rect & find_min_max_gpm)) # the total gpm = gpm_rect & find_min_max_gpm
-    sigclip = stats.SigmaClip(sigma=sigclip_smash, maxiters=25, cenfunc='median', 
-                              stdfunc=utils.nan_mad_std)
+    sigclip = astropy.stats.SigmaClip(
+        sigma=sigclip_smash, maxiters=25, cenfunc='median', stdfunc=utils.nan_mad_std
+    )
     data_clipped, lower, upper = sigclip(data, axis=0, masked=True, return_bounds=True)
     gpm_sigclip = np.logical_not(data_clipped.mask)
 
@@ -2398,9 +2404,9 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
     gpm_smash = npix_smash > 0.3*nsmash
     flux_sum_smash = np.sum((image_rect*gpm_sigclip)[find_min_max_out[0]:find_min_max_out[1]], axis=0)
     flux_smash = flux_sum_smash*gpm_smash/(npix_smash + (npix_smash == 0.0))
-    flux_smash_mean, flux_smash_med, flux_smash_std = stats.sigma_clipped_stats(flux_smash,
-                                                                                mask=np.logical_not(gpm_smash),
-                                                                                sigma_lower=3.0, sigma_upper=3.0)
+    flux_smash_mean, flux_smash_med, flux_smash_std = astropy.stats.sigma_clipped_stats(
+        flux_smash, mask=np.logical_not(gpm_smash), sigma_lower=3.0, sigma_upper=3.0
+    )
     flux_smash_recen = flux_smash - flux_smash_med
 
     # Return if none found and no hand extraction
@@ -2423,8 +2429,8 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
 
         # Smooth this SNR image with a Gaussian set by the input fwhm
         gauss_smth_sigma = (fwhm/2.3548)
-        snr_smash_smth = scipy.ndimage.filters.gaussian_filter1d(snr_smash, gauss_smth_sigma, mode='nearest')
-        flux_smash_smth = scipy.ndimage.filters.gaussian_filter1d(flux_smash_recen, gauss_smth_sigma, mode='nearest')
+        snr_smash_smth = scipy.ndimage.gaussian_filter1d(snr_smash, gauss_smth_sigma, mode='nearest')
+        flux_smash_smth = scipy.ndimage.gaussian_filter1d(flux_smash_recen, gauss_smth_sigma, mode='nearest')
         # Search for spatial direction peaks in the smoothed snr image
         _, _, x_peaks_out, x_width, x_err, igood, _, _ = arc.detect_lines(
             snr_smash_smth, input_thresh=snr_thresh, fit_frac_fwhm=1.5, fwhm=fwhm, min_pkdist_frac_fwhm=0.75,
