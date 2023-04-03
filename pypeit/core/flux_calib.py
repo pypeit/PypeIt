@@ -4,8 +4,6 @@
 .. include:: ../include/links.rst
 
 """
-import os
-import glob
 
 from IPython import embed
 
@@ -154,9 +152,9 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     closest = dict(sep=999 * units.deg)
 
     for sset in std_sets:
-        path = os.path.join(data.Paths.standards, sset)
-        star_file = os.path.join(path, f"{sset}_info.txt")
-        if not os.path.isfile(star_file):
+        stds_path = data.Paths.standards / sset
+        star_file = stds_path / f"{sset}_info.txt"
+        if not star_file.is_file():
             msgs.warn(f"File does not exist!: {star_file}")
             continue
 
@@ -172,7 +170,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
 
             # Generate a dict
             _idx = int(idx)
-            std_dict = dict(cal_file=os.path.join(path, star_tbl[_idx]['File']),
+            std_dict = dict(cal_file=stds_path / star_tbl[_idx]['File'],
                             name=star_tbl[_idx]['Name'],
 #                            std_ra=star_tbl[_idx]['RA_2000'],
 #                            std_dec=star_tbl[_idx]['DEC_2000'])
@@ -185,13 +183,13 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
                 fil = None
             else:
                 # TODO: Does this need to be globbed? Why isn't the file
-                # name exact?
-                fil = glob.glob(std_dict['cal_file'] + '*')
+                # name exact?  ANSWER: The glob is to catch both .fits and .fits.gz
+                fil = list(std_dict['cal_file'].parent.glob(f"{std_dict['cal_file'].name}*"))
                 if len(fil) == 0:
                     # TODO: Error or warn?
-                    msgs.error("No standard star file: {:s}".format(std_dict['cal_file']))
+                    msgs.error(f"No standard star file: {std_dict['cal_file']}")
                 fil = fil[0]
-                msgs.info("Loading standard star file: {:s}".format(fil))
+                msgs.info(f"Loading standard star file: {fil}")
 
             # TODO: Put this stuff in a method, like `read_standard`
             if sset == 'xshooter':
@@ -208,7 +206,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
                 std_dict['flux'] = std_spec['FLUX'] / PYPEIT_FLUX_SCALE \
                                    * units.erg / units.s / units.cm ** 2 / units.AA
             elif sset == 'esofil':
-                fil_basename = os.path.basename(fil)
+                fil_basename = fil.name  # Note: `fil` is a pathlib.Path object
                 if not fil_basename.startswith('f'):
                     msgs.error("The ESO reference standard filename must start with the string `f`;  make sure it is the case. Also make sure that the flux units in the file are in 10**(-16) erg/s/cm2/AA.")
                 # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
@@ -272,8 +270,8 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     if check:
         return False
 
-    msgs.error("No standard star was found within a tolerance of {:g}".format(toler) + msgs.newline()
-               + "Closest standard was {:s} at separation {:g}".format(closest['name'], closest['sep'].to('arcmin')))
+    msgs.error(f"No standard star was found within a tolerance of {toler}{msgs.newline()}"
+               f"Closest standard was {closest['name']} at separation {closest['sep'].to('arcmin')}")
 
     return None
 
@@ -305,7 +303,7 @@ def stellar_model(V, sptype):
     logg_sol = np.log10(6.67259e-8) + np.log10(1.989e33) - 2.0 * np.log10(6.96e10)
 
     # Load Schmidt-Kaler (1982) table
-    sk82_file = os.path.join(data.Paths.standards, 'kurucz93', 'schmidt-kaler_table.txt')
+    sk82_file = data.Paths.standards / 'kurucz93' / 'schmidt-kaler_table.txt'
     sk82_tab = ascii.read(sk82_file, names=('Sp', 'logTeff', 'Teff', '(B-V)_0', 'M_V', 'B.C.', 'M_bol', 'L/L_sol'))
 
     # TODO, currently this only works on select stellar types. Add ability to interpolate across types.
@@ -350,7 +348,7 @@ def stellar_model(V, sptype):
     indg = np.argmin(np.abs(loggk - logg))
 
     # Grab Kurucz filename
-    std_file = os.path.join(data.Paths.standards, 'kurucz93', 'kp00', f'kp00_{int(Tk[indT])}.fits.gz')
+    std_file = data.Paths.standards / 'kurucz93' / 'kp00' / f'kp00_{int(Tk[indT])}.fits.gz'
     std = table.Table.read(std_file)
 
     # Grab specific spectrum
@@ -409,7 +407,7 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
         if 'A0' in star_type:
             msgs.info('Getting vega spectrum')
             ## Vega model from TSPECTOOL
-            vega_file = os.path.join(data.Paths.standards, 'vega_tspectool_vacuum.dat')
+            vega_file = data.Paths.standards / 'vega_tspectool_vacuum.dat'
             vega_data = table.Table.read(vega_file, comment='#', format='ascii')
             std_dict = dict(cal_file='vega_tspectool_vacuum', name=star_type, Vmag=star_mag,
                             std_ra=ra, std_dec=dec)
@@ -458,7 +456,7 @@ def load_extinction_data(longitude, latitude, extinctfilepar,
         # Observation coordinates
         obs_coord = coordinates.SkyCoord(longitude, latitude, frame='gcrs', unit=units.deg)
         # Read list
-        extinct_summ = os.path.join(data.Paths.extinction, 'README')
+        extinct_summ = data.Paths.extinction / 'README'
         extinct_files = table.Table.read(extinct_summ, comment='#', format='ascii')
         # Coords
         ext_coord = coordinates.SkyCoord(extinct_files['Lon'], extinct_files['Lat'], frame='gcrs',
@@ -1095,7 +1093,7 @@ def get_mask(wave_star, flux_star, ivar_star, mask_star,
 # These are physical limits on the allowed values of the zeropoint in magnitudes
 
 def Nlam_to_Flam(wave, zeropoint, zp_min=5.0, zp_max=30.0):
-    """
+    r"""
     The factor that when multiplied into N_lam 
     converts to F_lam, i.e. S_lam where S_lam \equiv F_lam/N_lam
 
@@ -1122,7 +1120,7 @@ def Nlam_to_Flam(wave, zeropoint, zp_min=5.0, zp_max=30.0):
     return factor
 
 def Flam_to_Nlam(wave, zeropoint, zp_min=5.0, zp_max=30.0):
-    """
+    r"""
     The factor that when multiplied into F_lam converts to N_lam, 
     i.e. 1/S_lam where S_lam \equiv F_lam/N_lam
 
@@ -1466,7 +1464,7 @@ def load_filter_file(filter):
 
     """
 
-    filter_file = os.path.join(data.Paths.filters, 'filter_list.ascii')
+    filter_file = data.Paths.filters / 'filter_list.ascii'
     tbl = table.Table.read(filter_file, format='ascii')
 
     allowed_options = tbl['filter'].data
@@ -1475,7 +1473,7 @@ def load_filter_file(filter):
     if filter not in allowed_options:
         msgs.error("PypeIt is not ready for filter = {}".format(filter))
 
-    trans_file = os.path.join(data.Paths.filters, 'filtercurves.fits')
+    trans_file = data.Paths.filters / 'filtercurves.fits'
     trans = io.fits_open(trans_file)
     wave = trans[filter].data['lam']  # Angstroms
     instr = trans[filter].data['Rlam']  # Am keeping in atmospheric terms

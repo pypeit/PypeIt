@@ -3,14 +3,15 @@
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import os
-import sys
 
 from IPython import embed
 
-import numpy as np
-import scipy
 import matplotlib.pyplot as plt
+import numpy as np
+import scipy.interpolate
+import scipy.optimize
+import scipy.signal
+import scipy.special
 
 from astropy import table
 from astropy.io import fits
@@ -63,7 +64,7 @@ def init_pca(filename,wave_grid,redshift, npca):
     # and the Gaussian mixture model prior (mix_fit)
 
     # The PCA file location is provided by data.Paths.tel_model
-    file_with_path = os.path.join(data.Paths.tel_model, filename)
+    file_with_path = data.Paths.tel_model / filename
 
     loglam = np.log10(wave_grid)
     dloglam = np.median(loglam[1:] - loglam[:-1])
@@ -273,7 +274,7 @@ def conv_telluric(tell_model, dloglam, res):
 
     pix_per_sigma = 1.0/res/(dloglam*np.log(10.0))/(2.0 * np.sqrt(2.0 * np.log(2))) # number of dloglam pixels per 1 sigma dispersion
     sig2pix = 1.0/pix_per_sigma # number of sigma per 1 pix
-    #conv_model = scipy.ndimage.filters.gaussian_filter1d(tell_model, pix)
+    #conv_model = scipy.ndimage.gaussian_filter1d(tell_model, pix)
     # x = loglam/sigma on the wavelength grid from -4 to 4, symmetric, centered about zero.
     x = np.hstack([-1*np.flip(np.arange(sig2pix,4,sig2pix)),np.arange(0,4,sig2pix)])
     # g = Gaussian evaluated at x, sig2pix multiplied in to properly normalize the convolution
@@ -1794,7 +1795,7 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
 
 
 class Telluric(datamodel.DataContainer):
-    """
+    r"""
     Simultaneously fit model object and telluric spectra to an observed
     spectrum.
 

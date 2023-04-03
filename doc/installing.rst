@@ -16,10 +16,6 @@ Installation
     instead.  If that also fails, please `Submit an issue`_ and/or reach out to
     our user :ref:`community`.
 
-.. warning::
-
-    Python 3.11 is not yet supported.
-
 Below, we provide detailed instructions for installing PypeIt.  For
 troubleshooting, please consult the PypeIt :ref:`community` and/or `submit
 an issue <https://github.com/pypeit/PypeIt/issues>`__ on GitHub.
