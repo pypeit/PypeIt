@@ -6,6 +6,9 @@ parse module.
 
 """
 import inspect
+
+from IPython import embed
+
 import numpy as np
 
 # Logging
@@ -266,7 +269,7 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
     return tuple(slices)
 
 
-def str2list(inp, length):
+def str2list(inp, length=None):
     """
     Expand a string with a comma-separated set of integers and slices
     into a list of the relevant integers.
@@ -286,9 +289,10 @@ def str2list(inp, length):
         inp (:obj:`str`):
             String with a comma-separated set of integers and slices;
             can also be 'all'.
-        length (:obj:`int`):
-            Maximum length of the list, which is needed to allow for
-            open slices (e.g., '8:').
+        length (:obj:`int`, optional):
+            Maximum length of the list, which is needed to allow for open slices
+            (e.g., '8:').  If None, open slices and setting ``inp='all'`` will
+            raise a ValueError.
     
     Returns:
         list: List of parsed integers.
@@ -296,15 +300,26 @@ def str2list(inp, length):
     if inp == 'None':
         return None
 
-    gi = np.arange(length)
     if inp == 'all':
-        # Flag 'em all!
-        return gi.tolist()
+        if length is None:
+            raise ValueError('To use inp=all in str2list, must provide length.')
+        return np.arange(length).tolist()
 
-    # Parse the input string into a list of integers
-    grp = np.concatenate([[int(g)] if g.find(':') == -1 else (gi[sec2slice(g)]).tolist()
-                                for g in inp.split(',')])
+    if length is not None:
+        gi = np.arange(length)
 
-    # Return the list, and ensure the integers are unique
-    return np.unique(grp).tolist()
+    groups = inp.split(',')
+    indices = []
+    for i, grp in enumerate(groups):
+        if ':' in grp:
+            if (grp[-1] == ':' or grp[0] == ':'):
+                if length is None:
+                    raise ValueError('To use open ended slices in str2lit, must provide length.')
+                indices += gi[sec2slice(grp)].tolist()
+            else:
+                start, end = map(lambda x: int(x), grp.split(':'))
+                indices += [i for i in range(start, end)]
+        else:
+            indices += [int(grp)]
+    return np.unique(indices).tolist()
 

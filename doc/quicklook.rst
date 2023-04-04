@@ -41,7 +41,7 @@ One or more folders are generated in a run with ``pypeit_ql``.
 
 The primary folder containts the science outputs 
 in ``Science/`` and QA products related to extraction
-and a soft-link to the ``Masters/`` folder.
+and a soft-link to the ``Calibrations/`` folder.
 It is named after the input science file(s).  If there is only
 one file processed, the folder is given the name of the file
 with the ``.fits`` extension removed (e.g. ``b27.fits`` becomes
@@ -74,10 +74,10 @@ include:
 .. code-block:: ini
 
     [baseprocess]
-        master_setup_and_bit = SETUP_BIT
+        calib_setup_and_bit = SETUP_BIT
 
-where ``SETUP`` and ``BIT`` are taken from the masters
-files found in the ``Masters/`` folder.  
+where ``SETUP`` and ``BIT`` are taken from the calibration
+files found in the ``Calibrations/`` folder.  
 For example, ``SETUP_BIT`` may be ``A_7``. 
 This should
 ensure that the science data are processed using the
@@ -107,7 +107,7 @@ is not important.
     pypeit_ql shane_kast_blue --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55 --rawfiles b1.fits.gz b10.fits.gz b27.fits.gz 
 
 This call first generates a ``shane_kast_blue_A`` folder with the 
-processed calibrations (Masters) and associated QA :doc:`outputs`.
+processed calibrations and associated QA :doc:`outputs`.
 It then generates a separate folder named ``b27`` which holds
 the ``Science`` folder with the processed 2D spectral
 image and the extracted spectra.
@@ -139,18 +139,18 @@ You can, however, force a re-generation of the calibrations
 with ``--clobber_calibs``.
 
 
-Masters Folder
---------------
+Calibrations Folder
+-------------------
 
-One can specifiy the path to a set of Masters files
-for use as calibrations with ``--masters_dir``.  
+One can specifiy the path to a set of calibraion files
+for use as calibrations with ``--calib_dir``.  
 
 .. code-block:: bash
 
-    pypeit_ql shane_kast_blue --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55 --rawfiles b1.fits.gz b10.fits.gz b27.fits.gz b28.fits.gz --masters_dir /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/REDUX_OUT/shane_kast_blue/TMP/shane_kast_blue_A/Masters
+    pypeit_ql shane_kast_blue --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55 --rawfiles b1.fits.gz b10.fits.gz b27.fits.gz b28.fits.gz --calib_dir /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/REDUX_OUT/shane_kast_blue/TMP/shane_kast_blue_A/Calibrations
 
 Note that the code will adopt the setup and bit number
-of the Masters files.
+of the calibration files.
 
 Warning:  the code will not check that the configuration
 of these calibration files match the science frames.
@@ -160,7 +160,7 @@ Calibrations Folder
 
 One can specifiy the path to a folder containing 
 one or more *sub-folders* of reduced calibration files,
-each of which would hold a Masters/ folder.
+each of which would hold a Calibrations/ folder.
 This is set with the ``--calib_dir`` option.
 
 A standard use case is for ``keck_deimos`` reductions
@@ -224,7 +224,7 @@ detector:
 
 .. code-block:: bash
 
-    pypeit_ql keck_lris_red --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/keck_lris_red/long_600_7500_d560  --rawfiles LR.20160216.40478.fits.gz  --masters_dir /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/REDUX_OUT/keck_lris_red/long_600_7500_d560/Masters --det 2
+    pypeit_ql keck_lris_red --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/keck_lris_red/long_600_7500_d560  --rawfiles LR.20160216.40478.fits.gz  --calib_dir /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/REDUX_OUT/keck_lris_red/long_600_7500_d560/Calibrations --det 2
 
 This will only process the second detector.
 
@@ -254,7 +254,7 @@ Here is an example with ``keck_deimos``:
 
 .. code-block:: bash
 
-    pypeit_ql keck_deimos --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/keck_deimos/600ZD_M_6500 --rawfiles d1010_0056.fits.gz --masters_dir /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/REDUX_OUT/keck_deimos/600ZD_M_6500/Masters --slitspatnum MSC02:452
+    pypeit_ql keck_deimos --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/keck_deimos/600ZD_M_6500 --rawfiles d1010_0056.fits.gz --calib_dir /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/REDUX_OUT/keck_deimos/600ZD_M_6500/Calibrations --slitspatnum MSC02:452
 
 
 Here we have specified ``--slitspatnum`` as
@@ -275,7 +275,7 @@ Here is an example with ``keck_deimos``:
 
 .. code-block:: bash
 
-    pypeit_ql keck_deimos --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/keck_deimos/600ZD_M_6500 --rawfiles d1010_0056.fits.gz --masters_dir /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/REDUX_OUT/keck_deimos/600ZD_M_6500/Masters --maskID 958454
+    pypeit_ql keck_deimos --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/keck_deimos/600ZD_M_6500 --rawfiles d1010_0056.fits.gz --calib_dir /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/REDUX_OUT/keck_deimos/600ZD_M_6500/Calibrations --maskID 958454
 
 This requires that the detector(s) with this
 slit have been calibrated (or will be calibrated, e.g. by 

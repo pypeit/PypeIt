@@ -27,12 +27,14 @@ provide instrument-specific:
 """
 
 from abc import ABCMeta
+from pathlib import Path
 import os
 from configobj import ConfigObj
 
 from IPython import embed
 
 import numpy as np
+from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import utils
@@ -44,7 +46,6 @@ from pypeit.core import meta
 from pypeit.par import pypeitpar
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
-from astropy.io.fits import Header
 
 
 # TODO: Create an EchelleSpectrograph derived class that holds all of
@@ -241,7 +242,7 @@ class Spectrograph:
                         '[baseprocess]', 
                             'use_biasimage = False', 
                         '[calibrations]', 
-                        '    raise_chk_error = False',  # This allows for science frames only and "cooked" Masters
+                        '    raise_chk_error = False',  # This allows for science frames only and "cooked" calibrations
                         '  [[flatfield]]', 
                         '       saturated_slits = mask']
         # Reduction parameters
@@ -261,15 +262,15 @@ class Spectrograph:
         Check if this filename has an allowed extension
 
         Args:
-            filename (:obj:`str`):
+            filename (:obj:`str`, `Path`_):
                 Input raw fits filename
         """
         if self.allowed_extensions is not None:
-            if os.path.splitext(filename)[1] not in self.allowed_extensions:
-                msgs.error("The input filename:"+msgs.newline()+
-                           filename+msgs.newline()+
-                           f"has the wrong extension. The allowed extensions for {self.name} include:"+msgs.newline()+
-                           ",".join(self.allowed_extensions))
+            _filename = Path(filename).resolve()
+            if _filename.suffix not in self.allowed_extensions:
+                msgs.error(f'The input file ({_filename.name}) does not have a recognized '
+                           f'extension ({_filename.suffix}).  The allowed extensions for '
+                           f'{self.name} include {",".join(self.allowed_extensions)}.')
 
     def _check_telescope(self):
         """Check the derived class has properly defined the telescope."""
@@ -505,11 +506,11 @@ class Spectrograph:
 
     def bpm_frombias(self, msbias, bpm_img, thresh=10.):
         """
-        Generate a bad-pixel mask from a master bias frame.
+        Generate a bad-pixel mask from a processed bias frame.
 
         Args:
             msbias (:class:`~pypeit.images.pypeitimage.PypeItImage`):
-                Master bias frame used to identify bad pixels.
+                Processed bias frame used to identify bad pixels.
             bpm_img (`numpy.ndarray`_):
                 Zeroth-order bad pixel mask; i.e., generated using
                 :func:`~pypeit.spectrographs.spectrograph.Spectrograph.empty_bpm`.
@@ -524,7 +525,7 @@ class Spectrograph:
         """
         # Check that the bias has the correct shape
         if msbias.image.shape != bpm_img.shape:
-            msgs.error(f'Shape mismatch between master bias {msbias.image.shape} and expected '
+            msgs.error(f'Shape mismatch between processed bias {msbias.image.shape} and expected '
                        f'BPM {bpm_img.shape}.')
         # Setup
         nimg = 1 if bpm_img.ndim == 2 else bpm_img.shape[0]
@@ -565,7 +566,7 @@ class Spectrograph:
                 Processed image shape.  If ``filename`` is None, this *must* be
                 provided; otherwise, this is ignored.
             msbias (:class:`~pypeit.images.pypeitimage.PypeItImage`, optional):
-                Master bias frame.  If provided, it is used by
+                Processed bias frame.  If provided, it is used by
                 :func:`~pypeit.spectrographs.spectrograph.Spectrograph.bpm_frombias`
                 to identify bad pixels.
 
@@ -780,7 +781,6 @@ class Spectrograph:
         Returns:
             `astropy.table.Table`_: modified fitstbl.
         """
-
         return fitstbl
 
     def pypeit_file_keys(self):
@@ -957,7 +957,8 @@ class Spectrograph:
                 description above.  Note detectors are 1-indexed.
 
         Returns:
-            :obj:`list`: Uniqe List of detectors or detector mosaics to be reduced.
+            :obj:`list`: List of unique detectors or detector mosaics to be
+            reduced.
 
         Raises:
             PypeItError: Raised if any of the detectors or detector mosaics
@@ -1043,7 +1044,7 @@ class Spectrograph:
 
         Parameters
         ----------
-        raw_file : :obj:`str`
+        raw_file : :obj:`str`, `Path`_
             File to read
         det : :obj:`int`, :obj:`tuple`
             1-indexed detector(s) to read.  An image mosaic is selected using a
@@ -1231,11 +1232,11 @@ class Spectrograph:
         Returns:
             Value recovered for (each) keyword.  Can be None.
         """
-        if isinstance(inp, str):
+        if isinstance(inp, (str, Path)):
             headarr = self.get_headarr(inp)
         elif inp is None or isinstance(inp, list):
             headarr = inp
-        elif isinstance(inp, Header):
+        elif isinstance(inp, fits.Header):
             headarr = [inp]
         else:
             msgs.error('Unrecognized type for input')
@@ -1458,7 +1459,7 @@ class Spectrograph:
         Read the header data from all the extensions in the file.
 
         Args:
-            inp (:obj:`str`, `astropy.io.fits.HDUList`_):
+            inp (:obj:`str`, `Path`_, `astropy.io.fits.HDUList`_):
                 Name of the file to read or the previously opened HDU list.  If
                 None, the function will simply return None.
             strict (:obj:`bool`, optional):
@@ -1477,20 +1478,22 @@ class Spectrograph:
 
         # Faster to open the whole file and then assign the headers,
         # particularly for gzipped files (e.g., DEIMOS)
-        if isinstance(inp, str):
+        if isinstance(inp, (str, Path)):
             self._check_extensions(inp)
             try:
                 hdu = io.fits_open(inp)
             except:
                 if strict:
-                    msgs.error('Problem opening {0}.'.format(inp))
+                    msgs.error(f'Cannot open {inp}.')
                 else:
-                    msgs.warn('Problem opening {0}.'.format(inp) + msgs.newline()
-                              + 'Proceeding, but should consider removing this file!')
-                    return None #['None']*999 # self.numhead
-        else:
+                    msgs.warn(f'Cannot open {inp}.  Proceeding, but consider removing this file!')
+                    return None
+        elif isinstance(inp, (list, fits.HDUList)):
+            # TODO: If a list, check that the list elements are HDUs?
             hdu = inp
-        return [hdu[k].header for k in range(len(hdu))]
+        else:
+            msgs.error(f'Input to get_headarr has incorrect type: {type(inp)}.')
+        return [h.header for h in hdu]
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

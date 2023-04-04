@@ -1,6 +1,27 @@
 
-1.12.2.dev
-----------
+1.12.3dev
+---------
+
+- Hotfix to docs to ensure pypeit_loaders api doc is generated
+- Allow user control of the local sky subtraction window
+- Deprecate use of python 3.8 with PypeIt, allow python 3.11
+- Calibration group numbers can now be anything, as long as there are no more
+  than 63 unique integers.
+- Removed use of the term "master", renamed to calibration frames/files.
+  Default output directory for calibration frames is now ``Calibrations``.
+  Calibration frames renamed; e.g., ``MasterArc`` is now ``Arc``.
+- Calibration frame naming now done via ``calibframe.CalibFrame`` class.
+- Start to deprecate use of ``os.path`` in favor of ``pathlib``
+- Deprecated ``pypeit_parse_calib_id`` script, but improved the ``.calib`` file
+  provided by ``pypeit_setup``.  The ``.calib`` file is now always written, and
+  provides a direct association between input raw files and output calibration
+  files.  Discussed in new docs.
+- The ``'calib'`` column is now always added to the pypeit file, regardless of
+  whether or not you also request the ``'comb_id'`` and ``'bkg_id'`` columns.
+- Names of associated calibration frames now written to ``spec2d`` file headers.
+
+1.12.2 (29 Mar 2023)
+--------------------
 
 - Gemini/GMOS mask design slurping and usage
 - New GMOS wavelength solution

@@ -25,12 +25,11 @@ Submodules
    pypeit.scripts.identify
    pypeit.scripts.install_extinctfile
    pypeit.scripts.install_linelist
-   pypeit.scripts.install_ql_masters
+   pypeit.scripts.install_ql_calibs
    pypeit.scripts.install_telluric
    pypeit.scripts.lowrdx_skyspec
    pypeit.scripts.multislit_flexure
    pypeit.scripts.obslog
-   pypeit.scripts.parse_calib_id
    pypeit.scripts.parse_slits
    pypeit.scripts.qa_html
    pypeit.scripts.ql
@@ -46,7 +45,6 @@ Submodules
    pypeit.scripts.skysub_regions
    pypeit.scripts.tellfit
    pypeit.scripts.trace_edges
-   pypeit.scripts.utils
    pypeit.scripts.view_fits
 
 Module contents

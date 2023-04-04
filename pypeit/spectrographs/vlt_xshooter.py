@@ -3,8 +3,6 @@ Module for VLT X-Shooter
 
 .. include:: ../include/links.rst
 """
-import os
-
 import numpy as np
 
 from astropy.coordinates import SkyCoord
@@ -339,7 +337,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         pypeit_keys = super().pypeit_file_keys()
         # TODO: Why are these added here? See
         # pypeit.metadata.PypeItMetaData.set_pypeit_cols
-        pypeit_keys += ['calib', 'comb_id', 'bkg_id']
+        pypeit_keys += ['comb_id', 'bkg_id']
         return pypeit_keys
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
@@ -425,7 +423,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
@@ -436,13 +434,12 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         if det == 1:
-            bpm_dir = os.path.join(data.Paths.static_calibs, 'vlt_xshoooter')
+            bpm_dir = data.Paths.static_calibs / 'vlt_xshoooter'
             try :
-                bpm_loc = np.loadtxt(os.path.join(bpm_dir, 'BP_MAP_RP_NIR.dat'),
-                                     usecols=(0,1))
+                bpm_loc = np.loadtxt(bpm_dir / 'BP_MAP_RP_NIR.dat', usecols=(0,1))
             except IOError :
                 msgs.warn('BP_MAP_RP_NIR.dat not present in the static database')
-                bpm_fits = io.fits_open(os.path.join(bpm_dir, 'BP_MAP_RP_NIR.fits.gz'))
+                bpm_fits = io.fits_open(bpm_dir / 'BP_MAP_RP_NIR.fits.gz')
                 # ToDo: this depends on datasec, biassec, specflip, and specaxis
                 #       and should become able to adapt to these parameters.
                 # Flipping and shifting BPM to match the PypeIt format
@@ -458,8 +455,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                 filt_bpm = bpm_data_pypeit[1:y_len,1:x_len]>100.
                 y_bpm, x_bpm = np.where(filt_bpm)
                 bpm_loc = np.array([y_bpm,x_bpm]).T
-                np.savetxt(os.path.join(bpm_dir, 'BP_MAP_RP_NIR.dat'), bpm_loc,
-                           fmt=['%d','%d'])
+                np.savetxt(bpm_dir / 'BP_MAP_RP_NIR.dat', bpm_loc, fmt=['%d','%d'])
             finally :
                 bpm_img[bpm_loc[:,0].astype(int),bpm_loc[:,1].astype(int)] = 1.
 
@@ -798,7 +794,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
@@ -979,7 +975,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         .. code-block:: python
 
             from pypeit import edgetrace
-            edges = edgetrace.EdgeTraceSet.from_file('MasterEdges_A_1_DET01.fits.gz')
+            edges = edgetrace.EdgeTraceSet.from_file('Edges_A_1_DET01.fits.gz')
 
             nrm_edges = edges.edge_fit[edges.nspec//2,:] / edges.nspat
             slit_cen = ((nrm_edges + np.roll(nrm_edges,1))/2)[np.arange(nrm_edges.size//2)*2+1]
@@ -1059,7 +1055,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set

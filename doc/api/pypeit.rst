@@ -28,6 +28,7 @@ Submodules
    pypeit.archive
    pypeit.biasframe
    pypeit.bitmask
+   pypeit.calibframe
    pypeit.calibrations
    pypeit.coadd1d
    pypeit.coadd2d
@@ -41,7 +42,6 @@ Submodules
    pypeit.inputfiles
    pypeit.io
    pypeit.manual_extract
-   pypeit.masterframe
    pypeit.metadata
    pypeit.onespec
    pypeit.pypeit

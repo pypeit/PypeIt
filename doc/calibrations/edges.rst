@@ -1,23 +1,23 @@
 
 .. include:: ../include/links.rst
 
-.. _master-edges:
+.. _edges:
 
-===========
-MasterEdges
-===========
+=====
+Edges
+=====
 
 Overview
 ========
 
-This file describes the ``MasterEdges`` object.
+This file describes the ``Edges`` object.
 It contains the core information required to describe the edges
 of each slit on a given detector (or orders for echelle).
 
 See below for the `Current EdgeTrace Data Model`_.
 This is written to disk as a multi-extension FITS file prefixed by
-``MasterEdges`` in the ``Masters/`` folder.
-See the :ref:`master-naming` docs for more.
+``Edges`` in the ``Calibrations/`` folder.
+See the :ref:`calib-naming` docs for more.
 
 We also describe how to view the slit edges
 using `pypeit_chk_edges`_.
@@ -48,14 +48,14 @@ This is the default mode when executing, e.g.:
 
 .. code-block:: console
 
-    pypeit_chk_edges Masters/MasterEdges_A_1_DET01.fits.gz
+    pypeit_chk_edges Calibrations/Edges_A_1_DET01.fits.gz
 
 .. warning::
     
     These files can take an annoyingly long time to load because they tend to be
     large and require decompression.
 
-Two images are shown, the master trace image (typically a combination of dome
+Two images are shown, the trace image (typically a combination of dome
 flats) and the Sobel filtered image used to detect the slit edges.
 
 Here is a zoom-in screen shot for the :ref:`keck-lris-red` spectrograph.
@@ -80,7 +80,7 @@ To avoid ginga, use the `--mpl` flag:
 
 .. code-block:: console
 
-    pypeit_chk_edges Masters/MasterEdges_A_1_DET01.fits.gz --mpl
+    pypeit_chk_edges Calibrations/Edges_A_1_DET01.fits.gz --mpl
 
 The color scheme is distinct and the labeling
 now includes -1 or +1 for left/right edges.
@@ -88,12 +88,12 @@ now includes -1 or +1 for left/right edges.
 SlitTrace
 =========
 
-The ``MasterEdges`` file allows one to fully reconstruct its underlying object
+The ``Edges`` file allows one to fully reconstruct its underlying object
 (:class:`~pypeit.edgetrace.EdgeTraceSet`) when instantiated from the output
 file.  Unfortunately, this means the PypeIt object and output file are a bit too
 unwieldy to pass through the remainder of the code just to access its primary
 product, the slit-edge pixel coordinates.  For that reason, we also create a
-:ref:`master_slits` object; follow the link for more description of that object.
+:ref:`slits` object; follow the link for more description of that object.
 
 .. _edges-trouble:
 
@@ -106,7 +106,7 @@ finesse your slit tracing results.
 Current EdgeTrace Data Model
 ============================
 
-Internally, the master image is held in :class:`~pypeit.edgetrace.EdgeTraceSet`,
+Internally, the processed image is held in :class:`~pypeit.edgetrace.EdgeTraceSet`,
 which subclasses from :class:`~pypeit.datamodel.DataContainer`.
 
 The datamodel written to disk is:

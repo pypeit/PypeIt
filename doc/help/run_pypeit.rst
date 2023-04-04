@@ -32,8 +32,8 @@
       -r REDUX_PATH, --redux_path REDUX_PATH
                             Path to directory for the reduction. Only advised for
                             testing
-      -m, --do_not_reuse_masters
-                            Do not load previously generated MasterFrames, even ones
+      -m, --do_not_reuse_calibs
+                            Do not load previously generated calibrations, even ones
                             made during the run.
       -s, --show            Show reduction steps via plots (which will block further
                             execution until clicked on) and outputs to ginga.

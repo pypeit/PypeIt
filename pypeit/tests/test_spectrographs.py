@@ -35,13 +35,12 @@ def test_select_detectors_pypeit_file():
 
     # Perform the setup
     setup = pypeitsetup.PypeItSetup.from_pypeit_file(pypeit_file)
-    par, spectrograph, fitstbl = setup.run(sort_dir=data_path(''))
+    par, spectrograph, fitstbl = setup.run()
 
     assert spectrograph.select_detectors(subset=par['rdx']['detnum']) == [1], \
             'Incorrect detectors selected.'
 
     # Clean-up
-    os.remove(data_path('test.calib'))
     os.remove(data_path('test.pypeit'))
 
 

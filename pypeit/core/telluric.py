@@ -3,14 +3,15 @@
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import os
-import sys
 
 from IPython import embed
 
-import numpy as np
-import scipy
 import matplotlib.pyplot as plt
+import numpy as np
+import scipy.interpolate
+import scipy.optimize
+import scipy.signal
+import scipy.special
 
 from astropy import table
 from astropy.io import fits
@@ -63,7 +64,7 @@ def init_pca(filename,wave_grid,redshift, npca):
     # and the Gaussian mixture model prior (mix_fit)
 
     # The PCA file location is provided by data.Paths.tel_model
-    file_with_path = os.path.join(data.Paths.tel_model, filename)
+    file_with_path = data.Paths.tel_model / filename
 
     loglam = np.log10(wave_grid)
     dloglam = np.median(loglam[1:] - loglam[:-1])
@@ -273,7 +274,7 @@ def conv_telluric(tell_model, dloglam, res):
 
     pix_per_sigma = 1.0/res/(dloglam*np.log(10.0))/(2.0 * np.sqrt(2.0 * np.log(2))) # number of dloglam pixels per 1 sigma dispersion
     sig2pix = 1.0/pix_per_sigma # number of sigma per 1 pix
-    #conv_model = scipy.ndimage.filters.gaussian_filter1d(tell_model, pix)
+    #conv_model = scipy.ndimage.gaussian_filter1d(tell_model, pix)
     # x = loglam/sigma on the wavelength grid from -4 to 4, symmetric, centered about zero.
     x = np.hstack([-1*np.flip(np.arange(sig2pix,4,sig2pix)),np.arange(0,4,sig2pix)])
     # g = Gaussian evaluated at x, sig2pix multiplied in to properly normalize the convolution
@@ -1794,7 +1795,7 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
 
 
 class Telluric(datamodel.DataContainer):
-    """
+    r"""
     Simultaneously fit model object and telluric spectra to an observed
     spectrum.
 
@@ -2088,6 +2089,66 @@ class Telluric(datamodel.DataContainer):
                  'model': dict(otype=table.Table, descr='Table with the best-fitting model data')}
     """DataContainer datamodel."""
 
+    internals = ['obj_params',
+                 'init_obj_model',
+                 'airmass_guess',
+                 'eval_obj_model',
+                 'ech_orders',
+                 'sn_clip',
+                 'resln_frac_bounds',
+                 'pix_shift_bounds',
+                 'pix_stretch_bounds',
+                 'maxiter',
+                 'sticky',
+                 'lower',
+                 'upper',
+                 'seed',
+                 'rng',
+                 'ballsize',
+                 'diff_evol_maxiter',
+                 'disp',
+                 'sensfunc',
+                 'debug',
+
+                 'wave_in_arr',
+                 'flux_in_arr',
+                 'ivar_in_arr',
+                 'mask_in_arr',
+                 'nspec_in',
+                 'norders',
+
+                 'tell_dict',
+        
+                 'wave_grid',
+                 'ngrid',
+                 'resln_guess',
+
+                 'tell_guess',
+                 'bounds_tell',
+
+                 'flux_arr',
+                 'ivar_arr',
+                 'mask_arr',
+                 'wave_mask_arr',
+
+                 'ind_lower',
+                 'ind_upper',
+                 'srt_order_tell',
+
+                 'obj_dict_list',
+                 'bounds_obj_list',
+                 'bounds_list',
+                 'arg_dict_list',
+                 'max_ntheta_obj',
+
+                 'result_list',
+                 'outmask_list',
+                 'obj_model_list',
+                 'tellmodel_list',
+                 'theta_obj_list',
+                 'theta_tell_list',
+                ]
+
     @staticmethod
     def empty_model_table(norders, nspec, n_obj_par=0):
         """
@@ -2274,68 +2335,6 @@ class Telluric(datamodel.DataContainer):
 
         # 6) Initalize the output tables
         self.init_output()
-
-    def _init_internals(self):
-        """Add any attributes that are *not* part of the datamodel."""
-
-        self.obj_params = None
-        self.init_obj_model = None
-        self.airmass_guess = None
-        self.eval_obj_model = None
-        self.ech_orders = None
-        self.sn_clip = None
-        self.resln_frac_bounds = None
-        self.pix_shift_bounds = None
-        self.pix_stretch_bounds = None
-        self.maxiter = None
-        self.sticky = None
-        self.lower = None
-        self.upper = None
-        self.seed = None
-        self.rng = None
-        self.ballsize= None
-        self.diff_evol_maxiter = None
-        self.disp = None
-        self.sensfunc = None
-        self.debug = None
-
-        self.wave_in_arr = None
-        self.flux_in_arr = None
-        self.ivar_in_arr = None
-        self.mask_in_arr = None
-        self.nspec_in = None
-        self.norders = None
-
-        self.tell_dict = None
-        
-        self.wave_grid = None
-        self.ngrid = None
-        self.resln_guess = None
-
-        self.tell_guess = None
-        self.bounds_tell = None
-
-        self.flux_arr = None
-        self.ivar_arr = None
-        self.mask_arr = None
-        self.wave_mask_arr = None
-
-        self.ind_lower = None
-        self.ind_upper = None
-        self.srt_order_tell = None
-
-        self.obj_dict_list = None
-        self.bounds_obj_list = None
-        self.bounds_list = None
-        self.arg_dict_list = None
-        self.max_ntheta_obj = None
-
-        self.result_list = None
-        self.outmask_list = None
-        self.obj_model_list = None
-        self.tellmodel_list = None
-        self.theta_obj_list = None
-        self.theta_tell_list = None
 
     def run(self, only_orders=None):
         """

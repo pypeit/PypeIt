@@ -123,12 +123,9 @@ the sky regions, press the "Continue (and don't save changes)" button.
 The menu bar at the top of the screen will prompt you if you
 wish to save these sky regions (click on either YES or NO).
 If you chose to save the regions file, the regions will be
-saved in your ``Masters/`` folder, with a prefix ``MasterSkyRegions``.
-A given ``MasterSkyRegions`` file is linked to a science frame
-based on the name of the ``MasterSkyRegions`` file.
-
-.. TODO: We should document the datamodel of these MasterSkyRegions files
-.. somewhere...
+saved in your ``Calibrations/`` folder, with a prefix ``SkyRegions``.
+A given ``SkyRegions`` file is linked to a science frame
+based on the name of the ``SkyRegions`` file.
 
 Once you have defined all of the sky regions manually, you will need to explicitly
 tell PypeIt to use the manually defined sky regions file by adding the following
@@ -138,7 +135,7 @@ lines to your :ref:`pypeit_file`:
 
     [reduce]
        [[skysub]]
-          user_regions = master
+          user_regions = user
 
 and then re-run the reduction.
 

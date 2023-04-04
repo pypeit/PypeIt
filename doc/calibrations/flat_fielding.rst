@@ -147,7 +147,7 @@ Lamps off Flats Subtraction
 ---------------------------
 
 When flats taken with the lamps OFF are provided, ``PypeIt`` will subtract them
-from the flats taken with the lamps ON, before creating the :doc:`master_flat`
+from the flats taken with the lamps ON, before creating the :doc:`flat`
 images. The lamp off flats are not automatically identified (except for
 :doc:`../spectrographs/mosfire`), so the user should label those as
 ``lampoffflats`` :doc:`../frametype` in the :ref:`pypeit_file`.

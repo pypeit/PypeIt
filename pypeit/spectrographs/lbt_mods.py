@@ -52,7 +52,7 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['standardframe']['exprng'] = [1, 200]
         par['scienceframe']['exprng'] = [200, None]
 
-        # Do not sigmaclip the arc frames for better MasterArc and better wavecalib
+        # Do not sigmaclip the arc frames for better Arc and better wavecalib
         par['calibrations']['arcframe']['process']['clip'] = False
         # Do not sigmaclip the tilt frames
         par['calibrations']['tiltframe']['process']['clip'] = False
@@ -372,7 +372,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
@@ -535,7 +535,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
@@ -691,7 +691,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
@@ -855,7 +855,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set

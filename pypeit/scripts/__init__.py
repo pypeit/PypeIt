@@ -22,12 +22,11 @@ from pypeit.scripts import flux_setup
 from pypeit.scripts import identify
 from pypeit.scripts import install_extinctfile
 from pypeit.scripts import install_linelist
-from pypeit.scripts import install_ql_masters
+from pypeit.scripts import install_ql_calibs
 from pypeit.scripts import install_telluric
 from pypeit.scripts import lowrdx_skyspec
 from pypeit.scripts import multislit_flexure
 from pypeit.scripts import obslog
-from pypeit.scripts import parse_calib_id
 from pypeit.scripts import parse_slits
 from pypeit.scripts import qa_html
 from pypeit.scripts import ql
