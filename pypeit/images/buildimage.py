@@ -88,7 +88,9 @@ class TraceImage(pypeitimage.PypeItCalibrationImage):
     hdu_prefix = 'TRACE_'
     calib_type = 'Trace'
 
-
+# TODO: This doesn't need to inherit from PypeItCalibrationImage.  It can just
+# be a Calibframe with a short datamodel that holds the mask.  And we might want
+# to find a place for it that makes more sense.
 class SkyRegions(pypeitimage.PypeItCalibrationImage):
     """
     Simple DataContainer for the SkyRegions Image
@@ -119,7 +121,7 @@ class SkyRegions(pypeitimage.PypeItCalibrationImage):
         Returns:
             :obj:`str`: File path or file name
         """
-        filename = super().construct_file_name(calib_key, calib_dir=calib_dir)
+        filename = str(super().construct_file_name(calib_key, calib_dir=calib_dir))
         if basename is None:
             return filename
         return filename.replace(f'.{cls.calib_file_format}', f'_{basename}.{cls.calib_file_format}')

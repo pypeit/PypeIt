@@ -931,10 +931,7 @@ class PypeItCalibrationImage(PypeItImage, CalibFrame):
                            f'datamodel class, {cls.__name__}.')
         else:
             hdr_to_parse = hdu.header
-
-        self.calib_key, self.calib_dir = CalibFrame.parse_key_dir(hdr_to_parse)
-        self.calib_id = self.ingest_calib_id(hdr_to_parse['CALIBID'].split(','))
-
+        self.calib_keys_from_header(hdr_to_parse)
         return self
 
     @classmethod

@@ -14,6 +14,7 @@ import numpy as np
 from astropy.io import fits
 
 from pypeit import msgs
+from pypeit.pypmsgs import PypeItError
 from pypeit import datamodel
 from pypeit import io
 
@@ -184,11 +185,28 @@ class CalibFrame(datamodel.DataContainer):
         # NOTE: If multiple HDUs are parsed, this assumes that the information
         # necessary to set all the calib internals is always in *every* header.
         # BEWARE!
-        hdr_to_parse = hdu[parsed_hdus[0]].header
-        # TODO: Consider making the next two lines a function so that they don't
-        # need to be repeated in PypeItCalibrationImage.
-        self.calib_key, self.calib_dir = CalibFrame.parse_key_dir(hdr_to_parse)
-        self.calib_id = self.ingest_calib_id(hdr_to_parse['CALIBID'])
+        self.calib_keys_from_header(hdu[parsed_hdus[0]].header)
+        return self
+
+    def calib_keys_from_header(self, hdr):
+        """
+        (Attempt to) Fill the calibration keys based on the provided hdr.
+
+        If successful, this sets the values for the calibration
+        :attr:`internals`.
+
+        Args:
+            hdr (`astropy.io.fits.Header`_):
+                Header to parse
+        """
+        try:
+            self.calib_key, self.calib_dir = CalibFrame.parse_key_dir(hdr)
+        except PypeItError as e:
+            msgs.warn(f'{e}')
+        if 'CALIBID' in hdr:
+            self.calib_id = self.ingest_calib_id(hdr['CALIBID'])
+        else:
+            msgs.warn('Header does not have CALIBID card; cannot parse calibration IDs.')
         return self
 
     @staticmethod

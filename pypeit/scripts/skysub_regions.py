@@ -35,6 +35,7 @@ class SkySubRegions(scriptbase.ScriptBase):
 
     @staticmethod
     def main(args):
+        from IPython import embed
         from pypeit import spec2dobj
         import os
         import astropy.io.fits as fits
@@ -67,7 +68,7 @@ class SkySubRegions(scriptbase.ScriptBase):
         if key not in spec2DObj.calibs:
             # TODO: Until I can figure out a better approach...
             msgs.error(f'EdgeTrace calibration frame not recorded in {args.file}!')
-        calib_key, _ = EdgeTraceSet.parse_calib_key(spec2DObj.calibs[key], from_filename=True)
+        calib_key, _ = EdgeTraceSet.parse_key_dir(spec2DObj.calibs[key], from_filename=True)
 
         # Use the appropriate class to get the "detector" number
         det = spec2DObj.detector.parse_name(detname)

@@ -5,20 +5,20 @@ Main driver class for PypeIt run
 .. include:: ../include/links.rst
 
 """
+from pathlib import Path
 import time
 import os
 import copy
-import json
 import datetime
 
 from IPython import embed
 
 import numpy as np
 
-
 from astropy.io import fits
 from astropy.table import Table
 
+from pypeit import io
 from pypeit import inputfiles
 from pypeit.calibframe import CalibFrame
 from pypeit.core import parse
@@ -39,6 +39,7 @@ from pypeit.par import PypeItPar
 from pypeit.par.pypeitpar import ql_is_on
 from pypeit.metadata import PypeItMetaData
 from pypeit.manual_extract import ManualExtractionObj
+from pypeit.core import skysub
 
 from linetools import utils as ltu
 
@@ -561,7 +562,7 @@ class PypeIt:
             calib_slits.append(self.caliBrate.slits)
             # global_sky, skymask and sciImg are needed in the extract loop
             initial_sky, sobjs_obj, sciImg, objFind = self.objfind_one(
-                frames, self.det, bg_frames, std_outfile=std_outfile)
+                frames, self.det, bg_frames=bg_frames, std_outfile=std_outfile)
             if len(sobjs_obj)>0:
                 all_specobjs_objfind.add_sobj(sobjs_obj)
             initial_sky_list.append(initial_sky)
@@ -689,7 +690,7 @@ class PypeIt:
 
         return caliBrate
 
-    def objfind_one(self, frames, det, bg_frames, std_outfile=None):
+    def objfind_one(self, frames, det, bg_frames=None, std_outfile=None):
         """
         Reduce + Find Objects in a single exposure/detector pair
 
@@ -701,7 +702,7 @@ class PypeIt:
             List of frames to extract; stacked if more than one is provided
         det : :obj:`int`
             Detector number (1-indexed)
-        bg_frames : :obj:`list`
+        bg_frames : :obj:`list`, optional
             List of frames to use as the background. Can be empty.
         std_outfile : :obj:`str`, optional
             Filename for the standard star spec1d file. Passed directly to
@@ -746,7 +747,7 @@ class PypeIt:
             ignore_saturation=False)
 
         # Background Image?
-        if len(bg_frames) > 0:
+        if bg_frames is not None and len(bg_frames) > 0:
             bg_file_list = self.fitstbl.frame_paths(bg_frames)
             bgimg = buildimage.buildimage_fromlist(self.spectrograph, det, frame_par, bg_file_list,
                                                    bpm=self.caliBrate.msbpm,
@@ -854,9 +855,8 @@ class PypeIt:
                 msgs.error(f'Unable to find SkyRegions file: {regfile} . Create a SkyRegions '
                            'frame using pypeit_skysub_regions, or change the user_regions to '
                            'the percentage format.  See documentation.')
-            
             msgs.info(f'Loading SkyRegions file: {regfile}')
-            return buildimage.SkyRegions.from_file(sky_region_file).image.astype(bool)
+            return buildimage.SkyRegions.from_file(regfile).image.astype(bool)
 
         # Flexure
         spat_flexure = None
@@ -882,7 +882,6 @@ class PypeIt:
         # TODO: Is this applying the spatial flexure twice?
         return skysub.generate_mask(self.spectrograph.pypeline, regions, self.caliBrate.slits,
                                     slits_left, slits_right, spat_flexure=spat_flexure)
-
 
     def extract_one(self, frames, det, sciImg, objFind, initial_sky, sobjs_obj):
         """
