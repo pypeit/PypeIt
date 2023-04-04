@@ -773,18 +773,10 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
             tspec = np.zeros(nspec)
             tspec[npad // 2:npad // 2 + ncomb] = templ_spec_cont_sub
         else:  # No padding necessary
-            pad_spec = ispec_cont_sub
+            pad_spec = obs_spec_cont_sub
             tspec = templ_spec_cont_sub
         # Cross-correlate
-        debug = True
-        debug_xcorr = True
         shift_cc, corr_cc = wvutils.xcorr_shift(tspec, pad_spec, debug=debug, fwhm=fwhm, percent_ceil=x_percentile)
-        success, shift_cc2,  stretch, corr_cc2, _, _ = \
-            wvutils.xcorr_shift_stretch(tspec, pad_spec,
-                                        #cc_thresh=cc_thresh, 
-                                        fwhm=fwhm, #seed=random_state,
-                                        debug=debug_xcorr)
-        embed(header='776 of autoid')
         #shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec, pspec, debug=debug, percent_ceil=x_percentile)
         msgs.info("Shift = {}; cc = {}".format(shift_cc, corr_cc))
         if debug:

@@ -84,7 +84,6 @@ def generate_sci_pypeitfile(redux_path:str,
                             maskID:str=None,
                             boxcar_radius:float=None,
                             bkg_redux:bool=False,
-                            dither_id:np.ndarray=None,
                             stack:bool=True):
     """
     Generate the PypeIt file for the science frames
@@ -291,10 +290,10 @@ class QL(scriptbase.ScriptBase):
                             help='space separated list of raw frames to be specified as science exposures (over-rides PypeIt frame typing)')
         parser.add_argument("--redux_path", type=str, default='current working directory',
                             help="Full path to where QL reduction should be run.")
-        parser.add_argument("--calib_dir", type=str, 
-                            help="Location folders of calibration reductions")
-        parser.add_argument("--masters_dir", type=str, 
-                            help="Location of PypeIt Master files used for the reduction.")
+        parser.add_argument("--parent_calib_dir", type=str, 
+                            help="Location of folders for calibration reductions")
+        parser.add_argument("--setup_calib_dir", type=str, 
+                            help="Location of PypeIt Calibration files used for the reduction.")
         parser.add_argument("--calibs_only", default=False, action="store_true",
                             help='Reduce only the calibrations?')
         parser.add_argument("--clobber_calibs", default=False, 
@@ -432,6 +431,8 @@ class QL(scriptbase.ScriptBase):
                                redux_path=redux_path) 
         pypeIt.reduce_all()
         pypeIt.build_qa()
+
+        # COADD 2D GOES HERE
         msgs.info(f'Quicklook completed in {utils.get_time_string(time.perf_counter()-tstart)} seconds')
 
 def print_offset_report(files:list, fitstbl:astropy.table.Table,
