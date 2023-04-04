@@ -673,7 +673,7 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
             iwv = np.where(wv_calib.spat_ids == slits.spat_id[islit])[0][0]
             # Allow for wavelength failures
             if wv_calib.wv_fits is not None and wv_calib.wv_fits[iwv].fwhm is not None: 
-                spec_fwhm = wv_calib.wv_fits[iwv].cen_disp*wv_calib.wv_fits[iwv].fwhm 
+                spec_fwhm = wv_calib.wv_fits[iwv].fwhm  # This is the FWHM in pixels
 
         if slit_cen:
             # global flexure
