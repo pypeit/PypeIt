@@ -17,7 +17,7 @@ from scipy.interpolate import interp1d, RegularGridInterpolator, RBFInterpolator
 import numpy as np
 
 from pypeit import msgs
-from pypeit import alignframe, datamodel, flatfield, io, masterframe, specobj, spec2dobj, utils
+from pypeit import alignframe, data, datamodel, flatfield, io, masterframe, specobj, spec2dobj, utils, wavecalib
 from pypeit.core.flux_calib import load_extinction_data, extinction_correction, fit_zeropoint, get_standard_spectrum, ZP_UNIT_CONST, PYPEIT_FLUX_SCALE
 from pypeit.core.flexure import calculate_image_phase
 from pypeit.core import coadd, extract, findobj_skymask, parse, skysub
@@ -1293,6 +1293,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     cubepar = parset['reduce']['cube']
     flatpar = parset['calibrations']['flatfield']
     senspar = parset['sensfunc']
+    flexpar = parset['flexure']
 
     # prep
     numfiles = len(files)
@@ -1451,10 +1452,18 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         # Setup for PypeIt imports
         msgs.reset(verbosity=2)
 
+        # TODO :: Consider loading all calibrations into a single variable.
+
         # Initialise the slit edges
         msgs.info("Constructing slit image")
         slits = spec2DObj.slits
         slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=spat_flexure)
+        slits_left, slits_right, _ = slits.select_edges(initial=True, flexure=spat_flexure)
+
+        # Load the wavelength calibration
+        masterframe_name = masterframe.construct_file_name(wavecalib.WaveCalib, hdr['TRACMKEY'], master_dir=hdr['PYPMFDIR'])
+        if os.path.isfile(masterframe_name):
+            wv_calib = wavecalib.WaveCalib.from_file(masterframe_name)
 
         # Try to load the relative scale image, if something other than the default has been provided
         relScaleImg = relScaleImgDef.copy()
@@ -1511,25 +1520,43 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         relscl = 1.0
         if cubepar['scale_corr'] is not None or opts['scale_corr'][ff] is not None:
             relscl = spec2DObj.scaleimg/relScaleImg
+        # TODO :: unset this debug here
+        debug = True
         sciimg = (spec2DObj.sciimg-skysubImg)*relscl  # Subtract sky
+        if debug:
+            sciimg = spec2DObj.sciimg * relscl  # Subtract sky
         ivar = spec2DObj.ivarraw / relscl**2
         waveimg = spec2DObj.waveimg
         bpmmask = spec2DObj.bpmmask
+
+        # TODO :: Really need to write some detailed information in the docs about all of the various corrections that can optionally be applied
 
         # Correct for spectral flexure using the skysub frame
         # TODO :: Need to include the spectral flexure correction here.
         embed()
         #######################################################################
+        from pypeit.core import flexure
+        from pypeit.core.wavecal import autoid
         # Obtain a reference spectrum
         sl_ref = flatpar['slit_illum_ref_idx']
         # Calculate the absolute spectral flexure correction for the reference slit
-        trace_spat = 0.5 * (self.slits_left + self.slits_right)
-        gd_slits = np.ones(self.slits.nslits, dtype=bool)
-        flex_list = flexure.spec_flexure_slit_global(self.sciImg, waveimg, global_sky_sep, self.par,
-                                                     self.slits, self.slitmask, trace_spat, gd_slits,
-                                                     wv_calib, self.pypeline, self.det)
+        trace_spat = 0.5 * (slits_left + slits_right)
+        sky_spectrum = data.load_sky_spectrum(flexpar['spectrum'])
+        # get arxiv sky spectrum resolution (FWHM in pixels)
+        arx_fwhm_pix = autoid.measure_fwhm(sky_spectrum.flux.value, sigdetect=4., fwhm=4.)
+        # get spectral FWHM (in Angstrom) if available
+        spec_fwhm = None
+        if wv_calib is not None:
+            iwv = np.where(wv_calib.spat_ids == slits.spat_id[sl_ref])[0][0]
+            # Allow for wavelength failures
+            if wv_calib.wv_fits is not None and wv_calib.wv_fits[iwv].fwhm is not None:
+                spec_fwhm = wv_calib.wv_fits[iwv].fwhm
+        # Calculate the flexure
+        flex_dict = flexure.spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm=spec_fwhm,
+                                            mxshft=flexpar['spec_maxshift'], excess_shft=flexpar['excessive_shift'],
+                                            method="slitcen")
         # This absolute shift is the same for all slits
-        slitshift = np.ones(slits.nslits) * flex_list[sl_ref]['shift'][0]
+        slitshift = np.ones(slits.nslits) * flex_dict['shift'][0]
         # Now loop through all slits to calculate the additional shift relative to the reference slit
         for slit_idx, slit_spat in enumerate(slits.spat_id):
             onslit_init = (slitid_img_init == slit_spat)
@@ -1538,7 +1565,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             # Calculate the shift
             fdict = spec_flex_shift(slit_specs[slit_idx], sky_spectrum, arx_fwhm_pix, mxshft=mxshft, excess_shft=excess_shft,
                                     spec_fwhm=spec_fwhm, method=method)
-            slitshift[slit_idx] +=
+            slitshift[slit_idx] += 0.0
         # Rebuild the wavelength image
         waveimg_corr = wv_calib.build_waveimg(self.tilts, slits, spec_flexure=slitshift,
                                                    spat_flexure=spat_flexure)
