@@ -522,6 +522,3 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         """
         return np.full(order_vec.size, 0.15)
 
-
-
-

@@ -415,33 +415,33 @@ class Spectrograph:
 
 
 
-    def parse_dither_pattern(self, file_list, ext=None):
-        """
-        Parse headers from a file list to determine the dither pattern.
-
-        Parameters
-        ----------
-        file_list (list of strings):
-            List of files for which dither pattern is desired
-        ext (int, optional):
-            Extension containing the relevant header for these files. Default=None. If None, code uses
-            self.primary_hdrext
-
-        Returns
-        -------
-        dither_pattern, dither_id, offset_arcsec
-
-        dither_pattern (str `numpy.ndarray`_):
-            Array of dither pattern names
-        dither_id (str `numpy.ndarray`_):
-            Array of dither pattern IDs
-        offset_arc (float `numpy.ndarray`_):
-            Array of dither pattern offsets
-        """
-        nfiles = len(file_list)
-        dummy_str_array = np.array(nfiles*[''])
-        dummy_id_array = np.array(nfiles*['A'])
-        return dummy_str_array, dummy_id_array,  np.zeros(nfiles)
+#    def parse_dither_pattern(self, file_list, ext=None):
+#        """
+#        Parse headers from a file list to determine the dither pattern.
+#
+#        Parameters
+#        ----------
+#        file_list (list of strings):
+#            List of files for which dither pattern is desired
+#        ext (int, optional):
+#            Extension containing the relevant header for these files. Default=None. If None, code uses
+#            self.primary_hdrext
+#
+#        Returns
+#        -------
+#        dither_pattern, dither_id, offset_arcsec
+#
+#        dither_pattern (str `numpy.ndarray`_):
+#            Array of dither pattern names
+#        dither_id (str `numpy.ndarray`_):
+#            Array of dither pattern IDs
+#        offset_arc (float `numpy.ndarray`_):
+#            Array of dither pattern offsets
+#        """
+#        nfiles = len(file_list)
+#        dummy_str_array = np.array(nfiles*[''])
+#        dummy_id_array = np.array(nfiles*['A'])
+#        return dummy_str_array, dummy_id_array,  np.zeros(nfiles)
 
     # TODO: JFH Are these bad pixel masks in the raw frame, or the
     # flipped/transposed pypeit frame?? KBW: Does the new description of

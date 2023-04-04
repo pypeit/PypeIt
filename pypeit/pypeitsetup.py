@@ -343,6 +343,8 @@ class PypeItSetup:
     def generate_ql_calib_pypeit_files(self, output_path:str, 
                                        det:str=None, 
                                        configs:str='all',
+                                       calib_IDs:list=None,
+                                       bkg_redux:bool=False,
                                        clobber:bool=False):
         """ Generate the PypeIt files for the calibrations
         for quicklook purposes.
@@ -353,6 +355,8 @@ class PypeItSetup:
             det (str, optional): Detector/mosaic. Defaults to None.
             configs (str, optional): Which configurations to generate. Defaults to 'all'.
             clobber (bool, optional): Overwrite existing files. Defaults to False.
+            calib_IDs (list, optional): List of calib IDs. Defaults to None.
+            bkg_redux (bool, optional): Setup for A-B subtraction.  Defaults to False.
 
         Returns:
             list: List of calib PypeIt files
@@ -367,13 +371,18 @@ class PypeItSetup:
             self.user_cfg += [f'detnum = {det}']
         self.user_cfg += ['quicklook = True']
 
-
-        # TODO -- Remove the science files!  We want calibs only
+        # TODO -- Remove this if we can
+        # Calib ID
+        if calib_IDs is None:
+            self.fitstbl.table['calib'] = '0'
+        else:
+            self.fitstbl.table['calib'] = calib_IDs
 
         # Write the PypeIt files
         pypeit_files = self.fitstbl.write_pypeit(
             output_path=output_path, 
             cfg_lines=self.user_cfg, 
+            write_bkg_pairs=bkg_redux, 
             configs=configs)
 
         # Rename calibs

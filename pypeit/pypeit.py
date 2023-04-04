@@ -405,6 +405,11 @@ class PypeIt:
             u_combid = np.unique(self.fitstbl['comb_id'][grp_science])
         
             for j, comb_id in enumerate(u_combid):
+                # Quicklook mode?
+                if self.par['rdx']['quicklook'] and j > 0:
+                    msgs.info("Quicklook mode.  Only reducing science frames in firs comb_id group")
+                    continue
+                #
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
                 # Find all frames whose comb_id matches the current frames bkg_id.
                 bg_frames = np.where((self.fitstbl['comb_id'] == self.fitstbl['bkg_id'][frames][0])

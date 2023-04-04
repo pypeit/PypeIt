@@ -29,12 +29,16 @@ import numpy as np
 
 import configobj
 
+from astropy.io import fits
+import astropy
+
 from pypeit import utils
 #from pypeit import masterframe
 from pypeit import msgs
 from pypeit import pypeitsetup
 from pypeit import io
 from pypeit import pypeit
+from pypeit.core.parse import get_dnum, parse_binning
 from pypeit.scripts import scriptbase
 from pypeit.spectrographs import available_spectrographs
 from pypeit.slittrace import SlitTraceSet 
@@ -79,6 +83,7 @@ def generate_sci_pypeitfile(redux_path:str,
                             slitspatnum:str=None,
                             maskID:str=None,
                             boxcar_radius:float=None,
+                            bkg_redux:bool=False,
                             stack:bool=True):
     """
     Generate the PypeIt file for the science frames
@@ -108,6 +113,7 @@ def generate_sci_pypeitfile(redux_path:str,
         maskID (str, optional): Mask ID to isolate for QL.  Defaults to None.
         boxcar_radius (float, optional): Boxcar radius for extraction.  
             In units of arcsec.  Defaults to None.
+        bkg_redux (bool, optional): Setup for A-B subtraction.  Defaults to False.
         stack (bool, optional): Stack the science frames.  Defaults to True.
 
     Returns: 
@@ -198,7 +204,7 @@ def generate_sci_pypeitfile(redux_path:str,
     file_paths = np.unique([os.path.dirname(ff) for ff in sci_files]).tolist()
 
     # Stack?
-    if len(sci_files) > 1 and stack:
+    if len(sci_files) > 1 and stack and not bkg_redux:
         ps_sci.fitstbl['comb_id'] = 1
 
     # Generate
@@ -284,10 +290,10 @@ class QL(scriptbase.ScriptBase):
                             help='space separated list of raw frames to be specified as science exposures (over-rides PypeIt frame typing)')
         parser.add_argument("--redux_path", type=str, default='current working directory',
                             help="Full path to where QL reduction should be run.")
-        parser.add_argument("--calib_dir", type=str, 
-                            help="Location folders of calibration reductions")
-        parser.add_argument("--masters_dir", type=str, 
-                            help="Location of PypeIt Master files used for the reduction.")
+        parser.add_argument("--parent_calib_dir", type=str, 
+                            help="Location of folders for calibration reductions")
+        parser.add_argument("--setup_calib_dir", type=str, 
+                            help="Location of PypeIt Calibration files used for the reduction.")
         parser.add_argument("--calibs_only", default=False, action="store_true",
                             help='Reduce only the calibrations?')
         parser.add_argument("--clobber_calibs", default=False, 
@@ -303,6 +309,10 @@ class QL(scriptbase.ScriptBase):
         parser.add_argument('--no_stack', dest='stack', default=True, 
                             action="store_false",
                             help='Do *not* stack multiple science frames')
+        parser.add_argument("--bkg_redux", default=False, action='store_true',
+                            help='If set the script will perform difference imaging quicklook. Namely it will identify '
+                                 'sequences of AB pairs based on the dither pattern and perform difference imaging sky '
+                                 'subtraction and fit for residuals')
         return parser
 
 
@@ -328,7 +338,7 @@ class QL(scriptbase.ScriptBase):
             # Generate PypeIt files (and folders)
             calib_pypeit_files = ps.generate_ql_calib_pypeit_files(
                 calib_dir, det=args.det, configs='all',
-                clobber=args.clobber_calibs)
+                clobber=args.clobber_calibs, bkg_redux=args.bkg_redux)
             # Process them
             for calib_pypeit_file in calib_pypeit_files: 
                 redux_path = os.path.dirname(calib_pypeit_file)  # Path to PypeIt file
@@ -339,6 +349,7 @@ class QL(scriptbase.ScriptBase):
                     msgs.info('Master files already exist.  Skipping calibration.')
                     continue
                 # Run
+                #embed(header='346 of ql.py')
                 pypeIt = pypeit.PypeIt(calib_pypeit_file,
                                        redux_path=redux_path, 
                                        calib_only=True)
@@ -355,6 +366,21 @@ class QL(scriptbase.ScriptBase):
 
         if np.sum(sci_idx) == 0:
             msgs.error('No science frames found in the provided files.  Add at least one or specify using --sci_files.')
+
+        # Dither pattern?
+        if args.bkg_redux:
+            sci_files = np.array(files)[sci_idx]
+            # Binning
+            binspectral, binspatial = parse_binning(
+                ps.fitstbl['binning'][sci_idx][0])
+            # Plate scale
+            _det = parse_det(args.det if args.det is not None else '1', 
+                             ps.spectrograph)
+            det_container = ps.spectrograph.get_detector_par(
+                _det, hdu=fits.open(files[0]))
+            platescale = det_container['platescale']*binspatial
+            # Report
+            print_offset_report(sci_files, ps.fitstbl[sci_idx], platescale)
 
         # Generate science setup object
         full_scifiles = [os.path.join(dir_path, sci_file) for dir_path, sci_file in zip(
@@ -395,6 +421,7 @@ class QL(scriptbase.ScriptBase):
                     slitspatnum=args.slitspatnum,
                     det=args.det,
                     boxcar_radius=args.boxcar_radius,
+                    bkg_redux=args.bkg_redux,
                     stack=args.stack)
         
         # Run it
@@ -404,4 +431,55 @@ class QL(scriptbase.ScriptBase):
                                redux_path=redux_path) 
         pypeIt.reduce_all()
         pypeIt.build_qa()
+
+        # COADD 2D GOES HERE
         msgs.info(f'Quicklook completed in {utils.get_time_string(time.perf_counter()-tstart)} seconds')
+
+def print_offset_report(files:list, fitstbl:astropy.table.Table,
+                        platescale:float):
+
+    # Parse
+    offset_arcsec = fitstbl['dithoff'].data
+    dither_pattern = fitstbl['dithpat'].data
+    dither_id = fitstbl['dithpos'].data
+    target = fitstbl['target'].data[0]
+
+    # Proceed
+    if len(np.unique(dither_pattern)) > 1:
+        msgs.error('Script only supported for a single type of dither pattern.')
+    A_files = files[dither_id == 'A']
+    B_files = files[dither_id == 'B']
+    nA = len(A_files)
+    nB = len(B_files)
+
+    # Print out a report on the offsets
+    msg_string = msgs.newline() + '*******************************************************'
+    msg_string += msgs.newline() + ' Summary of offsets for target {:s} with dither pattern:   {:s}'.format(target,
+                                                                                                            dither_pattern[
+                                                                                                                0])
+    msg_string += msgs.newline() + '*******************************************************'
+    msg_string += msgs.newline() + 'filename     Position         arcsec    pixels    '
+    msg_string += msgs.newline() + '----------------------------------------------------'
+    for iexp, file in enumerate(files):
+        msg_string += msgs.newline() + '    {:s}    {:s}   {:6.2f}    {:6.2f}'.format(
+            os.path.basename(file), dither_id[iexp], offset_arcsec[iexp], offset_arcsec[iexp] / platescale)
+    msg_string += msgs.newline() + '********************************************************'
+    msgs.info(msg_string)
+
+#TODO Need a utility routine to deal with this
+#  I bet one already exists.  KW?
+def parse_det(det, spectrograph):
+    if 'mosaic' in det:
+        mosaic = True
+        _det = spectrograph.default_mosaic
+        if _det is None:
+            msgs.error(f'{spectrograph.name} does not have a known mosaic')
+    else:
+        try:
+            _det = tuple(int(d) for d in det)
+        except:
+            msgs.error(f'Could not convert detector input to integer.')
+        mosaic = len(_det) > 1
+        if not mosaic:
+            _det = _det[0]
+    return _det

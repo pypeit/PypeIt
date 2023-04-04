@@ -751,32 +751,32 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
         msgs.info("Processing slit {}".format(slit))
         msgs.info("Using sigdetect = {}".format(sigdetect))
         # Grab the observed arc spectrum
-        ispec = spec[:,slit]
+        obs_spec_i = spec[:,slit]
         # get FWHM for this slit
         fwhm = set_fwhm(par, measured_fwhm=measured_fwhms[slit])
 
         # Find the shift
         ncomb = temp_spec.size
         # Remove the continuum before adding the padding to ispec
-        _, _, _, _, ispec_cont_sub = wvutils.arc_lines_from_spec(ispec)
-        _, _, _, _, tspec_cont_sub = wvutils.arc_lines_from_spec(temp_spec)
+        _, _, _, _, obs_spec_cont_sub = wvutils.arc_lines_from_spec(obs_spec_i)
+        _, _, _, _, templ_spec_cont_sub = wvutils.arc_lines_from_spec(temp_spec)
         # Pad
-        pspec = np.zeros_like(temp_spec)
-        nspec = len(ispec)
+        pad_spec = np.zeros_like(temp_spec)
+        nspec = len(obs_spec_i)
         npad = ncomb - nspec
         if npad > 0:    # Pad the input spectrum
-            pspec[npad // 2:npad // 2 + len(ispec)] = ispec_cont_sub
-            tspec = tspec_cont_sub
+            pad_spec[npad // 2:npad // 2 + len(obs_spec_i)] = obs_spec_cont_sub
+            tspec = templ_spec_cont_sub
         elif npad < 0:  # Pad the template!
-            pspec = ispec_cont_sub
+            pspec = obs_spec_cont_sub
             npad *= -1
             tspec = np.zeros(nspec)
-            tspec[npad // 2:npad // 2 + ncomb] = tspec_cont_sub
+            tspec[npad // 2:npad // 2 + ncomb] = templ_spec_cont_sub
         else:  # No padding necessary
-            pspec = ispec_cont_sub
-            tspec = tspec_cont_sub
+            pad_spec = obs_spec_cont_sub
+            tspec = templ_spec_cont_sub
         # Cross-correlate
-        shift_cc, corr_cc = wvutils.xcorr_shift(tspec, pspec, debug=debug, fwhm=fwhm, percent_ceil=x_percentile)
+        shift_cc, corr_cc = wvutils.xcorr_shift(tspec, pad_spec, debug=debug, fwhm=fwhm, percent_ceil=x_percentile)
         #shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec, pspec, debug=debug, percent_ceil=x_percentile)
         msgs.info("Shift = {}; cc = {}".format(shift_cc, corr_cc))
         if debug:
