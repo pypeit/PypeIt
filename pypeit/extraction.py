@@ -471,7 +471,7 @@ class Extract:
         if mode == "local" and sobjs is None:
             msgs.error("No spectral extractions provided for flexure, using slit center instead")
         elif mode not in ["local", "global"]:
-            msgs.error("mode must be 'global' or 'local'. Assuming 'global'.")
+            msgs.error("Flexure mode must be 'global' or 'local'.")
 
         # initialize flex_list
         flex_list = None
