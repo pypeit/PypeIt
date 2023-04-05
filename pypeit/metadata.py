@@ -529,9 +529,10 @@ class PypeItMetaData:
                 list of strings (e.g., ['A','C']).
 
         Returns:
-            numpy.array: The list of unique setup names.  A second
-            returned object provides the indices of the first occurrence
-            of these setups, if requested.
+            :obj:`tuple`, `numpy.ndarray`_: The list of unique setup names.  A
+            tuple is returned with a second `numpy.ndarray`_ object providing
+            the indices of the first occurrence of these setups, if requested
+            (using ``return_index``).
 
         Raises:
             PypeItError:
@@ -541,7 +542,9 @@ class PypeItMetaData:
             msgs.error('Cannot get setup names; run set_configurations.')
 
         # Unique configurations
-        setups, indx = np.unique(self['setup'], return_index=True)
+        # NOTE: This annoyingly returns Column types, not np.arrays!  So need to
+        # specify that the data from the column be used.
+        setups, indx = np.unique(self['setup'].data, return_index=True)
 
         if ignore is not None:
             # Remove the selected configurations to ignore
@@ -559,7 +562,7 @@ class PypeItMetaData:
             setups = setups[use]
             indx = indx[use]
 
-        return setups, indx if return_index else setups
+        return (setups, indx) if return_index else setups
 
     def _get_cfgs(self, copy=False, rm_none=False):
         """

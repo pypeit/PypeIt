@@ -5,8 +5,9 @@ Quick-Look Reductions
 Overview
 ========
 
-PypeIt provides a quicklook script ``pypeit_ql`` for
-quick reductions, presumably at the telescope.
+PypeIt provides a quick-look (QL) script ``pypeit_ql`` that performs faster
+(potentially lower quality) reductions for quick inspection, presumably for
+real-time decision-making while at the telescope.
 
 The approach is to (1) generate calibration files if needed 
 using an auto-generated :doc:`pypeit_file`
@@ -17,22 +18,83 @@ along with the output products (see below).
 This script performs a boxcar (only) extraction of 
 long- or multi-slit observations.
 
-The script does expect (effectively requires) that 
-PypeIt will correctly frametype the input frames.  
-If this fails, so too will the script. 
-A future revision may allow the user to specify the
+The script effectively requires that PypeIt is able to correctly determine the
+type of each input frame, without input from the user.  If this fails, so too
+will the script.  A future revision may allow the user to specify the
 frametypes.
- 
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
 
 .. include:: help/pypeit_ql.rst
 
-At present, only a few spectrographs have been
-extensively tested:  
-``shane_kast_blue``, ``shane_kast_red``, ``keck_lris_red``, 
-``keck_deimos``.
+At present, only a few spectrographs have been extensively tested:  
+``shane_kast_blue``, ``shane_kast_red``, ``keck_lris_red``, ``keck_deimos``.
+
+Specifying the input raw files
+++++++++++++++++++++++++++++++
+
+The script provides a few ways that you can specify the files to reduce:
+
+#. Provide a file with a specific :ref:`format <input_files>` that lists the
+   files to be reduced.  The format must follow the standard PypeIt file
+   :ref:`input-files-data-block`; however, only the ``filename`` column is
+   required.
+
+#. Provide the directory and list of files directly on the command line.  
+
+#. Provide the directory and the file extension, which will be used to search
+   for and reduce all files found.
+
+An example file named ``input.rawfiles`` used in the first approach could look
+like this:
+
+.. code-block:: console
+
+    # Data block 
+    raw read
+        path /path/to/files
+    filename
+    b1.fits.gz
+    b10.fits.gz
+    b27.fits.gz
+    raw end
+
+and you would pass it to the QL script using the ``--raw_files`` command-line argument:
+
+.. code-block:: console
+
+    pypeit_ql shane_kast_blue --raw_files input.rawfiles
+
+You will get identical behavior if you instead used
+
+.. code-block:: console
+
+    pypeit_ql shane_kast_blue --raw_files b1.fits.gz b10.fits.gz b27.fits.gz --raw_path /path/to/files
+
+Finally, if those three files are the *only* files with the relevant extension
+in ``/path/to/files``, the third entry option would look like this:
+
+.. code-block:: console
+
+    pypeit_ql shane_kast_blue --raw_path /path/to/files --ext fits.gz
+
+In this example (see more below), the three files are an arc-lamp exposure
+(``b1.fits.gz``), a dome-flat exposure (``b10.fits.gz``), and an on-sky science
+exposure (``b27.fits.gz``).  For the QL script to work, PypeIt must be able to
+classify these frames as such automatically.  The only exception is that you can
+specify which of the files are science file using the ``--sci_files`` option.
+Importantly, files listed using the ``sci_files`` option must also be listed
+among the ``raw_files``.  I.e., to specify the science frame in the above
+example, the call would be:
+
+.. code-block:: console
+
+    pypeit_ql shane_kast_blue --raw_files b1.fits.gz b10.fits.gz b27.fits.gz --raw_path /path/to/files --sci_files b27.fits.gz
+
+
+
+
 
 Folder tree 
 +++++++++++

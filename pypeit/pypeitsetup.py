@@ -340,30 +340,36 @@ class PypeItSetup:
 
         return self.par, self.spectrograph, self.fitstbl
 
+    # TODO: I removed the calib_IDs option because it wasn't being used and it's
+    # going to be hard to do right!
+    #                                  calib_IDs:list=None,
+    #       calib_IDs (list, optional):
+    #           List of calib IDs.
     def generate_ql_calib_pypeit_files(self, output_path:str, 
                                        det:str=None, 
                                        configs:str='all',
-                                       calib_IDs:list=None,
                                        bkg_redux:bool=False,
-                                       clobber:bool=False):
-        """ Generate the PypeIt files for the calibrations
-        for quicklook purposes.
+                                       overwrite:bool=False):
+        """
+        Generate the PypeIt files for the calibrations for quicklook purposes.
 
         Args:
             output_path (str): 
                 Output path for the PypeIt files
-            det (str, optional): Detector/mosaic. Defaults to None.
-            configs (str, optional): Which configurations to generate. Defaults to 'all'.
-            clobber (bool, optional): Overwrite existing files. Defaults to False.
-            calib_IDs (list, optional): List of calib IDs. Defaults to None.
-            bkg_redux (bool, optional): Setup for A-B subtraction.  Defaults to False.
+            det (str, optional):
+                Detector/mosaic.
+            configs (str, optional):
+                Which configurations to generate.
+            bkg_redux (bool, optional):
+                Setup for A-B subtraction.
+            overwrite (bool, optional):
+                Overwrite existing files.
 
         Returns:
             list: List of calib PypeIt files
         """
         # Grab setups
-        setups, indx = self.fitstbl.get_configuration_names(
-            return_index=True)
+        setups = self.fitstbl.get_configuration_names()
 
         # Restrict on detector -- May remove this
         self.user_cfg = ['[rdx]', f'spectrograph = {self.spectrograph.name}']
@@ -371,32 +377,35 @@ class PypeItSetup:
             self.user_cfg += [f'detnum = {det}']
         self.user_cfg += ['quicklook = True']
 
-        # TODO -- Remove this if we can
-        # Calib ID
-        if calib_IDs is None:
-            self.fitstbl.table['calib'] = '0'
-        else:
-            self.fitstbl.table['calib'] = calib_IDs
+#        # TODO -- Remove this if we can
+#        # Calib ID
+#        if calib_IDs is None:
+#            self.fitstbl.table['calib'] = '0'
+#        else:
+#            self.fitstbl.table['calib'] = calib_IDs
 
         # Write the PypeIt files
+        # TODO: Exclude science/standard files from file?
         pypeit_files = self.fitstbl.write_pypeit(
             output_path=output_path, 
             cfg_lines=self.user_cfg, 
             write_bkg_pairs=bkg_redux, 
             configs=configs)
 
-        # Rename calibs
+        # Rename name the pypeit files so that they're specific to the
+        # calibrations
         calib_pypeit_files = []
         for pypeit_file, setup in zip(pypeit_files, setups):
-
-            # Rename with _calib
-            calib_pypeit_file = pypeit_file.replace(
-                '_{}.pypeit'.format(setup), 
-                '_calib_{}.pypeit'.format(setup))
-            if clobber or (not os.path.isfile(calib_pypeit_file)):
+            calib_pypeit_file = pypeit_file.replace(f'_{setup}.pypeit', f'_calib_{setup}.pypeit')
+            if not os.path.isfile(calib_pypeit_file) or overwrite:
+                # The file doesn't exist or we want to overwrite it, so move the
+                # written pypeit file to its new name
                 os.rename(pypeit_file, calib_pypeit_file)
             else:
+                # The calibration file already exists or we don't want to
+                # overwrite it, so remove the pypeit file that was written.
                 os.remove(pypeit_file)
+            # At this point, the 'calib_pypeit_file' should always exist.
             calib_pypeit_files.append(calib_pypeit_file)
 
         return calib_pypeit_files

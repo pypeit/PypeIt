@@ -130,8 +130,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
         return par
 
-
-
+    # NOTE: This function is used by the dev-suite
     def get_ql_calib_dir(self, file):
         """
         Returns calibrations file directory for quicklook reductions.

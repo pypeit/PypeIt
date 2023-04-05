@@ -14,6 +14,7 @@ from pypeit.tests.tstutils import data_path
 from pypeit import specobjs
 from pypeit.par import pypeitpar 
 
+
 def test_run_pypeit():
 
     # Just get a few files
@@ -71,6 +72,5 @@ def test_run_pypeit():
 
     # Clean-up
     shutil.rmtree(outdir)
-
 
 

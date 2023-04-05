@@ -414,4 +414,56 @@ class CalibFrame(datamodel.DataContainer):
         # Return
         return _hdr
 
+    @classmethod
+    def glob(cls, calib_dir, setup, calib_id, detname=None):
+        """
+        Search for calibration files.
+
+        Args:
+            calib_dir (:obj:`str`, `Path`_):
+                Directory to search
+            setup (:obj:`str`):
+                The setup/configuration identifier (e.g., A, B, C, ...) of the calibrations
+            calib_id (:obj:`str`, :obj:`int`):
+                The *single* calibration group of the calibrations
+            detname (:obj:`str`, optional):
+                The identifier of the detector/mosaic of the calibrations.  If
+                None, any relevant calibrations are returned.
+
+        Returns:
+            :obj:`list`: List of paths to applicable calibration files.  If no
+            relevant files are found, None is returned.
+        """
+        # Check the path exists
+        _calib_dir = Path(calib_dir).resolve()
+        if not _calib_dir.exists():
+            return None
+
+        # Construct the search string
+        search = f'{cls.calib_type}*{setup}*'
+        if detname is not None:
+            search += f'{detname}*'
+        search += f'{cls.calib_file_format}'
+
+        # Find all the relevant calibrations in the directory
+        files = np.array(sorted(_calib_dir.glob(search)))
+        if files.size == 0:
+            return None
+
+        # For the remaining files, find the ones that have applicable
+        # calibration groups
+        keep = np.ones(files.size, dtype=bool)
+        for i, f in enumerate(files):
+            _calib_id = cls.parse_calib_key(cls.parse_key_dir(str(f), from_filename=True)[0])[1]
+            if _calib_id == 'all' or str(calib_id) in cls.ingest_calib_id(_calib_id):
+                continue
+            keep[i] = False
+
+        # Return the applicable calibrations
+        return files[keep].tolist() if any(keep) else None
+
+
+
+
+
 

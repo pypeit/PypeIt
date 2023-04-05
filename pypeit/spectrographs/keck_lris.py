@@ -1146,6 +1146,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
 
         return par
 
+    # NOTE: This function is used by the dev-suite
     def get_ql_calib_dir(self, file):
         """
         Returns calibration file directory for quicklook reductions.

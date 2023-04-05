@@ -288,7 +288,8 @@ class PypeIt:
             grp_frames = frame_indx[in_grp]
 
             # Find the detectors to reduce
-            detectors = self.select_detectors()
+            detectors = self.select_detectors(self.spectrograph, self.par['rdx']['detnum'],
+                                              self.par['rdx']['slitspatnum'])
             msgs.info(f'Detectors to work on: {detectors}')
 
             # Loop on Detectors
@@ -406,9 +407,10 @@ class PypeIt:
         
             for j, comb_id in enumerate(u_combid):
                 # Quicklook mode?
+                # TODO: This is the only place this is used, I think...
                 if self.par['rdx']['quicklook'] and j > 0:
                     msgs.info("Quicklook mode.  Only reducing science frames in firs comb_id group")
-                    continue
+                    break
                 #
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
                 # Find all frames whose comb_id matches the current frames bkg_id.
@@ -448,7 +450,8 @@ class PypeIt:
         # Finish
         self.print_end_time()
 
-    def select_detectors(self):
+    @staticmethod
+    def select_detectors(spectrograph, detnum, slitspatnum):
         """
         Get the set of detectors to be reduced.
 
@@ -461,9 +464,7 @@ class PypeIt:
             :obj:`list`: List of unique detectors or detector mosaics to be
             reduced.
         """
-        subset = self.par['rdx']['slitspatnum'] if self.par['rdx']['slitspatnum'] is not None \
-                    else self.par['rdx']['detnum']
-        return self.spectrograph.select_detectors(subset=subset)
+        return spectrograph.select_detectors(subset=detnum if slitspatnum is None else slitspatnum)
 
     def reduce_exposure(self, frames, bg_frames=None, std_outfile=None):
         """
@@ -544,7 +545,8 @@ class PypeIt:
             msgs.info(bg_msgs_string)
 
         # Find the detectors to reduce
-        detectors = self.select_detectors()
+        detectors = self.select_detectors(self.spectrograph, self.par['rdx']['detnum'],
+                                          self.par['rdx']['slitspatnum'])
         msgs.info(f'Detectors to work on: {detectors}')
 
         # Loop on Detectors -- Calibrate, process image, find objects

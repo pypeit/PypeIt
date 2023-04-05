@@ -191,40 +191,67 @@ class Calibrations:
         self.success = False
         self.failed_step = None
 
-    def _prep_calibrations(self, frametype):
+    def find_calibrations(self, frametype, frameclass):
         """
-        Find all frames matching a given calibration type and return the
-        necessary calibration identifiers.
+        Find calibration files and identifiers.
 
-        Args:
-            frametype (:obj:`str`):
-                Calibration frame type.  Must be a valid frame type; see
-                :func:`~pypeit.core.framematch.valid_frametype`.
+        Parameters
+        ----------
+        frametype : :obj:`str`
+            Calibration frame type.  Must be a valid frame type; see
+            :func:`~pypeit.core.framematch.valid_frametype`.
+        frameclass : :class:`~pypeit.calibframe.CalibFrame`
+            The subclass used to store the processed calibration data.
 
-        Returns:
-            :obj:`tuple`:  Returns a :obj:`list` of image files matching the
-            input type, the setup/configuration string, and the calibration group string.
+        Returns
+        -------
+        raw_files : :obj:`list`
+            The list of raw files in :attr:`fitstbl` with the provided
+            frametype.
+        cal_file : `Path`_
+            The path with/for the processed calibration frame
+        calib_key : :obj:`str`
+            The calibration identifier
+        setup : :obj:`str`
+            The setup/configuration identifier
+        calib_id : :obj:`list`
+            The calibration groups
+        detname : :obj:`str`
+            The detector/mosaic identifier
         """
         # NOTE: This will raise an exception if the frametype is not valid!
-        valid = framematch.valid_frametype(frametype, raise_error=True)
+        framematch.valid_frametype(frametype, raise_error=True)
+        if not issubclass(frameclass, CalibFrame):
+            msgs.error(f'CODING ERROR: {frameclass} is not a subclass of CalibFrame.')
 
-        # Grab rows and files
+        # Grab rows with relevant frames
+        detname = self.spectrograph.get_det_name(self.det)
         rows = self.fitstbl.find_frames(frametype, calib_ID=self.calib_ID, index=True)
+
         if len(rows) == 0:
-            return [], None, None
+            # No raw files are available.  Attempt to find an existing and
+            # relevant calibration frame based on the setup/configuration and
+            # calibration group of the (science) frame to be calibrated.
+            setup = self.fitstbl['setup'][self.frame]
+            cal_file = frameclass.glob(self.calib_dir, setup, self.calib_ID, detname=detname)
+            if cal_file is None or len(cal_file) > 1:
+                return [], None, None, setup, None, detname
 
-        # Grab the setup and calibration id(s)
-        if self.par[f'{frametype}frame']['process']['calib_setup_and_bit'] is None:
-            setup = self.fitstbl['setup'][rows[0]]
-            # Here calib_id is a string of comma-separated values
-            calib_id = self.fitstbl['calib'][rows[0]]
-        else:
-            setup, calib_id \
-                    = self.par[f'{frametype}frame']['process']['calib_setup_and_bit'].split('_')
-            # Here calib_id is a list of strings
-            calib_id = calib_id.split('-')
+            cal_file = cal_file[0]
+            calib_key = frameclass.parse_key_dir(str(cal_file), from_filename=True)[0]
+            calib_id = frameclass.parse_calib_key(calib_key)[1]
+            return [], cal_file, calib_key, setup, frameclass.ingest_calib_id(calib_id), detname
 
-        return self.fitstbl.frame_paths(rows), setup, CalibFrame.ingest_calib_id(calib_id)
+        # Otherwise, use the metadata for the raw frames to set the name of
+        # the processed calibration frame.
+        setup = self.fitstbl['setup'][rows[0]]
+        calib_id = self.fitstbl['calib'][rows[0]]
+        calib_key = frameclass.construct_calib_key(setup, calib_id, detname)
+        # Construct the expected calibration frame file name
+        cal_file = Path(frameclass.construct_file_name(calib_key, calib_dir=self.calib_dir))
+
+        return self.fitstbl.frame_paths(rows), cal_file, calib_key, setup, \
+                    frameclass.ingest_calib_id(calib_id), detname
 
     def set_config(self, frame, det, par=None):
         """
@@ -273,30 +300,25 @@ class Calibrations:
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
-        # Prep
-        raw_files, setup, calib_id = self._prep_calibrations('arc')
+        # Find the calibrations
+        frame = {'type': 'arc', 'class': buildimage.ArcImage}
+        raw_files, cal_file, calib_key, setup, calib_id, detname \
+                = self.find_calibrations(frame['type'], frame['class'])
 
-        if len(raw_files) == 0:
-            # There are no arc files, so we're done!
+        if len(raw_files) == 0 and cal_file is None:
+            msgs.warn(f'No raw {frame["type"]} frames found and unable to identify a relevant '
+                      'processed calibration frame.  Continuing...')
             self.msarc = None
-            msgs.warn('No frametype=arc files available!')
             return self.msarc
 
-        # Construct the calibration key
-        detname = self.spectrograph.get_det_name(self.det)
-        calib_key = CalibFrame.construct_calib_key(setup, calib_id, detname)
-
-        # Construct the expected calibration frame file name
-        arc_file = Path(buildimage.ArcImage.construct_file_name(calib_key,
-                            calib_dir=self.calib_dir)).resolve()
-
-        # If it exists and we want to reuse it, do so:
-        if arc_file.exists() and self.reuse_calibs:
-            self.msarc = buildimage.ArcImage.from_file(arc_file)
+        # If a processed calibration frame exists and we want to reuse it, do
+        # so:
+        if cal_file.exists() and self.reuse_calibs:
+            self.msarc = frame['class'].from_file(cal_file)
             return self.msarc
 
         # Otherwise, create the processed file.
-        msgs.info(f'Preparing a {buildimage.ArcImage.calib_type} calibration frame.')
+        msgs.info(f'Preparing a {frame["class"].calib_type} calibration frame.')
         self.msarc = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                     self.par['arcframe'], raw_files,
                                                     bias=self.msbias, bpm=self.msbpm,
@@ -318,30 +340,25 @@ class Calibrations:
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
-        # Prep
-        raw_files, setup, calib_id = self._prep_calibrations('tilt')
+        # Find the calibrations
+        frame = {'type': 'tilt', 'class':buildimage.TiltImage}
+        raw_files, cal_file, calib_key, setup, calib_id, detname \
+                = self.find_calibrations(frame['type'], frame['class'])
 
-        if len(raw_files) == 0:
-            # There are no tilt files, so we're done!
+        if len(raw_files) == 0 and cal_file is None:
+            msgs.warn(f'No raw {frame["type"]} frames found and unable to identify a relevant '
+                      'processed calibration frame.  Continuing...')
             self.mstilt = None
-            msgs.warn('No frametype=tilt files available!')
             return self.mstilt
 
-        # Construct the calibration key
-        detname = self.spectrograph.get_det_name(self.det)
-        calib_key = CalibFrame.construct_calib_key(setup, calib_id, detname)
-
-        # Construct the expected calibration frame file name
-        tilt_file = Path(buildimage.TiltImage.construct_file_name(calib_key,
-                            calib_dir=self.calib_dir)).resolve()
-
-        # If it exists and we want to reuse it, do so:
-        if tilt_file.exists() and self.reuse_calibs:
-            self.mstilt = buildimage.TiltImage.from_file(tilt_file)
+        # If a processed calibration frame exists and we want to reuse it, do
+        # so:
+        if cal_file.exists() and self.reuse_calibs:
+            self.mstilt = frame['class'].from_file(cal_file)
             return self.mstilt
 
         # Otherwise, create the processed file.
-        msgs.info(f'Preparing a {buildimage.TiltImage.calib_type} calibration frame.')
+        msgs.info(f'Preparing a {frame["class"].calib_type} calibration frame.')
         self.mstilt = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                      self.par['tiltframe'], raw_files,
                                                      bias=self.msbias, bpm=self.msbpm,
@@ -368,30 +385,26 @@ class Calibrations:
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
-        # Prep
-        raw_files, setup, calib_id = self._prep_calibrations('align')
+        # Find the calibrations
+        frame = {'type': 'align', 'class': alignframe.Alignments}
+        raw_files, cal_file, calib_key, setup, calib_id, detname \
+                = self.find_calibrations(frame['type'], frame['class'])
 
-        if len(raw_files) == 0:
-            # There are no arc files, so we're done!
+        if len(raw_files) == 0 and cal_file is None:
+            msgs.warn(f'No raw {frame["type"]} frames found and unable to identify a relevant '
+                      'processed calibration frame.  Continuing...')
             self.alignments = None
             return self.alignments
 
-        # Construct the calibration key
-        detname = self.spectrograph.get_det_name(self.det)
-        calib_key = CalibFrame.construct_calib_key(setup, calib_id, detname)
-
-        # Construct the expected calibration frame file name
-        align_file = Path(alignframe.Alignments.construct_file_name(calib_key,
-                            calib_dir=self.calib_dir)).resolve()
-
-        # If it exists and we want to reuse it, do so:
-        if align_file.exists() and self.reuse_calibs:
-            self.alignments = alignframe.Alignments.from_file(align_file)
+        # If a processed calibration frame exists and we want to reuse it, do
+        # so:
+        if cal_file.exists() and self.reuse_calibs:
+            self.alignments = frame['class'].from_file(cal_file)
             self.alignments.is_synced(self.slits)
             return self.alignments
 
         # Otherwise, create the processed file.
-        msgs.info(f'Preparing a {alignframe.Alignments.calib_type} calibration frame.')
+        msgs.info(f'Preparing a {frame["class"].calib_type} calibration frame.')
         msalign = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                  self.par['alignframe'], raw_files,
                                                  bias=self.msbias, bpm=self.msbpm,
@@ -420,28 +433,25 @@ class Calibrations:
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
-        # Prep
-        raw_files, setup, calib_id = self._prep_calibrations('bias')
+        # Find the calibrations
+        frame = {'type': 'bias', 'class': buildimage.BiasImage}
+        raw_files, cal_file, calib_key, setup, calib_id, detname \
+                = self.find_calibrations(frame['type'], frame['class'])
 
-        if len(raw_files) == 0:
-            # There are no bias files, so we're done!
+        if len(raw_files) == 0 and cal_file is None:
+            msgs.warn(f'No raw {frame["type"]} frames found and unable to identify a relevant '
+                      'processed calibration frame.  Continuing...')
             self.msbias = None
             return self.msbias
 
-        # Construct the calibration key
-        detname = self.spectrograph.get_det_name(self.det)
-        calib_key = CalibFrame.construct_calib_key(setup, calib_id, detname)
-
-        # Construct the expected calibration frame file name
-        bias_file = Path(buildimage.BiasImage.construct_file_name(calib_key,
-                            calib_dir=self.calib_dir)).resolve()
-
-        # If it exists and we want to reuse it, do so:
-        if bias_file.exists() and self.reuse_calibs:
-            self.msbias = buildimage.BiasImage.from_file(bias_file)
+        # If a processed calibration frame exists and we want to reuse it, do
+        # so:
+        if cal_file.exists() and self.reuse_calibs:
+            self.msbias = frame['class'].from_file(cal_file)
             return self.msbias
 
         # Otherwise, create the processed file.
+        msgs.info(f'Preparing a {frame["class"].calib_type} calibration frame.')
         self.msbias = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                      self.par['biasframe'], raw_files,
                                                      calib_dir=self.calib_dir, setup=setup,
@@ -462,25 +472,21 @@ class Calibrations:
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
-        # Prep
-        raw_files, setup, calib_id = self._prep_calibrations('dark')
+        # Find the calibrations
+        frame = {'type': 'dark', 'class': buildimage.DarkImage}
+        raw_files, cal_file, calib_key, setup, calib_id, detname \
+                = self.find_calibrations(frame['type'], frame['class'])
 
-        if len(raw_files) == 0:
-            # There are no dark files, so we're done!
+        if len(raw_files) == 0 and cal_file is None:
+            msgs.warn(f'No raw {frame["type"]} frames found and unable to identify a relevant '
+                      'processed calibration frame.  Continuing...')
             self.msdark = None
             return self.msdark
 
-        # Construct the calibration key
-        detname = self.spectrograph.get_det_name(self.det)
-        calib_key = CalibFrame.construct_calib_key(setup, calib_id, detname)
-
-        # Construct the expected calibration frame file name
-        dark_file = Path(buildimage.DarkImage.construct_file_name(calib_key,
-                            calib_dir=self.calib_dir)).resolve()
-
-        # If it exists and we want to reuse it, do so:
-        if dark_file.exists() and self.reuse_calibs:
-            self.msdark = buildimage.DarkImage.from_file(dark_file)
+        # If a processed calibration frame exists and we want to reuse it, do
+        # so:
+        if cal_file.exists() and self.reuse_calibs:
+            self.msdark = frame['class'].from_file(cal_file)
             return self.msdark
 
         # TODO: If a bias has been constructed and it will be subtracted from
@@ -551,30 +557,34 @@ class Calibrations:
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
-        # Prep
-        raw_pixel_files, pixel_setup, pixel_calib_id = self._prep_calibrations('pixelflat')
-        raw_illum_files, illum_setup, illum_calib_id = self._prep_calibrations('illumflat')
-        raw_lampoff_files = self._prep_calibrations('lampoffflats')[0]
+        pixel_frame = {'type': 'pixelflat', 'class': flatfield.FlatImages}
+        raw_pixel_files, pixel_cal_file, pixel_calib_key, pixel_setup, pixel_calib_id, detname \
+                = self.find_calibrations(pixel_frame['type'], pixel_frame['class'])
 
-        if len(raw_pixel_files) == 0 and len(raw_illum_files) == 0:
+        illum_frame = {'type': 'illumflat', 'class': flatfield.FlatImages}
+        raw_illum_files, illum_cal_file, illum_calib_key, illum_setup, illum_calib_id, detname \
+                = self.find_calibrations(illum_frame['type'], illum_frame['class'])
+
+        raw_lampoff_files = self.fitstbl.find_frame_files('lampoffflats', calib_ID=self.calib_ID)
+
+        if len(raw_pixel_files) == 0 and pixel_cal_file is None \
+                and len(raw_illum_files) == 0 and illum_cal_file is None:
+            msgs.warn(f'No raw {pixel_frame["type"]} or {illum_frame["type"]} frames found and '
+                      'unable to identify a relevant processed calibration frame.  Continuing...')
             self.flatimages = None
-            msgs.warn('No frametype=pixelflat or illumflat files to build flat-field images')
             return self.flatimages
 
-        setup = illum_setup if len(raw_pixel_files) == 0 else pixel_setup
-        calib_id = illum_calib_id if len(raw_pixel_files) == 0 else pixel_calib_id
-
-        # Construct the calibration key
-        detname = self.spectrograph.get_det_name(self.det)
-        calib_key = CalibFrame.construct_calib_key(setup, calib_id, detname)
-
-        # Construct the expected calibration frame file name
-        flat_file = Path(flatfield.FlatImages.construct_file_name(calib_key,
-                            calib_dir=self.calib_dir)).resolve()
-
-        # If it exists and we want to reuse it, do so:
-        if flat_file.exists() and self.reuse_calibs:
-            self.flatimages = flatfield.FlatImages.from_file(flat_file)
+        # If a processed calibration frame exists and we want to reuse it, do
+        # so.  The processed pixel_flat takes precedence, and a warning is
+        # issued if both are present and not the same.
+        if illum_cal_file is not None and pixel_cal_file is not None \
+                and pixel_cal_file != illum_cal_file:
+            msgs.warn('Processed calibration frames were found for both pixel and '
+                      'slit-illumination flats, and the files are not the same.  Ignoring the '
+                      'slit-illumination flat.')
+        cal_file = illum_cal_file if pixel_cal_file is None else pixel_cal_file
+        if cal_file.exists() and self.reuse_calibs:
+            self.flatimages = flatfield.FlatImages.from_file(cal_file)
             self.flatimages.is_synced(self.slits)
             # Load user defined files
             if self.par['flatfield']['pixelflat_file'] is not None:
@@ -587,7 +597,7 @@ class Calibrations:
             self.slits.mask_flats(self.flatimages)
             return self.flatimages
 
-        # Generate the image
+        # Generate the image(s) from scratch
         pixelflatImages, illumflatImages = None, None
         lampoff_flat = None
         # Check if the image files are the same
@@ -618,12 +628,13 @@ class Calibrations:
                                                  calib_key=calib_key)
             # Generate
             pixelflatImages = pixelFlatField.run(doqa=self.write_qa, show=self.show)
-            # Set flatimages in case we want to apply the pixel-to-pixel sensitivity corrections to the illumflat
+            # Set flatimages in case we want to apply the pixel-to-pixel
+            # sensitivity corrections to the illumflat
             self.flatimages = pixelflatImages
 
         # Only build illum_flat if the input files are different from the pixel flat
         if not pix_is_illum and len(raw_illum_files) > 0:
-            msgs.info('Creating illumination flat calibration frame using files: ')
+            msgs.info('Creating slit-illumination flat calibration frame using files: ')
             for f in raw_illum_files:
                 msgs.prindent(f'{Path(f).name}')
             illum_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
@@ -669,7 +680,7 @@ class Calibrations:
             # Save slits too, in case they were tweaked
             self.slits.to_file()
 
-        # 3) Load user-supplied images
+        # Apply user-supplied images
         # NOTE: These are the *final* images, not just a stack, and it will
         # over-ride what is generated below (if generated).
 
@@ -703,25 +714,21 @@ class Calibrations:
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        raw_trace_files, setup, calib_id = self._prep_calibrations('trace')
-        raw_lampoff_files = self._prep_calibrations('lampoffflats')[0]
+        frame = {'type': 'trace', 'class': slittrace.SlitTraceSet}
+        raw_trace_files, cal_file, calib_key, setup, calib_id, detname \
+                = self.find_calibrations(frame['type'], frame['class'])
+        raw_lampoff_files = self.fitstbl.find_frame_files('lampoffflats', calib_ID=self.calib_ID)
 
-        if len(raw_trace_files) == 0:
+        if len(raw_trace_files) == 0 and cal_file is None:
+            msgs.warn(f'No raw {frame["type"]} frames found and unable to identify a relevant '
+                      'processed calibration frame.  Continuing...')
             self.slits = None
-            msgs.warn('No frametype=trace files to build slits')
             return self.slits
 
-        # Construct the calibration key
-        detname = self.spectrograph.get_det_name(self.det)
-        calib_key = CalibFrame.construct_calib_key(setup, calib_id, detname)
-
-        # Construct the expected calibration frame file name
-        slits_file = Path(slittrace.SlitTraceSet.construct_file_name(calib_key,
-                            calib_dir=self.calib_dir)).resolve()
-
-        # If it exists and we want to reuse it, do so:
-        if slits_file.exists() and self.reuse_calibs:
-            self.slits = slittrace.SlitTraceSet.from_file(slits_file)
+        # If a processed calibration frame exists and we want to reuse it, do
+        # so:
+        if cal_file.exists() and self.reuse_calibs:
+            self.slits = frame['class'].from_file(cal_file)
             self.slits.mask = self.slits.mask_init.copy()
             if self.user_slits is not None:
                 self.slits.user_mask(detname, self.user_slits)            
@@ -765,8 +772,12 @@ class Calibrations:
         if not edges.success:
             # Something went amiss
             msgs.warn('Edge tracing failed.  Continuing, but likely to fail soon...')
+            traceImage = None
+            edges = None
             self.success = False
-            return None
+            self.slits = None
+            return self.slits
+
         # Save the result
         edges.to_file()
 
@@ -782,7 +793,6 @@ class Calibrations:
         self.slits.to_file()
         if self.user_slits is not None:
             self.slits.user_mask(detname, self.user_slits)            
-
         return self.slits
 
     def get_wv_calib(self):
@@ -809,25 +819,21 @@ class Calibrations:
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
-        # Prep
-        raw_files, setup, calib_id = self._prep_calibrations('arc')
-        if len(raw_files) == 0:
-            # There are no arc files, so we're done!
+        # Find the calibrations
+        frame = {'type': 'arc', 'class': wavecalib.WaveCalib}
+        raw_files, cal_file, calib_key, setup, calib_id, detname \
+                = self.find_calibrations(frame['type'], frame['class'])
+
+        if len(raw_files) == 0 and cal_file is None:
+            msgs.warn(f'No raw {frame["type"]} frames found and unable to identify a relevant '
+                      'processed calibration frame.  Continuing...')
             self.wv_calib = None
-            msgs.warn('No frametype=arc files available!')
             return self.wv_calib
 
-        # Construct the calibration key
-        detname = self.spectrograph.get_det_name(self.det)
-        calib_key = CalibFrame.construct_calib_key(setup, calib_id, detname)
-
-        # Construct the expected calibration frame file name
-        wvcalib_file = Path(wavecalib.WaveCalib.construct_file_name(calib_key,
-                            calib_dir=self.calib_dir)).resolve()
-
-        # If it exists and we want to reuse it, do so:
-        if wvcalib_file.exists() and self.reuse_calibs:
-            self.wv_calib = wavecalib.WaveCalib.from_file(wvcalib_file)
+        # If a processed calibration frame exists and we want to reuse it, do
+        # so:
+        if cal_file.exists() and self.reuse_calibs:
+            self.wv_calib = wavecalib.WaveCalib.from_file(cal_file)
             self.wv_calib.chk_synced(self.slits)
             self.slits.mask_wvcalib(self.wv_calib)
             return self.wv_calib
@@ -880,24 +886,21 @@ class Calibrations:
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
-        # Load up?
-        raw_files, setup, calib_id = self._prep_calibrations('tilt')
-        if len(raw_files) == 0:
-            # There are no tilt files, so we're done!
+        # Find the calibrations
+        frame = {'type': 'tilt', 'class': wavetilts.WaveTilts}
+        raw_files, cal_file, calib_key, setup, calib_id, detname \
+                = self.find_calibrations(frame['type'], frame['class'])
+
+        if len(raw_files) == 0 and cal_file is None:
+            msgs.warn(f'No raw {frame["type"]} frames found and unable to identify a relevant '
+                      'processed calibration frame.  Continuing...')
             self.wavetilts = None
-            msgs.warn('No frametype=tilt files available!')
             return self.wavetilts
 
-        # Construct the calibration key
-        detname = self.spectrograph.get_det_name(self.det)
-        calib_key = CalibFrame.construct_calib_key(setup, calib_id, detname)
-
-        # Construct the expected calibration frame file name
-        tilts_file = Path(wavetilts.WaveTilts.construct_file_name(calib_key,
-                            calib_dir=self.calib_dir)).resolve()
-
-        if tilts_file.exists() and self.reuse_calibs:
-            self.wavetilts = wavetilts.WaveTilts.from_file(tilts_file)
+        # If a processed calibration frame exists and we want to reuse it, do
+        # so:
+        if cal_file.exists() and self.reuse_calibs:
+            self.wavetilts = wavetilts.WaveTilts.from_file(cal_file)
             self.wavetilts.is_synced(self.slits)
             self.slits.mask_wavetilts(self.wavetilts)
             return self.wavetilts
