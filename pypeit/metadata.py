@@ -1507,7 +1507,7 @@ class PypeItMetaData:
 
     def write_pypeit(self, output_path=None, cfg_lines=None,
                      write_bkg_pairs=False, write_manual=False,
-                     configs=None):
+                     configs=None, version_override=None, date_override=None):
         """
         Write a pypeit file in data-table format.
 
@@ -1541,6 +1541,12 @@ class PypeItMetaData:
                 the configurations matched to this provided string or
                 list of strings (e.g., ['A','C']). See
                 :attr:`configs`.
+            version_override (:obj:`str`, optional):
+                Override the current version and use this one instead.  **For
+                documentation purposes only!**
+            date_override (:obj:`str`, optional):
+                Override the current version and use this one instead.  **For
+                documentation purposes only!**
 
         Raises:
             PypeItError:
@@ -1618,7 +1624,8 @@ class PypeItMetaData:
             # Instantiate a PypeItFile
             pypeItFile = inputfiles.PypeItFile(cfg_lines, paths, subtbl, setup_dict)
             # Write
-            pypeItFile.write(ofiles[j]) 
+            pypeItFile.write(ofiles[j], version_override=version_override,
+                             date_override=date_override) 
 
         # Return
         return ofiles

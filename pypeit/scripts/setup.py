@@ -4,7 +4,7 @@ This script generates files to setup a PypeIt run
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-
+import argparse
 from IPython import embed
 
 from pypeit.scripts import scriptbase
@@ -52,6 +52,14 @@ class Setup(scriptbase.ScriptBase):
                                  'pypeit_obslog; i.e., you have to tell pypeit_setup to keep '
                                  'these frames, whereas you have to tell pypeit_obslog to remove '
                                  'them.')
+
+        # NOTE: These are only used to prevent updates to some of the automated
+        # document building just based on changes in the pypeit version or the
+        # date.  These should *not* show up when users run `pypeit_setup -h` due
+        # to the use of `help=argparse.SUPPRESS`.
+        parser.add_argument('--version_override', type=str, default=None, help=argparse.SUPPRESS)
+        parser.add_argument('--date_override', type=str, default=None, help=argparse.SUPPRESS)
+
         return parser
 
     @staticmethod
@@ -109,7 +117,9 @@ class Setup(scriptbase.ScriptBase):
             pypeit_files = ps.fitstbl.write_pypeit(output_path=output_path, cfg_lines=ps.user_cfg, 
                                                    write_bkg_pairs=args.background,
                                                    write_manual=args.manual_extraction,
-                                                   configs=configs)
+                                                   configs=configs,
+                                                   version_override=args.version_override,
+                                                   date_override=args.date_override)
 
             # Write the calib file for each written pypeit file.
             setups = [Path(p).resolve().name.split('.')[0].split('_')[-1] for p in pypeit_files]

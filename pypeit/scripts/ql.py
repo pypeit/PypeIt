@@ -20,10 +20,8 @@ Notes with JFH:
 .. include:: ../include/links.rst
 """
 from pathlib import Path
-import os
 import time
 import datetime
-import glob
 import shutil
 
 from IPython import embed
@@ -32,7 +30,6 @@ import numpy as np
 
 import configobj
 
-from astropy.io import fits
 from astropy.table import Table
 
 from pypeit import msgs
@@ -40,7 +37,7 @@ from pypeit import pypeitsetup
 from pypeit import io
 from pypeit import pypeit
 from pypeit.calibframe import CalibFrame
-from pypeit.core.parse import get_dnum, parse_binning
+from pypeit.core.parse import parse_binning
 from pypeit.scripts import scriptbase
 from pypeit.spectrographs import available_spectrographs
 from pypeit.slittrace import SlitTraceSet 
@@ -78,42 +75,45 @@ def generate_sci_pypeitfile(redux_path:str,
                             bkg_redux:bool=False,
                             stack:bool=True):
     """
-    Generate the PypeIt file for the science frames
-    from the calib PypeIt file.
+    Prepare to reduce the science frames by:
 
-    The primary steps are:
+        - Correcting the setup and calibration group for the science frames to
+          be the same as the associated calibration files.
 
-      - Generate the science reduction folder based on the science filenames
+        - Creating the path for the science reductions, and including a symlink
+          to the pre-processed (reference) calibration frames.
 
-      - Generate a soft-link to the Masters/ folder provided by master_calib_dir
-
-      - Build the configuration lines for the PypeIt file
-
-      - Write the PypeIt file to disk in the science reduction folder
+        - Writing the pypeit file with the requested parameter adjustments.
     
     Args:
-        redux_path (str): Path to the redux folder
-        sci_files (list): List of science files (full path)
-        master_calib_dir (str): Path to the master calib folder
-        master_setup_and_bit (list): 
-            Name of the master setup and bit (list of str)
-            The latter is used to tie the science frames to the Masters
-        ps_sci (:class:`pypeit.pypeitsetup.PypeItSetup`):
-            Setup object for the science frame(s)
-        input_cfg_dict (dict, optional): 
-            Input configuration dictionary. Defaults to None.
-        det (str, optional): Detector/mosaic. Defaults to None.
-        remove_sci_dir (bool, optional): Remove the science directory if it exists. Defaults to True.
-        slitspatnum (str, optional):  
-            Value for slitspatnum, e.g. MSCO2:4244
-        maskID (str, optional): Mask ID to isolate for QL.  Defaults to None.
-        boxcar_radius (float, optional): Boxcar radius for extraction.  
-            In units of arcsec.  Defaults to None.
-        bkg_redux (bool, optional): Setup for A-B subtraction.  Defaults to False.
-        stack (bool, optional): Stack the science frames.  Defaults to True.
+        redux_path (:obj:`str`):
+            Path to the redux folder
+        ref_calib_dir (`Path`_):
+            Path with the pre-processed calibration frames.  A symlink will be
+            created to this directory from within ``redux_path`` to mimic the
+            location of the calibrations expected by :class:`~pypeit.PypeIt`.
+        ps_sci (:class:`~pypeit.pypeitsetup.PypeItSetup`):
+            Setup object for the science frame(s) only.
+        det (:obj:`str`, optional):
+            Detector/mosaic identifier.  If None, all detectors are reduced.
+        remove_sci_dir (:obj:`bool`, optional):
+            Remove the science directory if it exists.
+        slitspatnum (:obj:`str`, optional):  
+            Used to identify the slit that should be reduced; see
+            :ref:`reduxpar`.  If None, all slits are reduced.
+        maskID (:obj:`str`, optional):
+            Slit identifier from the mask design, used to select a single slit
+            to reduce.  If None, all slits are reduced.
+        boxcar_radius (:obj:`float`, optional):
+            Boxcar radius in arcsec used for extraction.  
+        bkg_redux (:obj:`bool`, optional):
+            Setup for dithered, difference-imaging reduction.
+        stack (:obj:`bool`, optional):
+            Reduce all of the science frames by stacking them all into a single
+            image.
 
-    Returns: 
-        tuple: name of pypeit file (str), pypeitFile object (:class:`~pypeit.inputfiles.PypeItFile`)
+    Returns:
+        :obj:`str`:  The name of the pypeit file.
     """
 
     # Check the directory with the reference calibrations exists
@@ -224,25 +224,6 @@ def generate_sci_pypeitfile(redux_path:str,
     return ps_sci.fitstbl.write_pypeit(output_path=sci_dir,
                                        cfg_lines=configobj.ConfigObj(cfg).write(),
                                        write_bkg_pairs=True, configs=setup)[0]
-
-#    # Odds and ends at the finish
-#    output_cols = ps_sci.fitstbl.set_pypeit_cols(write_bkg_pairs=True, write_manual=False)
-#    file_paths = np.unique([os.path.dirname(ff) for ff in sci_files]).tolist()
-#
-#    # Generate
-#    pypeitFile = inputfiles.PypeItFile(
-#        config=config_lines, 
-#        file_paths=file_paths,
-#        data_table=ps_sci.fitstbl.table[output_cols],
-#        setup=setup)
-#
-#    # Write
-#    pypeit_file = f'{ps_sci.spectrograph.name}_{master_setup_and_bit[0]}.pypeit' 
-#    science_pypeit_filename = os.path.join(sci_dir, pypeit_file)
-#    pypeitFile.write(science_pypeit_filename)
-
-#    # Return
-#    return science_pypeit_filename, pypeitFile
 
 
 def match_science_to_calibs(ps_sci:pypeitsetup.PypeItSetup, 
@@ -484,7 +465,7 @@ class QL(scriptbase.ScriptBase):
         if any(unknown_types):
             # TODO: Remove them and keep going or fault?
             # TODO: Check these against ones that have been specified as science using 'sci_files'
-            msgs.error('Could not determing frame types for the following files: ' +
+            msgs.error('Could not determine frame types for the following files: ' +
                        ', '.join(ps.fitstbl['frametype'][unknown_types]))
         
         # Calibrate, if necessary

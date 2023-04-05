@@ -583,6 +583,9 @@ class Calibrations:
                       'slit-illumination flats, and the files are not the same.  Ignoring the '
                       'slit-illumination flat.')
         cal_file = illum_cal_file if pixel_cal_file is None else pixel_cal_file
+        calib_key = illum_calib_key if pixel_calib_key is None else pixel_calib_key
+        setup = illum_setup if pixel_setup is None else pixel_setup
+        calib_id = illum_calib_id if pixel_calib_id is None else pixel_calib_id
         if cal_file.exists() and self.reuse_calibs:
             self.flatimages = flatfield.FlatImages.from_file(cal_file)
             self.flatimages.is_synced(self.slits)

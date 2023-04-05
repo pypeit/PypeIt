@@ -411,19 +411,28 @@ class InputFile:
         # Return
         return data_files
 
-    def write(self, input_file):
+    def write(self, input_file, version_override=None, date_override=None):
         """
         Write an Input file to disk
 
         Args:
-            input_file (str): Name of PypeIt file to be generated
+            input_file (:obj:`str`):
+                Name of PypeIt file to be generated
+            version_override (:obj:`str`, optional):
+                Override the current version and use this one instead.  **For
+                documentation purposes only!**
+            date_override (:obj:`str`, optional):
+                Override the current version and use this one instead.  **For
+                documentation purposes only!**
         """
+        _version = __version__ if version_override is None else version_override
+        _date = datetime.utcnow().isoformat(timespec='milliseconds') \
+                    if date_override is None else date_override
 
         # Here we go
         with open(input_file, 'w') as f:
-            f.write(f'# Auto-generated {self.flavor} input file using PypeIt version: {__version__}\n')
-            #f.write('# {0}\n'.format(time.strftime("%Y-%m-%d",time.localtime())))
-            f.write('# UTC {0}\n'.format(datetime.utcnow().isoformat(timespec='milliseconds')))
+            f.write(f'# Auto-generated {self.flavor} input file using PypeIt version: {_version}\n')
+            f.write(f'# UTC {_date}\n')
             f.write("\n")
 
             # Parameter block

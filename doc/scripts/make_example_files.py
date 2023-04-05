@@ -19,7 +19,7 @@ from pypeit import pypeitsetup
 
 #-----------------------------------------------------------------------------
 
-def make_example_kast_pypeit_file():
+def make_example_kast_pypeit_file(version, date):
 
     oroot = Path(resource_filename('pypeit', '')).resolve().parent / 'doc' / 'include'
 
@@ -27,7 +27,9 @@ def make_example_kast_pypeit_file():
                 / 'RAW_DATA' / 'shane_kast_blue' / '600_4310_d55'
     
     pargs = setup.Setup.parse_args(['-r', str(droot), '-s', 'shane_kast_blue', '-c', 'all',
-                                    '-d', str(oroot)])
+                                    '-d', str(oroot),
+                                    '--version_override', version, 
+                                    '--date_override', date])
     setup.Setup.main(pargs)
 
     ofile = oroot / 'shane_kast_blue_A.pypeit.rst'
@@ -43,14 +45,16 @@ def make_example_kast_pypeit_file():
     shutil.rmtree(oroot / 'shane_kast_blue_A')
 
 
-def make_example_deimos_pypeit_file():
+def make_example_deimos_pypeit_file(version, date):
 
     oroot = Path(resource_filename('pypeit', '')).resolve().parent / 'doc' / 'include'
 
     droot = Path(os.getenv('PYPEIT_DEV')).resolve() / 'RAW_DATA' / 'keck_deimos' / '1200G_M_7750'
     
     pargs = setup.Setup.parse_args(['-r', str(droot), '-s', 'keck_deimos', '-c', 'all',
-                                    '-d', str(oroot)])
+                                    '-d', str(oroot),
+                                    '--version_override', version, 
+                                    '--date_override', date])
     setup.Setup.main(pargs)
 
     ofile = oroot / 'keck_deimos_A.pypeit.rst'
@@ -66,7 +70,7 @@ def make_example_deimos_pypeit_file():
     shutil.rmtree(oroot / 'keck_deimos_A')
 
 
-def make_example_gnirs_pypeit_files():
+def make_example_gnirs_pypeit_files(version, date):
 
     oroot = Path(resource_filename('pypeit', '')).resolve().parent / 'doc' / 'include'
 
@@ -74,7 +78,9 @@ def make_example_gnirs_pypeit_files():
     droot = Path(os.getenv('PYPEIT_DEV')).resolve() / 'RAW_DATA' / 'gemini_gnirs' / '32_SB_SXD'
     
     pargs = setup.Setup.parse_args(['-r', str(droot), '-s', 'gemini_gnirs', '-b', '-c', 'A',
-                                    '-d', str(oroot)])
+                                    '-d', str(oroot),
+                                    '--version_override', version, 
+                                    '--date_override', date])
     setup.Setup.main(pargs)
 
     ofile = oroot / 'gemini_gnirs_A.pypeit.rst'
@@ -104,15 +110,17 @@ def make_example_gnirs_pypeit_files():
         f.write('\n\n')
 
 
-def make_example_nires_pypeit_files():
+def make_example_nires_pypeit_files(version, date):
 
     oroot = Path(resource_filename('pypeit', '')).resolve().parent / 'doc' / 'include'
 
     # Create the default pypeit file
-    droot = Path(os.getenv('PYPEIT_DEV')).resolve() / 'RAW_DATA' / 'keck_nires' / 'NIRES'
+    droot = Path(os.getenv('PYPEIT_DEV')).resolve() / 'RAW_DATA' / 'keck_nires' / 'ABBA_wstandard'
     
     pargs = setup.Setup.parse_args(['-r', str(droot), '-s', 'keck_nires', '-b', '-c', 'A',
-                                    '-d', str(oroot)])
+                                    '-d', str(oroot),
+                                    '--version_override', version, 
+                                    '--date_override', date])
     setup.Setup.main(pargs)
 
     ofile = oroot / 'keck_nires_A.pypeit.rst'
@@ -198,15 +206,15 @@ def make_meta_examples():
 if __name__ == '__main__':
     t = time.perf_counter()
     print('Making shane_kast_blue_A.pypeit.rst')
-    make_example_kast_pypeit_file()
+    make_example_kast_pypeit_file('1.12.2', '2023-04-05T22:42:29.971')
     print('Making keck_deimos_A.pypeit.rst')
-    make_example_deimos_pypeit_file()
+    make_example_deimos_pypeit_file('1.12.2', '2023-04-05T22:42:29.971')
     print('Making gemini_gnirs files')
-    make_example_gnirs_pypeit_files()
+    make_example_gnirs_pypeit_files('1.12.2', '2023-04-05T22:42:29.971')
+    print('Making keck_nires files')
+    make_example_nires_pypeit_files('1.12.2', '2023-04-05T22:42:29.971')
     print('Making keck_deimos.sorted.rst')
     make_example_sorted_file()
-    print('Making keck_nires files')
-    make_example_nires_pypeit_files()
     print('Make meta examples')
     make_meta_examples()
     print('Elapsed time: {0} seconds'.format(time.perf_counter() - t))
