@@ -1554,9 +1554,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         iwv = np.where(wv_calib.spat_ids == slits.spat_id[sl_ref])[0][0]
         # Allow for wavelength failures
         if wv_calib.wv_fits is not None and wv_calib.wv_fits[iwv].fwhm is not None:
-            # TODO :: NEED TO CHOOSE IF THIS IS TO BE ANGSTROMS OR PIXELS
             ref_fwhm_pix = wv_calib.wv_fits[iwv].fwhm
-            ref_fwhm_ang = wv_calib.wv_fits[iwv].cen_disp * ref_fwhm_pix
         # Get an object spectrum
         thismask = (slitid_img_init == slits.spat_id[sl_ref])
         # Dummy spec for extract_boxcar
@@ -1564,7 +1562,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                                                parset['reduce']['extraction']['boxcar_radius'],
                                                slits, trace_spat[:, sl_ref], hdr['PYPELINE'], det)
         # Calculate the flexure
-        flex_dict = flexure.spec_flex_shift(ref_skyspec, sky_spectrum, sky_fwhm_pix, spec_fwhm=ref_fwhm_ang,
+        flex_dict = flexure.spec_flex_shift(ref_skyspec, sky_spectrum, sky_fwhm_pix, spec_fwhm=ref_fwhm_pix,
                                             mxshft=flexpar['spec_maxshift'], excess_shft=flexpar['excessive_shift'],
                                             method="slitcen")
         # This absolute shift is the same for all slits
@@ -1575,9 +1573,9 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             # Dummy spec for extract_boxcar
             this_skyspec = flexure.get_sky_spectrum(sciimg, ivar, waveimg, thismask, skysubImg,
                                                    parset['reduce']['extraction']['boxcar_radius'],
-                                                   slits, trace_spat[:, sl_ref], hdr['PYPELINE'], det)
+                                                   slits, trace_spat[:, slit_idx], hdr['PYPELINE'], det)
             # Calculate the flexure
-            flex_dict = flexure.spec_flex_shift(this_skyspec, ref_skyspec, ref_fwhm_pix, spec_fwhm=spec_fwhm,
+            flex_dict = flexure.spec_flex_shift(this_skyspec, ref_skyspec, ref_fwhm_pix*1.01, spec_fwhm=ref_fwhm_pix,
                                                 mxshft=flexpar['spec_maxshift'], excess_shft=flexpar['excessive_shift'],
                                                 method="slitcen")
 
