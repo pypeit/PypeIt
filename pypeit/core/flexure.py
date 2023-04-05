@@ -128,7 +128,7 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm=None, mxsh
         arx_fwhm_pix (:obj:`float`):
             Spectral FWHM (in pixels) of the archived sky spectrum.
         spec_fwhm (:obj:`float`, optional):
-            Spectral FWHM (in pixels) of the sky spectrum related to our object/slit.
+            Spectral FWHM (in Angstroms) of the sky spectrum related to our object/slit.
         mxshft (:obj:`float`, optional):
             Maximum allowed shift from flexure;  note there are cases that
             have been known to exceed even 30 pixels..
@@ -323,11 +323,11 @@ def get_fwhm_gauss_smooth(arx_skyspec, obj_skyspec, arx_fwhm_pix, spec_fwhm=None
         arx_skyspec (:class:`linetools.spectra.xspectrum1d.XSpectrum1d`):
             Archived sky spectrum.
         obj_skyspec (:class:`linetools.spectra.xspectrum1d.XSpectrum1d`):
-            Spectrum of the sky related to our object.
+            Sky spectrum associated with the science target.
         arx_fwhm_pix (:obj:`float`):
             Spectral FWHM (in pixels) of the archived sky spectrum.
         spec_fwhm (:obj:`float`, optional):
-            Spectral FWHM (in pixels) of the sky spectrum related to our object.
+            Spectral FWHM (in Angstroms) of the sky spectrum with the science target.
 
     Returns:
         :obj:`float`: FWHM of the smoothing Gaussian in pixels.
@@ -423,7 +423,7 @@ def spec_flex_shift_global(slit_specs, islit, sky_spectrum, arx_fwhm_pix, empty_
         keys_to_update (:obj:`list`):
             List of flexure dictionary keys that we need to update.
         spec_fwhm (:obj:`float`, optional):
-            Spectral FWHM (in pixels) of the sky spectrum related to our object.
+            Spectral FWHM (in Angstroms) of the sky spectrum related to our object.
         mxshft (:obj:`int`, optional):
             Maximum allowed shift from flexure. Passed to spec_flex_shift().
         excess_shft (:obj:`str`, optional):
@@ -496,7 +496,7 @@ def spec_flex_shift_local(slits, slitord, specobjs, islit, sky_spectrum, arx_fwh
         keys_to_update (:obj:`list`):
             List of flexure dictionary keys that we need to update.
         spec_fwhm (:obj:`float`, optional):
-            Spectral FWHM (in pixels) of the sky spectrum related to our object.
+            Spectral FWHM (in Angstroms) of the sky spectrum related to our object.
         mxshft (:obj:`int`, optional):
             Maximum allowed shift from flexure. Passed to spec_flex_shift().
         excess_shft (:obj:`str`, optional):
@@ -673,7 +673,7 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
             iwv = np.where(wv_calib.spat_ids == slits.spat_id[islit])[0][0]
             # Allow for wavelength failures
             if wv_calib.wv_fits is not None and wv_calib.wv_fits[iwv].fwhm is not None: 
-                spec_fwhm = wv_calib.wv_fits[iwv].fwhm  # This is the FWHM in pixels
+                spec_fwhm = wv_calib.wv_fits[iwv].cen_disp * wv_calib.wv_fits[iwv].fwhm
 
         if slit_cen:
             # global flexure
@@ -790,7 +790,6 @@ def spec_flexure_slit_global(sciImg, waveimg, global_sky, par, slits, slitmask, 
         dict if the slit is skipped.
     """
     # TODO :: Need to think about spatial flexure - is the appropriate spatial flexure already included in trace_spat via left/right slits?
-    trace_spec = np.arange(slits.nspec)
     slit_specs = []
     # get boxcar radius
     box_radius = par['reduce']['extraction']['boxcar_radius']
@@ -798,25 +797,11 @@ def spec_flexure_slit_global(sciImg, waveimg, global_sky, par, slits, slitmask, 
         if not gd_slits[ss]:
             slit_specs.append(None)
             continue
-        slit_spat = slits.spat_id[ss]
-        thismask = (slitmask == slit_spat)
+        thismask = (slitmask == slits.spat_id[ss])
         inmask = sciImg.select_flag(invert=True) & thismask
-
-        # Dummy spec for extract_boxcar
-        spec = specobj.SpecObj(PYPELINE=pypeline,
-                               SLITID=ss,
-                               ECH_ORDER=ss,  # Use both to cover the bases for naming
-                               DET=str(det))
-        spec.trace_spec = trace_spec
-        spec.TRACE_SPAT = trace_spat[:, ss]
-        spec.BOX_RADIUS = box_radius
-        # Extract
-        extract.extract_boxcar(sciImg.image, sciImg.ivar, inmask, waveimg, global_sky, spec)
-        slit_wave, slit_sky = spec.BOX_WAVE, spec.BOX_COUNTS_SKY
-
-        # TODO :: Need to remove this XSpectrum1D dependency - it is required in:  flexure.spec_flex_shift
         # Pack
-        slit_specs.append(xspectrum1d.XSpectrum1D.from_tuple((slit_wave, slit_sky)))
+        slit_specs.append(get_sky_spectrum(sciImg.image, sciImg.ivar, waveimg, inmask, global_sky,
+                                           box_radius, slits, trace_spat[:, ss], pypeline, det))
 
     # Measure flexure
     flex_list = spec_flexure_slit(slits, slits.slitord_id, np.logical_not(gd_slits),
@@ -826,6 +811,22 @@ def spec_flexure_slit_global(sciImg, waveimg, global_sky, par, slits, slitmask, 
                                   excess_shft=par['flexure']['excessive_shift'],
                                   specobjs=None, slit_specs=slit_specs, wv_calib=wv_calib)
     return flex_list
+
+
+def get_sky_spectrum(sciimg, ivar, waveimg, thismask, global_sky, box_radius, slits, trace_spat, pypeline, det):
+    """ Obtain a boxcar extraction of the sky spectrum
+
+    """
+    spec = specobj.SpecObj(PYPELINE=pypeline, SLITID=-1, DET=str(det))
+    spec.trace_spec = np.arange(slits.nspec)
+    spec.TRACE_SPAT = trace_spat
+    spec.BOX_RADIUS = box_radius
+    # Extract
+    extract.extract_boxcar(sciimg, ivar, thismask, waveimg, global_sky, spec)
+    slit_wave, slit_sky = spec.BOX_WAVE, spec.BOX_COUNTS_SKY
+    # TODO :: Need to remove this XSpectrum1D dependency - it is required in:  flexure.spec_flex_shift
+    obj_skyspec = xspectrum1d.XSpectrum1D.from_tuple((slit_wave, slit_sky))
+    return obj_skyspec
 
 
 def spec_flexure_corrQA(ax, this_flex_dict, cntr, name):

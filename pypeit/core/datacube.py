@@ -1537,30 +1537,45 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         #######################################################################
         from pypeit.core import flexure
         from pypeit.core.wavecal import autoid
+        from linetools.spectra import xspectrum1d
+
         # Obtain a reference spectrum
         sl_ref = flatpar['slit_illum_ref_idx']
         # Calculate the absolute spectral flexure correction for the reference slit
         trace_spat = 0.5 * (slits_left + slits_right)
         sky_spectrum = data.load_sky_spectrum(flexpar['spectrum'])
         # get arxiv sky spectrum resolution (FWHM in pixels)
-        arx_fwhm_pix = autoid.measure_fwhm(sky_spectrum.flux.value, sigdetect=4., fwhm=4.)
+        sky_fwhm_pix = autoid.measure_fwhm(sky_spectrum.flux.value, sigdetect=4., fwhm=4.)
         # get spectral FWHM (in Angstrom) if available
-        spec_fwhm = None
+        ref_fwhm_ang = None
         if wv_calib is not None:
             iwv = np.where(wv_calib.spat_ids == slits.spat_id[sl_ref])[0][0]
             # Allow for wavelength failures
             if wv_calib.wv_fits is not None and wv_calib.wv_fits[iwv].fwhm is not None:
-                spec_fwhm = wv_calib.wv_fits[iwv].fwhm
+                ref_fwhm_ang = wv_calib.wv_fits[iwv].cen_disp * wv_calib.wv_fits[iwv].fwhm
+        # Get an object spectrum
+        thismask = (slitid_img_init == slits.spat_id[sl_ref])
+        # Dummy spec for extract_boxcar
+        ref_skyspec = flexure.get_sky_spectrum(sciimg, ivar, waveimg, thismask, skysubImg,
+                                               parset['reduce']['extraction']['boxcar_radius'],
+                                               slits, trace_spat[:, sl_ref], hdr['PYPELINE'], det)
         # Calculate the flexure
-        flex_dict = flexure.spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm=spec_fwhm,
+        flex_dict = flexure.spec_flex_shift(ref_skyspec, sky_spectrum, sky_fwhm_pix, spec_fwhm=ref_fwhm_ang,
                                             mxshft=flexpar['spec_maxshift'], excess_shft=flexpar['excessive_shift'],
                                             method="slitcen")
         # This absolute shift is the same for all slits
-        slitshift = np.ones(slits.nslits) * flex_dict['shift'][0]
+        slitshift = np.ones(slits.nslits) * flex_dict['shift']
         # Now loop through all slits to calculate the additional shift relative to the reference slit
         for slit_idx, slit_spat in enumerate(slits.spat_id):
-            onslit_init = (slitid_img_init == slit_spat)
-            # Construct the spectrum at this slit
+            thismask = (slitid_img_init == slit_spat)
+            # Dummy spec for extract_boxcar
+            this_skyspec = flexure.get_sky_spectrum(sciimg, ivar, waveimg, thismask, skysubImg,
+                                                   parset['reduce']['extraction']['boxcar_radius'],
+                                                   slits, trace_spat[:, sl_ref], hdr['PYPELINE'], det)
+            # Calculate the flexure
+            flex_dict = flexure.spec_flex_shift(this_skyspec, ref_skyspec, ref_fwhm_ang, spec_fwhm=spec_fwhm,
+                                                mxshft=flexpar['spec_maxshift'], excess_shft=flexpar['excessive_shift'],
+                                                method="slitcen")
 
             # Calculate the shift
             fdict = spec_flex_shift(slit_specs[slit_idx], sky_spectrum, arx_fwhm_pix, mxshft=mxshft, excess_shft=excess_shft,
