@@ -400,59 +400,96 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
 
     # Plot lefts. Points need to be int or float. Use of .tolist() on
     # each array insures this
-    for i in range(nleft):
-        points = list(zip(y[::pstep, i].tolist(), _left[::pstep,i].tolist())) if rotate \
-            else list(zip(_left[::pstep,i].tolist(), y[::pstep, i].tolist()))
-        canvas.add(str('path'), points, color=str('green'))
-        if not synced:
-            # Add text
-            xt, yt = float(_left_id_loc[top,i]), float(y[top, i])
-            xb, yb = float(_left_id_loc[bot,i]), float(y[bot, i])
-            if rotate:
-                xt, yt = yt, xt
-                xb, yb = yb, xb
-            canvas.add(str('text'), xb, yb, str('S{0}'.format(_left_ids[i])), color=str('aquamarine'),
-                       fontsize=20., rot_deg=90.)
-            #canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('green'), fontsize=20.)
+    canvas_list = [dict(type=str('path'),
+                        args=(list(zip(y[::pstep, i].tolist(), _left[::pstep,i].tolist())),) if rotate
+                        else (list(zip(_left[::pstep,i].tolist(), y[::pstep, i].tolist())),),
+                        kwargs=dict(color=str('green'))) for i in range(nleft)]
+    if not synced:
+        # Add text
+        canvas_list += [dict(type='text',
+                             args=(float(y[bot, i]), float(_left_id_loc[bot,i]), str('S{0}'.format(_left_ids[i]))) if rotate
+                             else (float(_left_id_loc[bot,i]), float(y[bot, i]), str('S{0}'.format(_left_ids[i]))),
+                             kwargs=dict(color=str('aquamarine'), fontsize=20., rot_deg=90.)) for i in range(nleft)]
+
+    # for i in range(nleft):
+    #     points = list(zip(y[::pstep, i].tolist(), _left[::pstep,i].tolist())) if rotate \
+    #         else list(zip(_left[::pstep,i].tolist(), y[::pstep, i].tolist()))
+    #     canvas.add(str('path'), points, color=str('green'))
+    #     if not synced:
+    #         # Add text
+    #         xt, yt = float(_left_id_loc[top,i]), float(y[top, i])
+    #         xb, yb = float(_left_id_loc[bot,i]), float(y[bot, i])
+    #         if rotate:
+    #             xt, yt = yt, xt
+    #             xb, yb = yb, xb
+    #         canvas.add(str('text'), xb, yb, str('S{0}'.format(_left_ids[i])), color=str('aquamarine'),
+    #                    fontsize=20., rot_deg=90.)
+    #         #canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('green'), fontsize=20.)
 
     # Plot rights. Points need to be int or float. Use of .tolist() on
     # each array insures this
-    for i in range(nright):
-        points = list(zip(y[::pstep, i].tolist(), _right[::pstep,i].tolist())) if rotate \
-                    else list(zip(_right[::pstep,i].tolist(), y[::pstep, i].tolist()))
-        canvas.add(str('path'), points, color=str('magenta'))
-        if not synced:
-            # Add text
-            xt, yt = float(_right_id_loc[top,i]), float(y[top])
-            xb, yb = float(_right_id_loc[bot,i]), float(y[bot])
-            if rotate:
-                xt, yt = yt, xt
-                xb, yb = yb, xb
-            canvas.add(str('text'), xb, yb, str('S{0}'.format(_right_ids[i])), color=str('red'),
-                       fontsize=20.)
-            canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('red'),
-                       fontsize=20.)
+    canvas_list += [dict(type=str('path'),
+                        args=(list(zip(y[::pstep, i].tolist(), _right[::pstep,i].tolist())),) if rotate
+                        else (list(zip(_right[::pstep,i].tolist(), y[::pstep, i].tolist())),),
+                        kwargs=dict(color=str('magenta'))) for i in range(nright)]
+    if not synced:
+        # Add text
+        canvas_list += [dict(type='text',
+                             args=(float(y[bot, i]), float(_right_id_loc[bot,i]), str('S{0}'.format(_right_ids[i]))) if rotate
+                             else (float(_right_id_loc[bot,i]), float(y[bot, i]), str('S{0}'.format(_right_ids[i]))),
+                             kwargs=dict(color=str('magenta'), fontsize=20., rot_deg=90.)) for i in range(nright)]
+
+    canvas.add('constructedcanvas', canvas_list)
+    # for i in range(nright):
+    #     points = list(zip(y[::pstep, i].tolist(), _right[::pstep,i].tolist())) if rotate \
+    #                 else list(zip(_right[::pstep,i].tolist(), y[::pstep, i].tolist()))
+    #     canvas.add(str('path'), points, color=str('magenta'))
+    #     if not synced:
+    #         # Add text
+    #         xt, yt = float(_right_id_loc[top,i]), float(y[top])
+    #         xb, yb = float(_right_id_loc[bot,i]), float(y[bot])
+    #         if rotate:
+    #             xt, yt = yt, xt
+    #             xb, yb = yb, xb
+    #         canvas.add(str('text'), xb, yb, str('S{0}'.format(_right_ids[i])), color=str('red'),
+    #                    fontsize=20.)
+    #         canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('red'),
+    #                    fontsize=20.)
 
     # Plot slit labels, if synced
-    if not synced:
-        return
-    for i in range(nslits):
-        xt, yt = float(_slit_id_loc[top,i]), float(y[top,i])
-        xb, yb = float(_slit_id_loc[bot,i]), float(y[bot,i])
-        if rotate:
-            xt, yt = yt, xt
-            xb, yb = yb, xb
+    if synced:
         # Slit IDs
-        canvas.add(str('text'), xb, yb-400, str('S{0}'.format(_slit_ids[i])), color=str('aquamarine'),
-                   fontsize=20., rot_deg=90.)
+        canvas_list += [dict(type='text',
+                             args=(float(y[bot, i]), float(_slit_id_loc[bot,i])-400, str('S{0}'.format(_slit_ids[i]))) if rotate
+                             else (float(_slit_id_loc[bot,i]), float(y[bot, i])-400, str('S{0}'.format(_slit_ids[i]))),
+                             kwargs=dict(color=str('aquamarine'), fontsize=20., rot_deg=90.)) for i in range(nslits)]
         # maskdef_ids
         if _maskdef_ids is not None:
-            canvas.add(str('text'), xb, yb-250, str('{0}'.format(_maskdef_ids[i])),
-                       color=str('cyan'), fontsize=20., rot_deg=90.)
-        # TODO -- Fix indices if you really want to show them
-        #canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('green'),
-        #           fontsize=20.)
+            canvas_list += [dict(type='text',
+                                 args=(float(y[bot, i]), float(_slit_id_loc[bot,i])-250, str('S{0}'.format(_slit_ids[i]))) if rotate
+                                 else (float(_slit_id_loc[bot,i]), float(y[bot, i])-250, str('S{0}'.format(_slit_ids[i]))),
+                                 kwargs=dict(color=str('cyan'), fontsize=20., rot_deg=90.)) for i in range(nslits)]
 
+
+    # if not synced:
+    #     return
+    # for i in range(nslits):
+    #     xt, yt = float(_slit_id_loc[top,i]), float(y[top,i])
+    #     xb, yb = float(_slit_id_loc[bot,i]), float(y[bot,i])
+    #     if rotate:
+    #         xt, yt = yt, xt
+    #         xb, yb = yb, xb
+    #     # Slit IDs
+    #     canvas.add(str('text'), xb, yb-400, str('S{0}'.format(_slit_ids[i])), color=str('aquamarine'),
+    #                fontsize=20., rot_deg=90.)
+    #     # maskdef_ids
+    #     if _maskdef_ids is not None:
+    #         canvas.add(str('text'), xb, yb-250, str('{0}'.format(_maskdef_ids[i])),
+    #                    color=str('cyan'), fontsize=20., rot_deg=90.)
+    #     # TODO -- Fix indices if you really want to show them
+    #     #canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('green'),
+    #     #           fontsize=20.)
+    canvas.add('constructedcanvas', canvas_list)
 
 def show_trace(viewer, ch, trace, trc_name='Trace', color='blue', clear=False,
                rotate=False, pstep=50, yval=None):
