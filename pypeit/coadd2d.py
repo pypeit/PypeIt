@@ -102,7 +102,7 @@ class CoAdd2D:
                 is not allowed if offsets are input.
             spec_samp_fact (:obj:`float`, optional):
                 Make the wavelength grid sampling finer (``spec_samp_fact`` less
-                than 1.0) or coarser (``spec_samp_fact`` greather than 1.0) by
+                than 1.0) or coarser (``spec_samp_fact`` greater than 1.0) by
                 this sampling factor. This basically multiples the 'native'
                 spectral pixel size by ``spec_samp_fact``, i.e. the units of
                 ``spec_samp_fact`` are pixels.

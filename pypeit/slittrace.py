@@ -16,10 +16,6 @@ from astropy.coordinates import SkyCoord, Angle
 from astropy import units
 from astropy.stats import sigma_clipped_stats
 from scipy.interpolate import RegularGridInterpolator, interp1d
-try:
-    from skimage import transform as skimageTransform
-except ImportError:
-    skimageTransform = None
 
 from pypeit import msgs
 from pypeit import datamodel
@@ -403,8 +399,7 @@ class SlitTraceSet(calibframe.CalibFrame):
             slitlen = np.median(slitlen, axis=1)
         return slitlen
 
-    def get_radec_image(self, wcs, alignments, tilts, locations,
-                        astrometric=True, initial=True, flexure=None):
+    def get_radec_image(self, wcs, alignSplines, tilts, initial=True, flexure=None):
         """Generate an RA and DEC image for every pixel in the frame
         NOTE: This function is currently only used for IFU reductions.
 
@@ -412,20 +407,11 @@ class SlitTraceSet(calibframe.CalibFrame):
         ----------
         wcs : astropy.wcs
             The World Coordinate system of a science frame
-        alignments : :class:`pypeit.alignframe.Alignments`
-            The alignments (traces) of the slits. This allows
-            different slits to be aligned correctly.
+        alignSplines : :class:`pypeit.alignframe.AlignmentSplines`
+            An instance of the AlignmentSplines class that allows one to build and
+            transform between detector pixel coordinates and WCS pixel coordinates.
         tilts : `numpy.ndarray`
             Spectral tilts.
-        locations : `numpy.ndarray`_, list
-            locations along the slit of the alignment traces. Must
-            be a 1D array of the same length as alignments.traces.shape[1]
-        maxslitlen : int
-            This is the slit length in pixels, and it should be the same
-            value that was passed to get_wcs() to generate the WCS that
-            is passed into this function as an argument.
-        astrometric : bool
-            Perform astrometric correction using alignment frame?
         initial : bool
             Select the initial slit edges?
         flexure : float, optional
@@ -437,31 +423,9 @@ class SlitTraceSet(calibframe.CalibFrame):
                 of shape (nspec, nspat), where the first ndarray is the RA image, and the
                 second ndarray is the DEC image. RA and DEC are in units degrees. The third
                 element of the tuple stores the minimum and maximum difference (in pixels)
-                between the WCS reference (usually the centre of the slit) and the edge of
+                between the WCS reference (usually the centre of the slit) and the edges of
                 the slits. The third array has a shape of (nslits, 2).
         """
-        msgs.work("Spatial flexure is not currently implemented for the astrometric alignment")
-        # Check if the user has skimage installed
-        if skimageTransform is None or alignments is None:
-            if skimageTransform is None:
-                    msgs.warn("scikit-image is not installed - astrometric correction not implemented")
-            else:
-                msgs.warn("Alignments were not provided - astrometric correction not implemented")
-            astrometric = False
-        # Prepare the parameters
-        if not astrometric:
-            left, right, _ = self.select_edges(initial=initial, flexure=flexure)
-            trace_cen = 0.5 * (left + right)
-        else:
-            if type(locations) is list:
-                locations = np.array(locations)
-            elif type(locations) is not np.ndarray:
-                msgs.error("locations must be a 1D list or 1D numpy array")
-            nspec, nloc, nslit = alignments.traces.shape
-
-            # Generate a spline of the waveimg for interpolation
-            tilt_spl = RegularGridInterpolator((np.arange(tilts.shape[0]), np.arange(tilts.shape[1])), tilts*(nspec-1), method='linear')
-
         # Initialise the output
         raimg = np.zeros((self.nspec, self.nspat))
         decimg = np.zeros((self.nspec, self.nspat))
@@ -472,46 +436,14 @@ class SlitTraceSet(calibframe.CalibFrame):
             onslit = (slitid_img_init == spatid)
             onslit_init = np.where(onslit)
             if self.mask[slit_idx] != 0:
-                msgs.error("Slit {0:d} ({1:d}/{2:d}) is masked. Cannot generate RA/DEC image.".format(spatid,
-                                                                                                      slit_idx+1,
-                                                                                                      self.spat_id.size))
-            if astrometric:
-                # Calculate the typical pixel difference in the spatial direction
-                medpixdiff = np.median(np.diff(alignments.traces[:, :, slit_idx], axis=1))
-                nspecpix = int(np.ceil(nspec / medpixdiff))
-                specpix = np.round(np.linspace(0.0, nspec-1, nspecpix)).astype(int)
-                # Calculate the source locations (pixel space)
-                xsrc = alignments.traces[specpix, :, slit_idx].flatten()
-                ysrc = specpix.repeat(nloc).flatten()
-                src = np.column_stack((xsrc, ysrc))
-                # Calculate the destinations (slit space)
-                xdst = locations[np.newaxis, :].repeat(nspecpix, axis=0).flatten()
-                ydst = tilt_spl((ysrc, xsrc))
-                dst = np.column_stack((xdst, ydst))
-                msgs.info("Calculating astrometric transform of slit {0:d}/{1:d}".format(slit_idx+1, nslit))
-                tform = skimageTransform.estimate_transform("polynomial", src, dst, order=1)
-                # msgs.info("Calculating inverse transform of slit {0:d}/{1:d}".format(slit_idx+1, nslit))
-                tfinv = skimageTransform.estimate_transform("polynomial", dst, src, order=1)
-                # Calculate the slitlength at a given tilt value
-                xyll = tfinv(np.column_stack((np.zeros(nspec), np.linspace(0.0, 1.0, nspec))))
-                xyrr = tfinv(np.column_stack((np.ones(nspec), np.linspace(0.0, 1.0, nspec))))
-                slitlen = np.sqrt((xyll[:, 0]-xyrr[:, 0])**2 + (xyll[:, 1]-xyrr[:, 1])**2)
-                slen_spl = interp1d(np.linspace(0.0, 1.0, nspec), slitlen, kind='linear',
-                                    bounds_error=False, fill_value="extrapolate")
-                slitlength = slen_spl(tilts[onslit_init])
-                # Now perform the transform
-                pixsrc = np.column_stack((onslit_init[1], onslit_init[0]))
-                pixdst = tform(pixsrc)
-                evalpos = (pixdst[:, 0] - 0.5) * slitlength
-            else:
-                evalpos = onslit_init[1] - trace_cen[onslit_init[0], slit_idx]
-            minmax[:, 0] = np.min(evalpos)
-            minmax[:, 1] = np.max(evalpos)
+                msgs.error(f"Slit {spatid} ({slit_idx+1}/{self.spat_id.size}) is masked. Cannot generate RA/DEC image.")
+            # Retrieve the pixel offset from the central trace
+            evalpos = alignSplines.transform(slit_idx, onslit_init[1], onslit_init[0])
+            minmax[slit_idx, 0] = np.min(evalpos)
+            minmax[slit_idx, 1] = np.max(evalpos)
+            # Calculate the WCS from the pixel positions
             slitID = np.ones(evalpos.size) * slit_idx - wcs.wcs.crpix[0]
-            if astrometric:
-                world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init]*(nspec-1), 0)
-            else:
-                world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, onslit_init[0], 0)
+            world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init]*(self.nspec-1), 0)
             # Set the RA first and DEC next
             raimg[onslit] = world_ra.copy()
             decimg[onslit] = world_dec.copy()
@@ -1420,13 +1352,13 @@ class SlitTraceSet(calibframe.CalibFrame):
                 #TODO -- Consider putting in a tolerance which if not met causes a crash
                 idx = np.argmin(np.abs(self.spat_id - slit_spat))
                 msk[idx] = False
-            self.mask[msk] = self.bitmask.turn_on(self.mask[msk], 
+            self.mask[msk] = self.bitmask.turn_on(self.mask[msk],
                                                   'USERIGNORE')
         elif user_slits['method'] == 'maskIDs':
             # Mask only the good one
             msk = np.logical_not(np.isin(self.maskdef_id, user_slits['slit_info']))
             # Set
-            self.mask[msk] = self.bitmask.turn_on(self.mask[msk], 
+            self.mask[msk] = self.bitmask.turn_on(self.mask[msk],
                                                   'USERIGNORE')
         else:
             msgs.error('Not ready for this method: {:s}'.format(
