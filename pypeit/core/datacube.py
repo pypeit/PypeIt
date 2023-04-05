@@ -1464,6 +1464,9 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         masterframe_name = masterframe.construct_file_name(wavecalib.WaveCalib, hdr['TRACMKEY'], master_dir=hdr['PYPMFDIR'])
         if os.path.isfile(masterframe_name):
             wv_calib = wavecalib.WaveCalib.from_file(masterframe_name)
+        else:
+            # TODO :: Need to think about what to do about this...
+            msgs.error("NEED TO THINK ABOUT THIS")
 
         # Try to load the relative scale image, if something other than the default has been provided
         relScaleImg = relScaleImgDef.copy()
@@ -1547,12 +1550,13 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         # get arxiv sky spectrum resolution (FWHM in pixels)
         sky_fwhm_pix = autoid.measure_fwhm(sky_spectrum.flux.value, sigdetect=4., fwhm=4.)
         # get spectral FWHM (in Angstrom) if available
-        ref_fwhm_ang = None
-        if wv_calib is not None:
-            iwv = np.where(wv_calib.spat_ids == slits.spat_id[sl_ref])[0][0]
-            # Allow for wavelength failures
-            if wv_calib.wv_fits is not None and wv_calib.wv_fits[iwv].fwhm is not None:
-                ref_fwhm_ang = wv_calib.wv_fits[iwv].cen_disp * wv_calib.wv_fits[iwv].fwhm
+        ref_fwhm_ang, ref_fwhm_pix = None, None
+        iwv = np.where(wv_calib.spat_ids == slits.spat_id[sl_ref])[0][0]
+        # Allow for wavelength failures
+        if wv_calib.wv_fits is not None and wv_calib.wv_fits[iwv].fwhm is not None:
+            # TODO :: NEED TO CHOOSE IF THIS IS TO BE ANGSTROMS OR PIXELS
+            ref_fwhm_pix = wv_calib.wv_fits[iwv].fwhm
+            ref_fwhm_ang = wv_calib.wv_fits[iwv].cen_disp * ref_fwhm_pix
         # Get an object spectrum
         thismask = (slitid_img_init == slits.spat_id[sl_ref])
         # Dummy spec for extract_boxcar
@@ -1573,7 +1577,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                                                    parset['reduce']['extraction']['boxcar_radius'],
                                                    slits, trace_spat[:, sl_ref], hdr['PYPELINE'], det)
             # Calculate the flexure
-            flex_dict = flexure.spec_flex_shift(this_skyspec, ref_skyspec, ref_fwhm_ang, spec_fwhm=spec_fwhm,
+            flex_dict = flexure.spec_flex_shift(this_skyspec, ref_skyspec, ref_fwhm_pix, spec_fwhm=spec_fwhm,
                                                 mxshft=flexpar['spec_maxshift'], excess_shft=flexpar['excessive_shift'],
                                                 method="slitcen")
 
