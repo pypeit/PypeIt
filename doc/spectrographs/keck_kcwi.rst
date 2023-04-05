@@ -163,6 +163,26 @@ Sky subtraction
 See :doc:`../skysub` for useful hints to define the sky regions
 using an interactive GUI.
 
+Flexure corrections
+-------------------
+
+KCWI suffers from a gentle spectral flexure correction. It is a gradient from the
+leftmost slice to the rightmost slice of about 2 pixels. By default, the pipeline
+does not correct for spectral flexure, because there needs to be decent sky detection
+in each slice for the correction to be done well. If you want to turn on the spectral
+flexure correction, add the following command to your :ref:`pypeit_file`:
+
+.. code-block:: ini
+
+    [flexure]
+        spec_method = slitcen
+
+Similarly, there is a slice dependent spatial flexure. Given that the spatial illumination
+profile of KCWI is also slice dependent, this spatial flexure could cause a problem with the
+relative illumination across the KCWI field-of-view in the reconstructed datacube. While the
+spatial flexure correction is partially implemented for KCWI (but is not done by default),
+users should use this option with caution.
+
 Flux calibration
 ----------------
 

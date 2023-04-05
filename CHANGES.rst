@@ -2,6 +2,7 @@
 1.12.3dev
 ---------
 
+- Implemented a resample algorithm when generating datacubes
 - Hotfix to docs to ensure pypeit_loaders api doc is generated
 - Allow user control of the local sky subtraction window
 - Deprecate use of python 3.8 with PypeIt, allow python 3.11
