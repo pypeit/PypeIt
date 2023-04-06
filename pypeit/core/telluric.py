@@ -1331,11 +1331,11 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
                       debug=debug_init)
 
     # Optionally, mask prominent stellar absorption features
-    mask_tot = flux_calib.get_mask(
-        wave, counts, counts_ivar, counts_mask, mask_telluric=False,
-        mask_hydrogen_lines=mask_hydrogen_lines, mask_helium_lines=mask_helium_lines,
-        hydrogen_mask_wid=hydrogen_mask_wid,
-    )
+    mask_bad, mask_recomb, mask_tell = flux_calib.get_mask(wave, counts, counts_ivar, counts_mask,
+                                              mask_hydrogen_lines=mask_hydrogen_lines,
+                                              mask_helium_lines=mask_helium_lines,
+                                              mask_telluric=False, hydrogen_mask_wid=hydrogen_mask_wid)
+    mask_tot = mask_bad & mask_recomb & mask_tell
 
     # Since we are fitting a sensitivity function, first compute counts per second per angstrom.
     TelObj = Telluric(wave, counts, counts_ivar, mask_tot, telgridfile, obj_params,

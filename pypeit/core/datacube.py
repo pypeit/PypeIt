@@ -1119,7 +1119,7 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
     # Prepare the header, and add the unit of flux to the header
     hdr = output_wcs.to_header()
     if fluxcal:
-        hdr['FLUXUNIT'] = (PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
+        hdr['FLUXUNIT'] = (flux_calib.PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
     else:
         hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
 
@@ -1362,7 +1362,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         # Calculate the sensitivity curve
         zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm =\
             flux_calib.fit_zeropoint(wave.value, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
-                          mask_hydrogen_lines=senspar['mask_hydrogen_lines'], mask_helium_line=senspar['mask_helium_lines'],
+                          mask_hydrogen_lines=senspar['mask_hydrogen_lines'],
+                          mask_helium_lines=senspar['mask_helium_lines'],
                           hydrogen_mask_wid=senspar['hydrogen_mask_wid'],
                           nresln=senspar['UVIS']['nresln'], resolution=senspar['UVIS']['resolution'],
                           trans_thresh=senspar['UVIS']['trans_thresh'], polyorder=senspar['polyorder'],
