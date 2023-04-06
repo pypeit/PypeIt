@@ -122,7 +122,7 @@ class CoAdd1D:
                 ivars = np.pad(ivars, padv, mode='constant', constant_values=(0, 1))
                 gpms = np.pad(gpms, padv, mode='constant', constant_values=(False, False))
             elif wave_iexp.shape[0] < waves.shape[0]:
-                padv = [(0, waves.shape[0]-wave_iexp.shape[0]), (0, 0)]
+                padv = [0, waves.shape[0]-wave_iexp.shape[0]]
                 wave_iexp = np.pad(wave_iexp, padv, mode='constant', constant_values=(0, 0))
                 flux_iexp = np.pad(flux_iexp, padv, mode='constant', constant_values=(0, 0))
                 ivar_iexp = np.pad(ivar_iexp, padv, mode='constant', constant_values=(0, 1))
@@ -130,7 +130,6 @@ class CoAdd1D:
             # Store the information
             waves[...,iexp], fluxes[...,iexp], ivars[..., iexp], gpms[...,iexp] \
                 = wave_iexp, flux_iexp, ivar_iexp, gpm_iexp
-
         return waves, fluxes, ivars, gpms, header_out
 
     def save(self, coaddfile, telluric=None, obj_model=None, overwrite=True):
