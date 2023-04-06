@@ -498,7 +498,8 @@ def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
     """
     # Extract some information from the HDU list
     flxcube = stdcube['FLUX'].data.T.copy()
-    varcube = stdcube['VARIANCE'].data.T.copy()
+    varcube = stdcube['SIG'].data.T.copy()**2
+    bpmcube = stdcube['BPM'].data.T.copy()
     numwave = flxcube.shape[2]
 
     # Setup the WCS
@@ -534,7 +535,7 @@ def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
     smask -= mask
 
     # Subtract the residual sky
-    skymask = (varcube > 0.0) * smask
+    skymask = np.logical_not(bpmcube) * smask
     skycube = flxcube * skymask
     skyspec = skycube.sum(0).sum(0)
     nrmsky = skymask.sum(0).sum(0)
@@ -552,7 +553,7 @@ def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
         norm_flux = wl_img[:,:,np.newaxis] * mask
         norm_flux /= np.sum(norm_flux)
         # Extract boxcar
-        cntmask = (varcube > 0.0) * mask  # Good pixels within the masked region around the standard star
+        cntmask = np.logical_not(bpmcube) * mask  # Good pixels within the masked region around the standard star
         flxscl = (norm_flux * cntmask).sum(0).sum(0)  # This accounts for the flux that is missing due to masked pixels
         scimask = flxcube * cntmask
         varmask = varcube * cntmask**2
@@ -565,7 +566,7 @@ def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
     elif method == 'gauss2d':
         msgs.error("Use method=boxcar... this method has not been thoroughly tested")
         # Generate a mask
-        fitmask = (varcube > 0.0) * mask
+        fitmask = np.logical_not(bpmcube) * mask
         # Setup the coordinates
         x = np.linspace(0, flxcube.shape[0] - 1, flxcube.shape[0])
         y = np.linspace(0, flxcube.shape[1] - 1, flxcube.shape[1])
@@ -612,7 +613,7 @@ def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
         msgs.info("Collapsing datacube to a 2D image")
         omask = mask+smask
         idx_sum = 0
-        cntmask = (varcube > 0.0) * omask
+        cntmask = np.logical_not(bpmcube) * omask
         scimask = flxcube * cntmask
         varmask = varcube * cntmask**2
         cnt_spec = cntmask.sum(idx_sum) * utils.inverse(omask.sum(idx_sum))
