@@ -340,11 +340,6 @@ class PypeItSetup:
 
         return self.par, self.spectrograph, self.fitstbl
 
-    # TODO: I removed the calib_IDs option because it wasn't being used and it's
-    # going to be hard to do right!
-    #                                  calib_IDs:list=None,
-    #       calib_IDs (list, optional):
-    #           List of calib IDs.
     def generate_ql_calib_pypeit_files(self, output_path:str, 
                                        det:str=None, 
                                        configs:str='all',
@@ -376,13 +371,6 @@ class PypeItSetup:
         if det is not None:
             self.user_cfg += [f'detnum = {det}']
         self.user_cfg += ['quicklook = True']
-
-#        # TODO -- Remove this if we can
-#        # Calib ID
-#        if calib_IDs is None:
-#            self.fitstbl.table['calib'] = '0'
-#        else:
-#            self.fitstbl.table['calib'] = calib_IDs
 
         # Write the PypeIt files
         # TODO: Exclude science/standard files from file?

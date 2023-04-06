@@ -36,6 +36,7 @@ from pypeit import msgs
 from pypeit import pypeitsetup
 from pypeit import io
 from pypeit import pypeit
+from pypeit.par.pypeitpar import PypeItPar
 from pypeit.calibframe import CalibFrame
 from pypeit.core.parse import parse_binning
 from pypeit.scripts import scriptbase
@@ -218,70 +219,87 @@ def generate_sci_pypeitfile(redux_path:str,
 
     # Add the boxcar radius if specified
     if boxcar_radius is not None:
-        cfg['redux'] = {'extraction': {'boxcar_radius': boxcar_radius}}
+        cfg['reduce'] = {'extraction' : {'boxcar_radius': boxcar_radius}}
 
-    # Write the pypeit file (note this returns the filename, not the list)
+    # Write the pypeit file (note this returns the filename, not the list,
+    # because of the [0] at the end of the call)
     return ps_sci.fitstbl.write_pypeit(output_path=sci_dir,
                                        cfg_lines=configobj.ConfigObj(cfg).write(),
-                                       write_bkg_pairs=True, configs=setup)[0]
+                                       write_bkg_pairs=True, configs=setup,
+                                       config_subdir=False)[0]
 
 
-def match_science_to_calibs(ps_sci:pypeitsetup.PypeItSetup, 
-                            calib_dir:str):
+def match_to_calibs(ps:pypeitsetup.PypeItSetup, calib_dir:str):
     """
-    Match a set of science frames to the set of pre-made calibrations in the
-    specified reduction folder, if any exists.
+    Match observations to a set of existing calibrations.
+
+    The calibrations must exist within the provided parent directory.  The
+    calibration directories must start with the PypeIt-specific name used for
+    the relevant spectrograph (e.g., ``shane_kast_blue``), and the
+    sub-directories must have a pypeit file that provides the instrument
+    configuration (setup) to be matched against the provided observation
+    metadata.
     
     Args:
-        ps_sci (:class:`pypeit.pypeitsetup.PypeItSetup`):
+        ps (:class:`pypeit.pypeitsetup.PypeItSetup`):
             Object providing metadata and parameters necessary to execute PypeIt
-            data reduction.  It is expected that this *only* includes science
-            frames.
+            data reduction.
         calib_dir (:obj:`str`):
-            Full path to the calibration directory.  This directory must exist.
+            Parent directory with the calibrations; see above.  This directory
+            must exist.
 
     Returns:
-        :obj:`tuple`: Provides the PypeIt file used to build the calibrations
+        `Path`_: Directory with existing calibrations that Provides the PypeIt file used to build the calibrations
         and the full path to the calibration directory.
     """
     # Check on one setup
-    if len(ps_sci.fitstbl.configs.keys()) > 1:
-        msgs.error('Your science files come from more than one setup. Please reduce them separately.')
+    if len(ps.fitstbl.configs.keys()) > 1:
+        msgs.error('Your observations use more than one setup.  They must be reduced separately.')
+
+    # Get the setup identifier.  This should be 'A' because there is only one
+    # setup, but this just ensures we're using the exact identifier.
+    setup = list(ps.fitstbl.configs.keys())[0]
 
     # Check the calibration directory exists
     _calib_dir = Path(calib_dir).resolve()
     if not _calib_dir.exists():
         msgs.error(f'Calibration directory does not exist: {_calib_dir}')
 
-    # Check against existing calibration PypeIt files
-    pypeit_files = sorted(_calib_dir.glob(
-                        f'{ps_sci.spectrograph.name}_*/{ps_sci.spectrograph.name}_calib_*.pypeit'))
-    mtch = []
+    # Find the pypeit files
+    pypeit_files = sorted(_calib_dir.glob('{0}_*/{0}*.pypeit'.format(ps.spectrograph.name)))
+
+    if len(pypeit_files) == 0:
+        msgs.error('Could not find any pypeit files!')
+
+    matched_calib_dir = []
     for pypeit_file in pypeit_files:
         # Read
         pypeitFile = inputfiles.PypeItFile.from_file(pypeit_file)
 
         # Check for a match
         match = True
-        for key in ps_sci.spectrograph.configuration_keys():
-            if ps_sci.fitstbl.configs['A'][key] != pypeitFile.setup[key]:
+        for key in ps.spectrograph.configuration_keys():
+            if ps.fitstbl.configs[setup][key] != pypeitFile.setup[key]:
                 match = False
                 break
+        if not match:
+            continue
 
-        # Found one, so add it
-        if match:
-            mtch.append(pypeit_file)
+        # Matched.  Use the pypeit file to set the directory with the
+        # calibrations and only add it if the directory exists.
+        par = PypeItPar.from_cfg_lines(pypeitFile.cfg_lines)
+        _matched_dir = pypeit_file.parent / par['calibrations']['calib_dir']
+        if _matched_dir.exists():
+            matched_calib_dir += [_matched_dir]
 
     # Are we ok?
-    if len(mtch) == 0:
+    if len(matched_calib_dir) == 0:
         msgs.error('Matched to zero setups.  The calibrations files are stale/wrong/corrupt.')
-    elif len(mtch) > 1:
+    elif len(matched_calib_dir) > 1:
         msgs.warn('Matched to multiple setups.  This should not have happened, but we will take '
                   'the first.')
 
-    # NOTE: Assumes ps_sci.par['calibrations']['calib_dir'] is the same as the
-    # default, and the default was used when the calibrations were processed.
-    return mtch[0], mtch[0].parent / ps_sci.par['calibrations']['calib_dir']
+    return matched_calib_dir[0]
 
 
 def get_setup_calib(calib_dir):
@@ -449,8 +467,8 @@ class QL(scriptbase.ScriptBase):
         if len(files) == 0:
             msgs.error('No files to read!  Check --raw_files, --raw_path, and/or --ext input.')
 
-        # Include an option to save the ingested file list as a PypeIt RawFile
-        # that can be edited?
+        # TODO: Include an option to save the ingested file list as a PypeIt
+        # RawFile that can be edited?
         # from pypeit.inputfiles import RawFiles
         # tbl = Table()
         # tbl['filename'] = [Path(r).resolve().name for r in files]
@@ -467,11 +485,55 @@ class QL(scriptbase.ScriptBase):
             # TODO: Check these against ones that have been specified as science using 'sci_files'
             msgs.error('Could not determine frame types for the following files: ' +
                        ', '.join(ps.fitstbl['frametype'][unknown_types]))
-        
+
+        # Science files
+        # TODO: Include standards as well?  Add a command-line option?
+        sci_idx = ps.fitstbl.find_frames('science') if args.sci_files is None \
+                        else np.in1d(ps.fitstbl['filename'].data, args.sci_files)
+
+        setup_calib_dir = None if args.setup_calib_dir is None \
+                            else Path(args.setup_calib_dir).resolve()
+        if any(sci_idx):
+            if args.bkg_redux:
+                # Binning
+                binspectral, binspatial = parse_binning(ps.fitstbl['binning'][sci_idx][0])
+                # Plate scale
+                # NOTE: Assumes that the platescale does not change between
+                # detectors or between observations!
+                platescale = ps.spectrograph.get_detector_par(1)['platescale']*binspatial
+                # Report
+                print_offset_report(ps.fitstbl[sci_idx], platescale)
+
+            # Generate science setup object
+            # TODO: What happens for science frames that automatically get typed as
+            # `arc,science,tilt` with separate calibration groups?
+            sci_files = ps.fitstbl.frame_paths(sci_idx)
+            ps_sci = pypeitsetup.PypeItSetup.from_rawfiles(sci_files, ps.spectrograph.name)
+            ps_sci.run(setup_only=True)
+            # Limit to a single science setup
+            if len(ps_sci.fitstbl.configs.keys()) > 1:
+                msgs.error('Your science files come from more than one setup.  They must be '
+                           'reduced separately.')
+
+            if args.parent_calib_dir is not None and setup_calib_dir is None:
+                # The parent directory has been defined, so try to find a
+                # relevant set of existing calibrations
+
+                # Set the calibrations directory, either provided by the user or by
+                # matching the available setups to that used for the science files
+                setup_calib_dir = match_to_calibs(ps_sci, args.parent_calib_dir)
+
+        elif not args.calib_only:
+            msgs.warn('No science frames found among the files provided.  Will only process '
+                      'calibration frames.  If you have provided science frames, you can specify '
+                      'which ones they are using the --sci_files option.')
+
         # Calibrate, if necessary
-        parent_calib_dir = args.parent_calib_dir if args.parent_calib_dir is not None \
-                                else args.redux_path
-        if args.setup_calib_dir is None:
+        if setup_calib_dir is None:
+            msgs.info('Building the processed calibration frames.')
+            parent_calib_dir = args.redux_path if args.parent_calib_dir is None \
+                                    else args.parent_calib_dir
+
             # Generate PypeIt files (and folders)
             calib_pypeit_files = ps.generate_ql_calib_pypeit_files(
                 parent_calib_dir, det=args.det, configs='all',
@@ -481,70 +543,41 @@ class QL(scriptbase.ScriptBase):
             for calib_pypeit_file in calib_pypeit_files: 
                 # Path to PypeIt file
                 redux_path = Path(calib_pypeit_file).resolve().parent
-                # Check for existing masters
-                calib_files = list((redux_path / ps.par['calibrations']['calib_dir']).glob('*'))
+
+                # Path for calibrations.
+                # NOTE: When running with science frames, there will only be one
+                # setup and one pypeit file.  So this sets the `setup_calib_dir`
+                # used for the science frames.  If calibrations are present from
+                # multiple setups, the code will have faulted above if there
+                # were science frames included.  Otherwise, only the
+                # calibrations will be processed and this object is only needed
+                # locally, within this for loop.
+                setup_calib_dir = redux_path / ps.par['calibrations']['calib_dir']
+
+                # Check for existing calibrations
+                # TODO: There may be a non-negligible overhead, but we should be
+                # able to use Calibrations.get_association to get the list of
+                # calibrations that *should* exist to figure out if we need to
+                # do anything.  Below just checks for any calibration files...
+                calib_files = list(setup_calib_dir.glob('*'))
                 if len(calib_files) > 0 and not args.overwrite_calibs:
                     msgs.info('Calibration files already exist.  Skipping calibration.')
                     continue
 
+                # Run
                 # TODO: What happens for science frames that automatically get
                 # typed as `arc,science,tilt` with separate calibration groups?
-
-                # TODO: There may be a non-negligible overhead, but we should be
-                # able to use Calibrations.get_association to get the list of
-                # calibrations that *should* exist to figure out if we need to
-                # do anything.  The above just checks for any calibration
-                # files...
-
-                # Run
                 pypeIt = pypeit.PypeIt(calib_pypeit_file,
                                        redux_path=str(redux_path),
                                        calib_only=True)
                 pypeIt.calib_all()
 
-        if args.calibs_only:
-            msgs.info('Calibrations only requested.  Exiting.')
+        if args.calibs_only or not any(sci_idx):
+            msgs.info('Only calibrations exist or request calibration processing only.  Exiting.')
             return
 
-        # Science files
-        # TODO: Include standards as well?  Add a command-line option?
-        sci_idx = ps.fitstbl.find_frames('science') if args.sci_files is None \
-                        else np.in1d(ps.fitstbl['filename'].data, args.sci_files)
-        if np.sum(sci_idx) == 0:
-            msgs.error('No science frames found in the provided files.  Add at least one or '
-                       'specify using --sci_files.')
-
-        # Dither pattern?
-        if args.bkg_redux:
-#            _det = None if args.det is None else [eval(d) for d in args.det]
-#            detectors = pypeit.PypeIt.select_detectors(ps.spectrograph, _det, args.slitspatnum)
-            # Binning
-            binspectral, binspatial = parse_binning(ps.fitstbl['binning'][sci_idx][0])
-            # Plate scale
-            # NOTE: Assumes that the platescale does not change between
-            # detectors or between observations!
-            platescale = ps.spectrograph.get_detector_par(1)['platescale']*binspatial
-            # Report
-            print_offset_report(ps.fitstbl[sci_idx], platescale)
-
-        # Generate science setup object
-        # TODO: What happens for science frames that automatically get typed as
-        # `arc,science,tilt` with separate calibration groups?
-        sci_files = ps.fitstbl.frame_paths(sci_idx)
-        ps_sci = pypeitsetup.PypeItSetup.from_rawfiles(sci_files, ps.spectrograph.name)
-        ps_sci.run(setup_only=True)
-        # Limit to a single science setup
-        if len(ps_sci.fitstbl.configs.keys()) > 1:
-            msgs.error('Your science files come from more than one setup.  They must be reduces '
-                       'separately.')
-
-        # Set the calibrations directory, either provided by the user or by
-        # matching the available setups to that used for the science files
-        setup_calib_dir = match_science_to_calibs(ps_sci, parent_calib_dir)[1] \
-                            if args.setup_calib_dir is None \
-                            else Path(args.setup_calib_dir).resolve()
-
-        # Build the PypeIt file and link to Masters
+        # Build the PypeIt file for the science frames and link to the existing
+        # calibrations.
         sci_pypeit_file = generate_sci_pypeitfile(
                     args.redux_path, 
                     setup_calib_dir, 
@@ -555,7 +588,7 @@ class QL(scriptbase.ScriptBase):
                     boxcar_radius=args.boxcar_radius,
                     bkg_redux=args.bkg_redux,
                     stack=args.stack)
-        
+
         # Run it
         pypeIt = pypeit.PypeIt(sci_pypeit_file, reuse_calibs=True)
         pypeIt.reduce_all()

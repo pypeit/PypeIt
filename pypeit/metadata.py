@@ -1507,7 +1507,8 @@ class PypeItMetaData:
 
     def write_pypeit(self, output_path=None, cfg_lines=None,
                      write_bkg_pairs=False, write_manual=False,
-                     configs=None, version_override=None, date_override=None):
+                     configs=None, config_subdir=True,
+                     version_override=None, date_override=None):
         """
         Write a pypeit file in data-table format.
 
@@ -1541,6 +1542,12 @@ class PypeItMetaData:
                 the configurations matched to this provided string or
                 list of strings (e.g., ['A','C']). See
                 :attr:`configs`.
+            config_subdir (:obj:`bool`, optional):
+                Flag to place the pypeit file in a subdirectory named for each
+                configuration.  If True, the pypeit file is written to
+                ``{spec}_{config}/{spec}_{config}.pypeit`` (e.g.,
+                ``shane_kast_blue_A/shane_kast_blue_A.pypeit``).  If False, the
+                pypeit file is placed directly in the ``output_path``.
             version_override (:obj:`str`, optional):
                 Override the current version and use this one instead.  **For
                 documentation purposes only!**
@@ -1582,9 +1589,12 @@ class PypeItMetaData:
         for j,setup in enumerate(cfg_keys):
             # Create the output directory
             root = '{0}_{1}'.format(self.spectrograph.name, setup)
-            odir = os.path.join(output_path, root)
-            if not os.path.isdir(odir):
-                os.makedirs(odir)
+            if config_subdir:
+                odir = os.path.join(output_path, root)
+                if not os.path.isdir(odir):
+                    os.makedirs(odir)
+            else:
+                odir = output_path
             # Create the output file name
             ofiles[j] = os.path.join(odir, '{0}.pypeit'.format(root))
 

@@ -768,7 +768,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
             pad_spec[npad // 2:npad // 2 + len(obs_spec_i)] = obs_spec_cont_sub
             tspec = templ_spec_cont_sub
         elif npad < 0:  # Pad the template!
-            pspec = obs_spec_cont_sub
+            pad_spec = obs_spec_cont_sub
             npad *= -1
             tspec = np.zeros(nspec)
             tspec[npad // 2:npad // 2 + ncomb] = templ_spec_cont_sub
