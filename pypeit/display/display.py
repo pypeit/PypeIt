@@ -491,7 +491,8 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
     #     #           fontsize=20.)
     canvas.add('constructedcanvas', canvas_list)
 
-def show_trace(viewer, ch, trace, trc_name='Trace', color='blue', clear=False,
+
+def show_trace(viewer, ch, trace, trc_name=None, maskdef_extr=None, manual_extr=None, clear=False,
                rotate=False, pstep=50, yval=None):
     """
 
@@ -500,44 +501,80 @@ def show_trace(viewer, ch, trace, trc_name='Trace', color='blue', clear=False,
             Ginga RC viewer
         ch (ginga.util.grc._channel_proxy):
             Ginga channel
-        trace (np.ndarray):
-            Spatial positions on the detector. Shape = (nspec,)
-        trc_name (str, optional):
-            Trace name
-        color (str, optional):
-            Color for the trace
-        clear (bool, optional):
+        trace (`numpy.ndarray`_):
+            Array with spatial position of the object traces on the detector.
+            Shape must be :math:`(N_{\rm spec},)` or :math:`(N_{\rm spec}, N_{\rm trace})`.
+        trc_name (`numpy.ndarray`_, optional):
+            Array with Trace names. Shape must be :math:`(N_{\rm trace},)`.
+        maskdef_extr (`numpy.ndarray`_, optional):
+            Array with the maskdef extraction flags. Shape must be :math:`(N_{\rm trace},)`.
+        manual_extr (`numpy.ndarray`_, optional):
+            Array with the manual extraction flags. Shape must be :math:`(N_{\rm trace},)`.
+        clear (:obj:`bool`, optional):
             Clear the canvas?
-        rotate (bool, optional):
+        rotate (:obj:`bool`, optional):
             Rotate the image?
-        pstep (int, optional):
-            Show every pstep point of the edges as opposed to *every* point, recommended for speed
-        yval (np.ndarray, optional):
-            If not provided, it is assumed the input x values track y=0,1,2,3,etc.
+        pstep (:obj:`bool`, optional):
+            Show every pstep point of the edges as opposed to *every*
+            point, recommended for speed.
+        yval (`numpy.ndarray`_, optional):
+            Array with spectral position of the object traces. Shape must be :math:`(N_{\rm spec},)`
+            or :math:`(N_{\rm spec}, N_{\rm trace})`. If not passed in, the default of
+            np.arange(:math:`(N_{\rm spec},)`) will be used.
 
     """
     # Canvas
     canvas = viewer.canvas(ch._chname)
     if clear:
         canvas.clear()
+    # # Show
+    # if yval is None:
+    #     y = (np.arange(trace.size)[::pstep]).tolist()
+    # else:
+    #     y = yval[::pstep].tolist()
+    # trace_list = trace[::pstep].tolist()
+    # xy = [trace_list, y]
+    # if rotate:
+    #     xy[0], xy[1] = xy[1], xy[0]
+    # points = list(zip(xy[0], xy[1]))
+    # canvas.add(str('path'), points, color=str(color))
+    # # Text
+    # ohf = len(trace_list)//2
+    # xyt = [float(trace_list[ohf]), float(y[ohf])]
+    # if rotate:
+    #     xyt[0], xyt[1] = xyt[1], xyt[0]
+    # # Do it
+    # canvas.add(str('text'), xyt[0], xyt[1], trc_name, rot_deg=90., color=str(color), fontsize=17.)
+
+    if trace.ndim == 1:
+        trace = trace.reshape(-1,1)
+
     # Show
     if yval is None:
-        y = (np.arange(trace.size)[::pstep]).tolist()
+        y = np.repeat(np.arange(trace.shape[0]).astype(float)[:, None], trace.shape[1], axis=1)
     else:
-        y = yval[::pstep].tolist()
-    trace_list = trace[::pstep].tolist()
-    xy = [trace_list, y]
-    if rotate:
-        xy[0], xy[1] = xy[1], xy[0]
-    points = list(zip(xy[0], xy[1]))
-    canvas.add(str('path'), points, color=str(color))
-    # Text
-    ohf = len(trace_list)//2
-    xyt = [float(trace_list[ohf]), float(y[ohf])]
-    if rotate:
-        xyt[0], xyt[1] = xyt[1], xyt[0]
-    # Do it
-    canvas.add(str('text'), xyt[0], xyt[1], trc_name, rot_deg=90., color=str(color), fontsize=17.)
+        y = yval.reshape(-1, 1) if yval.ndim == 1 else yval
+
+    canvas_list = []
+    for i in range(trace.shape[1]):
+        if maskdef_extr[i]:
+            color = '#f0e442'
+        elif manual_extr[i]:
+            color = '#33ccff'
+        else:
+            color = 'orange'
+        canvas_list += [dict(type=str('path'),
+                        args=(list(zip(y[::pstep,i].tolist(), trace[::pstep,i].tolist())),) if rotate
+                        else (list(zip(trace[::pstep,i].tolist(), y[::pstep,i].tolist())),),
+                        kwargs=dict(color=color))]
+        # Text
+        ohf = len(trace[:,i])//2
+        # Do it
+        canvas_list += [dict(type='text',args=(float(y[ohf,i]), float(trace[ohf,i]), str(trc_name[i])) if rotate
+                             else (float(trace[ohf,i]), float(y[ohf,i]), str(trc_name[i])),
+                             kwargs=dict(color=color, fontsize=17., rot_deg=90.))]
+
+    canvas.add('constructedcanvas', canvas_list)
 
 
 def clear_canvas(cname):
