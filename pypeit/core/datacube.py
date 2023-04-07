@@ -1127,7 +1127,7 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
 
     # Write out the datacube
     msgs.info("Saving datacube as: {0:s}".format(outfile))
-    final_cube = DataCube(datacube.T, np.sqrt(varcube.T), bpmcube, specname, blaze_wave, blaze_spec, sensfunc=sensfunc, fluxed=fluxcal)
+    final_cube = DataCube(datacube.T, np.sqrt(varcube.T), bpmcube.T, specname, blaze_wave, blaze_spec, sensfunc=sensfunc, fluxed=fluxcal)
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
 
     # Save a residuals cube, if requested
@@ -1205,7 +1205,7 @@ def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, vox_coord, bin
         hdu.writeto(outfile_resid, overwrite=overwrite)
 
     msgs.info("Saving datacube as: {0:s}".format(outfile))
-    final_cube = DataCube(datacube.T, np.sqrt(var_cube.T), bpmcube, specname, blaze_wave, blaze_spec,
+    final_cube = DataCube(datacube.T, np.sqrt(var_cube.T), bpmcube.T, specname, blaze_wave, blaze_spec,
                           sensfunc=sensfunc, fluxed=fluxcal)
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
 
