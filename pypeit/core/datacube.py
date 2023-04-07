@@ -445,7 +445,8 @@ def fitGaussian2D(image, norm=False):
     y = np.linspace(0, image.shape[1] - 1, image.shape[1])
     xx, yy = np.meshgrid(x, y, indexing='ij')
     # Setup the fitting params
-    idx_max = np.unravel_index(np.argmax(image), image.shape)
+    idx_max = [image.shape[0]/2, image.shape[1]/2]  # Just use the centre of the image as the best guess
+    #idx_max = np.unravel_index(np.argmax(image), image.shape)
     initial_guess = (1, idx_max[0], idx_max[1], 2, 2, 0, 0)
     bounds = ([0, 0, 0, 0.5, 0.5, -np.pi, -np.inf],
               [np.inf, image.shape[0], image.shape[1], image.shape[0], image.shape[1], np.pi, np.inf])
@@ -649,6 +650,7 @@ def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
     ret_flux *= arcsecSQ
     ret_var *= arcsecSQ**2
     # Return the box extraction results
+    embed()
     return wave, ret_flux, utils.inverse(ret_var), ret_gpm
 
 
@@ -1362,6 +1364,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                                          star_mag=senspar['star_mag'],
                                          ra=star_ra, dec=star_dec)
         # Calculate the sensitivity curve
+        embed()
         zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm =\
             fit_zeropoint(wave.value, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
                           mask_abs_lines=senspar['mask_abs_lines'], balm_mask_wid=senspar['UVIS']['balm_mask_wid'],
