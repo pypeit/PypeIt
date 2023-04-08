@@ -65,7 +65,7 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
             specflip        = True,
             spatflip        = False,
             platescale      = 0.125,  # arcsec per pixel
-            darkcurr        = 0.0,
+            darkcurr        = 5.0,
             saturation      = 65535., # ADU
             nonlinear       = 0.95,
             mincounts       = 0,
