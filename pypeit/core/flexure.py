@@ -666,7 +666,7 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
             flex_list.append(empty_flex_dict.copy())
             continue
 
-        # get spectral FWHM (in Angstrom) if available
+        # get spectral FWHM (in pixels) if available
         spec_fwhm_pix = None
         if wv_calib is not None:
             iwv = np.where(wv_calib.spat_ids == slits.spat_id[islit])[0][0]
