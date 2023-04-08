@@ -650,7 +650,6 @@ def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
     ret_flux *= arcsecSQ
     ret_var *= arcsecSQ**2
     # Return the box extraction results
-    embed()
     return wave, ret_flux, utils.inverse(ret_var), ret_gpm
 
 
