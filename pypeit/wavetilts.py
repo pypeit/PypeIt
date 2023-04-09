@@ -13,11 +13,17 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from astropy import stats, visualization
+from astropy.stats import sigma_clipped_stats
 
 from pypeit import msgs, datamodel
+from pypeit import utils
+from pypeit import slittrace
+from pypeit import wavecalib
+from pypeit import masterframe
 from pypeit.display import display
 from pypeit.core import arc
 from pypeit.core import tracewave
+from pypeit.images import buildimage
 
 from IPython import embed
 
@@ -63,7 +69,7 @@ class WaveTilts(datamodel.DataContainer):
                  'spat_flexure': dict(otype=float, descr='Flexure shift from the input TiltImage')}
 
     def __init__(self, coeffs, nslit, spat_id, spat_order, spec_order, func2d, bpmtilts=None,
-                 spat_flexure=None, PYP_SPEC=None):
+                 spat_flexure=None, PYP_SPEC=None, trace_dict=None):
 
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -72,6 +78,7 @@ class WaveTilts(datamodel.DataContainer):
         datamodel.DataContainer.__init__(self, d=d)
 
     def _init_internals(self):
+        self.filename = None
         # Master stuff
         self.master_key = None
         self.master_dir = None
@@ -144,6 +151,56 @@ class WaveTilts(datamodel.DataContainer):
         """
         mtch = self.spat_id == spat_id
         return np.where(mtch)[0][0]
+
+    def show(self, tilt_img=None, slits=None, waveimg=None, wcs_match=True, in_ginga=True):
+        """
+        """
+        # master_key is different for Tilts and Slits sometimes
+        # Warning: This parses the filename, not the Header!
+        master_key, master_dir = masterframe.grab_key_mdir(self.filename, from_filename=True)
+        # embed()
+        if slits is None:
+            slit_masterframe_name = masterframe.construct_file_name(slittrace.SlitTraceSet, master_key,
+                                                                    master_dir=master_dir)
+            if os.path.exists(slit_masterframe_name):
+                slits = slittrace.SlitTraceSet.from_file(slit_masterframe_name)
+            else:
+                msgs.warn('Could not load slits to show with tilts image.')
+        else:
+            left, right, mask = slits.select_edges()
+            gpm = mask == 0
+
+        if waveimg is None:
+            wave_masterframe_name = masterframe.construct_file_name(wavecalib.WaveCalib, master_key,
+                                                                    master_dir = master_dir)
+            if os.path.exists(wave_masterframe_name) and slits is not None:
+                wv_calib = wavecalib.WaveCalib.from_file(wave_masterframe_name)
+                slitmask = slits.slit_img(initial=True, flexure=self.spat_flexure)
+                tilts = self.fit2tiltimg(slitmask, flexure=self.spat_flexure)
+                waveimg = wv_calib.build_waveimg(tilts, slits, spat_flexure=self.spat_flexure)
+            else:
+                msgs.warn('Could not load Wave image to show with tilts image.')
+        if tilt_img is None:
+            tiltimg_masterframe_name = masterframe.construct_file_name(buildimage.TiltImage, master_key,
+                                                                    master_dir=master_dir)
+            if os.path.exists(tiltimg_masterframe_name):
+                tilt_img_dict = buildimage.TiltImage.from_file(tiltimg_masterframe_name)
+                tilt_img = tilt_img_dict.image
+            else:
+                msgs.err('Tiltimg not found.')
+
+        display.connect_to_ginga(raise_err=True, allow_new=True)
+        mean, med, sigma = sigma_clipped_stats(tilt_img, sigma_lower=5.0, sigma_upper=5.0)
+        cut_min = mean - 1.0 * sigma
+        cut_max = mean + 4.0 * sigma
+        if in_ginga:
+            viewer, ch = display.show_image(tilt_img, chname='Tilts', cuts=(cut_min, cut_max),
+                                            wcs_match=wcs_match, waveimg=waveimg, clear=True)
+            # display.show_tilts(viewer, ch, self.trace_dict)
+            if slits is not None:
+                display.show_slits(viewer, ch, left[:, gpm], right[:, gpm], slit_ids=slits.spat_id[gpm])
+        else:
+            show_tilts_mpl(tilt_img, self.trace_dict, cut=(cut_min, cut_max))
 
 
 class BuildWaveTilts:
@@ -652,9 +709,6 @@ class BuildWaveTilts:
 
             # TODO: Show the traces before running the 2D fit
 
-            if show:
-                display.show_tilts(viewer, ch, self.trace_dict)
-
             self.spat_order[slit_idx] = self._parse_param(self.par, 'spat_order', slit_idx)
             self.spec_order[slit_idx] = self._parse_param(self.par, 'spec_order', slit_idx)
             # 2D model of the tilts, includes construction of QA
@@ -677,29 +731,12 @@ class BuildWaveTilts:
             thismask_science = self.slitmask_science == slit_spat
             self.final_tilts[thismask_science] = self.tilts[thismask_science]
 
+        if show:
+            display.show_tilts(viewer, ch, self.all_trace_dict)
+
         if debug:
-            # TODO: Add this to the show method?
-            vmin, vmax = visualization.ZScaleInterval().get_limits(_mstilt)
-            plt.imshow(_mstilt, origin='lower', interpolation='nearest', aspect='auto',
-                       vmin=vmin, vmax=vmax)
-            for slit_idx, slit_spat in enumerate(self.slits.spat_id):
-                spat = self.all_trace_dict[slit_idx]['tilts_spat']
-                spec = self.all_trace_dict[slit_idx]['tilts']
-                spec_fit = self.all_trace_dict[slit_idx]['tilts_fit']
-                in_fit = self.all_trace_dict[slit_idx]['tot_mask']
-                not_fit = np.invert(in_fit) & (spec > 0)
-                fit_rej = in_fit & np.invert(self.all_trace_dict[slit_idx]['fit_mask'])
-                fit_keep = in_fit & self.all_trace_dict[slit_idx]['fit_mask']
-                plt.scatter(spat[not_fit], spec[not_fit], color='C1', marker='.', s=30, lw=0)
-                plt.scatter(spat[fit_rej], spec[fit_rej], color='C3', marker='.', s=30, lw=0)
-                plt.scatter(spat[fit_keep], spec[fit_keep], color='k', marker='.', s=30, lw=0)
-                with_fit = np.invert(np.all(np.invert(fit_keep), axis=0))
-                for t in range(in_fit.shape[1]):
-                    if not with_fit[t]:
-                        continue
-                    l, r = np.nonzero(in_fit[:,t])[0][[0,-1]]
-                    plt.plot(spat[l:r+1,t], spec_fit[l:r+1,t], color='k')
-            plt.show()
+            show_tilts_mpl(_mstilt, self.all_trace_dict)
+
 
         # Record the Mask
         bpmtilts = np.zeros_like(self.slits.mask, dtype=self.slits.bitmask.minimum_dtype())
@@ -707,7 +744,7 @@ class BuildWaveTilts:
             bpm = self.slits.bitmask.flagged(self.slits.mask, flag)
             if np.any(bpm):
                 bpmtilts[bpm] = self.slits.bitmask.turn_on(bpmtilts[bpm], flag)
-
+        embed()
         # Build and return DataContainer
         tilts_dict = {'coeffs':self.coeffs,
                       'func2d':self.par['func2d'], 'nslit':self.slits.nslits,
@@ -748,4 +785,48 @@ class BuildWaveTilts:
             txt = txt[:-2]+']'  # Trim the trailing comma
         txt += '>'
         return txt
+
+
+def show_tilts_mpl(tilt_img, trace_dict, cut=None):
+    """Show the tilts image with the traces overlaid
+
+    Args:
+        tilt_img (np.ndarray):
+            Tilts image
+        trace_dict (dict):
+            Dictionary containing the trace data
+        cut (tuple, optional):
+            Lower and upper levels cut for the image display
+    """
+
+    if cut is None:
+        cut = utils.growth_lim(tilt_img, 0.95, fac=1.05)
+
+    plt.imshow(tilt_img, origin='lower', interpolation='nearest', aspect='auto',
+               vmin=cut[0], vmax=cut[1])
+    for tdict in trace_dict:
+        spat = tdict['tilts_spat']
+        spec = tdict['tilts']
+        spec_fit = tdict['tilt_2dfit']
+        in_fit = tdict['tot_mask']
+        not_fit = np.invert(in_fit) & (spec > 0)
+        fit_rej = in_fit & np.invert(tdict['fit_mask'])
+        fit_keep = in_fit & tdict['fit_mask']
+        plt.scatter(spat[not_fit], spec[not_fit], color='red', marker='.', s=30, lw=0)
+        plt.scatter(spat[fit_rej], spec[fit_rej], color='magenta', marker='.', s=30, lw=0)
+        plt.scatter(spat[fit_keep], spec[fit_keep], color='cyan', marker='.', s=30, lw=0)
+        with_fit = np.invert(np.all(np.invert(fit_keep), axis=0))
+        for t in range(in_fit.shape[1]):
+            if not with_fit[t]:
+                continue
+            l, r = np.nonzero(in_fit[:, t])[0][[0, -1]]
+            plt.plot(spat[l:r + 1, t], spec_fit[l:r + 1, t], color='blue', linewidth=1)
+    plt.text(0.02, 0.05, 'Masked trace', transform=plt.gca().transAxes, ha='left', va='top', fontsize=10, color='red')
+    plt.text(0.02, 0.08, 'Rejected in fit', transform=plt.gca().transAxes, ha='left', va='top', fontsize=10, color='magenta')
+    plt.text(0.02, 0.11, 'Good trace', transform=plt.gca().transAxes, ha='left', va='top', fontsize=10, color='cyan')
+    plt.text(0.02, 0.14, 'Good tilt fit', transform=plt.gca().transAxes, ha='left', va='top', fontsize=10, color='blue')
+    plt.ylabel('Spectral pixel index')
+    plt.xlabel('Spatial pixel index')
+    plt.tight_layout()
+    plt.show()
 
