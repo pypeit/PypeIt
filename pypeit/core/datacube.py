@@ -1564,7 +1564,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                                                parset['reduce']['extraction']['boxcar_radius'],
                                                slits, trace_spat[:, sl_ref], hdr['PYPELINE'], det)
         # Calculate the flexure
-        flex_dict = flexure.spec_flex_shift(ref_skyspec, sky_spectrum, sky_fwhm_pix, spec_fwhm=ref_fwhm_pix,
+        flex_dict = flexure.spec_flex_shift(ref_skyspec, sky_spectrum, sky_fwhm_pix, spec_fwhm_pix=ref_fwhm_pix,
                                             mxshft=flexpar['spec_maxshift'], excess_shft=flexpar['excessive_shift'],
                                             method="slitcen")
         # This absolute shift is the same for all slits
@@ -1577,7 +1577,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                                                    parset['reduce']['extraction']['boxcar_radius'],
                                                    slits, trace_spat[:, slit_idx], hdr['PYPELINE'], det)
             # Calculate the flexure
-            flex_dict = flexure.spec_flex_shift(this_skyspec, ref_skyspec, ref_fwhm_pix*1.01, spec_fwhm=ref_fwhm_pix,
+            flex_dict = flexure.spec_flex_shift(this_skyspec, ref_skyspec, ref_fwhm_pix*1.01, spec_fwhm_pix=ref_fwhm_pix,
                                                 mxshft=flexpar['spec_maxshift'], excess_shft=flexpar['excessive_shift'],
                                                 method="slitcen")
 
