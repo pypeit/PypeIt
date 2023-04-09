@@ -565,37 +565,39 @@ class FlatField:
             rawflat_orig = self.rawflatimg.image.copy()
             # TODO: Should this be *any* flag, or just BPM?
             gpm = self.rawflatimg.select_flag(flag='BPM', invert=True)
-            niter = 2  # Need two iterations, particularly for the fine spatial illumination correction.
-            det_resp_model = 1  # Default value that doesn't change anything
-            for ff in range(niter):
-                # Just get the spatial and spectral profiles for now
-                self.fit(spat_illum_only=self.spat_illum_only, doqa=doqa, debug=debug)
-                # If we're only doing the spatial illumination profile, the detector structure
-                # has already been divided out by the pixel flat.
-                if self.spat_illum_only:
-                    break
-                msgs.info("Iteration {0:d} of 2D detector response extraction".format(ff+1))
-                # Extract a detector response image
-                det_resp = self.extract_structure(rawflat_orig)
-                gpmask = (self.waveimg != 0.0) & gpm
-                # Model the 2D detector response in an instrument specific way
-                det_resp_model = self.spectrograph.fit_2d_det_response(det_resp, gpmask)
-                # Apply this model
-                self.rawflatimg.image = rawflat_orig * utils.inverse(det_resp_model)
-                if doqa:
-                    # TODO :: Probably need to pass in det eventually...
-                    outfile = qa.set_qa_filename("DetectorStructure_" + self.master_key, 'detector_structure',
-                                                 det="DET01", out_dir=self.qa_path)
-                    detector_structure_qa(det_resp, det_resp_model, outfile=outfile)
-            # Now that the detector structure is modelled, include it in the full model
+            # Just get the spatial and spectral profiles for now
+            self.fit(spat_illum_only=self.spat_illum_only, doqa=doqa, debug=debug)
+            # If we're only doing the spatial illumination profile, the detector structure
+            # has already been divided out by the pixel flat. No need to calculate structure
             if not self.spat_illum_only:
-                # Perform a final 2D fit with the cleaned image
-                self.fit(spat_illum_only=self.spat_illum_only, doqa=doqa, debug=debug)
-                self.flat_model *= det_resp_model
+                niter = 2  # Need two iterations, particularly for the fine spatial illumination correction.
+                det_resp_model = 1  # Initialise detector structure to a value of 1 (i.e. no detector structure)
+                for ff in range(niter):
+                    # If we're only doing the spatial illumination profile, the detector structure
+                    # has already been divided out by the pixel flat.
+                    if self.spat_illum_only:
+                        break
+                    msgs.info("Iteration {0:d} of 2D detector response extraction".format(ff+1))
+                    # Extract a detector response image
+                    det_resp = self.extract_structure(rawflat_orig)
+                    gpmask = (self.waveimg != 0.0) & gpm
+                    # Model the 2D detector response in an instrument specific way
+                    det_resp_model = self.spectrograph.fit_2d_det_response(det_resp, gpmask)
+                    # Apply this model
+                    self.rawflatimg.image = rawflat_orig * utils.inverse(det_resp_model)
+                    if doqa:
+                        # TODO :: Probably need to pass in det when more spectrographs implement a structure correction...
+                        outfile = qa.set_qa_filename("DetectorStructure_" + self.master_key, 'detector_structure',
+                                                     det="DET01", out_dir=self.qa_path)
+                        detector_structure_qa(det_resp, det_resp_model, outfile=outfile)
+                    # Perform a 2D fit with the cleaned image
+                    self.fit(spat_illum_only=self.spat_illum_only, doqa=doqa, debug=debug)
+                # Include the structure in the flat model and the pixelflat
                 self.mspixelflat *= det_resp_model
-            # fold in the spectrograph specific flatfield, and reset the rawimg
-            self.rawflatimg.image = rawflat_orig
+                # Reset the rawimg
+                self.rawflatimg.image = rawflat_orig
 
+        # Show the flatfield images if requested
         if show:
             self.show(wcs_match=True)
 
@@ -1667,34 +1669,43 @@ def detector_structure_qa(det_resp, det_resp_model, outfile=None, title="Detecto
     plt.rcdefaults()
     plt.rcParams['font.family'] = 'serif'
     msgs.info("Generating QA for flat field structure correction")
-    vmin, vmax = np.min(det_resp_model), np.max(det_resp_model)
+    med = np.median(det_resp)
+    mad = 1.4826*np.median(np.abs(det_resp-med))
+    vmin, vmax = med-2*mad, med+2*mad
+    #vmin, vmax = np.min(det_resp_model), np.max(det_resp_model)
 
     # Plot
-    fighght = 8.5
-    plt.figure(figsize=(3*fighght, fighght))
+    fig_height = 3.0
+    plt.figure(figsize=(3*fig_height, fig_height))
     plt.clf()
-    # Single panel plot
-    gs = gridspec.GridSpec(1, 3)
+    # Prepare axes
+    gs = gridspec.GridSpec(1, 4, height_ratios=[1], width_ratios=[1.0, 1.0, 1.0, 0.05])
+    # Axes showing the observed detector response
     ax_data = plt.subplot(gs[0])
     ax_data.imshow(det_resp, vmin=vmin, vmax=vmax)
     ax_data.set_xlabel("data", fontsize='medium')
-    ax_data.axis('off')
+    ax_data.axes.xaxis.set_ticks([])
+    ax_data.axes.yaxis.set_ticks([])
+    # Axes showing the model fit to the detector response
     ax_modl = plt.subplot(gs[1])
-    ax_modl.imshow(det_resp_model, vmin=vmin, vmax=vmax)
+    im = ax_modl.imshow(det_resp_model, vmin=vmin, vmax=vmax)
     ax_modl.set_title(title, fontsize='medium')
     ax_modl.set_xlabel("model", fontsize='medium')
-    ax_modl.axis('off')
+    ax_modl.axes.xaxis.set_ticks([])
+    ax_modl.axes.yaxis.set_ticks([])
+    # Axes showing the residual of the detector response fit
     ax_resd = plt.subplot(gs[2])
     ax_resd.imshow(det_resp-det_resp_model, vmin=vmin-1, vmax=vmax-1)
     ax_resd.set_xlabel("data-model", fontsize='medium')
-    ax_resd.axis('off')
+    ax_resd.axes.xaxis.set_ticks([])
+    ax_resd.axes.yaxis.set_ticks([])
     # Add a colorbar
-    # cax = plt.subplot(gs[4])
-    # cbar = plt.colorbar(im, cax=cax)  # , fraction=0.046, pad=0.04)
-    # cbar.set_label('Percentage deviation', rotation=270, labelpad=10)
+    cax = plt.subplot(gs[3])
+    cbar = plt.colorbar(im, cax=cax)  # , fraction=0.046, pad=0.04)
+    cbar.set_label('Deviation', rotation=270, labelpad=10)
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-    plt.subplots_adjust(wspace=0.03, hspace=0, left=0.12, right=0.9, bottom=0.05, top=0.94)
+    plt.subplots_adjust(wspace=0.03, hspace=0, left=0.05, right=0.9, bottom=0.1, top=0.9)
     if outfile is None:
         plt.show()
     else:
