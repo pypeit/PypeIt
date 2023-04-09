@@ -14,6 +14,7 @@ from matplotlib import pyplot as plt
 
 from astropy import stats, visualization
 from astropy.stats import sigma_clipped_stats
+from astropy import table
 
 from pypeit import msgs, datamodel
 from pypeit import utils
@@ -66,10 +67,13 @@ class WaveTilts(datamodel.DataContainer):
                                     descr='Order for spectral fit (nslit)'),
                  'func2d': dict(otype=str, descr='Function used for the 2D fit'),
                  'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
-                 'spat_flexure': dict(otype=float, descr='Flexure shift from the input TiltImage')}
+                 'spat_flexure': dict(otype=float, descr='Flexure shift from the input TiltImage'),
+                 'trace_dict_list': dict(otype=np.ndarray, descr='List of trace_dict objects for each slit. '
+                                                           'trace_dict is a dictionary with the positions '
+                                                           'of the traced and fitted tilts.')}
 
     def __init__(self, coeffs, nslit, spat_id, spat_order, spec_order, func2d, bpmtilts=None,
-                 spat_flexure=None, PYP_SPEC=None, trace_dict=None):
+                 spat_flexure=None, PYP_SPEC=None, trace_dict_list=None):
 
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -158,7 +162,6 @@ class WaveTilts(datamodel.DataContainer):
         # master_key is different for Tilts and Slits sometimes
         # Warning: This parses the filename, not the Header!
         master_key, master_dir = masterframe.grab_key_mdir(self.filename, from_filename=True)
-        # embed()
         if slits is None:
             slit_masterframe_name = masterframe.construct_file_name(slittrace.SlitTraceSet, master_key,
                                                                     master_dir=master_dir)
@@ -172,7 +175,7 @@ class WaveTilts(datamodel.DataContainer):
 
         if waveimg is None:
             wave_masterframe_name = masterframe.construct_file_name(wavecalib.WaveCalib, master_key,
-                                                                    master_dir = master_dir)
+                                                                    master_dir=master_dir)
             if os.path.exists(wave_masterframe_name) and slits is not None:
                 wv_calib = wavecalib.WaveCalib.from_file(wave_masterframe_name)
                 slitmask = slits.slit_img(initial=True, flexure=self.spat_flexure)
@@ -737,20 +740,20 @@ class BuildWaveTilts:
         if debug:
             show_tilts_mpl(_mstilt, self.all_trace_dict)
 
-
         # Record the Mask
         bpmtilts = np.zeros_like(self.slits.mask, dtype=self.slits.bitmask.minimum_dtype())
         for flag in ['BADTILTCALIB']:
             bpm = self.slits.bitmask.flagged(self.slits.mask, flag)
             if np.any(bpm):
                 bpmtilts[bpm] = self.slits.bitmask.turn_on(bpmtilts[bpm], flag)
-        embed()
+
         # Build and return DataContainer
         tilts_dict = {'coeffs':self.coeffs,
                       'func2d':self.par['func2d'], 'nslit':self.slits.nslits,
                       'spat_order':self.spat_order, 'spec_order':self.spec_order,
                       'spat_id':self.slits.spat_id, 'bpmtilts': bpmtilts,
-                      'spat_flexure': self.spat_flexure, 'PYP_SPEC': self.spectrograph.name}
+                      'spat_flexure': self.spat_flexure, 'PYP_SPEC': self.spectrograph.name,
+                      'trace_dict_list': np.array(self.all_trace_dict)}
         return WaveTilts(**tilts_dict)
 
     def _parse_param(self, par, key, slit):
@@ -802,6 +805,9 @@ def show_tilts_mpl(tilt_img, trace_dict, cut=None):
     if cut is None:
         cut = utils.growth_lim(tilt_img, 0.95, fac=1.05)
 
+    w, h = plt.figaspect(1)
+    fig = plt.figure(figsize=(1.5 * w, 1.5 * h))
+
     plt.imshow(tilt_img, origin='lower', interpolation='nearest', aspect='auto',
                vmin=cut[0], vmax=cut[1])
     for tdict in trace_dict:
@@ -827,6 +833,6 @@ def show_tilts_mpl(tilt_img, trace_dict, cut=None):
     plt.text(0.02, 0.14, 'Good tilt fit', transform=plt.gca().transAxes, ha='left', va='top', fontsize=10, color='blue')
     plt.ylabel('Spectral pixel index')
     plt.xlabel('Spatial pixel index')
-    plt.tight_layout()
+    fig.tight_layout()
     plt.show()
 
