@@ -1669,10 +1669,12 @@ def detector_structure_qa(det_resp, det_resp_model, outfile=None, title="Detecto
     plt.rcdefaults()
     plt.rcParams['font.family'] = 'serif'
     msgs.info("Generating QA for flat field structure correction")
-    med = np.median(det_resp)
-    mad = 1.4826*np.median(np.abs(det_resp-med))
-    vmin, vmax = med-2*mad, med+2*mad
-    #vmin, vmax = np.min(det_resp_model), np.max(det_resp_model)
+    # Calculate the scale to be used in the plot
+    # med = np.median(det_resp)
+    # mad = 1.4826*np.median(np.abs(det_resp-med))
+    # vmin, vmax = med-2*mad, med+2*mad
+    dev = (1-np.min(det_resp_model))
+    vmin, vmax = 1-2*dev, 1+2*dev
 
     # Plot
     fig_height = 3.0
