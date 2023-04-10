@@ -1,6 +1,5 @@
 """
 Module containing routines used by 3D datacubes.
-
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
@@ -17,7 +16,7 @@ from scipy.interpolate import interp1d, RegularGridInterpolator, RBFInterpolator
 import numpy as np
 
 from pypeit import msgs
-from pypeit import alignframe, data, datamodel, flatfield, io, masterframe, specobj, spec2dobj, utils, wavecalib
+from pypeit import alignframe, datamodel, flatfield, io, masterframe, specobj, spec2dobj, utils
 from pypeit.core.flux_calib import load_extinction_data, extinction_correction, fit_zeropoint, get_standard_spectrum, ZP_UNIT_CONST, PYPEIT_FLUX_SCALE
 from pypeit.core.flexure import calculate_image_phase
 from pypeit.core import coadd, extract, findobj_skymask, parse, skysub
@@ -63,7 +62,6 @@ class DataCube(datamodel.DataContainer):
             Parsed meta from the header
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             Build from PYP_SPEC
-
     """
     version = '1.1.0'
 
@@ -94,7 +92,6 @@ class DataCube(datamodel.DataContainer):
         """
         Over-write default _bundle() method to separate the DetectorContainer
         into its own HDU
-
         Returns:
             :obj:`list`: A list of dictionaries, each list element is
             written to its own fits extension. See the description
@@ -214,8 +211,8 @@ def dar_fitfunc(radec, coord_ra, coord_dec, datfit, wave, obstime, location, pre
     return np.sum((np.array([coord_altaz.alt.value, coord_altaz.az.value])-datfit)**2)
 
 
-def correct_dar(wave_arr, coord, obstime, location, pressure, temperature, rel_humidity,
-                wave_ref=None, numgrid=10):
+def dar_correction(wave_arr, coord, obstime, location, pressure, temperature, rel_humidity,
+                   wave_ref=None, numgrid=10):
     """
     Apply a differental atmospheric refraction correction to the
     input ra/dec.
@@ -288,7 +285,7 @@ def correct_dar(wave_arr, coord, obstime, location, pressure, temperature, rel_h
     return ra_diff, dec_diff
 
 
-def correct_grating_shift(wave_eval, wave_curr, spl_curr, wave_ref, spl_ref, order=2):
+def calc_grating_corr(wave_eval, wave_curr, spl_curr, wave_ref, spl_ref, order=2):
     """ Using spline representations of the blaze profile, calculate the grating correction
     that should be applied to the current spectrum (suffix 'curr') relative to the reference
     spectrum (suffix 'ref'). The grating correction is then evaluated at the wavelength
@@ -323,20 +320,6 @@ def correct_grating_shift(wave_eval, wave_curr, spl_curr, wave_ref, spl_ref, ord
     grat_corr = np.polyval(coeff_gratcorr, wave_corr)
     # Return the estimates grating correction
     return grat_corr
-
-
-def correct_spec_flexure(waveimg):
-    """ Shift the wavelength image
-
-    Args:
-        waveimg (`numpy.ndarray`_):
-            A 2D array containing the wavelength of each detector pixel
-
-    Returns:
-        waveimg_corr (`numpy.ndarray`_): The wavelength image, corrected for spectral flexure
-    """
-
-    return waveimg_corr
 
 
 def gaussian2D_cube(tup, intflux, xo, yo, dxdz, dydz, sigma_x, sigma_y, theta, offset):
@@ -1295,7 +1278,6 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     cubepar = parset['reduce']['cube']
     flatpar = parset['calibrations']['flatfield']
     senspar = parset['sensfunc']
-    flexpar = parset['flexure']
 
     # prep
     numfiles = len(files)
@@ -1368,7 +1350,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                 blaze_spline = interp1d(blaze_wave, blaze_spec,
                                         kind='linear', bounds_error=False, fill_value="extrapolate")
             # Perform a grating correction
-            grat_corr = correct_grating_shift(wave.value, blaze_wave_curr, blaze_spline_curr, blaze_wave, blaze_spline)
+            grat_corr = calc_grating_corr(wave.value, blaze_wave_curr, blaze_spline_curr, blaze_wave, blaze_spline)
             # Apply the grating correction to the standard star spectrum
             Nlam_star /= grat_corr
             Nlam_ivar_star *= grat_corr**2
@@ -1443,7 +1425,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         # Load it up
         spec2DObj = spec2dobj.Spec2DObj.from_file(fil, detname)
         detector = spec2DObj.detector
-        spat_flexure = None  #spec2DObj.sci_spat_flexure
+        flexure = None  #spec2DObj.sci_spat_flexure
 
         # Load the header
         hdr = fits.open(fil)[0].header
@@ -1453,22 +1435,6 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
         # Setup for PypeIt imports
         msgs.reset(verbosity=2)
-
-        # TODO :: Consider loading all calibrations into a single variable.
-
-        # Initialise the slit edges
-        msgs.info("Constructing slit image")
-        slits = spec2DObj.slits
-        slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=spat_flexure)
-        slits_left, slits_right, _ = slits.select_edges(initial=True, flexure=spat_flexure)
-
-        # Load the wavelength calibration
-        masterframe_name = masterframe.construct_file_name(wavecalib.WaveCalib, hdr['TRACMKEY'], master_dir=hdr['PYPMFDIR'])
-        if os.path.isfile(masterframe_name):
-            wv_calib = wavecalib.WaveCalib.from_file(masterframe_name)
-        else:
-            # TODO :: Need to think about what to do about this...
-            msgs.error("NEED TO THINK ABOUT THIS")
 
         # Try to load the relative scale image, if something other than the default has been provided
         relScaleImg = relScaleImgDef.copy()
@@ -1525,74 +1491,13 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         relscl = 1.0
         if cubepar['scale_corr'] is not None or opts['scale_corr'][ff] is not None:
             relscl = spec2DObj.scaleimg/relScaleImg
-        # TODO :: unset this debug here
-        debug = True
         sciimg = (spec2DObj.sciimg-skysubImg)*relscl  # Subtract sky
-        if debug:
-            sciimg = spec2DObj.sciimg * relscl  # Subtract sky
         ivar = spec2DObj.ivarraw / relscl**2
         waveimg = spec2DObj.waveimg
         bpmmask = spec2DObj.bpmmask
 
-        # TODO :: Really need to write some detailed information in the docs about all of the various corrections that can optionally be applied
-
-        # Correct for spectral flexure using the skysub frame
-        # TODO :: Need to include the spectral flexure correction here.
-        embed()
-        #######################################################################
-        from pypeit.core import flexure
-        from pypeit.core.wavecal import autoid
-        from linetools.spectra import xspectrum1d
-
-        # Obtain a reference spectrum
-        sl_ref = flatpar['slit_illum_ref_idx']
-        # Calculate the absolute spectral flexure correction for the reference slit
-        trace_spat = 0.5 * (slits_left + slits_right)
-        sky_spectrum = data.load_sky_spectrum(flexpar['spectrum'])
-        # get arxiv sky spectrum resolution (FWHM in pixels)
-        sky_fwhm_pix = autoid.measure_fwhm(sky_spectrum.flux.value, sigdetect=4., fwhm=4.)
-        # get spectral FWHM (in Angstrom) if available
-        ref_fwhm_ang, ref_fwhm_pix = None, None
-        iwv = np.where(wv_calib.spat_ids == slits.spat_id[sl_ref])[0][0]
-        # Allow for wavelength failures
-        if wv_calib.wv_fits is not None and wv_calib.wv_fits[iwv].fwhm is not None:
-            ref_fwhm_pix = wv_calib.wv_fits[iwv].fwhm
-        # Get an object spectrum
-        thismask = (slitid_img_init == slits.spat_id[sl_ref])
-        # Dummy spec for extract_boxcar
-        ref_skyspec = flexure.get_sky_spectrum(sciimg, ivar, waveimg, thismask, skysubImg,
-                                               parset['reduce']['extraction']['boxcar_radius'],
-                                               slits, trace_spat[:, sl_ref], hdr['PYPELINE'], det)
-        # Calculate the flexure
-        flex_dict = flexure.spec_flex_shift(ref_skyspec, sky_spectrum, sky_fwhm_pix, spec_fwhm_pix=ref_fwhm_pix,
-                                            mxshft=flexpar['spec_maxshift'], excess_shft=flexpar['excessive_shift'],
-                                            method="slitcen")
-        # This absolute shift is the same for all slits
-        slitshift = np.ones(slits.nslits) * flex_dict['shift']
-        # Now loop through all slits to calculate the additional shift relative to the reference slit
-        for slit_idx, slit_spat in enumerate(slits.spat_id):
-            thismask = (slitid_img_init == slit_spat)
-            # Dummy spec for extract_boxcar
-            this_skyspec = flexure.get_sky_spectrum(sciimg, ivar, waveimg, thismask, skysubImg,
-                                                   parset['reduce']['extraction']['boxcar_radius'],
-                                                   slits, trace_spat[:, slit_idx], hdr['PYPELINE'], det)
-            # Calculate the flexure
-            flex_dict = flexure.spec_flex_shift(this_skyspec, ref_skyspec, ref_fwhm_pix*1.01, spec_fwhm_pix=ref_fwhm_pix,
-                                                mxshft=flexpar['spec_maxshift'], excess_shft=flexpar['excessive_shift'],
-                                                method="slitcen")
-
-            # Calculate the shift
-            fdict = spec_flex_shift(slit_specs[slit_idx], sky_spectrum, arx_fwhm_pix, mxshft=mxshft, excess_shft=excess_shft,
-                                    spec_fwhm=spec_fwhm, method=method)
-            slitshift[slit_idx] += 0.0
-        # Rebuild the wavelength image
-        waveimg_corr = wv_calib.build_waveimg(self.tilts, slits, spec_flexure=slitshift,
-                                                   spat_flexure=spat_flexure)
-        # Apply heliocentric correction
-
-        return waveimg_corr
-        #######################################################################
-        waveimg = correct_spec_flexure(waveimg)
+        # Grab the slit edges
+        slits = spec2DObj.slits
 
         wave0 = waveimg[waveimg != 0.0].min()
         # Calculate the delta wave in every pixel on the slit
@@ -1611,6 +1516,9 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         dwv = np.median(dwaveimg[dwaveimg != 0.0]) if cubepar['wave_delta'] is None else cubepar['wave_delta']
 
         msgs.info("Using wavelength solution: wave0={0:.3f}, dispersion={1:.3f} Angstrom/pixel".format(wave0, dwv))
+
+        msgs.info("Constructing slit image")
+        slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=flexure)
 
         # Obtain the minimum and maximum wavelength of all slits
         if mnmx_wv is None:
@@ -1660,7 +1568,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             msgs.info("Astrometric correction will not be performed")
         # If nothing better was provided, use the slit edges
         if alignments is None:
-            left, right, _ = slits.select_edges(initial=True, flexure=spat_flexure)
+            left, right, _ = slits.select_edges(initial=True, flexure=flexure)
             locations = [0.0, 1.0]
             traces = np.append(left[:,None,:], right[:,None,:], axis=1)
         else:
@@ -1669,7 +1577,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         msgs.info("Generating RA/DEC image")
         alignSplines = alignframe.AlignmentSplines(traces, locations, spec2DObj.tilts)
         raimg, decimg, minmax = slits.get_radec_image(frame_wcs, alignSplines, spec2DObj.tilts,
-                                                                 initial=True, flexure=spat_flexure)
+                                                                 initial=True, flexure=flexure)
 
         # Perform the DAR correction
         if wave_ref is None:
@@ -1690,8 +1598,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                       "   Pressure = {0:f} bar".format(pressure) + msgs.newline() +
                       "   Temperature = {0:f} deg C".format(temperature) + msgs.newline() +
                       "   Humidity = {0:f}".format(rel_humidity))
-            ra_corr, dec_corr = correct_dar(waveimg[onslit_gpm], coord, obstime, location,
-                                            pressure * units.bar, temperature * units.deg_C, rel_humidity, wave_ref=wave_ref)
+            ra_corr, dec_corr = dar_correction(waveimg[onslit_gpm], coord, obstime, location,
+                                               pressure*units.bar, temperature*units.deg_C, rel_humidity, wave_ref=wave_ref)
             raimg[onslit_gpm] += ra_corr*np.cos(np.mean(decimg[onslit_gpm]) * np.pi / 180.0)
             decimg[onslit_gpm] += dec_corr
 
@@ -1708,11 +1616,11 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             msgs.info("Calculating relative sensitivity for grating correction")
             flatimages = flatfield.FlatImages.from_file(flatfile)
             flatframe = flatimages.illumflat_raw/flatimages.fit2illumflat(slits, frametype='illum', initial=True,
-                                                                          spat_flexure=spat_flexure)
+                                                                          spat_flexure=flexure)
             # Calculate the relative scale
             scale_model = flatfield.illum_profile_spectral(flatframe, waveimg, slits,
                                                            slit_illum_ref_idx=flatpar['slit_illum_ref_idx'], model=None,
-                                                           skymask=None, trim=flatpar['slit_trim'], flexure=spat_flexure,
+                                                           skymask=None, trim=flatpar['slit_trim'], flexure=flexure,
                                                            smooth_npix=flatpar['slit_illum_smooth_npix'])
             # Apply the relative scale and generate a 1D "spectrum"
             onslit = waveimg != 0
@@ -1745,8 +1653,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         # Grating correction
         grat_corr = 1.0
         if cubepar['grating_corr']:
-            grat_corr = correct_grating_shift(wave_ext[wvsrt], flat_splines[flatfile + "_wave"], flat_splines[flatfile],
-                                              blaze_wave, blaze_spline)
+            grat_corr = calc_grating_corr(wave_ext[wvsrt], flat_splines[flatfile+"_wave"], flat_splines[flatfile],
+                                          blaze_wave, blaze_spline)
         # Sensitivity function
         sens_func = 1.0
         if fluxcal:
