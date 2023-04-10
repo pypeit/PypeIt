@@ -675,6 +675,11 @@ class FindObjects:
             maxslitlength = np.max(self.slits_right-self.slits_left)
             # Get the regions
             status, regions = skysub.read_userregions(skyregtxt, self.slits.nslits, maxslitlength)
+            if status == 1:
+                msgs.error("Unknown error in sky regions definition. Please check the value:" + msgs.newline() +
+                           skyregtxt)
+            elif status == 2:
+                msgs.error("Sky regions definition must contain a percentage range, and therefore must contain a ':'")
             # Generate image
             skymask = skysub.generate_mask(self.pypeline, regions, self.slits, self.slits_left,
                                                 self.slits_right, spat_flexure=self.spat_flexure_shift)
