@@ -1,5 +1,6 @@
 """
 Module containing routines used by 3D datacubes.
+
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
@@ -62,6 +63,7 @@ class DataCube(datamodel.DataContainer):
             Parsed meta from the header
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             Build from PYP_SPEC
+
     """
     version = '1.1.0'
 
@@ -92,6 +94,7 @@ class DataCube(datamodel.DataContainer):
         """
         Over-write default _bundle() method to separate the DetectorContainer
         into its own HDU
+
         Returns:
             :obj:`list`: A list of dictionaries, each list element is
             written to its own fits extension. See the description
