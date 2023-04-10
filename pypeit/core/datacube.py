@@ -445,7 +445,8 @@ def fitGaussian2D(image, norm=False):
     y = np.linspace(0, image.shape[1] - 1, image.shape[1])
     xx, yy = np.meshgrid(x, y, indexing='ij')
     # Setup the fitting params
-    idx_max = np.unravel_index(np.argmax(image), image.shape)
+    idx_max = [image.shape[0]/2, image.shape[1]/2]  # Just use the centre of the image as the best guess
+    #idx_max = np.unravel_index(np.argmax(image), image.shape)
     initial_guess = (1, idx_max[0], idx_max[1], 2, 2, 0, 0)
     bounds = ([0, 0, 0, 0.5, 0.5, -np.pi, -np.inf],
               [np.inf, image.shape[0], image.shape[1], image.shape[0], image.shape[1], np.pi, np.inf])
@@ -498,7 +499,8 @@ def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
     """
     # Extract some information from the HDU list
     flxcube = stdcube['FLUX'].data.T.copy()
-    varcube = stdcube['VARIANCE'].data.T.copy()
+    varcube = stdcube['SIG'].data.T.copy()**2
+    bpmcube = stdcube['BPM'].data.T.copy()
     numwave = flxcube.shape[2]
 
     # Setup the WCS
@@ -534,7 +536,7 @@ def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
     smask -= mask
 
     # Subtract the residual sky
-    skymask = (varcube > 0.0) * smask
+    skymask = np.logical_not(bpmcube) * smask
     skycube = flxcube * skymask
     skyspec = skycube.sum(0).sum(0)
     nrmsky = skymask.sum(0).sum(0)
@@ -552,7 +554,7 @@ def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
         norm_flux = wl_img[:,:,np.newaxis] * mask
         norm_flux /= np.sum(norm_flux)
         # Extract boxcar
-        cntmask = (varcube > 0.0) * mask  # Good pixels within the masked region around the standard star
+        cntmask = np.logical_not(bpmcube) * mask  # Good pixels within the masked region around the standard star
         flxscl = (norm_flux * cntmask).sum(0).sum(0)  # This accounts for the flux that is missing due to masked pixels
         scimask = flxcube * cntmask
         varmask = varcube * cntmask**2
@@ -565,7 +567,7 @@ def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
     elif method == 'gauss2d':
         msgs.error("Use method=boxcar... this method has not been thoroughly tested")
         # Generate a mask
-        fitmask = (varcube > 0.0) * mask
+        fitmask = np.logical_not(bpmcube) * mask
         # Setup the coordinates
         x = np.linspace(0, flxcube.shape[0] - 1, flxcube.shape[0])
         y = np.linspace(0, flxcube.shape[1] - 1, flxcube.shape[1])
@@ -612,7 +614,7 @@ def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
         msgs.info("Collapsing datacube to a 2D image")
         omask = mask+smask
         idx_sum = 0
-        cntmask = (varcube > 0.0) * omask
+        cntmask = np.logical_not(bpmcube) * omask
         scimask = flxcube * cntmask
         varmask = varcube * cntmask**2
         cnt_spec = cntmask.sum(idx_sum) * utils.inverse(omask.sum(idx_sum))
@@ -1126,7 +1128,7 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
 
     # Write out the datacube
     msgs.info("Saving datacube as: {0:s}".format(outfile))
-    final_cube = DataCube(datacube.T, np.sqrt(varcube.T), bpmcube, specname, blaze_wave, blaze_spec, sensfunc=sensfunc, fluxed=fluxcal)
+    final_cube = DataCube(datacube.T, np.sqrt(varcube.T), bpmcube.T, specname, blaze_wave, blaze_spec, sensfunc=sensfunc, fluxed=fluxcal)
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
 
     # Save a residuals cube, if requested
@@ -1204,7 +1206,7 @@ def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, vox_coord, bin
         hdu.writeto(outfile_resid, overwrite=overwrite)
 
     msgs.info("Saving datacube as: {0:s}".format(outfile))
-    final_cube = DataCube(datacube.T, np.sqrt(var_cube.T), bpmcube, specname, blaze_wave, blaze_spec,
+    final_cube = DataCube(datacube.T, np.sqrt(var_cube.T), bpmcube.T, specname, blaze_wave, blaze_spec,
                           sensfunc=sensfunc, fluxed=fluxcal)
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
 
