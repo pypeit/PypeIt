@@ -552,6 +552,7 @@ class SOARGoodmanBlueSpectrograph(SOARGoodmanSpectrograph):
         if self.get_meta_value(scifile, 'dispname') == '400_SYZY':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'soar_goodman_blue_400_SYZY.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['flatfield']['slit_illum_finecorr'] = False  # Turn this off due to junk in the unilluminated part of the detector
 
         # Return
         return par
