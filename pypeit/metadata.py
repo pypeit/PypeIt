@@ -336,6 +336,30 @@ class PypeItMetaData:
         for key in usrdata.keys():
             self.table[key] = usrdata[key][srt]
 
+    def remove_rows(self, rows, regroup=False):
+        """
+        Remove the provided rows from the data table.
+
+        This edits the object directly, nothing is returned.
+
+        Args:
+            rows (:obj:`int`, array-like):
+                One or more rows that should be *removed* from the datatable.
+                This is passed directly to `astropy.table.Table.remove_rows`_;
+                see astropy documentation to confirm allowed types.
+            regroup (:obj:`bool`, optional):
+                If True, reset the setup/configuration, calibration, and
+                combination groups.
+        """
+        self.table.remove_rows(np.atleast_1d(rows))
+        if regroup:
+            for col in ['setup', 'calib', 'calibbit', 'comb_id', 'bkg_id']:
+                if col in self.keys():
+                    del self.table[col]
+            self.set_configurations(self.unique_configurations())
+            self.set_calibration_groups()
+            self.set_combination_groups()
+
     def finalize_usr_build(self, frametype, setup):
         """
         Finalize the build of the table based on user-provided data,

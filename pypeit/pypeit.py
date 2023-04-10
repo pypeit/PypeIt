@@ -227,8 +227,13 @@ class PypeIt:
         Returns:
             :obj:`str`: The path for the output file
         """
-        return os.path.join(self.science_path, 'spec{0}d_{1}.fits'.format('2' if twod else '1',
-                                                    self.fitstbl.construct_basename(frame)))
+        return self.get_spec_file_name(self.science_path, self.fitstbl.construct_basename(frame))
+#        return os.path.join(self.science_path, 'spec{0}d_{1}.fits'.format('2' if twod else '1',
+#                                                    self.fitstbl.construct_basename(frame)))
+
+    @staticmethod
+    def get_spec_file_name(science_path, basename, twod=False):
+        return os.path.join(science_path, f'spec{"2" if twod else "1"}d_{basename}.fits')
 
     def outfile_exists(self, frame):
         """
@@ -244,22 +249,35 @@ class PypeIt:
 
     def get_std_outfile(self, standard_frames):
         """
-        Grab the output filename from an input list of standard_frame indices
+        Return the spec1d file name for a reduced standard to use as a tracing
+        crutch.
 
-        If more than one index is provided, the first is taken
+        The file is either constructed using the provided standard frame indices
+        or it is directly pulled from the
+        :class:`~pypeit.par.pypeitpar.FindObjPar` parameters in :attr:`par`.
+        The latter takes precedence.  If more than one row is provided by
+        ``standard_frames``, the first index is used.
 
         Args:
-            standard_frames (list): List of indices corresponding to standard stars
+            standard_frames (array-like):
+                Set of rows in :attr:`fitstbl` with standards.
 
         Returns:
-            str: Full path to the standard spec1d output file
+            :obj:`str`: Full path to the standard spec1d output file to use.
         """
+        # NOTE: I'm not sure if this is the best place to put this, but it does
+        # isolate where the name of the standard-star spec1d file is defined.
+        std_outfile = self.par['reduce']['findobj']['std_spec1d']
+        if std_outfile is not None:
+            if not Path(std_outfile).resolve().exists():
+                msgs.error(f'Provided standard spec1d file does not exist: {std_outfile}')
+            return std_outfile
+
         # TODO: Need to decide how to associate standards with
         # science frames in the case where there is more than one
         # standard associated with a given science frame.  Below, I
         # just use the first standard
 
-        std_outfile = None
         std_frame = None if len(standard_frames) == 0 else standard_frames[0]
         # Prepare to load up standard?
         if std_frame is not None:
@@ -409,7 +427,8 @@ class PypeIt:
                 # Quicklook mode?
                 # TODO: This is the only place this is used, I think...
                 if self.par['rdx']['quicklook'] and j > 0:
-                    msgs.info("Quicklook mode.  Only reducing science frames in firs comb_id group")
+                    msgs.warn('PypeIt executed in quicklook mode.  Only reducing science frames '
+                              'in the first combination group!')
                     break
                 #
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]

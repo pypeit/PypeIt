@@ -70,6 +70,7 @@
 .. _astropy.table.Table: https://docs.astropy.org/en/stable/table/
 .. _astropy.table.table.Table: https://docs.astropy.org/en/stable/table/
 .. _astropy.table.Table.read: https://docs.astropy.org/en/stable/api/astropy.table.Table.html#astropy.table.Table.read
+.. _astropy.table.Table.remove_rows: https://docs.astropy.org/en/stable/api/astropy.table.Table.html#astropy.table.Table.remove_rows
 .. _astropy.table.Row: https://docs.astropy.org/en/stable/api/astropy.table.Row.html
 .. _astropy.wcs.wcs.WCS: http://docs.astropy.org/en/stable/api/astropy.wcs.WCS.html
 .. _astropy.modeling: http://docs.astropy.org/en/stable/modeling/index.html

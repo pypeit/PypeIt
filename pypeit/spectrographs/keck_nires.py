@@ -274,7 +274,6 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                     # where this targ
                     targ_idx = in_cfg & (fitstbl['target'] == targ)
                     if 'calib' in fitstbl.keys():
-                        targ_calib += 1
                         # set different calib for different targs
                         if 'science' in fitstbl['frametype'][targ_idx][0] or \
                            ('standard' in fitstbl['frametype'][targ_idx][0] and 'arc' in fitstbl['frametype'][targ_idx][0]):
@@ -286,6 +285,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                                 # find the closest (in time) science frame to the standard target
                                 close_idx = np.argmin(np.absolute(fitstbl[sci_in_cfg]['mjd'] - fitstbl[targ_idx]['mjd'][0]))
                                 fitstbl['calib'][targ_idx] = fitstbl['calib'][sci_in_cfg][close_idx]
+                        targ_calib += 1
 
                     # how many dither patterns are used for the selected science/standard target?
                     uniq_dithpats = np.unique(fitstbl[targ_idx]['dithpat'])

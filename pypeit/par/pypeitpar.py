@@ -60,6 +60,7 @@ assuming you want it to be accessed throughout the code.
 .. include:: ../include/links.rst
 
 """
+from pathlib import Path
 import os
 import warnings
 import inspect
@@ -3470,19 +3471,6 @@ class WaveTiltsPar(ParSet):
                 raise ValueError('Continuum rejection threshold must be a single number or a '
                                  'two-element list/array.')
 
-    #@staticmethod
-    #def valid_methods():
-    #    """
-    #    Return the valid methods to use for tilt tracing.
-    #    """
-    #    return [ 'pca', 'spca', 'spline', 'interp', 'perp', 'zero' ]
-
-#    def validate(self):
-#        # Convert param to list
-#        if isinstance(self.data['params'], int):
-#            self.data['params'] = [self.data['params']]
-#        pass
-
 
 class ReducePar(ParSet):
     """
@@ -3583,8 +3571,8 @@ class FindObjPar(ParSet):
     def __init__(self, trace_npoly=None, snr_thresh=None, find_trim_edge=None,
                  find_maxdev=None, find_extrap_npoly=None, maxnumber_sci=None, maxnumber_std=None,
                  find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None,
-                 ech_find_nabove_min_snr=None, skip_second_find=None, skip_final_global=None, skip_skysub=None,
-                 find_negative=None, find_min_max=None):
+                 ech_find_nabove_min_snr=None, skip_second_find=None, skip_final_global=None,
+                 skip_skysub=None, find_negative=None, find_min_max=None, std_spec1d=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -3703,6 +3691,14 @@ class FindObjPar(ParSet):
                                 'detector. It only used for object finding. This parameter is helpful if your object only'\
                                 'has emission lines or at high redshift and the trace only shows in part of the detector.'
 
+        defaults['std_spec1d'] = None
+        dtypes['std_spec1d'] = str
+        descr['std_spec1d'] = 'A PypeIt spec1d file of a previously reduced standard star.  The ' \
+                              'trace of the standard star spectrum is used as a crutch for ' \
+                              'tracing the object spectra, when a direct trace is not possible ' \
+                              '(i.e., faint sources).  If provided, this overrides use of any ' \
+                              'standards included in your pypeit file; the standard exposures ' \
+                              'will still be reduced.'
 
         # Instantiate the parameter set
         super(FindObjPar, self).__init__(list(pars.keys()),
@@ -3721,8 +3717,9 @@ class FindObjPar(ParSet):
         parkeys = ['trace_npoly', 'snr_thresh', 'find_trim_edge',
                    'find_extrap_npoly', 'maxnumber_sci', 'maxnumber_std',
                    'find_maxdev', 'find_fwhm', 'ech_find_max_snr',
-                   'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find', 'skip_final_global',
-                   'skip_skysub', 'find_negative', 'find_min_max']
+                   'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find',
+                   'skip_final_global', 'skip_skysub', 'find_negative', 'find_min_max',
+                   'std_spec1d']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -3734,7 +3731,9 @@ class FindObjPar(ParSet):
         return cls(**kwargs)
 
     def validate(self):
-        pass
+        if self.data['std_spec1d'] is not None \
+                and not Path(self.data['std_spec1d']).resolve().exists():
+            msgs.error(f'{self.data["std_spec1d"]} does not exist!')
 
 
 class SkySubPar(ParSet):

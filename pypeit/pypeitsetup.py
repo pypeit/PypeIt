@@ -5,6 +5,7 @@ Class for organizing PypeIt setup
 .. include:: ../include/links.rst
 
 """
+from pathlib import Path
 import time
 import os
 
@@ -339,6 +340,43 @@ class PypeItSetup:
             self.fitstbl.set_combination_groups()
 
         return self.par, self.spectrograph, self.fitstbl
+
+    def remove_table_rows(self, rows, regroup=False):
+        """
+        Remove rows from :attr:`fitstbl`.
+
+        This is a wrapper for
+        :func:`~pypeit.metadata.PypeItMetaData.remove_rows` that propagates the
+        files removed from the fits table to the other attributes of the class:
+        :attr:`file_list`, :attr:`frametype`, and :attr:`usrdata`.
+
+        This *directly* modifies the attributes of the instance.
+
+        Args:
+            rows (:obj:`int`, array-like):
+                One or more rows that should be *removed* from the datatable.
+                This is passed directly to `astropy.table.Table.remove_rows`_;
+                see astropy documentation to confirm allowed types.
+            regroup (:obj:`bool`, optional):
+                If True, reset the setup/configuration, calibration, and
+                combination groups.
+        """
+        # Get the names of the files to be removed
+        removed_files = self.fitstbl.frame_paths(rows)
+        # Remove 'em
+        self.fitstbl.remove_rows(rows, regroup=regroup)
+        # Remove the files from the file list
+        self.file_list = [f for f in self.file_list 
+                            if Path(f).resolve().name in self.fitstbl['filename']]
+        # Remove the files from the frametype
+        if self.frametype is not None:
+            self.frametype = {k : v for k,v in self.frametype.items()
+                                if Path(f).resolve().name in self.fitstbl['filename']}
+        # Remove the files from the user data
+        if self.usrdata is not None:
+            keep = [i for i in range(len(self.usrdata)) 
+                        if self.usrdata['filename'][i] in self.fitstbl['filename']]
+            self.usrdata = self.usrdata[keep]
 
     def generate_ql_calib_pypeit_files(self, output_path:str, 
                                        det:str=None, 
