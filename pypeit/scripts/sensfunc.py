@@ -104,9 +104,9 @@ class SensFunc(scriptbase.ScriptBase):
                        "\n")
 
         # Determine the spectrograph
-        header = fits.getheader(args.spec1dfile)
-        spectrograph = load_spectrograph(header['PYP_SPEC'])
-        spectrograph_config_par = spectrograph.config_specific_par(header)
+        hdul = io.fits_open(args.spec1dfile)
+        spectrograph = load_spectrograph(hdul[0].header['PYP_SPEC'])
+        spectrograph_config_par = spectrograph.config_specific_par(hdul)
 
         # Construct a primary FITS header that includes the spectrograph's
         #   config keys for inclusion in the output sensfunc file
@@ -116,8 +116,8 @@ class SensFunc(scriptbase.ScriptBase):
             + spectrograph.configuration_keys() + spectrograph.raw_header_cards()
         )
         for key in add_keys:
-            if key.upper() in header.keys():
-                primary_hdr[key.upper()] = header[key.upper()]
+            if key.upper() in hdul[0].header.keys():
+                primary_hdr[key.upper()] = hdul[0].header[key.upper()]
 
         # If the .sens file was passed in read it and overwrite default parameters
 

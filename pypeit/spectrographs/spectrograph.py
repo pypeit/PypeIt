@@ -42,7 +42,7 @@ from pypeit.core import meta
 from pypeit.par import pypeitpar
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
-from astropy.io.fits import Header
+from astropy.io.fits import Header, HDUList
 
 
 # TODO: Create an EchelleSpectrograph derived class that holds all of
@@ -699,11 +699,14 @@ class Spectrograph:
     
     def raw_header_cards(self):
         """
-        Return additional raw header cards that should be propagated in
-        the output files
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
 
-        In general, these should be the FITS keywords used to construct the
-        :meth:`~pypeit.spectrograph.Spectrograph.compound_meta` metadata keys.
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
 
         This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
         to include additional FITS keywords in downstream output files.
@@ -1257,14 +1260,14 @@ class Spectrograph:
         Returns:
             Value recovered for (each) keyword.  Can be None.
         """
-        if isinstance(inp, (str, pathlib.Path)):
+        if isinstance(inp, (str, pathlib.Path, HDUList)):
             headarr = self.get_headarr(inp)
         elif inp is None or isinstance(inp, list):
             headarr = inp
         elif isinstance(inp, Header):
             headarr = [inp]
         else:
-            msgs.error('Unrecognized type for input')
+            msgs.error(f'Unrecognized type for input: {type(inp)}')
         
         if headarr is None:
             if required:
@@ -1307,13 +1310,13 @@ class Spectrograph:
                 elif 'compound' in self.meta[meta_key].keys():
                     value = self.compound_meta(headarr, meta_key)
                 else:
-                    msgs.error("Failed to load spectrograph value for meta: {}".format(meta_key))
+                    msgs.error(f"Failed to load spectrograph value for meta: {meta_key}")
             else:
                 # Grab from the header, if we can
                 value = headarr[self.meta[meta_key]['ext']][self.meta[meta_key]['card']]
         except (KeyError, TypeError) as e:
             if ignore_bad_header or not required:
-                msgs.warn("Bad Header key ({0:s}), but we'll try to continue on..".format(meta_key))
+                msgs.warn(f"Bad Header key ({meta_key}), but we'll try to continue on..")
             else:
                 raise e
 
@@ -1512,17 +1515,20 @@ class Spectrograph:
         if isinstance(inp, (str, pathlib.Path)):
             self._check_extensions(inp)
             try:
-                hdu = io.fits_open(inp)
+                hdul = io.fits_open(inp)
             except:
                 if strict:
                     msgs.error(f'Problem opening {inp}.')
                 else:
                     msgs.warn(f'Problem opening {inp}.{msgs.newline()}'
                               'Proceeding, but should consider removing this file!')
-                    return None #['None']*999 # self.numhead
+                    return None
+        elif isinstance(inp, HDUList):
+            hdul = inp
         else:
-            hdu = inp
-        return [hdu[k].header for k in range(len(hdu))]
+            msgs.error(f'Unrecognized type for input: {type(inp)}')
+
+        return [hdul[k].header for k in range(len(hdul))]
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
