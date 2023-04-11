@@ -354,6 +354,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         return ['dispname', 'dispangle', 'decker', 'detector']
 
 
+    # TODO -- Convert this into get_comb_group()
     def parse_dither_pattern(self, file_list, ext=None):
         """
         Parse headers from a file list to determine the dither pattern.

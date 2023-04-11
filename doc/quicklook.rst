@@ -5,8 +5,9 @@ Quick-Look Reductions
 Overview
 ========
 
-PypeIt provides a quicklook script ``pypeit_ql`` for
-quick reductions, presumably at the telescope.
+PypeIt provides a quick-look (QL) script ``pypeit_ql`` that performs faster
+(potentially lower quality) reductions for quick inspection, presumably for
+real-time decision-making while at the telescope.
 
 The approach is to (1) generate calibration files if needed 
 using an auto-generated :doc:`pypeit_file`
@@ -17,22 +18,83 @@ along with the output products (see below).
 This script performs a boxcar (only) extraction of 
 long- or multi-slit observations.
 
-The script does expect (effectively requires) that 
-PypeIt will correctly frametype the input frames.  
-If this fails, so too will the script. 
-A future revision may allow the user to specify the
+The script effectively requires that PypeIt is able to correctly determine the
+type of each input frame, without input from the user.  If this fails, so too
+will the script.  A future revision may allow the user to specify the
 frametypes.
- 
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
 
 .. include:: help/pypeit_ql.rst
 
-At present, only a few spectrographs have been
-extensively tested:  
-``shane_kast_blue``, ``shane_kast_red``, ``keck_lris_red``, 
-``keck_deimos``.
+At present, only a few spectrographs have been extensively tested:  
+``shane_kast_blue``, ``shane_kast_red``, ``keck_lris_red``, ``keck_deimos``.
+
+Specifying the input raw files
+++++++++++++++++++++++++++++++
+
+The script provides a few ways that you can specify the files to reduce:
+
+#. Provide a file with a specific :ref:`format <input_files>` that lists the
+   files to be reduced.  The format must follow the standard PypeIt file
+   :ref:`input-files-data-block`; however, only the ``filename`` column is
+   required.
+
+#. Provide the directory and list of files directly on the command line.  
+
+#. Provide the directory and the file extension, which will be used to search
+   for and reduce all files found.
+
+An example file named ``input.rawfiles`` used in the first approach could look
+like this:
+
+.. code-block:: console
+
+    # Data block 
+    raw read
+        path /path/to/files
+    filename
+    b1.fits.gz
+    b10.fits.gz
+    b27.fits.gz
+    raw end
+
+and you would pass it to the QL script using the ``--raw_files`` command-line argument:
+
+.. code-block:: console
+
+    pypeit_ql shane_kast_blue --raw_files input.rawfiles
+
+You will get identical behavior if you instead used
+
+.. code-block:: console
+
+    pypeit_ql shane_kast_blue --raw_files b1.fits.gz b10.fits.gz b27.fits.gz --raw_path /path/to/files
+
+Finally, if those three files are the *only* files with the relevant extension
+in ``/path/to/files``, the third entry option would look like this:
+
+.. code-block:: console
+
+    pypeit_ql shane_kast_blue --raw_path /path/to/files --ext fits.gz
+
+In this example (see more below), the three files are an arc-lamp exposure
+(``b1.fits.gz``), a dome-flat exposure (``b10.fits.gz``), and an on-sky science
+exposure (``b27.fits.gz``).  For the QL script to work, PypeIt must be able to
+classify these frames as such automatically.  The only exception is that you can
+specify which of the files are science file using the ``--sci_files`` option.
+Importantly, files listed using the ``sci_files`` option must also be listed
+among the ``raw_files``.  I.e., to specify the science frame in the above
+example, the call would be:
+
+.. code-block:: console
+
+    pypeit_ql shane_kast_blue --raw_files b1.fits.gz b10.fits.gz b27.fits.gz --raw_path /path/to/files --sci_files b27.fits.gz
+
+
+
+
 
 Folder tree 
 +++++++++++
@@ -41,7 +103,7 @@ One or more folders are generated in a run with ``pypeit_ql``.
 
 The primary folder containts the science outputs 
 in ``Science/`` and QA products related to extraction
-and a soft-link to the ``Masters/`` folder.
+and a soft-link to the ``Calibrations/`` folder.
 It is named after the input science file(s).  If there is only
 one file processed, the folder is given the name of the file
 with the ``.fits`` extension removed (e.g. ``b27.fits`` becomes
@@ -74,10 +136,10 @@ include:
 .. code-block:: ini
 
     [baseprocess]
-        master_setup_and_bit = SETUP_BIT
+        calib_setup_and_bit = SETUP_BIT
 
-where ``SETUP`` and ``BIT`` are taken from the masters
-files found in the ``Masters/`` folder.  
+where ``SETUP`` and ``BIT`` are taken from the calibration
+files found in the ``Calibrations/`` folder.  
 For example, ``SETUP_BIT`` may be ``A_7``. 
 This should
 ensure that the science data are processed using the
@@ -107,7 +169,7 @@ is not important.
     pypeit_ql shane_kast_blue --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55 --rawfiles b1.fits.gz b10.fits.gz b27.fits.gz 
 
 This call first generates a ``shane_kast_blue_A`` folder with the 
-processed calibrations (Masters) and associated QA :doc:`outputs`.
+processed calibrations and associated QA :doc:`outputs`.
 It then generates a separate folder named ``b27`` which holds
 the ``Science`` folder with the processed 2D spectral
 image and the extracted spectra.
@@ -139,18 +201,18 @@ You can, however, force a re-generation of the calibrations
 with ``--clobber_calibs``.
 
 
-Masters Folder
---------------
+Calibrations Folder
+-------------------
 
-One can specifiy the path to a set of Masters files
-for use as calibrations with ``--masters_dir``.  
+One can specifiy the path to a set of calibraion files
+for use as calibrations with ``--calib_dir``.  
 
 .. code-block:: bash
 
-    pypeit_ql shane_kast_blue --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55 --rawfiles b1.fits.gz b10.fits.gz b27.fits.gz b28.fits.gz --masters_dir /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/REDUX_OUT/shane_kast_blue/TMP/shane_kast_blue_A/Masters
+    pypeit_ql shane_kast_blue --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55 --rawfiles b1.fits.gz b10.fits.gz b27.fits.gz b28.fits.gz --calib_dir /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/REDUX_OUT/shane_kast_blue/TMP/shane_kast_blue_A/Calibrations
 
 Note that the code will adopt the setup and bit number
-of the Masters files.
+of the calibration files.
 
 Warning:  the code will not check that the configuration
 of these calibration files match the science frames.
@@ -160,7 +222,7 @@ Calibrations Folder
 
 One can specifiy the path to a folder containing 
 one or more *sub-folders* of reduced calibration files,
-each of which would hold a Masters/ folder.
+each of which would hold a Calibrations/ folder.
 This is set with the ``--calib_dir`` option.
 
 A standard use case is for ``keck_deimos`` reductions
@@ -224,7 +286,7 @@ detector:
 
 .. code-block:: bash
 
-    pypeit_ql keck_lris_red --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/keck_lris_red/long_600_7500_d560  --rawfiles LR.20160216.40478.fits.gz  --masters_dir /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/REDUX_OUT/keck_lris_red/long_600_7500_d560/Masters --det 2
+    pypeit_ql keck_lris_red --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/keck_lris_red/long_600_7500_d560  --rawfiles LR.20160216.40478.fits.gz  --calib_dir /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/REDUX_OUT/keck_lris_red/long_600_7500_d560/Calibrations --det 2
 
 This will only process the second detector.
 
@@ -254,7 +316,7 @@ Here is an example with ``keck_deimos``:
 
 .. code-block:: bash
 
-    pypeit_ql keck_deimos --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/keck_deimos/600ZD_M_6500 --rawfiles d1010_0056.fits.gz --masters_dir /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/REDUX_OUT/keck_deimos/600ZD_M_6500/Masters --slitspatnum MSC02:452
+    pypeit_ql keck_deimos --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/keck_deimos/600ZD_M_6500 --rawfiles d1010_0056.fits.gz --calib_dir /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/REDUX_OUT/keck_deimos/600ZD_M_6500/Calibrations --slitspatnum MSC02:452
 
 
 Here we have specified ``--slitspatnum`` as
@@ -275,7 +337,7 @@ Here is an example with ``keck_deimos``:
 
 .. code-block:: bash
 
-    pypeit_ql keck_deimos --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/keck_deimos/600ZD_M_6500 --rawfiles d1010_0056.fits.gz --masters_dir /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/REDUX_OUT/keck_deimos/600ZD_M_6500/Masters --maskID 958454
+    pypeit_ql keck_deimos --full_rawpath /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/keck_deimos/600ZD_M_6500 --rawfiles d1010_0056.fits.gz --calib_dir /home/xavier/Projects/PypeIt-codes/PypeIt-development-suite/REDUX_OUT/keck_deimos/600ZD_M_6500/Calibrations --maskID 958454
 
 This requires that the detector(s) with this
 slit have been calibrated (or will be calibrated, e.g. by 

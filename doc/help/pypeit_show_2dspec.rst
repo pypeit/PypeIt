@@ -8,11 +8,10 @@
                               [--prefix PREFIX] [--no_clear] [-v VERBOSITY]
                               file
     
-    Display sky subtracted, spec2d image in a Ginga viewer. Run above the Science/
-    folder
+    Display sky subtracted, spec2d image in a ginga viewer.
     
     positional arguments:
-      file                  PypeIt spec2d file
+      file                  Path to a PypeIt spec2d file
     
     optional arguments:
       -h, --help            show this help message and exit

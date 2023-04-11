@@ -16,9 +16,8 @@ class ChkWaveCalib(scriptbase.ScriptBase):
                                     width=width)
 
         parser.add_argument('input_file', type=str,
-                            help='PypeIt MasterWaveCalib file [e.g. MasterWaveCalib_A_1_01.fits] or spec2d file')
-        #parser.add_argument('--try_old', default=False, action='store_true',
-        #                    help='Attempt to load old datamodel versions.  A crash may ensue..')
+                            help='PypeIt WaveCalib file [e.g. WaveCalib_A_1_DET01.fits] or '
+                                 'spec2d file')
         return parser
 
     @staticmethod
@@ -31,14 +30,14 @@ class ChkWaveCalib(scriptbase.ScriptBase):
         # What kind of file are we?? Similar to pypeit_parse_slits
         hdul = fits.open(args.input_file)
         head0 = hdul[0].header
-        if 'MSTRTYP' in head0.keys() and head0['MSTRTYP'].strip() == 'WaveCalib':
-            file_type = 'MasterWaveCalib'
+        if 'CALIBTYP' in head0.keys() and head0['CALIBTYP'].strip() == 'WaveCalib':
+            file_type = 'WaveCalib'
         elif 'PYP_CLS' in head0.keys() and head0['PYP_CLS'].strip() == 'AllSpec2DObj':
             file_type = 'AllSpec2D'
         else:
-            raise IOError("Unrecognized file type. Must be a MasterWaveCalib or spec2d file.")
+            raise IOError("Unrecognized file type. Must be a WaveCalib or spec2d file.")
 
-        if file_type == 'MasterWaveCalib':
+        if file_type == 'WaveCalib':
             # Load
             waveCalib = wavecalib.WaveCalib.from_file(args.input_file)
                                                     #, chk_version=(not args.try_old))
