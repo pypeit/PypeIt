@@ -682,7 +682,7 @@ class FindObjects:
                 msgs.error("Sky regions definition must contain a percentage range, and therefore must contain a ':'")
             # Generate image
             skymask = skysub.generate_mask(self.pypeline, regions, self.slits, self.slits_left,
-                                                self.slits_right, spat_flexure=self.spat_flexure_shift)
+                                           self.slits_right, spat_flexure=self.spat_flexure_shift)
 
         # Return the result
         return skymask
@@ -1216,13 +1216,13 @@ class IFUFindObjects(MultiSlitFindObjects):
                 Mask of sky regions where the spectral illumination will be determined
         """
         trim = self.par['calibrations']['flatfield']['slit_trim']
-        ref_idx = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
+        sl_ref = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
         smooth_npix = self.par['calibrations']['flatfield']['slit_illum_smooth_npix']
         gpm = self.sciImg.select_flag(invert=True)
         # Note :: Need to provide wavelength to illum_profile_spectral (not the tilts) so that the
         # relative spectral sensitivity is calculated at a given wavelength for all slits simultaneously.
         scaleImg = flatfield.illum_profile_spectral(self.sciImg.image.copy(), self.waveimg, self.slits,
-                                                    slit_illum_ref_idx=ref_idx, model=global_sky, gpmask=gpm,
+                                                    slit_illum_ref_idx=sl_ref, model=global_sky, gpmask=gpm,
                                                     skymask=skymask, trim=trim, flexure=self.spat_flexure_shift,
                                                     smooth_npix=smooth_npix)
         # Now apply the correction to the science frame
@@ -1317,9 +1317,33 @@ class IFUFindObjects(MultiSlitFindObjects):
         self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
         # Calculate spectral flexure
         method = self.par['flexure']['spec_method']
+        sl_ref = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
         if method in ['slitcen']:
+            embed()
             trace_spat = 0.5 * (self.slits_left + self.slits_right)
+            # Load archival sky spectrum for absolute correction
+            sky_spectrum, sky_fwhm_pix = flexure.get_archive_spectrum(self.par['flexure'][''])
+            # Get spectral FWHM (in Angstrom) if available
+            iwv = np.where(wv_calib.spat_ids == slits.spat_id[sl_ref])[0][0]
+            ref_fwhm_pix = self.wv_calib.wv_fits[iwv].fwhm
+            # Extract a spectrum of the sky
+            thismask = (slitid_img_init == slits.spat_id[sl_ref])
+            ref_skyspec = flexure.get_sky_spectrum(sciimg, ivar, waveimg, thismask, skysubImg,
+                                                   parset['reduce']['extraction']['boxcar_radius'],
+                                                   slits, trace_spat[:, sl_ref], hdr['PYPELINE'], det)
+            # Calculate the flexure
+            flex_dict = flexure.spec_flex_shift(ref_skyspec, sky_spectrum, sky_fwhm_pix, spec_fwhm_pix=ref_fwhm_pix,
+                                                mxshft=flexpar['spec_maxshift'], excess_shft=flexpar['excessive_shift'],
+                                                method="slitcen")
+
+
+
+
+
+
+
             gd_slits = np.ones(self.slits.nslits, dtype=bool)
+            # TODO :: Rethink this... maybe better to find absolute correction from one slit, and then do a relative correction for all other slits.
             flex_list = flexure.spec_flexure_slit_global(self.sciImg, self.waveimg, global_sky_sep, self.par,
                                                          self.slits, self.slitmask, trace_spat, gd_slits,
                                                          self.wv_calib, self.pypeline, self.det)
