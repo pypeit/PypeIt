@@ -631,14 +631,8 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
     # Determine the method
     slit_cen = True if (specobjs is None) or (method == "slitcen") else False
 
-    # Load Archive. Save the fwhm to avoid the performance hit from calling it on the archive sky spectrum
-    # multiple times
-    sky_spectrum = data.load_sky_spectrum(sky_file)
-    # get arxiv sky spectrum resolution (FWHM in pixels)
-    arx_fwhm_pix = autoid.measure_fwhm(sky_spectrum.flux.value, sigdetect=4., fwhm=4.)
-    if arx_fwhm_pix is None:
-        msgs.error('Failed to measure the spectral FWHM of the archived sky spectrum. '
-                   'Not enough sky lines detected.')
+    # Load Archival sky spectrum
+    sky_spectrum, arx_fwhm_pix = get_archive_spectrum(sky_file)
 
     # Initialise the flexure list for each slit
     flex_list = []
@@ -810,6 +804,28 @@ def spec_flexure_slit_global(sciImg, waveimg, global_sky, par, slits, slitmask, 
                                   excess_shft=par['flexure']['excessive_shift'],
                                   specobjs=None, slit_specs=slit_specs, wv_calib=wv_calib)
     return flex_list
+
+
+def get_archive_spectrum(sky_file):
+    """ Load an archival sky spectrum
+
+    Args:
+        sky_file (:obj:`str`):
+            Sky file
+
+    Returns:
+        (:obj:`XSpectrum1D`): Sky spectrum
+        (float): FWHM of the sky lines in pixels.
+    """
+    # Load Archive. Save the fwhm to avoid the performance hit from calling it on the archive sky spectrum
+    # multiple times
+    sky_spectrum = data.load_sky_spectrum(sky_file)
+    # get arxiv sky spectrum resolution (FWHM in pixels)
+    arx_fwhm_pix = autoid.measure_fwhm(sky_spectrum.flux.value, sigdetect=4., fwhm=4.)
+    if arx_fwhm_pix is None:
+        msgs.error('Failed to measure the spectral FWHM of the archived sky spectrum. '
+                   'Not enough sky lines detected.')
+    return sky_spectrum, arx_fwhm_pix
 
 
 def get_sky_spectrum(sciimg, ivar, waveimg, thismask, global_sky, box_radius, slits, trace_spat, pypeline, det):
