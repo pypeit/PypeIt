@@ -325,20 +325,6 @@ def correct_grating_shift(wave_eval, wave_curr, spl_curr, wave_ref, spl_ref, ord
     return grat_corr
 
 
-def correct_spec_flexure(waveimg):
-    """ Shift the wavelength image
-
-    Args:
-        waveimg (`numpy.ndarray`_):
-            A 2D array containing the wavelength of each detector pixel
-
-    Returns:
-        waveimg_corr (`numpy.ndarray`_): The wavelength image, corrected for spectral flexure
-    """
-
-    return waveimg_corr
-
-
 def gaussian2D_cube(tup, intflux, xo, yo, dxdz, dydz, sigma_x, sigma_y, theta, offset):
     """ Fit a 2D Gaussian function to a datacube. This function assumes that each wavelength
     slice of the datacube is well-fit by a 2D Gaussian. The centre of the Gaussian is allowed
@@ -1536,63 +1522,63 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
         # TODO :: Really need to write some detailed information in the docs about all of the various corrections that can optionally be applied
 
-        # Correct for spectral flexure using the skysub frame
-        # TODO :: Need to include the spectral flexure correction here.
-        embed()
-        #######################################################################
-        from pypeit.core import flexure
-        from pypeit.core.wavecal import autoid
-        from linetools.spectra import xspectrum1d
+        # TODO :: Remove this
+        if False:
+            embed()
+            #######################################################################
+            from pypeit.core import flexure
+            from pypeit.core.wavecal import autoid
+            from linetools.spectra import xspectrum1d
 
-        # Obtain a reference spectrum
-        sl_ref = flatpar['slit_illum_ref_idx']
-        # Calculate the absolute spectral flexure correction for the reference slit
-        trace_spat = 0.5 * (slits_left + slits_right)
-        sky_spectrum = data.load_sky_spectrum(flexpar['spectrum'])
-        # get arxiv sky spectrum resolution (FWHM in pixels)
-        sky_fwhm_pix = autoid.measure_fwhm(sky_spectrum.flux.value, sigdetect=4., fwhm=4.)
-        # get spectral FWHM (in Angstrom) if available
-        ref_fwhm_ang, ref_fwhm_pix = None, None
-        iwv = np.where(wv_calib.spat_ids == slits.spat_id[sl_ref])[0][0]
-        # Allow for wavelength failures
-        if wv_calib.wv_fits is not None and wv_calib.wv_fits[iwv].fwhm is not None:
-            ref_fwhm_pix = wv_calib.wv_fits[iwv].fwhm
-        # Get an object spectrum
-        thismask = (slitid_img_init == slits.spat_id[sl_ref])
-        # Dummy spec for extract_boxcar
-        ref_skyspec = flexure.get_sky_spectrum(sciimg, ivar, waveimg, thismask, skysubImg,
-                                               parset['reduce']['extraction']['boxcar_radius'],
-                                               slits, trace_spat[:, sl_ref], hdr['PYPELINE'], det)
-        # Calculate the flexure
-        flex_dict = flexure.spec_flex_shift(ref_skyspec, sky_spectrum, sky_fwhm_pix, spec_fwhm_pix=ref_fwhm_pix,
-                                            mxshft=flexpar['spec_maxshift'], excess_shft=flexpar['excessive_shift'],
-                                            method="slitcen")
-        # This absolute shift is the same for all slits
-        slitshift = np.ones(slits.nslits) * flex_dict['shift']
-        # Now loop through all slits to calculate the additional shift relative to the reference slit
-        for slit_idx, slit_spat in enumerate(slits.spat_id):
-            thismask = (slitid_img_init == slit_spat)
+            # Obtain a reference spectrum
+            sl_ref = flatpar['slit_illum_ref_idx']
+            # Calculate the absolute spectral flexure correction for the reference slit
+            trace_spat = 0.5 * (slits_left + slits_right)
+            sky_spectrum = data.load_sky_spectrum(flexpar['spectrum'])
+            # get arxiv sky spectrum resolution (FWHM in pixels)
+            sky_fwhm_pix = autoid.measure_fwhm(sky_spectrum.flux.value, sigdetect=4., fwhm=4.)
+            # get spectral FWHM (in Angstrom) if available
+            ref_fwhm_ang, ref_fwhm_pix = None, None
+            iwv = np.where(wv_calib.spat_ids == slits.spat_id[sl_ref])[0][0]
+            # Allow for wavelength failures
+            if wv_calib.wv_fits is not None and wv_calib.wv_fits[iwv].fwhm is not None:
+                ref_fwhm_pix = wv_calib.wv_fits[iwv].fwhm
+            # Get an object spectrum
+            thismask = (slitid_img_init == slits.spat_id[sl_ref])
             # Dummy spec for extract_boxcar
-            this_skyspec = flexure.get_sky_spectrum(sciimg, ivar, waveimg, thismask, skysubImg,
+            ref_skyspec = flexure.get_sky_spectrum(sciimg, ivar, waveimg, thismask, skysubImg,
                                                    parset['reduce']['extraction']['boxcar_radius'],
-                                                   slits, trace_spat[:, slit_idx], hdr['PYPELINE'], det)
+                                                   slits, trace_spat[:, sl_ref], hdr['PYPELINE'], det)
             # Calculate the flexure
-            flex_dict = flexure.spec_flex_shift(this_skyspec, ref_skyspec, ref_fwhm_pix*1.01, spec_fwhm_pix=ref_fwhm_pix,
+            flex_dict = flexure.spec_flex_shift(ref_skyspec, sky_spectrum, sky_fwhm_pix, spec_fwhm_pix=ref_fwhm_pix,
                                                 mxshft=flexpar['spec_maxshift'], excess_shft=flexpar['excessive_shift'],
                                                 method="slitcen")
+            # This absolute shift is the same for all slits
+            slitshift = np.ones(slits.nslits) * flex_dict['shift']
+            # Now loop through all slits to calculate the additional shift relative to the reference slit
+            for slit_idx, slit_spat in enumerate(slits.spat_id):
+                thismask = (slitid_img_init == slit_spat)
+                # Dummy spec for extract_boxcar
+                this_skyspec = flexure.get_sky_spectrum(sciimg, ivar, waveimg, thismask, skysubImg,
+                                                       parset['reduce']['extraction']['boxcar_radius'],
+                                                       slits, trace_spat[:, slit_idx], hdr['PYPELINE'], det)
+                # Calculate the flexure
+                flex_dict = flexure.spec_flex_shift(this_skyspec, ref_skyspec, ref_fwhm_pix*1.01, spec_fwhm_pix=ref_fwhm_pix,
+                                                    mxshft=flexpar['spec_maxshift'], excess_shft=flexpar['excessive_shift'],
+                                                    method="slitcen")
 
-            # Calculate the shift
-            fdict = spec_flex_shift(slit_specs[slit_idx], sky_spectrum, arx_fwhm_pix, mxshft=mxshft, excess_shft=excess_shft,
-                                    spec_fwhm=spec_fwhm, method=method)
-            slitshift[slit_idx] += 0.0
-        # Rebuild the wavelength image
-        waveimg_corr = wv_calib.build_waveimg(self.tilts, slits, spec_flexure=slitshift,
-                                                   spat_flexure=spat_flexure)
-        # Apply heliocentric correction
+                # Calculate the shift
+                fdict = spec_flex_shift(slit_specs[slit_idx], sky_spectrum, arx_fwhm_pix, mxshft=mxshft, excess_shft=excess_shft,
+                                        spec_fwhm=spec_fwhm, method=method)
+                slitshift[slit_idx] += 0.0
+            # Rebuild the wavelength image
+            waveimg_corr = wv_calib.build_waveimg(self.tilts, slits, spec_flexure=slitshift,
+                                                       spat_flexure=spat_flexure)
+            # Apply heliocentric correction
 
-        return waveimg_corr
-        #######################################################################
-        waveimg = correct_spec_flexure(waveimg)
+            return waveimg_corr
+            #######################################################################
+            waveimg = correct_spec_flexure(waveimg)
 
         wave0 = waveimg[waveimg != 0.0].min()
         # Calculate the delta wave in every pixel on the slit
