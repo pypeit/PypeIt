@@ -226,9 +226,11 @@ class CombineImage:
             # Read noise squared image
             if pypeitImage.rn2img is not None:
                 rn2img_stack[kk] = pypeitImage.rn2img * scl_stack[kk]**2
+#                rn2img_stack[kk] = pypeitImage.rn2img
             # Processing variance image
             if pypeitImage.base_var is not None:
                 basev_stack[kk] = pypeitImage.base_var * scl_stack[kk]**2
+#                basev_stack[kk] = pypeitImage.base_var / scl_stack[kk]**2
             # Final mask for this image
             # TODO: This seems kludgy to me. Why not just pass ignore_saturation
             # to process_one and ignore the saturation when the mask is actually
@@ -277,6 +279,7 @@ class CombineImage:
             comb_rn2, comb_basev = var_list_out
             comb_rn2[gpm] /= comb_scl[gpm]**2
             comb_basev[gpm] /= comb_scl[gpm]**2
+#            comb_basev[gpm] *= comb_scl[gpm]**2
         elif combine_method == 'median':
             bpm_stack = np.logical_not(gpm_stack)
             nstack = np.sum(gpm_stack, axis=0)
@@ -293,6 +296,7 @@ class CombineImage:
             # in mean (sum(variance_i)/n^2) to standard variance in median)
             comb_rn2[gpm] *= np.pi/2/nstack[gpm]**2/comb_scl[gpm]**2
             comb_basev[gpm] *= np.pi/2/nstack[gpm]**2/comb_scl[gpm]**2
+#            comb_basev[gpm] *= np.pi/2/nstack[gpm]**2 * comb_scl[gpm]**2
         else:
             # NOTE: Given the check at the beginning of the function, the code
             # should *never* make it here.

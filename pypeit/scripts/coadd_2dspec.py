@@ -32,17 +32,9 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         parser = super().get_parser(description='Coadd 2D spectra produced by PypeIt',
                                     width=width)
 
-        parser.add_argument("--file", type=str, default=None, help="File to guide 2d coadds")
-        parser.add_argument('--det', default=None, type=str,
-                            help="1-indexed detector or list of detectors that the user wants to"
-                                 "coadd. If None, all the detectors are coadded. If the spec2d are"
-                                 "mosaiced and the user wants to restrict the coadd to only selected"
-                                 "mosaics, use the parameter detnum in the coadd2d file as done in"
-                                 "run_pypeit")
-        parser.add_argument("--obj", type=str, default=None,
-                            help="Object name in lieu of extension, e.g if the spec2d files are "
-                                 "named 'spec2d_J1234+5678_GNIRS_2017Mar31T085412.181.fits' then "
-                                 "use --obj J1234+5678")
+        parser.add_argument('coadd2d_file', type=str, default=None,
+                            help='File to guide 2d coadds')
+
         parser.add_argument("--show", default=False, action="store_true",
                             help="Show the reduction steps. Equivalent to the -s option when "
                                  "running pypeit.")
@@ -62,7 +54,6 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                                  "(spat_samp_fact > 1.0) by this sampling factor, i.e. units of "
                                  "spat_samp_fact are pixels.")
         parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
-        parser.add_argument("--only_slits", type=str, default=None, help="Only coadd the following slits")
         parser.add_argument('-v', '--verbosity', type=int, default=1,
                             help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
                                  'Level 2 writes a log with filename coadd_2dspec_YYYYMMDD-HHMM.log')
@@ -82,69 +73,30 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         # Set the verbosity, and create a logfile if verbosity == 2
         msgs.set_logfile_and_verbosity('coadd_2dspec', args.verbosity)
 
-        #msgs.info('PATH =' + os.getcwd())
         # Load the file
-        if args.file is not None:
-            # Read
-            coadd2dFile = inputfiles.Coadd2DFile.from_file(args.file)
-            # Parse
-            spectrograph_name = coadd2dFile.config['rdx']['spectrograph'] 
-            config_lines = coadd2dFile.cfg_lines 
-            spec2d_files = coadd2dFile.filenames
+        coadd2dFile = inputfiles.Coadd2DFile.from_file(args.coadd2d_file)
+        spectrograph, parset, _ = coadd2dFile.get_pypeitpar()
 
-            # Continue
-            #spectrograph_name, config_lines, spec2d_files, spec2d_opts \
-            #        = io.read_spec2d_file(args.file, filetype="coadd2d")
-            spectrograph = load_spectrograph(spectrograph_name)
+        # Check some of the parameters
+        # TODO Heliocentric for coadd2d needs to be thought through. Currently turning it off.
+        if parset['calibrations']['wavelengths']['refframe'] != 'observed':
+            msgs.warn('Wavelength reference frame shift (e.g., heliocentric correction) not yet '
+                      'fully developed.  Ignoring input and setting "refframe = observed".')
+            parset['calibrations']['wavelengths']['refframe'] = 'observed'
+        # TODO Flexure correction for coadd2d needs to be thought through. Currently turning it off.
+        if parset['flexure']['spec_method'] != 'skip':
+            msgs.warn('Spectroscopic flexure correction not yet fully developed.  Skipping.')
+            parset['flexure']['spec_method'] = 'skip'
+        # TODO This is currently the default for 2d coadds, but we need a way to toggle it on/off
+        if not parset['reduce']['findobj']['skip_skysub']:
+            msgs.warn('Must skip sky subtraction when finding objects (i.e., sky should have '
+                      'been subtracted during primary reduction procedure).  Skipping.')
+            parset['reduce']['findobj']['skip_skysub'] = True
 
-            # Parameters
-            # TODO: Shouldn't this reinstantiate the same parameters used in
-            # the PypeIt run that extracted the objects?  Why are we not
-            # just passing the pypeit file?
-            # JFH: The reason is that the coadd2dfile may want different reduction parameters
-            # DP: I think config_specific_par() is more appropriate here. default_pypeit_par()
-            # is included in config_specific_par()
-            # NOTE `config_specific_par` works with the spec2d files because we construct the header
-            # of those files to include all the relevant keywords from the raw file.
-            spectrograph_cfg_lines = spectrograph.config_specific_par(spec2d_files[0]).to_config()
-            parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, 
-                                                  merge_with=(config_lines,))
+        # Set the file paths
+        spec2d_files = coadd2dFile.filenames
 
-        elif args.obj is not None:
-            # TODO: We should probably be reading the pypeit file and using
-            # those parameters here rather than using the default parset.
-            
-            # TODO: This needs to define the science path
-            spec2d_files = glob.glob('./Science/spec2d_*' + args.obj + '*')
-            head0 = fits.getheader(spec2d_files[0])
-            spectrograph_name = head0['PYP_SPEC']
-            spectrograph = load_spectrograph(spectrograph_name)
-            # NOTE `config_specific_par` works with the spec2d files because we construct the header
-            # of those files to include all the relevant keywords from the raw file.
-            spectrograph_cfg_lines = spectrograph.config_specific_par(spec2d_files[0]).to_config()
-            parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines)
-        else:
-            return msgs.error('You must provide either a coadd2d file (--file) or an object name (--obj)')
-
-        # If detector was passed as an argument override whatever was in the coadd2d_file
-        if args.det is not None:
-            msgs.info("Restricting reductions to detector={}".format(args.det))
-            # parset['rdx']['detnum'] = par.util.eval_tuple(args.det.split(','))
-            # TODO this needs to be adjusted if we want to pass (as inline command) mosaic detectors
-            parset['rdx']['detnum'] = [int(d) for d in args.det.split(',')]
-
-        # TODO: Not used in the script
-        # Get headers (if possible) and base names
-#        spec1d_files = [files.replace('spec2d', 'spec1d') for files in spec2d_files]
-#        head1d = None
-#        for spec1d_file in spec1d_files:
-#            if Path(spec1d_file).exists():
-#                head1d = fits.getheader(spec1d_file)
-#                break
-#        if head1d is None:
-#            msgs.warn("No 1D spectra so am generating a dummy header for output")
-#            head1d = io.initialize_header()
-
+        # Get the output basename
         head2d = fits.getheader(spec2d_files[0])
         if args.basename is None:
             #TODO Fix this, currently does not work if target names have - or _
@@ -157,13 +109,6 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         else:
             basename = args.basename
 
-
-        # TODO Heliocentric for coadd2d needs to be thought through. Currently turning it off.
-        parset['calibrations']['wavelengths']['refframe'] = 'observed'
-        # TODO Flexure correction for coadd2d needs to be thought through. Currently turning it off.
-        parset['flexure']['spec_method'] = 'skip'
-        # TODO This is currently the default for 2d coadds, but we need a way to toggle it on/off
-        parset['reduce']['findobj']['skip_skysub'] = True
         # Write the par to disk
         par_outfile = basename+'_coadd2d.par'
         print("Writing the parameters to {}".format(par_outfile))

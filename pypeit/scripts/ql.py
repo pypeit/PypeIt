@@ -217,6 +217,8 @@ def generate_sci_pypeitfile(redux_path:str,
 #            std_spec1d = std_files[0]
     # TODO: Enable the user to provide the standard spec1d file directly?
 
+    # TODO: Push this stuff into a function in par/pypeitpar.py
+
     # Get the quicklook parameters to use for this spectrograph
     spec_cfg = ps_sci.spectrograph.ql_par()
 

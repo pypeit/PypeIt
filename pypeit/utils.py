@@ -1024,6 +1024,35 @@ def yamlify(obj, debug=False):
     return obj
 
 
+def add_sub_dict(d, key):
+    """
+    If a key is not present in the provided dictionary, add it as a new nested
+    dictionary.
+
+    Args:
+        d (:obj:`dict`):
+            Dictionary to alter
+        key (:obj:`str`):
+            Key to add
+
+    Examples:
+        >>> d = {}
+        >>> add_sub_dict(d, 'test')
+        >>> d
+        {'test': {}}
+        >>> d['test'] = 'this'
+        >>> add_sub_dict(d, 'test')
+        >>> d
+        {'test': 'this'}
+        >>> add_sub_dict(d, 'and')
+        >>> d['and'] = 'that'
+        >>> d
+        {'test': 'this', 'and': 'that'}
+    """
+    if key not in d.keys():
+        d[key] = {}
+
+
 def save_pickle(fname, obj):
     """Save an object to a python pickle file
 

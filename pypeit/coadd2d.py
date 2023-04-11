@@ -222,6 +222,48 @@ class CoAdd2D:
         # If smoothing is not input, smooth by 10% of the maximum spectral dimension
         self.sn_smooth_npix = sn_smooth_npix if sn_smooth_npix is not None else 0.1*self.nspec_max
 
+    @staticmethod
+    def default_par(spectrograph, inp_cfg=None, det=None, slits=None):
+        """
+        Get the default 2D coadding parameters.
+
+        Args:
+            spectrograph (:obj:`str`):
+                The PypeIt-specific name of the spectrograph used to collect the
+                data.
+            inp_cfg (:obj:`dict`, optional):
+                An existing set of parameters to add to.
+            det (:obj:`list`, :obj:`str`, :obj:`tuple`, optional):
+                Limit the coadding to this (set of) detector(s)/detector mosaic(s)
+            slits (:obj:`list`, :obj:`str`, optional):
+                Limit the coadding to this (set of) slit(s)
+
+        Returns:
+            :obj:`dict`: The default set of parameters.
+        """
+        cfg = dict(rdx=dict(spectrograph=spectrograph)) if inp_cfg is None else dict(inp_cfg)
+        if det is not None:
+            cfg['rdx']['detnum'] = det
+        if slits is not None:
+            utils.add_sub_dict(cfg, 'coadd2d')
+            cfg['coadd2d']['only_slits'] = slits
+        # TODO: Heliocentric for coadd2d needs to be thought through. Currently
+        # turning it off.
+        utils.add_sub_dict(cfg, 'calibrations')
+        utils.add_sub_dict(cfg['calibrations'], 'wavelengths')
+        cfg['calibrations']['wavelengths']['refframe'] = 'observed'
+        # TODO: Flexure correction for coadd2d needs to be thought through.
+        # Currently turning it off.
+        utils.add_sub_dict(cfg, 'flexure')
+        cfg['flexure']['spec_method'] = 'skip'
+        # TODO: This is currently the default for 2d coadds, but we need a way
+        # to toggle it on/off
+        utils.add_sub_dict(cfg, 'reduce')
+        utils.add_sub_dict(cfg['reduce'], 'findobj')
+        cfg['reduce']['findobj']['skip_skysub'] = True
+
+        return cfg
+
     def good_slitindx(self, only_slits=None):
         """
         This provides an array of index of slits in the un-coadded frames that are considered good for 2d coadding.
