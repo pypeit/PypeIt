@@ -631,14 +631,8 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
     # Determine the method
     slit_cen = True if (specobjs is None) or (method == "slitcen") else False
 
-    # Load Archive. Save the fwhm to avoid the performance hit from calling it on the archive sky spectrum
-    # multiple times
-    sky_spectrum = data.load_sky_spectrum(sky_file)
-    # get arxiv sky spectrum resolution (FWHM in pixels)
-    arx_fwhm_pix = autoid.measure_fwhm(sky_spectrum.flux.value, sigdetect=4., fwhm=4.)
-    if arx_fwhm_pix is None:
-        msgs.error('Failed to measure the spectral FWHM of the archived sky spectrum. '
-                   'Not enough sky lines detected.')
+    # Load Archival sky spectrum
+    sky_spectrum, arx_fwhm_pix = get_archive_spectrum(sky_file)
 
     # Initialise the flexure list for each slit
     flex_list = []
@@ -671,7 +665,7 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
         if wv_calib is not None:
             iwv = np.where(wv_calib.spat_ids == slits.spat_id[islit])[0][0]
             # Allow for wavelength failures
-            if wv_calib.wv_fits is not None and wv_calib.wv_fits[iwv].fwhm is not None: 
+            if wv_calib.wv_fits is not None and wv_calib.wv_fits[iwv].fwhm is not None:
                 spec_fwhm_pix = wv_calib.wv_fits[iwv].fwhm
 
         if slit_cen:
@@ -812,9 +806,58 @@ def spec_flexure_slit_global(sciImg, waveimg, global_sky, par, slits, slitmask, 
     return flex_list
 
 
+def get_archive_spectrum(sky_file):
+    """ Load an archival sky spectrum
+
+    Args:
+        sky_file (:obj:`str`):
+            Sky file
+
+    Returns:
+        (:obj:`XSpectrum1D`): Sky spectrum
+        (float): FWHM of the sky lines in pixels.
+    """
+    # Load Archive. Save the fwhm to avoid the performance hit from calling it on the archive sky spectrum
+    # multiple times
+    sky_spectrum = data.load_sky_spectrum(sky_file)
+    # get arxiv sky spectrum resolution (FWHM in pixels)
+    arx_fwhm_pix = autoid.measure_fwhm(sky_spectrum.flux.value, sigdetect=4., fwhm=4.)
+    if arx_fwhm_pix is None:
+        msgs.error('Failed to measure the spectral FWHM of the archived sky spectrum. '
+                   'Not enough sky lines detected.')
+    return sky_spectrum, arx_fwhm_pix
+
+
 def get_sky_spectrum(sciimg, ivar, waveimg, thismask, global_sky, box_radius, slits, trace_spat, pypeline, det):
     """ Obtain a boxcar extraction of the sky spectrum
 
+    Args:
+        sciimg  (`numpy.ndarray`_):
+            Science image - shape (nspec, nspat)
+        ivar  (`numpy.ndarray`_):
+            Inverse variance of the science image - shape (nspec, nspat)
+        waveimg (`numpy.ndarray`_):
+            Wavelength image - shape (nspec, nspat)
+        thismask (`numpy.ndarray`_):
+            Good pixel mask (True=good) that indicates the pixels that should be included in the boxcar extraction
+        global_sky (`numpy.ndarray`_):
+            2D array of the global_sky fit - shape (nspec, nspat)
+        box_radius (float):
+            Radius of the boxcar extraction (in pixels)
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+            Slit trace set
+        trace_spat (`numpy.ndarray`_):
+            Spatial pixel values (usually the center of each slit) where the sky spectrum will be extracted.
+            The shape of this array should be (nspec, nslits)
+        pypeline (:obj:`str`):
+            Name of the ``PypeIt`` pipeline method.  Allowed options are
+            MultiSlit, Echelle, or IFU.
+        det (:obj:`str`):
+            The name of the detector or mosaic from which the spectrum will be
+            extracted.  For example, DET01.
+
+    Returns:
+        (:obj:`XSpectrum1D`): Sky spectrum
     """
     spec = specobj.SpecObj(PYPELINE=pypeline, SLITID=-1, DET=str(det))
     spec.trace_spec = np.arange(slits.nspec)
@@ -1680,6 +1723,3 @@ class MultiSlitFlexure(DataContainer):
 
         
         pdf.close()
-
-
-
