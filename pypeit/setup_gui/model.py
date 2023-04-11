@@ -14,7 +14,7 @@ import glob
 import numpy as np
 import io
 
-from qtpy.QtCore import QAbstractTableModel, QAbstractItemModel, QModelIndex, Qt, Signal, QObject, QThread
+from qtpy.QtCore import QAbstractTableModel, QAbstractItemModel, QModelIndex, Qt, Signal, QObject, QThread, QStringListModel
 from qtpy.QtGui import QTextDocument, QTextCursor
 
 from configobj import ConfigObj
@@ -152,33 +152,106 @@ def available_spectrographs():
     """Return a list of the supported spectrographs"""
     return spectrographs.available_spectrographs
 
+class PypeItMetadataModel(QObject):
+
+    structureChanged = Signal()
+    """Signals when columns have been added/removed."""
+
+    dataChanged = Signal()
+    """Signals when data has been modified but columns have not changed."""
+
+    def __init__(self, metadata=None):
+        super().__init__()
+        self.metadata = metadata
+
+    def setMetadata(self, metadata):
+        self.metadata=metadata
+        self.structureChanged.emit()
+
+
+    def getDefaultColumns(self):
+        """Return the default columns to display to the user. This can vary based
+        on the current spectrograph.
+        
+        Return:
+        A list of column names, in order to display.
+        """
+        if self.metadata is not None:
+            default_columns = self.metadata.set_pypeit_cols(write_bkg_pairs=True)
+            # The GUI also wants setup
+            default_columns.insert(1,'setup')
+            return default_columns
+        else:
+            return ['filename', 'setup', 'frametype', 'ra', 'dec', 'target', 'dispname', 'decker', 'binning', 'mjd', 'airmass', 'exptime']
+
+    def setValue(self, directory, filename, colname, value):
+            self.metadata
 
 class PypeItMetadataProxy(QAbstractTableModel):
     """
-    Provides a Qt QAbstractTableModel interface for a PypeItMetadata object.
+    Provides a proxy Qt model interface for a PypeItMetadata object.  This proxy can sort/filter
+    etc the PypeItMetadata object without affecting other proxies, similar to QT's QAbstractProxyModel
+    but it also directly implements the Qt QAbstractTableModel interface.  Edits performed 
+    using a proxy are propagated to other proxies by the PypeItMetadataModel's signals.
 
     Args:
         config (str): The configuration name the model represents. If this is "ObsLog", the
                       model shows all files in the metadata to views. Otherwise only files for the
                       given configuration are shown.
     """
-    def __init__(self, config="ObsLog"):
+    def __init__(self, source_model, config="ObsLog", visible_columns=None, filter_unique_column=None):
         super().__init__()
+
         self._config = config
-        # Setup the default columns for an empty table
-        self.reset()
-
-    def reset(self):
-        """
-        Clears all data in the model and returns it to it's initial state.
-        """
-        super().beginResetModel()
-        self._colnames = ['filename', 'frametype', 'ra', 'dec', 'target', 'dispname', 'decker', 'binning', 'mjd', 'airmass', 'exptime']
-        self._metadata = None
-        self.sortColumn = 8 # "mjd"
+        self._filter_unique_column=filter_unique_column
+        self.source_model = source_model
         self.sortOrder = Qt.AscendingOrder
-        super().endResetModel()
+        self.sortColumn = None
 
+        # Visible columns are the only columns the view wants to see
+        self._visible_columns = visible_columns
+
+        self.colnames = []
+        self.reset()
+        
+        # Notify views when the underlying model changes
+        source_model.dataChanged.connect(self.sourceDataChanged)
+
+        # Reset if the source structure changes
+        source_model.structureChanged.connect(self.reset)
+
+    def sourceDataChanged(self):
+        """Updates the proxy when the underlying source model has updated its data."""
+        # Refilter and sort the data
+        self._filterAndSort()
+
+        # The Qt dataChanged signal requires indices for what actually changed, but
+        # we aren't that fancy in PypeItMetadataModel. So just signal that everything
+        # changed
+        self.dataChanged.emit(self.index(0, 0), self.index(len(self._displayIdx)-1, len(self.colnames)-1))
+
+
+    def _filterAndSort(self):
+        """Filter and sort the PypeItMetadata table. Filtering is done using the
+        _displayIdx member variable and sorting by the _sortIdx variable."""
+
+        msgs.info(f"filterAndSort: config {self._config} colnames: {self.colnames} filter: {self._filter_unique_column} metadata: {self.source_model.metadata}")
+
+        if self.source_model.metadata is not None:
+            # Filter on setup/config name
+            if self._config != "ObsLog":
+                self._displayIdx = self.source_model.metadata['setup'] == self._config
+                msgs.info(f"filterAndSort: displayIdx len = {len(self._displayIdx)}")
+            else:
+                self._displayIdx = [True for x in range(len(self.source_model.metadata))]
+
+            # Filter on unique values in a column
+            if self._filter_unique_column is not None:
+                unused, self._displayIdx = np.unique(self.source_model.metadata[self._displayIdx][self._filter_unique_column], return_index=True)
+                msgs.info(f"filterAndSort: post unique: displayIdx len = {len(self._displayIdx)}")            
+            # Sort
+            self._sortIdx = self.source_model.metadata[self._displayIdx].argsort(self.colnames[self.sortColumn], reverse=(self.sortOrder == Qt.DescendingOrder))
+            msgs.info(f"filterAndSort: sortIdx len = {len(self._sortIdx)}")
 
     def rowCount(self, parent_index=QModelIndex()):
         """Returns number of rows under a parent. Overridden method from QAbstractItemModel.
@@ -191,12 +264,12 @@ class PypeItMetadataProxy(QAbstractTableModel):
             int: The number of rows in the table.
         """
         if (parent_index.isValid() or # Per Qt docs for a table model
-            self._metadata is None):
+            self.source_model.metadata is None):
             return 0
         else:            
-            return len(self._metadata.table[self._displayIdx])
+            return len(self.source_model.metadata[self._displayIdx])
 
-    def columnCount(self, parent_index):
+    def columnCount(self, parent_index=QModelIndex()):
         """Returns number of columns in under a parent. Overridden method from QAbstractItemModel. 
 
         Args:
@@ -210,7 +283,7 @@ class PypeItMetadataProxy(QAbstractTableModel):
             # Per Qt docs for a table model
             return 0
         else:
-            return len(self._colnames)
+            return len(self.colnames)
 
     def data(self, index, role):
         """Returns data for a given role at a given index. Overridden method from QAbstractItemModel. 
@@ -226,36 +299,37 @@ class PypeItMetadataProxy(QAbstractTableModel):
         """
 
         if role == Qt.TextAlignmentRole:
-            return Qt.AlignRight
+            return Qt.AlignLeft
 
-        elif role != Qt.DisplayRole or self._metadata is None or index.row() > len(self._metadata.table) or index.column() > len(self._metadata.table.colnames):
+        elif role != Qt.DisplayRole or self.source_model.metadata is None or index.row() > len(self.source_model.metadata) or index.column() > len(self.colnames):
             return None # Nothing to display at this index
             
         else:
-            # The columns being displayed are a subset of the metadata based on PypeItMetadata.set_pypeit_cols,
+            # The columns being displayed are a subset of the metadata,
             # So we use the column name instead of the index
-            colname = self._colnames[index.column()]
-            value = self._metadata[colname][self._displayIdx][self._sortIdx][index.row()]
+            colname = self.colnames[index.column()]
+            value = self.source_model.metadata[colname][self._displayIdx][self._sortIdx][index.row()]
             # Round floating point values to look better
             if isinstance(value, np.float64) or isinstance(value, np.float32):
                 value = round(value, 3)
             return str(value)
 
+
     def sort(self, column, order=Qt.AscendingOrder):
         """Sorts the order data within the model is presented to views. Overridden method from QAbstractItemModel.
 
         Args:
-            column(str): The name of the column to sort by.
+            column(int): The number (0 based) of the column to sort by.
             order (Qt.SortOrder): Whether to sort in Ascending or Descending order. Defaults to Qt.AscendingOrder.                        
         """
-        if self._metadata is not None and column < len(self._colnames):
+        if self.source_model.metadata is not None and column < len(self.colnames):
             # We sort by creating a numpy index array representing the sort order shown to views.
             self.sortColumn = column
             self.sortOrder = order
-            colname = self._colnames[self.sortColumn]
-            self._sortIdx = self._metadata.table[self._displayIdx].argsort(colname, reverse=(order==Qt.DescendingOrder))
+            colname = self.colnames[self.sortColumn]
+            self._sortIdx = self.source_model.metadata[self._displayIdx].argsort(colname, reverse=(order==Qt.DescendingOrder))
             # Notify clients of the change
-            self.dataChanged.emit(self.index(0, 0), self.index(len(self._displayIdx)-1, len(self._colnames)-1))
+            self.dataChanged.emit(self.index(0, 0), self.index(len(self._displayIdx)-1, len(self.colnames)-1))
 
     def headerData(self, section, orientation, role):
         """Display header data for the table. For columns we give a column name, for rows we return
@@ -274,9 +348,9 @@ class PypeItMetadataProxy(QAbstractTableModel):
         """
         if role == Qt.DisplayRole:
             # Display the actual name of the header row/column
-            if orientation == Qt.Orientation.Horizontal and section < len(self._colnames):
+            if orientation == Qt.Orientation.Horizontal and section < len(self.colnames):
                 # Columns have propper names
-                return self._colnames[section]
+                return self.colnames[section]
             else:
                 # Rows have numbers
                 return str(section + 1)
@@ -288,63 +362,41 @@ class PypeItMetadataProxy(QAbstractTableModel):
             # A non-applicable role or a sort order request for a column that we're not sorted by.
             return None
 
-    def setMetadata(self, metadata):
+    def reset(self):
         """
-        Sets a new metadata object for the proxy model.
-
-        Args:
-            metadata (PypeItMetaData): The metadata to present to views.
+        Reset the proxy assuming the metadata object has completely changed
         """
         # Tell views a model reset is happening
         super().beginResetModel()
 
         # Preseve the original sorting column before clearing the column names
-        if self.sortColumn < len(self._colnames):
-            origianl_sort_colname = self._colnames[self.sortColumn]
+        if self.sortColumn is not None and self.sortColumn < len(self.colnames):
+            original_sort_colname = self.colnames[self.sortColumn]
         else:
-            origianl_sort_colname = "mjd"
-
-        self._metadata = None
-        self._colnames = []
-        
-        # Now set the new column names
-        self._colnames = metadata.set_pypeit_cols(write_bkg_pairs=True)
-
-        # Finally set the new data, signalling views about the new rows.
-        self._metadata = metadata
-        if self._config != "ObsLog":
-            self._displayIdx = metadata.table['setup'] == self._config
-        else:
-            self._displayIdx = [True for x in metadata.table]
-
-        # Try to set sorting parameters to what they were before.
-        if origianl_sort_colname in self._colnames:
-            self.sortColumn = self._colnames.index(origianl_sort_colname)
-        
-        # If that isn't possible, try to reset to the default "mjd" column
-        elif "mjd" in self._colnames:
-            self.sortColumn = self._colnames.index("mjd")
+            # No prior sort column, no prior column names, or it no longer exists.
+            # Just use the default of ascending mjd
+            original_sort_colname = "mjd"
             self.sortOrder = Qt.AscendingOrder
 
-        # Otherwise just sort by the first column
+        # Reset column names
+        if self._visible_columns is not None:
+            self.colnames = self._visible_columns
+        else:
+            self.colnames = self.source_model.getDefaultColumns()
+
+
+        # Reset the sorting column, preserving the original if possible
+        if original_sort_colname in self.colnames:
+            self.sortColumn = self.colnames.index(original_sort_colname)
+        elif "mjd" in self.colnames:
+            self.sortColumn = self.colnames.index("mjd")
         else:
             self.sortColumn = 0
-            self.sortOrder = Qt.AscendingOrder
-        
-        self._sortIdx = self._metadata.table[self._displayIdx].argsort(self._colnames[self.sortColumn], reverse=(self.sortOrder == Qt.DescendingOrder))
+
+        # Filter and sort the metadata 
+        self._filterAndSort()
+
         super().endResetModel()
-
-    def get_metadata_paths(self):
-        """Get the paths where the raw data files are stored.
-        
-        Return:
-            list of str: The list of directories holding raw data files.
-        """
-        if self._metadata is not None:
-            return list(np.unique(self._metadata.table[self._displayIdx]['directory']))
-        else:
-            return []
-
 
 class _UserConfigTreeNode:
     """
@@ -635,13 +687,13 @@ class PypeItFileModel(QObject):
     state_changed = Signal(str)
     """Signal(str): Signal sent when the state of the file model changes. The config nasme of the file is sent as the signal parameter."""
 
-    def __init__(self, pypeit_setup, config_name, config_dict, state):
+    def __init__(self, pypeit_setup_model, config_name, config_dict, state):
         super().__init__()
-        self._pypeit_setup = pypeit_setup
-        self.config = ObservingConfigModel(config_name, pypeit_setup.spectrograph, config_dict)
-        self.metadata_model = PypeItMetadataProxy(config_name)
-        self.metadata_model.setMetadata(pypeit_setup.fitstbl)
-        self.params_model = PypeItParamsProxy(pypeit_setup)
+        self._pypeit_setup = pypeit_setup_model._pypeit_setup
+        self.config = ObservingConfigModel(config_name, self._pypeit_setup.spectrograph, config_dict)
+        self.metadata_model = PypeItMetadataProxy(pypeit_setup_model.metadata_model, config=config_name)
+        self.paths_model = PypeItMetadataProxy(pypeit_setup_model.metadata_model, config=config_name, visible_columns=['directory'], filter_unique_column='directory')
+        self.params_model = PypeItParamsProxy(self._pypeit_setup)
         self.save_location = None
         self.state = state
 
@@ -681,9 +733,6 @@ class PypeItSetupModel(QObject):
     """Signal(str): Signal that indicates a background_operation completed. Sends an error message if it failed,
                     `"CANCEL"` if it was canceled, or an empty string if it succeeded."""
 
-    raw_data_dirs_changed = Signal()
-    """Signal(): Signal that indicates when the locations or raw data files have changed."""
-
     configs_deleted = Signal(list)
     """Signal(list): Signal sent when configurations within the setup have been deleted. Sends the list of
                      removed configurations."""
@@ -702,8 +751,9 @@ class PypeItSetupModel(QObject):
         super().__init__()
         self._spectrograph = None
         self._pypeit_setup = None
-        self.metadata_model = PypeItMetadataProxy()
-        self.raw_data_dirs = []
+        self.metadata_model = PypeItMetadataModel()
+        self.obslog_model = PypeItMetadataProxy(self.metadata_model)
+        self.paths_model = QStringListModel()
         self.raw_data_files = []
         self.pypeit_files = dict()
         self.log_buffer = None
@@ -752,7 +802,7 @@ class PypeItSetupModel(QObject):
     @property
     def raw_data_directories(self):
         """list of str: The list directories containing raw data for the PypeItSetup object."""
-        return list(self.raw_data_dirs)
+        return self.paths_model.stringList()
 
     def add_raw_data_directory(self, new_directory):        
         """
@@ -763,8 +813,7 @@ class PypeItSetupModel(QObject):
         """
         msgs.info(f"Adding raw directory: {new_directory}, current spec is {self._spectrograph}")
         if new_directory not in self.raw_data_dirs:
-            self.raw_data_dirs.append(new_directory)
-            self.raw_data_dirs_changed.emit()
+            self.paths_model.stringList().append(new_directory)
 
     def scan_raw_data_directories(self):
         """
@@ -780,7 +829,7 @@ class PypeItSetupModel(QObject):
             allowed_extensions = [self.default_extension + "*"]
 
         self.raw_data_files = []
-        for directory in self.raw_data_dirs:
+        for directory in self.paths_model.stringList():
             for extension in allowed_extensions:
                 #  The command line may set a root, which isn't a directory but a prefix
                 if not os.path.isdir(directory):
@@ -800,8 +849,8 @@ class PypeItSetupModel(QObject):
         self._pypeit_setup = None
         self.raw_data_files = []
         self.raw_data_dirs = []
-        self.metadata_model.reset()        
-        self.raw_data_dirs_changed.emit()
+        self.metadata_model.setMetadata(None)     
+        self.paths_model.setStringList([])
         self._spectrograph = None
         self.spectrograph_changed.emit(None)
         self._setConfigurations({})
@@ -834,6 +883,7 @@ class PypeItSetupModel(QObject):
             self.log_buffer.unwatch("added_metadata")
             #msgs.info = old_info
             self.metadata_model.setMetadata(self._pypeit_setup.fitstbl)
+            self.paths_model.setStringList(np.unique(self._pypeit_setup.fitstbl.table['directory']))
             self._setConfigurations(self._pypeit_setup.fitstbl.unique_configurations())
             self.operation_complete.emit("")
             self.state_changed.emit()
@@ -862,9 +912,7 @@ class PypeItSetupModel(QObject):
         # need the paths for raw_data_directory.
         pf = PypeItFile.from_file(pypeit_file)
 
-        if len(pf.file_paths) > 0:
-            self.raw_data_dirs = pf.file_paths
-        else:
+        if len(pf.file_paths) == 0:
             raise ValueError(f"PypeIt input file {pypeit_file} is missing a path entry.")
 
         self._pypeit_setup = PypeItSetup(pf.filenames,
@@ -875,10 +923,10 @@ class PypeItSetupModel(QObject):
                                          setup_dict=pf.setup)
 
         # Setup our proxy models and notify the view widgets
-        self.raw_data_dirs_changed.emit()
         self._pypeit_setup.build_fitstbl()        
         self._pypeit_setup.fitstbl.set_configurations(fill=pf.setup_name)
         self._pypeit_setup.fitstbl.get_frame_types(user=dict(zip(pf.data['filename'], pf.data['frametype'])))
+        self.paths_model.setStringList(np.unique(self._pypeit_setup.fitstbl.table['directory']))
         self.metadata_model.setMetadata(self._pypeit_setup.fitstbl)        
         self._spectrograph = self._pypeit_setup.spectrograph
         self.spectrograph_changed.emit(self.spectrograph)
@@ -913,7 +961,7 @@ class PypeItSetupModel(QObject):
         config_names = list(unique_configs.keys())
         self.pypeit_files = dict()
         for config_name in config_names:
-            pf_model = PypeItFileModel(self._pypeit_setup, config_name, unique_configs[config_name], state=state)
+            pf_model = PypeItFileModel(self, config_name, unique_configs[config_name], state=state)
             # Any change to the file models can change the over all state, so connect the signals
             pf_model.state_changed.connect(self.state_changed)
             self.pypeit_files[config_name] = pf_model

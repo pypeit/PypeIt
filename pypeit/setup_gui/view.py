@@ -3,9 +3,9 @@ import enum
 from pathlib import Path
 
 from qtpy.QtWidgets import QGroupBox, QHBoxLayout, QVBoxLayout, QComboBox, QToolButton, QFileDialog, QWidget, QGridLayout, QFormLayout
-from qtpy.QtWidgets import QMessageBox, QTabWidget, QTreeView, QLayout, QLabel, QScrollArea, QListWidget, QTableView, QPushButton, QProgressDialog, QDialog, QHeaderView, QSizePolicy, QCheckBox, QDialog
-from qtpy.QtWidgets import QPlainTextEdit
-from qtpy.QtGui import QIcon, QPalette, QColor, QValidator, QFont, QFontDatabase, QFontMetrics, QTextCharFormat, QTextCursor
+from qtpy.QtWidgets import QMessageBox, QTabWidget, QTreeView, QLayout, QLabel, QScrollArea, QListView, QTableView, QPushButton, QProgressDialog, QDialog, QHeaderView, QSizePolicy, QCheckBox, QDialog
+from qtpy.QtWidgets import QPlainTextEdit, QWidgetAction, QAction, QAbstractItemView
+from qtpy.QtGui import QIcon, QKeySequence, QPalette, QColor, QValidator, QFont, QFontDatabase, QFontMetrics, QTextCharFormat, QTextCursor
 from qtpy.QtCore import Qt, QSize, Signal,QSettings, QStringListModel, QAbstractItemModel, QModelIndex, QMargins
 
 from pypeit.setup_gui.model import ModelState, ObservingConfigModel, available_spectrographs
@@ -126,10 +126,79 @@ class PersistentStringListModel(QStringListModel):
         # but ignores them, persisting the entire list instead
         self._settings.setValue(self._value_name, self.stringList())
 
-class LocationPanel(QGroupBox):
+class PathsViewerPanel(QGroupBox):
     """
-    A custon widget that displays an editable combo box for entering file locations, a browse button
-    to use a file dialog to enter the file location, and a list of all the file locations entered.
+    A custom widget to displays a list of paths but does not allow them to be edited.
+    
+    Args:
+        parent(QWidget):                 The parent object of the location panel.
+        name (str):                      The name to display for this location panel.
+        lines_to_display (int,Optional): How many lines to display in the list of file locations. Defaults to None for unbounded.
+    """
+
+    def __init__(self, parent=None, name=None, model=QStringListModel(), lines_to_display=None):
+        super().__init__(title = name, parent=parent)
+        self.parent = parent
+        self.name = name
+        self.lines_to_display = lines_to_display
+
+        layout = QHBoxLayout(self) 
+
+        # We have a single widget to put in the scroll_area which contains a list of labels
+        self._path_container = QListView(parent=self) #QWidget()
+        layout.addWidget(self._path_container)
+        self._path_container.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
+        self._path_container.setModel(model)
+
+        # Set the height of the container widget if a fixed # of lines was given
+        if lines_to_display is not None:
+            ll_margins = self._location_list.contentsMargins()
+            ll_fm = self._location_list.fontMetrics()
+            msgs.info(f"font height: {ll_fm.height()} spacing {self._location_list.spacing()}")
+            self._location_list.setFixedHeight(ll_margins.top() + ll_margins.bottom() + ll_fm.height()*lines_to_display)
+
+    def _update(self, *args, **kwargs):
+        """
+        Update the panel with the current list of paths
+        in the model. This is called by multiple event
+        handlers, and so gets different arguments from each.
+        """
+
+        # Since this is intended for small lists, it just 
+        # doesn't use its arguments and just updates/adds/removes the labels
+        # for each item in the model
+        row_count = self._model.rowCount()
+        container_layout = self._path_container.layout()
+        msgs.info(f"update container_layout: {container_layout}")
+
+        msgs.info(f"Updating PathViewerPanel, rowcount: {row_count}")
+
+
+        # Remove extra labels if needed
+        if row_count < len(self._labels):
+            for i in range(row_count, len(self._labels)):
+                container_layout.removeWidget(self._labels[i])
+            del(self._labels[row_count:])
+
+        # Update/add existing labels
+        for i in range(row_count):
+            path = self._model.data(self._model.index(i, 0), Qt.DisplayRole)
+            if i < len(self._labels):
+                self._labels[i].setText(path)
+            else:
+                msgs.info(f"Adding path {path}")
+                label = QPushButton(text=path) #QLabel(parent=self._path_container)
+                #label.setTextFormat(Qt.TextFormat.PlainText)
+                #label.setText(path)
+                self._labels.append(label)
+                container_layout.addWidget(label)
+
+
+class PathsEditorPanel(QGroupBox):
+    """
+    A custon widget that displays a list of paths and allows it to be edited. It has an editable combo box for entering 
+    file locations, a browse button to use a file dialog to enter the file location, and a list of all the file locations entered.
+    A right click menu allows items to be removed.
     The history of past locations is kept in the combo box list and file dialog history. 
 
     Args:
@@ -137,17 +206,15 @@ class LocationPanel(QGroupBox):
         name (str):                      The name to display for this location panel.
         browse_caption (str):            The caption text to use when searching for locations, also used as place holder
                                          text when no location has been set.
-        lines_to_display (int,Optional): How many lines to display in the list of file locations. Defaults to 5.
+        lines_to_display (int,Optional): How many lines to display in the list of file locations. Defaults to None for unbounded.
     """
 
-    location_added = Signal(str)
-    """Signal(str): Signals when a location is added."""
-
-    def __init__(self, parent=None, name=None, browse_caption = None, lines_to_display=5):
+    def __init__(self, parent=None, name=None, model=QStringListModel(), browse_caption = None, lines_to_display=None):
         super().__init__(title = name, parent=parent)
         self.parent = parent
         self.name = name
         self.browse_caption = browse_caption
+
         # Setup the combo box
         layout = QGridLayout()
         layout.setSpacing(0)
@@ -172,28 +239,28 @@ class LocationPanel(QGroupBox):
         layout.addWidget(self._browse_button, 0, 1, 1, 1)
 
         # The list of current locations
-        self._location_list = QListWidget(self)        
-        ll_margins = self._location_list.contentsMargins()
-        ll_fm = self._location_list.fontMetrics()
-        self._location_list.setFixedHeight(ll_margins.top() + ll_margins.bottom() + ll_fm.height()*lines_to_display)
+        self._location_list = QListView(self)        
+        
+        if lines_to_display is not None:
+            ll_margins = self._location_list.contentsMargins()
+            ll_fm = self._location_list.fontMetrics()
+            msgs.info(f"font height: {ll_fm.height()} spacing {self._location_list.spacing()}")
+            self._location_list.setFixedHeight(ll_margins.top() + ll_margins.bottom() + ll_fm.height()*lines_to_display)
+
+        # Out model is the model of the location list
+        self.setModel(model)
+
+        # Build the action for deleting files from the location panel
+        self._location_list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        delete_action = QAction(self._location_list, text=self.tr("Delete selected"))
+        delete_action.setToolTip(self.tr("Delete selected " + name))
+        delete_action.setShortcut(QKeySequence.StandardKey.Delete)
+        delete_action.triggered.connect(self._deleteSelection)
+        self._location_list.addAction(delete_action)
+        self._location_list.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
 
         layout.addWidget(self._location_list, 1, 0, 1, 2)
-
         self.setLayout(layout)
-
-    @property
-    def locations(self):
-        """The list of current locations."""
-        return [self._location_list.item(i).text() for i in range(self._location_list.count())]
-
-    def set_locations(self, new_locations):
-        """Change the current list of locations.
-        
-        Args:
-            new_locations (list of str): The list of new locations
-        """
-        self._location_list.clear()
-        self._location_list.addItems(new_locations)
 
     def add_location(self, new_location):
         """Add a new location to the list.
@@ -209,10 +276,10 @@ class LocationPanel(QGroupBox):
             self._location.insertItem(0, new_location)
 
         # Don't add duplicate items
-        items = self._location_list.findItems(new_location, Qt.MatchExactly)
-        if items is None or len(items) == 0:
-            self._location_list.addItem(new_location)
-            self.location_added.emit(new_location)
+        if new_location not in self._paths_model.stringList():
+            row_number = self._paths_model.rowCount()
+            self._paths_model.insertRows(row_number, 1)
+            self._paths_model.setData(self._paths_model.index(row_number,0),new_location)
 
     def setHistory(self, history):
         self._history = history
@@ -221,6 +288,10 @@ class LocationPanel(QGroupBox):
 
     def history(self):
         return self._history
+    
+    def setModel(self, model):
+        self._location_list.setModel(model)
+        self._paths_model=model
 
     def browse(self):
         """Opens up a :class:`FileDialog` requesting the user select a location.
@@ -257,6 +328,12 @@ class LocationPanel(QGroupBox):
             self.add_location(new_location)
             self._location.setCurrentIndex(-1)
 
+    def _deleteSelection(self, parent):
+        msgs.info(f"Delete selection")
+        selection = self._location_list.selectedIndexes()
+        for index in selection:
+            self._paths_model.removeRow(index.row())
+
     def setEnabled(self, value):
         """
         Set whether the widget (both combobox and browse button) is enabled.
@@ -267,6 +344,7 @@ class LocationPanel(QGroupBox):
         # This will also enable/disable the child combo box and button widgets
         super().setEnabled(value)
 
+
 class PypeItMetadataView(QTableView):
     """QTableView to display file metadata.
 
@@ -274,23 +352,24 @@ class PypeItMetadataView(QTableView):
         parent (QtWidget):                                            The parent widget of the table view
         model  (:class:`pypeit.setup_gui.model.PypeItMetadataProxy`): The model for the table. Optional, defaults to None.
     """
-    def __init__(self, parent, model=None):
+    def __init__(self, parent, model):
         super().__init__(parent=parent)
         self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.setModel(model)
     
     def setModel(self, model):
         """Set the PypeItMetadataProxy model to use for the table.
         
         Args:
-            model (:class:`pypeit.setup_gui.model.PypeItMetadataProxy`):  The model for the table, None for no model.
+            model (:class:`pypeit.setup_gui.model.PypeItMetadataProxy`):  The model for the table.
         """
+
         super().setModel(model)
-        if model is None:
-            self.setSortingEnabled(False)
-        else:
-            self.setSortingEnabled(True)
-            self.horizontalHeader().setSortIndicator(model.sortColumn, model.sortOrder)
+
+        self.setSortingEnabled(True)
+        self.horizontalHeader().setSortIndicator(model.sortColumn, model.sortOrder)
 
 
 class ConfigValuesPanel(QGroupBox):
@@ -323,19 +402,48 @@ class ConfigValuesPanel(QGroupBox):
         # First line is the spectrograph.
         form_widget_layout.addRow(self.tr("Spectrograph"), QLabel(spectrograph))
 
+        # We calculate our width to just fit around the text so we can stop the scroll area from
+        # covering it with a scrollbar.
+        fm = self.fontMetrics()
+        max_key_width = fm.horizontalAdvance(self.tr("Spectrograph"))
+        max_value_width = fm.horizontalAdvance(spectrograph)
+
         # Add additional rows for configuration keys
         for key, value in config:
             form_widget_layout.addRow(key, QLabel(str(value)))
+            key_width = fm.horizontalAdvance(key)
+            value_width = fm.horizontalAdvance(str(value))
+
+            if key_width > max_key_width:
+                max_key_width = key_width
+
+            if value_width > max_value_width:
+                max_value_width = value_width
 
         # Don't add extra margins in the FormLayout
         form_widget_layout.setContentsMargins(0, 0, 0, 0)
+
         scroll_area.setWidget(form_widget)
+
+        # Set the minimum width  of the formwidget.        
+        min_fw_width = form_widget_layout.horizontalSpacing()+max_key_width+max_value_width
+        msgs.info(f"minWidth: {min_fw_width} max key width: {max_key_width} max_value width {max_value_width} horizontal spacing {form_widget_layout.horizontalSpacing()}")
+    
+        # Account for the scroll bar if needed
+        if len(config) + 1 > lines_to_display:
+            if scroll_area.verticalScrollBar():
+                min_fw_width += scroll_area.verticalScrollBar().sizeHint().width()
+                msgs.info(f"new minWidth: {min_fw_width} max key width: {max_key_width} max_value width {max_value_width} horizontal spacing {form_widget_layout.horizontalSpacing()}")
+
+        form_widget.setMinimumWidth(min_fw_width)
+
+
 
         # Figure out the correct height for this panel, so that only the spectrograph and self.number_of_lines
         # config keys are visible
 
         # Find the minimum height of the form widget needed to hold the number of lines to display
-        fm = self.fontMetrics()
+        msgs.info(f"font height: {fm.height()} vertical spacing {form_widget_layout.verticalSpacing()}")
         min_fw_height = form_widget_layout.verticalSpacing()*(lines_to_display-1) + fm.height()*lines_to_display
 
         # The height of this panel is that height plus the margins + the group box title
@@ -348,7 +456,10 @@ class ConfigValuesPanel(QGroupBox):
                             scroll_area_margins.top() + scroll_area_margins.bottom() +
                             form_widget_margins.top() + form_widget_margins.bottom())
 
-        # Set horizontal policy to use our minimum size, and vertical to use the fixed size we just set
+        # Set the minimum width of the form widget
+        form_widget.setMinimumWidth(min_fw_width)
+
+        # Set to fixed sizing policy
         policy = QSizePolicy()
         policy.setHorizontalPolicy(QSizePolicy.Minimum)
         policy.setVerticalPolicy(QSizePolicy.Fixed)
@@ -394,9 +505,9 @@ class PypeItFileTab(QWidget):
         third_row_layout.addWidget(config_panel)
 
         # Add the Raw Data directory panel to the third row, second column
-        self.raw_data_paths = LocationPanel(self, self.tr("Raw Data Directories"), browse_caption=self.tr("Choose raw data directory"), lines_to_display=5)
-        self.raw_data_paths.setHistory(PersistentStringListModel("RawDataDirectory", "History"))
-        self.raw_data_paths.set_locations(model.metadata_model.get_metadata_paths())
+        # This is not editable, because the user can add/remove directories by adding/removing individual
+        # files in the metadata_file_table
+        self.raw_data_paths = PathsViewerPanel(self, self.tr("Raw Data Directories"), model=model.paths_model)
 
         third_row_layout.addWidget(self.raw_data_paths)
 
@@ -491,11 +602,14 @@ class ObsLogTab(QWidget):
         spectrograph_box.setLayout(spectrograph_layout)
         top_row_layout.addWidget(spectrograph_box)
 
-        # Add the Raw Data directory panel to the first row, second column
-        self.raw_data_paths = LocationPanel(self, self.tr("Raw Data Directories"), browse_caption=self.tr("Choose raw data directory"), lines_to_display=5)
+        self.raw_data_paths = PathsEditorPanel(self, self.tr("Raw Data Directories"), 
+                                            model=model.paths_model, 
+                                            browse_caption=self.tr("Choose raw data directory"), 
+                                            lines_to_display=5)
         self.raw_data_paths.setHistory(PersistentStringListModel("RawDataDirectory", "History"))
         self.raw_data_paths.setEnabled(False)
 
+        # Add the Raw Data directory panel to the first row, second column
         top_row_layout.addWidget(self.raw_data_paths)
         # Make the metadata wider than the spectrograph
         top_row_layout.setStretch(1, 2)
@@ -504,7 +618,7 @@ class ObsLogTab(QWidget):
         # Add the File Metadata box in the second row
         file_group = QGroupBox(self.tr("File Metadata"))
         file_group_layout = QHBoxLayout()        
-        self.obslog_table = PypeItMetadataView(file_group, model.metadata_model)
+        self.obslog_table = PypeItMetadataView(file_group, model.obslog_model)
         file_group_layout.addWidget(self.obslog_table)
         file_group.setLayout(file_group_layout)
         layout.addWidget(file_group)
@@ -515,7 +629,6 @@ class ObsLogTab(QWidget):
         # Update model with new spectrograph/data paths
         self.spectrograph.textActivated.connect(self._model.set_spectrograph)
         self.spectrograph.textActivated.connect(self.update_raw_data_paths_state)
-        self.raw_data_paths.location_added.connect(self._model.add_raw_data_directory)
 
     @property
     def state(self):
@@ -543,17 +656,14 @@ class ObsLogTab(QWidget):
             model (:class:`pypeit.setup_gui.model.PypeItSetupModel`): The new metadata model
         """
         self._model=model
-        self.raw_data_paths.set_locations(model.raw_data_dirs)
+        self.raw_data_paths.setModel(model.paths_model)
         if model.spectrograph is not None:
             self.spectrograph.setCurrentIndex(self.spectrograph.findText(model.spectrograph))
             msgs.info(f"Set current text to {model.spectrograph}, current index {self.spectrograph.currentIndex()}")
             self.update_raw_data_paths_state()
-        self.obslog_table.setModel(model.metadata_model)
+        self.obslog_table.setModel(model.obslog_model)
         
         # Update based on changes to the model
-        # We don't listen specifically to spectrograph/raw data dir changes because
-        # those are sent when our widgets are updated, and we don't want an infinite loop
-        # of signals
         model.state_changed.connect(self.update_from_model)
 
     def update_raw_data_paths_state(self):
@@ -582,8 +692,7 @@ class ObsLogTab(QWidget):
         else:
             self.spectrograph.setEnabled(False)
 
-        # Get the latest raw data dirs
-        self.raw_data_paths.set_locations(self._model.metadata_model.get_metadata_paths())
+        # Get the raw data paths state
         self.update_raw_data_paths_state()
 
 
@@ -1070,6 +1179,7 @@ class SetupGUIMainWindow(QWidget):
         """Signal handler that opens the log window."""
         if self._logWindow is not None:
             self._logWindow.activateWindow()
+            self._logWindow.raise_()
         else:
             self._logWindow = LogWindow(self, self.model.log_buffer)
             self._logWindow.closed.connect(self._logClosed)
@@ -1137,7 +1247,7 @@ class SetupGUIMainWindow(QWidget):
 
         # Attach signals to enable/disable the Run Setup button and Save Tab button
         self.model.spectrograph_changed.connect(self.update_setup_button)
-        self.model.raw_data_dirs_changed.connect(self.update_setup_button)
+        self.model.paths_model.dataChanged.connect(self.update_setup_button)
         self.setup_view.currentChanged.connect(self.update_save_tab_button)
         self.model.state_changed.connect(self.update_buttons_from_model_state)
 
