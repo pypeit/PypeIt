@@ -18,6 +18,8 @@ from astropy.io import ascii
 
 from pypeit import utils
 from pypeit import msgs, __version__
+from pypeit.spectrographs.util import load_spectrograph
+from pypeit.par.pypeitpar import PypeItPar
 
 from IPython import embed
 
@@ -477,6 +479,55 @@ class InputFile:
 
         msgs.info(f'{self.flavor} input file written to: {input_file}')
 
+    def get_spectrograph(self):
+        """
+        Use the configuration lines to instantiate the relevant
+        :class:`~pypeit.spectrographs.spectrograph.Spectrograph` subclass.
+
+        Returns:
+            :class:`~pypeit.spectrographs.spectrograph.Spectrograph`:
+            Spectrograph subclass instance using the relevant configuration
+            parameter.
+
+        Raises:
+            :class:`~pypeit.pypmsgs.PypeItError`: Raised if the relevant
+            configuration parameter is not available.
+        """
+        if 'rdx' not in self.config.keys() or 'spectrograph' not in self.config['rdx'].keys():
+            msgs.error('Cannot define spectrograph.  Configuration file missing \n'
+                       '    [rdx]\n    spectrograph=\n entry.')
+        return load_spectrograph(self.config['rdx']['spectrograph'])
+
+    def get_pypeitpar(self, config_specific_file=None):
+        """
+        Use the configuration lines and a configuration-specific example file to
+        build the full parameter set.
+
+        Args:
+            config_specific_file (:obj:`str`, `Path`_, optional):
+                The file to use to generate the default, configuration-specific
+                parameters.  If None and instance contains filenames, use the
+                first file.  If None and instance provides no filenames,
+                configuration-specific parameters are not set.
+
+        Returns:
+            :obj:`tuple`: A tuple with the spectrograph instance, the
+            parameters, and the file name used to generate the
+            configuration-specific parameters.  That latter will be None if the
+            no example file was available.
+        """
+        spec = self.get_spectrograph()
+
+        if config_specific_file is None:
+            _files = self.filenames
+            if _files is not None:
+                config_specific_file = _files[0]
+
+        spec_par = spec.default_pypeit_par() if config_specific_file is None \
+                    else spec.config_specific_par(config_specific_file)
+        par = PypeItPar.from_cfg_lines(cfg_lines=spec_par.to_config(),
+                                       merge_with=(self.cfg_lines,))
+        return spec, par, config_specific_file
 
 
 class PypeItFile(InputFile):
@@ -517,6 +568,44 @@ class PypeItFile(InputFile):
             dict: 
         """
         return {row['filename']:row['frametype'] for row in self.data}
+
+    def get_pypeitpar(self):
+        """
+        Override the base class function to use files with specific frametypes
+        for the config-specific parameters.
+
+        Returns:
+            :obj:`tuple`: A tuple with the spectrograph instance, the
+            parameters, and the file name used to generate the
+            configuration-specific parameters.  That latter will be None if the
+            no example file was available.
+        """
+        if 'frametype' not in self.data.keys():
+            msgs.error('PypeIt file must provide the frametype column.')
+
+        # NOTE: self.filenames is a property function that generates the full
+        # set of file names each time they are requested.  However, this should
+        # only be done once in the code below because as soon as a relevant file
+        # is found the loops are discontinued using `break`.
+
+        config_specific_file = None
+        for idx, row in enumerate(self.data):
+            if 'science' in row['frametype'] or 'standard' in row['frametype']:
+                config_specific_file = self.filenames[idx]
+                break
+
+        # If no science/standard frames available, search for an arc/trace
+        # instead.
+        if config_specific_file is None:
+            for idx, row in enumerate(self.data):
+                if 'arc' in row['frametype'] or 'trace' in row['frametype']:
+                    config_specific_file = self.filenames[idx]
+                    break
+
+        if config_specific_file is not None:
+            self.get_spectrograph()._check_extensions(config_specific_file)
+        return super().get_pypeitpar(config_specific_file=config_specific_file)
+
 
 class SensFile(InputFile):
     """Child class for the Sensitivity input file

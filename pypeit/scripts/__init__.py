@@ -34,6 +34,7 @@ from pypeit.scripts import ql_multislit
 from pypeit.scripts import run_pypeit
 from pypeit.scripts import sensfunc
 from pypeit.scripts import setup
+from pypeit.scripts import setup_coadd2d
 from pypeit.scripts import show_1dspec
 from pypeit.scripts import show_2dspec
 from pypeit.scripts import show_arxiv

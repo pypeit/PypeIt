@@ -74,7 +74,6 @@ from configobj import ConfigObj
 from pypeit.par.parset import ParSet
 from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
-from pypeit.inputfiles import PypeItFile
 from pypeit import msgs
 
 
@@ -4870,17 +4869,17 @@ class Collate1DPar(ParSet):
         pass
 
 
-def ql_is_on(config:ConfigObj):
-    """ Check whether QL is set to "on"
-
-    Args:
-        config (configobj.ConfigObj): 
-            parameters
-
-    Returns:
-        bool: True if QL is on
-    """
-    try: 
-        return config['rdx']['quicklook']
-    except:
-        return False
+#def ql_is_on(config:ConfigObj):
+#    """ Check whether QL is set to "on"
+#
+#    Args:
+#        config (configobj.ConfigObj): 
+#            parameters
+#
+#    Returns:
+#        bool: True if QL is on
+#    """
+#    try: 
+#        return config['rdx']['quicklook']
+#    except:
+#        return False

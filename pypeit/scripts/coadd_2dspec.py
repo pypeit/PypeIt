@@ -133,16 +133,17 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             # TODO this needs to be adjusted if we want to pass (as inline command) mosaic detectors
             parset['rdx']['detnum'] = [int(d) for d in args.det.split(',')]
 
+        # TODO: Not used in the script
         # Get headers (if possible) and base names
-        spec1d_files = [files.replace('spec2d', 'spec1d') for files in spec2d_files]
-        head1d = None
-        for spec1d_file in spec1d_files:
-            if Path(spec1d_file).exists():
-                head1d = fits.getheader(spec1d_file)
-                break
-        if head1d is None:
-            msgs.warn("No 1D spectra so am generating a dummy header for output")
-            head1d = io.initialize_header()
+#        spec1d_files = [files.replace('spec2d', 'spec1d') for files in spec2d_files]
+#        head1d = None
+#        for spec1d_file in spec1d_files:
+#            if Path(spec1d_file).exists():
+#                head1d = fits.getheader(spec1d_file)
+#                break
+#        if head1d is None:
+#            msgs.warn("No 1D spectra so am generating a dummy header for output")
+#            head1d = io.initialize_header()
 
         head2d = fits.getheader(spec2d_files[0])
         if args.basename is None:

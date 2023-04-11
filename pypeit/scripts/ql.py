@@ -217,6 +217,9 @@ def generate_sci_pypeitfile(redux_path:str,
 #            std_spec1d = std_files[0]
     # TODO: Enable the user to provide the standard spec1d file directly?
 
+    # Get the quicklook parameters to use for this spectrograph
+    spec_cfg = ps_sci.spectrograph.ql_par()
+
     # Configure
     cfg = {}
     cfg['rdx'] = {}
@@ -224,6 +227,8 @@ def generate_sci_pypeitfile(redux_path:str,
     cfg['rdx']['redux_path'] = str(sci_dir)
     cfg['rdx']['quicklook'] = True
     if det is not None:
+        # TODO: Need to check that this works given how det is set by the
+        # argument parser
         cfg['rdx']['detnum'] = det
 
     # TODO: Allow for input configurations?
@@ -282,10 +287,15 @@ def generate_sci_pypeitfile(redux_path:str,
     if std_spec1d is not None:
         cfg['reduce']['findobj'] = {'std_spec1d': std_spec1d}
 
+    # Merge the spectrograph specific QL parameters with the ones above; the ones
+    # above take precedence.
+    cfg_lines = configobj.ConfigObj(spec_cfg)
+    cfg_lines.merge(configobj.ConfigObj(cfg))
+    cfg_lines = cfg_lines.write()
+
     # Write the pypeit file (note this returns the filename, not the list,
     # because of the [0] at the end of the call)
-    return ps_sci.fitstbl.write_pypeit(output_path=sci_dir,
-                                       cfg_lines=configobj.ConfigObj(cfg).write(),
+    return ps_sci.fitstbl.write_pypeit(output_path=sci_dir, cfg_lines=cfg_lines,
                                        write_bkg_pairs=True, configs=setup,
                                        config_subdir=False)[0]
 

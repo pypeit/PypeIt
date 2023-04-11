@@ -236,25 +236,54 @@ class Spectrograph:
         Returns:
             list: List of QL specific parameters.  
         """
-        # Calibration + misc
-        ql_cfg = ['[rdx]', 
-                  '    ignore_bad_headers = True',
-                        '[baseprocess]', 
-                            'use_biasimage = False', 
-                        '[calibrations]', 
-                        '    raise_chk_error = False',  # This allows for science frames only and "cooked" calibrations
-                        '  [[flatfield]]', 
-                        '       saturated_slits = mask']
-        # Reduction parameters
-        ql_cfg += ['[scienceframe]',
-                        '    [[process]]',
-                        '        mask_cr = False',
-                        '[reduce]',
-                        '    [[extraction]]',
-                        '        skip_optimal = True',
-                        '    [[findobj]]',
-                        '        skip_second_find = True']
-        return ql_cfg
+        return dict(
+            # Calibration + misc
+            rdx = dict(
+                ignore_bad_headers = True
+            ),
+            baseprocess = dict(
+                use_biasimage = False
+            ),
+            calibrations = dict(
+                # This allows for science frames only and "cooked" calibrations
+                raise_chk_error = False,
+                flatfield = dict(
+                    saturated_slits = 'mask'
+                )
+            ),
+            scienceframe = dict(
+                process = dict(
+                    mask_cr = False
+                )
+            ),
+            # Reduction parameters
+            reduce = dict(
+                extraction = dict(
+                    skip_optimal = True
+                ),
+                findobj = dict(
+                    skip_second_find = True
+                )
+            )
+        )
+
+#        ql_cfg = ['[rdx]', 
+#                  '    ignore_bad_headers = True',
+#                        '[baseprocess]', 
+#                            'use_biasimage = False', 
+#                        '[calibrations]', 
+#                        '    raise_chk_error = False',
+#                        '  [[flatfield]]', 
+#                        '       saturated_slits = mask']
+#        ql_cfg += ['[scienceframe]',
+#                        '    [[process]]',
+#                        '        mask_cr = False',
+#                        '[reduce]',
+#                        '    [[extraction]]',
+#                        '        skip_optimal = True',
+#                        '    [[findobj]]',
+#                        '        skip_second_find = True']
+#        return ql_cfg
 
 
     def _check_extensions(self, filename):

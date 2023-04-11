@@ -31,12 +31,12 @@ from pypeit import extraction
 from pypeit import spec2dobj
 from pypeit.core import qa
 from pypeit import specobjs
-from pypeit.spectrographs.util import load_spectrograph
+#from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
 from pypeit import utils
 from pypeit.history import History
-from pypeit.par import PypeItPar
-from pypeit.par.pypeitpar import ql_is_on
+#from pypeit.par import PypeItPar
+#from pypeit.par.pypeitpar import ql_is_on
 from pypeit.metadata import PypeItMetaData
 from pypeit.manual_extract import ManualExtractionObj
 from pypeit.core import skysub
@@ -98,41 +98,47 @@ class PypeIt:
         self.pypeItFile = inputfiles.PypeItFile.from_file(pypeit_file)
         self.calib_only = calib_only
 
-        # Spectrograph
-        spectrograph_name = self.pypeItFile.config['rdx']['spectrograph']
-        self.spectrograph = load_spectrograph(spectrograph_name)
-        msgs.info('Loaded spectrograph {0}'.format(self.spectrograph.name))
+        # Build the spectrograph and the parameters
+        self.spectrograph, self.par, config_specific_file = self.pypeItFile.get_pypeitpar()
+        msgs.info(f'Loaded spectrograph {self.spectrograph.name}')
+        msgs.info('Setting configuration-specific parameters using '
+                  f'{os.path.split(config_specific_file)[1]}.')
 
-        # --------------------------------------------------------------
-        # Get the full set of PypeIt parameters
-        #   - Grab a science or standard file for configuration specific parameters
-
-        config_specific_file = None
-        for idx, row in enumerate(self.pypeItFile.data):
-            if ('science' in row['frametype']) or ('standard' in row['frametype']):
-                config_specific_file = self.pypeItFile.filenames[idx]
-        # search for arcs, trace if no scistd was there
-        if config_specific_file is None:
-            for idx, row in enumerate(self.pypeItFile.data):
-                if ('arc' in row['frametype']) or ('trace' in row['frametype']):
-                    config_specific_file = self.pypeItFile.filenames[idx]
-        if config_specific_file is not None:
-            msgs.info(
-                'Setting configuration-specific parameters using {0}'.format(os.path.split(config_specific_file)[1]))
-        self.spectrograph._check_extensions(config_specific_file)
-        spectrograph_cfg_lines = self.spectrograph.config_specific_par(config_specific_file).to_config()
-
-        # Addtional parameters, including QL
-        merge = (self.pypeItFile.cfg_lines,)
-        if ql_is_on(self.pypeItFile.config):
-            merge = (self.spectrograph.ql_par(),) + merge
-
-        #   - Build the full set, merging with any user-provided
-        #     parameters
-        self.par = PypeItPar.from_cfg_lines(
-            cfg_lines=spectrograph_cfg_lines, 
-            merge_with=merge)
-        msgs.info('Built full PypeIt parameter set.')
+#        # Spectrograph
+#        spectrograph_name = self.pypeItFile.config['rdx']['spectrograph']
+#        self.spectrograph = load_spectrograph(spectrograph_name)
+#
+#        # --------------------------------------------------------------
+#        # Get the full set of PypeIt parameters
+#        #   - Grab a science or standard file for configuration specific parameters
+#
+#        config_specific_file = None
+#        for idx, row in enumerate(self.pypeItFile.data):
+#            if ('science' in row['frametype']) or ('standard' in row['frametype']):
+#                config_specific_file = self.pypeItFile.filenames[idx]
+#        # search for arcs, trace if no scistd was there
+#        if config_specific_file is None:
+#            for idx, row in enumerate(self.pypeItFile.data):
+#                if ('arc' in row['frametype']) or ('trace' in row['frametype']):
+#                    config_specific_file = self.pypeItFile.filenames[idx]
+#        if config_specific_file is not None:
+#            msgs.info(
+#                'Setting configuration-specific parameters using {0}'.format(os.path.split(config_specific_file)[1]))
+#        self.spectrograph._check_extensions(config_specific_file)
+#        spectrograph_cfg_lines = self.spectrograph.config_specific_par(config_specific_file).to_config()
+#
+#        # Addtional parameters, including QL
+#        merge = (self.pypeItFile.cfg_lines,)
+##        # NOTE: Moved this into the ql script
+##        if ql_is_on(self.pypeItFile.config):
+##            merge = (self.spectrograph.ql_par(),) + merge
+#
+#        #   - Build the full set, merging with any user-provided
+#        #     parameters
+#        self.par = PypeItPar.from_cfg_lines(
+#            cfg_lines=spectrograph_cfg_lines, 
+#            merge_with=merge)
+#        msgs.info('Built full PypeIt parameter set.')
 
         # Check the output paths are ready
         if redux_path is not None:
