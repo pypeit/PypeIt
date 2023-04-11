@@ -213,10 +213,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             # raw frame date in mjd
             date = time.Time(self.get_meta_value(self.get_headarr(hdu), 'mjd'), format='mjd').value
             # get the measurements files
-            measure_files = np.fromiter(
-                (data.Paths.spectrographs / "keck_deimos" / "gain_ronoise").glob("*"),
-                pathlib.Path
-            )
+            measure_files = sorted((data.Paths.spectrographs / "keck_deimos" / "gain_ronoise").glob("*"))
             # Parse the dates recorded in the name of the files
             measure_dates = np.array([f.name.split('.')[2] for f in measure_files])
             # convert into datetime format
