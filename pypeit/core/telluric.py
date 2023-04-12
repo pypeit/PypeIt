@@ -1600,11 +1600,11 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
                       debug=debug_init)
 
     # Optionally, mask prominent stellar absorption features
-    mask_tot = flux_calib.get_mask(
-        wave, flux, ivar, mask, mask_telluric=False,
-        mask_hydrogen_lines=mask_hydrogen_lines, mask_helium_lines=mask_helium_lines,
-        hydrogen_mask_wid=hydrogen_mask_wid,
-    )
+    mask_bad, mask_recomb, mask_tell = flux_calib.get_mask(wave, flux, ivar, mask,
+                                              mask_hydrogen_lines=mask_hydrogen_lines,
+                                              mask_helium_lines=mask_helium_lines,
+                                              mask_telluric=False, hydrogen_mask_wid=hydrogen_mask_wid)
+    mask_tot = mask_bad & mask_recomb & mask_tell
 
     # parameters lowered for testing
     TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, obj_params, init_star_model,
