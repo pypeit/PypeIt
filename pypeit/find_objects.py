@@ -1317,39 +1317,20 @@ class IFUFindObjects(MultiSlitFindObjects):
         self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
         # Calculate spectral flexure
         method = self.par['flexure']['spec_method']
-        sl_ref = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
+        # TODO :: Perhaps invent a new method for IFU - e.g. 'slitcen_relative' or 'slitcenIFU' or 'IFU'
+        # TODO :: change all other instances of this method (see below)
         if method in ['slitcen']:
-            embed()
-            trace_spat = 0.5 * (self.slits_left + self.slits_right)
-            # Load archival sky spectrum for absolute correction
-            sky_spectrum, sky_fwhm_pix = flexure.get_archive_spectrum(self.par['flexure'][''])
-            # Get spectral FWHM (in Angstrom) if available
-            iwv = np.where(wv_calib.spat_ids == slits.spat_id[sl_ref])[0][0]
-            ref_fwhm_pix = self.wv_calib.wv_fits[iwv].fwhm
-            # Extract a spectrum of the sky
-            thismask = (slitid_img_init == slits.spat_id[sl_ref])
-            ref_skyspec = flexure.get_sky_spectrum(sciimg, ivar, waveimg, thismask, skysubImg,
-                                                   parset['reduce']['extraction']['boxcar_radius'],
-                                                   slits, trace_spat[:, sl_ref], hdr['PYPELINE'], det)
-            # Calculate the flexure
-            flex_dict = flexure.spec_flex_shift(ref_skyspec, sky_spectrum, sky_fwhm_pix, spec_fwhm_pix=ref_fwhm_pix,
-                                                mxshft=flexpar['spec_maxshift'], excess_shft=flexpar['excessive_shift'],
-                                                method="slitcen")
-
-
-
-
-
-
-
-            gd_slits = np.ones(self.slits.nslits, dtype=bool)
-            # TODO :: Rethink this... maybe better to find absolute correction from one slit, and then do a relative correction for all other slits.
-            flex_list = flexure.spec_flexure_slit_global(self.sciImg, self.waveimg, global_sky_sep, self.par,
-                                                         self.slits, self.slitmask, trace_spat, gd_slits,
-                                                         self.wv_calib, self.pypeline, self.det)
-            for sl in range(self.slits.nslits):
-                self.slitshift[sl] = flex_list[sl]['shift'][0]
-                msgs.info("Flexure correction of slit {0:d}: {1:.3f} pixels".format(1 + sl, self.slitshift[sl]))
+            self.calculate_flexure(global_sky_sep)
+            # gd_slits = np.ones(self.slits.nslits, dtype=bool)
+            # flex_list = flexure.spec_flexure_slit_global(self.sciImg, self.waveimg, global_sky_sep, self.par,
+            #                                              self.slits, self.slitmask, trace_spat, gd_slits,
+            #                                              self.wv_calib, self.pypeline, self.det)
+            # testflex = np.zeros_like(self.slitshift)
+            # for slit_idx, slit_spat in enumerate(self.slits.spat_id):
+            #     testflex[slit_idx] = flex_list[slit_idx]['shift'][0]
+            #     msgs.info("Flexure correction of slit {0:d} (spat id={1:d}): {2:.3f} pixels".format(1 + slit_idx,
+            #                                                                                         slit_spat,
+            #                                                                                         self.slitshift[slit_idx]))
 
         # If the joint fit or spec/spat sensitivity corrections are not being performed, return the separate slits sky
         if not self.par['reduce']['skysub']['joint_fit']:
@@ -1363,12 +1344,10 @@ class IFUFindObjects(MultiSlitFindObjects):
         #     global_sky_sep = Reduce.global_skysub(self, skymask=skymask, update_crmask=update_crmask, trim_edg=trim_edg,
         #                                           show_fit=show_fit, show=show, show_objs=show_objs)
 
-        # Recalculate the wavelength image, and the global sky taking into account the spectral flexure
-        msgs.info("Generating wavelength image, accounting for spectral flexure")
-        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spec_flexure=self.slitshift,
-                                                   spat_flexure=self.spat_flexure_shift)
-
         self.illum_profile_spectral(global_sky_sep, skymask=skymask)
+        # Recalculate the flexure after applying the relative spectral illumination
+        if method in ['slitcen']:
+            self.calculate_flexure(global_sky_sep)
 
         # Use sky information in all slits to perform a joint sky fit
         global_sky = self.joint_skysub(skymask=skymask, update_crmask=update_crmask, trim_edg=trim_edg,
@@ -1376,3 +1355,58 @@ class IFUFindObjects(MultiSlitFindObjects):
                                        objs_not_masked=objs_not_masked)
 
         return global_sky
+
+    def calculate_flexure(self, global_sky):
+        """
+        Convenience function to calculate the flexure of the IFU
+
+         Args:
+             global_sky (`numpy.ndarray`_):
+                Model of the sky
+        """
+        sl_ref = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
+        box_rad = self.par['reduce']['extraction']['boxcar_radius']
+        trace_spat = 0.5 * (self.slits_left + self.slits_right)
+        # Load archival sky spectrum for absolute correction
+        sky_spectrum, sky_fwhm_pix = flexure.get_archive_spectrum(self.par['flexure']['spectrum'])
+        # Get spectral FWHM (in Angstrom) if available
+        iwv = np.where(self.wv_calib.spat_ids == self.slits.spat_id[sl_ref])[0][0]
+        ref_fwhm_pix = self.wv_calib.wv_fits[iwv].fwhm
+        # Extract a spectrum of the sky
+        thismask = (self.slitmask == self.slits.spat_id[sl_ref])
+        ref_skyspec = flexure.get_sky_spectrum(self.sciImg.image, self.sciImg.ivar, self.waveimg, thismask,
+                                               global_sky, box_rad, self.slits, trace_spat[:, sl_ref],
+                                               self.pypeline, self.det)
+        # Calculate the flexure
+        flex_dict = flexure.spec_flex_shift(ref_skyspec, sky_spectrum, sky_fwhm_pix, spec_fwhm_pix=ref_fwhm_pix,
+                                            mxshft=self.par['flexure']['spec_maxshift'],
+                                            excess_shft=self.par['flexure']['excessive_shift'],
+                                            method="slitcen")
+        this_slitshift = np.ones(self.slits.nslits) * flex_dict['shift']
+        # Now loop through all slits to calculate the additional shift relative to the reference slit
+        for slit_idx, slit_spat in enumerate(self.slits.spat_id):
+            thismask = (self.slitmask == slit_spat)
+            # Extract sky spectrum for this slit
+            this_skyspec = flexure.get_sky_spectrum(self.sciImg.image, self.sciImg.ivar, self.waveimg, thismask,
+                                                    global_sky, box_rad, self.slits, trace_spat[:, slit_idx],
+                                                    self.pypeline, self.det)
+            # Calculate the flexure
+            flex_dict = flexure.spec_flex_shift(this_skyspec, ref_skyspec, ref_fwhm_pix * 1.01,
+                                                spec_fwhm_pix=ref_fwhm_pix,
+                                                mxshft=self.par['flexure']['spec_maxshift'],
+                                                excess_shft=self.par['flexure']['excessive_shift'],
+                                                method="slitcen")
+            this_slitshift[slit_idx] += flex_dict['shift']
+        # Add this flexure to the previous flexure correction
+        self.slitshift += this_slitshift
+        # Now report the flexure values
+        for slit_idx, slit_spat in enumerate(self.slits.spat_id):
+            msgs.info("Flexure correction of slit {0:d} (spat id={1:d}): {2:.3f} pixels".format(1 + slit_idx,
+                                                                                                slit_spat,
+                                                                                                self.slitshift[
+                                                                                                    slit_idx]))
+        # Recalculate the wavelength image, and the global sky taking into account the spectral flexure
+        msgs.info("Generating wavelength image, accounting for spectral flexure")
+        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spec_flexure=self.slitshift,
+                                                   spat_flexure=self.spat_flexure_shift)
+        return
