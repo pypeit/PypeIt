@@ -241,7 +241,9 @@ class CoAdd2D:
         Returns:
             :obj:`dict`: The default set of parameters.
         """
-        cfg = dict(rdx=dict(spectrograph=spectrograph)) if inp_cfg is None else dict(inp_cfg)
+        cfg = dict(rdx=dict(spectrograph=spectrograph))
+        if inp_cfg is not None:
+            cfg = utils.recursive_update(cfg, dict(inp_cfg))
         if det is not None:
             cfg['rdx']['detnum'] = det
         if slits is not None:

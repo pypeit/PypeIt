@@ -11,6 +11,7 @@ import pickle
 import pathlib
 import itertools
 import glob
+import collections.abc
 
 from IPython import embed
 
@@ -1051,6 +1052,32 @@ def add_sub_dict(d, key):
     """
     if key not in d.keys():
         d[key] = {}
+
+
+def recursive_update(d, u):
+    """
+    Update dictionary values with recursion to nested dictionaries.
+
+    Thanks to:
+    https://stackoverflow.com/questions/3232943/update-value-of-a-nested-dictionary-of-varying-depth
+
+    Args:
+        d (:obj:`dict`):
+            Dictionary (potentially of other dictionaries) to be updated.  This
+            is both edited in-place and returned.
+        u (:obj:`dict`):
+            Dictionary (potentially of other dictionaries) with the
+            updated/additional values.
+
+    Returns:
+        :obj:`dict`: The updated dictionary.
+    """
+    for k, v in u.items():
+        if isinstance(v, collections.abc.Mapping):
+            d[k] = recursive_update(d.get(k, {}), v)
+        else:
+            d[k] = v
+    return d
 
 
 def save_pickle(fname, obj):

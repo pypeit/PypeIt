@@ -44,6 +44,8 @@ from pypeit.spectrographs import available_spectrographs
 from pypeit.slittrace import SlitTraceSet 
 from pypeit import inputfiles 
 
+from pypeit.scripts.setup_coadd2d import SetupCoAdd2D
+from pypeit.scripts.coadd_2dspec import CoAdd2DSpec
 
 def get_files(raw_files, raw_path, ext):
     """
@@ -517,6 +519,13 @@ class QL(scriptbase.ScriptBase):
                                  'reduction of the science frames.')
         parser.add_argument('--snr_thresh', default=None, type=float,
                             help='Change the default S/N threshold used during source detection')
+
+        parser.add_argument('--coadd', default=False, action='store_true',
+                            help='Perform default 2D coadding.')
+        # TODO: Add in relevant 2d coadding parameters, like detector, slits,
+        # objects, etc.  2D coadding is basically just a default run of
+        # `pypeit_setup_coadd2d` and `pypeit_coadd_2dspec`.
+
         return parser
 
 
@@ -702,7 +711,26 @@ class QL(scriptbase.ScriptBase):
         pypeIt.reduce_all()
         pypeIt.build_qa()
 
-        # COADD 2D GOES HERE
+        # Preform coadding if requested
+        if args.coadd:
+            # Run the setup script to get the baseline coadd2d file
+            # TODO: Add sensitivity functions, and other options
+            SetupCoAdd2D.main(SetupCoAdd2D.parse_args([sci_pypeit_file]))
+
+            # Find all the coadd2d scripts
+            # TODO: Need to have SetupCoAdd2D.main return the names of the written files...
+            coadd_files = sorted(Path(sci_pypeit_file).resolve().parent.glob('*.coadd2d'))
+            
+            # Run the coadding, only on those coadd files with more than one file
+            for coadd_file in coadd_files:
+                coadd2dFile = inputfiles.Coadd2DFile.from_file(coadd_file)
+                if len(coadd2dFile.data) < 2:
+                    msgs.warn(f'{coadd_file} only has one spec2d file.  Continuing...')
+                    continue
+
+                # TODO: Add options
+                CoAdd2DSpec.main(CoAdd2DSpec.parse_args([coadd_file]))
+
         exec_s = np.around(time.perf_counter()-tstart, decimals=1)
         msgs.info(f'Quicklook execution time: {datetime.timedelta(seconds=exec_s)}')
 

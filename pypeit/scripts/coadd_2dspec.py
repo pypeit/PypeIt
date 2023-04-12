@@ -106,13 +106,15 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         coadd_scidir = pypeit_scidir.parent / f"{par['rdx']['scidir']}_coadd"
         if not coadd_scidir.exists():
             coadd_scidir.mkdir(parents=True)
-        pypeit_calib_dir = pypeit_scidir.parent / par['calibrations']['calib_dir']
-        coadd_calib_dir = pypeit_scidir.parent / f"{par['calibrations']['calib_dir']}_coadd"
-        if not coadd_calib_dir.exists():
-            coadd_calib_dir.mkdir(parents=True)
-        pypeit_qa_dir = pypeit_scidir.parent / par['rdx']['qadir']
-        coadd_qa_dir = pypeit_scidir.parent / f"{par['rdx']['qadir']}_coadd"
-        qa_path = coadd_qa_dir / 'PNGs'
+#        pypeit_calib_dir = pypeit_scidir.parent / par['calibrations']['calib_dir']
+#        coadd_calib_dir = pypeit_scidir.parent / f"{par['calibrations']['calib_dir']}_coadd"
+#        if not coadd_calib_dir.exists():
+#            coadd_calib_dir.mkdir(parents=True)
+#        pypeit_qa_dir = pypeit_scidir.parent / par['rdx']['qadir']
+#        coadd_qa_dir = pypeit_scidir.parent / f"{par['rdx']['qadir']}_coadd"
+#        qa_path = coadd_qa_dir / 'PNGs'
+        parset['rdx']['qadir'] += '_coadd'
+        qa_path = pypeit_scidir.parent / parset['rdx']['qadir'] / 'PNGs'
         if not qa_path.exists():
             qa_path.mkdir(parents=True)
 
@@ -247,32 +249,24 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
         # SAVE TO DISK
 
-        # Make the new Science dir
-        # TODO: This needs to be defined by the user
-        scipath = redux_path / 'Science_coadd'
-        if not scipath.exists():
-            msgs.info(f'Creating directory for Science output: {scipath}')
-            scipath.mkdir(parents=True)
-
         # THE FOLLOWING MIMICS THE CODE IN pypeit.save_exposure()
         subheader = spectrograph.subheader_for_spec(head2d, head2d)
         # Write spec1D
         if all_specobjs.nobj > 0:
-            outfile1d = scipath / f'spec1d_{basename}.fits'
+            outfile1d = coadd_scidir / f'spec1d_{basename}.fits'
             all_specobjs.write_to_fits(subheader, outfile1d)
 
             # Info
-            outfiletxt = scipath / f'spec1d_{basename}.txt'
+            outfiletxt = coadd_scidir / f'spec1d_{basename}.txt'
             sobjs = specobjs.SpecObjs.from_fitsfile(outfile1d, chk_version=False)
             sobjs.write_info(outfiletxt, spectrograph.pypeline)
 
         # Build header for spec2d
-        outfile2d = scipath / f'spec2d_{basename}.fits'
+        outfile2d = coadd_scidir / f'spec2d_{basename}.fits'
         pri_hdr = all_spec2d.build_primary_hdr(head2d, spectrograph,
                                                subheader=subheader,
                                                # TODO -- JFH :: Decide if we need any of these
                                                redux_path=None)
-                                               #, master_key_dict=None, master_dir=None)
         # Write spec2d
         all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr)
 
