@@ -679,7 +679,7 @@ class DataContainer:
                             break
                     if dc is None:
                         msgs.error(f'Could not assign dictionary element {key} to datamodel '
-                                   f'for {self.__class__.__name__}.')
+                                   f'for {self.__class__.__name__}.', cls='PypeItDataModelError')
                     setattr(self, key, dc)
                     continue
                 
@@ -827,7 +827,7 @@ class DataContainer:
                 d = Table(d)
             except:
                 msgs.error(f'Cannot force all elements of {self.__class__.__name__} datamodel'
-                           'into a single-row astropy Table!')
+                           'into a single-row astropy Table!', cls='PypeItDataModelError')
 
         return [d] if ext is None else [{ext:d}]
 
@@ -962,7 +962,7 @@ class DataContainer:
 
         if len(_ext_pseudo) != len(_ext):
             msgs.error(f'Length of provided extension pseudonym list must match number of '
-                       f'extensions selected: {len(_ext)}.')
+                       f'extensions selected: {len(_ext)}.', cls='PypeItDataModelError')
 
         str_ext = np.logical_not([isinstance(e, (int, np.integer)) for e in _ext_pseudo])
 
@@ -1361,7 +1361,8 @@ class DataContainer:
             indx = np.isin(hdr_keys, list(_primary_hdr.keys()))
             if np.sum(indx) > 1:
                 msgs.error('CODING ERROR: Primary header should not contain keywords that are the '
-                           'same as the datamodel for {0}.'.format(self.__class__.__name__))
+                           'same as the datamodel for {0}.'.format(self.__class__.__name__),
+                           cls='PypeItDataModelError')
 
         # Initialize the base header
         _hdr = self._base_header(hdr=hdr)
@@ -1370,7 +1371,8 @@ class DataContainer:
         if _hdr is not None \
                 and np.any(np.isin([k.upper() for k in self.keys()], list(_hdr.keys()))):
             msgs.error('CODING ERROR: Baseline header should not contain keywords that are the '
-                       'same as the datamodel for {0}.'.format(self.__class__.__name__))
+                       'same as the datamodel for {0}.'.format(self.__class__.__name__),
+                       cls='PypeItDataModelError')
 
         # Construct the list of HDUs
         hdu = []
@@ -1427,12 +1429,15 @@ class DataContainer:
         d, dm_version_passed, dm_type_passed, parsed_hdus = cls._parse(hdu, **kwargs)
         # Check version and type?
         if not dm_type_passed:
-            msgs.error(f'The HDU(s) cannot be parsed by a {cls.__name__} object!')
+            msgs.error(f'The HDU(s) cannot be parsed by a {cls.__name__} object!',
+                       cls='PypeItDataModelError')
         if not dm_version_passed:
-            _f = msgs.error if chk_version else msgs.warn
-            # TODO: Pring read version?
-            _f(f'Current version of {cls.__name__} object in code ({cls.version}) '
-               'does not match version used to write your HDU(s)!')
+            msg = f'Current version of {cls.__name__} object in code ({cls.version}) ' \
+                  'does not match version used to write your HDU(s)!'
+            if chk_version:
+                msgs.error(msg, cls='PypeItDataModelError')
+            else:
+                msgs.warn(msg)
 
         # Instantiate
         # NOTE: We can't use `cls(d)`, where `d` is the dictionary returned by

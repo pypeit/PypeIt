@@ -4,26 +4,7 @@ Script for performing 2d coadds of PypeIt data.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-from pathlib import Path
-import os
-import glob
-import copy
-from collections import OrderedDict
-
-from IPython import embed
-
-import numpy as np
-
-from astropy.io import fits
-
-from pypeit import msgs
-from pypeit import coadd2d
-from pypeit import inputfiles
-from pypeit import specobjs
-from pypeit import spec2dobj
 from pypeit.scripts import scriptbase
-from pypeit.spectrographs.util import load_spectrograph
-
 
 class CoAdd2DSpec(scriptbase.ScriptBase):
 
@@ -70,6 +51,27 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
     def main(args):
         """ Executes 2d coadding
         """
+
+        from pathlib import Path
+        import os
+        import glob
+        import copy
+        from collections import OrderedDict
+
+        from IPython import embed
+
+        import numpy as np
+
+        from astropy.io import fits
+
+        from pypeit import msgs
+        from pypeit import io
+        from pypeit import coadd2d
+        from pypeit import inputfiles
+        from pypeit import specobjs
+        from pypeit import spec2dobj
+        from pypeit.spectrographs.util import load_spectrograph
+
         # Set the verbosity, and create a logfile if verbosity == 2
         msgs.set_logfile_and_verbosity('coadd_2dspec', args.verbosity)
 
@@ -97,25 +99,44 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         spec2d_files = coadd2dFile.filenames
 
         # Get the paths
-
-        # TODO: And here's basically where I gave up...
+        # NOTE: These two should be the same as 
+        #   Path(par['rdx']['redux_path']).resolve() / par['rdx']['scidir']
+        #   Path(spec2d_files[0]).parent
+        pypeit_scidir = Path(spec2d_files[0]).parent
+        coadd_scidir = pypeit_scidir.parent / f"{par['rdx']['scidir']}_coadd"
+        if not coadd_scidir.exists():
+            coadd_scidir.mkdir(parents=True)
+        pypeit_calib_dir = pypeit_scidir.parent / par['calibrations']['calib_dir']
+        coadd_calib_dir = pypeit_scidir.parent / f"{par['calibrations']['calib_dir']}_coadd"
+        if not coadd_calib_dir.exists():
+            coadd_calib_dir.mkdir(parents=True)
+        pypeit_qa_dir = pypeit_scidir.parent / par['rdx']['qadir']
+        coadd_qa_dir = pypeit_scidir.parent / f"{par['rdx']['qadir']}_coadd"
+        qa_path = coadd_qa_dir / 'PNGs'
+        if not qa_path.exists():
+            qa_path.mkdir(parents=True)
 
         # Get the output basename
         head2d = fits.getheader(spec2d_files[0])
         if args.basename is None:
-            # TODO: Use FILENAME and TARGET header keywords instead
-            filename_first = Path(spec2d_files[0]).resolve().name
-            filename_last = Path(spec2d_files[-1]).resolve().name
-            prefix_first = (filename_first.split('_')[1]).split('-')[0]
-            prefix_last = (filename_last.split('_')[1]).split('-')[0]
-            objname = (filename_first.split('-')[1]).split('_')[0]
-            basename = '{:s}-{:s}-{:s}'.format(prefix_first,prefix_last,objname)
+            lasthdr = fits.getheader(spec2d_files[-1])
+            if 'FILENAME' not in head2d:
+                msgs.error(f'Missing FILENAME keyword in {spec2d_files[0]}.  Set the basename '
+                           'using the command-line option.')
+            if 'FILENAME' not in lasthdr:
+                msgs.error(f'Missing FILENAME keyword in {spec2d_files[-1]}.  Set the basename '
+                           'using the command-line option.')
+            if 'TARGET' not in head2d:
+                msgs.error(f'Missing TARGET keyword in {spec2d_files[0]}.  Set the basename '
+                           'using the command-line option.')
+            basename = f"{io.remove_suffix(head2d['FILENAME'])}-" \
+                       f"{io.remove_suffix(lasthdr['FILENAME'])}-{head2d['TARGET']}"
         else:
             basename = args.basename
 
         # Write the par to disk
-        par_outfile = basename+'_coadd2d.par'
-        print("Writing the parameters to {}".format(par_outfile))
+        par_outfile = coadd_scidir.parent / f'{basename}_coadd2d.par'
+        print(f'Writing full parameter set to {par_outfile}.')
         par.to_config(par_outfile, exclude_defaults=True, include_descr=False)
 
         # Now run the coadds
@@ -123,24 +144,16 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         find_negative = head2d['FINDOBJ'] == 'NEG'
 
         # Print status message
-        msgs_string = 'Reducing target {:s}'.format(basename) + msgs.newline()
-        msgs_string += 'Coadding frame sky-subtracted with {:s}'.format(head2d['SKYSUB'])
-        msgs_string += 'Searching for objects that are {:s}'.format(head2d['FINDOBJ'])
-        msgs_string += msgs.newline() + 'Combining frames in 2d coadd:' + msgs.newline()
+        msgs_string = f'Reducing target {basename}' + msgs.newline()
+        msgs_string += f"Coadding frame sky-subtracted with {head2d['SKYSUB']}" + msgs.newline()
+        msgs_string += f"Searching for objects that are {head2d['FINDOBJ']}" + msgs.newline()
+        msgs_string += 'Combining frames in 2d coadd:' + msgs.newline()
         for f, file in enumerate(spec2d_files):
             msgs_string += f'Exp {f}: {Path(file).name}' + msgs.newline()
         msgs.info(msgs_string)
 
-        # TODO: This needs to be added to the parameter list for rdx.  Why does
-        # this not use par['rdx']['redux_path'], which is used below to set
-        # the qa_path?
-        redux_path = Path().resolve()
-        calib_dir = redux_path / f'{Path(head2d["CALIBDIR"]).name}_coadd'
-
-        # If the calibrations directory doesn't exist, make it.
-        if not calib_dir.exists():
-            msgs.info(f'Creating directory for calibration output: {calib_dir}')
-            calib_dir.mkdir(parents=True)
+        embed()
+        exit()
 
         # Instantiate the sci_dict
         # TODO Why do we need this sci_dict at all?? JFH
@@ -150,14 +163,13 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         sci_dict['meta']['bkg_redux'] = bkg_redux
         sci_dict['meta']['find_negative'] = find_negative
 
-        # Make QA coadd directory
-        par['rdx']['qadir'] += '_coadd'
-        qa_path = Path(par['rdx']['redux_path']).resolve() / par['rdx']['qadir'] / 'PNGs'
-        if not qa_path.exists():
-            qa_path.mkdir(parents=True)
-
         # Find the detectors to reduce
-        detectors = spectrograph.select_detectors(subset=par['rdx']['detnum'])
+        # TODO: Include 
+        detectors = spectrograph.select_detectors(
+                subset=par['rdx']['detnum'] if par['rdx']['slitspatnum'] is None else
+                        par['rdx']['slitspatnum'])
+        
+        spectrograph.select_detectors(subset=par['rdx']['detnum'])
         msgs.info(f'Detectors to work on: {detectors}')
 
         # Only_slits?
