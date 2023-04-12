@@ -30,7 +30,7 @@ developers = ['ema', 'joe', 'milvang', 'rcooke', 'thsyu', 'xavier']
 class PypeItError(Exception):
     pass
 
-class PypeItDataModelError(Exception):
+class PypeItDataModelError(PypeItError):
     pass
 
 
