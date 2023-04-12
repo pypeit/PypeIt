@@ -55,6 +55,7 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
         from astropy.table import Table
 
         from pypeit import msgs
+        from pypeit import utils
         from pypeit import inputfiles
         from pypeit.coadd2d import CoAdd2D
 
@@ -98,10 +99,17 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
         if len(object_spec2d_files.keys()) == 0:
             msgs.error('Unable to match any spec2d files to objects.')
 
+        # Add the paths to make sure they match the pypeit file
+        cfg = {} if args.clean_par else dict(pypeitFile.config)
+        utils.add_sub_dict(cfg, 'rdx')
+        cfg['rdx']['redux_path'] = par['rdx']['redux_path']
+        cfg['rdx']['scidir'] = par['rdx']['scidir']
+        cfg['rdx']['qadir'] = par['rdx']['qadir']
+        utils.add_sub_dict(cfg, 'calibrations')
+        cfg['calibrations']['calib_dir'] = par['calibrations']['calib_dir']
+
         # Build the default parameters
-        cfg = CoAdd2D.default_par(spec.name,
-                                  inp_cfg=None if args.clean_par else dict(pypeitFile.config),
-                                  det=args.det, slits=args.only_slits)
+        cfg = CoAdd2D.default_par(spec.name, inp_cfg=cfg, det=args.det, slits=args.only_slits)
 
         # Create a coadd2D file for each object
         # NOTE: Below expect all spec2d files have the same path

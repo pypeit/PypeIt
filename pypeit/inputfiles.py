@@ -61,12 +61,7 @@ class InputFile:
         self.data = data_table
         self.file_paths = file_paths
         self.setup = setup
-
-        # Load up ConfigObj
-        if config is not None:
-            self.config = configobj.ConfigObj(config)
-        else:
-            self.config = None
+        self.config = None if config is None else configobj.ConfigObj(config)
 
         # Vet
         self.vet()

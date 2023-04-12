@@ -16,7 +16,7 @@ import numpy as np
 
 from astropy.io import fits
 
-from pypeit import par, msgs, io
+from pypeit import msgs
 from pypeit import coadd2d
 from pypeit import inputfiles
 from pypeit import specobjs
@@ -75,31 +75,35 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
         # Load the file
         coadd2dFile = inputfiles.Coadd2DFile.from_file(args.coadd2d_file)
-        spectrograph, parset, _ = coadd2dFile.get_pypeitpar()
+        spectrograph, par, _ = coadd2dFile.get_pypeitpar()
 
         # Check some of the parameters
         # TODO Heliocentric for coadd2d needs to be thought through. Currently turning it off.
-        if parset['calibrations']['wavelengths']['refframe'] != 'observed':
+        if par['calibrations']['wavelengths']['refframe'] != 'observed':
             msgs.warn('Wavelength reference frame shift (e.g., heliocentric correction) not yet '
                       'fully developed.  Ignoring input and setting "refframe = observed".')
-            parset['calibrations']['wavelengths']['refframe'] = 'observed'
+            par['calibrations']['wavelengths']['refframe'] = 'observed'
         # TODO Flexure correction for coadd2d needs to be thought through. Currently turning it off.
-        if parset['flexure']['spec_method'] != 'skip':
+        if par['flexure']['spec_method'] != 'skip':
             msgs.warn('Spectroscopic flexure correction not yet fully developed.  Skipping.')
-            parset['flexure']['spec_method'] = 'skip'
+            par['flexure']['spec_method'] = 'skip'
         # TODO This is currently the default for 2d coadds, but we need a way to toggle it on/off
-        if not parset['reduce']['findobj']['skip_skysub']:
+        if not par['reduce']['findobj']['skip_skysub']:
             msgs.warn('Must skip sky subtraction when finding objects (i.e., sky should have '
                       'been subtracted during primary reduction procedure).  Skipping.')
-            parset['reduce']['findobj']['skip_skysub'] = True
+            par['reduce']['findobj']['skip_skysub'] = True
 
-        # Set the file paths
+        # Get the files
         spec2d_files = coadd2dFile.filenames
+
+        # Get the paths
+
+        # TODO: And here's basically where I gave up...
 
         # Get the output basename
         head2d = fits.getheader(spec2d_files[0])
         if args.basename is None:
-            #TODO Fix this, currently does not work if target names have - or _
+            # TODO: Use FILENAME and TARGET header keywords instead
             filename_first = Path(spec2d_files[0]).resolve().name
             filename_last = Path(spec2d_files[-1]).resolve().name
             prefix_first = (filename_first.split('_')[1]).split('-')[0]
@@ -112,26 +116,23 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         # Write the par to disk
         par_outfile = basename+'_coadd2d.par'
         print("Writing the parameters to {}".format(par_outfile))
-        parset.to_config(par_outfile, exclude_defaults=True, include_descr=False)
+        par.to_config(par_outfile, exclude_defaults=True, include_descr=False)
 
         # Now run the coadds
-
-        skysub_mode = head2d['SKYSUB']
-        findobj_mode = head2d['FINDOBJ']
-        bkg_redux = True if 'DIFF' in skysub_mode else False
-        find_negative = True if 'NEG' in findobj_mode else False
+        bkg_redux = head2d['SKYSUB'] == 'DIFF'
+        find_negative = head2d['FINDOBJ'] == 'NEG'
 
         # Print status message
         msgs_string = 'Reducing target {:s}'.format(basename) + msgs.newline()
-        msgs_string += 'Coadding frame sky-subtraced with {:s}'.format(skysub_mode)
-        msgs_string += 'Searching for objects that are {:s}'.format(findobj_mode)
+        msgs_string += 'Coadding frame sky-subtracted with {:s}'.format(head2d['SKYSUB'])
+        msgs_string += 'Searching for objects that are {:s}'.format(head2d['FINDOBJ'])
         msgs_string += msgs.newline() + 'Combining frames in 2d coadd:' + msgs.newline()
         for f, file in enumerate(spec2d_files):
             msgs_string += f'Exp {f}: {Path(file).name}' + msgs.newline()
         msgs.info(msgs_string)
 
         # TODO: This needs to be added to the parameter list for rdx.  Why does
-        # this not use parset['rdx']['redux_path'], which is used below to set
+        # this not use par['rdx']['redux_path'], which is used below to set
         # the qa_path?
         redux_path = Path().resolve()
         calib_dir = redux_path / f'{Path(head2d["CALIBDIR"]).name}_coadd'
@@ -150,18 +151,18 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         sci_dict['meta']['find_negative'] = find_negative
 
         # Make QA coadd directory
-        parset['rdx']['qadir'] += '_coadd'
-        qa_path = Path(parset['rdx']['redux_path']).resolve() / parset['rdx']['qadir'] / 'PNGs'
+        par['rdx']['qadir'] += '_coadd'
+        qa_path = Path(par['rdx']['redux_path']).resolve() / par['rdx']['qadir'] / 'PNGs'
         if not qa_path.exists():
             qa_path.mkdir(parents=True)
 
         # Find the detectors to reduce
-        detectors = spectrograph.select_detectors(subset=parset['rdx']['detnum'])
+        detectors = spectrograph.select_detectors(subset=par['rdx']['detnum'])
         msgs.info(f'Detectors to work on: {detectors}')
 
         # Only_slits?
         if args.only_slits:
-            parset['coadd2d']['only_slits'] = [int(item) for item in args.only_slits.split(',')]
+            par['coadd2d']['only_slits'] = [int(item) for item in args.only_slits.split(',')]
 
         # container for specobjs
         all_specobjs = specobjs.SpecObjs()
@@ -176,9 +177,9 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             msgs.info("Working on detector {0}".format(det))
 
             # Instantiate Coadd2d
-            coadd = coadd2d.CoAdd2D.get_instance(spec2d_files, spectrograph, parset, det=det,
-                                                 offsets=parset['coadd2d']['offsets'],
-                                                 weights=parset['coadd2d']['weights'],
+            coadd = coadd2d.CoAdd2D.get_instance(spec2d_files, spectrograph, par, det=det,
+                                                 offsets=par['coadd2d']['offsets'],
+                                                 weights=par['coadd2d']['weights'],
                                                  spec_samp_fact=args.spec_samp_fact,
                                                  spat_samp_fact=args.spat_samp_fact,
                                                  bkg_redux=bkg_redux, find_negative=find_negative,
@@ -187,7 +188,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
             # TODO Add this stuff to a run method in coadd2d
             # Coadd the slits
-            coadd_dict_list = coadd.coadd(only_slits=parset['coadd2d']['only_slits'])
+            coadd_dict_list = coadd.coadd(only_slits=par['coadd2d']['only_slits'])
             # Create the pseudo images
             pseudo_dict = coadd.create_pseudo_image(coadd_dict_list)
             # Reduce
