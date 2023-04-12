@@ -7,6 +7,7 @@
 - Allow user control of the local sky subtraction window
 - Deprecate use of python 3.8 with PypeIt, allow python 3.11
 - Make pypeit_show_2dspec (somewhat) backwards compatible.
+- Added the option to disable strict version checking for 1d coadds.
 - Calibration group numbers can now be anything, as long as there are no more
   than 63 unique integers.
 - Removed use of the term "master", renamed to calibration frames/files.

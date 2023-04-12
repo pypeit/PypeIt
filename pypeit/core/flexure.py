@@ -116,7 +116,7 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
     return lag_max[0]
 
 
-def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm=None, mxshft=20, excess_shft="crash",
+def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm_pix=None, mxshft=20, excess_shft="crash",
                     method="boxcar"):
     """ Calculate shift between object sky spectrum and archive sky spectrum
 
@@ -127,7 +127,7 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm=None, mxsh
             Archived sky spectrum
         arx_fwhm_pix (:obj:`float`):
             Spectral FWHM (in pixels) of the archived sky spectrum.
-        spec_fwhm (:obj:`float`, optional):
+        spec_fwhm_pix (:obj:`float`, optional):
             Spectral FWHM (in pixels) of the sky spectrum related to our object/slit.
         mxshft (:obj:`float`, optional):
             Maximum allowed shift from flexure;  note there are cases that
@@ -160,10 +160,10 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm=None, mxsh
     msgs.warn("If we use Paranal, cut down on wavelength early on")
 
     # get gaussian sigma (pixels) for smoothing
-    smooth_fwhm_pix = get_fwhm_gauss_smooth(arx_skyspec, obj_skyspec, arx_fwhm_pix, spec_fwhm=spec_fwhm)
+    smooth_fwhm_pix = get_fwhm_gauss_smooth(arx_skyspec, obj_skyspec, arx_fwhm_pix, spec_fwhm_pix=spec_fwhm_pix)
 
     if smooth_fwhm_pix is None:
-        # smooth_fwhm_pix is None if spec_fwhm<0, i.e., the wavelength calibration is bad
+        # smooth_fwhm_pix is None if spec_fwhm_pix<0, i.e., the wavelength calibration is bad
         msgs.warn('No flexure correction could be computed for this slit/object')
         return None
 
@@ -316,7 +316,7 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm=None, mxsh
                 corr_cen=corr.size/2, smooth=smooth_fwhm_pix, method=method)
 
 
-def get_fwhm_gauss_smooth(arx_skyspec, obj_skyspec, arx_fwhm_pix, spec_fwhm=None):
+def get_fwhm_gauss_smooth(arx_skyspec, obj_skyspec, arx_fwhm_pix, spec_fwhm_pix=None):
     """
 
     Args:
@@ -326,15 +326,15 @@ def get_fwhm_gauss_smooth(arx_skyspec, obj_skyspec, arx_fwhm_pix, spec_fwhm=None
             Spectrum of the sky related to our object.
         arx_fwhm_pix (:obj:`float`):
             Spectral FWHM (in pixels) of the archived sky spectrum.
-        spec_fwhm (:obj:`float`, optional):
+        spec_fwhm_pix (:obj:`float`, optional):
             Spectral FWHM (in pixels) of the sky spectrum related to our object.
 
     Returns:
         :obj:`float`: FWHM of the smoothing Gaussian in pixels.
     """
     # determine object spectral FWHM (in Angstrom) using obj_skyspec
-    # if spec_fwhm (typically from wave calibration) is None
-    if spec_fwhm is None:
+    # if spec_fwhm_pix (typically from wave calibration) is None
+    if spec_fwhm_pix is None:
         # pixels
         spec_fwhm_pix = autoid.measure_fwhm(obj_skyspec.flux.value, sigdetect=4., fwhm=4.)
         msgs.info('Measuring spectral FWHM using the boxcar extracted sky spectrum.')
@@ -342,11 +342,10 @@ def get_fwhm_gauss_smooth(arx_skyspec, obj_skyspec, arx_fwhm_pix, spec_fwhm=None
             msgs.warn('Failed to measure the spectral FWHM using the boxcar extracted sky spectrum. '
                       'Not enough sky lines detected.')
             return None
-        else:
-            # object sky spectral dispersion (Angstrom/pixel)
-            obj_disp = np.median(np.diff(obj_skyspec.wavelength.value))
-            # Angstrom
-            spec_fwhm = spec_fwhm_pix * obj_disp
+    # object sky spectral dispersion (Angstrom/pixel)
+    obj_disp = np.median(np.diff(obj_skyspec.wavelength.value))
+    # Angstrom
+    spec_fwhm = spec_fwhm_pix * obj_disp
 
     # determine arxiv sky spectral FWHM (in Angstrom)
     # arxiv sky spectral dispersion (Angstrom/pixel)
@@ -399,7 +398,7 @@ def flexure_interp(shift, wave):
 
 
 def spec_flex_shift_global(slit_specs, islit, sky_spectrum, arx_fwhm_pix, empty_flex_dict,
-                           return_later_slits, flex_list, keys_to_update, spec_fwhm=None,
+                           return_later_slits, flex_list, keys_to_update, spec_fwhm_pix=None,
                            mxshft=20, excess_shft="crash", method='slitcen'):
     """ Calculate flexure shifts using the sky spectrum extracted at the center of the slit
 
@@ -422,7 +421,7 @@ def spec_flex_shift_global(slit_specs, islit, sky_spectrum, arx_fwhm_pix, empty_
             A list of :obj:`dict` objects containing flexure results of each slit.
         keys_to_update (:obj:`list`):
             List of flexure dictionary keys that we need to update.
-        spec_fwhm (:obj:`float`, optional):
+        spec_fwhm_pix (:obj:`float`, optional):
             Spectral FWHM (in pixels) of the sky spectrum related to our object.
         mxshft (:obj:`int`, optional):
             Maximum allowed shift from flexure. Passed to spec_flex_shift().
@@ -446,7 +445,7 @@ def spec_flex_shift_global(slit_specs, islit, sky_spectrum, arx_fwhm_pix, empty_
 
     # Calculate the shift
     fdict = spec_flex_shift(slit_specs[islit], sky_spectrum, arx_fwhm_pix, mxshft=mxshft, excess_shft=excess_shft,
-                            spec_fwhm=spec_fwhm, method=method)
+                            spec_fwhm_pix=spec_fwhm_pix, method=method)
 
     # Was it successful?
     if fdict is not None:
@@ -469,7 +468,7 @@ def spec_flex_shift_global(slit_specs, islit, sky_spectrum, arx_fwhm_pix, empty_
 
 
 def spec_flex_shift_local(slits, slitord, specobjs, islit, sky_spectrum, arx_fwhm_pix, empty_flex_dict,
-                          return_later_slits, flex_list, keys_to_update, spec_fwhm=None, mxshft=20,
+                          return_later_slits, flex_list, keys_to_update, spec_fwhm_pix=None, mxshft=20,
                           excess_shft="crash", method='boxcar'):
     """ Calculate flexure shifts using the sky spectrum boxcar-extracted at the location of the detected objects
 
@@ -495,7 +494,7 @@ def spec_flex_shift_local(slits, slitord, specobjs, islit, sky_spectrum, arx_fwh
             A list of :obj:`dict` objects containing flexure results of each slit.
         keys_to_update (:obj:`list`):
             List of flexure dictionary keys that we need to update.
-        spec_fwhm (:obj:`float`, optional):
+        spec_fwhm_pix (:obj:`float`, optional):
             Spectral FWHM (in pixels) of the sky spectrum related to our object.
         mxshft (:obj:`int`, optional):
             Maximum allowed shift from flexure. Passed to spec_flex_shift().
@@ -545,7 +544,7 @@ def spec_flex_shift_local(slits, slitord, specobjs, islit, sky_spectrum, arx_fwh
 
         # Calculate the shift
         fdict = spec_flex_shift(obj_sky, sky_spectrum, arx_fwhm_pix, mxshft=mxshft, excess_shft=excess_shft,
-                                spec_fwhm=spec_fwhm, method=method)
+                                spec_fwhm_pix=spec_fwhm_pix, method=method)
 
         if fdict is not None:
             # Update dict
@@ -667,24 +666,24 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
             flex_list.append(empty_flex_dict.copy())
             continue
 
-        # get spectral FWHM (in Angstrom) if available
-        spec_fwhm = None
+        # get spectral FWHM (in pixels) if available
+        spec_fwhm_pix = None
         if wv_calib is not None:
             iwv = np.where(wv_calib.spat_ids == slits.spat_id[islit])[0][0]
             # Allow for wavelength failures
             if wv_calib.wv_fits is not None and wv_calib.wv_fits[iwv].fwhm is not None: 
-                spec_fwhm = wv_calib.wv_fits[iwv].cen_disp*wv_calib.wv_fits[iwv].fwhm 
+                spec_fwhm_pix = wv_calib.wv_fits[iwv].fwhm
 
         if slit_cen:
             # global flexure
             flex_list = spec_flex_shift_global(slit_specs, islit, sky_spectrum, arx_fwhm_pix, empty_flex_dict,
                                                return_later_slits, flex_list, keys_to_update,
-                                               spec_fwhm=spec_fwhm, mxshft=mxshft, excess_shft=excess_shft)
+                                               spec_fwhm_pix=spec_fwhm_pix, mxshft=mxshft, excess_shft=excess_shft)
         else:
             # local flexure
             flex_list = spec_flex_shift_local(slits, slitord, specobjs, islit, sky_spectrum, arx_fwhm_pix,
                                               empty_flex_dict, return_later_slits, flex_list, keys_to_update,
-                                              spec_fwhm=spec_fwhm, mxshft=mxshft, excess_shft=excess_shft)
+                                              spec_fwhm_pix=spec_fwhm_pix, mxshft=mxshft, excess_shft=excess_shft)
 
     # Check if we need to go back to some failed slits
     if len(return_later_slits) > 0:
