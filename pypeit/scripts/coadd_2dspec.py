@@ -152,9 +152,6 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             msgs_string += f'Exp {f}: {Path(file).name}' + msgs.newline()
         msgs.info(msgs_string)
 
-        embed()
-        exit()
-
         # Instantiate the sci_dict
         # TODO Why do we need this sci_dict at all?? JFH
         sci_dict = OrderedDict()  # This needs to be ordered
@@ -164,17 +161,12 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         sci_dict['meta']['find_negative'] = find_negative
 
         # Find the detectors to reduce
-        # TODO: Include 
-        detectors = spectrograph.select_detectors(
-                subset=par['rdx']['detnum'] if par['rdx']['slitspatnum'] is None else
-                        par['rdx']['slitspatnum'])
-        
-        spectrograph.select_detectors(subset=par['rdx']['detnum'])
+        # TODO: Allow slitspatnum to be specified?  E.g.:
+#        detectors = spectrograph.select_detectors(
+#                subset=par['rdx']['detnum'] if par['rdx']['slitspatnum'] is None else
+#                        par['rdx']['slitspatnum'])
+        detectors = spectrograph.select_detectors(subset=par['rdx']['detnum'])
         msgs.info(f'Detectors to work on: {detectors}')
-
-        # Only_slits?
-        if args.only_slits:
-            par['coadd2d']['only_slits'] = [int(item) for item in args.only_slits.split(',')]
 
         # container for specobjs
         all_specobjs = specobjs.SpecObjs()
