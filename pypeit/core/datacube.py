@@ -1006,7 +1006,8 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
 
 def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, all_wave, tilts, slits, slitid_img_gpm,
                            astrom_trans, bins, spec_subpixel=10, spat_subpixel=10, overwrite=False, blaze_wave=None,
-                           blaze_spec=None, fluxcal=False, sensfunc=None, specname="PYP_SPEC", debug=False):
+                           blaze_spec=None, fluxcal=False, whitelight=None, sensfunc=None, specname="PYP_SPEC",
+                           debug=False):
     """
     Save a datacube using the subpixel algorithm. This algorithm splits
     each detector pixel into multiple subpixels, and then assigns each
@@ -1061,6 +1062,9 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
         fluxcal (bool, optional):
             Are the data flux calibrated? If True, the units are: erg/s/cm^2/Angstrom/arcsec^2
             multiplied by the PYPEIT_FLUX_SCALE. Otherwise, the units are: counts/s/Angstrom/arcsec^2")
+        whitelight (None, list, optional):
+            If None, a whitelight image will not be saved. you would like a whitelight image to be saved, set this . The whitelight image
+            is formed over a wavelength range
         sensfunc (`numpy.ndarray`_, None, optional):
             Sensitivity function that has been applied to the datacube
         specname (str, optional):
@@ -1118,6 +1122,18 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
     bpmcube = (normcube == 0).astype(np.uint8)
     if debug:
         residcube *= nc_inverse
+
+    # TODO :: Ned to implement whitelight correction here.
+    if whitelight is not None and False:
+        # if method == 'resample':
+        #     msgs.warn("Whitelight images are not implemented with the 'resample' algorithm.")
+        #     msgs.info("Generating a whitelight image with the NGP algorithm.")
+        out_whitelight = os.path.splitext(outfile)[0] + "_whitelight.fits"
+        whitelight_img, _, wlwcs = make_whitelight_frompixels(raimg[onslit_gpm], decimg[onslit_gpm], wave_ext,
+                                                              flux_sav[resrt], np.ones(numpix), np.zeros(numpix), dspat)
+        msgs.info("Saving white light image as: {0:s}".format(out_whitelight))
+        img_hdu = fits.PrimaryHDU(whitelight_img.T, header=wlwcs.to_header())
+        img_hdu.writeto(out_whitelight, overwrite=overwrite)
 
     # Prepare the header, and add the unit of flux to the header
     hdr = output_wcs.to_header()
@@ -1281,7 +1297,6 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     cubepar = parset['reduce']['cube']
     flatpar = parset['calibrations']['flatfield']
     senspar = parset['sensfunc']
-    flexpar = parset['flexure']
 
     # prep
     numfiles = len(files)
@@ -1522,63 +1537,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
         # TODO :: Really need to write some detailed information in the docs about all of the various corrections that can optionally be applied
 
-        # TODO :: Remove this
-        if False:
-            embed()
-            #######################################################################
-            from pypeit.core import flexure
-            from pypeit.core.wavecal import autoid
-            from linetools.spectra import xspectrum1d
-
-            # Obtain a reference spectrum
-            sl_ref = flatpar['slit_illum_ref_idx']
-            # Calculate the absolute spectral flexure correction for the reference slit
-            trace_spat = 0.5 * (slits_left + slits_right)
-            sky_spectrum = data.load_sky_spectrum(flexpar['spectrum'])
-            # get arxiv sky spectrum resolution (FWHM in pixels)
-            sky_fwhm_pix = autoid.measure_fwhm(sky_spectrum.flux.value, sigdetect=4., fwhm=4.)
-            # get spectral FWHM (in Angstrom) if available
-            ref_fwhm_ang, ref_fwhm_pix = None, None
-            iwv = np.where(wv_calib.spat_ids == slits.spat_id[sl_ref])[0][0]
-            # Allow for wavelength failures
-            if wv_calib.wv_fits is not None and wv_calib.wv_fits[iwv].fwhm is not None:
-                ref_fwhm_pix = wv_calib.wv_fits[iwv].fwhm
-            # Get an object spectrum
-            thismask = (slitid_img_init == slits.spat_id[sl_ref])
-            # Dummy spec for extract_boxcar
-            ref_skyspec = flexure.get_sky_spectrum(sciimg, ivar, waveimg, thismask, skysubImg,
-                                                   parset['reduce']['extraction']['boxcar_radius'],
-                                                   slits, trace_spat[:, sl_ref], hdr['PYPELINE'], det)
-            # Calculate the flexure
-            flex_dict = flexure.spec_flex_shift(ref_skyspec, sky_spectrum, sky_fwhm_pix, spec_fwhm_pix=ref_fwhm_pix,
-                                                mxshft=flexpar['spec_maxshift'], excess_shft=flexpar['excessive_shift'],
-                                                method="slitcen")
-            # This absolute shift is the same for all slits
-            slitshift = np.ones(slits.nslits) * flex_dict['shift']
-            # Now loop through all slits to calculate the additional shift relative to the reference slit
-            for slit_idx, slit_spat in enumerate(slits.spat_id):
-                thismask = (slitid_img_init == slit_spat)
-                # Dummy spec for extract_boxcar
-                this_skyspec = flexure.get_sky_spectrum(sciimg, ivar, waveimg, thismask, skysubImg,
-                                                       parset['reduce']['extraction']['boxcar_radius'],
-                                                       slits, trace_spat[:, slit_idx], hdr['PYPELINE'], det)
-                # Calculate the flexure
-                flex_dict = flexure.spec_flex_shift(this_skyspec, ref_skyspec, ref_fwhm_pix*1.01, spec_fwhm_pix=ref_fwhm_pix,
-                                                    mxshft=flexpar['spec_maxshift'], excess_shft=flexpar['excessive_shift'],
-                                                    method="slitcen")
-
-                # Calculate the shift
-                fdict = spec_flex_shift(slit_specs[slit_idx], sky_spectrum, arx_fwhm_pix, mxshft=mxshft, excess_shft=excess_shft,
-                                        spec_fwhm=spec_fwhm, method=method)
-                slitshift[slit_idx] += 0.0
-            # Rebuild the wavelength image
-            waveimg_corr = wv_calib.build_waveimg(self.tilts, slits, spec_flexure=slitshift,
-                                                       spat_flexure=spat_flexure)
-            # Apply heliocentric correction
-
-            return waveimg_corr
-            #######################################################################
-            waveimg = correct_spec_flexure(waveimg)
+        # TODO :: Include a flexure correction from the sky frame?
 
         wave0 = waveimg[waveimg != 0.0].min()
         # Calculate the delta wave in every pixel on the slit
@@ -1765,18 +1724,6 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                 outfile = get_output_filename("", cubepar['output_filename'], True, -1)
             else:
                 outfile = get_output_filename(fil, cubepar['output_filename'], combine, ff+1)
-            # Generate individual whitelight images of each spec2d file
-            # TODO :: May be better to generate this after making the cube?
-            if cubepar['save_whitelight']:
-                # if method == 'resample':
-                #     msgs.warn("Whitelight images are not implemented with the 'resample' algorithm.")
-                #     msgs.info("Generating a whitelight image with the NGP algorithm.")
-                out_whitelight = os.path.splitext(outfile)[0] + "_whitelight.fits"
-                whitelight_img, _, wlwcs = make_whitelight_frompixels(raimg[onslit_gpm], decimg[onslit_gpm], wave_ext,
-                                                                      flux_sav[resrt], np.ones(numpix), np.zeros(numpix), dspat)
-                msgs.info("Saving white light image as: {0:s}".format(out_whitelight))
-                img_hdu = fits.PrimaryHDU(whitelight_img.T, header=wlwcs.to_header())
-                img_hdu.writeto(out_whitelight, overwrite=overwrite)
             # Get the coordinate bounds
             slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
             numwav = int((np.max(waveimg) - wave0) / dwv)
@@ -1798,7 +1745,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                 generate_cube_subpixel(outfile, output_wcs, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix),
                                        wave_ext, spec2DObj.tilts, slits, slitid_img_gpm, alignSplines, bins,
                                        overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
-                                       fluxcal=fluxcal, specname=specname,
+                                       fluxcal=fluxcal, specname=specname, whitelight=cubepar['save_whitelight'],
                                        spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
             # elif method == 'resample':
             #     fluximg, ivarimg = np.zeros_like(raimg), np.zeros_like(raimg)
