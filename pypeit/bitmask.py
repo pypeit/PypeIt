@@ -19,6 +19,8 @@ import numpy
 import os
 import textwrap
 
+from pypeit import msgs
+
 class BitMask:
     r"""
     Generic class to handle and manipulate bitmasks.  The input list of
@@ -103,11 +105,11 @@ class BitMask:
         _flag = numpy.array(self.keys()) if flag is None else numpy.atleast_1d(flag).ravel()
         # NULL flags not allowed
         if numpy.any([f == 'NULL' for f in _flag]):
-            raise ValueError('Flag name NULL is not allowed.')
+            msgs.error('Flag name NULL is not allowed.')
         # Flags should be among the bitmask keys
         indx = numpy.array([f not in self.keys() for f in _flag])
         if numpy.any(indx):
-            raise ValueError('The following bit names are not recognized: {0}'.format(
+            msgs.error('The following bit names are not recognized: {0}'.format(
                              ', '.join(_flag[indx])))
 #        # Flags should be strings
 #        if numpy.any([ not isinstance(f, str) for f in _flag ]):
