@@ -834,7 +834,7 @@ class FlexurePar(ParSet):
                           'Options are: None, {0}'.format(', '.join(options['spec_method']))
 
         defaults['spec_maxshift'] = 20
-        dtypes['spec_maxshift'] = [int, float]
+        dtypes['spec_maxshift'] = int
         descr['spec_maxshift'] = 'Maximum allowed spectral flexure shift in pixels.'
 
         defaults['spectrum'] = 'paranal_sky.fits'

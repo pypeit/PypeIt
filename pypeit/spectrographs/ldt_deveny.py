@@ -535,7 +535,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         # Adjust parameters based on CCD binning
         binspec, binspat = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
         par['reduce']['findobj']['find_fwhm'] /= binspat  # Specified in pixels and not arcsec
-        par['flexure']['spec_maxshift'] /= binspec
+        par['flexure']['spec_maxshift'] //= binspec  # Must be an integer
         par['sensfunc']['UVIS']['resolution'] /= binspec
 
         return par
