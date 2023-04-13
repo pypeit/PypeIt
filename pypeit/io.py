@@ -25,7 +25,7 @@ from astropy.table import Table
 
 from pypeit import msgs
 from pypeit import par
-from pypeit import inputfiles
+#from pypeit import inputfiles
 
 # These imports are largely just to make the versions available for
 # writing to the header. See `initialize_header`
@@ -845,52 +845,6 @@ def create_symlink(filename, symlink_dir, relative_symlink=False, overwrite=Fals
     # Create the symlink
     os.symlink(olink_src, olink_dest)
 
-
-def grab_rawfiles(file_of_files:str=None, list_of_files:list=None, raw_paths:list=None, 
-                  extension:str='.fits'):
-    """
-    Parse a set of raw files from the input.
-
-    Although all arguments are optional, one of ``file_of_files``,
-    ``list_of_files``, or ``raw_paths`` must be true.  Precedence is given in
-    that order; i.e., if ``file_of_files`` is provided, all other arguments are
-    ignored.
-
-    Args:
-        file_of_files (str, optional): 
-            File with list of raw files.  Format must follow the
-            :ref:`input-files-data-block` of a PypeIt file, and the only
-            required column is the filename.
-        list_of_files (list, optional): 
-            List of raw files (str).  Ignored if ``file_of_files`` is provided.
-            If ``raw_paths`` is None, the path is assumed to be the current
-            working directory.
-        raw_paths (list, optional): 
-            One or more paths with the raw files.  Ignored if ``file_of_files``
-            is provided.  If ``list_of_files`` is None, all files with the
-            provided extension are assumed to be raw files.
-        extension (str, optional): 
-            File extension to search on.  Ignored if ``file_of_files`` or
-            ``list_of_files`` is provided.
-
-    Returns:
-        list: List of raw data filenames with full path
-    """
-    if file_of_files is not None:
-        # PypeIt formatted list of files
-        return inputfiles.RawFiles.from_file(file_of_files).filenames
-
-    _raw_paths = [Path().resolve()] if raw_paths is None \
-                    else [Path(p).resolve() for p in raw_paths]
-
-    if list_of_files is not None:
-        # An actual list
-        return [str(p / f) for p in _raw_paths for f in list_of_files if (p / f).exists()]
-
-    # Find all files that have the correct extension
-    return numpy.concatenate([files_from_extension(str(p), extension=extension)
-                                for p in _raw_paths]).tolist()
-    
 
 def files_from_extension(raw_path:str,
                          extension:str='fits'):

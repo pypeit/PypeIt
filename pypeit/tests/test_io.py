@@ -8,7 +8,7 @@ from IPython import embed
 from astropy.table import Table
 
 from pypeit import io
-from pypeit.inputfiles import RawFiles
+from pypeit import inputfiles
 from pypeit.tests.tstutils import data_path
 
 
@@ -33,15 +33,15 @@ def test_grab_rawfiles():
 
     tbl = Table()
     tbl['filename'] = [r.name for r in raw_files]
-    RawFiles(file_paths=[str(root)], data_table=tbl).write(tst_file)
+    inputfiles.RawFiles(file_paths=[str(root)], data_table=tbl).write(tst_file)
 
-    _raw_files = io.grab_rawfiles(file_of_files=str(tst_file))
+    _raw_files = inputfiles.grab_rawfiles(file_of_files=str(tst_file))
     assert [str(f) for f in raw_files] == _raw_files, 'Bad file_of_files read'
 
-    _raw_files = io.grab_rawfiles(list_of_files=tbl['filename'], raw_paths=[str(root)])
+    _raw_files = inputfiles.grab_rawfiles(list_of_files=tbl['filename'], raw_paths=[str(root)])
     assert [str(f) for f in raw_files] == _raw_files, 'Bad list_of_files read'
 
-    _raw_files = io.grab_rawfiles(raw_paths=[str(root)], extension='.fits.gz')
+    _raw_files = inputfiles.grab_rawfiles(raw_paths=[str(root)], extension='.fits.gz')
     assert len(_raw_files) == 8, 'Found the wrong number of files'
     assert all([str(root / f) in _raw_files for f in tbl['filename']]), 'Missing expected files'
 

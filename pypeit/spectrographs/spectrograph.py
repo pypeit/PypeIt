@@ -37,9 +37,7 @@ import numpy as np
 from astropy.io import fits
 
 from pypeit import msgs
-from pypeit import utils
 from pypeit import io
-from pypeit.core.wavecal import wvutils
 from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.core import meta
@@ -767,9 +765,10 @@ class Spectrograph:
                 Table with the meta data; see
                 :class:`~pypeit.metadata.PypeItMetaData`.
         """
-        if self.header_name is None:
-            msgs.error(f'CODING ERROR: header_name is not defined for {self.__class__.__name__}!')
         if 'instrument' in meta_tbl.keys():
+            if self.header_name is None:
+                msgs.error('CODING ERROR: header_name is not defined for '
+                           f'{self.__class__.__name__}!')
             # Check that there is only one instrument
             #  This could fail if one mixes is much older calibs
             indx = meta_tbl['instrument'].data != None
