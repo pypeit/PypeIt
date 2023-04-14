@@ -440,7 +440,6 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         # TODO In case someone wants to use the IR algorithm for shane kast this is the telluric file. Note the IR
         # algorithm is not the default.
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_Lick_3100_11100_R10000.fits'
-
         return par
 
     def init_meta(self):
@@ -515,7 +514,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         # Return
         return par
 
-    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table):
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, blaze_function_in, meta_table):
         """
 
         This routine is for performing instrument/disperser specific tweaks to standard stars so that sensitivity
@@ -555,10 +554,13 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
             # The blue edge and red edge of the detector have no throughput so mask by hand.
             edge_region= (wave_in < 5400.0) | (wave_in > 8785.0)
             gpm_out = gpm_in & np.logical_not(edge_region)
+            # TODO Is this correct?
+            blaze_function_out = blaze_function_in * gpm_out
         else:
             gpm_out = gpm_in
+            blaze_function_out = blaze_function_in
 
-        return wave_in, counts_in, counts_ivar_in, gpm_out
+        return wave_in, counts_in, counts_ivar_in, gpm_out, blaze_function_out
 
 
 
@@ -631,6 +633,8 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['use_instr_flag'] = True
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Lick_3100_11100_R10000.fits'
+
 
         return par
 

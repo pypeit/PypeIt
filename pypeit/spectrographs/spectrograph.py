@@ -1770,7 +1770,7 @@ class Spectrograph:
         msgs.error(f'Method to match slits across detectors not defined for {self.name}')
 
 
-    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table):
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, blaze_function_in, meta_table):
         """
 
         This routine is for performing instrument/disperser specific tweaks to standard stars so that sensitivity
@@ -1804,7 +1804,7 @@ class Spectrograph:
             Output good pixel mask for standard
 
         """
-        return wave_in, counts_in, counts_ivar_in, gpm_in
+        return wave_in, counts_in, counts_ivar_in, gpm_in, blaze_function_in
 
     def calc_pattern_freq(self, frame, rawdatasec_img, oscansec_img, hdu):
         """

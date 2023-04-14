@@ -26,9 +26,13 @@ from pypeit.core import telluric
 from pypeit.core import fitting
 from pypeit.core.wavecal import wvutils
 from pypeit.core import meta
-from pypeit.spectrographs.util import load_spectrograph
+from pypeit.core import flat
+from pypeit.core.moment import moment1d
 
+from pypeit.spectrographs.util import load_spectrograph
 from pypeit import datamodel
+from pypeit import flatfield
+
 
 # TODO Add the data model up here as a standard thing using DataContainer.
 
@@ -110,6 +114,7 @@ class SensFunc(datamodel.DataContainer):
                  'counts',
                  'counts_ivar',
                  'counts_mask',
+                 'blaze_function',
                  'nspec_in',
                  'norderdet',
                  'wave_splice',
@@ -172,10 +177,10 @@ class SensFunc(datamodel.DataContainer):
         ``par``.
         """
         return next(c for c in cls.__subclasses__()
-                    if c.__name__ == f"{par['algorithm']}SensFunc")(spec1dfile, sensfile, par=par,
+                    if c.__name__ == f"{par['algorithm']}SensFunc")(spec1dfile, sensfile, par,
                                                                     debug=debug)
 
-    def __init__(self, spec1dfile, sensfile, par=None, debug=False):
+    def __init__(self, spec1dfile, sensfile, par, debug=False):
 
         # Instantiate as an empty DataContainer
         super().__init__()
@@ -218,18 +223,24 @@ class SensFunc(datamodel.DataContainer):
 
         if sobjs_std is None:
             msgs.error('There is a problem with your standard star spec1d file: {:s}'.format(self.spec1df))
+
+
         # Unpack standard
-        wave, counts, counts_ivar, counts_mask, self.meta_spec, header = sobjs_std.unpack_object(ret_flam=False)
+        wave, counts, counts_ivar, counts_mask, trace_spec, trace_spat, self.meta_spec, header = sobjs_std.unpack_object(ret_flam=False)
+
+        # Compute the blaze function
+
+        blaze_function = self.compute_blaze(wave, trace_spec, trace_spat, par['flatfile']) if par['flatfile'] is not None else np.ones_like(wave)
+
 
         # Perform any instrument tweaks
-        wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk \
-                = self.spectrograph.tweak_standard(wave, counts, counts_ivar, counts_mask,
-                                                   self.meta_spec)
+        wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk, blaze_function_twk \
+                = self.spectrograph.tweak_standard(wave, counts, counts_ivar, counts_mask, blaze_function, self.meta_spec)
 
         # Reshape to 2d arrays
-        self.wave_cnts, self.counts, self.counts_ivar, self.counts_mask, self.nspec_in, \
+        self.wave_cnts, self.counts, self.counts_ivar, self.counts_mask, self.blaze_function, self.nspec_in, \
             self.norderdet \
-                = utils.spec_atleast_2d(wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk)
+                = utils.spec_atleast_2d(wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk, blaze_function_twk)
 
         # If the user provided RA and DEC use those instead of what is in meta
         star_ra = self.meta_spec['RA'] if self.par['star_ra'] is None else self.par['star_ra']
@@ -241,6 +252,27 @@ class SensFunc(datamodel.DataContainer):
         self.std_dict = flux_calib.get_standard_spectrum(star_type=self.par['star_type'],
                                                          star_mag=self.par['star_mag'],
                                                          ra=star_ra, dec=star_dec)
+
+    def compute_blaze(self, wave, trace_spec, trace_spat, flatfile, box_radius=10.0, debug=False):
+
+
+        flatImages = flatfield.FlatImages.from_file(flatfile)
+
+        pixelflat_raw = flatImages.pixelflat_raw
+        pixelflat_norm = flatImages.pixelflat_norm
+        pixelflat_proc, flat_bpm = flat.flatfield(pixelflat_raw, pixelflat_norm)
+
+        flux_box = moment1d(pixelflat_proc * np.logical_not(flat_bpm), trace_spat, 2 * box_radius, row=trace_spec)[0]
+
+        pixtot = moment1d(pixelflat_proc*0 + 1.0, trace_spat, 2 * box_radius, row=trace_spec)[0]
+        pixmsk = moment1d(flat_bpm, trace_spat, 2 * box_radius, row=trace_spec)[0]
+
+        mask_box = (pixmsk != pixtot) & np.isfinite(wave) & (wave > 0.0)
+
+        blaze_function = flux_box*mask_box
+
+        return blaze_function
+
 
     def _bundle(self):
         """
@@ -730,7 +762,7 @@ class IRSensFunc(SensFunc):
             Best-fitting telluric model
         """
         self.telluric = telluric.sensfunc_telluric(self.wave_cnts, self.counts, self.counts_ivar,
-                                                   self.counts_mask, self.meta_spec['EXPTIME'],
+                                                   self.counts_mask, self.blaze_function, self.meta_spec['EXPTIME'],
                                                    self.meta_spec['AIRMASS'], self.std_dict,
                                                    self.par['IR']['telgridfile'],
                                                    polyorder=self.par['polyorder'],
@@ -787,6 +819,7 @@ class IRSensFunc(SensFunc):
             # Compute and assign the zeropint_data from the input data and the
             # best-fit telluric model
             self.sens['SENS_WAVE'][i,s[i]:e[i]] = self.telluric.wave_grid[s[i]:e[i]]
+            self.sens['SENS_BLAZE_FUNCTION'][i,s[i]:e[i]] = self.telluric.blaze_func_arr[s[i]:e[i],i]
             self.sens['SENS_ZEROPOINT_GPM'][i,s[i]:e[i]] = self.telluric.mask_arr[s[i]:e[i],i]
             self.sens['SENS_COUNTS_PER_ANG'][i,s[i]:e[i]] = self.telluric.flux_arr[s[i]:e[i],i]
             N_lam = self.sens['SENS_COUNTS_PER_ANG'][i,s[i]:e[i]] / self.exptime
@@ -802,7 +835,7 @@ class IRSensFunc(SensFunc):
                                                 i,:self.sens['POLYORDER_VEC'][i]+2],
                                            self.telluric.func, self.sens['SENS_WAVE'][i,s[i]:e[i]],
                                            minx=self.sens['WAVE_MIN'][i],
-                                           maxx=self.sens['WAVE_MAX'][i])
+                                           maxx=self.sens['WAVE_MAX'][i])*self.sens['SENS_BLAZE_FUNCTION'][i,s[i]:e[i]]
             self.sens['SENS_ZEROPOINT_FIT_GPM'][i,s[i]:e[i]] = self.telluric.outmask_list[i]
 
     def eval_zeropoint(self, wave, iorddet):
@@ -820,10 +853,17 @@ class IRSensFunc(SensFunc):
         -------
         zeropoint : `numpy.ndarray`_, shape is (nspec,)
         """
+        s = self.telluric.model['IND_LOWER']
+        e = self.telluric.model['IND_UPPER']+1
+        # TODO: Not sure what else to do here
+        blaze_function = scipy.interpolate.interp1d(
+            self.sens['SENS_WAVE'][iorddet,s[iorddet],e[iorddet]],
+            self.sens['SENS_BLAZE_FUNCTION'][iorddet,s[iorddet]:e[iorddet]],
+            kind='linear', bounds_error=False, fill_value='extrapolate')(wave)
         return fitting.evaluate_fit(self.sens['SENS_COEFF'][
                                         iorddet,:self.telluric.model['POLYORDER_VEC'][iorddet]+2],
                                     self.telluric.func, wave, minx=self.sens['WAVE_MIN'][iorddet],
-                                    maxx=self.sens['WAVE_MAX'][iorddet])
+                                    maxx=self.sens['WAVE_MAX'][iorddet])*blaze_function
 
 
 class UVISSensFunc(SensFunc):
@@ -845,8 +885,8 @@ class UVISSensFunc(SensFunc):
     _algorithm = 'UVIS'
     """Algorithm used for the sensitivity calculation."""
 
-    def __init__(self, spec1dfile, sensfile, par=None, debug=False):
-        super().__init__(spec1dfile, sensfile, par=par, debug=debug)
+    def __init__(self, spec1dfile, sensfile, par, debug=False):
+        super().__init__(spec1dfile, sensfile, par, debug=debug)
 
         # Add some cards to the meta spec. These should maybe just be added
         # already in unpack object

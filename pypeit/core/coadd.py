@@ -497,7 +497,7 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     return ymult, (result.x, wave_min, wave_max), flux_rescale, ivar_rescale, outmask
 
 
-def interp_oned(wave_new, wave_old, flux_old, ivar_old, gpm_old, sensfunc=False):
+def interp_oned(wave_new, wave_old, flux_old, ivar_old, gpm_old, blaze_function=None, sensfunc=False):
     """
     Interpolate a 1D spectrum onto a new wavelength grid.
 
@@ -545,7 +545,7 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, gpm_old, sensfunc=False)
         msgs.error('All vectors to interpolate must have the same size.')
 
     # Do not interpolate if the wavelength is exactly same with wave_new
-    if np.array_equal(wave_new, wave_old):
+    if np.array_equal(wave_new, wave_old) and not sensfunc:
         return flux_old, ivar_old, gpm_old
 
     wave_gpm = wave_old > 1.0 # Deal with the zero wavelengths
@@ -553,13 +553,20 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, gpm_old, sensfunc=False)
         delta_wave_interp = wvutils.get_delta_wave(wave_old, wave_gpm)
         flux_interp = flux_old[wave_gpm]/delta_wave_interp[wave_gpm]
         ivar_interp = ivar_old[wave_gpm]*delta_wave_interp[wave_gpm]**2
+        if blaze_function is not None:
+            blaze_interp = blaze_function[wave_gpm]/delta_wave_interp[wave_gpm]
     else:
         flux_interp = flux_old[wave_gpm]
         ivar_interp = ivar_old[wave_gpm]
+        if blaze_function is not None:
+            blaze_interp = blaze_function[wave_gpm]
 
     flux_new = scipy.interpolate.interp1d(wave_old[wave_gpm], flux_interp, kind='cubic',
                                     bounds_error=False, fill_value=np.nan)(wave_new)
     ivar_new = scipy.interpolate.interp1d(wave_old[wave_gpm], ivar_interp, kind='cubic',
+                                    bounds_error=False, fill_value=np.nan)(wave_new)
+    if blaze_function is not None:
+        blaze_new = scipy.interpolate.interp1d(wave_old[wave_gpm], blaze_interp, kind='cubic',
                                     bounds_error=False, fill_value=np.nan)(wave_new)
     # Interpolate a floating-point version of the mask
     gpm_new_tmp = scipy.interpolate.interp1d(wave_old[wave_gpm], gpm_old.astype(float)[wave_gpm],
@@ -568,13 +575,16 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, gpm_old, sensfunc=False)
     # Don't allow the ivar to be ever be less than zero
     ivar_new = (ivar_new > 0.0)*ivar_new
     gpm_new = (gpm_new_tmp > 0.8) & (ivar_new > 0.0) & np.isfinite(flux_new) & np.isfinite(ivar_new)
-    return flux_new, ivar_new, gpm_new
+    if blaze_function is not None:
+        return flux_new, ivar_new, gpm_new, blaze_new
+    else:
+        return flux_new, ivar_new, gpm_new
 
 
 # TODO: ``sensfunc`` should be something like "conserve_flux". It would be
 # useful to compare these resampling routines against
 # `pypeit.sampling.Resample`.
-def interp_spec(wave_new, waves, fluxes, ivars, gpms, sensfunc=False):
+def interp_spec(wave_new, waves, fluxes, ivars, gpms, blaze_function=None, sensfunc=False):
     """
     Interpolate a set of spectra onto a new wavelength grid.
 
@@ -636,7 +646,7 @@ def interp_spec(wave_new, waves, fluxes, ivars, gpms, sensfunc=False):
     # single wavelength grid
     if wave_new.ndim == 1:
         if fluxes.ndim == 1:
-            return interp_oned(wave_new, waves, fluxes, ivars, gpms, sensfunc=sensfunc)
+            return interp_oned(wave_new, waves, fluxes, ivars, gpms, blaze_function=blaze_function, sensfunc=sensfunc)
 
         nexp = fluxes.shape[1]
         # Interpolate spectra to have the same wave grid with the iexp spectrum.
@@ -644,21 +654,36 @@ def interp_spec(wave_new, waves, fluxes, ivars, gpms, sensfunc=False):
         fluxes_inter = np.zeros((wave_new.size, nexp), dtype=float)
         ivars_inter = np.zeros((wave_new.size, nexp), dtype=float)
         gpms_inter = np.zeros((wave_new.size, nexp), dtype=bool)
-        for ii in range(nexp):
-            fluxes_inter[:,ii], ivars_inter[:,ii], gpms_inter[:,ii] \
+        if blaze_function is not None:
+            blazes_inter = np.zeros((wave_new.size, nexp), dtype=float)
+            for ii in range(nexp):
+                fluxes_inter[:,ii], ivars_inter[:,ii], gpms_inter[:,ii], blazes_inter[:,ii] \
                     = interp_oned(wave_new, waves[:,ii], fluxes[:,ii], ivars[:,ii], gpms[:,ii],
-                                  sensfunc=sensfunc)
-        return fluxes_inter, ivars_inter, gpms_inter
+                                  blaze_function = blaze_function[:, ii], sensfunc=sensfunc)
+            return fluxes_inter, ivars_inter, gpms_inter, blazes_inter
+        else:
+            for ii in range(nexp):
+                fluxes_inter[:,ii], ivars_inter[:,ii], gpms_inter[:,ii] \
+                    = interp_oned(wave_new, waves[:,ii], fluxes[:,ii], ivars[:,ii], gpms[:,ii], sensfunc=sensfunc)
+            return fluxes_inter, ivars_inter, gpms_inter
+
 
     # Second case: interpolate a single spectrum onto an (nspec, nexp) array of
     # wavelengths. To make it here, wave_new.ndim must be 2.
     fluxes_inter = np.zeros_like(wave_new, dtype=float)
     ivars_inter = np.zeros_like(wave_new, dtype=float)
     gpms_inter = np.zeros_like(wave_new, dtype=bool)
-    for ii in range(wave_new.shape[1]):
-        fluxes_inter[:,ii], ivars_inter[:,ii], gpms_inter[:,ii] \
-                = interp_oned(wave_new[:,ii], waves, fluxes, ivars, gpms, sensfunc=sensfunc)
-    return fluxes_inter, ivars_inter, gpms_inter
+    if blaze_function is not None:
+        blazes_inter = np.zeros_like(wave_new, dtype=float)
+        for ii in range(wave_new.shape[1]):
+            fluxes_inter[:,ii], ivars_inter[:,ii], gpms_inter[:,ii], blazes_inter[:, ii] \
+                = interp_oned(wave_new[:,ii], waves, fluxes, ivars, gpms, blaze_function=blaze_function, sensfunc=sensfunc)
+        return fluxes_inter, ivars_inter, gpms_inter, blazes_inter
+    else:
+        for ii in range(wave_new.shape[1]):
+            fluxes_inter[:,ii], ivars_inter[:,ii], gpms_inter[:,ii] \
+                = interp_oned(wave_new[:,ii], waves, fluxes, ivars, gpms, blaze_function=blaze_function, sensfunc=sensfunc)
+        return fluxes_inter, ivars_inter, gpms_inter
 
 
 def smooth_weights(inarr, gdmsk, sn_smooth_npix):

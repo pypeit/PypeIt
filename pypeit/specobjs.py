@@ -215,6 +215,9 @@ class SpecObjs:
         flux = np.zeros((nspec, norddet))
         flux_ivar = np.zeros((nspec, norddet))
         flux_gpm = np.zeros((nspec, norddet), dtype=bool)
+        trace_spec = np.zeros((nspec, norddet))
+        trace_spat = np.zeros((nspec, norddet))
+
         detector = [None]*norddet
         ech_orders = np.zeros(norddet, dtype=int)
 
@@ -227,6 +230,8 @@ class SpecObjs:
                 ech_orders[iorddet] = self[iorddet].ECH_ORDER
             flux[:, iorddet] = getattr(self, flux_key)[iorddet]
             flux_ivar[:, iorddet] = getattr(self, flux_key+'_IVAR')[iorddet] #OPT_FLAM_IVAR
+            trace_spat[:, iorddet] = self[iorddet].TRACE_SPAT
+            trace_spec[:, iorddet] = self[iorddet].trace_spec
 
         # Populate meta data
         spectrograph = load_spectrograph(self.header['PYP_SPEC'])
@@ -242,10 +247,10 @@ class SpecObjs:
         if self[0].PYPELINE in ['MultiSlit', 'IFU'] and self.nobj == 1:
             meta_spec['ECH_ORDERS'] = None
             return wave.reshape(nspec), flux.reshape(nspec), flux_ivar.reshape(nspec), \
-                   flux_gpm.reshape(nspec), meta_spec, self.header
+                   flux_gpm.reshape(nspec), trace_spec.reshape(nspec), trace_spat.reshape(nspec), meta_spec, self.header
         else:
             meta_spec['ECH_ORDERS'] = ech_orders
-            return wave, flux, flux_ivar, flux_gpm, meta_spec, self.header
+            return wave, flux, flux_ivar, flux_gpm, trace_spec, trace_spat, meta_spec, self.header
 
     def get_std(self, multi_spec_det=None):
         """

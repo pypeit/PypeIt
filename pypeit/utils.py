@@ -185,7 +185,7 @@ def string_table(tbl, delimeter='print', has_header=True):
     return '\n'.join(row_string)+'\n'
 
 
-def spec_atleast_2d(wave, flux, ivar, gpm, copy=False):
+def spec_atleast_2d(wave, flux, ivar, gpm, blaze_function, copy=False):
     """
     Force spectral arrays to be 2D.
 
@@ -229,7 +229,7 @@ def spec_atleast_2d(wave, flux, ivar, gpm, copy=False):
         # Input flux is 1D
         # NOTE: These reshape calls return copies of the arrays
         return wave.reshape(-1, 1), flux.reshape(-1, 1), ivar.reshape(-1, 1), \
-                    gpm.reshape(-1, 1), flux.size, 1
+                    gpm.reshape(-1, 1), blaze_function.reshape(-1,1), flux.size, 1
 
     # Input is 2D
     nspec, norders = flux.shape
@@ -237,7 +237,8 @@ def spec_atleast_2d(wave, flux, ivar, gpm, copy=False):
     _flux = flux.copy() if copy else flux
     _ivar = ivar.copy() if copy else ivar
     _gpm = gpm.copy() if copy else gpm
-    return _wave, _flux, _ivar, _gpm, nspec, norders
+    _blaze_function = blaze_function.copy() if copy else blaze_function
+    return _wave, _flux, _ivar, _gpm, _blaze_function, nspec, norders
 
 
 def nan_mad_std(data, axis=None, func=None):

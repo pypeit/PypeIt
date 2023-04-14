@@ -25,7 +25,7 @@ from pypeit import specobjs
 from pypeit import utils
 from pypeit import msgs
 from pypeit import onespec
-from pypeit import datamodel
+
 from pypeit.spectrographs.util import load_spectrograph
 
 from pypeit import datamodel
@@ -725,7 +725,7 @@ def save_coadd1d_tofits(outfile, wave, flux, ivar, gpm, wave_grid_mid=None, spec
 ##############
 # Sensfunc Model #
 ##############
-def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, gpm, tellmodel):
+def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, gpm, blaze_func_per_ang, tellmodel):
     """
     Initializes a sensitivity function model fit for joint sensitivity function
     and telluric fitting by setting up the obj_dict and bounds.
@@ -756,6 +756,18 @@ def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, gpm, tellm
         List of bounds for each parameter in the joint sensitivity function and
         telluric model fit.
     """
+
+    debug_blaze=True
+    if debug_blaze:
+        counts_per_ang_norm = counts_per_ang/utils.fast_running_median(counts_per_ang, 7).max()
+        blaze_norm = blaze_func_per_ang/utils.fast_running_median(blaze_func_per_ang, 7).max()
+        std_by_blaze = counts_per_ang*utils.inverse(np.clip(blaze_norm,0.01, None))
+        std_by_blaze_norm = std_by_blaze/utils.fast_running_median(std_by_blaze, 7).max()
+        plt.plot(wave, blaze_norm, color='b', label='blaze')
+        plt.plot(wave, counts_per_ang_norm, color='r', label='std')
+        plt.plot(wave, std_by_blaze_norm, color='g', label='std/blaze')
+        plt.legend()
+        plt.show()
 
     # Model parameter guess for starting the optimizations
     flam_true = scipy.interpolate.interp1d(obj_params['std_dict']['wave'].value,
@@ -1235,7 +1247,7 @@ def mask_star_lines(wave_star, mask_width=10.0):
 
     return mask_star
 
-def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
+def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, blaze_function, exptime, airmass, std_dict,
                       telgridfile, ech_orders=None, polyorder=8, mask_abs_lines=True,
                       resln_guess=None, resln_frac_bounds=(0.5, 1.5),
                       delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
@@ -1352,7 +1364,6 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
     TelObj : :class:`Telluric`
         Best-fitting telluric model
     """
-
     # Turn on disp for the differential_evolution if debug mode is turned on.
     if debug:
         disp = True
@@ -1384,7 +1395,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
 
     # Since we are fitting a sensitivity function, first compute counts per second per angstrom.
     TelObj = Telluric(wave, counts, counts_ivar, mask_tot, telgridfile, obj_params,
-                      init_sensfunc_model, eval_sensfunc_model, ech_orders=ech_orders,
+                      init_sensfunc_model, eval_sensfunc_model, blaze_function=blaze_function, ech_orders=ech_orders,
                       resln_guess=resln_guess, resln_frac_bounds=resln_frac_bounds, sn_clip=sn_clip,
                       maxiter=maxiter,  lower=lower, upper=upper, tol=tol,
                       popsize=popsize, recombination=recombination, polish=polish, disp=disp,
@@ -2114,6 +2125,7 @@ class Telluric(datamodel.DataContainer):
                  'flux_in_arr',
                  'ivar_in_arr',
                  'mask_in_arr',
+                 'blaze_func_in_arr',
                  'nspec_in',
                  'norders',
 
@@ -2129,6 +2141,7 @@ class Telluric(datamodel.DataContainer):
                  'flux_arr',
                  'ivar_arr',
                  'mask_arr',
+                 'blaze_func_arr',
                  'wave_mask_arr',
 
                  'ind_lower',
@@ -2213,7 +2226,7 @@ class Telluric(datamodel.DataContainer):
                          description='Maximum wavelength included in the fit')])
 
     def __init__(self, wave, flux, ivar, gpm, telgridfile, obj_params, init_obj_model,
-                 eval_obj_model, ech_orders=None, sn_clip=30.0, airmass_guess=1.5,
+                 eval_obj_model, blaze_function=None, ech_orders=None, sn_clip=30.0, airmass_guess=1.5,
                  resln_guess=None, resln_frac_bounds=(0.5, 1.5), pix_shift_bounds=(-5.0, 5.0),
                  pix_stretch_bounds=(0.9,1.1), maxiter=2, sticky=True, lower=3.0, upper=3.0,
                  seed=777, ballsize = 5e-4, tol=1e-3, diff_evol_maxiter=1000,  popsize=30,
@@ -2260,9 +2273,11 @@ class Telluric(datamodel.DataContainer):
         self.sensfunc = sensfunc
         self.debug = debug
 
+        blaze_func = blaze_function if blaze_function is not None else np.ones_like(wave)
+
         # 2) Reshape all spectra to be (nspec, norders)
-        self.wave_in_arr, self.flux_in_arr, self.ivar_in_arr, self.mask_in_arr, self.nspec_in, \
-            self.norders = utils.spec_atleast_2d(wave, flux, ivar, gpm)
+        self.wave_in_arr, self.flux_in_arr, self.ivar_in_arr, self.mask_in_arr, self.blaze_func_in_arr, self.nspec_in, \
+            self.norders = utils.spec_atleast_2d(wave, flux, ivar, gpm, blaze_func)
 
         # 3) Read the telluric grid and initalize associated parameters
         wv_gpm = self.wave_in_arr > 1.0
@@ -2279,9 +2294,9 @@ class Telluric(datamodel.DataContainer):
 
         # 4) Interpolate the input values onto the fixed telluric wavelength
         # grid, clip S/N and process inmask
-        self.flux_arr, self.ivar_arr, self.mask_arr \
+        self.flux_arr, self.ivar_arr, self.mask_arr, self.blaze_func_arr \
                 = coadd.interp_spec(self.wave_grid, self.wave_in_arr, self.flux_in_arr,
-                                    self.ivar_in_arr, self.mask_in_arr, sensfunc=self.sensfunc)
+                                    self.ivar_in_arr, self.mask_in_arr, blaze_function=self.blaze_func_in_arr, sensfunc=self.sensfunc)
 
         # This is a hack to get an interpolate mask indicating where wavelengths
         # are good on each order
@@ -2317,6 +2332,7 @@ class Telluric(datamodel.DataContainer):
                                      self.flux_arr[self.ind_lower[iord]:self.ind_upper[iord]+1,iord],
                                      self.ivar_arr[self.ind_lower[iord]:self.ind_upper[iord]+1,iord],
                                      self.mask_arr[self.ind_lower[iord]:self.ind_upper[iord]+1,iord],
+                                     self.blaze_func_arr[self.ind_lower[iord]:self.ind_upper[iord] + 1, iord],
                                      tellmodel)
             self.obj_dict_list[iord] = obj_dict
             self.bounds_obj_list[iord] = bounds_obj

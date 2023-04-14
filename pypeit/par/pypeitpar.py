@@ -1627,7 +1627,7 @@ class SensFuncPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
     """
-    def __init__(self, extrap_blu=None, extrap_red=None, samp_fact=None, multi_spec_det=None, algorithm=None, UVIS=None,
+    def __init__(self, flatfile=None, extrap_blu=None, extrap_red=None, samp_fact=None, multi_spec_det=None, algorithm=None, UVIS=None,
                  IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None,
                  star_dec=None, mask_abs_lines=None):
         # Grab the parameter names and values from the function arguments
@@ -1639,6 +1639,12 @@ class SensFuncPar(ParSet):
         options = OrderedDict.fromkeys(pars.keys())
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
+
+        defaults['flatfile'] = None
+        dtypes['flatfile'] = str
+        descr['flatfile'] = 'Flat field file to be used if the senstivity function model will utilize the blaze ' \
+                            'function computed from a flat field file in the Calibrations directory, e.g.' \
+                            'Calibrations/Flat_A_0_DET01.fits'
 
         defaults['extrap_blu'] = 0.1
         dtypes['extrap_blu'] = float
@@ -1726,7 +1732,7 @@ class SensFuncPar(ParSet):
         k = np.array([*cfg.keys()])
 
         # Single element parameters
-        parkeys = ['extrap_blu', 'extrap_red', 'samp_fact', 'multi_spec_det', 'algorithm',
+        parkeys = ['flatfile', 'extrap_blu', 'extrap_red', 'samp_fact', 'multi_spec_det', 'algorithm',
                    'polyorder', 'star_type', 'star_mag', 'star_ra', 'star_dec', 'mask_abs_lines']
 
         # All parameters, including nested ParSets

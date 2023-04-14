@@ -713,7 +713,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 #            offset_arcsec[ifile] = hdr['YOFFSET']
 #        return np.array(dither_pattern), np.array(dither_id), np.array(offset_arcsec)
 
-    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table, debug=False):
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, blaze_function_in, meta_table, debug=False):
         """
 
         This routine is for performing instrument/disperser specific tweaks to standard stars so that sensitivity
@@ -796,11 +796,13 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         second_order_region= (wave_in < wave_blue) | (wave_in > wave_red)
         wave = wave_in.copy()
         counts = counts_in.copy()
-        gpm = gpm_in.copy()
         counts_ivar = counts_ivar_in.copy()
+        gpm = gpm_in.copy()
+        blaze_function = blaze_function_in.copy()
         wave[second_order_region] = 0.0
         counts[second_order_region] = 0.0
         counts_ivar[second_order_region] = 0.0
+        blaze_function[second_order_region] = 0.0
         # By setting the wavelengths to zero, we guarantee that the sensitvity function will only be computed
         # over the valid wavelength region. While we could mask, this would still produce a wave_min and wave_max
         # for the zeropoint that includes the bad regions, and the polynomial fits will extrapolate crazily there
@@ -815,7 +817,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         #    plt.axvline(wave_red, color='red')
         #    plt.legend()
         #    plt.show()
-        return wave, counts, counts_ivar, gpm
+        return wave, counts, counts_ivar, gpm, blaze_function
 
     def list_detectors(self, mosaic=False):
         """
