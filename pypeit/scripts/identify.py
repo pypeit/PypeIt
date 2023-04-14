@@ -83,8 +83,8 @@ class Identify(scriptbase.ScriptBase):
 
         # Load the calibration frame (if it exists and is desired).  Bad-pixel mask
         # set to any flagged pixel in Arc.
-        wavecal = BuildWaveCalib(msarc, slits, spec, par, lamps, binspectral=slits.binspec,
-                                 det=args.det, msbpm=msarc.select_flag())
+        wavecal = BuildWaveCalib(msarc, slits, spec, par, lamps, det=args.det,
+                                 msbpm=msarc.select_flag())
         arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[args.slit])
 
         # Launch the identify window
