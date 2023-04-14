@@ -4,13 +4,14 @@ from pathlib import Path
 
 from qtpy.QtWidgets import QGroupBox, QHBoxLayout, QVBoxLayout, QComboBox, QToolButton, QFileDialog, QWidget, QGridLayout, QFormLayout
 from qtpy.QtWidgets import QMessageBox, QTabWidget, QTreeView, QLayout, QLabel, QScrollArea, QListView, QTableView, QPushButton, QProgressDialog, QDialog, QHeaderView, QSizePolicy, QCheckBox, QDialog
-from qtpy.QtWidgets import QPlainTextEdit, QWidgetAction, QAction, QAbstractItemView
+from qtpy.QtWidgets import QPlainTextEdit, QWidgetAction, QAction, QAbstractItemView, QStyledItemDelegate, QButtonGroup, QStyle, QTabBar
 from qtpy.QtGui import QIcon, QKeySequence, QPalette, QColor, QValidator, QFont, QFontDatabase, QFontMetrics, QTextCharFormat, QTextCursor
-from qtpy.QtCore import Qt, QSize, Signal,QSettings, QStringListModel, QAbstractItemModel, QModelIndex, QMargins
+from qtpy.QtCore import Qt, QSize, Signal,QSettings, QStringListModel, QAbstractItemModel, QModelIndex, QMargins, QSortFilterProxyModel, QRect
 
-from pypeit.setup_gui.model import ModelState, ObservingConfigModel, available_spectrographs
+from pypeit.setup_gui.model import ModelState, PypeItMetadataProxy, available_spectrographs
 from pypeit import msgs
 
+setup_gui_main_window = None
 
 class DialogResponses(enum.Enum):
     """ Enum for the responses from a dialog."""
@@ -152,10 +153,13 @@ class PathsViewerPanel(QGroupBox):
 
         # Set the height of the container widget if a fixed # of lines was given
         if lines_to_display is not None:
-            ll_margins = self._location_list.contentsMargins()
-            ll_fm = self._location_list.fontMetrics()
-            msgs.info(f"font height: {ll_fm.height()} spacing {self._location_list.spacing()}")
-            self._location_list.setFixedHeight(ll_margins.top() + ll_margins.bottom() + ll_fm.height()*lines_to_display)
+            ll_margins = self._path_container.contentsMargins()
+            ll_fm = self._path_container.fontMetrics()
+            msgs.info(f"font height: {ll_fm.height()} spacing {self._path_container.spacing()}")
+            self._path_container.setFixedHeight(ll_margins.top() + ll_margins.bottom() + ll_fm.height()*lines_to_display)
+
+        #self._path_container.setBackgroundRole(QPalette.ColorRole.AlternateBase)
+        #msgs.info(f"My bg role/autofill: {self.backgroundRole()}/{self.foregroundRole()}/{self.autoFillBackground()} container role/autofill {self._path_container.backgroundRole()}/{self.foregroundRole()}/{self._path_container.autoFillBackground()}")
 
     def _update(self, *args, **kwargs):
         """
@@ -344,6 +348,163 @@ class PathsEditorPanel(QGroupBox):
         # This will also enable/disable the child combo box and button widgets
         super().setEnabled(value)
 
+class PypeItUniqueListEditor(QWidget):
+    def __init__(self, parent, allowed_values, num_lines=5):
+        super().__init__(parent)
+        self._values = set()
+        self._allowed_values = allowed_values
+        self._checkboxes = dict()
+        layout = QVBoxLayout(self)
+        layout.setSpacing(0)
+        layout.setContentsMargins(0,0,0,0)
+        # Wrap the list in a scroll area
+        scroll_area = QScrollArea(parent=self)
+        layout.addWidget(scroll_area)
+
+        checkbox_container = QWidget()
+
+        # Create the checkboxes for each allowable option
+        self._button_group = QButtonGroup()
+        self._button_group.setExclusive(False)
+        checkbox_container.setAutoFillBackground(True)
+        checkbox_layout=QVBoxLayout(checkbox_container)
+        checkbox_layout.setContentsMargins(0,0,0,0)
+        #self.setBackgroundRole(QPalette.ColorRole.Button)
+        max_checkbox_width = 0
+        for value in self._allowed_values:
+            checkbox = QCheckBox(text=value, parent=checkbox_container)
+            self._checkboxes[value] = checkbox
+            self._button_group.addButton(checkbox)
+            checkbox_layout.addWidget(checkbox)
+
+            # Figure out the maximum size for a checkbox
+            if checkbox.width() > max_checkbox_width:
+                max_checkbox_width = checkbox.width()
+
+        scroll_area.setWidget(checkbox_container)
+
+        # Set the minimum height for this widget given requested # of lines
+        # This assumes the checkboxes are the same height
+        min_height = checkbox_layout.spacing()*(num_lines-1) + checkbox.height()*num_lines
+
+        # Account for scrollbar            
+        if scroll_area.horizontalScrollBar():
+            min_height += scroll_area.horizontalScrollBar().sizeHint().height()
+
+        # Account for margins
+        min_height += scroll_area.contentsMargins().top() + scroll_area.contentsMargins().bottom()
+
+        # Figure out the minimum width
+        min_width = max_checkbox_width
+
+        # Account for scrollbar size and margins
+        if scroll_area.verticalScrollBar():
+            min_width += scroll_area.verticalScrollBar().sizeHint().width()
+
+        min_width += scroll_area.contentsMargins().left() + scroll_area.contentsMargins().right() 
+
+        self.setFixedSize(min_width, min_height)
+        msgs.info(f"Fixed size {min_width},{min_height}")
+        self._button_group.buttonToggled.connect(self._choiceChecked)
+        #msgs.info(f"My bg role/autofill: {self.backgroundRole()}/{self.foregroundRole()}/{self.autoFillBackground()} checkbox bg role/autofill: {checkbox.backgroundRole()}/{checkbox.foregroundRole()}/{checkbox.autoFillBackground()}")
+
+
+    def _choiceChecked(self, widget, checked):
+        value = widget.text()
+        if checked:
+            self._values.add(value)
+        else:
+            self._values.discard(value)
+
+
+    def setSelectedValues(self, values):
+        if values is None:
+            self._values=set()
+        else:
+            self._values = set(values.split(","))
+            for value in self._allowed_values:
+                if value in self._values:
+                    self._checkboxes[value].setChecked(True)
+                else:
+                    self._checkboxes[value].setChecked(False)
+
+    def selectedValues(self):
+        return ",".join(sorted(self._values))
+
+
+
+class PypeItCustomEditorDelegate(QStyledItemDelegate):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def createEditor(self, parent,  option, index):
+        
+        model = index.model().sourceModel()
+        
+        column_name = model.getColumnName(index)
+
+        if column_name == "frametype":
+            msgs.info("Creating uniuqe list editor for frametype")
+            return PypeItUniqueListEditor(parent=parent, allowed_values=model.getAllFrameTypes())
+        if column_name == "setup":
+            msgs.info("Creating uniuqe list editor for setup")
+            return PypeItUniqueListEditor(parent=parent, allowed_values=setup_gui_main_window.model.pypeit_files.keys())
+        
+        msgs.info(f"Creating default editor for {column_name}")
+        return super().createEditor(parent, option, index)
+    
+    def setEditorData(self, editor, index):
+        if isinstance(editor, PypeItUniqueListEditor):
+            msgs.info(f"Setting editor data {index.data(Qt.DisplayRole)}")
+            editor.setSelectedValues(index.data(Qt.DisplayRole))
+        else:
+            msgs.info("Setting default editor data")
+            super().setEditorData(editor, index)
+
+    def setModelData(self,editor,model,index):
+        if isinstance(editor, PypeItUniqueListEditor):
+            msgs.info(f"Setting choice model data: {editor.selectedValues()}")
+            model.setData(index, editor.selectedValues())
+        else:
+            msgs.info("Setting default model data")
+            super().setModelData(editor,model,index)
+
+    def updateEditorGeometry(self, editor, option, index):
+        if isinstance(editor, PypeItUniqueListEditor):
+            # The upper left coordinate of the editor depends on how well it fits
+            # vertically in it's parent
+            parent_geometry = editor.parent().geometry()
+            editor_size = editor.minimumSize()
+
+            msgs.info(f"Given rect: {(option.rect.x(), option.rect.y(), option.rect.width(), option.rect.height())}")
+            msgs.info(f"parent_geometry: {(parent_geometry.x(), parent_geometry.y(), parent_geometry.width(), parent_geometry.height())}")
+            msgs.info(f"editor min size: {editor_size.width()}, {editor_size.height()}")
+
+            editor_x = option.rect.x()
+            editor_y = option.rect.y()
+            # Because the parent may be in a scroll area, the x,y could be negative,
+            # set those to 0 so the editor doesn't appear outside the scroll area
+            if editor_x < 0:
+                editor_x = 0
+
+            if editor_y < 0:
+                editor_y = 0
+
+            # Adjust the editor'x upper left corner so that the editor is vislbe for
+            # cells along the bottom or right of the parent table
+            if editor_x + editor_size.width() > parent_geometry.bottomRight().x():
+                editor_x = parent_geometry.bottomRight().x() - editor_size.width()
+
+            if editor_y + editor_size.height() > parent_geometry.bottomRight().y():
+                editor_y = parent_geometry.bottomRight().y() - editor_size.height()
+
+            geometry = QRect(editor_x, editor_y, editor_size.width(), editor_size.height()) 
+       
+            msgs.info(f"Updating editor geometry to {(geometry.x(), geometry.y(), geometry.width(), geometry.height())}")
+            editor.setGeometry(geometry)
+        else:
+            super().updateEditorGeometry(editor, option, index)
+
 
 class PypeItMetadataView(QTableView):
     """QTableView to display file metadata.
@@ -357,6 +518,7 @@ class PypeItMetadataView(QTableView):
         self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.setItemDelegate(PypeItCustomEditorDelegate(parent=self))
         self.setModel(model)
     
     def setModel(self, model):
@@ -365,11 +527,16 @@ class PypeItMetadataView(QTableView):
         Args:
             model (:class:`pypeit.setup_gui.model.PypeItMetadataProxy`):  The model for the table.
         """
-
-        super().setModel(model)
+        # Use a sorting proxy model
+        proxy_model = QSortFilterProxyModel()
+        proxy_model.setSourceModel(model)
+        sort_column = model.getColumnFromName('mjd')
+        proxy_model.sort(sort_column, Qt.AscendingOrder)
+        super().setModel(proxy_model)
+        #super().setModel(model)
 
         self.setSortingEnabled(True)
-        self.horizontalHeader().setSortIndicator(model.sortColumn, model.sortOrder)
+        self.horizontalHeader().setSortIndicator(sort_column, Qt.AscendingOrder)
 
 
 class ConfigValuesPanel(QGroupBox):
@@ -410,7 +577,8 @@ class ConfigValuesPanel(QGroupBox):
 
         # Add additional rows for configuration keys
         for key, value in config:
-            form_widget_layout.addRow(key, QLabel(str(value)))
+            label = QLabel(str(value))
+            form_widget_layout.addRow(key, label)
             key_width = fm.horizontalAdvance(key)
             value_width = fm.horizontalAdvance(str(value))
 
@@ -467,6 +635,7 @@ class ConfigValuesPanel(QGroupBox):
         self.setSizePolicy(policy)
         
         layout.addWidget(scroll_area)
+        #msgs.info(f"My bg role/autofill: {self.backgroundRole()}/{self.foregroundRole()}/{self.autoFillBackground()}, scroll area bg role/autofill: {scroll_area.backgroundRole()}/{self.foregroundRole()}/{scroll_area.autoFillBackground()}, form widget bg role/autofill {form_widget.backgroundRole()}/{self.foregroundRole()}/{form_widget.autoFillBackground()} label bg role/autofill {label.backgroundRole()}/{self.foregroundRole()}/{label.autoFillBackground()}")
 
 class PypeItFileTab(QWidget):
     """Widget for displaying the information needed for one pypeit file. This includes
@@ -496,12 +665,8 @@ class PypeItFileTab(QWidget):
         third_row_layout = QHBoxLayout()
         layout.addLayout(third_row_layout)
 
-        # Build a list of the configuration keys, to avoid displaying them in the
-        # arbitrary order chosen by the dict
-        config = [(key, model.config.config_dict[key]) for key in model.config.get_config_keys()]
-
         # Add the ConfigValuesPanel, displaying the spectrograph + config keys.
-        config_panel = ConfigValuesPanel(model.config.spectrograph, config, 5, parent=self)
+        config_panel = ConfigValuesPanel(model.spectrograph, model.config_values, 5, parent=self)
         third_row_layout.addWidget(config_panel)
 
         # Add the Raw Data directory panel to the third row, second column
@@ -517,7 +682,7 @@ class PypeItFileTab(QWidget):
         # Create a group box and table view for the file metadata table
         file_group = QGroupBox(self.tr("File Metadata"))
         file_group_layout = QVBoxLayout()
-        self.file_metadata_table = PypeItMetadataView(self, model.metadata_model)
+        self.file_metadata_table = PypeItMetadataView(self, model.metadata_proxy_model)
         file_group_layout.addWidget(self.file_metadata_table)
         file_group.setLayout(file_group_layout)        
         layout.addWidget(file_group)
@@ -552,7 +717,7 @@ class PypeItFileTab(QWidget):
         """
         str: The configuration name.
         """
-        return self._model.config.name
+        return self._model.config_name
 
     @property
     def state(self):
@@ -743,10 +908,21 @@ class PypeItSetupView(QTabWidget):
         self._file_tabs = []
         self._obs_log_tab = ObsLogTab(model)
 
-        # Add the tab widget for the obs log and pypeit files in the second row
+        # Add the tab widget for the obs log and pypeit files
         self.addTab(self._obs_log_tab, self._obs_log_tab.tab_name)
         self.setTabPosition(QTabWidget.South)
 
+        # Allow tabs to be closed, but not the obslog tab
+        self.setTabsClosable(True)
+        self.hideTabCloseButton(0, always=True)
+
+        # Add a button to create new empty tabs
+        newTabButton = QPushButton("+",parent=self)
+        #extra_height = self.style().pixelMetric(QStyle.PM_TabBarTabVSpace)
+        #msgs.info(f"extra height: {extra_height}, tab height: {self.tabBar().tabRect(0).height()} tab bar height {self.tabBar().height()}")
+        newTabButton.setFixedHeight(self.tabBar().tabRect(0).height())
+        newTabButton.setEnabled(False)
+        self.setCornerWidget(newTabButton, corner=Qt.Corner.BottomLeftCorner)
 
         # Set our model
         self._model = model
@@ -757,6 +933,26 @@ class PypeItSetupView(QTabWidget):
         # Get notifications about new/removed unique configurations
         self._model.configs_added.connect(self.create_file_tabs)
         self._model.configs_deleted.connect(self.delete_tabs)
+
+        # Connect new/delete signals
+        newTabButton.clicked.connect(self._model.createNewConfig)
+        self.tabCloseRequested.connect(self._close_tab)
+
+    def _close_tab(self, index):
+        config_name = self.widget(index).name
+        if config_name == "ObsLog":
+            # Shouldn't happen, but ignore requests to delete the obs log 
+            return
+        else:
+            setup_gui_main_window.controller.removeConfig(config_name)
+
+    def hideTabCloseButton(self, tab_pos, always=False):
+        close_button_positon = QTabBar.ButtonPosition(self.style().styleHint(QStyle.SH_TabBar_CloseButtonPosition))
+        close_button = self.tabBar().tabButton(tab_pos, close_button_positon)
+        if always:
+            close_button.setFixedWidth(tab_pos)
+        close_button.hide()
+
 
     @property
     def state(self):
@@ -774,16 +970,16 @@ class PypeItSetupView(QTabWidget):
         msgs.info(f"create_file_tabs for {len(pypeit_file_models)} unique configs")
         for pypeit_file_model in pypeit_file_models:
             try:
-                msgs.info(f"Creating tab {pypeit_file_model.config.name}")
+                msgs.info(f"Creating tab {pypeit_file_model.config_name}")
                 self.setUpdatesEnabled(False) # To prevent flickering when updating
                 # Keep tabs sorted
                 tab_index = None
                 for i in range(len(self._file_tabs)):
-                    if pypeit_file_model.config.name < self._file_tabs[i].name:
+                    if pypeit_file_model.config_name < self._file_tabs[i].name:
                         tab_index = i
                         break
-                    elif pypeit_file_model.config.name == self._file_tabs[i].name:
-                        msgs.bug(f"Duplicate name in tab list: {pypeit_file_model.config.name}")
+                    elif pypeit_file_model.config_name == self._file_tabs[i].name:
+                        msgs.bug(f"Duplicate name in tab list: {pypeit_file_model.config_name}")
                         return
 
                 if tab_index == None:
@@ -1011,6 +1207,16 @@ class SetupGUIMainWindow(QWidget):
 
         self.resize(1650,900)
 
+        # TODO Having a global variable seems like a hack, but
+        # there needs to be some global place for various views that need to 
+        # A) Use the controller to prompt the user or
+        # B) Access global model state like the allowable spectrographs, frame types,
+        #    currently known configs etc
+        global setup_gui_main_window 
+        setup_gui_main_window = self
+
+
+
     def display_error(self, message):
         """
         Display an error message pop up dialog to the user.
@@ -1163,6 +1369,7 @@ class SetupGUIMainWindow(QWidget):
         data directories have been selected."""
         # Setup can only be run if the spectrograph is set and there's at least one
         # raw data directory
+        msgs.info(f"Checking setup button status spec: {self.model.spectrograph} dirs {self.model.raw_data_directories}")
         if (self.model.spectrograph is not None and
             len(self.model.raw_data_directories) > 0):
             self.setupButton.setEnabled(True)
@@ -1251,5 +1458,8 @@ class SetupGUIMainWindow(QWidget):
         self.setup_view.currentChanged.connect(self.update_save_tab_button)
         self.model.state_changed.connect(self.update_buttons_from_model_state)
 
+        # Setup may have already been run from the command line, so update button status on init
+        self.update_setup_button()
+        self.update_buttons_from_model_state()
         return button_layout
 

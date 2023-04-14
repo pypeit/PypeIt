@@ -13,15 +13,18 @@ import enum
 import glob
 import numpy as np
 import io
+from functools import partial
 
-from qtpy.QtCore import QAbstractTableModel, QAbstractItemModel, QModelIndex, Qt, Signal, QObject, QThread, QStringListModel
+from qtpy.QtCore import QAbstractTableModel, QAbstractItemModel, QAbstractListModel, QModelIndex, Qt, Signal, QObject, QThread, QStringListModel
 from qtpy.QtGui import QTextDocument, QTextCursor
 
 from configobj import ConfigObj
 
 from pypeit import msgs, spectrographs
 from pypeit.pypeitsetup import PypeItSetup
+from pypeit.metadata import PypeItMetaData
 from pypeit.inputfiles import PypeItFile
+from pypeit.core.framematch import FrameTypeBitMask
 
 class ModelState(enum.Enum):
     """The state values for a model object."""
@@ -154,20 +157,29 @@ def available_spectrographs():
 
 class PypeItMetadataModel(QObject):
 
-    structureChanged = Signal()
-    """Signals when columns have been added/removed."""
+    modelReset = Signal()
+    """Signals when underlying PypeItMetadata object has been changed/reset."""
 
-    dataChanged = Signal()
-    """Signals when data has been modified but columns have not changed."""
+    dataChanged = Signal(int, int)
+    """Signals when data has been modified but columns/rows have not changed."""
 
-    def __init__(self, metadata=None):
+    rowsAdded = Signal(int, int)
+
+    rowsRemoved = Signal(int, int)
+
+    def __init__(self, config_name='ObsLog', obslog_model= None, metadata=None):
         super().__init__()
         self.metadata = metadata
+        self.config_name = config_name
+        self.obslog_model=obslog_model if config_name != 'ObsLog' else self
+        self.configs = dict()
 
     def setMetadata(self, metadata):
         self.metadata=metadata
-        self.structureChanged.emit()
+        self.modelReset.emit()
 
+    def addNewConfig(self, config_name, model):
+        self.configs[config_name] = model
 
     def getDefaultColumns(self):
         """Return the default columns to display to the user. This can vary based
@@ -184,8 +196,136 @@ class PypeItMetadataModel(QObject):
         else:
             return ['filename', 'setup', 'frametype', 'ra', 'dec', 'target', 'dispname', 'decker', 'binning', 'mjd', 'airmass', 'exptime']
 
-    def setValue(self, directory, filename, colname, value):
-            self.metadata
+    def getCopyForConfig(self, config_name):
+        config_rows = [ config_name in setup for setup in self.metadata.table['setup'] ]
+        table_copy = self.metadata.table[config_rows].copy(True)
+        copy = PypeItMetadataModel(metadata=PypeItMetaData(self.metadata.spectrograph, self.metadata.par, data=table_copy), 
+                                   config_name = config_name,
+                                   obslog_model=self.obslog_model)
+        self.obslog_model.addNewConfig(config_name, copy)
+        return copy
+
+    def removeFile(self, directory, filename):
+        row_index = (self.metadata.table['directory'] == directory) & (self.metadata.table['filename'] == filename)
+        self.metadata.table.remove_rows(row_index)
+
+        rows = np.where(row_index)[0]
+        msgs.info(f"Removing file from config {self.config_name}, file {filename} rows {rows}")
+
+        # There should only be one row that matches, but just in case we loop
+        for idx in rows:
+            self.rowsRemoved.emit(idx,idx)
+    def _testdatachange(self):
+        msgs.info("Testing data change")
+
+    def updateFileSetup(self, directory, filename, value):
+        row_index = (self.metadata.table['directory'] == directory) & (self.metadata.table['filename'] == filename)
+        self.metadata.table['setup'][row_index] = value
+        rows = np.where(row_index)[0]
+        msgs.info(f"Updating file setup for config {self.config_name}, file {filename} rows {rows} to {value}")
+
+        # There should only be one row that matches, but just in case we loop
+        self.dataChanged.connect(self._testdatachange)
+        for idx in rows:
+            self.dataChanged.emit(idx, idx)
+    def _testreset(self):
+        msgs.info("Testing reset...")
+
+    def addMetadataRow(self, metadata_row):
+        file = metadata_row['filename']
+        directory = metadata_row['directory']
+        setup = metadata_row['setup']
+        msgs.info(f"Adding row {directory}/{file} with setup {setup} to {self.config_name}")
+
+        new_index = len(self.metadata.table)
+        self.metadata.table.add_row(metadata_row)
+        file = self.metadata[new_index]['filename']
+        directory = self.metadata[new_index]['directory']
+        setup = self.metadata[new_index]['setup']
+        msgs.info(f"Post add row {directory}/{file} with setup {setup} to {self.config_name} row {new_index}")
+        #self.modelReset.connect(self._testreset, Qt.ConnectionType.DirectConnection)
+        self.rowsAdded.emit(new_index, new_index)
+        #self.modelReset.emit()
+
+    def updateRowConfig(self, metadata_row, value):
+        file = metadata_row['filename']
+        directory = metadata_row['directory']
+        msgs.info(f"Updating row config {directory}/{file} to '{value}'")
+        new_config_list = sorted(value.split(','))
+        if "" in new_config_list:
+            new_config_list.remove("")
+
+        new_setup_value = ",".join(new_config_list)
+
+        current_config_list = sorted(metadata_row["setup"].split(","))
+        msgs.info(f"current_configs: {current_config_list} new configs {new_config_list}")
+
+        # The metadata_row passed in hasn't been changed yet, so do that now
+        metadata_row['setup'] = new_setup_value
+
+        if new_config_list == current_config_list:
+            # Do nothing, the lists are the same
+            return
+
+        for current_config in current_config_list:
+            if current_config not in new_config_list:
+                # Remove this row from configs it's no longer a member of
+                self.configs[current_config].removeFile(directory, file)
+            else:
+                # Update configs that the row is currently a member of
+                self.configs[current_config].updateFileSetup(directory,file,new_setup_value)
+
+        for new_config in new_config_list:
+            if new_config not in current_config_list:
+                # Add the row to a config that previously did not have it
+                self.configs[new_config].addMetadataRow(metadata_row)
+
+        # This method is only called on the obslog model, which should get the new value
+        self.updateFileSetup(directory, file, new_setup_value)
+
+
+    def setValue(self, colname, row, value):
+        msgs.info(f"Setting {colname} row {row} to '{value}'")
+        if colname == "setup":
+            # Changing the setup means moving a file between different PypeIt files,
+            # which affects things outside of this model, so we forward this to the
+            # obslog model
+            row_to_move = self.metadata.table[row]
+            self.obslog_model.updateRowConfig(row_to_move, value)
+        else:
+            self.metadata.table[colname][row] = value
+            self.dataChanged.emit(self.metadata.table.colnames.index(colname), row)
+
+class PypeItMetadataUniquePathsProxy(QAbstractListModel):
+    def __init__(self, metadata_model):
+        super().__init__()
+        self.source_model = metadata_model
+        self._setUniqueIndex()
+        self.source_model.modelReset.connect(self._setUniqueIndex)
+        self.source_model.rowsAdded.connect(self._setUniqueIndex)
+        self.source_model.rowsRemoved.connect(self._setUniqueIndex)
+        self.source_model.dataChanged.connect(self._setUniqueIndex)
+
+    def _setUniqueIndex(self, *args, **kwargs):
+        self.beginResetModel()
+        
+        if self.source_model.metadata is not None:
+            items, self._unique_index = np.unique(self.source_model.metadata['directory'],return_index=True)
+        else:
+            self._unique_index = []
+
+        self.endResetModel()
+    
+    def rowCount(self, parent_index=QModelIndex()):
+        return len(self._unique_index)
+    
+    def data(self, index, role):
+        if role == Qt.DisplayRole:
+            if index.isValid() and self.source_model.metadata is not None and index.row() < len(self._unique_index):
+                return str(self.source_model.metadata['directory'][self._unique_index][index.row()])
+
+        return None    
+
 
 class PypeItMetadataProxy(QAbstractTableModel):
     """
@@ -199,59 +339,50 @@ class PypeItMetadataProxy(QAbstractTableModel):
                       model shows all files in the metadata to views. Otherwise only files for the
                       given configuration are shown.
     """
-    def __init__(self, source_model, config="ObsLog", visible_columns=None, filter_unique_column=None):
+    def __init__(self, source_model):
         super().__init__()
 
-        self._config = config
-        self._filter_unique_column=filter_unique_column
         self.source_model = source_model
-        self.sortOrder = Qt.AscendingOrder
-        self.sortColumn = None
-
-        # Visible columns are the only columns the view wants to see
-        self._visible_columns = visible_columns
+        self.editable_columns=['calib', 'comb_id', 'bkg_id', 'frametype', 'setup']
 
         self.colnames = []
         self.reset()
         
         # Notify views when the underlying model changes
-        source_model.dataChanged.connect(self.sourceDataChanged)
+        source_model.dataChanged.connect(self._sourceDataChanged)
 
         # Reset if the source structure changes
-        source_model.structureChanged.connect(self.reset)
+        source_model.modelReset.connect(self.reset)
 
-    def sourceDataChanged(self):
-        """Updates the proxy when the underlying source model has updated its data."""
-        # Refilter and sort the data
-        self._filterAndSort()
+        source_model.rowsAdded.connect(self._forwardRowsInserted, Qt.ConnectionType.DirectConnection)
+        source_model.rowsRemoved.connect(self._forwardRowsRemoved, Qt.ConnectionType.DirectConnection)
+        #source_model.rowsAdded.connect(self.reset)
+        #source_model.rowsRemoved.connect(self.reset)
 
-        # The Qt dataChanged signal requires indices for what actually changed, but
-        # we aren't that fancy in PypeItMetadataModel. So just signal that everything
-        # changed
-        self.dataChanged.emit(self.index(0, 0), self.index(len(self._displayIdx)-1, len(self.colnames)-1))
+    def _forwardRowsInserted(self, start_row, end_row):
+        msgs.info(f"Signalling inserted rows from {start_row} to {end_row}")
+        self.rowsInserted.emit(QModelIndex(), start_row, end_row)
+
+    def _forwardRowsRemoved(self, start_row, end_row):
+        msgs.info(f"Signalling removed rows from {start_row} to {end_row}")
+        self.rowsInserted.emit(QModelIndex(), start_row, end_row)
+                               
+    def _sourceDataChanged(self, col, row):
+        self.dataChanged.emit(self.index(row, col, parent=QModelIndex()),
+                              self.index(row, col, parent=QModelIndex()))
 
 
-    def _filterAndSort(self):
-        """Filter and sort the PypeItMetadata table. Filtering is done using the
-        _displayIdx member variable and sorting by the _sortIdx variable."""
+    def getColumnFromName(self, colname):
+        if colname in self.colnames:
+            return self.colnames.index(colname)
+        else:
+            return -1
 
-        msgs.info(f"filterAndSort: config {self._config} colnames: {self.colnames} filter: {self._filter_unique_column} metadata: {self.source_model.metadata}")
+    def getColumnName(self, index):
+        return self.colnames[index.column()]
 
-        if self.source_model.metadata is not None:
-            # Filter on setup/config name
-            if self._config != "ObsLog":
-                self._displayIdx = self.source_model.metadata['setup'] == self._config
-                msgs.info(f"filterAndSort: displayIdx len = {len(self._displayIdx)}")
-            else:
-                self._displayIdx = [True for x in range(len(self.source_model.metadata))]
-
-            # Filter on unique values in a column
-            if self._filter_unique_column is not None:
-                unused, self._displayIdx = np.unique(self.source_model.metadata[self._displayIdx][self._filter_unique_column], return_index=True)
-                msgs.info(f"filterAndSort: post unique: displayIdx len = {len(self._displayIdx)}")            
-            # Sort
-            self._sortIdx = self.source_model.metadata[self._displayIdx].argsort(self.colnames[self.sortColumn], reverse=(self.sortOrder == Qt.DescendingOrder))
-            msgs.info(f"filterAndSort: sortIdx len = {len(self._sortIdx)}")
+    def getAllFrameTypes(self):
+        return FrameTypeBitMask().keys()
 
     def rowCount(self, parent_index=QModelIndex()):
         """Returns number of rows under a parent. Overridden method from QAbstractItemModel.
@@ -266,8 +397,8 @@ class PypeItMetadataProxy(QAbstractTableModel):
         if (parent_index.isValid() or # Per Qt docs for a table model
             self.source_model.metadata is None):
             return 0
-        else:            
-            return len(self.source_model.metadata[self._displayIdx])
+        else:
+            return len(self.source_model.metadata)
 
     def columnCount(self, parent_index=QModelIndex()):
         """Returns number of columns in under a parent. Overridden method from QAbstractItemModel. 
@@ -308,28 +439,29 @@ class PypeItMetadataProxy(QAbstractTableModel):
             # The columns being displayed are a subset of the metadata,
             # So we use the column name instead of the index
             colname = self.colnames[index.column()]
-            value = self.source_model.metadata[colname][self._displayIdx][self._sortIdx][index.row()]
+            value = self.source_model.metadata[colname][index.row()]
             # Round floating point values to look better
             if isinstance(value, np.float64) or isinstance(value, np.float32):
                 value = round(value, 3)
             return str(value)
 
+    def setData(self, index, value, role=Qt.EditRole):
+        if role==Qt.EditRole and self.source_model.metadata is not None:
+            colname = self.colnames[index.column()]
+            if colname in self.editable_columns:
+                try:             
+                    self.source_model.setValue(colname, index.row(), value)
+                    return True
+                except ValueError as e:
+                    msgs.warn(f"Failed to set {colname} row {index.row()} to '{value}': {e}")
 
-    def sort(self, column, order=Qt.AscendingOrder):
-        """Sorts the order data within the model is presented to views. Overridden method from QAbstractItemModel.
+        return False
 
-        Args:
-            column(int): The number (0 based) of the column to sort by.
-            order (Qt.SortOrder): Whether to sort in Ascending or Descending order. Defaults to Qt.AscendingOrder.                        
-        """
-        if self.source_model.metadata is not None and column < len(self.colnames):
-            # We sort by creating a numpy index array representing the sort order shown to views.
-            self.sortColumn = column
-            self.sortOrder = order
-            colname = self.colnames[self.sortColumn]
-            self._sortIdx = self.source_model.metadata[self._displayIdx].argsort(colname, reverse=(order==Qt.DescendingOrder))
-            # Notify clients of the change
-            self.dataChanged.emit(self.index(0, 0), self.index(len(self._displayIdx)-1, len(self.colnames)-1))
+    def flags(self, index):
+        base_flags = super().flags(index)
+        if self.colnames[index.column()] in self.editable_columns:
+            base_flags |= Qt.ItemFlag.ItemIsEditable
+        return base_flags
 
     def headerData(self, section, orientation, role):
         """Display header data for the table. For columns we give a column name, for rows we return
@@ -352,12 +484,7 @@ class PypeItMetadataProxy(QAbstractTableModel):
                 # Columns have propper names
                 return self.colnames[section]
             else:
-                # Rows have numbers
-                return str(section + 1)
-        elif role == Qt.InitialSortOrderRole and section == self.sortColumn:
-            # For the column we're sorting by, display an indicator of whether it's
-            # in descending or ascending order.
-            return self.sortOrder
+                return " "
         else:
             # A non-applicable role or a sort order request for a column that we're not sorted by.
             return None
@@ -369,32 +496,11 @@ class PypeItMetadataProxy(QAbstractTableModel):
         # Tell views a model reset is happening
         super().beginResetModel()
 
-        # Preseve the original sorting column before clearing the column names
-        if self.sortColumn is not None and self.sortColumn < len(self.colnames):
-            original_sort_colname = self.colnames[self.sortColumn]
-        else:
-            # No prior sort column, no prior column names, or it no longer exists.
-            # Just use the default of ascending mjd
-            original_sort_colname = "mjd"
-            self.sortOrder = Qt.AscendingOrder
-
         # Reset column names
-        if self._visible_columns is not None:
-            self.colnames = self._visible_columns
-        else:
-            self.colnames = self.source_model.getDefaultColumns()
+        self.colnames = self.source_model.getDefaultColumns()
 
-
-        # Reset the sorting column, preserving the original if possible
-        if original_sort_colname in self.colnames:
-            self.sortColumn = self.colnames.index(original_sort_colname)
-        elif "mjd" in self.colnames:
-            self.sortColumn = self.colnames.index("mjd")
-        else:
-            self.sortColumn = 0
-
-        # Filter and sort the metadata 
-        self._filterAndSort()
+        if ('setup') not in self.colnames:
+            self.colnames.insert(1, 'setup')
 
         super().endResetModel()
 
@@ -477,7 +583,22 @@ class _UserConfigTreeNode:
         else:
             self.value=node
             self.children = []
-    
+
+    def getConfigLines(self, level=0):
+        indent = " " * (level-1)
+        if len(self.children) == 0:
+            return [f"{indent}{self.key} = {self.value}"]
+        else:
+            if self.key is not None:                
+                lines = [ f"{indent}{'['*level}{self.key}{']'*level}"]
+            else:
+                # Only the root node should have a None key
+                lines = []
+
+            for child in self.children:
+                lines += child.getConfigLines(level+1)
+
+            return lines
 
 class PypeItParamsProxy(QAbstractItemModel):
     """
@@ -495,6 +616,9 @@ class PypeItParamsProxy(QAbstractItemModel):
         # to show default values to clients? Or help info?
         self.par = pypeit_setup.par 
         self._userConfigTree = _UserConfigTreeNode(ConfigObj(pypeit_setup.user_cfg))
+
+    def getConfigLines(self):
+        return self._userConfigTree.getConfigLines()
 
     def rowCount(self, parent=QModelIndex()):
         """
@@ -652,9 +776,9 @@ class ObservingConfigModel(QObject):
         spectrograph (Spectrograph): The spectrograph used for the observation.
         config_dict (dict): The configuration values for the observation.
     """
-    def __init__(self, config_name, spectrograph, config_dict):
+    def __init__(self, config_name, config_keys, config_dict):
         self.name = config_name
-        self._spectrograph = spectrograph
+        self.config_keys = config_keys
         self.config_dict = config_dict
 
 
@@ -687,38 +811,50 @@ class PypeItFileModel(QObject):
     state_changed = Signal(str)
     """Signal(str): Signal sent when the state of the file model changes. The config nasme of the file is sent as the signal parameter."""
 
-    def __init__(self, pypeit_setup_model, config_name, config_dict, state):
+    def __init__(self, config_name, config_dict, spectrograph, metadata_model, params_model, state):
         super().__init__()
-        self._pypeit_setup = pypeit_setup_model._pypeit_setup
-        self.config = ObservingConfigModel(config_name, self._pypeit_setup.spectrograph, config_dict)
-        self.metadata_model = PypeItMetadataProxy(pypeit_setup_model.metadata_model, config=config_name)
-        self.paths_model = PypeItMetadataProxy(pypeit_setup_model.metadata_model, config=config_name, visible_columns=['directory'], filter_unique_column='directory')
-        self.params_model = PypeItParamsProxy(self._pypeit_setup)
+        self._spectrograph = spectrograph
+        self.config_name = config_name 
+        self.metadata_model = metadata_model
+        self.params_model = params_model
         self.save_location = None
         self.state = state
+
+        # Build a list of the configuration key/value pairs, to avoid displaying them in the
+        # arbitrary order chosen by the dict
+        self.config_values = [(key, config_dict[key]) for key in self._spectrograph.configuration_keys()]
+
+        # Create a new proxy metadata model 
+        self.metadata_proxy_model = PypeItMetadataProxy(metadata_model)
+
+        # A paths model for the paths in this PypeIt file
+        self.paths_model = PypeItMetadataUniquePathsProxy(metadata_model)
 
     @property
     def filename(self):
         """Return the name of the pypeit file.
         """
-        save_dir = "" if self.save_location is None else os.path.join(self.save_location ,  f"{self._pypeit_setup.spectrograph.name}_{self.config.name}")
-        return os.path.join(save_dir, f"{self._pypeit_setup.spectrograph.name}_{self.config.name}.pypeit")
+        save_dir = "" if self.save_location is None else os.path.join(self.save_location ,  f"{self._spectrograph.name}_{self.config_name}")
+        return os.path.join(save_dir, f"{self._spectrograph.name}_{self.config_name}.pypeit")
 
+    @property
+    def spectrograph(self):
+        return self._spectrograph.name
 
     def save(self):
         """Save a .pypeit file from this model. The file name is chosen per PypeIt standards, and the
         location must be set before calling this method.
         """
         try:
-            self._pypeit_setup.fitstbl.write_pypeit(self.save_location, cfg_lines=self._pypeit_setup.user_cfg,
-                                                    configs = [self.config.name])
+            self.metadata_model.metadata.write_pypeit(self.save_location, cfg_lines=self.params_model.getConfigLines(),
+                                                      configs = [self.config_name], write_bkg_pairs=True)
         except Exception as e:
-            msgs.warn(f"Failed saving setup {self.config.name} to {self.save_location}.")
+            msgs.warn(f"Failed saving setup {self.config_name} to {self.save_location}.")
             msgs.warn(traceback.format_exc())
             # Raise an exception that will look nice when displayed to the GUI
-            raise RuntimeError(f"Failed saving setup {self.config.name} to {self.save_location}.\nException: {e}")
+            raise RuntimeError(f"Failed saving setup {self.config_name} to {self.save_location}.\nException: {e}")
         self.state = ModelState.UNCHANGED
-        self.state_changed.emit(self.config.name)
+        self.state_changed.emit(self.config_name)
         
 
 class PypeItSetupModel(QObject):
@@ -812,8 +948,10 @@ class PypeItSetupModel(QObject):
             new_directory (str): The new directory containing raw data.        
         """
         msgs.info(f"Adding raw directory: {new_directory}, current spec is {self._spectrograph}")
-        if new_directory not in self.raw_data_dirs:
-            self.paths_model.stringList().append(new_directory)
+        if new_directory not in self.paths_model.stringList():
+            row_number = self.paths_model.rowCount()
+            self.paths_model.insertRows(row_number, 1)
+            self.paths_model.setData(self.paths_model.index(row_number,0),new_directory)
 
     def scan_raw_data_directories(self):
         """
@@ -830,6 +968,7 @@ class PypeItSetupModel(QObject):
 
         self.raw_data_files = []
         for directory in self.paths_model.stringList():
+            msgs.info(f"Scanning directory: {directory}")
             for extension in allowed_extensions:
                 #  The command line may set a root, which isn't a directory but a prefix
                 if not os.path.isdir(directory):
@@ -837,6 +976,7 @@ class PypeItSetupModel(QObject):
                 else:
                     glob_pattern = os.path.join(directory, "*" + extension)
 
+                msgs.info(f"Searching for raw data files with {glob_pattern}")
                 self.raw_data_files += glob.glob(glob_pattern)
 
         return len(self.raw_data_files)
@@ -933,6 +1073,29 @@ class PypeItSetupModel(QObject):
         self._setConfigurations(self._pypeit_setup.fitstbl.unique_configurations(), state=ModelState.UNCHANGED)
         self.state_changed.emit()
 
+    def removeConfig(self, name):
+        del self.pypeit_files[name]
+        self.configs_deleted.emit([name])
+
+    def createNewConfig(self):
+        # Create a new empty configuration.
+        # First figure out the name
+        # This is assuming a single letter name
+        if len(self.pypeit_files) == 0:
+            # Now configs, just add "A"
+            new_name = "A"
+        else:
+            largest_name = max(self.pypeit_files.keys())
+            if largest_name == 'z':
+                raise ValueError("Failed to create new setup because there are too many loaded.")
+            new_name = chr(ord(largest_name)+1)
+        msgs.info(f"Creating new pypeit file model for {new_name}")
+        
+
+        #self.pypeit_files[new_name] = PypeItFileModel(new_name, new_config_dict, spectrograph, metadata_model, params_model, state )
+
+
+
     def _addedMetadata(self, name, match):
         """Callback used to report progress on reading files when running setup."""
         if QThread.currentThread().isInterruptionRequested():
@@ -961,7 +1124,13 @@ class PypeItSetupModel(QObject):
         config_names = list(unique_configs.keys())
         self.pypeit_files = dict()
         for config_name in config_names:
-            pf_model = PypeItFileModel(self, config_name, unique_configs[config_name], state=state)
+            pf_model = PypeItFileModel(config_name, 
+                                       unique_configs[config_name], 
+                                       self._spectrograph, 
+                                       self.metadata_model.getCopyForConfig(config_name),
+                                       PypeItParamsProxy(self._pypeit_setup),
+                                       state=state)
+
             # Any change to the file models can change the over all state, so connect the signals
             pf_model.state_changed.connect(self.state_changed)
             self.pypeit_files[config_name] = pf_model

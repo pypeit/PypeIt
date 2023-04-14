@@ -18,6 +18,7 @@ from pypeit.setup_gui.view import SetupGUIMainWindow, DialogResponses
 from pypeit.setup_gui.model import PypeItSetupModel, ModelState
 from pypeit import msgs
 
+
 class OperationThread(QThread):
     """Thread to run a background operation.
     
@@ -100,7 +101,7 @@ class SetupGUIController(QObject):
             for file_model in self.model.pypeit_files.values():
                 if file_model.save_location is None:
                     if location is None or response != DialogResponses.ACCEPT_FOR_ALL:
-                        (location, response) = self.view.prompt_for_save_location(file_model.config.name, True)
+                        (location, response) = self.view.prompt_for_save_location(file_model.config_name, True)
                         if response == DialogResponses.CANCEL:
                             # Cancel was pressed
                             return
@@ -114,18 +115,23 @@ class SetupGUIController(QObject):
     def save_one(self):
         """ Saves the currently selected configuration as a pypeit file. Called in response to the user
         clicking the "Save Tab" button."""
-        try:            
-            config_name = self.view.setup_view.currentWidget().name            
-            file_model = self.model.pypeit_files[config_name]
-            if file_model.save_location is None:
-                location, response = self.view.prompt_for_save_location(config_name)
-                if response == DialogResponses.CANCEL:
-                    return
-                else:
-                    file_model.save_location = location
-            file_model.save()
+        try:
+            config_name = self.view.setup_view.currentWidget().name
         except Exception as e:
             self.view.display_error(str(e))
+
+        self._save_tab(config_name)
+    
+    def _save_tab(self, config_name):
+        msgs.info(f"Saving config {config_name}")
+        file_model = self.model.pypeit_files[config_name]
+        if file_model.save_location is None:
+            location, response = self.view.prompt_for_save_location(config_name)
+            if response == DialogResponses.CANCEL:
+                return
+            else:
+                file_model.save_location = location
+        file_model.save()
 
     def clear(self):
         """Resets the GUI to it's initial state. Called in response to the user
@@ -141,6 +147,16 @@ class SetupGUIController(QObject):
                 return
 
         self.model.reset()
+
+    def removeConfig(self, config_name):
+        file_model = self.model.pypeit_files[config_name]
+        if file_model.state == ModelState.CHANGED:
+            response = self.view.prompt_for_save()
+            if response == DialogResponses.SAVE:
+                self.save_one(config_name)
+            elif response == DialogResponses.CANCEL:
+                return
+        self.model.removeConfig(config_name)
 
     def exit(self):
         """Exits the GUI. Called in response to the user clicking the "Exit" button.
