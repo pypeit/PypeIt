@@ -236,6 +236,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         # Set the slit edge parameters
         par['calibrations']['slitedges']['fit_order'] = 4
+        par['calibrations']['slitedges']['pad'] = 2  # Need to pad out the tilts for the astrometric transform when creating a datacube.
 
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
