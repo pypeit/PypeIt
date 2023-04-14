@@ -7,6 +7,8 @@
 - Allow user control of the local sky subtraction window
 - Deprecate use of python 3.8 with PypeIt, allow python 3.11
 - Make pypeit_show_2dspec (somewhat) backwards compatible.
+- Added the option to disable strict version checking for 1d coadds.
+- Hotfix for KCWI when using alignment (aka ContBars) frames for the astrometric correction.
 
 1.12.2 (29 Mar 2023)
 --------------------
