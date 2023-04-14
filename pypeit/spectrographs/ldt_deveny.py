@@ -23,6 +23,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
     ndet = 1
     name = 'ldt_deveny'
     telescope = telescopes.LDTTelescopePar()
+    telescope.fratio = 7.5  # The corrector optics for DeVeny reshape the beam to f/7.5
     camera = 'DeVeny'
     url = 'https://lowell.edu/research/telescopes-and-facilities/ldt/deveny-optical-spectrograph/'
     header_name = 'Deveny'
