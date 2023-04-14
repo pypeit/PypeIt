@@ -521,7 +521,7 @@ class SensFunc(datamodel.DataContainer):
 
         # Plot QA for zeropoint
         if 'Echelle' in self.spectrograph.pypeline:
-            order_or_det = self.spectrograph.orders[np.arange(self.norderdet)]
+            order_or_det = self.meta_spec['ECH_ORDERS']
             order_or_det_str = 'order'
         else:
             order_or_det = np.arange(self.norderdet) + 1
