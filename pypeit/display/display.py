@@ -283,9 +283,8 @@ def show_points(viewer, ch, spec, spat, color='cyan', legend=None, legend_spec=N
     canvas.add('constructedcanvas', canvas_list)
 
 
-
 # TODO: Should we continue to allow rotate as an option?
-def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=None, maskdef_ids=None, spec_vals = None,
+def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=None, maskdef_ids=None, spec_vals=None,
                rotate=False, pstep=50, clear=False, synced=True):
     r"""
     Overplot slits on the image in Ginga in the given channel
@@ -393,7 +392,6 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
     if clear:
         canvas.clear()
 
-
     # Label positions
     top = int(2*nspec/3.)
     bot = int(nspec/2.)
@@ -411,21 +409,6 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
                              else (float(_left_id_loc[bot,i]), float(y[bot, i]), str('S{0}'.format(_left_ids[i]))),
                              kwargs=dict(color=str('aquamarine'), fontsize=20., rot_deg=90.)) for i in range(nleft)]
 
-    # for i in range(nleft):
-    #     points = list(zip(y[::pstep, i].tolist(), _left[::pstep,i].tolist())) if rotate \
-    #         else list(zip(_left[::pstep,i].tolist(), y[::pstep, i].tolist()))
-    #     canvas.add(str('path'), points, color=str('green'))
-    #     if not synced:
-    #         # Add text
-    #         xt, yt = float(_left_id_loc[top,i]), float(y[top, i])
-    #         xb, yb = float(_left_id_loc[bot,i]), float(y[bot, i])
-    #         if rotate:
-    #             xt, yt = yt, xt
-    #             xb, yb = yb, xb
-    #         canvas.add(str('text'), xb, yb, str('S{0}'.format(_left_ids[i])), color=str('aquamarine'),
-    #                    fontsize=20., rot_deg=90.)
-    #         #canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('green'), fontsize=20.)
-
     # Plot rights. Points need to be int or float. Use of .tolist() on
     # each array insures this
     canvas_list += [dict(type=str('path'),
@@ -440,21 +423,6 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
                              kwargs=dict(color=str('magenta'), fontsize=20., rot_deg=90.)) for i in range(nright)]
 
     canvas.add('constructedcanvas', canvas_list)
-    # for i in range(nright):
-    #     points = list(zip(y[::pstep, i].tolist(), _right[::pstep,i].tolist())) if rotate \
-    #                 else list(zip(_right[::pstep,i].tolist(), y[::pstep, i].tolist()))
-    #     canvas.add(str('path'), points, color=str('magenta'))
-    #     if not synced:
-    #         # Add text
-    #         xt, yt = float(_right_id_loc[top,i]), float(y[top])
-    #         xb, yb = float(_right_id_loc[bot,i]), float(y[bot])
-    #         if rotate:
-    #             xt, yt = yt, xt
-    #             xb, yb = yb, xb
-    #         canvas.add(str('text'), xb, yb, str('S{0}'.format(_right_ids[i])), color=str('red'),
-    #                    fontsize=20.)
-    #         canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('red'),
-    #                    fontsize=20.)
 
     # Plot slit labels, if synced
     if synced:
@@ -470,25 +438,6 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
                                  else (float(_slit_id_loc[bot,i]), float(y[bot, i])-250, str('S{0}'.format(_slit_ids[i]))),
                                  kwargs=dict(color=str('cyan'), fontsize=20., rot_deg=90.)) for i in range(nslits)]
 
-
-    # if not synced:
-    #     return
-    # for i in range(nslits):
-    #     xt, yt = float(_slit_id_loc[top,i]), float(y[top,i])
-    #     xb, yb = float(_slit_id_loc[bot,i]), float(y[bot,i])
-    #     if rotate:
-    #         xt, yt = yt, xt
-    #         xb, yb = yb, xb
-    #     # Slit IDs
-    #     canvas.add(str('text'), xb, yb-400, str('S{0}'.format(_slit_ids[i])), color=str('aquamarine'),
-    #                fontsize=20., rot_deg=90.)
-    #     # maskdef_ids
-    #     if _maskdef_ids is not None:
-    #         canvas.add(str('text'), xb, yb-250, str('{0}'.format(_maskdef_ids[i])),
-    #                    color=str('cyan'), fontsize=20., rot_deg=90.)
-    #     # TODO -- Fix indices if you really want to show them
-    #     #canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('green'),
-    #     #           fontsize=20.)
     canvas.add('constructedcanvas', canvas_list)
 
 
@@ -636,90 +585,36 @@ def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, clear_can
 
     if tilt_traces['goodpix_tilt'][0].size > 0 and points:
         # note: must cast numpy floats to regular python floats to pass the remote interface
-        canvas_list += [dict(type='squarebox',
-                             args=(float(tilt_traces['goodpix_spat'][0][i] + xoff),
-                                   float(tilt_traces['goodpix_tilt'][0][i] + yoff), 0.8),
-                             kwargs=dict(color='cyan', fill=True, fillalpha=0.5))
-                        for i in range(tilt_traces['goodpix_tilt'][0].size)]
+        goodpix_spat = tilt_traces['goodpix_spat'][0] + xoff
+        goodpix_tilt = tilt_traces['goodpix_tilt'][0] + yoff
+        canvas_list += [dict(type='squarebox', args=(float(goodpix_spat[i]), float(goodpix_tilt[i]), 1),
+                             kwargs=dict(color='cyan', fill=True, fillalpha=0.5)) for i in range(goodpix_tilt.size)]
 
     if tilt_traces['badpix_tilt'][0].size > 0 and points:
         # note: must cast numpy floats to regular python floats to pass the remote interface
-        canvas_list += [dict(type='squarebox',
-                             args=(float(tilt_traces['badpix_spat'][0][i] + xoff),
-                                   float(tilt_traces['badpix_tilt'][0][i] + yoff), 0.8),
-                             kwargs=dict(color='red', fill=True, fillalpha=0.5))
-                        for i in range(tilt_traces['badpix_tilt'][0].size)]
+        badpix_spat = tilt_traces['badpix_spat'][0] + xoff
+        badpix_tilt = tilt_traces['badpix_tilt'][0] + yoff
+        canvas_list += [dict(type='squarebox', args=(float(badpix_spat[i]), float(badpix_tilt[i]), 1),
+                             kwargs=dict(color='red', fill=True, fillalpha=0.5)) for i in range(badpix_tilt.size)]
 
     # Now plot the polynomial fits to the Gaussian weighted centroids
     if tilt_traces['good2dfit_tilt'][0].size > 0:
-        canvas_list += [dict(type='squarebox',
-                             args=(float(tilt_traces['good2dfit_spat'][0][i] + xoff),
-                                   float(tilt_traces['good2dfit_tilt'][0][i] + yoff), 0.4),
-                             kwargs=dict(color='blue', fill=True, fillalpha=0.5))
-                        for i in range(tilt_traces['good2dfit_tilt'][0].size)]
+        good2dfit_spat = tilt_traces['good2dfit_spat'][0] + xoff
+        good2dfit_tilt = tilt_traces['good2dfit_tilt'][0] + yoff
+        canvas_list += [dict(type='squarebox', args=(float(good2dfit_spat[i]), float(good2dfit_tilt[i]), 0.5),
+                             kwargs=dict(color='blue', fill=True, fillalpha=0.5)) for i in range(good2dfit_tilt.size)]
     if tilt_traces['bad2dfit_tilt'][0].size > 0:
-        canvas_list += [dict(type='squarebox',
-                             args=(float(tilt_traces['bad2dfit_spat'][0][i] + xoff),
-                                   float(tilt_traces['bad2dfit_tilt'][0][i] + yoff), 0.4),
-                             kwargs=dict(color='magenta', fill=True, fillalpha=0.5))
-                        for i in range(tilt_traces['bad2dfit_tilt'][0].size)]
-
-
-    # for i in range(len(trc_tilt_dict)):
-    #     if trc_tilt_dict[i] is not None:
-    #         # parse trc_tilt_dict
-    #         tilts_spat = trc_tilt_dict[i]['tilts_spat']
-    #         tilts = trc_tilt_dict[i]['tilts']
-    #         tilts_fit = trc_tilt_dict[i]['tilt_2dfit']
-    #         in_fit = trc_tilt_dict[i]['tot_mask']
-    #         not_fit = np.invert(in_fit) & (tilts > 0)
-    #         fit_rej = in_fit & np.invert(trc_tilt_dict[i]['fit_mask'])
-    #         fit_keep = in_fit & trc_tilt_dict[i]['fit_mask']
-    #
-    #         # Plot the tilts
-    #         nlines = tilts.shape[1]
-    #         for iline in range(nlines):
-    #             x = tilts_spat[:,iline] + xoff # FOR IMAGING (Ginga offsets this value by 1 internally)
-    #             y = tilts[:, iline] + yoff
-    #             this_infit = in_fit[:,iline]
-    #             this_notfit = not_fit[:,iline]
-    #             this_fitrej = fit_rej[:,iline]
-    #             this_fitkeep = fit_keep[:,iline]
-    #
-    #             if np.any(this_infit) and points: # Plot the gaussian weighted tilt centers
-    #                 # Plot the actual flux weighted centroids of the arc lines that were traced
-    #                 xgood = x[this_infit]
-    #                 ygood = y[this_infit]
-    #                 # note: must cast numpy floats to regular python floats to pass the remote interface
-    #                 points_good = [dict(type='squarebox',
-    #                                     args=(float(xgood[i]), float(ygood[i]), 0.7),
-    #                                     kwargs=dict(color='cyan',fill=True, fillalpha=0.5)) for i in range(len(xgood))]
-    #                 canvas_list += points_good
-    #             if np.any(this_notfit) and points:
-    #                 xbad = x[this_notfit]
-    #                 ybad = y[this_notfit]
-    #                 # note: must cast numpy floats to regular python floats to pass the remote interface
-    #                 points_bad = [dict(type='squarebox',
-    #                                    args=(float(xbad[i]), float(ybad[i]), 0.7),
-    #                                    kwargs=dict(color='red', fill=True,fillalpha=0.5)) for i in range(len(xbad))]
-    #                 canvas_list += points_bad
-                # Now plot the polynomial fits to the Gaussian weighted centroids
-                # y = tilts_fit[:, iline] + yoff
-                # if np.any(this_fitrej):
-                #     canvas_list += [dict(type=str('path'),
-                #                          args=(list(zip(x[this_fitrej][::pstep].tolist(), y[this_fitrej][::pstep].tolist())),),
-                #                          kwargs=dict(color='magenta', linewidth=1))]
-                # if np.any(this_fitkeep):
-                #     canvas_list += [dict(type=str('path'),
-                #                          args=(list(zip(x[this_fitkeep][::pstep].tolist(), y[this_fitkeep][::pstep].tolist())),),
-                #                          kwargs=dict(color='blue', linewidth=1))]
+        bad2dfit_spat = tilt_traces['bad2dfit_spat'][0] + xoff
+        bad2dfit_tilt = tilt_traces['bad2dfit_tilt'][0] + yoff
+        canvas_list += [dict(type='squarebox', args=(float(bad2dfit_spat[i]), float(bad2dfit_tilt[i]), 0.5),
+                             kwargs=dict(color='magenta', fill=True, fillalpha=0.5)) for i in range(bad2dfit_tilt.size)]
 
     # Add text
     text_xpos = 50
     start_ypos = 50
     text_ypos = [start_ypos + 90, start_ypos + 60, start_ypos + 30, start_ypos]
     text_color = ['blue', 'magenta', 'cyan', 'red']
-    text_str = ['Good tilt fit', 'Rejected tilt fit', 'Good trace', 'Masked trace']
+    text_str = ['Good tilt fit', 'Rejected in fit', 'Good pixel', 'Masked pixel']
     canvas_list += [dict(type='text', args=(float(text_xpos), float(text_ypos[i]), str(text_str[i])),
                     kwargs=dict(color=text_color[i], fontsize=20)) for i in range(len(text_str))]
 
