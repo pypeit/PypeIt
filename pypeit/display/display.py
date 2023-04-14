@@ -607,8 +607,7 @@ def clear_all(allow_new=False):
         shell.delete_channel(ch)
 
 
-def show_tilts(viewer, ch, trc_tilt_dict, yoff=0., xoff=0., pstep=1,
-               points=True, clear_canvas=False):
+def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, clear_canvas=False):
     """
     Show the arc tilts on the input channel
 
@@ -617,14 +616,12 @@ def show_tilts(viewer, ch, trc_tilt_dict, yoff=0., xoff=0., pstep=1,
             Ginga RC viewer
         ch (ginga.util.grc._channel_proxy):
             Ginga channel
-        trc_tilt_dict (dict):
-            Contains tilts info
+        tilt_traces (`astropy.table.Table`_):
+            Table containing the traced and fitted tilts
         yoff (float, optional):
             Offset tilts by this amount
         xoff (float, optional):
             Offset tilts by this amount
-        pstep (int, optional):
-            Show every pstep point of the edges as opposed to *every* point, recommended for speed
         points (bool, optional):
             Plot the Gaussian-weighted tilt centers
         clear_canvas (bool, optional):
@@ -636,59 +633,91 @@ def show_tilts(viewer, ch, trc_tilt_dict, yoff=0., xoff=0., pstep=1,
         canvas.clear()
 
     canvas_list = []
-    for i in range(len(trc_tilt_dict)):
-        # parse trc_tilt_dict
-        tilts_spat = trc_tilt_dict[i]['tilts_spat']
-        tilts = trc_tilt_dict[i]['tilts']
-        tilts_fit = trc_tilt_dict[i]['tilt_2dfit']
-        in_fit = trc_tilt_dict[i]['tot_mask']
-        not_fit = np.invert(in_fit) & (tilts > 0)
-        fit_rej = in_fit & np.invert(trc_tilt_dict[i]['fit_mask'])
-        fit_keep = in_fit & trc_tilt_dict[i]['fit_mask']
 
-        # Plot the tilts
-        nlines = tilts.shape[1]
-        for iline in range(nlines):
-            x = tilts_spat[:,iline] + xoff # FOR IMAGING (Ginga offsets this value by 1 internally)
-            y = tilts[:, iline] + yoff
-            this_infit = in_fit[:,iline]
-            this_notfit = not_fit[:,iline]
-            this_fitrej = fit_rej[:,iline]
-            this_fitkeep = fit_keep[:,iline]
+    if tilt_traces['goodpix_tilt'][0].size > 0 and points:
+        # note: must cast numpy floats to regular python floats to pass the remote interface
+        canvas_list += [dict(type='squarebox',
+                             args=(float(tilt_traces['goodpix_spat'][0][i] + xoff),
+                                   float(tilt_traces['goodpix_tilt'][0][i] + yoff), 0.8),
+                             kwargs=dict(color='cyan', fill=True, fillalpha=0.5))
+                        for i in range(tilt_traces['goodpix_tilt'][0].size)]
 
-            if np.any(this_infit) and points: # Plot the gaussian weighted tilt centers
-                # Plot the actual flux weighted centroids of the arc lines that were traced
-                xgood = x[this_infit]
-                ygood = y[this_infit]
-                # note: must cast numpy floats to regular python floats to pass the remote interface
-                points_good = [dict(type='squarebox',
-                                    args=(float(xgood[i]), float(ygood[i]), 0.7),
-                                    kwargs=dict(color='cyan',fill=True, fillalpha=0.5)) for i in range(len(xgood))]
-                canvas_list += points_good
-            if np.any(this_notfit) and points:
-                xbad = x[this_notfit]
-                ybad = y[this_notfit]
-                # note: must cast numpy floats to regular python floats to pass the remote interface
-                points_bad = [dict(type='squarebox',
-                                   args=(float(xbad[i]), float(ybad[i]), 0.7),
-                                   kwargs=dict(color='red', fill=True,fillalpha=0.5)) for i in range(len(xbad))]
-                canvas_list += points_bad
-            # Now plot the polynomial fits to the Gaussian weighted centroids
-            y = tilts_fit[:, iline] + yoff
-            if np.any(this_fitrej):
-                canvas_list += [dict(type=str('path'),
-                                     args=(list(zip(x[this_fitrej][::pstep].tolist(), y[this_fitrej][::pstep].tolist())),),
-                                     kwargs=dict(color='magenta', linewidth=1))]
-            if np.any(this_fitkeep):
-                canvas_list += [dict(type=str('path'),
-                                     args=(list(zip(x[this_fitkeep][::pstep].tolist(), y[this_fitkeep][::pstep].tolist())),),
-                                     kwargs=dict(color='blue', linewidth=1))]
+    if tilt_traces['badpix_tilt'][0].size > 0 and points:
+        # note: must cast numpy floats to regular python floats to pass the remote interface
+        canvas_list += [dict(type='squarebox',
+                             args=(float(tilt_traces['badpix_spat'][0][i] + xoff),
+                                   float(tilt_traces['badpix_tilt'][0][i] + yoff), 0.8),
+                             kwargs=dict(color='red', fill=True, fillalpha=0.5))
+                        for i in range(tilt_traces['badpix_tilt'][0].size)]
+
+    # Now plot the polynomial fits to the Gaussian weighted centroids
+    if tilt_traces['good2dfit_tilt'][0].size > 0:
+        canvas_list += [dict(type='squarebox',
+                             args=(float(tilt_traces['good2dfit_spat'][0][i] + xoff),
+                                   float(tilt_traces['good2dfit_tilt'][0][i] + yoff), 0.4),
+                             kwargs=dict(color='blue', fill=True, fillalpha=0.5))
+                        for i in range(tilt_traces['good2dfit_tilt'][0].size)]
+    if tilt_traces['bad2dfit_tilt'][0].size > 0:
+        canvas_list += [dict(type='squarebox',
+                             args=(float(tilt_traces['bad2dfit_spat'][0][i] + xoff),
+                                   float(tilt_traces['bad2dfit_tilt'][0][i] + yoff), 0.4),
+                             kwargs=dict(color='magenta', fill=True, fillalpha=0.5))
+                        for i in range(tilt_traces['bad2dfit_tilt'][0].size)]
+
+
+    # for i in range(len(trc_tilt_dict)):
+    #     if trc_tilt_dict[i] is not None:
+    #         # parse trc_tilt_dict
+    #         tilts_spat = trc_tilt_dict[i]['tilts_spat']
+    #         tilts = trc_tilt_dict[i]['tilts']
+    #         tilts_fit = trc_tilt_dict[i]['tilt_2dfit']
+    #         in_fit = trc_tilt_dict[i]['tot_mask']
+    #         not_fit = np.invert(in_fit) & (tilts > 0)
+    #         fit_rej = in_fit & np.invert(trc_tilt_dict[i]['fit_mask'])
+    #         fit_keep = in_fit & trc_tilt_dict[i]['fit_mask']
+    #
+    #         # Plot the tilts
+    #         nlines = tilts.shape[1]
+    #         for iline in range(nlines):
+    #             x = tilts_spat[:,iline] + xoff # FOR IMAGING (Ginga offsets this value by 1 internally)
+    #             y = tilts[:, iline] + yoff
+    #             this_infit = in_fit[:,iline]
+    #             this_notfit = not_fit[:,iline]
+    #             this_fitrej = fit_rej[:,iline]
+    #             this_fitkeep = fit_keep[:,iline]
+    #
+    #             if np.any(this_infit) and points: # Plot the gaussian weighted tilt centers
+    #                 # Plot the actual flux weighted centroids of the arc lines that were traced
+    #                 xgood = x[this_infit]
+    #                 ygood = y[this_infit]
+    #                 # note: must cast numpy floats to regular python floats to pass the remote interface
+    #                 points_good = [dict(type='squarebox',
+    #                                     args=(float(xgood[i]), float(ygood[i]), 0.7),
+    #                                     kwargs=dict(color='cyan',fill=True, fillalpha=0.5)) for i in range(len(xgood))]
+    #                 canvas_list += points_good
+    #             if np.any(this_notfit) and points:
+    #                 xbad = x[this_notfit]
+    #                 ybad = y[this_notfit]
+    #                 # note: must cast numpy floats to regular python floats to pass the remote interface
+    #                 points_bad = [dict(type='squarebox',
+    #                                    args=(float(xbad[i]), float(ybad[i]), 0.7),
+    #                                    kwargs=dict(color='red', fill=True,fillalpha=0.5)) for i in range(len(xbad))]
+    #                 canvas_list += points_bad
+                # Now plot the polynomial fits to the Gaussian weighted centroids
+                # y = tilts_fit[:, iline] + yoff
+                # if np.any(this_fitrej):
+                #     canvas_list += [dict(type=str('path'),
+                #                          args=(list(zip(x[this_fitrej][::pstep].tolist(), y[this_fitrej][::pstep].tolist())),),
+                #                          kwargs=dict(color='magenta', linewidth=1))]
+                # if np.any(this_fitkeep):
+                #     canvas_list += [dict(type=str('path'),
+                #                          args=(list(zip(x[this_fitkeep][::pstep].tolist(), y[this_fitkeep][::pstep].tolist())),),
+                #                          kwargs=dict(color='blue', linewidth=1))]
 
     # Add text
-    nspat = trc_tilt_dict[0]['nspat']
-    nspec = trc_tilt_dict[0]['nspec']
-    text_xpos = nspat//10
-    text_ypos = [nspec//10 + 90, nspec//10 + 60, nspec//10 + 30, nspec//10]
+    text_xpos = 50
+    start_ypos = 50
+    text_ypos = [start_ypos + 90, start_ypos + 60, start_ypos + 30, start_ypos]
     text_color = ['blue', 'magenta', 'cyan', 'red']
     text_str = ['Good tilt fit', 'Rejected tilt fit', 'Good trace', 'Masked trace']
     canvas_list += [dict(type='text', args=(float(text_xpos), float(text_ypos[i]), str(text_str[i])),
