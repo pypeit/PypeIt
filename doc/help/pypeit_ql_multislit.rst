@@ -34,7 +34,7 @@
       full_rawpath          Full path to the raw files
       files                 list of frames i.e. img1.fits img2.fits
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       --spec_samp_fact SPEC_SAMP_FACT
                             Make the wavelength grid finer (spec_samp_fact < 1.0) or
