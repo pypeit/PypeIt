@@ -196,7 +196,7 @@ class SpecObjs:
                   True=Good
                 - meta_spec (dict:) Dictionary containing meta data.
                   The keys are defined by
-                  spectrograph.header_cards_from_spec()
+                  spectrograph.parse_spec_header()
                 - header (astropy.io.header object): header from
                   spec1d file
         """

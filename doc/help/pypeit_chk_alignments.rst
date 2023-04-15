@@ -9,7 +9,7 @@
       master_file      PypeIt Master Alignment file [e.g.
                        MasterAlignment_A_1_01.fits]
     
-    optional arguments:
+    options:
       -h, --help       show this help message and exit
       --chname CHNAME  Channel name for image in Ginga (default: Alignments)
     

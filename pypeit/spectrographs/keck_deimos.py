@@ -213,10 +213,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             # raw frame date in mjd
             date = time.Time(self.get_meta_value(self.get_headarr(hdu), 'mjd'), format='mjd').value
             # get the measurements files
-            measure_files = np.fromiter(
-                (data.Paths.spectrographs / "keck_deimos" / "gain_ronoise").glob("*"),
-                pathlib.Path
-            )
+            measure_files = sorted((data.Paths.spectrographs / "keck_deimos" / "gain_ronoise").glob("*"))
             # Parse the dates recorded in the name of the files
             measure_dates = np.array([f.name.split('.')[2] for f in measure_files])
             # convert into datetime format
@@ -512,6 +509,26 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # redundant because anything with the wrong amplifier used is
         # removed from the list of valid frames in PypeItMetaData.
         return ['dispname', 'decker', 'binning', 'dispangle', 'amp', 'filter1']
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['GRATENAM', 'SLMSKNAM', 'G3TLTWAV', 'G4TLTWAV', 'AMPMODE', 'DWFILNAM']
 
     def valid_configuration_values(self):
         """

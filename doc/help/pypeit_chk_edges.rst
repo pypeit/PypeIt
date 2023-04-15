@@ -8,7 +8,7 @@
     positional arguments:
       trace_file       PypeIt Master Trace file [e.g. MasterEdges_A_01_aa.fits.gz]
     
-    optional arguments:
+    options:
       -h, --help       show this help message and exit
       --chname CHNAME  Channel name for image in Ginga (default: MTrace)
       --mpl            Use a matplotlib window instead of ginga to show the trace

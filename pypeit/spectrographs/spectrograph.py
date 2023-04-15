@@ -28,23 +28,21 @@ provide instrument-specific:
 
 from abc import ABCMeta
 import os
-from configobj import ConfigObj
+import pathlib
 
 from IPython import embed
 
 import numpy as np
 
 from pypeit import msgs
-from pypeit import utils
 from pypeit import io
-from pypeit.core.wavecal import wvutils
 from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.core import meta
 from pypeit.par import pypeitpar
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
-from astropy.io.fits import Header
+from astropy.io.fits import Header, HDUList
 
 
 # TODO: Create an EchelleSpectrograph derived class that holds all of
@@ -314,8 +312,10 @@ class Spectrograph:
             :obj:`dict`: Dictionary with the metadata read from ``header``.
         """
         spec_dict = {}
-        #
+        # The keys in spec_dict should be the CORE metadata,
+        #   spectrograph CONFIGURATION KEYS, and the FILENAME
         core_meta_keys = list(meta.define_core_meta().keys())
+        core_meta_keys += self.configuration_keys()
         core_meta_keys += ['filename']
         for key in core_meta_keys:
             if key.upper() in header.keys():
@@ -354,19 +354,28 @@ class Spectrograph:
         subheader = {}
 
         core_meta = meta.define_core_meta()
-        # Core
+        # Core Metadata Keys -- These must be present
         for key in core_meta.keys():
             try:
                 subheader[key] = (row_fitstbl[key], core_meta[key]['comment'])
             except KeyError:
                 if not allow_missing:
-                    msgs.error("Key: {} not present in your fitstbl/Header".format(key))
+                    msgs.error(f"Core Meta Key: {key} not present in your fitstbl/Header")
+        # Configuration Keys -- In addition to Core Meta,
+        #   other Config-Specific values; optional
+        for key in self.configuration_keys():
+            if key not in subheader:
+                try:
+                    subheader[key] = row_fitstbl[key]
+                except KeyError:
+                    # If configuration_key is not in row_fitstbl, warn but move on
+                    msgs.warn(f"Configuration Key: {key} not present in your fitstbl/Header")
         # Add a few more
         for key in ['filename']:  # For fluxing
             subheader[key] = row_fitstbl[key]
 
         # The following are pulled from the original header, if available
-        header_cards = ['INSTRUME', 'DETECTOR']
+        header_cards = ['INSTRUME', 'DETECTOR', 'DATE-OBS'] + self.raw_header_cards()
         if extra_header_cards is not None:
             header_cards += extra_header_cards  # For specDB and more
         for card in header_cards:
@@ -687,6 +696,26 @@ class Spectrograph:
             object.
         """
         return ['dispname', 'dichroic', 'decker']
+    
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return []
 
     def modify_config(self, fitstbl, cfg):
         """
@@ -1194,7 +1223,7 @@ class Spectrograph:
         Return meta data from a given file (or its array of headers).
 
         Args:
-            inp (:obj:`str`, `astropy.io.fits.Header`_, :obj:`list`):
+            inp (:obj:`str`, :obj:`pathlib.Path`, `astropy.io.fits.Header`_, :obj:`list`):
                 Input filename, an `astropy.io.fits.Header`_ object, or a list
                 of `astropy.io.fits.Header`_ objects.  If None, function simply
                 returns None without issuing any warnings/errors, unless
@@ -1231,14 +1260,14 @@ class Spectrograph:
         Returns:
             Value recovered for (each) keyword.  Can be None.
         """
-        if isinstance(inp, str):
+        if isinstance(inp, (str, pathlib.Path, HDUList)):
             headarr = self.get_headarr(inp)
         elif inp is None or isinstance(inp, list):
             headarr = inp
         elif isinstance(inp, Header):
             headarr = [inp]
         else:
-            msgs.error('Unrecognized type for input')
+            msgs.error(f'Unrecognized type for input: {type(inp)}')
         
         if headarr is None:
             if required:
@@ -1281,13 +1310,13 @@ class Spectrograph:
                 elif 'compound' in self.meta[meta_key].keys():
                     value = self.compound_meta(headarr, meta_key)
                 else:
-                    msgs.error("Failed to load spectrograph value for meta: {}".format(meta_key))
+                    msgs.error(f"Failed to load spectrograph value for meta: {meta_key}")
             else:
                 # Grab from the header, if we can
                 value = headarr[self.meta[meta_key]['ext']][self.meta[meta_key]['card']]
         except (KeyError, TypeError) as e:
             if ignore_bad_header or not required:
-                msgs.warn("Bad Header key ({0:s}), but we'll try to continue on..".format(meta_key))
+                msgs.warn(f"Bad Header key ({meta_key}), but we'll try to continue on..")
             else:
                 raise e
 
@@ -1464,7 +1493,7 @@ class Spectrograph:
         Read the header data from all the extensions in the file.
 
         Args:
-            inp (:obj:`str`, `astropy.io.fits.HDUList`_):
+            inp (:obj:`str`, :obj:`pathlib.Path`, `astropy.io.fits.HDUList`_):
                 Name of the file to read or the previously opened HDU list.  If
                 None, the function will simply return None.
             strict (:obj:`bool`, optional):
@@ -1483,20 +1512,23 @@ class Spectrograph:
 
         # Faster to open the whole file and then assign the headers,
         # particularly for gzipped files (e.g., DEIMOS)
-        if isinstance(inp, str):
+        if isinstance(inp, (str, pathlib.Path)):
             self._check_extensions(inp)
             try:
-                hdu = io.fits_open(inp)
+                hdul = io.fits_open(inp)
             except:
                 if strict:
-                    msgs.error('Problem opening {0}.'.format(inp))
+                    msgs.error(f'Problem opening {inp}.')
                 else:
-                    msgs.warn('Problem opening {0}.'.format(inp) + msgs.newline()
-                              + 'Proceeding, but should consider removing this file!')
-                    return None #['None']*999 # self.numhead
+                    msgs.warn(f'Problem opening {inp}.{msgs.newline()}'
+                              'Proceeding, but should consider removing this file!')
+                    return None
+        elif isinstance(inp, HDUList):
+            hdul = inp
         else:
-            hdu = inp
-        return [hdu[k].header for k in range(len(hdu))]
+            msgs.error(f'Unrecognized type for input: {type(inp)}')
+
+        return [hdul[k].header for k in range(len(hdul))]
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -1739,7 +1771,7 @@ class Spectrograph:
             Input inverse variance of standard star counts
         gpm_in: (bool np.ndarray) shape = (nspec,)
             Input good pixel mask for standard
-        meta_table: (astropy.table)
+        meta_table: (dict)
             Table containing meta data that is slupred from the specobjs object. See unpack_object routine in specobjs.py
             for the contents of this table.
 
