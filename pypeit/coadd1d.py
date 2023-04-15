@@ -100,7 +100,7 @@ class CoAdd1D:
             indx = sobjs.name_indices(self.objids[iexp])
             if not np.any(indx):
                 msgs.error("No matching objects for {:s}.  Odds are you input the wrong OBJID".format(self.objids[iexp]))
-            wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, meta_spec, header = \
+            wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, trace_spec, trace_spat, meta_spec, header = \
                     sobjs[indx].unpack_object(ret_flam=self.par['flux_value'], extract_type=self.par['ex_value'])
             # Allocate arrays on first iteration
             # TODO :: We should refactor to use a list of numpy arrays, instead of a 2D numpy array.
