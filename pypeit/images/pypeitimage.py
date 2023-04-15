@@ -3,7 +3,6 @@
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import os
 import inspect
 
 from IPython import embed
@@ -21,7 +20,6 @@ from pypeit.display import display
 from pypeit import datamodel
 from pypeit.calibframe import CalibFrame
 from pypeit import utils
-from pypeit import io
 
 
 class PypeItImage(datamodel.DataContainer):

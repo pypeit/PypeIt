@@ -48,26 +48,25 @@ class ParseSlits(scriptbase.ScriptBase):
 
         from pypeit import spec2dobj
 
-
-        # What kind of file are we??
-        hdul = fits.open(pargs.input_file)
-        head0 = hdul[0].header
-        if 'MSTRTYP' in head0.keys() and head0['MSTRTYP'].strip() == 'Slits':
-            file_type = 'Slits'
-        elif 'PYP_CLS' in head0.keys() and head0['PYP_CLS'].strip() == 'AllSpec2DObj':
-            file_type = 'AllSpec2D'
-        else:
-            raise IOError("Bad file type input!")
-
-        if file_type == 'Slits':
+        try:
             slits = slittrace.SlitTraceSet.from_file(pargs.input_file)#, chk_version=False)
+        except:
+            pass
+        else:
             print_slits(slits)
-        elif file_type == 'AllSpec2D':
-            # Load
+            return
+
+        try:
             allspec2D = spec2dobj.AllSpec2DObj.from_fits(pargs.input_file, chk_version=False)
+        except:
+            pass
+        else:
             # Loop on Detectors
             for det in allspec2D.detectors:
                 print('='*30 + f'{det:^7}' + '='*30)
                 spec2Dobj = allspec2D[det]
                 print_slits(spec2Dobj.slits)
+            return
+        
+        raise IOError("Bad file type input!  Must be a Slits calibration frame or a spec2d file.")
 
