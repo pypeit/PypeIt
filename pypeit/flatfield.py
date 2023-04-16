@@ -1343,7 +1343,7 @@ class FlatField:
         return exit_status, spat_coo_data, spat_flat_data, spat_bspl, spat_gpm_fit, \
                spat_flat_fit, spat_flat_data_raw
 
-    def spatial_fit_finecorr(self, spat_illum, onslit_tweak, slit_idx, slit_spat, gpm, doqa=False):
+    def spatial_fit_finecorr(self, spat_illum, onslit_tweak, slit_idx, slit_spat, gpm, slit_trim=3, doqa=False):
         """
         Generate a relative scaling image for a slit-based IFU. All
         slits are scaled relative to a reference slit, specified in
@@ -1361,6 +1361,10 @@ class FlatField:
             Spatial ID of the slit
         gpm : `numpy.ndarray`_
             Good pixel mask
+        slit_trim : int, optional
+            Trim the slit edges by this number of pixels during the fitting. Note that the
+            fit will be evaluated on the pixels indicated by onslit_tweak.
+            A positive number trims the slit edges, a negative number pads the slit edges.
         doqa : :obj:`bool`, optional:
             Save the QA?
         """
@@ -1369,8 +1373,10 @@ class FlatField:
         msgs.info("Performing a fine correction to the spatial illumination (slit={0:d})".format(slit_spat))
         # initialise
         illumflat_finecorr = np.ones_like(self.rawflatimg.image)
+        # Trim the edges by a few pixels to avoid edge effects
+        onslit_tweak_trim = self.slits.slit_img(pad=-slit_trim, slitidx=slit_idx, initial=False) == slit_spat
         # Setup
-        slitimg = (slit_spat+1) * onslit_tweak.astype(int) - 1
+        slitimg = (slit_spat + 1) * onslit_tweak.astype(int) - 1  # Need to +1 and -1 so that slitimg=-1 when off the slit
         normed = self.rawflatimg.image.copy()
         ivarnrm = self.rawflatimg.ivar.copy()
         normed[onslit_tweak] *= utils.inverse(spat_illum)
@@ -1380,44 +1386,50 @@ class FlatField:
         this_right = right[:, slit_idx]
         slitlen = int(np.median(this_right - this_left))
 
-        # Prepare fitting coordinates
-        wgud = np.where(onslit_tweak & self.rawflatimg.select_flag(invert=True))
-        cut = (wgud[0], wgud[1])
-        thiswave = self.waveimg[cut]
-        ypos = (thiswave - thiswave.min()) / (thiswave.max() - thiswave.min())
+        # Generate the coordinates to evaluate the fit
+        this_slit = np.where(onslit_tweak & self.rawflatimg.select_flag(invert=True))
+        this_wave = self.waveimg[this_slit]
         xpos_img = self.slits.spatial_coordinate_image(slitidx=slit_idx,
                                                        initial=True,
                                                        slitid_img=slitimg,
                                                        flexure_shift=self.wavetilts.spat_flexure)
-        xpos = xpos_img[cut]
+        # Generate the trimmed versions for fitting
+        this_slit_trim = np.where(onslit_tweak_trim & self.rawflatimg.select_flag(invert=True))
+        this_wave_trim = self.waveimg[this_slit_trim]
+        wave_min, wave_max = this_wave_trim.min(), this_wave_trim.max()
+        ypos_fit = (this_wave_trim - wave_min) / (wave_max - wave_min)
+        xpos_fit = xpos_img[this_slit_trim]
+        # Evaluation coordinates
+        ypos = (this_wave - wave_min) / (wave_max - wave_min)  # Need to use the same wave_min and wave_max as the fitting coordinates
+        xpos = xpos_img[this_slit]
 
         # Normalise the image
         delta = 0.5/self.slits.nspec  # include the endpoints
         bins = np.linspace(0.0-delta, 1.0+delta, self.slits.nspec+1)
-        censpec, _ = np.histogram(ypos, bins=bins, weights=normed[cut])
-        nrm, _ = np.histogram(ypos, bins=bins)
+        censpec, _ = np.histogram(ypos_fit, bins=bins, weights=normed[this_slit_trim])
+        nrm, _ = np.histogram(ypos_fit, bins=bins)
         censpec *= utils.inverse(nrm)
         tiltspl = interpolate.interp1d(0.5*(bins[1:]+bins[:-1]), censpec, kind='linear',
                                        bounds_error=False, fill_value='extrapolate')
-        nrm_vals = tiltspl(ypos)
-        normed[wgud] *= utils.inverse(nrm_vals)
-        ivarnrm[wgud] *= nrm_vals**2
+        nrm_vals = tiltspl(ypos_fit)
+        normed[this_slit_trim] *= utils.inverse(nrm_vals)
+        ivarnrm[this_slit_trim] *= nrm_vals**2
 
         # Mask the edges and fit
-        gpmfit = gpm[cut]
-        # Trim by 5% of the slit length, or at least 3 pixels
+        gpmfit = gpm[this_slit_trim]
+        # Trim by 5% of the slit length, or at least slit_trim pixels
         xfrac = 0.05
-        if xfrac * slitlen < 3:
-            xfrac = 3/slitlen
-        gpmfit[np.where((xpos < xfrac) | (xpos > 1-xfrac))] = False
-        fullfit = fitting.robust_fit(xpos, normed[cut], fit_order, x2=ypos,
+        if xfrac * slitlen < slit_trim:
+            xfrac = slit_trim/slitlen
+        gpmfit[np.where((xpos_fit < xfrac) | (xpos_fit > 1-xfrac))] = False
+        fullfit = fitting.robust_fit(xpos_fit, normed[this_slit_trim], fit_order, x2=ypos_fit,
                                      in_gpm=gpmfit, function='legendre2d', upper=2, lower=2, maxdev=1.0,
                                      minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
 
         # Generate the fine correction image and store the result
         if fullfit.success == 1:
             self.list_of_finecorr_fits[slit_idx] = fullfit
-            illumflat_finecorr[wgud] = fullfit.eval(xpos, ypos)
+            illumflat_finecorr[this_slit] = fullfit.eval(xpos, ypos)
         else:
             msgs.warn("Fine correction to the spatial illumination failed for slit {0:d}".format(slit_spat))
             return
@@ -1431,7 +1443,7 @@ class FlatField:
                                          out_dir=self.qa_path)
             title = "Fine correction to spatial illumination (slit={0:d})".format(slit_spat)
             normed[np.logical_not(onslit_tweak)] = 1  # For the QA, make everything off the slit equal to 1
-            spatillum_finecorr_qa(normed, illumflat_finecorr, this_left, this_right, ypos, cut,
+            spatillum_finecorr_qa(normed, illumflat_finecorr, this_left, this_right, ypos_fit, this_slit,
                                   outfile=outfile, title=title, half_slen=slitlen//2)
         return
 
