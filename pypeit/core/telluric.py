@@ -784,7 +784,10 @@ def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, gpm, tellm
     zeropoint_data, zeropoint_data_gpm \
             = flux_calib.compute_zeropoint(wave, N_lam, (gpm & flam_true_gpm), flam_true,
                                            tellmodel=tellmodel)
-    zeropoint_poly = zeropoint_data + 5.0*np.log10(wave) - 2.5*obj_params['log10_blaze_func_per_ang'] - ZP_UNIT_CONST
+
+    zeropoint_poly = zeropoint_data + 5.0*np.log10(wave) - ZP_UNIT_CONST
+    if obj_params['log10_blaze_func_per_ang']  is not None:
+        zeropoint_poly -= 2.5*obj_params['log10_blaze_func_per_ang']
     # Perform an initial fit to the sensitivity function to set the starting
     # point for optimization
     wave_min, wave_max = wave.min(), wave.max()

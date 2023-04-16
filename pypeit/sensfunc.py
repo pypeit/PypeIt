@@ -704,6 +704,9 @@ class SensFunc(datamodel.DataContainer):
         axis.set_title('PypeIt Throughput for' + spec_str)
         fig.savefig(self.thrufile)
 
+        # Plot the fluxed standard star spectrum
+
+
     @classmethod
     def sensfunc_weights(cls, sensfile, waves, debug=False, extrap_sens=True):
         """
