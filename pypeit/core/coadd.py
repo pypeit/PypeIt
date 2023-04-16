@@ -497,7 +497,7 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     return ymult, (result.x, wave_min, wave_max), flux_rescale, ivar_rescale, outmask
 
 
-def interp_oned(wave_new, wave_old, flux_old, ivar_old, gpm_old, blaze_function=None, sensfunc=False):
+def interp_oned(wave_new, wave_old, flux_old, ivar_old, gpm_old, log10_blaze_function=None, sensfunc=False):
     """
     Interpolate a 1D spectrum onto a new wavelength grid.
 
@@ -553,20 +553,20 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, gpm_old, blaze_function=
         delta_wave_interp = wvutils.get_delta_wave(wave_old, wave_gpm)
         flux_interp = flux_old[wave_gpm]/delta_wave_interp[wave_gpm]
         ivar_interp = ivar_old[wave_gpm]*delta_wave_interp[wave_gpm]**2
-        if blaze_function is not None:
-            blaze_interp = blaze_function[wave_gpm]/delta_wave_interp[wave_gpm]
+        if log10_blaze_function is not None:
+            log10_blaze_interp = np.log10(np.power(10.0, log10_blaze_function[wave_gpm])/delta_wave_interp[wave_gpm])
     else:
         flux_interp = flux_old[wave_gpm]
         ivar_interp = ivar_old[wave_gpm]
-        if blaze_function is not None:
-            blaze_interp = blaze_function[wave_gpm]
+        if log10_blaze_function is not None:
+            log10_blaze_interp = log10_blaze_function[wave_gpm]
 
     flux_new = scipy.interpolate.interp1d(wave_old[wave_gpm], flux_interp, kind='cubic',
                                     bounds_error=False, fill_value=np.nan)(wave_new)
     ivar_new = scipy.interpolate.interp1d(wave_old[wave_gpm], ivar_interp, kind='cubic',
                                     bounds_error=False, fill_value=np.nan)(wave_new)
-    if blaze_function is not None:
-        blaze_new = scipy.interpolate.interp1d(wave_old[wave_gpm], blaze_interp, kind='cubic',
+    if log10_blaze_function is not None:
+        log10_blaze_new = scipy.interpolate.interp1d(wave_old[wave_gpm], log10_blaze_interp, kind='cubic',
                                     bounds_error=False, fill_value=np.nan)(wave_new)
     # Interpolate a floating-point version of the mask
     gpm_new_tmp = scipy.interpolate.interp1d(wave_old[wave_gpm], gpm_old.astype(float)[wave_gpm],
@@ -575,8 +575,8 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, gpm_old, blaze_function=
     # Don't allow the ivar to be ever be less than zero
     ivar_new = (ivar_new > 0.0)*ivar_new
     gpm_new = (gpm_new_tmp > 0.8) & (ivar_new > 0.0) & np.isfinite(flux_new) & np.isfinite(ivar_new)
-    if blaze_function is not None:
-        return flux_new, ivar_new, gpm_new, blaze_new
+    if log10_blaze_function is not None:
+        return flux_new, ivar_new, gpm_new, log10_blaze_new
     else:
         return flux_new, ivar_new, gpm_new
 
@@ -584,7 +584,7 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, gpm_old, blaze_function=
 # TODO: ``sensfunc`` should be something like "conserve_flux". It would be
 # useful to compare these resampling routines against
 # `pypeit.sampling.Resample`.
-def interp_spec(wave_new, waves, fluxes, ivars, gpms, blaze_function=None, sensfunc=False):
+def interp_spec(wave_new, waves, fluxes, ivars, gpms, log10_blaze_function=None, sensfunc=False):
     """
     Interpolate a set of spectra onto a new wavelength grid.
 
@@ -646,7 +646,7 @@ def interp_spec(wave_new, waves, fluxes, ivars, gpms, blaze_function=None, sensf
     # single wavelength grid
     if wave_new.ndim == 1:
         if fluxes.ndim == 1:
-            return interp_oned(wave_new, waves, fluxes, ivars, gpms, blaze_function=blaze_function, sensfunc=sensfunc)
+            return interp_oned(wave_new, waves, fluxes, ivars, gpms, log10_blaze_function=log10_blaze_function, sensfunc=sensfunc)
 
         nexp = fluxes.shape[1]
         # Interpolate spectra to have the same wave grid with the iexp spectrum.
@@ -654,13 +654,13 @@ def interp_spec(wave_new, waves, fluxes, ivars, gpms, blaze_function=None, sensf
         fluxes_inter = np.zeros((wave_new.size, nexp), dtype=float)
         ivars_inter = np.zeros((wave_new.size, nexp), dtype=float)
         gpms_inter = np.zeros((wave_new.size, nexp), dtype=bool)
-        if blaze_function is not None:
-            blazes_inter = np.zeros((wave_new.size, nexp), dtype=float)
+        if log10_blaze_function is not None:
+            log10_blazes_inter = np.zeros((wave_new.size, nexp), dtype=float)
             for ii in range(nexp):
-                fluxes_inter[:,ii], ivars_inter[:,ii], gpms_inter[:,ii], blazes_inter[:,ii] \
+                fluxes_inter[:,ii], ivars_inter[:,ii], gpms_inter[:,ii], log10_blazes_inter[:,ii] \
                     = interp_oned(wave_new, waves[:,ii], fluxes[:,ii], ivars[:,ii], gpms[:,ii],
-                                  blaze_function = blaze_function[:, ii], sensfunc=sensfunc)
-            return fluxes_inter, ivars_inter, gpms_inter, blazes_inter
+                                  log10_blaze_function = log10_blaze_function[:, ii], sensfunc=sensfunc)
+            return fluxes_inter, ivars_inter, gpms_inter, log10_blazes_inter
         else:
             for ii in range(nexp):
                 fluxes_inter[:,ii], ivars_inter[:,ii], gpms_inter[:,ii] \
@@ -673,16 +673,16 @@ def interp_spec(wave_new, waves, fluxes, ivars, gpms, blaze_function=None, sensf
     fluxes_inter = np.zeros_like(wave_new, dtype=float)
     ivars_inter = np.zeros_like(wave_new, dtype=float)
     gpms_inter = np.zeros_like(wave_new, dtype=bool)
-    if blaze_function is not None:
-        blazes_inter = np.zeros_like(wave_new, dtype=float)
+    if log10_blaze_function is not None:
+        log10_blazes_inter = np.zeros_like(wave_new, dtype=float)
         for ii in range(wave_new.shape[1]):
-            fluxes_inter[:,ii], ivars_inter[:,ii], gpms_inter[:,ii], blazes_inter[:, ii] \
-                = interp_oned(wave_new[:,ii], waves, fluxes, ivars, gpms, blaze_function=blaze_function, sensfunc=sensfunc)
-        return fluxes_inter, ivars_inter, gpms_inter, blazes_inter
+            fluxes_inter[:,ii], ivars_inter[:,ii], gpms_inter[:,ii], log10_blazes_inter[:, ii] \
+                = interp_oned(wave_new[:,ii], waves, fluxes, ivars, gpms, log10_blaze_function=log10_blaze_function, sensfunc=sensfunc)
+        return fluxes_inter, ivars_inter, gpms_inter, log10_blazes_inter
     else:
         for ii in range(wave_new.shape[1]):
             fluxes_inter[:,ii], ivars_inter[:,ii], gpms_inter[:,ii] \
-                = interp_oned(wave_new[:,ii], waves, fluxes, ivars, gpms, blaze_function=blaze_function, sensfunc=sensfunc)
+                = interp_oned(wave_new[:,ii], waves, fluxes, ivars, gpms, log10_blaze_function=log10_blaze_function, sensfunc=sensfunc)
         return fluxes_inter, ivars_inter, gpms_inter
 
 

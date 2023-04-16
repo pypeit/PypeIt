@@ -114,7 +114,7 @@ class SensFunc(datamodel.DataContainer):
                  'counts',
                  'counts_ivar',
                  'counts_mask',
-                 'blaze_function',
+                 'log10_blaze_function',
                  'nspec_in',
                  'norderdet',
                  'wave_splice',
@@ -150,6 +150,8 @@ class SensFunc(datamodel.DataContainer):
                          description='Wavelength vector'),
             table.Column(name='SENS_COUNTS_PER_ANG', dtype=float, length=norders, shape=(nspec,),
                          description='Flux in counts per angstrom'),
+            table.Column(name='SENS_LOG10_BLAZE_FUNCTION', dtype=float, length=norders, shape=(nspec,),
+                         description='Log10 of the blaze function for each slit/order'),
             table.Column(name='SENS_ZEROPOINT', dtype=float, length=norders, shape=(nspec,),
                          description='Measured sensitivity zero-point data'),
             table.Column(name='SENS_ZEROPOINT_GPM', dtype=bool, length=norders, shape=(nspec,),
@@ -229,18 +231,29 @@ class SensFunc(datamodel.DataContainer):
         wave, counts, counts_ivar, counts_mask, trace_spec, trace_spat, self.meta_spec, header = sobjs_std.unpack_object(ret_flam=False)
 
         # Compute the blaze function
+        # TODO Make the blaze function optional
+        if par['flatfile'] is not None:
+            log10_blaze_function = self.compute_blaze(wave, trace_spec, trace_spat, par['flatfile'])
 
-        blaze_function = self.compute_blaze(wave, trace_spec, trace_spat, par['flatfile']) if par['flatfile'] is not None else np.ones_like(wave)
+            # Perform any instrument tweaks
+            wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk, log10_blaze_function_twk = \
+                self.spectrograph.tweak_standard(wave, counts, counts_ivar, counts_mask, self.meta_spec,
+                                                 log10_blaze_function=log10_blaze_function)
 
+            # Reshape to 2d arrays
+            self.wave_cnts, self.counts, self.counts_ivar, self.counts_mask, self.log10_blaze_function, self.nspec_in, \
+                self.norderdet = \
+                utils.spec_atleast_2d(wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk,
+                                      log10_blaze_function=log10_blaze_function_twk)
+        else:
+            # Perform any instrument tweaks
+            wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk = \
+                self.spectrograph.tweak_standard(wave, counts, counts_ivar, counts_mask, self.meta_spec)
 
-        # Perform any instrument tweaks
-        wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk, blaze_function_twk \
-                = self.spectrograph.tweak_standard(wave, counts, counts_ivar, counts_mask, blaze_function, self.meta_spec)
-
-        # Reshape to 2d arrays
-        self.wave_cnts, self.counts, self.counts_ivar, self.counts_mask, self.blaze_function, self.nspec_in, \
-            self.norderdet \
-                = utils.spec_atleast_2d(wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk, blaze_function_twk)
+            # Reshape to 2d arrays
+            self.wave_cnts, self.counts, self.counts_ivar, self.counts_mask, self.nspec_in, self.norderdet = \
+                utils.spec_atleast_2d(wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk)
+            self.log10_blaze_function = None
 
         # If the user provided RA and DEC use those instead of what is in meta
         star_ra = self.meta_spec['RA'] if self.par['star_ra'] is None else self.par['star_ra']
@@ -253,7 +266,7 @@ class SensFunc(datamodel.DataContainer):
                                                          star_mag=self.par['star_mag'],
                                                          ra=star_ra, dec=star_dec)
 
-    def compute_blaze(self, wave, trace_spec, trace_spat, flatfile, box_radius=10.0, debug=False):
+    def compute_blaze(self, wave, trace_spec, trace_spat, flatfile, box_radius=10.0, min_blaze_value=1e-3, debug=False):
 
 
         flatImages = flatfield.FlatImages.from_file(flatfile)
@@ -269,9 +282,22 @@ class SensFunc(datamodel.DataContainer):
 
         mask_box = (pixmsk != pixtot) & np.isfinite(wave) & (wave > 0.0)
 
-        blaze_function = flux_box*mask_box
+        # TODO This is ugly and redundant with spec_atleast_2d, but the order of operations compels me to do it this way
+        blaze_function = (np.clip(flux_box*mask_box, 1e-3, 1e9)).reshape(-1,1) if flux_box.ndim == 1 else flux_box*mask_box
+        log10_blaze_function = np.zeros_like(blaze_function)
+        norddet = log10_blaze_function.shape[1]
+        debug=True
+        for iorddet in range(norddet):
+            blaze_function_smooth = utils.fast_running_median(blaze_function[:, iorddet], 5)
+            blaze_function_norm = blaze_function_smooth/blaze_function_smooth.max()
+            log10_blaze_function[:, iorddet] = np.log10(np.clip(blaze_function_norm, min_blaze_value, None))
+            if debug:
+                #plt.plot(wave[:, iorddet],log10_blaze_function[:,iorddet])
+                plt.plot(log10_blaze_function[:,iorddet])
+        if debug:
+            plt.show()
 
-        return blaze_function
+        return log10_blaze_function
 
 
     def _bundle(self):
@@ -762,9 +788,10 @@ class IRSensFunc(SensFunc):
             Best-fitting telluric model
         """
         self.telluric = telluric.sensfunc_telluric(self.wave_cnts, self.counts, self.counts_ivar,
-                                                   self.counts_mask, self.blaze_function, self.meta_spec['EXPTIME'],
+                                                   self.counts_mask, self.meta_spec['EXPTIME'],
                                                    self.meta_spec['AIRMASS'], self.std_dict,
                                                    self.par['IR']['telgridfile'],
+                                                   log10_blaze_function=self.log10_blaze_function,
                                                    polyorder=self.par['polyorder'],
                                                    ech_orders=self.meta_spec['ECH_ORDERS'],
                                                    resln_guess=self.par['IR']['resln_guess'],
@@ -819,7 +846,11 @@ class IRSensFunc(SensFunc):
             # Compute and assign the zeropint_data from the input data and the
             # best-fit telluric model
             self.sens['SENS_WAVE'][i,s[i]:e[i]] = self.telluric.wave_grid[s[i]:e[i]]
-            self.sens['SENS_BLAZE_FUNCTION'][i,s[i]:e[i]] = self.telluric.blaze_func_arr[s[i]:e[i],i]
+            if self.log10_blaze_function is not None:
+                log10_blaze_function_iord = self.telluric.log10_blaze_func_arr[s[i]:e[i],i]
+                self.sens['SENS_LOG10_BLAZE_FUNCTION'][i,s[i]:e[i]] = self.telluric.log10_blaze_func_arr[s[i]:e[i],i]
+            else:
+                log10_blaze_function_iord = None
             self.sens['SENS_ZEROPOINT_GPM'][i,s[i]:e[i]] = self.telluric.mask_arr[s[i]:e[i],i]
             self.sens['SENS_COUNTS_PER_ANG'][i,s[i]:e[i]] = self.telluric.flux_arr[s[i]:e[i],i]
             N_lam = self.sens['SENS_COUNTS_PER_ANG'][i,s[i]:e[i]] / self.exptime
@@ -831,11 +862,11 @@ class IRSensFunc(SensFunc):
             # TODO: func is always 'legendre' because that is what's set by
             # sensfunc_telluric
             self.sens['SENS_ZEROPOINT_FIT'][i,s[i]:e[i]] \
-                    = fitting.evaluate_fit(self.sens['SENS_COEFF'][
-                                                i,:self.sens['POLYORDER_VEC'][i]+2],
-                                           self.telluric.func, self.sens['SENS_WAVE'][i,s[i]:e[i]],
-                                           minx=self.sens['WAVE_MIN'][i],
-                                           maxx=self.sens['WAVE_MAX'][i])*self.sens['SENS_BLAZE_FUNCTION'][i,s[i]:e[i]]
+                    = flux_calib.eval_zeropoint(
+                self.sens['SENS_COEFF'][i,:self.sens['POLYORDER_VEC'][i]+2],
+                self.telluric.func, self.sens['SENS_WAVE'][i,s[i]:e[i]],
+                self.sens['WAVE_MIN'][i], self.sens['WAVE_MAX'][i],
+                log10_blaze_func_per_ang=log10_blaze_function_iord)
             self.sens['SENS_ZEROPOINT_FIT_GPM'][i,s[i]:e[i]] = self.telluric.outmask_list[i]
 
     def eval_zeropoint(self, wave, iorddet):
@@ -856,14 +887,18 @@ class IRSensFunc(SensFunc):
         s = self.telluric.model['IND_LOWER']
         e = self.telluric.model['IND_UPPER']+1
         # TODO: Not sure what else to do here
-        blaze_function = scipy.interpolate.interp1d(
-            self.sens['SENS_WAVE'][iorddet,s[iorddet],e[iorddet]],
-            self.sens['SENS_BLAZE_FUNCTION'][iorddet,s[iorddet]:e[iorddet]],
-            kind='linear', bounds_error=False, fill_value='extrapolate')(wave)
-        return fitting.evaluate_fit(self.sens['SENS_COEFF'][
-                                        iorddet,:self.telluric.model['POLYORDER_VEC'][iorddet]+2],
-                                    self.telluric.func, wave, minx=self.sens['WAVE_MIN'][iorddet],
-                                    maxx=self.sens['WAVE_MAX'][iorddet])*blaze_function
+        if self.log10_blaze_function is not None:
+            log10_blaze_function = scipy.interpolate.interp1d(
+                self.sens['SENS_WAVE'][iorddet,s[iorddet]:e[iorddet]],
+                self.sens['SENS_LOG10_BLAZE_FUNCTION'][iorddet,s[iorddet]:e[iorddet]],
+                kind='linear', bounds_error=False, fill_value='extrapolate')(wave)
+        else:
+            log10_blaze_function = None
+
+        return flux_calib.eval_zeropoint(
+            self.sens['SENS_COEFF'][iorddet,:self.telluric.model['POLYORDER_VEC'][iorddet]+2],
+            self.telluric.func, wave, self.sens['WAVE_MIN'][iorddet], self.sens['WAVE_MAX'][iorddet],
+            log10_blaze_func_per_ang=log10_blaze_function)
 
 
 class UVISSensFunc(SensFunc):

@@ -1091,6 +1091,17 @@ def get_mask(wave_star, flux_star, ivar_star, mask_star,
 
 
 # These are physical limits on the allowed values of the zeropoint in magnitudes
+def eval_zeropoint(theta, func, wave, wave_min, wave_max, log10_blaze_func_per_ang=None):
+    """ Evaluate the zeropoint model.
+
+    """
+    poly_model = fitting.evaluate_fit(theta, func, wave, minx=wave_min, maxx=wave_max)
+    zeropoint = poly_model - 5.0 * np.log10(wave) + ZP_UNIT_CONST
+    if log10_blaze_func_per_ang is not None:
+        zeropoint += 2.5*log10_blaze_func_per_ang
+
+    return zeropoint
+
 
 def Nlam_to_Flam(wave, zeropoint, zp_min=5.0, zp_max=30.0):
     r"""
@@ -1135,7 +1146,7 @@ def Flam_to_Nlam(wave, zeropoint, zp_min=5.0, zp_max=30.0):
     Returns
     -------
     factor: `numpy.ndarray`_
-        Factor that when multiplied into F_lam converts to N_lam
+        Factor that when multiplied into F_lam converts to N_lam, i.e. 1/S_lam
 
     """
     gpm = (wave > 1.0) & (zeropoint > zp_min) & (zeropoint < zp_max)
@@ -1157,7 +1168,7 @@ def compute_zeropoint(wave, N_lam, N_lam_gpm, flam_std_star, tellmodel=None):
     N_lam_gpm: `numpy.ndarray`_
         N_lam mask, good pixel mask, boolean, shape (nspec,)
     flam_std_star: `numpy.ndarray`_
-        True standard star spectrum units set of PYPEIT_FLUX_SCALE erg/s/cm^2/sm/Angstrom
+        True standard star spectrum in units of PYPEIT_FLUX_SCALE erg/s/cm^2/sm/Angstrom
     tellmodel: `numpy.ndarray`_
         Telluric absorption model, optional, shape (nspec,)
 

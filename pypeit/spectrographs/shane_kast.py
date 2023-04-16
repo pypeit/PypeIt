@@ -514,7 +514,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         # Return
         return par
 
-    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, blaze_function_in, meta_table):
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table, log10_blaze_function=None):
         """
 
         This routine is for performing instrument/disperser specific tweaks to standard stars so that sensitivity
@@ -555,12 +555,14 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
             edge_region= (wave_in < 5400.0) | (wave_in > 8785.0)
             gpm_out = gpm_in & np.logical_not(edge_region)
             # TODO Is this correct?
-            blaze_function_out = blaze_function_in * gpm_out
         else:
             gpm_out = gpm_in
-            blaze_function_out = blaze_function_in
 
-        return wave_in, counts_in, counts_ivar_in, gpm_out, blaze_function_out
+        if log10_blaze_function is not None:
+            log10_blaze_function_out = log10_blaze_function * gpm_out
+            return wave_in, counts_in, counts_ivar_in, gpm_out, log10_blaze_function_out
+        else:
+            return wave_in, counts_in, counts_ivar_in, gpm_out
 
 
 
