@@ -17,7 +17,7 @@ from scipy.interpolate import interp1d, RegularGridInterpolator, RBFInterpolator
 import numpy as np
 
 from pypeit import msgs
-from pypeit import alignframe, datamodel, flatfield, io, masterframe, specobj, spec2dobj, utils
+from pypeit import alignframe, datamodel, flatfield, io, masterframe, specobj, spec2dobj, utils, wavecalib
 from pypeit.core.flexure import calculate_image_phase
 from pypeit.core import coadd, extract, findobj_skymask, flux_calib, parse, skysub
 from pypeit.core.procimg import grow_mask
