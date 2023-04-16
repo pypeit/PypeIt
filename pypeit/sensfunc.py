@@ -32,6 +32,7 @@ from pypeit.core.moment import moment1d
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import datamodel
 from pypeit import flatfield
+from pypeit.fluxcalibrate import apply_flux_calib
 
 
 # TODO Add the data model up here as a standard thing using DataContainer.
@@ -107,9 +108,11 @@ class SensFunc(datamodel.DataContainer):
     internals = ['sensfile',
                  'spectrograph',
                  'par',
+                 'par_fluxcalib',
                  'qafile',
                  'thrufile',
                  'debug',
+                 'sobjs_std',
                  'wave_cnts',
                  'counts',
                  'counts_ivar',
@@ -203,6 +206,8 @@ class SensFunc(datamodel.DataContainer):
 
         # Get the algorithm parameters
         self.par = self.spectrograph.default_pypeit_par()['sensfunc'] if par is None else par
+        # TODO Should we allow the user to pass this in?
+        self.par_fluxcalib = self.spectrograph.default_pypeit_par()['fluxcalib']
         # TODO: Check the type of the parameter object?
 
         # Set the algorithm in the datamodel
@@ -220,15 +225,14 @@ class SensFunc(datamodel.DataContainer):
         self.splice_multi_det = True if self.par['multi_spec_det'] is not None else False
 
         # Read in the Standard star data
-        sobjs_std = specobjs.SpecObjs.from_fitsfile(self.spec1df).get_std(
-                            multi_spec_det=self.par['multi_spec_det'])
+        self.sobjs_std = specobjs.SpecObjs.from_fitsfile(self.spec1df).get_std(multi_spec_det=self.par['multi_spec_det'])
 
-        if sobjs_std is None:
+        if self.sobjs_std is None:
             msgs.error('There is a problem with your standard star spec1d file: {:s}'.format(self.spec1df))
 
 
         # Unpack standard
-        wave, counts, counts_ivar, counts_mask, trace_spec, trace_spat, self.meta_spec, header = sobjs_std.unpack_object(ret_flam=False)
+        wave, counts, counts_ivar, counts_mask, trace_spec, trace_spat, self.meta_spec, header = self.sobjs_std.unpack_object(ret_flam=False)
 
         # Compute the blaze function
         # TODO Make the blaze function optional
@@ -419,6 +423,10 @@ class SensFunc(datamodel.DataContainer):
 
         # Compute the throughput
         self.throughput, self.throughput_splice = self.compute_throughput()
+
+        # Now flux the standard star
+        apply_flux_calib(self.par_fluxcalib, self.spectrograph, self.sobjs_std, self)
+        # TODO assign this to the data model
 
         # Write out QA and throughput plots
         self.write_QA()
