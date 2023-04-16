@@ -9,13 +9,23 @@ from IPython import embed
 from pypeit.scripts import scriptbase
 
 from pypeit import slittrace
+from pypeit import msgs
 
 
 def print_slits(slits):
     # bitmask
     bitmask = slittrace.SlitTraceBitMask()
-    print(f'{"SpatID":<8} {"MaskID":<8} {"MaskOFF (pix)":<14} {"Flags":<20}')
-    for slit_idx, slit_spat in enumerate(slits.spat_id):
+    if slits.pypeline  in ['Mulitslit', 'IFU']:
+        slitord_id = slits.spat_id
+        slit_label = 'SpatID'
+    elif slits.pypeline == 'Echelle':
+        slitord_id = slits.slitord_id
+        slit_label = 'Order'
+    else:
+        msgs.error('Not ready for this pypeline: {0}'.format(slits.pypeline))
+    print(f'{slit_label:<8} {"MaskID":<8} {"MaskOFF (pix)":<14} {"Flags":<20}')
+    # TODO JFH No need to print out the MaskID and MaskOFF for echelle
+    for slit_idx, slit_spat in enumerate(slitord_id):
         maskdefID = 0 if slits.maskdef_id is None else slits.maskdef_id[slit_idx]
         maskoff = 0 if slits.maskdef_offset is None else slits.maskdef_offset
         # Flags
