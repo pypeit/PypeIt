@@ -570,14 +570,14 @@ class FlatField:
             # If we're only doing the spatial illumination profile, the detector structure
             # has already been divided out by the pixel flat. No need to calculate structure
             if not self.spat_illum_only:
-                niter = 2  # Need two iterations, particularly for the fine spatial illumination correction.
+                niter = 1  # Need two iterations, particularly for the fine spatial illumination correction.
                 det_resp_model = 1  # Initialise detector structure to a value of 1 (i.e. no detector structure)
                 for ff in range(niter):
                     # If we're only doing the spatial illumination profile, the detector structure
                     # has already been divided out by the pixel flat.
                     if self.spat_illum_only:
                         break
-                    msgs.info("Iteration {0:d} of 2D detector response extraction".format(ff+1))
+                    msgs.info("Iteration {0:d}/{{1:d}} of 2D detector response extraction".format(ff+1, niter))
                     # Extract a detector response image
                     det_resp = self.extract_structure(rawflat_orig)
                     gpmask = (self.waveimg != 0.0) & gpm
@@ -585,13 +585,14 @@ class FlatField:
                     det_resp_model = self.spectrograph.fit_2d_det_response(det_resp, gpmask)
                     # Apply this model
                     self.rawflatimg.image = rawflat_orig * utils.inverse(det_resp_model)
-                    if doqa:
-                        # TODO :: Probably need to pass in det when more spectrographs implement a structure correction...
-                        outfile = qa.set_qa_filename("DetectorStructure_" + self.master_key, 'detector_structure',
-                                                     det="DET01", out_dir=self.qa_path)
-                        detector_structure_qa(det_resp, det_resp_model, outfile=outfile)
                     # Perform a 2D fit with the cleaned image
                     self.fit(spat_illum_only=self.spat_illum_only, doqa=doqa, debug=debug)
+                # Save the QA, if requested
+                if doqa:
+                    # TODO :: Probably need to pass in det when more spectrographs implement a structure correction...
+                    outfile = qa.set_qa_filename("DetectorStructure_" + self.master_key, 'detector_structure',
+                                                 det="DET01", out_dir=self.qa_path)
+                    detector_structure_qa(det_resp, det_resp_model, outfile=outfile)
                 # Include the structure in the flat model and the pixelflat
                 self.mspixelflat *= det_resp_model
                 # Reset the rawimg
@@ -1447,7 +1448,7 @@ class FlatField:
                                   outfile=outfile, title=title, half_slen=slitlen//2)
         return
 
-    def extract_structure(self, rawflat_orig):
+    def extract_structure(self, rawflat_orig, slit_trim=3):
         """
         Generate a relative scaling image for a slit-based IFU. All
         slits are scaled relative to a reference slit, specified in
@@ -1490,15 +1491,17 @@ class FlatField:
                                              model=None, gpmask=gpm, skymask=None, trim=self.flatpar['slit_trim'],
                                              flexure=self.wavetilts.spat_flexure,
                                              smooth_npix=self.flatpar['slit_illum_smooth_npix'])
-        # Construct a wavelength array
+        # Trim the edges by a few pixels to avoid edge effects
+        onslits_trim = gpm & (self.slits.slit_img(pad=-slit_trim, initial=False) != -1)
         onslits = (self.waveimg != 0.0) & gpm
+        # Construct a wavelength array
         minwv = np.min(self.waveimg[onslits])
         maxwv = np.max(self.waveimg)
         wavebins = np.linspace(minwv, maxwv, self.slits.nspec)
         # Correct the raw flat for spatial illumination, then generate a spectrum
         rawflat_corr = rawflat * utils.inverse(scale_model)
-        hist, edge = np.histogram(self.waveimg[onslits], bins=wavebins, weights=rawflat_corr[onslits])
-        cntr, edge = np.histogram(self.waveimg[onslits], bins=wavebins)
+        hist, edge = np.histogram(self.waveimg[onslits_trim], bins=wavebins, weights=rawflat_corr[onslits_trim])
+        cntr, edge = np.histogram(self.waveimg[onslits_trim], bins=wavebins)
         cntr = cntr.astype(float)
         spec_ref = hist * utils.inverse(cntr)
         wave_ref = 0.5 * (wavebins[1:] + wavebins[:-1])
