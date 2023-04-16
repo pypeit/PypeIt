@@ -24,6 +24,7 @@ from ginga.util import grc
 
 from pypeit import msgs
 from pypeit import io
+from pypeit import utils
 
 def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=False):
     """
@@ -476,24 +477,6 @@ def show_trace(viewer, ch, trace, trc_name=None, maskdef_extr=None, manual_extr=
     canvas = viewer.canvas(ch._chname)
     if clear:
         canvas.clear()
-    # # Show
-    # if yval is None:
-    #     y = (np.arange(trace.size)[::pstep]).tolist()
-    # else:
-    #     y = yval[::pstep].tolist()
-    # trace_list = trace[::pstep].tolist()
-    # xy = [trace_list, y]
-    # if rotate:
-    #     xy[0], xy[1] = xy[1], xy[0]
-    # points = list(zip(xy[0], xy[1]))
-    # canvas.add(str('path'), points, color=str(color))
-    # # Text
-    # ohf = len(trace_list)//2
-    # xyt = [float(trace_list[ohf]), float(y[ohf])]
-    # if rotate:
-    #     xyt[0], xyt[1] = xyt[1], xyt[0]
-    # # Do it
-    # canvas.add(str('text'), xyt[0], xyt[1], trc_name, rot_deg=90., color=str(color), fontsize=17.)
 
     if trace.ndim == 1:
         trace = trace.reshape(-1,1)
@@ -556,7 +539,7 @@ def clear_all(allow_new=False):
         shell.delete_channel(ch)
 
 
-def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, clear_canvas=False):
+def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, pstep=3, clear_canvas=False):
     """
     Show the arc tilts on the input channel
 
@@ -573,10 +556,16 @@ def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, clear_can
             Offset tilts by this amount
         points (bool, optional):
             Plot the Gaussian-weighted tilt centers
+        pstep (int, optional):
+            Show every pstep point of the tilts as opposed to *every*
+            point, recommended for speed.
         clear_canvas (bool, optional):
             Clear the canvas first?
 
     """
+    if tilt_traces['slit_ledges'][0].size == 0:
+        return msgs.error('No tilts have been traced or fitted')
+
     canvas = viewer.canvas(ch._chname)
     if clear_canvas:
         canvas.clear()
@@ -597,23 +586,56 @@ def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, clear_can
         canvas_list += [dict(type='squarebox', args=(float(badpix_spat[i]), float(badpix_tilt[i]), 1),
                              kwargs=dict(color='red', fill=True, fillalpha=0.5)) for i in range(badpix_tilt.size)]
 
-    # Now plot the polynomial fits to the Gaussian weighted centroids
-    if tilt_traces['good2dfit_tilt'][0].size > 0:
-        good2dfit_spat = tilt_traces['good2dfit_spat'][0] + xoff
-        good2dfit_tilt = tilt_traces['good2dfit_tilt'][0] + yoff
-        canvas_list += [dict(type='squarebox', args=(float(good2dfit_spat[i]), float(good2dfit_tilt[i]), 0.5),
-                             kwargs=dict(color='blue', fill=True, fillalpha=0.5)) for i in range(good2dfit_tilt.size)]
-    if tilt_traces['bad2dfit_tilt'][0].size > 0:
-        bad2dfit_spat = tilt_traces['bad2dfit_spat'][0] + xoff
-        bad2dfit_tilt = tilt_traces['bad2dfit_tilt'][0] + yoff
-        canvas_list += [dict(type='squarebox', args=(float(bad2dfit_spat[i]), float(bad2dfit_tilt[i]), 0.5),
-                             kwargs=dict(color='magenta', fill=True, fillalpha=0.5)) for i in range(bad2dfit_tilt.size)]
+    # Now plot the 2D fitted tilts
+    # loop over each slit
+    for i in range(tilt_traces['slit_ledges'][0].size):
+        # good fit
+        this_slit = (tilt_traces['good2dfit_spat'][0] < tilt_traces['slit_redges'][0][i]) & \
+                    (tilt_traces['good2dfit_spat'][0] > tilt_traces['slit_ledges'][0][i])
+        if np.any(this_slit):
+            good2dfit_spat = tilt_traces['good2dfit_spat'][0][this_slit]
+            good2dfit_tilt = tilt_traces['good2dfit_tilt'][0][this_slit]
+            # try to split the array into each line. This is for improving speed
+            # sort tilts
+            tsort = np.argsort(good2dfit_tilt)
+            # find values that are close together
+            close = np.diff(good2dfit_tilt[tsort]) < 0.5
+            # divide into slices, each including a line
+            lines = utils.contiguous_true(close)
+            # plot
+            for iline in lines:
+                x = good2dfit_spat[tsort][iline] + xoff
+                y = good2dfit_tilt[tsort][iline] + xoff
+                canvas_list += [dict(type=str('path'),args=(list(zip(x[::pstep].tolist(), y[::pstep].tolist())),),
+                                     kwargs=dict(color='blue', linewidth=2))]
+
+        # rejected fit
+        this_slit = (tilt_traces['bad2dfit_spat'][0] < tilt_traces['slit_redges'][0][i]) & \
+                    (tilt_traces['bad2dfit_tilt'][0] > tilt_traces['slit_ledges'][0][i])
+        if np.any(this_slit):
+            bad2dfit_spat = tilt_traces['bad2dfit_spat'][0][this_slit]
+            bad2dfit_tilt = tilt_traces['bad2dfit_tilt'][0][this_slit]
+            # try to split the array into each line. This is for improving speed
+            # sort tilts
+            tsort = np.argsort(bad2dfit_tilt)
+            # find values that are close together
+            close = np.diff(bad2dfit_tilt[tsort]) < 0.5
+            # divide into slices, each including a line
+            lines = utils.contiguous_true(close)
+            # plot
+            for iline in lines:
+                x = bad2dfit_spat[tsort][iline] + xoff
+                y = bad2dfit_tilt[tsort][iline] + xoff
+
+                canvas_list += [dict(type=str('path'),
+                                     args=(list(zip(x[::pstep].tolist(), y[::pstep].tolist())),),
+                                     kwargs=dict(color='yellow', linewidth=2))]
 
     # Add text
     text_xpos = 50
     start_ypos = 50
     text_ypos = [start_ypos + 90, start_ypos + 60, start_ypos + 30, start_ypos]
-    text_color = ['blue', 'magenta', 'cyan', 'red']
+    text_color = ['blue', 'yellow', 'cyan', 'red']
     text_str = ['Good tilt fit', 'Rejected in fit', 'Good pixel', 'Masked pixel']
     canvas_list += [dict(type='text', args=(float(text_xpos), float(text_ypos[i]), str(text_str[i])),
                     kwargs=dict(color=text_color[i], fontsize=20)) for i in range(len(text_str))]

@@ -777,6 +777,8 @@ class BuildWaveTilts:
             `astropy.table.Table`_: Table including the traced and fitted tilts for each slit.
             Columns are:
 
+                - slit_ledges: Spatial pixels of the left slit edges (mean over the spectral range)
+                - slit_redges: Spatial pixels of the right slit edges (mean over the spectral range)
                 - goodpix_spat: Good spatial pixels of the traced tilts
                 - goodpix_tilt: Good spectral pixels  of the traced tilts
                 - badpix_spat: Masked spatial pixels of the traced tilts
@@ -803,9 +805,16 @@ class BuildWaveTilts:
         bad2dfit_spat = np.array([])
         bad2dfit_tilt = np.array([])
 
+        slit_ledges = np.array([])
+        slit_redges = np.array([])
+
         # fill the arrays
         for i, trc in enumerate(self.all_trace_dict):
             if trc is not None:
+                slit_ledges = np.append(slit_ledges, np.mean(self.slits.left_tweak[:, i])
+                    if self.slits.left_tweak is not None else np.mean(self.slits.left_init[:, i]))
+                slit_redges = np.append(slit_redges, np.mean(self.slits.right_tweak[:, i])
+                    if self.slits.right_tweak is not None else np.mean(self.slits.right_init[:, i]))
                 gpix = trc['tot_mask']
                 goodpix_spat = np.append(goodpix_spat, trc['tilts_spat'].flatten()[gpix.flatten()])
                 goodpix_tilt = np.append(goodpix_tilt, trc['tilts'].flatten()[gpix.flatten()])
@@ -821,6 +830,9 @@ class BuildWaveTilts:
 
         # fill the table
         tbl_tilt_traces = table.Table()
+        # slit edges
+        tbl_tilt_traces['slit_ledges'] = np.expand_dims(slit_ledges, axis=0)
+        tbl_tilt_traces['slit_redges'] = np.expand_dims(slit_redges, axis=0)
         # traced tilts
         tbl_tilt_traces['goodpix_spat'] = np.expand_dims(goodpix_spat, axis=0)
         tbl_tilt_traces['goodpix_tilt'] = np.expand_dims(goodpix_tilt, axis=0)
@@ -887,7 +899,7 @@ def show_tilts_mpl(tilt_img, tilt_traces, slits=None, cut=None):
     w, h = plt.figaspect(1)
     fig = plt.figure(figsize=(1.5 * w, 1.5 * h))
 
-    plt.imshow(tilt_img, origin='lower', interpolation='nearest', aspect='auto',
+    plt.imshow(tilt_img, origin='lower', interpolation='nearest', aspect='auto', cmap='gray',
                vmin=cut[0], vmax=cut[1])
 
     if tilt_traces['goodpix_tilt'][0].size > 0:
@@ -900,7 +912,7 @@ def show_tilts_mpl(tilt_img, tilt_traces, slits=None, cut=None):
         plt.scatter(tilt_traces['good2dfit_spat'][0], tilt_traces['good2dfit_tilt'][0], color='blue',
                     marker='s', s=5, lw=0, label='Good tilt fit')
     if tilt_traces['bad2dfit_tilt'][0].size > 0:
-        plt.scatter(tilt_traces['bad2dfit_spat'][0], tilt_traces['bad2dfit_tilt'][0], color='magenta',
+        plt.scatter(tilt_traces['bad2dfit_spat'][0], tilt_traces['bad2dfit_tilt'][0], color='yellow',
                     marker='s', s=5, lw=0, label='Rejected in fit')
 
     if slits is not None:
@@ -910,11 +922,12 @@ def show_tilts_mpl(tilt_img, tilt_traces, slits=None, cut=None):
         for i in range(left.shape[1]):
             if gpm[i]:
                 spec = np.arange(left[:, i].size)
-                plt.plot(left[::pstep, i], spec[::pstep], color='C3', lw=1)
-                plt.plot(right[::pstep, i], spec[::pstep], color='C1', lw=1)
-                x_spatid = left[spec.size//2, i] + 0.45*(right[spec.size//2, i] - left[spec.size//2, i])
+                plt.plot(left[::pstep, i], spec[::pstep], color='green', lw=2)
+                plt.plot(right[::pstep, i], spec[::pstep], color='magenta', lw=2)
+                x_spatid = left[spec.size//2, i] + 0.10*(right[spec.size//2, i] - left[spec.size//2, i])
                 y_spatid = spec[spec.size//2]
-                plt.text(x_spatid, y_spatid, str(slits.spat_id[i]), color='k', fontsize=10, alpha=0.7, weight='bold')
+                plt.text(x_spatid, y_spatid, str(slits.spat_id[i]), color='aquamarine', fontsize=10, alpha=1,
+                         weight='bold', rotation='vertical')
 
     plt.legend()
     plt.ylabel('Spectral pixel index')
