@@ -572,6 +572,7 @@ class FlatField:
             if not self.spat_illum_only:
                 niter = 1  # Need two iterations, particularly for the fine spatial illumination correction.
                 det_resp_model = 1  # Initialise detector structure to a value of 1 (i.e. no detector structure)
+                onslits = self.slits.slit_img(pad=-self.flatpar['slit_trim'], initial=False) != -1
                 for ff in range(niter):
                     # If we're only doing the spatial illumination profile, the detector structure
                     # has already been divided out by the pixel flat.
@@ -581,7 +582,7 @@ class FlatField:
                     # Extract a detector response image
                     det_resp = self.extract_structure(rawflat_orig)
                     # Trim the slits to avoid edge effects
-                    gpmask = (self.waveimg != 0.0) & gpm & (self.slits.slit_img(pad=-3, initial=False) != -1)
+                    gpmask = (self.waveimg != 0.0) & gpm & onslits
                     # Model the 2D detector response in an instrument specific way
                     det_resp_model = self.spectrograph.fit_2d_det_response(det_resp, gpmask)
                     # Apply this model
@@ -1887,7 +1888,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
         scaleImg *= relscl_model
         #rawimg_copy /= relscl_model
         modelimg_copy /= relscl_model
-        if max(abs(1/minv), abs(maxv)) < 1.001:  # Relative accruacy of 0.1% is sufficient
+        if max(abs(1/minv), abs(maxv)) < 1.005:  # Relative accruacy of 0.5% is sufficient
             break
     debug = False
     if debug:
