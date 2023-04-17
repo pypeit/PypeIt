@@ -1460,6 +1460,10 @@ class FlatField:
         ----------
         rawflat_orig : `numpy.ndarray`_
             The original raw image of the flatfield
+        slit_trim : int, optional
+            Trim the slit edges by this number of pixels during the fitting. Note that the
+            fit will be evaluated on the pixels indicated by onslit_tweak.
+            A positive number trims the slit edges, a negative number pads the slit edges.
 
         Returns
         -------
