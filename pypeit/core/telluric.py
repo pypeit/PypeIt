@@ -261,7 +261,7 @@ def conv_telluric(tell_model, dloglam, res):
             general  different from the size of the telluric grid (read in by read_telluric_grid above) because it is
             trimmed to relevant wavelenghts using ind_lower, ind_upper. See eval_telluric below.
         dloglam (float):
-            Wavelength spacing of the telluric grid expressed as a a dlog10(lambda), i.e. stored in the
+            Wavelength spacing of the telluric grid expressed as a dlog10(lambda), i.e. stored in the
             tell_dict as tell_dict['dloglam']
         res (float):
             Desired resolution expressed as lambda/dlambda. Note that here dlambda is linear, whereas dloglam is
@@ -273,15 +273,20 @@ def conv_telluric(tell_model, dloglam, res):
 
     """
 
+
     pix_per_sigma = 1.0/res/(dloglam*np.log(10.0))/(2.0 * np.sqrt(2.0 * np.log(2))) # number of dloglam pixels per 1 sigma dispersion
     sig2pix = 1.0/pix_per_sigma # number of sigma per 1 pix
-    #conv_model = scipy.ndimage.gaussian_filter1d(tell_model, pix)
-    # x = loglam/sigma on the wavelength grid from -4 to 4, symmetric, centered about zero.
-    x = np.hstack([-1*np.flip(np.arange(sig2pix,4,sig2pix)),np.arange(0,4,sig2pix)])
-    # g = Gaussian evaluated at x, sig2pix multiplied in to properly normalize the convolution
-    g = (1.0/(np.sqrt(2*np.pi)))*np.exp(-0.5*(x)**2)*sig2pix
-    conv_model = scipy.signal.convolve(tell_model,g,mode='same')
-    return conv_model
+    if sig2pix > 2.0:
+        msgs.warn('The telluric model grid is not sampled finely enough to properly convolve to the desired resolution. '
+                  'Skipping resolution convolution for now. Create a higher resolution telluric model grid')
+        return tell_model
+    else:
+        # x = loglam/sigma on the wavelength grid from -4 to 4, symmetric, centered about zero.
+        x = np.hstack([-1*np.flip(np.arange(sig2pix,4,sig2pix)),np.arange(0,4,sig2pix)])
+        # g = Gaussian evaluated at x, sig2pix multiplied in to properly normalize the convolution
+        g = (1.0/(np.sqrt(2*np.pi)))*np.exp(-0.5*(x)**2)*sig2pix
+        conv_model = scipy.signal.convolve(tell_model,g,mode='same')
+        return conv_model
 
 def shift_telluric(tell_model, loglam, dloglam, shift, stretch):
     """
@@ -786,7 +791,7 @@ def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, gpm, tellm
                                            tellmodel=tellmodel)
 
     zeropoint_poly = zeropoint_data + 5.0*np.log10(wave) - ZP_UNIT_CONST
-    if obj_params['log10_blaze_func_per_ang']  is not None:
+    if obj_params['log10_blaze_func_per_ang'] is not None:
         zeropoint_poly -= 2.5*obj_params['log10_blaze_func_per_ang']
     # Perform an initial fit to the sensitivity function to set the starting
     # point for optimization
@@ -800,11 +805,13 @@ def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, gpm, tellm
     zeropoint_fit_gpm = pypeitFit.bool_gpm
 
 
-    if obj_params['debug']:
-        polyfit = pypeitFit.eval(wave)
-        title = 'Polyfit Initialization Guess for order/det={:d}'.format(iord + 1)
-        flux_calib.zeropoint_qa_plot(wave, zeropoint_poly, zeropoint_data_gpm, polyfit,
-                                     zeropoint_fit_gpm, title=title, show=True)
+    #if obj_params['debug']:
+    #    polyfit = pypeitFit.eval(wave)
+    #    title = 'Polyfit Initialization Guess for order/det={:d}'.format(iord + 1)
+    #    flux_calib.zeropoint_qa_plot(wave, zeropoint_poly, zeropoint_data_gpm, polyfit,
+    #                                 zeropoint_fit_gpm, title=title, show=True)
+
+
 
 
     # Polynomial coefficient bounds
@@ -825,7 +832,17 @@ def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, gpm, tellm
     if obj_params['debug']:
         title = 'Zeropoint Initialization Guess for order/det={:d}'.format(iord + 1)  # +1 to account 0-index starting
         flux_calib.zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit,
-                                    zeropoint_fit_gpm, title=title, show=True)  
+                                    zeropoint_fit_gpm, title=title, show=True)
+        #s_lam = flux_calib.Nlam_to_Flam(wave, zeropoint_fit)
+        #plt.plot(wave, s_lam*N_lam, color='r', label='F_lam from fit')
+        #plt.plot(wave, flam_true, color='g', label='F_lam from fit')
+        #plt.show()
+
+        #embed()
+        # TESTING
+        #sens_factor = flux_calib.get_sensfunc_factor(, wave, zeropoint_fit, obj_params['exptime'], tellmodel=tellmodel)
+
+
     return obj_dict, bounds_obj
 
 
@@ -2466,6 +2483,7 @@ class Telluric(datamodel.DataContainer):
         plt.ylabel('Flux or Counts')
         plt.title('QA plot for order/det: {:d}/{:d}'.format(iord + 1, self.norders))   # +1 to account 0-index starting
         plt.show()
+
 
     def init_output(self):
         """

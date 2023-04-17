@@ -109,9 +109,7 @@ class FluxCalib(scriptbase.ScriptBase):
                        'Run pypeit_flux_calib --help for information on the format')
 
         # Instantiate
-        FxCalib = fluxcalibrate.FluxCalibrate.get_instance(
-            fluxFile.filenames, sensfiles, 
-            par=par['fluxcalib'], debug=args.debug)
+        FxCalib = fluxcalibrate.FluxCalibrate(fluxFile.filenames, sensfiles, par=par['fluxcalib'], debug=args.debug)
         msgs.info('Flux calibration complete')
         return 0
 

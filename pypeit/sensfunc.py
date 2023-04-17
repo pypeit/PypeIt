@@ -111,6 +111,7 @@ class SensFunc(datamodel.DataContainer):
                  'par_fluxcalib',
                  'qafile',
                  'thrufile',
+                 'fstdfile',
                  'debug',
                  'sobjs_std',
                  'wave_cnts',
@@ -133,7 +134,7 @@ class SensFunc(datamodel.DataContainer):
     """Algorithm used for the sensitivity calculation."""
 
     @staticmethod
-    def empty_sensfunc_table(norders, nspec, ncoeff=1):
+    def empty_sensfunc_table(norders, nspec, nspec_in, ncoeff=1):
         """
         Construct an empty `astropy.table.Table`_ for the sensitivity
         function.
@@ -172,7 +173,17 @@ class SensFunc(datamodel.DataContainer):
             table.Column(name='WAVE_MIN', dtype=float, length=norders,
                          description='Minimum wavelength included in the fit'),
             table.Column(name='WAVE_MAX', dtype=float, length=norders,
-                         description='Maximum wavelength included in the fit')])
+                         description='Maximum wavelength included in the fit'),
+            table.Column(name='SENS_FLUXED_STD_WAVE', dtype=float, length=norders, shape=(nspec_in,),
+                         description='Log10 of the blaze function for each slit/order'),
+            table.Column(name='SENS_FLUXED_STD_FLAM', dtype=float, length=norders, shape=(nspec_in,),
+                         description='Log10 of the blaze function for each slit/order'),
+            table.Column(name='SENS_FLUXED_STD_FLAM_IVAR', dtype=float, length=norders, shape=(nspec_in,),
+                         description='Log10 of the blaze function for each slit/order'),
+            table.Column(name='SENS_FLUXED_STD_MASK', dtype=bool, length=norders, shape=(nspec_in,),
+                         description='Log10 of the blaze function for each slit/order')])
+
+
 
     # Superclass factory method generates the subclass instance
     @classmethod
@@ -216,6 +227,8 @@ class SensFunc(datamodel.DataContainer):
         # QA and throughput plot filenames
         self.qafile = sensfile.replace('.fits', '') + '_QA.pdf'
         self.thrufile = sensfile.replace('.fits', '') + '_throughput.pdf'
+        self.fstdfile = sensfile.replace('.fits', '') + '_fluxed_std.pdf'
+
 
         # Other
         self.debug = debug
@@ -288,6 +301,7 @@ class SensFunc(datamodel.DataContainer):
 
         # TODO This is ugly and redundant with spec_atleast_2d, but the order of operations compels me to do it this way
         blaze_function = (np.clip(flux_box*mask_box, 1e-3, 1e9)).reshape(-1,1) if flux_box.ndim == 1 else flux_box*mask_box
+        wave_debug = wave.reshape(-1,1) if wave.ndim == 1 else wave
         log10_blaze_function = np.zeros_like(blaze_function)
         norddet = log10_blaze_function.shape[1]
         debug=True
@@ -296,12 +310,11 @@ class SensFunc(datamodel.DataContainer):
             blaze_function_norm = blaze_function_smooth/blaze_function_smooth.max()
             log10_blaze_function[:, iorddet] = np.log10(np.clip(blaze_function_norm, min_blaze_value, None))
             if debug:
-                #plt.plot(wave[:, iorddet],log10_blaze_function[:,iorddet])
-                plt.plot(log10_blaze_function[:,iorddet])
+                plt.plot(wave_debug[:, iorddet], log10_blaze_function[:,iorddet])
         if debug:
             plt.show()
 
-        return log10_blaze_function
+        return log10_blaze_function.squeeze()
 
 
     def _bundle(self):
@@ -421,15 +434,37 @@ class SensFunc(datamodel.DataContainer):
         if self.splice_multi_det:
             self.wave_splice, self.zeropoint_splice = self.splice()
 
+        # Flux the standard star with this sensitivity function and add it to the output table
+        self.flux_std()
+
         # Compute the throughput
         self.throughput, self.throughput_splice = self.compute_throughput()
 
+        # Write out QA and throughput plots
+        self.write_QA()
+
+    def flux_std(self):
+        """
+        Flux the standard star and add it to the sensitivity function table
+
+        Returns:
+
+        """
         # Now flux the standard star
         apply_flux_calib(self.par_fluxcalib, self.spectrograph, self.sobjs_std, self)
         # TODO assign this to the data model
 
-        # Write out QA and throughput plots
-        self.write_QA()
+        # Unpack the fluxed standard
+        _wave, _flam, _flam_ivar, _flam_mask, _, _,  _, _ = self.sobjs_std.unpack_object(ret_flam=True)
+        # Reshape to 2d arrays
+        wave, flam, flam_ivar, flam_mask, _, _ = utils.spec_atleast_2d(_wave, _flam, _flam_ivar, _flam_mask)
+        # Store in the sens table
+        self.sens['SENS_FLUXED_STD_WAVE'] = wave.T
+        self.sens['SENS_FLUXED_STD_FLAM'] = flam.T
+        self.sens['SENS_FLUXED_STD_FLAM_IVAR'] = flam_ivar.T
+        self.sens['SENS_FLUXED_STD_MASK'] = flam_mask.T
+
+
 
     def eval_zeropoint(self, wave, iorddet):
         """
@@ -712,6 +747,41 @@ class SensFunc(datamodel.DataContainer):
         axis.set_title('PypeIt Throughput for' + spec_str)
         fig.savefig(self.thrufile)
 
+        # Plot throughput curve(s) for all orders/det
+        fig = plt.figure(figsize=(12,8))
+        axis = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+        axis.plot(self.std_dict['wave'].value, self.std_dict['flux'].value, color='green',linewidth=3.0,
+                  label=self.std_dict['name'], zorder=30, alpha=0.8)
+        for iorddet in range(self.sens['SENS_FLUXED_STD_WAVE'].shape[0]):
+            # define the color
+            rr = (np.max(order_or_det) - order_or_det[iorddet]) \
+                    / np.maximum(np.max(order_or_det) - np.min(order_or_det), 1)
+            gg = 0.0
+            bb = (order_or_det[iorddet] - np.min(order_or_det)) \
+                    / np.maximum(np.max(order_or_det) - np.min(order_or_det), 1)
+            wave_gpm = self.sens['SENS_FLUXED_STD_WAVE'][iorddet] > 1.0
+            axis.plot(self.sens['SENS_FLUXED_STD_WAVE'][iorddet][wave_gpm], self.sens['SENS_FLUXED_STD_FLAM'][iorddet][wave_gpm],
+                      color=(rr, gg, bb), drawstyle='steps-mid', linewidth=1.0,
+                      label=thru_title[iorddet], zorder=5*idet)
+
+
+        wave_gpm_global = self.sens['SENS_FLUXED_STD_WAVE'] > 1.0
+        wave_min = 0.98*(self.sens['SENS_FLUXED_STD_WAVE'][wave_gpm_global]).min()
+        wave_max = 1.02*(self.sens['SENS_FLUXED_STD_WAVE'][wave_gpm_global]).max()
+        pix_wave_std = (self.std_dict['wave'].value >= wave_min) & (self.std_dict['wave'].value <= wave_max)
+        flux_min = -1.0
+        flux_max = 1.10*self.std_dict['flux'][pix_wave_std].value.max()
+        axis.set_xlim((wave_min, wave_max))
+        axis.set_ylim((flux_min, flux_max))
+        axis.legend()
+        axis.set_xlabel('Wavelength (Angstroms)')
+        axis.set_ylabel(r'$f_{{\lambda}}~~~(10^{{-17}}~{{\rm erg~s^{-1}~cm^{{-2}}~\AA^{{-1}}}})$')
+        axis.set_title('Fluxed Std Compared to True Spectrum:' + spec_str)
+        fig.savefig(self.fstdfile)
+
+
+
+
         # Plot the fluxed standard star spectrum
 
 
@@ -830,7 +900,7 @@ class IRSensFunc(SensFunc):
         self.exptime = self.telluric.exptime
 
         # Instantiate the main output data table
-        self.sens = self.empty_sensfunc_table(self.telluric.norders, self.telluric.wave_grid.size,
+        self.sens = self.empty_sensfunc_table(self.telluric.norders, self.telluric.wave_grid.size, self.nspec_in,
                                               ncoeff=self.telluric.max_ntheta_obj)
 
         # For stupid reasons related to how astropy tables will let me store
@@ -971,7 +1041,7 @@ class UVISSensFunc(SensFunc):
         norder, nspec = out_table['SENS_ZEROPOINT'].shape
 
         # Instantiate the main output data table
-        self.sens = self.empty_sensfunc_table(norder, nspec)
+        self.sens = self.empty_sensfunc_table(norder, nspec, self.nspec_in)
 
         # Copy the relevant data
         # NOTE: SENS_COEFF is empty!

@@ -406,9 +406,9 @@ def zerolag_shift_stretch(theta, y1, y2):
     return -corr_norm
 
 
-def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_raw_arc=False, fwhm = 4.0):
+def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_raw_arc=False, fwhm = 4.0, debug=False):
 
-    """  Utility routine to create an synthetic arc spectrum for cross-correlation using the location of the peaks in
+    """  Utility routine to create a synthetic arc spectrum for cross-correlation using the location of the peaks in
     the input spectrum.
 
     Args:
@@ -427,6 +427,8 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_
             If True, use amplitudes from the raw arc, i.e. do not continuum subtract. Default = False
         fwhm (float, optional):
             Fwhm of arc lines. Used for peak finding and to assign a fwhm in the xcorr_arc.
+        debug (bool, optional):
+             Show plots for line detection debugging. Default = False
 
     Returns:
         `numpy.ndarray`_: Synthetic arc spectrum to be used for
@@ -436,7 +438,8 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_
 
 
     # Run line detection to get the locations and amplitudes of the lines
-    tampl1, tampl1_cont, tcent1, twid1, centerr1, w1, arc1, nsig1 = arc.detect_lines(inspec1, sigdetect=sigdetect, fwhm=fwhm)
+    tampl1, tampl1_cont, tcent1, twid1, centerr1, w1, arc1, nsig1 = arc.detect_lines(inspec1, sigdetect=sigdetect,
+                                                                                     fwhm=fwhm, debug=debug)
 
     ampl = tampl1 if use_raw_arc else tampl1_cont
 
@@ -448,6 +451,8 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_
         ceil_upper = np.inf
 
     ampl_clip = np.clip(ampl, None, ceil_upper)
+    if ampl_clip.size == 0:
+        msgs.error('No lines were detected in the arc spectrum. Cannot create a synthetic arc spectrum for cross-correlation.')
 
     # Make a fake arc by plopping down Gaussians at the location of every centroided line we found
     xcorr_arc = np.zeros_like(inspec1)
@@ -459,6 +464,7 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_
         if tcent1[ind] == -999.0:
             continue
         xcorr_arc += ampl_clip[ind]*np.exp(-0.5*((spec_vec - tcent1[ind])/sigma)**2)
+
 
     return xcorr_arc
 
@@ -654,6 +660,7 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
 
     # Do the cross-correlation first and determine the initial shift
     shift_cc, corr_cc = xcorr_shift(y1, y2, percent_ceil = None, do_xcorr_arc=False, sigdetect = sigdetect, fwhm=fwhm, debug = debug)
+
     # TODO JFH Is this a good idea? Stretch fitting seems to recover better values
     #if corr_cc < -np.inf: # < cc_thresh:
     #    return -1, shift_cc, 1.0, corr_cc, shift_cc, corr_cc
