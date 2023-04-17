@@ -864,7 +864,8 @@ class Calibrations:
         waveCalib = wavecalib.BuildWaveCalib(self.msarc, self.slits, self.spectrograph,
                                              self.par['wavelengths'], lamps, meta_dict=meta_dict,
                                              det=self.det, qa_path=self.qa_path)
-        self.wv_calib = waveCalib.run(skip_QA=(not self.write_qa))
+        self.wv_calib = waveCalib.run(skip_QA=(not self.write_qa),
+                                      prev_wvcalib=self.wv_calib)
         # If orders were found, save slits to disk
         if self.spectrograph.pypeline == 'Echelle' and not self.spectrograph.ech_fixed_format:
             self.slits.to_file()

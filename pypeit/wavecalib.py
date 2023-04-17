@@ -499,7 +499,8 @@ class BuildWaveCalib:
             self.slitmask = None
             self.gpm = None
 
-    def build_wv_calib(self, arccen, method, skip_QA=False):
+    def build_wv_calib(self, arccen, method, skip_QA=False,
+                       prev_wvcalib=None):
         """
         Main routine to generate the wavelength solutions in a loop over slits
         Wrapper to arc.simple_calib or arc.calib_with_arclines
@@ -515,6 +516,8 @@ class BuildWaveCalib:
               'identify' -- wavecal.identify.Identify
               'full_template' -- wavecal.auotid.full_template
             skip_QA (bool, optional)
+            prev_wvcalib (WaveCalib, optional):  
+                Previous wavelength calibration
 
         Returns:
             dict:  self.wv_calib
@@ -600,24 +603,35 @@ class BuildWaveCalib:
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
 
         # Build the DataContainer
-        # Loop on WaveFit items
-        tmp = []
-        for idx in range(self.slits.nslits):
-            item = final_fit.pop(str(idx))
-            if item is None:  # Add an empty WaveFit
-                tmp.append(wv_fitting.WaveFit(self.slits.spat_id[idx]))
-            else:
-                # This is for I/O naming
-                item.spat_id = self.slits.spat_id[idx]
-                # add measured fwhm
-                item['fwhm'] = measured_fwhms[idx]
-                tmp.append(item)
-        self.wv_calib = WaveCalib(wv_fits=np.asarray(tmp),
-                                  arc_spectra=arccen,
-                                  nslits=self.slits.nslits,
-                                  spat_ids=self.slits.spat_id,
-                                  PYP_SPEC=self.spectrograph.name,
-                                  lamps=','.join(self.lamps))
+        if self.par['redo_slit'] is not None:
+            self.wv_calib = prev_wvcalib
+            # Update/reset items
+            self.wv_calib.arc_spectra = arccen
+            #
+            for key in final_fit.keys():
+                idx = int(key)
+                self.wv_calib.wv_fits[idx] = final_fit[key]
+                self.wv_calib.wv_fits[idx].spat_id = self.slits.spat_id[idx]
+                self.wv_calib.wv_fits[idx].fwhm = measured_fwhms[idx]
+        else:
+            # Loop on WaveFit items
+            tmp = []
+            for idx in range(self.slits.nslits):
+                item = final_fit.pop(str(idx))
+                if item is None:  # Add an empty WaveFit
+                    tmp.append(wv_fitting.WaveFit(self.slits.spat_id[idx]))
+                else:
+                    # This is for I/O naming
+                    item.spat_id = self.slits.spat_id[idx]
+                    # add measured fwhm
+                    item['fwhm'] = measured_fwhms[idx]
+                    tmp.append(item)
+            self.wv_calib = WaveCalib(wv_fits=np.asarray(tmp),
+                                    arc_spectra=arccen,
+                                    nslits=self.slits.nslits,
+                                    spat_ids=self.slits.spat_id,
+                                    PYP_SPEC=self.spectrograph.name,
+                                    lamps=','.join(self.lamps))
         # Inherit the calibration frame naming from self.msarc
         # TODO: Should throw an error here if these calibration frame naming
         # elements are not defined by self.msarc...
@@ -804,7 +818,8 @@ class BuildWaveCalib:
                 self.wvc_bpm[kk] = True
 
 
-    def run(self, skip_QA=False, debug=False):
+    def run(self, skip_QA=False, debug=False,
+            prev_wvcalib=None):
         """
         Main driver for wavelength calibration
 
@@ -826,8 +841,9 @@ class BuildWaveCalib:
         self.arccen, self.wvc_bpm = self.extract_arcs()
 
         # Fill up the calibrations and generate QA
-        self.wv_calib = self.build_wv_calib(self.arccen, 
-                                            self.par['method'], skip_QA=skip_QA)
+        self.wv_calib = self.build_wv_calib(
+            self.arccen, self.par['method'], skip_QA=skip_QA,
+            prev_wvcalib=prev_wvcalib)
 
         # Fit 2D?
         if self.par['echelle']:
