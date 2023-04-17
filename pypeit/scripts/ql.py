@@ -32,6 +32,7 @@ import configobj
 
 from astropy.table import Table
 
+from pypeit.pypmsgs import PypeItError
 from pypeit import msgs
 from pypeit import pypeitsetup
 from pypeit import io
@@ -70,13 +71,14 @@ def get_files(raw_files, raw_path, ext):
     if raw_files is not None and len(raw_files) == 1:
         # Try to read the file names as if they're in a file_of_files
         try:
-            files = io.grab_rawfiles(file_of_files=raw_files[0]) 
+            files = inputfiles.grab_rawfiles(file_of_files=raw_files[0]) 
         except:
             # Failed, so assume its a raw file (only one calibration file?) and proceed
             pass
     if files is None: 
         try:
-            files = io.grab_rawfiles(raw_paths=[raw_path], list_of_files=raw_files, extension=ext) 
+            files = inputfiles.grab_rawfiles(raw_paths=[raw_path], list_of_files=raw_files,
+                                             extension=ext) 
         except PypeItError as e:
             msgs.error('Unable to parse provided input files.  Check --raw_files, --raw_path, '
                         'and/or --ext input.')
@@ -280,6 +282,10 @@ def generate_sci_pypeitfile(redux_path:str,
     # use `elif` instead of `if`?
     if slitspatnum is not None:
         cfg['rdx']['slitspatnum'] = slitspatnum
+
+    # Turn-off use of bias by default
+    cfg['baseprocess'] = {}
+    cfg['baseprocess']['use_biasimage'] = False
 
     # Add reduce dictionary?
     if any([k is not None for k in [snr_thresh, boxcar_radius, std_spec1d]]):
@@ -650,7 +656,7 @@ class QL(scriptbase.ScriptBase):
             # Generate PypeIt files (and folders)
             calib_pypeit_files = ps.generate_ql_calib_pypeit_files(
                 parent_calib_dir, det=args.det, configs='all',
-                overwrite=args.overwrite_calibs, bkg_redux=args.bkg_redux)
+                overwrite=args.overwrite_calibs)
 
             # Process them
             for calib_pypeit_file in calib_pypeit_files: 

@@ -410,6 +410,11 @@ class PypeItSetup:
             self.user_cfg += [f'detnum = {det}']
         self.user_cfg += ['quicklook = True']
 
+        # TODO: Do this regardless of whether there are any bias frames?
+        if not any(self.fitstbl.find_frames('bias')):
+            # Turn-off use of bias by default
+            self.user_cfg += ['[baseprocess]', 'use_biasimage = False']
+
         # Write the PypeIt files
         # TODO: Exclude science/standard files from file?
         pypeit_files = self.fitstbl.write_pypeit(
