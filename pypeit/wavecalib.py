@@ -403,8 +403,8 @@ class BuildWaveCalib:
     # TODO: Is this used anywhere?
     frametype = 'wv_calib'
 
-    def __init__(self, msarc, slits, spectrograph, par, lamps, meta_dict=None, det=1, qa_path=None,
-                 msbpm=None):
+    def __init__(self, msarc, slits, spectrograph, par, lamps, 
+                 meta_dict=None, det=1, qa_path=None, msbpm=None):
 
         # TODO: This should be a stop-gap to avoid instantiation of this with
         # any Nones.
@@ -448,6 +448,16 @@ class BuildWaveCalib:
         # have a different binning then the trace images used to defined
         # the slits
         if self.slits is not None and self.msarc is not None:
+            # Redo?
+            if self.par['redo_slit'] is not None:
+                if self.par['echelle'] and self.slits.ech_order is not None:
+                    idx = np.where(self.slits.ech_order == self.par['redo_slit'])[0][0]
+                    # Turn off mask
+                    self.slits.mask[idx] = self.slits.bitmask.turn_off(
+                            self.slits.mask[idx], 'BADWVCALIB')
+                else:
+                    raise NotImplementedError("Not ready for multi-slit")
+
             # Load up slits
             # TODO -- Allow for flexure
             all_left, all_right, mask = self.slits.select_edges(initial=True, flexure=None)  # Grabs all, init slits + flexure
@@ -569,19 +579,23 @@ class BuildWaveCalib:
             # Identify the echelle orders
             msgs.info("Finding the echelle orders")
             order_vec, wave_soln_arxiv, arcspec_arxiv = echelle.identify_ech_orders(
-                arccen, self.meta_dict['echangle'], self.meta_dict['xdangle'], self.meta_dict['dispname'],
-                angle_fits_file, composite_arc_file, pad=3, debug=False)
+                    arccen, self.meta_dict['echangle'], 
+                    self.meta_dict['xdangle'], 
+                    self.meta_dict['dispname'],
+                    angle_fits_file, 
+                    composite_arc_file, 
+                    pad=3, debug=False)
             # Put the order numbers in the slit object
             self.slits.ech_order = order_vec
             msgs.info(f"The observation covers the following orders: {order_vec}")
 
-            # TODO:
-            # HACK!!
-            ok_mask_idx = ok_mask_idx[:-1]
-            patt_dict, final_fit = autoid.echelle_wvcalib(arccen, order_vec, arcspec_arxiv, wave_soln_arxiv,
-                                                          self.lamps, self.par, ok_mask=ok_mask_idx,
-                                                          nonlinear_counts=self.nonlinear_counts,
-                                                          debug_all=False)
+            
+            #ok_mask_idx = ok_mask_idx[:-1]
+            patt_dict, final_fit = autoid.echelle_wvcalib(
+                arccen, order_vec, arcspec_arxiv, wave_soln_arxiv,
+                self.lamps, self.par, ok_mask=ok_mask_idx,
+                nonlinear_counts=self.nonlinear_counts,
+                debug_all=False, redo_slit=self.par['redo_slit'])
         else:
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
 
@@ -760,7 +774,9 @@ class BuildWaveCalib:
         """
         # Do it on the slits not masked in self.slitmask
         arccen, arccen_bpm, arc_maskslit = arc.get_censpec(
-            self.slitcen, self.slitmask, self.msarc.image, gpm=self.gpm, slit_bpm=self.wvc_bpm, slitIDs=slitIDs)
+            self.slitcen, self.slitmask, self.msarc.image, 
+            gpm=self.gpm, slit_bpm=self.wvc_bpm, 
+            slitIDs=slitIDs)
         # Step
         self.steps.append(inspect.stack()[0][3])
 

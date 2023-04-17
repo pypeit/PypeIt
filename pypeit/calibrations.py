@@ -833,13 +833,16 @@ class Calibrations:
             self.wv_calib = None
             return self.wv_calib
 
-        # If a processed calibration frame exists and we want to reuse it, do
-        # so:
-        if cal_file.exists() and self.reuse_calibs:
+        # If a processed calibration frame exists and 
+        # we want to reuse it, do so (or just load it):
+        if cal_file.exists() and self.reuse_calibs: 
+            # Load the file
             self.wv_calib = wavecalib.WaveCalib.from_file(cal_file)
             self.wv_calib.chk_synced(self.slits)
             self.slits.mask_wvcalib(self.wv_calib)
-            return self.wv_calib
+            # Return
+            if self.par['wavelengths']['redo_slit'] is None:
+                return self.wv_calib
 
         # Determine lamp list to use for wavecalib
         # Find all the arc frames in this calibration group

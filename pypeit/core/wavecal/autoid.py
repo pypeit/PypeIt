@@ -866,8 +866,11 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
     # Finish
     return wvcalib
 
-def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, ok_mask=None, use_unknowns=True, debug_all=False,
-                    debug_peaks=False, debug_xcorr=False, debug_reid=False, debug_fits=False, nonlinear_counts=1e10):
+def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, 
+                    ok_mask=None, use_unknowns=True, debug_all=False,
+                    debug_peaks=False, debug_xcorr=False, debug_reid=False, 
+                    debug_fits=False, nonlinear_counts=1e10,
+                    redo_slit:int=None):
     r"""
     Algorithm to wavelength calibrate echelle data based on a predicted or archived wavelength solution
 
@@ -917,6 +920,9 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, ok_mask=No
         For arc line detection: Arc lines above this saturation
         threshold are not used in wavelength solution fits because
         they cannot be accurately centroided
+    redo_slit: int, optional
+        If provided, only perform the wavelength calibration for the
+        given slit. 
 
     Returns
     -------
@@ -969,6 +975,8 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, ok_mask=No
     bad_orders = np.array([], dtype=int)
     # Reidentify each slit, and perform a fit
     for iord in range(norders):
+        if redo_slit is not None and orders[iord] != redo_slit:
+            continue
         # ToDO should we still be populating wave_calib with an empty dict here?
         if iord not in ok_mask:
             wv_calib[str(iord)] = None
@@ -1022,12 +1030,17 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, ok_mask=No
             arc_fit_qa(wv_calib[str(iord)], title='Silt: {}'.format(str(iord)))
 
     # Print the final report of all lines
-    report_final(norders, all_patt_dict, detections, wv_calib, ok_mask, bad_orders)
+    report_final(norders, all_patt_dict, detections, 
+                 wv_calib, ok_mask, bad_orders,
+                 redo_slit=redo_slit, orders=orders)
 
     return all_patt_dict, wv_calib
 
 
-def report_final(nslits, all_patt_dict, detections, wv_calib, ok_mask, bad_slits):
+def report_final(nslits, all_patt_dict, detections, 
+                 wv_calib, ok_mask, bad_slits, 
+                 redo_slit:int=None,
+                 orders:np.ndarray=None):
     """
     Print out the final report for wavelength calibration
 
@@ -1050,6 +1063,8 @@ def report_final(nslits, all_patt_dict, detections, wv_calib, ok_mask, bad_slits
         badmsg = '---------------------------------------------------' + msgs.newline() + \
                  'Final report for slit {0:d}/{1:d}:'.format(slit, nslits) + msgs.newline() + \
                  '  Wavelength calibration not performed!'
+        if redo_slit is not None and orders[slit] != redo_slit:
+            continue
         if slit not in ok_mask or slit in bad_slits or all_patt_dict[str(slit)] is None:
             msgs.warn(badmsg)
             continue
