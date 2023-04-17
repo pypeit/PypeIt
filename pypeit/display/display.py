@@ -539,7 +539,7 @@ def clear_all(allow_new=False):
         shell.delete_channel(ch)
 
 
-def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, pstep=3, clear_canvas=False):
+def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, nspec=None, pstep=3, clear_canvas=False):
     """
     Show the arc tilts on the input channel
 
@@ -556,6 +556,8 @@ def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, pstep=3, 
             Offset tilts by this amount
         points (bool, optional):
             Plot the Gaussian-weighted tilt centers
+        nspec (int, optional):
+            Number of spectral pixels in the TiltImage
         pstep (int, optional):
             Show every pstep point of the tilts as opposed to *every*
             point, recommended for speed.
@@ -563,7 +565,7 @@ def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, pstep=3, 
             Clear the canvas first?
 
     """
-    if tilt_traces['slit_ledges'][0].size == 0:
+    if tilt_traces['slit_ids'][0].size == 0:
         return msgs.error('No tilts have been traced or fitted')
 
     canvas = viewer.canvas(ch._chname)
@@ -572,6 +574,9 @@ def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, pstep=3, 
 
     canvas_list = []
 
+    # Plot traced tilts
+    # We just plot the points, so we do not need to loop over each slit/line
+    # This makes the plotting much very slow, this is why we make it optional by using the points keyword
     if tilt_traces['goodpix_tilt'][0].size > 0 and points:
         # note: must cast numpy floats to regular python floats to pass the remote interface
         goodpix_spat = tilt_traces['goodpix_spat'][0] + xoff
@@ -579,19 +584,11 @@ def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, pstep=3, 
         canvas_list += [dict(type='squarebox', args=(float(goodpix_spat[i]), float(goodpix_tilt[i]), 1),
                              kwargs=dict(color='cyan', fill=True, fillalpha=0.5)) for i in range(goodpix_tilt.size)]
 
-    if tilt_traces['badpix_tilt'][0].size > 0 and points:
-        # note: must cast numpy floats to regular python floats to pass the remote interface
-        badpix_spat = tilt_traces['badpix_spat'][0] + xoff
-        badpix_tilt = tilt_traces['badpix_tilt'][0] + yoff
-        canvas_list += [dict(type='squarebox', args=(float(badpix_spat[i]), float(badpix_tilt[i]), 1),
-                             kwargs=dict(color='red', fill=True, fillalpha=0.5)) for i in range(badpix_tilt.size)]
-
-    # Now plot the 2D fitted tilts
+    # Plot the 2D fitted tilts
     # loop over each slit
-    for i in range(tilt_traces['slit_ledges'][0].size):
+    for islit in tilt_traces['slit_ids'][0]:
         # good fit
-        this_slit = (tilt_traces['good2dfit_spat'][0] < tilt_traces['slit_redges'][0][i]) & \
-                    (tilt_traces['good2dfit_spat'][0] > tilt_traces['slit_ledges'][0][i])
+        this_slit = tilt_traces['good2dfit_slitid'][0] == islit
         if np.any(this_slit):
             good2dfit_spat = tilt_traces['good2dfit_spat'][0][this_slit]
             good2dfit_tilt = tilt_traces['good2dfit_tilt'][0][this_slit]
@@ -599,44 +596,44 @@ def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, pstep=3, 
             # sort tilts
             tsort = np.argsort(good2dfit_tilt)
             # find values that are close together
-            close = np.diff(good2dfit_tilt[tsort]) < 0.5
+            close = np.diff(good2dfit_tilt[tsort]) <= 1.
             # divide into slices, each including a line
             lines = utils.contiguous_true(close)
-            # plot
+            # loop over each line, this allows to use type='path' and therefore a faster plotting
             for iline in lines:
                 x = good2dfit_spat[tsort][iline] + xoff
                 y = good2dfit_tilt[tsort][iline] + xoff
                 canvas_list += [dict(type=str('path'),args=(list(zip(x[::pstep].tolist(), y[::pstep].tolist())),),
                                      kwargs=dict(color='blue', linewidth=2))]
 
-        # rejected fit
-        this_slit = (tilt_traces['bad2dfit_spat'][0] < tilt_traces['slit_redges'][0][i]) & \
-                    (tilt_traces['bad2dfit_tilt'][0] > tilt_traces['slit_ledges'][0][i])
-        if np.any(this_slit):
-            bad2dfit_spat = tilt_traces['bad2dfit_spat'][0][this_slit]
-            bad2dfit_tilt = tilt_traces['bad2dfit_tilt'][0][this_slit]
-            # try to split the array into each line. This is for improving speed
-            # sort tilts
-            tsort = np.argsort(bad2dfit_tilt)
-            # find values that are close together
-            close = np.diff(bad2dfit_tilt[tsort]) < 0.5
-            # divide into slices, each including a line
-            lines = utils.contiguous_true(close)
-            # plot
-            for iline in lines:
-                x = bad2dfit_spat[tsort][iline] + xoff
-                y = bad2dfit_tilt[tsort][iline] + xoff
-
-                canvas_list += [dict(type=str('path'),
-                                     args=(list(zip(x[::pstep].tolist(), y[::pstep].tolist())),),
-                                     kwargs=dict(color='yellow', linewidth=2))]
+    # Now plot the masked traces and the rejected 2D fits
+    # We just plot the points, so we do not need to loop over each slit/line
+    # masked traces
+    if tilt_traces['badpix_tilt'][0].size > 0:
+        # note: must cast numpy floats to regular python floats to pass the remote interface
+        badpix_spat = tilt_traces['badpix_spat'][0] + xoff
+        badpix_tilt = tilt_traces['badpix_tilt'][0] + yoff
+        canvas_list += [dict(type='squarebox', args=(float(badpix_spat[i]), float(badpix_tilt[i]), 1),
+                             kwargs=dict(color='red', fill=True, fillalpha=0.5)) for i in range(badpix_tilt.size)]
+    # rejected fit
+    if tilt_traces['bad2dfit_tilt'][0].size > 0:
+        # note: must cast numpy floats to regular python floats to pass the remote interface
+        bad2dfit_spat = tilt_traces['bad2dfit_spat'][0] + xoff
+        bad2dfit_tilt = tilt_traces['bad2dfit_tilt'][0] + yoff
+        canvas_list += [dict(type='squarebox', args=(float(bad2dfit_spat[i]), float(bad2dfit_tilt[i]), 1),
+                             kwargs=dict(color='yellow', fill=True, fillalpha=0.5)) for i in range(bad2dfit_tilt.size)]
 
     # Add text
-    text_xpos = 50
-    start_ypos = 50
-    text_ypos = [start_ypos + 90, start_ypos + 60, start_ypos + 30, start_ypos]
-    text_color = ['blue', 'yellow', 'cyan', 'red']
-    text_str = ['Good tilt fit', 'Rejected in fit', 'Good pixel', 'Masked pixel']
+    text_xpos = 20
+    start_ypos = 20
+    ypos_step = 0.03*nspec if nspec is not None else 50.
+    text_ypos = [start_ypos, start_ypos + ypos_step, start_ypos + 2*ypos_step]
+    text_str = ['Masked pixel', 'Rejected in fit', 'Good tilt fit']
+    text_color = ['red', 'yellow', 'blue']
+    if points:
+        text_ypos += [start_ypos + 3*ypos_step]
+        text_str += ['Good pixel']
+        text_color += ['cyan']
     canvas_list += [dict(type='text', args=(float(text_xpos), float(text_ypos[i]), str(text_str[i])),
                     kwargs=dict(color=text_color[i], fontsize=20)) for i in range(len(text_str))]
 
