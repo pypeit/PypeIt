@@ -577,10 +577,11 @@ class FlatField:
                     # has already been divided out by the pixel flat.
                     if self.spat_illum_only:
                         break
-                    msgs.info("Iteration {0:d}/{{1:d}} of 2D detector response extraction".format(ff+1, niter))
+                    msgs.info("Iteration {0:d}/{1:d} of 2D detector response extraction".format(ff+1, niter))
                     # Extract a detector response image
                     det_resp = self.extract_structure(rawflat_orig)
-                    gpmask = (self.waveimg != 0.0) & gpm
+                    # Trim the slits to avoid edge effects
+                    gpmask = (self.waveimg != 0.0) & gpm & (self.slits.slit_img(pad=-3, initial=False) != -1)
                     # Model the 2D detector response in an instrument specific way
                     det_resp_model = self.spectrograph.fit_2d_det_response(det_resp, gpmask)
                     # Apply this model
@@ -1699,20 +1700,20 @@ def detector_structure_qa(det_resp, det_resp_model, outfile=None, title="Detecto
     gs = gridspec.GridSpec(1, 4, height_ratios=[1], width_ratios=[1.0, 1.0, 1.0, 0.05])
     # Axes showing the observed detector response
     ax_data = plt.subplot(gs[0])
-    ax_data.imshow(det_resp, vmin=vmin, vmax=vmax)
+    ax_data.imshow(det_resp, origin='lower', vmin=vmin, vmax=vmax)
     ax_data.set_xlabel("data", fontsize='medium')
     ax_data.axes.xaxis.set_ticks([])
     ax_data.axes.yaxis.set_ticks([])
     # Axes showing the model fit to the detector response
     ax_modl = plt.subplot(gs[1])
-    im = ax_modl.imshow(det_resp_model, vmin=vmin, vmax=vmax)
+    im = ax_modl.imshow(det_resp_model, origin='lower', vmin=vmin, vmax=vmax)
     ax_modl.set_title(title, fontsize='medium')
     ax_modl.set_xlabel("model", fontsize='medium')
     ax_modl.axes.xaxis.set_ticks([])
     ax_modl.axes.yaxis.set_ticks([])
     # Axes showing the residual of the detector response fit
     ax_resd = plt.subplot(gs[2])
-    ax_resd.imshow(det_resp-det_resp_model, vmin=vmin-1, vmax=vmax-1)
+    ax_resd.imshow(det_resp-det_resp_model, origin='lower', vmin=vmin-1, vmax=vmax-1)
     ax_resd.set_xlabel("data-model", fontsize='medium')
     ax_resd.axes.xaxis.set_ticks([])
     ax_resd.axes.yaxis.set_ticks([])
