@@ -91,23 +91,50 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         """
         self.meta = {}
         # Required (core)
-        self.meta['ra'] = dict(ext=0, card='RA')
-        self.meta['dec'] = dict(ext=0, card='DEC')
-        self.meta['target'] = dict(ext=0, card='OBJECT')
-        self.meta['decker'] = dict(ext=0, card='APERTURE')
-        self.meta['dichroic'] = dict(ext=0, card='INSFILTE')
-        self.meta['binning'] = dict(ext=0, card=None, compound=True)
-        self.meta['mjd'] = dict(ext=0, card=None, compound=True)
-        self.meta['exptime'] = dict(ext=0, card='EXPTIME')
-        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+        self.meta['ra'] = dict(ext=0, card='TARG_RA')
+        self.meta['dec'] = dict(ext=0, card='TARG_DEC')
+        self.meta['target'] = dict(ext=0, card='TARGPROP')
+        self.meta['mode'] = dict(ext=0, card='EXP_TYPE')
+        self.meta['decker'] = dict(ext=0, card='APERNAME')
+
+        self.meta['binning'] = dict(ext=0, card=None, default='1,1')
+        self.meta['mjd'] = dict(ext=0, card='EXPMID')
+        self.meta['exptime'] = dict(ext=0, card='EFFEXPTM')
+        self.meta['airmass'] = dict(ext=0, card=None, compound=True)
 
         # Extras for config and frametyping
-        self.meta['dispname'] = dict(ext=0, card='DISPERSE')
-        self.meta['idname'] = dict(ext=0, card='IMAGETYP')
+        self.meta['dispname'] = dict(ext=0, card='GRATING')
+        self.meta['filter1'] = dict(ext=0, card='FILTER')
+        self.meta['idname'] = dict(ext=0, card=None, compound=True)
+        self.meta['dithpat'] = dict(ext=0, card=None, compound=True)
+        self.meta['dithpos'] = dict(ext=0, card='YOFFSET')
 
         # used for arc and continuum lamps
         self.meta['lampstat01'] = dict(ext=0, card=None, compound=True)
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
+
+
+    def compound_meta(self, headarr, meta_key):
+        """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
+
+        Args:
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
+
+        Returns:
+            object: Metadata value read from the header(s).
+        """
+
+        if meta_key == 'dithpat':
+            exp_type = headarr[0].get('EXP_TYPE')
+            if exp_type == 'NRS_MSASPEC':
+                return headarr[0].get('NOD_TYPE')
+            elif exp_type == 'NRS_FIXEDSLIT':
+                return headarr[0].get('PATTTYPE')
 
 
     @classmethod

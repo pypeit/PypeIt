@@ -497,7 +497,7 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     return ymult, (result.x, wave_min, wave_max), flux_rescale, ivar_rescale, outmask
 
 
-def interp_oned(wave_new, wave_old, flux_old, ivar_old, gpm_old, log10_blaze_function=None, sensfunc=False):
+def interp_oned(wave_new, wave_old, flux_old, ivar_old, gpm_old, log10_blaze_function=None, sensfunc=False, kind='cubic'):
     """
     Interpolate a 1D spectrum onto a new wavelength grid.
 
@@ -531,7 +531,16 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, gpm_old, log10_blaze_fun
             computation where we need flux*(wavelength bin width). Beacause
             delta_wave is a difference of the wavelength grid, interpolating
             in the presence of masked data requires special care.
-
+        kind : str or int, optional
+            Specifies the kind of interpolation as a string or as an integer
+            specifying the order of the spline interpolator to use following the convention of
+            scipy.interpolate.interp1d. The string has to be one of 'linear', 'nearest',
+            'nearest-up', 'zero', 'slinear', 'quadratic', 'cubic', 'previous', or 'next'. 'zero',
+            'slinear', 'quadratic' and 'cubic' refer to a spline interpolation of
+            zeroth, first, second or third order; 'previous' and 'next' simply
+            return the previous or next value of the point; 'nearest-up' and
+            'nearest' differ when interpolating half-integers (e.g. 0.5, 1.5)
+            in that 'nearest-up' rounds up and 'nearest' rounds down. Default is 'cubic'.
     Returns:
         :obj:`tuple`: Returns three `numpy.ndarray`_ objects with the
         interpolated flux, inverse variance, and good-pixel mask arrays with
@@ -561,16 +570,16 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, gpm_old, log10_blaze_fun
         if log10_blaze_function is not None:
             log10_blaze_interp = log10_blaze_function[wave_gpm]
 
-    flux_new = scipy.interpolate.interp1d(wave_old[wave_gpm], flux_interp, kind='cubic',
+    flux_new = scipy.interpolate.interp1d(wave_old[wave_gpm], flux_interp, kind=kind,
                                     bounds_error=False, fill_value=np.nan)(wave_new)
-    ivar_new = scipy.interpolate.interp1d(wave_old[wave_gpm], ivar_interp, kind='cubic',
+    ivar_new = scipy.interpolate.interp1d(wave_old[wave_gpm], ivar_interp, kind=kind,
                                     bounds_error=False, fill_value=np.nan)(wave_new)
     if log10_blaze_function is not None:
-        log10_blaze_new = scipy.interpolate.interp1d(wave_old[wave_gpm], log10_blaze_interp, kind='cubic',
+        log10_blaze_new = scipy.interpolate.interp1d(wave_old[wave_gpm], log10_blaze_interp, kind=kind,
                                     bounds_error=False, fill_value=np.nan)(wave_new)
-    # Interpolate a floating-point version of the mask
+    # Interpolate a floating-point version of the mask. Use linear interpolation here
     gpm_new_tmp = scipy.interpolate.interp1d(wave_old[wave_gpm], gpm_old.astype(float)[wave_gpm],
-                                             kind='cubic', bounds_error=False,
+                                             kind='linear', bounds_error=False,
                                              fill_value=np.nan)(wave_new)
     # Don't allow the ivar to be ever be less than zero
     ivar_new = (ivar_new > 0.0)*ivar_new
@@ -584,7 +593,7 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, gpm_old, log10_blaze_fun
 # TODO: ``sensfunc`` should be something like "conserve_flux". It would be
 # useful to compare these resampling routines against
 # `pypeit.sampling.Resample`.
-def interp_spec(wave_new, waves, fluxes, ivars, gpms, log10_blaze_function=None, sensfunc=False):
+def interp_spec(wave_new, waves, fluxes, ivars, gpms, log10_blaze_function=None, sensfunc=False, kind='cubic'):
     """
     Interpolate a set of spectra onto a new wavelength grid.
 
@@ -622,6 +631,16 @@ def interp_spec(wave_new, waves, fluxes, ivars, gpms, log10_blaze_function=None,
         computation where we need flux*(wavelength bin width). Beacause
         delta_wave is a difference of the wavelength grid, interpolating in the
         presence of masked data requires special care.
+    kind : str or int, optional
+        Specifies the kind of interpolation as a string or as an integer
+        specifying the order of the spline interpolator to use following the convention of
+        scipy.interpolate.interp1d. The string has to be one of 'linear', 'nearest',
+        'nearest-up', 'zero', 'slinear', 'quadratic', 'cubic', 'previous', or 'next'. 'zero',
+        'slinear', 'quadratic' and 'cubic' refer to a spline interpolation of
+        zeroth, first, second or third order; 'previous' and 'next' simply
+        return the previous or next value of the point; 'nearest-up' and
+        'nearest' differ when interpolating half-integers (e.g. 0.5, 1.5)
+        in that 'nearest-up' rounds up and 'nearest' rounds down. Default is 'cubic'.
 
     Returns
     -------
@@ -646,7 +665,8 @@ def interp_spec(wave_new, waves, fluxes, ivars, gpms, log10_blaze_function=None,
     # single wavelength grid
     if wave_new.ndim == 1:
         if fluxes.ndim == 1:
-            return interp_oned(wave_new, waves, fluxes, ivars, gpms, log10_blaze_function=log10_blaze_function, sensfunc=sensfunc)
+            return interp_oned(wave_new, waves, fluxes, ivars, gpms, log10_blaze_function=log10_blaze_function,
+            sensfunc=sensfunc, kind=kind)
 
         nexp = fluxes.shape[1]
         # Interpolate spectra to have the same wave grid with the iexp spectrum.
@@ -659,12 +679,12 @@ def interp_spec(wave_new, waves, fluxes, ivars, gpms, log10_blaze_function=None,
             for ii in range(nexp):
                 fluxes_inter[:,ii], ivars_inter[:,ii], gpms_inter[:,ii], log10_blazes_inter[:,ii] \
                     = interp_oned(wave_new, waves[:,ii], fluxes[:,ii], ivars[:,ii], gpms[:,ii],
-                                  log10_blaze_function = log10_blaze_function[:, ii], sensfunc=sensfunc)
+                                  log10_blaze_function = log10_blaze_function[:, ii], sensfunc=sensfunc, kind=kind)
             return fluxes_inter, ivars_inter, gpms_inter, log10_blazes_inter
         else:
             for ii in range(nexp):
                 fluxes_inter[:,ii], ivars_inter[:,ii], gpms_inter[:,ii] \
-                    = interp_oned(wave_new, waves[:,ii], fluxes[:,ii], ivars[:,ii], gpms[:,ii], sensfunc=sensfunc)
+                    = interp_oned(wave_new, waves[:,ii], fluxes[:,ii], ivars[:,ii], gpms[:,ii], sensfunc=sensfunc, kind=kind)
             return fluxes_inter, ivars_inter, gpms_inter
 
 
@@ -1824,7 +1844,7 @@ def update_errors(fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_stack,
     return rejivars, sigma_corrs, outchi, maskchi
 
 
-def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_clip=30.0, lower=3.0, upper=3.0,
+def spec_reject_comb(wave_grid, wave_grid_mid, waves, fluxes, ivars, masks, weights, sn_clip=30.0, lower=3.0, upper=3.0,
                      maxrej=None, maxiter_reject=5, title='', debug=False,
                      verbose=False):
     """
@@ -1842,6 +1862,10 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_clip=30
             limiting case of very small wavelength bins. For larger wavelength bins, the number of exposures contributing
             to a given bin will be larger.
             shape=(ngrid +1,)
+    wave_grid_mid: `numpy.ndarray`_
+        Wavelength grid (in Angstrom) evaluated at the bin centers,
+        uniformly-spaced either in lambda or log10-lambda/velocity. See core.wavecal.wvutils.py for more.
+        shape=(ngrid,)
     waves: `numpy.ndarray`_
             wavelength arrays for spectra to be stacked. Note that the wavelength grids can in general be different for
             each exposure and irregularly spaced.
@@ -1919,10 +1943,17 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_clip=30
     iter = 0
     qdone = False
     while (not qdone) and (iter < maxiter_reject):
+        # Compute the stack
         wave_stack, flux_stack, ivar_stack, mask_stack, nused = compute_stack(
             wave_grid, waves, fluxes, ivars, thismask, weights)
+        # Interpolate the individual spectra onto the wavelength grid of the stack. Use wave_grid_mid for this
+        # since it has no masked values
         flux_stack_nat, ivar_stack_nat, mask_stack_nat = interp_spec(
-            waves, wave_stack, flux_stack, ivar_stack, mask_stack)
+            waves, wave_grid_mid, flux_stack, ivar_stack, mask_stack)
+        ## TESTING
+        #nused_stack_nat, _, _ = interp_spec(
+        #    waves, wave_grid_mid, nused, ivar_stack, mask_stack)
+        #embed()
         rejivars, sigma_corrs, outchi, maskchi = update_errors(fluxes, ivars, thismask,
                                                                flux_stack_nat, ivar_stack_nat, mask_stack_nat,
                                                                sn_clip=sn_clip)
@@ -1960,7 +1991,8 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_clip=30
             title_coadd_iexp = title + ': nrej={:d} pixels rejected,'.format(nrej[iexp]) + \
                                ' norig={:d} originally masked,'.format(norig[iexp]) + \
                                ' for exposure {:d}/{:d}'.format(iexp,nexp)
-            coadd_iexp_qa(waves[:, iexp], fluxes[:, iexp], rejivars[:, iexp], masks[:, iexp], wave_stack, flux_stack,
+            # JFH: QA should use wave_grid_mid
+            coadd_iexp_qa(waves[:, iexp], fluxes[:, iexp], rejivars[:, iexp], masks[:, iexp], wave_grid_mid, flux_stack,
                           ivar_stack, mask_stack, outmask[:, iexp], qafile=None, title=title_coadd_iexp)
         # weights qa
         title_weights = title + ': Weights Used -- nrej={:d} total pixels rejected,'.format(np.sum(nrej)) + \
@@ -1970,7 +2002,7 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_clip=30
     return wave_stack, flux_stack, ivar_stack, mask_stack, outmask, nused
 
 
-def scale_spec_stack(wave_grid, waves, fluxes, ivars, masks, sn, weights,
+def scale_spec_stack(wave_grid, wave_grid_mid, waves, fluxes, ivars, masks, sn, weights,
                      ref_percentile=70.0, maxiter_scale=5,
                      sigrej_scale=3.0, scale_method='auto',
                      hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
@@ -1991,6 +2023,10 @@ def scale_spec_stack(wave_grid, waves, fluxes, ivars, masks, sn, weights,
         limiting case of very small wavelength bins. For larger wavelength bins, the number of exposures contributing
         to a given bin will be larger.
         shape=(ngrid +1,)
+    wave_grid_mid: `numpy.ndarray`_
+        Wavelength grid (in Angstrom) evaluated at the bin centers,
+        uniformly-spaced either in lambda or log10-lambda/velocity. See core.wavecal.wvutils.py for more.
+        shape=(ngrid,)
     waves: `numpy.ndarray`_
         wavelength arrays for spectra to be stacked. Note that the wavelength grids can in general be different for
         each exposure and irregularly spaced.
@@ -2053,8 +2089,9 @@ def scale_spec_stack(wave_grid, waves, fluxes, ivars, masks, sn, weights,
     scale_method_used = []
     for iexp in range(nexp):
         hand_scale_iexp = None if hand_scale is None else hand_scale[iexp]
+        # JFH Changed to used wave_grid_mid in interpolation to avoid interpolating onto zeros
         fluxes_scale[:, iexp], ivars_scale[:, iexp], scales[:, iexp], scale_method_iexp = scale_spec(
-            waves[:, iexp], fluxes[:, iexp], ivars[:, iexp], sn[iexp], wave_stack, flux_stack, ivar_stack,
+            waves[:, iexp], fluxes[:, iexp], ivars[:, iexp], sn[iexp], wave_grid_mid, flux_stack, ivar_stack,
             mask=masks[:, iexp], mask_ref=mask_stack, ref_percentile=ref_percentile, maxiters=maxiter_scale,
             sigrej=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale_iexp, sn_min_polyscale=sn_min_polyscale,
             sn_min_medscale=sn_min_medscale, debug=debug, show=show)
@@ -2201,17 +2238,18 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
     rms_sn, weights = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights, verbose=verbose)
 
     fluxes_scale, ivars_scale, scales, scale_method_used = scale_spec_stack(
-        wave_grid, waves, fluxes, ivars, masks, rms_sn, weights, ref_percentile=ref_percentile, maxiter_scale=maxiter_scale,
+        wave_grid, wave_grid_mid, waves, fluxes, ivars, masks, rms_sn, weights, ref_percentile=ref_percentile, maxiter_scale=maxiter_scale,
         sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
         sn_min_polyscale=sn_min_polyscale, sn_min_medscale=sn_min_medscale, debug=debug_scale, show=show_scale)
 
     # Rejecting and coadding
     wave_stack, flux_stack, ivar_stack, mask_stack, outmask, nused = spec_reject_comb(
-        wave_grid, waves, fluxes_scale, ivars_scale, masks, weights, sn_clip=sn_clip, lower=lower, upper=upper,
+        wave_grid, wave_grid_mid, waves, fluxes_scale, ivars_scale, masks, weights, sn_clip=sn_clip, lower=lower, upper=upper,
         maxrej=maxrej, maxiter_reject=maxiter_reject, debug=debug, title=title)
 
     if show:
-        coadd_qa(wave_stack, flux_stack, ivar_stack, nused, mask=mask_stack, title='Stacked spectrum', qafile=qafile)
+        # JFH Use wave_grid_mid for QA plots
+        coadd_qa(wave_grid_mid, flux_stack, ivar_stack, nused, mask=mask_stack, title='Stacked spectrum', qafile=qafile)
 
     return wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack
 
@@ -2539,7 +2577,7 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None,
         # GP troughs, we should be rescaling using scale factors from orders with signal. This also applies
         # to the echelle combine below.
         fluxes_scl_interord[:, iord], ivars_scl_interord[:,iord], scales_interord[:,iord], scale_method_used = \
-            scale_spec_stack(wave_grid, waves[:, iord, :], fluxes[:, iord, :], ivars[:, iord, :], masks[:, iord, :],
+            scale_spec_stack(wave_grid, wave_grid_mid, waves[:, iord, :], fluxes[:, iord, :], ivars[:, iord, :], masks[:, iord, :],
                              rms_sn[iord, :], weights[:, iord, :], ref_percentile=ref_percentile,
                              maxiter_scale=maxiter_scale, sigrej_scale=sigrej_scale, scale_method=scale_method,
                              hand_scale=hand_scale,
@@ -2566,7 +2604,7 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None,
     scale_method_iter = [scale_method]  + ['median']*(niter_order_scale - 1)
     for iter in range(niter_order_scale):
         fluxes_scale_2d, ivars_scale_2d, scales_iter, scale_method_used = scale_spec_stack(
-            wave_grid, waves_2d, fluxes_pre_scale, ivars_pre_scale, masks_2d, rms_sn_2d, weights_2d, ref_percentile=ref_percentile,
+            wave_grid, wave_grid_mid, waves_2d, fluxes_pre_scale, ivars_pre_scale, masks_2d, rms_sn_2d, weights_2d, ref_percentile=ref_percentile,
             maxiter_scale=maxiter_scale, sigrej_scale=sigrej_scale, scale_method=scale_method_iter[iter], hand_scale=hand_scale,
             sn_min_polyscale=sn_min_polyscale, sn_min_medscale=sn_min_medscale,
             show=(show_order_scale & (iter == (niter_order_scale-1))))
@@ -2590,7 +2628,7 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None,
         # Rejecting and coadding
         waves_stack_orders[:, iord], fluxes_stack_orders[:, iord], ivars_stack_orders[:, iord], \
         masks_stack_orders[:, iord],  outmasks_orders[:,iord,:], nused_iord = spec_reject_comb(
-            wave_grid, waves[:, iord, :], fluxes_scale[:, iord, :], ivars_scale[:, iord, :], masks[:, iord, :], weights[:, iord, :],
+            wave_grid, wave_grid_mid, waves[:, iord, :], fluxes_scale[:, iord, :], ivars_scale[:, iord, :], masks[:, iord, :], weights[:, iord, :],
             sn_clip=sn_clip, lower=lower, upper=upper, maxrej=maxrej, maxiter_reject=maxiter_reject, debug=debug,
             title='order_stacks')
         if show_order_stacks:
@@ -2606,7 +2644,7 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None,
 
     # Now compute the giant stack
     wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack, outmask_giant_stack, nused_giant_stack = \
-        spec_reject_comb(wave_grid, waves_2d, fluxes_2d, ivars_2d, masks_2d, weights_2d, sn_clip=sn_clip,
+        spec_reject_comb(wave_grid, wave_grid_mid, waves_2d, fluxes_2d, ivars_2d, masks_2d, weights_2d, sn_clip=sn_clip,
                          lower=lower, upper=upper, maxrej=maxrej, maxiter_reject=maxiter_reject, debug=debug)
 
     # Reshape everything now exposure-wise
@@ -2620,8 +2658,9 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None,
     norig = np.sum((waves_2d_exps > 1.0) & np.invert(masks_2d_exps), axis=0) # originally masked pixels
     if debug or show:
         # Interpolate stack onto native 2d wavelength grids reshaped exposure-wise
+        # JFH changed to wave_grid_mid
         flux_stack_2d_exps, ivar_stack_2d_exps, mask_stack_2d_exps = interp_spec(
-            waves_2d_exps, wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack)
+            waves_2d_exps, wave_grid_mid, flux_giant_stack, ivar_giant_stack, mask_giant_stack)
         if show_exp:
             # Show QA plots for each exposure
             rejivars_2d_exps, sigma_corrs_2d_exps, outchi_2d_exps, maskchi_2d_exps = update_errors(
@@ -2638,8 +2677,9 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None,
                 title_coadd_iexp = 'ech_combspec: nrej={:d} pixels rejected,'.format(nrej[iexp]) + \
                                    ' norig={:d} originally masked,'.format(norig[iexp]) + \
                                    ' for exposure {:d}/{:d}'.format(iexp, nexp)
+                # JFH changed QA to use wave_grid_mid
                 coadd_iexp_qa(waves_2d_exps[:,iexp], fluxes_2d_exps[:,iexp], rejivars_2d_exps[:,iexp], masks_2d_exps[:,iexp],
-                              wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack, outmasks_2d_exps[:, iexp],
+                              wave_grid_mid, flux_giant_stack, ivar_giant_stack, mask_giant_stack, outmasks_2d_exps[:, iexp],
                               norder=norder, qafile=None, title=title_coadd_iexp)
         # Global QA
         rejivars_1d, sigma_corrs_1d, outchi_1d, maskchi_1d = update_errors(
@@ -2647,7 +2687,7 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None,
             flux_stack_2d_exps.flatten(), ivar_stack_2d_exps.flatten(), mask_stack_2d_exps.flatten(), sn_clip=sn_clip)
         renormalize_errors_qa(outchi_1d, maskchi_1d, sigma_corrs_1d[0], qafile=qafile_chi, title='Global Chi distribution')
         # show the final coadded spectrum
-        coadd_qa(wave_giant_stack, flux_giant_stack, ivar_giant_stack, nused_giant_stack, mask=mask_giant_stack,
+        coadd_qa(wave_grid_mid, flux_giant_stack, ivar_giant_stack, nused_giant_stack, mask=mask_giant_stack,
                  title='Final stacked spectrum', qafile=qafile_stack)
 
 # TODO: Please leave this commented code in for now.
