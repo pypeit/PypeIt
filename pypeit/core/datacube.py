@@ -1005,8 +1005,9 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
 
 def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, all_wave, tilts, slits, slitid_img_gpm,
                            astrom_trans, bins, spec_subpixel=10, spat_subpixel=10, overwrite=False, blaze_wave=None,
-                           blaze_spec=None, fluxcal=False, whitelight=None, sensfunc=None, specname="PYP_SPEC",
-                           debug=False):
+                           blaze_spec=None, fluxcal=False, sensfunc=None,
+                           save_whitelight=True, whitelight_range=None, whitelight_wcs=None,
+                           specname="PYP_SPEC", debug=False):
     """
     Save a datacube using the subpixel algorithm. This algorithm splits
     each detector pixel into multiple subpixels, and then assigns each
@@ -1061,17 +1062,27 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
         fluxcal (bool, optional):
             Are the data flux calibrated? If True, the units are: erg/s/cm^2/Angstrom/arcsec^2
             multiplied by the PYPEIT_FLUX_SCALE. Otherwise, the units are: counts/s/Angstrom/arcsec^2")
-        whitelight (None, list, optional):
-            If None, a whitelight image will not be saved. you would like a whitelight image to be saved, set this . The whitelight image
-            is formed over a wavelength range
         sensfunc (`numpy.ndarray`_, None, optional):
             Sensitivity function that has been applied to the datacube
+        save_whitelight (bool, optional):
+            If True, a whitelight image will be saved.
+        whitelight_range (None, list, optional):
+            A two element list that specifies the minimum and maximum wavelengths (in Angstroms) to use
+            when constructing the whitelight image (format is: [min_wave, max_wave]). If None, the cube
+            will be collapsed over the full wavelength range.
+        whitelight_wcs (`astropy.wcs.wcs.WCS`_):
+            Output world coordinate system for the white light image.
         specname (str, optional):
             Name of the spectrograph
         debug (bool):
             If True, a residuals cube will be output. If the datacube generation is correct, the
             distribution of pixels in the residual cube with no flux should have mean=0 and std=1.
     """
+    # Perform some checks
+    if whitelight_range is None:
+        whitelight_range = [np.min(all_wave), np.max(all_wave)]
+    if whitelight_wcs is None and save_whitelight:
+        msgs.error("Requested white light image, but whitelight WCS was not specified")
     # Prepare the output arrays
     outshape = (bins[0].size-1, bins[1].size-1, bins[2].size-1)
     datacube, varcube, normcube = np.zeros(outshape), np.zeros(outshape), np.zeros(outshape)
@@ -1122,16 +1133,14 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
     if debug:
         residcube *= nc_inverse
 
-    # TODO :: Ned to implement whitelight correction here.
-    if whitelight is not None and False:
-        # if method == 'resample':
-        #     msgs.warn("Whitelight images are not implemented with the 'resample' algorithm.")
-        #     msgs.info("Generating a whitelight image with the NGP algorithm.")
-        out_whitelight = os.path.splitext(outfile)[0] + "_whitelight.fits"
-        whitelight_img, _, wlwcs = make_whitelight_frompixels(raimg[onslit_gpm], decimg[onslit_gpm], wave_ext,
-                                                              flux_sav[resrt], np.ones(numpix), np.zeros(numpix), dspat)
+    if save_whitelight:
+        msgs.info("White light image covers the wavelength range {0:.2f} A - {1:.2f} A".format(
+            whitelight_range[0], whitelight_range[1]))
+        out_whitelight = get_output_whitelight_filename(outfile)
+        wave = wave0 + wave_delta * np.arange(datacube.shape[2])
+        whitelight_img = make_whitelight_fromcube(datacube, wave=wave, wavemin=whitelight_range[0], wavemax=whitelight_range[1])
         msgs.info("Saving white light image as: {0:s}".format(out_whitelight))
-        img_hdu = fits.PrimaryHDU(whitelight_img.T, header=wlwcs.to_header())
+        img_hdu = fits.PrimaryHDU(whitelight_img.T, header=whitelight_wcs.to_header())
         img_hdu.writeto(out_whitelight, overwrite=overwrite)
 
     # Prepare the header, and add the unit of flux to the header
@@ -1258,6 +1267,20 @@ def get_output_filename(fil, par_outfile, combine, idx=1):
     return outfile
 
 
+def get_output_whitelight_filename(outfile):
+    """ Given the output filename of a datacube, create an appropriate whitelight fits file name
+
+    Args:
+        outfile (str):
+            The output filename used for the datacube.
+
+    Returns:
+        out_wl_filename (str): The output filename to use for the whitelight image.
+    """
+    out_wl_filename = os.path.splitext(outfile)[0] + "_whitelight.fits"
+    return out_wl_filename
+
+
 def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     """ Main routine to coadd spec2D files into a 3D datacube
 
@@ -1317,7 +1340,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     # Check if the output file exists
     if combine:
         outfile = get_output_filename("", cubepar['output_filename'], combine)
-        out_whitelight = os.path.splitext(outfile)[0] + "_whitelight.fits"
+        out_whitelight = get_output_whitelight_filename(outfile)
         if os.path.exists(outfile) and not overwrite:
             msgs.error("Output filename already exists:"+msgs.newline()+outfile)
         if os.path.exists(out_whitelight) and cubepar['save_whitelight'] and not overwrite:
@@ -1326,7 +1349,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         # Finally, if there's just one file, check if the output filename is given
         if numfiles == 1 and cubepar['output_filename'] != "":
             outfile = get_output_filename("", cubepar['output_filename'], True, -1)
-            out_whitelight = os.path.splitext(outfile)[0] + "_whitelight.fits"
+            out_whitelight = get_output_whitelight_filename(outfile)
             if os.path.exists(outfile) and not overwrite:
                 msgs.error("Output filename already exists:" + msgs.newline() + outfile)
             if os.path.exists(out_whitelight) and cubepar['save_whitelight'] and not overwrite:
@@ -1334,7 +1357,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         else:
             for ff in range(numfiles):
                 outfile = get_output_filename(files[ff], cubepar['output_filename'], combine, ff+1)
-                out_whitelight = os.path.splitext(outfile)[0] + "_whitelight.fits"
+                out_whitelight = get_output_whitelight_filename(outfile)
                 if os.path.exists(outfile) and not overwrite:
                     msgs.error("Output filename already exists:" + msgs.newline() + outfile)
                 if os.path.exists(out_whitelight) and cubepar['save_whitelight'] and not overwrite:
@@ -1734,6 +1757,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             cd_wv = cubepar['wave_delta'] if cubepar['wave_delta'] is not None else 1.0E10 * frame_wcs.wcs.cd[2, 2]
             cd_spat = cubepar['spatial_delta'] if cubepar['spatial_delta'] is not None else px_deg * 3600.0
             output_wcs = spec.get_wcs(spec2DObj.head0, slits, detector.platescale, crval_wv, cd_wv, spatial_scale=cd_spat)
+            wl_wcs = spec.get_wcs(spec2DObj.head0, slits, detector.platescale, crval_wv, cd_wv, spatial_scale=cd_spat, image=True)
+            wl_wvrng = [np.max(mnmx_wv[ff, :, 0]), np.min(mnmx_wv[ff, :, 1])]  # Wavelength range of the whitelight image.
             # Make the datacube
             if method in ['subpixel', 'ngp']:
                 if method == 'ngp':
@@ -1746,7 +1771,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                 generate_cube_subpixel(outfile, output_wcs, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix),
                                        wave_ext, spec2DObj.tilts, slits, slitid_img_gpm, alignSplines, bins,
                                        overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
-                                       fluxcal=fluxcal, specname=specname, whitelight=cubepar['save_whitelight'],
+                                       fluxcal=fluxcal, specname=specname, save_whitelight=cubepar['save_whitelight'],
+                                       whitelight_range=wl_wvrng, whitelight_wcs=wl_wcs,
                                        spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
             # elif method == 'resample':
             #     fluximg, ivarimg = np.zeros_like(raimg), np.zeros_like(raimg)

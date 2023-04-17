@@ -1383,7 +1383,7 @@ class Spectrograph:
         # Return
         return retvalue
 
-    def get_wcs(self, hdr, slits, platescale, wave0, dwv, spatial_scale=None):
+    def get_wcs(self, hdr, slits, platescale, wave0, dwv, spatial_scale=None, image=False):
         """
         Construct/Read a World-Coordinate System for a frame.
 
@@ -1408,6 +1408,9 @@ class Spectrograph:
                 If spatial_scale is set, it will be used for the spatial size
                 of the WCS and the platescale will be ignored. If None, then
                 the platescale will be used.
+            image (:obj:`bool`, optional):
+                By default (image=False), a 3D WCS is returned. If image=True, a 2D WCS will be returned
+                that doesn't include a wavelength axis.
 
         Returns:
             `astropy.wcs.wcs.WCS`_: The world-coordinate system.

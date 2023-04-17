@@ -816,7 +816,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         """
         return 'Mask' in hdr['BNASNAM']
 
-    def get_wcs(self, hdr, slits, platescale, wave0, dwv, spatial_scale=None):
+    def get_wcs(self, hdr, slits, platescale, wave0, dwv, spatial_scale=None, image=False):
         """
         Construct/Read a World-Coordinate System for a frame.
 
@@ -839,6 +839,9 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 If spatial_scale is set, it will be used for the spatial size
                 of the WCS and the platescale will be ignored. If None, then
                 the platescale will be used.
+            image (:obj:`bool`, optional):
+                By default (image=False), a 3D WCS is returned. If image=True, a 2D WCS will be returned
+                that doesn't include a wavelength axis.
 
         Returns:
             `astropy.wcs.wcs.WCS`_: The world-coordinate system.
@@ -923,19 +926,27 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         # Create a new WCS object.
         msgs.info("Generating KCWI WCS")
-        w = wcs.WCS(naxis=3)
+        w = wcs.WCS(naxis=2) if image else wcs.WCS(naxis=3)
         w.wcs.equinox = hdr['EQUINOX']
         w.wcs.name = 'KCWI'
         w.wcs.radesys = 'FK5'
-        # Insert the coordinate frame
-        w.wcs.cname = ['KCWI RA', 'KCWI DEC', 'KCWI Wavelength']
-        w.wcs.cunit = [units.degree, units.degree, units.Angstrom]
-        w.wcs.ctype = ["RA---TAN", "DEC--TAN", "WAVE"]  # Note, WAVE is vacuum wavelength
-        w.wcs.crval = [ra, dec, wave0]  # RA, DEC, and wavelength zeropoints
-        w.wcs.crpix = [crpix1, crpix2, crpix3]  # RA, DEC, and wavelength reference pixels
-        w.wcs.cd = np.array([[cd11, cd12, 0.0], [cd21, cd22, 0.0], [0.0, 0.0, dwv]])
         w.wcs.lonpole = 180.0  # Native longitude of the Celestial pole
         w.wcs.latpole = 0.0  # Native latitude of the Celestial pole
+        # Insert the coordinate frame
+        if image:
+            w.wcs.cname = ['KCWI RA', 'KCWI DEC']
+            w.wcs.cunit = [units.degree, units.degree]
+            w.wcs.ctype = ["RA---TAN", "DEC--TAN"]  # Note, WAVE is vacuum wavelength
+            w.wcs.crval = [ra, dec]  # RA, DEC, and wavelength zeropoints
+            w.wcs.crpix = [crpix1, crpix2]  # RA, DEC, and wavelength reference pixels
+            w.wcs.cd = np.array([[cd11, cd12], [cd21, cd22]])
+        else:
+            w.wcs.cname = ['KCWI RA', 'KCWI DEC', 'KCWI Wavelength']
+            w.wcs.cunit = [units.degree, units.degree, units.Angstrom]
+            w.wcs.ctype = ["RA---TAN", "DEC--TAN", "WAVE"]  # Note, WAVE is vacuum wavelength
+            w.wcs.crval = [ra, dec, wave0]  # RA, DEC, and wavelength zeropoints
+            w.wcs.crpix = [crpix1, crpix2, crpix3]  # RA, DEC, and wavelength reference pixels
+            w.wcs.cd = np.array([[cd11, cd12, 0.0], [cd21, cd22, 0.0], [0.0, 0.0, dwv]])
 
         return w
 
