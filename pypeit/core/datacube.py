@@ -1774,16 +1774,6 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                                        fluxcal=fluxcal, specname=specname, save_whitelight=cubepar['save_whitelight'],
                                        whitelight_range=wl_wvrng, whitelight_wcs=wl_wcs,
                                        spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
-            # elif method == 'resample':
-            #     fluximg, ivarimg = np.zeros_like(raimg), np.zeros_like(raimg)
-            #     fluximg[onslit_gpm] = flux_sav[resrt]
-            #     ivarimg[onslit_gpm] = ivar_sav[resrt]
-            #     # Now generate the cube
-            #     generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, decimg, waveimg, slitid_img_init, onslit_gpm,
-            #                            overwrite=overwrite, output_wcs=output_wcs, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
-            #                            fluxcal=fluxcal, specname=specname)
-            # else:
-            #     msgs.error(f"The following method is not yet implemented: {method}")
             continue
 
         # Store the information
