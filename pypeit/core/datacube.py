@@ -1006,7 +1006,7 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
 def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, all_wave, tilts, slits, slitid_img_gpm,
                            astrom_trans, bins, spec_subpixel=10, spat_subpixel=10, overwrite=False, blaze_wave=None,
                            blaze_spec=None, fluxcal=False, sensfunc=None,
-                           save_whitelight=True, whitelight_range=None, whitelight_wcs=None,
+                           save_whitelight=False, whitelight_range=None, whitelight_wcs=None,
                            specname="PYP_SPEC", debug=False):
     """
     Save a datacube using the subpixel algorithm. This algorithm splits
@@ -1070,7 +1070,7 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
             A two element list that specifies the minimum and maximum wavelengths (in Angstroms) to use
             when constructing the whitelight image (format is: [min_wave, max_wave]). If None, the cube
             will be collapsed over the full wavelength range.
-        whitelight_wcs (`astropy.wcs.wcs.WCS`_):
+        whitelight_wcs (`astropy.wcs.wcs.WCS`_, optional):
             Output world coordinate system for the white light image.
         specname (str, optional):
             Name of the spectrograph
