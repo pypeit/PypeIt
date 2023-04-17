@@ -666,7 +666,7 @@ def interp_spec(wave_new, waves, fluxes, ivars, gpms, log10_blaze_function=None,
     if wave_new.ndim == 1:
         if fluxes.ndim == 1:
             return interp_oned(wave_new, waves, fluxes, ivars, gpms, log10_blaze_function=log10_blaze_function,
-            sensfunc=sensfunc, kind=kind)
+                               sensfunc=sensfunc, kind=kind)
 
         nexp = fluxes.shape[1]
         # Interpolate spectra to have the same wave grid with the iexp spectrum.
