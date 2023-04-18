@@ -2455,7 +2455,7 @@ class WavelengthSolutionPar(ParSet):
                  sigrej_first=None, sigrej_final=None, numsearch=None,
                  nfitpix=None, IDpixels=None, IDwaves=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
-                 ech_separate_2d=None):
+                 ech_separate_2d=None, redo_slit=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2697,6 +2697,10 @@ class WavelengthSolutionPar(ParSet):
         descr['refframe'] = 'Frame of reference for the wavelength calibration.  ' \
                          'Options are: {0}'.format(', '.join(options['refframe']))
 
+        dtypes['redo_slit'] = int
+        descr['redo_slit'] = 'Redo the input slit (multslit) or order (echelle)'
+
+
         # Instantiate the parameter set
         super(WavelengthSolutionPar, self).__init__(list(pars.keys()),
                                                     values=list(pars.values()),
@@ -2715,7 +2719,7 @@ class WavelengthSolutionPar(ParSet):
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
                    'IDpixels', 'IDwaves', 'refframe', 'nsnippet', 'use_instr_flag',
-                   'wvrng_arxiv']
+                   'wvrng_arxiv', 'redo_slit']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
