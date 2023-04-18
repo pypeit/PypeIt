@@ -1,6 +1,6 @@
-from functools import partial
 import enum
 from pathlib import Path
+import traceback
 
 from qtpy.QtWidgets import QGroupBox, QHBoxLayout, QVBoxLayout, QComboBox, QToolButton, QFileDialog, QWidget, QGridLayout, QFormLayout
 from qtpy.QtWidgets import QMessageBox, QTabWidget, QTreeView, QLayout, QLabel, QScrollArea, QListView, QTableView, QPushButton, QProgressDialog, QDialog, QHeaderView, QSizePolicy, QCheckBox, QDialog
@@ -507,6 +507,10 @@ class PypeItCustomEditorDelegate(QStyledItemDelegate):
 
 
 class PypeItMetadataView(QTableView):
+
+    itemsSelected = Signal()
+    """Signal sent when items in the table are selected."""
+
     """QTableView to display file metadata.
 
     Args:
@@ -533,11 +537,42 @@ class PypeItMetadataView(QTableView):
         sort_column = model.getColumnFromName('mjd')
         proxy_model.sort(sort_column, Qt.AscendingOrder)
         super().setModel(proxy_model)
-        #super().setModel(model)
 
         self.setSortingEnabled(True)
         self.horizontalHeader().setSortIndicator(sort_column, Qt.AscendingOrder)
 
+    def selectionChanged(self, selected, deselected):
+        """Event handler called by Qt when a selection change. Overriden from QTableView.
+        
+        Args:
+            selected (QItemSelection): The items that are currently selected
+            deselected (QItemSelection): The items that were deselected by the change.
+        """
+        if selected.count() > 0:
+            self.itemsSelected.emit()
+        super().selectionChanged(selected, deselected)
+
+    def selectedRows(self):
+        """
+        Return which rows in the PypeItMetadataPorxy model are selected.
+        
+        Return:
+            list: list of rows indexes that are selected.
+        """
+        # Convert our selected indexes (whcih are in a proxy model) to the rows in our passed in model
+        proxy_model = self.model()
+
+        # Use a set to avoid adding duplicate rows caused by the selectedIndexes being per cell
+        rows = set()
+    
+        for index in self.selectedIndexes():
+            # The indexes are for each cell, but we're only interested in rows
+            source_index = proxy_model.mapToSource(index)
+
+            # Avoid adding duplicate rows caused by the selectedIndexes being per cell
+            rows.add(source_index.row())
+    
+        return list(rows)
 
 class ConfigValuesPanel(QGroupBox):
 
@@ -635,7 +670,6 @@ class ConfigValuesPanel(QGroupBox):
         self.setSizePolicy(policy)
         
         layout.addWidget(scroll_area)
-        #msgs.info(f"My bg role/autofill: {self.backgroundRole()}/{self.foregroundRole()}/{self.autoFillBackground()}, scroll area bg role/autofill: {scroll_area.backgroundRole()}/{self.foregroundRole()}/{scroll_area.autoFillBackground()}, form widget bg role/autofill {form_widget.backgroundRole()}/{self.foregroundRole()}/{form_widget.autoFillBackground()} label bg role/autofill {label.backgroundRole()}/{self.foregroundRole()}/{label.autoFillBackground()}")
 
 class PypeItFileTab(QWidget):
     """Widget for displaying the information needed for one pypeit file. This includes
@@ -645,6 +679,9 @@ class PypeItFileTab(QWidget):
     Args:
         (pypeit.setup_gui.model.PypeItFileModel): The model representing all the information needed for a .pypeit file.
     """
+
+    itemsSelected = Signal()
+    """Signal sent when items have been selected in the metadata table."""
 
     def __init__(self, model):
         super().__init__()
@@ -706,6 +743,10 @@ class PypeItFileTab(QWidget):
 
         self._model.state_changed.connect(self.update_filename)
 
+        # Forward item selected signals
+        self.file_metadata_table.itemsSelected.connect(self.itemsSelected)
+
+
     """
     Signal handler that updates the filename when the underlying model is saved.
     """
@@ -731,10 +772,18 @@ class PypeItFileTab(QWidget):
         """
         str: The name to display for this tab. The name will  have a "*" in it if it has been modified.
         """
-        if self.state == ModelState.CHANGED:
+        if self.state != ModelState.UNCHANGED:
             return "*" + self.name
         else:
             return self.name
+
+    def selectedRows(self):
+        """ Return the selected rows in the metadata table.
+
+        Return:
+            List of row indexes of the selected rows in the metadata table.
+        """
+        return self.file_metadata_table.selectedRows()
 
 class ObsLogTab(QWidget):
     """Widget for displaying the observation log for raw data files for the same spectrograph but 
@@ -744,6 +793,9 @@ class ObsLogTab(QWidget):
         model (:class:`pypeit.setup_gui.model.PypeItSetupModel`): The model to use for the file metadata.
         parent (QWidget): The parent widget of the tab.
     """
+
+    itemsSelected = Signal()
+    """Signal sent when items are selected in the metadata table."""
 
     def __init__(self, model, parent=None):
         super().__init__(parent)        
@@ -794,6 +846,9 @@ class ObsLogTab(QWidget):
         # Update model with new spectrograph/data paths
         self.spectrograph.textActivated.connect(self._model.set_spectrograph)
         self.spectrograph.textActivated.connect(self.update_raw_data_paths_state)
+
+        # Forward item selected signals
+        self.obslog_table.itemsSelected.connect(self.itemsSelected)
 
     @property
     def state(self):
@@ -860,6 +915,15 @@ class ObsLogTab(QWidget):
         # Get the raw data paths state
         self.update_raw_data_paths_state()
 
+    def selectedRows(self):
+        """ Return the selected rows in the metadata table.
+
+        Return:
+            List of row indexes of the selected rows in the metadata table.
+        """
+        # Return the metadata view's selected items
+        return self.obslog_table.selectedRows()
+
 
 class SpectrographValidator(QValidator):
     """Validator to check whether a spectrograph name is valid, or potentially valid.
@@ -916,13 +980,11 @@ class PypeItSetupView(QTabWidget):
         self.setTabsClosable(True)
         self.hideTabCloseButton(0, always=True)
 
-        # Add a button to create new empty tabs
-        newTabButton = QPushButton("+",parent=self)
-        #extra_height = self.style().pixelMetric(QStyle.PM_TabBarTabVSpace)
-        #msgs.info(f"extra height: {extra_height}, tab height: {self.tabBar().tabRect(0).height()} tab bar height {self.tabBar().height()}")
-        newTabButton.setFixedHeight(self.tabBar().tabRect(0).height())
-        newTabButton.setEnabled(False)
-        self.setCornerWidget(newTabButton, corner=Qt.Corner.BottomLeftCorner)
+        # Add a button to create new tabs
+        self.newTabButton = QPushButton("+",parent=self)
+        self.newTabButton.setFixedHeight(self.tabBar().tabRect(0).height())
+        self.newTabButton.setEnabled(False)
+        self.setCornerWidget(self.newTabButton, corner=Qt.Corner.BottomLeftCorner)
 
         # Set our model
         self._model = model
@@ -935,10 +997,39 @@ class PypeItSetupView(QTabWidget):
         self._model.configs_deleted.connect(self.delete_tabs)
 
         # Connect new/delete signals
-        newTabButton.clicked.connect(self._model.createNewConfig)
-        self.tabCloseRequested.connect(self._close_tab)
+        self.newTabButton.clicked.connect(self._createNewConfig)
+        self.tabCloseRequested.connect(self._closeTab)
 
-    def _close_tab(self, index):
+        # Keep track of what tab is selected
+        self._current_tab = None
+        self.currentChanged.connect(self._currentTabChanged)
+        self._currentTabChanged(0)
+
+
+
+    def _createNewConfig(self):
+        """Creates a new configuration based on rows selected in the metadata."""
+
+        # Get the currently selected metadata rows
+        selectedRows = self._current_tab.selectedRows()
+        if len(selectedRows) == 0:
+            return
+
+        config_name = self._current_tab.name
+        try:
+            self._model.createNewPypeItFile(config_name, selectedRows)
+        except Exception as e:
+            setup_gui_main_window.display_error(f"Failed to create new tab {e.__class__.__name__}: {e}")
+            msgs.warn(f"Failed to create new tab.")
+            msgs.warn(traceback.format_exc())
+
+
+    def _closeTab(self, index):
+        """Close an existing tab.
+        
+        Args:
+            index (int): The index of the tab being closed.
+        """
         config_name = self.widget(index).name
         if config_name == "ObsLog":
             # Shouldn't happen, but ignore requests to delete the obs log 
@@ -946,7 +1037,35 @@ class PypeItSetupView(QTabWidget):
         else:
             setup_gui_main_window.controller.removeConfig(config_name)
 
+    def _currentTabChanged(self, index):
+        """
+        Signal handler that to keep track of the currently selected 
+        metadata rows when the current tab changes.
+        """
+
+        if self._current_tab is not None:
+            self._current_tab.itemsSelected.disconnect(self._updateNewTabButton)
+            
+        self._current_tab = self.widget(index)
+        self._updateNewTabButton()
+        self._current_tab.itemsSelected.connect(self._updateNewTabButton)
+
+    def _updateNewTabButton(self):
+        """Updates the enabled state of the new tab button based on whether rows are selected."""
+
+        if len(self._current_tab.selectedRows()) > 0:
+            self.newTabButton.setEnabled(True)
+        else:
+            self.newTabButton.setEnabled(False)
+
     def hideTabCloseButton(self, tab_pos, always=False):
+        """Hides the tab close button on a tab. Used for the ObsLog tab.
+        
+        Args:
+            tab_pos (int): The index of the tab.
+            always (bool): True if the close tab button should always be hidden. If True
+                           the tab will not reserve any space for the button to appear.
+        """
         close_button_positon = QTabBar.ButtonPosition(self.style().styleHint(QStyle.SH_TabBar_CloseButtonPosition))
         close_button = self.tabBar().tabButton(tab_pos, close_button_positon)
         if always:
@@ -1362,7 +1481,7 @@ class SetupGUIMainWindow(QWidget):
         if tab.name == "ObsLog":
             self.saveTabButton.setEnabled(False)
         else:
-            self.saveTabButton.setEnabled(tab.state == ModelState.CHANGED)
+            self.saveTabButton.setEnabled(tab.state != ModelState.UNCHANGED)
 
     def update_setup_button(self):
         """Enable/disable the setup button based on whether a spectrograph and raw
@@ -1378,7 +1497,7 @@ class SetupGUIMainWindow(QWidget):
 
     def update_buttons_from_model_state(self):
         """Update the enabled/disabled state of buttons based on the model state."""
-        self.saveAllButton.setEnabled(self.setup_view.state==ModelState.CHANGED)
+        self.saveAllButton.setEnabled(self.setup_view.state!=ModelState.UNCHANGED)
         self.clearButton.setEnabled(self.setup_view.state!=ModelState.NEW)
         self.update_save_tab_button()
 
