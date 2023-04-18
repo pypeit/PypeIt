@@ -9,6 +9,7 @@
 - Make pypeit_show_2dspec (somewhat) backwards compatible.
 - Added the option to disable strict version checking for 1d coadds.
 - Sensitivity function masking and output updates
+- Hotfix for KCWI when using alignment (aka ContBars) frames for the astrometric correction.
 - Updates to reduction parameters for LDT/DeVeny
 
 1.12.2 (29 Mar 2023)

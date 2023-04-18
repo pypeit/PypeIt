@@ -60,7 +60,6 @@ class SlitTraceBitMask(BitMask):
                 'SKIPFLATCALIB', 'BADFLATCALIB', 'BADSKYSUB', 'BADEXTRACT']
 
 
-
 class SlitTraceSet(datamodel.DataContainer):
     """
     Defines a generic class for holding and manipulating image traces
