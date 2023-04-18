@@ -585,26 +585,16 @@ def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, nspec=Non
                              kwargs=dict(color='cyan', fill=True, fillalpha=0.5)) for i in range(goodpix_tilt.size)]
 
     # Plot the 2D fitted tilts
-    # loop over each slit
-    for islit in tilt_traces['slit_ids'][0]:
+    # loop over each line, this allows to use type='path' and therefore a faster plotting
+    for iline in np.unique(tilt_traces['good2dfit_slitid'][0]):
         # good fit
-        this_slit = tilt_traces['good2dfit_slitid'][0] == islit
-        if np.any(this_slit):
-            good2dfit_spat = tilt_traces['good2dfit_spat'][0][this_slit]
-            good2dfit_tilt = tilt_traces['good2dfit_tilt'][0][this_slit]
-            # try to split the array into each line. This is for improving speed
-            # sort tilts
-            tsort = np.argsort(good2dfit_tilt)
-            # find values that are close together
-            close = np.diff(good2dfit_tilt[tsort]) <= 1.
-            # divide into slices, each including a line
-            lines = utils.contiguous_true(close)
-            # loop over each line, this allows to use type='path' and therefore a faster plotting
-            for iline in lines:
-                x = good2dfit_spat[tsort][iline] + xoff
-                y = good2dfit_tilt[tsort][iline] + xoff
-                canvas_list += [dict(type=str('path'),args=(list(zip(x[::pstep].tolist(), y[::pstep].tolist())),),
-                                     kwargs=dict(color='blue', linewidth=2))]
+        this_line = tilt_traces['good2dfit_slitid'][0] == iline
+        if np.any(this_line):
+            good2dfit_spat = tilt_traces['good2dfit_spat'][0][this_line] + xoff
+            good2dfit_tilt = tilt_traces['good2dfit_tilt'][0][this_line] + yoff
+            canvas_list += [dict(type=str('path'),
+                                 args=(list(zip(good2dfit_spat[::pstep].tolist(), good2dfit_tilt[::pstep].tolist())),),
+                                 kwargs=dict(color='blue', linewidth=2))]
 
     # Now plot the masked traces and the rejected 2D fits
     # We just plot the points, so we do not need to loop over each slit/line

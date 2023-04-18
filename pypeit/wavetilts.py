@@ -790,16 +790,16 @@ class BuildWaveTilts:
                 - slit_ids: Slit IDs for which the tilts were traced and fit
                 - goodpix_spat: Good spatial pixels of the traced tilts
                 - goodpix_tilt: Good spectral pixels  of the traced tilts
-                - goodpix_slitid: Slit IDs for each goodpix. This is needed to associate goodpix to each slit
+                - goodpix_lid: Line IDs for each goodpix. This is needed to associate goodpix to each line
                 - badpix_spat: Masked spatial pixels of the traced tilts
                 - badpix_tilt: Masked spectral pixels of the traced tilts
-                - badpix_slitid: Slit IDs for each badpix. This is needed to associate badpix to each slit
+                - badpix_lid: Line IDs for each badpix. This is needed to associate badpix to each line
                 - good2dfit_spat: Good spatial pixels of the 2D fit of the tilts
                 - good2dfit_tilt: Good spectral pixels of the 2D fit of the tilts
-                - good2dfit_slitid: Slit IDs for each good2dfit. This is needed to associate good2dfit to each slit
+                - good2dfit_lid: Line IDs for each good2dfit. This is needed to associate good2dfit to each line
                 - bad2dfit_spat: Rejected spatial pixels of the 2D fit of the tilts
                 - bad2dfit_tilt: Rejected spectral pixels of the 2D fit of the tilts
-                - bad2dfit_slitid: Slit IDs for each bad2dfit. This is needed to associate bad2dfit to each slit
+                - bad2dfit_lid: Line IDs for each bad2dfit. This is needed to associate bad2dfit to each line
 
         """
 
@@ -810,42 +810,55 @@ class BuildWaveTilts:
         slit_ids = np.array([])
 
         # good&bad traces
+        goodpix_lid = np.array([])
         goodpix_spat = np.array([])
         goodpix_tilt = np.array([])
-        goodpix_slitid = np.array([])
+
+        badpix_lid = np.array([])
         badpix_spat = np.array([])
         badpix_tilt = np.array([])
-        badpix_slitid = np.array([])
 
         # good&bad fits
+        good2dfit_lid = np.array([])
         good2dfit_spat = np.array([])
         good2dfit_tilt = np.array([])
-        good2dfit_slitid = np.array([])
+
+        bad2dfit_lid = np.array([])
         bad2dfit_spat = np.array([])
         bad2dfit_tilt = np.array([])
-        bad2dfit_slitid = np.array([])
 
         # fill the arrays with the traced and fitted tilts
         # each trc is a slit
         for i, trc in enumerate(self.all_trace_dict):
-            if trc is not None:
+            if trc is not None and self.slits.mask[i] == 0:
+                # slit ids
                 slit_ids = np.append(slit_ids, self.slits.spat_id[i])
+                # good pixels
                 gpix = trc['tot_mask']
-                goodpix_spat = np.append(goodpix_spat, trc['tilts_spat'].flatten()[gpix.flatten()])
-                goodpix_tilt = np.append(goodpix_tilt, trc['tilts'].flatten()[gpix.flatten()])
-                goodpix_slitid = np.append(goodpix_slitid, np.repeat(self.slits.spat_id[i], sum(gpix.flatten())))
+                # bad pixels
                 bpix = np.invert(gpix) & (trc['tilts'] > 0)
-                badpix_spat = np.append(badpix_spat, trc['tilts_spat'].flatten()[bpix.flatten()])
-                badpix_tilt = np.append(badpix_tilt, trc['tilts'].flatten()[bpix.flatten()])
-                badpix_slitid = np.append(badpix_slitid, np.repeat(self.slits.spat_id[i], sum(bpix.flatten())))
+                # good 2d fit
                 gfit = gpix & trc['fit_mask']
-                good2dfit_spat = np.append(good2dfit_spat, trc['tilts_spat'].flatten()[gfit.flatten()])
-                good2dfit_tilt = np.append(good2dfit_tilt, trc['tilt_2dfit'].flatten()[gfit.flatten()])
-                good2dfit_slitid = np.append(good2dfit_slitid, np.repeat(self.slits.spat_id[i], sum(gfit.flatten())))
+                # bad 2d fit
                 bfit = gpix & np.invert(trc['fit_mask'])
-                bad2dfit_spat = np.append(bad2dfit_spat, trc['tilts_spat'].flatten()[bfit.flatten()])
-                bad2dfit_tilt = np.append(bad2dfit_tilt, trc['tilt_2dfit'].flatten()[bfit.flatten()])
-                bad2dfit_slitid = np.append(bad2dfit_slitid, np.repeat(self.slits.spat_id[i], sum(bfit.flatten())))
+
+                for l in range(trc['tilts_spat'].shape[1]):
+                    # good pixels
+                    goodpix_lid = np.append(goodpix_lid, np.repeat(f'{self.slits.spat_id[i]}_{l + 1}', sum(gpix[:, l])))
+                    goodpix_spat = np.append(goodpix_spat, trc['tilts_spat'][:,l][gpix[:,l]])
+                    goodpix_tilt = np.append(goodpix_tilt, trc['tilts'][:,l][gpix[:,l]])
+                    # bad pixels
+                    badpix_lid = np.append(badpix_lid, np.repeat(f'{self.slits.spat_id[i]}_{l + 1}', sum(bpix[:, l])))
+                    badpix_spat = np.append(badpix_spat, trc['tilts_spat'][:,l][bpix[:,l]])
+                    badpix_tilt = np.append(badpix_tilt, trc['tilts'][:,l][bpix[:,l]])
+                    # good 2d fit
+                    good2dfit_lid = np.append(good2dfit_lid, np.repeat(f'{self.slits.spat_id[i]}_{l + 1}', sum(gfit[:, l])))
+                    good2dfit_spat = np.append(good2dfit_spat, trc['tilts_spat'][:,l][gfit[:,l]])
+                    good2dfit_tilt = np.append(good2dfit_tilt, trc['tilt_2dfit'][:,l][gfit[:,l]])
+                    # bad 2d fit
+                    bad2dfit_lid = np.append(bad2dfit_lid, np.repeat(f'{self.slits.spat_id[i]}_{l + 1}', sum(bfit[:, l])))
+                    bad2dfit_spat = np.append(bad2dfit_spat, trc['tilts_spat'][:,l][bfit[:,l]])
+                    bad2dfit_tilt = np.append(bad2dfit_tilt, trc['tilt_2dfit'][:,l][bfit[:,l]])
 
         # fill the table
         tbl_tilt_traces = table.Table()
@@ -854,17 +867,17 @@ class BuildWaveTilts:
         # traced tilts
         tbl_tilt_traces['goodpix_spat'] = np.expand_dims(goodpix_spat, axis=0)
         tbl_tilt_traces['goodpix_tilt'] = np.expand_dims(goodpix_tilt, axis=0)
-        tbl_tilt_traces['goodpix_slitid'] = np.expand_dims(goodpix_slitid, axis=0)
+        tbl_tilt_traces['goodpix_slitid'] = np.expand_dims(goodpix_lid, axis=0)
         tbl_tilt_traces['badpix_spat'] = np.expand_dims(badpix_spat, axis=0)
         tbl_tilt_traces['badpix_tilt'] = np.expand_dims(badpix_tilt, axis=0)
-        tbl_tilt_traces['badpix_slitid'] = np.expand_dims(badpix_slitid, axis=0)
+        tbl_tilt_traces['badpix_slitid'] = np.expand_dims(badpix_lid, axis=0)
         # fitted tilts
         tbl_tilt_traces['good2dfit_spat'] = np.expand_dims(good2dfit_spat, axis=0)
         tbl_tilt_traces['good2dfit_tilt'] = np.expand_dims(good2dfit_tilt, axis=0)
-        tbl_tilt_traces['good2dfit_slitid'] = np.expand_dims(good2dfit_slitid, axis=0)
+        tbl_tilt_traces['good2dfit_slitid'] = np.expand_dims(good2dfit_lid, axis=0)
         tbl_tilt_traces['bad2dfit_spat'] = np.expand_dims(bad2dfit_spat, axis=0)
         tbl_tilt_traces['bad2dfit_tilt'] = np.expand_dims(bad2dfit_tilt, axis=0)
-        tbl_tilt_traces['bad2dfit_slitid'] = np.expand_dims(bad2dfit_slitid, axis=0)
+        tbl_tilt_traces['bad2dfit_slitid'] = np.expand_dims(bad2dfit_lid, axis=0)
 
         return tbl_tilt_traces
 
@@ -938,24 +951,13 @@ def show_tilts_mpl(tilt_img, tilt_traces, slits=None, show_traces=False, cut=Non
         plt.scatter(tilt_traces['badpix_spat'], tilt_traces['badpix_tilt'], color='red',
                     marker='s', s=10, lw=0, label='Masked pixel', zorder=2)
     # 2D fit tilts
-    # loop over each slit/line so that we can plot lines instead of points
-    for islit in tilt_traces['slit_ids'][0]:
-        this_slit = tilt_traces['good2dfit_slitid'][0] == islit
-        if np.any(this_slit):
-            good2dfit_spat = tilt_traces['good2dfit_spat'][0][this_slit]
-            good2dfit_tilt = tilt_traces['good2dfit_tilt'][0][this_slit]
-            # try to split the array into each line. This is for improving speed
-            # sort tilts
-            tsort = np.argsort(good2dfit_tilt)
-            # find values that are close together
-            close = np.diff(good2dfit_tilt[tsort]) <= 1.
-            # divide into slices, each including a line
-            lines = utils.contiguous_true(close)
-            # loop over each line, this allows to use type='path' and therefore a faster plotting
-            for iline in lines:
-                x = good2dfit_spat[tsort][iline]
-                y = good2dfit_tilt[tsort][iline]
-                plt.plot(x, y, color='blue', lw=1, zorder=3)
+    # loop over each line so that we can plot lines instead of points
+    for iline in np.unique(tilt_traces['good2dfit_slitid'][0]):
+        this_line = tilt_traces['good2dfit_slitid'][0] == iline
+        if np.any(this_line):
+            good2dfit_spat = tilt_traces['good2dfit_spat'][0][this_line]
+            good2dfit_tilt = tilt_traces['good2dfit_tilt'][0][this_line]
+            plt.plot(good2dfit_spat, good2dfit_tilt, color='blue', lw=1, zorder=3)
 
     # rejected point in 2D fit
     if tilt_traces['bad2dfit_tilt'][0].size > 0:
