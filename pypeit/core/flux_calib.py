@@ -891,7 +891,7 @@ def fit_zeropoint(wave, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
         mask_helium_lines (bool, optional):
             If True, mask stellar helium absorption lines before fitting sensitivity function. Default = False
         hydrogen_mask_wid (float, optional):
-            Parameter describing the width of the mask for or stellar absorption lines (`i.e.`, ``mask_hydrogen_lines=True``)
+            Parameter describing the width of the mask for or stellar absorption lines (i.e., ``mask_hydrogen_lines=True``)
             in Angstroms.  A region equal to ``hydrogen_mask_wid`` on either side of the line center is masked.
             Default = 10A
         polycorrect (bool, optional):
@@ -1084,7 +1084,7 @@ def mask_stellar_hydrogen(wave_star, mask_width=10.0, mask_star=None):
     """
     Routine to mask stellar hydrogen recombination lines
 
-    ..note ::
+    .. note::
         This function is pulled out separate from :func:`get_mask` because
         it is used in the ``telluric`` module, independent of the remainder
         of the functionality in :func:`get_mask`.
@@ -1100,8 +1100,8 @@ def mask_stellar_hydrogen(wave_star, mask_width=10.0, mask_star=None):
             (Default: None)
 
     Returns:
-        `numpy.ndarray`_:  bool mask.
-           same shape as wave_star, True=Good (i.e. does not hit a stellar absorption line)
+        `numpy.ndarray`_:  boolean mask.  Same shape as ``wave_star``, True=Good
+        (i.e.  does not hit a stellar absorption line).
     """
 
     if mask_star is None:
@@ -1155,7 +1155,8 @@ def mask_stellar_helium(wave_star, mask_width=5.0, mask_star=None):
     """
     Routine to mask stellar helium recombination lines
 
-    ..note ::
+    .. note::
+
         This function is pulled out separate from :func:`get_mask` because
         it is used in the ``telluric`` module, independent of the remainder
         of the functionality in :func:`get_mask`.
@@ -1171,8 +1172,8 @@ def mask_stellar_helium(wave_star, mask_width=5.0, mask_star=None):
             (Default: None)
 
     Returns:
-        `numpy.ndarray`_:  bool mask.
-           same shape as wave_star, True=Good (i.e. does not hit a stellar absorption line)
+        `numpy.ndarray`_:  boolean mask.  Same shape as ``wave_star``, True=Good
+        (i.e.  does not hit a stellar absorption line).
     """
 
     if mask_star is None:
@@ -1385,34 +1386,33 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_recomb=N
     Nlam : `numpy.ndarray`_
         counts/s/Angstrom as observed
     Nlam_ivar : `numpy.ndarray`_
-      inverse variance of counts/s/Angstrom
+        inverse variance of counts/s/Angstrom
     Nlam_gpm : `numpy.ndarray`_
-      mask for bad pixels. True is good.
+        mask for bad pixels. True is good.
     flam_true : Quantity array
-      standard star true flux (erg/s/cm^2/A)
+        standard star true flux (erg/s/cm^2/A)
     mask_recomb: `numpy.ndarray`_
-      mask for hydrogen (and/or helium II) recombination lines. True is good.
+        mask for hydrogen (and/or helium II) recombination lines. True is good.
     mask_tell: `numpy.ndarray`_
-      mask for telluric regions. True is good.
+        mask for telluric regions. True is good.
     maxiter : integer
-      maximum number of iterations for polynomial fit
+        maximum number of iterations for polynomial fit
     upper : integer
-      number of sigma for rejection in polynomial
+        number of sigma for rejection in polynomial
     lower : integer
-      number of sigma for rejection in polynomial
+        number of sigma for rejection in polynomial
     polyorder : integer
-      order of polynomial fit
+        order of polynomial fit
     balm_mask_wid: float
-      in units of angstrom
-      Mask parameter for Balmer absorption. A region equal to
-      balm_mask_wid is masked.
+        Mask parameter for Balmer absorption. A region equal to balm_mask_wid in
+        units of angstrom is masked.
     nresln: integer/float
-      number of resolution elements between breakpoints
+        number of resolution elements between breakpoints
     resolution: integer/float.
-      spectra resolution
-      This paramters should be removed in the future. The resolution should be estimated from spectra directly.
+        The spectral resolution.  This paramters should be removed in the
+        future. The resolution should be estimated from spectra directly.
     debug : bool
-      if True shows some dubugging plots
+        if True shows some dubugging plots
 
     Returns
     -------
