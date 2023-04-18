@@ -1388,7 +1388,6 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     wave_ref = None
     mnmx_wv = None  # Will be used to store the minimum and maximum wavelengths of every slit and frame.
     weights = np.ones(numfiles)  # Weights to use when combining cubes
-    locations = parset['calibrations']['alignment']['locations']
     flat_splines = dict()   # A dictionary containing the splines of the flatfield
     # Load the default scaleimg frame for the scale correction
     relScaleImgDef = np.array([1])
@@ -1576,6 +1575,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             locations = [0.0, 1.0]
             traces = np.append(left[:,None,:], right[:,None,:], axis=1)
         else:
+            locations = parset['calibrations']['alignment']['locations']
             traces = alignments.traces
         # Generate an RA/DEC image
         msgs.info("Generating RA/DEC image")
