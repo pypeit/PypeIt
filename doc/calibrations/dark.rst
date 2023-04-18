@@ -1,16 +1,16 @@
 
 .. include:: ../include/links.rst
 
-==========
-MasterDark
-==========
+====
+Dark
+====
 
 Overview
 ========
 
-This file describes the data model for the ``MasterDark`` image.
+This file describes the data model for the ``Dark`` image.
 This is written to disk as a multi-extension FITS file prefixed by
-``MasterDark`` in the ``Masters/`` folder.
+``Dark`` in the ``Calibrations/`` folder.
 
 This is generally a simple combination of all input dark frames.
 
@@ -22,7 +22,7 @@ any standard image viewer, e.g.:
 
 .. code-block:: console
 
-    ginga Masters/MasterDark_A_1_01.fits
+    ginga Calibrations/Dark_A_1_01.fits
 
 It should resemble any one of your input dark frames aside from:
 

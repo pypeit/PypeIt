@@ -1,11 +1,15 @@
 """
 Module to run tests on skysub routines (mainly for IFU)
 """
-import pytest
+from pathlib import Path
+from IPython import embed
+
 import numpy as np
 
 from pypeit.core import skysub
+from pypeit.images.buildimage import SkyRegions
 from pypeit.slittrace import SlitTraceSet
+from pypeit.tests.tstutils import data_path
 
 
 def test_userregions():
@@ -30,25 +34,41 @@ def test_userregions():
     for rr, reg in enumerate(regions):
         status, regs = skysub.read_userregions(reg, nslits, maxslitlength=maxsl)
         if status != 1:
-            assert (len(regs) == nslits)
-            assert(np.array_equal(np.where(regs[0][1:] & ~regs[0][:-1])[0], result[rr][0]))
-            assert(np.array_equal(np.where(~regs[0][1:] & regs[0][:-1])[0], result[rr][1]))
-        assert(status == resstat[rr])
+            assert len(regs) == nslits, 'Bad number of slits'
+            assert np.array_equal(np.where(regs[0][1:] & ~regs[0][:-1])[0], result[rr][0]), \
+                    'Bad result for slit 1'
+            assert np.array_equal(np.where(~regs[0][1:] & regs[0][:-1])[0], result[rr][1]), \
+                    'Bad result for slit 2'
+        assert status == resstat[rr], 'Unexpected status'
 
 
 def test_generatemask():
     maxsl = 1000
     nslits = 2
     reg = "80:"
-    tstmsk = np.zeros((1000, 1000))
-    tstmsk[:, 744:901] = 1
+    tstmsk = np.zeros((1000, 1000), dtype=bool)
+    tstmsk[:, 744:901] = True
     status, regs = skysub.read_userregions(reg, nslits, maxslitlength=maxsl)
+    assert status == 0, 'Bad generation of user regions'
     slits = SlitTraceSet(left_init=np.full((1000, 1), 120, dtype=float),
                          right_init=np.full((1000, 1), 900, dtype=float), binspec=1, binspat=1,
                          pypeline='IFU', nspat=1000, PYP_SPEC='dummy')
     skymask = skysub.generate_mask("IFU", regs, slits, slits.left_init, slits.right_init)
-    assert(np.array_equal(skymask, tstmsk))
+    assert np.array_equal(skymask, tstmsk), 'Sky mask mismatch'
 
-#test_userregions()
+
+def test_skyregions_io():
+    tstmsk = np.zeros((1000, 1000), dtype=bool)
+    tstmsk[:, 744:901] = True
+    ofile = Path(data_path('test_skyregions.fits')).resolve()
+    if ofile.exists():
+        ofile.unlink()
+    SkyRegions(image=tstmsk.astype(float), PYP_SPEC='dummy').to_file(file_path=ofile)
+    assert ofile.exists(), 'SkyRegions file not written'
+    reg = SkyRegions.from_file(ofile)
+    assert np.array_equal(tstmsk, reg.image.astype(bool)), 'Bad read'
+
+    # Clean-up
+    ofile.unlink()
 
 

@@ -37,7 +37,7 @@ First, ``Pypeit``, using :func:`pypeit.slittrace.get_maskdef_objpos_offset_allde
 computes for every detectors that the user wants to reduce the offset of the observed
 slitmask from the position expected by the design file (see :ref:`slitmask_ids_report`
 for a description on how the slitmask design matching is performed), and stores it in
-the :class:`~pypeit.slittrace.SlitTraceSet` datamodel (see :ref:`master_slits` for a
+the :class:`~pypeit.slittrace.SlitTraceSet` datamodel (see :ref:`slits` for a
 description of the provided information and for a way to visualize them). There are four
 different options that the user can choose to compute the offset: using objects with high
 significance detections, using only one bright object in a selected slit, using alignment stars,
@@ -180,7 +180,7 @@ and is as follows:
 
     8. Read  ``RA``, ``DEC`` and ``MASKDEF_OBJNAME`` for a selected slit and check if those correspond to
        the expected values. The expected values are taken from the :class:`~pypeit.slittrace.SlitTraceSet`
-       datamodel. See :ref:`master_slits` for a description of the provided information and for a way
+       datamodel. See :ref:`slits` for a description of the provided information and for a way
        to visualize them.
 
 

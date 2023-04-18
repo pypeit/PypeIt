@@ -20,8 +20,7 @@ from astropy.stats import sigma_clipped_stats
 
 from pypeit import utils
 from pypeit import data
-from pypeit import par
-from pypeit import msgs
+from pypeit import par, msgs
 from pypeit import wavecalib
 from pypeit import wavetilts
 from pypeit import spec2dobj

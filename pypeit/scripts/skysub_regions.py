@@ -35,14 +35,16 @@ class SkySubRegions(scriptbase.ScriptBase):
 
     @staticmethod
     def main(args):
+        from IPython import embed
         from pypeit import spec2dobj
         import os
         import astropy.io.fits as fits
         from pypeit import msgs
+        from pypeit import io
         from pypeit.core.gui.skysub_regions import SkySubGUI
-        from pypeit import masterframe
         from pypeit.images import buildimage
         from pypeit.images.detector_container import DetectorContainer
+        from pypeit.edgetrace import EdgeTraceSet
 
         # Parse the detector name
         try:
@@ -56,9 +58,17 @@ class SkySubRegions(scriptbase.ScriptBase):
         spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, detname, chk_version=True)
         frame = spec2DObj.sciimg
         hdr = fits.open(args.file)[0].header
-        fname = hdr["FILENAME"]
-        mdir, mkey = hdr['PYPMFDIR'], hdr['TRACMKEY']
-        pypeline, specname = hdr['PYPELINE'], hdr['PYP_SPEC']
+        fname = hdr['FILENAME']
+        calib_dir = hdr['CALIBDIR']
+        pypeline = hdr['PYPELINE']
+        specname = hdr['PYP_SPEC']
+
+        # Use the edges calibration frame to set the calibration key
+        key = EdgeTraceSet.calib_type.upper()
+        if key not in spec2DObj.calibs:
+            # TODO: Until I can figure out a better approach...
+            msgs.error(f'EdgeTrace calibration frame not recorded in {args.file}!')
+        calib_key, _ = EdgeTraceSet.parse_key_dir(spec2DObj.calibs[key], from_filename=True)
 
         # Use the appropriate class to get the "detector" number
         det = spec2DObj.detector.parse_name(detname)
@@ -76,18 +86,13 @@ class SkySubRegions(scriptbase.ScriptBase):
 
         # Derive an appropriate output filename
         file_base = os.path.basename(fname)
-        prefix = os.path.splitext(file_base)
-        if prefix[1] == ".gz":
-            outname = os.path.splitext(prefix[0])[0]
-        else:
-            outname = prefix[0]
-        ext = buildimage.SkyRegions.master_file_format
-        regfile = masterframe.construct_file_name(buildimage.SkyRegions, master_key=mkey, master_dir=mdir)
-        regfile = regfile.replace(".{0:s}".format(ext), "_{0:s}.{1:s}".format(outname, ext))
+        regfile = buildimage.SkyRegions.construct_file_name(calib_key, calib_dir=calib_dir,
+                                                            basename=io.remove_suffix(file_base))
 
         # Finally, initialise the GUI
-        skyreg = SkySubGUI.initialize(det, frame, slits, pypeline, specname, outname=regfile, overwrite=args.overwrite,
-                                      runtime=False, printout=True, initial=args.initial, flexure=spat_flexure)
+        skyreg = SkySubGUI.initialize(det, frame, slits, pypeline, specname, outname=regfile,
+                                      overwrite=args.overwrite, runtime=False, printout=True,
+                                      initial=args.initial, flexure=spat_flexure)
 
         # Get the results
         skyreg.get_result()

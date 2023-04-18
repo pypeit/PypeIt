@@ -15,7 +15,7 @@ This doc describes how to create a wavelength template used to perform
 wavelength calibration with the :ref:`wvcalib-algorithms`.
 
 See :doc:`wave_calib` for a discussion of various algorithms and
-see :doc:`master_wvcalib` for a discussion of the
+see :doc:`wvcalib` for a discussion of the
 main outputs and good/bad examples.
 
 Finding Data
@@ -30,8 +30,8 @@ Using the Holy Grail Algorithm
 
 Once you have a set of different arc lamp exposures that cover the desired range,
 run through the data using the option of the :ref:`wvcalib-holygrail` algorithm to generate a
-master wavelength calibration and select the slits where the technique is
-successful. See :doc:`master_wvcalib` for an example QA plot that illustrates
+wavelength calibration and select the slits where the technique is
+successful. See :doc:`wvcalib` for an example QA plot that illustrates
 a good wavelength solution.
 
 With a complete set of correctly calibrated arc line data, identify wavelength
@@ -47,9 +47,9 @@ algorithm.
 Creating the Template
 =====================
 
-Once all of the slits and master wavelength calibration files are selected, use
+Once all of the slits and wavelength calibration files are selected, use
 :func:`~pypeit.core.wavecal.templates.build_template` to turn the
-list of slits, wavelength ranges, and :doc:`master_wvcalib` files into a final
+list of slits, wavelength ranges, and :doc:`wvcalib` files into a final
 template.
 
 For longevity, it is a good idea to install the `PypeIt Development Suite`_ (see

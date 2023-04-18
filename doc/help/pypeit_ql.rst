@@ -1,17 +1,17 @@
 .. code-block:: console
 
     $ pypeit_ql -h
-    usage: pypeit_ql [-h] [--rawfile_list RAWFILE_LIST]
-                     [--full_rawpath FULL_RAWPATH] [--raw_extension RAW_EXTENSION]
-                     [--rawfiles RAWFILES [RAWFILES ...]]
+    usage: pypeit_ql [-h] [--raw_files RAW_FILES [RAW_FILES ...]]
+                     [--raw_path RAW_PATH] [--ext EXT]
                      [--sci_files SCI_FILES [SCI_FILES ...]]
-                     [--redux_path REDUX_PATH] [--calib_dir CALIB_DIR]
-                     [--masters_dir MASTERS_DIR] [--calibs_only] [--clobber_calibs]
-                     [--slitspatnum SLITSPATNUM] [--maskID MASKID]
-                     [--boxcar_radius BOXCAR_RADIUS] [--det DET] [--no_stack]
+                     [--redux_path REDUX_PATH] [--parent_calib_dir PARENT_CALIB_DIR]
+                     [--setup_calib_dir SETUP_CALIB_DIR] [--calibs_only]
+                     [--overwrite_calibs] [--slitspatnum SLITSPATNUM]
+                     [--maskID MASKID] [--boxcar_radius BOXCAR_RADIUS]
+                     [--det DET [DET ...]] [--no_stack] [--bkg_redux]
                      spectrograph
     
-    Script to produce quick-look multislit PypeIt reductions
+    Script to produce quick-look PypeIt reductions
     
     positional arguments:
       spectrograph          A valid spectrograph identifier: bok_bc,
@@ -36,35 +36,48 @@
     
     options:
       -h, --help            show this help message and exit
-      --rawfile_list RAWFILE_LIST
-                            File providing raw files to reduce including their
-                            path(s) (default: None)
-      --full_rawpath FULL_RAWPATH
-                            Full path to the raw files. Used with --rawfiles or
-                            --raw_extension (default: None)
-      --raw_extension RAW_EXTENSION
-                            Extension for raw files in full_rawpath. Only use if
-                            --rawfile_list and --rawfiles are not provided (default:
-                            .fits)
-      --rawfiles RAWFILES [RAWFILES ...]
-                            space separated list of raw frames e.g. img1.fits
-                            img2.fits. These must exist within --full_rawpath
-                            (default: None)
-      --sci_files SCI_FILES [SCI_FILES ...]
-                            space separated list of raw frames to be specified as
-                            science exposures (over-rides PypeIt frame typing)
-                            (default: None)
-      --redux_path REDUX_PATH
-                            Full path to where QL reduction should be run. (default:
-                            current working directory)
-      --calib_dir CALIB_DIR
-                            Location folders of calibration reductions (default:
+      --raw_files RAW_FILES [RAW_FILES ...]
+                            Either a PypeIt-formatted input file with the list of
+                            raw images to process and the relevant path, or a space-
+                            separated list of the filenames (e.g., "img1.fits
+                            img2.fits"). For the latter entry mode, the path
+                            containing the files is set using --raw_path. (default:
                             None)
-      --masters_dir MASTERS_DIR
-                            Location of PypeIt Master files used for the reduction.
+      --raw_path RAW_PATH   Directory with the raw files to process. Ignored if a
+                            PypeIt-formatted file is provided using the --rawfiles
+                            option. (default: current working directory)
+      --ext EXT             If raw file names are not provided directly using the
+                            --rawfiles option, this sets the extension used when
+                            searching for any files in the path defined by
+                            --raw_path. All files found in the raw path with this
+                            extension will be processed. (default: .fits)
+      --sci_files SCI_FILES [SCI_FILES ...]
+                            A space-separated list of raw file names that are
+                            science exposures. These files must *also* be in the
+                            list of raw files. Use of this option overrides the
+                            automated PypeIt frame typing. (default: None)
+      --redux_path REDUX_PATH
+                            Path for the QL reduction outputs. (default: current
+                            working directory)
+      --parent_calib_dir PARENT_CALIB_DIR
+                            Directory with/for calibrations for *all* instrument
+                            configurations/setups. If provided, the data for your
+                            instrument configuration will be placed or pulled from a
+                            relevant sub-directory. If None, the redux_path is used.
                             (default: None)
+      --setup_calib_dir SETUP_CALIB_DIR
+                            Directory with/for calibrations specific to your
+                            instrument configuration/setup. Use of this option
+                            circumvents the automated naming system for the
+                            configuration/setup sub-directories. If None, it is
+                            assumed that no calibrations exist and they must be
+                            created using the provided raw files. The top-level
+                            directory is given by parent_calib_dir (or redux_path)
+                            and the sub-directories follow the normal PypeIt naming
+                            scheme. (default: None)
       --calibs_only         Reduce only the calibrations? (default: False)
-      --clobber_calibs      Clobber existing calibration files? (default: False)
+      --overwrite_calibs    Overwrite any existing calibration files? (default:
+                            False)
       --slitspatnum SLITSPATNUM
                             Reduce the slit(s) as specified by the slitspatnum
                             value(s) (default: None)
@@ -73,7 +86,21 @@
       --boxcar_radius BOXCAR_RADIUS
                             Set the radius for the boxcar extraction in arcseconds
                             (default: None)
-      --det DET             Detector to reduce. Same format as detnum (default:
-                            None)
+      --det DET [DET ...]   A space-separated set of detectors or detector mosaics
+                            to reduce. By default, *all* detectors or default
+                            mosaics for this instrument will be reduced. Detectors
+                            in a mosaic must be a mosaic "allowed" by PypeIt and
+                            should be provided as comma-separated integers (with no
+                            spaces). For example, to separately reduce detectors 1
+                            and 5 for Keck/DEIMOS, you would use --det 1 5; to
+                            reduce mosaics made up of detectors 1,5 and 3,7, you
+                            would use --det 1,5 3,7 (default: None)
       --no_stack            Do *not* stack multiple science frames (default: True)
+      --bkg_redux           If set the script will perform difference imaging.
+                            Namely it will identify sequences of AB pairs based on
+                            the dither pattern and perform difference imaging sky
+                            subtraction and fit for residuals. This functionality
+                            only works for instruments where PypeIt can
+                            automatically parse dither sequences from the file
+                            headers. (default: False)
     

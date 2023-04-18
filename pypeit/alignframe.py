@@ -11,12 +11,14 @@ from scipy.interpolate import interp1d, RegularGridInterpolator
 
 from pypeit.display import display
 from pypeit.core import findobj_skymask
-from pypeit import datamodel, msgs
+from pypeit import datamodel
+from pypeit import calibframe
+from pypeit import msgs
 
 
-class Alignments(datamodel.DataContainer):
+class Alignments(calibframe.CalibFrame):
     """
-    Simple DataContainer for the alignment output
+    Calibration frame holding result of slit alignment processing.
 
     All of the items in the datamodel are required for instantiation, although
     they can be None (but shouldn't be)
@@ -25,25 +27,22 @@ class Alignments(datamodel.DataContainer):
 
     .. include:: ../include/class_datamodel_alignments.rst
     """
-    minimum_version = '1.1.0'
     version = '1.1.0'
 
-    # I/O
-    output_to_disk = None  # This writes all items that are not None
-    hdu_prefix = None
+    # Calibration frame attributes
+    calib_type = 'Alignment'
+    calib_file_format = 'fits'
 
-    # Master fun
-    master_type = 'Alignment'
-    master_file_format = 'fits'
-
-    datamodel = {'alignframe': dict(otype=np.ndarray, atype=np.floating,
+    # Datamodel already includes PYP_SPEC, so no need to combine it with the
+    # CalibFrame base datamodel.
+    datamodel = {'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
+                 'alignframe': dict(otype=np.ndarray, atype=np.floating,
                                     descr='Processed, combined alignment frames'),
                  'nspec': dict(otype=int, descr='The number of spectral elements'),
                  'nalign': dict(otype=int, descr='Number of alignment traces in each slit'),
                  'nslits': dict(otype=int, descr='The number of slits'),
                  'traces': dict(otype=np.ndarray, atype=np.floating,
                                 descr='Traces of the alignment frame'),
-                 'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
                  'spat_id': dict(otype=np.ndarray, atype=np.integer, descr='Slit spat_id ')}
 
     def __init__(self, alignframe=None, nspec=None, nalign=None, nslits=None,
@@ -54,18 +53,13 @@ class Alignments(datamodel.DataContainer):
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
 
-    def _init_internals(self):
-        # Master stuff
-        self.master_key = None
-        self.master_dir = None
-
     def _validate(self):
         # TBC - need to check that all alignment traces have been correctly traced
         pass
 
     # NOTE: If you make changes to how this object is bundled into the output
     # datamodel, make sure you update the documentation in
-    # doc/calibrations/master_align.rst!
+    # doc/calibrations/align.rst!
     def _bundle(self):
         """
         Override the base class method simply to set the HDU extension name.
@@ -83,17 +77,16 @@ class Alignments(datamodel.DataContainer):
 
         """
         if not np.array_equal(self.spat_id, slits.spat_id):
-            msgs.error("Your alignment solutions are out of sync with your slits.  Remove Masters and start from scratch")
+            msgs.error('Your alignment solutions are out of sync with your slits.  Remove '
+                       'Calibrations and restart from scratch.')
 
     def show(self, slits=None):
         """
-        Simple wrapper to show_alignment()
+        Simple wrapper for :func:`show_alignment`.
 
-        Parameters
-        ----------
-
-        Returns:
-
+        Args:
+            slits (:class:`pypeit.slittrace.SlitTraceSet`, optional):
+                Slit properties, including traces.
         """
         # Show
         show_alignment(self.alignframe, align_traces=self.traces, slits=slits)
@@ -116,9 +109,6 @@ class TraceAlignment:
             The parameters used for the align traces
         det (:obj:`int`, optional):
             Detector number
-        binning (:obj:`str`, optional):
-            Detector binning in comma separated numbers for the
-            spectral and spatial binning.
         qa_path (:obj:`str`, optional):
             Directory for QA plots
         msbpm (`numpy.ndarray`_, optional):
@@ -132,24 +122,12 @@ class TraceAlignment:
         slits (:class:`~pypeit.slittrace.SlitTraceSet`):
             Slit edge traces.
     """
-    version = '1.0.0'
-
-    # Frametype is a class attribute
-    frametype = 'alignment'
-    """
-    Frame type designation.
-    """
-
-    master_type = 'Alignment'
-    master_file_format = 'fits'
-
-    def __init__(self, rawalignimg, slits, spectrograph, alignpar, det=1,
-                 binning=None, qa_path=None, msbpm=None):
+    def __init__(self, rawalignimg, slits, spectrograph, alignpar, det=1, qa_path=None,
+                 msbpm=None):
 
         # Defaults
         self.spectrograph = spectrograph
         self.PYP_SPEC = spectrograph.name
-        self.binning = binning
         # Alignment parameters
         self.alignpar = alignpar
 
@@ -273,13 +251,14 @@ class TraceAlignment:
         if show:
             show_alignment(self.rawalignimg.image, align_traces=align_traces, slits=self.slits)
 
-        return Alignments(alignframe=self.rawalignimg.image,
-                          nspec=self.nspec,
-                          nalign=align_traces.shape[1],
-                          nslits=self.nslits,
-                          traces=align_traces,
-                          PYP_SPEC=self.PYP_SPEC,
-                          spat_id=self.slits.spat_id)
+        # Build the alignment calibration frame
+        align = Alignments(alignframe=self.rawalignimg.image, nspec=self.nspec,
+                           nalign=align_traces.shape[1], nslits=self.nslits, traces=align_traces,
+                           PYP_SPEC=self.PYP_SPEC, spat_id=self.slits.spat_id)
+        # Copy the internals from the processed alignment image
+        align.copy_calib_internals(self.rawalignimg)
+        # Return
+        return align
 
 
 def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
@@ -290,7 +269,7 @@ def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
     ----------
 
     alignframe : `numpy.ndarray`_
-        Image to be plotted (i.e. the master align frame)
+        Image to be plotted (i.e. the align frame)
     align_traces : list, optional
         The align traces
     slits : :class:`pypeit.slittrace.SlitTraceSet`, optional
