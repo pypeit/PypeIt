@@ -60,7 +60,6 @@ class ParseSlits(scriptbase.ScriptBase):
 
         from pypeit import spec2dobj
 
-        try:
 
         # What kind of file are we??
         hdul = fits.open(pargs.input_file)
@@ -77,11 +76,11 @@ class ParseSlits(scriptbase.ScriptBase):
 
         if file_type == 'Slits':
             slits = slittrace.SlitTraceSet.from_file(pargs.input_file)#, chk_version=False)
-        except:
-            pass
-        else:
-            print_slits(slits)
-            return
+#        except:
+#            pass
+#        else:
+#            print_slits(slits)
+#            return
 
         try:
             allspec2D = spec2dobj.AllSpec2DObj.from_fits(pargs.input_file, chk_version=False)
