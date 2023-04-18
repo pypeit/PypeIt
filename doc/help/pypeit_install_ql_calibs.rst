@@ -6,7 +6,7 @@
     
     Script to install PypeIt QL calibration files
     
-    options:
+    optional arguments:
       -h, --help         show this help message and exit
       --zip ZIP          Zip file of the full QL_CALIB directory downloaded from the
                          PypeIt Google Drive (default: None)

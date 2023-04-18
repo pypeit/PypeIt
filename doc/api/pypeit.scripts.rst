@@ -38,6 +38,7 @@ Submodules
    pypeit.scripts.scriptbase
    pypeit.scripts.sensfunc
    pypeit.scripts.setup
+   pypeit.scripts.setup_coadd2d
    pypeit.scripts.show_1dspec
    pypeit.scripts.show_2dspec
    pypeit.scripts.show_arxiv

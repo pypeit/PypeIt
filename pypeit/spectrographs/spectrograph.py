@@ -1562,7 +1562,7 @@ class Spectrograph:
         if isinstance(inp, (str, Path)):
             self._check_extensions(inp)
             try:
-                hdul = io.fits_open(inp)
+                hdu = io.fits_open(inp)
             except:
                 if strict:
                     msgs.error(f'Cannot open {inp}.')

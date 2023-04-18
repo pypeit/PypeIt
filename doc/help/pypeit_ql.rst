@@ -5,10 +5,11 @@
                      [--raw_path RAW_PATH] [--ext EXT]
                      [--sci_files SCI_FILES [SCI_FILES ...]]
                      [--redux_path REDUX_PATH] [--parent_calib_dir PARENT_CALIB_DIR]
-                     [--setup_calib_dir SETUP_CALIB_DIR] [--calibs_only]
+                     [--setup_calib_dir SETUP_CALIB_DIR] [--clean] [--calibs_only]
                      [--overwrite_calibs] [--slitspatnum SLITSPATNUM]
                      [--maskID MASKID] [--boxcar_radius BOXCAR_RADIUS]
-                     [--det DET [DET ...]] [--no_stack] [--bkg_redux]
+                     [--det DET [DET ...]] [--no_stack] [--ignore_std]
+                     [--snr_thresh SNR_THRESH] [--coadd]
                      spectrograph
     
     Script to produce quick-look PypeIt reductions
@@ -34,7 +35,7 @@
                             vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
                             wht_isis_blue, wht_isis_red
     
-    options:
+    optional arguments:
       -h, --help            show this help message and exit
       --raw_files RAW_FILES [RAW_FILES ...]
                             Either a PypeIt-formatted input file with the list of
@@ -75,6 +76,10 @@
                             directory is given by parent_calib_dir (or redux_path)
                             and the sub-directories follow the normal PypeIt naming
                             scheme. (default: None)
+      --clean               Remove the existing output directories to force a fresh
+                            reduction. If False, any existing directory structure
+                            will remain, but any existing science files will still
+                            be overwritten. (default: False)
       --calibs_only         Reduce only the calibrations? (default: False)
       --overwrite_calibs    Overwrite any existing calibration files? (default:
                             False)
@@ -96,11 +101,12 @@
                             reduce mosaics made up of detectors 1,5 and 3,7, you
                             would use --det 1,5 3,7 (default: None)
       --no_stack            Do *not* stack multiple science frames (default: True)
-      --bkg_redux           If set the script will perform difference imaging.
-                            Namely it will identify sequences of AB pairs based on
-                            the dither pattern and perform difference imaging sky
-                            subtraction and fit for residuals. This functionality
-                            only works for instruments where PypeIt can
-                            automatically parse dither sequences from the file
-                            headers. (default: False)
+      --ignore_std          If standard star observations are automatically
+                            detected, ignore those frames. Otherwise, they are
+                            included with the reduction of the science frames.
+                            (default: False)
+      --snr_thresh SNR_THRESH
+                            Change the default S/N threshold used during source
+                            detection (default: None)
+      --coadd               Perform default 2D coadding. (default: False)
     
