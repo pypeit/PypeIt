@@ -6,7 +6,7 @@
     
     Script to install PypeIt QL Master files
     
-    optional arguments:
+    options:
       -h, --help         show this help message and exit
       --zip ZIP          Zip file of the full QL_MASTERS directory downloaded from
                          the PypeIt Google Drive (default: None)
