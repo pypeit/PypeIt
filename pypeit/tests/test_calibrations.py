@@ -157,7 +157,8 @@ def test_asn(multi_caliBrate):
     assert list(asn.keys()) == ['A'], 'Wrong setup list'
     assert list(asn['A'].keys()) == ['--', 0], 'Wrong A setup keys'
     arc_file = Path(asn['A'][0]['arc']['proc'][0]).name
-    assert arc_file == 'Arc_A_0_DET01.fits', 'Wrong calibration arc frame name'
+    assert arc_file == Path('Arc_A_0_DET01.fits').resolve().name, \
+            'Wrong calibration arc frame name'
     assert 'science' in asn['A'][0].keys(), 'Association file should include science frames'
 
     # Clean-up
