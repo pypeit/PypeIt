@@ -1090,7 +1090,9 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
     # Divide each pixel into subpixels
     spec_offs = np.arange(0.5/spec_subpixel, 1, 1/spec_subpixel) - 0.5  # -0.5 is to offset from the centre of each pixel.
     spat_offs = np.arange(0.5/spat_subpixel, 1, 1/spat_subpixel) - 0.5  # -0.5 is to offset from the centre of each pixel.
-    area = 1 / (spec_subpixel * spat_subpixel)
+    spat_x, spec_y = np.meshgrid(spat_offs, spec_offs)
+    num_subpixels = spec_subpixel * spat_subpixel
+    area = 1 / num_subpixels
     all_wght_subpix = all_wghts * area
     # Loop through all slits
     all_sltid = slitid_img_gpm[(slitid_img_gpm > 0)]
@@ -1100,31 +1102,32 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
         msgs.info(f"Resampling slit {sl+1}/{slits.nslits} into the datacube")
         this_sl = np.where(all_sltid == spatid)
         wpix = np.where(slitid_img_gpm == spatid)
-        slitID = np.ones(wpix[0].size) * sl - output_wcs.wcs.crpix[0]
+        slitID = np.ones(wpix[0].size*num_subpixels) * sl - output_wcs.wcs.crpix[0]
         # Generate a spline between spectral pixel position and wavelength
         yspl = tilts[wpix]*(slits.nspec - 1)
         wspl = all_wave[this_sl]
         asrt = np.argsort(yspl)
         wave_spl = interp1d(yspl[asrt], wspl[asrt], kind='linear', bounds_error=False, fill_value='extrapolate')
-        for xx in range(spat_subpixel):
-            for yy in range(spec_subpixel):
-                # Calculate the transformation from detector pixels to voxels
-                spatpos = astrom_trans.transform(sl, wpix[1] + spat_offs[xx], wpix[0] + spec_offs[yy])
-                # TODO :: The tilts in the following line is evaluated at the pixel location, not the subpixel locations
-                # A simple fix is implemented for the spectral direction, but this is not so straightforward for the spatial direction
-                # Probably, the correction in the spatial direction is so tiny, that this doesn't matter...
-                specpos = (wave_spl(tilts[wpix]*(slits.nspec - 1) + spec_offs[yy]) - wave0) / wave_delta
-                # Now assemble this position of the datacube
-                pix_coord = np.column_stack((slitID, spatpos, specpos))
-                tmp_dc, _ = np.histogramdd(pix_coord, bins=bins, weights=all_sci[this_sl] * all_wght_subpix[this_sl])
-                tmp_vr, _ = np.histogramdd(pix_coord, bins=bins, weights=all_var[this_sl] * all_wght_subpix[this_sl]**2)
-                tmp_nm, _ = np.histogramdd(pix_coord, bins=bins, weights=all_wght_subpix[this_sl])
-                if debug:
-                    tmp_rsd, _ = np.histogramdd(pix_coord, bins=bins, weights=all_sci[this_sl] * np.sqrt(all_ivar[this_sl]))
-                    residcube += tmp_rsd
-                datacube += tmp_dc
-                varcube += tmp_vr
-                normcube += tmp_nm
+        # Calculate spatial and spectral positions of the subpixels
+        spat_xx = np.add.outer(wpix[1], spat_x.flatten()).flatten()
+        spec_yy = np.add.outer(wpix[0], spec_y.flatten()).flatten()
+        # Transform this to spatial location
+        spatpos = astrom_trans.transform(sl, spat_xx, spec_yy)
+        # Calculate the tilt position of each subpixel and transform this to the wave bin
+        tiltpos = np.add.outer(tilts[wpix] * (slits.nspec - 1), spec_y).flatten()
+        specpos = (wave_spl(tiltpos) - wave0) / wave_delta
+        # Stack of coordinates, and histogram
+        pix_coord = np.column_stack((slitID, spatpos, specpos))
+        tmp_dc, _ = np.histogramdd(pix_coord, bins=bins, weights=np.repeat(all_sci[this_sl] * all_wght_subpix[this_sl], num_subpixels))
+        tmp_vr, _ = np.histogramdd(pix_coord, bins=bins, weights=np.repeat(all_var[this_sl] * all_wght_subpix[this_sl]**2, num_subpixels))
+        tmp_nm, _ = np.histogramdd(pix_coord, bins=bins, weights=np.repeat(all_wght_subpix[this_sl], num_subpixels))
+        if debug:
+            tmp_rsd, _ = np.histogramdd(pix_coord, bins=bins, weights=all_sci[this_sl] * np.sqrt(all_ivar[this_sl]))
+            residcube += tmp_rsd
+        # Contibute to the datacube
+        datacube += tmp_dc
+        varcube += tmp_vr
+        normcube += tmp_nm
     # Normalise the datacube and variance cube
     nc_inverse = utils.inverse(normcube)
     datacube *= nc_inverse
