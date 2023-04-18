@@ -846,7 +846,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         Returns:
             `astropy.wcs.wcs.WCS`_: The world-coordinate system.
         """
-        msgs.info("Calculating the WCS")
+        msgs.info("Generating KCWI WCS")
         # Get the x and y binning factors, and the typical slit length
         binspec, binspat = parse.parse_binning(self.get_meta_value([hdr], 'binning'))
 
@@ -925,7 +925,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             crpix2 += off2
 
         # Create a new WCS object.
-        msgs.info("Generating KCWI WCS")
         w = wcs.WCS(naxis=2) if image else wcs.WCS(naxis=3)
         w.wcs.equinox = hdr['EQUINOX']
         w.wcs.name = 'KCWI'
