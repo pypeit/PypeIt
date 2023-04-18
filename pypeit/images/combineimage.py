@@ -296,9 +296,11 @@ class CombineImage:
             # should *never* make it here.
             msgs.error("Bad choice for combine.  Allowed options are 'median', 'mean'.")
 
+        comb_img_forvar = comb_img.copy()
+        comb_img_forvar[gpm] /= nstack[gpm]
         # Recompute the inverse variance using the combined image
         comb_var = procimg.variance_model(comb_basev,
-                                          counts=comb_img if self.par['shot_noise'] else None,
+                                          counts=comb_img_forvar if self.par['shot_noise'] else None,
                                           count_scale=comb_scl,
                                           noise_floor=self.par['noise_floor'])
 
