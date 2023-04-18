@@ -30,7 +30,7 @@
                             vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
                             wht_isis_blue, wht_isis_red
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       -r ROOT, --root ROOT  Root to search for data files. You can provide the top-
                             level directory (e.g., /data/Kast) or the search string

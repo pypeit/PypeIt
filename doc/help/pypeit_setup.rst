@@ -8,7 +8,7 @@
     Parse data files to construct a pypeit file in preparation for reduction using
     'run_pypeit'
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       -s SPECTROGRAPH, --spectrograph SPECTROGRAPH
                             A valid spectrograph identifier: bok_bc,
