@@ -11,7 +11,7 @@
     positional arguments:
       pypeit_file           PypeIt reduction file
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       --keep_par            Do not propagate any parameters from the pypeit file to
                             the coadd2d file(s). If not set, only the required
