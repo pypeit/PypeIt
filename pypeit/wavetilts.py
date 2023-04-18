@@ -862,22 +862,17 @@ class BuildWaveTilts:
 
         # fill the table
         tbl_tilt_traces = table.Table()
-        # slit ids
-        tbl_tilt_traces['slit_ids'] = np.expand_dims(slit_ids, axis=0)
-        # traced tilts
-        tbl_tilt_traces['goodpix_spat'] = np.expand_dims(goodpix_spat, axis=0)
-        tbl_tilt_traces['goodpix_tilt'] = np.expand_dims(goodpix_tilt, axis=0)
-        tbl_tilt_traces['goodpix_slitid'] = np.expand_dims(goodpix_lid, axis=0)
-        tbl_tilt_traces['badpix_spat'] = np.expand_dims(badpix_spat, axis=0)
-        tbl_tilt_traces['badpix_tilt'] = np.expand_dims(badpix_tilt, axis=0)
-        tbl_tilt_traces['badpix_slitid'] = np.expand_dims(badpix_lid, axis=0)
-        # fitted tilts
-        tbl_tilt_traces['good2dfit_spat'] = np.expand_dims(good2dfit_spat, axis=0)
-        tbl_tilt_traces['good2dfit_tilt'] = np.expand_dims(good2dfit_tilt, axis=0)
-        tbl_tilt_traces['good2dfit_slitid'] = np.expand_dims(good2dfit_lid, axis=0)
-        tbl_tilt_traces['bad2dfit_spat'] = np.expand_dims(bad2dfit_spat, axis=0)
-        tbl_tilt_traces['bad2dfit_tilt'] = np.expand_dims(bad2dfit_tilt, axis=0)
-        tbl_tilt_traces['bad2dfit_slitid'] = np.expand_dims(bad2dfit_lid, axis=0)
+        trc_arrays = [slit_ids, goodpix_spat, goodpix_tilt, badpix_lid, badpix_spat, badpix_tilt,
+                      good2dfit_lid, good2dfit_spat, good2dfit_tilt, bad2dfit_lid, bad2dfit_spat, bad2dfit_tilt]
+        tbl_keys = ['slit_ids', 'goodpix_spat', 'goodpix_tilt', 'badpix_lid', 'badpix_spat', 'badpix_tilt',
+                    'good2dfit_lid', 'good2dfit_spat', 'good2dfit_tilt', 'bad2dfit_lid', 'bad2dfit_spat', 'bad2dfit_tilt']
+        for i, arr in enumerate(trc_arrays):
+            if arr.size > 0:
+                tbl_tilt_traces[tbl_keys[i]] = np.expand_dims(arr, axis=0)
+
+        if len(tbl_tilt_traces) == 0:
+            msgs.warn('No traced and fitted tilts have been found.')
+            return None
 
         return tbl_tilt_traces
 
@@ -932,6 +927,9 @@ def show_tilts_mpl(tilt_img, tilt_traces, slits=None, show_traces=False, cut=Non
             Lower and upper levels cut for the image display
     """
 
+    if tilt_traces is None:
+        return msgs.error('No tilts have been traced or fitted')
+
     if cut is None:
         cut = utils.growth_lim(tilt_img, 0.98, fac=1)
 
@@ -943,26 +941,27 @@ def show_tilts_mpl(tilt_img, tilt_traces, slits=None, show_traces=False, cut=Non
 
     # traced tilts
     if show_traces:
-        if tilt_traces['goodpix_tilt'][0].size > 0:
+        if 'goodpix_tilt' in tilt_traces.keys() and tilt_traces['goodpix_tilt'][0].size > 0:
             plt.scatter(tilt_traces['goodpix_spat'][0], tilt_traces['goodpix_tilt'][0], color='cyan',
-                        marker='s', s=10, lw=0, label='Good pixel', zorder=1)
+                        marker='s', s=10, alpha=0.5, lw=0, label='Good pixel', zorder=1)
     # masked tilts
-    if tilt_traces['badpix_tilt'][0].size > 0:
+    if 'badpix_tilt' in tilt_traces.keys() and tilt_traces['badpix_tilt'][0].size > 0:
         plt.scatter(tilt_traces['badpix_spat'], tilt_traces['badpix_tilt'], color='red',
-                    marker='s', s=10, lw=0, label='Masked pixel', zorder=2)
+                    marker='s', s=10, alpha=0.5, lw=0, label='Masked pixel', zorder=2)
     # 2D fit tilts
     # loop over each line so that we can plot lines instead of points
-    for iline in np.unique(tilt_traces['good2dfit_slitid'][0]):
-        this_line = tilt_traces['good2dfit_slitid'][0] == iline
-        if np.any(this_line):
-            good2dfit_spat = tilt_traces['good2dfit_spat'][0][this_line]
-            good2dfit_tilt = tilt_traces['good2dfit_tilt'][0][this_line]
-            plt.plot(good2dfit_spat, good2dfit_tilt, color='blue', lw=1, zorder=3)
+    if 'good2dfit_lid' in tilt_traces.keys():
+        for iline in np.unique(tilt_traces['good2dfit_lid'][0]):
+            this_line = tilt_traces['good2dfit_lid'][0] == iline
+            if np.any(this_line):
+                good2dfit_spat = tilt_traces['good2dfit_spat'][0][this_line]
+                good2dfit_tilt = tilt_traces['good2dfit_tilt'][0][this_line]
+                plt.plot(good2dfit_spat, good2dfit_tilt, color='blue', lw=1, zorder=3)
 
     # rejected point in 2D fit
-    if tilt_traces['bad2dfit_tilt'][0].size > 0:
+    if 'bad2dfit_tilt' in tilt_traces.keys() and tilt_traces['bad2dfit_tilt'][0].size > 0:
         plt.scatter(tilt_traces['bad2dfit_spat'][0], tilt_traces['bad2dfit_tilt'][0], color='yellow',
-                    marker='s', s=5, lw=0, label='Rejected in fit', zorder=4)
+                    marker='s', s=5, alpha=0.5, lw=0, label='Rejected in fit', zorder=4)
 
     if slits is not None:
         pstep = 50

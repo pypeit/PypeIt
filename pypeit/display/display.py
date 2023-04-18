@@ -565,7 +565,7 @@ def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, nspec=Non
             Clear the canvas first?
 
     """
-    if tilt_traces['slit_ids'][0].size == 0:
+    if tilt_traces is None:
         return msgs.error('No tilts have been traced or fitted')
 
     canvas = viewer.canvas(ch._chname)
@@ -577,7 +577,7 @@ def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, nspec=Non
     # Plot traced tilts
     # We just plot the points, so we do not need to loop over each slit/line
     # This makes the plotting much very slow, this is why we make it optional by using the points keyword
-    if tilt_traces['goodpix_tilt'][0].size > 0 and points:
+    if 'goodpix_tilt' in tilt_traces.keys() and tilt_traces['goodpix_tilt'][0].size > 0 and points:
         # note: must cast numpy floats to regular python floats to pass the remote interface
         goodpix_spat = tilt_traces['goodpix_spat'][0] + xoff
         goodpix_tilt = tilt_traces['goodpix_tilt'][0] + yoff
@@ -586,27 +586,28 @@ def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, nspec=Non
 
     # Plot the 2D fitted tilts
     # loop over each line, this allows to use type='path' and therefore a faster plotting
-    for iline in np.unique(tilt_traces['good2dfit_slitid'][0]):
-        # good fit
-        this_line = tilt_traces['good2dfit_slitid'][0] == iline
-        if np.any(this_line):
-            good2dfit_spat = tilt_traces['good2dfit_spat'][0][this_line] + xoff
-            good2dfit_tilt = tilt_traces['good2dfit_tilt'][0][this_line] + yoff
-            canvas_list += [dict(type=str('path'),
-                                 args=(list(zip(good2dfit_spat[::pstep].tolist(), good2dfit_tilt[::pstep].tolist())),),
-                                 kwargs=dict(color='blue', linewidth=2))]
+    if 'good2dfit_lid' in tilt_traces.keys():
+        for iline in np.unique(tilt_traces['good2dfit_lid'][0]):
+            # good fit
+            this_line = tilt_traces['good2dfit_lid'][0] == iline
+            if np.any(this_line):
+                good2dfit_spat = tilt_traces['good2dfit_spat'][0][this_line] + xoff
+                good2dfit_tilt = tilt_traces['good2dfit_tilt'][0][this_line] + yoff
+                canvas_list += [dict(type=str('path'),
+                                     args=(list(zip(good2dfit_spat[::pstep].tolist(), good2dfit_tilt[::pstep].tolist())),),
+                                     kwargs=dict(color='blue', linewidth=2))]
 
     # Now plot the masked traces and the rejected 2D fits
     # We just plot the points, so we do not need to loop over each slit/line
     # masked traces
-    if tilt_traces['badpix_tilt'][0].size > 0:
+    if 'badpix_tilt' in tilt_traces.keys() and tilt_traces['badpix_tilt'][0].size > 0:
         # note: must cast numpy floats to regular python floats to pass the remote interface
         badpix_spat = tilt_traces['badpix_spat'][0] + xoff
         badpix_tilt = tilt_traces['badpix_tilt'][0] + yoff
         canvas_list += [dict(type='squarebox', args=(float(badpix_spat[i]), float(badpix_tilt[i]), 1),
                              kwargs=dict(color='red', fill=True, fillalpha=0.5)) for i in range(badpix_tilt.size)]
     # rejected fit
-    if tilt_traces['bad2dfit_tilt'][0].size > 0:
+    if 'bad2dfit_tilt' in tilt_traces.keys() and tilt_traces['bad2dfit_tilt'][0].size > 0:
         # note: must cast numpy floats to regular python floats to pass the remote interface
         bad2dfit_spat = tilt_traces['bad2dfit_spat'][0] + xoff
         bad2dfit_tilt = tilt_traces['bad2dfit_tilt'][0] + yoff
