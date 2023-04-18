@@ -430,12 +430,16 @@ class PypeIt:
             u_combid = np.unique(self.fitstbl['comb_id'][grp_science])
         
             for j, comb_id in enumerate(u_combid):
-                # Quicklook mode?
-                # TODO: This is the only place this is used, I think...
-                if self.par['rdx']['quicklook'] and j > 0:
-                    msgs.warn('PypeIt executed in quicklook mode.  Only reducing science frames '
-                              'in the first combination group!')
-                    break
+                # TODO: This was causing problems when multiple science frames
+                # were provided to quicklook and the user chose *not* to stack
+                # the frames.  But this means it now won't skip processing the
+                # B-A pair when the background image(s) are defined.  Punting
+                # for now...
+#                # Quicklook mode?
+#                if self.par['rdx']['quicklook'] and j > 0:
+#                    msgs.warn('PypeIt executed in quicklook mode.  Only reducing science frames '
+#                              'in the first combination group!')
+#                    break
                 #
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
                 # Find all frames whose comb_id matches the current frames bkg_id.

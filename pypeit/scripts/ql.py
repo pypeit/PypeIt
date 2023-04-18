@@ -717,7 +717,8 @@ class QL(scriptbase.ScriptBase):
         pypeIt.reduce_all()
         pypeIt.build_qa()
 
-        # Preform coadding if requested
+        # TODO: There are currently no tests for this!!
+        # Perform coadding if requested
         if args.coadd:
             # Run the setup script to get the baseline coadd2d file
             # TODO: Add sensitivity functions, and other options
@@ -734,7 +735,7 @@ class QL(scriptbase.ScriptBase):
                     msgs.warn(f'{coadd_file} only has one spec2d file.  Continuing...')
                     continue
 
-                # TODO: Add options
+                # TODO: Add options (e.g. spatial/spectral sampling...)
                 CoAdd2DSpec.main(CoAdd2DSpec.parse_args([coadd_file]))
 
         exec_s = np.around(time.perf_counter()-tstart, decimals=1)
