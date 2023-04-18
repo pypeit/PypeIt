@@ -78,7 +78,7 @@ class CoAdd1D:
         """
 
         # Load the data
-        self.waves, self.fluxes, self.ivars, self.gpms, self.header = self.load_arrays()
+        self.waves, self.fluxes, self.ivars, self.gpms, self.header = self.load()
         # Coadd the data
         self.wave_grid_mid, self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.gpm_coadd = self.coadd()
         # Scale to a filter magnitude?
@@ -86,6 +86,9 @@ class CoAdd1D:
             scale = flux_calib.scale_in_filter(self.wave_coadd, self.flux_coadd, self.gpm_coadd, self.par)
             self.flux_coadd *= scale
             self.ivar_coadd = self.ivar_coadd / scale**2
+
+
+
 
     def load_arrays(self):
         """
@@ -131,6 +134,7 @@ class CoAdd1D:
             waves[...,iexp], fluxes[...,iexp], ivars[..., iexp], gpms[...,iexp] \
                 = wave_iexp, flux_iexp, ivar_iexp, gpm_iexp
         return waves, fluxes, ivars, gpms, header_out
+
 
     def save(self, coaddfile, telluric=None, obj_model=None, overwrite=True):
         """
@@ -213,8 +217,34 @@ class MultiSlitCoAdd1D(CoAdd1D):
             lower=self.par['lower'], upper=self.par['upper'], maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
             debug=self.debug, show=self.show)
 
+    def load(self):
+        """
+        Load the arrays we need for performing coadds.
 
+        Returns:
+            tuple:
+               - waves, fluxes, ivars, gpms, header
+        """
+        waves, fluxes, ivars, gpms = [], [], [], []
+        for iexp in range(self.nexp):
+            sobjs = specobjs.SpecObjs.from_fitsfile(self.spec1dfiles[iexp], chk_version=self.par['chk_version'])
+            indx = sobjs.name_indices(self.objids[iexp])
+            if not np.any(indx):
+                msgs.error(
+                    "No matching objects for {:s}.  Odds are you input the wrong OBJID".format(self.objids[iexp]))
+            wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, trace_spec, trace_spat, meta_spec, header = \
+                sobjs[indx].unpack_object(ret_flam=self.par['flux_value'], extract_type=self.par['ex_value'])
+            waves.append(wave_iexp)
+            fluxes.append(flux_iexp)
+            ivars.append(ivar_iexp)
+            gpms.append(gpm_iexp)
+            if iexp == 0:
+                header_out = header.copy()
+                if 'RA' in sobjs[indx][0].keys() and 'DEC' in sobjs[indx][0].keys():
+                    header_out['RA_OBJ'] = sobjs[indx][0]['RA']
+                    header_out['DEC_OBJ'] = sobjs[indx][0]['DEC']
 
+        return waves, fluxes, ivars, gpms, header_out
 
 
 class EchelleCoAdd1D(CoAdd1D):
@@ -258,6 +288,11 @@ class EchelleCoAdd1D(CoAdd1D):
                                      maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
                                      debug=self.debug, show=self.show)
 
+
         return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd
+
+    # Hack right now to use the original load
+    def load(self):
+        return self.load_arrays()
 
 

@@ -676,12 +676,14 @@ def interp_spec(wave_new, waves, fluxes, ivars, gpms, log10_blaze_function=None,
         gpms_inter = np.zeros((wave_new.size, nexp), dtype=bool)
         if log10_blaze_function is not None:
             log10_blazes_inter = np.zeros((wave_new.size, nexp), dtype=float)
+            # JFH This is amenable to lists
             for ii in range(nexp):
                 fluxes_inter[:,ii], ivars_inter[:,ii], gpms_inter[:,ii], log10_blazes_inter[:,ii] \
                     = interp_oned(wave_new, waves[:,ii], fluxes[:,ii], ivars[:,ii], gpms[:,ii],
                                   log10_blaze_function = log10_blaze_function[:, ii], sensfunc=sensfunc, kind=kind)
             return fluxes_inter, ivars_inter, gpms_inter, log10_blazes_inter
         else:
+            # JFH This is amenable to lists
             for ii in range(nexp):
                 fluxes_inter[:,ii], ivars_inter[:,ii], gpms_inter[:,ii] \
                     = interp_oned(wave_new, waves[:,ii], fluxes[:,ii], ivars[:,ii], gpms[:,ii], sensfunc=sensfunc, kind=kind)
@@ -695,6 +697,7 @@ def interp_spec(wave_new, waves, fluxes, ivars, gpms, log10_blaze_function=None,
     gpms_inter = np.zeros_like(wave_new, dtype=bool)
     if log10_blaze_function is not None:
         log10_blazes_inter = np.zeros_like(wave_new, dtype=float)
+        # JFH This is amenable to lists
         for ii in range(wave_new.shape[1]):
             fluxes_inter[:,ii], ivars_inter[:,ii], gpms_inter[:,ii], log10_blazes_inter[:, ii] \
                 = interp_oned(wave_new[:,ii], waves, fluxes, ivars, gpms, log10_blaze_function=log10_blaze_function, sensfunc=sensfunc)
@@ -738,7 +741,8 @@ def smooth_weights(inarr, gdmsk, sn_smooth_npix):
     sn_conv = convolution.convolve(sn_med2, gauss_kernel, boundary='extend')
     return sn_conv
 
-
+# JFH This can easily accomodate lists. The input will be a list of 1d arrays
+# [(nspec1,) (nspec2,) ... )]
 def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
                ivar_weights=False, relative_weights=False, verbose=False):
 
@@ -1026,6 +1030,7 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None
 
     return ratio
 
+# JFH This code should probably be deprecated since it is not used anywhere.
 def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5,
                        max_factor=10., sigrej=3, debug=False, show=False):
     '''
@@ -1141,7 +1146,7 @@ def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5,
 
     return fluxes_new, ivars_new, order_ratios
 
-
+# JFH This operates on 1d arrays. Do the shapes of the inputs need to match the shapes of the outputs for this routine?
 def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, mask_ref=None, scale_method='auto', min_good=0.05,
                ref_percentile=70.0, maxiters=5, sigrej=3, max_median_factor=10.0,
                npoly=None, hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5, debug=False, show=False):
@@ -1280,7 +1285,8 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
 
     return flux_scale, ivar_scale, scale, method_used
 
-
+# JFH This can easily accomodate lists. Replace the (nspec, nexp) arrays with a list of [(nspec1), (nspec2), ...] where
+# list dimension indicates the exposure.
 def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights, min_weight=1e-8):
     '''
     Compute a stacked spectrum from a set of exposures on the specified wave_grid with proper treatment of
@@ -1590,7 +1596,7 @@ def coadd_iexp_qa(wave, flux, rejivar, mask, wave_stack, flux_stack, ivar_stack,
         msgs.info("Wrote QA: {:s}".format(qafile))
     plt.show()
 
-
+# JFH This can accomodate lists
 def weights_qa(waves, weights, masks, title=''):
     '''
     Routine to make a QA plot for the weights used to compute a stacked spectrum.
@@ -1727,7 +1733,7 @@ def coadd_qa(wave, flux, ivar, nused, mask=None, tell=None,
         msgs.info("Wrote QA: {:s}".format(qafile))
     plt.show()
 
-
+# JFH This can easily accomdate lists
 def update_errors(fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_stack,
                   sn_clip=30.0, title='', debug=False):
     '''
@@ -1844,6 +1850,8 @@ def update_errors(fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_stack,
     return rejivars, sigma_corrs, outchi, maskchi
 
 
+# JFH This can easily accomodate lists. Replace the (nspec, nexp) arrays with a list of [(nspec1), (nspec2), ...] where
+# list dimension indicates the exposure.
 def spec_reject_comb(wave_grid, wave_grid_mid, waves, fluxes, ivars, masks, weights, sn_clip=30.0, lower=3.0, upper=3.0,
                      maxrej=None, maxiter_reject=5, title='', debug=False,
                      verbose=False):
@@ -1944,6 +1952,7 @@ def spec_reject_comb(wave_grid, wave_grid_mid, waves, fluxes, ivars, masks, weig
     qdone = False
     while (not qdone) and (iter < maxiter_reject):
         # Compute the stack
+        # JFH can accomodate lists
         wave_stack, flux_stack, ivar_stack, mask_stack, nused = compute_stack(
             wave_grid, waves, fluxes, ivars, thismask, weights)
         # Interpolate the individual spectra onto the wavelength grid of the stack. Use wave_grid_mid for this
@@ -1954,6 +1963,7 @@ def spec_reject_comb(wave_grid, wave_grid_mid, waves, fluxes, ivars, masks, weig
         #nused_stack_nat, _, _ = interp_spec(
         #    waves, wave_grid_mid, nused, ivar_stack, mask_stack)
         #embed()
+        # JFH This can accomodate lists
         rejivars, sigma_corrs, outchi, maskchi = update_errors(fluxes, ivars, thismask,
                                                                flux_stack_nat, ivar_stack_nat, mask_stack_nat,
                                                                sn_clip=sn_clip)
@@ -1979,10 +1989,12 @@ def spec_reject_comb(wave_grid, wave_grid_mid, waves, fluxes, ivars, masks, weig
     # Compute the final stack using this outmask
     wave_stack, flux_stack, ivar_stack, mask_stack, nused = compute_stack(wave_grid, waves, fluxes, ivars, outmask, weights)
 
+    # JFH This loop can accomodate lists
     # Used only for plotting below
     if debug:
         # TODO Add a line here to optionally show the distribution of all pixels about the stack as we do for X-shooter.
         #flux_stack_nat, ivar_stack_nat, mask_stack_nat = interp_spec(waves, wave_stack, flux_stack, ivar_stack, mask_stack)
+        # JFH This loop can accomodate lists
         for iexp in range(nexp):
             # plot the residual distribution for each exposure
             title_renorm = title + ': Error distriution about stack for exposure {:d}/{:d}'.format(iexp,nexp)
@@ -1997,11 +2009,13 @@ def spec_reject_comb(wave_grid, wave_grid_mid, waves, fluxes, ivars, masks, weig
         # weights qa
         title_weights = title + ': Weights Used -- nrej={:d} total pixels rejected,'.format(np.sum(nrej)) + \
                         ' norig={:d} originally masked'.format(np.sum(norig))
+        # JFH This can accomodate lists
         weights_qa(waves, weights, outmask, title=title_weights)
 
     return wave_stack, flux_stack, ivar_stack, mask_stack, outmask, nused
 
-
+# JFH This can easily accomodate lists. Replace the (nspec, nexp) arrays with a list of [(nspec1), (nspec2), ...] where
+# list dimension indicates the exposure.
 def scale_spec_stack(wave_grid, wave_grid_mid, waves, fluxes, ivars, masks, sn, weights,
                      ref_percentile=70.0, maxiter_scale=5,
                      sigrej_scale=3.0, scale_method='auto',
@@ -2223,26 +2237,29 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
     '''
 
     # We cast to float64 because of a bug in np.histogram
-    waves = np.float64(waves)
-    fluxes = np.float64(fluxes)
-    ivars = np.float64(ivars)
+    waves = [np.float64(wave) for wave in waves]
+    fluxes = [np.float64(flux) for flux in fluxes]
+    ivars = [np.float64(ivar) for ivar in ivars]
 
     # Generate a giant wave_grid
     wave_grid, wave_grid_mid, _ = wvutils.get_wave_grid(
-        waves=waves, masks = masks, wave_method=wave_method, 
-        wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max, 
-        wave_grid_input=wave_grid_input, 
+        waves=waves, masks=masks, wave_method=wave_method,
+        wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max,
+        wave_grid_input=wave_grid_input,
         dwave=dwave, dv=dv, dloglam=dloglam, spec_samp_fact=spec_samp_fact)
 
     # Evaluate the sn_weights. This is done once at the beginning
+    # JFH This can accomodate lists
     rms_sn, weights = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights, verbose=verbose)
 
+    # JFH This can accomodate lists
     fluxes_scale, ivars_scale, scales, scale_method_used = scale_spec_stack(
         wave_grid, wave_grid_mid, waves, fluxes, ivars, masks, rms_sn, weights, ref_percentile=ref_percentile, maxiter_scale=maxiter_scale,
         sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
         sn_min_polyscale=sn_min_polyscale, sn_min_medscale=sn_min_medscale, debug=debug_scale, show=show_scale)
 
     # Rejecting and coadding
+    # JFH This can acccomodate lists
     wave_stack, flux_stack, ivar_stack, mask_stack, outmask, nused = spec_reject_comb(
         wave_grid, wave_grid_mid, waves, fluxes_scale, ivars_scale, masks, weights, sn_clip=sn_clip, lower=lower, upper=upper,
         maxrej=maxrej, maxiter_reject=maxiter_reject, debug=debug, title=title)
@@ -2265,14 +2282,18 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
     the main stacking algorithm.
 
     Args:
-        waves (`numpy.ndarray`_):
-            Wavelength array  with shape (nspec, nexp) containing the spectra to be coadded.
-        fluxes (`numpy.ndarray`_):
-            Flux array with shape (nspec, nexp) containing the spectra to be coadded.
-        ivars (`numpy.ndarray`_):
-            Ivar array with shape (nspec, nexp) containing the spectra to be coadded.
-        masks (`numpy.ndarray`_):
-            Maks array with shape (nspec, nexp) containing the spectra to be coadded.
+        waves (list)
+            List of `numpy.ndarray`_) wavelength arrays with shape (nspec_i,) with the wavelength arrays of the spectra
+            to be coadded.
+        fluxes (list)
+            List of `numpy.ndarray`_) wavelength arrays with shape (nspec_i,) with the flux arrays of the spectra
+            to be coadded.
+        ivars (list)
+            List of `numpy.ndarray`_) wavelength arrays with shape (nspec_i,) with the ivar arrays of the spectra
+            to be coadded.
+        masks (list)
+            List of `numpy.ndarray`_) wavelength arrays with shape (nspec_i,) with the mask arrays of the spectra
+            to be coadded.
         sn_smooth_npix (int): optional
            Number of pixels to median filter by when computing S/N used to decide how to scale and weight spectra. If
            set to None, the code will determine the effective number of good pixels per spectrum
@@ -2368,9 +2389,9 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
     """
     # Decide how much to smooth the spectra by if this number was not passed in
     if sn_smooth_npix is None:
-        nspec, nexp = waves.shape
+        nexp = len(waves)
         # This is the effective good number of spectral pixels in the stack
-        nspec_eff = np.sum(waves > 1.0)/nexp
+        nspec_eff = np.sum([np.sum(wave > 1.0) for wave in waves]) / nexp
         sn_smooth_npix = int(np.round(0.1*nspec_eff))
         msgs.info('Using a sn_smooth_npix={:d} to decide how to scale and weight your spectra'.format(sn_smooth_npix))
 
@@ -2383,14 +2404,11 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
         maxrej=maxrej,  qafile=qafile, title='multi_combspec', debug=debug, debug_scale=debug_scale, show_scale=show_scale,
         show=show)
 
-    # Write to disk?
-    #if outfile is not None:
-    #    save.save_coadd1d_to_fits(outfile, wave_stack, flux_stack, ivar_stack, mask_stack, header=header,
-    #                              ex_value=ex_value, overwrite=True)
-
     return wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack
 
 
+# JFH Input is going to be a list of pypeit echelle ouptuts [(nspec1, norder1, nexp1), (nspec2, norder2, nexp2), ...] arrays where the
+# the list runs across the different setups being coadded.
 def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None,
                  wave_method='log10', dwave=None, dv=None, dloglam=None,
                  spec_samp_fact=1.0, wave_grid_min=None, wave_grid_max=None,
@@ -2543,12 +2561,14 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None,
     scales = np.zeros_like(waves)
 
     # Generate a giant wave_grid
+    # JFH Needs to be refactored to accomdoate lists
     wave_grid, wave_grid_mid, _ = wvutils.get_wave_grid(waves, masks=masks, wave_method=wave_method,
                                             wave_grid_min=wave_grid_min,
                                             wave_grid_max=wave_grid_max, dwave=dwave, dv=dv,
                                             dloglam=dloglam, spec_samp_fact=spec_samp_fact)
 
     # Evaluate the sn_weights. This is done once at the beginning
+    # JFH can accomodate lists
     rms_sn, weights_sn = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights, verbose=verbose)
     # Isolate the nbest best orders, and then use the average S/N of these to determine the per exposure relative weights.
     mean_sn_ord = np.mean(rms_sn, axis=1)
@@ -2565,17 +2585,24 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None,
     #weights = weights_exp*weights_ivar
 
     if debug:
+        # JFH This can accomodate lists
         weights_qa(waves, weights, masks, title='ech_combspec')
 
     fluxes_scl_interord = np.zeros_like(fluxes)
     ivars_scl_interord = np.zeros_like(ivars)
     scales_interord = np.zeros_like(fluxes)
+
+    # JFH This can accomodate lists, but there needs to be an outer loop over setups since it only make sense to inter-order
+    # scale the same setup
     # First perform inter-order scaling once
     for iord in range(norder):
         # TODO Add checking here such that orders with low S/N ratio are instead scaled using scale factors from
         # higher S/N ratio. The point is it makes no sense to take 0.0/0.0. In the low S/N regime, i.e. DLAs,
         # GP troughs, we should be rescaling using scale factors from orders with signal. This also applies
         # to the echelle combine below.
+
+        # JFH Here I would need to unrval the exposure dimension and create a list for each order
+        # [(nspec1), (nspec1,)...]
         fluxes_scl_interord[:, iord], ivars_scl_interord[:,iord], scales_interord[:,iord], scale_method_used = \
             scale_spec_stack(wave_grid, wave_grid_mid, waves[:, iord, :], fluxes[:, iord, :], ivars[:, iord, :], masks[:, iord, :],
                              rms_sn[iord, :], weights[:, iord, :], ref_percentile=ref_percentile,
@@ -2587,6 +2614,12 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None,
     # The order of the reshaping in the second dimension is such that blocks norder long for each exposure are stacked
     # sequentially, i.e. for order number [:, 0:norder] would be the 1st exposure, [:,norder:2*norder] would be the
     # 2nd exposure, etc.
+
+    # JFH Lists would allow us to get around the fortran casting here. The list dimension here wold be the second dimension
+    # in the arrays below. We need to write a routine that unravels a list of (nspec, norder) arrays, with
+    # form [(nspec1,norder1), (nspec2,norder2), ...]  for echelle setup into
+    # a nested list of norder entries [[(nspec1,), (nspec1,), ...], [(nspec2,), (nspec2,), ...], ...]
+    # where each entry is a 1D array of the fluxes for that order.
     shape_2d = (nspec, norder * nexp)
     waves_2d = np.reshape(waves, shape_2d, order='F')
     fluxes_2d = np.reshape(fluxes_scl_interord, shape_2d, order='F')
@@ -2603,14 +2636,18 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None,
     # we are then applying tiny corrections and median scaling is much faster
     scale_method_iter = [scale_method]  + ['median']*(niter_order_scale - 1)
     for iter in range(niter_order_scale):
+        # JFH This scale_spec_stack routine takes a list of [(nspec1,), (nspec2,), ...] arrays, so a loop needs to be
+        # added here over the outer setup dimension of the lists
         fluxes_scale_2d, ivars_scale_2d, scales_iter, scale_method_used = scale_spec_stack(
             wave_grid, wave_grid_mid, waves_2d, fluxes_pre_scale, ivars_pre_scale, masks_2d, rms_sn_2d, weights_2d, ref_percentile=ref_percentile,
             maxiter_scale=maxiter_scale, sigrej_scale=sigrej_scale, scale_method=scale_method_iter[iter], hand_scale=hand_scale,
             sn_min_polyscale=sn_min_polyscale, sn_min_medscale=sn_min_medscale,
             show=(show_order_scale & (iter == (niter_order_scale-1))))
-        scales_2d *= scales_iter
+        scales_2d *= scales_iter # Thes lines replaced with a list comprehension
         fluxes_pre_scale = fluxes_scale_2d.copy()
         ivars_pre_scale = ivars_scale_2d.copy()
+
+    # JFH Output here is going to be nested listed [[nspec1, nspec2, ...], [nspec1, nspec2, ...], ...] where the inner d
 
     # Reshape the outputs to be (nspec, norder, nexp)
     fluxes_scale = np.reshape(fluxes_scale_2d, (nspec, norder, nexp), order='F')
@@ -3218,3 +3255,299 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack,
             var_list_out[indx][img, :, :] = (norm_img > 0.0)*weigh_var/(norm_img + (norm_img == 0.0))**2
 
     return sci_list_out, var_list_out, norm_rebin_stack.astype(int), nsmp_rebin_stack.astype(int)
+
+
+
+# JFH OLD ARRAY CODE STARS HERE
+def multi_combspec_arrays(waves, fluxes, ivars, masks, sn_smooth_npix=None,
+                   wave_method='linear', dwave=None, dv=None, dloglam=None, spec_samp_fact=1.0, wave_grid_min=None,
+                   wave_grid_max=None, ref_percentile=70.0, maxiter_scale=5,
+                   sigrej_scale=3.0, scale_method='auto', hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
+                   const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
+                   maxrej=None,
+                   qafile=None, debug=False, debug_scale=False, show_scale=False, show=False):
+    """
+    Routine for coadding longslit/multi-slit spectra. Calls combspec which is
+    the main stacking algorithm.
+
+    Args:
+        waves (`numpy.ndarray`_):
+            Wavelength array  with shape (nspec, nexp) containing the spectra to be coadded.
+        fluxes (`numpy.ndarray`_):
+            Flux array with shape (nspec, nexp) containing the spectra to be coadded.
+        ivars (`numpy.ndarray`_):
+            Ivar array with shape (nspec, nexp) containing the spectra to be coadded.
+        masks (`numpy.ndarray`_):
+            Maks array with shape (nspec, nexp) containing the spectra to be coadded.
+        sn_smooth_npix (int): optional
+           Number of pixels to median filter by when computing S/N used to decide how to scale and weight spectra. If
+           set to None, the code will determine the effective number of good pixels per spectrum
+           in the stack that is being co-added and use 10% of this neff.
+        wave_method (str, optional):
+           method for generating new wavelength grid with get_wave_grid. Deafult is 'linear' which creates a uniformly
+           space grid in lambda. See docuementation on get_wave_grid for description of the options.
+        dwave (float, optional):
+           dispersion in units of A in case you want to specify it for get_wave_grid, otherwise the code computes the
+           median spacing from the data.
+        dv (float, optional):
+           Dispersion in units of km/s in case you want to specify it in the get_wave_grid  (for the 'velocity' option),
+           otherwise a median value is computed from the data.
+        spec_samp_fact (float, optional):
+            Make the wavelength grid  sampling finer (spec_samp_fact < 1.0) or coarser (spec_samp_fact > 1.0) by this
+            sampling factor. This basically multiples the 'native' spectral pixels by spec_samp_fact, i.e. units
+            spec_samp_fact are pixels.
+        wave_grid_min (float, optional):
+           In case you want to specify the minimum wavelength in your wavelength grid, default=None computes from data.
+        wave_grid_max (float, optional):
+           In case you want to specify the maximum wavelength in your wavelength grid, default=None computes from data.
+        wave_grid_input (`numpy.ndarray`_):
+            User input wavelength grid to be used with the 'user_input' wave_method. Shape is (nspec_input,)
+        maxiter_reject (int): optional
+            maximum number of iterations for stacking and rejection. The code stops iterating either when
+            the output mask does not change betweeen successive iterations or when maxiter_reject is reached. Default=5.
+        ref_percentile (float, optional):
+            percentile fraction cut used for selecting minimum SNR cut for robust_median_ratio. Should be a number between
+            0 and 100, default = 70.0
+        maxiter_scale (int, optional):
+            Maximum number of iterations performed for rescaling spectra. Default=5.
+        sigrej_scale (float, optional):
+            Rejection threshold used for rejecting pixels when rescaling spectra with scale_spec. Default=3.0
+        scale_method (str, optional):
+            Options are auto, poly, median, none, or hand. Hand is not well tested.
+            User can optionally specify the rescaling method. Default='auto' will let the
+            code determine this automitically which works well.
+        hand_scale (`numpy.ndarray`_, optional):
+            Array of hand scale factors, not well tested
+        sn_min_polyscale (float, optional):
+            maximum SNR for perforing median scaling
+        sn_min_medscale (float, optional):
+            minimum SNR for perforing median scaling
+        const_weights (`numpy.ndarray`_, optional):
+             Constant weight factors specified
+        maxiter_reject (int, optional):
+            maximum number of iterations for stacking and rejection. The code stops iterating either when
+            the output mask does not change betweeen successive iterations or when maxiter_reject is reached.
+        sn_clip (float, optional):
+            Errors are capped during rejection so that the S/N is never greater than sn_clip. This prevents overly aggressive rejection
+            in high S/N ratio spectrum which neverthless differ at a level greater than the implied S/N due to
+            systematics.
+        lower (float, optional):
+            lower rejection threshold for djs_reject
+        upper (float, optional):
+            upper rejection threshold for djs_reject
+        maxrej (int, optional):
+            maximum number of pixels to reject in each iteration for djs_reject.
+        nmaskedge (int, optional):
+            Number of edge pixels to mask. This should be removed/fixed.
+        qafile (str, optional): optional, default=None
+            Root name for QA, if None, it will be determined from the outfile
+        outfile (str, optional): optional, default=None,
+            Root name for QA, if None, it will come from the target name from the fits header.
+        debug (bool, optional): optinoal, default=False,
+            Show all QA plots useful for debugging. Note there are lots of QA plots, so only set this to True if you want to inspect them all.
+        debug_scale (bool, optional): optional, default=False
+            show interactive QA plots for the rescaling of the spectra
+        show (bool, optional): optional, default=False,
+             Show key QA plots or not
+
+    Returns:
+        :obj:`tuple`:
+
+            - wave_grid_mid: `numpy.ndarray`_, (ngrid,): Wavelength grid (in Angstrom)
+              evaluated at the bin centers, uniformly-spaced either in lambda or
+              log10-lambda/velocity.  See core.wavecal.wvutils.py for more.
+            - wave_stack: `numpy.ndarray`_, (ngrid,): Wavelength grid for stacked
+              spectrum. As discussed above, this is the weighted average of the
+              wavelengths of each spectrum that contriuted to a bin in the input
+              wave_grid wavelength grid. It thus has ngrid elements, whereas
+              wave_grid has ngrid+1 elements to specify the ngrid total number
+              of bins. Note that wave_stack is NOT simply the wave_grid bin
+              centers, since it computes the weighted average.
+            - flux_stack: `numpy.ndarray`_, (ngrid,): Final stacked spectrum on
+              wave_stack wavelength grid
+            - ivar_stack: `numpy.ndarray`_, (ngrid,): Inverse variance spectrum on
+              wave_stack wavelength grid. Erors are propagated according to
+              weighting and masking.
+            - mask_stack: `numpy.ndarray`_, bool, (ngrid,): Mask for stacked spectrum on
+              wave_stack wavelength grid. True=Good.
+
+    """
+    # Decide how much to smooth the spectra by if this number was not passed in
+    if sn_smooth_npix is None:
+        nspec, nexp = waves.shape
+        # This is the effective good number of spectral pixels in the stack
+        nspec_eff = np.sum(waves > 1.0)/nexp
+        sn_smooth_npix = int(np.round(0.1*nspec_eff))
+        msgs.info('Using a sn_smooth_npix={:d} to decide how to scale and weight your spectra'.format(sn_smooth_npix))
+
+    wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack = combspec(
+        waves, fluxes,ivars, masks, wave_method=wave_method, dwave=dwave, dv=dv, dloglam=dloglam,
+        spec_samp_fact=spec_samp_fact, wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max, ref_percentile=ref_percentile,
+        maxiter_scale=maxiter_scale, sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
+        sn_min_medscale=sn_min_medscale, sn_min_polyscale=sn_min_polyscale, sn_smooth_npix=sn_smooth_npix,
+        const_weights=const_weights, maxiter_reject=maxiter_reject, sn_clip=sn_clip, lower=lower, upper=upper,
+        maxrej=maxrej,  qafile=qafile, title='multi_combspec', debug=debug, debug_scale=debug_scale, show_scale=show_scale,
+        show=show)
+
+    # Write to disk?
+    #if outfile is not None:
+    #    save.save_coadd1d_to_fits(outfile, wave_stack, flux_stack, ivar_stack, mask_stack, header=header,
+    #                              ex_value=ex_value, overwrite=True)
+
+    return wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack
+
+def combspec_arrays(waves, fluxes, ivars, masks, sn_smooth_npix,
+             wave_method='linear', dwave=None, dv=None, dloglam=None,
+             spec_samp_fact=1.0, wave_grid_min=None, wave_grid_max=None,
+             ref_percentile=70.0, maxiter_scale=5, wave_grid_input=None,
+             sigrej_scale=3.0, scale_method='auto', hand_scale=None,
+             sn_min_polyscale=2.0, sn_min_medscale=0.5,
+             const_weights=False, maxiter_reject=5, sn_clip=30.0,
+             lower=3.0, upper=3.0, maxrej=None, qafile=None, title='', debug=False,
+             debug_scale=False, show_scale=False, show=False,
+             verbose=True):
+
+    '''
+    Main driver routine for coadding longslit/multi-slit spectra.
+    NEED LOTS MORE HERE
+
+    Parameters
+    ----------
+    waves: `numpy.ndarray`_
+        Wavelength arrays for spectra to be stacked.
+        shape=(nspec, nexp)
+    fluxes: `numpy.ndarray`_
+        Flux arrays for spectra to be stacked.
+        shape=(nspec, nexp)
+    ivars: `numpy.ndarray`_
+        ivar arrays for spectra to be stacked.
+        shape=(nspec, nexp)
+    sn_smooth_npix: int
+        Number of pixels to median filter by when computing S/N used to decide how to scale and weight spectra
+    wave_method: str, optional
+        method for generating new wavelength grid with get_wave_grid. Deafult is 'linear' which creates a uniformly
+        space grid in lambda. See docuementation on get_wave_grid for description of the options.
+    dwave: float, optional
+        dispersion in units of A in case you want to specify it for get_wave_grid, otherwise the code computes the
+        median spacing from the data.
+    dv: float, optional
+        Dispersion in units of km/s in case you want to specify it in the get_wave_grid  (for the 'velocity' option),
+        otherwise a median value is computed from the data.
+    spec_samp_fact: float, optional
+        Make the wavelength grid  sampling finer (spec_samp_fact < 1.0) or coarser (spec_samp_fact > 1.0) by this
+        sampling factor. This basically multiples the 'native' spectral pixels by spec_samp_fact, i.e. units
+        spec_samp_fact are pixels.
+    wave_grid_min: float, optional
+        In case you want to specify the minimum wavelength in your wavelength grid, default=None computes from data.
+    wave_grid_max: float, optional
+        In case you want to specify the maximum wavelength in your wavelength grid, default=None computes from data.
+    ref_percentile:
+        percentile fraction cut used for selecting minimum SNR cut for robust_median_ratio
+    maxiter_scale: int, optional, default=5
+        Maximum number of iterations performed for rescaling spectra.
+    wave_grid_input : `numpy.ndarray`_
+        User input wavelength grid to be used with the 'user_input' wave_method. Shape is (nspec_input,)
+    maxiter_reject: int, optional, default=5
+        maximum number of iterations for stacking and rejection. The code stops iterating either when
+        the output mask does not change betweeen successive iterations or when maxiter_reject is reached.
+    sigrej_scale: float, optional, default=3.0
+        Rejection threshold used for rejecting pixels when rescaling spectra with scale_spec.
+    scale_method: str, optional
+        Options are auto, poly, median, none, or hand. Hand is not well tested.
+        User can optionally specify the rescaling method.
+        Default is 'auto' will let the code determine this automitically which works well.
+    hand_scale: `numpy.ndarray`_, optional
+            Array of hand scale factors, not well tested
+    sn_min_polyscale: float, optional, default = 2.0
+            maximum SNR for perforing median scaling
+    sn_min_medscale: float, optional, default = 0.5
+            minimum SNR for perforing median scaling
+    const_weights: bool, optional
+            If True, apply constant weight
+    sn_clip: float, optional, default=30.0
+            Errors are capped during rejection so that the S/N is never greater than sn_clip. This prevents overly aggressive rejection
+            in high S/N ratio spectrum which neverthless differ at a level greater than the implied S/N due to
+            systematics.
+    lower: float, optional, default=3.0
+            lower rejection threshold for djs_reject
+    upper: float: optional, default=3.0
+            upper rejection threshold for djs_reject
+    maxrej: int, optional
+            maximum number of pixels to reject in each iteration for djs_reject.
+    qafile: str, default=None
+            Root name for QA, if None, it will be determined from the outfile
+    title: str, optional
+        Title for QA plots
+    debug: bool, default=False
+            Show all QA plots useful for debugging. Note there are lots of QA plots, so only set this to True if you want to inspect them all.
+    debug_scale: bool, default=False
+            show interactive QA plots for the rescaling of the spectra
+    show: bool, default=False
+        If True, show key QA plots or not
+    show_scale: bool, default=False
+        If True, show interactive QA plots for the rescaling of the spectra
+
+    Returns
+    -------
+    wave_grid_mid: `numpy.ndarray`_
+        Wavelength grid (in Angstrom) evaluated at the bin centers,
+        uniformly-spaced either in lambda or log10-lambda/velocity. See core.wavecal.wvutils.py for more.
+        shape=(ngrid,)
+    wave_stack: `numpy.ndarray`_
+        Wavelength grid for stacked
+        spectrum. As discussed above, this is the weighted average
+        of the wavelengths of each spectrum that contriuted to a
+        bin in the input wave_grid wavelength grid. It thus has
+        ngrid elements, whereas wave_grid has ngrid+1 elements to
+        specify the ngrid total number of bins. Note that
+        wave_stack is NOT simply the wave_grid bin centers, since
+        it computes the weighted average.
+        shape=(ngrid,)
+    flux_stack: `numpy.ndarray`_
+        Final stacked spectrum on
+        wave_stack wavelength grid
+        shape=(ngrid,)
+    ivar_stack: `numpy.ndarray`_
+        Inverse variance spectrum on wave_stack
+        wavelength grid. Erors are propagated according to
+        weighting and masking.
+        shape=(ngrid,)
+    mask_stack: `numpy.ndarray`_
+        Boolean mask for stacked
+        spectrum on wave_stack wavelength grid. True=Good.
+        shape=(ngrid,)
+    '''
+
+    # We cast to float64 because of a bug in np.histogram
+    waves = np.float64(waves)
+    fluxes = np.float64(fluxes)
+    ivars = np.float64(ivars)
+
+    # Generate a giant wave_grid
+    wave_grid, wave_grid_mid, _ = wvutils.get_wave_grid(
+        waves=waves, masks = masks, wave_method=wave_method,
+        wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max,
+        wave_grid_input=wave_grid_input,
+        dwave=dwave, dv=dv, dloglam=dloglam, spec_samp_fact=spec_samp_fact)
+
+    # Evaluate the sn_weights. This is done once at the beginning
+    # JFH This can accomodate lists
+    rms_sn, weights = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights, verbose=verbose)
+
+    # JFH This can accomodate lists
+    fluxes_scale, ivars_scale, scales, scale_method_used = scale_spec_stack(
+        wave_grid, wave_grid_mid, waves, fluxes, ivars, masks, rms_sn, weights, ref_percentile=ref_percentile, maxiter_scale=maxiter_scale,
+        sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
+        sn_min_polyscale=sn_min_polyscale, sn_min_medscale=sn_min_medscale, debug=debug_scale, show=show_scale)
+
+    # Rejecting and coadding
+    # JFH This can acccomodate lists
+    wave_stack, flux_stack, ivar_stack, mask_stack, outmask, nused = spec_reject_comb(
+        wave_grid, wave_grid_mid, waves, fluxes_scale, ivars_scale, masks, weights, sn_clip=sn_clip, lower=lower, upper=upper,
+        maxrej=maxrej, maxiter_reject=maxiter_reject, debug=debug, title=title)
+
+    if show:
+        # JFH Use wave_grid_mid for QA plots
+        coadd_qa(wave_grid_mid, flux_stack, ivar_stack, nused, mask=mask_stack, title='Stacked spectrum', qafile=qafile)
+
+    return wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack
