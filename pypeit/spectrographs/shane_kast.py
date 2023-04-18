@@ -59,26 +59,6 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [61, None]
         return par
 
-    def compound_meta(self, headarr, meta_key):
-        """
-        Methods to generate metadata requiring interpretation of the header
-        data, instead of simply reading the value of a header card.
-
-        Args:
-            headarr (:obj:`list`):
-                List of `astropy.io.fits.Header`_ objects.
-            meta_key (:obj:`str`):
-                Metadata keyword to construct.
-
-        Returns:
-            object: Metadata value read from the header(s).
-        """
-        if meta_key == 'mjd':
-            time = headarr[0]['DATE']
-            ttime = Time(time, format='isot')
-            return ttime.mjd
-        msgs.error("Not ready for this compound meta")
-
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
@@ -104,6 +84,26 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
                        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
         for kk,lamp_name in enumerate(lamp_names):
             self.meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card='LAMPSTA{0}'.format(lamp_name))
+
+    def compound_meta(self, headarr, meta_key):
+        """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
+
+        Args:
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
+
+        Returns:
+            object: Metadata value read from the header(s).
+        """
+        if meta_key == 'mjd':
+            time = headarr[0]['DATE']
+            ttime = Time(time, format='isot')
+            return ttime.mjd
+        msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -320,6 +320,26 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         self.meta['dispname'] = dict(ext=0, card='GRISM_N')
         # Additional (for config)
 
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['GRISM_N', 'BSPLIT_N']
+
 
 class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
     """
@@ -475,6 +495,25 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         """
         return super().configuration_keys() + ['dispangle']
 
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['GRATNG_N', 'BSPLIT_N', 'GRTILT_P']
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -668,4 +707,23 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         self.meta['dispangle'] = dict(ext=0, card='GRTILT_P')
         # Additional (for config)
 
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['GRATNG_N', 'BSPLIT_N', 'GRTILT_P']
 

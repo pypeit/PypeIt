@@ -562,7 +562,8 @@ def spec_flex_shift_local(slits, slitord, specobjs, islit, sky_spectrum, arx_fwh
         msgs.warn(f'Flexure shift calculation failed for {len(return_later_sobjs)} '
                   f'object(s) in slit {slits.spat_id[islit]}')
         # get the median shift among all objects in this slit
-        idx_med_shift = np.where(flex_dict['shift'] == np.median(flex_dict['shift']))[0][0]
+        idx_med_shift = np.where(flex_dict['shift'] == np.percentile(flex_dict['shift'], 50,
+                                                                     interpolation='nearest'))[0][0]
         msgs.info(f"Median value of the measured flexure shifts in this slit, equal to "
                   f"{flex_dict['shift'][idx_med_shift]:.3f} pixels, will be used")
 

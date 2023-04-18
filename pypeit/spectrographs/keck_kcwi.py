@@ -206,6 +206,109 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         self.meta['lampstat{:02d}'.format(len(lamp_names) + 1)] = dict(ext=0, card='FLSPECTR')
         self.meta['lampshst{:02d}'.format(len(lamp_names) + 1)] = dict(ext=0, card=None, default=1)
 
+    def compound_meta(self, headarr, meta_key):
+        """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
+
+        Args:
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
+
+        Returns:
+            object: Metadata value read from the header(s).
+        """
+        if meta_key == 'binning':
+            binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
+            binning = parse.binning2string(binspec, binspatial)
+            return binning
+        elif meta_key == 'exptime':
+            try:
+                return headarr[0]['ELAPTIME']
+            except KeyError:
+                return headarr[0]['TELAPSE']
+        elif meta_key == 'slitwid':
+            # Get the slice scale
+            slicescale = 0.00037718  # Degrees per 'large slicer' slice
+            ifunum = headarr[0]['IFUNUM']
+            if ifunum == 2:
+                slicescale /= 2.0
+            elif ifunum == 3:
+                slicescale /= 4.0
+            return slicescale
+        elif meta_key == 'ra' or meta_key == 'dec':
+            try:
+                if self.is_nasmask(headarr[0]):
+                    hdrstr = 'RABASE' if meta_key == 'ra' else 'DECBASE'
+                else:
+                    hdrstr = 'RA' if meta_key == 'ra' else 'DEC'
+            except KeyError:
+                try:
+                    hdrstr = 'TARGRA' if meta_key == 'ra' else 'TARGDEC'
+                except KeyError:
+                    hdrstr = ''
+            return headarr[0][hdrstr]
+        elif meta_key == 'pressure':
+            try:
+                return headarr[0]['WXPRESS'] * 0.001  # Must be in astropy.units.bar
+            except KeyError:
+                msgs.warn("Pressure is not in header")
+                return 0.0
+        elif meta_key == 'temperature':
+            try:
+                return headarr[0]['WXOUTTMP']  # Must be in astropy.units.deg_C
+            except KeyError:
+                msgs.warn("Temperature is not in header")
+                return 0.0
+        elif meta_key == 'humidity':
+            try:
+                return headarr[0]['WXOUTHUM'] / 100.0
+            except KeyError:
+                msgs.warn("Humidity is not in header")
+                return 0.0
+        elif meta_key == 'obstime':
+            return Time(headarr[0]['DATE-END'])
+        else:
+            msgs.error("Not ready for this compound meta")
+
+    def configuration_keys(self):
+        """
+        Return the metadata keys that define a unique instrument
+        configuration.
+
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
+        """
+        return ['dispname', 'decker', 'binning', 'dispangle']
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['BGRATNAM', 'IFUNAM', 'BGRANGLE']
+
     @classmethod
     def default_pypeit_par(cls):
         """
@@ -291,89 +394,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['UVIS']['extinct_correct'] = False  # This must be False - the extinction correction is performed when making the datacube
 
         return par
-
-    def compound_meta(self, headarr, meta_key):
-        """
-        Methods to generate metadata requiring interpretation of the header
-        data, instead of simply reading the value of a header card.
-
-        Args:
-            headarr (:obj:`list`):
-                List of `astropy.io.fits.Header`_ objects.
-            meta_key (:obj:`str`):
-                Metadata keyword to construct.
-
-        Returns:
-            object: Metadata value read from the header(s).
-        """
-        if meta_key == 'binning':
-            binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
-            binning = parse.binning2string(binspec, binspatial)
-            return binning
-        elif meta_key == 'exptime':
-            try:
-                return headarr[0]['ELAPTIME']
-            except KeyError:
-                return headarr[0]['TELAPSE']
-        elif meta_key == 'slitwid':
-            # Get the slice scale
-            slicescale = 0.00037718  # Degrees per 'large slicer' slice
-            ifunum = headarr[0]['IFUNUM']
-            if ifunum == 2:
-                slicescale /= 2.0
-            elif ifunum == 3:
-                slicescale /= 4.0
-            return slicescale
-        elif meta_key == 'ra' or meta_key == 'dec':
-            try:
-                if self.is_nasmask(headarr[0]):
-                    hdrstr = 'RABASE' if meta_key == 'ra' else 'DECBASE'
-                else:
-                    hdrstr = 'RA' if meta_key == 'ra' else 'DEC'
-            except KeyError:
-                try:
-                    hdrstr = 'TARGRA' if meta_key == 'ra' else 'TARGDEC'
-                except KeyError:
-                    hdrstr = ''
-            return headarr[0][hdrstr]
-        elif meta_key == 'pressure':
-            try:
-                return headarr[0]['WXPRESS'] * 0.001  # Must be in astropy.units.bar
-            except KeyError:
-                msgs.warn("Pressure is not in header")
-                return 0.0
-        elif meta_key == 'temperature':
-            try:
-                return headarr[0]['WXOUTTMP']  # Must be in astropy.units.deg_C
-            except KeyError:
-                msgs.warn("Temperature is not in header")
-                return 0.0
-        elif meta_key == 'humidity':
-            try:
-                return headarr[0]['WXOUTHUM'] / 100.0
-            except KeyError:
-                msgs.warn("Humidity is not in header")
-                return 0.0
-        elif meta_key == 'obstime':
-            return Time(headarr[0]['DATE-END'])
-        else:
-            msgs.error("Not ready for this compound meta")
-
-    def configuration_keys(self):
-        """
-        Return the metadata keys that define a unique instrument
-        configuration.
-
-        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
-        identify the unique configurations among the list of frames read
-        for a given reduction.
-
-        Returns:
-            :obj:`list`: List of keywords of data pulled from file headers
-            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
-            object.
-        """
-        return ['dispname', 'decker', 'binning', 'dispangle']
 
     def pypeit_file_keys(self):
         """
