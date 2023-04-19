@@ -2653,6 +2653,7 @@ def ech_combspec(waves, fluxes, ivars, gpms, weights_sens, nbests=None,
 
 
     embed()
+    # JFH Left off here.
     # Arrays to store rescaled spectra. Need Fortran like order reshaping to create a (nspec, norder*nexp) stack of spectra.
     # The order of the reshaping in the second dimension is such that blocks norder long for each exposure are stacked
     # sequentially, i.e. for order number [:, 0:norder] would be the 1st exposure, [:,norder:2*norder] would be the
@@ -2690,7 +2691,7 @@ def ech_combspec(waves, fluxes, ivars, gpms, weights_sens, nbests=None,
         fluxes_pre_scale = fluxes_scale_2d.copy()
         ivars_pre_scale = ivars_scale_2d.copy()
 
-    # JFH Left off here.
+
 
     # Reshape the outputs to be (nspec, norder, nexp)
     fluxes_scale = np.reshape(fluxes_scale_2d, (nspec, norder, nexp), order='F')
