@@ -192,6 +192,7 @@ def test_asn_calib_ID_dict(multi_caliBrate):
 
     assert len(asn['arc']['proc']) == 2, \
             'Should be 2 processed calibration frames associated with the raw arc frames.'
+    # TODO: Why does THIS pass the windows CI but the one above doesn't ?!?!?!
     arc_file = Path(asn['arc']['proc'][0]).name
     assert arc_file == 'Arc_A_0_DET01.fits', 'Wrong calibration arc frame name'
     
