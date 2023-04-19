@@ -131,7 +131,7 @@ def get_sampling(waves, pix_per_R=3.0):
 
 
 # TODO: the other methods iref should be deprecated or removed
-def get_wave_grid(waves=None, masks=None, wave_method='linear', iref=0, wave_grid_min=None,
+def get_wave_grid(waves=None, gpms=None, wave_method='linear', iref=0, wave_grid_min=None,
                   wave_grid_max=None, dwave=None, dv=None, dloglam=None, wave_grid_input=None, 
                   spec_samp_fact=1.0):
     """
@@ -141,7 +141,7 @@ def get_wave_grid(waves=None, masks=None, wave_method='linear', iref=0, wave_gri
         waves (`numpy.ndarray`_, optional):
             Set of N original wavelength arrays.  Shape is (nspec, nexp).
             Required unless wave_method='user_input' in which case it need not be passed in.
-        masks (`numpy.ndarray`_, optional):
+        gpms (`numpy.ndarray`_, optional):
             Good-pixel mask for wavelengths.  Shape must match waves.
         wave_method (:obj:`str`, optional):
             Desired method for creating new wavelength grid:
@@ -196,13 +196,13 @@ def get_wave_grid(waves=None, masks=None, wave_method='linear', iref=0, wave_gri
     if wave_method == 'user_input':
         wave_grid = wave_grid_input
     else:
-        if masks is None:
-            masks = [wave > 1.0 for wave in waves]
+        if gpms is None:
+            gpms = [wave > 1.0 for wave in waves]
 
         if wave_grid_min is None:
-            wave_grid_min = np.min([wave[mask].min()for wave, mask in zip(waves, masks)])
+            wave_grid_min = np.min([wave[gpm].min()for wave, gpm in zip(waves, gpms)])
         if wave_grid_max is None:
-            wave_grid_max = np.max([wave[mask].max() for wave, mask in zip(waves, masks)])
+            wave_grid_max = np.max([wave[gpm].max() for wave, gpm in zip(waves, gpms)])
 
         dwave_data, dloglam_data, resln_guess, pix_per_sigma = get_sampling(waves)
 
@@ -252,8 +252,8 @@ def get_wave_grid(waves=None, masks=None, wave_method='linear', iref=0, wave_gri
             wave_grid = np.power(10.0,newloglam)
 
         elif wave_method == 'iref': # Use the iref index wavelength array
-            wave_tmp = waves[:, iref]
-            wave_grid = wave_tmp[ wave_tmp > 1.0]
+            wave_tmp = waves[iref]
+            wave_grid = wave_tmp[wave_tmp > 1.0]
 
         else:
             msgs.error("Bad method for wavelength grid: {:s}".format(wave_method))

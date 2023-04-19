@@ -194,6 +194,7 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
         # Write the par to disk
         print("Writing the parameters to {}".format(args.par_outfile))
         par.to_config(args.par_outfile)
+        # TODO This needs to come out of the parset
         sensfile = par['coadd1d']['sensfuncfile']
         coaddfile = par['coadd1d']['coaddfile']
 

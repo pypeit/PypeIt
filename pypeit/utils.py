@@ -29,6 +29,129 @@ from astropy import stats
 from pypeit import msgs
 from pypeit.move_median import move_median
 
+def unravel_lol(lst):
+    """
+    Unravel a list of lists.
+
+    Args:
+        lst (list):
+
+    Returns:
+        list:
+
+    """
+    return list(itertools.chain.from_iterable(lst))
+
+def distinct_colors(n, cmap='hsv'):
+    """
+    Return n distinct colors from the specified matplotlib colormap.
+
+    Args:
+        n (int):
+            Number of colors to return.
+        cmap (:obj:`str`, optional):
+            Name of the matplotlib colormap to use.  Default is 'hsv'.
+
+    Returns:
+        `numpy.ndarray`_: An array with shape (n,3) with the RGB values for
+        the requested number of colors.
+    """
+    return plt.get_cmap(cmap)(np.linspace(0, 1.0, n))
+
+def echarr_to_echlist(echarr):
+    """
+    Convert an echelle array to a list of 1d arrays.
+
+    Args:
+        echarr: `np.ndarray`_
+            An echelle array of shape (nspec, norder)
+
+    Returns:
+        list: A list of 1d arrays of shape (nspec,)
+
+    """
+    shape = echarr.shape
+    nspec, norder, nexp = shape
+    echlist = [echarr[:, i, j] for i in range(norder) for j in range(nexp)]
+    return echlist, shape
+
+def echlist_to_echarr(echlist, shape):
+    """
+    Convert a list of 1d arrays to a 3d echelle array.
+
+    Args:
+        echlist:
+
+    Returns:
+        echarray
+
+    """
+    nspec, norder, nexp = shape
+    echarr = np.zeros(shape)
+    for i in range(norder):
+        for j in range(nexp):
+            echarr[:, i, j] = echlist[i*nexp + j]
+    return echarr
+
+
+
+def explist_to_array(explist, pad_value=0.0):
+    """
+    Embed a list of length nexp 1d arrays of arbitrary size in a 2d array.
+
+    Args:
+        nexp_list: (list)
+            List of length nexp containing 1d arrays of arbitrary size.
+        pad_value: (scalar)
+            Value to use for padding the missing locations in the 2d array. The data
+            type should match the data type of in the 1d arrays in nexp_list.
+
+    Returns:
+        array: `np.ndarray`_
+           A 2d array of shape (nspec_max, nexp) where nspec_max is the maximum size of any
+           of the members of the input nexp_list. The data type is the same as the data type
+           in the original 1d arrays.
+
+    """
+
+    nexp = len(explist)
+    # Find the maximum array size in the list
+    nspec_list = [arr.size for arr in explist]
+    nspec_max =  np.max(nspec_list)
+    array = np.full((nspec_max, nexp), pad_value, dtype=explist[0].dtype)
+    for i in range(nexp):
+        array[:nspec_list[i], i] = explist[i]
+
+    return array, nspec_list
+
+
+def array_to_explist(array, nspec_list):
+    """
+    Embed a list of length nexp 1d arrays of arbitrary size in a 2d array.
+
+    Args:
+        nexp_list: (list)
+            List of length nexp containing 1d arrays of arbitrary size.
+        pad_value: (scalar)
+            Value to use for padding the missing locations in the 2d array. The data
+            type should match the data type of in the 1d arrays in nexp_list.
+
+    Returns:
+        array: `np.ndarray`_
+           A 2d array of shape (nspec_max, nexp) where nspec_max is the maximum size of any
+           of the members of the input nexp_list. The data type is the same as the data type
+           in the original 1d arrays.
+
+    """
+    explist = []
+    nexp = array.shape[1]
+    for i in range(nexp):
+        explist.append(array[:nspec_list[i], i])
+
+    return explist
+
+
+
 
 def get_time_string(codetime):
     """
