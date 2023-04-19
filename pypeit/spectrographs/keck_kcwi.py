@@ -339,6 +339,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         # Set the slit edge parameters
         par['calibrations']['slitedges']['fit_order'] = 4
+        par['calibrations']['slitedges']['pad'] = 2  # Need to pad out the tilts for the astrometric transform when creating a datacube.
 
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
@@ -388,7 +389,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Don't correct flexure by default, but you should use slitcen,
         # because this is a slit-based IFU where no objects are extracted.
         par['flexure']['spec_method'] = 'skip'
-        par['flexure']['spec_maxshift'] = 2.5  # Just in case someone switches on spectral flexure, this needs to be minimal
+        par['flexure']['spec_maxshift'] = 3  # Just in case someone switches on spectral flexure, this needs to be minimal
 
         # Flux calibration parameters
         par['sensfunc']['UVIS']['extinct_correct'] = False  # This must be False - the extinction correction is performed when making the datacube
