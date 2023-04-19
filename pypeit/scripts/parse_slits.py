@@ -76,11 +76,8 @@ class ParseSlits(scriptbase.ScriptBase):
 
         if file_type == 'Slits':
             slits = slittrace.SlitTraceSet.from_file(pargs.input_file)#, chk_version=False)
-#        except:
-#            pass
-#        else:
-#            print_slits(slits)
-#            return
+            print_slits(slits)
+            return
 
         try:
             allspec2D = spec2dobj.AllSpec2DObj.from_fits(pargs.input_file, chk_version=False)
