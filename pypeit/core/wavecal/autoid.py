@@ -36,7 +36,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.patches import Patch
 
 
-def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
+def arc_fit_qa(waveFit, 
+               outfile=None, ids_only=False, title=None,
                log=True):
     """
     QA for Arc spectrum
@@ -46,10 +47,9 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
         outfile (:obj:`str`, optional): Name of output file or 'show' to show on screen
         ids_only (bool, optional):
         title (:obj:`str`, optional):
+            Add a title to the spectrum plot
         log (:obj:`bool`, optional):
             If True, use log scaling for the spectrum
-
-    Returns:
 
     """
     plt.rcdefaults()
@@ -135,7 +135,8 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
 
     # Title
     if title is not None:
-        ax_spec.text(0.04, 0.93, title, transform=ax_spec.transAxes,
+        ax_spec.text(0.04, 0.93, title, 
+                     transform=ax_spec.transAxes,
                      size='x-large', ha='left')#, bbox={'facecolor':'white'})
     if ids_only:
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)

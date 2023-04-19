@@ -12,7 +12,6 @@ import matplotlib.pyplot as plt
 
 from IPython import embed
 
-from pypeit.images import imagebitmask
 from pypeit.core import basis, pixels, extract
 from pypeit.core import fitting
 from pypeit.core import procimg
@@ -881,8 +880,14 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
             iterbsp = 0
             while (not sky_bmodel.any()) & (iterbsp <= 4) & (not no_local_sky):
                 bsp_now = (1.2 ** iterbsp) * bsp
-                fullbkpt = optimal_bkpts(bkpts_optimal, bsp_now, piximg, localmask, debug=(debug_bkpts & (iiter == niter)),
-                                         skyimage=skyimage, min_spat=min_spat, max_spat=max_spat)
+                try:
+                    fullbkpt = optimal_bkpts(
+                        bkpts_optimal, bsp_now, piximg, localmask, 
+                        debug=(debug_bkpts & (iiter == niter)),
+                        skyimage=skyimage, 
+                        min_spat=min_spat, max_spat=max_spat)
+                except ValueError:
+                    embed(header='887 of skysub')
                 # check to see if only a subset of the image is used.
                 # if so truncate input pixels since this can result in singular matrices
                 isub, = np.where(localmask.flatten())
