@@ -8,7 +8,7 @@ Coadding module.
 
 import os
 import sys
-
+import copy
 from IPython import embed
 
 import numpy as np
@@ -2542,11 +2542,11 @@ def ech_combspec(waves, fluxes, ivars, gpms, weights_sens, nbests=None,
 
     # create some arrays
     #scales = np.zeros_like(waves)
-    waves_list_setup = [utils.echarr_to_echlist(wave)[0] for wave in waves]
-    fluxes_list_setup = [utils.echarr_to_echlist(flux)[0] for flux in fluxes]
-    ivars_list_setup = [utils.echarr_to_echlist(ivar)[0] for ivar in ivars]
-    gpms_list_setup= [utils.echarr_to_echlist(gpm)[0] for gpm in gpms]
-    shapes_list_setup = [wave.shape for wave in waves]
+    waves_setup_list = [utils.echarr_to_echlist(wave)[0] for wave in waves]
+    fluxes_setup_list = [utils.echarr_to_echlist(flux)[0] for flux in fluxes]
+    ivars_setup_list = [utils.echarr_to_echlist(ivar)[0] for ivar in ivars]
+    gpms_setup_list= [utils.echarr_to_echlist(gpm)[0] for gpm in gpms]
+    shapes_setup_list = [wave.shape for wave in waves]
 
     # Concatentate all the elements of the lists
     #waves_list, fluxes_list, ivars_list, gpms_list = [], [], [], []
@@ -2555,12 +2555,8 @@ def ech_combspec(waves, fluxes, ivars, gpms, weights_sens, nbests=None,
     #    fluxes_list += flux
     #    ivars_list += ivar
     #    gpms_list += gpm
-    waves_concat = []
-    gpms_concat = []
-    for wv_list, gpm_list in zip(waves_list_setup, gpms_list_setup):
-        waves_concat += wv_list
-        gpms_concat += gpm_list
-
+    waves_concat = utils.unravel_lol(waves_setup_list)
+    gpms_concat = utils.unravel_lol(gpms_setup_list)
 
     # Generate a giant wave_grid
     wave_grid, wave_grid_mid, _ = wvutils.get_wave_grid(waves_concat, gpms=gpms_concat, wave_method=wave_method,
@@ -2570,53 +2566,93 @@ def ech_combspec(waves, fluxes, ivars, gpms, weights_sens, nbests=None,
 
     # Evaluate the sn_weights. This is done once at the beginning
     weights = []
+    rms_sn_setup_list = []
     colors = []
     for isetup in range(nsetups):
-        rms_sn_vec, _ = sn_weights(fluxes_list_setup[isetup], ivars_list_setup[isetup], gpms_list_setup[isetup],
+        rms_sn_vec, _ = sn_weights(fluxes_setup_list[isetup], ivars_setup_list[isetup], gpms_setup_list[isetup],
                                    sn_smooth_npix, const_weights=const_weights, verbose=verbose)
-        rms_sn = rms_sn_vec.reshape(shapes_list_setup[isetup][1:])
+        rms_sn = rms_sn_vec.reshape(shapes_setup_list[isetup][1:])
         mean_sn_ord = np.mean(rms_sn, axis=1)
         best_orders = np.argsort(mean_sn_ord)[::-1][0:nbests[isetup]]
         rms_sn_per_exp = np.mean(rms_sn[best_orders, :], axis=0)
         weights_exp = np.tile(np.square(rms_sn_per_exp), (nspecs[isetup], norders[isetup], 1))
         weights_isetup = weights_exp * weights_sens[isetup]
         weights.append(weights_isetup)
+        rms_sn_setup_list.append(rms_sn)
         colors.append([setup_colors[isetup]]*norders[isetup]*nexps[isetup])
 
-    # Create the waves_list_setup
-    weights_list_setup = [utils.echarr_to_echlist(weight)[0] for weight in weights]
 
-    debug=True
+    # Create the waves_setup_list
+    weights_setup_list = [utils.echarr_to_echlist(weight)[0] for weight in weights]
+
     if debug:
-        weights_qa(utils.unravel_lol(waves_list_setup),utils.unravel_lol(weights_list_setup),
-                   utils.unravel_lol(gpms_list_setup), colors=utils.unravel_lol(colors),
+        weights_qa(utils.unravel_lol(waves_setup_list),utils.unravel_lol(weights_setup_list),
+                   utils.unravel_lol(gpms_setup_list), colors=utils.unravel_lol(colors),
                    title='ech_combspec')
 
-    # Inter-order scalin
-    fluxes_scl_interord, ivars_scl_interord, scales_interord = [], [], []
+    #######################
+    # Inter-order scaling
+    #######################
+    # TODO Add checking here such that orders with low S/N ratio are instead scaled using scale factors from
+    # higher S/N ratio. The point is it makes no sense to take 0.0/0.0. In the low S/N regime, i.e. DLAs,
+    # GP troughs, we should be rescaling using scale factors from orders with signal. This also applies
+    # to the echelle combine below.
+    fluxes_scl_interord_setup_list, ivars_scl_interord_setup_list, scales_interord_setup_list = [], [], []
+    for isetup in range(nsetups):
+        fluxes_scl_interord_isetup, ivars_scl_interord_isetup, scales_interord_isetup = [], [], []
+        for iord in range(norders[isetup]):
+            ind_start = iord*nexps[isetup]
+            ind_end = (iord+1)*nexps[isetup]
+            fluxes_scl_interord_iord, ivars_scl_interord_iord, scales_interord_iord, scale_method_used = \
+                scale_spec_stack(wave_grid, wave_grid_mid, waves_setup_list[isetup][ind_start:ind_end],
+                                 fluxes_setup_list[isetup][ind_start:ind_end],ivars_setup_list[isetup][ind_start:ind_end],
+                                 gpms_setup_list[isetup][ind_start:ind_end], rms_sn_setup_list[isetup][iord, :],
+                                 weights_setup_list[isetup][ind_start:ind_end], ref_percentile=ref_percentile,
+                                 maxiter_scale=maxiter_scale, sigrej_scale=sigrej_scale, scale_method=scale_method,
+                                 hand_scale=hand_scale,
+                                 sn_min_polyscale=sn_min_polyscale, sn_min_medscale=sn_min_medscale, debug=debug_scale)
+            fluxes_scl_interord_isetup += fluxes_scl_interord_iord
+            ivars_scl_interord_isetup += ivars_scl_interord_iord
+            scales_interord_isetup += scales_interord_iord
 
-    #fluxes_scl_interord = np.zeros_like(fluxes)
-    #ivars_scl_interord = np.zeros_like(ivars)
-    #scales_interord = np.zeros_like(fluxes)
+        fluxes_scl_interord_setup_list.append(fluxes_scl_interord_isetup)
+        ivars_scl_interord_setup_list.append(ivars_scl_interord_isetup)
+        scales_interord_setup_list.append(scales_interord_isetup)
 
-    # JFH This can accomodate lists, but there needs to be an outer loop over setups since it only make sense to inter-order
-    # scale the same setup
-    # First perform inter-order scaling once
-    for iord in range(norder):
-        # TODO Add checking here such that orders with low S/N ratio are instead scaled using scale factors from
-        # higher S/N ratio. The point is it makes no sense to take 0.0/0.0. In the low S/N regime, i.e. DLAs,
-        # GP troughs, we should be rescaling using scale factors from orders with signal. This also applies
-        # to the echelle combine below.
+    #######################
+    # Global Scaling
+    #######################
+    show_order_scale=True
+    fluxes_concat = utils.unravel_lol(fluxes_scl_interord_setup_list)
+    ivars_concat = utils.unravel_lol(ivars_scl_interord_setup_list)
+    scales_concat = utils.unravel_lol(scales_interord_setup_list)
+    weights_concat = utils.unravel_lol(weights_setup_list)
+    rms_sn_concat = []
+    for rms_sn in rms_sn_setup_list:
+        rms_sn_concat += rms_sn.flatten().tolist()
+    rms_sn_concat = np.array(rms_sn_concat)
+    fluxes_pre_scale_concat = copy.deepcopy(fluxes_concat)
+    ivars_pre_scale_concat  = copy.deepcopy(ivars_concat)
+    # For the first iteration use the scale_method input as an argument (default=None, which will allow
+    # soly_poly_ratio scaling which is very slow). For all the other iterations simply use median rescaling since
+    # we are then applying tiny corrections and median scaling is much faster
+    scale_method_iter = [scale_method]  + ['median']*(niter_order_scale - 1)
+    # Iteratively scale and stack the entire set of spectra arcoss all setups, orders, and exposures
+    for iteration in range(niter_order_scale):
+        # JFH This scale_spec_stack routine takes a list of [(nspec1,), (nspec2,), ...] arrays, so a loop needs to be
+        # added here over the outer setup dimension of the lists
+        fluxes_scale_concat, ivars_scale_concat, scales_iter_concat, scale_method_used = scale_spec_stack(
+            wave_grid, wave_grid_mid, waves_concat, fluxes_pre_scale_concat, ivars_pre_scale_concat, gpms_concat, rms_sn_concat,
+            weights_concat, ref_percentile=ref_percentile,
+            maxiter_scale=maxiter_scale, sigrej_scale=sigrej_scale, scale_method=scale_method_iter[iteration], hand_scale=hand_scale,
+            sn_min_polyscale=sn_min_polyscale, sn_min_medscale=sn_min_medscale,
+            show=(show_order_scale & (iteration == (niter_order_scale-1))))
+        scales_concat = [scales_orig*scales_new for scales_orig, scales_new in zip(scales_concat, scales_iter_concat)]
+        fluxes_pre_scale_concat = copy.deepcopy(fluxes_scale_concat)
+        ivars_pre_scale_concat = copy.deepcopy(ivars_scale_concat)
 
-        # JFH Here I would need to unrval the exposure dimension and create a list for each order
-        # [(nspec1), (nspec1,)...]
-        fluxes_scl_interord[:, iord], ivars_scl_interord[:,iord], scales_interord[:,iord], scale_method_used = \
-            scale_spec_stack(wave_grid, wave_grid_mid, waves[:, iord, :], fluxes[:, iord, :], ivars[:, iord, :], masks[:, iord, :],
-                             rms_sn[iord, :], weights[:, iord, :], ref_percentile=ref_percentile,
-                             maxiter_scale=maxiter_scale, sigrej_scale=sigrej_scale, scale_method=scale_method,
-                             hand_scale=hand_scale,
-                             sn_min_polyscale=sn_min_polyscale, sn_min_medscale=sn_min_medscale, debug=debug_scale)
 
+    embed()
     # Arrays to store rescaled spectra. Need Fortran like order reshaping to create a (nspec, norder*nexp) stack of spectra.
     # The order of the reshaping in the second dimension is such that blocks norder long for each exposure are stacked
     # sequentially, i.e. for order number [:, 0:norder] would be the 1st exposure, [:,norder:2*norder] would be the
@@ -2654,7 +2690,7 @@ def ech_combspec(waves, fluxes, ivars, gpms, weights_sens, nbests=None,
         fluxes_pre_scale = fluxes_scale_2d.copy()
         ivars_pre_scale = ivars_scale_2d.copy()
 
-    # JFH Output here is going to be nested listed [[nspec1, nspec2, ...], [nspec1, nspec2, ...], ...] where the inner d
+    # JFH Left off here.
 
     # Reshape the outputs to be (nspec, norder, nexp)
     fluxes_scale = np.reshape(fluxes_scale_2d, (nspec, norder, nexp), order='F')
