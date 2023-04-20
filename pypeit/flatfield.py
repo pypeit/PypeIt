@@ -792,7 +792,7 @@ class FlatField:
         saturated_slits = self.flatpar['saturated_slits']
 
         # Build wavelength image -- not always used, but for convenience done here
-        if self.waveimg is None: self.build_waveimg()
+        if self.waveimg is None and not self.flatpar['slitless']: self.build_waveimg()
 
         # Setup images
         nspec, nspat = self.rawflatimg.image.shape
@@ -938,9 +938,15 @@ class FlatField:
 
             # Create the tilts image for this slit
             # TODO -- JFH Confirm the sign of this shift is correct!
-            _flexure = 0. if self.wavetilts.spat_flexure is None else self.wavetilts.spat_flexure
-            tilts = tracewave.fit2tilts(rawflat.shape, self.wavetilts['coeffs'][:,:,slit_idx],
-                                        self.wavetilts['func2d'], spat_shift=-1*_flexure)
+            if self.flatpar['slitless']:
+                tilts = np.outer(np.arange(rawflat.shape[0])/rawflat.shape[0],
+                                 np.ones(rawflat.shape[1]))
+            else:
+                _flexure = 0. if self.wavetilts.spat_flexure is None \
+                    else self.wavetilts.spat_flexure
+                tilts = tracewave.fit2tilts(
+                    rawflat.shape, self.wavetilts['coeffs'][:,:,slit_idx],
+                    self.wavetilts['func2d'], spat_shift=-1*_flexure)
             # Convert the tilt image to an image with the spectral pixel index
             spec_coo = tilts * (nspec-1)
 
@@ -1131,7 +1137,7 @@ class FlatField:
 
             # Perform a fine correction to the spatial illumination profile
             spat_illum_fine = 1  # Default value if the fine correction is not performed
-            if exit_status <= 1 and self.flatpar['slit_illum_finecorr']:
+            if exit_status <= 1 and self.flatpar['slit_illum_finecorr'] and not self.flatpar['slitless']:
                 spat_illum = spat_bspl.value(spat_coo_final[onslit_tweak])[0]
                 self.spatial_fit_finecorr(spat_illum, onslit_tweak, slit_idx, slit_spat, gpm, doqa=doqa)
 
