@@ -306,6 +306,6 @@ class EchelleCoAdd1D(CoAdd1D):
         # Add the loop over setups here
         waves, fluxes, ivars, gpms, header_out = self.load_arrays()
 
-        return [waves], [fluxes], [ivars], [gpms], [header_out]
+        return [waves], [fluxes], [ivars], [gpms], header_out
 
 

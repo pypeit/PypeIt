@@ -136,6 +136,11 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['arcframe']['exprng'] = [20, None]
         par['calibrations']['darkframe']['exprng'] = [20, None]
         par['scienceframe']['exprng'] = [20, None]
+
+        # Coadding
+        par['coadd1d']['wave_method'] = 'log10'
+
+
         return par
 
     def init_meta(self):

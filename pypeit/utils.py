@@ -29,7 +29,87 @@ from astropy import stats
 from pypeit import msgs
 from pypeit.move_median import move_median
 
-def unravel_lol(lst):
+def arr_setup_to_setup_list(arr_setup):
+    """
+
+    Args:
+        arr_setup: (list)
+          A list of length setup of echelle output arrays of shape=(nspec, norders, nexp)
+
+    Returns:
+        setup_list: (list)
+          List of length nsteups. Each element of the setup list is a list of length
+          norder*nexp elements, each of which contains the shape = (nspec1,) wavelength arrays
+          for the order/exposure in setup1. The list is arranged such that the nexp1 spectra
+          for iorder=0 appear first, then come nexp1 spectra for iorder=1, i.e. the outer or
+          fastest varying dimension in python array ordering is the exposure number.
+
+
+    """
+    return [echarr_to_echlist(arr)[0] for arr in arr_setup]
+
+def setup_list_to_arr_setup(setup_list, norders, nexps):
+    """
+    Convert a setup_list to arr_setup list
+
+    Args:
+        setup_list: (list)
+          List of length nsteups. Each element of the setup list is a list of length
+          norder*nexp elements, each of which contains the shape = (nspec1,) wavelength arrays
+          for the order/exposure in setup1. The list is arranged such that the nexp1 spectra
+          for iorder=0 appear first, then come nexp1 spectra for iorder=1, i.e. the outer or
+          fastest varying dimension in python array ordering is the exposure number.
+        norders: (list)
+          List containing the number of orders for each setup
+        nexps (list):
+          List containing the number of exposures for each setup
+
+    Returns:
+        arr_setup (list):
+          List of length nsetups each element of which is a numpy array of shape=(nspec, norders, nexp)
+          which is the echelle spectra data model.
+    """
+    nsetups = len(setup_list)
+    arr_setup = []
+    for isetup in range(nsetups):
+        shape = (setup_list[isetup][0].size, norders[isetup], nexps[isetup])
+        arr_setup.append(echlist_to_echarr(setup_list[isetup], shape))
+    return arr_setup
+
+def concat_to_setup_list(concat, norders, nexps):
+    """
+
+    Args:
+        concat: (list)
+           List of length = \Sum_i norders_i*nexps_i of numpy arrays describing an echelle spectrum where
+           i runs over nsetups
+        norders: (list)
+           List of length nsetups containing the number of orders for each setup
+        nexps:
+           List of length nexp containing the number of exposures for each setup
+
+    Returns:
+        setup_list (list)
+           list of length nsteups. Each element of the setup list is a list of length
+                          norder*nexp elements, each of which contains the shape = (nspec1,) wavelength arrays
+                          for the order/exposure in setup1. The list is arranged such that the nexp1 spectra
+                          for iorder=0 appear first, then come nexp1 spectra for iorder=1, i.e. the outer or
+                          fastest varying dimension in python array ordering is the exposure number.
+
+    """
+    if len(norders) != len(nexps):
+        msgs.error('The number of elements in norders and nexps must match')
+    nsetups = len(norders)
+    setup_list = []
+    ind_start = 0
+    for isetup in range(nsetups):
+        ind_end = ind_start + norders[isetup]*nexps[isetup]
+        setup_list.append(concat[ind_start:ind_end])
+        ind_start=ind_end
+
+    return setup_list
+
+def setup_list_to_concat(lst):
     """
     Unravel a list of lists.
 
@@ -41,22 +121,6 @@ def unravel_lol(lst):
 
     """
     return list(itertools.chain.from_iterable(lst))
-
-def distinct_colors(n, cmap='hsv'):
-    """
-    Return n distinct colors from the specified matplotlib colormap.
-
-    Args:
-        n (int):
-            Number of colors to return.
-        cmap (:obj:`str`, optional):
-            Name of the matplotlib colormap to use.  Default is 'hsv'.
-
-    Returns:
-        `numpy.ndarray`_: An array with shape (n,3) with the RGB values for
-        the requested number of colors.
-    """
-    return plt.get_cmap(cmap)(np.linspace(0, 1.0, n))
 
 def echarr_to_echlist(echarr):
     """
@@ -87,7 +151,7 @@ def echlist_to_echarr(echlist, shape):
 
     """
     nspec, norder, nexp = shape
-    echarr = np.zeros(shape)
+    echarr = np.zeros(shape, dtype=echlist[0].dtype)
     for i in range(norder):
         for j in range(nexp):
             echarr[:, i, j] = echlist[i*nexp + j]
@@ -150,6 +214,22 @@ def array_to_explist(array, nspec_list):
 
     return explist
 
+
+def distinct_colors(n, cmap='hsv'):
+    """
+    Return n distinct colors from the specified matplotlib colormap.
+
+    Args:
+        n (int):
+            Number of colors to return.
+        cmap (:obj:`str`, optional):
+            Name of the matplotlib colormap to use.  Default is 'hsv'.
+
+    Returns:
+        `numpy.ndarray`_: An array with shape (n,3) with the RGB values for
+        the requested number of colors.
+    """
+    return plt.get_cmap(cmap)(np.linspace(0, 1.0, n))
 
 
 

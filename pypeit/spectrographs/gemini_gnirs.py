@@ -108,6 +108,10 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 6
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+
+        # Coadding. Not for longslit data this might be problematic but that is not yet supported.
+        par['coadd1d']['wave_method'] = 'log10'
+
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
@@ -167,6 +171,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['tilts']['tracethresh'] = [5.0, 10, 10, 10, 10, 10]
             par['calibrations']['tilts']['sig_neigh'] = 5.0
             par['calibrations']['tilts']['nfwhm_neigh'] = 2.0
+
+
         # 10/mmLBSX_G5532 setup, covering YJHK with the long blue camera and SXD prism
         elif '10/mmLBSX' in self.dispname:
             # Edges
