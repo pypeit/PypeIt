@@ -273,8 +273,9 @@ class CombineImage:
                                                sigrej=sigrej, maxiters=maxiters)
             comb_img, comb_scl = img_list_out
             comb_rn2, comb_basev = var_list_out
-            comb_rn2[gpm] /= comb_scl[gpm]**2
-            comb_basev[gpm] /= comb_scl[gpm]**2
+            # Divide by the number of images that contributed to each pixel
+            comb_scl[gpm] /= nstack[gpm]
+
         elif combine_method == 'median':
             bpm_stack = np.logical_not(gpm_stack)
             nstack = np.sum(gpm_stack, axis=0)
@@ -289,18 +290,18 @@ class CombineImage:
             comb_basev = np.ma.sum(np.ma.MaskedArray(basev_stack, mask=bpm_stack),axis=0).filled(0.)
             # Convert to standard error in the median (pi/2 factor relates standard variance
             # in mean (sum(variance_i)/n^2) to standard variance in median)
-            comb_rn2[gpm] *= np.pi/2/nstack[gpm]**2/comb_scl[gpm]**2
-            comb_basev[gpm] *= np.pi/2/nstack[gpm]**2/comb_scl[gpm]**2
+            comb_rn2[gpm] *= np.pi/2/nstack[gpm]**2
+            comb_basev[gpm] *= np.pi/2/nstack[gpm]**2
+            # Divide by the number of images that contributed to each pixel
+            comb_scl[gpm] *= np.pi/2/nstack[gpm]
         else:
             # NOTE: Given the check at the beginning of the function, the code
             # should *never* make it here.
             msgs.error("Bad choice for combine.  Allowed options are 'median', 'mean'.")
 
-        comb_img_forvar = comb_img.copy()
-        comb_img_forvar[gpm] /= nstack[gpm]
         # Recompute the inverse variance using the combined image
         comb_var = procimg.variance_model(comb_basev,
-                                          counts=comb_img_forvar if self.par['shot_noise'] else None,
+                                          counts=comb_img if self.par['shot_noise'] else None,
                                           count_scale=comb_scl,
                                           noise_floor=self.par['noise_floor'])
 
