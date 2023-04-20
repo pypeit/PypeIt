@@ -365,6 +365,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     ----------------
     November 2018 by J.F. Hennawi. Built from an initial version of cross_match code written by Ryan Cooke.
     """
+    # TODO -- Break up this morass into multiple methods
 
     # Determine the seed for scipy.optimize.differential_evolution optimizer. Just take the sum of all the elements
     # and round that to an integer

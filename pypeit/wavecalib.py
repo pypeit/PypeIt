@@ -574,8 +574,6 @@ class BuildWaveCalib:
                                              nsnippet=self.par['nsnippet'])
                                              #debug=True, debug_reid=True, debug_xcorr=True)
         elif self.par['method'] == 'echelle':
-            # TODO -- Merge this with reidentify for fixed echelle formats
-
             # Echelle calibration files
             angle_fits_file, composite_arc_file = self.spectrograph.get_echelle_angle_files()
 
@@ -599,6 +597,11 @@ class BuildWaveCalib:
                 self.lamps, self.par, ok_mask=ok_mask_idx,
                 nonlinear_counts=self.nonlinear_counts,
                 debug_all=False, redo_slit=self.par['redo_slit'])
+
+            # Save as internals in case we need to redo
+            self.wave_soln_arxiv = wave_soln_arxiv
+            self.arcspec_arxiv = arcspec_arxiv
+            self.arccen = arccen
 
         else:
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
@@ -870,7 +873,15 @@ class BuildWaveCalib:
 
             # Try a second attempt with 1D, if needed
             if np.any(bad_rms):
-                embed(header='870 of wavecalib')
+                for bad_slit in np.where(bad_rms)[0]:
+                    embed(header='877 of wavecalib')
+                    # TODO -- just run solve_xcorr
+                    # Generate a better guess at wavelengths
+                    patt_dict, final_fit = autoid.echelle_wvcalib(
+                        arccen, order_vec, arcspec_arxiv, wave_soln_arxiv,
+                        self.lamps, self.par, ok_mask=ok_mask_idx,
+                        nonlinear_counts=self.nonlinear_counts,
+                        debug_all=False, redo_slit=self.slits.ech_order[bad_slit])
 
         # Deal with mask
         self.update_wvmask()
