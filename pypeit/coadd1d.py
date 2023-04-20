@@ -25,15 +25,18 @@ from pypeit.history import History
 class CoAdd1D:
 
     @classmethod
-    def get_instance(cls, spec1dfiles, objids, spectrograph=None, par=None, sensfile=None, debug=False, show=False):
+    def get_instance(cls, spec1dfiles, objids, spectrograph=None, par=None, sensfuncile=None, setup_id=None,
+                     debug=False, show=False):
         """
         Superclass factory method which generates the subclass instance. See __init__ docs for arguments.
         """
         pypeline = fits.getheader(spec1dfiles[0])['PYPELINE'] + 'CoAdd1D'
         return next(c for c in cls.__subclasses__() if c.__name__ == pypeline)(
-            spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfile=sensfile, debug=debug, show=show)
+            spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfuncfile=sensfuncile, setup_id=setup_id,
+            debug=debug, show=show)
 
-    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfile=None, debug=False, show=False):
+    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None,
+                 debug=False, show=False):
         """
 
         Args:
@@ -44,7 +47,7 @@ class CoAdd1D:
             spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`, optional):
             par (:class:`pypeit.par.pypeitpar.Coadd1DPar`, optional):
                Pypeit parameter set object for Coadd1D
-            sensfile (str, optional):
+            sensfuncile (str, optional):
                File holding the sensitivity function. This is required for echelle coadds only.
             debug (bool, optional)
                Debug. Default = False
@@ -66,7 +69,6 @@ class CoAdd1D:
         else:
             self.par = par
         #
-        self.sensfile = sensfile
         self.debug = debug
         self.show = show
         self.nexp = len(self.spec1dfiles) # Number of exposures
@@ -218,12 +220,12 @@ class MultiSlitCoAdd1D(CoAdd1D):
     Child of CoAdd1d for Multislit and Longslit reductions
     """
 
-    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfile=None, debug=False, show=False):
+    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None, debug=False, show=False):
         """
         See `CoAdd1D` doc string
         """
-        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par = par, sensfile = sensfile,
-                         debug = debug, show = show)
+        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par = par, sensfuncfile = sensfuncfile,
+                         setup_id=setup_id, debug = debug, show = show)
 
     def coadd(self):
         """
@@ -254,13 +256,38 @@ class EchelleCoAdd1D(CoAdd1D):
     Child of CoAdd1d for Echelle reductions
     """
 
-    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfile=None, debug=False, show=False):
+    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None,
+                 debug=False, show=False):
         """
         See `CoAdd1D` doc string
 
         """
-        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par = par, sensfile = sensfile,
-                         debug = debug, show = show)
+        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par = par, sensfuncfile = sensfuncfile,
+                         setup_id=setup_id, debug = debug, show = show)
+
+        if sensfuncfile is None:
+            msgs.error('sensfuncfile is a required argument for echelle coadding')
+        else:
+            nsens = len(sensfuncfile)
+            if not ((nsens == 1) or (nsens == self.nexp)):
+                msgs.error('Invalid length of sensfuncfile len(sensfuncfile)={:d}'.format(len(nsens)))
+            _sensfuncfile = list(sensfuncfile) if isinstance(sensfuncfile, str) else sensfuncfile
+            self.sensfuncfile = _sensfuncfile if len(_sensfuncfile) == self.nexp else self.nexp*_sensfuncfile
+
+        if setup_id is None:
+            self.setup_id = self.nexp*['A']
+        else:
+            len_setup = len(setup_id)
+            if not ((len_setup == 1) or (len_setup == self.nexp)):
+                msgs.error('Invalid length of setup_id len(setup_id)={:d}'.format(len(len_setup)))
+            _setup_id = list(setup_id) if isinstance(setup_id, str) else setup_id
+            self.setup_id = _setup_id if len(_setup_id) == self.nexp else self.nexp*_setup_id
+
+        self.unique_setups = np.unique(self.setup_id).tolist()
+        self.nsetups = len(self.unique_setups)
+
+        self.sensfuncfile = sensfuncfile
+        self.setup_id= setup_id
 
     def coadd(self):
         """
@@ -274,11 +301,11 @@ class EchelleCoAdd1D(CoAdd1D):
         # JFH
         weights_sens = []
         # JFH This is a hack until I get the .coadd1d API working
-        if not isinstance(self.sensfile, list):
-            self.sensfile = [self.sensfile]
+        if not isinstance(self.sensfuncfile, list):
+            self.sensfuncfile = [self.sensfuncfile]
 
-        for wave, sensfile in zip(self.waves, self.sensfile):
-            weights_sens.append(sensfunc.SensFunc.sensfunc_weights(sensfile, wave, debug=self.debug))
+        for wave, sensfuncfile in zip(self.waves, self.sensfuncfile):
+            weights_sens.append(sensfunc.SensFunc.sensfunc_weights(sensfuncfile, wave, debug=self.debug))
 
         wave_grid_mid, (wave_coadd, flux_coadd, ivar_coadd, gpm_coadd), order_stacks \
                 = coadd.ech_combspec(self.waves, self.fluxes, self.ivars, self.gpms, weights_sens,

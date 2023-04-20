@@ -1156,10 +1156,10 @@ class Coadd1DPar(ParSet):
 
         # JFH These last two are actually arguments and not parameters that are only here because there is no other easy
         # way to parse .coadd1d files except with parsets. I would like to separate arguments from parameters.
-        defaults['sensfuncfile'] = None
-        dtypes['sensfuncfile'] = str
-        descr['sensfuncfile'] = 'File containing sensitivity function which is a requirement for echelle coadds. ' \
-                            'This is only used for Echelle'
+        #defaults['sensfuncfile'] = None
+        #dtypes['sensfuncfile'] = str
+        #descr['sensfuncfile'] = 'File containing sensitivity function which is a requirement for echelle coadds. ' \
+        #                    'This is only used for Echelle'
 
         defaults['coaddfile'] = None
         dtypes['coaddfile'] = str
