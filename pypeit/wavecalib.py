@@ -845,8 +845,11 @@ class BuildWaveCalib:
         self.arccen, self.wvc_bpm = self.extract_arcs()
 
         # Fill up the calibrations and generate QA
+        skip_QA = True  # for debugging
+        msgs.warn("TURN QA BACK ON!!!")
         self.wv_calib = self.build_wv_calib(
-            self.arccen, self.par['method'], skip_QA=skip_QA,
+            self.arccen, self.par['method'], 
+            skip_QA=skip_QA,
             prev_wvcalib=prev_wvcalib)
 
         # Fit 2D?
