@@ -915,7 +915,7 @@ def djs_reject(data, model, outmask=None, inmask=None,
     # to python True and False booleans
 
     outmask = newmask
-    return (outmask, qdone)
+    return outmask, qdone
 
 
 

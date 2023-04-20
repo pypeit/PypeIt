@@ -203,6 +203,10 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         # place holder for telgrid file
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
 
+        # Coadding. I'm not sure what this should be for PRISM mode?
+        par['coadd1d']['wave_method'] = 'log10'
+
+
         return par
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):

@@ -29,6 +29,209 @@ from astropy import stats
 from pypeit import msgs
 from pypeit.move_median import move_median
 
+def arr_setup_to_setup_list(arr_setup):
+    """
+
+    Args:
+        arr_setup: (list)
+          A list of length setup of echelle output arrays of shape=(nspec, norders, nexp)
+
+    Returns:
+        setup_list: (list)
+          List of length nsteups. Each element of the setup list is a list of length
+          norder*nexp elements, each of which contains the shape = (nspec1,) wavelength arrays
+          for the order/exposure in setup1. The list is arranged such that the nexp1 spectra
+          for iorder=0 appear first, then come nexp1 spectra for iorder=1, i.e. the outer or
+          fastest varying dimension in python array ordering is the exposure number.
+
+
+    """
+    return [echarr_to_echlist(arr)[0] for arr in arr_setup]
+
+def setup_list_to_arr_setup(setup_list, norders, nexps):
+    """
+    Convert a setup_list to arr_setup list
+
+    Args:
+        setup_list: (list)
+          List of length nsteups. Each element of the setup list is a list of length
+          norder*nexp elements, each of which contains the shape = (nspec1,) wavelength arrays
+          for the order/exposure in setup1. The list is arranged such that the nexp1 spectra
+          for iorder=0 appear first, then come nexp1 spectra for iorder=1, i.e. the outer or
+          fastest varying dimension in python array ordering is the exposure number.
+        norders: (list)
+          List containing the number of orders for each setup
+        nexps (list):
+          List containing the number of exposures for each setup
+
+    Returns:
+        arr_setup (list):
+          List of length nsetups each element of which is a numpy array of shape=(nspec, norders, nexp)
+          which is the echelle spectra data model.
+    """
+    nsetups = len(setup_list)
+    arr_setup = []
+    for isetup in range(nsetups):
+        shape = (setup_list[isetup][0].size, norders[isetup], nexps[isetup])
+        arr_setup.append(echlist_to_echarr(setup_list[isetup], shape))
+    return arr_setup
+
+def concat_to_setup_list(concat, norders, nexps):
+    """
+
+    Args:
+        concat: (list)
+           List of length = \Sum_i norders_i*nexps_i of numpy arrays describing an echelle spectrum where
+           i runs over nsetups
+        norders: (list)
+           List of length nsetups containing the number of orders for each setup
+        nexps:
+           List of length nexp containing the number of exposures for each setup
+
+    Returns:
+        setup_list (list)
+           list of length nsteups. Each element of the setup list is a list of length
+                          norder*nexp elements, each of which contains the shape = (nspec1,) wavelength arrays
+                          for the order/exposure in setup1. The list is arranged such that the nexp1 spectra
+                          for iorder=0 appear first, then come nexp1 spectra for iorder=1, i.e. the outer or
+                          fastest varying dimension in python array ordering is the exposure number.
+
+    """
+    if len(norders) != len(nexps):
+        msgs.error('The number of elements in norders and nexps must match')
+    nsetups = len(norders)
+    setup_list = []
+    ind_start = 0
+    for isetup in range(nsetups):
+        ind_end = ind_start + norders[isetup]*nexps[isetup]
+        setup_list.append(concat[ind_start:ind_end])
+        ind_start=ind_end
+
+    return setup_list
+
+def setup_list_to_concat(lst):
+    """
+    Unravel a list of lists.
+
+    Args:
+        lst (list):
+
+    Returns:
+        list:
+
+    """
+    return list(itertools.chain.from_iterable(lst))
+
+def echarr_to_echlist(echarr):
+    """
+    Convert an echelle array to a list of 1d arrays.
+
+    Args:
+        echarr: `np.ndarray`_
+            An echelle array of shape (nspec, norder)
+
+    Returns:
+        list: A list of 1d arrays of shape (nspec,)
+
+    """
+    shape = echarr.shape
+    nspec, norder, nexp = shape
+    echlist = [echarr[:, i, j] for i in range(norder) for j in range(nexp)]
+    return echlist, shape
+
+def echlist_to_echarr(echlist, shape):
+    """
+    Convert a list of 1d arrays to a 3d echelle array.
+
+    Args:
+        echlist:
+
+    Returns:
+        echarray
+
+    """
+    nspec, norder, nexp = shape
+    echarr = np.zeros(shape, dtype=echlist[0].dtype)
+    for i in range(norder):
+        for j in range(nexp):
+            echarr[:, i, j] = echlist[i*nexp + j]
+    return echarr
+
+
+
+def explist_to_array(explist, pad_value=0.0):
+    """
+    Embed a list of length nexp 1d arrays of arbitrary size in a 2d array.
+
+    Args:
+        nexp_list: (list)
+            List of length nexp containing 1d arrays of arbitrary size.
+        pad_value: (scalar)
+            Value to use for padding the missing locations in the 2d array. The data
+            type should match the data type of in the 1d arrays in nexp_list.
+
+    Returns:
+        array: `np.ndarray`_
+           A 2d array of shape (nspec_max, nexp) where nspec_max is the maximum size of any
+           of the members of the input nexp_list. The data type is the same as the data type
+           in the original 1d arrays.
+
+    """
+
+    nexp = len(explist)
+    # Find the maximum array size in the list
+    nspec_list = [arr.size for arr in explist]
+    nspec_max =  np.max(nspec_list)
+    array = np.full((nspec_max, nexp), pad_value, dtype=explist[0].dtype)
+    for i in range(nexp):
+        array[:nspec_list[i], i] = explist[i]
+
+    return array, nspec_list
+
+
+def array_to_explist(array, nspec_list):
+    """
+    Embed a list of length nexp 1d arrays of arbitrary size in a 2d array.
+
+    Args:
+        nexp_list: (list)
+            List of length nexp containing 1d arrays of arbitrary size.
+        pad_value: (scalar)
+            Value to use for padding the missing locations in the 2d array. The data
+            type should match the data type of in the 1d arrays in nexp_list.
+
+    Returns:
+        array: `np.ndarray`_
+           A 2d array of shape (nspec_max, nexp) where nspec_max is the maximum size of any
+           of the members of the input nexp_list. The data type is the same as the data type
+           in the original 1d arrays.
+
+    """
+    explist = []
+    nexp = array.shape[1]
+    for i in range(nexp):
+        explist.append(array[:nspec_list[i], i])
+
+    return explist
+
+
+def distinct_colors(n, cmap='hsv'):
+    """
+    Return n distinct colors from the specified matplotlib colormap.
+
+    Args:
+        n (int):
+            Number of colors to return.
+        cmap (:obj:`str`, optional):
+            Name of the matplotlib colormap to use.  Default is 'hsv'.
+
+    Returns:
+        `numpy.ndarray`_: An array with shape (n,3) with the RGB values for
+        the requested number of colors.
+    """
+    return plt.get_cmap(cmap)(np.linspace(0, 1.0, n))
+
+
 
 def get_time_string(codetime):
     """

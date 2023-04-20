@@ -674,6 +674,38 @@ class Coadd1DFile(InputFile):
         # Return
         return oids
 
+    # TODO is the correct way to treat optional table entries?
+    @property
+    def sensfuncfile(self):
+        # Generate list, scrubbing empty entries
+        if 'sensfuncfile' in self.data.keys():
+            sfunc = [item for item in self.data['sensfuncfile'] if item.strip() not in ['', 'none', 'None']]
+            # Inflate as needed
+            if len(sfunc) == 1 and len(sfunc) < len(self.data):
+                sfunc = sfunc * len(self.data)
+            # Return
+            return sfunc
+        else:
+            return None
+
+
+    @property
+    def setup_id(self):
+        if 'setup_id' in self.data.keys():
+            # Generate list, scrubbing empty entries
+            sid = [item for item in self.data['setup_id'] if item.strip() not in ['', 'none', 'None']]
+
+            # Inflate as needed
+            if len(sid) == 1 and len(sid) < len(self.data):
+                sid = sid * len(self.data)
+            # Return
+            return sid
+        else:
+            return None
+
+
+
+
 
 class Coadd2DFile(InputFile):
     """Child class for coaddition in 2D

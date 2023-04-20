@@ -998,7 +998,7 @@ class Coadd1DPar(ParSet):
     def __init__(self, ex_value=None, flux_value=None, nmaskedge=None,
                  sn_smooth_npix=None, wave_method=None, dv=None, wave_grid_min=None, wave_grid_max=None, spec_samp_fact=None, ref_percentile=None, maxiter_scale=None,
                  sigrej_scale=None, scale_method=None, sn_min_medscale=None, sn_min_polyscale=None, maxiter_reject=None,
-                 lower=None, upper=None, maxrej=None, sn_clip=None, nbest=None, sensfuncfile=None, coaddfile=None,
+                 lower=None, upper=None, maxrej=None, sn_clip=None, nbests=None, sensfuncfile=None, coaddfile=None,
                  mag_type=None, filter=None, filter_mag=None, filter_mask=None, chk_version=None):
 
         # Grab the parameter names and values from the function
@@ -1130,10 +1130,10 @@ class Coadd1DPar(ParSet):
                            'prevents overly aggressive rejection in high S/N ratio spectrum which neverthless differ ' \
                            'at a level greater than the formal S/N due to systematics.'
 
-        defaults['nbest'] = None
-        dtypes['nbest'] = int
-        descr['nbest'] = 'Number of orders to use for estimating the per exposure weights. Default is None, ' \
-                         'which will just use one fourth of the total number of orders. This is only used for Echelle'
+        defaults['nbests'] = None
+        dtypes['nbests'] = [list, int]
+        descr['nbests'] = 'Number of orders to use for estimating the per exposure weights. Default is None, ' \
+                          'which will just use one fourth of the total number of orders. This is only used for Echelle'
 
         # For scaling to an input filter magnitude
         defaults['filter'] = 'none'
@@ -1156,10 +1156,10 @@ class Coadd1DPar(ParSet):
 
         # JFH These last two are actually arguments and not parameters that are only here because there is no other easy
         # way to parse .coadd1d files except with parsets. I would like to separate arguments from parameters.
-        defaults['sensfuncfile'] = None
-        dtypes['sensfuncfile'] = str
-        descr['sensfuncfile'] = 'File containing sensitivity function which is a requirement for echelle coadds. ' \
-                            'This is only used for Echelle'
+        #defaults['sensfuncfile'] = None
+        #dtypes['sensfuncfile'] = str
+        #descr['sensfuncfile'] = 'File containing sensitivity function which is a requirement for echelle coadds. ' \
+        #                    'This is only used for Echelle'
 
         defaults['coaddfile'] = None
         dtypes['coaddfile'] = str
@@ -1186,7 +1186,7 @@ class Coadd1DPar(ParSet):
         parkeys = ['ex_value', 'flux_value', 'nmaskedge', 'sn_smooth_npix', 'wave_method', 'dv', 'wave_grid_min', 'wave_grid_max',
                    'spec_samp_fact', 'ref_percentile', 'maxiter_scale', 'sigrej_scale', 'scale_method',
                    'sn_min_medscale', 'sn_min_polyscale', 'maxiter_reject', 'lower', 'upper',
-                   'maxrej', 'sn_clip', 'nbest', 'sensfuncfile', 'coaddfile', 'chk_version',
+                   'maxrej', 'sn_clip', 'nbests', 'sensfuncfile', 'coaddfile', 'chk_version',
                    'filter', 'mag_type', 'filter_mag', 'filter_mask']
 
         badkeys = np.array([pk not in parkeys for pk in k])
