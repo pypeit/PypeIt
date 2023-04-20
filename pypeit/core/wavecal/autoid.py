@@ -1062,8 +1062,11 @@ def report_final(nslits, all_patt_dict, detections,
     for slit in range(nslits):
         # Prepare a message for bad wavelength solutions
         badmsg = '---------------------------------------------------' + msgs.newline() + \
-                 'Final report for slit {0:d}/{1:d}:'.format(slit, nslits) + msgs.newline() + \
-                 '  Wavelength calibration not performed!'
+            'Final report for slit {0:d}/{1:d}:'.format(slit, nslits) + msgs.newline()
+        if orders is not None:
+            badmsg += f'    Order: {orders[slit]}' + msgs.newline()
+        badmsg +=  '  Wavelength calibration not performed!'
+        # Redo?
         if redo_slit is not None and orders[slit] != redo_slit:
             continue
         if slit not in ok_mask or slit in bad_slits or all_patt_dict[str(slit)] is None:
@@ -1080,8 +1083,7 @@ def report_final(nslits, all_patt_dict, detections,
         # Report
         cen_wave = wv_calib[st]['cen_wave']
         cen_disp = wv_calib[st]['cen_disp']
-        msgs.info(msgs.newline() +
-                  '---------------------------------------------------' + msgs.newline() +
+        sreport = str('---------------------------------------------------' + msgs.newline() +
                   'Final report for slit {0:d}/{1:d}:'.format(slit, nslits - 1) + msgs.newline() +
                   '  Pixels {:s} with wavelength'.format(signtxt) + msgs.newline() +
                   '  Number of lines detected      = {:d}'.format(detections[st].size) + msgs.newline() +
@@ -1089,8 +1091,11 @@ def report_final(nslits, all_patt_dict, detections,
                       len(wv_calib[st]['pixel_fit'])) + msgs.newline() +
                   '  Central wavelength            = {:g}A'.format(cen_wave) + msgs.newline() +
                   '  Central dispersion            = {:g}A/pix'.format(cen_disp) + msgs.newline() +
-                  '  Central wave/disp             = {:g}'.format(cen_wave / cen_disp) + msgs.newline() +
+                  '  Central wave/disp             = {:g}'.format(cen_wave / cen_disp) + msgs.newline() + 
                   '  Final RMS of fit              = {:g}'.format(wv_calib[st]['rms']))
+        if orders is not None:
+            sreport + msgs.newline()+ f'  Echelle order                 = {orders[slit]}'
+        msgs.info(msgs.newline() + sreport)
 
 
 class ArchiveReid:

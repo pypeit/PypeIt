@@ -599,6 +599,7 @@ class BuildWaveCalib:
                 self.lamps, self.par, ok_mask=ok_mask_idx,
                 nonlinear_counts=self.nonlinear_counts,
                 debug_all=False, redo_slit=self.par['redo_slit'])
+
         else:
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
 
@@ -850,6 +851,12 @@ class BuildWaveCalib:
 
         # Fit 2D?
         if self.par['echelle']:
+            # Assess the fits
+            rms = np.array([wvfit.rms for wvfit in self.wv_calib.wv_fits])
+            bad_rms = rms > self.par['rms_threshold']
+            self.wvc_bpm[bad_rms] = True
+            if np.any(bad_rms):
+                msgs.warn("Masking one or more bad orders (RMS)")
             # Fit
             fit2ds = self.echelle_2dfit(self.wv_calib, skip_QA = skip_QA, debug=debug)
             # Save
@@ -857,6 +864,10 @@ class BuildWaveCalib:
             # Save det_img?
             if self.par['ech_separate_2d']:
                 self.wv_calib.det_img = self.msarc.det_img.copy()
+
+            # Try a second attempt with 1D, if needed
+            if np.any(bad_rms):
+                embed(header='870 of wavecalib')
 
         # Deal with mask
         self.update_wvmask()
