@@ -472,7 +472,8 @@ class FlatField:
         slits (:class:`~pypeit.slittrace.SlitTraceSet`):
             The current slit traces.
         wavetilts (:class:`~pypeit.wavetilts.WaveTilts`):
-            The current wavelength tilt traces; see
+            Fit to the wavelength tilt traces
+            May be None
         wv_calib (??):
             ??
         spat_illum_only (bool, optional):
@@ -516,7 +517,8 @@ class FlatField:
         self.wv_calib = wv_calib
 
         # Worth a check
-        self.wavetilts.is_synced(self.slits)
+        if self.wavetilts is not None:
+            self.wavetilts.is_synced(self.slits)
 
         # Attributes unique to this Object
         self.rawflatimg = rawflatimg      # Un-normalized pixel flat as a PypeItImage

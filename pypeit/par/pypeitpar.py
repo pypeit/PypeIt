@@ -568,7 +568,7 @@ class FlatFieldPar(ParSet):
                  illum_iter=None, illum_rej=None, twod_fit_npoly=None, saturated_slits=None,
                  slit_illum_relative=None, slit_illum_ref_idx=None, slit_illum_smooth_npix=None,
                  pixelflat_min_wave=None, pixelflat_max_wave=None, slit_illum_finecorr=None,
-                 fit_2d_det_response=None):
+                 fit_2d_det_response=None, slitless=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -730,6 +730,10 @@ class FlatFieldPar(ParSet):
                                        'that have a dedicated response correction implemented. Currently,' \
                                        'this correction is only implemented for Keck+KCWI.'
 
+        defaults['slitless'] = False
+        dtypes['slitless'] = bool
+        descr['fit_2d_det_response'] = 'Perform slitless flat-fielding.'
+
         # Instantiate the parameter set
         super(FlatFieldPar, self).__init__(list(pars.keys()),
                                            values=list(pars.values()),
@@ -749,7 +753,8 @@ class FlatFieldPar(ParSet):
                    'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
                    'rej_sticky', 'slit_trim', 'slit_illum_pad', 'slit_illum_relative',
                    'illum_iter', 'illum_rej', 'twod_fit_npoly', 'saturated_slits',
-                   'slit_illum_ref_idx', 'slit_illum_smooth_npix', 'slit_illum_finecorr', 'fit_2d_det_response']
+                   'slit_illum_ref_idx', 'slit_illum_smooth_npix', 'slit_illum_finecorr', 'fit_2d_det_response',
+                   'slitless']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

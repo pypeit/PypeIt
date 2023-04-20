@@ -538,7 +538,9 @@ class Calibrations:
             image.
         """
         # Check for existing data
-        if not self._chk_objs(['msarc', 'msbpm', 'slits', 'wv_calib']):
+        if not self._chk_objs(
+            ['msarc', 'msbpm', 'slits', 'wv_calib']
+            ) and not self.par['flatfield']['slitless']:
             msgs.warn('Must have the arc, bpm, slits, and wv_calib defined to make flats!  '
                       'Skipping and may crash down the line')
             # TODO: Why was this an empty object and not None?
@@ -546,7 +548,10 @@ class Calibrations:
             return self.flatimages
 
         # Slit and tilt traces are required to flat-field the data
-        if not self._chk_objs(['slits', 'wavetilts']):
+        #if not self._chk_objs(['slits', 'wavetilts']):
+        if not self._chk_objs(['slits']) or (
+            not self._chk_objs(['wavetilts']) and 
+            not self.par['flatfield']['slitless']):
             # TODO: Why doesn't this fault?
             msgs.warn('Flats were requested, but there are quantities missing necessary to '
                       'create flats.  Proceeding without flat fielding....')
@@ -625,10 +630,12 @@ class Calibrations:
                 pixel_flat = pixel_flat.sub(lampoff_flat)
 
             # Initialise the pixel flat
-            pixelFlatField = flatfield.FlatField(pixel_flat, self.spectrograph,
-                                                 self.par['flatfield'], self.slits, self.wavetilts,
-                                                 self.wv_calib, qa_path=self.qa_path,
-                                                 calib_key=calib_key)
+            pixelFlatField = flatfield.FlatField(
+                pixel_flat, self.spectrograph, 
+                self.par['flatfield'], self.slits, 
+                self.wavetilts, self.wv_calib, 
+                qa_path=self.qa_path, 
+                calib_key=calib_key)
             # Generate
             pixelflatImages = pixelFlatField.run(doqa=self.write_qa, show=self.show)
             # Set flatimages in case we want to apply the pixel-to-pixel
