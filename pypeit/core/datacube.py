@@ -1003,8 +1003,9 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
     return all_wghts
 
 
-def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, all_wave, tilts, slits, slitid_img_gpm,
-                           astrom_trans, bins, spec_subpixel=10, spat_subpixel=10, overwrite=False, blaze_wave=None,
+def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, all_wave,
+                           slitid_img_gpm, tilts, slits, astrom_trans, bins, all_idx=None,
+                           spec_subpixel=10, spat_subpixel=10, overwrite=False, blaze_wave=None,
                            blaze_spec=None, fluxcal=False, sensfunc=None,
                            save_whitelight=False, whitelight_range=None, whitelight_wcs=None,
                            specname="PYP_SPEC", debug=False):
@@ -1034,17 +1035,23 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
             1D flattened array containing the weights of each pixel to be used in the combination
         all_wave (`numpy.ndarray`_)
             1D flattened array containing the wavelength of each pixel (units = Angstroms)
-        tilts (`numpy.ndarray`_)
-            2D wavelength tilts frame
-        slits (:class:`pypeit.slittrace.SlitTraceSet`_)
-            Information stored about the slits
-        slitid_img_gpm (`numpy.ndarray`_)
+        slitid_img_gpm (`numpy.ndarray`_, list)
             An image indicating which pixels belong to a slit (0 = not on a slit or a masked pixel).
-            Any positive value indicates the spatial ID of the pixel.
-        astrom_trans (:class:`pypeit.alignframe.AlignmentSplines`_):
-            A Class containing the transformation between detector pixel coordinates and WCS pixel coordinates
+            Any positive value indicates the spatial ID of the pixel. Alternatively, a list of slit_id_gpm
+            can be provided (in this case, see documentation for all_idx).
+        tilts (`numpy.ndarray`_, list)
+            2D wavelength tilts frame, or a list of tilt frames (see all_idx)
+        slits (:class:`pypeit.slittrace.SlitTraceSet`_, list)
+            Information stored about the slits, or a list of SlitTraceSet (see all_idx)
+        astrom_trans (:class:`pypeit.alignframe.AlignmentSplines`_, list):
+            A Class containing the transformation between detector pixel coordinates
+            and WCS pixel coordinates, or a list of Alignment Splines (see all_idx)
         bins (tuple):
             A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and z wavelength coordinates
+        all_idx (`numpy.ndarray`_, optional)
+            If tilts, slits, astrom_trans, and slitid_img_gpm are lists, this should contain a 1D flattened array, of
+            the same length as all_sci, containing the index the tilts, slits, astrom_trans, and slitid_img_gpm lists
+            that corresponds to each pixel. Note that, in this case all of these lists need to be the same length.
         spec_subpixel (`int`, optional):
             What is the subpixellation factor in the spectral direction. Higher values give more reliable results,
             but note that the time required goes as (spec_subpixel * spat_subpixel). The default value is 5,
@@ -1078,15 +1085,33 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
             If True, a residuals cube will be output. If the datacube generation is correct, the
             distribution of pixels in the residual cube with no flux should have mean=0 and std=1.
     """
-    # Perform some checks
+    # Check white light input
     if whitelight_range is None:
         whitelight_range = [np.min(all_wave), np.max(all_wave)]
     if whitelight_wcs is None and save_whitelight:
         msgs.error("Requested white light image, but whitelight WCS was not specified")
+    # Check for combinations of lists or not
+    if type(tilts) is list and type(slits) is list and type(astrom_trans) is list and type(slitid_img_gpm) is list:
+        # Several frames are being combined. Check the lists have the same length
+        numframes = len(tilts)
+        if len(slits) != numframes or len(astrom_trans) != numframes or len(slitid_img_gpm) != numframes:
+            msgs.error("The following lists must have the same length:" + msgs.newline() +
+                       "tilts, slits, astrom_trans, slitid_img_gpm")
+        # Store in the following variables
+        _tilts, _slits, _astrom_trans, _slitid_img_gpm = tilts, slits, astrom_trans, slitid_img_gpm
+    elif type(tilts) is not list and type(slits) is not list and \
+            type(astrom_trans) is not list and type(slitid_img_gpm) is not list:
+        # Just a single frame - store as lists for this code
+        _tilts, _slits, _astrom_trans, _slitid_img_gpm = [tilts], [slits], [astrom_trans], [slitid_img_gpm]
+        numframes = 1
+    else:
+        msgs.error("The following input arguments should all be of type 'list', or all not be type 'list':" +
+                   msgs.newline() + "tilts, slits, astrom_trans, slitid_img_gpm")
     # Prepare the output arrays
     outshape = (bins[0].size-1, bins[1].size-1, bins[2].size-1)
     datacube, varcube, normcube = np.zeros(outshape), np.zeros(outshape), np.zeros(outshape)
-    if debug: residcube = np.zeros(outshape)
+    if debug:
+        residcube = np.zeros(outshape)
     # Divide each pixel into subpixels
     spec_offs = np.arange(0.5/spec_subpixel, 1, 1/spec_subpixel) - 0.5  # -0.5 is to offset from the centre of each pixel.
     spat_offs = np.arange(0.5/spat_subpixel, 1, 1/spat_subpixel) - 0.5  # -0.5 is to offset from the centre of each pixel.
@@ -1094,40 +1119,42 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
     num_subpixels = spec_subpixel * spat_subpixel
     area = 1 / num_subpixels
     all_wght_subpix = all_wghts * area
-    # Loop through all slits
-    all_sltid = slitid_img_gpm[(slitid_img_gpm > 0)]
     all_var = utils.inverse(all_ivar)
-    wave0, wave_delta = output_wcs.wcs.crval[2], output_wcs.wcs.cd[2, 2]
-    for sl, spatid in enumerate(slits.spat_id):
-        msgs.info(f"Resampling slit {sl+1}/{slits.nslits} into the datacube")
-        this_sl = np.where(all_sltid == spatid)
-        wpix = np.where(slitid_img_gpm == spatid)
-        slitID = np.ones(wpix[0].size*num_subpixels) * sl - output_wcs.wcs.crpix[0]
-        # Generate a spline between spectral pixel position and wavelength
-        yspl = tilts[wpix]*(slits.nspec - 1)
-        wspl = all_wave[this_sl]
-        asrt = np.argsort(yspl)
-        wave_spl = interp1d(yspl[asrt], wspl[asrt], kind='linear', bounds_error=False, fill_value='extrapolate')
-        # Calculate spatial and spectral positions of the subpixels
-        spat_xx = np.add.outer(wpix[1], spat_x.flatten()).flatten()
-        spec_yy = np.add.outer(wpix[0], spec_y.flatten()).flatten()
-        # Transform this to spatial location
-        spatpos = astrom_trans.transform(sl, spat_xx, spec_yy)
-        # Calculate the tilt position of each subpixel and transform this to the wave bin
-        tiltpos = np.add.outer(tilts[wpix] * (slits.nspec - 1), spec_y).flatten()
-        specpos = (wave_spl(tiltpos) - wave0) / wave_delta
-        # Stack of coordinates, and histogram
-        pix_coord = np.column_stack((slitID, spatpos, specpos))
-        tmp_dc, _ = np.histogramdd(pix_coord, bins=bins, weights=np.repeat(all_sci[this_sl] * all_wght_subpix[this_sl], num_subpixels))
-        tmp_vr, _ = np.histogramdd(pix_coord, bins=bins, weights=np.repeat(all_var[this_sl] * all_wght_subpix[this_sl]**2, num_subpixels))
-        tmp_nm, _ = np.histogramdd(pix_coord, bins=bins, weights=np.repeat(all_wght_subpix[this_sl], num_subpixels))
-        if debug:
-            tmp_rsd, _ = np.histogramdd(pix_coord, bins=bins, weights=all_sci[this_sl] * np.sqrt(all_ivar[this_sl]))
-            residcube += tmp_rsd
-        # Contibute to the datacube
-        datacube += tmp_dc
-        varcube += tmp_vr
-        normcube += tmp_nm
+    # Loop through all exposures
+    for fr in range(numframes):
+        # Loop through all slits
+        all_sltid = slitid_img_gpm[(slitid_img_gpm > 0)]
+        wave0, wave_delta = output_wcs.wcs.crval[2], output_wcs.wcs.cd[2, 2]
+        for sl, spatid in enumerate(slits.spat_id):
+            msgs.info(f"Resampling slit {sl+1}/{slits.nslits} of frame {fr+1}/{numframes} into the final datacube")
+            this_sl = np.where(all_sltid == spatid)
+            wpix = np.where(slitid_img_gpm == spatid)
+            slitID = np.ones(wpix[0].size*num_subpixels) * sl - output_wcs.wcs.crpix[0]
+            # Generate a spline between spectral pixel position and wavelength
+            yspl = tilts[wpix]*(slits.nspec - 1)
+            wspl = all_wave[this_sl]
+            asrt = np.argsort(yspl)
+            wave_spl = interp1d(yspl[asrt], wspl[asrt], kind='linear', bounds_error=False, fill_value='extrapolate')
+            # Calculate spatial and spectral positions of the subpixels
+            spat_xx = np.add.outer(wpix[1], spat_x.flatten()).flatten()
+            spec_yy = np.add.outer(wpix[0], spec_y.flatten()).flatten()
+            # Transform this to spatial location
+            spatpos = astrom_trans.transform(sl, spat_xx, spec_yy)
+            # Calculate the tilt position of each subpixel and transform this to the wave bin
+            tiltpos = np.add.outer(tilts[wpix] * (slits.nspec - 1), spec_y).flatten()
+            specpos = (wave_spl(tiltpos) - wave0) / wave_delta
+            # Stack of coordinates, and histogram
+            pix_coord = np.column_stack((slitID, spatpos, specpos))
+            tmp_dc, _ = np.histogramdd(pix_coord, bins=bins, weights=np.repeat(all_sci[this_sl] * all_wght_subpix[this_sl], num_subpixels))
+            tmp_vr, _ = np.histogramdd(pix_coord, bins=bins, weights=np.repeat(all_var[this_sl] * all_wght_subpix[this_sl]**2, num_subpixels))
+            tmp_nm, _ = np.histogramdd(pix_coord, bins=bins, weights=np.repeat(all_wght_subpix[this_sl], num_subpixels))
+            if debug:
+                tmp_rsd, _ = np.histogramdd(pix_coord, bins=bins, weights=all_sci[this_sl] * np.sqrt(all_ivar[this_sl]))
+                residcube += tmp_rsd
+            # Contibute to the datacube
+            datacube += tmp_dc
+            varcube += tmp_vr
+            normcube += tmp_nm
     # Normalise the datacube and variance cube
     nc_inverse = utils.inverse(normcube)
     datacube *= nc_inverse
@@ -1771,8 +1798,9 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                 # Get the slit image and then unset pixels in the slit image that are bad
                 slitid_img_gpm = slitid_img_init.copy()
                 slitid_img_gpm[(bpmmask.mask != 0) | (~sky_is_good)] = 0
+                fakeidx = np.zeros(numpix, dtype=int)
                 generate_cube_subpixel(outfile, output_wcs, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix),
-                                       wave_ext, spec2DObj.tilts, slits, slitid_img_gpm, alignSplines, bins,
+                                       wave_ext, fakeidx, slitid_img_gpm, spec2DObj.tilts, slits, alignSplines, bins,
                                        overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
                                        fluxcal=fluxcal, specname=specname, save_whitelight=cubepar['save_whitelight'],
                                        whitelight_range=wl_wvrng, whitelight_wcs=wl_wcs,
