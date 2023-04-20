@@ -565,25 +565,39 @@ class FlatField:
             rawflat_orig = self.rawflatimg.image.copy()
             # TODO: Should this be *any* flag, or just BPM?
             gpm = self.rawflatimg.select_flag(flag='BPM', invert=True)
-            niter = 1
-            for ff in range(niter):
-                # Just get the spatial and spectral profiles for now
-                self.fit(spat_illum_only=self.spat_illum_only, doqa=doqa, debug=debug)
-                msgs.info("Iteration {0:d} of 2D detector response extraction".format(ff+1))
-                # Extract a detector response image
-                det_resp = self.extract_structure(rawflat_orig)
-                gpmask = (self.waveimg != 0.0) & gpm
-                # Model the 2D detector response in an instrument specific way
-                det_resp_model = self.spectrograph.fit_2d_det_response(det_resp, gpmask)
-                # Apply this model
-                self.rawflatimg.image = rawflat_orig * utils.inverse(det_resp_model)
-            # Perform a final 2D fit with the cleaned image
+            # Just get the spatial and spectral profiles for now
             self.fit(spat_illum_only=self.spat_illum_only, doqa=doqa, debug=debug)
-            # fold in the spectrograph specific flatfield, and reset the rawimg
-            self.flat_model *= det_resp_model
-            self.mspixelflat *= det_resp_model
-            self.rawflatimg.image = rawflat_orig
+            # If we're only doing the spatial illumination profile, the detector structure
+            # has already been divided out by the pixel flat. No need to calculate structure
+            if not self.spat_illum_only:
+                niter = 2  # Need two iterations, particularly for the fine spatial illumination correction.
+                det_resp_model = 1  # Initialise detector structure to a value of 1 (i.e. no detector structure)
+                for ff in range(niter):
+                    # If we're only doing the spatial illumination profile, the detector structure
+                    # has already been divided out by the pixel flat.
+                    if self.spat_illum_only:
+                        break
+                    msgs.info("Iteration {0:d} of 2D detector response extraction".format(ff+1))
+                    # Extract a detector response image
+                    det_resp = self.extract_structure(rawflat_orig)
+                    gpmask = (self.waveimg != 0.0) & gpm
+                    # Model the 2D detector response in an instrument specific way
+                    det_resp_model = self.spectrograph.fit_2d_det_response(det_resp, gpmask)
+                    # Apply this model
+                    self.rawflatimg.image = rawflat_orig * utils.inverse(det_resp_model)
+                    if doqa:
+                        # TODO :: Probably need to pass in det when more spectrographs implement a structure correction...
+                        outfile = qa.set_qa_filename("DetectorStructure_" + self.master_key, 'detector_structure',
+                                                     det="DET01", out_dir=self.qa_path)
+                        detector_structure_qa(det_resp, det_resp_model, outfile=outfile)
+                    # Perform a 2D fit with the cleaned image
+                    self.fit(spat_illum_only=self.spat_illum_only, doqa=doqa, debug=debug)
+                # Include the structure in the flat model and the pixelflat
+                self.mspixelflat *= det_resp_model
+                # Reset the rawimg
+                self.rawflatimg.image = rawflat_orig
 
+        # Show the flatfield images if requested
         if show:
             self.show(wcs_match=True)
 
@@ -1350,6 +1364,8 @@ class FlatField:
         doqa : :obj:`bool`, optional:
             Save the QA?
         """
+        # TODO :: Include fit_order in the parset??
+        fit_order = np.array([3, 6])
         msgs.info("Performing a fine correction to the spatial illumination (slit={0:d})".format(slit_spat))
         # initialise
         illumflat_finecorr = np.ones_like(self.rawflatimg.image)
@@ -1367,7 +1383,8 @@ class FlatField:
         # Prepare fitting coordinates
         wgud = np.where(onslit_tweak & self.rawflatimg.select_flag(invert=True))
         cut = (wgud[0], wgud[1])
-        ypos = cut[0] / (self.slits.nspec - 1)
+        thiswave = self.waveimg[cut]
+        ypos = (thiswave - thiswave.min()) / (thiswave.max() - thiswave.min())
         xpos_img = self.slits.spatial_coordinate_image(slitidx=slit_idx,
                                                        initial=True,
                                                        slitid_img=slitimg,
@@ -1388,9 +1405,12 @@ class FlatField:
 
         # Mask the edges and fit
         gpmfit = gpm[cut]
-        # TODO :: cut on pixels and fraction (choose the minimum).
-        gpmfit[np.where((xpos < 0.05) | (xpos > 0.95))] = False
-        fullfit = fitting.robust_fit(xpos, normed[cut], np.array([3, 6]), x2=ypos, weights=normed[cut],
+        # Trim by 5% of the slit length, or at least 3 pixels
+        xfrac = 0.05
+        if xfrac * slitlen < 3:
+            xfrac = 3/slitlen
+        gpmfit[np.where((xpos < xfrac) | (xpos > 1-xfrac))] = False
+        fullfit = fitting.robust_fit(xpos, normed[cut], fit_order, x2=ypos,
                                      in_gpm=gpmfit, function='legendre2d', upper=2, lower=2, maxdev=1.0,
                                      minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
 
@@ -1404,7 +1424,10 @@ class FlatField:
 
         # Prepare QA
         if doqa:
-            outfile = qa.set_qa_filename("Spatillum_FineCorr_"+self.master_key, 'spatillum_finecorr', slit=slit_spat,
+            prefix = "Spatillum_FineCorr_"
+            if self.spat_illum_only:
+                prefix += "illumflat_"
+            outfile = qa.set_qa_filename(prefix+self.master_key, 'spatillum_finecorr', slit=slit_spat,
                                          out_dir=self.qa_path)
             title = "Fine correction to spatial illumination (slit={0:d})".format(slit_spat)
             normed[np.logical_not(onslit_tweak)] = 1  # For the QA, make everything off the slit equal to 1
@@ -1432,12 +1455,20 @@ class FlatField:
         msgs.info("Extracting flatfield structure")
         # Build the mask and make a temporary instance of FlatImages
         bpmflats = self.build_mask()
+        # Initialise bad splines (for when the fit goes wrong)
+        if self.list_of_spat_bsplines is None:
+            self.list_of_spat_bsplines = [bspline.bspline(None) for all in self.slits.spat_id]
+        if self.list_of_finecorr_fits is None:
+            self.list_of_finecorr_fits = [fitting.PypeItFit(None) for all in self.slits.spat_id]
+        # Generate a dummy FlatImages
         tmp_flats = FlatImages(illumflat_raw=self.rawflatimg.image,
                                illumflat_spat_bsplines=np.asarray(self.list_of_spat_bsplines),
+                               illumflat_finecorr=np.asarray(self.list_of_finecorr_fits),
                                illumflat_bpm=bpmflats, PYP_SPEC=self.spectrograph.name,
                                spat_id=self.slits.spat_id)
         # Divide by the spatial profile
-        spat_illum = tmp_flats.fit2illumflat(self.slits, frametype='pixel')
+        spat_illum = tmp_flats.fit2illumflat(self.slits, frametype='illum', finecorr=False)
+        spat_illum *= tmp_flats.fit2illumflat(self.slits, frametype='illum', finecorr=True)
         rawflat = rawflat_orig * utils.inverse(spat_illum)
         # Now fit the spectral profile
         # TODO: Should this be *any* flag, or just BPM?
@@ -1548,11 +1579,12 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, ypos, cut, outfile=None
     xmn, xmx, ymn, ymx = np.min(cut[0]), 1+np.max(cut[0]), np.min(cut[1]), 1+np.max(cut[1])
     norm_cut = normed[xmn:xmx, ymn:ymx]
     fcor_cut = finecorr[xmn:xmx, ymn:ymx]
-    vmin, vmax = np.min(fcor_cut), np.max(fcor_cut)
+    vmin, vmax = max(0.95, np.min(fcor_cut)), min(1.05, np.max(fcor_cut))  # Show maximum corrections of ~5%
 
     # Plot
-    cutrat = 8.5*norm_cut.shape[1]/norm_cut.shape[0]  # 11 is the height of the figure on the next line
-    plt.figure(figsize=(5 + 3.25*cutrat, 8.5))
+    fighght = 8.5
+    cutrat = fighght*norm_cut.shape[1]/norm_cut.shape[0]
+    plt.figure(figsize=(5 + 3.25*cutrat, fighght))
     plt.clf()
     # Single panel plot
     gs = gridspec.GridSpec(1, 5, height_ratios=[1], width_ratios=[4.0, cutrat, cutrat, cutrat, cutrat*0.25])
@@ -1613,6 +1645,74 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, ypos, cut, outfile=None
     else:
         plt.savefig(outfile, dpi=400)
         msgs.info("Saved QA:"+msgs.newline()+outfile)
+
+    plt.close()
+    plt.rcdefaults()
+    return
+
+
+def detector_structure_qa(det_resp, det_resp_model, outfile=None, title="Detector Structure Correction"):
+    """
+    Plot the QA for the fine correction fits to the spatial illumination profile
+
+    Parameters
+    ----------
+    det_resp : `numpy.ndarray`_
+        Image data showing the detector structure, generated with extract_structure
+    det_resp_model : `numpy.ndarray`_
+        Image containing the structure correction model
+    outfile : str, optional
+        Output file name
+    title : str, optional
+        A title to be printed on the QA
+    """
+    plt.rcdefaults()
+    plt.rcParams['font.family'] = 'serif'
+    msgs.info("Generating QA for flat field structure correction")
+    # Calculate the scale to be used in the plot
+    # med = np.median(det_resp)
+    # mad = 1.4826*np.median(np.abs(det_resp-med))
+    # vmin, vmax = med-2*mad, med+2*mad
+    dev = (1-np.min(det_resp_model))
+    vmin, vmax = 1-2*dev, 1+2*dev
+
+    # Plot
+    fig_height = 3.0
+    plt.figure(figsize=(3*fig_height, fig_height))
+    plt.clf()
+    # Prepare axes
+    gs = gridspec.GridSpec(1, 4, height_ratios=[1], width_ratios=[1.0, 1.0, 1.0, 0.05])
+    # Axes showing the observed detector response
+    ax_data = plt.subplot(gs[0])
+    ax_data.imshow(det_resp, vmin=vmin, vmax=vmax)
+    ax_data.set_xlabel("data", fontsize='medium')
+    ax_data.axes.xaxis.set_ticks([])
+    ax_data.axes.yaxis.set_ticks([])
+    # Axes showing the model fit to the detector response
+    ax_modl = plt.subplot(gs[1])
+    im = ax_modl.imshow(det_resp_model, vmin=vmin, vmax=vmax)
+    ax_modl.set_title(title, fontsize='medium')
+    ax_modl.set_xlabel("model", fontsize='medium')
+    ax_modl.axes.xaxis.set_ticks([])
+    ax_modl.axes.yaxis.set_ticks([])
+    # Axes showing the residual of the detector response fit
+    ax_resd = plt.subplot(gs[2])
+    ax_resd.imshow(det_resp-det_resp_model, vmin=vmin-1, vmax=vmax-1)
+    ax_resd.set_xlabel("data-model", fontsize='medium')
+    ax_resd.axes.xaxis.set_ticks([])
+    ax_resd.axes.yaxis.set_ticks([])
+    # Add a colorbar
+    cax = plt.subplot(gs[3])
+    cbar = plt.colorbar(im, cax=cax)  # , fraction=0.046, pad=0.04)
+    cbar.set_label('Deviation', rotation=270, labelpad=10)
+    # Finish
+    plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+    plt.subplots_adjust(wspace=0.03, hspace=0, left=0.05, right=0.9, bottom=0.1, top=0.9)
+    if outfile is None:
+        plt.show()
+    else:
+        plt.savefig(outfile, dpi=400)
+        msgs.info("Saved QA:" + msgs.newline() + outfile)
 
     plt.close()
     plt.rcdefaults()
@@ -1727,7 +1827,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
     sn_smooth_npix = wave_ref.size // smooth_npix if (smooth_npix is not None) else wave_ref.size // 10
 
     # Iterate until convergence
-    maxiter = 10
+    maxiter = 5
     lo_prev, hi_prev = 1.0E-32, 1.0E32
     for rr in range(maxiter):
         # Reset the relative scaling for this iteration

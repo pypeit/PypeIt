@@ -18,9 +18,8 @@ import numpy as np
 
 from pypeit import msgs
 from pypeit import alignframe, datamodel, flatfield, io, masterframe, specobj, spec2dobj, utils
-from pypeit.core.flux_calib import load_extinction_data, extinction_correction, fit_zeropoint, get_standard_spectrum, ZP_UNIT_CONST, PYPEIT_FLUX_SCALE
 from pypeit.core.flexure import calculate_image_phase
-from pypeit.core import coadd, extract, findobj_skymask, parse, skysub
+from pypeit.core import coadd, extract, findobj_skymask, flux_calib, parse, skysub
 from pypeit.core.procimg import grow_mask
 from pypeit.spectrographs.util import load_spectrograph
 
@@ -1122,7 +1121,7 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
     # Prepare the header, and add the unit of flux to the header
     hdr = output_wcs.to_header()
     if fluxcal:
-        hdr['FLUXUNIT'] = (PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
+        hdr['FLUXUNIT'] = (flux_calib.PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
     else:
         hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
 
@@ -1179,7 +1178,7 @@ def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, vox_coord, bin
     """
     # Add the unit of flux to the header
     if fluxcal:
-        hdr['FLUXUNIT'] = (PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
+        hdr['FLUXUNIT'] = (flux_calib.PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
     else:
         hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
 
@@ -1359,18 +1358,20 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             Nlam_ivar_star *= grat_corr**2
 
         # Read in some information above the standard star
-        std_dict = get_standard_spectrum(star_type=senspar['star_type'],
+        std_dict = flux_calib.get_standard_spectrum(star_type=senspar['star_type'],
                                          star_mag=senspar['star_mag'],
                                          ra=star_ra, dec=star_dec)
         # Calculate the sensitivity curve
         zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm =\
-            fit_zeropoint(wave.value, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
-                          mask_abs_lines=senspar['mask_abs_lines'], balm_mask_wid=senspar['UVIS']['balm_mask_wid'],
+            flux_calib.fit_zeropoint(wave.value, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
+                          mask_hydrogen_lines=senspar['mask_hydrogen_lines'],
+                          mask_helium_lines=senspar['mask_helium_lines'],
+                          hydrogen_mask_wid=senspar['hydrogen_mask_wid'],
                           nresln=senspar['UVIS']['nresln'], resolution=senspar['UVIS']['resolution'],
                           trans_thresh=senspar['UVIS']['trans_thresh'], polyorder=senspar['polyorder'],
                           polycorrect=senspar['UVIS']['polycorrect'], polyfunc=senspar['UVIS']['polyfunc'])
         wgd = np.where(zeropoint_fit_gpm)
-        sens = np.power(10.0, -0.4 * (zeropoint_fit[wgd] - ZP_UNIT_CONST)) / np.square(wave[wgd])
+        sens = np.power(10.0, -0.4 * (zeropoint_fit[wgd] - flux_calib.ZP_UNIT_CONST)) / np.square(wave[wgd])
         flux_spline = interp1d(wave[wgd], sens, kind='linear', bounds_error=False, fill_value="extrapolate")
 
     # If a reference image has been set, check that it exists
@@ -1387,7 +1388,6 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     wave_ref = None
     mnmx_wv = None  # Will be used to store the minimum and maximum wavelengths of every slit and frame.
     weights = np.ones(numfiles)  # Weights to use when combining cubes
-    locations = parset['calibrations']['alignment']['locations']
     flat_splines = dict()   # A dictionary containing the splines of the flatfield
     # Load the default scaleimg frame for the scale correction
     relScaleImgDef = np.array([1])
@@ -1575,6 +1575,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             locations = [0.0, 1.0]
             traces = np.append(left[:,None,:], right[:,None,:], axis=1)
         else:
+            locations = parset['calibrations']['alignment']['locations']
             traces = alignments.traces
         # Generate an RA/DEC image
         msgs.info("Generating RA/DEC image")
@@ -1649,10 +1650,10 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         longitude = spec.telescope['longitude']
         latitude = spec.telescope['latitude']
         airmass = spec2DObj.head0[spec.meta['airmass']['card']]
-        extinct = load_extinction_data(longitude, latitude, senspar['UVIS']['extinct_file'])
+        extinct = flux_calib.load_extinction_data(longitude, latitude, senspar['UVIS']['extinct_file'])
         # extinction_correction requires the wavelength is sorted
         wvsrt = np.argsort(wave_ext)
-        ext_corr = extinction_correction(wave_ext[wvsrt] * units.AA, airmass, extinct)
+        ext_corr = flux_calib.extinction_correction(wave_ext[wvsrt] * units.AA, airmass, extinct)
         # Grating correction
         grat_corr = 1.0
         if cubepar['grating_corr']:
