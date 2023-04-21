@@ -2,16 +2,9 @@
 Module to do a full run of PypeIt on good ole Kastb
 """
 import os
-import sys
 import glob
 import shutil
 from IPython.terminal.embed import embed
-
-from configobj import ConfigObj
-
-import pytest
-
-import numpy as np
 
 import matplotlib
 matplotlib.use('agg')  
@@ -21,7 +14,6 @@ from pypeit.scripts.run_pypeit import RunPypeIt
 from pypeit.tests.tstutils import data_path
 from pypeit import specobjs
 from pypeit.par import pypeitpar 
-
 
 def test_run_pypeit():
 
@@ -35,7 +27,7 @@ def test_run_pypeit():
         shutil.rmtree(outdir)
 
     # Run the setup
-    sargs = Setup.parse_args(['-r', testrawdir+'b', '-s', 
+    sargs = Setup.parse_args(['-r', os.path.join(testrawdir,'b'), '-s', 
                               'shane_kast_blue', '-c all', '-o', 
                               '--output_path', outdir])
     Setup.main(sargs)

@@ -4,8 +4,8 @@ files.
 
 .. include:: ../include/links.rst
 """
-import os
-import glob
+import datetime
+import pathlib
 import re
 import warnings
 
@@ -19,8 +19,6 @@ from astropy.io import fits
 from astropy.coordinates import SkyCoord, Angle
 from astropy.table import Table
 from astropy import units, time
-
-import datetime
 
 import linetools
 
@@ -36,8 +34,6 @@ from pypeit.images import detector_container
 from pypeit import data
 from pypeit.images.mosaic import Mosaic
 from pypeit.core.mosaic import build_image_mosaic_transform
-
-from pypeit.utils import index_of_x_eq_y
 
 from pypeit.spectrographs import slitmask 
 from pypeit.spectrographs.opticalmodel import ReflectionGrating, OpticalModel, DetectorMap
@@ -217,9 +213,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             # raw frame date in mjd
             date = time.Time(self.get_meta_value(self.get_headarr(hdu), 'mjd'), format='mjd').value
             # get the measurements files
-            measure_files = np.array(glob.glob(os.path.join(data.Paths.spectrographs, "keck_deimos/gain_ronoise", "*")))
+            measure_files = sorted((data.Paths.spectrographs / "keck_deimos" / "gain_ronoise").glob("*"))
             # Parse the dates recorded in the name of the files
-            measure_dates = np.array([os.path.basename(f).split('.')[2] for f in measure_files])
+            measure_dates = np.array([f.name.split('.')[2] for f in measure_files])
             # convert into datetime format
             dtime = np.array([datetime.datetime.strptime(mm, '%Y-%b-%d') for mm in measure_dates])
             # convert to mjd
@@ -513,6 +509,26 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # redundant because anything with the wrong amplifier used is
         # removed from the list of valid frames in PypeItMetaData.
         return ['dispname', 'decker', 'binning', 'dispangle', 'amp', 'filter1']
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['GRATENAM', 'SLMSKNAM', 'G3TLTWAV', 'G4TLTWAV', 'AMPMODE', 'DWFILNAM']
 
     def valid_configuration_values(self):
         """
@@ -1187,11 +1203,11 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Grating slider
         slider = hdu[0].header['GRATEPOS']
 
-        mp_dir = os.path.join(data.Paths.static_calibs, 'keck_deimos')
+        mp_dir = data.Paths.static_calibs / 'keck_deimos'
 
         if slider in [3,4]:
-            self.amap = fits.getdata(os.path.join(mp_dir, f'amap.s{slider}.2003mar04.fits'))
-            self.bmap = fits.getdata(os.path.join(mp_dir, f'bmap.s{slider}.2003mar04.fits'))
+            self.amap = fits.getdata(mp_dir / f'amap.s{slider}.2003mar04.fits')
+            self.bmap = fits.getdata(mp_dir / f'bmap.s{slider}.2003mar04.fits')
         else:
             msgs.error('No amap/bmap available for slider {0}. Set `use_maskdesign = False`'.format(slider))
         #TODO: Figure out which amap and bmap to use for slider 2
@@ -1320,7 +1336,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Use the detector map to convert to the detector coordinates
         return (x_img, y_img) + self.detector_map.ccd_coordinates(x_img, y_img, in_mm=False)
 
-    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None):
+    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None,
+                              trc_path=None, binning=None):
         """
         Provides the slit edges positions predicted by the slitmask design using
         the mask coordinates already converted from mm to pixels by the method

@@ -459,8 +459,8 @@ With this implementation:
 .. include:: ../include/links.rst
 
 """
+import pathlib
 import os
-import warnings
 
 from IPython import embed
 
@@ -1174,6 +1174,9 @@ class DataContainer:
         if value is None:
             self.__dict__[item] = value
             return
+        # Convert pathlib.Path objects to string for saving in the datamodel
+        if isinstance(value, pathlib.Path):
+            value = str(value)
         # Check data type
         if not isinstance(value, self.datamodel[item]['otype']):
             raise TypeError(f'Cannot assign object of type {type(value)} to {item}.\n'
@@ -1202,6 +1205,20 @@ class DataContainer:
             :obj:`dict_keys`: The iterable with the data model keys.
         """
         return self.datamodel.keys()
+
+    def check_populated(self, dm_items):
+        """
+        Check that a set of datamodel items are populated.
+
+        Args:
+            dm_items (:obj:`list`, :obj:`str`):
+                One or more items in the datamodel to check.
+
+        Returns:
+            :obj:`bool`: Flag that *all* the requested datamodel items are
+            populated (not None).
+        """
+        return np.all([key in self.keys() and self[key] is not None for key in dm_items])
 
     def _primary_header(self, hdr=None):
         """

@@ -1,7 +1,7 @@
 .. code-block:: console
 
-    # Auto-generated PypeIt input file using PypeIt version: 1.11.1.dev266+g837e3669f.d20221122
-    # UTC 2022-12-05T18:02:27.825
+    # Auto-generated PypeIt input file using PypeIt version: 1.12.2.dev137+g95b15695a
+    # UTC 2023-03-28T18:23:15.069
     
     # User-defined execution parameters
     [rdx]
@@ -16,7 +16,7 @@
     
     # Data block 
     data read
-     path /data/Projects/PypeIt-codes/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55
+     path /Users/westfall/Work/packages/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55
        filename |                 frametype |                 ra |                dec |     target | dispname |     decker | binning |                mjd |        airmass | exptime | dichroic
      b1.fits.gz |                  arc,tilt | 140.44166666666663 |  37.43222222222222 |       Arcs | 600/4310 | 0.5 arcsec |     1,1 |  57162.06664467593 |            1.0 |    30.0 |      d55
     b14.fits.gz |                      bias | 172.34291666666664 |  36.86833333333333 |       Bias | 600/4310 | 2.0 arcsec |     1,1 |  57162.15420034722 |            1.0 |     0.0 |      d55

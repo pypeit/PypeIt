@@ -152,7 +152,7 @@ class SlitMask:
 
         # PA
         if posx_pa is not None:
-            self.posx_pa, self.negx_pa = positive_maskpa(posx_pa)
+            self.posx_pa, self.negx_pa = positive_pa(posx_pa)
         else:
             self.posx_pa, self.negx_pa = None, None
 
@@ -910,7 +910,7 @@ def build_slit_function(edges, size=None, oversample=1, sigma=None):
     return offset, slit_func_x, slit_func_y
 
 
-def positive_maskpa(pa:float):
+def positive_pa(pa:float):
     """ Modify input pa to be positive (0-360)
 
     Args:
@@ -926,6 +926,44 @@ def positive_maskpa(pa:float):
     comp_pa = pa - 180. if pa > 180. else pa + 180.
     # Return
     return pa, comp_pa
+
+
+def correct_slitpa(slitpa, maskpa):
+    """ Flip 180 degree the slit PA if the value recorded
+    in the slitmask design is more than +/-90 degree from the slitmask PA.
+
+    Args:
+        slitpa (:obj:`float` or `numpy.ndarray`_): position angle of the slits.
+        maskpa: (:obj:`float`): position angle of the slitmask.
+
+    Returns:
+        :obj:`float` or `numpy.ndarray`_: flipped slitpa, if it is more than +/-90 from the maskpa,
+        otherwise unchanged slitpa.
+
+    """
+    # Insure maskpa is positive
+    maskpa, _ = positive_pa(maskpa)
+
+    # create a new array of slitpa
+    newslitpa = numpy.atleast_1d(slitpa).copy()
+
+    for i in range(slitpa.size):
+        # make slitpa positive (if it's not)
+        pa, _ = positive_pa(slitpa[i])
+        # flip slitpas that are >90 and <270 degrees from the maskpa
+        if 90 < (pa - maskpa) < 270:
+            newslitpa[i] -= 180
+        # flip slitpas that are <-90 and >-270 degrees from the maskpa
+        elif -90 > (pa - maskpa) > -270:
+            newslitpa[i] += 180
+        # check for value >= 270
+        if newslitpa[i] >= 270:
+            newslitpa[i] -= 360
+        # check for value <= -270
+        elif newslitpa[i] <= -270:
+            newslitpa[i] += 360
+    return newslitpa[0] if newslitpa.size == 1 else newslitpa
+
 
 def load_keck_deimoslris(filename:str, instr:str):
     """ Load up the mask design info from the header
@@ -974,7 +1012,10 @@ def load_keck_deimoslris(filename:str, instr:str):
     # PA corresponding to positive x on detector (spatial)
     posx_pa = hdu['MaskDesign'].data['PA_PNT'][-1]
     # Insure it is positive
-    posx_pa, _ = positive_maskpa(posx_pa)
+    posx_pa, _ = positive_pa(posx_pa)
+
+    # flip 180 degree slit PAs if are > +/-90 degrees from maskpa (posx_pa)
+    slit_pas = correct_slitpa(hdu['DesiSlits'].data['slitLPA'][indx], posx_pa)
 
     # Instantiate the slit mask object and return it
     try:
@@ -995,7 +1036,7 @@ def load_keck_deimoslris(filename:str, instr:str):
                                                 hdu['DesiSlits'].data['slitDec'][indx],
                                                 hdu['DesiSlits'].data['slitLen'][indx],
                                                 hdu['DesiSlits'].data['slitWid'][indx],
-                                                hdu['DesiSlits'].data['slitLPA'][indx]]).T,
+                                                slit_pas]).T,
                                 objects=objects,
                                 #object_names=hdu['ObjectCat'].data['OBJECT'],
                                 mask_radec=(hdu['MaskDesign'].data['RA_PNT'][0], 
@@ -1003,5 +1044,4 @@ def load_keck_deimoslris(filename:str, instr:str):
                                 posx_pa=posx_pa)
     # Return
     return slitmask
-
 

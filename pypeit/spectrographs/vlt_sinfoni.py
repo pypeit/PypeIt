@@ -185,7 +185,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
         # self.meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
         # Dithering
-        self.meta['dither'] = dict(ext=0, card='HIERARCH ESO SEQ CUMOFFSETY',
+        self.meta['dithoff'] = dict(ext=0, card='HIERARCH ESO SEQ CUMOFFSETY',
                                    required_ftypes=['science', 'standard'])
 
     def compound_meta(self, headarr, meta_key):
@@ -230,6 +230,27 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         """
         return ['decker', 'dispname', 'filter1']
 
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['HIERARCH ESO INS OPTI1 NAME', 'HIERARCH ESO INS GRAT1 NAME',
+                'HIERARCH ESO INS FILT1 NAME']
+
     def pypeit_file_keys(self):
         """
         Define the list of keys to be output into a standard ``PypeIt`` file.
@@ -243,7 +264,8 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         # TODO: Why are these added here? See
         # pypeit.metadata.PypeItMetaData.set_pypeit_cols
         pypeit_keys += ['calib', 'comb_id', 'bkg_id']
-        return pypeit_keys
+        return pypeit_keys + ['dithoff']
+
 
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):

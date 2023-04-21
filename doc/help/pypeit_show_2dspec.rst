@@ -14,7 +14,7 @@
     positional arguments:
       file                  PypeIt spec2d file
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       --list                List the extensions only? (default: False)
       --det DET             Detector name or number. If a number, the name is

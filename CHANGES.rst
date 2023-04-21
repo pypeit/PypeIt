@@ -1,12 +1,57 @@
 
-1.11.1dev
+1.12.3dev
 ---------
+
+- Implemented a resample algorithm when generating datacubes
+- Hotfix to docs to ensure pypeit_loaders api doc is generated
+- Allow user control of the local sky subtraction window
+- Deprecate use of python 3.8 with PypeIt, allow python 3.11
+- Make pypeit_show_2dspec (somewhat) backwards compatible.
+- Added the option to disable strict version checking for 1d coadds.
+- Hotfix for KCWI when using alignment (aka ContBars) frames for the astrometric correction.
+- Sensitivity function masking and output updates
+
+1.12.2 (29 Mar 2023)
+--------------------
+
+- Gemini/GMOS mask design slurping and usage
+- New GMOS wavelength solution
+- Added NIRES tutorial doc
+- reid_arxiv templates for all MMTO Blue Channel gratings and for MMTO Binospec G600 and G1000
+- Various bug fixes and enhancements to mmt_bluechannel and mmt_binospec support
+- Include the S/N of extracted spectra in the SpecObj datamodel
+- Added new specutils interface
+- Fixed bugs when only performing calibrations and (1) calib groups are all set
+  to 'all' or (2) anything other than '0'.
+- Added `MASKDEF_OBJMAG` and `MASKDEF_OBJMAG_BAND` in spec1d datamodel.
+- Improved NIRES dither pattern parsing and automatic assignment of `comb_id` and `bkg_id`.
+
+1.12.1 (21 Feb 2023)
+--------------------
+
+- (Hotfix) Specify sphinx versions to correctly work with
+  sphinx_rtd_theme
+- (Hotfix) Fixed bug that caused crash of sensfunc routines using
+  telluric grids in offline processing
+- (Hotfix) Fixed error when showing flats in Ginga when the fine correction is not performed
+- Implemented the upgraded GTC/OSIRIS+
+- (Hotfix) keymap error when displaying GUIs
+- Added support for more NOT/ALFOSC grisms as well as NOT recommended standards
+- Implemented the SOAR/Goodman blue 400 grating (setup M1)
+- Added support for SOAR/Goodman red 600 grating (setup RED)
+- Implemented the SOAR/Goodman (blue) M1 only
+- New docs on OneSpec
+- Modify install notes to allow python 3.10; python3.8 no longer explicitly supported
+- Allow for bad orders during extraction  (without crashing)
+
+1.12.0 (31 Jan 2023)
+--------------------
 
 - (Hotfix) Fixed bug that allowed science frames to be assigned to multiple
   instrument configurations
 - (Hotfix) Fixed typo related to GitHub download for offline processing
 - Started modifications and support for JWST.
-- LRISr header issue
+- Limit LRISr header crashes
 - Added spectral flexure and reference frame corrections for IFU data
 - Allow separate sky frame to be used for sky subtraction with IFU data
 - Limit the images written to the MasterEdges file to only the trace
@@ -15,6 +60,11 @@
 - OpenMP link fix
 - Enable boxcar_radius for manual extraction
 - Prevent flexure crash
+- Fixed error with deprecated numpy types
+- Improved optimization of bspline c code
+- Parse Keck/NIRES dither patterns, similar to MOSFIRE
+- Introduce BitMaskArray class to ease use of bitmasks
+- Fixed memory hogging by matplotlib when using version >= 3.6.1
 
 1.11.0 (21 Oct 2022)
 --------------------

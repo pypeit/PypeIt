@@ -27,8 +27,8 @@ and ensure your :ref:`pypeit_file` shows:
     [rdx]
         spectrograph = gemini_gmos_north_ham_ns
 
-Slits
-=====
+Long Slit
+=========
 
 1.
 Somewhat too frequently when using the longslit, the "3" slits are not all
@@ -91,8 +91,11 @@ In this case, you should check your wavelength solution, and try to adjust the
 wavelength parameters. This issue may be solved now that by reducing the
 detectors as a mosaic by default.
 
-Arcs
-====
+Wavelength Solution
+===================
+
+Faint Lamps
+-----------
 
 The CuAr lamps are pretty faint in the blue which lead
 to some "unique" challenges.  At present we have
@@ -106,6 +109,8 @@ lowered the default ``tracethresh`` parameter to 10, i.e.:
 
 It is possible you will want to increase this, but unlikely.
 
+FWHM
+----
 
 We also have a report (issue #1467) that the default value of the parameter
 ``fwhm_fromline=True`` can sometimes lead to poor wavelength calibration.  If
@@ -118,3 +123,44 @@ your RMS is a factor of 2-3 too high, consider setting:
             fwhm_fromlines = False
 
 
+MultiSlit
+=========
+
+Mask Definition
+---------------
+
+PypeIt can now take advantage of the mask definition file
+generated when one designs a GMOS mask.  To do so, one needs
+to provide two additional files and specify them 
+with the :ref:`pypeit_file`:
+
+#.  The mask definition file, aka ODF file
+#.  An aligment image (taken with the spectra)
+
+The mask definition file must be the output generated from 
+GMMPRS and in FITS format. We do not support ASCII 
+mask files currently.
+
+For the alignment image,
+ensure that the alignment stars in the image are centered 
+in the mask's square alignment slits. i.e. choose the 
+final image in the sequence of alignment images from 
+the observations.
+
+The modifications to the :ref:`pypeit_file` will look like:
+
+.. code-block:: ini
+
+    [calibrations]
+        [[slitedges]]
+            maskdesign_filename = GS2022BQ137-05_ODF.fits,S20221128S0038.fits
+            use_maskdesign = True
+    [reduce]
+        [[slitmask]]
+            extract_missing_objs = True
+            assign_obj = True
+
+The two files provided must be located either:
+ (1) in the path(s) of the raw files provided in the :ref:`data_block`,
+ (2) the current working data, and/or
+ (3) be named with the full path.

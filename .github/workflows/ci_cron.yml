@@ -15,15 +15,15 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python: [3.8, 3.9]
+        python: ['3.9', '3.10', '3.11']
         toxenv: [test-alldeps, test-numpydev, test-linetoolsdev, test-gingadev, test-astropydev, conda]
     steps:
     - name: Check out repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         ref: develop
     - name: Set up Python ${{ matrix.python }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python }}
     - name: Install base dependencies
