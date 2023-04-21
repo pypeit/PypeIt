@@ -217,7 +217,7 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
                                                spectrograph=spectrograph,
                                                par=par['coadd1d'],
                                                sensfuncfile=coadd1dFile.sensfuncfile,
-                                               setup_id=setup_id,
+                                               setup_id=coadd1dFile.setup_id,
                                                debug=args.debug, show=args.show)
         # Run
         coAdd1d.run()

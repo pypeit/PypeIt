@@ -9,6 +9,8 @@ Coadding module.
 import os
 import sys
 import copy
+import string
+
 from IPython import embed
 
 import numpy as np
@@ -2373,7 +2375,8 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
     return wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack
 
 
-def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_setup, weights_sens_arr_setup, nbests=None,
+def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_setup, weights_sens_arr_setup,
+                 setup_ids = None, nbests=None,
                  wave_method='log10', dwave=None, dv=None, dloglam=None,
                  spec_samp_fact=1.0, wave_grid_min=None, wave_grid_max=None,
                  ref_percentile=70.0, maxiter_scale=5, niter_order_scale=3,
@@ -2515,6 +2518,12 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     #                     utils.concat_to_setup_list convert between waves_setup_lists and waves_concat
 
 
+    debug=True
+    show=True
+    show_exp=True
+    debug_scale=True
+
+
     if qafile is not None:
         qafile_stack = qafile.replace('.pdf', '_stack.pdf')
         qafile_chi = qafile.replace('.pdf', '_chi.pdf')
@@ -2524,7 +2533,13 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
 
     # data shape
     nsetups=len(waves_arr_setup)
+
+    if setup_ids is None:
+        setup_ids = list(string.ascii_uppercase[:nsetups])
+
+
     setup_colors = utils.distinct_colors(nsetups)
+    embed()
     norders = []
     nexps = []
     nspecs = []
@@ -2703,7 +2718,9 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
             out_gpms_order_stack.append(outgpms_order_stack_iord)
             if show_order_stacks:
                 coadd_qa(wave_order_stack_iord, flux_order_stack_iord, ivar_order_stack_iord, nused_order_stack_iord,
-                         gpm=gpm_order_stack_iord, title='Coadded spectrum of order {:d}/{:d}'.format(iord, norders[isetup]))
+                         gpm=gpm_order_stack_iord,
+                         title='Coadded spectrum of order {:d}/{:d} for setup={:s}'.format(
+                             iord, norders[isetup], setup_ids[isetup]))
         waves_order_stack_setup.append(waves_order_stack)
         fluxes_order_stack_setup.append(fluxes_order_stack)
         ivars_order_stack_setup.append(ivars_order_stack)
@@ -2713,10 +2730,6 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     ############################
     # QA Generation
     ############################
-    debug=True
-    show=True
-    show_exp=True
-    #for isetup in range(nsetups):
     if debug or show:
         fluxes_exps, ivars_exps, out_gpms_exps = np.array([],dtype=float), np.array([],dtype=float), np.array([],dtype=bool)
         flux_stack_exps, ivar_stack_exps, gpm_stack_exps = np.array([],dtype=float), np.array([],dtype=float), np.array([], dtype=bool)
@@ -2748,8 +2761,8 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
                     # plot the residual distribution
                     msgs.info('QA plots for exposure {:} with new_sigma = {:}'.format(iexp, sigma_corrs_2d_exps[iexp]))
                     # plot the residual distribution for each exposure
-                    title_renorm = 'ech_combspec: Error distribution about stack for exposure {:d}/{:d}'.format(
-                        iexp, nexps[isetup])
+                    title_renorm = 'ech_combspec: Error distribution about stack for exposure {:d}/{:d} for setup={:s}'.format(
+                        iexp, nexps[isetup], setup_ids[isetup])
                     renormalize_errors_qa(outchi_2d_exps[:, iexp], gpm_chi_2d_exps[:, iexp], sigma_corrs_2d_exps[iexp],
                                           title=title_renorm)
                     title_coadd_iexp = 'ech_combspec: nrej={:d} pixels rejected,'.format(nrej[iexp]) + \
@@ -2764,7 +2777,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
                 fluxes_2d_exps.flatten(), ivars_2d_exps.flatten(), out_gpms_2d_exps.flatten(),
                 flux_stack_2d_exps.flatten(), ivar_stack_2d_exps.flatten(), gpm_stack_2d_exps.flatten(), sn_clip=sn_clip)
             renormalize_errors_qa(outchi_1d_isetup, gpm_chi_1d_isetup, sigma_corrs_1d_isetup[0],
-                                  qafile=qafile_chi, title='Global Chi distribution for setup={:d}'.format(isetup))
+                                  qafile=qafile_chi, title='Global Chi distribution for setup={:d}'.format(setup_ids[isetup]))
             fluxes_exps = np.append(fluxes_exps, fluxes_2d_exps.flatten())
             ivars_exps = np.append(ivars_exps, ivars_2d_exps.flatten())
             out_gpms_exps = np.append(out_gpms_exps, out_gpms_2d_exps.flatten())
