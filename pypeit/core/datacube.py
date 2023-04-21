@@ -1003,12 +1003,56 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
     return all_wghts
 
 
-def generate_image_subpixel(outfile=None):
+def generate_image_subpixel(image_wcs, all_sci, all_ivar, all_wghts, all_wave,
+                            slitid_img_gpm, tilts, slits, astrom_trans, bins, all_idx=None,
+                            spec_subpixel=10, spat_subpixel=10):
     """
     Generate a white light image from the input pixels
+
+    Args:
+        image_wcs (`astropy.wcs.wcs.WCS`_):
+            World coordinate system to use for the white light images.
+        all_sci (`numpy.ndarray`_):
+            1D flattened array containing the counts of each pixel from all spec2d files
+        all_ivar (`numpy.ndarray`_):
+            1D flattened array containing the inverse variance of each pixel from all spec2d files
+        all_wghts (`numpy.ndarray`_):
+            1D flattened array containing the weights of each pixel to be used in the combination
+        all_wave (`numpy.ndarray`_)
+            1D flattened array containing the wavelength of each pixel (units = Angstroms)
+        slitid_img_gpm (`numpy.ndarray`_, list)
+            An image indicating which pixels belong to a slit (0 = not on a slit or a masked pixel).
+            Any positive value indicates the spatial ID of the pixel. Alternatively, a list of slit_id_gpm
+            can be provided (in this case, see documentation for all_idx).
+        tilts (`numpy.ndarray`_, list)
+            2D wavelength tilts frame, or a list of tilt frames (see all_idx)
+        slits (:class:`pypeit.slittrace.SlitTraceSet`_, list)
+            Information stored about the slits, or a list of SlitTraceSet (see all_idx)
+        astrom_trans (:class:`pypeit.alignframe.AlignmentSplines`_, list):
+            A Class containing the transformation between detector pixel coordinates
+            and WCS pixel coordinates, or a list of Alignment Splines (see all_idx)
+        bins (tuple):
+            A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and z wavelength coordinates
+        all_idx (`numpy.ndarray`_, optional)
+            If tilts, slits, astrom_trans, and slitid_img_gpm are lists, this should contain a 1D flattened array, of
+            the same length as all_sci, containing the index the tilts, slits, astrom_trans, and slitid_img_gpm lists
+            that corresponds to each pixel. Note that, in this case all of these lists need to be the same length.
+        spec_subpixel (`int`, optional):
+            What is the subpixellation factor in the spectral direction. Higher values give more reliable results,
+            but note that the time required goes as (spec_subpixel * spat_subpixel). The default value is 5,
+            which divides each detector pixel into 5 subpixels in the spectral direction.
+        spat_subpixel (`int`, optional):
+            What is the subpixellation factor in the spatial direction. Higher values give more reliable results,
+            but note that the time required goes as (spec_subpixel * spat_subpixel). The default value is 5,
+            which divides each detector pixel into 5 subpixels in the spatial direction.
     """
+    # Subpixellate
+    subpix = subpixellate(output_wcs, all_sci, all_ivar, all_wghts, all_wave,
+                          slitid_img_gpm, tilts, slits, astrom_trans, bins, all_idx=all_idx,
+                          spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
 
     return wlimgs
+
 
 def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, all_wave,
                            slitid_img_gpm, tilts, slits, astrom_trans, bins, all_idx=None,
@@ -1017,17 +1061,8 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
                            save_whitelight=False, whitelight_range=None, whitelight_wcs=None,
                            specname="PYP_SPEC", debug=False):
     """
-    Save a datacube using the subpixel algorithm. This algorithm splits
-    each detector pixel into multiple subpixels, and then assigns each
-    subpixel to a voxel. For example, if spec_subpixel = spat_subpixel = 10,
-    then each detector pixel is divided into 10^2=100 subpixels. Alternatively,
-    when spec_subpixel = spat_subpixel = 1, this corresponds to the nearest
-    grid point (NGP) algorithm.
-
-    Important Note: If spec_subpixel > 1 or spat_subpixel > 1, the errors will
-    be correlated, and the covariance is not being tracked, so the errors will
-    not be (quite) right. There is a tradeoff one has to make between sampling
-    and better looking cubes, versus no sampling and better behaved errors.
+    Save a datacube using the subpixel algorithm. Refer to the subpixellate() docstring
+    for further details about this algorithm
 
     Args:
         outfile (`str`):
@@ -1449,8 +1484,10 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     method = cubepar['method'].lower()
 
     # Determine what method is requested
+    spec_subpixel, spat_subpixel = 1, 1
     if method == "subpixel":
         msgs.info("Adopting the subpixel algorithm to generate the datacube.")
+        spec_subpixel, spat_subpixel = cubepar['spec_subpixel'], cubepar['spat_subpixel']
     elif method == "ngp":
         msgs.info("Adopting the nearest grid point (NGP) algorithm to generate the datacube.")
     else:
@@ -1877,10 +1914,6 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             wl_wvrng = [np.max(mnmx_wv[ff, :, 0]), np.min(mnmx_wv[ff, :, 1])]  # Wavelength range of the whitelight image.
             # Make the datacube
             if method in ['subpixel', 'ngp']:
-                if method == 'ngp':
-                    spec_subpixel, spat_subpixel = 1, 1
-                else:
-                    spec_subpixel, spat_subpixel = cubepar['spec_subpixel'], cubepar['spat_subpixel']
                 # Generate the datacube
                 generate_cube_subpixel(outfile, output_wcs, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix),
                                        wave_ext, slitid_img_gpm, spec2DObj.tilts, slits, alignSplines, bins,
@@ -1910,6 +1943,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     # Grab cos(dec) for convenience
     cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
 
+    # Setup the WCS
+
     # Register spatial offsets between all frames
     # Check if a reference whitelight image should be used to register the offsets
     numiter = 2
@@ -1924,6 +1959,12 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             else:
                 msgs.warn("Datacubes do not completely overlap in wavelength. Offsets may be unreliable...")
                 ww = np.where((all_wave > 0) & (all_wave < 99999999))
+            generate_image_subpixel(image_wcs, all_sci, all_ivar, all_wghts, all_wave,
+                                    all_slimg, all_tilts, all_slits, all_align, wl_bins, all_idx=None,
+                                    spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
+
+
+
             whitelight_imgs, _, _ = make_whitelight_frompixels(all_ra[ww], all_dec[ww], all_wave[ww], all_sci[ww], all_wghts[ww], all_idx[ww], dspat)
             # ref_idx will be the index of the cube with the highest S/N
             ref_idx = np.argmax(weights)
