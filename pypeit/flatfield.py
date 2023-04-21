@@ -604,7 +604,7 @@ class FlatField:
                     self.rawflatimg.image = rawflat_orig * utils.inverse(det_resp_model)
                     if doqa:
                         # TODO :: Probably need to pass in det when more spectrographs implement a structure correction...
-                        outfile = qa.set_qa_filename("DetectorStructure_" + self.master_key, 'detector_structure',
+                        outfile = qa.set_qa_filename("DetectorStructure_" + self.calib_key, 'detector_structure',
                                                      det="DET01", out_dir=self.qa_path)
                         detector_structure_qa(det_resp, det_resp_model, outfile=outfile)
                     # Perform a 2D fit with the cleaned image
