@@ -1390,7 +1390,7 @@ class FlatField:
         slitlen = int(np.median(this_right - this_left))
 
         # Generate the coordinates to evaluate the fit
-        this_slit = np.where(onslit_tweak & self.rawflatimg.select_flag(invert=True))
+        this_slit = np.where(onslit_tweak & self.rawflatimg.select_flag(invert=True) & (self.waveimg!=0.0))
         this_wave = self.waveimg[this_slit]
         xpos_img = self.slits.spatial_coordinate_image(slitidx=slit_idx,
                                                        initial=True,
