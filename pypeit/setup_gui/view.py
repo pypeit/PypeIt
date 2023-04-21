@@ -8,7 +8,7 @@ from qtpy.QtWidgets import QPlainTextEdit, QWidgetAction, QAction, QAbstractItem
 from qtpy.QtGui import QIcon, QKeySequence, QPalette, QColor, QValidator, QFont, QFontDatabase, QFontMetrics, QTextCharFormat, QTextCursor
 from qtpy.QtCore import Qt, QSize, Signal,QSettings, QStringListModel, QAbstractItemModel, QModelIndex, QMargins, QSortFilterProxyModel, QRect
 
-from pypeit.setup_gui.model import ModelState, PypeItMetadataProxy, available_spectrographs
+from pypeit.setup_gui.model import ModelState, PypeItMetadataModel, available_spectrographs
 from pypeit import msgs
 
 setup_gui_main_window = None
@@ -348,7 +348,7 @@ class PathsEditorPanel(QGroupBox):
         # This will also enable/disable the child combo box and button widgets
         super().setEnabled(value)
 
-class PypeItUniqueListEditor(QWidget):
+class PypeItEnumListEditor(QWidget):
     def __init__(self, parent, allowed_values, num_lines=5):
         super().__init__(parent)
         self._values = set()
@@ -441,28 +441,28 @@ class PypeItCustomEditorDelegate(QStyledItemDelegate):
         
         model = index.model().sourceModel()
         
-        column_name = model.getColumnName(index)
+        column_name = model.getColumnNumName(index)
 
         if column_name == "frametype":
-            msgs.info("Creating uniuqe list editor for frametype")
-            return PypeItUniqueListEditor(parent=parent, allowed_values=model.getAllFrameTypes())
+            msgs.info("Creating enum list editor for frametype")
+            return PypeItEnumListEditor(parent=parent, allowed_values=model.getAllFrameTypes())
         if column_name == "setup":
-            msgs.info("Creating uniuqe list editor for setup")
-            return PypeItUniqueListEditor(parent=parent, allowed_values=setup_gui_main_window.model.pypeit_files.keys())
+            msgs.info("Creating enum list editor for setup")
+            return PypeItEnumListEditor(parent=parent, allowed_values=setup_gui_main_window.model.pypeit_files.keys())
         
         msgs.info(f"Creating default editor for {column_name}")
         return super().createEditor(parent, option, index)
     
     def setEditorData(self, editor, index):
-        if isinstance(editor, PypeItUniqueListEditor):
-            msgs.info(f"Setting editor data {index.data(Qt.DisplayRole)}")
-            editor.setSelectedValues(index.data(Qt.DisplayRole))
+        if isinstance(editor, PypeItEnumListEditor):
+            msgs.info(f"Setting editor data {index.data(Qt.EditRole)}")
+            editor.setSelectedValues(index.data(Qt.EditRole))
         else:
             msgs.info("Setting default editor data")
             super().setEditorData(editor, index)
 
     def setModelData(self,editor,model,index):
-        if isinstance(editor, PypeItUniqueListEditor):
+        if isinstance(editor, PypeItEnumListEditor):
             msgs.info(f"Setting choice model data: {editor.selectedValues()}")
             model.setData(index, editor.selectedValues())
         else:
@@ -470,18 +470,22 @@ class PypeItCustomEditorDelegate(QStyledItemDelegate):
             super().setModelData(editor,model,index)
 
     def updateEditorGeometry(self, editor, option, index):
-        if isinstance(editor, PypeItUniqueListEditor):
+        if isinstance(editor, PypeItEnumListEditor):
             # The upper left coordinate of the editor depends on how well it fits
             # vertically in it's parent
             parent_geometry = editor.parent().geometry()
-            editor_size = editor.minimumSize()
+            editor_min_size = editor.minimumSize()
 
             msgs.info(f"Given rect: {(option.rect.x(), option.rect.y(), option.rect.width(), option.rect.height())}")
             msgs.info(f"parent_geometry: {(parent_geometry.x(), parent_geometry.y(), parent_geometry.width(), parent_geometry.height())}")
-            msgs.info(f"editor min size: {editor_size.width()}, {editor_size.height()}")
+            msgs.info(f"editor min size: {editor_min_size.width()}, {editor_min_size.height()}")
 
             editor_x = option.rect.x()
             editor_y = option.rect.y()
+            # Let the editor fill up the size of the cell if that's larger than
+            # it's minimum width
+            editor_width = max(editor_min_size.width(), option.rect.width())
+
             # Because the parent may be in a scroll area, the x,y could be negative,
             # set those to 0 so the editor doesn't appear outside the scroll area
             if editor_x < 0:
@@ -492,13 +496,13 @@ class PypeItCustomEditorDelegate(QStyledItemDelegate):
 
             # Adjust the editor'x upper left corner so that the editor is vislbe for
             # cells along the bottom or right of the parent table
-            if editor_x + editor_size.width() > parent_geometry.bottomRight().x():
-                editor_x = parent_geometry.bottomRight().x() - editor_size.width()
+            if editor_x + editor_width > parent_geometry.bottomRight().x():
+                editor_x = parent_geometry.bottomRight().x() - editor_width
 
-            if editor_y + editor_size.height() > parent_geometry.bottomRight().y():
-                editor_y = parent_geometry.bottomRight().y() - editor_size.height()
+            if editor_y + editor_min_size.height() > parent_geometry.bottomRight().y():
+                editor_y = parent_geometry.bottomRight().y() - editor_min_size.height()
 
-            geometry = QRect(editor_x, editor_y, editor_size.width(), editor_size.height()) 
+            geometry = QRect(editor_x, editor_y, editor_width, editor_min_size.height()) 
        
             msgs.info(f"Updating editor geometry to {(geometry.x(), geometry.y(), geometry.width(), geometry.height())}")
             editor.setGeometry(geometry)
@@ -515,7 +519,7 @@ class PypeItMetadataView(QTableView):
 
     Args:
         parent (QtWidget):                                            The parent widget of the table view
-        model  (:class:`pypeit.setup_gui.model.PypeItMetadataProxy`): The model for the table. Optional, defaults to None.
+        model  (:class:`pypeit.setup_gui.model.PypeItMetadataModel`): The model for the table. Optional, defaults to None.
     """
     def __init__(self, parent, model):
         super().__init__(parent=parent)
@@ -534,7 +538,7 @@ class PypeItMetadataView(QTableView):
         # Use a sorting proxy model
         proxy_model = QSortFilterProxyModel()
         proxy_model.setSourceModel(model)
-        sort_column = model.getColumnFromName('mjd')
+        sort_column = model.getColumnNumFromName('mjd')
         proxy_model.sort(sort_column, Qt.AscendingOrder)
         super().setModel(proxy_model)
 
@@ -719,7 +723,7 @@ class PypeItFileTab(QWidget):
         # Create a group box and table view for the file metadata table
         file_group = QGroupBox(self.tr("File Metadata"))
         file_group_layout = QVBoxLayout()
-        self.file_metadata_table = PypeItMetadataView(self, model.metadata_proxy_model)
+        self.file_metadata_table = PypeItMetadataView(self, model.metadata_model)
         file_group_layout.addWidget(self.file_metadata_table)
         file_group.setLayout(file_group_layout)        
         layout.addWidget(file_group)
@@ -835,7 +839,7 @@ class ObsLogTab(QWidget):
         # Add the File Metadata box in the second row
         file_group = QGroupBox(self.tr("File Metadata"))
         file_group_layout = QHBoxLayout()        
-        self.obslog_table = PypeItMetadataView(file_group, model.obslog_model)
+        self.obslog_table = PypeItMetadataView(file_group, model.metadata_model)
         file_group_layout.addWidget(self.obslog_table)
         file_group.setLayout(file_group_layout)
         layout.addWidget(file_group)
@@ -881,7 +885,7 @@ class ObsLogTab(QWidget):
             self.spectrograph.setCurrentIndex(self.spectrograph.findText(model.spectrograph))
             msgs.info(f"Set current text to {model.spectrograph}, current index {self.spectrograph.currentIndex()}")
             self.update_raw_data_paths_state()
-        self.obslog_table.setModel(model.obslog_model)
+        self.obslog_table.setModel(model.metadata_model)
         
         # Update based on changes to the model
         model.state_changed.connect(self.update_from_model)

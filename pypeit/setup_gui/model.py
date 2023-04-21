@@ -15,7 +15,7 @@ import numpy as np
 import io
 from functools import partial
 
-from qtpy.QtCore import QAbstractTableModel, QAbstractItemModel, QAbstractListModel, QModelIndex, Qt, Signal, QObject, QThread, QStringListModel
+from qtpy.QtCore import QAbstractTableModel, QAbstractProxyModel, QAbstractItemModel, QAbstractListModel, QModelIndex, Qt, Signal, QObject, QThread, QStringListModel
 from qtpy.QtGui import QTextDocument, QTextCursor
 
 from configobj import ConfigObj
@@ -155,7 +155,7 @@ def available_spectrographs():
     """Return a list of the supported spectrographs"""
     return spectrographs.available_spectrographs
 
-class PypeItMetadataModel(QObject):
+class PypeItMetadataModelOld(QObject):
     """Model that wraps a PypeItMetaData object for the setup gui. This model does not
     implement the QAbstractItemModel, rather it provides an interface to proxy models that
     present the model to QAbstractItemViews.
@@ -337,27 +337,27 @@ class PypeItMetadataModel(QObject):
             self.dataChanged.emit(self.metadata.table.colnames.index(colname), row)
 
 class PypeItMetadataUniquePathsProxy(QAbstractListModel):
-    """A Proxy model filtering the content of a PypeItMetadata model to only show the
+    """A Proxy model filtering the content of a PypeItMetadataModel object to only show the
     unique paths within it to Qt views.
     
     Args:
-        metadata_model (PypeItMetadata): The model being filtered.
+        metadata_model (PypeItMetaData): The model being filtered.
     """
     def __init__(self, metadata_model):
         super().__init__()
-        self.source_model = metadata_model
+        self.metadata = metadata_model.metadata
         self._setUniqueIndex()
-        self.source_model.modelReset.connect(self._setUniqueIndex)
-        self.source_model.rowsAdded.connect(self._setUniqueIndex)
-        self.source_model.rowsRemoved.connect(self._setUniqueIndex)
-        self.source_model.dataChanged.connect(self._setUniqueIndex)
+        metadata_model.modelReset.connect(self._setUniqueIndex)
+        metadata_model.rowsInserted.connect(self._setUniqueIndex)
+        metadata_model.rowsRemoved.connect(self._setUniqueIndex)
+        metadata_model.dataChanged.connect(self._setUniqueIndex)
 
     def _setUniqueIndex(self, *args, **kwargs):
         """Sets the Numpy index array for the unique paths within the metadata."""
         self.beginResetModel()
         
-        if self.source_model.metadata is not None:
-            items, self._unique_index = np.unique(self.source_model.metadata['directory'],return_index=True)
+        if self.metadata is not None:
+            items, self._unique_index = np.unique(self.metadata['directory'],return_index=True)
         else:
             self._unique_index = []
 
@@ -375,65 +375,66 @@ class PypeItMetadataUniquePathsProxy(QAbstractListModel):
             role (Qt.DisplayRole): The role to return data for. This method only supports "DisplayRole".
         """
         if role == Qt.DisplayRole:
-            if index.isValid() and self.source_model.metadata is not None and index.row() < len(self._unique_index):
-                return str(self.source_model.metadata['directory'][self._unique_index][index.row()])
+            if index.isValid() and self.metadata is not None and index.row() < len(self._unique_index):
+                return str(self.metadata['directory'][self._unique_index][index.row()])
 
         return None    
 
 
-class PypeItMetadataProxy(QAbstractTableModel):
+class PypeItMetadataModel(QAbstractTableModel):
     """
-    Provides a proxy Qt model interface for a PypeItMetadata object.  This proxy implements
-    a QAbstractItemModel interface to present file metadata
-    in a PypeItMetadataModel to Qt views. It filters the columns visible to the view based on the
-    columns typically present in a PypeItFile.
+    Provides a Qt model interface for a PypeItMetaData object.  This proxy implements
+    a QAbstractItemModel interface to present file metadata to Qt views. 
 
-    It also supports editing. Edits are propagated to other proxies by the PypeItMetadataModel's signals.
+    It also supports editing. 
 
     Args:
-        source_model (PypeItMetadataModel): The model this proxy is wrapping.
+        metadata (PypeItMetaData): The PypeItMetaData object being wrapped. If this is None, the
+                                   model is in a "NEW" state.
     """
-    def __init__(self, source_model):
+    def __init__(self, metadata):
         super().__init__()
 
-        self.source_model = source_model
-        self.editable_columns=['calib', 'comb_id', 'bkg_id', 'frametype', 'setup']
+        self.metadata = metadata
+        self.editable_columns=['calib', 'comb_id', 'bkg_id', 'frametype']
 
         self.colnames = []
         self.reset()
         
-        # Notify views when the underlying model changes
-        source_model.dataChanged.connect(self._sourceDataChanged)
+    def getColumnNumFromName(self, colname):
+        """Return the column number that has the passed in name.
+        
+        Args:
+            colname (str): The name of the column.
 
-        # Reset if the source structure changes
-        source_model.modelReset.connect(self.reset)
-
-        source_model.rowsAdded.connect(self._forwardRowsInserted, Qt.ConnectionType.DirectConnection)
-        source_model.rowsRemoved.connect(self._forwardRowsRemoved, Qt.ConnectionType.DirectConnection)
-
-    def _forwardRowsInserted(self, start_row, end_row):
-        msgs.info(f"Signalling inserted rows from {start_row} to {end_row}")
-        self.rowsInserted.emit(QModelIndex(), start_row, end_row)
-
-    def _forwardRowsRemoved(self, start_row, end_row):
-        msgs.info(f"Signalling removed rows from {start_row} to {end_row}")
-        self.rowsInserted.emit(QModelIndex(), start_row, end_row)
-                               
-    def _sourceDataChanged(self, col, row):
-        self.dataChanged.emit(self.index(row, col, parent=QModelIndex()),
-                              self.index(row, col, parent=QModelIndex()))
-
-
-    def getColumnFromName(self, colname):
+        Return:
+            int: The column number (0 based) of the named column. -1 if the column
+                 name is not in this model.
+        """
         if colname in self.colnames:
             return self.colnames.index(colname)
         else:
             return -1
 
-    def getColumnName(self, index):
+    def getColumnNameFromNum(self, index):
+        """Return the name of the column with the given number.
+        
+        Args:
+            index (str): The 0 based column number.
+
+        Return:
+            str: The name of the column. If the passed in index is out of bounds,
+                 an IndexError value is raised.
+        """
+
         return self.colnames[index.column()]
 
     def getAllFrameTypes(self):
+        """Return the allowable values for the frametype column.
+        
+        Return:
+            list of str: List of names of the allowable frame types.
+        """
         return FrameTypeBitMask().keys()
 
     def rowCount(self, parent_index=QModelIndex()):
@@ -447,10 +448,10 @@ class PypeItMetadataProxy(QAbstractTableModel):
             int: The number of rows in the table.
         """
         if (parent_index.isValid() or # Per Qt docs for a table model
-            self.source_model.metadata is None):
+            self.metadata is None):
             return 0
         else:
-            return len(self.source_model.metadata)
+            return len(self.metadata)
 
     def columnCount(self, parent_index=QModelIndex()):
         """Returns number of columns in under a parent. Overridden method from QAbstractItemModel. 
@@ -474,8 +475,8 @@ class PypeItMetadataProxy(QAbstractTableModel):
         Args:
             index (QModelIndex): The index in the table to return data form.
             role (Qt.DisplayRole): The role to return data for. This method supports the "TextAlignmentRole"
-                                   for returning alignment information for a table cell, and the "DisplayRole"
-                                   for displaying the data within a table cell.
+                                   for returning alignment information for a table cell, the "EditRole" 
+                                   for data to edit, and the "DisplayRole" for displaying the data within a table cell.
 
         Return:
             Object: The requested data, or None if there is no applicable data.
@@ -484,32 +485,57 @@ class PypeItMetadataProxy(QAbstractTableModel):
         if role == Qt.TextAlignmentRole:
             return Qt.AlignLeft
 
-        elif role != Qt.DisplayRole or self.source_model.metadata is None or index.row() > len(self.source_model.metadata) or index.column() > len(self.colnames):
-            return None # Nothing to display at this index
-            
-        else:
+        elif self.metadata is not None and (role == Qt.EditRole or role==Qt.DisplayRole):
             # The columns being displayed are a subset of the metadata,
-            # So we use the column name instead of the index
+            # So we use the column name instead of the column number
             colname = self.colnames[index.column()]
-            value = self.source_model.metadata[colname][index.row()]
-            # Round floating point values to look better
-            if isinstance(value, np.float64) or isinstance(value, np.float32):
-                value = round(value, 3)
-            return str(value)
+            value = self.metadata[colname][index.row()]
+
+            if role == Qt.DisplayRole:
+                # Convert to a string for displaying
+                # Round floating point values to look better
+                if isinstance(value, np.float64) or isinstance(value, np.float32):
+                    value = round(value, 3)
+                return str(value)
+            else:
+                return value
+        # No data for any other cases
+        return None
 
     def setData(self, index, value, role=Qt.EditRole):
-        if role==Qt.EditRole and self.source_model.metadata is not None:
+        """Modifies data for a given role at a given index. Overridden method from QAbstractItemModel. 
+        
+        Args:
+            index (QModelIndex):   The index in the table to return data form.
+            value (Any):           The value to set in the metadata. 
+            role (Qt.DisplayRole): The role to return data for. Only the "EditRole" is supported.
+                                   Defaults to Qt.EditRole.  
+
+        Return:
+            True if the edit succeeded, false if it failed.
+        """
+        if role==Qt.EditRole and self.metadata is not None:
             colname = self.colnames[index.column()]
             if colname in self.editable_columns:
                 try:             
-                    self.source_model.setValue(colname, index.row(), value)
+                    self.metadata[colname][index.row()] = value
                     return True
                 except ValueError as e:
-                    msgs.warn(f"Failed to set {colname} row {index.row()} to '{value}': {e}")
+                    msgs.warn(f"Failed to set {colname} row {index.row()} to '{value}'. ValueError: {e}")
 
         return False
 
     def flags(self, index):
+        """Returns item flags for a given index. Overridden method from QAbstractItemModel
+        
+        Args:
+            index (QModelIndex): The index to get flags for
+
+
+        Return:
+            flags (Qt.ItemFlag): The bitmask flags for the index. Currently only Qt.ItemFlag.ItemIsEditable
+                                 is supported.
+        """
         base_flags = super().flags(index)
         if self.colnames[index.column()] in self.editable_columns:
             base_flags |= Qt.ItemFlag.ItemIsEditable
@@ -541,6 +567,19 @@ class PypeItMetadataProxy(QAbstractTableModel):
             # A non-applicable role or a sort order request for a column that we're not sorted by.
             return None
 
+    def getDefaultColumns(self):
+        """Return the default columns to display to the user. This can vary based
+        on the current spectrograph.
+        
+        Return:
+        A list of column names, in order to display.
+        """
+        if self.metadata is not None:
+            default_columns = self.metadata.set_pypeit_cols(write_bkg_pairs=True)
+            return default_columns
+        else:
+            return ['filename', 'frametype', 'ra', 'dec', 'target', 'dispname', 'decker', 'binning', 'mjd', 'airmass', 'exptime']
+
     def reset(self):
         """
         Reset the proxy assuming the metadata object has completely changed
@@ -549,12 +588,89 @@ class PypeItMetadataProxy(QAbstractTableModel):
         super().beginResetModel()
 
         # Reset column names
-        self.colnames = self.source_model.getDefaultColumns()
-
-        if ('setup') not in self.colnames:
-            self.colnames.insert(1, 'setup')
+        self.colnames = self.getDefaultColumns()
 
         super().endResetModel()
+
+    def setMetadata(self, metadata):
+        """Sets the PypeItMetaData object being wrapped.
+        
+        Args:
+            metadata (PypeItMetaData): The metadata being wrapped.
+        """
+        self.metadata=metadata
+        self.reset()
+
+    def removeMetadataRow(self, row):
+        """Removes a row from the metadata
+        
+        Args:
+            row (int): A row number to remove.
+
+        Return:
+            (numpy array-like): The row of metadata that was removed, 
+                                or None if row was out of range
+        """
+        if self.metadata is None or row >= len(self.metadata):
+            return None
+        else:
+            # Remove the row, making sure views are notified
+            self.beginRemoveRows(QModelIndex(), row, row)
+            row = self.metadata[row]
+            self.metadata.remove_row(row)
+            self.endRemoveRows()
+
+            return row
+        
+    def addMetadataRow(self, metadata_row):
+        """Add a new row to the metadata.
+        
+        Args:
+            metadata_row (array-like): A row of data to add.
+        """
+        new_index = len(self.metadata)
+
+        # Add the row
+        self.beginInsertRows(QModelIndex(), new_index, new_index)
+        self.metadata.add_row(metadata_row)
+        self.endInsertRows()
+
+    def createCopyForConfig(self, config_name):
+        """Create a new copy of this metadata model containing only rows for a given config.
+        
+        Args:
+            config_name (str): Name of one of the unique configurations in the metadata.
+
+        Return:
+            PypeItMetadataModel: A deep copy of the meatdata matching the config_name
+        """
+        msgs.info(f"Creating new metadata for config {config_name}")
+
+        config_rows  = [ config_name in setup for setup in self.metadata.table['setup'] ]
+        return self.createCopyForRows(config_rows)
+    
+    def createCopyForRows(self, rows):
+        """Createa a new copy of this metadata model containing only a given set of rows.
+        
+        Args:
+            rows (list): A list of the indexes of the rows to include in the copy.
+
+        Return:
+            PypeItMetadataModel: A deep copy of the meatdata in the given rows.
+        """
+        table_copy = self.metadata.table[rows].copy(True)                
+        copy = PypeItMetadataModel(metadata=PypeItMetaData(self.metadata.spectrograph, self.metadata.par, data=table_copy))
+        return copy
+    
+    def getPathsModel(self):
+        """Returns a model for displaying the paths in this metadata.
+        
+        Return:
+            PypeItMetadataUniquePathsProxy: A proxy model that only contains the unique 'directory' 
+                                            entries of this metadata.
+        """
+        return PypeItMetadataUniquePathsProxy(self)
+
 
 class _UserConfigTreeNode:
     """
@@ -876,11 +992,8 @@ class PypeItFileModel(QObject):
         # arbitrary order chosen by the dict
         self.config_values = [(key, config_dict[key]) for key in self._spectrograph.configuration_keys()]
 
-        # Create a new proxy metadata model 
-        self.metadata_proxy_model = PypeItMetadataProxy(metadata_model)
-
         # A paths model for the paths in this PypeIt file
-        self.paths_model = PypeItMetadataUniquePathsProxy(metadata_model)
+        self.paths_model = metadata_model.getPathsModel()
 
     @property
     def filename(self):
@@ -939,8 +1052,7 @@ class PypeItSetupModel(QObject):
         super().__init__()
         self._spectrograph = None
         self._pypeit_setup = None
-        self.metadata_model = PypeItMetadataModel()
-        self.obslog_model = PypeItMetadataProxy(self.metadata_model)
+        self.metadata_model = PypeItMetadataModel(None)
         self.paths_model = QStringListModel()
         self.raw_data_files = []
         self.pypeit_files = dict()
@@ -1148,7 +1260,7 @@ class PypeItSetupModel(QObject):
         pf_model = PypeItFileModel(new_name, 
                                    config_dict, 
                                    self._spectrograph, 
-                                   model.getCopyForNewConfig(selectedRows, new_name),
+                                   model.createCopyForRows(selectedRows),
                                    PypeItParamsProxy(self._pypeit_setup),
                                    state=ModelState.NEW)
 
@@ -1190,7 +1302,7 @@ class PypeItSetupModel(QObject):
             pf_model = PypeItFileModel(config_name, 
                                        unique_configs[config_name], 
                                        self._spectrograph, 
-                                       self.metadata_model.getCopyForConfig(config_name),
+                                       self.metadata_model.createCopyForConfig(config_name),
                                        PypeItParamsProxy(self._pypeit_setup),
                                        state=state)
 
