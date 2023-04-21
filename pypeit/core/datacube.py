@@ -770,7 +770,7 @@ def make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_i
     coord_dlt = refwcs.wcs.cdelt
     coord_min[2] = np.min(all_wave)
     coord_dlt[2] = np.max(all_wave) - np.min(all_wave)  # For white light, we want to bin all wavelength pixels
-    wlwcs = generate_masterWCS(coord_min, coord_dlt)
+    wlwcs = generate_WCS(coord_min, coord_dlt)
 
     # Generate white light images
     whitelight_imgs, _, _ = make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
@@ -827,7 +827,7 @@ def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, al
         # Generate a master 2D WCS to register all frames
         coord_min = [np.min(all_ra), np.min(all_dec), np.min(all_wave)]
         coord_dlt = [dspat, dspat, np.max(all_wave) - np.min(all_wave)]
-        whitelightWCS = generate_masterWCS(coord_min, coord_dlt)
+        whitelightWCS = generate_WCS(coord_min, coord_dlt)
 
         # Generate coordinates
         cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
@@ -873,7 +873,70 @@ def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, al
     return whitelight_Imgs, whitelight_ivar, whitelightWCS
 
 
-def generate_masterWCS(crval, cdelt, equinox=2000.0, name="Instrument Unknown"):
+def create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv, equinox=2000.0, specname="PYP_SPEC"):
+    """
+    Create a WCS and the expected edges of the voxels, based on user-specified parameters
+    or the extremities of the data.
+
+
+    Args:
+        cubepar (:class:`~pypeit.par.pypeitpar.CubePar`):
+            An instance of the CubePar parameter set, contained parameters of the datacube reduction
+        all_ra (`numpy.ndarray`_):
+            1D flattened array containing the RA values of each pixel from all spec2d files
+        all_dec (`numpy.ndarray`_):
+            1D flattened array containing the DEC values of each pixel from all spec2d files
+        all_wave (`numpy.ndarray`_):
+            1D flattened array containing the wavelength values of each pixel from all spec2d files
+        dspat (float):
+            Spatial size of each square voxel (in arcsec)
+        dwv (float):
+            Linear wavelength step of each voxel (in Angstroms)
+        equinox (float, optional):
+            Equinox of the WCS
+        specname (str, optional):
+            Name of the spectrograph
+
+    Returns:
+        cubewcs (`astropy.wcs.wcs.WCS`_):
+            astropy WCS to be used for the combined cube
+        voxedges (tuple) :
+            A three element tuple containing the bin edges in the x, y (spatial) and z (wavelength) dimensions
+    """
+    # Setup the cube ranges
+    ra_min = cubepar['ra_min'] if cubepar['ra_min'] is not None else np.min(all_ra)
+    ra_max = cubepar['ra_max'] if cubepar['ra_max'] is not None else np.max(all_ra)
+    dec_min = cubepar['dec_min'] if cubepar['dec_min'] is not None else np.min(all_dec)
+    dec_max = cubepar['dec_max'] if cubepar['dec_max'] is not None else np.max(all_dec)
+    wav_min = cubepar['wave_min'] if cubepar['wave_min'] is not None else np.min(all_wave)
+    wav_max = cubepar['wave_max'] if cubepar['wave_max'] is not None else np.max(all_wave)
+    dwave = cubepar['wave_delta'] if cubepar['wave_delta'] is not None else dwv
+
+    # Generate a master WCS to register all frames
+    coord_min = [ra_min, dec_min, wav_min]
+    coord_dlt = [dspat, dspat, dwave]
+    cubewcs = cubeWCS(coord_min, coord_dlt, equinox=equinox, name=specname)
+    msgs.info(msgs.newline() + "-" * 40 +
+              msgs.newline() + "Parameters of the WCS:" +
+              msgs.newline() + "RA   min, max = {0:f}, {1:f}".format(ra_min, ra_max) +
+              msgs.newline() + "DEC  min, max = {0:f}, {1:f}".format(dec_min, dec_max) +
+              msgs.newline() + "WAVE min, max = {0:f}, {1:f}".format(wav_min, wav_max) +
+              msgs.newline() + "Spaxel size = {0:f} arcsec".format(3600.0*dspat) +
+              msgs.newline() + "Wavelength step = {0:f} A".format(dwave) +
+              msgs.newline() + "-" * 40)
+
+    # Generate the output binning
+    numra = int((ra_max-ra_min) * cosdec / dspat)
+    numdec = int((dec_max-dec_min)/dspat)
+    numwav = int((wav_max-wav_min)/dwave)
+    xbins = np.arange(1+numra)-0.5
+    ybins = np.arange(1+numdec)-0.5
+    spec_bins = np.arange(1+numwav)-0.5
+    voxedges = (xbins, ybins, spec_bins)
+    return cubewcs, voxedges
+
+
+def generate_WCS(crval, cdelt, equinox=2000.0, name="PYP_SPEC"):
     """
     Generate a WCS that will cover all input spec2D files
 
@@ -884,14 +947,14 @@ def generate_masterWCS(crval, cdelt, equinox=2000.0, name="Instrument Unknown"):
         cdelt (list):
             3 element list containing the delta values of the [RA,
             DEC, WAVELENGTH]
-        equinox (float):
+        equinox (float, optional):
             Equinox of the WCS
 
     Returns:
         `astropy.wcs.wcs.WCS`_ : astropy WCS to be used for the combined cube
     """
     # Create a new WCS object.
-    msgs.info("Generating Master WCS")
+    msgs.info("Generating WCS")
     w = wcs.WCS(naxis=3)
     w.wcs.equinox = equinox
     w.wcs.name = name
@@ -957,7 +1020,7 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
     # Generate a master 2D WCS to register all frames
     coord_min = [np.min(all_ra), np.min(all_dec), np.min(all_wave)]
     coord_dlt = [dspat, dspat, dwv]
-    whitelightWCS = generate_masterWCS(coord_min, coord_dlt)
+    whitelightWCS = generate_WCS(coord_min, coord_dlt)
     # Make the bin edges to be at +/- 1 pixels around the maximum (i.e. summing 9 pixels total)
     numwav = int((np.max(all_wave) - np.min(all_wave)) / dwv)
     xbins = np.array([idx_max[0]-1, idx_max[0]+2]) - 0.5
@@ -1045,13 +1108,31 @@ def generate_image_subpixel(image_wcs, all_sci, all_ivar, all_wghts, all_wave,
             What is the subpixellation factor in the spatial direction. Higher values give more reliable results,
             but note that the time required goes as (spec_subpixel * spat_subpixel). The default value is 5,
             which divides each detector pixel into 5 subpixels in the spatial direction.
-    """
-    # Subpixellate
-    subpix = subpixellate(output_wcs, all_sci, all_ivar, all_wghts, all_wave,
-                          slitid_img_gpm, tilts, slits, astrom_trans, bins, all_idx=all_idx,
-                          spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
 
-    return wlimgs
+    Returns:
+        all_wl_imgs (`numpy.ndarray`_): The white light images for all frames
+    """
+    # Perform some checks on the input -- note, more complete checks are performed in subpixellate()
+    _all_idx = np.zeros(all_sci.size) if all_idx is None else all_idx
+    numfr = np.unique(_all_idx).size
+    if len(slitid_img_gpm) != numfr or len(tilts) != numfr or len(slits) != numfr or len(astrom_trans) != numfr:
+        msgs.error("The following arguments must be the same length as the expected number of frames to be combined:"
+                   + msgs.newline() + "tilts, slits, astrom_trans, slitid_img_gpm")
+    # Prepare the array of white light images to be stored
+    numra = bins[0].size-1
+    numdec = bins[1].size-1
+    all_wl_imgs = np.zeros((numra, numdec, numfr))
+
+    # Loop through all frames and generate white light images
+    for fr in range(numfr):
+        ww = np.where(_all_idx == fr)
+        # Subpixellate
+        img, _, _ = subpixellate(image_wcs, all_sci[ww], all_ivar[ww], all_wghts[ww], all_wave[ww],
+                                 slitid_img_gpm[fr], tilts[fr], slits[fr], astrom_trans[fr], bins,
+                                 spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
+        all_wl_imgs[:, :, fr] = img[:, :, 0]
+    # Return the constructed white light images
+    return all_wl_imgs
 
 
 def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, all_wave,
@@ -1228,6 +1309,12 @@ def subpixellate(output_wcs, all_sci, all_ivar, all_wghts, all_wave,
         debug (bool):
             If True, a residuals cube will be output. If the datacube generation is correct, the
             distribution of pixels in the residual cube with no flux should have mean=0 and std=1.
+
+    Returns:
+        datacube (`numpy.ndarray`_): The datacube generated from the subpixellated inputs
+        varcube (`numpy.ndarray`_): The corresponding variance cube
+        bpmcube (`numpy.ndarray`_): The corresponding bad pixel mask cube
+        residcube (`numpy.ndarray`_): If debug=True, the resid cube is also returned.
     """
     # Check for combinations of lists or not
     if type(tilts) is list and type(slits) is list and type(astrom_trans) is list and type(slitid_img_gpm) is list:
@@ -1943,8 +2030,6 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     # Grab cos(dec) for convenience
     cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
 
-    # Setup the WCS
-
     # Register spatial offsets between all frames
     # Check if a reference whitelight image should be used to register the offsets
     numiter = 2
@@ -1953,14 +2038,20 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         if cubepar["reference_image"] is None:
             # Find the wavelength range where all frames overlap
             min_wl, max_wl = np.max(mnmx_wv[:,:,0]), np.min(mnmx_wv[:,:,1])  # This is the max blue wavelength and the min red wavelength
+            wavediff = np.max(all_wave) - np.min(all_wave)
             # Generate white light images
             if min_wl < max_wl:
                 ww = np.where((all_wave > min_wl) & (all_wave < max_wl))
+                wavediff = max_wl - min_wl
             else:
                 msgs.warn("Datacubes do not completely overlap in wavelength. Offsets may be unreliable...")
-                ww = np.where((all_wave > 0) & (all_wave < 99999999))
-            generate_image_subpixel(image_wcs, all_sci, all_ivar, all_wghts, all_wave,
-                                    all_slimg, all_tilts, all_slits, all_align, wl_bins, all_idx=None,
+                ww = (np.arange(all_wave.size),)
+
+            # Setup the WCS for the white light images
+            image_wcs, voxedge = create_wcs(cubepar, all_ra[ww], all_dec[ww], all_wave[ww], dspat, wavediff)
+
+            generate_image_subpixel(image_wcs, all_sci[ww], all_ivar[ww], all_wghts[ww], all_wave[ww],
+                                    all_slimg, all_tilts, all_slits, all_align, voxedge, all_idx=all_idx[ww],
                                     spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
 
 
@@ -2029,50 +2120,22 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         img_hdu = fits.PrimaryHDU(whitelight_img.T, header=wlwcs.to_header())
         img_hdu.writeto(out_whitelight, overwrite=overwrite)
 
-    # Setup the cube ranges
-    ra_min = cubepar['ra_min'] if cubepar['ra_min'] is not None else np.min(all_ra)
-    ra_max = cubepar['ra_max'] if cubepar['ra_max'] is not None else np.max(all_ra)
-    dec_min = cubepar['dec_min'] if cubepar['dec_min'] is not None else np.min(all_dec)
-    dec_max = cubepar['dec_max'] if cubepar['dec_max'] is not None else np.max(all_dec)
-    wav_min = cubepar['wave_min'] if cubepar['wave_min'] is not None else np.min(all_wave)
-    wav_max = cubepar['wave_max'] if cubepar['wave_max'] is not None else np.max(all_wave)
-    if cubepar['wave_delta'] is not None: dwv = cubepar['wave_delta']
-
-    # Generate a master WCS to register all frames
-    coord_min = [ra_min, dec_min, wav_min]
-    coord_dlt = [dspat, dspat, dwv]
-    masterwcs = generate_masterWCS(coord_min, coord_dlt, name=specname)
-    msgs.info(msgs.newline() + "-" * 40 +
-              msgs.newline() + "Parameters of the WCS:" +
-              msgs.newline() + "RA   min, max = {0:f}, {1:f}".format(ra_min, ra_max) +
-              msgs.newline() + "DEC  min, max = {0:f}, {1:f}".format(dec_min, dec_max) +
-              msgs.newline() + "WAVE min, max = {0:f}, {1:f}".format(wav_min, wav_max) +
-              msgs.newline() + "Spaxel size = {0:f} arcsec".format(3600.0*dspat) +
-              msgs.newline() + "Wavelength step = {0:f} A".format(dwv) +
-              msgs.newline() + "-" * 40)
-
-    # Generate the output binning
-    numra = int((ra_max-ra_min) * cosdec / dspat)
-    numdec = int((dec_max-dec_min)/dspat)
-    numwav = int((wav_max-wav_min)/dwv)
-    xbins = np.arange(1+numra)-0.5
-    ybins = np.arange(1+numdec)-0.5
-    spec_bins = np.arange(1+numwav)-0.5
-    bins = (xbins, ybins, spec_bins)
+    # Generate the WCS, and the voxel edges
+    cubewcs, voxedge = create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv)
 
     # Make the cube
     msgs.info("Generating pixel coordinates")
-    pix_coord = masterwcs.wcs_world2pix(all_ra, all_dec, all_wave * 1.0E-10, 0)
-    hdr = masterwcs.to_header()
+    pix_coord = cubewcs.wcs_world2pix(all_ra, all_dec, all_wave * 1.0E-10, 0)
+    hdr = cubewcs.to_header()
 
     sensfunc = None
     if flux_spline is not None:
-        wcs_wav = masterwcs.wcs_pix2world(np.vstack((np.zeros(numwav), np.zeros(numwav), np.arange(numwav))).T, 0)
+        wcs_wav = cubewcs.wcs_pix2world(np.vstack((np.zeros(numwav), np.zeros(numwav), np.arange(numwav))).T, 0)
         senswave = wcs_wav[:, 2] * 1.0E10
         sensfunc = flux_spline(senswave)
 
     # Generate a datacube using nearest grid point (NGP)
     msgs.info("Generating data cube")
-    generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bins, overwrite=overwrite,
+    generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, voxedge, overwrite=overwrite,
                       blaze_wave=blaze_wave, blaze_spec=blaze_spec, sensfunc=sensfunc, fluxcal=fluxcal,
                       specname=specname)
