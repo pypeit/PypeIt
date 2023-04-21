@@ -2779,7 +2779,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
                 fluxes_2d_exps.flatten(), ivars_2d_exps.flatten(), out_gpms_2d_exps.flatten(),
                 flux_stack_2d_exps.flatten(), ivar_stack_2d_exps.flatten(), gpm_stack_2d_exps.flatten(), sn_clip=sn_clip)
             renormalize_errors_qa(outchi_1d_isetup, gpm_chi_1d_isetup, sigma_corrs_1d_isetup[0],
-                                  qafile=qafile_chi, title='Global Chi distribution for setup={:d}'.format(setup_ids[isetup]))
+                                  qafile=qafile_chi, title='Global Chi distribution for setup={:s}'.format(setup_ids[isetup]))
             fluxes_exps = np.append(fluxes_exps, fluxes_2d_exps.flatten())
             ivars_exps = np.append(ivars_exps, ivars_2d_exps.flatten())
             out_gpms_exps = np.append(out_gpms_exps, out_gpms_2d_exps.flatten())
