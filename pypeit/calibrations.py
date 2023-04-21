@@ -48,7 +48,7 @@ class Calibrations:
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph object
         caldir (:obj:`str`, `Path`_):
-            Path to write the output calibrations.
+            Path for the processed calibration files.
         qadir (:obj:`str`, optional):
             Path for quality assessment output.  If not provided, no QA
             plots are saved.
@@ -57,7 +57,7 @@ class Calibrations:
             disk if they exist.
         show (:obj:`bool`, optional):
             Show plots of PypeIt's results as the code progresses.  Requires
-            interaction from the users.
+            interaction from the user.
         user_slits (:obj:`dict`, optional):
             A limited set of slits selected by the user for analysis.  See
             :func:`~pypeit.slittrace.SlitTraceSet.user_mask`.
@@ -70,9 +70,9 @@ class Calibrations:
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             See instantiation arguments.
         calib_dir (`Path`_):
-            Path to write the output calibrations.
+            Path for the processed calibration files.
         qa_path (`Path`_):
-            Path to write the QA.
+            Path for the QA diagnostics.
         reuse_calibs (:obj:`bool`):
             See instantiation arguments.
         show (:obj:`bool`):
@@ -266,24 +266,20 @@ class Calibrations:
 
         Args:
             frame (:obj:`int`):
-                Frame index in the fitstbl
+                The row index in :attr:`fitstbl` with the frame to calibrate.
             det (:obj:`int`):
-                Detector number
+                Detector number.
             par (:class:`~pypeit.par.pypeitpar.CalibrationsPar`, optional):
                 Parameters used by the calibration procedures.  If None, use
                 :attr:`par`.
         """
-        # Reset internals to None
-        # NOTE: This sets calib_ID so must
-        # be done here first before these things are initialized below.
-
         # Initialize for this setup
         self.frame = frame
         # Find the calibration groups associated with this frame.  Note
         # find_frame_calib_groups *always* returns a list.  Science frames only
         # have one calibration group, but calibration frames can have many.  So
         # for both science and calibration frames, we just set the calibration
-        # group to the first in the returned list.
+        # group to the first group in the returned list.
         self.calib_ID = self.fitstbl.find_frame_calib_groups(self.frame)[0]
         self.det = det
         if par is not None:

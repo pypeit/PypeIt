@@ -33,7 +33,7 @@ Here is the code flow:
 .. https://github.com/treebeardtech/nbmake
 
 See the `WaveTilts Notebook
-<https://github.com/pypeit/pypeit/blob/release/doc/nb/WaveCalib.ipynb>`__ for
+<https://github.com/pypeit/pypeit/blob/release/doc/nb/WaveTilts.ipynb>`__ for
 some examples (BEWARE, this may be out of date).
 
 QA
