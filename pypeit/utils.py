@@ -11,6 +11,7 @@ import pickle
 import pathlib
 import itertools
 import glob
+import colorsys
 import collections.abc
 
 from IPython import embed
@@ -214,10 +215,10 @@ def array_to_explist(array, nspec_list):
 
     return explist
 
-
-def distinct_colors(n, cmap='hsv'):
+def distinct_colors(num_colors):
     """
     Return n distinct colors from the specified matplotlib colormap.
+    Taken from:  https://stackoverflow.com/questions/470690/how-to-automatically-generate-n-distinct-colors
 
     Args:
         n (int):
@@ -229,7 +230,15 @@ def distinct_colors(n, cmap='hsv'):
         `numpy.ndarray`_: An array with shape (n,3) with the RGB values for
         the requested number of colors.
     """
-    return plt.get_cmap(cmap)(np.linspace(0, 1.0, n))
+
+    colors = []
+    for i in np.arange(0., 360., 360. / num_colors):
+        hue = i / 360.
+        lightness = (50 + np.random.rand() * 10) / 100.
+        saturation = (90 + np.random.rand() * 10) / 100.
+        colors.append(colorsys.hls_to_rgb(hue, lightness, saturation))
+    return colors
+
 
 
 

@@ -270,10 +270,10 @@ class EchelleCoAdd1D(CoAdd1D):
         """
 
         # Load the data
-        self.waves, self.fluxes, self.ivars, self.gpms, self.weights_sens, self.setup_ids, self.headers = self.load()
+        self.waves, self.fluxes, self.ivars, self.gpms, self.weights_sens, self.headers = self.load()
         wave_grid_mid, (wave_coadd, flux_coadd, ivar_coadd, gpm_coadd), order_stacks \
                 = coadd.ech_combspec(self.waves, self.fluxes, self.ivars, self.gpms, self.weights_sens,
-                                     setup_ids=self.setup_ids,
+                                     setup_ids=self.unique_setups,
                                      nbests=self.par['nbests'],
                                      sn_smooth_npix=self.par['sn_smooth_npix'],
                                      wave_method=self.par['wave_method'],
@@ -344,10 +344,9 @@ class EchelleCoAdd1D(CoAdd1D):
             ivars.append(ivar)
             gpms.append(gpm)
             weights_sens.append(weight_sens)
-            setup_ids.append(np.array(self.setup_id)[setup_indx])
             headers.append(header_out)
 
 
-        return waves, fluxes, ivars, gpms, weights_sens, setup_ids, headers
+        return waves, fluxes, ivars, gpms, weights_sens, headers
 
 

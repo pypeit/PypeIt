@@ -2521,7 +2521,10 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     debug=True
     show=True
     show_exp=True
-    debug_scale=True
+    debug_global_stack=False
+    debug_order_stack=False
+    show_order_scale=False
+    #debug_scale=True
 
 
     if qafile is not None:
@@ -2537,9 +2540,8 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     if setup_ids is None:
         setup_ids = list(string.ascii_uppercase[:nsetups])
 
-
     setup_colors = utils.distinct_colors(nsetups)
-    embed()
+
     norders = []
     nexps = []
     nspecs = []
@@ -2614,7 +2616,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     #######################
     # Inter-order rescaling
     #######################
-
+    #debug_scale=True
     fluxes_scl_interord_setup_list, ivars_scl_interord_setup_list, scales_interord_setup_list = [], [], []
     for isetup in range(nsetups):
         fluxes_scl_interord_isetup, ivars_scl_interord_isetup, scales_interord_isetup = [], [], []
@@ -2641,6 +2643,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     # scale factors from higher S/N ratio. The point is it makes no sense to take 0.0/0.0. In the low S/N regime,
     # i.e. DLAs, GP troughs, we should be rescaling using scale factors from orders with signal. This also applies
     # to the echelle combine below.
+
 
     #######################
     # Global Recaling Computation -- Scale each setup/order/exp to match a preliminary global stack
@@ -2682,7 +2685,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     wave_final_stack, flux_final_stack, ivar_final_stack, gpm_final_stack, nused_final_stack, out_gpms_concat = \
         spec_reject_comb(wave_grid, wave_grid_mid, waves_concat, fluxes_scale_concat, ivars_scale_concat, gpms_concat,
                          weights_concat, sn_clip=sn_clip, lower=lower, upper=upper, maxrej=maxrej,
-                         maxiter_reject=maxiter_reject, debug=debug)
+                         maxiter_reject=maxiter_reject, debug=debug_global_stack)
 
     # Generate setup_lists and  arr_setup for some downstream computations
     fluxes_scale_setup_list = utils.concat_to_setup_list(fluxes_scale_concat, norders, nexps)
@@ -2694,7 +2697,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
 
 
     ############################
-    # Order Stack computation -- These are returned, but currently not used for anything.
+    # Order Stack computation -- These are returned. CURRENTLY NOT USED FOR ANYTHING
     ############################
     #show_order_stacks=True
     waves_order_stack_setup, fluxes_order_stack_setup, ivars_order_stack_setup, gpms_order_stack_setup = [], [], [], []
@@ -2709,7 +2712,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
                 wave_grid, wave_grid_mid, waves_setup_list[isetup][ind_start:ind_end],
                 fluxes_scale_setup_list[isetup][ind_start:ind_end], ivars_scale_setup_list[isetup][ind_start:ind_end],
                 gpms_setup_list[isetup][ind_start:ind_end], weights_setup_list[isetup][ind_start:ind_end],
-                sn_clip=sn_clip, lower=lower, upper=upper, maxrej=maxrej, maxiter_reject=maxiter_reject, debug=debug,
+                sn_clip=sn_clip, lower=lower, upper=upper, maxrej=maxrej, maxiter_reject=maxiter_reject, debug=debug_order_stack,
                 title='order_stacks')
             waves_order_stack.append(wave_order_stack_iord)
             fluxes_order_stack.append(flux_order_stack_iord)
@@ -2761,8 +2764,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
                     # plot the residual distribution
                     msgs.info('QA plots for exposure {:} with new_sigma = {:}'.format(iexp, sigma_corrs_2d_exps[iexp]))
                     # plot the residual distribution for each exposure
-                    title_renorm = 'ech_combspec: Error distribution about stack for exposure {:d}/{:d} for setup={:s}'.format(
-                        iexp, nexps[isetup], setup_ids[isetup])
+                    title_renorm = 'ech_combspec: Error distribution about stack for exposure {:d}/{:d} for setup={:s}'.format(iexp, nexps[isetup], setup_ids[isetup])
                     renormalize_errors_qa(outchi_2d_exps[:, iexp], gpm_chi_2d_exps[:, iexp], sigma_corrs_2d_exps[iexp],
                                           title=title_renorm)
                     title_coadd_iexp = 'ech_combspec: nrej={:d} pixels rejected,'.format(nrej[iexp]) + \
