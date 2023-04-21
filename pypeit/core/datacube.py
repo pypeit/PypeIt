@@ -1097,12 +1097,23 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
         if len(slits) != numframes or len(astrom_trans) != numframes or len(slitid_img_gpm) != numframes:
             msgs.error("The following lists must have the same length:" + msgs.newline() +
                        "tilts, slits, astrom_trans, slitid_img_gpm")
+        # Check all_idx has been set
+        if all_idx is None:
+            if numframes != 1:
+                msgs.error("Missing required argument for combining frames: all_idx")
+            else:
+                all_idx = np.zeros(all_sci.size)
+        else:
+            tmp = np.unique(all_idx).size
+            if tmp != numframes:
+                msgs.warn("Indices in argument 'all_idx' does not match the number of frames expected.")
         # Store in the following variables
         _tilts, _slits, _astrom_trans, _slitid_img_gpm = tilts, slits, astrom_trans, slitid_img_gpm
     elif type(tilts) is not list and type(slits) is not list and \
             type(astrom_trans) is not list and type(slitid_img_gpm) is not list:
         # Just a single frame - store as lists for this code
         _tilts, _slits, _astrom_trans, _slitid_img_gpm = [tilts], [slits], [astrom_trans], [slitid_img_gpm]
+        all_idx = np.zeros(all_sci.size)
         numframes = 1
     else:
         msgs.error("The following input arguments should all be of type 'list', or all not be type 'list':" +
@@ -1122,16 +1133,19 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
     all_var = utils.inverse(all_ivar)
     # Loop through all exposures
     for fr in range(numframes):
+        this_slitid_img = _slitid_img_gpm[fr]
+        this_tilts = _tilts[fr]
+        this_slits = _slits[fr]
         # Loop through all slits
-        all_sltid = slitid_img_gpm[(slitid_img_gpm > 0)]
+        all_sltid = this_slitid_img[(this_slitid_img > 0)]  # TODO :: This assumes that all_sci is the same length as all_sltid (it should be, but maybe implement something that ensures this)
         wave0, wave_delta = output_wcs.wcs.crval[2], output_wcs.wcs.cd[2, 2]
-        for sl, spatid in enumerate(slits.spat_id):
-            msgs.info(f"Resampling slit {sl+1}/{slits.nslits} of frame {fr+1}/{numframes} into the final datacube")
-            this_sl = np.where(all_sltid == spatid)
-            wpix = np.where(slitid_img_gpm == spatid)
+        for sl, spatid in enumerate(this_slits.spat_id):
+            msgs.info(f"Resampling slit {sl+1}/{this_slits.nslits} of frame {fr+1}/{numframes} into the final datacube")
+            this_sl = np.where((all_sltid == spatid) & (all_idx == fr))
+            wpix = np.where(this_slitid_img == spatid)
             slitID = np.ones(wpix[0].size*num_subpixels) * sl - output_wcs.wcs.crpix[0]
             # Generate a spline between spectral pixel position and wavelength
-            yspl = tilts[wpix]*(slits.nspec - 1)
+            yspl = this_tilts[wpix]*(this_slits.nspec - 1)
             wspl = all_wave[this_sl]
             asrt = np.argsort(yspl)
             wave_spl = interp1d(yspl[asrt], wspl[asrt], kind='linear', bounds_error=False, fill_value='extrapolate')
@@ -1139,9 +1153,9 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
             spat_xx = np.add.outer(wpix[1], spat_x.flatten()).flatten()
             spec_yy = np.add.outer(wpix[0], spec_y.flatten()).flatten()
             # Transform this to spatial location
-            spatpos = astrom_trans.transform(sl, spat_xx, spec_yy)
+            spatpos = _astrom_trans[fr].transform(sl, spat_xx, spec_yy)
             # Calculate the tilt position of each subpixel and transform this to the wave bin
-            tiltpos = np.add.outer(tilts[wpix] * (slits.nspec - 1), spec_y).flatten()
+            tiltpos = np.add.outer(this_tilts[wpix] * (this_slits.nspec - 1), spec_y).flatten()
             specpos = (wave_spl(tiltpos) - wave0) / wave_delta
             # Stack of coordinates, and histogram
             pix_coord = np.column_stack((slitID, spatpos, specpos))
@@ -1451,6 +1465,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     # Initialise arrays for storage
     all_ra, all_dec, all_wave = np.array([]), np.array([]), np.array([])
     all_sci, all_ivar, all_idx, all_wghts = np.array([]), np.array([]), np.array([]), np.array([])
+    all_slimg, all_tilts, all_slits, all_align = [], [], [], []
     all_wcs = []
     dspat = None if cubepar['spatial_delta'] is None else cubepar['spatial_delta']/3600.0  # binning size on the sky (/3600 to convert to degrees)
     dwv = cubepar['wave_delta']       # binning size in wavelength direction (in Angstroms)
@@ -1516,14 +1531,6 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=spat_flexure)
         slits_left, slits_right, _ = slits.select_edges(initial=True, flexure=spat_flexure)
 
-        # Load the wavelength calibration
-        masterframe_name = masterframe.construct_file_name(wavecalib.WaveCalib, hdr['TRACMKEY'], master_dir=hdr['PYPMFDIR'])
-        if os.path.isfile(masterframe_name):
-            wv_calib = wavecalib.WaveCalib.from_file(masterframe_name)
-        else:
-            # TODO :: Need to think about what to do about this...
-            msgs.error("NEED TO THINK ABOUT THIS")
-
         # Try to load the relative scale image, if something other than the default has been provided
         relScaleImg = relScaleImgDef.copy()
         if opts['scale_corr'][ff] is not None:
@@ -1579,11 +1586,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         relscl = 1.0
         if cubepar['scale_corr'] is not None or opts['scale_corr'][ff] is not None:
             relscl = spec2DObj.scaleimg/relScaleImg
-        # TODO :: unset this debug here
-        debug = True
         sciimg = (spec2DObj.sciimg-skysubImg)*relscl  # Subtract sky
-        if debug:
-            sciimg = spec2DObj.sciimg * relscl  # Subtract sky
         ivar = spec2DObj.ivarraw / relscl**2
         waveimg = spec2DObj.waveimg
         bpmmask = spec2DObj.bpmmask
@@ -1798,10 +1801,9 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                 # Get the slit image and then unset pixels in the slit image that are bad
                 slitid_img_gpm = slitid_img_init.copy()
                 slitid_img_gpm[(bpmmask.mask != 0) | (~sky_is_good)] = 0
-                fakeidx = np.zeros(numpix, dtype=int)
                 generate_cube_subpixel(outfile, output_wcs, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix),
-                                       wave_ext, fakeidx, slitid_img_gpm, spec2DObj.tilts, slits, alignSplines, bins,
-                                       overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
+                                       wave_ext, slitid_img_gpm, spec2DObj.tilts, slits, alignSplines, bins,
+                                       all_idx=None, overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
                                        fluxcal=fluxcal, specname=specname, save_whitelight=cubepar['save_whitelight'],
                                        whitelight_range=wl_wvrng, whitelight_wcs=wl_wcs,
                                        spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
@@ -1815,7 +1817,10 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         all_ivar = np.append(all_ivar, ivar_sav[resrt].copy())
         all_idx = np.append(all_idx, ff*np.ones(numpix))
         all_wghts = np.append(all_wghts, weights[ff]*np.ones(numpix)/weights[0])
-
+        all_slimg.append(slitid_img_gpm)
+        all_tilts.append(spec2DObj.tilts)
+        all_slits.append(slits)
+        all_align.append(alignSplines)
     # No need to continue if we are not combining frames
     if not combine:
         return
