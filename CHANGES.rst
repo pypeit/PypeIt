@@ -8,8 +8,8 @@
 - Deprecate use of python 3.8 with PypeIt, allow python 3.11
 - Make pypeit_show_2dspec (somewhat) backwards compatible.
 - Added the option to disable strict version checking for 1d coadds.
-- Sensitivity function masking and output updates
 - Hotfix for KCWI when using alignment (aka ContBars) frames for the astrometric correction.
+- Sensitivity function masking and output updates
 - Calibration group numbers can now be anything, as long as there are no more
   than 63 unique integers.
 - Removed use of the term "master", renamed to calibration frames/files.
@@ -24,6 +24,7 @@
 - The ``'calib'`` column is now always added to the pypeit file, regardless of
   whether or not you also request the ``'comb_id'`` and ``'bkg_id'`` columns.
 - Names of associated calibration frames now written to ``spec2d`` file headers.
+- Major quicklook updates.  ql_multislit.py temporarily deprecated.
 - Updates to reduction parameters for LDT/DeVeny
 
 1.12.2 (29 Mar 2023)

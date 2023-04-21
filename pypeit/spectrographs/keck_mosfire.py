@@ -699,39 +699,40 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-#    def parse_dither_pattern(self, file_list, ext=None):
-#        """
-#        Parse headers from a file list to determine the dither pattern.
-#
-#        Parameters
-#        ----------
-#        file_list (list of strings):
-#            List of files for which dither pattern is desired
-#        ext (int, optional):
-#            Extension containing the relevant header for these files. Default=None. If None, code uses
-#            self.primary_hdrext
-#
-#        Returns
-#        -------
-#        dither_pattern, dither_id, offset_arcsec
-#
-#        dither_pattern (str `numpy.ndarray`_):
-#            Array of dither pattern names
-#        dither_id (str `numpy.ndarray`_):
-#            Array of dither pattern IDs
-#        offset_arc (float `numpy.ndarray`_):
-#            Array of dither pattern offsets
-#        """
-#        nfiles = len(file_list)
-#        offset_arcsec = np.zeros(nfiles)
-#        dither_pattern = []
-#        dither_id = []
-#        for ifile, file in enumerate(file_list):
-#            hdr = fits.getheader(file, self.primary_hdrext if ext is None else ext)
-#            dither_pattern.append(hdr['PATTERN'])
-#            dither_id.append(hdr['FRAMEID'])
-#            offset_arcsec[ifile] = hdr['YOFFSET']
-#        return np.array(dither_pattern), np.array(dither_id), np.array(offset_arcsec)
+    # TODO: Is this supposed to be deprecated in favor of get_comb_group?
+    def parse_dither_pattern(self, file_list, ext=None):
+        """
+        Parse headers from a file list to determine the dither pattern.
+
+        Parameters
+        ----------
+        file_list (list of strings):
+            List of files for which dither pattern is desired
+        ext (int, optional):
+            Extension containing the relevant header for these files. Default=None. If None, code uses
+            self.primary_hdrext
+
+        Returns
+        -------
+        dither_pattern, dither_id, offset_arcsec
+
+        dither_pattern (str `numpy.ndarray`_):
+            Array of dither pattern names
+        dither_id (str `numpy.ndarray`_):
+            Array of dither pattern IDs
+        offset_arc (float `numpy.ndarray`_):
+            Array of dither pattern offsets
+        """
+        nfiles = len(file_list)
+        offset_arcsec = np.zeros(nfiles)
+        dither_pattern = []
+        dither_id = []
+        for ifile, file in enumerate(file_list):
+            hdr = fits.getheader(file, self.primary_hdrext if ext is None else ext)
+            dither_pattern.append(hdr['PATTERN'])
+            dither_id.append(hdr['FRAMEID'])
+            offset_arcsec[ifile] = hdr['YOFFSET']
+        return np.array(dither_pattern), np.array(dither_id), np.array(offset_arcsec)
 
     def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table, debug=False):
         """
