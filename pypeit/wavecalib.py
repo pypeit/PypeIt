@@ -872,16 +872,16 @@ class BuildWaveCalib:
                 self.wv_calib.det_img = self.msarc.det_img.copy()
 
             # Try a second attempt with 1D, if needed
-            if np.any(bad_rms):
-                for bad_slit in np.where(bad_rms)[0]:
-                    embed(header='877 of wavecalib')
+            #if np.any(bad_rms):
+                #for bad_slit in np.where(bad_rms)[0]:
+                    #embed(header='877 of wavecalib')
                     # TODO -- just run solve_xcorr
                     # Generate a better guess at wavelengths
-                    patt_dict, final_fit = autoid.echelle_wvcalib(
-                        arccen, order_vec, arcspec_arxiv, wave_soln_arxiv,
-                        self.lamps, self.par, ok_mask=ok_mask_idx,
-                        nonlinear_counts=self.nonlinear_counts,
-                        debug_all=False, redo_slit=self.slits.ech_order[bad_slit])
+                    #patt_dict, final_fit = autoid.echelle_wvcalib(
+                    #    arccen, order_vec, arcspec_arxiv, wave_soln_arxiv,
+                    #    self.lamps, self.par, ok_mask=ok_mask_idx,
+                    #    nonlinear_counts=self.nonlinear_counts,
+                    #    debug_all=False, redo_slit=self.slits.ech_order[bad_slit])
 
         # Deal with mask
         self.update_wvmask()
