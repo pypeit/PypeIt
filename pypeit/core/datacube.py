@@ -1249,7 +1249,8 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
         msgs.info("White light image covers the wavelength range {0:.2f} A - {1:.2f} A".format(
             whitelight_range[0], whitelight_range[1]))
         out_whitelight = get_output_whitelight_filename(outfile)
-        wave = wave0 + wave_delta * np.arange(datacube.shape[2])
+        nspec = datacube.shape[2]
+        wave = output_wcs.wcs_pix2world(np.vstack((np.zeros(nspec), np.zeros(nspec), np.arange(nspec))).T, 0)[:, 2]
         whitelight_img = make_whitelight_fromcube(datacube, wave=wave, wavemin=whitelight_range[0], wavemax=whitelight_range[1])
         msgs.info("Saving white light image as: {0:s}".format(out_whitelight))
         img_hdu = fits.PrimaryHDU(whitelight_img.T, header=whitelight_wcs.to_header())
