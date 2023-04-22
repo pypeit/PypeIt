@@ -1136,7 +1136,7 @@ def generate_image_subpixel(image_wcs, all_sci, all_ivar, all_wghts, all_wave, a
         img, _, _ = subpixellate(image_wcs, all_sci[ww], all_ivar[ww], all_wghts[ww], all_wave[ww], all_spatpos[ww],
                                  all_specpos[ww], all_spatid[ww], tilts[fr], slits[fr], astrom_trans[fr], bins,
                                  spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
-        all_wl_imgs[:, :, fr] = img[:, :, 0]
+        all_wl_imgs[:, :, fr] = img
     # Return the constructed white light images
     return all_wl_imgs
 
@@ -1684,7 +1684,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     # Initialise arrays for storage
     all_ra, all_dec, all_wave = np.array([]), np.array([]), np.array([])
     all_sci, all_ivar, all_idx, all_wghts = np.array([]), np.array([]), np.array([]), np.array([])
-    all_spatpos, all_specpos, all_spatid = np.array([]), np.array([]), np.array([])
+    all_spatpos, all_specpos, all_spatid = np.array([], dtype=int), np.array([], dtype=int), np.array([], dtype=int)
     all_tilts, all_slits, all_align = [], [], []
     all_wcs = []
     dspat = None if cubepar['spatial_delta'] is None else cubepar['spatial_delta']/3600.0  # binning size on the sky (/3600 to convert to degrees)
