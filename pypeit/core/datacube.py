@@ -931,7 +931,7 @@ def create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv, equinox=2000.0, s
     # Generate the output binning
     numra = int((ra_max-ra_min) * cosdec / dspat)
     numdec = int((dec_max-dec_min)/dspat)
-    numwav = int((wav_max-wav_min)/dwave)
+    numwav = int(np.round((wav_max-wav_min)/dwave))
     xbins = np.arange(1+numra)-0.5
     ybins = np.arange(1+numdec)-0.5
     spec_bins = np.arange(1+numwav)-0.5
@@ -1136,7 +1136,7 @@ def generate_image_subpixel(image_wcs, all_sci, all_ivar, all_wghts, all_wave, a
         img, _, _ = subpixellate(image_wcs, all_sci[ww], all_ivar[ww], all_wghts[ww], all_wave[ww], all_spatpos[ww],
                                  all_specpos[ww], all_spatid[ww], tilts[fr], slits[fr], astrom_trans[fr], bins,
                                  spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
-        all_wl_imgs[:, :, fr] = img
+        all_wl_imgs[:, :, fr] = img[:, :, 0]
     # Return the constructed white light images
     return all_wl_imgs
 
@@ -1401,6 +1401,9 @@ def subpixellate(output_wcs, all_sci, all_ivar, all_wghts, all_wave, all_spatpos
             specpos = (wave_spl(tiltpos) - wave0) / wave_delta
             # Stack of coordinates, and histogram
             pix_coord = np.column_stack((slitID, spatpos, specpos))
+            # TODO :: Need to make it possible to convert the ra/dec/wave of each pixel into the pix_coord... something like the following
+            pix_coord = whitelightWCS.wcs_world2pix(np.vstack((all_ra[ww], all_dec[ww], all_wave[ww] * 1.0E-10)).T, 0)
+
             tmp_dc, _ = np.histogramdd(pix_coord, bins=bins, weights=np.repeat(all_sci[this_sl] * all_wght_subpix[this_sl], num_subpixels))
             tmp_vr, _ = np.histogramdd(pix_coord, bins=bins, weights=np.repeat(all_var[this_sl] * all_wght_subpix[this_sl]**2, num_subpixels))
             tmp_nm, _ = np.histogramdd(pix_coord, bins=bins, weights=np.repeat(all_wght_subpix[this_sl], num_subpixels))
@@ -2069,7 +2072,9 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
             # Setup the WCS for the white light images
             image_wcs, voxedge = create_wcs(cubepar, all_ra[ww], all_dec[ww], all_wave[ww], dspat, wavediff)
-
+            embed()
+            if voxedge[2].size != 2:
+                msgs.error("Spectral range for WCS is incorrect")
             wl_imgs = generate_image_subpixel(image_wcs, all_sci[ww], all_ivar[ww], all_wghts[ww], all_wave[ww],
                                               all_spatpos, all_specpos, all_spatid, all_tilts, all_slits, all_align,
                                               voxedge, all_idx=all_idx[ww],
