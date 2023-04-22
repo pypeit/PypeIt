@@ -1250,7 +1250,8 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
             whitelight_range[0], whitelight_range[1]))
         out_whitelight = get_output_whitelight_filename(outfile)
         nspec = datacube.shape[2]
-        wave = output_wcs.wcs_pix2world(np.vstack((np.zeros(nspec), np.zeros(nspec), np.arange(nspec))).T, 0)[:, 2]
+        # Get wavelength of each pixel, and note that the WCS gives this in m, so convert to Angstroms (x 1E10)
+        wave = 1.0E10 * output_wcs.wcs_pix2world(np.vstack((np.zeros(nspec), np.zeros(nspec), np.arange(nspec))).T, 0)[:, 2]
         whitelight_img = make_whitelight_fromcube(datacube, wave=wave, wavemin=whitelight_range[0], wavemax=whitelight_range[1])
         msgs.info("Saving white light image as: {0:s}".format(out_whitelight))
         img_hdu = fits.PrimaryHDU(whitelight_img.T, header=whitelight_wcs.to_header())
@@ -1370,11 +1371,13 @@ def subpixellate(output_wcs, all_sci, all_ivar, all_wghts, all_wave, all_spatpos
     all_var = utils.inverse(all_ivar)
     # Loop through all exposures
     for fr in range(numframes):
+        # Extract tilts and slits for convenience
         this_tilts = _tilts[fr]
         this_slits = _slits[fr]
-        # Loop through all slits
-        wav_wcs = output_wcs.wcs_pix2world(np.vstack((np.zeros(2), np.zeros(2), np.arange(2))).T, 0)[:, 2]
+        # Get wavelength information (but note that the WCS gives this in m, so convert to Angstroms (x 1E10)
+        wav_wcs = 1.0E10 * output_wcs.wcs_pix2world(np.vstack((np.zeros(2), np.zeros(2), np.arange(2))).T, 0)[:, 2]
         wave0, wave_delta = wav_wcs[0], wav_wcs[1]-wav_wcs[0]
+        # Loop through all slits
         for sl, spatid in enumerate(this_slits.spat_id):
             if numframes == 1:
                 msgs.info(f"Resampling slit {sl+1}/{this_slits.nslits}")
@@ -1992,7 +1995,6 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         weights[ff] = exptime  #np.median(flux_sav[resrt]*np.sqrt(ivar_sav[resrt]))**2
 
         # Get the slit image and then unset pixels in the slit image that are bad
-        embed()
         this_specpos, this_spatpos = np.where(onslit_gpm)
         this_spatid = slitid_img_init[onslit_gpm]
 
@@ -2069,7 +2071,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             image_wcs, voxedge = create_wcs(cubepar, all_ra[ww], all_dec[ww], all_wave[ww], dspat, wavediff)
 
             wl_imgs = generate_image_subpixel(image_wcs, all_sci[ww], all_ivar[ww], all_wghts[ww], all_wave[ww],
-                                              all_slimg, all_tilts, all_slits, all_align, voxedge, all_idx=all_idx[ww],
+                                              all_spatpos, all_specpos, all_spatid, all_tilts, all_slits, all_align,
+                                              voxedge, all_idx=all_idx[ww],
                                               spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
             # whitelight_imgs, _, _ = make_whitelight_frompixels(all_ra[ww], all_dec[ww], all_wave[ww], all_sci[ww], all_wghts[ww], all_idx[ww], dspat)
             # ref_idx will be the index of the cube with the highest S/N
@@ -2106,7 +2109,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             msgs.info("Whitelight image covers the wavelength range {0:.2f} A - {1:.2f} A".format(min_wl, max_wl))
         else:
             msgs.warn("Datacubes do not completely overlap in wavelength. Offsets may be unreliable...")
-            ww = np.where((all_wave > 0) & (all_wave < 99999999))
+            ww = (np.arange(all_wave.size),)
         whitelight_img, _, wlwcs = make_whitelight_frompixels(all_ra[ww], all_dec[ww], all_wave[ww], all_sci[ww],
                                                               all_wghts[ww], np.zeros(ww[0].size), dspat)
     else:
