@@ -394,6 +394,8 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
 
     Parameters
     ----------
+    bkpts_optimal: bool:
+        If True, then the breakpoints are optimally spaced. If False, then the breakpoints are spaced uniformly.
     bsp_min: float
         Desired B-spline breakpoint spacing in pixels
     piximg: `numpy.ndarray`_
@@ -790,6 +792,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         min_spat_img = min_spat1[:, None]
         max_spat_img = max_spat1[:, None]
         localmask = (spat_img > min_spat_img) & (spat_img < max_spat_img) & thismask
+        if np.sum(localmask) == 0:
+            msgs.error('There are no pixels on the localmask for group={}. '
+                       'Something is very wrong with either your slit edges or your object traces'.format(group))
         npoly = skysub_npoly(localmask)
 
         # Some bookeeping to define the sub-image and make sure it does not land off the mask
@@ -880,14 +885,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
             iterbsp = 0
             while (not sky_bmodel.any()) & (iterbsp <= 4) & (not no_local_sky):
                 bsp_now = (1.2 ** iterbsp) * bsp
-                try:
-                    fullbkpt = optimal_bkpts(
-                        bkpts_optimal, bsp_now, piximg, localmask, 
-                        debug=(debug_bkpts & (iiter == niter)),
-                        skyimage=skyimage, 
-                        min_spat=min_spat, max_spat=max_spat)
-                except ValueError:
-                    embed(header='887 of skysub')
+                fullbkpt = optimal_bkpts(bkpts_optimal, bsp_now, piximg, localmask, debug=(debug_bkpts & (iiter == niter)),
+                                         skyimage=skyimage, min_spat=min_spat, max_spat=max_spat)
                 # check to see if only a subset of the image is used.
                 # if so truncate input pixels since this can result in singular matrices
                 isub, = np.where(localmask.flatten())
@@ -1228,7 +1227,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
     uni_objid = np.unique(sobjs[sobjs.sign > 0].ECH_OBJID)
     nobjs = len(uni_objid)
     order_snr = np.zeros((norders, nobjs))
-    order_snr_gpm = np.ones_like(order_snr) 
+    order_snr_gpm = np.ones_like(order_snr, dtype=bool)
     for iord in range(norders):
         for iobj in range(nobjs):
             ind = (sobjs.ECH_ORDERINDX == iord) & (sobjs.ECH_OBJID == uni_objid[iobj])
@@ -1239,7 +1238,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                 order_snr[iord,iobj] = sobjs[ind].ech_snr
 
     # Compute the average SNR and find the brightest object
-    snr_bar = np.sum(order_snr,axis=0) / np.sum(order_snr_gpm,axis=0)
+    snr_bar = np.sum(order_snr*order_snr_gpm,axis=0) / np.sum(order_snr_gpm,axis=0)
     srt_obj = snr_bar.argsort()[::-1]
     ibright = srt_obj[0] # index of the brightest object
 
@@ -1336,7 +1335,8 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
         # True  = Good, False = Bad for inmask
         inmask = fullmask.flagged(invert=True) & thismask
         # Local sky subtraction and extraction
-        skymodel[thismask], objmodel[thismask], ivarmodel[thismask], extractmask[thismask] \
+        try:
+            skymodel[thismask], objmodel[thismask], ivarmodel[thismask], extractmask[thismask] \
                 = local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask,
                                        left[:,iord], right[:,iord], sobjs[thisobj],
                                        spat_pix=spat_pix, ingpm=inmask, std=std, bsp=bsp,
@@ -1347,7 +1347,8 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                                        model_noise=model_noise, debug_bkpts=debug_bkpts,
                                        show_resids=show_resids, show_profile=show_profile,
                                        adderr=adderr, base_var=base_var, count_scale=count_scale)
-
+        except:
+            embed()
         # update the FWHM fitting vector for the brighest object
         indx = (sobjs.ECH_OBJID == uni_objid[ibright]) & (sobjs.ECH_ORDERINDX == iord)
         fwhm_here[iord] = np.median(sobjs[indx].FWHMFIT)

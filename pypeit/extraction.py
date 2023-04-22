@@ -870,23 +870,22 @@ class EchelleExtract(Extract):
         model_full_slit = self.par['reduce']['extraction']['model_full_slit']
         force_gauss = self.par['reduce']['extraction']['use_user_fwhm']
 
-
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
-                = skysub.ech_local_skysub_extract(self.sciImg.image, self.sciImg.ivar,
-                                                  self.sciImg.fullmask, self.tilts, self.waveimg,
-                                                  self.global_sky, self.slits_left,
-                                                  self.slits_right, self.slitmask, sobjs,
-                                                  self.order_vec, spat_pix=spat_pix,
-                                                  std=self.std_redux, fit_fwhm=fit_fwhm,
-                                                  min_snr=min_snr, bsp=bsp, sigrej=sigrej,
-                                                  force_gauss=force_gauss, sn_gauss=sn_gauss,
-                                                  model_full_slit=model_full_slit,
-                                                  model_noise=model_noise,
-                                                  show_profile=show_profile,
-                                                  show_resids=show_resids, show_fwhm=show_fwhm,
-                                                  base_var=self.sciImg.base_var,
-                                                  count_scale=self.sciImg.img_scale,
-                                                  adderr=self.sciImg.noise_floor)
+            = skysub.ech_local_skysub_extract(self.sciImg.image, self.sciImg.ivar,
+                                              self.sciImg.fullmask, self.tilts, self.waveimg,
+                                              self.global_sky, self.slits_left,
+                                              self.slits_right, self.slitmask, sobjs,
+                                              self.order_vec, spat_pix=spat_pix,
+                                              std=self.std_redux, fit_fwhm=fit_fwhm,
+                                              min_snr=min_snr, bsp=bsp, sigrej=sigrej,
+                                              force_gauss=force_gauss, sn_gauss=sn_gauss,
+                                              model_full_slit=model_full_slit,
+                                              model_noise=model_noise,
+                                              show_profile=show_profile,
+                                              show_resids=show_resids, show_fwhm=show_fwhm,
+                                              base_var=self.sciImg.base_var,
+                                              count_scale=self.sciImg.img_scale,
+                                              adderr=self.sciImg.noise_floor)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
