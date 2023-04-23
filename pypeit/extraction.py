@@ -282,7 +282,8 @@ class Extract:
         self.slits = slits
         # Select the edges to use
         self.slits_left, self.slits_right, _ \
-            = self.slits.select_edges(initial=initial, flexure=self.spat_flexure_shift)
+            = self.slits.select_edges(initial=initial, flexure=self.spat_flexure_shift,
+                                      exclude_flag=self.slits.bitmask.exclude_for_reducing)
 
         # Slitmask
         self.slitmask = self.slits.slit_img(initial=initial, flexure=self.spat_flexure_shift,
@@ -291,8 +292,10 @@ class Extract:
         # NOTE: this uses the par defined by EdgeTraceSet; this will
         # use the tweaked traces if they exist
         self.sciImg.update_mask_slitmask(self.slitmask)
+
 #        # For echelle
 #        self.spatial_coo = self.slits.spatial_coordinates(initial=initial, flexure=self.spat_flexure_shift)
+
 
     def extract(self, global_sky, model_noise=None, spat_pix=None):
         """
@@ -814,12 +817,12 @@ class EchelleExtract(Extract):
         super(EchelleExtract, self).__init__(sciImg, slits, sobjs_obj, spectrograph, par, objtype, **kwargs)
 
         # JFH For 2d coadds the orders are no longer located at the standard locations
-        self.order_vec = spectrograph.orders if 'coadd2d' in self.objtype \
-                            else self.slits.ech_order
-#                            else self.spectrograph.order_vec(self.spatial_coo)
-        if self.order_vec is None:
-            msgs.error('Unable to set Echelle orders, likely because they were incorrectly '
-                       'assigned in the relevant SlitTraceSet.')
+        # TODO Need to test this for 2d coadds
+        #self.order_vec = spectrograph.orders if 'coadd2d' in self.objtype \
+        #                    else self.slits.ech_order
+        #if self.order_vec is None:
+        #    msgs.error('Unable to set Echelle orders, likely because they were incorrectly '
+        #               'assigned in the relevant SlitTraceSet.')
 
     # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
     # being updated?
@@ -875,7 +878,7 @@ class EchelleExtract(Extract):
                                               self.sciImg.fullmask, self.tilts, self.waveimg,
                                               self.global_sky, self.slits_left,
                                               self.slits_right, self.slitmask, sobjs,
-                                              self.order_vec, spat_pix=spat_pix,
+                                              spat_pix=spat_pix,
                                               std=self.std_redux, fit_fwhm=fit_fwhm,
                                               min_snr=min_snr, bsp=bsp, sigrej=sigrej,
                                               force_gauss=force_gauss, sn_gauss=sn_gauss,
