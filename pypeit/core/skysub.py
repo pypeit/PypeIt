@@ -1042,12 +1042,11 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
     profile fit. The FWHM of higher S/N ratio objects are used for lower S/N ratio objects
     (note this assumes point sources with FWHM set by the seeing).
 
-    Note on masking:  Tis routine requires that all masking be performed in the upstream calling routine
-    (:func:`pypeit.extraction`) and thus the slitmask image must only include the unmasked (good) SLITIDs that are to be
-    extracted, and likewise the sobjs object must only include the unmasked (good) objects that are to be extracted. The
-    number of sobjs objects must equal to an integer multiple of the number of good slits/orders in the slitmask image,
-    and there must be a one-to-one correspondence between the unique SLITDS in the sobj obect and the SLITIDs in the
-    slitmask image. The routine will fault if any of these criteria are not met.
+    Note on masking:  This routine requires that all masking be performed in the upstream calling routine
+    (:func:`pypeit.extraction`) and thus the left and right slit edge arrays must only contain these slits. Similarly,
+    the sobjs object must only include the unmasked (good) objects that are to be extracted. The
+    number of sobjs objects must equal to an integer multiple of the number of good slits/orders.
+    The routine will fault if any of these criteria are not met.
 
     Parameters
     ----------
@@ -1224,12 +1223,15 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
     norders = (np.unique(sobjs.ECH_ORDER)).size
 
     # Find the spat IDs
-    gdslit_spat = np.unique(slitmask[slitmask >= 0]).astype(int)  # Unique sorts
+    # TODO JFH Relaxing this requirement for now since it would require that we regenerate the slitmask image.
+    # each time slits are masked, which is probably not necessary. Do we want to enforce this on the slitmask image?
 
-    if not np.array_equal(gdslit_spat, slitids):
-        msgs.error('The slitmask image and the sobjs object do not have the same number of good orders! '
-                   'There is a problem with the object/slitmask masking. This routine requires that all '
-                   'masking is performed in the calling routine.')
+    #gdslit_spat = np.unique(slitmask[slitmask >= 0]).astype(int)  # Unique sorts
+
+    #if not np.array_equal(gdslit_spat, slitids):
+    #    msgs.error('The slitmask image and the sobjs object do not have the same number of good orders! '
+    #               'There is a problem with the object/slitmask masking. This routine requires that all '
+    #               'masking is performed in the calling routine.')
     if norders != len(slitids):
         msgs.error('The number of orders in the sobjs object does not match the number of good slits in the '
                    'slitmask image! There is a problem with the object/slitmask masking. This routine '

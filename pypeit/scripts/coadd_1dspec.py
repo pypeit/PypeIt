@@ -192,8 +192,8 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
         par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
                                                  merge_with=(coadd1dFile.cfg_lines,))
         # Check that sensfunc column is populated if this is echelle
-        if spectrograph.pypeline == 'Echelle' and coadd1dFile.sensfuncfile is None:
-            msgs.error("To coadd echelle spectra, the 'sensfuncile' column must present in your .coadd1d file")
+        if spectrograph.pypeline == 'Echelle' and coadd1dFile.sensfiles is None:
+            msgs.error("To coadd echelle spectra, the 'sensfile' column must present in your .coadd1d file")
 
         # Write the par to disk
         print("Writing the parameters to {}".format(args.par_outfile))
@@ -216,7 +216,7 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
                                                coadd1dFile.objids, 
                                                spectrograph=spectrograph,
                                                par=par['coadd1d'],
-                                               sensfuncfile=coadd1dFile.sensfuncfile,
+                                               sensfuncfile=coadd1dFile.sensfiles,
                                                setup_id=coadd1dFile.setup_id,
                                                debug=args.debug, show=args.show)
         # Run

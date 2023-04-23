@@ -1926,7 +1926,7 @@ def spec_reject_comb(wave_grid, wave_grid_mid, waves_list, fluxes_list, ivars_li
     while (not qdone) and (iter < maxiter_reject):
         # Compute the stack
         wave_stack, flux_stack, ivar_stack, gpm_stack, nused = compute_stack(
-            wave_grid, waves_list, fluxes_list, ivars_list, utils.array_to_explist(this_gpms, nspec_list), weights_list)
+            wave_grid, waves_list, fluxes_list, ivars_list, utils.array_to_explist(this_gpms, nspec_list=nspec_list), weights_list)
         # Interpolate the individual spectra onto the wavelength grid of the stack. Use wave_grid_mid for this
         # since it has no masked values
         flux_stack_nat, ivar_stack_nat, gpm_stack_nat = interp_spec(
@@ -1945,7 +1945,7 @@ def spec_reject_comb(wave_grid, wave_grid_mid, waves_list, fluxes_list, ivars_li
     if (iter == maxiter_reject) & (maxiter_reject != 0):
         msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter_reject) + ' reached in spec_reject_comb')
     out_gpms = np.copy(this_gpms)
-    out_gpms_list = utils.array_to_explist(out_gpms, nspec_list)
+    out_gpms_list = utils.array_to_explist(out_gpms, nspec_list=nspec_list)
 
     # print out a summary of how many pixels were rejected
     nexp = waves.shape[1]

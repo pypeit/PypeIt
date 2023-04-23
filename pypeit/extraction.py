@@ -266,6 +266,7 @@ class Extract:
         else:
             return 0
 
+    # TODO Make this a method possibly in slittrace.py. Almost identical code is in find_objects.py
     def initialise_slits(self, slits, initial=False):
         """
         Gather all the :class:`SlitTraceSet` attributes
@@ -281,9 +282,18 @@ class Extract:
         # Slits
         self.slits = slits
         # Select the edges to use
-        self.slits_left, self.slits_right, _ \
-            = self.slits.select_edges(initial=initial, flexure=self.spat_flexure_shift,
-                                      exclude_flag=self.slits.bitmask.exclude_for_reducing)
+
+        # TODO JFH: his is an ugly hack for the present moment until we get the slits object sorted out
+        slits_left, slits_right, _ \
+            = self.slits.select_edges(initial=initial, flexure=self.spat_flexure_shift)
+        # This matches the logic below that is being applied to the slitmask. Better would be to clean up slits to
+        # to return a new slits object with the desired selection criteria which would remove the ambiguity
+        # about whether the slits and the slitmask are in sync.
+        bpm = self.slits.mask.astype(bool)
+        bpm &= np.invert(self.slits.bitmask.flagged(self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing))
+        gpm = np.logical_not(bpm)
+        self.slits_left = slits_left[:, gpm]
+        self.slits_right = slits_right[:, gpm]
 
         # Slitmask
         self.slitmask = self.slits.slit_img(initial=initial, flexure=self.spat_flexure_shift,
@@ -292,6 +302,7 @@ class Extract:
         # NOTE: this uses the par defined by EdgeTraceSet; this will
         # use the tweaked traces if they exist
         self.sciImg.update_mask_slitmask(self.slitmask)
+
 
 #        # For echelle
 #        self.spatial_coo = self.slits.spatial_coordinates(initial=initial, flexure=self.spat_flexure_shift)

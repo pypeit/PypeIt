@@ -165,7 +165,7 @@ def explist_to_array(explist, pad_value=0.0):
     Embed a list of length nexp 1d arrays of arbitrary size in a 2d array.
 
     Args:
-        nexp_list: (list)
+        explist: (list)
             List of length nexp containing 1d arrays of arbitrary size.
         pad_value: (scalar)
             Value to use for padding the missing locations in the 2d array. The data
@@ -190,28 +190,34 @@ def explist_to_array(explist, pad_value=0.0):
     return array, nspec_list
 
 
-def array_to_explist(array, nspec_list):
+def array_to_explist(array, nspec_list=None):
     """
-    Embed a list of length nexp 1d arrays of arbitrary size in a 2d array.
+    Unfold a padded 2D array into a list of length nexp 1d arrays with sizes set by nspec_list
 
     Args:
-        nexp_list: (list)
-            List of length nexp containing 1d arrays of arbitrary size.
-        pad_value: (scalar)
-            Value to use for padding the missing locations in the 2d array. The data
-            type should match the data type of in the 1d arrays in nexp_list.
+        array: (`numpy.ndarray`_)
+           A 2d array of shape (nspec_max, nexp) where nspec_max is the maximum size of any
+           of the spectra in the array.
+        nspec_list: (list, optional)
+            List containing the size of each of the spectra embedded in the array. If None, the routine
+            will assume that all the spectra are the same size equal to array.shape[0]
 
     Returns:
-        array: `np.ndarray`_
-           A 2d array of shape (nspec_max, nexp) where nspec_max is the maximum size of any
+        explist: (list)
+           A list of 1d arrays of shape (nspec_max, nexp) where nspec_max is the maximum size of any
            of the members of the input nexp_list. The data type is the same as the data type
            in the original 1d arrays.
 
     """
-    explist = []
     nexp = array.shape[1]
+    if nspec_list is None:
+        _nspec_list = [array.shape[0]]*nexp
+    else:
+        _nspec_list = nspec_list
+
+    explist = []
     for i in range(nexp):
-        explist.append(array[:nspec_list[i], i])
+        explist.append(array[:_nspec_list[i], i])
 
     return explist
 
