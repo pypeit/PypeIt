@@ -933,14 +933,14 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         w.wcs.latpole = 0.0  # Native latitude of the Celestial pole
         # Insert the coordinate frame
         if image:
-            w.wcs.cname = ['KCWI RA', 'KCWI DEC']
+            w.wcs.cname = ['RA', 'DEC']
             w.wcs.cunit = [units.degree, units.degree]
             w.wcs.ctype = ["RA---TAN", "DEC--TAN"]  # Note, WAVE is vacuum wavelength
             w.wcs.crval = [ra, dec]  # RA, DEC, and wavelength zeropoints
             w.wcs.crpix = [crpix1, crpix2]  # RA, DEC, and wavelength reference pixels
             w.wcs.cd = np.array([[cd11, cd12], [cd21, cd22]])
         else:
-            w.wcs.cname = ['KCWI RA', 'KCWI DEC', 'KCWI Wavelength']
+            w.wcs.cname = ['RA', 'DEC', 'Wavelength']
             w.wcs.cunit = [units.degree, units.degree, units.Angstrom]
             w.wcs.ctype = ["RA---TAN", "DEC--TAN", "WAVE"]  # Note, WAVE is vacuum wavelength
             w.wcs.crval = [ra, dec, wave0]  # RA, DEC, and wavelength zeropoints
