@@ -620,7 +620,8 @@ def empty_patt_dict(nlines):
     return patt_dict
 
 
-def solve_xcorr(detlines, linelist, dindex, lindex, line_cc, nreid_min = 4, cc_local_thresh = 0.8):
+def solve_xcorr(detlines, linelist, dindex, lindex, line_cc, 
+                nreid_min:int=4, cc_local_thresh:float=0.8):
     """  Given a starting solution, find the best match for all detlines
 
     Parameters

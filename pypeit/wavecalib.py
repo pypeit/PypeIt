@@ -456,6 +456,7 @@ class BuildWaveCalib:
                     self.slits.mask[idx] = self.slits.bitmask.turn_off(
                             self.slits.mask[idx], 'BADWVCALIB')
                 else:
+                    embed(header='459 of wavecalib')
                     raise NotImplementedError("Not ready for multi-slit")
 
             # Load up slits
@@ -878,10 +879,13 @@ class BuildWaveCalib:
                     # TODO -- just run solve_xcorr
                     # Generate a better guess at wavelengths
                     patt_dict, final_fit = autoid.echelle_wvcalib(
-                        arccen, order_vec, arcspec_arxiv, wave_soln_arxiv,
-                        self.lamps, self.par, ok_mask=ok_mask_idx,
+                        self.arccen, self.slits.ech_order, 
+                        self.arcspec_arxiv, self.wave_soln_arxiv,
+                        self.lamps, self.par, 
+                        #ok_mask=ok_mask_idx,
                         nonlinear_counts=self.nonlinear_counts,
-                        debug_all=False, redo_slit=self.slits.ech_order[bad_slit])
+                        debug_all=False, redo_slit=self.slits.ech_order[bad_slit],
+                        debug_reid=True)
 
         # Deal with mask
         self.update_wvmask()
