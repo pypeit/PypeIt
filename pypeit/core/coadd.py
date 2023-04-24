@@ -9,6 +9,8 @@ Coadding module.
 import os
 import sys
 import copy
+import string
+
 from IPython import embed
 
 import numpy as np
@@ -1924,7 +1926,7 @@ def spec_reject_comb(wave_grid, wave_grid_mid, waves_list, fluxes_list, ivars_li
     while (not qdone) and (iter < maxiter_reject):
         # Compute the stack
         wave_stack, flux_stack, ivar_stack, gpm_stack, nused = compute_stack(
-            wave_grid, waves_list, fluxes_list, ivars_list, utils.array_to_explist(this_gpms, nspec_list), weights_list)
+            wave_grid, waves_list, fluxes_list, ivars_list, utils.array_to_explist(this_gpms, nspec_list=nspec_list), weights_list)
         # Interpolate the individual spectra onto the wavelength grid of the stack. Use wave_grid_mid for this
         # since it has no masked values
         flux_stack_nat, ivar_stack_nat, gpm_stack_nat = interp_spec(
@@ -1943,7 +1945,7 @@ def spec_reject_comb(wave_grid, wave_grid_mid, waves_list, fluxes_list, ivars_li
     if (iter == maxiter_reject) & (maxiter_reject != 0):
         msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter_reject) + ' reached in spec_reject_comb')
     out_gpms = np.copy(this_gpms)
-    out_gpms_list = utils.array_to_explist(out_gpms, nspec_list)
+    out_gpms_list = utils.array_to_explist(out_gpms, nspec_list=nspec_list)
 
     # print out a summary of how many pixels were rejected
     nexp = waves.shape[1]
@@ -2373,7 +2375,8 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
     return wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack
 
 
-def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_setup, weights_sens_arr_setup, nbests=None,
+def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_setup, weights_sens_arr_setup,
+                 setup_ids = None, nbests=None,
                  wave_method='log10', dwave=None, dv=None, dloglam=None,
                  spec_samp_fact=1.0, wave_grid_min=None, wave_grid_max=None,
                  ref_percentile=70.0, maxiter_scale=5, niter_order_scale=3,
@@ -2515,6 +2518,15 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     #                     utils.concat_to_setup_list convert between waves_setup_lists and waves_concat
 
 
+    debug=True
+    show=True
+    show_exp=True
+    debug_global_stack=False
+    debug_order_stack=False
+    show_order_scale=False
+    #debug_scale=True
+
+
     if qafile is not None:
         qafile_stack = qafile.replace('.pdf', '_stack.pdf')
         qafile_chi = qafile.replace('.pdf', '_chi.pdf')
@@ -2524,7 +2536,12 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
 
     # data shape
     nsetups=len(waves_arr_setup)
+
+    if setup_ids is None:
+        setup_ids = list(string.ascii_uppercase[:nsetups])
+
     setup_colors = utils.distinct_colors(nsetups)
+
     norders = []
     nexps = []
     nspecs = []
@@ -2599,7 +2616,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     #######################
     # Inter-order rescaling
     #######################
-
+    #debug_scale=True
     fluxes_scl_interord_setup_list, ivars_scl_interord_setup_list, scales_interord_setup_list = [], [], []
     for isetup in range(nsetups):
         fluxes_scl_interord_isetup, ivars_scl_interord_isetup, scales_interord_isetup = [], [], []
@@ -2626,6 +2643,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     # scale factors from higher S/N ratio. The point is it makes no sense to take 0.0/0.0. In the low S/N regime,
     # i.e. DLAs, GP troughs, we should be rescaling using scale factors from orders with signal. This also applies
     # to the echelle combine below.
+
 
     #######################
     # Global Recaling Computation -- Scale each setup/order/exp to match a preliminary global stack
@@ -2667,7 +2685,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     wave_final_stack, flux_final_stack, ivar_final_stack, gpm_final_stack, nused_final_stack, out_gpms_concat = \
         spec_reject_comb(wave_grid, wave_grid_mid, waves_concat, fluxes_scale_concat, ivars_scale_concat, gpms_concat,
                          weights_concat, sn_clip=sn_clip, lower=lower, upper=upper, maxrej=maxrej,
-                         maxiter_reject=maxiter_reject, debug=debug)
+                         maxiter_reject=maxiter_reject, debug=debug_global_stack)
 
     # Generate setup_lists and  arr_setup for some downstream computations
     fluxes_scale_setup_list = utils.concat_to_setup_list(fluxes_scale_concat, norders, nexps)
@@ -2679,7 +2697,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
 
 
     ############################
-    # Order Stack computation -- These are returned, but currently not used for anything.
+    # Order Stack computation -- These are returned. CURRENTLY NOT USED FOR ANYTHING
     ############################
     #show_order_stacks=True
     waves_order_stack_setup, fluxes_order_stack_setup, ivars_order_stack_setup, gpms_order_stack_setup = [], [], [], []
@@ -2694,7 +2712,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
                 wave_grid, wave_grid_mid, waves_setup_list[isetup][ind_start:ind_end],
                 fluxes_scale_setup_list[isetup][ind_start:ind_end], ivars_scale_setup_list[isetup][ind_start:ind_end],
                 gpms_setup_list[isetup][ind_start:ind_end], weights_setup_list[isetup][ind_start:ind_end],
-                sn_clip=sn_clip, lower=lower, upper=upper, maxrej=maxrej, maxiter_reject=maxiter_reject, debug=debug,
+                sn_clip=sn_clip, lower=lower, upper=upper, maxrej=maxrej, maxiter_reject=maxiter_reject, debug=debug_order_stack,
                 title='order_stacks')
             waves_order_stack.append(wave_order_stack_iord)
             fluxes_order_stack.append(flux_order_stack_iord)
@@ -2703,7 +2721,9 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
             out_gpms_order_stack.append(outgpms_order_stack_iord)
             if show_order_stacks:
                 coadd_qa(wave_order_stack_iord, flux_order_stack_iord, ivar_order_stack_iord, nused_order_stack_iord,
-                         gpm=gpm_order_stack_iord, title='Coadded spectrum of order {:d}/{:d}'.format(iord, norders[isetup]))
+                         gpm=gpm_order_stack_iord,
+                         title='Coadded spectrum of order {:d}/{:d} for setup={:s}'.format(
+                             iord, norders[isetup], setup_ids[isetup]))
         waves_order_stack_setup.append(waves_order_stack)
         fluxes_order_stack_setup.append(fluxes_order_stack)
         ivars_order_stack_setup.append(ivars_order_stack)
@@ -2713,10 +2733,6 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     ############################
     # QA Generation
     ############################
-    debug=True
-    show=True
-    show_exp=True
-    #for isetup in range(nsetups):
     if debug or show:
         fluxes_exps, ivars_exps, out_gpms_exps = np.array([],dtype=float), np.array([],dtype=float), np.array([],dtype=bool)
         flux_stack_exps, ivar_stack_exps, gpm_stack_exps = np.array([],dtype=float), np.array([],dtype=float), np.array([], dtype=bool)
@@ -2748,8 +2764,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
                     # plot the residual distribution
                     msgs.info('QA plots for exposure {:} with new_sigma = {:}'.format(iexp, sigma_corrs_2d_exps[iexp]))
                     # plot the residual distribution for each exposure
-                    title_renorm = 'ech_combspec: Error distribution about stack for exposure {:d}/{:d}'.format(
-                        iexp, nexps[isetup])
+                    title_renorm = 'ech_combspec: Error distribution about stack for exposure {:d}/{:d} for setup={:s}'.format(iexp, nexps[isetup], setup_ids[isetup])
                     renormalize_errors_qa(outchi_2d_exps[:, iexp], gpm_chi_2d_exps[:, iexp], sigma_corrs_2d_exps[iexp],
                                           title=title_renorm)
                     title_coadd_iexp = 'ech_combspec: nrej={:d} pixels rejected,'.format(nrej[iexp]) + \
@@ -2764,7 +2779,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
                 fluxes_2d_exps.flatten(), ivars_2d_exps.flatten(), out_gpms_2d_exps.flatten(),
                 flux_stack_2d_exps.flatten(), ivar_stack_2d_exps.flatten(), gpm_stack_2d_exps.flatten(), sn_clip=sn_clip)
             renormalize_errors_qa(outchi_1d_isetup, gpm_chi_1d_isetup, sigma_corrs_1d_isetup[0],
-                                  qafile=qafile_chi, title='Global Chi distribution for setup={:d}'.format(isetup))
+                                  qafile=qafile_chi, title='Global Chi distribution for setup={:s}'.format(setup_ids[isetup]))
             fluxes_exps = np.append(fluxes_exps, fluxes_2d_exps.flatten())
             ivars_exps = np.append(ivars_exps, ivars_2d_exps.flatten())
             out_gpms_exps = np.append(out_gpms_exps, out_gpms_2d_exps.flatten())

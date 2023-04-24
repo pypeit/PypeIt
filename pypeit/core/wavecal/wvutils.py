@@ -99,8 +99,8 @@ def get_sampling(waves, pix_per_R=3.0):
     Computes the median wavelength sampling of wavelength vector(s)
 
     Args:
-        waves (list):
-            List of a `numpy.ndarray`_ wavelength arrays.
+        waves (list or `numpy.ndarray`_
+            List of `numpy.ndarray`_ wavelength arrays or a single 1d 'numpy.ndarray'_
         pix_per_R (float):  default=3.0
             Number of pixels per resolution element used for the
             resolution guess. The default of 3.0 assumes roughly Nyquist
@@ -112,10 +112,21 @@ def get_sampling(waves, pix_per_R=3.0):
         vector(s)
 
     """
+    if isinstance(waves, np.ndarray):
+        if waves.ndim == 1:
+            waves_out = [waves]
+        elif waves.ndim == 2:
+            waves_out = utils.array_to_explist(waves)
+        else:
+            msgs.error('Array inputs can only be 1D or 2D')
+    elif isinstance(waves, list):
+        waves_out = waves
+    else:
+        msgs.error('Input must be a list or numpy.ndarray')
 
     wave_diff_flat = []
     dloglam_flat = []
-    for wave in waves:
+    for wave in waves_out:
         wave_good = wave[wave > 1.0]
         loglam_good = np.log10(wave_good)
         wave_diff = np.diff(wave_good)
@@ -946,49 +957,3 @@ def get_wave_grid_array(waves=None, masks=None, wave_method='linear', iref=0, wa
 
     return wave_grid, wave_grid_mid, dsamp
 
-
-def get_sampling_array(waves, pix_per_R=3.0):
-    """
-    Computes the median wavelength sampling of wavelength vector(s)
-
-    Args:
-        waves (float `numpy.ndarray`_): shape = (nspec,) or (nspec, nimgs)
-            Array of wavelengths. Can be one or two dimensional where
-            the nimgs dimension can represent the orders, exposures, or
-            slits
-        pix_per_R (float):  default=3.0
-            Number of pixels per resolution element used for the
-            resolution guess. The default of 3.0 assumes roughly Nyquist
-            smampling
-
-    Returns:
-        tuple: Returns dlam, dloglam, resln_guess, pix_per_sigma.
-        Computes the median wavelength sampling of the wavelength
-        vector(s)
-
-    """
-
-    if waves.ndim == 1:
-        norders = 1
-        nspec = waves.shape[0]
-        waves_stack = waves.reshape((nspec, norders))
-    elif waves.ndim == 2:
-        waves_stack = waves
-    elif waves.ndim == 3:
-        nspec, norder, nexp = waves.shape
-        waves_stack = np.reshape(waves, (nspec, norder * nexp), order='F')
-    else:
-        msgs.error('The shape of your wavelength array does not make sense.')
-
-    wave_mask = waves_stack > 1.0
-    waves_ma = np.ma.array(waves_stack, mask=np.invert(wave_mask))
-    loglam = np.ma.log10(waves_ma)
-    wave_diff = np.diff(waves_ma, axis=0)
-    loglam_diff = np.diff(loglam, axis=0)
-    dwave = np.ma.median(wave_diff)
-    dloglam = np.ma.median(loglam_diff)
-    #dloglam_ord = np.ma.median(loglam_roll, axis=0)
-    #dloglam = np.median(dloglam_ord)
-    resln_guess = 1.0 / (pix_per_R* dloglam * np.log(10.0))
-    pix_per_sigma = 1.0 / resln_guess / (dloglam * np.log(10.0)) / (2.0 * np.sqrt(2.0 * np.log(2)))
-    return dwave, dloglam, resln_guess, pix_per_sigma
