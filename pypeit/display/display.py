@@ -464,11 +464,11 @@ def show_trace(viewer, ch, trace, trc_name='Trace', color='blue', clear=False,
         ch (ginga.util.grc._channel_proxy):
             Ginga channel
         trace (np.ndarray):
-            Spatial positions on the detector. Shape = (nspec,)
-        trc_name (str, optional):
-            Trace name
-        color (str, optional):
-            Color for the trace
+            Spatial positions on the detector. Shape = (nspec,) or (ntrace, nspec)
+        trc_name (str or list, optional):
+            Trace name. If a list of strings the length must match the number of traces. Default='Trace'
+        color (str or list, optional):
+            Color for the trace. If a list of strings the length must match the number of traces. Default='blue'
         clear (bool, optional):
             Clear the canvas?
         rotate (bool, optional):
@@ -483,24 +483,55 @@ def show_trace(viewer, ch, trace, trc_name='Trace', color='blue', clear=False,
     canvas = viewer.canvas(ch._chname)
     if clear:
         canvas.clear()
-    # Show
+
+    trace_2d = np.atleast_2d(trace)
+    ntrace, nspec = trace_2d.shape
     if yval is None:
-        y = (np.arange(trace.size)[::pstep]).tolist()
+        yval_2d = np.tile(np.arange(nspec), (ntrace,1))
     else:
-        y = yval[::pstep].tolist()
-    trace_list = trace[::pstep].tolist()
-    xy = [trace_list, y]
-    if rotate:
-        xy[0], xy[1] = xy[1], xy[0]
-    points = list(zip(xy[0], xy[1]))
-    canvas.add(str('path'), points, color=str(color))
-    # Text
-    ohf = len(trace_list)//2
-    xyt = [float(trace_list[ohf]), float(y[ohf])]
-    if rotate:
-        xyt[0], xyt[1] = xyt[1], xyt[0]
-    # Do it
-    canvas.add(str('text'), xyt[0], xyt[1], trc_name, rot_deg=90., color=str(color), fontsize=17.)
+        if yval.shape != trace.shape:
+            msgs.error('yval must have the same shape as trace')
+        yval_2d = np.atleast_2d(yval)
+
+    if trc_name == 'Trace':
+        trc_name_out = ['Trace'] * ntrace
+    else:
+        if isinstance(trc_name, list):
+            if len(trc_name) != ntrace:
+                msgs.error('If trc_name is a list it must have length equal to the number of traces')
+            trc_name_out = trc_name
+        elif isinstance(trc_name, str):
+            trc_name_out = [trc_name] * ntrace
+        else:
+            msgs.error('trc_name must be a string or a list of strings')
+
+    if color == 'blue':
+        color_out = ['blue'] * ntrace
+    else:
+        if isinstance(color, list):
+            if len(color) != ntrace:
+                msgs.error('If color is amust be a list with length equal to the numbe of traces')
+            color_out = color
+        elif isinstance(color, str):
+                color_out = [color] * ntrace
+        else:
+            msgs.error('color must be a string or a list of strings')
+
+    for itrace in range(ntrace):
+        yval_itr = yval_2d[itrace,::pstep].tolist()
+        trace_itr = trace_2d[itrace,::pstep].tolist()
+        xy = [trace_itr, yval_itr]
+        if rotate:
+            xy[0], xy[1] = xy[1], xy[0]
+        points = list(zip(xy[0], xy[1]))
+        canvas.add(str('path'), points, color=str(color))
+        # Text
+        ohf = len(trace_itr)//2
+        xyt = [float(trace_itr[ohf]), float(yval_itr[ohf])]
+        if rotate:
+            xyt[0], xyt[1] = xyt[1], xyt[0]
+        # Do it
+        canvas.add(str('text'), xyt[0], xyt[1], trc_name_out[itrace], rot_deg=90., color=str(color_out[itrace]), fontsize=17.)
 
 
 def clear_canvas(cname):
