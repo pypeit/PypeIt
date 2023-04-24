@@ -1069,7 +1069,7 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
     return all_wghts
 
 
-def generate_image_subpixel(image_wcs, all_sci, all_ivar, all_wghts, all_wave, all_spatpos, all_specpos,
+def generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts, all_spatpos, all_specpos,
                             all_spatid, tilts, slits, astrom_trans, bins, all_idx=None,
                             spec_subpixel=10, spat_subpixel=10):
     """
@@ -1078,14 +1078,18 @@ def generate_image_subpixel(image_wcs, all_sci, all_ivar, all_wghts, all_wave, a
     Args:
         image_wcs (`astropy.wcs.wcs.WCS`_):
             World coordinate system to use for the white light images.
+        all_ra (`numpy.ndarray`_)
+            1D flattened array containing the right ascension of each pixel (units = degrees)
+        all_dec (`numpy.ndarray`_)
+            1D flattened array containing the declination of each pixel (units = degrees)
+        all_wave (`numpy.ndarray`_)
+            1D flattened array containing the wavelength of each pixel (units = Angstroms)
         all_sci (`numpy.ndarray`_):
             1D flattened array containing the counts of each pixel from all spec2d files
         all_ivar (`numpy.ndarray`_):
             1D flattened array containing the inverse variance of each pixel from all spec2d files
         all_wghts (`numpy.ndarray`_):
             1D flattened array containing the weights of each pixel to be used in the combination
-        all_wave (`numpy.ndarray`_)
-            1D flattened array containing the wavelength of each pixel (units = Angstroms)
         all_spatpos (`numpy.ndarray`_)
             1D flattened array containing the detector pixel location in the spatial direction
         all_specpos (`numpy.ndarray`_)
@@ -1133,7 +1137,8 @@ def generate_image_subpixel(image_wcs, all_sci, all_ivar, all_wghts, all_wave, a
         msgs.info(f"Creating image {fr+1}/{numfr}")
         ww = np.where(_all_idx == fr)
         # Subpixellate
-        img, _, _ = subpixellate(image_wcs, all_sci[ww], all_ivar[ww], all_wghts[ww], all_wave[ww], all_spatpos[ww],
+        img, _, _ = subpixellate(image_wcs, all_ra[ww], all_dec[ww], all_wave[ww],
+                                 all_sci[ww], all_ivar[ww], all_wghts[ww], all_spatpos[ww],
                                  all_specpos[ww], all_spatid[ww], tilts[fr], slits[fr], astrom_trans[fr], bins,
                                  spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
         all_wl_imgs[:, :, fr] = img[:, :, 0]
@@ -1141,11 +1146,10 @@ def generate_image_subpixel(image_wcs, all_sci, all_ivar, all_wghts, all_wave, a
     return all_wl_imgs
 
 
-def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, all_wave, all_spatpos, all_specpos,
-                           all_spatid, tilts, slits, astrom_trans, bins, all_idx=None,
-                           spec_subpixel=10, spat_subpixel=10, overwrite=False, blaze_wave=None,
-                           blaze_spec=None, fluxcal=False, sensfunc=None,
-                           save_whitelight=False, whitelight_range=None, whitelight_wcs=None,
+def generate_cube_subpixel(outfile, output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts,
+                           all_spatpos, all_specpos, all_spatid, tilts, slits, astrom_trans, bins,
+                           all_idx=None, spec_subpixel=10, spat_subpixel=10, overwrite=False, blaze_wave=None,
+                           blaze_spec=None, fluxcal=False, sensfunc=None, whitelight_range=None,
                            specname="PYP_SPEC", debug=False):
     """
     Save a datacube using the subpixel algorithm. Refer to the subpixellate() docstring
@@ -1156,14 +1160,18 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
             Filename to be used to save the datacube
         output_wcs (`astropy.wcs.wcs.WCS`_):
             Output world coordinate system.
+        all_ra (`numpy.ndarray`_)
+            1D flattened array containing the right ascension of each pixel (units = degrees)
+        all_dec (`numpy.ndarray`_)
+            1D flattened array containing the declination of each pixel (units = degrees)
+        all_wave (`numpy.ndarray`_)
+            1D flattened array containing the wavelength of each pixel (units = Angstroms)
         all_sci (`numpy.ndarray`_):
             1D flattened array containing the counts of each pixel from all spec2d files
         all_ivar (`numpy.ndarray`_):
             1D flattened array containing the inverse variance of each pixel from all spec2d files
         all_wghts (`numpy.ndarray`_):
             1D flattened array containing the weights of each pixel to be used in the combination
-        all_wave (`numpy.ndarray`_)
-            1D flattened array containing the wavelength of each pixel (units = Angstroms)
         all_spatpos (`numpy.ndarray`_)
             1D flattened array containing the detector pixel location in the spatial direction
         all_specpos (`numpy.ndarray`_)
@@ -1202,26 +1210,18 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
             multiplied by the PYPEIT_FLUX_SCALE. Otherwise, the units are: counts/s/Angstrom/arcsec^2")
         sensfunc (`numpy.ndarray`_, None, optional):
             Sensitivity function that has been applied to the datacube
-        save_whitelight (bool, optional):
-            If True, a whitelight image will be saved.
         whitelight_range (None, list, optional):
             A two element list that specifies the minimum and maximum wavelengths (in Angstroms) to use
-            when constructing the whitelight image (format is: [min_wave, max_wave]). If None, the cube
-            will be collapsed over the full wavelength range.
-        whitelight_wcs (`astropy.wcs.wcs.WCS`_, optional):
-            Output world coordinate system for the white light image.
+            when constructing the white light image (format is: [min_wave, max_wave]). If None, the cube
+            will be collapsed over the full wavelength range. If a list is provided an either element of
+            the list is None, then the minimum/maximum wavelength range of that element will be set by
+            the minimum/maximum wavelength of all_wave.
         specname (str, optional):
             Name of the spectrograph
         debug (bool):
             If True, a residuals cube will be output. If the datacube generation is correct, the
             distribution of pixels in the residual cube with no flux should have mean=0 and std=1.
     """
-    # Check white light input
-    if whitelight_range is None:
-        whitelight_range = [np.min(all_wave), np.max(all_wave)]
-    if whitelight_wcs is None and save_whitelight:
-        msgs.error("Requested white light image, but whitelight WCS was not specified")
-
     # Prepare the header, and add the unit of flux to the header
     hdr = output_wcs.to_header()
     if fluxcal:
@@ -1230,7 +1230,7 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
         hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
 
     # Subpixellate
-    subpix = subpixellate(output_wcs, all_sci, all_ivar, all_wghts, all_wave, all_spatpos, all_specpos,
+    subpix = subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts, all_spatpos, all_specpos,
                           all_spatid, tilts, slits, astrom_trans, bins, all_idx=all_idx,
                           spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
     # Extract the variables that we need
@@ -1245,13 +1245,21 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
         datacube, varcube, bpmcube = subpix
 
     # Check if the user requested a white light image
-    if save_whitelight:
+    if whitelight_range is not None:
+        # Grab the WCS of the white light image
+        whitelight_wcs = output_wcs.celestial
+        # Determine the wavelength range of the whitelight image
+        if whitelight_range[0] is None:
+            whitelight_range[0] = np.min(all_wave)
+        if whitelight_range[1] is None:
+            whitelight_range[1] = np.max(all_wave)
         msgs.info("White light image covers the wavelength range {0:.2f} A - {1:.2f} A".format(
             whitelight_range[0], whitelight_range[1]))
+        # Get the output filename for the white light image
         out_whitelight = get_output_whitelight_filename(outfile)
         nspec = datacube.shape[2]
         # Get wavelength of each pixel, and note that the WCS gives this in m, so convert to Angstroms (x 1E10)
-        wave = 1.0E10 * output_wcs.wcs_pix2world(np.vstack((np.zeros(nspec), np.zeros(nspec), np.arange(nspec))).T, 0)[:, 2]
+        wave = 1.0E10 * output_wcs.spectral.wcs_pix2world(np.arange(nspec), 0)[0]
         whitelight_img = make_whitelight_fromcube(datacube, wave=wave, wavemin=whitelight_range[0], wavemax=whitelight_range[1])
         msgs.info("Saving white light image as: {0:s}".format(out_whitelight))
         img_hdu = fits.PrimaryHDU(whitelight_img.T, header=whitelight_wcs.to_header())
@@ -1264,7 +1272,7 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
 
 
-def subpixellate(output_wcs, all_sci, all_ivar, all_wghts, all_wave, all_spatpos, all_specpos,
+def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts, all_spatpos, all_specpos,
                  all_spatid, tilts, slits, astrom_trans, bins, all_idx=None,
                  spec_subpixel=10, spat_subpixel=10, debug=False):
     """
@@ -1283,14 +1291,18 @@ def subpixellate(output_wcs, all_sci, all_ivar, all_wghts, all_wave, all_spatpos
     Args:
         output_wcs (`astropy.wcs.wcs.WCS`_):
             Output world coordinate system.
+        all_ra (`numpy.ndarray`_)
+            1D flattened array containing the right ascension of each pixel (units = degrees)
+        all_dec (`numpy.ndarray`_)
+            1D flattened array containing the declination of each pixel (units = degrees)
+        all_wave (`numpy.ndarray`_)
+            1D flattened array containing the wavelength of each pixel (units = Angstroms)
         all_sci (`numpy.ndarray`_):
             1D flattened array containing the counts of each pixel from all spec2d files
         all_ivar (`numpy.ndarray`_):
             1D flattened array containing the inverse variance of each pixel from all spec2d files
         all_wghts (`numpy.ndarray`_):
             1D flattened array containing the weights of each pixel to be used in the combination
-        all_wave (`numpy.ndarray`_)
-            1D flattened array containing the wavelength of each pixel (units = Angstroms)
         all_spatpos (`numpy.ndarray`_)
             1D flattened array containing the detector pixel location in the spatial direction
         all_specpos (`numpy.ndarray`_)
@@ -1374,9 +1386,6 @@ def subpixellate(output_wcs, all_sci, all_ivar, all_wghts, all_wave, all_spatpos
         # Extract tilts and slits for convenience
         this_tilts = _tilts[fr]
         this_slits = _slits[fr]
-        # Get wavelength information (but note that the WCS gives this in m, so convert to Angstroms (x 1E10)
-        wav_wcs = 1.0E10 * output_wcs.wcs_pix2world(np.vstack((np.zeros(2), np.zeros(2), np.arange(2))).T, 0)[:, 2]
-        wave0, wave_delta = wav_wcs[0], wav_wcs[1]-wav_wcs[0]
         # Loop through all slits
         for sl, spatid in enumerate(this_slits.spat_id):
             if numframes == 1:
@@ -1385,9 +1394,9 @@ def subpixellate(output_wcs, all_sci, all_ivar, all_wghts, all_wave, all_spatpos
                 msgs.info(f"Resampling slit {sl+1}/{this_slits.nslits} of frame {fr+1}/{numframes}")
             this_sl = np.where((all_spatid == spatid) & (all_idx == fr))
             wpix = (all_specpos[this_sl], all_spatpos[this_sl])
-            slitID = np.ones(wpix[0].size*num_subpixels) * sl - output_wcs.wcs.crpix[0]
             # Generate a spline between spectral pixel position and wavelength
             yspl = this_tilts[wpix]*(this_slits.nspec - 1)
+            tiltpos = np.add.outer(yspl, spec_y).flatten()
             wspl = all_wave[this_sl]
             asrt = np.argsort(yspl)
             wave_spl = interp1d(yspl[asrt], wspl[asrt], kind='linear', bounds_error=False, fill_value='extrapolate')
@@ -1395,20 +1404,26 @@ def subpixellate(output_wcs, all_sci, all_ivar, all_wghts, all_wave, all_spatpos
             spat_xx = np.add.outer(wpix[1], spat_x.flatten()).flatten()
             spec_yy = np.add.outer(wpix[0], spec_y.flatten()).flatten()
             # Transform this to spatial location
-            spatpos = _astrom_trans[fr].transform(sl, spat_xx, spec_yy)
-            # Calculate the tilt position of each subpixel and transform this to the wave bin
-            tiltpos = np.add.outer(this_tilts[wpix] * (this_slits.nspec - 1), spec_y).flatten()
-            specpos = (wave_spl(tiltpos) - wave0) / wave_delta
-            # Stack of coordinates, and histogram
-            pix_coord = np.column_stack((slitID, spatpos, specpos))
-            # TODO :: Need to make it possible to convert the ra/dec/wave of each pixel into the pix_coord... something like the following
-            pix_coord = whitelightWCS.wcs_world2pix(np.vstack((all_ra[ww], all_dec[ww], all_wave[ww] * 1.0E-10)).T, 0)
-
-            tmp_dc, _ = np.histogramdd(pix_coord, bins=bins, weights=np.repeat(all_sci[this_sl] * all_wght_subpix[this_sl], num_subpixels))
-            tmp_vr, _ = np.histogramdd(pix_coord, bins=bins, weights=np.repeat(all_var[this_sl] * all_wght_subpix[this_sl]**2, num_subpixels))
-            tmp_nm, _ = np.histogramdd(pix_coord, bins=bins, weights=np.repeat(all_wght_subpix[this_sl], num_subpixels))
+            spatpos_subpix = _astrom_trans[fr].transform(sl, spat_xx, spec_yy)
+            spatpos = _astrom_trans[fr].transform(sl, all_spatpos[this_sl], all_specpos[this_sl])
+            ra_coeff = np.polyfit(spatpos, all_ra[this_sl], 1)
+            dec_coeff = np.polyfit(spatpos, all_dec[this_sl], 1)
+            this_ra = np.polyval(ra_coeff, spatpos_subpix)#ra_spl(spatpos_subpix)
+            this_dec = np.polyval(dec_coeff, spatpos_subpix)#dec_spl(spatpos_subpix)
+            # ssrt = np.argsort(spatpos)
+            # ra_spl = interp1d(spatpos[ssrt], all_ra[this_sl][ssrt], kind='linear', bounds_error=False, fill_value='extrapolate')
+            # dec_spl = interp1d(spatpos[ssrt], all_dec[this_sl][ssrt], kind='linear', bounds_error=False, fill_value='extrapolate')
+            # this_ra = ra_spl(spatpos_subpix)
+            # this_dec = dec_spl(spatpos_subpix)
+            this_wave = wave_spl(tiltpos)
+            # Convert world coordinates to voxel coordinates, then histogram
+            vox_coord = output_wcs.wcs_world2pix(np.vstack((this_ra, this_dec, this_wave * 1.0E-10)).T, 0)
+            # TODO :: Could these histogramdd be replaced with converting vox_coord to nearest integer? Test which approach is fastest and make sure they are consistent??
+            tmp_dc, _ = np.histogramdd(vox_coord, bins=bins, weights=np.repeat(all_sci[this_sl] * all_wght_subpix[this_sl], num_subpixels))
+            tmp_vr, _ = np.histogramdd(vox_coord, bins=bins, weights=np.repeat(all_var[this_sl] * all_wght_subpix[this_sl]**2, num_subpixels))
+            tmp_nm, _ = np.histogramdd(vox_coord, bins=bins, weights=np.repeat(all_wght_subpix[this_sl], num_subpixels))
             if debug:
-                tmp_rsd, _ = np.histogramdd(pix_coord, bins=bins, weights=all_sci[this_sl] * np.sqrt(all_ivar[this_sl]))
+                tmp_rsd, _ = np.histogramdd(vox_coord, bins=bins, weights=all_sci[this_sl] * np.sqrt(all_ivar[this_sl]))
                 residcube += tmp_rsd
             # Contibute to the datacube
             datacube += tmp_dc
@@ -1838,9 +1853,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
         # Obtain the minimum and maximum wavelength of all slits
         if mnmx_wv is None:
-            mnmx_wv = np.zeros((1, slits.nslits, 2))
-        else:
-            mnmx_wv = np.append(mnmx_wv, np.zeros((1, slits.nslits, 2)), axis=0)
+            mnmx_wv = np.zeros((len(files), slits.nslits, 2))
         for slit_idx, slit_spat in enumerate(slits.spat_id):
             onslit_init = (slitid_img_init == slit_spat)
             mnmx_wv[ff, slit_idx, 0] = np.min(waveimg[onslit_init])
@@ -2015,19 +2028,18 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             # Generate the output WCS for the datacube
             crval_wv = cubepar['wave_min'] if cubepar['wave_min'] is not None else 1.0E10 * frame_wcs.wcs.crval[2]
             cd_wv = cubepar['wave_delta'] if cubepar['wave_delta'] is not None else 1.0E10 * frame_wcs.wcs.cd[2, 2]
-            cd_spat = cubepar['spatial_delta'] if cubepar['spatial_delta'] is not None else px_deg * 3600.0
-            output_wcs = spec.get_wcs(spec2DObj.head0, slits, detector.platescale, crval_wv, cd_wv, spatial_scale=cd_spat)
-            wl_wcs = spec.get_wcs(spec2DObj.head0, slits, detector.platescale, crval_wv, cd_wv, spatial_scale=cd_spat, image=True)
-            wl_wvrng = [np.max(mnmx_wv[ff, :, 0]), np.min(mnmx_wv[ff, :, 1])]  # Wavelength range of the whitelight image.
+            output_wcs = spec.get_wcs(spec2DObj.head0, slits, detector.platescale, crval_wv, cd_wv)
+            # Set the wavelength range of the white light image.
+            wl_wvrng = [np.max(mnmx_wv[ff, :, 0]), np.min(mnmx_wv[ff, :, 1])] if cubepar['save_whitelight'] else None
             # Make the datacube
             if method in ['subpixel', 'ngp']:
                 # Generate the datacube
-                generate_cube_subpixel(outfile, output_wcs, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix),
-                                       wave_ext, this_spatpos, this_specpos, this_spatid,
+                generate_cube_subpixel(outfile, output_wcs, raimg[onslit_gpm], decimg[onslit_gpm], wave_ext,
+                                       flux_sav[resrt], ivar_sav[resrt], np.ones(numpix),
+                                       this_spatpos, this_specpos, this_spatid,
                                        spec2DObj.tilts, slits, alignSplines, bins,
                                        all_idx=None, overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
-                                       fluxcal=fluxcal, specname=specname, save_whitelight=cubepar['save_whitelight'],
-                                       whitelight_range=wl_wvrng, whitelight_wcs=wl_wcs,
+                                       fluxcal=fluxcal, specname=specname, whitelight_range=wl_wvrng,
                                        spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
             continue
 
@@ -2054,7 +2066,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
 
     # Register spatial offsets between all frames
-    # Check if a reference whitelight image should be used to register the offsets
+    # Check if a reference white light image should be used to register the offsets
     numiter = 2
     for dd in range(numiter):
         msgs.info(f"Iterating on spatial translation - ITERATION #{dd+1}/{numiter}")
@@ -2072,14 +2084,13 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
             # Setup the WCS for the white light images
             image_wcs, voxedge = create_wcs(cubepar, all_ra[ww], all_dec[ww], all_wave[ww], dspat, wavediff)
-            embed()
             if voxedge[2].size != 2:
                 msgs.error("Spectral range for WCS is incorrect")
-            wl_imgs = generate_image_subpixel(image_wcs, all_sci[ww], all_ivar[ww], all_wghts[ww], all_wave[ww],
-                                              all_spatpos, all_specpos, all_spatid, all_tilts, all_slits, all_align,
-                                              voxedge, all_idx=all_idx[ww],
+            wl_imgs = generate_image_subpixel(image_wcs, all_ra[ww], all_dec[ww], all_wave[ww],
+                                              all_sci[ww], all_ivar[ww], all_wghts[ww],
+                                              all_spatpos[ww], all_specpos[ww], all_spatid[ww],
+                                              all_tilts, all_slits, all_align, voxedge, all_idx=all_idx[ww],
                                               spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
-            # whitelight_imgs, _, _ = make_whitelight_frompixels(all_ra[ww], all_dec[ww], all_wave[ww], all_sci[ww], all_wghts[ww], all_idx[ww], dspat)
             # ref_idx will be the index of the cube with the highest S/N
             ref_idx = np.argmax(weights)
             reference_image = wl_imgs[:, :, ref_idx].copy()
@@ -2104,6 +2115,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             # Apply the shift
             all_ra[all_idx == ff] += ra_shift
             all_dec[all_idx == ff] += dec_shift
+
     # Generate a white light image of *all* data
     msgs.info("Generating global white light image")
     if cubepar["reference_image"] is None:
@@ -2118,6 +2130,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         whitelight_img, _, wlwcs = make_whitelight_frompixels(all_ra[ww], all_dec[ww], all_wave[ww], all_sci[ww],
                                                               all_wghts[ww], np.zeros(ww[0].size), dspat)
     else:
+        msgs.error("Using a reference image is currently not supported.")
         _, whitelight_img, wlwcs = \
             make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, np.zeros(all_ra.size),
                                     dspat, cubepar['reference_image'])
@@ -2127,40 +2140,23 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                                 whitelight_img[:, :, 0], dspat, dwv,
                                 relative_weights=cubepar['relative_weights'])
 
-    # Check if a whitelight image should be saved
-    if cubepar['save_whitelight']:
-        # Check if the white light image still needs to be generated - if so, generate it now
-        if whitelight_img is None:
-            msgs.info("Generating global white light image")
-            if cubepar["reference_image"] is None:
-                whitelight_img, _, wlwcs = make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts,
-                                                                      np.zeros(all_ra.size), dspat)
-            else:
-                _, whitelight_img, wlwcs = \
-                    make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts,
-                                            np.zeros(all_ra.size),
-                                            dspat, cubepar['reference_image'])
-        # Prepare and save the fits file
-        msgs.info("Saving white light image as: {0:s}".format(out_whitelight))
-        img_hdu = fits.PrimaryHDU(whitelight_img.T, header=wlwcs.to_header())
-        img_hdu.writeto(out_whitelight, overwrite=overwrite)
-
     # Generate the WCS, and the voxel edges
-    cubewcs, voxedge = create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv)
-
-    # Make the cube
-    msgs.info("Generating pixel coordinates")
-    pix_coord = cubewcs.wcs_world2pix(all_ra, all_dec, all_wave * 1.0E-10, 0)
-    hdr = cubewcs.to_header()
+    cube_wcs, vox_edges = create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv)
 
     sensfunc = None
     if flux_spline is not None:
-        wcs_wav = cubewcs.wcs_pix2world(np.vstack((np.zeros(numwav), np.zeros(numwav), np.arange(numwav))).T, 0)
-        senswave = wcs_wav[:, 2] * 1.0E10
+        # Get wavelength of each pixel, and note that the WCS gives this in m, so convert to Angstroms (x 1E10)
+        numwav = vox_edges[2].size-1
+        senswave = cube_wcs.spectral.wcs_pix2world(np.arange(numwav), 0)[0] * 1.0E10
         sensfunc = flux_spline(senswave)
 
-    # Generate a datacube using nearest grid point (NGP)
-    msgs.info("Generating data cube")
-    generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, voxedge, overwrite=overwrite,
-                      blaze_wave=blaze_wave, blaze_spec=blaze_spec, sensfunc=sensfunc, fluxcal=fluxcal,
-                      specname=specname)
+    # Generate a datacube
+    outfile = get_output_filename("", cubepar['output_filename'], True, -1)
+    if method in ['subpixel', 'ngp']:
+        # Generate the datacube
+        wl_wvrng = [np.max(mnmx_wv[:, :, 0]), np.min(mnmx_wv[:, :, 1])] if cubepar['save_whitelight'] else None
+        generate_cube_subpixel(outfile, cube_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts,
+                               all_spatpos, all_specpos, all_spatid, all_tilts, all_slits, all_align, vox_edges,
+                               all_idx=all_idx, overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
+                               fluxcal=fluxcal, sensfunc=sensfunc, specname=specname, whitelight_range=wl_wvrng,
+                               spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
