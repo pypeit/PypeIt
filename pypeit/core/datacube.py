@@ -23,6 +23,9 @@ from pypeit.core import coadd, extract, findobj_skymask, flux_calib, parse, skys
 from pypeit.core.procimg import grow_mask
 from pypeit.spectrographs.util import load_spectrograph
 
+# Use a fast histogram for speed!
+from fast_histogram import histogramdd
+
 from IPython import embed
 
 
@@ -1381,6 +1384,9 @@ def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_w
     area = 1 / num_subpixels
     all_wght_subpix = all_wghts * area
     all_var = utils.inverse(all_ivar)
+    # Setup the histogram properties
+    binsh = (bins[0].size - 1, bins[1].size - 1, bins[2].size - 1)
+    binrng = [[bins[0][0], bins[0][-1]], [bins[1][0], bins[1][-1]], [bins[2][0], bins[2][-1]]]
     # Loop through all exposures
     for fr in range(numframes):
         # Extract tilts and slits for convenience
@@ -1418,17 +1424,11 @@ def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_w
             this_wave = wave_spl(tiltpos)
             # Convert world coordinates to voxel coordinates, then histogram
             vox_coord = output_wcs.wcs_world2pix(np.vstack((this_ra, this_dec, this_wave * 1.0E-10)).T, 0)
-            # TODO :: Could these histogramdd be replaced with converting vox_coord to nearest integer? Test which approach is fastest and make sure they are consistent??
-            tmp_dc, _ = np.histogramdd(vox_coord, bins=bins, weights=np.repeat(all_sci[this_sl] * all_wght_subpix[this_sl], num_subpixels))
-            tmp_vr, _ = np.histogramdd(vox_coord, bins=bins, weights=np.repeat(all_var[this_sl] * all_wght_subpix[this_sl]**2, num_subpixels))
-            tmp_nm, _ = np.histogramdd(vox_coord, bins=bins, weights=np.repeat(all_wght_subpix[this_sl], num_subpixels))
+            datacube += histogramdd(vox_coord, bins=binsh, range=binrng, weights=np.repeat(all_sci[this_sl] * all_wght_subpix[this_sl], num_subpixels))
+            varcube += histogramdd(vox_coord, bins=binsh, range=binrng, weights=np.repeat(all_var[this_sl] * all_wght_subpix[this_sl]**2, num_subpixels))
+            normcube += histogramdd(vox_coord, bins=binsh, range=binrng, weights=np.repeat(all_wght_subpix[this_sl], num_subpixels))
             if debug:
-                tmp_rsd, _ = np.histogramdd(vox_coord, bins=bins, weights=all_sci[this_sl] * np.sqrt(all_ivar[this_sl]))
-                residcube += tmp_rsd
-            # Contibute to the datacube
-            datacube += tmp_dc
-            varcube += tmp_vr
-            normcube += tmp_nm
+                residcube += histogramdd(vox_coord, bins=binsh, range=binrng, weights=all_sci[this_sl] * np.sqrt(all_ivar[this_sl]))
     # Normalise the datacube and variance cube
     nc_inverse = utils.inverse(normcube)
     datacube *= nc_inverse
