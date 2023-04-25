@@ -113,8 +113,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 #        pypeit_qa_dir = pypeit_scidir.parent / par['rdx']['qadir']
 #        coadd_qa_dir = pypeit_scidir.parent / f"{par['rdx']['qadir']}_coadd"
 #        qa_path = coadd_qa_dir / 'PNGs'
-        parset['rdx']['qadir'] += '_coadd'
-        qa_path = pypeit_scidir.parent / parset['rdx']['qadir'] / 'PNGs'
+        par['rdx']['qadir'] += '_coadd'
+        qa_path = pypeit_scidir.parent / par['rdx']['qadir'] / 'PNGs'
         if not qa_path.exists():
             qa_path.mkdir(parents=True)
 

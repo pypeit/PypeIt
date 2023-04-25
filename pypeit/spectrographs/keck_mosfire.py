@@ -384,6 +384,26 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         """
         return ['decker_secondary', 'slitlength', 'slitwid', 'dispname', 'filter1']
 
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['MASKNAME', 'OBSMODE', 'FILTER']
+
     def modify_config(self, fitstbl, cfg):
         """
         Modify the configuration dictionary for a given frame. This method is used
@@ -679,39 +699,40 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-#    def parse_dither_pattern(self, file_list, ext=None):
-#        """
-#        Parse headers from a file list to determine the dither pattern.
-#
-#        Parameters
-#        ----------
-#        file_list (list of strings):
-#            List of files for which dither pattern is desired
-#        ext (int, optional):
-#            Extension containing the relevant header for these files. Default=None. If None, code uses
-#            self.primary_hdrext
-#
-#        Returns
-#        -------
-#        dither_pattern, dither_id, offset_arcsec
-#
-#        dither_pattern (str `numpy.ndarray`_):
-#            Array of dither pattern names
-#        dither_id (str `numpy.ndarray`_):
-#            Array of dither pattern IDs
-#        offset_arc (float `numpy.ndarray`_):
-#            Array of dither pattern offsets
-#        """
-#        nfiles = len(file_list)
-#        offset_arcsec = np.zeros(nfiles)
-#        dither_pattern = []
-#        dither_id = []
-#        for ifile, file in enumerate(file_list):
-#            hdr = fits.getheader(file, self.primary_hdrext if ext is None else ext)
-#            dither_pattern.append(hdr['PATTERN'])
-#            dither_id.append(hdr['FRAMEID'])
-#            offset_arcsec[ifile] = hdr['YOFFSET']
-#        return np.array(dither_pattern), np.array(dither_id), np.array(offset_arcsec)
+    # TODO: Is this supposed to be deprecated in favor of get_comb_group?
+    def parse_dither_pattern(self, file_list, ext=None):
+        """
+        Parse headers from a file list to determine the dither pattern.
+
+        Parameters
+        ----------
+        file_list (list of strings):
+            List of files for which dither pattern is desired
+        ext (int, optional):
+            Extension containing the relevant header for these files. Default=None. If None, code uses
+            self.primary_hdrext
+
+        Returns
+        -------
+        dither_pattern, dither_id, offset_arcsec
+
+        dither_pattern (str `numpy.ndarray`_):
+            Array of dither pattern names
+        dither_id (str `numpy.ndarray`_):
+            Array of dither pattern IDs
+        offset_arc (float `numpy.ndarray`_):
+            Array of dither pattern offsets
+        """
+        nfiles = len(file_list)
+        offset_arcsec = np.zeros(nfiles)
+        dither_pattern = []
+        dither_id = []
+        for ifile, file in enumerate(file_list):
+            hdr = fits.getheader(file, self.primary_hdrext if ext is None else ext)
+            dither_pattern.append(hdr['PATTERN'])
+            dither_id.append(hdr['FRAMEID'])
+            offset_arcsec[ifile] = hdr['YOFFSET']
+        return np.array(dither_pattern), np.array(dither_id), np.array(offset_arcsec)
 
     def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table, log10_blaze_function=None, debug=False):
         """

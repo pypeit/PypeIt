@@ -88,14 +88,15 @@ From the definition of the spectroscopic zeropoint above, it follows that
     \left(\frac{F_\lambda}{10^{-17} {\rm
     erg/s/cm^2/\mathrm{\mathring{A}}}}\right) = 10^{-0.4({\rm Zeropoint -
     ZPCONST})} \left(\frac{N_\lambda}{\rm
-    photons/s/\mathrm{\mathring{A}}}\right)\left(\frac{\lambda}{\mathrm{\mathring{A}}}\right)^2,
+    photons/s/\mathrm{\mathring{A}}}\right)\left(\frac{\mathrm{\mathring{A}}}{\lambda}\right)^2,
 
 where :math:`ZPCONST = 40.09` is a dimensionless number defined by
 
 .. math::
 
-    {\rm ZPCONST}\equiv \frac{\frac{\mathrm{\mathring{A}}^2}{c}\times
-    10^{-17}{\rm erg/s/cm^2/\mathrm{\mathring{A}}}}{3631 {\rm Jy}}.
+    {\rm ZPCONST}\equiv -2.5
+    \log_{10}{\left[\frac{\frac{\mathrm{\mathring{A}}^2}{c}\times
+    10^{-17}{\rm erg/s/cm^2/\mathrm{\mathring{A}}}}{3631 {\rm Jy}}\right]}.
 
 In practice, PypeIt fits and stores the spectroscopic zerpoints and uses the
 equation above to compute :math:`F_\lambda` from :math:`N_\lambda` and

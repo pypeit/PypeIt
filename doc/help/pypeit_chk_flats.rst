@@ -8,7 +8,7 @@
     positional arguments:
       file         PypeIt Flat file [e.g. Flat_A_1_DET01.fits]
     
-    optional arguments:
+    options:
       -h, --help   show this help message and exit
       --type TYPE  Which flats to display. Must be one of: pixel, illum, all
                    (default: all)

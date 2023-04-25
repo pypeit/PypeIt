@@ -42,7 +42,7 @@
                             ...
                             end
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       --spec1d_files [SPEC1D_FILES ...]
                             One or more spec1d files to flux/coadd/archive. Can
@@ -62,8 +62,8 @@
                             each other, they are considered the same object. If
                             match_using is 'ra/dec' (the default) this is an angular
                             distance. The defaults units are arcseconds but other
-                            units supported by astropy.coordinates.Angle can be
-                            used(e.g. '0.003d' or '0h1m30s'). If match_using is
+                            units supported by astropy.coordinates.Angle can be used
+                            (`e.g.`, '0.003d' or '0h1m30s'). If match_using is
                             'pixel' this is a float.
       --match_using MATCH_USING
                             Determines how 1D spectra are matched as being the same

@@ -3,14 +3,13 @@ Implements the objects used to construct sensitivity functions.
 
 .. include:: ../include/links.rst
 """
-import os
 import inspect
 
 from IPython import embed
 
 import numpy as np
-import scipy
-from matplotlib import pyplot as plt
+import scipy.interpolate
+import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
 from astropy.io import fits
@@ -19,7 +18,6 @@ from astropy import table
 from pypeit import msgs
 from pypeit import specobjs
 from pypeit import utils
-from pypeit import io
 from pypeit.core import coadd
 from pypeit.core import flux_calib
 from pypeit.core import telluric
@@ -42,7 +40,7 @@ from pypeit.fluxcalibrate import apply_flux_calib
 # TODO Add some QA plots, and plots to the screen if show is set.
 
 class SensFunc(datamodel.DataContainer):
-    """
+    r"""
     Base class for generating sensitivity functions from a standard-star
     spectrum.
 
@@ -841,7 +839,7 @@ class SensFunc(datamodel.DataContainer):
 
 
 class IRSensFunc(SensFunc):
-    """
+    r"""
     Determine a sensitivity functions from standard-star spectra. Should only
     be used with NIR spectra (:math:`\lambda > 7000` angstrom).
 
@@ -878,7 +876,7 @@ class IRSensFunc(SensFunc):
                                                    resln_guess=self.par['IR']['resln_guess'],
                                                    resln_frac_bounds=self.par['IR']['resln_frac_bounds'],
                                                    sn_clip=self.par['IR']['sn_clip'],
-                                                   mask_abs_lines=self.par['mask_abs_lines'],
+                                                   mask_hydrogen_lines=self.par['mask_hydrogen_lines'],
                                                    maxiter=self.par['IR']['maxiter'],
                                                    lower=self.par['IR']['lower'],
                                                    upper=self.par['IR']['upper'],
@@ -983,7 +981,7 @@ class IRSensFunc(SensFunc):
 
 
 class UVISSensFunc(SensFunc):
-    """
+    r"""
     Determine a sensitivity functions from standard-star spectra. Should only
     be used with UVIS spectra (:math:`\lambda < 7000` angstrom).
 
@@ -1021,8 +1019,9 @@ class UVISSensFunc(SensFunc):
                                                     self.par['UVIS']['extinct_file'],
                                                     self.meta_spec['ECH_ORDERS'],
                                                     polyorder=self.par['polyorder'],
-                                                    balm_mask_wid=self.par['UVIS']['balm_mask_wid'],
-                                                    mask_abs_lines=self.par['mask_abs_lines'],
+                                                    hydrogen_mask_wid=self.par['hydrogen_mask_wid'],
+                                                    mask_hydrogen_lines=self.par['mask_hydrogen_lines'],
+                                                    mask_helium_lines=self.par['mask_helium_lines'],
                                                     nresln=self.par['UVIS']['nresln'],
                                                     resolution=self.par['UVIS']['resolution'],
                                                     trans_thresh=self.par['UVIS']['trans_thresh'],
