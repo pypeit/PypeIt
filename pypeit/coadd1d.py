@@ -189,7 +189,7 @@ class MultiSlitCoAdd1D(CoAdd1D):
                 header_out['DEC_OBJ'] = sobjs[indx][0]['DEC']
             headers.append(header_out)
 
-        return waves, fluxes, ivars, gpms, header_out
+        return waves, fluxes, ivars, gpms, headers
 
     def coadd(self):
         """
