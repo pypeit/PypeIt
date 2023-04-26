@@ -1992,7 +1992,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             msgs.warn("Datacubes do not completely overlap in wavelength. Offsets may be unreliable...")
             ww = (np.arange(all_wave.size),)
         # Iterate over white light image generation and spatial shifting
-        for dd in range(2):
+        numiter = 2
+        for dd in range(numiter):
             msgs.info(f"Iterating on spatial translation - ITERATION #{dd+1}/{numiter}")
             # Setup the WCS to use for all white light images
             ref_idx = None  # Don't use an index - This is the default behaviour when a reference image is supplied
@@ -2037,7 +2038,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                                     wl_full, dspat, dwv, relative_weights=cubepar['relative_weights'])
 
     # Generate the WCS, and the voxel edges
-    cube_wcs, vox_edges = create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv)
+    cube_wcs, vox_edges, _ = create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv)
 
     sensfunc = None
     if flux_spline is not None:
