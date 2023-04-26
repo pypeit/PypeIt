@@ -1681,6 +1681,11 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=spat_flexure)
         slits_left, slits_right, _ = slits.select_edges(initial=True, flexure=spat_flexure)
 
+        # TODO :: Need to change the order of operations here:
+        #  (1) Get science image
+        #  (2) Subtract sky (note, if a joint fit has been performed, the relative scale correction is applied in the reduction!)
+        #  (3) Apply relative scale correction to science and ivar
+
         # Try to load the relative scale image, if something other than the default has been provided
         relScaleImg = relScaleImgDef.copy()
         if opts['scale_corr'][ff] is not None:
