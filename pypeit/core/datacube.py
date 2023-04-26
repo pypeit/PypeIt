@@ -1660,6 +1660,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     # Load all spec2d files and prepare the data for making a datacube
     for ff, fil in enumerate(files):
         # Load it up
+        msgs.info("Loading PypeIt spec2d frame:" + msgs.newline() + fil)
         spec2DObj = spec2dobj.Spec2DObj.from_file(fil, detname)
         detector = spec2DObj.detector
         spat_flexure = None  #spec2DObj.sci_spat_flexure
