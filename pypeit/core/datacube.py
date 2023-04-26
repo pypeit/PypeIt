@@ -903,7 +903,7 @@ def create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv, collapse=False, e
     numwav = int(np.round((wav_max-wav_min)/dwave))
 
     # If a reference image is being used and a white light image is requested (collapse=True) update the celestial parts
-    if collapse and cubepar["reference_image"] is not None:
+    if cubepar["reference_image"] is not None:
         # Load the requested reference image
         reference_image, imgwcs = load_imageWCS(cubepar["reference_image"])
         # Update the celestial WCS
