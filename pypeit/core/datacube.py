@@ -731,55 +731,25 @@ def make_whitelight_fromcube(cube, wave=None, wavemin=None, wavemax=None):
     return wl_img
 
 
-def make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat, ref_filename):
-    """ Generate a whitelight image using the individual pixels of every
-    input frame, based on a reference image. Note the, the reference
-    image must have a well-defined WCS.
+def load_imageWCS(filename, ext=0):
+    """ Load an image and return the image and the associated WCS.
 
     Args:
-        all_ra (`numpy.ndarray`_):
-            1D flattened array containing the RA values of each pixel from all spec2d files
-        all_dec (`numpy.ndarray`_):
-            1D flattened array containing the DEC values of each pixel from all spec2d files
-        all_wave (`numpy.ndarray`_):
-            1D flattened array containing the wavelength values of each pixel from all spec2d files
-        all_sci (`numpy.ndarray`_):
-            1D flattened array containing the counts of each pixel from all spec2d files
-        all_wghts (`numpy.ndarray`_):
-            1D flattened array containing the weights attributed to each pixel from all spec2d files
-        all_idx (`numpy.ndarray`_):
-            1D flattened array containing an integer identifier indicating which spec2d file
-            each pixel originates from. For example, a 0 would indicate that a pixel originates
-            from the first spec2d frame listed in the input file. a 1 would indicate that this
-            pixel originates from the second spec2d file, and so forth.
-        dspat (float):
-            The size of each spaxel on the sky (in degrees)
-        ref_filename (str):
-            A fits filename of a reference image to be used when generating white light
+        filename (str):
+            A fits filename of an image to be used when generating white light
             images. Note, the fits file must have a valid 3D WCS.
+        ext (bool, optional):
+            The extension that contains the image and WCS
 
     Returns:
-        tuple : two `numpy.ndarray`_ and one WCS will be returned. The first is a 2D reference image
-        loaded from ref_filename. The second element is a 3D array of shape [N, M, numfiles],
-        where N and M are the spatial dimensions of the combined white light images. The third is
-        the WCS of the white light image.
+        image (`numpy.ndarray`_): 2D image data
+        imgwcs (`astropy.wcs.wcs.WCS`_): The WCS of the image
     """
-    refhdu = fits.open(ref_filename)
-    reference_image = refhdu[0].data.T[:, :, 0]
-    refwcs = wcs.WCS(refhdu[0].header)
-    numra, numdec = reference_image.shape
-    # Generate coordinate system (i.e. update wavelength range to include all values)
-    coord_min = refwcs.wcs.crval
-    coord_dlt = refwcs.wcs.cdelt
-    coord_min[2] = np.min(all_wave)
-    coord_dlt[2] = np.max(all_wave) - np.min(all_wave)  # For white light, we want to bin all wavelength pixels
-    wlwcs = generate_WCS(coord_min, coord_dlt)
-
-    # Generate white light images
-    whitelight_imgs, _, _ = make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
-                                                       whitelightWCS=wlwcs, numra=numra, numdec=numdec)
+    imghdu = fits.open(filename)
+    image = imghdu[ext].data.T
+    imgwcs = wcs.WCS(imghdu[ext].header)
     # Return required info
-    return reference_image, whitelight_imgs, wlwcs
+    return image, imgwcs
 
 
 def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
@@ -876,7 +846,7 @@ def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, al
     return whitelight_Imgs, whitelight_ivar, whitelightWCS
 
 
-def create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv, equinox=2000.0, specname="PYP_SPEC"):
+def create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv, collapse=False, equinox=2000.0, specname="PYP_SPEC"):
     """
     Create a WCS and the expected edges of the voxels, based on user-specified parameters
     or the extremities of the data.
@@ -892,9 +862,11 @@ def create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv, equinox=2000.0, s
         all_wave (`numpy.ndarray`_):
             1D flattened array containing the wavelength values of each pixel from all spec2d files
         dspat (float):
-            Spatial size of each square voxel (in arcsec)
+            Spatial size of each square voxel (in arcsec). The default is to use the values in cubepar.
         dwv (float):
             Linear wavelength step of each voxel (in Angstroms)
+        collapse (bool, optional):
+            If True, the spectral dimension will be collapsed to a single channel (primarily for white light images)
         equinox (float, optional):
             Equinox of the WCS
         specname (str, optional):
@@ -905,11 +877,14 @@ def create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv, equinox=2000.0, s
             astropy WCS to be used for the combined cube
         voxedges (tuple) :
             A three element tuple containing the bin edges in the x, y (spatial) and z (wavelength) dimensions
+        reference_image (`numpy.ndarray`_, None):
+            The reference image to be used for the cross-correlation
     """
     # Grab cos(dec) for convenience
     cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
 
     # Setup the cube ranges
+    reference_image = None  # The default behaviour is that the reference image is not used
     ra_min = cubepar['ra_min'] if cubepar['ra_min'] is not None else np.min(all_ra)
     ra_max = cubepar['ra_max'] if cubepar['ra_max'] is not None else np.max(all_ra)
     dec_min = cubepar['dec_min'] if cubepar['dec_min'] is not None else np.min(all_dec)
@@ -917,29 +892,41 @@ def create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv, equinox=2000.0, s
     wav_min = cubepar['wave_min'] if cubepar['wave_min'] is not None else np.min(all_wave)
     wav_max = cubepar['wave_max'] if cubepar['wave_max'] is not None else np.max(all_wave)
     dwave = cubepar['wave_delta'] if cubepar['wave_delta'] is not None else dwv
+    if collapse:
+        dwave = np.max(all_wave) - np.min(all_wave)
 
     # Generate a master WCS to register all frames
     coord_min = [ra_min, dec_min, wav_min]
     coord_dlt = [dspat, dspat, dwave]
+    numra = int((ra_max-ra_min) * cosdec / dspat)
+    numdec = int((dec_max-dec_min)/dspat)
+    numwav = int(np.round((wav_max-wav_min)/dwave))
+
+    # If a reference image is being used and a white light image is requested (collapse=True) update the celestial parts
+    if collapse and cubepar["reference_image"] is not None:
+        # Load the requested reference image
+        reference_image, imgwcs = load_imageWCS(cubepar["reference_image"])
+        # Update the celestial WCS
+        coord_min[:2] = imgwcs.wcs.crval
+        coord_dlt[:2] = imgwcs.wcs.cdelt
+        numra, numdec = reference_image.shape
+
     cubewcs = generate_WCS(coord_min, coord_dlt, equinox=equinox, name=specname)
     msgs.info(msgs.newline() + "-" * 40 +
               msgs.newline() + "Parameters of the WCS:" +
-              msgs.newline() + "RA   min, max = {0:f}, {1:f}".format(ra_min, ra_max) +
-              msgs.newline() + "DEC  min, max = {0:f}, {1:f}".format(dec_min, dec_max) +
+              msgs.newline() + "RA   min = {0:f}".format(coord_min[0]) +
+              msgs.newline() + "DEC  min = {0:f}".format(coord_min[1]) +
               msgs.newline() + "WAVE min, max = {0:f}, {1:f}".format(wav_min, wav_max) +
               msgs.newline() + "Spaxel size = {0:f} arcsec".format(3600.0*dspat) +
               msgs.newline() + "Wavelength step = {0:f} A".format(dwave) +
               msgs.newline() + "-" * 40)
 
     # Generate the output binning
-    numra = int((ra_max-ra_min) * cosdec / dspat)
-    numdec = int((dec_max-dec_min)/dspat)
-    numwav = int(np.round((wav_max-wav_min)/dwave))
     xbins = np.arange(1+numra)-0.5
     ybins = np.arange(1+numdec)-0.5
     spec_bins = np.arange(1+numwav)-0.5
     voxedges = (xbins, ybins, spec_bins)
-    return cubewcs, voxedges
+    return cubewcs, voxedges, reference_image
 
 
 def generate_WCS(crval, cdelt, equinox=2000.0, name="PYP_SPEC"):
@@ -1373,6 +1360,7 @@ def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_w
                    msgs.newline() + "tilts, slits, astrom_trans")
     # Prepare the output arrays
     outshape = (bins[0].size-1, bins[1].size-1, bins[2].size-1)
+    binrng = [[bins[0][0], bins[0][-1]], [bins[1][0], bins[1][-1]], [bins[2][0], bins[2][-1]]]
     datacube, varcube, normcube = np.zeros(outshape), np.zeros(outshape), np.zeros(outshape)
     if debug:
         residcube = np.zeros(outshape)
@@ -1384,9 +1372,6 @@ def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_w
     area = 1 / num_subpixels
     all_wght_subpix = all_wghts * area
     all_var = utils.inverse(all_ivar)
-    # Setup the histogram properties
-    binsh = (bins[0].size - 1, bins[1].size - 1, bins[2].size - 1)
-    binrng = [[bins[0][0], bins[0][-1]], [bins[1][0], bins[1][-1]], [bins[2][0], bins[2][-1]]]
     # Loop through all exposures
     for fr in range(numframes):
         # Extract tilts and slits for convenience
@@ -1424,11 +1409,12 @@ def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_w
             this_wave = wave_spl(tiltpos)
             # Convert world coordinates to voxel coordinates, then histogram
             vox_coord = output_wcs.wcs_world2pix(np.vstack((this_ra, this_dec, this_wave * 1.0E-10)).T, 0)
-            datacube += histogramdd(vox_coord, bins=binsh, range=binrng, weights=np.repeat(all_sci[this_sl] * all_wght_subpix[this_sl], num_subpixels))
-            varcube += histogramdd(vox_coord, bins=binsh, range=binrng, weights=np.repeat(all_var[this_sl] * all_wght_subpix[this_sl]**2, num_subpixels))
-            normcube += histogramdd(vox_coord, bins=binsh, range=binrng, weights=np.repeat(all_wght_subpix[this_sl], num_subpixels))
+            # use the "fast histogram" algorithm, that assumes regular bin spacing
+            datacube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(all_sci[this_sl] * all_wght_subpix[this_sl], num_subpixels))
+            varcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(all_var[this_sl] * all_wght_subpix[this_sl]**2, num_subpixels))
+            normcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(all_wght_subpix[this_sl], num_subpixels))
             if debug:
-                residcube += histogramdd(vox_coord, bins=binsh, range=binrng, weights=all_sci[this_sl] * np.sqrt(all_ivar[this_sl]))
+                residcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=all_sci[this_sl] * np.sqrt(all_ivar[this_sl]))
     # Normalise the datacube and variance cube
     nc_inverse = utils.inverse(normcube)
     datacube *= nc_inverse
@@ -1991,81 +1977,64 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     # Grab cos(dec) for convenience
     cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
 
+    # If there is only one frame being "combined" AND there's no reference image, then don't compute the translation.
+    translate = False if cubepar["reference_image"] is None and numfiles == 1 else True
     # Register spatial offsets between all frames
-    # Check if a reference white light image should be used to register the offsets
-    numiter = 2
-    for dd in range(numiter):
-        msgs.info(f"Iterating on spatial translation - ITERATION #{dd+1}/{numiter}")
-        if cubepar["reference_image"] is None:
-            # Find the wavelength range where all frames overlap
-            min_wl, max_wl = np.max(mnmx_wv[:,:,0]), np.min(mnmx_wv[:,:,1])  # This is the max blue wavelength and the min red wavelength
-            wavediff = np.max(all_wave) - np.min(all_wave)
-            # Generate white light images
-            if min_wl < max_wl:
-                ww = np.where((all_wave > min_wl) & (all_wave < max_wl))
-                wavediff = max_wl - min_wl
-            else:
-                msgs.warn("Datacubes do not completely overlap in wavelength. Offsets may be unreliable...")
-                ww = (np.arange(all_wave.size),)
-
-            # Setup the WCS for the white light images
-            image_wcs, voxedge = create_wcs(cubepar, all_ra[ww], all_dec[ww], all_wave[ww], dspat, wavediff)
+    if translate:
+        # Find the wavelength range where all frames overlap
+        min_wl, max_wl = np.max(mnmx_wv[:, :, 0]), np.min(
+            mnmx_wv[:, :, 1])  # This is the max blue wavelength and the min red wavelength
+        wavediff = np.max(all_wave) - np.min(all_wave)
+        if min_wl < max_wl:
+            ww = np.where((all_wave > min_wl) & (all_wave < max_wl))
+            wavediff = max_wl - min_wl
+        else:
+            msgs.warn("Datacubes do not completely overlap in wavelength. Offsets may be unreliable...")
+            ww = (np.arange(all_wave.size),)
+        # Iterate over white light image generation and spatial shifting
+        for dd in range(2):
+            msgs.info(f"Iterating on spatial translation - ITERATION #{dd+1}/{numiter}")
+            # Setup the WCS to use for all white light images
+            ref_idx = None  # Don't use an index - This is the default behaviour when a reference image is supplied
+            image_wcs, voxedge, reference_image = create_wcs(cubepar, all_ra[ww], all_dec[ww], all_wave[ww],
+                                                             dspat, wavediff, collapse=True)
             if voxedge[2].size != 2:
-                msgs.error("Spectral range for WCS is incorrect")
+                msgs.error("Spectral range for WCS is incorrect for white light image")
+
             wl_imgs = generate_image_subpixel(image_wcs, all_ra[ww], all_dec[ww], all_wave[ww],
                                               all_sci[ww], all_ivar[ww], all_wghts[ww],
                                               all_spatpos[ww], all_specpos[ww], all_spatid[ww],
                                               all_tilts, all_slits, all_align, voxedge, all_idx=all_idx[ww],
                                               spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
-            # ref_idx will be the index of the cube with the highest S/N
-            ref_idx = np.argmax(weights)
-            reference_image = wl_imgs[:, :, ref_idx].copy()
-            msgs.info("Calculating spatial translation of each cube relative to cube #{0:d})".format(ref_idx+1))
-        else:
-            msgs.error("Using a reference image is currently not supported.")
-            ref_idx = -1  # Don't use an index
-            # Load reference information
-            reference_image, whitelight_imgs, wlwcs = \
-                make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
-                                        cubepar['reference_image'])
-            msgs.info("Calculating the spatial translation of each cube relative to user-defined 'reference_image'")
+            if reference_image is None:
+                # ref_idx will be the index of the cube with the highest S/N
+                ref_idx = np.argmax(weights)
+                reference_image = wl_imgs[:, :, ref_idx].copy()
+                msgs.info("Calculating spatial translation of each cube relative to cube #{0:d})".format(ref_idx+1))
+            else:
+                msgs.info("Calculating the spatial translation of each cube relative to user-defined 'reference_image'")
 
-        # Calculate the image offsets relative to the reference image
-        for ff in range(numfiles):
-            # Calculate the shift
-            ra_shift, dec_shift = calculate_image_phase(reference_image.copy(), wl_imgs[:, :, ff], maskval=0.0)
-            # Convert pixel shift to degress shift
-            ra_shift *= dspat/cosdec
-            dec_shift *= dspat
-            msgs.info("Spatial shift of cube #{0:d}: RA, DEC (arcsec) = {1:+0.3f}, {2:+0.3f}".format(ff+1, ra_shift*3600.0, dec_shift*3600.0))
-            # Apply the shift
-            all_ra[all_idx == ff] += ra_shift
-            all_dec[all_idx == ff] += dec_shift
-
-    # Generate a white light image of *all* data
-    # TODO :: This is costly and not really needed
-    msgs.info("Generating global white light image")
-    if cubepar["reference_image"] is None:
-        # Find the wavelength range where all frames overlap
-        min_wl, max_wl = np.max(mnmx_wv[:, :, 0]), np.min(mnmx_wv[:, :, 1])  # This is the max blue wavelength and the min red wavelength
-        if min_wl < max_wl:
-            ww = np.where((all_wave > min_wl) & (all_wave < max_wl))
-            msgs.info("Whitelight image covers the wavelength range {0:.2f} A - {1:.2f} A".format(min_wl, max_wl))
-        else:
-            msgs.warn("Datacubes do not completely overlap in wavelength. Offsets may be unreliable...")
-            ww = (np.arange(all_wave.size),)
-        whitelight_img, _, wlwcs = make_whitelight_frompixels(all_ra[ww], all_dec[ww], all_wave[ww], all_sci[ww],
-                                                              all_wghts[ww], np.zeros(ww[0].size), dspat)
-    else:
-        msgs.error("Using a reference image is currently not supported.")
-        _, whitelight_img, wlwcs = \
-            make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, np.zeros(all_ra.size),
-                                    dspat, cubepar['reference_image'])
+            # Calculate the image offsets relative to the reference image
+            for ff in range(numfiles):
+                # Calculate the shift
+                ra_shift, dec_shift = calculate_image_phase(reference_image.copy(), wl_imgs[:, :, ff], maskval=0.0)
+                # Convert pixel shift to degrees shift
+                ra_shift *= dspat/cosdec
+                dec_shift *= dspat
+                msgs.info("Spatial shift of cube #{0:d}: RA, DEC (arcsec) = {1:+0.3f}, {2:+0.3f}".format(ff+1, ra_shift*3600.0, dec_shift*3600.0))
+                # Apply the shift
+                all_ra[all_idx == ff] += ra_shift
+                all_dec[all_idx == ff] += dec_shift
 
     # Calculate the relative spectral weights of all pixels
-    all_wghts = compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx,
-                                whitelight_img[:, :, 0], dspat, dwv,
-                                relative_weights=cubepar['relative_weights'])
+    if numfiles == 1:
+        # No need to calculate weights if there's just one frame
+        all_wghts = np.ones_like(all_sci)
+    else:
+        # Collapse all spatially translated white light images
+        wl_full = np.sum(wl_imgs, axis=2)
+        all_wghts = compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx,
+                                    wl_full, dspat, dwv, relative_weights=cubepar['relative_weights'])
 
     # Generate the WCS, and the voxel edges
     cube_wcs, vox_edges = create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv)
