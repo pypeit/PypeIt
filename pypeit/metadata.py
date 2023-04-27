@@ -956,6 +956,20 @@ class PypeItMetaData:
             # Check against current maximum
             ngroups = max(l+1, ngroups)
 
+        # Catch the case when the calibration group is set to all for all
+        # entries.  NOTE: Science frames should never have calib='all', but the
+        # case below can happen if users are only processing calibration frames
+        # and they set the calib group to 'all' for all frames.
+        if ngroups == 0 and any(self['calib'] == 'all'):
+            ngroups = 1
+
+        # TODO: Change this so that the calib_ID does *not* have to be a
+        # sequential number.  As it is, if the user defines calibration groups
+        # 1, 2, there ends up being 3 groups, identified as 0, 1, 2.  I.e., we
+        # shouldn't have to force the user to know to start the group IDs at 0
+        # and force them to be sequential.  They can be anything as long as
+        # there are less than 64 unique values.
+
         # Define the bitmask and initialize the bits
         self.calib_bitmask = BitMask(np.arange(ngroups))
         self['calibbit'] = 0

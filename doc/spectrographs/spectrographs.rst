@@ -46,6 +46,7 @@ instrument-specific details for running PypeIt.
    mage
    magellan_fire
    mmt_binospec
+   mmt_bluechannel
    mmt_mmirs
    not_alfosc
    ntt_efosc2

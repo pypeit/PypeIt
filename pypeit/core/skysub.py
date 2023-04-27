@@ -5,10 +5,10 @@
 """
 import numpy as np
 
-from scipy import ndimage
-from scipy.special import ndtr
+import scipy.ndimage
+import scipy.special
 
-from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
 
 from IPython import embed
 
@@ -342,7 +342,7 @@ def skyoptimal(piximg, data, ivar, oprof, sigrej=3.0, npoly=1, spatial_img=None,
 
     chi2 = (data[good] - yfit1) ** 2 * ivar[good]
     chi2_srt = np.sort(chi2)
-    gauss_prob = 1.0 - 2.0 * ndtr(-1.2 * sigrej)
+    gauss_prob = 1.0 - 2.0 * scipy.special.ndtr(-1.2 * sigrej)
     sigind = int(np.fmin(np.rint(gauss_prob * float(ngood)), ngood - 1))
     chi2_sigrej = chi2_srt[sigind]
     mask1 = (chi2 < chi2_sigrej)
@@ -454,11 +454,11 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
         dsamp_init = np.roll(samplmin, -1) - samplmax
         dsamp_init[nbkpt - 1] = dsamp_init[nbkpt - 2]
         kernel_size = int(np.fmax(np.ceil(dsamp_init.size*0.01)//2*2 + 1,15))  # This ensures kernel_size is odd
-        dsamp_med = ndimage.filters.median_filter(dsamp_init, size=kernel_size, mode='reflect')
+        dsamp_med = scipy.ndimage.median_filter(dsamp_init, size=kernel_size, mode='reflect')
         boxcar_size = int(np.fmax(np.ceil(dsamp_med.size*0.005)//2*2 + 1,5))
         # Boxcar smooth median dsamp
         kernel = np.ones(boxcar_size)/ float(boxcar_size)
-        dsamp = ndimage.convolve(dsamp_med, kernel, mode='reflect')
+        dsamp = scipy.ndimage.convolve(dsamp_med, kernel, mode='reflect')
         # if more than samp_frac of the pixels have dsamp < bsp_min than just use a uniform breakpoint spacing
         if np.sum(dsamp <= bsp_min) > samp_frac*nbkpt:
             msgs.info('Sampling of wavelengths is nearly continuous.')
@@ -749,7 +749,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         chi2_sigrej = 6.0
         #sigrej_ceil = 10.0
     # We will use this number later
-    gauss_prob = 1.0 - 2.0 * ndtr(-sigrej)
+    gauss_prob = 1.0 - 2.0 * scipy.special.ndtr(-sigrej)
 
     # Create the images that will be returned
     modelivar = np.copy(sciivar)
@@ -779,7 +779,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
             min_spat1 = slit_left
             max_spat1 = slit_righ
         else:
-            # The default value of maskwidth = 3.0 * FWHM = 7.05 * sigma in objfind with a log(S/N) correction for bright objects
+            # The default value of maskwidth = 4.0 * FWHM = 9.4 * sigma in objfind with a log(S/N) correction for bright objects
+            # But the width can be adjusted with `par['reduce']['skysub']['local_maskwidth']`
             left_edges = np.array([sobjs[i].TRACE_SPAT - sobjs[i].maskwidth - 1 for i in group])
             righ_edges = np.array([sobjs[i].TRACE_SPAT + sobjs[i].maskwidth + 1 for i in group])
 
@@ -1210,33 +1211,43 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
 
     # Find the spat IDs
     gdslit_spat = np.unique(slitmask[slitmask >= 0]).astype(int)  # Unique sorts
-    if gdslit_spat.size != norders:
-        msgs.error("You have not dealt with masked orders properly")
+    #if gdslit_spat.size != norders:
+    #    msgs.error("You have not dealt with masked orders properly")
 
-    if (np.sum(sobjs.sign > 0) % norders) == 0:
-        nobjs = int((np.sum(sobjs.sign > 0)/norders))
-    else:
-        msgs.error('Number of specobjs in sobjs is not an integer multiple of the number or ordres!')
+    #if (np.sum(sobjs.sign > 0) % norders) == 0:
+    #    nobjs = int((np.sum(sobjs.sign > 0)/norders))
+    #else:
+    #    msgs.error('Number of specobjs in sobjs is not an integer multiple of the number or ordres!')
 
-    order_snr = np.zeros((norders, nobjs))
+    # Set bad obj to -nan
     uni_objid = np.unique(sobjs[sobjs.sign > 0].ECH_OBJID)
+    nobjs = len(uni_objid)
+    order_snr = np.zeros((norders, nobjs))
+    order_snr_gpm = np.ones_like(order_snr) 
     for iord in range(norders):
         for iobj in range(nobjs):
             ind = (sobjs.ECH_ORDERINDX == iord) & (sobjs.ECH_OBJID == uni_objid[iobj])
-            order_snr[iord,iobj] = sobjs[ind].ech_snr
+            # Allow for missed/bad order
+            if np.sum(ind) == 0:
+                order_snr_gpm[iord,iobj] = False
+            else:
+                order_snr[iord,iobj] = sobjs[ind].ech_snr
 
     # Compute the average SNR and find the brightest object
-    snr_bar = np.mean(order_snr,axis=0)
+    snr_bar = np.sum(order_snr,axis=0) / np.sum(order_snr_gpm,axis=0)
     srt_obj = snr_bar.argsort()[::-1]
     ibright = srt_obj[0] # index of the brightest object
+
     # Now extract the orders in descending order of S/N for the brightest object
     srt_order_snr = order_snr[:,ibright].argsort()[::-1]
     fwhm_here = np.zeros(norders)
     fwhm_was_fit = np.zeros(norders,dtype=bool)
+
     # Print out a status message
     str_out = ''
     for iord in srt_order_snr:
-        str_out += '{:<8d}{:<8d}{:>10.2f}'.format(slit_vec[iord], order_vec[iord], order_snr[iord,ibright]) + msgs.newline()
+        if order_snr_gpm[iord,ibright]:
+            str_out += '{:<8d}{:<8d}{:>10.2f}'.format(slit_vec[iord], order_vec[iord], order_snr[iord,ibright]) + msgs.newline()
     dash = '-'*27
     dash_big = '-'*40
     msgs.info(msgs.newline() + 'Reducing orders in order of S/N of brightest object:' + msgs.newline() + dash +
@@ -1244,6 +1255,9 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
               msgs.newline() + str_out)
     # Loop over orders in order of S/N ratio (from highest to lowest) for the brightest object
     for iord in srt_order_snr:
+        # Is this a bad slit?
+        if not np.any(order_snr_gpm[iord,:]):
+            continue
         order = order_vec[iord]
         msgs.info("Local sky subtraction and extraction for slit/order: {:d}/{:d}".format(iord,order))
         other_orders = (fwhm_here > 0) & np.invert(fwhm_was_fit)
@@ -1279,7 +1293,10 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                         spec.FWHM = fwhm_this_ord
 
                     str_out = ''
-                    for slit_now, order_now, snr_now, fwhm_now in zip(slit_vec[other_orders], order_vec[other_orders],order_snr[other_orders,ibright], fwhm_here[other_orders]):
+                    for slit_now, order_now, snr_now, fwhm_now in zip(
+                        slit_vec[other_orders], order_vec[other_orders],
+                        order_snr[other_orders,ibright], 
+                        fwhm_here[other_orders]):
                         str_out += '{:<8d}{:<8d}{:>10.2f}{:>10.2f}'.format(slit_now, order_now, snr_now, fwhm_now) + msgs.newline()
                     msgs.info(msgs.newline() + 'Using' +  fwhm_str + ' for FWHM of object={:d}'.format(uni_objid[iobj]) +
                               ' on slit/order: {:d}/{:d}'.format(iord,order) + msgs.newline() + dash_big +

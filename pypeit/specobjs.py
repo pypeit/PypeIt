@@ -79,6 +79,10 @@ class SpecObjs:
         slf.header = hdul[0].header
         # Keep track of HDUList for closing later
 
+        # Catch common error of trying to read a OneSpec file
+        if 'DMODCLS' in hdul[1].header and hdul[1].header['DMODCLS'] == 'OneSpec':
+            msgs.error('This is a OneSpec file.  You are treating it like a SpecObjs file.')
+
         detector_hdus = {}
         # Loop for Detectors first as we need to add these to the objects
         for hdu in hdul[1:]:
@@ -192,7 +196,7 @@ class SpecObjs:
                   True=Good
                 - meta_spec (dict:) Dictionary containing meta data.
                   The keys are defined by
-                  spectrograph.header_cards_from_spec()
+                  spectrograph.parse_spec_header()
                 - header (astropy.io.header object): header from
                   spec1d file
         """
@@ -798,18 +802,12 @@ class SpecObjs:
             # S2N -- default to boxcar
             if specobj.FWHMFIT is not None and specobj.OPT_COUNTS is not None:
                 opt_fwhm.append(np.median(specobj.FWHMFIT) * binspatial * platescale)
-                # S2N -- optimal
-                ivar = specobj.OPT_COUNTS_IVAR
-                is2n = np.median(specobj.OPT_COUNTS * np.sqrt(ivar))
-                s2n.append(is2n)
             else:  # Optimal is not required to occur
                 opt_fwhm.append(0.)
-                if specobj.BOX_COUNTS is None:
-                    is2n = 0.
-                else:
-                    ivar = specobj.BOX_COUNTS_IVAR
-                    is2n = np.median(specobj.BOX_COUNTS * np.sqrt(ivar))
-                s2n.append(is2n)
+            # NOTE: Below requires that S2N not be None, otherwise the code will
+            # fault.  If the code gets here and S2N is None, check that 1D
+            # extractions have been performed.
+            s2n.append(specobj.S2N)
             # Manual extraction?
             manual_extract.append(specobj.hand_extract_flag)
             # Slitmask info

@@ -355,6 +355,7 @@ Key                          Type              Options                          
 ``gap_offset``               int, float        ..                                           5.0             Offset (pixels) used for the slit edge gap width when inserting slit edges (see `sync_center`) or when nudging predicted slit edges to avoid slit overlaps.  This should be larger than `minimum_slit_gap` when converted to arcseconds.                                                                                                                                                                                                                                                                                                                                                              
 ``left_right_pca``           bool              ..                                           False           Construct a PCA decomposition for the left and right traces separately.  This can be important for cross-dispersed echelle spectrographs (e.g., Keck-NIRES)                                                                                                                                                                                                                                                                                                                                                                                                                                           
 ``length_range``             int, float        ..                                           ..              Allowed range in slit length compared to the median slit length.  For example, a value of 0.3 means that slit lengths should not vary more than 30%.  Relatively shorter or longer slits are masked or clipped.  Most useful for echelle or multi-slit data where the slits should have similar or identical lengths.                                                                                                                                                                                                                                                                                 
+``maskdesign_filename``      str, list         ..                                           ..              Mask design info contained in this file or files (comma separated)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
 ``maskdesign_maxsep``        int, float        ..                                           50              Maximum allowed offset in pixels between the slit edges defined by the slit-mask design and the traced edges.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
 ``maskdesign_sigrej``        int, float        ..                                           3               Number of sigma for sigma-clipping rejection during slit-mask design matching.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
 ``maskdesign_step``          int, float        ..                                           1               Step in pixels used to generate a list of possible offsets (within +/- `maskdesign_maxsep`) between the slit edges defined by the mask design and the traced edges.                                                                                                                                                                                                                                                                                                                                                                                                                                   
@@ -439,9 +440,9 @@ Key                   Type                       Options                        
 ``IDwaves``           int, float, list           ..                                                                            ..                Wavelengths of the manually identified lines                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
 ``cc_local_thresh``   float                      ..                                                                            0.7               Threshold for the *local* cross-correlation coefficient, evaluated at each reidentified line,  between an input spectrum and the shifted and stretched archive spectrum above which a line must be to be considered a good line for reidentification. The local cross-correlation is evaluated at each candidate reidentified line (using a window of nlocal_cc), and is then used to score the the reidentified lines to arrive at the final set of good reidentifications.                                                                                                                                                                                                                                                                                                                                 
 ``cc_thresh``         float, list, ndarray       ..                                                                            0.7               Threshold for the *global* cross-correlation coefficient between an input spectrum and member of the archive required to attempt reidentification.  Spectra from the archive with a lower cross-correlation are not used for reidentification. This can be a single number or a list/array providing the value for each slit.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
-``ech_fix_format``    bool                       ..                                                                            True              Is this a fixed format echelle?  If so reidentification will assume that each order in the data is aligned with a single order in the reid arxiv.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
 ``ech_norder_coeff``  int                        ..                                                                            4                 For echelle spectrographs, this is the order of the final 2d fit to the order dimension.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 ``ech_nspec_coeff``   int                        ..                                                                            4                 For echelle spectrographs, this is the order of the final 2d fit to the spectral dimension.  You should choose this to be the n_final of the fits to the individual orders.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+``ech_separate_2d``   bool                       ..                                                                            False             For echelle spectrographs, fit the 2D solutions on separate detectors separately                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
 ``ech_sigrej``        int, float                 ..                                                                            2.0               For echelle spectrographs, this is the sigma-clipping rejection threshold in the 2d fit to spectral and order dimensions                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 ``echelle``           bool                       ..                                                                            False             Is this an echelle spectrograph? If yes an additional 2-d fit wavelength fit will be performed as a function of spectral pixel and order number to improve the wavelength solution                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
 ``func``              str                        ..                                                                            ``legendre``      Function used for wavelength solution fits                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
@@ -749,6 +750,7 @@ Key                  Type        Options  Default  Description
 ``bspline_spacing``  int, float  ..       0.6      Break-point spacing for the bspline sky subtraction fits.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 ``global_sky_std``   bool        ..       True     Global sky subtraction will be performed on standard stars. This should be turned off for example for near-IR reductions with narrow slits, since bright standards can fill the slit causing global sky-subtraction to fail. In these situations we go straight to local sky-subtraction since it is designed to deal with such situations                                                                                                                                                                                                                                                    
 ``joint_fit``        bool        ..       False    Perform a simultaneous joint fit to sky regions using all available slits. Currently, this parameter is only used for IFU data reduction.                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+``local_maskwidth``  float       ..       4.0      Initial width of the region in units of FWHM that will be used for local sky subtraction                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
 ``mask_by_boxcar``   bool        ..       False    In global sky evaluation, mask the sky region around the object by the boxcar radius (set in ExtractionPar).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
 ``max_mask_frac``    float       ..       0.8      Maximum fraction of total pixels on a slit that can be masked by the input masks. If more than this threshold is masked the code will return zeros and throw a warning.                                                                                                                                                                                                                                                                                                                                                                                                                       
 ``no_local_sky``     bool        ..       False    If True, turn off local sky model evaluation, but do fit object profile and perform optimal extraction                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
@@ -857,23 +859,25 @@ SensFuncPar Keywords
 
 Class Instantiation: :class:`~pypeit.par.pypeitpar.SensFuncPar`
 
-==================  ==============================================  ================  ===========================  ======================================================================================================================================================================================================================================================================================================================================================================
-Key                 Type                                            Options           Default                      Description                                                                                                                                                                                                                                                                                                                                                           
-==================  ==============================================  ================  ===========================  ======================================================================================================================================================================================================================================================================================================================================================================
-``IR``              :class:`~pypeit.par.pypeitpar.TelluricPar`      ..                `TelluricPar Keywords`_      Parameters for the IR sensfunc algorithm                                                                                                                                                                                                                                                                                                                              
-``UVIS``            :class:`~pypeit.par.pypeitpar.SensfuncUVISPar`  ..                `SensfuncUVISPar Keywords`_  Parameters for the UVIS sensfunc algorithm                                                                                                                                                                                                                                                                                                                            
-``algorithm``       str                                             ``UVIS``, ``IR``  ``UVIS``                     Specify the algorithm for computing the sensitivity function. The options are:  (1) UVIS = Should be used for data with lambda < 7000A.No detailed model of telluric absorption but corrects for atmospheric extinction. (2) IR = Should be used for data with lambbda > 7000A.Peforms joint fit for sensitivity function and telluric absorption using HITRAN models.
-``extrap_blu``      float                                           ..                0.1                          Fraction of minimum wavelength coverage to grow the wavelength coverage of the sensitivitity function in the blue direction, i.e. if the standard star spectrumcuts off at wave_min, the sensfunc will be extrapolated to cover down to  (1.0-extrap_blu)*wave_min                                                                                                    
-``extrap_red``      float                                           ..                0.1                          Fraction of maximum wavelength coverage to grow the wavelength coverage of the sensitivitity function in the red direction, i.e. if the standard star spectrumcuts off at wave_max, the sensfunc will be extrapolated to cover up to  (1.0 + extrap_red)*wave_max                                                                                                     
-``mask_abs_lines``  bool                                            ..                True                         Mask Balmer, Paschen, Brackett, and Pfund lines in sensitivity function fit                                                                                                                                                                                                                                                                                           
-``multi_spec_det``  list                                            ..                ..                           List of detectors (identified by their string name, like DET01) to splice together for multi-detector instruments (e.g. DEIMOS). It is assumed that there is *no* overlap in wavelength across detectors (might be ok if there is).  If entered as a list of integers, they should be converted to the detector name.  **Cannot be used with detector mosaics.**      
-``polyorder``       int, list                                       ..                5                            Polynomial order for sensitivity function fitting                                                                                                                                                                                                                                                                                                                     
-``samp_fact``       float                                           ..                1.5                          sampling factor to make the wavelength grid for sensitivity function finer or coarser.  samp_fact > 1.0 oversamples (finer), samp_fact < 1.0 undersamples (coarser).                                                                                                                                                                                                  
-``star_dec``        float                                           ..                ..                           DEC of the standard star. This will override values in the header, i.e. if they are wrong or absent                                                                                                                                                                                                                                                                   
-``star_mag``        float                                           ..                ..                           Magnitude of the standard star (for near-IR mainly)                                                                                                                                                                                                                                                                                                                   
-``star_ra``         float                                           ..                ..                           RA of the standard star. This will override values in the header, i.e. if they are wrong or absent                                                                                                                                                                                                                                                                    
-``star_type``       str                                             ..                ..                           Spectral type of the standard star (for near-IR mainly)                                                                                                                                                                                                                                                                                                               
-==================  ==============================================  ================  ===========================  ======================================================================================================================================================================================================================================================================================================================================================================
+=======================  ==============================================  ================  ===========================  ===========================================================================================================================================================================================================================================================================================================================================================================================
+Key                      Type                                            Options           Default                      Description                                                                                                                                                                                                                                                                                                                                                                                
+=======================  ==============================================  ================  ===========================  ===========================================================================================================================================================================================================================================================================================================================================================================================
+``IR``                   :class:`~pypeit.par.pypeitpar.TelluricPar`      ..                `TelluricPar Keywords`_      Parameters for the IR sensfunc algorithm                                                                                                                                                                                                                                                                                                                                                   
+``UVIS``                 :class:`~pypeit.par.pypeitpar.SensfuncUVISPar`  ..                `SensfuncUVISPar Keywords`_  Parameters for the UVIS sensfunc algorithm                                                                                                                                                                                                                                                                                                                                                 
+``algorithm``            str                                             ``UVIS``, ``IR``  ``UVIS``                     Specify the algorithm for computing the sensitivity function. The options are:  (1) UVIS = Should be used for data with :math:`\lambda < 7000` A. No detailed model of telluric absorption but corrects for atmospheric extinction. (2) IR = Should be used for data with :math:`\lambda > 7000` A. Peforms joint fit for sensitivity function and telluric absorption using HITRAN models.
+``extrap_blu``           float                                           ..                0.1                          Fraction of minimum wavelength coverage to grow the wavelength coverage of the sensitivitity function in the blue direction, i.e. if the standard star spectrumcuts off at wave_min, the sensfunc will be extrapolated to cover down to  (1.0 - ``extrap_blu``) * ``wave_min``                                                                                                             
+``extrap_red``           float                                           ..                0.1                          Fraction of maximum wavelength coverage to grow the wavelength coverage of the sensitivitity function in the red direction, i.e. if the standard star spectrumcuts off at wave_max, the sensfunc will be extrapolated to cover up to  (1.0 + ``extrap_red``) * ``wave_max``                                                                                                                
+``hydrogen_mask_wid``    float                                           ..                10.0                         Mask width from line center for hydrogen recombination lines in Angstroms (total mask width is 2x this value).                                                                                                                                                                                                                                                                             
+``mask_helium_lines``    bool                                            ..                False                        Mask certain ``HeII`` recombination lines prominent in O-type stars in the sensitivity function fit A region equal to 0.5 * ``hydrogen_mask_wid`` on either side of the line center is masked.                                                                                                                                                                                             
+``mask_hydrogen_lines``  bool                                            ..                True                         Mask hydrogen Balmer, Paschen, Brackett, and Pfund recombination lines in the sensitivity function fit. A region equal to ``hydrogen_mask_wid`` on either side of the line center is masked.                                                                                                                                                                                               
+``multi_spec_det``       list                                            ..                ..                           List of detectors (identified by their string name, like DET01) to splice together for multi-detector instruments (e.g. DEIMOS). It is assumed that there is *no* overlap in wavelength across detectors (might be ok if there is).  If entered as a list of integers, they should be converted to the detector name.  **Cannot be used with detector mosaics.**                           
+``polyorder``            int, list                                       ..                5                            Polynomial order for sensitivity function fitting                                                                                                                                                                                                                                                                                                                                          
+``samp_fact``            float                                           ..                1.5                          sampling factor to make the wavelength grid for sensitivity function finer or coarser.  samp_fact > 1.0 oversamples (finer), samp_fact < 1.0 undersamples (coarser).                                                                                                                                                                                                                       
+``star_dec``             float                                           ..                ..                           DEC of the standard star. This will override values in the header, i.e. if they are wrong or absent                                                                                                                                                                                                                                                                                        
+``star_mag``             float                                           ..                ..                           Magnitude of the standard star (for near-IR mainly)                                                                                                                                                                                                                                                                                                                                        
+``star_ra``              float                                           ..                ..                           RA of the standard star. This will override values in the header, i.e. if they are wrong or absent                                                                                                                                                                                                                                                                                         
+``star_type``            str                                             ..                ..                           Spectral type of the standard star (for near-IR mainly)                                                                                                                                                                                                                                                                                                                                    
+=======================  ==============================================  ================  ===========================  ===========================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -888,10 +892,9 @@ Class Instantiation: :class:`~pypeit.par.pypeitpar.SensfuncUVISPar`
 ====================  ==========  =======  ===========  =========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 Key                   Type        Options  Default      Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
 ====================  ==========  =======  ===========  =========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-``balm_mask_wid``     float       ..       10.0         Mask width for Balmer lines in Angstroms.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
 ``extinct_correct``   bool        ..       True         If ``extinct_correct=True`` the code will use an atmospheric extinction model to extinction correct the data below 10000A. Note that this correction makes no sense if one is telluric correcting and this shold be set to False                                                                                                                                                                                                                                                                                                                                                                                                                                         
 ``extinct_file``      str         ..       ``closest``  If ``extinct_file='closest'`` the code will select the PypeIt-included extinction file for the closest observatory (within 5 deg, geographic coordinates) to the telescope identified in ``std_file`` (see :ref:`extinction_correction` for the list of currently included files).  If constructing a sesitivity function for a telescope not within 5 deg of a listed observatory, this parameter may be set to the name of one of the listed extinction files.  Alternatively, a custom extinction file may be installed in the PypeIt cache using the ``pypeit_install_extinctfile`` script; this parameter may then be set to the name of the custom extinction file.
-``nresln``            int, float  ..       20           Parameter governing the spacing of the bspline breakpoints.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+``nresln``            int, float  ..       20           Parameter governing the spacing of the bspline breakpoints in terms of number of resolution elements.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
 ``polycorrect``       bool        ..       True         Whether you want to correct the sensfunc with polynomial in the telluric and recombination line regions                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
 ``polyfunc``          bool        ..       False        Whether you want to use the polynomial fit as your final SENSFUNC                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
 ``resolution``        int, float  ..       3000.0       Expected resolution of the standard star spectrum. This should be measured from the data.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
@@ -924,7 +927,6 @@ Key                      Type                Options  Default                   
 ``fit_wv_min_max``       list                ..       ..                          Pixels within this mask will be used during the fitting. The formatis the same with bal_wv_min_max, but this mask is good pixel masks.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
 ``func``                 str                 ..       ``legendre``                Polynomial model function                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
 ``lower``                int, float          ..       3.0                         Lower rejection threshold in units of sigma_corr*sigma, where sigma is the formal noise of the spectrum, and sigma_corr is an empirically determined correction to the formal error. The distribution of input chi (defined by chi = (data - model)/sigma) values is analyzed, and a correction factor to the formal error sigma_corr is returned which is multiplied into the formal errors. In this way, a rejection threshold of i.e. 3-sigma, will always correspond to roughly the same percentile.  This renormalization is performed with coadd1d.renormalize_errors function, and guarantees that rejection is not too agressive in cases where the empirical errors determined from the chi-distribution differ significantly from the formal noise which is used to determine chi.                                                                                                                     
-``mask_abs_lines``       bool                ..       True                        Mask stellar absorption line?                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
 ``mask_lyman_a``         bool                ..       True                        Mask the blueward of Lyman-alpha line during the fitting?                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
 ``maxiter``              int                 ..       2                           Maximum number of iterations for the telluric + object model fitting. The code performs multiple iterations rejecting outliers at each step. The fit is then performed anew to the remaining good pixels. For this reason if you run with the disp=True option, you will see that the f(x) loss function gets progressively better during the iterations.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
 ``minmax_coeff_bounds``  tuple               ..       (-5.0, 5.0)                 Parameters setting the polynomial coefficient bounds for sensfunc optimization.Bounds are currently determined as follows. We compute an initial fit to the sensfunc in the pypeit.core.telluric.init_sensfunc_model function. That deterines a set of coefficients. The bounds are then determined according to: [(np.fmin(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][0], obj_params['minmax_coeff_bounds'][0]), np.fmax(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][1],obj_params['minmax_coeff_bounds'][1]))]                                                                                                                                                                                                                                                                                                                                                                                
@@ -1798,6 +1800,114 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
 
+.. _instr_par-gtc_maat:
+
+GTC OSIRIS (``gtc_maat``)
+-------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = gtc_maat
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 1
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          exprng = 999999, None
+          [[[process]]]
+              mask_cr = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              clip = False
+              use_pixelflat = False
+              use_illumflat = False
+              subtract_continuum = True
+      [[tiltframe]]
+          [[[process]]]
+              clip = False
+              use_pixelflat = False
+              use_illumflat = False
+              subtract_continuum = True
+      [[pixelflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = None, 180
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[flatfield]]
+          slit_illum_finecorr = False
+      [[wavelengths]]
+          method = full_template
+          lamps = XeI,HgI,NeI,ArI
+      [[slitedges]]
+          sync_predict = nearest
+          bound_detector = True
+      [[tilts]]
+          spat_order = 1
+          spec_order = 1
+  [scienceframe]
+      exprng = 90, None
+      [[process]]
+          mask_cr = True
+          sigclip = 4.0
+          objlim = 1.5
+          use_biasimage = False
+          noise_floor = 0.01
+          use_illumflat = False
+  [reduce]
+      [[findobj]]
+          maxnumber_std = 1
+          skip_final_global = True
+          skip_skysub = True
+      [[skysub]]
+          no_poly = True
+      [[extraction]]
+          skip_extraction = True
+  [flexure]
+      spec_maxshift = 2.5
+  [sensfunc]
+      [[UVIS]]
+          extinct_correct = False
+
 .. _instr_par-gtc_osiris:
 
 GTC OSIRIS (``gtc_osiris``)
@@ -1808,6 +1918,99 @@ Alterations to the default parameters are:
 
   [rdx]
       spectrograph = gtc_osiris
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 1
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          exprng = 999999, None
+          [[[process]]]
+              mask_cr = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              clip = False
+              use_pixelflat = False
+              use_illumflat = False
+              subtract_continuum = True
+      [[tiltframe]]
+          [[[process]]]
+              clip = False
+              use_pixelflat = False
+              use_illumflat = False
+              subtract_continuum = True
+      [[pixelflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = None, 180
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[wavelengths]]
+          method = full_template
+          lamps = XeI,HgI,NeI,ArI
+      [[slitedges]]
+          sync_predict = nearest
+          bound_detector = True
+      [[tilts]]
+          spat_order = 5
+          spec_order = 5
+  [scienceframe]
+      exprng = 90, None
+      [[process]]
+          mask_cr = True
+          noise_floor = 0.01
+  [reduce]
+      [[findobj]]
+          maxnumber_std = 1
+      [[skysub]]
+          no_poly = True
+
+.. _instr_par-gtc_osiris_plus:
+
+GTC OSIRIS (``gtc_osiris_plus``)
+--------------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = gtc_osiris_plus
   [calibrations]
       [[biasframe]]
           exprng = None, 1
@@ -2276,6 +2479,7 @@ Alterations to the default parameters are:
           cc_thresh = 0.5
           cc_local_thresh = 0.5
           rms_threshold = 0.5
+          ech_separate_2d = True
       [[slitedges]]
           edge_thresh = 8.0
           max_shift_adj = 0.5
@@ -4515,7 +4719,8 @@ Alterations to the default parameters are:
               use_biasimage = False
               noise_floor = 0.01
       [[wavelengths]]
-          lamps = ArI, ArII
+          method = full_template
+          lamps = HeI, NeI, ArI, ArII
           fwhm = 5.0
           rms_threshold = 0.5
       [[slitedges]]
@@ -4569,7 +4774,7 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
-          exprng = 10, None
+          exprng = 1, None
           [[[process]]]
               use_biasimage = False
               use_pixelflat = False
@@ -4580,7 +4785,7 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
-          exprng = None, 100
+          exprng = None, 600
           [[[process]]]
               satpix = nothing
               use_biasimage = False
@@ -4589,6 +4794,7 @@ Alterations to the default parameters are:
       [[pinholeframe]]
           [[[process]]]
               use_biasimage = False
+              use_illumflat = False
       [[alignframe]]
           [[[process]]]
               satpix = nothing
@@ -4596,13 +4802,13 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
-          exprng = None, 100
+          exprng = None, 600
           [[[process]]]
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[illumflatframe]]
-          exprng = 30, None
+          exprng = 1, None
           [[[process]]]
               satpix = nothing
               use_biasimage = False
@@ -4619,15 +4825,17 @@ Alterations to the default parameters are:
               mask_cr = True
               use_biasimage = False
               noise_floor = 0.01
+              use_illumflat = False
       [[standardframe]]
           exprng = None, 600
           [[[process]]]
               mask_cr = True
               use_biasimage = False
               noise_floor = 0.01
+              use_illumflat = False
       [[wavelengths]]
-          lamps = ArI, ArII, HeI, NeI
-          fwhm = 5.0
+          lamps = use_header
+          fwhm_fromlines = True
           rms_threshold = 0.5
       [[slitedges]]
           sync_predict = nearest
@@ -4639,6 +4847,7 @@ Alterations to the default parameters are:
           objlim = 2.0
           use_biasimage = False
           noise_floor = 0.01
+          use_illumflat = False
   [reduce]
       [[skysub]]
           bspline_spacing = 0.8
@@ -4865,9 +5074,10 @@ Alterations to the default parameters are:
               noise_floor = 0.01
       [[wavelengths]]
           method = full_template
-          lamps = HeI, NeI, ArI, ArII
+          lamps = HeI, NeI, ArI
           sigdetect = 10.0
       [[slitedges]]
+          edge_thresh = 30
           sync_predict = nearest
           bound_detector = True
           minimum_slit_gap = 15
@@ -4966,9 +5176,10 @@ Alterations to the default parameters are:
               noise_floor = 0.01
       [[wavelengths]]
           method = full_template
-          lamps = HeI, NeI, ArI, ArII
+          lamps = HeI, NeI, ArI
           sigdetect = 10.0
       [[slitedges]]
+          edge_thresh = 30
           sync_predict = nearest
           bound_detector = True
           minimum_slit_gap = 15
@@ -5647,6 +5858,103 @@ Alterations to the default parameters are:
           noise_floor = 0.01
   [flexure]
       spec_method = boxcar
+
+.. _instr_par-soar_goodman_blue:
+
+SOAR blue (``soar_goodman_blue``)
+---------------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = soar_goodman_blue
+  [calibrations]
+      [[biasframe]]
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          exprng = None, 30
+          [[[process]]]
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          [[[process]]]
+              use_biasimage = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = None, 120
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+              noise_floor = 0.01
+      [[wavelengths]]
+          lamps = NeI, ArI, HgI
+          fwhm = 5.0
+          rms_threshold = 0.5
+      [[slitedges]]
+          sync_predict = nearest
+          bound_detector = True
+  [scienceframe]
+      exprng = 90, None
+      [[process]]
+          mask_cr = True
+          use_biasimage = False
+          noise_floor = 0.01
+  [flexure]
+      spec_method = boxcar
+  [sensfunc]
+      [[IR]]
+          telgridfile = TelFit_LasCampanas_3100_26100_R20000.fits
 
 .. _instr_par-soar_goodman_red:
 

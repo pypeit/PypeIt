@@ -13,14 +13,12 @@ import os
 from astropy import stats
 from abc import ABCMeta
 
-from scipy import interpolate
-from scipy.optimize import least_squares
 
 from pypeit import specobjs
 from pypeit import msgs, utils
-from pypeit import masterframe, flatfield
+from pypeit import flatfield
 from pypeit.display import display
-from pypeit.core import skysub, pixels, qa, parse, flat, flexure
+from pypeit.core import skysub, qa, parse, flat, flexure
 from pypeit.core import procimg
 from pypeit.images import buildimage
 from pypeit.core import findobj_skymask
@@ -337,6 +335,7 @@ class FindObjects:
 
         # If the skip_skysub is set (i.e. image is already sky-subtracted), simply find objects
         if self.par['reduce']['findobj']['skip_skysub']:
+            msgs.info("Skipping global sky sub as per user request")
             sobjs_obj, self.nobj = self.find_objects(self.sciImg.image, self.sciImg.ivar,
                                                      std_trace=std_trace, show=self.findobj_show,
                                                      show_peaks=show_peaks)
@@ -875,6 +874,7 @@ class MultiSlitFindObjects(FindObjects):
                                 boxcar_rad=self.par['reduce']['extraction']['boxcar_radius'] / self.get_platescale(),  #pixels
                                 maxdev=self.par['reduce']['findobj']['find_maxdev'],
                                 find_min_max=self.par['reduce']['findobj']['find_min_max'],
+                                extract_maskwidth=self.par['reduce']['skysub']['local_maskwidth'],
                                 qa_title=qa_title, nperslit=maxnumber,
                                 objfindQA_filename=objfindQA_filename,
                                 debug_all=debug)
@@ -988,9 +988,10 @@ class EchelleFindObjects(FindObjects):
         plate_scale = self.spectrograph.order_platescale(self.order_vec, binning=self.binning)
         inmask = self.sciImg.select_flag(invert=True)
         # Find objects
-        # TODO -- Eliminate this specobj_dict thing
         # TODO: Not sure how this fairs if self.det is a tuple...
-        specobj_dict = {'SLITID': 999, 'DET': self.sciImg.detector.name, 'OBJTYPE': self.objtype,
+        specobj_dict = {'SLITID': 999, 'DET': self.sciImg.detector.name, 
+                        'ECH_ORDERINDX': 999,
+                        'OBJTYPE': self.objtype,
                         'PYPELINE': self.pypeline}
 
         # Set objfind QA filename
@@ -1012,10 +1013,14 @@ class EchelleFindObjects(FindObjects):
 
         sobjs_ech = findobj_skymask.ech_objfind(
             image, ivar, self.slitmask, self.slits_left, self.slits_right,
-            self.order_vec, self.reduce_bpm, det=self.det,
-            spec_min_max=np.vstack((self.slits.specmin, self.slits.specmax)),
-            inmask=inmask, ncoeff=self.par['reduce']['findobj']['trace_npoly'],
-            hand_extract_dict=manual_extract_dict, plate_scale=plate_scale,
+            self.order_vec, self.reduce_bpm, 
+            self.slits.spat_id,
+            np.vstack((self.slits.specmin, self.slits.specmax)),
+            det=self.det,
+            inmask=inmask, 
+            ncoeff=self.par['reduce']['findobj']['trace_npoly'],
+            manual_extract_dict=manual_extract_dict, 
+            plate_scale=plate_scale,
             std_trace=std_trace,
             specobj_dict=specobj_dict,
             snr_thresh=self.par['reduce']['findobj']['snr_thresh'],
@@ -1023,8 +1028,8 @@ class EchelleFindObjects(FindObjects):
             trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
             fwhm=self.par['reduce']['findobj']['find_fwhm'],
             use_user_fwhm=self.par['reduce']['extraction']['use_user_fwhm'],
-            nperorder=nperorder,
             maxdev=self.par['reduce']['findobj']['find_maxdev'],
+            nperorder=nperorder,
             max_snr=self.par['reduce']['findobj']['ech_find_max_snr'],
             min_snr=self.par['reduce']['findobj']['ech_find_min_snr'],
             nabove_min_snr=self.par['reduce']['findobj']['ech_find_nabove_min_snr'],
@@ -1209,7 +1214,8 @@ class IFUFindObjects(MultiSlitFindObjects):
         ref_idx = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
         smooth_npix = self.par['calibrations']['flatfield']['slit_illum_smooth_npix']
         gpm = self.sciImg.select_flag(invert=True)
-        # TODO why is this being done with waveimg instead of the tilts? Is profile really dependent on wavelength?
+        # Note :: Need to provide wavelength to illum_profile_spectral (not the tilts) so that the
+        # relative spectral sensitivity is calculated at a given wavelength for all slits simultaneously.
         scaleImg = flatfield.illum_profile_spectral(self.sciImg.image.copy(), self.waveimg, self.slits,
                                                     slit_illum_ref_idx=ref_idx, model=global_sky, gpmask=gpm,
                                                     skymask=skymask, trim=trim, flexure=self.spat_flexure_shift,

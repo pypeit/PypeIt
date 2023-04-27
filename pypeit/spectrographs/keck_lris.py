@@ -5,9 +5,8 @@ Module for LRIS specific methods.
 """
 import glob
 import os
-from IPython import embed
 
-from pkg_resources import resource_filename
+from IPython import embed
 
 import numpy as np
 
@@ -16,7 +15,7 @@ from astropy import time
 from astropy.coordinates import SkyCoord 
 from astropy import units
 
-from linetools import utils as ltu
+import linetools.utils
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -514,7 +513,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
     def get_slitmask(self, filename:str):
         """
-        Parse the slitmask data from a DEIMOS file into :attr:`slitmask`, a
+        Parse the slitmask data from a LRIS file into :attr:`slitmask`, a
         :class:`~pypeit.spectrographs.slitmask.SlitMask` object.
 
         Args:
@@ -529,7 +528,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self.slitmask = slitmask.load_keck_deimoslris(filename, self.name)
         return self.slitmask
 
-    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None):
+    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None,
+                              trc_path=None, binning=None):
         """
         Provides the slit edges positions predicted by the slitmask design using
         the mask coordinates already converted from mm to pixels by the method
@@ -557,7 +557,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         if filename is not None:
             self.get_slitmask(filename)
         else:
-            msgs.error('The name of a science file should be provided')
+            msgs.error('The name of a science file should be provided for the mask info')
 
         if self.slitmask is None:
             msgs.error('Unable to read slitmask design info. Provide a file.')
@@ -812,6 +812,26 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         super().init_meta()
         # Add the name of the dispersing element
         self.meta['dispname'] = dict(ext=0, card='GRISNAME')
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['GRISNAME', 'DICHNAME', 'SLITNAME']
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
@@ -1252,6 +1272,26 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         """
         return super().configuration_keys() + ['dispangle', 'cenwave', 'amp', 'binning']
 
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['GRANAME', 'DICHNAME', 'SLITNAME', 'GRANGLE', 'WAVELEN', 'TAPLINES', 'NUMAMPS']
+
     def bpm(self, filename, det, shape=None, msbias=None):
         """
         Generate a default bad-pixel mask.
@@ -1317,7 +1357,6 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
         self.meta['mjd'] = dict(ext=0, card='MJD')
         self.meta['exptime'] = dict(ext=0, card='TELAPSE')
 
-
     def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
@@ -1371,14 +1410,19 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
             amp_mode = hdu[0].header['AMPMODE']
             msgs.info("AMPMODE = {:s}".format(amp_mode))
             # Load up translation dict
-            ampmode_translate_file = os.path.join(data.Paths.data, 'spectrographs',
-                'keck_lris_red_mark4', 'dict_for_ampmode.json')
-            ampmode_translate_dict = ltu.loadjson(ampmode_translate_file)
+            ampmode_translate_file = (
+                data.Paths.data / 'spectrographs' / 'keck_lris_red_mark4' / 'dict_for_ampmode.json'
+            )
+            # Force any possible pathlib.Path object to string before `loadjson`
+            ampmode_translate_dict = linetools.utils.loadjson(str(ampmode_translate_file))
             # Load up the corrected header
             swap_binning = f"{binning[-1]},{binning[0]}"  # LRIS convention is oppopsite ours
-            header_file = os.path.join(data.Paths.data, 'spectrographs',
-                'keck_lris_red_mark4', 
-                f'header{ampmode_translate_dict[amp_mode]}_{swap_binning.replace(",","_")}.fits')
+            header_file = (
+                data.Paths.data /
+                'spectrographs' /
+                'keck_lris_red_mark4' /
+                f'header{ampmode_translate_dict[amp_mode]}_{swap_binning.replace(",","_")}.fits'
+            )
             correct_header = fits.getheader(header_file)
         else:
             correct_header = hdu[0].header

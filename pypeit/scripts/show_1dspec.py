@@ -24,6 +24,11 @@ class Show1DSpec(scriptbase.ScriptBase):
                             help="Extraction method. Default is OPT. ['BOX', 'OPT']")
         parser.add_argument("--flux", default=False, action="store_true",
                             help="Show fluxed spectrum?")
+        parser.add_argument('-m', '--unmasked', dest='masked', default=True, action='store_false',
+                            help='Only show unmasked data.')
+#        parser.add_argument('--jdaviz', default=False, action='store_true',
+#                            help='Open the spectrum in jdaviz (requires specutils and jdaviz '
+#                                 'to be installed)')
         return parser
 
     @staticmethod
@@ -60,6 +65,44 @@ class Show1DSpec(scriptbase.ScriptBase):
                 print(line)
             return
 
+        # TODO: Keep this for now, assuming jdaviz ever allows users to
+        # instantiate from within a python script.
+#        if args.jdaviz:
+#            from pypeit.specutils import Spectrum1D, SpectrumList
+#            if Spectrum1D is None:
+#                msgs.error('specutils package must be installed.')
+#            try:
+#                from jdaviz import Specviz
+#            except ModuleNotFoundError:
+#                msgs.error('jdaviz package must be installed.')
+#
+#            # First try reading it as a list
+#            try:
+#                spec = SpectrumList.read(args.file, extract=args.extract, fluxed=args.flux)
+#            except:
+#                pass
+#            else:
+#                specviz = Specviz()
+#                specviz.load_spectrum(spec)
+#                specviz.show()
+#                return
+#
+#            # Maybe it's a OneSpec?
+#            try:
+#                # TODO: add "grid" as a command-line argument
+#                spec = Spectrum1D.read(args.file)
+#            except:
+#                pass
+#            else:
+#                specviz = Specviz()
+#                specviz.load_spectrum(spec)
+#                specviz.show()
+#                return
+#
+#            # If we get here, the file couldn't be parsed
+#            msgs.error(f'Could not parse input file: {args.file}')
+
+
         if args.obj is not None:
             exten = np.where(sobjs.NAME == args.obj)[0][0]
             if exten < 0:
@@ -72,7 +115,8 @@ class Show1DSpec(scriptbase.ScriptBase):
             if sobjs[exten]['OPT_WAVE'] is None: #not in sobjs[exten]._data.keys():
                     msgs.error("Spectrum not extracted with OPT.  Try --extract BOX")
 
-        spec = sobjs[exten].to_xspec1d(extraction=args.extract, fluxed=args.flux)
+        spec = sobjs[exten].to_xspec1d(masked=args.masked, extraction=args.extract,
+                                       fluxed=args.flux)
 
         # Setup
         app = QApplication(sys.argv)

@@ -129,7 +129,7 @@ class WaveFit(datamodel.DataContainer):
         else:
             hdu_prefix = cls.hduext_prefix_from_spatid(hdu.header['SPAT_ID'])
         # Run the default parser to get the data
-        return super(WaveFit, cls).from_hdu(hdu, hdu_prefix=hdu_prefix)
+        return super(WaveFit, cls).from_hdu(hdu, hdu_prefix=hdu_prefix, chk_version=chk_version)
 
     @property
     def ions(self):

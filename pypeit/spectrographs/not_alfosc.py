@@ -120,7 +120,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         # Wavelength calibration methods
         #par['calibrations']['wavelengths']['method'] = 'holy-grail'
         par['calibrations']['wavelengths']['method'] = 'full_template'
-        par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI', 'ArI', 'ArII']
+        par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI', 'ArI']
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
@@ -213,6 +213,26 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         """
         return ['dispname', 'decker', 'binning']
 
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['ALGRNM', 'ALAPRTNM', 'DETXBIN', 'DETYBIN']
+
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
@@ -274,6 +294,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism3.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'Grism_#4':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism4.fits'
+            par['calibrations']['wavelengths']['lamps'] = ['HeI','NeI']
         elif self.get_meta_value(scifile, 'dispname') == 'Grism_#5':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism5.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'Grism_#7':
@@ -288,8 +309,10 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism17.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'Grism_#18':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism18.fits'
+            par['calibrations']['wavelengths']['lamps'] = ['HeI','NeI','ArI','ArII']
         elif self.get_meta_value(scifile, 'dispname') == 'Grism_#19':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism19.fits'
+            par['calibrations']['wavelengths']['lamps'] = ['HeI','NeI','ArI','ArII']
         elif self.get_meta_value(scifile, 'dispname') == 'Grism_#20':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism20.fits'
         else:

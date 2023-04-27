@@ -81,7 +81,7 @@ def get_report_metadata(object_header_keys, spec_obj_keys, file_info):
         header = file_info.spec1d_header_list[i]
 
         # Get the spec1d header metadata needed for the report
-        # Use getattr for the spec_obj data because one of the attributes is actually a property (med_s2n)
+        # Use getattr for the spec_obj data
         spec_obj_data = [getattr(spec_obj, x) for x in spec_obj_keys]
         spec1d_filename =  os.path.basename(file_info.spec1d_file_list[i])
         header_data = [header[x] if x in header else None for x in object_header_keys]
@@ -521,7 +521,7 @@ def build_parameters(args):
         params['collate1d']['match_using'] = args.match_using
 
     if args.exclude_slit_bm is not None and len(args.exclude_slit_bm) > 0:
-        params['collate1d']['exclude_slit_trace_bm'] = args.exclude_slit_bm
+        params['collate1d']['exclude_slit_trace_bm'] = args.exclude_slit_bm.split(',')
 
     if args.exclude_serendip:
         params['collate1d']['exclude_serendip'] = True
@@ -570,7 +570,7 @@ def create_report_archive(par):
     COADDED_SPEC1D_HEADER_KEYS  = ['DISPNAME', 'DECKER',   'BINNING', 'MJD', 'AIRMASS', 'EXPTIME','GUIDFWHM', 'PROGPI', 'SEMESTER', 'PROGID']
     COADDED_SPEC1D_COLUMN_NAMES = ['dispname', 'slmsknam', 'binning', 'mjd', 'airmass', 'exptime','guidfwhm', 'progpi', 'semester', 'progid']
 
-    COADDED_SOBJ_KEYS  =        ['MASKDEF_OBJNAME', 'MASKDEF_ID', 'NAME',        'DET', 'RA',    'DEC',    'med_s2n', 'MASKDEF_EXTRACT', 'WAVE_RMS']
+    COADDED_SOBJ_KEYS  =        ['MASKDEF_OBJNAME', 'MASKDEF_ID', 'NAME',        'DET', 'RA',    'DEC',    'S2N', 'MASKDEF_EXTRACT', 'WAVE_RMS']
     COADDED_SOBJ_COLUMN_NAMES = ['maskdef_objname', 'maskdef_id', 'pypeit_name', 'det', 'objra', 'objdec', 's2n',     'maskdef_extract', 'wave_rms']
 
     report_names = ['filename'] + \
@@ -648,8 +648,8 @@ class Collate1D(scriptbase.ScriptBase):
         parser.add_argument('--dry_run', action='store_true', help=blank_par.descr['dry_run'])
         parser.add_argument('--ignore_flux', default=False, action='store_true', help=blank_par.descr['ignore_flux'])
         parser.add_argument('--flux', default=False, action = 'store_true', help=blank_par.descr['flux'])
-        parser.add_argument('--exclude_slit_bm', type=str, nargs='*',
-                            help=blank_par.descr['exclude_slit_trace_bm'])
+        parser.add_argument('--exclude_slit_bm', type=str, # nargs='*',
+                            help=blank_par.descr['exclude_slit_trace_bm']+' Comma separated.')
         parser.add_argument('--exclude_serendip', action='store_true',
                             help=blank_par.descr['exclude_serendip'])
         parser.add_argument("--wv_rms_thresh", type=float, default = None, help=blank_par.descr['wv_rms_thresh'])
