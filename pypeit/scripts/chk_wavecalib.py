@@ -31,6 +31,7 @@ class ChkWaveCalib(scriptbase.ScriptBase):
             # Load
             waveCalib = wavecalib.WaveCalib.from_file(args.input_file)
                                                     #, chk_version=(not args.try_old))
+        # TODO: Should this specify the type of exception to pass?
         except:
             pass
         else:
@@ -39,6 +40,7 @@ class ChkWaveCalib(scriptbase.ScriptBase):
 
         try:
             allspec2D = spec2dobj.AllSpec2DObj.from_fits(args.input_file, chk_version=False)
+        # TODO: Should this specify the type of exception to pass?
         except:
             pass
         else:

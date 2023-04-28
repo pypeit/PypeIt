@@ -221,7 +221,7 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
     """
     # Check
     if not isinstance(frame_par, pypeitpar.FrameGroupPar):
-        msgs.error('Provided ParSet for must be type FrameGroupPar, not '
+        msgs.error('Provided ParSet must be type FrameGroupPar, not '
                    f'{frame_par.__class__.__name__}.')
     if not valid_frametype(frame_par['frametype'], quiet=True):
         # NOTE: This should not be necessary because FrameGroupPar explicitly

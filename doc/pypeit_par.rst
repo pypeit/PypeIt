@@ -821,7 +821,6 @@ Class Instantiation: :class:`~pypeit.par.pypeitpar.ProcessImagesPar`
 Key                       Type        Options                                 Default     Description                                                                                                                                                                                                                                                                                                                                                 
 ========================  ==========  ======================================  ==========  ============================================================================================================================================================================================================================================================================================================================================================
 ``apply_gain``            bool        ..                                      True        Convert the ADUs to electrons using the detector gain                                                                                                                                                                                                                                                                                                       
-``calib_setup_and_bit``   str         ..                                      ..          Over-ride the calibration setup and bit, e.g. "A_7".  Only recommended for use with quicklook.                                                                                                                                                                                                                                                              
 ``clip``                  bool        ..                                      True        Perform sigma clipping when combining.  Only used with combine=mean                                                                                                                                                                                                                                                                                         
 ``comb_sigrej``           float       ..                                      ..          Sigma-clipping level for when clip=True; Use None for automatic limit (recommended).                                                                                                                                                                                                                                                                        
 ``combine``               str         ``median``, ``mean``                    ``mean``    Method used to combine multiple frames.  Options are: median, mean                                                                                                                                                                                                                                                                                          
@@ -2599,6 +2598,7 @@ Alterations to the default parameters are:
           fit_2d_det_response = True
       [[slitedges]]
           fit_order = 4
+          pad = 2
   [scienceframe]
       [[process]]
           mask_cr = True
@@ -2613,7 +2613,7 @@ Alterations to the default parameters are:
       [[extraction]]
           skip_extraction = True
   [flexure]
-      spec_maxshift = 2.5
+      spec_maxshift = 3
   [sensfunc]
       [[UVIS]]
           extinct_correct = False
@@ -6040,6 +6040,8 @@ Alterations to the default parameters are:
               mask_cr = True
               use_biasimage = False
               noise_floor = 0.01
+      [[flatfield]]
+          slit_illum_finecorr = False
       [[wavelengths]]
           lamps = NeI, ArI, HgI
           fwhm = 5.0

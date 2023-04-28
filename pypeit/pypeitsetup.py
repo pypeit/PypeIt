@@ -24,9 +24,9 @@ class PypeItSetup:
     Prepare for a pypeit run.
 
     The main deliverables are the set of parameters used for PypeIt's algorithms
-    (:attr:`par`), an `astropy.table.Table`_ with the details of the files to be
-    reduced (:attr:`fitstbl`), and a dictionary with the list of instrument
-    setups.
+    (:attr:`par`), a table with metadata pulled from the files to be reduced
+    (:attr:`fitstbl`), and a class used to perform instrument-specific
+    operations (:attr:`spectrograph`).
 
     Args:
         file_list (list):
@@ -232,9 +232,9 @@ class PypeItSetup:
                 warning and continue.
 
         Returns:
-            `astropy.table.Table`_: Table with the metadata for each
-            fits file to reduce.  Note this is different from
-            :attr:`fitstbl`, which is a :obj:`PypeItMetaData` object.
+            `astropy.table.Table`_: Table with the metadata for each fits file
+            to reduce.  Note this is different from :attr:`fitstbl`, which is a
+            :class:`~pypeit.metadata.PypeItMetaData` object.
         """
         # Build and sort the table
         self.fitstbl = PypeItMetaData(self.spectrograph, par=self.par, 
@@ -270,20 +270,23 @@ class PypeItSetup:
 
     def run(self, setup_only=False, clean_config=True, groupings=True):
         """
-        Once instantiated, this is the main method used to construct the
-        object.
+        Perform the main setup operations.
         
         The code flow is as follows::
-            - Build the fitstbl from an input file_list (optional)
+            - Build the metadata table from an input file_list (if it hasn't
+              been already)
+            - Remove frames (if requested using ``clean_config``) that cannot be
+              associated with a configuration because of incomplete metadata or
+              a configuration that PypeIt cannot reduce 
             - Type the files (bias, arc, etc.)
-            - Match calibration files to the science files
+            - Match calibration files to the science files (if ``groupings`` is
+              True)
 
-        It is expected that a user will run this three times if they're
-        being careful.  Once with `setup_only=True` to confirm the
-        images are properly typed and grouped together for calibration.
-        A second time with `calibration_check=True` to confirm the
-        appropriate calibrations frames are available.  And a third time
-        to do the actual setup before proceeding with the reductions.
+        It is expected that a user will run this twice if they're being careful.
+        Once with `setup_only=True` to confirm the images are properly typed and
+        grouped together for calibration.  A second time to do the actual setup
+        that groups frames by instrument configuration, preparing the user to
+        proceed with the reductions using the ``run_pypeit`` script.
 
         Args:
             setup_only (:obj:`bool`, optional):
@@ -307,11 +310,12 @@ class PypeItSetup:
 
         Returns:
             :obj:`tuple`: Returns, respectively, the
-            :class:`~pypeit.par.pypeitpar.PypeItPar` object with the
-            reduction parameters, the
-            :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
-            object with the spectrograph instance, and an
-            `astropy.table.Table`_ with the frame metadata.
+            :class:`~pypeit.par.pypeitpar.PypeItPar` object with the reduction
+            parameters, the
+            :class:`~pypeit.spectrographs.spectrograph.Spectrograph` object with
+            the spectrograph instance, and the 
+            :func:`~pypeit.metadata.PypeItMetaData` object with the an file
+            metadata.
         """
         # Build the minimal metadata table if it doesn't exist already
         if self.fitstbl is None:
@@ -326,12 +330,12 @@ class PypeItSetup:
                            'pypeit_setup with the --keep_bad_frames option.')
 
         # Determine the type of each frame.
-        self.get_frame_types(flag_unknown=setup_only) # or calibration_check)
+        self.get_frame_types(flag_unknown=setup_only)
 
         if groupings:
             # Determine the configurations and assign each frame to the
             # specified configuration
-            self.fitstbl.set_configurations(self.fitstbl.unique_configurations())
+            self.fitstbl.set_configurations()
 
             # Assign frames to calibration groups
             self.fitstbl.set_calibration_groups()
@@ -410,10 +414,26 @@ class PypeItSetup:
             self.user_cfg += [f'detnum = {det}']
         self.user_cfg += ['quicklook = True']
 
-        # TODO: Do this regardless of whether there are any bias frames?
+        # Set basic image processing flags (some of these may be the default,
+        # but they're set here just to make sure)
+        self.user_cfg += ['[baseprocess]',
+                          'use_specillum = False',
+                          'use_pattern = False']
         if not any(self.fitstbl.find_frames('bias')):
             # Turn-off use of bias by default
-            self.user_cfg += ['[baseprocess]', 'use_biasimage = False']
+            self.user_cfg += ['use_biasimage = False']
+        if not any(self.fitstbl.find_frames('dark')):
+            # Turn-off use of bias by default
+            self.user_cfg += ['use_darkimage = False']
+
+        if not any(self.fitstbl.find_frames('pixelflat')):
+            self.user_cfg += ['use_pixelflat = False']
+            self.user_cfg += ['use_illumflat = False']
+        elif not any(self.fitstbl.find_frames('illumflat')):
+            self.user_cfg += ['use_illumflat = False']
+
+        # Turn off the fine correction for the slit illumination
+        self.user_cfg += ['[calibrations]', '[[flatfield]]', 'slit_illum_finecorr = False']
 
         # Write the PypeIt files
         # TODO: Exclude science/standard files from file?

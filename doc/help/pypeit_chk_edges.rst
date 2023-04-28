@@ -8,7 +8,7 @@
     positional arguments:
       trace_file  PypeIt Edges file [e.g. Edges_A_0_DET01.fits.gz]
     
-    options:
+    optional arguments:
       -h, --help  show this help message and exit
       --mpl       Use a matplotlib window instead of ginga to show the trace
                   (default: False)

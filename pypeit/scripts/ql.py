@@ -3,19 +3,33 @@ Script for quick-look PypeIt reductions.
 
 Use cases:
 
-  1. DONE: User inputs N files: arc, flat, science(s)
-  2. DONE: User inputs 1 or more science files for a fixed-format instrument (e.g. NIRES)
-  3. DONE: User inputs 1 folder of files
-  4. DONE: User inputs 1 folder of files including 1 new science frame
-  5. DONE: User inputs an ASCII file of files
-  6. User inputs 2 science files with A-B [and calibs or uses defaults]
-  7. User inputs N science files with A and B (only), stacks all files at A and B independently, A-B, add pos+neg
-  8. User inputs N science files with an arbitrary set of dither patterns that are encoded in the headers (e.g. MOSFIRE, currently this works for just one dither pattern, and that may be all we need). Total stack is computed
+  #. User inputs N files: arc, flat, science(s)
+
+  #. User inputs 1 or more science files for a fixed-format instrument (e.g.
+     NIRES)
+
+  #. User inputs 1 folder of files
+
+  #. User inputs 1 folder of files including 1 new science frame
+
+  #. User inputs an ASCII file of files
+
+  #. User inputs 2 science files with A-B [and calibs or uses defaults]
+
+  #. User inputs N science files with A and B (only), stacks all files at A and
+     B independently, A-B, add pos+neg
+
+  #. User inputs N science files with an arbitrary set of dither patterns that
+     are encoded in the headers (e.g. MOSFIRE, currently this works for just one
+     dither pattern, and that may be all we need). Total stack is computed
 
 Notes with JFH:
-  1. Label B images as "sky" for A-B redux
-  2. Write spec2D A images to disk with a minus sign and call B
-  3. Consider not writing out but return instead
+
+  #. Label B images as "sky" for A-B redux
+
+  #. Write spec2D A images to disk with a minus sign and call B
+
+  #. Consider not writing out but return instead
 
 .. include:: ../include/links.rst
 """
@@ -23,6 +37,7 @@ from pathlib import Path
 import time
 import datetime
 import shutil
+from copy import deepcopy
 
 from IPython import embed
 
@@ -35,6 +50,7 @@ from astropy.table import Table
 from pypeit.pypmsgs import PypeItError
 from pypeit import msgs
 from pypeit import pypeitsetup
+from pypeit import metadata
 from pypeit import io
 from pypeit import pypeit
 from pypeit.par.pypeitpar import PypeItPar
@@ -283,10 +299,6 @@ def generate_sci_pypeitfile(redux_path:str,
     if slitspatnum is not None:
         cfg['rdx']['slitspatnum'] = slitspatnum
 
-    # Turn-off use of bias by default
-    cfg['baseprocess'] = {}
-    cfg['baseprocess']['use_biasimage'] = False
-
     # Add reduce dictionary?
     if any([k is not None for k in [snr_thresh, boxcar_radius, std_spec1d]]):
         cfg['reduce'] = {}
@@ -310,77 +322,163 @@ def generate_sci_pypeitfile(redux_path:str,
                                        config_subdir=False)[0]
 
 
-def match_to_calibs(ps:pypeitsetup.PypeItSetup, calib_dir:str):
+def calib_manifest(calib_dir, spectrograph):
     """
-    Match observations to a set of existing calibrations.
+    Collate the list of setups with processed calibrations.
 
     The calibrations must exist within the provided parent directory.  The
     calibration directories must start with the PypeIt-specific name used for
     the relevant spectrograph (e.g., ``shane_kast_blue``), and the
     sub-directories must have a pypeit file that provides the instrument
-    configuration (setup) to be matched against the provided observation
-    metadata.
+    configuration (setup).  Directories that contain a pypeit file but no
+    calibration subdirectory are ignored.
     
     Args:
-        ps (:class:`pypeit.pypeitsetup.PypeItSetup`):
-            Object providing metadata and parameters necessary to execute PypeIt
-            data reduction.
-        calib_dir (:obj:`str`):
+        calib_dir (:obj:`str`, `Path`_):
             Parent directory with the calibrations; see above.  This directory
             must exist.
+        spectrograph (:obj:`str`):
+            The PypeIt-specific name of the spectrograph.
 
     Returns:
-        `Path`_: Directory with existing calibrations that Provides the PypeIt file used to build the calibrations
-        and the full path to the calibration directory.
+        :obj:`dict`: Dictionary with the list of instruments setups with
+        available calibrations.  If no calibrations are found, either because no
+        pypeit files are found or none of the directories with pypeit files
+        include a calibrations directory, None is returned.  The dictionary has
+        one item for every setup found.  Each item includes all the
+        configuration parameters used to define a unique setup for this
+        instrument, and it also includes the item ``'calib_dir'`` giving the
+        directory with the processed calibrations.
     """
-    # Check on one setup
-    if len(ps.fitstbl.configs.keys()) > 1:
-        msgs.error('Your observations use more than one setup.  They must be reduced separately.')
-
-    # Get the setup identifier.  This should be 'A' because there is only one
-    # setup, but this just ensures we're using the exact identifier.
-    setup = list(ps.fitstbl.configs.keys())[0]
-
     # Check the calibration directory exists
     _calib_dir = Path(calib_dir).resolve()
     if not _calib_dir.exists():
         msgs.error(f'Calibration directory does not exist: {_calib_dir}')
 
     # Find the pypeit files
-    pypeit_files = sorted(_calib_dir.glob('{0}_*/{0}*.pypeit'.format(ps.spectrograph.name)))
-
+    pypeit_files = sorted(_calib_dir.glob('{0}_*/{0}*.pypeit'.format(spectrograph)))
     if len(pypeit_files) == 0:
-        msgs.error('Could not find any pypeit files!')
+        return None
 
-    matched_calib_dir = []
+    # Build the dictionary
+    setups = {}
     for pypeit_file in pypeit_files:
         # Read
         pypeitFile = inputfiles.PypeItFile.from_file(pypeit_file)
-
-        # Check for a match
-        match = True
-        for key in ps.spectrograph.configuration_keys():
-            if ps.fitstbl.configs[setup][key] != pypeitFile.setup[key]:
-                match = False
-                break
-        if not match:
-            continue
-
-        # Matched.  Use the pypeit file to set the directory with the
-        # calibrations and only add it if the directory exists.
+        # Copy the setup
+        setups[pypeitFile.setup_name] = deepcopy(pypeitFile.setup)
+        # Remove the 'Setup *' entry
+        del setups[pypeitFile.setup_name][f'Setup {pypeitFile.setup_name}']
+        # Add the calibrations directory
         par = PypeItPar.from_cfg_lines(pypeitFile.cfg_lines)
-        _matched_dir = pypeit_file.parent / par['calibrations']['calib_dir']
-        if _matched_dir.exists():
-            matched_calib_dir += [_matched_dir]
+        setups[pypeitFile.setup_name]['calib_dir'] \
+                = pypeit_file.parent / par['calibrations']['calib_dir']
+        # If the calibrations directory doesn't exist, ignore the directory!
+        if not setups[pypeitFile.setup_name]['calib_dir'].exists():
+            del setups[pypeitFile.setup_name]
+    return setups
 
-    # Are we ok?
-    if len(matched_calib_dir) == 0:
-        msgs.error('Matched to zero setups.  The calibrations files are stale/wrong/corrupt.')
-    elif len(matched_calib_dir) > 1:
-        msgs.warn('Matched to multiple setups.  This should not have happened, but we will take '
-                  'the first.')
 
-    return matched_calib_dir[0]
+def match_to_calibs(ps:pypeitsetup.PypeItSetup, calib_dir:str, calibrated_setups=None):
+    """
+    Match observations to existing calibrations.
+
+    The function first builds the list of existing calibration setups; see
+    :func:`calib_manifest`.  Then, each setup for data provided by the
+    :class:`~pypeit.pypeitsetup.PypeItSetup` object is matched to the existing
+    setups.
+
+    Args:
+        ps (:class:`~pypeit.pypeitsetup.PypeItSetup`):
+            Object providing metadata and parameters necessary to execute PypeIt
+            data reduction.  This must contain data from a *single*
+            setup/configuration; an error is raised if not.
+        calib_dir (:obj:`str`):
+            Parent directory with the calibrations; see :func:`calib_manifest`.
+            This directory must exist.
+
+    Returns:
+        :obj:`dict`: A nested dictionary with the matched setups.  There is one
+        dictionary key for each setup in ``ps``.  Each setup dictionary item is
+        itself a dictionary with two items, ``setup`` and ``calib_dir``, where
+        ``setup`` is setup identifier of the existing calibrations (as opposed
+        to the setups provided in ``ps``) and the `Path`_ to the calibrations.
+        If a setup in ``ps`` is not matched, the associated dictionary item is
+        None.
+    """
+    if calibrated_setups is None:
+        calibrated_setups = calib_manifest(calib_dir, ps.spectrograph.name)
+
+    matched_configs = {}
+    for setup, config in ps.fitstbl.configs.items():
+        if calibrated_setups is None:
+            matched_configs[setup] = None
+            continue
+        matched_configs[setup] = dict(setup=[], calib_dir=[])
+        for cal_setup, cal_config in calibrated_setups.items():
+            if not ps.spectrograph.same_configuration([config, cal_config]):
+                continue
+
+            matched_configs[setup]['setup'] += [cal_setup]
+            # NOTE: calib_manifest() checks that the calibration directory
+            # exists for *any* returned setup.
+            matched_configs[setup]['calib_dir'] += [cal_config['calib_dir']]
+
+        if len(matched_configs[setup]['setup']) == 0:
+            matched_configs[setup] = None
+            continue
+        elif len(matched_configs[setup]['setup']) > 1:
+            msgs.warn('Existing calibrations have degenerate configurations!  We recommend you '
+                      'clean your calibrations parent directory.  For now, using the first match.')
+        matched_configs[setup]['setup'] = matched_configs[setup]['setup'][0]
+        matched_configs[setup]['calib_dir'] = matched_configs[setup]['calib_dir'][0]
+
+    return matched_configs
+
+
+def merge_setups(calibrated_setups, calib_match, frame_setup):
+    """
+    Merge the setup identifiers for new reductions to those matched to existing
+    reductions.
+
+    Args:
+        calibrated_setups (array-like):
+            The list of setup identifiers with existing calibrations.  This can
+            be the list of keys in the top-level dictionary returned by 
+            :func:`calib_manifest`.  This is used to determine the next
+            identifier for new setups to be calibrated.  *All* existing setups
+            and every setup in ``calib_match`` must be included in this list.
+        calib_match (:obj:`dict`):
+            A dictionary that provides, for each new setup to be reduced, the
+            matched set of existing calibrations, if there are any.  See
+            :func:`match_to_calibs`.  The identifier for any matched setup must
+            be included in ``calibrated_setups``.
+        frame_setup (array-like):
+            The setups associated with each frame in the new set of reductions.
+
+    Returns:
+        :obj:`list`: The list of replacement setups for each frame that
+        consolidates existing calibrations with new ones.
+    """
+    # These are the identifiers that have been assigned to the new setups
+    new_setup = np.array(list(calib_match.keys()), dtype=object)
+    # These are the existing setups.  Any value here that is None means we need
+    # to get a new setup identifier.
+    old_setup = np.array([None if calib_match[setup] is None else calib_match[setup]['setup'] 
+                            for setup in new_setup], dtype=object)
+    # Set any new setup identifiers so that they don't conflict with existing ones
+    gen = metadata.PypeItMetaData.configuration_generator()
+    while None in old_setup:
+        setup = next(gen)
+        if setup in calibrated_setups:
+            continue
+        old_setup[np.where(old_setup == None)[0][0]] = setup
+    # Associate each frame with an existing setup or a new one
+    _frame_setup = np.asarray(frame_setup, dtype=object)
+    new_frame_setup = np.empty_like(_frame_setup)
+    for i,setup in enumerate(new_setup):
+        new_frame_setup[_frame_setup == setup] = old_setup[i]
+    return new_frame_setup.tolist()
 
 
 def get_setup_calib(calib_dir):
@@ -618,7 +716,7 @@ class QL(scriptbase.ScriptBase):
             if args.stack:
                 if bkg_redux:
                     msgs.warn('Dither pattern automatically detected for these observations.  '
-                              'Ignoring request to stack all observations.  Image combination '
+                              'Will not stack observations.  Image combination '
                               'and background subtraction sequences automatically set; confirm '
                               'the behavior is what you want by checking the auto-generated '
                               'pypeit file.')
@@ -626,6 +724,11 @@ class QL(scriptbase.ScriptBase):
                     # Stack all of the science and standard frames
                     ps_sci.fitstbl['comb_id'][ps_sci.fitstbl.find_frames('science')] = 1
                     ps_sci.fitstbl['comb_id'][ps_sci.fitstbl.find_frames('standard')] = 2
+
+            # TODO: What happens if "no_stack" is set but bkg_redux is True?
+            # Should we ignore this and do the difference imaging anyway, or
+            # should we assume the user truly wants each frame to be treated
+            # independently?
 
             # Check that all the frames are assigned to the same calibration group
             # NOTE: This is largely superfluous given the use of get_setup_calib
@@ -640,6 +743,9 @@ class QL(scriptbase.ScriptBase):
                 # The parent directory has been defined, so try to find a
                 # relevant set of existing calibrations
                 setup_calib_dir = match_to_calibs(ps_sci, args.parent_calib_dir)
+                if setup_calib_dir is None:
+                    msgs.error('No calibrations exist or could not find appropriate setup match '
+                               f'in provided parent directory: {args.parent_calib_dir}')
                 msgs.info(f'Attempting to use archived calibrations found in {setup_calib_dir}.')
 
         elif not args.calibs_only:
@@ -650,8 +756,24 @@ class QL(scriptbase.ScriptBase):
         # Calibrate, if necessary
         if setup_calib_dir is None:
             msgs.info('Building the processed calibration frames.')
+            # Set the parent directory
             parent_calib_dir = args.redux_path if args.parent_calib_dir is None \
                                     else args.parent_calib_dir
+            # Find all of the existing calibrations for this setup in the parent
+            # directory
+            calibrated_setups = calib_manifest(parent_calib_dir, ps.spectrograph.name)
+            if calibrated_setups is not None:
+                # Match the setups of the frames to be reduced to the existing
+                # setups
+                calib_match = match_to_calibs(ps, parent_calib_dir,
+                                            calibrated_setups=calibrated_setups)
+                # Edit the setup column in the metadata table so that existing
+                # setups are updated and new setups are reduced with a unique
+                # identifier, following the nominal sequence
+                ps.fitstbl['setup'] = merge_setups(list(calibrated_setups.keys()), calib_match,
+                                                   ps.fitstbl['setup'])
+                # Force an update of the configurations
+                ps.fitstbl.unique_configurations(force=True)
 
             # Generate PypeIt files (and folders)
             calib_pypeit_files = ps.generate_ql_calib_pypeit_files(
@@ -691,7 +813,7 @@ class QL(scriptbase.ScriptBase):
                 pypeIt.calib_all()
 
         if args.calibs_only or not any(sci_idx):
-            msgs.info('Only calibrations exist or request calibration processing only.  Exiting.')
+            msgs.info('Only calibrations exist or requested calibration processing only.  Done.')
             return
 
         # Build the PypeIt file for the science frames and link to the existing

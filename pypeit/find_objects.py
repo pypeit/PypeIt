@@ -63,7 +63,7 @@ class FindObjects:
         find_negative (:obj:`bool`, optional):
             If True, the negative objects are found
         std_redux (:obj:`bool`, optional):
-            If True the object being extracted is a standards star
+            If True, the object being extracted is a standard star,
             so that the reduction parameters can be adjusted accordingly.
         show (:obj:`bool`, optional):
             Show plots along the way?

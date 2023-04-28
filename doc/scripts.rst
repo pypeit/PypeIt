@@ -16,6 +16,15 @@ summaries of each script and points to other pages with more information.
 
 **If you are developing a new script, see** :ref:`new_script`.
 
+.. warning::
+
+    Whenever you upgrade PypeIt, beware that this may include changes to the
+    output file data models.  These changes are not required to be
+    backwards-compatible, meaning that, e.g., ``pypeit_show_2dspec`` may fault
+    when trying to view ``spec2d*`` files produced with your existing PypeIt
+    version after upgrading to a new version.  **The best approach is to always
+    re-reduce data you're still working with anytime you update PypeIt.**
+
 .. contents:: PypeIt Scripts
    :depth: 1
    :local:

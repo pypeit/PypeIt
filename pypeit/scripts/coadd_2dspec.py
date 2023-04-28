@@ -143,7 +143,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
         # Now run the coadds
         bkg_redux = head2d['SKYSUB'] == 'DIFF'
-        find_negative = head2d['FINDOBJ'] == 'NEG'
+        find_negative = head2d['FINDOBJ'] == 'POS_NEG'
 
         # Print status message
         msgs_string = f'Reducing target {basename}' + msgs.newline()

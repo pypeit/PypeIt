@@ -14,14 +14,10 @@ from pypeit.tests.tstutils import data_path
 
 
 class NoTypeCalibFrame(CalibFrame):
-    # These are the minimal things that need to be defined to actually
-    # instantiate a derive class of CalibFrame
     version = '1.0.0'
 
 
 class MissingPYPSPECCalibFrame(CalibFrame):
-    # These are the minimal things that need to be defined to actually
-    # instantiate a derive class of CalibFrame
     version = '1.0.0'
     calib_type = 'Junk'
     datamodel = {'Junk': dict(otype=str)}
@@ -39,8 +35,11 @@ def test_implementation_faults():
     # datamodel does not exist.
     with pytest.raises(ValueError):
         calib = CalibFrame()
+    # Any calibframe needs to define its type
     with pytest.raises(PypeItError):
         calib = NoTypeCalibFrame()
+    # The elements of the base-class datamodel *must* exist in all its derived
+    # classes.
     with pytest.raises(PypeItError):
         calib = MissingPYPSPECCalibFrame()
 

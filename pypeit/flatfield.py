@@ -135,7 +135,7 @@ class FlatImages(calibframe.CalibFrame):
         # empty extension where the only added value is that PYP_SPEC is in the
         # header.  I deal with this by skipping PYP_SPEC in the list of keys and
         # adding it to the dictionaries of the simple objects; i.e., it's not
-        # added to entries in `d`` that are themselves DataContainer objects
+        # added to entries in `d` that are themselves DataContainer objects
         # (because that causes havoc).
 
         d = []
@@ -1953,15 +1953,6 @@ def merge(init_cls, merge_cls):
     for key in keys:
         dd[key] = getattr(init_cls, key) if getattr(merge_cls, key) is None \
                     else getattr(merge_cls, key)
-#    for key in keys:
-#        mrg = False
-#        val = None
-#        namespace = dict({'val': val, 'init_cls':init_cls, 'merge_cls':merge_cls, 'mrg':mrg})
-#        exec("val = init_cls.{0:s}".format(key), namespace)
-#        exec("mrg = merge_cls.{0:s} is not None".format(key), namespace)
-#        if namespace['mrg']:
-#            exec("val = merge_cls.{0:s}".format(key), namespace)
-#        dd[key] = namespace['val']
     # Construct the merged class
     return FlatImages(**dd)
 

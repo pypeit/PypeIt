@@ -78,3 +78,20 @@ def test_nirspec_lamps():
     assert np.array_equal(tst, np.array([False, False, False, False, False,  True,  True,  True]))
 
 
+def test_setup_iter():
+
+    gen = PypeItMetaData.configuration_generator()
+    assert next(gen) == 'A', 'First setup identifier changed'
+
+    end = False
+    while not end:
+        try:
+            setup = next(gen)
+        except StopIteration:
+            end = True
+
+    assert setup == 'ZZ', 'Last setup identifier changed'
+    assert len(list(PypeItMetaData.configuration_generator())) \
+                == PypeItMetaData.maximum_number_of_configurations(), \
+                'Number of configuration identifiers changed'
+

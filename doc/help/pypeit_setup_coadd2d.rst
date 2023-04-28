@@ -11,15 +11,15 @@
     positional arguments:
       pypeit_file           PypeIt reduction file
     
-    options:
+    optional arguments:
       -h, --help            show this help message and exit
-      --keep_par            Do not propagate any parameters from the pypeit file to
-                            the coadd2d file(s). If not set, only the required
+      --keep_par            Propagate all parameters from the pypeit file to the
+                            coadd2d file(s). If not set, only the required
                             parameters and their default values are included in the
                             output file(s). (default: True)
       --obj OBJ [OBJ ...]   Limit the coadd2d files created to observations of the
                             specified target. If not provided, a coadd2D file is
-                            written for each target found in the Science directory.
+                            written for each target found in the science directory.
                             The target names are included in the PypeIt spec2d file
                             names.For example, the target for spec2d file "spec2d_cN
                             20170331S0216-pisco_GNIRS_20170331T085412.181.fits" is

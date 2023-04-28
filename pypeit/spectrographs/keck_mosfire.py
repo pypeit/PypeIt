@@ -404,43 +404,56 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         """
         return ['MASKNAME', 'OBSMODE', 'FILTER']
 
-    def modify_config(self, fitstbl, cfg):
+    def modify_config(self, row, cfg):
         """
-        Modify the configuration dictionary for a given frame. This method is used
-        in :func:`pypeit.metadata.PypeItMetaData.set_configurations` to modify in place
-        the configuration requirement to assign a specific frame to the current setup.
 
-        This is needed for the reduction of 'LONGSLIT' and 'long2pos' data, which often use
-        calibrations taken with a different decker (MASKNAME).
+        Modify the configuration dictionary for a given frame. This method is
+        used in :func:`~pypeit.metadata.PypeItMetaData.set_configurations` to
+        modify in place the configuration requirement to assign a specific frame
+        to the current setup.
 
-            - For the 'LONGSLIT' masks, when we are assigning a configuration to a calibration file
-              that was taken with the longest slit available (46 CSUs), since these calibrations are
-              generally used for the reduction of science frames with shorter slits, we remove the
-              configuration requirement on the slit lenght for the current file.
+        This is needed for the reduction of 'LONGSLIT' and 'long2pos' data,
+        which often use calibrations taken with a different decker (MASKNAME).
 
-            - For the 'long2pos' masks, when we are assigning a configuration to a calibration file
-              that was taken with the 'long2pos' mask, since these calibrations are generally used
-              for the reduction of science frames taken with 'long2pos_specphot' masks, we modify the
-              configuration requirement on the decker_secondary for the current file.
+            - For the 'LONGSLIT' masks, when we are assigning a configuration to
+              a calibration file that was taken with the longest slit available
+              (46 CSUs), since these calibrations are generally used for the
+              reduction of science frames with shorter slits, we remove the
+              configuration requirement on the slit length for the current file.
+
+            - For the 'long2pos' masks, when we are assigning a configuration to
+              a calibration file that was taken with the 'long2pos' mask, since
+              these calibrations are generally used for the reduction of science
+              frames taken with 'long2pos_specphot' masks, we modify the
+              configuration requirement on the decker_secondary for the current
+              file.
 
         Args:
-            fitstbl(`astropy.table.Table`_):
-                The table with the metadata for one frames.
+            row (`astropy.table.Row`_):
+                The table row with the metadata for one frame.
             cfg (:obj:`dict`):
-                dictionary with metadata associated to a specific configuration.
+                Dictionary with metadata associated to a specific configuration.
 
         Returns:
-            :obj:`dict`: modified dictionary with metadata associated to a specific configuration.
+            :obj:`dict`: modified dictionary with metadata associated to a
+            specific configuration.
         """
-        if fitstbl['decker'] is not None and cfg['decker_secondary'] is not None and 'LONGSLIT' in fitstbl['decker'] \
-                and 'LONGSLIT' in cfg['decker_secondary'] and 'science' not in fitstbl['frametype'] and\
-                'standard' not in fitstbl['frametype'] and fitstbl['slitlength'] == 46.:
+        if row['decker'] is not None \
+                and cfg['decker_secondary'] is not None \
+                and 'LONGSLIT' in row['decker'] \
+                and 'LONGSLIT' in cfg['decker_secondary'] \
+                and 'science' not in row['frametype'] \
+                and 'standard' not in row['frametype'] \
+                and row['slitlength'] == 46.:
             cfg2 = copy.deepcopy(cfg)
             cfg2.pop('slitlength')
             return cfg2
-        if fitstbl['decker'] is not None and cfg['decker_secondary'] is not None and 'long2pos' in fitstbl['decker'] and \
-                'long2pos' in cfg['decker_secondary'] and 'science' not in fitstbl['frametype'] \
-                and 'standard' not in fitstbl['frametype']:
+        if row['decker'] is not None \
+                and cfg['decker_secondary'] is not None \
+                and 'long2pos' in row['decker'] \
+                and 'long2pos' in cfg['decker_secondary'] \
+                and 'science' not in row['frametype'] \
+                and 'standard' not in row['frametype']:
             cfg2 = copy.deepcopy(cfg)
             cfg2['decker_secondary'] = 'long2pos'
             return cfg2

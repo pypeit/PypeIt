@@ -1,5 +1,5 @@
 """
-Script for preparing a 2d coadds configuration file.
+Script for preparing a 2d-coadd configuration file.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
@@ -17,13 +17,13 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
 
         parser.add_argument('pypeit_file', type=str, default=None, help='PypeIt reduction file')
         parser.add_argument('--keep_par', dest='clean_par', default=True, action='store_false',
-                            help='Do not propagate any parameters from the pypeit file to the '
-                                 'coadd2d file(s).  If not set, only the required parameters and '
-                                 'their default values are included in the output file(s).')
+                            help='Propagate all parameters from the pypeit file to the coadd2d '
+                                 'file(s).  If not set, only the required parameters and their '
+                                 'default values are included in the output file(s).')
         parser.add_argument('--obj', type=str, nargs='+',
                             help='Limit the coadd2d files created to observations of the '
                                  'specified target.  If not provided, a coadd2D file is written '
-                                 'for each target found in the Science directory.  The target '
+                                 'for each target found in the science directory.  The target '
                                  'names are included in the PypeIt spec2d file names.'
                                  'For example, the target for spec2d file '
                                  '"spec2d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits" '
@@ -80,7 +80,7 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
                                 else [f.name.split('-')[1].split('_')[0] for f in spec2d_files])
         if args.obj is not None:
             # Limit to the selected objects
-            _objects = [o for o in objects if o in args.obj]
+            _objects = [o for o in objects if o == args.obj]
             # Check some were found
             if len(_objects) == 0:
                 msgs.error('Unable to find relevant objects.  Unique objects are '
@@ -99,7 +99,9 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
         if len(object_spec2d_files.keys()) == 0:
             msgs.error('Unable to match any spec2d files to objects.')
 
-        # Add the paths to make sure they match the pypeit file
+        # Add the paths to make sure they match the pypeit file.
+        # NOTE: cfg does *not* need to include the spectrograph parameter in
+        # rdx.  This is added by `CoAdd2D.default_par`.
         cfg = {} if args.clean_par else dict(pypeitFile.config)
         utils.add_sub_dict(cfg, 'rdx')
         cfg['rdx']['redux_path'] = par['rdx']['redux_path']
