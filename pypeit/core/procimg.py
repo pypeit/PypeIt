@@ -1112,9 +1112,9 @@ def base_variance(rn_var, darkcurr=None, exptime=None, proc_var=None, count_scal
 
         - :math:`c=s\ C` are the rescaled observed sky + object counts,
         - :math:`C` is the observed number of sky + object counts,
-        - :math:`s` is a scale factor derived from the (inverse of the)
-          flat-field frames plus the number of frames contributing
-          to the object counts (see ``count_scale``),
+        - :math:`s=s\prime / N_{\rm frames}` is a scale factor derived
+          from the (inverse of the) flat-field frames plus the number
+          of frames contributing to the object counts (see ``count_scale``),
         - :math:`D` is the dark current in electrons per **hour** (see
           ``darkcurr``),
         - :math:`t_{\rm exp}` is the effective exposure time in seconds (see
@@ -1242,9 +1242,9 @@ def variance_model(base, counts=None, count_scale=None, noise_floor=None):
         - :math:`c=s\ C` are the rescaled observed sky + object counts (see
           ``counts``),
         - :math:`C` is the observed number of sky + object counts,
-        - :math:`s` is a scale factor derived from the (inverse of the)
-          flat-field frames plus the number of frames contributing
-          to the object counts (see ``count_scale``),
+        - :math:`s=s\prime / N_{\rm frames}` is a scale factor derived
+          from the (inverse of the) flat-field frames plus the number
+          of frames contributing to the object counts (see ``count_scale``),
         - :math:`D` is the dark current in electrons per **hour**,
         - :math:`t_{\rm exp}` is the effective exposure time in seconds,
         - :math:`V_{\rm rn}` is the detector readnoise variance (i.e.,

@@ -62,7 +62,7 @@ that isolate the detector bias, dark current, and relative throughput, to find:
 
 .. math::
 
-    c = s\ \left[ g\ (p - O - B) - N_{\rm bin}\ D\ t_{\rm exp} \right]
+    c = s\prime / N_{\rm frames}\ \left[ g\ (p - O - B) - N_{\rm bin}\ D\ t_{\rm exp} \right]
 
 During this process, we also generate a noise model for the result of the image
 processing, calculated using :func:`~pypeit.core.procimg.variance_model`.  The
@@ -70,7 +70,7 @@ full variance model, :math:`V`, is:
 
 .. math::
 
-    V = s^2\ \left[ {\rm max}(0, C) + N_{\rm bin}\ D\ t_{\rm exp} +
+    V = s\prime^2 / N_{\rm frames}^2\ \left[ {\rm max}(0, C) + N_{\rm bin}\ D\ t_{\rm exp} +
             V_{\rm rn} + V_{\rm proc} \right] + \epsilon^2 {\rm max}(0, c)^2
 
 where
