@@ -45,6 +45,8 @@ class BitMaskArray(DataContainer):
     Datamodel is simple, containing only the mask array.
     """
 
+    internals = ['lower_keys']
+
     bitmask = None
     """
     :class:`~pypeit.bitmask.BitMask` object used to interpret the bit array.
@@ -132,12 +134,6 @@ class BitMaskArray(DataContainer):
         _self = self.copy()
         _self.mask &= other.mask
         return _self
-
-    def _init_internals(self):
-        """
-        Initialize attributes that are not part of the datamodel.
-        """
-        self.lower_keys = None
 
     # TODO: This loses the description of the bits.  Might be better to override
     # to_hdu; although this gets sticky trying to figure out which hdu has the

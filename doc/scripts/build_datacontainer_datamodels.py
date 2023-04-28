@@ -21,7 +21,8 @@ def type_name(t):
     if issubclass(t, datamodel.DataContainer):
         return f':class:`~{t.__module__}.{t.__name__}`'
     if any([m in t.__module__ for m in ['numpy', 'astropy']]):
-        return f'`{t.__module__}.{t.__name__}`_'
+        name = 'bool' if t.__name__ == 'bool_' else t.__name__
+        return f'`{t.__module__}.{name}`_'
     return t.__name__
 
 

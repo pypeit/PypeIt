@@ -623,19 +623,20 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
 
         Parameters
         ----------
-        det : int, REQUIRED
-        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
+        det : int
+            Detector number
+        msbias : numpy.ndarray
+            Processed bias frame used when constructing the bpm (see :func:`bpm_frombias`)
 
         Returns
         -------
         bpix : ndarray
           0 = ok; 1 = Mask
-
         """
         msgs.info("Custom bad pixel mask for DBSPr")
         bpm_img = self.empty_bpm(filename, det, shape=shape)
 
-        # Fill in bad pixels if a master bias frame is provided
+        # Fill in bad pixels if a processed bias frame is provided
         if msbias is not None:
             return self.bpm_frombias(msbias, bpm_img)
 

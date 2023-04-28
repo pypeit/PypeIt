@@ -130,22 +130,19 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
         return par
 
-
-
-    def get_ql_master_dir(self, file):
+    # NOTE: This function is used by the dev-suite
+    def get_ql_calib_dir(self, file):
         """
-        Returns master file directory for quicklook reductions.
+        Returns calibrations file directory for quicklook reductions.
 
         Args:
             file (str):
               Image file
 
         Returns:
-            master_dir (str):
-              Quicklook Master directory
+            :obj:`str`: Quicklook calibrations directory
 
         """
-
         mosfire_filter = self.get_meta_value(file, 'filter1')
         return os.path.join(self.name, mosfire_filter)
 
@@ -702,6 +699,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
+    # TODO: Is this supposed to be deprecated in favor of get_comb_group?
     def parse_dither_pattern(self, file_list, ext=None):
         """
         Parse headers from a file list to determine the dither pattern.

@@ -388,7 +388,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         order = self.hdu_read_order()
         for ii in range(nimg):
 
-            # insert extensions into master image...
+            # insert extensions into calibration image...
             for kk, jj in enumerate(order[_det[ii]-1]):
                 # grab complete extension...
                 data, overscan, datasec, biassec, x1, x2 = gemini_read_amp(hdu, jj)
@@ -880,7 +880,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
                 Processed image shape.  If ``filename`` is None, this *must* be
                 provided; otherwise, this is ignored.
             msbias (:class:`~pypeit.images.pypeitimage.PypeItImage`, optional):
-                Master bias frame.  If provided, it is used by
+                Processed bias frame.  If provided, it is used by
                 :func:`~pypeit.spectrographs.spectrograph.Spectrograph.bpm_frombias`
                 to identify bad pixels.
 

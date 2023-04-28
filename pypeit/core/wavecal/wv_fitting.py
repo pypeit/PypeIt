@@ -103,33 +103,56 @@ class WaveFit(datamodel.DataContainer):
         # Return
         return _d
 
-    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None, limit_hdus=None):
-        """ Over-ride for force_to_bintbl
+    def to_hdu(self, **kwargs):
+        """
+        Over-ride base-class function to force ``force_to_bintbl`` to always be
+        true.
 
-        See :class:`pypeit.datamodel.DataContainer.to_hdu` for Arguments
+        See base-class :class:`~pypeit.datamodel.DataContainer.to_hdu` for arguments.
+
+        Args:
+            kwargs:
+                Passed directly to the base-class
+                :class:`~pypeit.datamodel.DataContainer.to_hdu`.  If 
+                ``force_to_bintbl`` is present, it is forced to be True.
 
         Returns:
             :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs,
             where the type depends on the value of ``add_primary``.
         """
-        return super(WaveFit, self).to_hdu(hdr=hdr, add_primary=add_primary, primary_hdr=primary_hdr,
-                                           limit_hdus=limit_hdus, force_to_bintbl=True)
+        if 'force_to_bintbl' in kwargs:
+            if not kwargs['force_to_bintbl']:
+                msgs.warn(f'{self.__class__.__name__} objects must always use '
+                          'force_to_bintbl = True!')
+            kwargs.pop('force_to_bintbl')
+        return super().to_hdu(force_to_bintbl=True, **kwargs)
 
     @classmethod
-    def from_hdu(cls, hdu, chk_version=True):
+    def from_hdu(cls, hdu, **kwargs):
         """
         Parse the data from the provided HDU.
 
-        See :func:`pypeit.datamodel.DataContainer._parse` for the
-        argument descriptions.
+        See the base-class :func:`~pypeit.datamodel.DataContainer.from_hdu` for
+        the argument descriptions.
+
+        Args:
+            kwargs:
+                Passed directly to the base-class
+                :class:`~pypeit.datamodel.DataContainer.from_hdu`.  Should not
+                include ``hdu_prefix`` because this is set directly by the
+                class, read from the SPAT_ID card in a relevant header.
+
+        Returns:
+            :class:`WaveFit`: Object instantiated from data in the provided HDU.
         """
+        if 'hdu_prefix' in kwargs:
+            kwargs.pop('hdu_prefix')
         # Set hdu_prefix
-        if isinstance(hdu, fits.HDUList):
-            hdu_prefix = cls.hduext_prefix_from_spatid(hdu[1].header['SPAT_ID'])
-        else:
-            hdu_prefix = cls.hduext_prefix_from_spatid(hdu.header['SPAT_ID'])
+        spat_id = hdu[1].header['SPAT_ID'] if isinstance(hdu, fits.HDUList)\
+                    else hdu.header['SPAT_ID']
+        hdu_prefix = cls.hduext_prefix_from_spatid(spat_id)
         # Run the default parser to get the data
-        return super(WaveFit, cls).from_hdu(hdu, hdu_prefix=hdu_prefix, chk_version=chk_version)
+        return super(WaveFit, cls).from_hdu(hdu, hdu_prefix=hdu_prefix, **kwargs)
 
     @property
     def ions(self):
