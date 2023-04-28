@@ -39,9 +39,10 @@ where:
       regions,
     - :math:`B` is a longer-term pixel-by-pixel bias estimate (in ADU after
       overscan subtraction) using bias images,
-    - the quantity :math:`C=c/s` is the number of electron counts excited by
+    - the quantity :math:`C=N_{\rm frames}\ c/s\prime=c/s` is the number of electron counts excited by
       photons hitting the detector,
-    - :math:`1/s` is an efficiency factor (one of many) that accounts for relative
+    - :math:`1/s=N_{\rm frames}/s\prime` is a factor that accounts for the number
+       of frames contributing to the electron counts, and the relative
       throughput factors (see below) that can be measured from flat-field frames,
     - :math:`D` is the dark-current, i.e., the rate at which the detector
       generates thermal electrons, in e-/pixel/s,
