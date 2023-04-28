@@ -87,7 +87,6 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['reduce']['findobj']['find_trim_edge'] = [2,2]    # Slit is too short to trim 5,5 especially
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['skysub']['global_sky_std']  = False    # Do not perform global sky subtraction for standard stars
-        # TODO: JFH: Is this the correct behavior?  (Is why we have sky-subtraction problems for GNIRS?)
         par['reduce']['skysub']['no_poly'] = True             # Do not use polynomial degree of freedom for global skysub
         par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
         par['reduce']['findobj']['maxnumber_sci'] = 2  # Slit is narrow so allow one object per order
@@ -128,7 +127,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             adjusted for configuration specific parameter values.
         """
         par = super().config_specific_par(scifile, inp_par=inp_par)
-
+        par['calibrations']['wavelengths']['echelle'] = True
         # TODO This is a hack for now until we figure out how to set dispname
         # and other meta information in the spectrograph class itself
         self.dispname = self.get_meta_value(scifile, 'dispname')
@@ -158,6 +157,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 #            par['calibrations']['wavelengths']['ech_fix_format'] = True
             # Echelle parameters
             # JFH This is provisional these IDs should be checked.
+            # TODO :: Should probably make a primary GNIRS spectrograph class
+            #         together with separate Echelle and IFU spectrographs children.
             par['calibrations']['wavelengths']['echelle'] = True
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
             par['calibrations']['wavelengths']['ech_norder_coeff'] = 5
@@ -255,6 +256,30 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
                 return headarr[0].get('QOFFSET')
             else:
                 return 0.0
+        elif meta_key == 'obstime':
+            try:
+                return headarr[0]['TIME-OBS']
+            except KeyError:
+                msgs.warn("Time of observation is not in header")
+                return 0.0
+        elif meta_key == 'pressure':
+            try:
+                return headarr[0]['PRESSURE'] * 0.001  # Must be in astropy.units.bar
+            except KeyError:
+                msgs.warn("Pressure is not in header")
+                return 0.0
+        elif meta_key == 'temperature':
+            try:
+                return headarr[0]['TAMBIENT']  # Must be in astropy.units.deg_C
+            except KeyError:
+                msgs.warn("Temperature is not in header")
+                return 0.0
+        elif meta_key == 'humidity':
+            try:
+                return headarr[0]['HUMIDITY']
+            except KeyError:
+                msgs.warn("Humidity is not in header")
+                return 0.0
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -273,26 +298,6 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             object.
         """
         return ['decker', 'dispname', 'dispangle']
-
-    def raw_header_cards(self):
-        """
-        Return additional raw header cards to be propagated in
-        downstream output files for configuration identification.
-
-        The list of raw data FITS keywords should be those used to populate
-        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
-        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
-        for a particular spectrograph, if different from the name of the
-        PypeIt metadata keyword.
-
-        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
-        to include additional FITS keywords in downstream output files.
-
-        Returns:
-            :obj:`list`: List of keywords from the raw data files that should
-            be propagated in output files.
-        """
-        return ['SLIT', 'GRATING', 'GRATTILT']
 
     def pypeit_file_keys(self):
         """
@@ -470,5 +475,408 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         return bpm_img
 
+class GNIRSHRIFUSpectrograph(GeminiGNIRSSpectrograph):
+    pypeline = 'IFU'
+    name = 'gemini_gnirs_hrifu'
+    ech_fixed_format = False
+
+    def init_meta(self):
+        super().init_meta()
+        self.meta['obstime'] = dict(card=None, compound=True, required=False)
+        self.meta['pressure'] = dict(card=None, compound=True, required=False)
+        self.meta['temperature'] = dict(card=None, compound=True, required=False)
+        self.meta['humidity'] = dict(card=None, compound=True, required=False)
+
+    @classmethod
+    def default_pypeit_par(cls):
+        par = super().default_pypeit_par()
+
+        # LACosmics parameters
+        par['scienceframe']['process']['sigclip'] = 4.0
+        par['scienceframe']['process']['objlim'] = 1.5
+        par['scienceframe']['process']['use_illumflat'] = False  # illumflat is applied when building the relative scale image in reduce.py, so should be applied to scienceframe too.
+        par['scienceframe']['process']['use_specillum'] = False  # apply relative spectral illumination
+        par['scienceframe']['process']['spat_flexure_correct'] = False  # don't correct for spatial flexure - varying spatial illumination profile could throw this correction off. Also, there's no way to do astrometric correction if we can't correct for spatial flexure of the contbars frames
+        par['scienceframe']['process']['use_biasimage'] = False
+        par['scienceframe']['process']['use_darkimage'] = False
+        par['calibrations']['flatfield']['slit_illum_finecorr'] = False
+        # Don't do 1D extraction for 3D data - it's meaningless because the DAR correction must be performed on the 3D data.
+        par['reduce']['extraction']['skip_extraction'] = True  # Because extraction occurs before the DAR correction, don't extract
+
+        # Decrease the wave tilts order, given the shorter slits of the IFU
+        par['calibrations']['tilts']['spat_order'] = 1
+        par['calibrations']['tilts']['spec_order'] = 1
+
+        # Make sure that this is reduced as a slit (as opposed to fiber) spectrograph
+        par['reduce']['cube']['slit_spec'] = True
+        par['reduce']['cube']['combine'] = False  # Make separate spec3d files from the input spec2d files
+
+        # Sky subtraction parameters
+        par['reduce']['skysub']['no_poly'] = True
+        par['reduce']['skysub']['bspline_spacing'] = 0.6
+        par['reduce']['skysub']['joint_fit'] = False
+        par['reduce']['findobj']['skip_skysub'] = True
+        par['reduce']['findobj']['skip_final_global'] = True
+
+        # Don't correct flexure by default, but you should use slitcen,
+        # because this is a slit-based IFU where no objects are extracted.
+        par['flexure']['spec_method'] = 'skip'
+        par['flexure']['spec_maxshift'] = 2.5  # Just in case someone switches on spectral flexure, this needs to be minimal
+
+        # Flux calibration parameters
+        par['sensfunc']['UVIS']['extinct_correct'] = False  # This must be False - the extinction correction is performed when making the datacube
+
+        return par
+
+    def get_wcs(self, hdr, slits, platescale, wave0, dwv, spatial_scale=None):
+        """
+        Construct/Read a World-Coordinate System for a frame.
+
+        Args:
+            hdr (`astropy.io.fits.Header`_):
+                The header of the raw frame. The information in this
+                header will be extracted and returned as a WCS.
+            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+                Slit traces.
+            platescale (:obj:`float`):
+                The platescale of an unbinned pixel in arcsec/pixel (e.g.
+                detector.platescale).
+            wave0 (:obj:`float`):
+                The wavelength zeropoint.
+            dwv (:obj:`float`):
+                Change in wavelength per spectral pixel.
+
+        Returns:
+            `astropy.wcs.wcs.WCS`_: The world-coordinate system.
+        """
+        msgs.info("Calculating the WCS")
+        # Get the x and y binning factors, and the typical slit length
+        binspec, binspat = parse.parse_binning(self.get_meta_value([hdr], 'binning'))
+
+        # Get the pixel and slice scales
+        pxscl = platescale * binspat / 3600.0  # Need to convert arcsec to degrees
+        slscl = self.get_meta_value([hdr], 'slitwid')
+        if spatial_scale is not None:
+            if pxscl > spatial_scale / 3600.0:
+                msgs.warn("Spatial scale requested ({0:f}'') is less than the pixel scale ({1:f}'')".format(spatial_scale, pxscl*3600.0))
+            # Update the pixel scale
+            pxscl = spatial_scale / 3600.0  # 3600 is to convert arcsec to degrees
+
+        # Get the typical slit length (this changes by ~0.3% over all slits, so a constant is fine for now)
+        slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
+
+        # Get RA/DEC
+        raval = self.get_meta_value([hdr], 'ra')
+        decval = self.get_meta_value([hdr], 'dec')
+
+        # Create a coordinate
+        coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
+
+        # Get rotator position
+        msgs.warn("HACK FOR HRIFU SIMS --- NEED TO FIGURE OUT RPOS and RREF FOR HRIFU FROM HEADER INFO")
+        if 'ROTPOSN' in hdr:
+            rpos = hdr['ROTPOSN']
+        else:
+            rpos = 0.
+        if 'ROTREFAN' in hdr:
+            rref = hdr['ROTREFAN']
+        else:
+            rref = 0.
+        # Get the offset and PA
+        rotoff = 0.0  # IFU-SKYPA offset (degrees)
+        skypa = rpos + rref  # IFU position angle (degrees)
+        crota = np.radians(-(skypa + rotoff))
+
+        # Calculate the fits coordinates
+        cdelt1 = -slscl
+        cdelt2 = pxscl
+        if coord is None:
+            ra = 0.
+            dec = 0.
+            crota = 1
+        else:
+            ra = coord.ra.degree
+            dec = coord.dec.degree
+        # Calculate the CD Matrix
+        cd11 = cdelt1 * np.cos(crota)                          # RA degrees per column
+        cd12 = abs(cdelt2) * np.sign(cdelt1) * np.sin(crota)   # RA degrees per row
+        cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)  # DEC degress per column
+        cd22 = cdelt2 * np.cos(crota)                          # DEC degrees per row
+        # Get reference pixels (set these to the middle of the FOV)
+        crpix1 = 13   # i.e. see get_datacube_bins (13 is used as the reference point - somewhere in the middle of the FOV)
+        crpix2 = slitlength / 2.
+        crpix3 = 1.
+        # Get the offset
+        msgs.warn("HACK FOR HRIFU SIMS --- Need to obtain offset from header?")
+        off1 = 0.
+        off2 = 0.
+        off1 /= binspec
+        off2 /= binspat
+        crpix1 += off1
+        crpix2 += off2
+
+        # Create a new WCS object.
+        msgs.info("Generating HRIFU WCS")
+        w = wcs.WCS(naxis=3)
+        w.wcs.equinox = hdr['EQUINOX']
+        w.wcs.name = 'HRIFU'
+        w.wcs.radesys = 'FK5'
+        # Insert the coordinate frame
+        w.wcs.cname = ['HRIFU RA', 'HRIFU DEC', 'HRIFU Wavelength']
+        w.wcs.cunit = [units.degree, units.degree, units.Angstrom]
+        w.wcs.ctype = ["RA---TAN", "DEC--TAN", "WAVE"]
+        w.wcs.crval = [ra, dec, wave0]  # RA, DEC, and wavelength zeropoints
+        w.wcs.crpix = [crpix1, crpix2, crpix3]  # RA, DEC, and wavelength reference pixels
+        w.wcs.cd = np.array([[cd11, cd12, 0.0], [cd21, cd22, 0.0], [0.0, 0.0, dwv]])
+        w.wcs.lonpole = 180.0  # Native longitude of the Celestial pole
+        w.wcs.latpole = 0.0  # Native latitude of the Celestial pole
+
+        return w
+
+    def get_datacube_bins(self, slitlength, minmax, num_wave):
+        r"""
+        Calculate the bin edges to be used when making a datacube.
+
+        Args:
+            slitlength (:obj:`int`):
+                Length of the slit in pixels
+            minmax (`numpy.ndarray`_):
+                An array with the minimum and maximum pixel locations on each
+                slit relative to the reference location (usually the centre
+                of the slit). Shape must be :math:`(N_{\rm slits},2)`, and is
+                typically the array returned by
+                :func:`~pypeit.slittrace.SlitTraceSet.get_radec_image`.
+            num_wave (:obj:`int`):
+                Number of wavelength steps.  Given by::
+                    int(round((wavemax-wavemin)/delta_wave))
+
+        Args:
+            :obj:`tuple`: Three 1D `numpy.ndarray`_ providing the bins to use
+            when constructing a histogram of the spec2d files. The elements
+            are :math:`(x,y,\lambda)`.
+        """
+        xbins = np.arange(1 + 25) - 13.0 - 0.5  # 25 is for 25 slices, and 13 is the reference slit
+        ybins = np.linspace(np.min(minmax[:, 0]), np.max(minmax[:, 1]), 1+slitlength) - 0.5
+        spec_bins = np.arange(1+num_wave) - 0.5
+        return xbins, ybins, spec_bins
 
 
+class GNIRSLRIFUSpectrograph(GeminiGNIRSSpectrograph):
+    pypeline = 'IFU'
+    name = 'gemini_gnirs_lrifu'
+    ech_fixed_format = False
+
+    def init_meta(self):
+        super().init_meta()
+        self.meta['obstime'] = dict(card=None, compound=True, required=False)
+        self.meta['pressure'] = dict(card=None, compound=True, required=False)
+        self.meta['temperature'] = dict(card=None, compound=True, required=False)
+        self.meta['humidity'] = dict(card=None, compound=True, required=False)
+
+    @classmethod
+    def default_pypeit_par(cls):
+        par = super().default_pypeit_par()
+
+        # LACosmics parameters
+        par['scienceframe']['process']['sigclip'] = 4.0
+        par['scienceframe']['process']['objlim'] = 1.5
+        par['scienceframe']['process']['use_illumflat'] = False  # illumflat is applied when building the relative scale image in reduce.py, so should be applied to scienceframe too.
+        par['scienceframe']['process']['use_specillum'] = False  # apply relative spectral illumination
+        par['scienceframe']['process']['spat_flexure_correct'] = False  # don't correct for spatial flexure - varying spatial illumination profile could throw this correction off. Also, there's no way to do astrometric correction if we can't correct for spatial flexure of the contbars frames
+        par['scienceframe']['process']['use_biasimage'] = False
+        par['scienceframe']['process']['use_darkimage'] = False
+        par['calibrations']['flatfield']['slit_illum_finecorr'] = False
+        # Don't do 1D extraction for 3D data - it's meaningless because the DAR correction must be performed on the 3D data.
+        par['reduce']['extraction']['skip_extraction'] = True  # Because extraction occurs before the DAR correction, don't extract
+
+        # Decrease the wave tilts order, given the shorter slits of the IFU
+        par['calibrations']['tilts']['spat_order'] = 1
+        par['calibrations']['tilts']['spec_order'] = 1
+
+        # Make sure that this is reduced as a slit (as opposed to fiber) spectrograph
+        par['reduce']['cube']['slit_spec'] = True
+        par['reduce']['cube']['combine'] = False  # Make separate spec3d files from the input spec2d files
+
+        # Sky subtraction parameters
+        par['reduce']['skysub']['no_poly'] = True
+        par['reduce']['skysub']['bspline_spacing'] = 0.6
+        par['reduce']['skysub']['joint_fit'] = False
+        par['reduce']['findobj']['skip_skysub'] = True
+        par['reduce']['findobj']['skip_final_global'] = True
+
+        # Don't correct flexure by default, but you should use slitcen,
+        # because this is a slit-based IFU where no objects are extracted.
+        par['flexure']['spec_method'] = 'skip'
+        par['flexure']['spec_maxshift'] = 2.5  # Just in case someone switches on spectral flexure, this needs to be minimal
+
+        # Flux calibration parameters
+        par['sensfunc']['UVIS']['extinct_correct'] = False  # This must be False - the extinction correction is performed when making the datacube
+
+        return par
+
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the ``PypeIt`` parameters to hard-wired values used for
+        specific instrument configurations.
+
+        Args:
+            scifile (:obj:`str`):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
+            adjusted for configuration specific parameter values.
+        """
+        par = super().config_specific_par(scifile, inp_par=inp_par)
+        par['calibrations']['wavelengths']['echelle'] = False
+        return par
+
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard ``PypeIt`` file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        pypeit_keys = super().pypeit_file_keys()
+        # TODO :: Think about this... do we even need these extra file keys if skysub is done during the reduction
+        #pypeit_keys += ['calib', 'comb_id', 'bkg_id']
+        return pypeit_keys
+
+    def get_wcs(self, hdr, slits, platescale, wave0, dwv, spatial_scale=None):
+        """
+        Construct/Read a World-Coordinate System for a frame.
+
+        Args:
+            hdr (`astropy.io.fits.Header`_):
+                The header of the raw frame. The information in this
+                header will be extracted and returned as a WCS.
+            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+                Slit traces.
+            platescale (:obj:`float`):
+                The platescale of an unbinned pixel in arcsec/pixel (e.g.
+                detector.platescale).
+            wave0 (:obj:`float`):
+                The wavelength zeropoint.
+            dwv (:obj:`float`):
+                Change in wavelength per spectral pixel.
+
+        Returns:
+            `astropy.wcs.wcs.WCS`_: The world-coordinate system.
+        """
+        msgs.info("Calculating the WCS")
+        # Get the x and y binning factors, and the typical slit length
+        binspec, binspat = parse.parse_binning(self.get_meta_value([hdr], 'binning'))
+
+        # Get the pixel and slice scales
+        pxscl = platescale * binspat / 3600.0  # Need to convert arcsec to degrees
+        slscl = self.get_meta_value([hdr], 'slitwid')
+        if spatial_scale is not None:
+            if pxscl > spatial_scale / 3600.0:
+                msgs.warn("Spatial scale requested ({0:f}'') is less than the pixel scale ({1:f}'')".format(spatial_scale, pxscl*3600.0))
+            # Update the pixel scale
+            pxscl = spatial_scale / 3600.0  # 3600 is to convert arcsec to degrees
+
+        # Get the typical slit length (this changes by ~0.3% over all slits, so a constant is fine for now)
+        slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
+
+        # Get RA/DEC
+        raval = self.get_meta_value([hdr], 'ra')
+        decval = self.get_meta_value([hdr], 'dec')
+
+        # Create a coordinate
+        coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
+
+        # Get rotator position
+        msgs.warn("HACK FOR HRIFU SIMS --- NEED TO FIGURE OUT RPOS and RREF FOR HRIFU FROM HEADER INFO")
+        if 'ROTPOSN' in hdr:
+            rpos = hdr['ROTPOSN']
+        else:
+            rpos = 0.
+        if 'ROTREFAN' in hdr:
+            rref = hdr['ROTREFAN']
+        else:
+            rref = 0.
+        # Get the offset and PA
+        rotoff = 0.0  # IFU-SKYPA offset (degrees)
+        skypa = rpos + rref  # IFU position angle (degrees)
+        crota = np.radians(-(skypa + rotoff))
+
+        # Calculate the fits coordinates
+        cdelt1 = -slscl
+        cdelt2 = pxscl
+        if coord is None:
+            ra = 0.
+            dec = 0.
+            crota = 1
+        else:
+            ra = coord.ra.degree
+            dec = coord.dec.degree
+        # Calculate the CD Matrix
+        cd11 = cdelt1 * np.cos(crota)                          # RA degrees per column
+        cd12 = abs(cdelt2) * np.sign(cdelt1) * np.sin(crota)   # RA degrees per row
+        cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)  # DEC degress per column
+        cd22 = cdelt2 * np.cos(crota)                          # DEC degrees per row
+        # Get reference pixels (set these to the middle of the FOV)
+        crpix1 = 11   # i.e. see get_datacube_bins (11 is used as the reference point - somewhere in the middle of the FOV)
+        crpix2 = slitlength / 2.
+        crpix3 = 1.
+        # Get the offset
+        msgs.warn("HACK FOR HRIFU SIMS --- Need to obtain offset from header?")
+        off1 = 0.
+        off2 = 0.
+        off1 /= binspec
+        off2 /= binspat
+        crpix1 += off1
+        crpix2 += off2
+
+        # Create a new WCS object.
+        msgs.info("Generating HRIFU WCS")
+        w = wcs.WCS(naxis=3)
+        w.wcs.equinox = hdr['EQUINOX']
+        w.wcs.name = 'HRIFU'
+        w.wcs.radesys = 'FK5'
+        # Insert the coordinate frame
+        w.wcs.cname = ['HRIFU RA', 'HRIFU DEC', 'HRIFU Wavelength']
+        w.wcs.cunit = [units.degree, units.degree, units.Angstrom]
+        w.wcs.ctype = ["RA---TAN", "DEC--TAN", "WAVE"]
+        w.wcs.crval = [ra, dec, wave0]  # RA, DEC, and wavelength zeropoints
+        w.wcs.crpix = [crpix1, crpix2, crpix3]  # RA, DEC, and wavelength reference pixels
+        w.wcs.cd = np.array([[cd11, cd12, 0.0], [cd21, cd22, 0.0], [0.0, 0.0, dwv]])
+        w.wcs.lonpole = 180.0  # Native longitude of the Celestial pole
+        w.wcs.latpole = 0.0  # Native latitude of the Celestial pole
+
+        return w
+
+    def get_datacube_bins(self, slitlength, minmax, num_wave):
+        r"""
+        Calculate the bin edges to be used when making a datacube.
+
+        Args:
+            slitlength (:obj:`int`):
+                Length of the slit in pixels
+            minmax (`numpy.ndarray`_):
+                An array with the minimum and maximum pixel locations on each
+                slit relative to the reference location (usually the centre
+                of the slit). Shape must be :math:`(N_{\rm slits},2)`, and is
+                typically the array returned by
+                :func:`~pypeit.slittrace.SlitTraceSet.get_radec_image`.
+            num_wave (:obj:`int`):
+                Number of wavelength steps.  Given by::
+                    int(round((wavemax-wavemin)/delta_wave))
+
+        Args:
+            :obj:`tuple`: Three 1D `numpy.ndarray`_ providing the bins to use
+            when constructing a histogram of the spec2d files. The elements
+            are :math:`(x,y,\lambda)`.
+        """
+        xbins = np.arange(1 + 21) - 11.0 - 0.5  # 21 is for 21 slices, and 11 is the reference slit
+        ybins = np.linspace(np.min(minmax[:, 0]), np.max(minmax[:, 1]), 1+slitlength) - 0.5
+        spec_bins = np.arange(1+num_wave) - 0.5
+        return xbins, ybins, spec_bins
