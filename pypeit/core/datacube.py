@@ -1750,7 +1750,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
         # Prepare the relative scalings
         relScale = 1.0
-        relSclSky = thisSkyScl/spec2DObj.scaleimg  # This factor ensures the sky has the same relative scaling as the science frame
+        relSclSky = skyScl/spec2DObj.scaleimg  # This factor ensures the sky has the same relative scaling as the science frame
         if cubepar['scale_corr'] is not None or opts['scale_corr'][ff] is not None:
             relScale = spec2DObj.scaleimg/relScaleImg
         sciImg = (spec2DObj.sciimg - skyImg*relSclSky)*relScale  # Subtract sky
