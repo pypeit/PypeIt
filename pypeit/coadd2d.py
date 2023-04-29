@@ -149,6 +149,7 @@ class CoAdd2D:
         #    2) offsets not 'auto' (i.e. a list) - use them
         #    -------------- only for Multislit --------------
         #    3) offsets = 'maskdef_offsets' - use `maskdef_offset` saved in SlitTraceSet
+        #    4) offsets = 'header' - use the dither offsets recorded in the header
         # ===============================================================================
         # weights
         #    1) weights = 'auto' -- if brightest object exists auto compute weights,
@@ -885,6 +886,17 @@ class CoAdd2D:
 
         """
         msgs.info('Get Offsets')
+        # 0) offsets are provided in the header of the spec2d files
+        if offsets== 'header':
+            msgs.info('Using offsets from header')
+            pscale = self.stack_dict['detectors'][0].platescale
+            dithoffs = [self.spectrograph.get_meta_value(f, 'dithoff') for f in self.spec2d]
+            if None in dithoffs:
+                msgs.error('Dither offsets keyword not found for one or more spec2d files. '
+                           'Choose another option for `offsets`')
+            dithoffs_pix = - np.array(dithoffs) / pscale
+            self.offsets = dithoffs_pix[0] - dithoffs_pix
+            self.offsets_report(self.offsets, 'header keyword')
 
         if self.objid_bri is None and offsets == 'auto':
             msgs.error('Offsets cannot be computed because no unique reference object '
