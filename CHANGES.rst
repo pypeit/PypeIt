@@ -10,6 +10,7 @@
 - Added the option to disable strict version checking for 1d coadds.
 - Hotfix for KCWI when using alignment (aka ContBars) frames for the astrometric correction.
 - Sensitivity function masking and output updates
+- Fix to the `variance_model` calculation for combined images.
 
 1.12.2 (29 Mar 2023)
 --------------------
