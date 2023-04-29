@@ -582,7 +582,7 @@ def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, nspec=Non
         goodpix_spat = tilt_traces['goodpix_spat'][0] + xoff
         goodpix_tilt = tilt_traces['goodpix_tilt'][0] + yoff
         canvas_list += [dict(type='squarebox', args=(float(goodpix_spat[i]), float(goodpix_tilt[i]), 1),
-                             kwargs=dict(color='cyan', fill=True, fillalpha=0.5)) for i in range(goodpix_tilt.size)]
+                             kwargs=dict(color='cyan', fill=False)) for i in range(goodpix_tilt.size)]
 
     # Plot the 2D fitted tilts
     # loop over each line, this allows to use type='path' and therefore a faster plotting
@@ -595,7 +595,7 @@ def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, nspec=Non
                 good2dfit_tilt = tilt_traces['good2dfit_tilt'][0][this_line] + yoff
                 canvas_list += [dict(type=str('path'),
                                      args=(list(zip(good2dfit_spat[::pstep].tolist(), good2dfit_tilt[::pstep].tolist())),),
-                                     kwargs=dict(color='blue', linewidth=2))]
+                                     kwargs=dict(color='blue', linewidth=1))]
 
     # Now plot the masked traces and the rejected 2D fits
     # We just plot the points, so we do not need to loop over each slit/line
@@ -605,14 +605,14 @@ def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, nspec=Non
         badpix_spat = tilt_traces['badpix_spat'][0] + xoff
         badpix_tilt = tilt_traces['badpix_tilt'][0] + yoff
         canvas_list += [dict(type='squarebox', args=(float(badpix_spat[i]), float(badpix_tilt[i]), 1),
-                             kwargs=dict(color='red', fill=True, fillalpha=0.5)) for i in range(badpix_tilt.size)]
+                             kwargs=dict(color='red', fill=False)) for i in range(badpix_tilt.size)]
     # rejected fit
     if 'bad2dfit_tilt' in tilt_traces.keys() and tilt_traces['bad2dfit_tilt'][0].size > 0:
         # note: must cast numpy floats to regular python floats to pass the remote interface
         bad2dfit_spat = tilt_traces['bad2dfit_spat'][0] + xoff
         bad2dfit_tilt = tilt_traces['bad2dfit_tilt'][0] + yoff
         canvas_list += [dict(type='squarebox', args=(float(bad2dfit_spat[i]), float(bad2dfit_tilt[i]), 1),
-                             kwargs=dict(color='yellow', fill=True, fillalpha=0.5)) for i in range(bad2dfit_tilt.size)]
+                             kwargs=dict(color='yellow', fill=False)) for i in range(bad2dfit_tilt.size)]
 
     # Add text
     text_xpos = 20

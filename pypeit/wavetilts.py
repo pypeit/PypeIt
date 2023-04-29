@@ -943,11 +943,11 @@ def show_tilts_mpl(tilt_img, tilt_traces, slits=None, show_traces=False, cut=Non
     if show_traces:
         if 'goodpix_tilt' in tilt_traces.keys() and tilt_traces['goodpix_tilt'][0].size > 0:
             plt.scatter(tilt_traces['goodpix_spat'][0], tilt_traces['goodpix_tilt'][0], color='cyan',
-                        marker='s', s=10, alpha=0.5, lw=0, label='Good pixel', zorder=1)
+                        edgecolors=None, marker='s', s=10, alpha=0.3, lw=0, label='Good pixel', zorder=1)
     # masked tilts
     if 'badpix_tilt' in tilt_traces.keys() and tilt_traces['badpix_tilt'][0].size > 0:
         plt.scatter(tilt_traces['badpix_spat'], tilt_traces['badpix_tilt'], color='red',
-                    marker='s', s=10, alpha=0.5, lw=0, label='Masked pixel', zorder=2)
+                    edgecolors=None, marker='s', s=10, alpha=0.3, lw=0, label='Masked pixel', zorder=2)
     # 2D fit tilts
     # loop over each line so that we can plot lines instead of points
     if 'good2dfit_lid' in tilt_traces.keys():
@@ -956,12 +956,12 @@ def show_tilts_mpl(tilt_img, tilt_traces, slits=None, show_traces=False, cut=Non
             if np.any(this_line):
                 good2dfit_spat = tilt_traces['good2dfit_spat'][0][this_line]
                 good2dfit_tilt = tilt_traces['good2dfit_tilt'][0][this_line]
-                plt.plot(good2dfit_spat, good2dfit_tilt, color='blue', lw=1, zorder=3)
+                plt.plot(good2dfit_spat, good2dfit_tilt, color='blue', lw=1, alpha=0.4, zorder=3)
 
     # rejected point in 2D fit
     if 'bad2dfit_tilt' in tilt_traces.keys() and tilt_traces['bad2dfit_tilt'][0].size > 0:
         plt.scatter(tilt_traces['bad2dfit_spat'][0], tilt_traces['bad2dfit_tilt'][0], color='yellow',
-                    marker='s', s=5, alpha=0.5, lw=0, label='Rejected in fit', zorder=4)
+                    edgecolors=None, marker='s', s=5, alpha=0.3, lw=0, label='Rejected in fit', zorder=4)
 
     if slits is not None:
         pstep = 50
@@ -983,7 +983,10 @@ def show_tilts_mpl(tilt_img, tilt_traces, slits=None, show_traces=False, cut=Non
     handles.append(legend_element[0])
 
     lcolors = ['cyan', 'red', 'yellow', 'blue'] if show_traces else ['red', 'yellow', 'blue']
-    plt.legend(handles=handles, labelcolor=lcolors)
+    legend = plt.legend(handles=handles, labelcolor=lcolors, loc=3, markerscale=2, frameon=False)
+    for h in legend.legendHandles:
+        h.set_alpha(1)
+    
     plt.ylabel('Spectral pixel index')
     plt.xlabel('Spatial pixel index')
     plt.show()
