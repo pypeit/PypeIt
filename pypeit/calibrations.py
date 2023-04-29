@@ -356,24 +356,26 @@ class Calibrations:
             self.alignments = alignframe.Alignments.from_file(masterframe_filename)
             self.alignments.is_synced(self.slits)
             return self.alignments
+        elif len(dark_files) == 0:
+            self.alignments = None
+        else:
+            msalign = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                     self.par['alignframe'], align_files,
+                                                     bias=self.msbias, bpm=self.msbpm,
+                                                     dark=self.msdark)
 
-        msalign = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                 self.par['alignframe'], align_files,
-                                                 bias=self.msbias, bpm=self.msbpm,
-                                                 dark=self.msdark)
+            # Extract some header info needed by the algorithm
+            binning = self.spectrograph.get_meta_value(align_files[0], 'binning')
 
-        # Extract some header info needed by the algorithm
-        binning = self.spectrograph.get_meta_value(align_files[0], 'binning')
-
-        # Instantiate
-        # TODO: From JFH: Do we need the bpm here?  Check that this was in the previous code.
-        alignment = alignframe.TraceAlignment(msalign, self.slits, self.spectrograph,
-                                              self.par['alignment'], det=self.det, binning=binning,
-                                              qa_path=self.qa_path, msbpm=self.msbpm)
-        # Run
-        self.alignments = alignment.run(show=self.show)
-        # Save to Masters
-        self.alignments.to_master_file(masterframe_filename)
+            # Instantiate
+            # TODO: From JFH: Do we need the bpm here?  Check that this was in the previous code.
+            alignment = alignframe.TraceAlignment(msalign, self.slits, self.spectrograph,
+                                                  self.par['alignment'], det=self.det, binning=binning,
+                                                  qa_path=self.qa_path, msbpm=self.msbpm)
+            # Run
+            self.alignments = alignment.run(show=self.show)
+            # Save to Masters
+            self.alignments.to_master_file(masterframe_filename)
 
         return self.alignments
 
