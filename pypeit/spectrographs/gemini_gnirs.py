@@ -524,6 +524,9 @@ class GeminiGNIRSEchelleSpectrograph(GeminiGNIRSSpectrograph):
 
 
 class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
+    # TODO :: A list of steps that could improve the reduction
+    #   * Have a high threshold for detecting slit edges (par['calibrations']['slitedges']['edge_thresh'] = 100.), and have an option when inserting new traces to be the median of all other slit lengths (or a fit to the slit lengths).
+    #   * Need to store a wavelength solution for different grating options (Note, the Holy Grail algorithm works pretty well, most of the time)
     name = 'gemini_gnirs_ifu'
     header_name = 'GNIRS IFU'
     pypeline = 'IFU'
@@ -599,6 +602,7 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
         self.dispname = self.get_meta_value(scifile, 'dispname')
         # 32/mmSB_G5533 setup, covering XYJHK with short blue camera
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        par['calibrations']['slitedges']['edge_thresh'] = 30.
         if '32/mm' in self.dispname:
             pass
         else:
