@@ -373,6 +373,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         return ['HIERARCH ESO INS GRIS1 NAME', 'HIERARCH ESO INS GRIS1 WLEN',
                 'HIERARCH ESO INS SLIT NAME', 'HIERARCH ESO SEQ SPEC TARG']
 
+    # TODO -- Convert this into get_comb_group()
     def parse_dither_pattern(self, file_list, ext=None):
         """
         Parse headers from a file list to determine the dither pattern.

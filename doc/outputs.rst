@@ -23,8 +23,8 @@ Assuming it was executed from within the directory created by
 :ref:`pypeit_setup` (e.g., ``${RDXDIR}/keck_deimos_A``), by default
 :ref:`run-pypeit` will produce the following directories:
 
-    - ``${RDXDIR}/${PYP_SPEC}_${SETUP}/Masters``: Directory with all the
-      "master" calibration frames.
+    - ``${RDXDIR}/${PYP_SPEC}_${SETUP}/Calibrations``: Directory with all the
+      calibration frames.
 
     - ``${RDXDIR}/${PYP_SPEC}_${SETUP}/Science``: Directory with all the
       reduced science and standard frames

@@ -3,8 +3,8 @@
     $ pypeit_trace_edges -h
     usage: pypeit_trace_edges [-h] (-f PYPEIT_FILE | -t TRACE_FILE) [-g GROUP]
                               [-d [DETECTOR ...]] [-s SPECTROGRAPH] [-b BINNING]
-                              [-p REDUX_PATH] [-m MASTER_DIR] [-o] [--debug]
-                              [--show] [-v VERBOSITY]
+                              [-p REDUX_PATH] [-c CALIB_DIR] [-o] [--debug] [--show]
+                              [-v VERBOSITY]
     
     Trace slit edges
     
@@ -50,11 +50,12 @@
                             used if providing files directly; default is 1,1.
                             (default: None)
       -p REDUX_PATH, --redux_path REDUX_PATH
-                            Path to top-level output directory. Default is the
-                            current working directory. (default: None)
-      -m MASTER_DIR, --master_dir MASTER_DIR
-                            Name for directory in output path for Master file(s)
-                            relative to the top-level directory. (default: Masters)
+                            Path to top-level output directory. (default: current
+                            working directory)
+      -c CALIB_DIR, --calib_dir CALIB_DIR
+                            Name for directory in output path for calibration
+                            file(s) relative to the top-level directory. (default:
+                            Calibrations)
       -o, --overwrite       Overwrite any existing files/directories (default:
                             False)
       --debug               Run in debug mode. (default: False)

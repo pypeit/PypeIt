@@ -211,7 +211,7 @@ Astrometric correction
 If you would like to perform an astrometric correction, you
 need to install `scikit-image`_ (version > 0.17;
 see :ref:`installing-pip` or simply install `scikit-image`_ with pip directly). The default
-option is to perform the astrometric correction, if a :doc:`calibrations/master_align`
+option is to perform the astrometric correction, if a :doc:`calibrations/align`
 frame has been computed. To disable the astrometric
 correction, set the following keyword argument in your ``coadd3d``
 file:

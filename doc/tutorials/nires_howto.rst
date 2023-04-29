@@ -155,7 +155,7 @@ same.  To show the results of the trace, run, e.g.:
 
 .. code-block:: bash
     
-    pypeit_chk_edges Masters/MasterEdges_A_7_DET01.fits.gz
+    pypeit_chk_edges Calibrations/Edges_A_7_DET01.fits.gz
 
 which will show the image and overlay the traces (green is the left edge;
 magenta is the right edge); this should open a `ginga`_ window for you if one
@@ -181,10 +181,10 @@ Next the code performs the wavelength calibration.  Via the :ref:`pypeit_file`,
 we designated two sets of wavelength calibration frames, one for the standard
 star and one for the science frame.  You should inspect the results for both.
 
-First, it's important to understand PypeIt's :ref:`master-naming` convention,
+First, it's important to understand PypeIt's :ref:`calib-naming` convention,
 specifically the calibration group bit identities used in the output file names.
-In this example, two :ref:`masterarc` files are produced:
-``Masters/MasterArc_A_2_DET01.fits`` and ``Masters/MasterArc_A_4_DET01.fits``.
+In this example, two :ref:`arc` files are produced:
+``Calibrations/Arc_A_2_DET01.fits`` and ``Calibrations/Arc_A_4_DET01.fits``.
 The ``2`` and ``4`` are the bits associated with the calibration group and link
 back to which files are associated with each frame type.  The
 :ref:`calibrations-calibfile` provides the direct association of input frame
@@ -198,7 +198,7 @@ observations with `ginga`_:
 
 .. code-block:: bash
 
-    ginga Masters/MastersArc_A_2_DET01.fits
+    ginga Calibrations/sArc_A_2_DET01.fits
 
 1D Wavelength Solution
 ++++++++++++++++++++++
@@ -227,7 +227,7 @@ wavelength calibration for all orders. We can run it with this simple call:
 
 .. code-block:: bash
 
-    pypeit_chk_wavecalib Masters/MasterWaveCalib_A_2_DET01.fits
+    pypeit_chk_wavecalib Calibrations/WaveCalib_A_2_DET01.fits
 
 and it prints on screen the following (you may need to expand the width of your
 terminal to see the full output):
@@ -288,14 +288,14 @@ PypeIt computes a number of multiplicative corrections to correct the 2D
 spectral response for pixel-to-pixel detector throughput variations and
 lower-order spatial and spectral illumination and throughput corrections.  We
 collectively refer to these as flat-field corrections; see :ref:`here
-<flat_fielding>` and :ref:`here <master_flat>`. For NIRES observations, flats
+<flat_fielding>` and :ref:`here <flat>`. For NIRES observations, flats
 with lamps off, if available, are also subtracted.
 
 You can inspect the flat-field corrections using the following script:
 
 .. code-block:: bash
 
-    pypeit_chk_flats Masters/MasterFlat_A_7_DET01.fits
+    pypeit_chk_flats Calibrations/Flat_A_7_DET01.fits
 
 Note that the calibration group number for this image is ``7`` (instead of 2 or
 4) because the flat field images were used for all calibration groups.  The

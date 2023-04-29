@@ -1,29 +1,29 @@
 
 .. include:: ../include/links.rst
 
-.. _master_flat:
+.. _flat:
 
-==========
-MasterFlat
-==========
+====
+Flat
+====
 
 Overview
 ========
 
-This file describes the data model for the ``MasterFlat``.
+This file describes the data model for the ``Flat``.
 It is a series of images starting from
 the combination of all input *pixelflat* frames.
 
 The images are written to disk as a multi-extension FITS file
-prefixed by ``MasterFlat`` in the ``Masters/`` folder.
-See :ref:`master-naming` for the naming convention.
+prefixed by ``Flat`` in the ``Calibrations/`` folder.
+See :ref:`calib-naming` for the naming convention.
 
 
 Inspecting
 ==========
 
 PypeIt provides the ``pypeit_chk_flats`` script to inspect
-the key ``MasterFlat`` outputs.
+the key ``Flat`` outputs.
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
@@ -35,7 +35,7 @@ The script usage can be displayed by calling the script with the
 pypeit_chk_flats
 ----------------
 
-This script takes a ``MasterFlat`` as input and displays
+This script takes a ``Flat`` as input and displays
 a series of images in a
 `ginga`_ viewer, each in a separate tab.
 
@@ -43,7 +43,7 @@ Here is a typical call:
 
 .. code-block:: console
 
-    pypeit_chk_flats Masters/MasterFlat_A_1_DET01.fits
+    pypeit_chk_flats Calibrations/Flat_A_1_DET01.fits
 
 Below we describe the standard products.
 There is enough variation from spectrograph to
