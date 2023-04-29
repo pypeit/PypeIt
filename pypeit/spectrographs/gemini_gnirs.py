@@ -539,8 +539,6 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
     def default_pypeit_par(cls):
         par = super().default_pypeit_par()
 
-        par['calibrations']['wavelengths']['method'] = 'holy-grail'
-
         # LACosmics parameters
         par['scienceframe']['process']['sigclip'] = 4.0
         par['scienceframe']['process']['objlim'] = 1.5
@@ -575,6 +573,36 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
 
         # Flux calibration parameters
         par['sensfunc']['UVIS']['extinct_correct'] = False  # This must be False - the extinction correction is performed when making the datacube
+
+        return par
+
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the ``PypeIt`` parameters to hard-wired values used for
+        specific instrument configurations.
+
+        Args:
+            scifile (:obj:`str`):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
+            adjusted for configuration specific parameter values.
+        """
+        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # TODO This is a hack for now until we figure out how to set dispname
+        # and other meta information in the spectrograph class itself
+        self.dispname = self.get_meta_value(scifile, 'dispname')
+        # 32/mmSB_G5533 setup, covering XYJHK with short blue camera
+        par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        if '32/mm' in self.dispname:
+            pass
+        else:
+            msgs.error('Unrecognized GNIRS dispname')
 
         return par
 
