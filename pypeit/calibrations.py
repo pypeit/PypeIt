@@ -356,7 +356,7 @@ class Calibrations:
             self.alignments = alignframe.Alignments.from_file(masterframe_filename)
             self.alignments.is_synced(self.slits)
             return self.alignments
-        elif len(dark_files) == 0:
+        elif len(align_files) == 0:
             self.alignments = None
         else:
             msalign = buildimage.buildimage_fromlist(self.spectrograph, self.det,
