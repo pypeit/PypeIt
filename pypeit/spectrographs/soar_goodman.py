@@ -313,6 +313,7 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
         par['calibrations']['wavelengths']['rms_threshold'] = 0.5
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['fwhm']= 5.0
+        par['calibrations']['flatfield']['slit_illum_finecorr'] = False
 
         #par['calibrations']['wavelengths']['n_first'] = 3
         #par['calibrations']['wavelengths']['n_final'] = 5

@@ -891,12 +891,14 @@ class EchelleExtract(Extract):
         self.steps.append(inspect.stack()[0][3])
 
         if show:
-            self.show('local', sobjs = self.sobjs, slits= True, chname='ech_local')
-            self.show('resid', sobjs = self.sobjs, slits= True, chname='ech_resid')
+            self.show('local', sobjs=self.sobjs, slits=True, chname='ech_local')
+            self.show('resid', sobjs=self.sobjs, slits=True, chname='ech_resid')
 
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
+
 # TODO Should this be removed? I think so.
+# TODO :: RJC - Eventually, yes, but this should not be removed yet - there are several aspects of the spectral flexure + reference frame correction that need to be sorted out.
 class IFUExtract(MultiSlitExtract):
     """
     Child of Reduce for IFU reductions

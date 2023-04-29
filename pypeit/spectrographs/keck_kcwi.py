@@ -843,7 +843,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         Returns:
             `astropy.wcs.wcs.WCS`_: The world-coordinate system.
         """
-        msgs.info("Calculating the WCS")
+        msgs.info("Generating KCWI WCS")
         # Get the x and y binning factors, and the typical slit length
         binspec, binspat = parse.parse_binning(self.get_meta_value([hdr], 'binning'))
 
@@ -922,21 +922,19 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             crpix2 += off2
 
         # Create a new WCS object.
-        msgs.info("Generating KCWI WCS")
         w = wcs.WCS(naxis=3)
         w.wcs.equinox = hdr['EQUINOX']
         w.wcs.name = 'KCWI'
         w.wcs.radesys = 'FK5'
+        w.wcs.lonpole = 180.0  # Native longitude of the Celestial pole
+        w.wcs.latpole = 0.0  # Native latitude of the Celestial pole
         # Insert the coordinate frame
-        w.wcs.cname = ['KCWI RA', 'KCWI DEC', 'KCWI Wavelength']
+        w.wcs.cname = ['RA', 'DEC', 'Wavelength']
         w.wcs.cunit = [units.degree, units.degree, units.Angstrom]
         w.wcs.ctype = ["RA---TAN", "DEC--TAN", "WAVE"]  # Note, WAVE is vacuum wavelength
         w.wcs.crval = [ra, dec, wave0]  # RA, DEC, and wavelength zeropoints
         w.wcs.crpix = [crpix1, crpix2, crpix3]  # RA, DEC, and wavelength reference pixels
         w.wcs.cd = np.array([[cd11, cd12, 0.0], [cd21, cd22, 0.0], [0.0, 0.0, dwv]])
-        w.wcs.lonpole = 180.0  # Native longitude of the Celestial pole
-        w.wcs.latpole = 0.0  # Native latitude of the Celestial pole
-
         return w
 
     def get_datacube_bins(self, slitlength, minmax, num_wave):
