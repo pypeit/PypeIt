@@ -578,8 +578,13 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
         # Don't do 1D extraction for 3D data - it's meaningless because the DAR correction must be performed on the 3D data.
         par['reduce']['extraction']['skip_extraction'] = True  # Because extraction occurs before the DAR correction, don't extract
 
-        # Decrease the wave tilts order, given the shorter slits of the IFU
+        #par['calibrations']['flatfield']['tweak_slits'] = False  # Do not tweak the slit edges (we want to use the full slit)
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.0  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
+        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.0  # Make sure the full slit is used (i.e. no padding)
+        par['calibrations']['flatfield']['slit_trim'] = 2  # Trim the slit edges
         par['calibrations']['slitedges']['pad'] = 2  # Need to pad out the tilts for the astrometric transform when creating a datacube.
+
+        # Decrease the wave tilts order, given the shorter slits of the IFU
         par['calibrations']['tilts']['spat_order'] = 1
         par['calibrations']['tilts']['spec_order'] = 1
 
@@ -595,10 +600,10 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
         par['reduce']['findobj']['skip_skysub'] = True
         par['reduce']['findobj']['skip_final_global'] = True
 
-        # Don't correct flexure by default, but you should use slitcen,
+        # Don't correct flexure by default since the OH lines are used for wavelength calibration
+        # If someone does want to do a spectral flexure correction, you should use slitcen,
         # because this is a slit-based IFU where no objects are extracted.
         par['flexure']['spec_method'] = 'skip'
-        par['flexure']['spec_maxshift'] = 2.5  # Just in case someone switches on spectral flexure, this needs to be minimal
 
         # Flux calibration parameters
         par['sensfunc']['UVIS']['extinct_correct'] = False  # This must be False - the extinction correction is performed when making the datacube
