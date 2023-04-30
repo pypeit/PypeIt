@@ -634,7 +634,10 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
         # 32/mmSB_G5533 setup, covering XYJHK with short blue camera
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
         par['calibrations']['slitedges']['edge_thresh'] = 30.
+        # TODO :: The following wavelength solutions are not general enough - need to implement a solution for each setup
         if '32/mm' in self.dispname:
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs_lrifu_H.fits'
             pass
         else:
             msgs.error('Unrecognized GNIRS dispname')

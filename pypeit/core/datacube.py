@@ -1836,7 +1836,6 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         alignSplines = alignframe.AlignmentSplines(traces, locations, spec2DObj.tilts)
         raimg, decimg, minmax = slits.get_radec_image(frame_wcs, alignSplines, spec2DObj.tilts,
                                                       initial=True, flexure=spat_flexure)
-        embed()
         # Perform the DAR correction
         if wave_ref is None:
             wave_ref = 0.5*(np.min(waveimg[onslit_gpm]) + np.max(waveimg[onslit_gpm]))
