@@ -4,10 +4,13 @@ Module for Gemini/GNIRS specific methods.
 .. include:: ../include/links.rst
 """
 import numpy as np
+from astropy import wcs, units
+from astropy.coordinates import SkyCoord, EarthLocation
+from astropy.time import Time
 
 from pypeit import msgs
 from pypeit import telescopes
-from pypeit.core import framematch
+from pypeit.core import framematch, parse
 from pypeit.images import detector_container
 from pypeit.spectrographs import spectrograph
 
@@ -21,6 +24,17 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     url = 'https://www.gemini.edu/instrumentation/gnirs'
     header_name = 'GNIRS'
     telescope = telescopes.GeminiNTelescopePar()
+
+    def __init__(self):
+        super().__init__()
+
+        # TODO :: Might need to change the tolerance of disperser angle in
+        # pypeit setup (two BH2 nights where sufficiently different that this
+        # was important).
+
+        # TODO :: Might consider changing TelescopePar to use the astropy
+        # EarthLocation. KBW: Fine with me!
+        self.location = EarthLocation.of_site('Gemini North')
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -82,6 +96,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         self.meta['dithoff'] = dict(card=None, compound=True)
 
         # Extras for config and frametyping
+        self.meta['slitwid'] = dict(ext=0, compound=True, card=None)
         self.meta['dispname'] = dict(ext=0, card='GRATING')
         self.meta['hatch'] = dict(ext=0, card='COVER')
         self.meta['dispangle'] = dict(ext=0, card='GRATTILT', rtol=1e-4)
@@ -107,9 +122,18 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
                 return headarr[0].get('QOFFSET')
             else:
                 return 0.0
+        elif meta_key == 'slitwid':
+            deckname = headarr[0].get('DECKER')
+            if 'LR-IFU' in deckname:
+                return 0.15
+            elif 'HR-IFU' in deckname:
+                return 0.05
+            else:
+                # TODO :: Need to provide a more complete set of options here
+                return None
         elif meta_key == 'obstime':
             try:
-                return headarr[0]['TIME-OBS']
+                return Time(headarr[0]['DATE-OBS'] + "T" + headarr[0]['TIME-OBS'])
             except KeyError:
                 msgs.warn("Time of observation is not in header")
                 return 0.0
@@ -555,11 +579,13 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
         par['reduce']['extraction']['skip_extraction'] = True  # Because extraction occurs before the DAR correction, don't extract
 
         # Decrease the wave tilts order, given the shorter slits of the IFU
+        par['calibrations']['slitedges']['pad'] = 2  # Need to pad out the tilts for the astrometric transform when creating a datacube.
         par['calibrations']['tilts']['spat_order'] = 1
         par['calibrations']['tilts']['spec_order'] = 1
 
         # Make sure that this is reduced as a slit (as opposed to fiber) spectrograph
         par['reduce']['cube']['slit_spec'] = True
+        par['reduce']['cube']['grating_corr'] = False
         par['reduce']['cube']['combine'] = False  # Make separate spec3d files from the input spec2d files
 
         # Sky subtraction parameters
@@ -637,6 +663,7 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
 
         # Get the pixel and slice scales
         pxscl = platescale * binspat / 3600.0  # Need to convert arcsec to degrees
+        msgs.work("NEED TO WORK OUT SLICER SCALE AND PIXEL SCALE")
         slscl = self.get_meta_value([hdr], 'slitwid')
         if spatial_scale is not None:
             if pxscl > spatial_scale / 3600.0:

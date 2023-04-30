@@ -677,7 +677,7 @@ def make_good_skymask(slitimg, tilts):
     unq = np.unique(slitimg[slitimg>0])
     for uu in range(unq.size):
         # Find the x,y pixels in this slit
-        ww = np.where(slitimg==unq[uu])
+        ww = np.where((slitimg==unq[uu]) & (tilts != 0.0))
         # Mask the bottom pixels first
         wb = np.where(ww[0] == 0)[0]
         wt = np.where(ww[0] == np.max(ww[0]))[0]
@@ -685,7 +685,7 @@ def make_good_skymask(slitimg, tilts):
         maxtlt = np.max(tilts[0,  ww[1][wb]])
         mintlt = np.min(tilts[-1, ww[1][wt]])
         # Mask all values below this maximum
-        gpm[ww] = (tilts[ww]>=maxtlt) & (tilts[ww]<=mintlt)  # The signs are correct here.
+        gpm[ww] = (tilts[ww] >= maxtlt) & (tilts[ww] <= mintlt)  # The signs are correct here.
     return gpm
 
 
@@ -1820,7 +1820,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                 alignments = alignframe.Alignments.from_file(alignfile)
             else:
                 msgs.warn("Could not find Master Alignment frame:"+msgs.newline()+alignfile)
-                msgs.warn("Astrometric correction will not be performed")
+                msgs.info("Using slit edges for astrometric transform")
         else:
             msgs.info("Astrometric correction will not be performed")
         # If nothing better was provided, use the slit edges
