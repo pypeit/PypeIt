@@ -96,6 +96,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         self.meta['dithoff'] = dict(card=None, compound=True)
 
         # Extras for config and frametyping
+        self.meta['calpos'] = dict(ext=0, card='GRATORD')
         self.meta['slitwid'] = dict(ext=0, compound=True, card=None)
         self.meta['dispname'] = dict(ext=0, card='GRATING')
         self.meta['hatch'] = dict(ext=0, card='COVER')
@@ -125,9 +126,9 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         elif meta_key == 'slitwid':
             deckname = headarr[0].get('DECKER')
             if 'LR-IFU' in deckname:
-                return 0.15
+                return 0.15/3600.0  # divide by 3600 for degrees
             elif 'HR-IFU' in deckname:
-                return 0.05
+                return 0.05/3600.0  # divide by 3600 for degrees
             else:
                 # TODO :: Need to provide a more complete set of options here
                 return None
@@ -396,7 +397,6 @@ class GeminiGNIRSEchelleSpectrograph(GeminiGNIRSSpectrograph):
     Child to handle Gemini/GNIRS echelle specific code
     """
     name = 'gemini_gnirs_echelle'
-    header_name = 'GNIRS Echelle'
     pypeline = 'Echelle'
     ech_fixed_format = True
 
@@ -552,7 +552,6 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
     #   * Have a high threshold for detecting slit edges (par['calibrations']['slitedges']['edge_thresh'] = 100.), and have an option when inserting new traces to be the median of all other slit lengths (or a fit to the slit lengths).
     #   * Need to store a wavelength solution for different grating options (Note, the Holy Grail algorithm works pretty well, most of the time)
     name = 'gemini_gnirs_ifu'
-    header_name = 'GNIRS IFU'
     pypeline = 'IFU'
 
     def init_meta(self):
@@ -597,13 +596,12 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
         par['reduce']['skysub']['no_poly'] = True
         par['reduce']['skysub']['bspline_spacing'] = 0.6
         par['reduce']['skysub']['joint_fit'] = False
-        par['reduce']['findobj']['skip_skysub'] = True
-        par['reduce']['findobj']['skip_final_global'] = True
 
         # Don't correct flexure by default since the OH lines are used for wavelength calibration
         # If someone does want to do a spectral flexure correction, you should use slitcen,
         # because this is a slit-based IFU where no objects are extracted.
         par['flexure']['spec_method'] = 'skip'
+        par['flexure']['spec_maxshift'] = 0  # The sky lines are used for calibration - don't allow flexure
 
         # Flux calibration parameters
         par['sensfunc']['UVIS']['extinct_correct'] = False  # This must be False - the extinction correction is performed when making the datacube
@@ -628,19 +626,20 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
             adjusted for configuration specific parameter values.
         """
         par = super().config_specific_par(scifile, inp_par=inp_par)
-        # TODO This is a hack for now until we figure out how to set dispname
-        # and other meta information in the spectrograph class itself
-        self.dispname = self.get_meta_value(scifile, 'dispname')
-        # 32/mmSB_G5533 setup, covering XYJHK with short blue camera
-        par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        # Obtain a header keyword to determine which range is being used
+        gratord = self.get_meta_value(scifile, 'calpos')
         par['calibrations']['slitedges']['edge_thresh'] = 30.
         # TODO :: The following wavelength solutions are not general enough - need to implement a solution for each setup
-        if '32/mm' in self.dispname:
+        if gratord == 4:  # H band
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs_lrifu_H.fits'
             pass
+        elif gratord == 3:  # K band
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs_lrifu_K.fits'
+            pass
         else:
-            msgs.error('Unrecognized GNIRS dispname')
+            par['calibrations']['wavelengths']['method'] = 'holy-grail'
 
         return par
 
