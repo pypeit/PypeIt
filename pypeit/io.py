@@ -865,8 +865,19 @@ def files_from_extension(raw_path:str,
     Returns:
         list: List of raw data filenames (sorted) with full path
     """
-    # Grab the list of files
-    dfname = os.path.join(raw_path, f'*{extension}*') \
-                if os.path.isdir(raw_path) else f'{raw_path}*{extension}*'
-    return sorted(glob.glob(dfname))
-
+    if isinstance(raw_path, str):
+        # Grab the list of files
+        dfname = os.path.join(raw_path, f'*{extension}*') \
+                    if os.path.isdir(raw_path) else f'{raw_path}*{extension}*'
+        return sorted(glob.glob(dfname))
+    elif isinstance(raw_path, list):
+        # Loop over the list
+        retlist = []
+        for rpath in raw_path:
+            # Grab the list of files
+            dfname = os.path.join(rpath, f'*{extension}*') \
+                        if os.path.isdir(rpath) else f'{rpath}*{extension}*'
+            retlist += sorted(glob.glob(dfname))
+        return retlist
+    else:
+        msgs.error(f"Incorrect type {type(raw_path)} for raw_path (must be str or list)")
