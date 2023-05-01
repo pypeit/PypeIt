@@ -288,7 +288,9 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['minimum_slit_length'] = 90.
 
         # Flat-field parameter modification
-        par['calibrations']['flatfield']['pixelflat_min_wave'] = 3000.
+        par['calibrations']['flatfield']['pixelflat_min_wave'] = 3000.  # Default: None
+        par['calibrations']['flatfield']['slit_illum_finecorr'] = False  # Default: True
+        par['calibrations']['flatfield']['spec_samp_fine'] = 30  # Default: 1.2
 
         # For the tilts, our lines are not as well-behaved as others',
         #   possibly due to the Wynne type E camera.
@@ -470,7 +472,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             # The approximate resolution of this grating
             par['sensfunc']['UVIS']['resolution'] = 1200
 
-        elif grating == 'DV4 (400/8000)':
+        elif grating == 'DV4 (400/8500)':
             # We don't have a good `reid_arxiv`` for this grating yet; use `holy-grail`
             #  and it's associated tweaks in parameters
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
