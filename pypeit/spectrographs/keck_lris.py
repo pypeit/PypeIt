@@ -439,7 +439,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         rawdatasec_img = np.zeros_like(array, dtype=int)
         oscansec_img = np.zeros_like(array, dtype=int)
 
-        # insert extensions into master image...
+        # insert extensions into calibration image...
         for amp, i in enumerate(order[det_idx]):
 
             # grab complete extension...
@@ -813,6 +813,26 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         # Add the name of the dispersing element
         self.meta['dispname'] = dict(ext=0, card='GRISNAME')
 
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['GRISNAME', 'DICHNAME', 'SLITNAME']
+
     def bpm(self, filename, det, shape=None, msbias=None):
         """
         Generate a default bad-pixel mask.
@@ -833,7 +853,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
@@ -980,7 +1000,7 @@ class KeckLRISBOrigSpectrograph(KeckLRISBSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels. **This is
+                Processed bias frame used to identify bad pixels. **This is
                 always ignored.**
 
         Returns:
@@ -1146,20 +1166,19 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
 
         return par
 
-    def get_ql_master_dir(self, file):
+    # NOTE: This function is used by the dev-suite
+    def get_ql_calib_dir(self, file):
         """
-        Returns master file directory for quicklook reductions.
+        Returns calibration file directory for quicklook reductions.
 
         Args:
             file (str):
               Image file
 
         Returns:
-            master_dir (str):
-              Quicklook Master directory
+            :obj:`str`: Quicklook calibrations directory
 
         """
-
         lris_grating = self.get_meta_value(file, 'dispname')
         lris_dichroic = self.get_meta_value(file, 'dichroic')
         setup_path = lris_grating.replace('/','_') + '_d' + lris_dichroic
@@ -1252,6 +1271,26 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         """
         return super().configuration_keys() + ['dispangle', 'cenwave', 'amp', 'binning']
 
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['GRANAME', 'DICHNAME', 'SLITNAME', 'GRANGLE', 'WAVELEN', 'TAPLINES', 'NUMAMPS']
+
     def bpm(self, filename, det, shape=None, msbias=None):
         """
         Generate a default bad-pixel mask.
@@ -1272,7 +1311,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels.
+                Processed bias frame used to identify bad pixels.
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
@@ -1316,7 +1355,6 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
         # Over-ride a pair
         self.meta['mjd'] = dict(ext=0, card='MJD')
         self.meta['exptime'] = dict(ext=0, card='TELAPSE')
-
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -1636,7 +1674,7 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels. **This is
+                Processed bias frame used to identify bad pixels. **This is
                 always ignored.**
 
         Returns:

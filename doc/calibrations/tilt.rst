@@ -1,22 +1,22 @@
 
 .. include:: ../include/links.rst
 
-=============
-MasterTiltimg
-=============
+=======
+Tiltimg
+=======
 
 Overview
 ========
 
-This file describes the data model for the ``MasterTiltimg`` image.
+This file describes the data model for the ``Tiltimg`` image.
 For optical spectrographs, it is typically
 the combination of all input arc frames.
 For near-IR spectrographs, it is likely
 one or more science frames.
 
 The image is written to disk as a multi-extension FITS file
-prefixed by ``MasterTiltimg`` in the ``Masters/`` folder.
-See :ref:`master-naming` for the naming convention.
+prefixed by ``Tiltimg`` in the ``Calibrations/`` folder.
+See :ref:`calib-naming` for the naming convention.
 
 
 Inspecting
@@ -27,7 +27,7 @@ You can view it with any standard image viewer, e.g.:
 
 .. code-block:: console
 
-    ginga Masters/MasterTilt_A_1_01.fits
+    ginga Calibrations/Tiltimg_A_1_01.fits
 
 Most often you use only one tilt frame and this appears
 very similar to the raw image.  If you do stack several,
@@ -42,7 +42,7 @@ for an example from the ``shane_kast_red`` spectrograph.
 
 .. image:: ../figures/arc_image.png
 
-Actually, I cheated. This is an :doc:`master_arc` image.
+Actually, I cheated. This is an :doc:`arc` image.
 But, they are identical for this instrument.
 
 Troubleshooting

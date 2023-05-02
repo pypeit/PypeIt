@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 import shutil
 
 from IPython import embed
@@ -20,23 +20,19 @@ def test_read_combid():
 
     # ------------------------------------------------------------------
     # In case of failed tests
-    setup_dir = data_path('setup_files')
-    if os.path.isdir(setup_dir):
-        shutil.rmtree(setup_dir)
-    config_dir = data_path('shane_kast_blue_A')
-    if os.path.isdir(config_dir):
+    config_dir = Path(data_path('shane_kast_blue_A')).resolve()
+    if config_dir.exists():
         shutil.rmtree(config_dir)
     # ------------------------------------------------------------------
 
     # Generate the pypeit file with the comb_id
     droot = data_path('b')
-    pargs = Setup.parse_args(['-r', droot, '-s', 'shane_kast_blue', '-c=all', '-b',
-                             '--extension=fits.gz', '--output_path={:s}'.format(data_path(''))])
+    pargs = Setup.parse_args(['-r', droot, '-s', 'shane_kast_blue', '-c', 'all', '-b',
+                             '--extension', 'fits.gz', '--output_path', f'{config_dir.parent}'])
     Setup.main(pargs)
-    shutil.rmtree(setup_dir)
 
-    pypeit_file = os.path.join(config_dir, 'shane_kast_blue_A.pypeit')
-    pypeItFile = PypeItFile.from_file(pypeit_file)
+    pypeit_file = config_dir / 'shane_kast_blue_A.pypeit'
+    pypeItFile = PypeItFile.from_file(str(pypeit_file))
 
     # Get the spectrograph
     spectrograph = None
@@ -80,3 +76,22 @@ def test_nirspec_lamps():
     # Check dome
     tst = spectrograph.lamps(fitstbl, 'dome')
     assert np.array_equal(tst, np.array([False, False, False, False, False,  True,  True,  True]))
+
+
+def test_setup_iter():
+
+    gen = PypeItMetaData.configuration_generator()
+    assert next(gen) == 'A', 'First setup identifier changed'
+
+    end = False
+    while not end:
+        try:
+            setup = next(gen)
+        except StopIteration:
+            end = True
+
+    assert setup == 'ZZ', 'Last setup identifier changed'
+    assert len(list(PypeItMetaData.configuration_generator())) \
+                == PypeItMetaData.maximum_number_of_configurations(), \
+                'Number of configuration identifiers changed'
+

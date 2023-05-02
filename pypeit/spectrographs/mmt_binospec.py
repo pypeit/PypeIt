@@ -127,6 +127,42 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
             binning = parse.binning2string(binspec, binspatial)
             return binning
 
+    def configuration_keys(self):
+        """
+        Return the metadata keys that define a unique instrument
+        configuration.
+
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
+        """
+        return ['dispname']
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['DISPERS1']
+
     @classmethod
     def default_pypeit_par(cls):
         """
@@ -235,7 +271,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
@@ -281,22 +317,6 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
             #bpm_img[1084 // xbin, 0:2056 // ybin] = 1
 
         return bpm_img
-
-    def configuration_keys(self):
-        """
-        Return the metadata keys that define a unique instrument
-        configuration.
-
-        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
-        identify the unique configurations among the list of frames read
-        for a given reduction.
-
-        Returns:
-            :obj:`list`: List of keywords of data pulled from file headers
-            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
-            object.
-        """
-        return ['dispname']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -402,7 +422,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         elif det == 2:  # B DETECTOR
             order = range(5, 9, 1)
 
-        # insert extensions into master image...
+        # insert extensions into calibration image...
         for kk, jj in enumerate(order):
             # grab complete extension...
             data, overscan, datasec, biassec = binospec_read_amp(hdu, jj)

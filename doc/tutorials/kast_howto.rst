@@ -100,14 +100,14 @@ with `ginga`_:
 
 .. code-block:: bash
 
-    ginga Masters/MasterBias_A_1_01.fits
+    ginga Calibrations/Bias_A_1_01.fits
 
 As typical of most bias images, it is featureless
 (effectively noise from the readout).
 
 .. image:: ../figures/kastb_bias_image.png
 
-See :doc:`../calibrations/master_bias` for further details.
+See :doc:`../calibrations/bias` for further details.
 
 Arc
 +++
@@ -117,14 +117,14 @@ with `ginga`_:
 
 .. code-block:: bash
 
-    ginga Masters/MasterArc_A_1_01.fits
+    ginga Calibrations/Arc_A_1_01.fits
 
 As typical of most arc images, one sees a series
 of arc lines, here oriented horizontally (as always in PypeIt).
 
 .. image:: ../figures/kastb_arc_image.png
 
-See :doc:`../calibrations/master_arc` for further details.
+See :doc:`../calibrations/arc` for further details.
 
 
 Slit Edges
@@ -140,7 +140,7 @@ the :ref:`pypeit_chk_edges` script, with this explicit call:
 
 .. code-block:: bash
 
-    pypeit_chk_edges Masters/MasterEdges_A_1_01.fits.gz
+    pypeit_chk_edges Calibrations/Edges_A_1_01.fits.gz
 
 .. image:: ../figures/kastb_edges_image.png
 
@@ -148,7 +148,7 @@ The data is the combined flat images and the green/red
 lines indicate the left/right slit edges (green/magenta in more recent versions).  The S174 label
 indicates the slit name.
 
-See :doc:`../calibrations/master_edges` for further details.
+See :doc:`../calibrations/edges` for further details.
 
 
 Wavelengths
@@ -171,7 +171,7 @@ What you hope to see in this QA is:
  - In the upper right, an RMS < 0.1 pixels
  - In the lower right, a random scatter about 0 residuals
 
-See :doc:`../calibrations/master_wvcalib` for further details.
+See :doc:`../calibrations/wvcalib` for further details.
 
 2D
 ::
@@ -187,7 +187,7 @@ the spectral position.  "Good" measurements included in the parametric trace are
 shown as black points; rejected points are shown in red.  Provided most were not
 rejected, the fit should be good.  An RMS<0.1 is also desired.
 
-See :doc:`../calibrations/master_wvcalib` for further details.
+See :doc:`../calibrations/wvcalib` for further details.
 
 Flatfield
 +++++++++
@@ -201,7 +201,7 @@ window (``pixflat_norm``) after using
 
 .. code-block:: bash
 
-    pypeit_chk_flats Masters/MasterFlat_A_1_01.fits
+    pypeit_chk_flats Calibrations/Flat_A_1_01.fits
 
 .. image:: ../figures/kastb_flat.png
 
@@ -212,7 +212,7 @@ are also plotted (green/red lines; green/magenta in more recent versions).
 The region of the detector beyond these images
 has been set to unit value.
 
-See :doc:`../calibrations/master_flat` for further details.
+See :doc:`../calibrations/flat` for further details.
 
 Spectra
 -------

@@ -96,13 +96,14 @@ class CoAdd1D:
                - waves, fluxes, ivars, gpms, header
         """
         for iexp in range(self.nexp):
-            sobjs = specobjs.SpecObjs.from_fitsfile(self.spec1dfiles[iexp])
+            sobjs = specobjs.SpecObjs.from_fitsfile(self.spec1dfiles[iexp], chk_version=self.par['chk_version'])
             indx = sobjs.name_indices(self.objids[iexp])
             if not np.any(indx):
                 msgs.error("No matching objects for {:s}.  Odds are you input the wrong OBJID".format(self.objids[iexp]))
             wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, meta_spec, header = \
                     sobjs[indx].unpack_object(ret_flam=self.par['flux_value'], extract_type=self.par['ex_value'])
             # Allocate arrays on first iteration
+            # TODO :: We should refactor to use a list of numpy arrays, instead of a 2D numpy array.
             if iexp == 0:
                 waves = np.zeros(wave_iexp.shape + (self.nexp,))
                 fluxes = np.zeros_like(waves)
@@ -112,10 +113,23 @@ class CoAdd1D:
                 if 'RA' in sobjs[indx][0].keys() and 'DEC' in sobjs[indx][0].keys():
                     header_out['RA_OBJ']  = sobjs[indx][0]['RA']
                     header_out['DEC_OBJ'] = sobjs[indx][0]['DEC']
-
+            # Check if the arrays need to be padded
+            # TODO :: Remove the if/elif statement below once these 2D arrays have been converted to a list of 1D arrays
+            if wave_iexp.shape[0] > waves.shape[0]:
+                padv = [(0, wave_iexp.shape[0]-waves.shape[0]), (0, 0)]
+                waves = np.pad(waves, padv, mode='constant', constant_values=(0, 0))
+                fluxes = np.pad(fluxes, padv, mode='constant', constant_values=(0, 0))
+                ivars = np.pad(ivars, padv, mode='constant', constant_values=(0, 1))
+                gpms = np.pad(gpms, padv, mode='constant', constant_values=(False, False))
+            elif wave_iexp.shape[0] < waves.shape[0]:
+                padv = [0, waves.shape[0]-wave_iexp.shape[0]]
+                wave_iexp = np.pad(wave_iexp, padv, mode='constant', constant_values=(0, 0))
+                flux_iexp = np.pad(flux_iexp, padv, mode='constant', constant_values=(0, 0))
+                ivar_iexp = np.pad(ivar_iexp, padv, mode='constant', constant_values=(0, 1))
+                gpm_iexp = np.pad(gpm_iexp, padv, mode='constant', constant_values=(False, False))
+            # Store the information
             waves[...,iexp], fluxes[...,iexp], ivars[..., iexp], gpms[...,iexp] \
                 = wave_iexp, flux_iexp, ivar_iexp, gpm_iexp
-
         return waves, fluxes, ivars, gpms, header_out
 
     def save(self, coaddfile, telluric=None, obj_model=None, overwrite=True):
@@ -132,7 +146,7 @@ class CoAdd1D:
         """
         self.coaddfile = coaddfile
         wave_gpm = self.wave_coadd > 1.0
-        # Generate the DataContainer
+        # Generate the spectrum container object
         onespec = OneSpec(wave=self.wave_coadd[wave_gpm], wave_grid_mid=self.wave_grid_mid[wave_gpm], flux=self.flux_coadd[wave_gpm],
                           PYP_SPEC=self.spectrograph.name, ivar=self.ivar_coadd[wave_gpm],
                           mask=self.gpm_coadd[wave_gpm].astype(int),
@@ -150,7 +164,7 @@ class CoAdd1D:
         if obj_model is not None:
             onespec.obj_model = obj_model[wave_gpm]
         # Write
-        onespec.to_file(coaddfile, history = history, overwrite=overwrite)
+        onespec.to_file(coaddfile, history=history, overwrite=overwrite)
 
     def coadd(self):
         """

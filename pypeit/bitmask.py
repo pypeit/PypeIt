@@ -104,14 +104,11 @@ class BitMask:
         # NULL flags not allowed
         if numpy.any([f == 'NULL' for f in _flag]):
             raise ValueError('Flag name NULL is not allowed.')
-        # Flags should be among the bitmask keys
+        # Flags should be among the bitmask keys, and they need not be strings.
         indx = numpy.array([f not in self.keys() for f in _flag])
         if numpy.any(indx):
             raise ValueError('The following bit names are not recognized: {0}'.format(
-                             ', '.join(_flag[indx])))
-#        # Flags should be strings
-#        if numpy.any([ not isinstance(f, str) for f in _flag ]):
-#            raise TypeError('Provided bit names must be strings!')
+                             ', '.join(_flag[indx].astype(str))))
         return _flag
 
     @staticmethod

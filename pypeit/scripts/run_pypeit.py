@@ -60,8 +60,9 @@ class RunPypeIt(scriptbase.ScriptBase):
 
         parser.add_argument('-r', '--redux_path', default=None,
                             help='Path to directory for the reduction.  Only advised for testing')
-        parser.add_argument('-m', '--do_not_reuse_masters', default=False, action='store_true',
-                            help='Do not load previously generated MasterFrames, even ones made '
+        parser.add_argument('-m', '--do_not_reuse_calibs', dest='reuse_calibs', default=True,
+                            action='store_false',
+                            help='Do not load previously generated calibrations, even ones made '
                                  'during the run.')
         parser.add_argument('-s', '--show', default=False, action='store_true',
                             help='Show reduction steps via plots (which will block further '
@@ -81,8 +82,7 @@ class RunPypeIt(scriptbase.ScriptBase):
     def main(args):
 
         import os
-
-        import numpy as np
+        from IPython import embed
 
         from pypeit import pypeit
         from pypeit import msgs
@@ -95,10 +95,8 @@ class RunPypeIt(scriptbase.ScriptBase):
 
         # Instantiate the main pipeline reduction object
         pypeIt = pypeit.PypeIt(args.pypeit_file, verbosity=args.verbosity,
-                               reuse_masters=np.invert(args.do_not_reuse_masters),
-                               overwrite=args.overwrite,
-                               redux_path=args.redux_path,
-                               calib_only=args.calib_only,
+                               reuse_calibs=args.reuse_calibs, overwrite=args.overwrite,
+                               redux_path=args.redux_path, calib_only=args.calib_only,
                                logname=logname, show=args.show)
 
         if args.calib_only:

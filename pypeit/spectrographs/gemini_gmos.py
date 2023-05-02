@@ -154,6 +154,42 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
                 msgs.error('Binning not found')
             return binning
 
+    def configuration_keys(self):
+        """
+        Return the metadata keys that define a unique instrument
+        configuration.
+
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
+        """
+        return super().configuration_keys() + ['dispangle', 'datasec']
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['GRATING', 'FILTER1', 'MASKNAME', 'CENTWAVE', 'CCDSUM', 'OBSEPOCH', 'NODPIX']
+
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
@@ -273,22 +309,6 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         return par
 
-    def configuration_keys(self):
-        """
-        Return the metadata keys that define a unique instrument
-        configuration.
-
-        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
-        identify the unique configurations among the list of frames read
-        for a given reduction.
-
-        Returns:
-            :obj:`list`: List of keywords of data pulled from file headers
-            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
-            object.
-        """
-        return super().configuration_keys() + ['dispangle', 'datasec']
-
     def hdu_read_order(self):
         """
         Return the order in which to read HDU extensions for this instrument.
@@ -368,7 +388,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         order = self.hdu_read_order()
         for ii in range(nimg):
 
-            # insert extensions into master image...
+            # insert extensions into calibration image...
             for kk, jj in enumerate(order[_det[ii]-1]):
                 # grab complete extension...
                 data, overscan, datasec, biassec, x1, x2 = gemini_read_amp(hdu, jj)
@@ -860,7 +880,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
                 Processed image shape.  If ``filename`` is None, this *must* be
                 provided; otherwise, this is ignored.
             msbias (:class:`~pypeit.images.pypeitimage.PypeItImage`, optional):
-                Master bias frame.  If provided, it is used by
+                Processed bias frame.  If provided, it is used by
                 :func:`~pypeit.spectrographs.spectrograph.Spectrograph.bpm_frombias`
                 to identify bad pixels.
 

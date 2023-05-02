@@ -20,7 +20,7 @@ This doc describes the wavelength calibration :ref:`wvcalib-algorithms`, the
 :ref:`wvcalib-byhand` including the :ref:`pypeit_identify` script,
 :ref:`wvcalib-failures`, and more.
 
-See :doc:`master_wvcalib` for a discussion of the
+See :doc:`wvcalib` for a discussion of the
 main outputs and good/bad examples.
 
 If you wish to use your own line lists (*i.e.*, you have reliable
@@ -186,8 +186,10 @@ with PypeIt.   The basic steps are:
  2. Load the parameters guiding wavelength calibration
  3. Generate the 1D wavelength fits
 
-The code is guided by the :class:`~pypeit.wavecalib.WaveCalib` class, partially described
-by `this notebook <https://github.com/pypeit/pypeit/blob/master/doc/nb/WaveCalib.ipynb>`__.
+The code is guided by the :class:`~pypeit.wavecalib.WaveCalib` class, partially
+described by `this notebook
+<https://github.com/pypeit/pypeit/blob/release/doc/nb/WaveCalib.ipynb>`__
+(BEWARE, this may be out of date).
 
 For the primary step (#3), we have developed several
 algorithms, finding it challenging to have one that satisfies
@@ -267,8 +269,8 @@ Identify
 
 If you would prefer to manually wavelength calibrate, then you can do so with
 the ``pypeit_identify`` GUI. To use this script, you must have successfully
-traced the slit edges (*i.e.*, a :doc:`master_edges` file must exist) and
-generated a :doc:`master_arc` calibration frame.
+traced the slit edges (*i.e.*, a :doc:`edges` file must exist) and
+generated a :doc:`arc` calibration frame.
 
 .. _pypeit_identify:
 
@@ -287,7 +289,7 @@ To launch the GUI, use the following command:
 
 .. code-block:: bash
 
-    $ pypeit_identify MasterArc_A_1_01.fits MasterSlits_A_1_01.fits.gz
+    $ pypeit_identify Arc_A_1_01.fits Slits_A_1_01.fits.gz
 
 basics
 ------

@@ -2,19 +2,17 @@
 Module to run tests on methods in utils.py
 """
 import os
-import numpy as np
-import pytest
+
+from IPython import embed
 
 import yaml
 
+import numpy as np
+
 from pypeit import utils
 from pypeit import msgs
-from pypeit.tests import tstutils 
+from pypeit.tests.tstutils import data_path
 from pypeit import io
-
-#def data_path(filename):
-#    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-#    return os.path.join(data_dir, filename)
 
 
 def test_calc_ivar():
@@ -100,7 +98,7 @@ def test_yamlify():
     new_obj = utils.yamlify(obj)
 
     # Write
-    tst_file = tstutils.data_path('tst.yaml')
+    tst_file = data_path('tst.yaml')
     with open(tst_file, 'w') as f:
         setup_lines = io.dict_to_lines(new_obj, level=1)
         f.write('\n'.join(setup_lines)+'\n')
@@ -117,4 +115,26 @@ def test_yamlify():
 
     # Clean up
     os.remove(tst_file)
-    
+
+
+def test_add_sub_dict():
+    d = {}
+    utils.add_sub_dict(d, 'test')
+    assert d == {'test': {}}, 'add_sub_dict failure'
+    d['test'] = 'this'
+    utils.add_sub_dict(d, 'test')
+    assert d == {'test': 'this'}, 'add_sub_dict failure'
+    utils.add_sub_dict(d, 'and')
+    d['and'] = 'that'
+    assert d == {'test': 'this', 'and': 'that'}, 'add_sub_dict failure'
+
+
+def test_recursive_update():
+    d = {}
+    d['rdx'] = dict(spectrograph='shane_kast_blue')
+    u = {}
+    u['rdx'] = dict(detnum=3)
+
+    d = utils.recursive_update(d, u)
+    assert sorted(list(d['rdx'].keys())) == ['detnum', 'spectrograph'], 'Missing merged keys'
+

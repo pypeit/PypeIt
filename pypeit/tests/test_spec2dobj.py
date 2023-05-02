@@ -138,7 +138,7 @@ def test_all2dobj_hdr(init_dict):
     header = fits.getheader(kast_file)
     spectrograph = load_spectrograph('shane_kast_blue')
     # Do it
-    hdr = allspec2D.build_primary_hdr(header, spectrograph, master_dir=tstutils.data_path(''))
+    hdr = allspec2D.build_primary_hdr(header, spectrograph, calib_dir=tstutils.data_path(''))
     # Test it
     assert hdr['SKYSUB'] == 'MODEL'
 
