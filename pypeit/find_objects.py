@@ -1276,8 +1276,6 @@ class IFUFindObjects(MultiSlitFindObjects):
             var = procimg.variance_model(self.sciImg.base_var[thismask], counts=counts[thismask],
                                          count_scale=_scale, noise_floor=adderr)
             model_ivar[thismask] = utils.inverse(var)
-            # Redo the relative spectral illumination correction with the improved sky model
-            self.illum_profile_spectral(global_sky, skymask=thismask)
 
         if update_crmask:
             # Find CRs with sky subtraction
@@ -1317,20 +1315,10 @@ class IFUFindObjects(MultiSlitFindObjects):
         self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
         # Calculate spectral flexure
         method = self.par['flexure']['spec_method']
-        # TODO :: Perhaps invent a new method for IFU - e.g. 'slitcen_relative' or 'slitcenIFU' or 'IFU'
-        # TODO :: change all other instances of this method (see below)
+        # TODO :: Perhaps include a new label for IFU flexure correction - e.g. 'slitcen_relative' or 'slitcenIFU' or 'IFU'
+        # TODO :: If a new label is introduced, change the other instances of 'method' (see below)
         if method in ['slitcen']:
             self.calculate_flexure(global_sky_sep)
-            # gd_slits = np.ones(self.slits.nslits, dtype=bool)
-            # flex_list = flexure.spec_flexure_slit_global(self.sciImg, self.waveimg, global_sky_sep, self.par,
-            #                                              self.slits, self.slitmask, trace_spat, gd_slits,
-            #                                              self.wv_calib, self.pypeline, self.det)
-            # testflex = np.zeros_like(self.slitshift)
-            # for slit_idx, slit_spat in enumerate(self.slits.spat_id):
-            #     testflex[slit_idx] = flex_list[slit_idx]['shift'][0]
-            #     msgs.info("Flexure correction of slit {0:d} (spat id={1:d}): {2:.3f} pixels".format(1 + slit_idx,
-            #                                                                                         slit_spat,
-            #                                                                                         self.slitshift[slit_idx]))
 
         # If the joint fit or spec/spat sensitivity corrections are not being performed, return the separate slits sky
         if not self.par['reduce']['skysub']['joint_fit']:
