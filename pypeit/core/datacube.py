@@ -689,6 +689,38 @@ def make_good_skymask(slitimg, tilts):
     return gpm
 
 
+def get_whitelight_range(wavemin, wavemax, wl_range):
+    """ Get the wavelength range to use for the white light images
+    Args:
+        wavemin (float):
+            Automatically determined minimum wavelength to use for making the white light image.
+        wavemax (float):
+            Automatically determined maximum wavelength to use for making the white light image.
+        wl_range (list):
+            Two element list containing the user-specified values to manually override the automated
+            values determined by PypeIt.
+
+    Returns:
+        wlrng (list): A two element list containing the minimum and maximum wavelength
+        to use for the white light images
+    """
+    wlrng = [wavemin, wavemax]
+    if wl_range[0] is not None:
+        if wl_range[0] < wavemin:
+            msgs.warn("The user-specified minimum wavelength ({0:.2f}) to use for the white light".format(wl_range[0]) +
+                      msgs.newline() + "images is lower than the recommended value ({0:.2f}),".format(wavemin) +
+                      msgs.newline() + "which ensures that all spaxels cover the same wavelength range.")
+        wlrng[0] = wl_range[0]
+    if wl_range[1] is not None:
+        if wl_range[1] > wavemax:
+            msgs.warn("The user-specified maximum wavelength ({0:.2f}) to use for the white light".format(wl_range[1]) +
+                      msgs.newline() + "images is greater than the recommended value ({0:.2f}),".format(wavemax) +
+                      msgs.newline() + "which ensures that all spaxels cover the same wavelength range.")
+        wlrng[1] = wl_range[1]
+    msgs.info("The white light images will cover the wavelength range: {0:.2f}A - {1:.2f}A".format(wlrng[0], wlrng[1]))
+    return wlrng
+
+
 def make_whitelight_fromcube(cube, wave=None, wavemin=None, wavemax=None):
     """ Generate a white light image using an input cube.
 
@@ -1958,7 +1990,11 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             cd_wv = cubepar['wave_delta'] if cubepar['wave_delta'] is not None else 1.0E10 * frame_wcs.wcs.cd[2, 2]
             output_wcs = spec.get_wcs(spec2DObj.head0, slits, detector.platescale, crval_wv, cd_wv)
             # Set the wavelength range of the white light image.
-            wl_wvrng = [np.max(mnmx_wv[ff, :, 0]), np.min(mnmx_wv[ff, :, 1])] if cubepar['save_whitelight'] else None
+            wl_wvrng = None
+            if cubepar['save_whitelight']:
+                wl_wvrng = get_whitelight_range(np.max(mnmx_wv[ff, :, 0]),
+                                                np.min(mnmx_wv[ff, :, 1]),
+                                                cubepar['whitelight_range'])
             # Make the datacube
             if method in ['subpixel', 'ngp']:
                 # Generate the datacube
@@ -1998,7 +2034,9 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     # Register spatial offsets between all frames
     if translate:
         # Find the wavelength range where all frames overlap
-        min_wl, max_wl = np.max(mnmx_wv[:, :, 0]), np.min(mnmx_wv[:, :, 1])  # This is the max blue wavelength and the min red wavelength
+        min_wl, max_wl = get_whitelight_range(np.max(mnmx_wv[:, :, 0]),  # The max blue wavelength
+                                              np.min(mnmx_wv[:, :, 1]),  # The min red wavelength
+                                              cubepar['whitelight_range'])  # The user-specified values (if any)
         wavediff = np.max(all_wave) - np.min(all_wave)
         if min_wl < max_wl:
             ww = np.where((all_wave > min_wl) & (all_wave < max_wl))
@@ -2022,6 +2060,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                                               all_spatpos[ww], all_specpos[ww], all_spatid[ww],
                                               all_tilts, all_slits, all_align, voxedge, all_idx=all_idx[ww],
                                               spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
+            embed()
             if reference_image is None:
                 # ref_idx will be the index of the cube with the highest S/N
                 ref_idx = np.argmax(weights)
@@ -2048,6 +2087,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         all_wghts = np.ones_like(all_sci)
     else:
         # Collapse all spatially translated white light images
+        # TODO :: Really should regenerate total white light image here...
         wl_full = np.sum(wl_imgs, axis=2)
         all_wghts = compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx,
                                     wl_full, dspat, dwv, relative_weights=cubepar['relative_weights'])
@@ -2066,7 +2106,11 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     outfile = get_output_filename("", cubepar['output_filename'], True, -1)
     if method in ['subpixel', 'ngp']:
         # Generate the datacube
-        wl_wvrng = [np.max(mnmx_wv[:, :, 0]), np.min(mnmx_wv[:, :, 1])] if cubepar['save_whitelight'] else None
+        wl_wvrng = None
+        if cubepar['save_whitelight']:
+            wl_wvrng = get_whitelight_range(np.max(mnmx_wv[:, :, 0]),
+                                            np.min(mnmx_wv[:, :, 1]),
+                                            cubepar['whitelight_range'])
         generate_cube_subpixel(outfile, cube_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts,
                                all_spatpos, all_specpos, all_spatid, all_tilts, all_slits, all_align, vox_edges,
                                all_idx=all_idx, overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
