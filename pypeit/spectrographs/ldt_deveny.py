@@ -301,7 +301,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['sigclip'] = 5.0  # Default: 4.5
         par['scienceframe']['process']['objlim'] = 2.0   # Default: 3.0
 
-        # Object Finding and Extraction Parameters
+        # Object Finding, Extraction, and Sky Subtraction Parameters
         assumed_seeing = 1.2  # arcsec
         par['reduce']['findobj']['trace_npoly'] = 3   # Default: 5
         par['reduce']['findobj']['snr_thresh'] = 50.0   # Default: 10.0
@@ -309,6 +309,8 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['reduce']['findobj']['maxnumber_sci'] = 5   # Default: 10
         par['reduce']['findobj']['find_fwhm'] = assumed_seeing / 0.34   # Default: 5.0 pix
         par['reduce']['extraction']['boxcar_radius'] = assumed_seeing * 1.5  # Default: 1.5"
+        par['reduce']['extraction']['use_2dmodel_mask'] = False  # Default: True
+        par['reduce']['skysub']['sky_sigrej'] = 4.0  # Default: 3.0
 
         # Flexure Correction Parameters
         par['flexure']['spec_method'] = 'boxcar'  # Default: 'skip'
@@ -540,6 +542,10 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['reduce']['findobj']['find_fwhm'] /= binspat  # Specified in pixels and not arcsec
         par['flexure']['spec_maxshift'] //= binspec  # Must be an integer
         par['sensfunc']['UVIS']['resolution'] /= binspec
+
+        # SlitEdges Exclusion Regions (10 pixels at each edge) -- adjust based on binning
+        excl_l, excl_r, last = np.array([10, 505, 515], dtype=int) // binspat
+        par['calibrations']['slitedges']['exclude_regions'] = f"1:0:{excl_l},1:{excl_r}:{last}"
 
         return par
 

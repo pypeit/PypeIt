@@ -3898,7 +3898,8 @@ class ExtractionPar(ParSet):
 
         defaults['std_prof_nsigma'] = 30.
         dtypes['std_prof_nsigma'] = float
-        descr['std_prof_nsigma'] = 'prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection.'
+        descr['std_prof_nsigma'] = 'prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection. ' \
+                                   'NOTE: Not consumed by the code at present.'
 
         defaults['sn_gauss'] = 4.0
         dtypes['sn_gauss'] = [int, float]

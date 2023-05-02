@@ -4,6 +4,7 @@ Launch the identify GUI tool.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
+import argparse
 from IPython import embed
 
 from pypeit.scripts import scriptbase
@@ -31,7 +32,7 @@ class Identify(scriptbase.ScriptBase):
         parser.add_argument("--pixtol", type=float, default=0.1,
                             help="Pixel tolerance for Auto IDs")
         parser.add_argument('--test', default=False, action='store_true',
-                            help="Testing functionality, do not show plots")
+                            help=argparse.SUPPRESS)
         parser.add_argument("--linear", default=False, action="store_true",
                             help="Show the spectrum in linear (rather than log) scale")
         parser.add_argument('--force_save', default=False, action='store_true',
