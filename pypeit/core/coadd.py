@@ -2234,7 +2234,7 @@ def combspec(waves, fluxes, ivars, gpms, sn_smooth_npix,
 
     if show:
         # JFH Use wave_grid_mid for QA plots
-        coadd_qa(wave_grid_mid, flux_stack, ivar_stack, nused, mask=gpm_stack, title='Stacked spectrum', qafile=qafile)
+        coadd_qa(wave_grid_mid, flux_stack, ivar_stack, nused, gpm=gpm_stack, title='Stacked spectrum', qafile=qafile)
 
     return wave_grid_mid, wave_stack, flux_stack, ivar_stack, gpm_stack
 

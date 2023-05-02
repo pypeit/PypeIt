@@ -82,6 +82,52 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         detector_dicts = [detector_dict1, detector_dict2]
         return detector_container.DetectorContainer(**detector_dicts[det-1])
 
+    @classmethod
+    def default_pypeit_par(cls):
+        """
+        Return the default parameters to use for this instrument.
+
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
+        """
+        par = super().default_pypeit_par()
+
+
+        # Reduce
+        par['reduce']['trim_edge'] = [0,0]
+
+        # Object finding
+        par['reduce']['findobj']['find_trim_edge'] = [0,0]
+        par['reduce']['findobj']['maxnumber_sci'] = 2
+        par['reduce']['findobj']['snr_thresh'] = 10.0
+        par['reduce']['findobj']['trace_npoly'] = 5
+        par['reduce']['findobj']['snr_thresh'] = 10.0
+        par['reduce']['findobj']['find_fwhm'] = 2.0
+
+
+        # Sky-subtraction
+        par['reduce']['skysub']['bspline_spacing'] = 5.0 # JWST sky is smooth
+        par['reduce']['skysub']['max_mask_frac'] = 0.95
+        par['reduce']['skysub']['mask_by_boxcar'] = True
+        par['reduce']['skysub']['sky_sigrej'] = 4.0
+
+        # Extraction
+        par['reduce']['extraction']['model_full_slit'] = True
+        par['reduce']['extraction']['sn_gauss'] = 5.0
+        par['reduce']['extraction']['boxcar_radius'] = 0.2 # extent in calwebb is 0.55" source and on NIRSpec website
+        par['reduce']['extraction']['use_2dmodel_mask'] = False # Don't use 2d mask in local skysub
+
+        # Cosmic ray rejection parameters for science frames
+        par['scienceframe']['process']['sigclip'] = 5.0
+        par['scienceframe']['process']['objlim'] = 2.0
+        par['scienceframe']['process']['mask_cr'] = False # Turn off for now since we coadd.
+
+        # Skip reference frame correction for now.
+        par['calibrations']['wavelengths']['refframe'] = 'observed'
+
+        return par
+
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
@@ -137,51 +183,49 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
                 return headarr[0].get('PATTTYPE')
 
 
-    @classmethod
-    def default_pypeit_par(cls):
+
+    def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
-        Return the default parameters to use for this instrument.
+        Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
 
         Returns:
-            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
-        par = super().default_pypeit_par()
+        embed()
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        # TODO: Allow for 'sky' frame type, for now include sky in
+        # 'science' category
+        if ftype == 'science':
+            return good_exp & (fitstbl['idname'] == 'Object')
+        if ftype == 'standard':
+            return good_exp & (fitstbl['idname'] == 'Object')
+        if ftype == 'bias':
+            return good_exp & (fitstbl['idname'] == 'Bias')
+        if ftype == 'dark':
+            return good_exp & (fitstbl['idname'] == 'Dark')
+        if ftype in ['pixelflat', 'trace']:
+            # Flats and trace frames are typed together
+            return good_exp & (fitstbl['idname'] == 'IntFlat')
+        if ftype in ['arc', 'tilt']:
+            # Arc and tilt frames are typed together
+            return good_exp & (fitstbl['idname'] == 'Line')
+
+        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        return np.zeros(len(fitstbl), dtype=bool)
 
 
-        # Reduce
-        par['reduce']['trim_edge'] = [0,0]
-
-        # Object finding
-        par['reduce']['findobj']['find_trim_edge'] = [0,0]
-        par['reduce']['findobj']['maxnumber_sci'] = 2
-        par['reduce']['findobj']['snr_thresh'] = 10.0
-        par['reduce']['findobj']['trace_npoly'] = 5
-        par['reduce']['findobj']['snr_thresh'] = 10.0
-        par['reduce']['findobj']['find_fwhm'] = 2.0
-
-
-        # Sky-subtraction
-        par['reduce']['skysub']['bspline_spacing'] = 5.0 # JWST sky is smooth
-        par['reduce']['skysub']['max_mask_frac'] = 0.95
-        par['reduce']['skysub']['mask_by_boxcar'] = True
-        par['reduce']['skysub']['sky_sigrej'] = 4.0
-
-        # Extraction
-        par['reduce']['extraction']['model_full_slit'] = True
-        par['reduce']['extraction']['sn_gauss'] = 6.0
-        par['reduce']['extraction']['boxcar_radius'] = 0.2 # extent in calwebb is 0.55" source and on NIRSpec website
-        par['reduce']['extraction']['use_2dmodel_mask'] = False # Don't use 2d mask in local skysub
-
-        # Cosmic ray rejection parameters for science frames
-        par['scienceframe']['process']['sigclip'] = 5.0
-        par['scienceframe']['process']['objlim'] = 2.0
-        par['scienceframe']['process']['mask_cr'] = False # Turn off for now since we coadd.
-
-        # Skip reference frame correction for now.
-        par['calibrations']['wavelengths']['refframe'] = 'observed'
-
-        return par
 
     @property
     def allowed_mosaics(self):
