@@ -50,6 +50,7 @@ class ParseSlits(scriptbase.ScriptBase):
 
         try:
             slits = slittrace.SlitTraceSet.from_file(pargs.input_file)#, chk_version=False)
+        # TODO: Should this specify the type of exception to pass?
         except:
             pass
         else:
@@ -58,6 +59,7 @@ class ParseSlits(scriptbase.ScriptBase):
 
         try:
             allspec2D = spec2dobj.AllSpec2DObj.from_fits(pargs.input_file, chk_version=False)
+        # TODO: Should this specify the type of exception to pass?
         except:
             pass
         else:

@@ -29,16 +29,13 @@ from pypeit import spec2dobj
 from pypeit.scripts import scriptbase
 
 
-# TODO: We should not be calling objects by the same names as modules we've
-# loaded.  I.e., we've loaded specobjs, and here we're passing specobjs to this
-# function...
-def show_trace(specobjs, det, viewer, ch):
+def show_trace(sobjs, det, viewer, ch):
     """
     Overplot the extracted object traces for this detector in the provided ginga
     channel.
 
     Args:
-        specobjs (:class:`~pypeit.specobjs.SpecObjs`):
+        sobjs (:class:`~pypeit.specobjs.SpecObjs`):
             Object holding the 1D spectral extractions.  If None, the function
             doesn't do anything.
         det (:obj:`str`):
@@ -47,25 +44,28 @@ def show_trace(specobjs, det, viewer, ch):
         viewer (?):
         ch (?):
     """
-    if specobjs is None:
+    if sobjs is None:
         return
-    in_det = np.where(specobjs.DET == det)[0]
+    in_det = np.where(sobjs.DET == det)[0]
+    trace_list = []
+    trc_name_list = []
+    maskdef_extr_list = []
+    manual_extr_list = []
     for kk in in_det:
-        trace = specobjs[kk]['TRACE_SPAT']
-        obj_id = specobjs[kk].NAME
-        maskdef_objname = specobjs[kk].MASKDEF_OBJNAME
-        maskdef_extr_flag = specobjs[kk].MASKDEF_EXTRACT
-        manual_extr_flag = specobjs[kk].hand_extract_flag
-        if maskdef_objname is not None:
-            trc_name = '{}     OBJNAME:{}'.format(obj_id, maskdef_objname)
-        else:
-            trc_name = obj_id
-        if maskdef_extr_flag is not None and maskdef_extr_flag is True:
-            display.show_trace(viewer, ch, trace, trc_name, color='#f0e442') #hdu.name)
-        elif manual_extr_flag is True:
-            display.show_trace(viewer, ch, trace, trc_name, color='#33ccff') #hdu.name)
-        else:
-            display.show_trace(viewer, ch, trace, trc_name, color='orange') #hdu.name)
+        trace = sobjs[kk]['TRACE_SPAT']
+        obj_id = sobjs[kk].NAME
+        maskdef_objname = sobjs[kk].MASKDEF_OBJNAME
+        maskdef_extr_flag = sobjs[kk].MASKDEF_EXTRACT
+        manual_extr_flag = sobjs[kk].hand_extract_flag
+        trc_name = '{}     OBJNAME:{}'.format(obj_id, maskdef_objname) if maskdef_objname is not None else obj_id
+
+        trace_list.append(trace)
+        trc_name_list.append(trc_name)
+        maskdef_extr_list.append(maskdef_extr_flag is True)
+        manual_extr_list.append(manual_extr_flag is True)
+
+    display.show_trace(viewer, ch, np.swapaxes(trace_list, 1,0), np.array(trc_name_list),
+                       maskdef_extr=np.array(maskdef_extr_list), manual_extr=np.array(manual_extr_list))
 
 
 class Show2DSpec(scriptbase.ScriptBase):

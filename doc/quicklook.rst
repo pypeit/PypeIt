@@ -5,23 +5,37 @@ Quick-Look Reductions
 Overview
 ========
 
-PypeIt provides a quick-look (QL) script ``pypeit_ql`` that performs faster
-(potentially lower quality) reductions for quick inspection, presumably for
+PypeIt provides a quick-look (QL) script ``pypeit_ql`` that executes PypeIt in a
+mode that should produce results more quickly but with potentially lower
+fidelity.  These results should be used for quick inspection only; e.g., for
 real-time decision-making while at the telescope.
 
-The approach is to (1) generate calibration files if needed 
-using an auto-generated :doc:`pypeit_file`
-and then (2) process the input science file(s) with
-a separate auto-generated :doc:`pypeit_file`.
-These are generally organized in separate directories
-along with the output products (see below).
-This script performs a boxcar (only) extraction of 
-long- or multi-slit observations.
+The primary way this is currently achieved is by:
 
-The script effectively requires that PypeIt is able to correctly determine the
-type of each input frame, without input from the user.  If this fails, so too
-will the script.  A future revision may allow the user to specify the
-frametypes.
+    #. Enabling re-use of existing calibrations and/or facilitating the creation
+       of calibrations that can be repeatedly applied to the data without
+       reprocessing.
+
+    #. Setting parameters in the reduction that enable a more quick-and-dirty
+       reduction; e.g., only boxcar extraction is performed.
+
+    #. Imposing a more-limited set of use cases, but automating effectively all
+       of the "management" procedures (setting up directories, writing pypeit
+       files, optimizing parameters) that are usually performed by the user when
+       reducing data in those cases.
+
+Particularly because of the latter, the quick-look script follows a specific
+directory structure and makes assumptions about which calibrations can be used
+that are more lenient than recommended for a robust reduction.
+
+Importantly, ``pypeit_ql`` can only be used to reduce data *for a single science
+target.* All the science frames provided will be combined.  Standard star frames
+can be included and, as long as they are automatically identified as standards,
+they will be reduced separately from the science target.  For instruments with
+dither patterns that PypeIt can parse, image combination groups will be grouped
+by dither offset position.
+
+Here, we describe the algorithm and provide specific usage tutorials.
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
@@ -29,7 +43,27 @@ The script usage can be displayed by calling the script with the
 .. include:: help/pypeit_ql.rst
 
 At present, only a few spectrographs have been extensively tested:  
-``shane_kast_blue``, ``shane_kast_red``, ``keck_lris_red``, ``keck_deimos``.
+``keck_deimos``, ``keck_lris_red``, ``keck_nires``, ``shane_kast_blue``, and
+``shane_kast_red``.
+
+Requirements
+++++++++++++
+
+To run ``pypeit_ql``, you need to provide a minimal set of calibrations, either
+as new raw frames taken during your run or via an applicable set of calibrations
+taken from previous runs (e.g., for long-slit and/or fixed-format echelle
+observations).
+
+If you provide *only* a set of calibrations, ``pypeit_ql`` will process them.
+If you also provide science exposures, they will be reduced using the provided
+or linked calibrations.
+
+The script effectively requires that PypeIt is able to correctly determine the
+type of each input frame, without input from the user.  If this fails, so too
+will the script.  The only exception to this is that you can specify which
+frames are ``science`` frames, using the ``--sci_files`` argument.  Importantly,
+however, files listed using the ``--sci_files`` option must also be listed among
+the raw files (see below).
 
 Specifying the input raw files
 ++++++++++++++++++++++++++++++
@@ -81,45 +115,103 @@ in ``/path/to/files``, the third entry option would look like this:
 
 In this example (see more below), the three files are an arc-lamp exposure
 (``b1.fits.gz``), a dome-flat exposure (``b10.fits.gz``), and an on-sky science
-exposure (``b27.fits.gz``).  For the QL script to work, PypeIt must be able to
-classify these frames as such automatically.  The only exception is that you can
-specify which of the files are science file using the ``--sci_files`` option.
-Importantly, files listed using the ``sci_files`` option must also be listed
-among the ``raw_files``.  I.e., to specify the science frame in the above
-example, the call would be:
+exposure (``b27.fits.gz``).  PypeIt is generally able to identify science frames
+from the Shane/Kast spectrograph; however, you could specify the science frame
+in the above example like so:
 
 .. code-block:: console
 
     pypeit_ql shane_kast_blue --raw_files b1.fits.gz b10.fits.gz b27.fits.gz --raw_path /path/to/files --sci_files b27.fits.gz
 
+Directory Structure
++++++++++++++++++++
 
+As with typical executions of :ref:`run-pypeit`, ``pypeit_ql`` yields
+directories with calibrations, quality-assessment plots, and science products.
+The difference is that ``pypeit_ql`` keeps the calibrations and science products
+more separate.
 
+For example, executing:
 
+.. code-block:: console
 
-Folder tree 
-+++++++++++
+    pypeit_ql shane_kast_blue --raw_files b1.fits.gz b10.fits.gz b27.fits.gz --raw_path /path/to/files 
 
-One or more folders are generated in a run with ``pypeit_ql``.
+will yield two directories where you executed the call: ``b27/`` and
+``shane_kast_blue_A/``.  Both directories will look very similar to a normal
+execution of :ref:`run-pypeit` (see :ref:`outputs-dir`), except the latter will
+*only* contain calibrations and the former will only contain the science results
+with a symlink to the ``Calibrations`` directory.  The name of the directory
+with the reduction for the science frames is based on the name of the frame,
+``b27`` in this example.  The name of directory with the calibrations is always
+the combination of the instrument name and setup/configuration identifier (e.g.
+``shane_kast_blue_A``), just as produced by :ref:`pyepit_setup`.
 
-The primary folder containts the science outputs 
-in ``Science/`` and QA products related to extraction
-and a soft-link to the ``Calibrations/`` folder.
-It is named after the input science file(s).  If there is only
-one file processed, the folder is given the name of the file
-with the ``.fits`` extension removed (e.g. ``b27.fits`` becomes
-``b27``).  
-If there are multiple files processed, the folder is given the
-root names of the first and last files separated by a dash
-(e.g. ``b27.fits`` and ``b28.fits`` become ``b27-b28``).
-This primary folder
-will appear in the path specified by ``--redux_path``, which
-defaults to the current working directory.
+If multiple science frames are provided, the name of the output directory
+combines the names of the first and last science frames in the stack.  For
+example:
 
-If calibration files are generated, one folder per setup
-will appear in the path specified by ``--calib_dir``,
-which defaults to the path given by ``-redux_path``. 
-These will have names like ``instr_A`` where ``instr`` is the
-spectograph, e.g. ``keck_lris_red``, and ``A`` is the setup.
+.. code-block:: console
+
+    pypeit_ql shane_kast_blue --raw_files b1.fits.gz b10.fits.gz b27.fits.gz b28.fits.gz b29.fits.gz --raw_path /path/to/files 
+
+would produce a ``b27-b29`` directory (assuming ``b27.fits.gz``,
+``b28.fits.gz``, and ``b29.fits.gz`` are all science frames) with the results
+produced by *stacking* all 3 science frames.  For Shane/Kast, images are stacked
+via simple coaddition of the frames, not a "2D coadd" that includes spatial and
+spectral registration of the slit images.
+
+Use of existing calibrations
+++++++++++++++++++++++++++++
+
+None of the examples above have provided a path with/for the processed
+calibration files.  This means the code uses the current working directory as
+the "parent" calibration directory.
+
+The **"parent" calibration directory** potentially contains calibrations for many
+different instrument setups/configurations, each in their own directory that
+follows the PypeIt naming scheme; e.g., ``shane_kast_blue_A/``,
+``shane_kast_blue_B/``, etc.  After ``pypeit_ql`` parses the input files, the
+script compares the setup/configuration of the science frames to the available
+calibrations.  If any exist, they will be used *and any provided calibration
+frames will be ignored* unless you set the ``--overwrite_calibs`` option.
+
+In terms of a workflow, this means that you might first run:
+
+.. code-block:: console
+
+    pypeit_ql shane_kast_blue --raw_files b1.fits.gz b10.fits.gz b27.fits.gz --raw_path /path/to/files
+
+and each subsequent call can omit the calibration files, like so:
+
+.. code-block:: console
+
+    pypeit_ql shane_kast_blue --raw_files b28.fits.gz --raw_path /path/to/files
+    pypeit_ql shane_kast_blue --raw_files b27.fits.gz b28.fits.gz --raw_path /path/to/files
+    pypeit_ql shane_kast_blue --raw_files b27.fits.gz b28.fits.gz b29.fits.gz --raw_path /path/to/files
+    ...
+
+assuming the instrument setup/configuration has *not* changed.  This forces
+``pypeit_ql`` to match the instrument setup to the available calibrations;
+however, you can force the code to use a specific set of calibrations by
+specifying it *directly*, like so:
+
+.. code-block:: console
+
+    pypeit_ql shane_kast_blue --raw_files b28.fits.gz --raw_path /path/to/files --setup_calib_dir ./shane_kast_blue_A/Calibrations
+
+Alternatively, calibrations that maintain long-term stability (or at least
+stable enough for quick-look) can be stored in a parent directory and you can
+use them with ``pypeit_ql`` without needed to provide any raw calibrations
+frames.  To do so, call:
+
+.. code-block:: console
+
+    pypeit_ql shane_kast_blue --raw_files b27.fits.gz --raw_path /path/to/files --parent_calib_dir /path/to/calibration/archive
+
+If no appropriate calibrations are found, the code will fault.
+
+.. TODO: the rest below needs to be updated!
 
 PypeIt Files
 ++++++++++++
@@ -144,6 +236,19 @@ For example, ``SETUP_BIT`` may be ``A_7``.
 This should
 ensure that the science data are processed using the
 correct calibrations.
+
+Algorithm
++++++++++
+
+
+The approach is to (1) generate calibration files if needed 
+using an auto-generated :doc:`pypeit_file`
+and then (2) process the input science file(s) with
+a separate auto-generated :doc:`pypeit_file`.
+These are generally organized in separate directories
+along with the output products (see below).
+This script performs a boxcar (only) extraction of 
+long- or multi-slit observations.
 
 
 Longslit
