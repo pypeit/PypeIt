@@ -677,7 +677,7 @@ def make_good_skymask(slitimg, tilts):
     unq = np.unique(slitimg[slitimg>0])
     for uu in range(unq.size):
         # Find the x,y pixels in this slit
-        ww = np.where(slitimg==unq[uu])
+        ww = np.where((slitimg == unq[uu]) & (tilts != 0.0))
         # Mask the bottom pixels first
         wb = np.where(ww[0] == 0)[0]
         wt = np.where(ww[0] == np.max(ww[0]))[0]
@@ -685,7 +685,7 @@ def make_good_skymask(slitimg, tilts):
         maxtlt = np.max(tilts[0,  ww[1][wb]])
         mintlt = np.min(tilts[-1, ww[1][wt]])
         # Mask all values below this maximum
-        gpm[ww] = (tilts[ww]>=maxtlt) & (tilts[ww]<=mintlt)  # The signs are correct here.
+        gpm[ww] = (tilts[ww] >= maxtlt) & (tilts[ww] <= mintlt)  # The signs are correct here.
     return gpm
 
 
@@ -1820,7 +1820,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                 alignments = alignframe.Alignments.from_file(alignfile)
             else:
                 msgs.warn("Could not find Master Alignment frame:"+msgs.newline()+alignfile)
-                msgs.warn("Astrometric correction will not be performed")
+                msgs.info("Using slit edges for astrometric transform")
         else:
             msgs.info("Astrometric correction will not be performed")
         # If nothing better was provided, use the slit edges
@@ -1836,7 +1836,6 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         alignSplines = alignframe.AlignmentSplines(traces, locations, spec2DObj.tilts)
         raimg, decimg, minmax = slits.get_radec_image(frame_wcs, alignSplines, spec2DObj.tilts,
                                                       initial=True, flexure=spat_flexure)
-
         # Perform the DAR correction
         if wave_ref is None:
             wave_ref = 0.5*(np.min(waveimg[onslit_gpm]) + np.max(waveimg[onslit_gpm]))
@@ -1999,8 +1998,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     # Register spatial offsets between all frames
     if translate:
         # Find the wavelength range where all frames overlap
-        min_wl, max_wl = np.max(mnmx_wv[:, :, 0]), np.min(
-            mnmx_wv[:, :, 1])  # This is the max blue wavelength and the min red wavelength
+        min_wl, max_wl = np.max(mnmx_wv[:, :, 0]), np.min(mnmx_wv[:, :, 1])  # This is the max blue wavelength and the min red wavelength
         wavediff = np.max(all_wave) - np.min(all_wave)
         if min_wl < max_wl:
             ww = np.where((all_wave > min_wl) & (all_wave < max_wl))
