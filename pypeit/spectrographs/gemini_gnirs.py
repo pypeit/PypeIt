@@ -96,7 +96,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         self.meta['dithoff'] = dict(card=None, compound=True)
 
         # Extras for config and frametyping
-        self.meta['calpos'] = dict(ext=0, card='GRATORD')
+        self.meta['filter1'] = dict(ext=0, card='FILTER2')
         self.meta['slitwid'] = dict(ext=0, compound=True, card=None)
         self.meta['dispname'] = dict(ext=0, card='GRATING')
         self.meta['hatch'] = dict(ext=0, card='COVER')
@@ -627,17 +627,20 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
         """
         par = super().config_specific_par(scifile, inp_par=inp_par)
         # Obtain a header keyword to determine which range is being used
-        gratord = self.get_meta_value(scifile, 'calpos')
+        filter = self.get_meta_value(scifile, 'filter1')
         par['calibrations']['slitedges']['edge_thresh'] = 30.
-        # TODO :: The following wavelength solutions are not general enough - need to implement a solution for each setup
-        if gratord == 4:  # H band
+        # TODO :: The following wavelength solutions are not general enough - need to implement a solution for each setup+grating
+        # TODO BEFORE PR MERGE :: The full_template solutions below were generated (quickly!) from holy-grail... might want to redo this...
+        if filter == 'X_G0518':  # H band
+            par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        elif filter == 'J_G0517':  # K band
+            par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        elif filter == 'H_G0516':  # H band
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs_lrifu_H.fits'
-            pass
-        elif gratord == 3:  # K band
+        elif filter == 'K_G0515':  # K band
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs_lrifu_K.fits'
-            pass
         else:
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
 
