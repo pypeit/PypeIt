@@ -2060,7 +2060,6 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                                               all_spatpos[ww], all_specpos[ww], all_spatid[ww],
                                               all_tilts, all_slits, all_align, voxedge, all_idx=all_idx[ww],
                                               spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
-            embed()
             if reference_image is None:
                 # ref_idx will be the index of the cube with the highest S/N
                 ref_idx = np.argmax(weights)
