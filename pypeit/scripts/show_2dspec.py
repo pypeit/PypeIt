@@ -58,10 +58,8 @@ def show_trace(sobjs, det, viewer, ch):
         maskdef_objname = sobjs[kk].MASKDEF_OBJNAME
         maskdef_extr_flag = sobjs[kk].MASKDEF_EXTRACT
         manual_extr_flag = sobjs[kk].hand_extract_flag
-        if maskdef_objname is not None:
-            trc_name = '{}     OBJNAME:{}'.format(obj_id, maskdef_objname)
-        else:
-            trc_name = obj_id
+        trc_name = '{}     OBJNAME:{}'.format(obj_id, maskdef_objname) if maskdef_objname is not None else obj_id
+
         trace_list.append(trace)
         trc_name_list.append(trc_name)
         maskdef_extr_list.append(maskdef_extr_flag is True)
@@ -69,13 +67,6 @@ def show_trace(sobjs, det, viewer, ch):
 
     display.show_trace(viewer, ch, np.swapaxes(trace_list, 1,0), np.array(trc_name_list),
                        maskdef_extr=np.array(maskdef_extr_list), manual_extr=np.array(manual_extr_list))
-
-        # if maskdef_extr_flag is not None and maskdef_extr_flag is True:
-        #     display.show_trace(viewer, ch, trace, trc_name, color='#f0e442') #hdu.name)
-        # elif manual_extr_flag is True:
-        #     display.show_trace(viewer, ch, trace, trc_name, color='#33ccff') #hdu.name)
-        # else:
-        #     display.show_trace(viewer, ch, trace, trc_name, color='orange') #hdu.name)
 
 
 class Show2DSpec(scriptbase.ScriptBase):

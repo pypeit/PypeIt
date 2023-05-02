@@ -6,6 +6,9 @@
 - Allow user control of the local sky subtraction window
 - Deprecate use of python 3.8 with PypeIt, allow python 3.11
 - Make pypeit_show_2dspec (somewhat) backwards compatible.
+- Improve speed in ginga visualization of traces and added
+  `pypeit_chk_tilts`. Note that this script uses an update
+  of the tilts datamodel, so it will not work on older reductions.
 
 1.12.2 (29 Mar 2023)
 --------------------
