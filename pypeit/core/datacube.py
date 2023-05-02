@@ -1998,8 +1998,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     # Register spatial offsets between all frames
     if translate:
         # Find the wavelength range where all frames overlap
-        min_wl, max_wl = np.max(mnmx_wv[:, :, 0]), np.min(
-            mnmx_wv[:, :, 1])  # This is the max blue wavelength and the min red wavelength
+        min_wl, max_wl = np.max(mnmx_wv[:, :, 0]), np.min(mnmx_wv[:, :, 1])  # This is the max blue wavelength and the min red wavelength
         wavediff = np.max(all_wave) - np.min(all_wave)
         if min_wl < max_wl:
             ww = np.where((all_wave > min_wl) & (all_wave < max_wl))
