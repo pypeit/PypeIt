@@ -15,15 +15,12 @@ class ChkTilts(scriptbase.ScriptBase):
     @classmethod
     def get_parser(cls, width=None):
         parser = super().get_parser(description='Display Tiltimg image and 2D fitted tilts in Ginga viewer '
-                                                'or Matplotlib window',
+                                                'or Matplotlib window. Tiltimg file must be in the same '
+                                                'directory as Tilts.',
                                     width=width)
 
         parser.add_argument('file', type=str, default=None,
                             help='PypeIt Tilts file [e.g. Tilt_A_1_01.fits]')
-        parser.add_argument('--tiltimg', type=str, default=None,
-                            help='PypeIt Tiltimg file [e.g. Tiltimg_A_1_01.fits]. If not provided,'
-                                 'PypeIt will attempt to load the file from the same directory as the Tilts file. '
-                                 'Set this only if Tiltimg is in a different directory than Tilts.')
         parser.add_argument('--mpl', default=False, action='store_true',
                             help='Use a matplotlib window instead of ginga to show the tilts. Faster plotting.')
         parser.add_argument('--show_traces', default=False, action='store_true',
@@ -39,7 +36,7 @@ class ChkTilts(scriptbase.ScriptBase):
 
         # Load
         tilts = wavetilts.WaveTilts.from_file(pargs.file, chk_version=(not pargs.try_old))
-        tilts.show(tilt_img=pargs.tiltimg, in_ginga=np.logical_not(pargs.mpl), show_traces=pargs.show_traces)
+        tilts.show(in_ginga=np.logical_not(pargs.mpl), show_traces=pargs.show_traces)
 
 
 
