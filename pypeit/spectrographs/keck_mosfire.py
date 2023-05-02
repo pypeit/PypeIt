@@ -461,22 +461,28 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
     def get_comb_group(self, fitstbl):
         """
+        Automatically assign combination groups and background images by parsing
+        known dither patterns.
 
-        This method is used in :func:`pypeit.metadata.PypeItMetaData.set_combination_groups`,
-        and modifies comb_id and bkg_id metas for a specific instrument.
+        This method is used in
+        :func:`~pypeit.metadata.PypeItMetaData.set_combination_groups`, and
+        directly modifies the ``comb_id`` and ``bkg_id`` columns in the provided
+        table.
 
-        Specifically here, this method parses the dither pattern of the science/standard
-        frames in a given calibration group and assigns to each of them a comb_id and a
-        bkg_id. The dither pattern used here are: "Slit Nod", "Mask Nod", "ABA'B'",
-        "ABAB", "ABBA", "long2pos_specphot", and "Stare". Note that the frames in the
-        same dither positions (A positions or B positions) of each "ABAB" or "ABBA"
-        sequence are 2D coadded  (without optimal weighting) before the background
-        subtraction, while for the other dither patterns, the frames in the same
-        dither positions are not coadded.
-        For "long2pos_specphot" masks, the comb_id and a bkg_id are assigned such that
-        one of the two frames with spectrum taken using the narrower slit is used as background
-        frame and subtracted from the frame with spectrum taken using the wider slit.
+        Specifically here, this method parses the dither pattern of the
+        science/standard frames in a given calibration group and assigns to each
+        of them a comb_id and a bkg_id. The known dither patterns are: "Slit
+        Nod", "Mask Nod", "ABA'B'", "ABAB", "ABBA", "long2pos_specphot", and
+        "Stare". Note that the frames in the same dither positions (A positions
+        or B positions) of each "ABAB" or "ABBA" sequence are 2D coadded
+        (without optimal weighting) before the background subtraction, while for
+        the other dither patterns, the frames in the same dither positions are
+        not coadded.
 
+        For "long2pos_specphot" masks, the ``comb_id`` and a ``bkg_id`` are
+        assigned such that one of the two frames with spectra taken using the
+        narrower slit is used as the background frame and subtracted from the
+        frame with spectra taken using the wider slit.
 
         Args:
             fitstbl(`astropy.table.Table`_):

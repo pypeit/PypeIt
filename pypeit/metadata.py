@@ -1428,14 +1428,21 @@ class PypeItMetaData:
 
         Args:
             assign_objects (:obj:`bool`, optional):
-                If all of 'comb_id' values are less than 0 (meaning
-                they're unassigned), the combination groups are set to
-                be unique for each standard and science frame.
+                If all of 'comb_id' values are less than 0 (meaning they're
+                unassigned), the combination groups are set to be unique for
+                each standard and science frame.  For some instruments (e.g.,
+                Keck/NIRES), this will also parse known dither patterns and use
+                them to set default difference-imaging groups.
+
         """
         if 'comb_id' not in self.keys():
             self['comb_id'] = -1
         if 'bkg_id' not in self.keys():
             self['bkg_id'] = -1
+
+        # NOTE: Importantly, this if statement means that, if the user has
+        # defined any non-negative combination IDs in their pypeit file, none of
+        # this automated assignment logic is executed.
         if assign_objects and np.all(self['comb_id'] < 0):
             # find_frames will throw an exception if framebit is not
             # set...

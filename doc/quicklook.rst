@@ -28,6 +28,13 @@ Particularly because of the latter, the quick-look script follows a specific
 directory structure and makes assumptions about which calibrations can be used
 that are more lenient than recommended for a robust reduction.
 
+Importantly, ``pypeit_ql`` can only be used to reduce data *for a single science
+target.* All the science frames provided will be combined.  Standard star frames
+can be included and, as long as they are automatically identified as standards,
+they will be reduced separately from the science target.  For instruments with
+dither patterns that PypeIt can parse, image combination groups will be grouped
+by dither offset position.
+
 Here, we describe the algorithm and provide specific usage tutorials.
 
 The script usage can be displayed by calling the script with the
@@ -56,7 +63,7 @@ type of each input frame, without input from the user.  If this fails, so too
 will the script.  The only exception to this is that you can specify which
 frames are ``science`` frames, using the ``--sci_files`` argument.  Importantly,
 however, files listed using the ``--sci_files`` option must also be listed among
-the raw files (see below).  
+the raw files (see below).
 
 Specifying the input raw files
 ++++++++++++++++++++++++++++++
@@ -121,8 +128,8 @@ Directory Structure
 
 As with typical executions of :ref:`run-pypeit`, ``pypeit_ql`` yields
 directories with calibrations, quality-assessment plots, and science products.
-The difference is that ``pypeit_ql`` allows the user to keep the calibrations
-and science products more separate.
+The difference is that ``pypeit_ql`` keeps the calibrations and science products
+more separate.
 
 For example, executing:
 
@@ -130,19 +137,19 @@ For example, executing:
 
     pypeit_ql shane_kast_blue --raw_files b1.fits.gz b10.fits.gz b27.fits.gz --raw_path /path/to/files 
 
-will yield two directories where you executed the call: ``b27`` and
-``shane_kast_blue_A``.  Both directories will look very similar to a normal
+will yield two directories where you executed the call: ``b27/`` and
+``shane_kast_blue_A/``.  Both directories will look very similar to a normal
 execution of :ref:`run-pypeit` (see :ref:`outputs-dir`), except the latter will
 *only* contain calibrations and the former will only contain the science results
 with a symlink to the ``Calibrations`` directory.  The name of the directory
 with the reduction for the science frames is based on the name of the frame,
 ``b27`` in this example.  The name of directory with the calibrations is always
-the combination of the instrument name and setup/configuration identifier, just
-as produced by :ref:`pyepit_setup`.
+the combination of the instrument name and setup/configuration identifier (e.g.
+``shane_kast_blue_A``), just as produced by :ref:`pyepit_setup`.
 
-If multiple science frames are reduced *and stacked*, the name of the output
-directory combines the names of the first and last science frames in the stack.
-For example:
+If multiple science frames are provided, the name of the output directory
+combines the names of the first and last science frames in the stack.  For
+example:
 
 .. code-block:: console
 
@@ -150,87 +157,61 @@ For example:
 
 would produce a ``b27-b29`` directory (assuming ``b27.fits.gz``,
 ``b28.fits.gz``, and ``b29.fits.gz`` are all science frames) with the results
-produced by *stacking* all 3 science frames; images are stacked via simple
-coaddition of the frames, not a "2D coadd" that includes spatial and spectral
-registration of the slit images.
+produced by *stacking* all 3 science frames.  For Shane/Kast, images are stacked
+via simple coaddition of the frames, not a "2D coadd" that includes spatial and
+spectral registration of the slit images.
 
 Use of existing calibrations
 ++++++++++++++++++++++++++++
 
 None of the examples above have provided a path with/for the processed
-calibration files.  This means the code will use the default PypeIt naming
-system, hence the ``shane_kast_blue_A`` directory results from the call:
+calibration files.  This means the code uses the current working directory as
+the "parent" calibration directory.
+
+The **"parent" calibration directory** potentially contains calibrations for many
+different instrument setups/configurations, each in their own directory that
+follows the PypeIt naming scheme; e.g., ``shane_kast_blue_A/``,
+``shane_kast_blue_B/``, etc.  After ``pypeit_ql`` parses the input files, the
+script compares the setup/configuration of the science frames to the available
+calibrations.  If any exist, they will be used *and any provided calibration
+frames will be ignored* unless you set the ``--overwrite_calibs`` option.
+
+In terms of a workflow, this means that you might first run:
 
 .. code-block:: console
 
-    pypeit_ql shane_kast_blue --raw_files b1.fits.gz b10.fits.gz b27.fits.gz --raw_path /path/to/files 
+    pypeit_ql shane_kast_blue --raw_files b1.fits.gz b10.fits.gz b27.fits.gz --raw_path /path/to/files
 
-If calibrations have already been processed, you can specify their location
-using either the ``--setup_calib_dir`` or the ``--parent_calib_dir``
-command-line options.  The difference is that the ``--setup_calib_dir`` is the
-*exact* path to the directory with the calibrations to be used, whereas
-``--parent_calib_dir`` points to a parent directory that may contain the
-calibrations for many different instrument setups/configurations, each in their
-own directory (e.g., ``shane_kast_blue_A``, ``shane_kast_blue_B``, etc).
-
-After using the first call above, subsequent calls to ``pypeit_ql`` for
-additional observations will use the same calibrations directory.  For example, executing
+and each subsequent call can omit the calibration files, like so:
 
 .. code-block:: console
 
-    pypeit_ql shane_kast_blue --raw_files b1.fits.gz b10.fits.gz b28.fits.gz --raw_path /path/to/files 
+    pypeit_ql shane_kast_blue --raw_files b28.fits.gz --raw_path /path/to/files
+    pypeit_ql shane_kast_blue --raw_files b27.fits.gz b28.fits.gz --raw_path /path/to/files
+    pypeit_ql shane_kast_blue --raw_files b27.fits.gz b28.fits.gz b29.fits.gz --raw_path /path/to/files
+    ...
 
-should *not* require the calibrations to be redone because they will have
-already been produced via the call above.  The automated naming convention
-should search for (and find) the relevant calibrations in
-``shane_kast_blue_A/Calibrations``.  However, you can specific the relevant
-directory explicitly:
+assuming the instrument setup/configuration has *not* changed.  This forces
+``pypeit_ql`` to match the instrument setup to the available calibrations;
+however, you can force the code to use a specific set of calibrations by
+specifying it *directly*, like so:
 
 .. code-block:: console
 
-    pypeit_ql shane_kast_blue --raw_files b1.fits.gz b10.fits.gz b28.fits.gz --raw_path /path/to/files --setup_calib_dir shane_kast_blue_A/Calibrations
+    pypeit_ql shane_kast_blue --raw_files b28.fits.gz --raw_path /path/to/files --setup_calib_dir ./shane_kast_blue_A/Calibrations
 
+Alternatively, calibrations that maintain long-term stability (or at least
+stable enough for quick-look) can be stored in a parent directory and you can
+use them with ``pypeit_ql`` without needed to provide any raw calibrations
+frames.  To do so, call:
 
+.. code-block:: console
 
+    pypeit_ql shane_kast_blue --raw_files b27.fits.gz --raw_path /path/to/files --parent_calib_dir /path/to/calibration/archive
 
+If no appropriate calibrations are found, the code will fault.
 
-.. warning::
-
-    The reason this is so is because there is only one configuration
-
-
-  The latter is the directory that holds the calibrations.
-Inspection of this directory will like very similar to a normal run of
-:ref:`run-pypeit`, except that it will *only* contain calibrations (and
-associated QA).  The ``b27`` directory will also look very similar to a normal
-
-
-s are:
-
-    - directories with calibrations are  is that ``pypei
-
-
-One or more folders are generated in a run with ``pypeit_ql``.
-
-The primary folder containts the science outputs 
-in ``Science/`` and QA products related to extraction
-and a soft-link to the ``Calibrations/`` folder.
-It is named after the input science file(s).  If there is only
-one file processed, the folder is given the name of the file
-with the ``.fits`` extension removed (e.g. ``b27.fits`` becomes
-``b27``).  
-If there are multiple files processed, the folder is given the
-root names of the first and last files separated by a dash
-(e.g. ``b27.fits`` and ``b28.fits`` become ``b27-b28``).
-This primary folder
-will appear in the path specified by ``--redux_path``, which
-defaults to the current working directory.
-
-If calibration files are generated, one folder per setup
-will appear in the path specified by ``--calib_dir``,
-which defaults to the path given by ``-redux_path``. 
-These will have names like ``instr_A`` where ``instr`` is the
-spectograph, e.g. ``keck_lris_red``, and ``A`` is the setup.
+.. TODO: the rest below needs to be updated!
 
 PypeIt Files
 ++++++++++++

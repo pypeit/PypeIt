@@ -121,6 +121,57 @@ def folder_name_from_scifiles(sci_files:list):
     return '-'.join([io.remove_suffix(f) for f in [sci_files[0], sci_files[-1]]])
 
 
+def quicklook_regroup(fitstbl):
+    """
+    Regroup frames for quick-look reductions.
+
+    Restrictions/Alterations applied are:
+
+        - Science and standard frames each must be observations of a single
+          target (according to the ``'target'`` keyword).
+
+        - For metadata tables where the background image *are not* set, all
+          science and standard frames are each assigned to a single combination
+          group, so that all observations are stacked.
+        
+        - For metadata tables where the background images *are* set (e.g., for
+          difference-imaging dither sequences), all frames of a given offset are
+          combined (the column ``dithoff`` *must* exist).  I.e., if there are
+          multiple dither sequences peformed (e.g., ABBA, then ABBA), all with
+          the same offset (e.g., +/- 5 arcsec), the image combination and
+          background IDs are changed so that all the As are combined and all the
+          Bs are combined before calculating the difference.
+
+    **This function directly alters the input object!**
+
+    Args:
+        fitstbl (:class:~pypeit.metadata.PypeItMetaData`):
+            Metadata table for frames to be processed.
+    """
+    comb_strt = 0
+    for frametype in ['science', 'standard']:
+        is_type = fitstbl.find_frames(frametype)
+        if any(is_type):
+            # All frames must be of the same target
+            if 'target' in fitstbl.keys() \
+                    and not all(fitstbl['target'][is_type] == fitstbl['target'][is_type][0]):
+                msgs.error(f'All {frametype} frames must be of the same target.')
+            if 'bkg_id' in fitstbl.keys() and any(fitstbl['bkg_id'].data[is_type] != -1):
+                if 'dithoff' not in fitstbl.keys():
+                    msgs.error('CODING ERROR: Metadata does not include dithoff column!')
+                # Group the unique dither positions
+                dith, inv = np.unique(fitstbl['dithoff'].data[is_type], return_inverse=True)
+                fitstbl['comb_id'][is_type] = inv + comb_strt
+                # NOTE: This does the "dumb" thing of just setting the background
+                # image for the first offset to the second one, and setting the
+                # background for all other offsets to be the first one.
+                fitstbl['bkg_id'][np.where(is_type)[0][inv == comb_strt]] = comb_strt+1
+                fitstbl['bkg_id'][np.where(is_type)[0][inv != comb_strt]] = comb_strt
+            else:
+                fitstbl['comb_id'][is_type] = comb_strt
+            comb_strt = np.amax(fitstbl['comb_id'].data[is_type])+1
+
+
 def generate_sci_pypeitfile(redux_path:str, 
                             ref_calib_dir:Path,
                             ps_sci, 
@@ -131,15 +182,15 @@ def generate_sci_pypeitfile(redux_path:str,
                             boxcar_radius:float=None,
                             snr_thresh:float=None):
     """
-    Prepare to reduce the science frames by:
+    Prepare to reduce the science frames:
 
-        - Correcting the setup and calibration group for the science frames to
-          be the same as the associated calibration files.
+        - Correct the setup and calibration group for the science frames to be
+          the same as the associated calibration files.
 
-        - Creating the path for the science reductions, and including a symlink
-          to the pre-processed (reference) calibration frames.
+        - Create the path for the science reductions, and including a symlink to
+          the pre-processed (reference) calibration frames.
 
-        - Writing the pypeit file with the requested parameter adjustments.
+        - Write the pypeit file with the requested parameter adjustments.
     
     Args:
         redux_path (:obj:`str`):
@@ -230,14 +281,7 @@ def generate_sci_pypeitfile(redux_path:str,
                       're-reduced, use the --clean option.')
             ps_sci.remove_table_rows(is_std)
 
-    # TODO: Enable code to find standard spec1d file in ref_calib_dir?  Something like:
-#    elif find_archive_std:
-#        std_files = sorted(calib_dir.glob('std_spec1d_*'))
-#        if len(std_files) > 0:
-#            std_spec1d = std_files[0]
-    # TODO: Enable the user to provide the standard spec1d file directly?
-
-    # TODO: Push this stuff into a function in par/pypeitpar.py
+    # TODO: Push this stuff into a function in par/pypeitpar.py?
 
     # Get the quicklook parameters to use for this spectrograph
     spec_cfg = ps_sci.spectrograph.ql_par()
@@ -583,18 +627,21 @@ class QL(scriptbase.ScriptBase):
                             help='Directory with/for calibrations specific to your instrument '
                                  'configuration/setup.  Use of this option circumvents the '
                                  'automated naming system for the configuration/setup '
-                                 'sub-directories.  If None, it is assumed that no calibrations '
-                                 'exist and they must be created using the provided raw files.  '
-                                 'The top-level directory is given by parent_calib_dir (or '
-                                 'redux_path) and the sub-directories follow the normal PypeIt '
-                                 'naming scheme.')
+                                 'sub-directories.  If None, the code will try to find relevant '
+                                 'calibrations in the parent_calib_dir.  If no calibrations exist '
+                                 'in that directory that match the instrument setup/configuration '
+                                 'of the provided data, the code will construct new calibrations '
+                                 '(assuming relevant raw files are provided).')
         parser.add_argument('--clean', default=False, action='store_true',
                             help='Remove the existing output directories to force a fresh '
                                  'reduction.  If False, any existing directory structure will '
                                  'remain, but any existing science files will still be '
                                  'overwritten.')
 
-        # TODO: Add option to not overwrite existing reductions
+        # TODO: Options to add?:
+        #   - do not overwrite existing reductions
+        #   - specify `target` to be reduced, either parsed from the frame
+        #     header (i.e., target in the fitstbl) or from the mask information
 
         parser.add_argument('--calibs_only', default=False, action='store_true',
                             help='Reduce only the calibrations?')
@@ -615,8 +662,6 @@ class QL(scriptbase.ScriptBase):
                                  'separately reduce detectors 1 and 5 for Keck/DEIMOS, you would '
                                  'use --det 1 5; to reduce mosaics made up of detectors 1,5 and '
                                  '3,7, you would use --det 1,5 3,7')
-        parser.add_argument('--no_stack', dest='stack', default=True, action='store_false',
-                            help='Do *not* stack multiple science frames')
         parser.add_argument('--ignore_std', default=False, action='store_true',
                             help='If standard star observations are automatically detected, '
                                  'ignore those frames.  Otherwise, they are included with the '
@@ -694,14 +739,26 @@ class QL(scriptbase.ScriptBase):
                            'either ignoring the standard frames (if any are present and '
                            'auto-detected) and/or changing the list of science files.')
 
+            # Regroup the image combination so that all images are combined.
+            # NOTE: This will fault if all of the images are not of the same
+            # target (based on the target in the fitstbl).
+            # TODO: Should we instead do this in PypeItSetup?  I.e., should
+            # PypeItSetup have an option that allows *all* images taken with a
+            # given offset to be combined, and an option to only perform, e.g.,
+            # A-B reduction, instead of the A-B + B-A.
+            quicklook_regroup(ps_sci.fitstbl)
+
             # Setting the combination groups should also set the background IDs
             # for dithered observations.  That means we can automatically detect
             # whether or not the reductions use difference imaging
+            # TODO: This is now the only place bkg_redux is used...
             bkg_redux = 'bkg_id' in ps_sci.fitstbl.keys() and any(ps_sci.fitstbl['bkg_id'] != -1)
-
-            # If performing difference imaging, print the automatically detected
-            # dither pattern
             if bkg_redux:
+                msgs.warn('Dither pattern automatically detected for these observations.  Image '
+                          'combination and background subtraction sequences automatically set; '
+                          'confirm the behavior is what you want by checking the auto-generated '
+                          'pypeit file.')
+                # Print the automatically detected dither pattern
                 sci_only_idx = ps.fitstbl.find_frames('science', index=True)
                 # Binning
                 binspectral, binspatial = parse_binning(ps.fitstbl['binning'][sci_only_idx[0]])
@@ -711,24 +768,6 @@ class QL(scriptbase.ScriptBase):
                 platescale = ps.spectrograph.get_detector_par(1)['platescale']*binspatial
                 # Report
                 print_offset_report(ps.fitstbl[sci_only_idx], platescale)
-
-            # Handle image stacking
-            if args.stack:
-                if bkg_redux:
-                    msgs.warn('Dither pattern automatically detected for these observations.  '
-                              'Will not stack observations.  Image combination '
-                              'and background subtraction sequences automatically set; confirm '
-                              'the behavior is what you want by checking the auto-generated '
-                              'pypeit file.')
-                else:
-                    # Stack all of the science and standard frames
-                    ps_sci.fitstbl['comb_id'][ps_sci.fitstbl.find_frames('science')] = 1
-                    ps_sci.fitstbl['comb_id'][ps_sci.fitstbl.find_frames('standard')] = 2
-
-            # TODO: What happens if "no_stack" is set but bkg_redux is True?
-            # Should we ignore this and do the difference imaging anyway, or
-            # should we assume the user truly wants each frame to be treated
-            # independently?
 
             # Check that all the frames are assigned to the same calibration group
             # NOTE: This is largely superfluous given the use of get_setup_calib
@@ -753,6 +792,9 @@ class QL(scriptbase.ScriptBase):
                       'calibration frames.  If you have provided science frames, you can specify '
                       'which ones they are using the --sci_files option.')
 
+        # TODO: What happens if there are *only* science frames and no matching
+        # calibrations?
+
         # Calibrate, if necessary
         if setup_calib_dir is None:
             msgs.info('Building the processed calibration frames.')
@@ -766,7 +808,7 @@ class QL(scriptbase.ScriptBase):
                 # Match the setups of the frames to be reduced to the existing
                 # setups
                 calib_match = match_to_calibs(ps, parent_calib_dir,
-                                            calibrated_setups=calibrated_setups)
+                                              calibrated_setups=calibrated_setups)
                 # Edit the setup column in the metadata table so that existing
                 # setups are updated and new setups are reduced with a unique
                 # identifier, following the nominal sequence
@@ -843,11 +885,19 @@ class QL(scriptbase.ScriptBase):
         # Perform coadding if requested
         if args.coadd:
             # Run the setup script to get the baseline coadd2d file
-            # TODO: Add sensitivity functions, and other options
+            # TODO:
+            #   - Add sensitivity function
+            #   - Allow SetupCoAdd2D to auto-detect dithers based on the pypeit
+            #     file and parse/prepare the coadding offsets accordingly
+            #   - and other options
             SetupCoAdd2D.main(SetupCoAdd2D.parse_args([sci_pypeit_file]))
 
             # Find all the coadd2d scripts
-            # TODO: Need to have SetupCoAdd2D.main return the names of the written files...
+            # NOTE: This should only find *one* coadd2d file because quick-look
+            # should be limited to performing reduction for one target at a
+            # time.
+            # TODO: Need to have SetupCoAdd2D.main return the names of the
+            # written files...
             coadd_files = sorted(Path(sci_pypeit_file).resolve().parent.glob('*.coadd2d'))
             
             # Run the coadding, only on those coadd files with more than one file
@@ -859,6 +909,8 @@ class QL(scriptbase.ScriptBase):
 
                 # TODO: Add options (e.g. spatial/spectral sampling...)
                 CoAdd2DSpec.main(CoAdd2DSpec.parse_args([coadd_file]))
+
+        # TODO: Add some show options
 
         exec_s = np.around(time.perf_counter()-tstart, decimals=1)
         msgs.info(f'Quicklook execution time: {datetime.timedelta(seconds=exec_s)}')

@@ -848,12 +848,16 @@ class Spectrograph:
 
     def get_comb_group(self, fitstbl):
         """
+        Automatically assign combination groups and background images by parsing
+        known dither patterns.
 
-        This method is used in :func:`pypeit.metadata.PypeItMetaData.set_combination_groups`,
-        and modifies comb_id and bkg_id metas for a specific instrument.
+        This method is used in
+        :func:`~pypeit.metadata.PypeItMetaData.set_combination_groups`, and
+        directly modifies the ``comb_id`` and ``bkg_id`` columns in the provided
+        table.
 
-
-        **This method is not defined for all spectrographs.**
+        **This method is not defined for all spectrographs.**  This base-class
+        implementation simply returns the input table.
 
         Args:
             fitstbl(`astropy.table.Table`_):
