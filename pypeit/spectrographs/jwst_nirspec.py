@@ -54,7 +54,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
             specaxis=1,
             specflip=False,
             spatflip=False,
-            xgap=0.,
+            xgap=180.,
             ygap=0.,
             ysize=1.,
             platescale=0.1,
@@ -181,9 +181,21 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         # Skip reference frame correction for now.
         par['calibrations']['wavelengths']['refframe'] = 'observed'
 
-
-
         return par
+
+    @property
+    def allowed_mosaics(self):
+        """
+        Return the list of allowed detector mosaics.
+
+        JWST/NIRSpec only allows for mosaicing the NRS1 and NRS2 detectors.
+
+        Returns:
+            :obj:`list`: List of tuples, where each tuple provides the 1-indexed
+            detector numbers that can be combined into a mosaic and processed by
+            ``PypeIt``.
+        """
+        return [(1,2)]
 
 
 

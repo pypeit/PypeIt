@@ -30,6 +30,24 @@ from astropy import stats
 from pypeit import msgs
 from pypeit.move_median import move_median
 
+def zero_not_finite(array):
+    """
+    Set the elements of an array to zero which are inf or nan
+
+    Args:
+        array (`np.ndarray`_):
+          An numpy array of arbitrary shape that potentially has nans or infinities
+
+    Returns:
+        new_array (`np.ndarray`_)
+          A copy of the array with the nans and inifinities set to zero
+
+    """
+    not_finite = np.logical_not(np.isfinite(array))
+    new_array = array.copy()
+    new_array[not_finite] = 0.0
+    return new_array
+
 def arr_setup_to_setup_list(arr_setup):
     """
 
