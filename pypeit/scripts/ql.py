@@ -783,6 +783,8 @@ class QL(scriptbase.ScriptBase):
                 # relevant set of existing calibrations
                 setup_calib_dir = match_to_calibs(ps_sci, args.parent_calib_dir)
                 if setup_calib_dir is None:
+                    # TODO: Fault here, or keep going to the next step, which is
+                    # to try to build the calibrations?
                     msgs.error('No calibrations exist or could not find appropriate setup match '
                                f'in provided parent directory: {args.parent_calib_dir}')
                 msgs.info(f'Attempting to use archived calibrations found in {setup_calib_dir}.')
