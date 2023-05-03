@@ -913,6 +913,7 @@ def create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv, collapse=False, e
             The reference image to be used for the cross-correlation
     """
     # Grab cos(dec) for convenience
+    embed()
     cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
 
     # Setup the cube ranges
@@ -924,15 +925,20 @@ def create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv, collapse=False, e
     wav_min = cubepar['wave_min'] if cubepar['wave_min'] is not None else np.min(all_wave)
     wav_max = cubepar['wave_max'] if cubepar['wave_max'] is not None else np.max(all_wave)
     dwave = cubepar['wave_delta'] if cubepar['wave_delta'] is not None else dwv
+
+    # Number of voxels in each dimension
+    numra = int((ra_max-ra_min) * cosdec / dspat)
+    numdec = int((dec_max-dec_min)/dspat)
+    numwav = int(np.round((wav_max-wav_min)/dwave))
+
+    # If a white light WCS is being generated, make sure there's only 1 wavelength bin
     if collapse:
         dwave = np.max(all_wave) - np.min(all_wave)
+        numwav = 1
 
     # Generate a master WCS to register all frames
     coord_min = [ra_min, dec_min, wav_min]
     coord_dlt = [dspat, dspat, dwave]
-    numra = int((ra_max-ra_min) * cosdec / dspat)
-    numdec = int((dec_max-dec_min)/dspat)
-    numwav = int(np.round((wav_max-wav_min)/dwave))
 
     # If a reference image is being used and a white light image is requested (collapse=True) update the celestial parts
     if cubepar["reference_image"] is not None:
@@ -2060,6 +2066,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                                               all_spatpos[ww], all_specpos[ww], all_spatid[ww],
                                               all_tilts, all_slits, all_align, voxedge, all_idx=all_idx[ww],
                                               spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
+            embed()
             if reference_image is None:
                 # ref_idx will be the index of the cube with the highest S/N
                 ref_idx = np.argmax(weights)
