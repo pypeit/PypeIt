@@ -405,7 +405,7 @@ class FlatImages(calibframe.CalibFrame):
         """
         illumflat_pixel, illumflat_illum = None, None
         pixelflat_finecorr, illumflat_finecorr = None, None
-
+        pixelflat_totalillum, illumflat_totalillum = None, None
         if slits is None and self.calib_dir is not None or self.calib_key is not None:
             # If the slits are not defined, and the relevant attributes are set,
             # try to read the associated SlitTraceSet
@@ -427,29 +427,35 @@ class FlatImages(calibframe.CalibFrame):
             if self.illumflat_finecorr is not None:
                 illumflat_finecorr = self.fit2illumflat(slits, frametype='illum', finecorr=True)
 
+        # Construct a total illumination flat if the fine correction has been computed
+        if pixelflat_finecorr is not None:
+            pixelflat_totalillum = illumflat_pixel*pixelflat_finecorr
+        if illumflat_finecorr is not None:
+            illumflat_totalillum = illumflat_illum*illumflat_finecorr
+
         # Decide which frames should be displayed
         if frametype == 'pixel':
-            image_list = zip([self.pixelflat_norm, illumflat_pixel, pixelflat_finecorr,
+            image_list = zip([self.pixelflat_norm, illumflat_pixel, pixelflat_finecorr, pixelflat_totalillum,
                               self.pixelflat_raw, self.pixelflat_model, self.pixelflat_spec_illum],
-                             ['pixelflat_norm', 'pixelflat_spat_illum', 'pixelflat_finecorr',
+                             ['pixelflat_norm', 'pixelflat_spat_illum', 'pixelflat_finecorr', 'pixelflat_totalillum',
                               'pixelflat_raw', 'pixelflat_model', 'pixelflat_spec_illum'],
-                             [(0.9, 1.1), (0.9, 1.1), (0.95, 1.05),
+                             [(0.9, 1.1), (0.9, 1.1), (0.95, 1.05), (0.9, 1.1),
                               None, None, (0.8, 1.2)])
         elif frametype == 'illum':
-            image_list = zip([illumflat_illum, illumflat_finecorr, self.illumflat_raw],
-                             ['illumflat_spat_illum', 'illumflat_finecorr', 'illumflat_raw'],
-                             [(0.9, 1.1), (0.95, 1.05), None])
+            image_list = zip([illumflat_illum, illumflat_finecorr, illumflat_totalillum, self.illumflat_raw],
+                             ['illumflat_spat_illum', 'illumflat_finecorr', 'illumflat_totalillum', 'illumflat_raw'],
+                             [(0.9, 1.1), (0.95, 1.05), (0.9, 1.1), None])
         else:
             # Show everything that's available (anything that is None will not be displayed)
-            image_list = zip([self.pixelflat_norm, illumflat_pixel, pixelflat_finecorr,
+            image_list = zip([self.pixelflat_norm, illumflat_pixel, pixelflat_finecorr, pixelflat_totalillum,
                               self.pixelflat_raw, self.pixelflat_model, self.pixelflat_spec_illum,
-                              illumflat_illum, illumflat_finecorr, self.illumflat_raw],
-                             ['pixelflat_norm', 'pixelflat_spat_illum', 'pixelflat_finecorr',
+                              illumflat_illum, illumflat_finecorr, illumflat_totalillum, self.illumflat_raw],
+                             ['pixelflat_norm', 'pixelflat_spat_illum', 'pixelflat_finecorr', 'pixelflat_totalillum',
                               'pixelflat_raw', 'pixelflat_model', 'pixelflat_spec_illum',
-                              'illumflat_spat_illum', 'illumflat_finecorr', 'illumflat_raw'],
-                             [(0.9, 1.1), (0.9, 1.1), (0.95, 1.05),
+                              'illumflat_spat_illum', 'illumflat_finecorr', 'illumflat_totalillum', 'illumflat_raw'],
+                             [(0.9, 1.1), (0.9, 1.1), (0.95, 1.05), (0.9, 1.1),
                               None, None, (0.8, 1.2),
-                              (0.9, 1.1), (0.95, 1.05), None])
+                              (0.9, 1.1), (0.95, 1.05), (0.9, 1.1), None])
         # Display frames
         show_flats(image_list, wcs_match=wcs_match, slits=slits, waveimg=self.pixelflat_waveimg)
 
