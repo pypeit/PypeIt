@@ -23,8 +23,20 @@ class WaveFit(datamodel.DataContainer):
     """
     DataContainer for the output from BuildWaveCalib
 
-    All of the items in the datamodel are required for instantiation,
-      although they can be None (but shouldn't be)
+    All of the items in the datamodel are required for instantiation, although
+    they can be None (but shouldn't be).
+
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_wavefit.rst
+
+    When written to an output-file HDU, all `numpy.ndarray`_ elements are
+    bundled into an `astropy.io.fits.BinTableHDU`_, the ``pypeitfit`` attribute
+    is written to a separate extension (see
+    :class:`~pypeit.core.fitting.PypeItFit`), and the other elements are written
+    as header keywords.  Any datamodel elements that are None are *not* included
+    in the output.  The two HDU extensions are given names according to their
+    spatial ID; see :func:`hduext_prefix_from_spatid`.
 
     """
     version = '1.1.0'
@@ -117,7 +129,7 @@ class WaveFit(datamodel.DataContainer):
         else:
             hdu_prefix = cls.hduext_prefix_from_spatid(hdu.header['SPAT_ID'])
         # Run the default parser to get the data
-        return super(WaveFit, cls).from_hdu(hdu, hdu_prefix=hdu_prefix)
+        return super(WaveFit, cls).from_hdu(hdu, hdu_prefix=hdu_prefix, chk_version=chk_version)
 
     @property
     def ions(self):
@@ -202,7 +214,7 @@ def fit_slit(spec, patt_dict, tcent, line_lists, vel_tol = 1.0, outroot=None, sl
 
     # TODO Profx maybe you can add a comment on what this is doing. Why do we have use_unknowns=True only to purge them later??
     # Purge UNKNOWNS from ifit
-    imsk = np.ones(len(ifit), dtype=np.bool)
+    imsk = np.ones(len(ifit), dtype=bool)
     for kk, idwv in enumerate(np.array(patt_dict['IDs'])[ifit]):
         if (np.min(np.abs(line_lists['wave'][NIST_lines] - idwv)))/idwv*3.0e5 > vel_tol:
             imsk[kk] = False

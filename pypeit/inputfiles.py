@@ -360,7 +360,7 @@ class InputFile:
                 break
         return start, end
 
-    def path_and_files(self, key:str, skip_blank=False):
+    def path_and_files(self, key:str, skip_blank=False, check_exists=True):
         """Generate a list of the filenames with 
         the full path from the column of the data Table
         specified by `key`.  The files must exist and be 
@@ -370,6 +370,8 @@ class InputFile:
             key (str): Column of self.data with the filenames of interest
             skip_blank (bool, optional): If True, ignore any
                 entry that is '', 'none' or 'None'. Defaults to False.
+            check_exists (bool, optional):If False, PypeIt will not
+                check if 'key' exists as a file. Defaults to True.
 
         Returns:
             list: List of the full paths to each data file
@@ -402,7 +404,7 @@ class InputFile:
                 filename = row[key]
 
             # Check we got a good hit
-            if not os.path.isfile(filename): 
+            if check_exists and not os.path.isfile(filename):
                 msgs.error(f"{row[key]} does not exist in one of the provided paths.  Modify your input {self.flavor} file")
             data_files.append(filename)
 
@@ -630,12 +632,25 @@ class Coadd3DFile(InputFile):
         Parse the options associated with a cube block.
         Here is a description of the available options:
 
-        scale_corr     : The name of an alternative spec2d file that is used for the relative spectral scale correction.
-                        This parameter can also be set for all frames with the default command::
+        - ``scale_corr``: The name of an alternative spec2d file that is used for
+          the relative spectral scale correction.  This parameter can also be set
+          for all frames with the default command:
 
-                            [reduce]
-                                [[cube]]
-                                    scale_corr = spec2d_alternative.fits
+          .. code-block:: ini
+
+                [reduce]
+                    [[cube]]
+                        scale_corr = spec2d_alternative.fits
+
+        - ``skysub_frame``: The name of an alternative spec2d file that is used
+          for the sky subtraction.  This parameter can also be set for all frames
+          with the default command:
+
+          .. code-block:: ini
+
+                [reduce]
+                    [[cube]]
+                        skysub_frame = spec2d_alternative.fits
 
         Returns
         -------
@@ -643,16 +658,26 @@ class Coadd3DFile(InputFile):
             Dictionary containing cube options.
         """
         # Define the list of allowed parameters
-        opts = dict(scale_corr=None)
+        opts = dict(scale_corr=None, skysub_frame=None)
 
         # Get the scale correction files
         scale_corr = self.path_and_files('scale_corr', skip_blank=True)
         if scale_corr is None:
             opts['scale_corr'] = [None]*len(self.filenames)
         elif len(scale_corr) == 1 and len(self.filenames) > 1:
-            scale_corr = scale_corr*len(self.filenames)
+            opts['scale_corr'] = scale_corr*len(self.filenames)
         elif len(scale_corr) != 0:
             opts['scale_corr'] = scale_corr
+
+        # Get the skysub files
+        skysub_frame = self.path_and_files('skysub_frame', skip_blank=False, check_exists=False)
+        if skysub_frame is None:
+            opts['skysub_frame'] = ["default"]*len(self.filenames)
+        elif len(skysub_frame) == 1 and len(self.filenames) > 1:
+            opts['skysub_frame'] = skysub_frame*len(self.filenames)
+        elif len(skysub_frame) != 0:
+            opts['skysub_frame'] = skysub_frame
+
         # Return all options
         return opts
 
@@ -717,3 +742,22 @@ class Collate1DFile(InputFile):
 
         # Return
         return all_files
+
+class RawFiles(InputFile):
+    """Child class for a list of raw files
+    """
+    data_block = 'raw'  # Defines naming of data block
+    flavor = 'Raw'      
+    setup_required = False
+    datablock_required = True
+    required_columns = ['filename'] 
+
+    def vet(self):
+        """ Check for required bits and pieces of the .coadd2d file
+        besides the input objects themselves
+        """
+        super().vet()
+
+        # Done
+        msgs.info('.rawfiles file successfully vetted.')
+

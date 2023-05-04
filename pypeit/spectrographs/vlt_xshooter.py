@@ -3,8 +3,6 @@ Module for VLT X-Shooter
 
 .. include:: ../include/links.rst
 """
-import os
-
 import numpy as np
 
 from astropy.coordinates import SkyCoord
@@ -28,6 +26,8 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
     ndet = 1
     telescope = telescopes.VLTTelescopePar()
     pypeline = 'Echelle'
+    url = 'https://www.eso.org/sci/facilities/paranal/instruments/xshooter.html'
+    ech_fixed_format = True
     header_name = 'XSHOOTER'
 
     def init_meta(self):
@@ -98,6 +98,26 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
             object.
         """
         return ['arm']
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['HIERARCH ESO SEQ ARM']
 
     def pypeit_file_keys(self):
         """
@@ -264,7 +284,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_nir.fits'
         par['calibrations']['wavelengths']['cc_thresh'] = 0.50
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
-        par['calibrations']['wavelengths']['ech_fix_format'] = True
+#        par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 5
@@ -434,13 +454,12 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         if det == 1:
-            bpm_dir = os.path.join(data.Paths.static_calibs, 'vlt_xshoooter')
+            bpm_dir = data.Paths.static_calibs / 'vlt_xshoooter'
             try :
-                bpm_loc = np.loadtxt(os.path.join(bpm_dir, 'BP_MAP_RP_NIR.dat'),
-                                     usecols=(0,1))
+                bpm_loc = np.loadtxt(bpm_dir / 'BP_MAP_RP_NIR.dat', usecols=(0,1))
             except IOError :
                 msgs.warn('BP_MAP_RP_NIR.dat not present in the static database')
-                bpm_fits = io.fits_open(os.path.join(bpm_dir, 'BP_MAP_RP_NIR.fits.gz'))
+                bpm_fits = io.fits_open(bpm_dir / 'BP_MAP_RP_NIR.fits.gz')
                 # ToDo: this depends on datasec, biassec, specflip, and specaxis
                 #       and should become able to adapt to these parameters.
                 # Flipping and shifting BPM to match the PypeIt format
@@ -456,8 +475,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                 filt_bpm = bpm_data_pypeit[1:y_len,1:x_len]>100.
                 y_bpm, x_bpm = np.where(filt_bpm)
                 bpm_loc = np.array([y_bpm,x_bpm]).T
-                np.savetxt(os.path.join(bpm_dir, 'BP_MAP_RP_NIR.dat'), bpm_loc,
-                           fmt=['%d','%d'])
+                np.savetxt(bpm_dir / 'BP_MAP_RP_NIR.dat', bpm_loc, fmt=['%d','%d'])
             finally :
                 bpm_img[bpm_loc[:,0].astype(int),bpm_loc[:,1].astype(int)] = 1.
 
@@ -651,7 +669,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_vis1x1.fits'
         par['calibrations']['wavelengths']['cc_thresh'] = 0.50
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
-        par['calibrations']['wavelengths']['ech_fix_format'] = True
+#        par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
@@ -911,7 +929,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_uvb1x1.fits'
-        par['calibrations']['wavelengths']['ech_fix_format'] = True
+#        par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4

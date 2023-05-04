@@ -29,6 +29,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
     name = 'mmt_mmirs'
     telescope = telescopes.MMTTelescopePar()
     camera = 'MMIRS'
+    url = 'https://lweb.cfa.harvard.edu/mmti/mmirs.html'
     header_name = 'mmirs'
     supported = True
 
@@ -77,6 +78,26 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             ttime = Time(time, format='isot')
             return ttime.mjd
         msgs.error("Not ready for this compound meta")
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['DISPERSE']
 
     def get_detector_par(self, det, hdu=None):
         """

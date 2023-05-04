@@ -528,6 +528,7 @@ class RawImage:
         if self.nimg == 1 and mosaic:
             msgs.warn('Only processing a single detector; mosaicing is ignored.')
 
+        msgs.info(f'Performing basic image processing on {os.path.basename(self.filename)}.')
         # TODO: Checking for bit saturation should be done here.
 
         #   - Convert from ADU to electron counts.
@@ -651,20 +652,24 @@ class RawImage:
         # img_scale, noise_floor, and shot_noise.
         _det, _image, _ivar, _datasec_img, _det_img, _rn2img, _base_var, _img_scale, _bpm \
                 = self._squeeze()
+        # NOTE: BPM MUST BE A BOOLEAN!
         pypeitImage = pypeitimage.PypeItImage(_image, ivar=_ivar, amp_img=_datasec_img,
                                               det_img=_det_img, rn2img=_rn2img, base_var=_base_var,
-                                              img_scale=_img_scale, bpm=_bpm, detector=_det,
+                                              img_scale=_img_scale, detector=_det,
                                               spat_flexure=self.spat_flexure_shift,
                                               PYP_SPEC=self.spectrograph.name,
                                               units='e-' if self.par['apply_gain'] else 'ADU',
                                               exptime=self.exptime,
                                               noise_floor=self.par['noise_floor'],
-                                              shot_noise=self.par['shot_noise'])
+                                              shot_noise=self.par['shot_noise'],
+                                              bpm=_bpm.astype(bool))
+
         pypeitImage.rawheadlist = self.headarr
         pypeitImage.process_steps = [key for key in self.steps.keys() if self.steps[key]]
 
         # Mask(s)
         if self.par['mask_cr']:
+            # TODO: CR rejection of the darks was failing for HIRES for some reason...
             pypeitImage.build_crmask(self.par)
 
         pypeitImage.build_mask(saturation='default', mincounts='default')
@@ -806,7 +811,9 @@ class RawImage:
         # Generate the illumination flat, as needed
         illum_flat = 1.0
         if self.par['use_illumflat']:
-            illum_flat = flatimages.fit2illumflat(slits, flexure_shift=self.spat_flexure_shift)
+            # TODO :: We don't have tilts here yet... might be ever so slightly better, especially on very tilted slits
+            illum_flat = flatimages.fit2illumflat(slits, spat_flexure=self.spat_flexure_shift, finecorr=False)
+            illum_flat *= flatimages.fit2illumflat(slits, spat_flexure=self.spat_flexure_shift, finecorr=True)
             if debug:
                 left, right = slits.select_edges(flexure=self.spat_flexure_shift)
                 viewer, ch = display.show_image(illum_flat, chname='illum_flat')

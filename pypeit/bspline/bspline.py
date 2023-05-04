@@ -47,6 +47,15 @@ class bspline(datamodel.DataContainer):
     Functions in the bspline library are implemented as methods on this
     class.
 
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_bspline.rst
+
+    When written to an output-file HDU, all `numpy.ndarray`_ elements are
+    bundled into an `astropy.io.fits.BinTableHDU`_, and the other elements are
+    written as header keywords.  Any datamodel elements that are None are *not*
+    included in the output.
+
     Parameters
     ----------
     x : `numpy.ndarray`_
@@ -637,7 +646,6 @@ class bspline(datamodel.DataContainer):
         nn = goodbk.sum()
         if nn < self.nord:
             warnings.warn('Fewer good break points than order of b-spline. Returning...')
-            # KBW: Why is the dtype set to 'f' = np.float32?
             return -2, np.zeros(ydata.shape, dtype=float)
 
         alpha, beta = solution_arrays(nn, self.npoly, self.nord, ydata, action, invvar, upper,

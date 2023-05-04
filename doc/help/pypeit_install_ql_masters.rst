@@ -6,7 +6,7 @@
     
     Script to install PypeIt QL Master files
     
-    optional arguments:
+    options:
       -h, --help         show this help message and exit
       --zip ZIP          Zip file of the full QL_MASTERS directory downloaded from
                          the PypeIt Google Drive (default: None)
@@ -14,6 +14,6 @@
                          directory. (default: None)
       --odir ODIR        The directory in which to extract the zip file. Ignored if
                          a direct path is provided using --ql_path. (default:
-                         /Users/dpelliccia/PypeIt/PypeIt/doc)
+                         current working directory)
       --rmzip            Remove the downloaded zip file (default: False)
     

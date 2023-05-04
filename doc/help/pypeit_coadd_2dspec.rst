@@ -5,11 +5,11 @@
                                [--debug_offsets] [--peaks] [--basename BASENAME]
                                [--spec_samp_fact SPEC_SAMP_FACT]
                                [--spat_samp_fact SPAT_SAMP_FACT] [--debug]
-                               [--only_slits ONLY_SLITS]
+                               [--only_slits ONLY_SLITS] [-v VERBOSITY]
     
     Coadd 2D spectra produced by PypeIt
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       --file FILE           File to guide 2d coadds (default: None)
       --det DET             1-indexed detector or list of detectors that the user
@@ -41,4 +41,8 @@
       --debug               show debug plots? (default: False)
       --only_slits ONLY_SLITS
                             Only coadd the following slits (default: None)
+      -v VERBOSITY, --verbosity VERBOSITY
+                            Verbosity level between 0 [none] and 2 [all]. Default:
+                            1. Level 2 writes a log with filename
+                            coadd_2dspec_YYYYMMDD-HHMM.log (default: 1)
     

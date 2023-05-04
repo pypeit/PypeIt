@@ -62,6 +62,9 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                                  "spat_samp_fact are pixels.")
         parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
         parser.add_argument("--only_slits", type=str, default=None, help="Only coadd the following slits")
+        parser.add_argument('-v', '--verbosity', type=int, default=1,
+                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
+                                 'Level 2 writes a log with filename coadd_2dspec_YYYYMMDD-HHMM.log')
 
         #parser.add_argument("--wave_method", type=str, default=None,
         #                    help="Wavelength method for wavelength grid. If not set, code will "
@@ -75,6 +78,9 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
     def main(args):
         """ Executes 2d coadding
         """
+        # Set the verbosity, and create a logfile if verbosity == 2
+        msgs.set_logfile_and_verbosity('coadd_2dspec', args.verbosity)
+
         msgs.info('PATH =' + os.getcwd())
         # Load the file
         if args.file is not None:
@@ -100,7 +106,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             # NOTE `config_specific_par` works with the spec2d files because we construct the header
             # of those files to include all the relevant keywords from the raw file.
             spectrograph_cfg_lines = spectrograph.config_specific_par(spec2d_files[0]).to_config()
-            parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=config_lines)
+            parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, 
+                                                  merge_with=(config_lines,))
 
         elif args.obj is not None:
             # TODO: We should probably be reading the pypeit file and using
@@ -153,6 +160,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         parset['calibrations']['wavelengths']['refframe'] = 'observed'
         # TODO Flexure correction for coadd2d needs to be thought through. Currently turning it off.
         parset['flexure']['spec_method'] = 'skip'
+        # TODO This is currently the default for 2d coadds, but we need a way to toggle it on/off
+        parset['reduce']['findobj']['skip_skysub'] = True
         # Write the par to disk
         par_outfile = basename+'_coadd2d.par'
         print("Writing the parameters to {}".format(par_outfile))
@@ -185,6 +194,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             os.makedirs(master_dir)
 
         # Instantiate the sci_dict
+        # TODO Why do we need this sci_dict at all?? JFH
         sci_dict = OrderedDict()  # This needs to be ordered
         sci_dict['meta'] = {}
         sci_dict['meta']['vel_corr'] = 0.
@@ -273,7 +283,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                                                           skymodel=sci_dict[coadd.detname]['skymodel'],
                                                           objmodel=sci_dict[coadd.detname]['objmodel'],
                                                           ivarmodel=sci_dict[coadd.detname]['ivarmodel'],
-                                                          scaleimg=np.array([1.0], dtype=np.float),
+                                                          scaleimg=np.array([1.0], dtype=float),
                                                           bpmmask=sci_dict[coadd.detname]['outmask'],
                                                           detector=sci_dict[coadd.detname]['detector'],
                                                           slits=slits,

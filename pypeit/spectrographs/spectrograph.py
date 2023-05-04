@@ -27,22 +27,22 @@ provide instrument-specific:
 """
 
 from abc import ABCMeta
+import os
+import pathlib
 
 from IPython import embed
 
 import numpy as np
 
 from pypeit import msgs
-from pypeit import utils
 from pypeit import io
-from pypeit.core.wavecal import wvutils
 from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.core import meta
 from pypeit.par import pypeitpar
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
-from astropy.io.fits import Header
+from astropy.io.fits import Header, HDUList
 
 
 # TODO: Create an EchelleSpectrograph derived class that holds all of
@@ -97,6 +97,11 @@ class Spectrograph:
     This is used by specdb, so use that naming convention
     """
 
+    url = None
+    """
+    Reference url
+    """
+
     header_name = None
     """
     Name of the spectrograph camera or arm from the Header.
@@ -109,12 +114,26 @@ class Spectrograph:
     spectrograph.
     """
 
+    ech_fixed_format = None
+    """
+    If an echelle spectrograph, this will be set to a boolean indicating whether it is a fixed format or tiltable 
+    echelle. 
+    """
+
     supported = False
     """
     Flag that ``PypeIt`` code base has been sufficiently tested with data
     from this spectrograph that it is officially supported by the development
     team.
     """
+
+    ql_supported = False
+    """
+    Flag that ``PypeIt`` code base has been sufficiently tested with data
+    from this spectrograph in quicklook mode
+    that it is officially supported by the development team.
+    """
+
 
     comment = None
     """
@@ -125,6 +144,11 @@ class Spectrograph:
     meta_data_model = meta.get_meta_data_model()
     """
     Metadata model that is generic to all spectrographs.
+    """
+
+    allowed_extensions = None
+    """
+    Defines the allowed extensions for the input fits files.
     """
 
     def __init__(self):
@@ -139,6 +163,8 @@ class Spectrograph:
         # Generate and check the instrument-specific metadata definition
         self.init_meta()
         self.validate_metadata()
+        if self.pypeline == 'Echelle' and self.ech_fixed_format is None:
+            msgs.error('ech_fixed_format must be set for echelle spectrographs')
 
         # TODO: Is there a better way to do this?
         # Validate the instance by checking that the class has defined the
@@ -198,6 +224,51 @@ class Spectrograph:
 
         return par
 
+    def ql_par(self):
+        """ Generate a list of QL specific parameters 
+
+        The ones below are the default for any spectrograph.
+        They may be over-ridden by the specific spectrograph module
+
+        Returns:
+            list: List of QL specific parameters.  
+        """
+        # Calibration + misc
+        ql_cfg = ['[rdx]', 
+                  '    ignore_bad_headers = True',
+                        '[baseprocess]', 
+                            'use_biasimage = False', 
+                        '[calibrations]', 
+                        '    raise_chk_error = False',  # This allows for science frames only and "cooked" Masters
+                        '  [[flatfield]]', 
+                        '       saturated_slits = mask']
+        # Reduction parameters
+        ql_cfg += ['[scienceframe]',
+                        '    [[process]]',
+                        '        mask_cr = False',
+                        '[reduce]',
+                        '    [[extraction]]',
+                        '        skip_optimal = True',
+                        '    [[findobj]]',
+                        '        skip_second_find = True']
+        return ql_cfg
+
+
+    def _check_extensions(self, filename):
+        """
+        Check if this filename has an allowed extension
+
+        Args:
+            filename (:obj:`str`):
+                Input raw fits filename
+        """
+        if self.allowed_extensions is not None:
+            if os.path.splitext(filename)[1] not in self.allowed_extensions:
+                msgs.error("The input filename:"+msgs.newline()+
+                           filename+msgs.newline()+
+                           f"has the wrong extension. The allowed extensions for {self.name} include:"+msgs.newline()+
+                           ",".join(self.allowed_extensions))
+
     def _check_telescope(self):
         """Check the derived class has properly defined the telescope."""
         if self.telescope is None:
@@ -241,8 +312,10 @@ class Spectrograph:
             :obj:`dict`: Dictionary with the metadata read from ``header``.
         """
         spec_dict = {}
-        #
+        # The keys in spec_dict should be the CORE metadata,
+        #   spectrograph CONFIGURATION KEYS, and the FILENAME
         core_meta_keys = list(meta.define_core_meta().keys())
+        core_meta_keys += self.configuration_keys()
         core_meta_keys += ['filename']
         for key in core_meta_keys:
             if key.upper() in header.keys():
@@ -281,19 +354,28 @@ class Spectrograph:
         subheader = {}
 
         core_meta = meta.define_core_meta()
-        # Core
+        # Core Metadata Keys -- These must be present
         for key in core_meta.keys():
             try:
                 subheader[key] = (row_fitstbl[key], core_meta[key]['comment'])
             except KeyError:
                 if not allow_missing:
-                    msgs.error("Key: {} not present in your fitstbl/Header".format(key))
+                    msgs.error(f"Core Meta Key: {key} not present in your fitstbl/Header")
+        # Configuration Keys -- In addition to Core Meta,
+        #   other Config-Specific values; optional
+        for key in self.configuration_keys():
+            if key not in subheader:
+                try:
+                    subheader[key] = row_fitstbl[key]
+                except KeyError:
+                    # If configuration_key is not in row_fitstbl, warn but move on
+                    msgs.warn(f"Configuration Key: {key} not present in your fitstbl/Header")
         # Add a few more
         for key in ['filename']:  # For fluxing
             subheader[key] = row_fitstbl[key]
 
         # The following are pulled from the original header, if available
-        header_cards = ['INSTRUME', 'DETECTOR']
+        header_cards = ['INSTRUME', 'DETECTOR', 'DATE-OBS'] + self.raw_header_cards()
         if extra_header_cards is not None:
             header_cards += extra_header_cards  # For specDB and more
         for card in header_cards:
@@ -579,13 +661,22 @@ class Spectrograph:
         msgs.error('This spectrograph does not support the use of mask design. '
                    'Set `use_maskdesign=False`')
 
-    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None):
+    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None, 
+                              binning:str=None, trc_path:str=None):
         """
         Provides the slit edges positions predicted by the slitmask design.
 
         This method is not defined for all spectrographs. This base-class
         method raises an exception. This may be because ``use_maskdesign``
         has been set to True for a spectrograph that does not support it.
+
+        Args:
+            trc_path(str, optional): Path to the first trace file used to generate the trace flat
+            binning(str, optional): spec,spat binning of the flat field image
+            filename (:obj:`str` or :obj:`list`, optional): Name of the file holding the mask design info
+                or the maskfile and wcs_file in that order
+            debug (:obj:`bool`, optional): Debug
+            ccdnum (:obj:`int`, optional): detector number
         """
         msgs.error('This spectrograph does not support the use of mask design. '
                    'Set `use_maskdesign=False`')
@@ -605,6 +696,46 @@ class Spectrograph:
             object.
         """
         return ['dispname', 'dichroic', 'decker']
+    
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return []
+
+    def modify_config(self, fitstbl, cfg):
+        """
+        Modify the configuration dictionary for a given frame. This method is used
+        in :func:`pypeit.metadata.PypeItMetaData.set_configurations` to modify in place
+        the configuration requirement to assign a specific frame to the current setup.
+
+        **This method is not defined for all spectrographs.**
+
+        Args:
+            fitstbl(`astropy.table.Table`_):
+                The table with the metadata for one frames.
+            cfg (:obj:`dict`):
+                dictionary with metadata associated to a specific configuration.
+
+        Returns:
+            :obj:`dict`: modified dictionary with metadata associated to a specific configuration.
+        """
+
+        return cfg
 
     def valid_configuration_values(self):
         """
@@ -624,7 +755,8 @@ class Spectrograph:
         if 'instrument' in meta_tbl.keys():
             # Check that there is only one instrument
             #  This could fail if one mixes is much older calibs
-            instr_names = np.unique(meta_tbl['instrument'].data)
+            indx = meta_tbl['instrument'].data != None
+            instr_names = np.unique(meta_tbl['instrument'].data[indx])
             if len(instr_names) != 1:
                 msgs.warn(f"More than one instrument in your dataset! {instr_names} \n"+
                 f"Proceed with great caution...")
@@ -660,6 +792,25 @@ class Spectrograph:
             group.
         """
         return {'bias': None, 'dark': None}
+
+    def get_comb_group(self, fitstbl):
+        """
+
+        This method is used in :func:`pypeit.metadata.PypeItMetaData.set_combination_groups`,
+        and modifies comb_id and bkg_id metas for a specific instrument.
+
+
+        **This method is not defined for all spectrographs.**
+
+        Args:
+            fitstbl(`astropy.table.Table`_):
+                The table with the metadata for all the frames.
+
+        Returns:
+            `astropy.table.Table`_: modified fitstbl.
+        """
+
+        return fitstbl
 
     def pypeit_file_keys(self):
         """
@@ -846,6 +997,16 @@ class Spectrograph:
 
         if isinstance(subset, str):
             _subset = parse.parse_slitspatnum(subset)[0].tolist()
+            # Convert detector to int/tuple
+            new_dets = []
+            for item in _subset:
+                if 'DET' in item:
+                    idx = np.where(self.list_detectors() == item)[0][0]
+                    new_dets.append(idx+1)
+                elif 'MSC' in item:
+                    idx = np.where(self.list_detectors(mosaic=True) == item)[0][0]
+                    new_dets.append(self.allowed_mosaics[idx])
+            _subset = new_dets
         elif isinstance(subset, (int, tuple)):
             _subset = [subset]
         else:
@@ -941,7 +1102,8 @@ class Spectrograph:
             pixel. Pixels unassociated with any amplifier are set to 0.  Shape
             is identical to ``raw_img``.
         """
-        # Open
+        # Check extension and then open
+        self._check_extensions(raw_file)
         hdu = io.fits_open(raw_file)
 
         # Validate the entered (list of) detector(s)
@@ -1061,7 +1223,7 @@ class Spectrograph:
         Return meta data from a given file (or its array of headers).
 
         Args:
-            inp (:obj:`str`, `astropy.io.fits.Header`_, :obj:`list`):
+            inp (:obj:`str`, :obj:`pathlib.Path`, `astropy.io.fits.Header`_, :obj:`list`):
                 Input filename, an `astropy.io.fits.Header`_ object, or a list
                 of `astropy.io.fits.Header`_ objects.  If None, function simply
                 returns None without issuing any warnings/errors, unless
@@ -1098,14 +1260,14 @@ class Spectrograph:
         Returns:
             Value recovered for (each) keyword.  Can be None.
         """
-        if isinstance(inp, str):
+        if isinstance(inp, (str, pathlib.Path, HDUList)):
             headarr = self.get_headarr(inp)
         elif inp is None or isinstance(inp, list):
             headarr = inp
         elif isinstance(inp, Header):
             headarr = [inp]
         else:
-            msgs.error('Unrecognized type for input')
+            msgs.error(f'Unrecognized type for input: {type(inp)}')
         
         if headarr is None:
             if required:
@@ -1148,13 +1310,13 @@ class Spectrograph:
                 elif 'compound' in self.meta[meta_key].keys():
                     value = self.compound_meta(headarr, meta_key)
                 else:
-                    msgs.error("Failed to load spectrograph value for meta: {}".format(meta_key))
+                    msgs.error(f"Failed to load spectrograph value for meta: {meta_key}")
             else:
                 # Grab from the header, if we can
                 value = headarr[self.meta[meta_key]['ext']][self.meta[meta_key]['card']]
         except (KeyError, TypeError) as e:
             if ignore_bad_header or not required:
-                msgs.warn("Bad Header, but we'll try to continue on..") 
+                msgs.warn(f"Bad Header key ({meta_key}), but we'll try to continue on..")
             else:
                 raise e
 
@@ -1221,7 +1383,7 @@ class Spectrograph:
         # Return
         return retvalue
 
-    def get_wcs(self, hdr, slits, platescale, wave0, dwv):
+    def get_wcs(self, hdr, slits, platescale, wave0, dwv, spatial_scale=None):
         """
         Construct/Read a World-Coordinate System for a frame.
 
@@ -1240,6 +1402,12 @@ class Spectrograph:
                 The wavelength zeropoint.
             dwv (:obj:`float`):
                 Change in wavelength per spectral pixel.
+            spatial_scale (:obj:`float`, None, optional):
+                The spatial scale (units=arcsec/pixel) of the WCS to be used.
+                This variable is fixed, and is independent of the binning.
+                If spatial_scale is set, it will be used for the spatial size
+                of the WCS and the platescale will be ignored. If None, then
+                the platescale will be used.
 
         Returns:
             `astropy.wcs.wcs.WCS`_: The world-coordinate system.
@@ -1325,7 +1493,7 @@ class Spectrograph:
         Read the header data from all the extensions in the file.
 
         Args:
-            inp (:obj:`str`, `astropy.io.fits.HDUList`_):
+            inp (:obj:`str`, :obj:`pathlib.Path`, `astropy.io.fits.HDUList`_):
                 Name of the file to read or the previously opened HDU list.  If
                 None, the function will simply return None.
             strict (:obj:`bool`, optional):
@@ -1344,19 +1512,23 @@ class Spectrograph:
 
         # Faster to open the whole file and then assign the headers,
         # particularly for gzipped files (e.g., DEIMOS)
-        if isinstance(inp, str):
+        if isinstance(inp, (str, pathlib.Path)):
+            self._check_extensions(inp)
             try:
-                hdu = io.fits_open(inp)
+                hdul = io.fits_open(inp)
             except:
                 if strict:
-                    msgs.error('Problem opening {0}.'.format(inp))
+                    msgs.error(f'Problem opening {inp}.')
                 else:
-                    msgs.warn('Problem opening {0}.'.format(inp) + msgs.newline()
-                              + 'Proceeding, but should consider removing this file!')
-                    return None #['None']*999 # self.numhead
+                    msgs.warn(f'Problem opening {inp}.{msgs.newline()}'
+                              'Proceeding, but should consider removing this file!')
+                    return None
+        elif isinstance(inp, HDUList):
+            hdul = inp
         else:
-            hdu = inp
-        return [hdu[k].header for k in range(len(hdu))]
+            msgs.error(f'Unrecognized type for input: {type(inp)}')
+
+        return [hdul[k].header for k in range(len(hdul))]
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -1437,6 +1609,15 @@ class Spectrograph:
 #            raise ValueError('Incomplete information to calculate mm per pixel.')
 #
 #        return self.detector[det-1]['platescale']/tel_platescale
+
+    def get_echelle_angle_files(self):
+        """ Pass back the files required
+        to run the echelle method of wavecalib
+
+        Returns:
+            list: List of files
+        """
+        msgs.error(f'Echelle angle files not ready for {self.name}')
 
     def order_platescale(self, order_vec, binning=None):
         """
@@ -1590,7 +1771,7 @@ class Spectrograph:
             Input inverse variance of standard star counts
         gpm_in: (bool np.ndarray) shape = (nspec,)
             Input good pixel mask for standard
-        meta_table: (astropy.table)
+        meta_table: (dict)
             Table containing meta data that is slupred from the specobjs object. See unpack_object routine in specobjs.py
             for the contents of this table.
 

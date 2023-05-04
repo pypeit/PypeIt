@@ -26,8 +26,17 @@ class WaveTilts(datamodel.DataContainer):
     """
     Simple DataContainer for the output from BuildWaveTilts
 
-    All of the items in the datamodel are required for instantiation,
-      although they can be None (but shouldn't be)
+    All of the items in the datamodel are required for instantiation, although
+    they can be None (but shouldn't be)
+
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_wavetilts.rst
+
+    When written to an output-file HDU, all `numpy.ndarray`_ elements are
+    bundled into an `astropy.io.fits.BinTableHDU`_, and the other elements are
+    written as header keywords.  Any datamodel elements that are None are *not*
+    included in the output.
 
     """
     version = '1.1.0'
@@ -139,7 +148,7 @@ class WaveTilts(datamodel.DataContainer):
 
 class BuildWaveTilts:
     """
-    Class to guide slit/order tracing
+    Class to guide arc/sky tracing
 
     Args:
         mstilt (:class:`pypeit.images.buildimage.TiltImage`): Tilt image
@@ -227,8 +236,9 @@ class BuildWaveTilts:
         # TODO -- Discuss further with JFH
         self.slitmask_science = self.slits.slit_img(initial=True, flexure=self.spat_flexure, exclude_flag=['BOXSLIT'])  # All unmasked slits
         # Resize
-        gpm = (self.mstilt.bpm == 0) if self.mstilt.bpm is not None \
-            else np.ones_like(self.slitmask_science, dtype=bool)
+        # TODO: Should this be the bpm or *any* flag?
+        gpm = self.mstilt.select_flag(flag='BPM', invert=True) if self.mstilt is not None \
+                    else np.ones_like(self.slitmask_science, dtype=bool)
         self.shape_science = self.slitmask_science.shape
         self.shape_tilt = self.mstilt.image.shape
         self.slitcen = arc.resize_slits2arc(self.shape_tilt, self.shape_science, (all_left+all_right)/2)
@@ -626,6 +636,17 @@ class BuildWaveTilts:
             if np.sum(self.trace_dict['use_tilt']) < 2:
                 msgs.warn('Less than 2 usable arc lines for slit/order = {:d}'.format(self.slits.slitord_id[slit_idx]) +
                           '. This slit/order will not reduced!')
+                self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADTILTCALIB')
+                continue
+            # Check the spectral coverage of the usable arc lines for tilts. If the coverage is small,
+            # it will affect the wavelength range in waveimg (i.e, self.wv_calib.build_waveimg()) and
+            # crash the reduction later on.
+            # Here we mask slits that computed the tilts with arc lines coverage <10%
+            use_tilt_spec_cov = (self.trace_dict['tilts_spec'][:, self.trace_dict['use_tilt']].max() -
+                                 self.trace_dict['tilts_spec'][:, self.trace_dict['use_tilt']].min()) / self.arccen.shape[0]
+            if use_tilt_spec_cov < 0.1:
+                msgs.warn(f'The spectral coverage of the usable arc lines is {use_tilt_spec_cov:.3f} (less than 10%).' +
+                          ' This slit/order will not be reduced!')
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADTILTCALIB')
                 continue
 

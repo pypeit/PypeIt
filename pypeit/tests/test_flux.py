@@ -10,6 +10,7 @@ from astropy import units
 from astropy.coordinates import SkyCoord
 
 from pypeit.core import flux_calib
+from pypeit import telescopes
 from pypeit.par.pypeitpar import Coadd1DPar
 
 
@@ -44,18 +45,29 @@ def test_find_standard():
 
 def test_load_extinction():
     # Load
-    extinct = flux_calib.load_extinction_data(121.6428, 37.3413889)
+    mtham = telescopes.ShaneTelescopePar()
+    lon = mtham['longitude']
+    lat = mtham['latitude']
+    extinct = flux_calib.load_extinction_data(lon, lat, 'closest')
     np.testing.assert_allclose(extinct['wave'][0], 3200.)
     assert extinct['wave'].unit == units.AA
     np.testing.assert_allclose(extinct['mag_ext'][0], 1.084)
-    # Fail
-    extinct = flux_calib.load_extinction_data(0., 37.3413889)
-    assert extinct is None
+
+    # Fail on location in the western Mediterranean Sea
+    with pytest.raises(PypeItError):
+        extinct = flux_calib.load_extinction_data(0., 37.3413889, 'closest')
+
+    # Fail on nonexistant extinction filename
+    with pytest.raises(PypeItError):
+        extinct = flux_calib.load_extinction_data(lon, lat, 'northpoleextinct.dat')
 
 
 def test_extinction_correction():
     # Load
-    extinct = flux_calib.load_extinction_data(121.6428, 37.3413889)
+    mtham = telescopes.ShaneTelescopePar()
+    lon = mtham['longitude']
+    lat = mtham['latitude']
+    extinct = flux_calib.load_extinction_data(lon, lat, 'closest')
     # Correction
     wave = np.arange(3000.,10000.)*units.AA
     AM=1.5

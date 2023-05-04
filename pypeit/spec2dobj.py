@@ -15,13 +15,12 @@ import numpy as np
 
 from astropy.io import fits
 from astropy.stats import mad_std
-import astropy
+from astropy import table
 
 from pypeit import msgs
 from pypeit import io
 from pypeit import datamodel
 from pypeit import slittrace
-from pypeit import wavecalib
 from pypeit.core import parse 
 from pypeit.images import imagebitmask
 from pypeit.images.detector_container import DetectorContainer
@@ -29,16 +28,17 @@ from pypeit.images.mosaic import Mosaic
 
 from IPython import embed
 
-#def spec2d_hdu_prefix(det):
-#    return 'DET{:02d}-'.format(det)
-
 
 class Spec2DObj(datamodel.DataContainer):
     """Class to handle 2D spectral image outputs of PypeIt
 
     One generates one of these Objects for each detector in the exposure.
 
-    See datamodel below and at :ref:`spec2dobj_datamodel`
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_spec2dobj.rst
+
+    .. See datamodel below and at :ref:`spec2dobj_datamodel`
 
     Args:
 
@@ -47,7 +47,7 @@ class Spec2DObj(datamodel.DataContainer):
             Primary header if instantiated from a FITS file
 
     """
-    version = '1.0.5'
+    version = '1.1.0'
 
     # TODO 2d data model should be expanded to include:
     # waveimage  --  flexure and heliocentric corrections should be applied to the final waveimage and since this is unique to
@@ -73,19 +73,19 @@ class Spec2DObj(datamodel.DataContainer):
                                         'the science image (float32)'),
                  'waveimg': dict(otype=np.ndarray, atype=np.floating,
                                  descr='2D wavelength image in vacuum (float64)'),
-                 'bpmmask': dict(otype=np.ndarray, atype=np.integer,
+                 'bpmmask': dict(otype=imagebitmask.ImageBitMaskArray,
                                  descr='2D bad-pixel mask for the image'),
-                 'imgbitm': dict(otype=str, descr='List of BITMASK keys from ImageBitMask'),
+#                 'imgbitm': dict(otype=str, descr='List of BITMASK keys from ImageBitMask'),
                  'slits': dict(otype=slittrace.SlitTraceSet,
                                descr='SlitTraceSet defining the slits'),
-                 'wavesol': dict(otype=astropy.table.Table,
+                 'wavesol': dict(otype=table.Table,
                                descr='Table with WaveCalib diagnostic info'),
-                 'maskdef_designtab': dict(otype=astropy.table.Table,
+                 'maskdef_designtab': dict(otype=table.Table,
                                            descr='Table with slitmask design and object info'),
                  'sci_spat_flexure': dict(otype=float,
                                           descr='Shift, in spatial pixels, between this image '
                                                 'and SlitTrace'),
-                 'sci_spec_flexure': dict(otype=astropy.table.Table,
+                 'sci_spec_flexure': dict(otype=table.Table,
                                           descr='Global shift of the spectrum to correct for spectral'
                                                 'flexure (pixels). This is based on the sky spectrum at'
                                                 'the center of each slit'),
@@ -124,10 +124,48 @@ class Spec2DObj(datamodel.DataContainer):
         """
         hdul = io.fits_open(file)
         # Quick check on det
-        if not np.any([detname in hdu.name for hdu in hdul]):
+        detnames = np.unique([hdu.name.split('-')[0] for hdu in hdul[1:]])
+        if detname not in detnames:
+            msgs.error(f'Your --det={detname} is not available. \n   Choose from: {detnames}')
+        with io.fits_open(file) as hdu:
+            return cls.from_hdu(hdu, detname, chk_version=chk_version)
+
+    @classmethod
+    def from_hdu(cls, hdu, detname, chk_version=True):
+        """
+        Overload :func:`pypeit.datamodel.DataContainer.from_hdu` to allow det
+        input and to slurp the header
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
+                The HDU(s) with the data to use for instantiation.
+            detname (:obj:`str`):
+                The string identifier for the detector or mosaic used to select
+                the data that is read.
+            chk_version (:obj:`bool`, optional):
+                If False, allow a mismatch in datamodel to proceed
+
+        Returns:
+            :class:`~pypeit.spec2dobj.Spec2DObj`: 2D spectra object.
+
+        """
+        # Get list of extensions associated with this detector
+        ext = [h.name for h in hdu if detname in h.name]
+
+        if len(ext) == 0:
+            # No relevant extensions!
             msgs.error(f'{detname} not available in any extension of {file}')
-        slf = super().from_hdu(hdul, hdu_prefix=f'{detname}-', chk_version=chk_version)
-        slf.head0 = hdul[0].header
+
+        mask_ext = f'{detname}-BPMMASK'
+        has_mask = mask_ext in ext
+        if has_mask:
+            ext.remove(mask_ext)
+
+        slf = super().from_hdu(hdu, ext=ext, hdu_prefix=f'{detname}-', chk_version=chk_version)
+        if has_mask:
+            slf.bpmmask = imagebitmask.ImageBitMaskArray.from_hdu(hdu[mask_ext], ext_pseudo='MASK',
+                                                                  chk_version=chk_version)
+        slf.head0 = hdu[0].header
         slf.chk_version = chk_version
         return slf
 
@@ -147,20 +185,8 @@ class Spec2DObj(datamodel.DataContainer):
 
     def _validate(self):
         """
-        Assert that the detector has been set
-
-        Returns:
-
+        Assert that the detector has been set and that the bitmask is correct.
         """
-        # Check the bitmask is current
-        bitmask = imagebitmask.ImageBitMask()
-        if self.imgbitm is None:
-            self.imgbitm = ','.join(list(bitmask.keys()))
-        else:
-            # Validate
-            if self.imgbitm != ','.join(list(bitmask.keys())) and self.chk_version:
-                msgs.error("Input BITMASK keys differ from current data model!")
-
         # Check the detector/mosaic identifier has been provided (note this is a
         # property method)
         if self.detname is None:
@@ -190,6 +216,9 @@ class Spec2DObj(datamodel.DataContainer):
                 else:
                     tmp[key] = self[key]
                 d.append(tmp)
+            # Mask
+            elif key == 'bpmmask':
+                d.append(dict(bpmmask=self.bpmmask))
             # Detector
             elif key == 'detector':
                 d.append(dict(detector=self.detector))
@@ -254,7 +283,7 @@ class Spec2DObj(datamodel.DataContainer):
 
         # Slitmask
         slitmask = spec2DObj.slits.slit_img(flexure=spec2DObj.sci_spat_flexure,
-                                                 exclude_flag=spec2DObj.slits.bitmask.exclude_for_reducing)
+                                            exclude_flag=spec2DObj.slits.bitmask.exclude_for_reducing)
         # Fill in the image
         for slit_idx, spat_id in enumerate(spec2DObj.slits.spat_id[gpm]):
             inmask = slitmask == spat_id
@@ -282,8 +311,8 @@ class Spec2DObj(datamodel.DataContainer):
             skysub_img -= self.objmodel
 
         # Chi
-        chi = skysub_img * np.sqrt(self.ivarmodel) * (self.bpmmask == 0)
-        chi_slit = chi * (slit_select == self.slits.spat_id[slitidx]) * (self.bpmmask == 0)
+        chi = skysub_img * np.sqrt(self.ivarmodel) * (self.bpmmask.mask == 0)
+        chi_slit = chi * (slit_select == self.slits.spat_id[slitidx]) * (self.bpmmask.mask == 0)
 
         # All bad?
         if np.all(chi_slit == 0):
@@ -311,7 +340,45 @@ class Spec2DObj(datamodel.DataContainer):
         # Save
         self.med_chis = np.array(med_chis)
         self.std_chis = np.array(std_chis)
-        return
+
+    def select_flag(self, flag=None, invert=False):
+        """
+        Return a boolean array that selects pixels masked with the specified
+        bits in :attr:`bpmmask`.
+
+        For example, to create a bad-pixel mask based on which pixels have
+        cosmic-ray detections, run:
+
+        .. code-block:: python
+
+            cr_bpm = self.select_flag(flag='CR')
+
+        Or, to create a good-pixel mask for all pixels that are not flagged for
+        any reason, run:
+
+        .. code-block:: python
+
+            gpm = self.select_flag(invert=True)
+
+        Args:
+            flag (:obj:`str`, array-like, optional):
+                One or more flags to select when returning the boolean mask.  If
+                None, pixels flagged for *any* reason are returned as True.
+            invert (:obj:`bool`, optional):
+                If False, the return mask is True for masked pixels, False for
+                good pixels (i.e., a bad-pixel mask).  If True, invert the sense
+                of the mask (i.e., create a good-pixel mask, True for good
+                pixels, False for bad pixels).
+    
+        Returns:
+            `numpy.ndarray`_: Boolean array where pixels with the selected bits
+            flagged are returned as True (if ``invert`` is False); i.e., this is
+            a boolean bad-pixel mask (or a good-pixel mask when ``invert`` is
+            True).  If ``flag`` is not provided, pixels flagged for any reason
+            are returned as True.
+        """
+        return self.bpmmask.flagged(flag=flag, invert=invert)
+
 
 class AllSpec2DObj:
     """
@@ -353,8 +420,7 @@ class AllSpec2DObj:
         # Detectors included
         detectors = hdul[0].header[self.hdr_prefix+'DETS']
         for detname in detectors.split(','):
-            self[detname] = Spec2DObj.from_hdu(hdul, hdu_prefix=f'{detname}-',
-                                               chk_version=chk_version)
+            self[detname] = Spec2DObj.from_hdu(hdul, detname, chk_version=chk_version)
         return self
 
     def __init__(self):

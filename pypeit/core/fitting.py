@@ -4,6 +4,8 @@
 .. include:: ../include/links.rst
 
 """
+# TODO -- Consider moving the Object out of core
+
 import numpy as np
 import inspect
 from matplotlib import pyplot as plt
@@ -18,7 +20,22 @@ from pypeit.datamodel import DataContainer
 
 from IPython import embed
 
+
 class PypeItFit(DataContainer):
+    """
+    General fitting class used by PypeIt.
+
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_pypeitfit.rst
+
+    When written to an output-file HDU, all `numpy.ndarray`_ elements are
+    bundled into an `astropy.io.fits.BinTableHDU`_, and the other elements are
+    written as header keywords.  Any datamodel elements that are None are *not*
+    included in the output.
+
+    """
+
     # Set the version of this class
     version = '1.0.0'
 
@@ -99,7 +116,11 @@ class PypeItFit(DataContainer):
 
     def fit(self):
         """
-        Perform the fit
+        Perform the fit, either in 1D or 2D depending on the
+        data and model.
+
+        Returns:
+            int: Flag indicating whether fit was successful (1) or if it failed (0)
         """
 
         # Init
@@ -173,10 +194,11 @@ class PypeItFit(DataContainer):
 
     def eval(self, x, x2=None):
         """
-        Return the evaluated fit
+        Return the evaluated fit at locations x
+        (and x2, if 2D)
 
         Args:
-            x (`numpy.ndarray`_, optional):
+            x (`numpy.ndarray`_):
             x2 (`numpy.ndarray`_, optional):
                 For 2D fits
 
@@ -188,16 +210,16 @@ class PypeItFit(DataContainer):
                             maxx=self.maxx, minx2=self.minx2, maxx2=self.maxx2)
 
     def calc_fit_rms(self, apply_mask=True, x2=None):
-        """ Simple RMS calculation
+        """ Simple RMS calculation for the fit on the data.
 
         Args:
             apply_mask (bool, optional):
-                Apply mask?
+                If true, apply mask to data before calculating RMS.
             x2 (`numpy.ndarray`_, optional):
-                For 2D fits
+                x locations for 2D fits
 
         Returns:
-            float: RMS
+            float: Root mean square
 
         """
         msk = self.bool_gpm
@@ -222,17 +244,31 @@ class PypeItFit(DataContainer):
         return np.sqrt(np.sum(weights * (yval - values) ** 2))
 
 
-def evaluate_fit(fitc, func, x, x2=None, minx=None, maxx=None, minx2=None, maxx2=None):
+def evaluate_fit(fitc, func, x, x2=None, minx=None,
+                 maxx=None, minx2=None, maxx2=None):
     """
-    Return the evaluated fit
+    Return the evaluated fit at the x locations
 
     Args:
-        x (`numpy.ndarray`_, optional):
+        fitc (`numpy.ndarray`_):
+            Fit coefficients
+        func (str):
+            Name of the functional form to fit
+        x (`numpy.ndarray`_):
+            x locations for the evaluation
         x2 (`numpy.ndarray`_, optional):
-            For 2D fits
+            x2 locations for 2D fits
+        minx (float, optional):
+            Minimum x value for the fit used to normalise the x values
+        maxx (float, optional):
+            Maximum x value for the fit used to normalise the x values
+        minx2 (float, optional):
+            Minimum x value for the fit used to normalise the x2 values
+        maxx2 (float, optional):
+            Maximum x value for the fit used to normalise the x2 values
 
     Returns:
-        `numpy.ndarray`_:
+        `numpy.ndarray`_:  Evaluated fit at the x (and x2) locations
 
     """
     # For two-d fits x = x, y = x2, y = z
@@ -266,10 +302,13 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
                maxiter=10, in_gpm=None, weights=None, invvar=None,
                lower=None, upper=None, maxdev=None, maxrej=None, groupdim=None,
                groupsize=None, groupbadpix=False, grow=0, sticky=True, use_mad=True,
-               debug=False):
+               verbose=True):
     """
-    A robust fit is performed to the xarray, yarray pairs
-    ``mask[i] = 1`` are good values.
+    A robust fit is performed to the xarray, yarray pairs ``mask[i] = 1`` are
+    good values, if provided.
+
+    The underlying method(s) are the numpy fitting routines,
+    e.g. polyfit, legfit.
 
     Args:
         xarray (`numpy.ndarray`_):
@@ -281,33 +320,34 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
             be a tuple or 2d array for 2d fits (i.e. using x2 as the second independent variable).
         x2  (`numpy.ndarray`_, optional):
             Do a 2d fit? This is the second independent variable for 2d fits.
-        function:
-            which function should be used in the fitting (valid inputs:
+        function (str):
+            which function should be used in the fitting.
+            (valid inputs are:
             'polynomial', 'legendre', 'chebyshev', 'polynomial2d', 'legendre2d')
-        minx:
+        minx (float, optional):
             minimum value in the array (or the left limit for a
             legendre/chebyshev polynomial)
-        maxx:
+        maxx (float, optional):
             maximum value in the array (or the right limit for a
             legendre/chebyshev polynomial)
-        minx2:
+        minx2 (float, optional):
             Same as minx for second independent variable x2.
-        maxx2:
+        maxx2 (float, optional):
             Same as maxx for second independent variable x2.
-        maxiter (:class:`int`, optional):
+        maxiter (:obj:`int`, optional):
             Maximum number of rejection iterations, default 10.  Set
             this to zero to disable rejection and simply do a fit.
-        in_gpm (:class:`numpy.ndarray`, optional):
+        in_gpm (`numpy.ndarray`_, optional):
             Input mask.  Bad points are marked with a value that
             evaluates to ``False``.  Must have the same number of
-            dimensions as `data`. Points masked as bad "False" in the
-            inmask will also always evaluate to "False" in the outmask
-        invvar (:class:`float`, `numpy.ndarray`, optional):
+            dimensions as ``data``. Points masked as bad "False" in the
+            inmask will also always evaluate to "False" in the outmask.
+        invvar (:obj:`float`, `numpy.ndarray`_, optional):
             Inverse variance of the data, used to reject points based on
             the values of `upper` and `lower`.  This can either be a
             single float for the entire yarray or a ndarray with the
             same shape as the yarray.
-        weights (np.ndarray): shape same as xarray and yarray
+        weights (`numpy.ndarray`_, optional): shape same as xarray and yarray
             If input the code will do a weighted fit. If not input, the
             code will use invvar as the weights. If both invvar and
             weights are input. The fit will be done with weights, but
@@ -315,42 +355,42 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
 
                 chi = (data-model) * np.sqrt(invvar)
 
-        lower (:class:`int`, :class:`float`, optional):
+        lower (:obj:`int` or :obj:`float`, optional):
             If set, reject points with ``data < model - lower * sigma``,
             where ``sigma = 1.0/sqrt(invvar)``.
-        upper (:class:`int`, :class:`float`, optional):
+        upper (:obj:`int` or :obj:`float`, optional):
             If set, reject points with ``data > model + upper * sigma``,
             where ``sigma = 1.0/sqrt(invvar)``.
-        maxdev (:class:`int`, :class:`float`, optional):
+        maxdev (:obj:`int` or :obj:`float`, optional):
             If set, reject points with ``abs(data-model) > maxdev``.  It is
             permitted to set all three of `lower`, `upper` and `maxdev`.
-        maxrej (:class:`int`, :class:`numpy.ndarray`, optional):
+        maxrej (:obj:`int`, :obj:`numpy.ndarray`, optional):
             Maximum number of points to reject in this iteration.  If
             `groupsize` or `groupdim` are set to arrays, this should be
             an array as well.
-        groupdim (:class:`int`):
+        groupdim (:obj:`int`, optional):
             Dimension along which to group the data; set to 1 to group
             along the 1st dimension, 2 for the 2nd dimension, etc.  If
             data has shape ``[100,200]``, then setting ``GROUPDIM=2`` is
             equivalent to grouping the data with ``groupsize=100``.  In
             either case, there are 200 groups, specified by ``[*,i]``. NOT
             WELL TESTED IN PYTHON!
-        groupsize (:class:`int`):
+        groupsize (:obj:`int`, optional):
             If this and maxrej are set, then reject a maximum of maxrej
             points per group of groupsize points.  If groupdim is also
             set, then this specifies sub-groups within that. NOT WELL
             TESTED IN PYTHON!!
-        groupbadpix (:class:`bool`, optional):
+        groupbadpix (:obj:`bool`, optional):
             If set to ``True``, consecutive sets of bad pixels are
             considered groups, overriding the values of `groupsize`.
-        grow (:class:`int`, optional, default = 0):
+        grow (:obj:`int`, optional, default = 0):
             If set to a non-zero integer, N, the N nearest neighbors of
             rejected pixels will also be rejected.
-        sticky (:class:`bool`, optional, default is True):
+        sticky (:obj:`bool`, optional, default is True):
             If set to ``True``, pixels rejected in one iteration remain
             rejected in subsequent iterations, even if the model
             changes. If
-        use_mad (:class:`bool`, optional, default = False):
+        use_mad (:obj:`bool`, optional, default = False):
             It set to ``True``, compute the median of the maximum
             absolute deviation between the data and use this for the
             rejection instead of the default which is to compute the
@@ -360,6 +400,8 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
 
     Returns:
         PypeItFit or None:
+            Object containing the inputs to the fit and the
+            fit itself
     """
 
     # Setup the initial mask
@@ -400,8 +442,8 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
                                           use_mad=use_mad, sticky=sticky)
         # Update the iteration
         iIter += 1
-    if (iIter == maxiter) & (maxiter != 0):
-        msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_polyfit_djs')
+    if (iIter == maxiter) & (maxiter != 0) & verbose:
+        msgs.warn(f'Maximum number of iterations maxiter={maxiter} reached in robust_polyfit_djs')
 
     # Do the final fit
     pypeitFit = PypeItFit(xval=xarray.astype(float), yval=yarray.astype(float),
@@ -480,7 +522,7 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
         upper (:obj:`int`, :obj:`float`, optional):
             If set, reject points with ``data > model + upper * sigma``, where
             ``sigma = 1/sqrt(invvar)``.
-        maxdev (:obj:`int` or :class:`float`, optional):
+        maxdev (:obj:`int` or :obj:`float`, optional):
             If set, reject points with ``abs(data-model) > maxdev``.  It
             is permitted to set all three of `lower`, `upper` and
             `maxdev`.
@@ -522,7 +564,7 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
             Optional parameters passed to the optimizer.
 
     Returns:
-        Three objects are returned:
+        tuple:
             - The object returned by the `scipy.optimize` function used
               by the fitter.  See `fitfunc`.
             - A `numpy.ndarray`_ with the model value fit to `ydata` and
@@ -590,12 +632,15 @@ def scale_minmax(x, minx=None, maxx=None):
     Scale in the input array
 
     Args:
-        x (`numpy.ndarray`_): x-values
+        x (`numpy.ndarray`_): x values to be scaled
         minx (float, optional): Minimum value for scaling
         maxx (float, optional): Maximum value for scaling
 
     Returns:
-        `numpy.ndarray`_: Scaled x values
+        tuple:
+            - the scaled x-values in a `numpy.ndarray`_
+            - xmin as a float
+            - xmax as a float
 
     """
     xmin = (-1.0 if np.size(x)==1 else np.min(x)) if minx is None else minx
@@ -611,14 +656,14 @@ def moffat(x,p0,p1,p2):
     This 3 parameter formulation assumes the trace is known
 
     Args:
-        x (float or ndarray): x values
+        x (float or `numpy.ndarray`_): x values
         p0 (float): Amplitude
         p1 (float):
           Width scaling
         p2 : float
 
     Returns:
-        float or ndarray: Evaluated Moffat
+        float or `numpy.ndarray`_: Evaluated Moffat
     """
     return p0 / (1+(x/p1)**2)**p2
 
@@ -628,22 +673,25 @@ def fit_gauss(x_out, y_out, guesses=None, w_out=None, nparam=3, maxfev=0):
     Fit a 3 or 4 parameter gaussian
 
     Args:
-        x_out (`numpy.ndarray_`):
-        y_out (`numpy.ndarray_`):
+        x_out (`numpy.ndarray`_):
+            x values to be fit
+        y_out (`numpy.ndarray`_):
+            y values to be fit
         guesses (tuple, optional):
             ampl, cent, sigma, [floor] guesses for the Gaussian; each as floats
         w_out (`numpy.ndarray_`):
             Weights.  1./sqrt(ivar) is expected
         nparam (int, optional):
             Number of parameters in the Gaussian
-            Only options are 3 or 4
+            Only options are 3 or 4 where the latter includes
+            a floor in the fit.
         maxfev (:obj:`int`, optional):
             Maximum number of function evaluations.  Passed directly to
             `scipy.optimize.curve_fit`_.  Note that setting ``maxfev`` to 0 uses
             the default value set by `scipy.optimize.leastsq`_.
 
     Returns:
-        tuple: Fit coefficients, fit covariance
+        tuple: Fit coefficients, fit covariance from numpy's curve_fit
 
     """
     if guesses is None:
@@ -667,67 +715,35 @@ def fit_gauss(x_out, y_out, guesses=None, w_out=None, nparam=3, maxfev=0):
     return curve_fit(func, x_out, y_out, p0=p0, sigma=sig_y, maxfev=maxfev)
 
 
-def gauss_2deg(x,ampl,sigm):
-    """
-    Simple 2 parameter Gaussian (amplitude, sigma)
-
-    Args:
-        x
-        ampl
-        sigm
-
-    Returns:
-        float or ndarray: Evaluated Gausssian
-    """
-    return ampl*np.exp(-1.*x**2/2./sigm**2)
-
-
 def gauss_3deg(x,ampl,cent,sigm):
-    """  Simple 3 parameter Gaussian
+    """  Generate a simple 3-parameter Gaussian
 
     Args:
-        x (float or ndarray): x-valus
+        x (float or `numpy.ndarray`_): x values
         ampl (float): Amplitude
         cent (float): Centroid
         sigm (float): sigma
 
     Returns:
-        float or ndarray: Evaluated Gausssian
+        float or `numpy.ndarray`_: Evaluated Gausssian
     """
     return ampl*np.exp(-1.*(cent-x)**2/2/sigm**2)
 
 
 def gauss_4deg(x,b, ampl,cent,sigm):
-    """  Simple 4 parameter Gaussian
+    """  Generate a simple 4-parameter Gaussian
 
     Args:
-        x
+        x (float or `numpy.ndarray`_): x values
         b (float): Floor
         ampl (float): Amplitude
         cent (float): Centroid
         sigm (float): sigma
 
     Returns:
-        float or ndarray: Evaluated Gausssian
+        float or `numpy.ndarray`_: Evaluated Gausssian
     """
     return b + ampl*np.exp(-1.*(cent-x)**2/2/sigm**2)
-
-
-def gauss_5deg(x,m, b, ampl,cent,sigm):
-    """  Simple 3 parameter Gaussian
-
-    Args:
-        x
-        m (float): Slope of floor
-        b (float): Floor
-        ampl (float): Amplitude
-        cent (float): Centroid
-        sigm (float): sigma
-
-    Returns:
-        float or ndarray: Evaluated Gausssian
-    """
-    return b + m*x + ampl*np.exp(-1.*(cent-x)**2/2/sigm**2)
 
 
 def guess_gauss(x,y):
@@ -735,11 +751,11 @@ def guess_gauss(x,y):
     Guesses Gaussian parameters with basic stats
 
     Args:
-        x (ndarray): x-values
-        y (ndarray): y-values
+        x (`numpy.ndarray`_): x-values
+        y (`numpy.ndarray`_): y-values
 
     Returns:
-        tuple:  Amplitude, centroid, sigma, floor
+        tuple:  Amplitude, centroid, sigma, floor all as :obj:`float`
 
     """
     ypos = y - y.min()
@@ -757,27 +773,33 @@ def guess_gauss(x,y):
     return ampl, cent, sigma, floor
 
 
-
 def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
                       minx=None, maxx=None, miny=None, maxy=None):
     """
     2D Polynomimal fit
 
     Args:
-        x (`numpy.ndarray`_):
-        y (`numpy.ndarray`_):
+        x (`numpy.ndarray`_): x-values
+        y (`numpy.ndarray`_): y-values
         z (`numpy.ndarray`_): value of data at each (x,y) coordinate
         deg (tuple): degree of polynomial fit in the form [nx,ny]
         w (`numpy.ndarray`_, optional):
             weights.  Often invvar
         function (str, optional):
-        minx:
-        maxx:
-        miny:
-        maxy:
+            2D function to fit.  Options are 'polynomial', 'chebyshev' or 'legendre'
+        minx (float, optional):
+            Minimum x value for the fit used to normalise the x values
+        maxx (float, optional):
+            Maximum x value for the fit used to normalise the x values
+        miny (float, optional):
+            Minimum value for the fit used to normalise the y values
+        maxy (float, optional):
+            Maximum value for the fit used to normalise the y values
 
     Returns:
-        `numpy.ndarray`_:
+        tuple:
+            - The coefficients of the polynomial fit as a `numpy.ndarray`_
+            - minx, maxx, miny, maxy: min and max values for the fit as :obj:`float`
 
     """
     x = np.asarray(x)
@@ -810,7 +832,6 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
     return c.reshape(deg+1), minx, maxx, miny, maxy
 
 
-
 def twoD_Gaussian(tup, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
     """ A 2D Gaussian to be used to fit the cross-correlation
 
@@ -833,7 +854,7 @@ def twoD_Gaussian(tup, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
             Constant additive term
 
     Returns:
-        model (`numpy.ndarray`_)
+        `numpy.ndarray`_: The value of the 2D Gaussian at the given coordinates
     """
     (x, y) = tup
     xo = float(xo)
@@ -847,8 +868,9 @@ def twoD_Gaussian(tup, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
 # Below here are codes related to b-spline fitting
 def iterfit(xdata, ydata, invvar=None, inmask=None, upper=5, lower=5, x2=None,
             maxiter=10, nord=4, bkpt=None, fullbkpt=None, kwargs_bspline={}, kwargs_reject={}):
-    """Iteratively fit a b-spline set to data, with rejection. This is a utility function that allows
-    the bspline to use via a direct function call.
+    """Iteratively fit a b-spline set to data, with rejection.
+    This is a utility function that allows
+    the bspline to be used via a direct function call.
 
     Parameters
     ----------
@@ -856,22 +878,35 @@ def iterfit(xdata, ydata, invvar=None, inmask=None, upper=5, lower=5, x2=None,
         Independent variable.
     ydata : :class:`numpy.ndarray`
         Dependent variable.
-    invvar : :class:`numpy.ndarray`
+    invvar : :class:`numpy.ndarray`, optional
         Inverse variance of `ydata`.  If not set, it will be calculated based
         on the standard deviation.
-    upper : :class:`int` or :class:`float`
+    inmask : :class:`numpy.ndarray`, optional
+        Input Good Pixel Mask for performing the fit.  If not set, it will be
+        set to the locus of positive ``invvar`` points.
+    upper : :class:`int` or :class:`float`, optional
         Upper rejection threshold in units of sigma, defaults to 5 sigma.
-    lower : :class:`int` or :class:`float`
+    lower : :class:`int` or :class:`float`, optional
         Lower rejection threshold in units of sigma, defaults to 5 sigma.
     x2 : :class:`numpy.ndarray`, optional
         Orthogonal dependent variable for 2d fits.
     maxiter : :class:`int`, optional
         Maximum number of rejection iterations, default 10.  Set this to
         zero to disable rejection.
+    nord : :class:`int`, optional
+        Order of the b-spline, default 4.
+    bkpt : :class:`numpy.ndarray`, optional
+        Breakpoints for the b-spline, default None.
+    fullbkpt : :class:`numpy.ndarray`, optional
+        Full breakpoints for the b-spline, default None.
+    kwargs_bspline : :class:`dict`, optional
+        Keyword arguments for the b-spline, default {}.
+    kwargs_reject : :class:`dict`, optional
+        Keyword arguments passed to :func:`pypeit.core.pydl.djs_reject`, default {}.
 
     Returns
     -------
-    :func:`tuple`
+    outputs: tuple
         A tuple containing the fitted bspline object and an output mask.
     """
     # from .math import djs_reject
@@ -903,7 +938,7 @@ def iterfit(xdata, ydata, invvar=None, inmask=None, upper=5, lower=5, x2=None,
     else:
         outmask = np.ones(invvar.shape, dtype='bool')
     xsort = xdata.argsort()
-    maskwork = (outmask & inmask & (invvar > 0.0))[xsort]
+    maskwork = (outmask & inmask & (invvar > 0.0))[xsort]  # `maskwork` is in xsort order
     if 'oldset' in kwargs_bspline:
         sset = kwargs_bspline['oldset']
         sset.mask[:] = True
@@ -966,8 +1001,12 @@ def iterfit(xdata, ydata, invvar=None, inmask=None, upper=5, lower=5, x2=None,
                         ct = 0
                     else:
                         sset.mask[goodbk[ileft]] = False
-            error, yfit = sset.fit(xwork, ywork, invwork * maskwork,
-                                   x2=x2work)
+            error, yfit = sset.fit(
+                xwork,  # x-sorted x data array
+                ywork,  # x-sorted y data array
+                invwork * maskwork,  # masked x-sorted invvar array
+                x2=x2work  # x-sorted x2 array
+            )
         iiter += 1
         inmask_rej = maskwork
         if error == -2:
@@ -982,6 +1021,7 @@ def iterfit(xdata, ydata, invvar=None, inmask=None, upper=5, lower=5, x2=None,
         else:
             pass
     outmask[xsort] = maskwork
+    # TODO: TPEB 2/2/23. Why do these next two lines exist?  They don't seem to do anything.
     temp = yfit
     yfit[xsort] = temp
     return (sset, outmask)
@@ -1010,10 +1050,10 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lo
     ingpm : `numpy.ndarray`_, optional
         Input good-pixel mask. Values to fit in ``ydata`` should be
         True.
-    upper : :obj:`int`, :obj:`float`, optional
+    upper : :obj:`int` or :obj:`float`, optional
         Upper rejection threshold in units of sigma, defaults to 5
         sigma.
-    lower : :obj:`int`, :obj:`float`, optional
+    lower : :obj:`int` or :obj:`float`, optional
         Lower rejection threshold in units of sigma, defaults to 5
         sigma.
     maxiter : :obj:`int`, optional

@@ -18,8 +18,10 @@ from pypeit.metadata import PypeItMetaData
 from pypeit import inputfiles
 
 from pypeit.par import PypeItPar
+from pypeit import io
 from pypeit.spectrographs.util import load_spectrograph
 
+from IPython import embed
 
 # TODO: Instantiation should just automatically trigger the run
 # method...
@@ -94,10 +96,10 @@ class PypeItSetup:
         pypeit_file (str):
             See description of class argument.
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-            An instance of the `Spectograph` class used throughout the
+            An instance of the `Spectrograph` class used throughout the
             reduction procedures.
-        par (:class:`pypeit.par.pypeitpar.PypitPar`):
-            An instance of the `PypitPar` class that provides the
+        par (:class:`pypeit.par.pypeitpar.PypeItPar`):
+            An instance of the `PypeitPar` class that provides the
             parameters to all the algorthms that pypeit uses to reduce
             the data.
         fitstbl (:class:`pypeit.metadata.PypeItMetaData`):
@@ -129,7 +131,7 @@ class PypeItSetup:
 
         # Determine the spectrograph name
         _spectrograph_name = spectrograph_name if cfg_lines is None \
-                    else PypeItPar.from_cfg_lines(merge_with=cfg_lines)['rdx']['spectrograph']
+                    else PypeItPar.from_cfg_lines(merge_with=(cfg_lines,))['rdx']['spectrograph']
 
         # Cannot proceed without spectrograph name
         if _spectrograph_name is None:
@@ -138,13 +140,15 @@ class PypeItSetup:
         # Instantiate the spectrograph
         self.spectrograph = load_spectrograph(_spectrograph_name)#, ifile=file_list[0])
 
+
         # Get the spectrograph specific configuration to be merged with
         # the user modifications.
         spectrograph_cfg_lines = self.spectrograph.default_pypeit_par().to_config()
 
         # Instantiate the pypeit parameters.  The user input
         # configuration (cfg_lines) can be None.
-        self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
+        self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, 
+                                            merge_with=(cfg_lines,))
 
         # Prepare internals for execution
         self.fitstbl = None
@@ -204,7 +208,7 @@ class PypeItSetup:
                 object. If the path doesn't yet exist, it is created.
         
         Returns:
-            :class:`PypitSetup`: The instance of the class.
+            :class:`PypeitSetup`: The instance of the class.
         """
         if output_path is None:
             # Find all the files
@@ -217,21 +221,34 @@ class PypeItSetup:
         # Set the output directory
         if not os.path.isdir(output_path):
             os.makedirs(output_path)
-        # Set the output file name
-        date = str(datetime.date.today().strftime('%Y-%m-%d'))
-        pypeit_file = os.path.join(output_path, '{0}_{1}.pypeit'.format(spectrograph, date))
-        msgs.info('A vanilla pypeit file will be written to: {0}'.format(pypeit_file))
         
         # Grab the list of files
-        dfname = os.path.join(root, '*{0}*'.format(extension)) \
-                    if os.path.isdir(root) else '{0}*{1}*'.format(root, extension)
-        data_files = glob.glob(dfname)
-        data_files.sort()
+        data_files = io.files_from_extension(root, extension=extension)
+
+        # Instantiate
+        return cls.from_rawfiles(data_files, spectrograph)
+
+    @classmethod
+    def from_rawfiles(cls, data_files:list, spectrograph:str):
+        """ Instantiate the :class:`PypeItSetup` object by providing a list of raw files.
+
+        Args:
+            data_files (list): 
+                List of raw files to be reduced.
+            spectrograph (str): 
+                The PypeIt name of the spectrograph used 
+
+        Returns:
+            :class:`PypeItSetup`: The instance of the class.
+        """
+
+        # Configure me
         cfg_lines = ['[rdx]']
         cfg_lines += ['    spectrograph = {0}'.format(spectrograph)]
 
         # Instantiate
-        return cls(data_files, cfg_lines=cfg_lines) #pypeit_file=filename, 
+        return cls(data_files, cfg_lines=cfg_lines) #pypeit_file=filename,
+
 
     @property
     def nfiles(self):
@@ -377,6 +394,9 @@ class PypeItSetup:
         # configuration-defining metadata
         if clean_config:
             self.fitstbl.clean_configurations()
+            if len(self.fitstbl) == 0:
+                msgs.error('Cleaning the configurations removed all the files!  Rerun '
+                           'pypeit_setup with the --keep_bad_frames option.')
 
         # Determine the type of each frame.
         self.get_frame_types(flag_unknown=setup_only or calibration_check)
@@ -472,6 +492,7 @@ class PypeItSetup:
 
         if obslog:
             log_file = pypeit_file.replace('.pypeit', '.obslog')
+            log_file = os.path.join(_output_path, os.path.split(log_file)[1])
             header = ['Auto-generated PypeIt Observing Log',
                       '{0}'.format(time.strftime("%a %d %b %Y %H:%M:%S", time.localtime()))]
             self.fitstbl.write(output=log_file, columns='pypeit', sort_col='mjd',
@@ -490,3 +511,54 @@ class PypeItSetup:
             msgs.info("Inspect the .sorted file")
 
 
+    def generate_ql_calib_pypeit_files(self, output_path:str, 
+                                       det:str=None, 
+                                       configs:str='all',
+                                       clobber:bool=False):
+        """ Generate the PypeIt files for the calibrations
+        for quicklook purposes.
+
+        Args:
+            output_path (str): 
+                Output path for the PypeIt files
+            det (str, optional): Detector/mosaic. Defaults to None.
+            configs (str, optional): Which configurations to generate. Defaults to 'all'.
+            clobber (bool, optional): Overwrite existing files. Defaults to False.
+
+        Returns:
+            list: List of calib PypeIt files
+        """
+        # Grab setups
+        setups, indx = self.fitstbl.get_configuration_names(
+            return_index=True)
+
+        # Restrict on detector -- May remove this
+        self.user_cfg = ['[rdx]', f'spectrograph = {self.spectrograph.name}']
+        if det is not None:
+            self.user_cfg += [f'detnum = {det}']
+        self.user_cfg += ['quicklook = True']
+
+
+        # TODO -- Remove the science files!  We want calibs only
+
+        # Write the PypeIt files
+        pypeit_files = self.fitstbl.write_pypeit(
+            output_path=output_path, 
+            cfg_lines=self.user_cfg, 
+            configs=configs)
+
+        # Rename calibs
+        calib_pypeit_files = []
+        for pypeit_file, setup in zip(pypeit_files, setups):
+
+            # Rename with _calib
+            calib_pypeit_file = pypeit_file.replace(
+                '_{}.pypeit'.format(setup), 
+                '_calib_{}.pypeit'.format(setup))
+            if clobber or (not os.path.isfile(calib_pypeit_file)):
+                os.rename(pypeit_file, calib_pypeit_file)
+            else:
+                os.remove(pypeit_file)
+            calib_pypeit_files.append(calib_pypeit_file)
+
+        return calib_pypeit_files

@@ -7,6 +7,8 @@ This script generates files to setup a PypeIt run
 
 import os
 
+from IPython import embed
+
 from pypeit.scripts import scriptbase
 from pypeit.spectrographs import available_spectrographs
 
@@ -23,15 +25,14 @@ class Setup(scriptbase.ScriptBase):
         parser.add_argument('-s', '--spectrograph', default=None, type=str,
                             help='A valid spectrograph identifier: {0}'.format(
                                     ', '.join(available_spectrographs)))
-        parser.add_argument('-r', '--root', default=os.getcwd(), type=str,
+        parser.add_argument('-r', '--root', default='current working directory', type=str,
                             help='Root to search for data files.  You can provide the top-level '
                                  'directory  (e.g., /data/Kast) or the search string up through '
                                  'the wildcard (.e.g, /data/Kast/b).  Use the --extension option '
-                                 'to set the types of files to search for.  Default is the '
-                                 'current working directory.')
+                                 'to set the types of files to search for.')
         parser.add_argument('-e', '--extension', default='.fits',
                             help='File extension; compression indicators (e.g. .gz) not required.')
-        parser.add_argument('-d', '--output_path', default=os.getcwd(),
+        parser.add_argument('-d', '--output_path', default='current working directory',
                             help='Path to top-level output directory.')
         parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                             help='Overwrite any existing files/directories')
@@ -46,6 +47,13 @@ class Setup(scriptbase.ScriptBase):
                             help='Include the manual extraction column for the user to edit')
         parser.add_argument('-v', '--verbosity', type=int, default=2,
                             help='Level of verbosity from 0 to 2.')
+        parser.add_argument('-k', '--keep_bad_frames', default=False, action='store_true',
+                            help='Keep all frames, even if they are identified as having '
+                                 'bad/unrecognized configurations that cannot be reduced by '
+                                 'pypeit.  (This is the opposite of the --bad_frames option in '
+                                 'pypeit_obslog; i.e., you have to tell pypeit_setup to keep '
+                                 'these frames, whereas you have to tell pypeit_obslog to remove '
+                                 'them.')
         return parser
 
     @staticmethod
@@ -72,7 +80,8 @@ class Setup(scriptbase.ScriptBase):
                                         output_path=sort_dir)
         # Run the setup
         ps.run(setup_only=True, sort_dir=sort_dir, write_bkg_pairs=args.background, 
-               write_manual=args.manual_extraction, obslog=True)
+               write_manual=args.manual_extraction, obslog=True,
+               clean_config=not args.keep_bad_frames)
 
         # Use PypeItMetaData to write the complete PypeIt file
         # TODO: Set cfg_split to 'all' by default?

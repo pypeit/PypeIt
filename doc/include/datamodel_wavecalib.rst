@@ -1,15 +1,13 @@
 
-Version 1.0.0
+Version 1.1.0
 
-===============  =========  ==========  ============================================================
-HDU Name         Obj Type   Array Type  Description                                                 
-===============  =========  ==========  ============================================================
-``PYP_SPEC``     str                    PypeIt spectrograph name                                    
-``ARC_SPECTRA``  ndarray    floating    2D array: 1D extracted spectra, slit by slit (nspec, nslits)
-``LAMPS``        str                    List of arc lamps used for the wavelength calibration       
-``NSLITS``       int                    Total number of slits.  This can include masked slits       
-``SPAT_IDS``     ndarray    integer     Slit spat_ids. Named distinctly from that in WaveFit        
-``STRPAR``       str                    Parameters as a string                                      
-``WV_FIT2D``     PypeItFit              2D wavelength solution (echelle)                            
-``WV_FITS``      ndarray    WaveFit     WaveFit to each 1D wavelength solution                      
-===============  =========  ==========  ============================================================
+========================  ==============================  =========  ===================================================================================================================================
+HDU Name                  HDU Type                        Data Type  Description                                                                                                                        
+========================  ==============================  =========  ===================================================================================================================================
+``PRIMARY``               `astropy.io.fits.PrimaryHDU`_   ...        Empty data HDU.  Contains basic header information.                                                                                
+``SPAT_IDS``              `astropy.io.fits.ImageHDU`_     integer    Slit spat_ids. Named distinctly from that in WaveFit                                                                               
+``SPAT_ID-?__WAVEFIT``    `astropy.io.fits.BinTableHDU`_  ...        :class:`~pypeit.core.wavecal.wv_fitting.WaveFit` result for ``slit_id=?``                                                          
+``SPAT_ID-?__PYPEITFIT``  `astropy.io.fits.BinTableHDU`_  ...        :class:`~pypeit.core.fitting.PypeItFit` element of the :class:`~pypeit.core.wavecal.wv_fitting.WaveFit` datamodel for ``slit_id=?``
+...                       ...                             ...        ...                                                                                                                                
+``ARC_SPECTRA``           `astropy.io.fits.ImageHDU`_     floating   2D array: 1D extracted spectra, slit by slit (nspec, nslits)                                                                       
+========================  ==============================  =========  ===================================================================================================================================

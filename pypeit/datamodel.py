@@ -1,7 +1,7 @@
 """
 Implements classes and function for the PypeIt data model.
 
-.. data-container:
+.. _data-container:
 
 DataContainer
 -------------
@@ -459,8 +459,8 @@ With this implementation:
 .. include:: ../include/links.rst
 
 """
+import pathlib
 import os
-import warnings
 
 from IPython import embed
 
@@ -486,6 +486,7 @@ class DataContainer:
     Defines an abstract class for holding and manipulating data.
 
     The primary utilities of the class are:
+
         - Attributes can be accessed normally or as expected for a :obj:`dict`
         - Attributes and items are restricted to conform to a specified data model.
 
@@ -751,7 +752,7 @@ class DataContainer:
 
         Certain **restrictions** apply to how the data can be bundled
         for the general parser implementation (:func:`_parse`) to
-        work correctly. These restriction are:
+        work correctly. These restrictions are:
 
             - The shape and orientation of any input arrays are
               assumed to be correct.
@@ -1173,6 +1174,9 @@ class DataContainer:
         if value is None:
             self.__dict__[item] = value
             return
+        # Convert pathlib.Path objects to string for saving in the datamodel
+        if isinstance(value, pathlib.Path):
+            value = str(value)
         # Check data type
         if not isinstance(value, self.datamodel[item]['otype']):
             raise TypeError(f'Cannot assign object of type {type(value)} to {item}.\n'
@@ -1201,6 +1205,20 @@ class DataContainer:
             :obj:`dict_keys`: The iterable with the data model keys.
         """
         return self.datamodel.keys()
+
+    def check_populated(self, dm_items):
+        """
+        Check that a set of datamodel items are populated.
+
+        Args:
+            dm_items (:obj:`list`, :obj:`str`):
+                One or more items in the datamodel to check.
+
+        Returns:
+            :obj:`bool`: Flag that *all* the requested datamodel items are
+            populated (not None).
+        """
+        return np.all([key in self.keys() and self[key] is not None for key in dm_items])
 
     def _primary_header(self, hdr=None):
         """
@@ -1254,6 +1272,7 @@ class DataContainer:
 
     # TODO: Always have this return an HDUList instead of either that
     # or a normal list?
+    # NOTE: This function should *not* include **kwargs.
     def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None,
                limit_hdus=None, force_to_bintbl=False, hdu_prefix=None):
         """
@@ -1304,8 +1323,10 @@ class DataContainer:
                 prefix is added.
 
         Returns:
-            :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs,
-            where the type depends on the value of ``add_primary``.
+            :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs, where the
+            type depends on the value of ``add_primary``: If True, an
+            `astropy.io.fits.HDUList`_ is returned, otherwise a :obj:`list` is
+            returned.
         """
         # Bundle the data
         data = self._bundle()
@@ -1367,6 +1388,7 @@ class DataContainer:
         # Return
         return fits.HDUList([fits.PrimaryHDU(header=_primary_hdr)] + hdu) if add_primary else hdu
 
+    # NOTE: This function should *not* include **kwargs.
     @classmethod
     def from_hdu(cls, hdu, ext=None, ext_pseudo=None, hdu_prefix=None, 
                  chk_version=True, allow_subclasses=False):
@@ -1440,41 +1462,36 @@ class DataContainer:
         DataContainer.__init__(self, d=d)
         return self
 
-    def to_file(self, ofile, overwrite=False, checksum=True, primary_hdr=None, hdr=None,
-                limit_hdus=None):
+    def to_file(self, ofile, overwrite=False, checksum=True, **kwargs):
         """
         Write the data to a file.
 
         This is a convenience wrapper for :func:`to_hdu` and
-        :func:`pypeit.io.write_to_fits`. The output is always placed
-        in the 2nd extension; the first (primary) extension is always
-        empty.
+        :func:`pypeit.io.write_to_fits`.  The ``add_primary`` parameter of
+        :func:`to_hdu` is *always* true such that the first extension of the
+        written fits file is *always* an empty primary header.
 
         Args:
             ofile (:obj:`str`):
                 Fits file for the data. File names with '.gz'
                 extensions will be gzipped; see
                 :func:`pypeit.io.write_to_fits`.
-            primary_hdr (`astropy.io.fits.Header`, optional):
-                Primary header to add to first extension. Passed
-                directly to :func:`to_hdu`; see usage there.
-            hdr (`astropy.io.fits.Header`, optional):
-                Baseline header to add to all returned HDUs. Passed
-                directly to :func:`to_hdu`; see usage there.
             overwrite (:obj:`bool`, optional):
                 Flag to overwrite any existing file.
             checksum (:obj:`bool`, optional):
                 Passed to `astropy.io.fits.HDUList.writeto`_ to add
                 the DATASUM and CHECKSUM keywords fits header(s).
-            limit_hdus (:obj:`list`, optional):
-                Passed to :func:`to_hdu`; see usage there
+            kwargs (:obj:`dict`, optional):
+                Passed directly to :func:`to_hdu`.
         """
-        io.write_to_fits(self.to_hdu(add_primary=True, primary_hdr=primary_hdr,
-                                     limit_hdus=limit_hdus, hdr=hdr),
-                         ofile, overwrite=overwrite, checksum=checksum, hdr=hdr)
+        # NOTE: This call does *not* need to also pass hdr to io.write_to_fits
+        # because the first argument of the function is always an
+        # astropy.io.fits.HDUList.
+        io.write_to_fits(self.to_hdu(add_primary=True, **kwargs),
+                         ofile, overwrite=overwrite, checksum=checksum)
 
-    # TODO: This requires that master_key be an attribute... This
-    # method is a bit too ad hoc for me...
+    # TODO: This should be moved to a new class that subclasses from
+    # DataContainer.
     def to_master_file(self, master_filename=None, **kwargs):
         """
         Wrapper on to_file() that deals with masterframe naming and header
@@ -1512,9 +1529,8 @@ class DataContainer:
         self.to_file(master_filename, primary_hdr=hdr,
                      limit_hdus=self.output_to_disk, overwrite=True, **kwargs)
 
-    # TODO: Add options to compare the checksum and/or check the package versions
     @classmethod
-    def from_file(cls, ifile, verbose=True, chk_version=True):
+    def from_file(cls, ifile, verbose=True, chk_version=True, **kwargs):
         """
         Instantiate the object from an extension in the specified fits file.
 
@@ -1527,6 +1543,8 @@ class DataContainer:
                 Print informational messages
             chk_version (:obj:`bool`, optional):
                 Passed to :func:`from_hdu`.
+            kwargs (:obj:`dict`, optional):
+                Arguments passed directly to :func:`from_hdu`.
 
         Raises:
             FileNotFoundError:
@@ -1540,7 +1558,9 @@ class DataContainer:
 
         # Do it
         with io.fits_open(ifile) as hdu:
-            obj = cls.from_hdu(hdu, chk_version=chk_version)
+            obj = cls.from_hdu(hdu, chk_version=chk_version, **kwargs)
+            # TODO: This stuff should be moved to a new class that subclasses
+            # from DataContainer.
             if hasattr(obj, 'head0'):
                 obj.head0 = hdu[0].header
             if hasattr(obj, 'filename'):

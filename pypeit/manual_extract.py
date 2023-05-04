@@ -22,19 +22,28 @@ class ManualExtractionObj(datamodel.DataContainer):
     For an example of how to define a series of manual extractions in
     the pypeit input file, see :ref:`pypeit_file`.
 
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_manualextractionobj.rst
+
     Args:
         frame (:obj:`str`):
             The name of the fits file for a manual extraction
-        spat (np.ndarray): Array of spatial positions to hand extract
-        spec (np.ndarray): Array of spectral positions to hand extract
-        det (np.ndarray): Array of detectors for hand extraction. 
+        spat (`numpy.ndarray`_): Array of spatial positions to hand extract
+        spec (`numpy.ndarray`_): Array of spectral positions to hand extract
+        det (`numpy.ndarray`_): Array of detectors for hand extraction. 
             This must be a aligned with spec and spat .
             The values can be negative (for negative images)
-        fwhm (np.ndarray): Array of FWHM for hand extraction. 
+        fwhm (`numpy.ndarray`_): Array of FWHM for hand extraction. 
             This must be aligned with spec and spat.
+        boxcar_rad (`numpy.ndarray`_, optional): Array of boxcar_radii for hand extraction. 
+            This must be aligned with spec and spat.
+            It is to be in *pixels*, not arcsec.
+            This is only intended for multi-slit reductions (not Echelle)
+
 
     """
-    version = '1.0.0'
+    version = '1.1.0'
 
     datamodel = {
         'frame': dict(otype=str,
@@ -49,6 +58,8 @@ class ManualExtractionObj(datamodel.DataContainer):
                     descr='FWHMs for hand extractions'),
         'neg': dict(otype=np.ndarray, atype=np.bool_,
                      descr='Flags indicating which hand extract is a negative trace'),
+        'boxcar_rad': dict(otype=np.ndarray, atype=np.floating, 
+                    descr='Boxcar radius for hand extractions (optional)'),
     }
 
     @classmethod
@@ -70,7 +81,7 @@ class ManualExtractionObj(datamodel.DataContainer):
             ManualExtractionObj:
         """
         # Generate a dict
-        idict = dict(spat=[], spec=[], detname=[], fwhm=[], neg=[])
+        idict = dict(spat=[], spec=[], detname=[], fwhm=[], neg=[], boxcar_rad=[])
         m_es = inp.split(';')
         for m_e in m_es:
             parse = m_e.split(':')
@@ -93,14 +104,22 @@ class ManualExtractionObj(datamodel.DataContainer):
             idict['spec'] += [float(parse[2])]
             idict['fwhm'] += [float(parse[3])]
 
+            # Boxcar?
+            if len(parse) >= 5:
+                idict['boxcar_rad'] += [float(parse[4])]
+            else:
+                idict['boxcar_rad'] += [-1.]
+
         # Build me
         return cls(frame=frame, spat=np.array(idict['spat']), 
                    spec=np.array(idict['spec']),
                    fwhm=np.array(idict['fwhm']),
                    detname=np.array(idict['detname']),
-                   neg=np.array(idict['neg']))
+                   neg=np.array(idict['neg']),
+                   boxcar_rad=np.array(idict['boxcar_rad']))
 
-    def __init__(self, frame=None, spat=None, spec=None, detname=None, fwhm=None, neg=None):
+    def __init__(self, frame=None, spat=None, spec=None, detname=None, 
+                 fwhm=None, neg=None, boxcar_rad=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
@@ -144,7 +163,7 @@ class ManualExtractionObj(datamodel.DataContainer):
             return None
         # Fill 
         manual_extract_dict = {}
-        for key in ['spec', 'spat', 'detname', 'fwhm']:
+        for key in ['spec', 'spat', 'detname', 'fwhm', 'boxcar_rad']:
             manual_extract_dict[key] = self[key][gd_det]
         # Return
         return manual_extract_dict

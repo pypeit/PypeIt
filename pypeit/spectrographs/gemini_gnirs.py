@@ -19,9 +19,11 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     ndet = 1
     name = 'gemini_gnirs'
     camera = 'GNIRS'
+    url = 'https://www.gemini.edu/instrumentation/gnirs'
     header_name = 'GNIRS'
     telescope = telescopes.GeminiNTelescopePar()
     pypeline = 'Echelle'
+    ech_fixed_format = True
     supported = True
 
     def get_detector_par(self, det, hdu=None):
@@ -85,6 +87,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['reduce']['findobj']['find_trim_edge'] = [2,2]    # Slit is too short to trim 5,5 especially
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['skysub']['global_sky_std']  = False    # Do not perform global sky subtraction for standard stars
+        # TODO: JFH: Is this the correct behavior?  (Is why we have sky-subtraction problems for GNIRS?)
         par['reduce']['skysub']['no_poly'] = True             # Do not use polynomial degree of freedom for global skysub
         par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
         par['reduce']['findobj']['maxnumber_sci'] = 2  # Slit is narrow so allow one object per order
@@ -152,7 +155,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['method'] = 'reidentify'
             par['calibrations']['wavelengths']['cc_thresh'] = 0.6
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs.fits'
-            par['calibrations']['wavelengths']['ech_fix_format'] = True
+#            par['calibrations']['wavelengths']['ech_fix_format'] = True
             # Echelle parameters
             # JFH This is provisional these IDs should be checked.
             par['calibrations']['wavelengths']['echelle'] = True
@@ -187,7 +190,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['method'] = 'reidentify'
             par['calibrations']['wavelengths']['cc_thresh'] = 0.6
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs_10mm_LBSX.fits'
-            par['calibrations']['wavelengths']['ech_fix_format'] = True
+#            par['calibrations']['wavelengths']['ech_fix_format'] = True
             # Echelle parameters
             par['calibrations']['wavelengths']['echelle'] = True
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
@@ -270,6 +273,26 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             object.
         """
         return ['decker', 'dispname', 'dispangle']
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['SLIT', 'GRATING', 'GRATTILT']
 
     def pypeit_file_keys(self):
         """

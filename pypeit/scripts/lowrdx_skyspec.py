@@ -12,7 +12,8 @@ class LowRDXSkySpec(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
-        parser = super().get_parser(description='Print info on slits from a spec2D file',
+        parser = super().get_parser(description='Read an IDL save file with a LowRedux sky '
+                                                'spectrum and convert it into a pypeit file.',
                                     width=width)
         parser.add_argument('lowrdx_sky', type=str, default=None,
                             help = 'LowRedux Sky Spectrum (IDL save file)')

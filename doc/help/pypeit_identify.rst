@@ -4,7 +4,7 @@
     usage: pypeit_identify [-h] [--lamps LAMPS] [-s] [--wmin WMIN] [--wmax WMAX]
                            [--slit SLIT] [--det DET] [--rmstol RMSTOL] [--fwhm FWHM]
                            [--sigdetect SIGDETECT] [--pixtol PIXTOL] [--test]
-                           [--linear] [--force_save]
+                           [--linear] [--force_save] [--rescale_resid]
                            arc_file slits_file
     
     Launch PypeIt identify tool, display extracted MasterArc, and load linelist.Run
@@ -14,7 +14,7 @@
       arc_file              PypeIt MasterArc file
       slits_file            PypeIt MasterSlits file
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       --lamps LAMPS         Comma separated list of calibration lamps (no spaces)
                             (default: None)
@@ -30,8 +30,11 @@
       --sigdetect SIGDETECT
                             sigma detection for line finding (default: None)
       --pixtol PIXTOL       Pixel tolerance for Auto IDs (default: 0.1)
-      --test                Unit tests? (default: False)
-      --linear              Show the spectrum in linear scale? (Default: log
+      --test                Testing functionality, do not show plots (default:
+                            False)
+      --linear              Show the spectrum in linear (rather than log) scale
                             (default: False)
       --force_save          Save the solutions, despite the RMS (default: False)
+      --rescale_resid       Rescale the residual plot to include all points?
+                            (default: False)
     

@@ -61,6 +61,9 @@ class SensFunc(scriptbase.ScriptBase):
                             help="show debug plots?")
         parser.add_argument("--par_outfile", default='sensfunc.par',
                             help="Name of output file to save the parameters used by the fit")
+        parser.add_argument('-v', '--verbosity', type=int, default=1,
+                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
+                                 'Level 2 writes a log with filename sensfunc_YYYYMMDD-HHMM.log')
         return parser
 
     @staticmethod
@@ -69,15 +72,17 @@ class SensFunc(scriptbase.ScriptBase):
 
         import os
 
-        import numpy as np
-
         from astropy.io import fits
 
         from pypeit import msgs
         from pypeit import inputfiles
+        from pypeit import io
         from pypeit.par import pypeitpar
         from pypeit import sensfunc
         from pypeit.spectrographs.util import load_spectrograph
+
+        # Set the verbosity, and create a logfile if verbosity == 2
+        msgs.set_logfile_and_verbosity('sensfunc', args.verbosity)
 
         # Check parameter inputs
         if args.algorithm is not None and args.sens_file is not None:
@@ -99,19 +104,30 @@ class SensFunc(scriptbase.ScriptBase):
                        "\n")
 
         # Determine the spectrograph
-        header = fits.getheader(args.spec1dfile)
-        spectrograph = load_spectrograph(header['PYP_SPEC'])
-        spectrograph_def_par = spectrograph.default_pypeit_par()
+        hdul = io.fits_open(args.spec1dfile)
+        spectrograph = load_spectrograph(hdul[0].header['PYP_SPEC'])
+        spectrograph_config_par = spectrograph.config_specific_par(hdul)
+
+        # Construct a primary FITS header that includes the spectrograph's
+        #   config keys for inclusion in the output sensfunc file
+        primary_hdr = io.initialize_header()
+        add_keys = (
+            ['PYP_SPEC', 'DATE-OBS', 'TELESCOP', 'INSTRUME', 'DETECTOR']
+            + spectrograph.configuration_keys() + spectrograph.raw_header_cards()
+        )
+        for key in add_keys:
+            if key.upper() in hdul[0].header.keys():
+                primary_hdr[key.upper()] = hdul[0].header[key.upper()]
 
         # If the .sens file was passed in read it and overwrite default parameters
 
         if args.sens_file is not None:
             sensFile = inputfiles.SensFile.from_file(args.sens_file)
             # Read sens file
-            par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                merge_with=sensFile.cfg_lines)
+            par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_config_par.to_config(),
+                merge_with=(sensFile.cfg_lines,))
         else:
-            par = spectrograph_def_par 
+            par = spectrograph_config_par 
 
         # If algorithm was provided override defaults. Note this does undo .sens
         # file since they cannot both be passed
@@ -146,8 +162,8 @@ class SensFunc(scriptbase.ScriptBase):
                                                  debug=args.debug)
         # Generate the sensfunc
         sensobj.run()
-        # Write it out to a file
-        sensobj.to_file(outfile, overwrite=True)
+        # Write it out to a file, including the new primary FITS header
+        sensobj.to_file(outfile, primary_hdr=primary_hdr, overwrite=True)
 
         #TODO JFH Add a show_sensfunc option here and to the sensfunc classes.
 

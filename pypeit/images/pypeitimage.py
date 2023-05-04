@@ -3,12 +3,15 @@
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import numpy as np
 import os
 import inspect
 
+from IPython import embed
+
+import numpy as np
+
 from pypeit import msgs
-from pypeit.images import imagebitmask
+from pypeit.images.imagebitmask import ImageBitMaskArray
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
 from pypeit.core import procimg
@@ -17,12 +20,10 @@ from pypeit import datamodel
 from pypeit import utils
 from pypeit import masterframe
 
-from IPython import embed
-
 
 class PypeItImage(datamodel.DataContainer):
     r"""
-    Container class for processed ``PypeIt`` images and associated data.
+    Container class for processed PypeIt images and associated data.
 
     Image data can be either from a single detector, multiple detectors arranged
     in a 3D array, or multiple detectors resampled to a single mosaic image.
@@ -30,48 +31,52 @@ class PypeItImage(datamodel.DataContainer):
     and spatial pixels along the second axis; i.e., the shape is :math:`(N_{\rm
     spec},N_{\rm spat})`.
 
-    Note that all arguments for instantiation are optional, meaning that an
-    empty object can be created.
+    Class instantiation only requires the ``image`` data; all other elements of
+    the datamodel are completely optional.  If not defined, the datamodel
+    elements are set to None, with the exception of the image mask (see below).
+    Any code that uses a ``PypeItImage`` and accesses the datamodel components
+    *must* be able to handle when any of the values are None.
 
+    The datamodel components are:
+
+    .. include:: ../include/class_datamodel_pypeitimage.rst
+
+    Regardless of whether or not it is provided directly (see ``fullmask``), the
+    image mask is always instantiated.  If ``fullmask`` is not provided, this
+    instantiation begins with all values being unmasked.  Although the class
+    allows direct access/manipulation of ``fullmask`` (see
+    :class:`~pypeit.images.imagebitmask.ImageBitMaskArray`), convenience
+    functions are provided to interface with the underlying object;  see
+    :func:`update_mask` and :func:`select_flag`, as well as
+    :class:`~pypeit.images.imagebitmask.ImageBitMask` for the valid flag names.
+    
+    Additionally, pixels can be flagged on instantiation as being part of a
+    bad-pixel mask (``bpm``), a cosmic ray hit (``crmask``), or a user-level
+    bad-pixel mask (``usermask``).  Importantly, if both ``fullmask`` and one of
+    these masks are provided, the default behavior is to *add*, e.g., the
+    ``crmask`` to the list of already flagged CRs provided by ``fullmask`` (if
+    there are any).  To remove any of the relevant flags before including the
+    new flags in ``fullmask`` use ``clean_mask``.  See the class parameters
+    below.
+
+    The following lists only those parameters that are *not* part of the class
+    datamodel (see above).
+    
     Args:
-        image (`numpy.ndarray`_, optional):
-            Primary image data
-        ivar (`numpy.ndarray`_, optional):
-            Inverse variance image
-        nimg (`numpy.ndarray`_, optional):
-            If a combination of multiple images, this is the number of images
-            that contributed to each pixel
-        det_img (`numpy.ndarray`_, optional):
-            If a detector mosaic, this image provides the detector that
-            contributed to each pixel
-        rn2img (`numpy.ndarray`_, optional):
-            Read-noise-squared image
-        base_var (`numpy.ndarray`_, optional):
-            Base-level image variance, excluding count shot-noise
-        img_scale (`numpy.ndarray`_, optional):
-            Image count scaling applied (e.g., 1/flat-field)
         bpm (`numpy.ndarray`_, optional):
-            Bad pixel mask
+            The image bad-pixel mask, which typically selects image values that
+            contain detector artifacts.  This is a boolean array that must have
+            the same shape as ``image``.
         crmask (`numpy.ndarray`_, optional):
-            CR mask image
-        fullmask (`numpy.ndarray`_, optional):
-            Full image bitmask
-        detector (:class:`~pypeit.images.detector_container.DetectorContainer`, :class:`~pypeit.images.mosaic.Mosaic`, optional):
-            The detector or mosaic parameters
-        PYP_SPEC (:obj:`str`, optional):
-            PypeIt spectrograph name
-        units (:obj:`str`, optional):
-            (Unscaled) Pixel units (e- or ADU)
-        exptime (:obj:`int`, :obj:`float`, optional):
-            Effective exposure time (s)
-        noise_floor (:obj:`float`, optional):
-            Noise floor included in variance
-        shot_noise (:obj:`bool`, optional):
-            Shot-noise included in variance
-        spat_flexure (:obj:`float`, optional):
-            Shift, in spatial pixels, between this image and SlitTrace
-        imgbitm (:obj:`str`, optional):
-            List of BITMASK keys from :class:`~pypeit.images.imagebitmask.ImageBitMask`
+            A boolean array selecting pixels that contain cosmic-ray hits.
+            Shape must match ``image``.
+        usermask (`numpy.ndarray`_, optional):
+            A boolean array selecting pixels that the user wishes to ignore.
+            Shape must match ``image``.
+        clean_mask (:obj:`bool`, optional):
+            If true, first remove any existing BPM, CR, or USER mask from
+            ``fullmask`` before including the masks provided by ``bpm``,
+            ``crmask``, or ``usermask``.
 
     Attributes:
         files (:obj:`list`):
@@ -88,11 +93,8 @@ class PypeItImage(datamodel.DataContainer):
         master_dir (:obj:`str`):
             Master directory, only for Master frames
     """
-#        head0 (`astropy.io.fits.Header`_):
-#            Primary header of the source fits file.  If the image is a
-#            combination of multiple files, this is None.
 
-    version = '1.2.0'
+    version = '1.3.0'
     """Datamodel version number"""
 
     datamodel = {'image': dict(otype=np.ndarray, atype=np.floating, descr='Primary image data'),
@@ -115,11 +117,11 @@ class PypeItImage(datamodel.DataContainer):
                                   descr='Base-level image variance, excluding count shot-noise'),
                  'img_scale': dict(otype=np.ndarray, atype=np.floating,
                                    descr='Image count scaling applied (e.g., 1/flat-field)'),
-                 'bpm': dict(otype=np.ndarray, atype=np.integer, descr='Bad pixel mask'),
-                 'crmask': dict(otype=np.ndarray, atype=np.bool_, descr='CR mask image'),
-                 'fullmask': dict(otype=np.ndarray, atype=np.integer, descr='Full image bitmask'),
+                 'fullmask': dict(otype=ImageBitMaskArray, descr='Image mask'),
                  'detector': dict(otype=(DetectorContainer, Mosaic),
-                                  descr='The detector or mosaic parameters'),
+                                  descr='The detector (see :class:`~pypeit.images.detector_container.DetectorContainer`) '
+                                        'or mosaic (see :class:`~pypeit.images.mosaic.Mosaic`) '
+                                        'parameters'),
                  'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
                  'units': dict(otype=str, descr='(Unscaled) Pixel units (e- or ADU)'),
                  # TODO: Consider forcing exptime to be a float.
@@ -128,14 +130,8 @@ class PypeItImage(datamodel.DataContainer):
                  'shot_noise': dict(otype=bool, descr='Shot-noise included in variance'),
                  'spat_flexure': dict(otype=float,
                                       descr='Shift, in spatial pixels, between this image '
-                                            'and SlitTrace'),
-                 'imgbitm': dict(otype=str,
-                                 descr='List of BITMASK keys from '
-                                       ':class:`~pypeit.images.imagebitmask.ImageBitMask`')}
+                                            'and SlitTrace')}
     """Data model components."""
-
-    bitmask = imagebitmask.ImageBitMask()
-    """Class mask attribute"""
 
     @classmethod
     def from_pypeitimage(cls, pypeitImage):
@@ -168,17 +164,58 @@ class PypeItImage(datamodel.DataContainer):
         # Return
         return slf
 
-    def __init__(self, image=None, ivar=None, nimg=None, amp_img=None, det_img=None, rn2img=None,
-                 base_var=None, img_scale=None, bpm=None, crmask=None, fullmask=None,
-                 detector=None, spat_flexure=None, PYP_SPEC=None, units=None, exptime=None,
-                 noise_floor=None, shot_noise=None, imgbitm=None):
+    def __init__(self, image, ivar=None, nimg=None, amp_img=None, det_img=None, rn2img=None,
+                 base_var=None, img_scale=None, fullmask=None, detector=None, spat_flexure=None,
+                 PYP_SPEC=None, units=None, exptime=None, noise_floor=None, shot_noise=None,
+                 bpm=None, crmask=None, usermask=None, clean_mask=False):
 
-        # Setup the DataContainer. Dictionary elements include
-        # everything but self in the instantiation call.
-        # NOTE: Instantiating this way means that all of the arguments must also
-        # be members of the datamodel.
+        if image is None:
+            msgs.error('Must provide an image when instantiating PypeItImage.')
+
+        # Instantiate as an empty DataContainer
+        super().__init__()
+
+        # Get the list of arguments and values provided to the instantiation call.
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        super(PypeItImage, self).__init__(d={k: values[k] for k in args[1:]})
+        # Loop through them all and assign them directly to attributes of the
+        # class if they're part of the datamodel and *not* None.
+        for key in args[1:]:
+            if key in self.datamodel and values[key] is not None:
+                setattr(self, key, values[key])
+
+        # Make sure all the relevant arrays have the same shape
+        for attr in ['ivar', 'nimg', 'amp_img', 'det_img', 'rn2img', 'base_var', 'img_scale',
+                     'fullmask']:
+            _arr = getattr(self, attr)
+            if _arr is not None and _arr.shape != self.shape:
+                msgs.error(f'Attribute {attr} does not match image shape.')
+
+        # Make sure the units are defined
+        if self.units is None:
+            self.units = 'e-'
+
+        # Reset the masks if they're provided.
+        if fullmask is None:
+            self.reinit_mask()
+
+        if bpm is not None:
+            if not np.issubdtype(bpm.dtype, np.bool_) and not np.issubdtype(bpm.dtype, bool):
+                msgs.error('CODING ERROR: bpm entry in PypeItImage must have boolean type')
+            if clean_mask:
+                self.update_mask('BPM', action='turn_off')
+            self.update_mask('BPM', indx=bpm)
+        if crmask is not None:
+            if not np.issubdtype(crmask.dtype, np.bool_) and not np.issubdtype(crmask.dtype, bool):
+                msgs.error('CODING ERROR: crmask entry in PypeItImage must have boolean type')
+            if clean_mask:
+                self.update_mask('CR', action='turn_off')
+            self.update_mask('CR', indx=crmask)
+        if usermask is not None:
+            if not np.issubdtype(usermask.dtype, np.bool_) and not np.issubdtype(usermask.dtype, bool):
+                msgs.error('CODING ERROR: usermask entry in PypeItImage must have boolean type')
+            if clean_mask:
+                self.update_mask('USER', action='turn_off')
+            self.update_mask('USER', indx=crmask)
 
     def _init_internals(self):
         """
@@ -192,53 +229,6 @@ class PypeItImage(datamodel.DataContainer):
         self.master_key = None
         self.master_dir = None
 
-    def _validate(self):
-        """
-        Validate the object.
-
-        Validation steps are:
-
-            #. Check that the bitmasks used to create the image are the same as
-               those defined by this version of
-               :class:`~pypeit.images.imagebitmask.ImageBitMask`.
-
-            #. Check that all the image data arrays (image, ivar, etc) have the
-               same shape.
-
-            #. Initialize the bit mask and incorporate any BPM (:attr:`bpm`) or
-               cosmic-ray flags (:attr:`crmask`).
-
-            #. Set the units to counts if none are provided.
-        """
-        if self.imgbitm is None:
-            self.imgbitm = ','.join(list(self.bitmask.keys()))
-        elif self.imgbitm != ','.join(list(self.bitmask.keys())):
-            msgs.error("Input BITMASK keys differ from current data model!")
-
-        if self.image is not None:
-            for attr in ['ivar', 'nimg', 'amp_img', 'det_img', 'rn2img', 'base_var', 'img_scale',
-                         'bpm', 'crmask', 'fullmask']:
-                _arr = getattr(self, attr)
-                if _arr is not None and _arr.shape != self.shape:
-                    msgs.error(f'Attribute {attr} does not match image shape.')
-
-        # Make sure the fullmask, bpm, and crmask are all consistent
-        # TODO: These steps ignore any existing flags in fullmask and resets
-        # them to current arrays.  The masking needs to be handled better so
-        # that consistency is straight-forward.
-        if self.fullmask is None:
-            self.reinit_mask()
-        if self.bpm is not None:
-            self.update_mask('BPM', action='turn_off')
-            self.update_mask('BPM', indx=self.bpm.astype(bool))
-        if self.crmask is not None:
-            self.update_mask('CR', action='turn_off')
-            self.update_mask('CR', indx=self.crmask.astype(bool))
-
-        # Make sure the units are defined
-        if self.units is None:
-            self.units = 'e-'
-
     def _bundle(self):
         """
         Package the datamodel for writing.
@@ -248,37 +238,88 @@ class PypeItImage(datamodel.DataContainer):
             its own fits extension. See
             :class:`~pypeit.datamodel.DataContainer`.
         """
-        # TODO: Add `files` and `process_steps`?
-        d = []
+        keys = list(self.keys())
         # Primary image
-        d.append(dict(image=self.image))
+        d = [dict(image=self.image)]
+        keys.remove('image')
 
         # Rest of the datamodel
-        for key in self.keys():
-            # TODO: Why are these skipped?
-            if key in ['image', 'crmask', 'bpm']:
-                continue
+        for key in keys:
             # Skip None
             if self[key] is None:
                 continue
             # Array?
-            if self.datamodel[key]['otype'] == np.ndarray:
-                tmp = {}
-                tmp[key] = self[key]
-                d.append(tmp)
-            elif key == 'detector':
-                d.append(dict(detector=self.detector))
+            if self.datamodel[key]['otype'] == np.ndarray \
+                    or isinstance(self[key], datamodel.DataContainer):
+                d.append({key : self[key]})
             else: # Add to header of the primary image
                 d[0][key] = self[key]
+
+        # TODO: Add `files` and `process_steps`?
+
         # Return
         return d
+
+    @classmethod
+    def from_hdu(cls, hdu, hdu_prefix=None, chk_version=True):
+        """
+        Instantiate the object from an HDU extension.
+
+        This overrides the base-class method. Overriding this method
+        is preferrable to overriding the ``_parse`` method because it
+        makes it easier to deal with the multiple
+        :class:`~pypeit.datamodel.DataContainer` objects contained by
+        :class:`PypeItImage`.
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
+                The HDU(s) with the data to use for instantiation.
+            hdu_prefix (:obj:`str`, optional):
+                Maintained for consistency with the base class but is
+                not used by this method.
+            chk_version (:obj:`bool`, optional):
+                If True, raise an error if the datamodel version or
+                type check failed. If False, throw a warning only.
+        """
+        # Set the default hdu prefix if none is provided
+        if hdu_prefix is None:
+            hdu_prefix = cls.hdu_prefix
+
+        # Need to separately parse the mask because it is not called 'MASK'.
+        # Set the mask extension name.
+        mask_ext = 'FULLMASK' if hdu_prefix is None else f'{hdu_prefix}FULLMASK'
+
+        # Get all the extensions
+        ext = [h.name for h in hdu] if hasattr(hdu, '__len__') else [hdu.name]
+
+        # Remove the mask extension if it's there
+        if mask_ext in ext:
+            ext.remove(mask_ext)
+
+        # Parse everything *but* the mask extension
+        d, version_passed, type_passed, parsed_hdus \
+                = super()._parse(hdu, ext=ext, hdu_prefix=hdu_prefix)
+        if not type_passed:
+            msgs.error(f'The HDU(s) cannot be parsed by a {cls.__name__} object!')
+        if not version_passed:
+            _f = msgs.error if chk_version else msgs.warn
+            _f(f'Current version of {cls.__name__} object in code (v{cls.version})'
+               ' does not match version used to write your HDU(s)!')
+
+        if mask_ext in hdu:
+            # If the mask extension exists, parse it
+            d['fullmask'] = ImageBitMaskArray.from_hdu(hdu[mask_ext], ext_pseudo='MASK',
+                                                       chk_version=chk_version)
+
+        # Instantiate
+        return cls.from_dict(d=d)
 
     @property
     def shape(self):
         """
         Return the primary image shape.
         """
-        return () if self.image is None else self.image.shape
+        return self.image.shape
 
     @property
     def is_multidetector(self):
@@ -313,7 +354,8 @@ class PypeItImage(datamodel.DataContainer):
                 the correct shape (see :func:`shape`).
 
         Returns:
-            `numpy.ndarray`_: Copy of :attr:`crmask`.
+            `numpy.ndarray`_: Boolean array with flagging pixels with identified
+            cosmic rays; True mean a CR was flagged.
         """
         if subtract_img is not None and subtract_img.shape != self.shape:
             msgs.error('In cosmic-ray detection, image to subtract has incorrect shape.')
@@ -326,38 +368,43 @@ class PypeItImage(datamodel.DataContainer):
 
         # TODO: What flags should and should not be included in the "bpm" passed
         # to L.A.Cosmic?  For now, I'm doing the simple thing of just using the
-        # bad pixel mask, but we should be constructing this from some or all of
-        # the bits flagged in `fullmask`.
-        _bpm = self.bpm
+        # bad pixel mask, but what other flags from ``fullmask`` should be
+        # included?
+        bpm = self.fullmask.bpm
+
+        # TODO: These saturation and non-linear values are typically for the raw
+        # pixel value.  E.g., a saturation of 65535 is because the digitization
+        # is for a 16-bit integer.  But this function is called on an image that
+        # has likely already been bias-subtracted, etc.  Are we doing this
+        # right?
         saturation = self.map_detector_value('saturation')
         nonlinear = self.map_detector_value('nonlinear')
 
-        # If the object has multiple images, need to flag each image individually
         if self.is_multidetector:
-            self.crmask = [None] * self.shape[0]
+            # If the object has multiple images, need to flag each image individually
+            crmask = np.empty(self.shape, dtype=bool)
             for i in range(self.shape[0]):
-                self.crmask[i] = procimg.lacosmic(use_img[i], saturation=saturation[i],
-                                                  nonlinear=nonlinear[i], bpm=_bpm[i],
-                                                  varframe=var, maxiter=par['lamaxiter'],
-                                                  grow=par['grow'],
-                                                  remove_compact_obj=par['rmcompact'],
-                                                  sigclip=par['sigclip'], sigfrac=par['sigfrac'],
-                                                  objlim=par['objlim'])
-            self.crmask = np.array(self.crmask)
-            return self.crmask.copy()
-
-        # Run LA Cosmic to get the cosmic ray mask and return a copy of the
-        # result
-        self.crmask = procimg.lacosmic(use_img, saturation=saturation, nonlinear=nonlinear,
-                                       bpm=_bpm, varframe=var, maxiter=par['lamaxiter'],
-                                       grow=par['grow'], remove_compact_obj=par['rmcompact'],
-                                       sigclip=par['sigclip'], sigfrac=par['sigfrac'],
-                                       objlim=par['objlim'])
-        return self.crmask.copy()
+                crmask[i] = procimg.lacosmic(use_img[i], saturation=saturation[i],
+                                             nonlinear=nonlinear[i], bpm=bpm[i], varframe=var[i],
+                                             maxiter=par['lamaxiter'], grow=par['grow'],
+                                             remove_compact_obj=par['rmcompact'],
+                                             sigclip=par['sigclip'], sigfrac=par['sigfrac'],
+                                             objlim=par['objlim'])
+        else:
+            # Otherwise, just run LA Cosmic once
+            crmask = procimg.lacosmic(use_img, saturation=saturation, nonlinear=nonlinear,
+                                      bpm=bpm, varframe=var, maxiter=par['lamaxiter'],
+                                      grow=par['grow'], remove_compact_obj=par['rmcompact'],
+                                      sigclip=par['sigclip'], sigfrac=par['sigfrac'],
+                                      objlim=par['objlim'])
+        # Update the mask (this erases any existing CR mask!)
+        self.update_mask_cr(crmask)
+        # Return the result
+        return crmask
 
     def map_detector_value(self, attr):
         """
-        Provided a detector specific value, remap it as necessary for numpy
+        Provided a detector-specific value, remap it as necessary for numpy
         operations with :attr:`image`.
 
         Args:
@@ -437,13 +484,13 @@ class PypeItImage(datamodel.DataContainer):
         The mask bit keys are defined by
         :class:`~pypeit.images.imagebitmask.ImageBitMask`.  Assuming an instance
         of :class:`~pypeit.images.pypeitimage.PypeItImage` called ``img``, any
-        pixel with ``img.fullmask == 0`` is valid, otherwise the pixel has been
+        pixel with ``img.fullmask.mask == 0`` is valid, otherwise the pixel has been
         masked.  To determine why a given pixel has been masked (see
         also :func:`~pypeit.images.pypeitimage.PypeItImage.select_flag`):
 
         .. code-block:: python
 
-            reasons = img.bitmask.flagged_bits(img.fullmask[0,0])
+            reasons = img.fullmask.flagged_bits([0,0])
 
         To get all the pixel masked for a specific set of reasons, e.g.:
 
@@ -483,9 +530,7 @@ class PypeItImage(datamodel.DataContainer):
                 OFFSLITS bit; see :func:`update_mask_slitmask`.
             from_scratch (:obj:`bool`, optional):
                 Build the mask from scratch.  That is, if :attr:`fullmask`
-                already exists, reset it to 0 and reflag all the bits.  Bad
-                pixels and cosmic rays must be provided by :attr:`bpm` and
-                :attr:`crmask`.
+                already exists, all bits are turned off except for BPM and CR.
         """
         # Check input
         if saturation is not None and isinstance(saturation, np.ndarray) \
@@ -517,16 +562,14 @@ class PypeItImage(datamodel.DataContainer):
             _mincounts = mincounts
 
         if from_scratch:
-            # Instatiate the mask
+            # Save the existing BPM and CR masks
+            bpm = self.fullmask.bpm
+            cr = self.fullmask.cr
+            # Re-initialize the fullmask (erases all existing masks)
             self.reinit_mask()
-
-        # Add the bad pixel mask
-        if self.bpm is not None:
-            self.update_mask('BPM', indx=self.bpm.astype(bool))
-
-        # Add the cosmic rays
-        if self.crmask is not None:
-            self.update_mask('CR', indx=self.crmask.astype(bool))
+            # Recover the BPM and CR masks
+            self.update_mask('BPM', indx=bpm)
+            self.update_mask('CR', indx=cr)
 
         # Saturated pixels
         if _saturation is not None:
@@ -560,8 +603,6 @@ class PypeItImage(datamodel.DataContainer):
         if slitmask.shape != self.shape:
             msgs.error('Slit mask image must have the same shape as data image.')
         # Pixels excluded from any slit.
-        # TODO: Check me on this: Shouldn't we be turning off the old mask
-        # before setting the new one?
         self.update_mask('OFFSLITS', action='turn_off')
         self.update_mask('OFFSLITS', indx=slitmask==-1)
 
@@ -589,29 +630,26 @@ class PypeItImage(datamodel.DataContainer):
         Args:
             flag (:obj:`str`, array-like):
                 One or more flags to turn on for the selected pixels.
-            indx (`numpy.ndarray`_, optional):
-                Boolean array selecting the pixels in :attr:`fullmask` to alter.
-                Must be the same shape as :attr:`fullmask`.  If None, *all*
-                pixels are altered.
+            indx (:obj:`tuple`, :obj:`slice`, `numpy.ndarray`_, optional):
+                Object used to select elements of the mask array to at which to
+                toggle the provided bit flags.  I.e., for the internal
+                :attr:`fullmask`, ``fullmask.mask[indx]`` must be a valid (fancy
+                indexing) operation.  If None, the action is performed for the
+                full mask!
             action (:obj:`str`, optional):
                 The action to perform.  Must be ``'turn_on'`` or ``'turn_off'``.
         """
         if action not in ['turn_on', 'turn_off']:
             msgs.error(f'{action} is not a known bit action!')
         if indx is None:
-            self.fullmask = getattr(self.bitmask, action)(self.fullmask, flag)
-            return
-        if indx.shape != self.fullmask.shape:
-            msgs.error('Array selecting pixels to update must be the same shape as fullmask.')
-        self.fullmask[indx] = getattr(self.bitmask, action)(self.fullmask[indx], flag)
+            getattr(self.fullmask, action)(flag)
+        getattr(self.fullmask, action)(flag, select=indx)
 
     def reinit_mask(self):
         """
         Reset the mask; :attr:`fullmask` is reset to be 0 everywhere.
         """
-        if self.image is not None:
-            self.fullmask = np.zeros(self.image.shape,
-                                     dtype=self.bitmask.minimum_dtype(asuint=True))
+        self.fullmask = ImageBitMaskArray(self.image.shape)
 
     def select_flag(self, flag=None, invert=False):
         """
@@ -635,7 +673,7 @@ class PypeItImage(datamodel.DataContainer):
         Args:
             flag (:obj:`str`, array-like, optional):
                 One or more flags to select when returning the boolean mask.  If
-                None, pixels flagged for any reason are returned as True.
+                None, pixels flagged for *any* reason are returned as True.
             invert (:obj:`bool`, optional):
                 If False, the return mask is True for masked pixels, False for
                 good pixels (i.e., a bad-pixel mask).  If True, invert the sense
@@ -645,72 +683,131 @@ class PypeItImage(datamodel.DataContainer):
         Returns:
             `numpy.ndarray`_: Boolean array where pixels with the selected bits
             flagged are returned as True (if ``invert`` is False); i.e., this is
-            a boolean bad-pixel mask.  If ``flag`` is not provided, pixels
-            flagged for any reason are returned as True.
+            a boolean bad-pixel mask (or a good-pixel mask when ``invert`` is
+            True).  If ``flag`` is not provided, pixels flagged for any reason
+            are returned as True.
         """
-        mask = np.zeros(self.image.shape, dtype=bool) if self.fullmask is None \
-                    else self.bitmask.flagged(self.fullmask, flag=flag)
-        return np.logical_not(mask) if invert else mask
+        return self.fullmask.flagged(flag=flag, invert=invert)
 
-    def sub(self, other, par):
+    def __sub__(self, other):
+        return self.sub(other)
+
+    def sub(self, other):
         """
-        Subtract one PypeItImage from another
-        Extras (e.g. ivar, masks) are included if they are present
+        Subtract this PypeItImage from another.
+        
+        The following operations are performed:
+
+            - the image data is subtracted (images must have the same shape)
+            - the inverse variance (:attr:`ivar`) is propagated
+            - the number of images is combined (:attr:`nimg`)
+            - the RN2 (:attr:`rn2img`) is propagated
+            - the base variance (:attr:`base_var`) is propagated
+            - the image scaling (:attr:`img_scale`) is averaged
+            - the bit mask (:attr:`fullmask`) is joined (using an or operation)
+            - if it's the same for both images, the spectrograph name
+              (:attr:`PYP_SPEC`) is propagated
+            - if it's the same for both images, the images units (:attr:`units`)
+              is propagated
+            - if both images provide source file names, the file lists are
+              concatenated
+            - the detector from the first image (``self``) is used for the
+              returned image and the detector for the ``other`` image is
+              *ignored*
 
         Args:
-            other (:class:`PypeItImage`):
-            par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
-                Parameters that dictate the processing of the images.  See
-                :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the defaults
+            other (:class:`~pypeit.images.pypeitimage.PypeItImage`):
+                The image to subtract
+
         Returns:
-            PypeItImage:
+            :class:`~pypeit.images.pypeitimage.PypeItImage`: The result of
+            subtracting ``other`` from this image.
         """
         if not isinstance(other, PypeItImage):
-            msgs.error("Misuse of the subtract method")
-        # Images
+            msgs.error('Image to subtract must be of type PypeItImage.')
+
+        # Subtract the image
         newimg = self.image - other.image
 
-        # Mask time
-        outmask_comb = self.select_flag(invert=True) & other.select_flag(invert=True)
-
-        # Variance
-        if self.ivar is not None:
-            new_ivar = utils.inverse(utils.inverse(self.ivar) + utils.inverse(other.ivar))
-            new_ivar[np.logical_not(outmask_comb)] = 0
+        # Propagate the variance, if available
+        if self.ivar is not None or other.ivar is not None:
+            new_ivar = np.zeros(newimg.shape) if self.ivar is None else utils.inverse(self.ivar)
+            if other.ivar is not None:
+                new_ivar += utils.inverse(other.ivar)
+            new_ivar = utils.inverse(new_ivar)
         else:
             new_ivar = None
 
+        # Only create a new nimg if it's present in *both* images
+        new_nimg = self.nimg + other.nimg if self.nimg is not None and other.nimg is not None \
+                        else None
+
         # RN2
-        if self.rn2img is not None and other.rn2img is not None:
-            new_rn2 = self.rn2img + other.rn2img
+        if self.rn2img is not None or other.rn2img is not None:
+            new_rn2 = np.zeros(newimg.shape) if self.rn2img is None else self.rn2img
+            if other.rn2img is not None:
+                new_rn2 += other.rn2img
         else:
             new_rn2 = None
 
-        # Instantiate
-        new_sciImg = PypeItImage(image=newimg, ivar=new_ivar, bpm=self.bpm, rn2img=new_rn2,
-                                 detector=self.detector)
+        # Base variance (for the noise modeling, it's more important that this
+        # is propagated compared to rn2)
+        if self.base_var is not None or other.base_var is not None:
+            new_base = np.zeros(newimg.shape) if self.base_var is None else self.base_var
+            if other.base_var is not None:
+                new_base += other.base_var
+        else:
+            new_base = None
+
+        # Image scaling
+        # TODO: This is bogus.  Maybe we should just set this to 1?  Either way,
+        # trying to model the noise using our current approach won't be
+        # mathematically correct for two subtracted images.  This will be worse
+        # for more significant scaling.
+        if self.img_scale is not None or other.img_scale is not None:
+            new_img_scale = np.ones(newimg.shape) if self.img_scale is None else self.img_scale
+            if other.img_scale is not None:
+                new_img_scale = (new_img_scale + other.img_scale) / 2
+        else:
+            new_img_scale = None
+
+        # Mask
+        if self.fullmask is not None or other.fullmask is not None:
+            new_fullmask = ImageBitMaskArray(newimg.shape) if self.fullmask is None \
+                                else self.fullmask
+            if other.fullmask is not None:
+                new_fullmask |= other.fullmask
+        else:
+            new_fullmask = None
+
+        # PYP_SPEC
+        # TODO: Instead raise an error if they're not the same
+        new_spec = self.PYP_SPEC if self.PYP_SPEC == other.PYP_SPEC else None
+
+        # units
+        # TODO: Instead raise an error if they're not the same
+        new_units = self.units if self.units == other.units else None
+
+        # Create the new image
+        # TODO: We should instead *copy* the detector object; otherwise, it's
+        # possible that it will be shared between multiple images.  Nominally,
+        # this should be okay because the detector data is meant to be static,
+        # but we should fix this.
+        new_pypeitImage = PypeItImage(newimg, ivar=new_ivar, nimg=new_nimg, rn2img=new_rn2,
+                                      base_var=new_base, img_scale=new_img_scale,
+                                      fullmask=new_fullmask, detector=self.detector,
+                                      PYP_SPEC=new_spec, units=new_units)
+
         # Files
-        new_sciImg.files = self.files + other.files
+        if self.files is not None and other.files is not None:
+            new_pypeitImage.files = self.files + other.files
 
-        #TODO: KW properly handle adding the bits
-        #crmask_diff = new_sciImg.build_crmask(par) if par['mask_cr'] else np.zeros_like(other.image, dtype=bool)
-        # crmask_eff assumes evertything masked in the outmask_comb is a CR in the individual images
-        # JFH changed to below because this was not respecting the desire not to mask_crs
-        new_sciImg.crmask = (new_sciImg.build_crmask(par) | np.logical_not(outmask_comb)) if par['mask_cr'] else np.logical_not(outmask_comb)
-        #new_sciImg.crmask = crmask_diff | np.logical_not(outmask_comb)
-        # Note that the following uses the saturation and mincounts held in self.detector
-        new_sciImg.build_mask()
-
-        return new_sciImg
+        return new_pypeitImage
 
     def show(self):
         """
         Show the image in a ginga viewer.
         """
-        if self.image is None:
-            # TODO: This should fault.
-            msgs.warn("No image to show!")
-            return
         display.show_image(self.image, chname='image')
 
     def __repr__(self):
