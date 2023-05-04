@@ -11,6 +11,8 @@
 - Hotfix for KCWI when using alignment (aka ContBars) frames for the astrometric correction.
 - Sensitivity function masking and output updates
 - Fixed a bug in the `variance_model` calculation for combined images.
+- Added the possibility to use dither offsets saved in the header of the science frames for
+  coadding 2D spectra (``dithoff`` must be part of the spectrograph metadata).
 
 1.12.2 (29 Mar 2023)
 --------------------

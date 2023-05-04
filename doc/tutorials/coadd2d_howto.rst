@@ -104,6 +104,7 @@ Here are the options:
 - ``offsets = maskdef_offsets``: PypeIt will use the offsets, determined during the main reduction run,
   between the position of the extracted objects and their expected position from the
   slitmask design information.
+- ``offsets = header``: PypeIt will use the dither offsets recorded in the header, if available.
 
 .. note::
 
