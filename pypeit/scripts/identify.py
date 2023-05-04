@@ -51,7 +51,6 @@ class Identify(scriptbase.ScriptBase):
         from pypeit import msgs
         from pypeit.spectrographs.util import load_spectrograph
         from pypeit.core.gui.identify import Identify
-        from pypeit.core.wavecal import waveio
         from pypeit.wavecalib import BuildWaveCalib, WaveCalib
         from pypeit import slittrace
         from pypeit.images.buildimage import ArcImage
