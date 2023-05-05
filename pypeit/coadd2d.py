@@ -4,6 +4,7 @@ Module for performing two-dimensional coaddition of spectra.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
+from pathlib import Path
 import os
 import copy
 
@@ -13,6 +14,7 @@ import numpy as np
 from scipy import ndimage
 from matplotlib import pyplot as plt
 from astropy.table import Table, vstack
+from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import utils
@@ -29,7 +31,6 @@ from pypeit import calibrations
 from pypeit import spec2dobj
 from pypeit.core.moment import moment1d
 from pypeit.manual_extract import ManualExtractionObj
-
 
 
 class CoAdd2D:
@@ -265,6 +266,69 @@ class CoAdd2D:
         cfg['reduce']['findobj']['skip_skysub'] = True
 
         return cfg
+
+    @staticmethod
+    def default_basename(spec2d_files):
+        """
+        Construct the base name of the output spec2d file produced by coadding.
+
+        Args:
+            spec2d_files (:obj:`list`):
+                The list of PypeIt spec2d files to be coadded.
+
+        Returns:
+            :obj:`str`: The root base name for the output coadd2d spec2d file.
+        """
+        # Get the output basename
+        frsthdr = fits.getheader(spec2d_files[0])
+        lasthdr = fits.getheader(spec2d_files[-1])
+        if 'FILENAME' not in frsthdr:
+            msgs.error(f'Missing FILENAME keyword in {spec2d_files[0]}.  Set the basename '
+                        'using the command-line option.')
+        if 'FILENAME' not in lasthdr:
+            msgs.error(f'Missing FILENAME keyword in {spec2d_files[-1]}.  Set the basename '
+                        'using the command-line option.')
+        if 'TARGET' not in frsthdr:
+            msgs.error(f'Missing TARGET keyword in {spec2d_files[0]}.  Set the basename '
+                        'using the command-line option.')
+        return f"{io.remove_suffix(frsthdr['FILENAME'])}-" \
+                f"{io.remove_suffix(lasthdr['FILENAME'])}-{frsthdr['TARGET']}"
+
+    @staticmethod
+    def output_paths(spec2d_files, par):
+        """
+        Construct the names and ensure the existence of the science and QA output directories.
+
+        Args:
+            spec2d_files (:obj:`list`):
+                The list of PypeIt spec2d files to be coadded.  The top-level
+                directory for the coadd2d output directories is assumed to be
+                same as used by the basic reductions.  For example, if one of
+                the spec2d files is
+                ``/path/to/reductions/Science/spec2d_file.fits``, the parent
+                directory for the coadd2d directories is
+                ``/path/to/reductions/``.
+            par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
+                Full set of parameters.  The only used parameters are
+                ``par['rdx']['scidir']`` and ``par['rdx']['qadir']``.  WARNING:
+                This also *alters* the value of ``par['rdx']['qadir']``!!
+
+        Returns:
+            :obj:`tuple`: Two strings with the names of (1) the science output
+            directory and (2) the QA output directory.  The function also
+            creates both directories if they do not exist.
+        """
+        # Science output directory
+        pypeit_scidir = Path(spec2d_files[0]).parent
+        coadd_scidir = pypeit_scidir.parent / f"{par['rdx']['scidir']}_coadd"
+        if not coadd_scidir.exists():
+            coadd_scidir.mkdir(parents=True)
+        # QA directory
+        par['rdx']['qadir'] += '_coadd'
+        qa_path = pypeit_scidir.parent / par['rdx']['qadir'] / 'PNGs'
+        if not qa_path.exists():
+            qa_path.mkdir(parents=True)
+        return str(coadd_scidir), str(qa_path)
 
     def good_slitindx(self, only_slits=None):
         """

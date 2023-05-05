@@ -63,6 +63,7 @@ from pypeit import inputfiles
 
 from pypeit.scripts.setup_coadd2d import SetupCoAdd2D
 from pypeit.scripts.coadd_2dspec import CoAdd2DSpec
+from pypeit.scripts.show_2dspec import Show2DSpec
 
 def get_files(raw_files, raw_path, ext):
     """
@@ -643,6 +644,8 @@ class QL(scriptbase.ScriptBase):
         #   - specify `target` to be reduced, either parsed from the frame
         #     header (i.e., target in the fitstbl) or from the mask information
 
+        # TODO: Get rid of "calibs only"?  I.e., force user only provide
+        # calibrations if they only want to process calibrations...
         parser.add_argument('--calibs_only', default=False, action='store_true',
                             help='Reduce only the calibrations?')
         parser.add_argument('--overwrite_calibs', default=False, action='store_true',
@@ -668,12 +671,35 @@ class QL(scriptbase.ScriptBase):
                                  'reduction of the science frames.')
         parser.add_argument('--snr_thresh', default=None, type=float,
                             help='Change the default S/N threshold used during source detection')
+        parser.add_argument('--skip_display', dest='show', default=True, action='store_false',
+                            help='Run the quicklook without displaying any results.')
 
+        # TODO: Add fluxing option
+
+        # Coadding options
         parser.add_argument('--coadd', default=False, action='store_true',
                             help='Perform default 2D coadding.')
-        # TODO: Add in relevant 2d coadding parameters, like detector, slits,
-        # objects, etc.  2D coadding is basically just a default run of
-        # `pypeit_setup_coadd2d` and `pypeit_coadd_2dspec`.
+        parser.add_argument('--only_slits', type=str, nargs='+',
+                            help='If coadding, only coadd this space-separated set of slits.  If '
+                                 'not provided, all slits are coadded.')
+        parser.add_argument('--offsets', type=str, default=None,
+                            help='If coadding, spatial offsets to apply to each image; see the '
+                                 '[coadd2d][offsets] parameter.  Options are restricted here to '
+                                 'either maskdef_offsets or auto.  If not specified, the '
+                                 '(spectrograph-specific) default is used.')
+        parser.add_argument('--weights', type=str, default=None,
+                            help='If coadding, weights used to coadd images; see the '
+                                 '[coadd2d][weights] parameter.  Options are restricted here to '
+                                 'either uniform or auto.  If not specified, the '
+                                 '(spectrograph-specific) default is used.')
+        parser.add_argument('--spec_samp_fact', default=1.0, type=float,
+                            help='If coadding, adjust the wavelength grid sampling by this '
+                                 'factor.  For a finer grid, set value to <1.0; for coarser '
+                                 'sampling, set value to >1.0).')
+        parser.add_argument('--spat_samp_fact', default=1.0, type=float,
+                            help='If coadding, adjust the spatial grid sampling by this '
+                                 'factor.  For a finer grid, set value to <1.0; for coarser '
+                                 'sampling, set value to >1.0).')
 
         return parser
 
@@ -880,6 +906,8 @@ class QL(scriptbase.ScriptBase):
 
         # Run it
         pypeIt = pypeit.PypeIt(sci_pypeit_file, reuse_calibs=True)
+        embed()
+        exit()
         pypeIt.reduce_all()
         pypeIt.build_qa()
 
@@ -898,21 +926,35 @@ class QL(scriptbase.ScriptBase):
             # NOTE: This should only find *one* coadd2d file because quick-look
             # should be limited to performing reduction for one target at a
             # time.
-            # TODO: Need to have SetupCoAdd2D.main return the names of the
-            # written files...
-            coadd_files = sorted(Path(sci_pypeit_file).resolve().parent.glob('*.coadd2d'))
+            # TODO: Have SetupCoAdd2D.main return the names of the written
+            # files?
+            coadd_file = sorted(Path(sci_pypeit_file).resolve().parent.glob('*.coadd2d'))
+            if len(coadd_file) != 1:
+                msgs.error('There should be only one 2D coadd file.')
+            coadd_file = coadd_file[0]
             
-            # Run the coadding, only on those coadd files with more than one file
-            for coadd_file in coadd_files:
-                coadd2dFile = inputfiles.Coadd2DFile.from_file(coadd_file)
-                if len(coadd2dFile.data) < 2:
-                    msgs.warn(f'{coadd_file} only has one spec2d file.  Continuing...')
-                    continue
+            # Run the coadding
+            coadd2dFile = inputfiles.Coadd2DFile.from_file(coadd_file)
+            if len(coadd2dFile.data) < 2:
+                msgs.error(f'{coadd_file} only has one spec2d file.  Continuing...')
 
-                # TODO: Add options (e.g. spatial/spectral sampling...)
-                CoAdd2DSpec.main(CoAdd2DSpec.parse_args([coadd_file]))
+            # TODO: Add options (e.g. spatial/spectral sampling...)
+            CoAdd2DSpec.main(CoAdd2DSpec.parse_args([coadd_file]))
 
-        # TODO: Add some show options
+            # Get the output file name
+            spectrograph, par, _ = coadd2dFile.get_pypeitpar()
+            spec2d_files = coadd2dFile.filenames
+            coadd_scidir = Path(CoAdd2D.output_paths(spec2d_files, par)[0]).resolve()
+            basename = coadd2d.CoAdd2D.default_basename(spec2d_files)
+            spec2d_file = str(coadd_scidir / f'spec2d_{basename}.fits')
+        else:
+            # Grab the spec2d file (or at least the first one)
+            frame = pypeIt.fitstbl.find_frames('science', index=True)[0]
+            spec2d_file = pypeIt.spec_output_file(frame, twod=True)
+
+        if args.show:
+            # TODO: Need to parse detector here!
+            Show2DSpec.main(Show2DSpec.parse_args([spec2d_file]))
 
         exec_s = np.around(time.perf_counter()-tstart, decimals=1)
         msgs.info(f'Quicklook execution time: {datetime.timedelta(seconds=exec_s)}')

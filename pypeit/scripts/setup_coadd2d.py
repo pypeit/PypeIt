@@ -40,6 +40,18 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
         parser.add_argument('--only_slits', type=str, nargs='+',
                             help='A space-separated set of slits to coadd.  If not provided, all '
                                  'slits are coadded.')
+        parser.add_argument('--offsets', type=str, default=None,
+                            help='Spatial offsets to apply to each image; see the '
+                                 '[coadd2d][offsets] parameter.  Options are restricted here to '
+                                 'either maskdef_offsets or auto.  If not specified, the '
+                                 '(spectrograph-specific) default is used.  Other options exist '
+                                 'but must be entered by directly editing the coadd2d file.')
+        parser.add_argument('--weights', type=str, default=None,
+                            help='Weights used to coadd images; see the [coadd2d][weights] '
+                                 'parameter.  Options are restricted here to '
+                                 'either uniform or auto.  If not specified, the '
+                                 '(spectrograph-specific) default is used.  Other options exist '
+                                 'but must be entered by directly editing the coadd2d file.')
 
         return parser
 
@@ -63,10 +75,19 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
         pypeitFile = inputfiles.PypeItFile.from_file(args.pypeit_file)
         # Get the spectrograph instance and the parameters used
         spec, par, _ = pypeitFile.get_pypeitpar()
-        # Get the Science directory used
+        # Get the Science directory used.
+        # NOTE: When [rdx][redux_path] isn't defined, the get_pypeitpar()
+        # function will use the current working directory.  If the pypeit_file
+        # being source is in a different directory, this means that the Science
+        # directory won't be found.  So first try to set the science directory
+        # based on the parameter value, then try to base it on the parent
+        # directory of the provided pypeit file.  The latter is critical to the
+        # vet_test in the dev-suite.
         sci_dir = Path(par['rdx']['redux_path']).resolve() / par['rdx']['scidir']
         if not sci_dir.exists():
-            msgs.error(f'Science directory not found: {sci_dir}\n')
+            sci_dir = Path(args.pypeit_file).resolve().parent / par['rdx']['scidir']
+            if not sci_dir.exists():
+                msgs.error(f'Science directory not found: {sci_dir}\n')
 
         # Find all the spec2d files:
         spec2d_files = sorted(sci_dir.glob('spec2d*'))
@@ -109,6 +130,12 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
         cfg['rdx']['qadir'] = par['rdx']['qadir']
         utils.add_sub_dict(cfg, 'calibrations')
         cfg['calibrations']['calib_dir'] = par['calibrations']['calib_dir']
+        # Add the offsets and weights
+        utils.add_sub_dict(cfg, 'coadd2d')
+        cfg['coadd2d']['offsets'] = par['coadd2d']['offsets'] \
+                if args.offsets is None else args.offsets
+        cfg['coadd2d']['weights'] = par['coadd2d']['weights'] \
+                if args.weights is None else args.weights
 
         # Build the default parameters
         cfg = CoAdd2D.default_par(spec.name, inp_cfg=cfg, det=args.det, slits=args.only_slits)

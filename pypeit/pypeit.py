@@ -197,9 +197,8 @@ class PypeIt:
         Returns:
             :obj:`str`: The path for the output file
         """
-        return self.get_spec_file_name(self.science_path, self.fitstbl.construct_basename(frame))
-#        return os.path.join(self.science_path, 'spec{0}d_{1}.fits'.format('2' if twod else '1',
-#                                                    self.fitstbl.construct_basename(frame)))
+        return self.get_spec_file_name(self.science_path, self.fitstbl.construct_basename(frame),
+                                       twod=twod)
 
     @staticmethod
     def get_spec_file_name(science_path, basename, twod=False):
