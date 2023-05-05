@@ -1949,10 +1949,12 @@ def load_wmko_std_spectrum(fits_file:str, outfile=None, pad = False):
     # Fill in header
     coord = linetools.utils.radec_to_coord((meta['RA'][0], meta['DEC'][0]))
     sobjs.header = dict(EXPTIME=1., 
-                        AIRMASS=float(meta['AIRMASS']), 
+                        AIRMASS=float(meta['AIRMASS'][0]), 
                         DISPNAME=str(meta['GRATING'][0]), 
+                        SLMSKNAM='', # No slitmask is used for the throughput data
                         PYP_SPEC='keck_deimos', 
                         PYPELINE='MultiSlit',
+                        BINNING=f'{meta["SPEC_BIN"][0]},{meta["SPEC_BIN"][0]}',
                         RA=coord.ra.deg, 
                         DEC=coord.dec.deg
                    )
