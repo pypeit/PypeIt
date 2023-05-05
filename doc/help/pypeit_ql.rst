@@ -8,8 +8,11 @@
                      [--setup_calib_dir SETUP_CALIB_DIR] [--clean] [--calibs_only]
                      [--overwrite_calibs] [--slitspatnum SLITSPATNUM]
                      [--maskID MASKID] [--boxcar_radius BOXCAR_RADIUS]
-                     [--det DET [DET ...]] [--no_stack] [--ignore_std]
-                     [--snr_thresh SNR_THRESH] [--coadd]
+                     [--det DET [DET ...]] [--ignore_std] [--snr_thresh SNR_THRESH]
+                     [--skip_display] [--coadd]
+                     [--only_slits ONLY_SLITS [ONLY_SLITS ...]] [--offsets OFFSETS]
+                     [--weights WEIGHTS] [--spec_samp_fact SPEC_SAMP_FACT]
+                     [--spat_samp_fact SPAT_SAMP_FACT]
                      spectrograph
     
     Script to produce quick-look PypeIt reductions
@@ -35,7 +38,7 @@
                             vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
                             wht_isis_blue, wht_isis_red
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       --raw_files RAW_FILES [RAW_FILES ...]
                             Either a PypeIt-formatted input file with the list of
@@ -70,12 +73,13 @@
                             Directory with/for calibrations specific to your
                             instrument configuration/setup. Use of this option
                             circumvents the automated naming system for the
-                            configuration/setup sub-directories. If None, it is
-                            assumed that no calibrations exist and they must be
-                            created using the provided raw files. The top-level
-                            directory is given by parent_calib_dir (or redux_path)
-                            and the sub-directories follow the normal PypeIt naming
-                            scheme. (default: None)
+                            configuration/setup sub-directories. If None, the code
+                            will try to find relevant calibrations in the
+                            parent_calib_dir. If no calibrations exist in that
+                            directory that match the instrument setup/configuration
+                            of the provided data, the code will construct new
+                            calibrations (assuming relevant raw files are provided).
+                            (default: None)
       --clean               Remove the existing output directories to force a fresh
                             reduction. If False, any existing directory structure
                             will remain, but any existing science files will still
@@ -100,7 +104,6 @@
                             and 5 for Keck/DEIMOS, you would use --det 1 5; to
                             reduce mosaics made up of detectors 1,5 and 3,7, you
                             would use --det 1,5 3,7 (default: None)
-      --no_stack            Do *not* stack multiple science frames (default: True)
       --ignore_std          If standard star observations are automatically
                             detected, ignore those frames. Otherwise, they are
                             included with the reduction of the science frames.
@@ -108,5 +111,28 @@
       --snr_thresh SNR_THRESH
                             Change the default S/N threshold used during source
                             detection (default: None)
+      --skip_display        Run the quicklook without displaying any results.
+                            (default: True)
       --coadd               Perform default 2D coadding. (default: False)
+      --only_slits ONLY_SLITS [ONLY_SLITS ...]
+                            If coadding, only coadd this space-separated set of
+                            slits. If not provided, all slits are coadded. (default:
+                            None)
+      --offsets OFFSETS     If coadding, spatial offsets to apply to each image; see
+                            the [coadd2d][offsets] parameter. Options are restricted
+                            here to either maskdef_offsets or auto. If not
+                            specified, the (spectrograph-specific) default is used.
+                            (default: None)
+      --weights WEIGHTS     If coadding, weights used to coadd images; see the
+                            [coadd2d][weights] parameter. Options are restricted
+                            here to either uniform or auto. If not specified, the
+                            (spectrograph-specific) default is used. (default: None)
+      --spec_samp_fact SPEC_SAMP_FACT
+                            If coadding, adjust the wavelength grid sampling by this
+                            factor. For a finer grid, set value to <1.0; for coarser
+                            sampling, set value to >1.0). (default: 1.0)
+      --spat_samp_fact SPAT_SAMP_FACT
+                            If coadding, adjust the spatial grid sampling by this
+                            factor. For a finer grid, set value to <1.0; for coarser
+                            sampling, set value to >1.0). (default: 1.0)
     

@@ -11,6 +11,8 @@
 - Hotfix for KCWI when using alignment (aka ContBars) frames for the astrometric correction.
 - Sensitivity function masking and output updates
 - Fixed a bug in the `variance_model` calculation for combined images.
+- Added the possibility to use dither offsets saved in the header of the science frames for
+  coadding 2D spectra (``dithoff`` must be part of the spectrograph metadata).
 - Calibration group numbers can now be anything, as long as there are no more
   than 63 unique integers.
 - Removed use of the term "master", renamed to calibration frames/files.

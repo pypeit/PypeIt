@@ -145,7 +145,7 @@ with a symlink to the ``Calibrations`` directory.  The name of the directory
 with the reduction for the science frames is based on the name of the frame,
 ``b27`` in this example.  The name of directory with the calibrations is always
 the combination of the instrument name and setup/configuration identifier (e.g.
-``shane_kast_blue_A``), just as produced by :ref:`pyepit_setup`.
+``shane_kast_blue_A``), just as produced by :ref:`pypeit_setup`.
 
 If multiple science frames are provided, the name of the output directory
 combines the names of the first and last science frames in the stack.  For

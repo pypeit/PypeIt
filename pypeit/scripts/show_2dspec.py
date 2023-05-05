@@ -97,9 +97,9 @@ class Show2DSpec(scriptbase.ScriptBase):
                             help='Upon completion embed in ipython shell')
         parser.add_argument('--ignore_extract_mask', default=False, action='store_true',
                             help='Ignore the extraction mask')
-        parser.add_argument('--sensfunc', type=str, default=None,
-                            help='Pass in a sensfunc to display the sky-subtracted image with a '
-                                 'flux calibration')
+#        parser.add_argument('--sensfunc', type=str, default=None,
+#                            help='Pass in a sensfunc to display the sky-subtracted image with a '
+#                                 'flux calibration')
         parser.add_argument('--channels', type=str,
                             help='Only show a subset of the channels (0-indexed), e.g. 1,3')
         parser.add_argument('--prefix', type=str, default='',

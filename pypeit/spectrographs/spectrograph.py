@@ -683,7 +683,7 @@ class Spectrograph:
         """
         return ['dispname', 'dichroic', 'decker']
 
-    def same_configuration(self, configs):
+    def same_configuration(self, configs, check_keys=True):
         """
         Check if a set of instrument setup/configurations are all the same,
         within the tolerance set for this spectrograph for each configuration
@@ -695,21 +695,30 @@ class Spectrograph:
                 dictionary element must be a dictionary with the values for the
                 configuration-defining metadata parameters for this
                 spectrograph.
+            check_keys (:obj:`bool`, optional):
+                Check that the keys in each configuration match the expected
+                keys defined by :func:`configuration_keys`.  If False, the keys
+                are set by the first configuration in ``configs``, *not* those
+                returned by :func:`configuration_keys`.
         
         Returns:
             :obj:`bool`: Flag that all configurations in the list are the same.
         """
         cfg_id = list(configs.keys() if isinstance(configs, dict) else range(len(configs)))
-        # The list of metadata keys used to define a unique configuration
-        cfg_meta = self.configuration_keys()
-        # Check that the relevant keys are in the first configuration
-        for key in cfg_meta:
-            if key not in configs[cfg_id[0]].keys():
-                msgs.error(f'Configuration {cfg_id[0]} missing required key, {key}.  Cannot '
-                           'determine if configurations are the same!')
-            if key not in self.meta.keys():
-                msgs.error(f'CODING ERROR: {key} is a configuration key but not defined in the '
-                           f'metadata dictionary for {self.__class__.__name__}!')
+
+        if check_keys:
+            # The list of metadata keys used to define a unique configuration
+            cfg_meta = self.configuration_keys()
+            # Check that the relevant keys are in the first configuration
+            for key in cfg_meta:
+                if key not in configs[cfg_id[0]].keys():
+                    msgs.error(f'Configuration {cfg_id[0]} missing required key, {key}.  Cannot '
+                               'determine if configurations are the same!')
+                if key not in self.meta.keys():
+                    msgs.error(f'CODING ERROR: {key} is a configuration key but not defined in '
+                               f'the metadata dictionary for {self.__class__.__name__}!')
+        else:
+            cfg_meta = configs[cfg_id[0]].keys()
 
         # Match against all of the other configurations
         for _cfg_id in cfg_id[1:]:
@@ -719,7 +728,8 @@ class Spectrograph:
                     msgs.error(f'Configuration {_cfg_id} missing required key, {key}.  Cannot '
                                'determine if configurations are the same!')
                 # TODO: Instead check if 'rtol' exists and is not None?
-                if isinstance(configs[_cfg_id][key], (float, np.floating)):
+                if isinstance(configs[cfg_id[0]][key], (float, np.floating)) \
+                        and isinstance(configs[_cfg_id][key], (float, np.floating)):
                     # NOTE: No float-valued metadata can be 0!
                     matched += [np.abs(configs[cfg_id[0]][key]-configs[_cfg_id][key])
                                     / configs[cfg_id[0]][key] < self.meta[key]['rtol']]

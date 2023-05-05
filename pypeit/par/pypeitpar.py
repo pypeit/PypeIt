@@ -1240,12 +1240,13 @@ class Coadd2DPar(ParSet):
                               'I.e., only this/these slit/s will be coadded.'
 
         defaults['offsets'] = 'auto'
-        dtypes['offsets'] = [list, str]
+        dtypes['offsets'] = [str, list]
         descr['offsets'] = 'Offsets for the images being combined (spat pixels). Options are: ' \
-                           '``maskdef_offsets``, ``auto``, and a list of offsets. ' \
+                           '``maskdef_offsets``, ``header``, ``auto``, and a list of offsets. ' \
                            'Use ``maskdef_offsets`` to use the offsets computed during the slitmask ' \
-                           'design matching (currently available for DEIMOS and MOSFIRE only). If ``auto`` ' \
-                           'is chosen, PypeIt will try to compute the offsets using a reference object ' \
+                           'design matching (currently available for DEIMOS and MOSFIRE only). If equal ' \
+                           'to ``header``, the dither offsets recorded in the header, when available, will be used. ' \
+                           'If ``auto`` is chosen, PypeIt will try to compute the offsets using a reference object ' \
                            'with the highest S/N, or an object selected by the user (see ``user_obj``). ' \
                            'If a list of offsets is provided, PypeIt will use it.'
 

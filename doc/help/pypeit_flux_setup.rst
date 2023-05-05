@@ -8,7 +8,7 @@
     positional arguments:
       sci_path              Path for Science folder
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       --objmodel {qso,star,poly}
                             science object model used in the telluric fitting. The
