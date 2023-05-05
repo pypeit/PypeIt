@@ -17,6 +17,7 @@ from astropy.table import Table, vstack
 from astropy.io import fits
 
 from pypeit import msgs
+from pypeit import io
 from pypeit import utils
 from pypeit import specobjs
 from pypeit import slittrace
@@ -891,8 +892,9 @@ class CoAdd2D:
             #indx = 0
             for iexp, spec_this in enumerate(self.stack_dict['specobjs_list']):
                 for spec in spec_this:
-                    waves.append(spec.OPT_WAVE)
-                    gpms.append(spec.OPT_MASK)
+                    # NOTE: BOX extraction usage needed for quicklook
+                    waves.append(spec.OPT_WAVE if spec.OPT_WAVE is not None else spec.BOX_WAVE)
+                    gpms.append(spec.OPT_MASK if spect.OPT_MASK is not None else spec.BOX_MASK)
                     # TODO -- OPT_MASK is likely to become a bpm with int values
                     #gpm[:self.nspec_array[iexp], indx] = spec.OPT_MASK
                     #indx += 1

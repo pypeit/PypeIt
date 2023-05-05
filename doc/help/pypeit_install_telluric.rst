@@ -10,7 +10,7 @@
       files           Filename(s) of the TelFits files to be downloaded from the
                       Cloud and installed in the PypeIt cache
     
-    optional arguments:
+    options:
       -h, --help      show this help message and exit
       --force_update  Force download of latest version of the telluric grid
                       (default: False)
