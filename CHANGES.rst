@@ -30,7 +30,6 @@
 - Added the option to disable strict version checking for 1d coadds.
 - Major quicklook updates.  ql_multislit.py temporarily deprecated.
 
-
 1.12.2 (29 Mar 2023)
 --------------------
 

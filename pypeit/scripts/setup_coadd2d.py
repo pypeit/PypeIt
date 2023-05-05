@@ -1,5 +1,5 @@
 """
-Script for preparing a 2d coadds configuration file.
+Script for preparing a 2d-coadd configuration file.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
@@ -17,13 +17,13 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
 
         parser.add_argument('pypeit_file', type=str, default=None, help='PypeIt reduction file')
         parser.add_argument('--keep_par', dest='clean_par', default=True, action='store_false',
-                            help='Do not propagate any parameters from the pypeit file to the '
-                                 'coadd2d file(s).  If not set, only the required parameters and '
-                                 'their default values are included in the output file(s).')
+                            help='Propagate all parameters from the pypeit file to the coadd2d '
+                                 'file(s).  If not set, only the required parameters and their '
+                                 'default values are included in the output file(s).')
         parser.add_argument('--obj', type=str, nargs='+',
                             help='Limit the coadd2d files created to observations of the '
                                  'specified target.  If not provided, a coadd2D file is written '
-                                 'for each target found in the Science directory.  The target '
+                                 'for each target found in the science directory.  The target '
                                  'names are included in the PypeIt spec2d file names.'
                                  'For example, the target for spec2d file '
                                  '"spec2d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits" '
@@ -40,6 +40,18 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
         parser.add_argument('--only_slits', type=str, nargs='+',
                             help='A space-separated set of slits to coadd.  If not provided, all '
                                  'slits are coadded.')
+        parser.add_argument('--offsets', type=str, default=None,
+                            help='Spatial offsets to apply to each image; see the '
+                                 '[coadd2d][offsets] parameter.  Options are restricted here to '
+                                 'either maskdef_offsets or auto.  If not specified, the '
+                                 '(spectrograph-specific) default is used.  Other options exist '
+                                 'but must be entered by directly editing the coadd2d file.')
+        parser.add_argument('--weights', type=str, default=None,
+                            help='Weights used to coadd images; see the [coadd2d][weights] '
+                                 'parameter.  Options are restricted here to '
+                                 'either uniform or auto.  If not specified, the '
+                                 '(spectrograph-specific) default is used.  Other options exist '
+                                 'but must be entered by directly editing the coadd2d file.')
 
         return parser
 
@@ -63,10 +75,19 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
         pypeitFile = inputfiles.PypeItFile.from_file(args.pypeit_file)
         # Get the spectrograph instance and the parameters used
         spec, par, _ = pypeitFile.get_pypeitpar()
-        # Get the Science directory used
+        # Get the Science directory used.
+        # NOTE: When [rdx][redux_path] isn't defined, the get_pypeitpar()
+        # function will use the current working directory.  If the pypeit_file
+        # being source is in a different directory, this means that the Science
+        # directory won't be found.  So first try to set the science directory
+        # based on the parameter value, then try to base it on the parent
+        # directory of the provided pypeit file.  The latter is critical to the
+        # vet_test in the dev-suite.
         sci_dir = Path(par['rdx']['redux_path']).resolve() / par['rdx']['scidir']
         if not sci_dir.exists():
-            msgs.error(f'Science directory not found: {sci_dir}\n')
+            sci_dir = Path(args.pypeit_file).resolve().parent / par['rdx']['scidir']
+            if not sci_dir.exists():
+                msgs.error(f'Science directory not found: {sci_dir}\n')
 
         # Find all the spec2d files:
         spec2d_files = sorted(sci_dir.glob('spec2d*'))
@@ -80,7 +101,7 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
                                 else [f.name.split('-')[1].split('_')[0] for f in spec2d_files])
         if args.obj is not None:
             # Limit to the selected objects
-            _objects = [o for o in objects if o in args.obj]
+            _objects = [o for o in objects if o == args.obj]
             # Check some were found
             if len(_objects) == 0:
                 msgs.error('Unable to find relevant objects.  Unique objects are '
@@ -99,7 +120,9 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
         if len(object_spec2d_files.keys()) == 0:
             msgs.error('Unable to match any spec2d files to objects.')
 
-        # Add the paths to make sure they match the pypeit file
+        # Add the paths to make sure they match the pypeit file.
+        # NOTE: cfg does *not* need to include the spectrograph parameter in
+        # rdx.  This is added by `CoAdd2D.default_par`.
         cfg = {} if args.clean_par else dict(pypeitFile.config)
         utils.add_sub_dict(cfg, 'rdx')
         cfg['rdx']['redux_path'] = par['rdx']['redux_path']
@@ -107,6 +130,12 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
         cfg['rdx']['qadir'] = par['rdx']['qadir']
         utils.add_sub_dict(cfg, 'calibrations')
         cfg['calibrations']['calib_dir'] = par['calibrations']['calib_dir']
+        # Add the offsets and weights
+        utils.add_sub_dict(cfg, 'coadd2d')
+        cfg['coadd2d']['offsets'] = par['coadd2d']['offsets'] \
+                if args.offsets is None else args.offsets
+        cfg['coadd2d']['weights'] = par['coadd2d']['weights'] \
+                if args.weights is None else args.weights
 
         # Build the default parameters
         cfg = CoAdd2D.default_par(spec.name, inp_cfg=cfg, det=args.det, slits=args.only_slits)

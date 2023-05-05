@@ -258,14 +258,14 @@ class EdgeTraceSet(calibframe.CalibFrame):
         - Provide some guidance for the parameters to use.
 
     Args:
-        traceimg (:class:`pypeit.images.buildimage.TraceImage`):
+        traceimg (:class:`~pypeit.images.buildimage.TraceImage`):
             Two-dimensional image used to trace slit edges.  The object provides
             the image, the bad-pixel mask, the detector information, and (one
             of) the original raw file name when matching slits to a design file.
-        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             The object that sets the instrument used to take the
             observations. Used to set :attr:`spectrograph`.
-        par (:class:`pypeit.par.pypeitpar.EdgeTracePar`):
+        par (:class:`~pypeit.par.pypeitpar.EdgeTracePar`):
             The parameters used to guide slit tracing. Used to set
             :attr:`par`.
         qa_path (:obj:`str`, optional):
@@ -284,18 +284,18 @@ class EdgeTraceSet(calibframe.CalibFrame):
 
     Attributes:
         traceimg
-            (:class:`pypeit.images.buildcalibration.TraceImage`):
+            (:class:`~pypeit.images.buildcalibration.TraceImage`):
             See argument list.
         spectrograph
-            (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             See argument list.
-        par (:class:`pypeit.par.pypeitpar.EdgeTracePar`):
+        par (:class:`~pypeit.par.pypeitpar.EdgeTracePar`):
             See argument list.
         files (:obj:`list`):
             The list of raw files used to construct the trace image
             (:attr:`img`). Only defined if argument `img` in
             :func:`initial_trace` or :func:`auto_trace` is a
-            :class:`pypeit.images.buildcalibration.TraceImage` object.
+            :class:`~pypeit.images.buildcalibration.TraceImage` object.
         img (`numpy.ndarray`_):
             Convenience for now.
         det (:obj:`int`):
@@ -342,7 +342,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         fittype (:obj:`str`):
             An informational string identifier for the type of model
             used to fit the trace data.
-        pca (:obj:`list`, :class:`pypeit.tracepca.TracePCA`):
+        pca (:obj:`list`, :class:`~pypeit.tracepca.TracePCA`):
             Result of a PCA decomposition of the edge traces, used to
             predict new traces. This can either be a single
             :class:`pypeit.tracepca.TracePCA` object or a list of two
@@ -434,8 +434,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
     """
 
     datamodel = {'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
-                 'dispname': dict(otype=str,
-                                  descr='Spectrograph disperser name.'),
+                 'dispname': dict(otype=str, descr='Spectrograph disperser name.'),
                  'traceimg': dict(otype=TraceImage,
                                    descr='Image used to construct the edge traces; see '
                                          ':class:`~pypeit.images.buildimage.TraceImage` and '

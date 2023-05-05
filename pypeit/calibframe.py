@@ -103,7 +103,7 @@ class CalibFrame(datamodel.DataContainer):
                 calibration frame.  Strings (either as individually entered or
                 as elements of a provided list) can be single or comma-separated
                 integers.  Otherwise, all strings must be convertible to
-                integers, with the only exception is the string 'all'.
+                integers; the only exception is the string 'all'.
             detname (:obj:`str`):
                 The identifier used for the detector or detector mosaic for the
                 relevant instrument; see
@@ -120,7 +120,7 @@ class CalibFrame(datamodel.DataContainer):
 
     def copy_calib_internals(self, other):
         """
-        Copy the internals from this :class:`CalibFrame` to another.
+        Copy the internals from another :class:`CalibFrame` to this one.
 
         Args:
             other (:class:`CalibFrame`):
@@ -239,15 +239,16 @@ class CalibFrame(datamodel.DataContainer):
                         ext = h.name
                         break
                 if ext is None:
-                    msgs.error(f'None of the headers in {inp} have CALIBKEY or CALIBDIR keywords!')
+                    msgs.error(f'None of the headers in {inp} have both CALIBKEY and CALIBDIR '
+                               'keywords!')
                 return hdu[ext].header['CALIBKEY'], hdu[ext].header['CALIBDIR']
 
         if isinstance(inp, fits.Header):
             if 'CALIBKEY' not in inp or 'CALIBDIR' not in inp:
-                msgs.error('Header does not include CALIBKEY or CALIBDIR.')
+                msgs.error('Header does not include CALIBKEY and/or CALIBDIR.')
             return inp['CALIBKEY'], inp['CALIBDIR']
 
-        msgs.error('Input object must have type str or astropy.io.fits.Header, not {type(inp)}.')
+        msgs.error(f'Input object must have type str or astropy.io.fits.Header, not {type(inp)}.')
 
     @staticmethod
     def ingest_calib_id(calib_id):
@@ -260,7 +261,7 @@ class CalibFrame(datamodel.DataContainer):
                 calibration frame.  Strings (either as individually entered or
                 as elements of a provided list) can be single or comma-separated
                 integers.  Otherwise, all strings must be convertible to
-                integers, with the only exception is the string 'all'.
+                integers; the only exception is the string 'all'.
 
         Returns:
             :obj:`list`: List of string representations of single calibration
@@ -277,7 +278,8 @@ class CalibFrame(datamodel.DataContainer):
             ['1', '2']
             >>> CalibFrame.ingest_calib_id(['1,2', '5,8', '3'])
             ['1', '2', '3', '5', '8']
-            >>> CalibFrame.ingest_calib_id([2, 1, 2]) == ['1', '2']
+            >>> CalibFrame.ingest_calib_id([2, 1, 2])
+            ['1', '2']
 
         """
         if isinstance(calib_id, str):
@@ -306,10 +308,11 @@ class CalibFrame(datamodel.DataContainer):
         Construct the identifier used for a given set of calibrations.
 
         The identifier is the combination of the configuration, the calibration
-        group, and the detector.  The configuration ID is the same as included
-        in the configuration column (A, B, C, etc), the calibration group is a
-        dash-separated list of the calibration group identifiers or "all", and
-        the detector/mosaic identifier (see
+        group(s), and the detector.  The configuration ID is the same as
+        included in the configuration column (A, B, C, etc), the calibration
+        group is a dash-separated list of the calibration group identifiers or
+        "all", and the detector/mosaic identifier (e.g., DET01, MSC02) is set by
+        the detector number or mosaic tuple (see
         :func:`~pypeit.spectrographs.spectrograph.Spectrograph.get_det_name`).
 
         Args:
@@ -318,7 +321,7 @@ class CalibFrame(datamodel.DataContainer):
                 see :func:`~pypeit.metadata.PypeItMetaData.unique_configurations`.
             calib_id (:obj:`str`, :obj:`list`, :obj:`int`):
                 Identifiers for one or more calibration groups for this
-                calibration frame.  See :func:`CalibFrame.ingest_calib_id`.
+                calibration frame.  See :func:`ingest_calib_id`.
             detname (:obj:`str`):
                 The identifier used for the detector or detector mosaic for the
                 relevant instrument; see
@@ -327,8 +330,7 @@ class CalibFrame(datamodel.DataContainer):
         Returns:
             :obj:`str`: Calibration identifier.
         """
-        _calib_id = CalibFrame.ingest_calib_id(calib_id)
-        return f'{setup}_{"-".join(_calib_id)}_{detname}'
+        return f'{setup}_{"-".join(CalibFrame.ingest_calib_id(calib_id))}_{detname}'
 
     @staticmethod
     def parse_calib_key(calib_key):
@@ -361,7 +363,8 @@ class CalibFrame(datamodel.DataContainer):
                 directory.
 
         Returns:
-            :obj:`str`, `Path`_: File path or file name
+            :obj:`str`, `Path`_: File path if ``calib_dir`` is provided,
+            otherwise the file name
         """
         if None in [cls.calib_type, cls.calib_file_format]:
             msgs.error(f'CODING ERROR: {cls.__name__} does not have all '
@@ -398,20 +401,14 @@ class CalibFrame(datamodel.DataContainer):
         Returns:
             `astropy.io.fits.Header`_: The new/edited fits header.
         """
-        # Standard init
         _hdr = super()._base_header(hdr=hdr)
-
-        # Save the calibration frame type and key and version, in case the file
-        # name is changed.
         _hdr['CALIBTYP'] = (self.calib_type, 'PypeIt: Calibration frame type')
         if self.calib_dir is not None:
             _hdr['CALIBDIR'] = (self.calib_dir, 'PypeIt: Calibration file directory')
         if self.calib_key is not None:
             _hdr['CALIBKEY'] = (self.calib_key, 'PypeIt: Calibration key')
         if self.calib_id is not None:
-            _hdr['CALIBID'] = (','.join(self.calib_id), 'PypeIt: Calibration key')
-
-        # Return
+            _hdr['CALIBID'] = (','.join(self.calib_id), 'PypeIt: Calibration groups')
         return _hdr
 
     @classmethod
@@ -432,7 +429,8 @@ class CalibFrame(datamodel.DataContainer):
 
         Returns:
             :obj:`list`: List of paths to applicable calibration files.  If no
-            relevant files are found, None is returned.
+            relevant files are found or if ``calib_dir`` is not an existing
+            directory, None is returned.
         """
         # Check the path exists
         _calib_dir = Path(calib_dir).resolve()
@@ -461,9 +459,4 @@ class CalibFrame(datamodel.DataContainer):
 
         # Return the applicable calibrations
         return files[keep].tolist() if any(keep) else None
-
-
-
-
-
 

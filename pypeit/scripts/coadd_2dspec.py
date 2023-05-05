@@ -99,42 +99,13 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         spec2d_files = coadd2dFile.filenames
 
         # Get the paths
-        # NOTE: These two should be the same as 
-        #   Path(par['rdx']['redux_path']).resolve() / par['rdx']['scidir']
-        #   Path(spec2d_files[0]).parent
-        pypeit_scidir = Path(spec2d_files[0]).parent
-        coadd_scidir = pypeit_scidir.parent / f"{par['rdx']['scidir']}_coadd"
-        if not coadd_scidir.exists():
-            coadd_scidir.mkdir(parents=True)
-#        pypeit_calib_dir = pypeit_scidir.parent / par['calibrations']['calib_dir']
-#        coadd_calib_dir = pypeit_scidir.parent / f"{par['calibrations']['calib_dir']}_coadd"
-#        if not coadd_calib_dir.exists():
-#            coadd_calib_dir.mkdir(parents=True)
-#        pypeit_qa_dir = pypeit_scidir.parent / par['rdx']['qadir']
-#        coadd_qa_dir = pypeit_scidir.parent / f"{par['rdx']['qadir']}_coadd"
-#        qa_path = coadd_qa_dir / 'PNGs'
-        par['rdx']['qadir'] += '_coadd'
-        qa_path = pypeit_scidir.parent / par['rdx']['qadir'] / 'PNGs'
-        if not qa_path.exists():
-            qa_path.mkdir(parents=True)
+        coadd_scidir, qa_path = map(lambda x : Path(x).resolve(),
+                                    CoAdd2D.output_paths(spec2d_files, par))
 
         # Get the output basename
         head2d = fits.getheader(spec2d_files[0])
-        if args.basename is None:
-            lasthdr = fits.getheader(spec2d_files[-1])
-            if 'FILENAME' not in head2d:
-                msgs.error(f'Missing FILENAME keyword in {spec2d_files[0]}.  Set the basename '
-                           'using the command-line option.')
-            if 'FILENAME' not in lasthdr:
-                msgs.error(f'Missing FILENAME keyword in {spec2d_files[-1]}.  Set the basename '
-                           'using the command-line option.')
-            if 'TARGET' not in head2d:
-                msgs.error(f'Missing TARGET keyword in {spec2d_files[0]}.  Set the basename '
-                           'using the command-line option.')
-            basename = f"{io.remove_suffix(head2d['FILENAME'])}-" \
-                       f"{io.remove_suffix(lasthdr['FILENAME'])}-{head2d['TARGET']}"
-        else:
-            basename = args.basename
+        basename = coadd2d.CoAdd2D.default_basename(spec2d_files) \
+                        if args.basename is None else args.basename
 
         # Write the par to disk
         par_outfile = coadd_scidir.parent / f'{basename}_coadd2d.par'
@@ -143,7 +114,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
         # Now run the coadds
         bkg_redux = head2d['SKYSUB'] == 'DIFF'
-        find_negative = head2d['FINDOBJ'] == 'NEG'
+        find_negative = head2d['FINDOBJ'] == 'POS_NEG'
 
         # Print status message
         msgs_string = f'Reducing target {basename}' + msgs.newline()

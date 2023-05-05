@@ -104,42 +104,6 @@ class PypeIt:
         msgs.info('Setting configuration-specific parameters using '
                   f'{os.path.split(config_specific_file)[1]}.')
 
-#        # Spectrograph
-#        spectrograph_name = self.pypeItFile.config['rdx']['spectrograph']
-#        self.spectrograph = load_spectrograph(spectrograph_name)
-#
-#        # --------------------------------------------------------------
-#        # Get the full set of PypeIt parameters
-#        #   - Grab a science or standard file for configuration specific parameters
-#
-#        config_specific_file = None
-#        for idx, row in enumerate(self.pypeItFile.data):
-#            if ('science' in row['frametype']) or ('standard' in row['frametype']):
-#                config_specific_file = self.pypeItFile.filenames[idx]
-#        # search for arcs, trace if no scistd was there
-#        if config_specific_file is None:
-#            for idx, row in enumerate(self.pypeItFile.data):
-#                if ('arc' in row['frametype']) or ('trace' in row['frametype']):
-#                    config_specific_file = self.pypeItFile.filenames[idx]
-#        if config_specific_file is not None:
-#            msgs.info(
-#                'Setting configuration-specific parameters using {0}'.format(os.path.split(config_specific_file)[1]))
-#        self.spectrograph._check_extensions(config_specific_file)
-#        spectrograph_cfg_lines = self.spectrograph.config_specific_par(config_specific_file).to_config()
-#
-#        # Addtional parameters, including QL
-#        merge = (self.pypeItFile.cfg_lines,)
-##        # NOTE: Moved this into the ql script
-##        if ql_is_on(self.pypeItFile.config):
-##            merge = (self.spectrograph.ql_par(),) + merge
-#
-#        #   - Build the full set, merging with any user-provided
-#        #     parameters
-#        self.par = PypeItPar.from_cfg_lines(
-#            cfg_lines=spectrograph_cfg_lines, 
-#            merge_with=merge)
-#        msgs.info('Built full PypeIt parameter set.')
-
         # Check the output paths are ready
         if redux_path is not None:
             self.par['rdx']['redux_path'] = redux_path
@@ -197,7 +161,7 @@ class PypeIt:
         self.det = None
         self.tstart = None
         self.basename = None
-        self.sciI = None
+#        self.sciI = None
         self.obstime = None
 
     @property
@@ -233,9 +197,8 @@ class PypeIt:
         Returns:
             :obj:`str`: The path for the output file
         """
-        return self.get_spec_file_name(self.science_path, self.fitstbl.construct_basename(frame))
-#        return os.path.join(self.science_path, 'spec{0}d_{1}.fits'.format('2' if twod else '1',
-#                                                    self.fitstbl.construct_basename(frame)))
+        return self.get_spec_file_name(self.science_path, self.fitstbl.construct_basename(frame),
+                                       twod=twod)
 
     @staticmethod
     def get_spec_file_name(science_path, basename, twod=False):
@@ -313,7 +276,7 @@ class PypeIt:
 
             # Find the detectors to reduce
             detectors = self.select_detectors(self.spectrograph, self.par['rdx']['detnum'],
-                                              self.par['rdx']['slitspatnum'])
+                                              slitspatnum=self.par['rdx']['slitspatnum'])
             msgs.info(f'Detectors to work on: {detectors}')
 
             # Loop on Detectors
@@ -480,7 +443,7 @@ class PypeIt:
         self.print_end_time()
 
     @staticmethod
-    def select_detectors(spectrograph, detnum, slitspatnum):
+    def select_detectors(spectrograph, detnum, slitspatnum=None):
         """
         Get the set of detectors to be reduced.
 
@@ -488,6 +451,16 @@ class PypeIt:
         :func:`~pypeit.spectrographs.spectrograph.Spectrograph.select_detectors`,
         except that it applies any limitations set by the
         :class:`~pypeit.par.pypeitpar.ReduxPar` parameters.
+
+        Args:
+            spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph):
+                Spectrograph instance that defines the allowed
+                detectors/mosaics.
+            detnum (:obj:`int`, :obj:`tuple`):
+                The detectors/mosaics to parse
+            slitspatnum (:obj:`str`, optional):
+                Used to restrict the reduction to a specified slit.  See
+                :class:`~pypeit.par.pypeitpar.ReduxPar`.
 
         Returns:
             :obj:`list`: List of unique detectors or detector mosaics to be
@@ -575,7 +548,7 @@ class PypeIt:
 
         # Find the detectors to reduce
         detectors = self.select_detectors(self.spectrograph, self.par['rdx']['detnum'],
-                                          self.par['rdx']['slitspatnum'])
+                                          slitspatnum=self.par['rdx']['slitspatnum'])
         msgs.info(f'Detectors to work on: {detectors}')
 
         # Loop on Detectors -- Calibrate, process image, find objects
@@ -834,7 +807,7 @@ class PypeIt:
 
         Sky regions are defined by the internal provided parameters; see
         ``user_regions`` in :class:`~pypeit.par.pypeitpar.SkySubPar`.  If
-        included in the in the pypeit file like so, 
+        included in the pypeit file like so, 
 
         .. code-block:: ini
 
@@ -869,7 +842,7 @@ class PypeIt:
         Returns
         -------
         skymask : `numpy.ndarray`_
-            A boolean array of used to select sky pixels; i.e., True is a pixel
+            A boolean array used to select sky pixels; i.e., True is a pixel
             that corresponds to a sky region.  If the ``user_regions`` parameter
             is not set (or an empty string), the returned value is None.
         """
@@ -879,10 +852,10 @@ class PypeIt:
         # First priority given to user_regions first
         if self.par['reduce']['skysub']['user_regions'] == 'user':
             # Build the file name
-            setup = self.fitstbl['setup'][frame]
-            calib_id = CalibFrame.ingest_calib_id(self.fitstbl['calib'][frame])
-            detname = self.spectrograph.get_det_name(self.det)
-            calib_key = CalibFrame.construct_calib_key(setup, calib_id, detname)
+            calib_key = CalibFrame.construct_calib_key(
+                                self.fitstbl['setup'][frame],
+                                CalibFrame.ingest_calib_id(self.fitstbl['calib'][frame]),
+                                self.spectrograph.get_det_name(self.det))
             regfile = buildimage.SkyRegions.construct_file_name(calib_key,
                                                                 calib_dir=self.calibrations_path,
                                                                 basename=io.remove_suffix(scifile))
@@ -915,7 +888,9 @@ class PypeIt:
         status, regions = skysub.read_userregions(skyregtxt, self.caliBrate.slits.nslits,
                                                   maxslitlength)
         # Generate and return image
-        # TODO: Is this applying the spatial flexure twice?
+        # TODO: Is this applying the spatial flexure twice?  I.e., once above
+        # when calling select_edges, and once below when passed to
+        # generate_mask?
         return skysub.generate_mask(self.spectrograph.pypeline, regions, self.caliBrate.slits,
                                     slits_left, slits_right, spat_flexure=spat_flexure)
 

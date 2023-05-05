@@ -117,6 +117,18 @@ def test_yamlify():
     os.remove(tst_file)
 
 
+def test_add_sub_dict():
+    d = {}
+    utils.add_sub_dict(d, 'test')
+    assert d == {'test': {}}, 'add_sub_dict failure'
+    d['test'] = 'this'
+    utils.add_sub_dict(d, 'test')
+    assert d == {'test': 'this'}, 'add_sub_dict failure'
+    utils.add_sub_dict(d, 'and')
+    d['and'] = 'that'
+    assert d == {'test': 'this', 'and': 'that'}, 'add_sub_dict failure'
+
+
 def test_recursive_update():
     d = {}
     d['rdx'] = dict(spectrograph='shane_kast_blue')
@@ -126,5 +138,3 @@ def test_recursive_update():
     d = utils.recursive_update(d, u)
     assert sorted(list(d['rdx'].keys())) == ['detnum', 'spectrograph'], 'Missing merged keys'
 
-
-    
