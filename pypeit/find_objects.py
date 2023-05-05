@@ -874,6 +874,7 @@ class MultiSlitFindObjects(FindObjects):
                                 boxcar_rad=self.par['reduce']['extraction']['boxcar_radius'] / self.get_platescale(),  #pixels
                                 maxdev=self.par['reduce']['findobj']['find_maxdev'],
                                 find_min_max=self.par['reduce']['findobj']['find_min_max'],
+                                extract_maskwidth=self.par['reduce']['skysub']['local_maskwidth'],
                                 qa_title=qa_title, nperslit=maxnumber,
                                 objfindQA_filename=objfindQA_filename,
                                 debug_all=debug)
@@ -1213,7 +1214,8 @@ class IFUFindObjects(MultiSlitFindObjects):
         ref_idx = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
         smooth_npix = self.par['calibrations']['flatfield']['slit_illum_smooth_npix']
         gpm = self.sciImg.select_flag(invert=True)
-        # TODO why is this being done with waveimg instead of the tilts? Is profile really dependent on wavelength?
+        # Note :: Need to provide wavelength to illum_profile_spectral (not the tilts) so that the
+        # relative spectral sensitivity is calculated at a given wavelength for all slits simultaneously.
         scaleImg = flatfield.illum_profile_spectral(self.sciImg.image.copy(), self.waveimg, self.slits,
                                                     slit_illum_ref_idx=ref_idx, model=global_sky, gpmask=gpm,
                                                     skymask=skymask, trim=trim, flexure=self.spat_flexure_shift,

@@ -6,8 +6,9 @@
 from IPython import embed
 
 import numpy as np
-from scipy import signal, ndimage
-from scipy.optimize import curve_fit
+import scipy.ndimage
+import scipy.optimize
+import scipy.signal
 
 from astropy.convolution import convolve, Box2DKernel
 from astropy.timeseries import LombScargle
@@ -204,7 +205,7 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
 
         if varframe is None:
             msgs.info("Updating the noise model")
-            m5 = ndimage.filters.median_filter(_sciframe, size=5, mode='mirror')
+            m5 = scipy.ndimage.median_filter(_sciframe, size=5, mode='mirror')
             noise = np.sqrt(np.absolute(m5))
             # NOTE: Inverting the error avoids division by 0 errors
             _inv_err = utils.inverse(noise)
@@ -219,7 +220,7 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
         s = utils.rebin_evlist(np.clip(deriv, 0, None), _sciframe.shape) * _inv_err / 2.0 
 
         # Remove the large structures
-        sp = s - ndimage.filters.median_filter(s, size=5, mode='mirror')
+        sp = s - scipy.ndimage.median_filter(s, size=5, mode='mirror')
 
         # Candidate cosmic rays
         cosmics = sp > sigclip
@@ -234,8 +235,8 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
 
         if remove_compact_obj:
             # Build the fine structure image
-            m3 = ndimage.filters.median_filter(_sciframe, size=3, mode='mirror')
-            m37 = ndimage.filters.median_filter(m3, size=7, mode='mirror')
+            m3 = scipy.ndimage.median_filter(_sciframe, size=3, mode='mirror')
+            m37 = scipy.ndimage.median_filter(m3, size=7, mode='mirror')
             # TODO: How does clip treat NaNs?
             f = np.clip((m3 - m37) * _inv_err, 0.01, None)
             # Require cosmics to have significant contrast
@@ -248,11 +249,11 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
         msgs.info("Finding neighboring pixels affected by cosmic rays")
         # We grow these cosmics a first time to determine the immediate
         # neighborhod, keeping those that also meet the S/N requirement
-        cosmics = ndimage.binary_dilation(cosmics, structure=growkernel)
+        cosmics = scipy.ndimage.binary_dilation(cosmics, structure=growkernel)
         cosmics &= sp > sigclip
 
         # Now we repeat this procedure, but lower the detection limit to sigmalimlow :
-        cosmics = ndimage.binary_dilation(cosmics, structure=growkernel)
+        cosmics = scipy.ndimage.binary_dilation(cosmics, structure=growkernel)
         cosmics &= sp > sigcliplow
         ncr = np.sum(cosmics)
         msgs.info(f'Changed to {ncr} candidates after evaluating neighboring pixels.')
@@ -283,15 +284,15 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
     # Additional algorithms (not traditionally implemented by LA cosmic) to
     # remove some false positives.
     #msgs.work("The following algorithm would be better on the rectified, tilts-corrected image")
-    filt  = ndimage.sobel(sciframe, axis=1, mode='constant')
+    filt  = scipy.ndimage.sobel(sciframe, axis=1, mode='constant')
     _inv_mad = utils.inverse(np.sqrt(np.abs(sciframe))) # Avoid divisions by 0
-    filty = ndimage.sobel(filt * _inv_mad, axis=0, mode='constant')
+    filty = scipy.ndimage.sobel(filt * _inv_mad, axis=0, mode='constant')
     # TODO: Can we skip this now that we're not dividing by 0?
     filty[np.isnan(filty)] = 0.0
 
     sigimg = cr_screen(filty)
 
-    sigsmth = ndimage.filters.gaussian_filter(sigimg, 1.5)
+    sigsmth = scipy.ndimage.gaussian_filter(sigimg, 1.5)
     sigsmth[np.isnan(sigsmth)] = 0.0
 
     crmask &= sigsmth > sigclip
@@ -438,7 +439,7 @@ def grow_mask(mask, radius):
         size += 1
     x, y = np.meshgrid(np.arange(size) - size//2, np.arange(size) - size//2)
     # Dilate the mask
-    return ndimage.binary_dilation(mask, structure=x**2 + y**2 <= radius**2)
+    return scipy.ndimage.binary_dilation(mask, structure=x**2 + y**2 <= radius**2)
 
 
 def gain_frame(amp_img, gain):
@@ -675,7 +676,7 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
             c = np.polyfit(np.arange(osfit.size), osfit, params[0])
             ossub = np.polyval(c, np.arange(osfit.size))
         elif method.lower() == 'savgol':
-            ossub = signal.savgol_filter(osfit, params[1], params[0])
+            ossub = scipy.signal.savgol_filter(osfit, params[1], params[0])
         elif method.lower() == 'median':
             # Subtract scalar and continue
             no_overscan[data_slice] -= osfit
@@ -827,9 +828,10 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
             wgd = norm != 0
             try:
                 # Now fit it
-                popt, pcov = curve_fit(cosfunc, cent[wgd], hist[wgd], p0=[amps[ii], 0.0],
-                                       bounds=([0, -np.inf],
-                                               [np.inf, np.inf]))
+                popt, pcov = scipy.optimize.curve_fit(
+                    cosfunc, cent[wgd], hist[wgd], p0=[amps[ii], 0.0],
+                    bounds=([0, -np.inf],[np.inf, np.inf])
+                )
             except ValueError:
                 msgs.warn("Input data invalid for pattern subtraction of row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
                 continue
@@ -856,8 +858,10 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
             wgd = norm != 0
             try:
                 # Now fit it
-                popt, pcov = curve_fit(cosfunc, cent[wgd], hist[wgd], p0=[0.0],
-                                       bounds=([-np.inf], [np.inf]))
+                popt, pcov = scipy.optimize.curve_fit(
+                    cosfunc, cent[wgd], hist[wgd], p0=[0.0],
+                    bounds=([-np.inf], [np.inf])
+                )
             except ValueError:
                 msgs.warn("Input data invalid for pattern subtraction of row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
                 continue
@@ -1108,8 +1112,9 @@ def base_variance(rn_var, darkcurr=None, exptime=None, proc_var=None, count_scal
 
         - :math:`c=s\ C` are the rescaled observed sky + object counts,
         - :math:`C` is the observed number of sky + object counts,
-        - :math:`s` is a scale factor derived from the (inverse of the)
-          flat-field frames (see ``count_scale``),
+        - :math:`s=s\prime / N_{\rm frames}` is a scale factor derived
+          from the (inverse of the) flat-field frames plus the number
+          of frames contributing to the object counts (see ``count_scale``),
         - :math:`D` is the dark current in electrons per **hour** (see
           ``darkcurr``),
         - :math:`t_{\rm exp}` is the effective exposure time in seconds (see
@@ -1179,10 +1184,12 @@ def base_variance(rn_var, darkcurr=None, exptime=None, proc_var=None, count_scal
             array, the shape must match ``rn_var``.
         count_scale (:obj:`float`, `numpy.ndarray`_, optional):
             A scale factor that *has already been applied* to the provided
-            counts.  For example, if the image has been flat-field corrected,
-            this is the inverse of the flat-field counts.  If None, set to 1.
-            If a single float, assumed to be constant across the full image.  If
-            an array, the shape must match ``rn_var``.  The variance will be 0
+            counts. It accounts for the number of frames contributing to
+            the provided counts, and the relative throughput factors that
+            can be measured from flat-field frames. For example, if the image
+            has been flat-field corrected, this is the inverse of the flat-field counts.
+            If None, set to 1. If a single float, assumed to be constant across the full image.
+            If an array, the shape must match ``rn_var``.  The variance will be 0
             wherever :math:`s \leq 0`, modulo the provided ``noise_floor``.
 
     Returns:
@@ -1235,8 +1242,9 @@ def variance_model(base, counts=None, count_scale=None, noise_floor=None):
         - :math:`c=s\ C` are the rescaled observed sky + object counts (see
           ``counts``),
         - :math:`C` is the observed number of sky + object counts,
-        - :math:`s` is a scale factor derived from the (inverse of the)
-          flat-field frames (see ``count_scale``),
+        - :math:`s=s\prime / N_{\rm frames}` is a scale factor derived
+          from the (inverse of the) flat-field frames plus the number
+          of frames contributing to the object counts (see ``count_scale``),
         - :math:`D` is the dark current in electrons per **hour**,
         - :math:`t_{\rm exp}` is the effective exposure time in seconds,
         - :math:`V_{\rm rn}` is the detector readnoise variance (i.e.,
@@ -1294,9 +1302,11 @@ def variance_model(base, counts=None, count_scale=None, noise_floor=None):
             ``base``.  Shape must match ``base``.
         count_scale (:obj:`float`, `numpy.ndarray`_, optional):
             A scale factor that *has already been applied* to the provided
-            counts; see :math:`s` in the equations above.  For example, if the
-            image has been flat-field corrected, this is the inverse of the
-            flat-field counts.  If None, no scaling is expected, meaning
+            counts; see :math:`s` in the equations above.  It accounts for
+            the number of frames contributing to  the provided counts, and
+            the relative throughput factors that  can be measured from flat-field frames.
+            For example, if the image has been flat-field corrected, this is the inverse
+            of the flat-field counts.  If None, no scaling is expected, meaning
             ``counts`` are exactly the observed detector counts.  If a single
             float, assumed to be constant across the full image.  If an array,
             the shape must match ``base``.  The variance will be 0 wherever

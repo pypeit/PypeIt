@@ -10,7 +10,7 @@
       file                  MasterWaveCalib file
       slit_order            Slit or Order number
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       --slit_file SLIT_FILE
                             Master Slit file (default: None)
