@@ -346,10 +346,11 @@ class CoAdd2D:
         nexp = len(self.stack_dict['specobjs_list'])
         nspec = self.stack_dict['specobjs_list'][0][0].TRACE_SPAT.shape[0]
         # Grab the traces, flux, wavelength and noise for this slit and objid.
-        flux_stack = np.zeros((nspec, nexp), dtype=float)
-        ivar_stack = np.zeros((nspec, nexp), dtype=float)
-        wave_stack = np.zeros((nspec, nexp), dtype=float)
-        mask_stack = np.zeros((nspec, nexp), dtype=bool)
+        waves, fluxes, ivars, gpms = [], [], [], []
+        #flux_stack = np.zeros((nspec, nexp), dtype=float)
+        #ivar_stack = np.zeros((nspec, nexp), dtype=float)
+        #wave_stack = np.zeros((nspec, nexp), dtype=float)
+        #mask_stack = np.zeros((nspec, nexp), dtype=bool)
 
         for iexp, sobjs in enumerate(self.stack_dict['specobjs_list']):
             ithis = sobjs.slitorder_objid_indices(slitorderid, objid[iexp])
@@ -357,10 +358,18 @@ class CoAdd2D:
                 msgs.error('Slit/order or OBJID provided not valid. Optimal weights cannot be determined.')
             # check if OPT_COUNTS is available
             if sobjs[ithis][0].has_opt_ext():
-                wave_stack[:, iexp], flux_stack[:, iexp], ivar_stack[:, iexp], mask_stack[:, iexp] = sobjs[ithis][0].get_opt_ext()
+                wave_iexp, flux_iexp, ivar_iexp, gpm_iexp = sobjs[ithis][0].get_opt_ext()
+                waves.append(wave_iexp)
+                fluxes.append(flux_iexp)
+                ivars.append(ivar_iexp)
+                gpms.append(gpm_iexp)
             # check if BOX_COUNTS is available
             elif sobjs[ithis][0].has_box_ext():
-                wave_stack[:, iexp], flux_stack[:, iexp], ivar_stack[:, iexp], mask_stack[:, iexp] = sobjs[ithis][0].get_box_ext()
+                wave_iexp, flux_iexp, ivar_iexp, gpm_iexp = sobjs[ithis][0].get_box_ext()
+                waves.append(wave_iexp)
+                fluxes.append(flux_iexp)
+                ivars.append(ivar_iexp)
+                gpms.append(gpm_iexp)
                 msgs.warn(f'Optimal extraction not available for object '
                           f'{objid[iexp]} of slit/order {slitorderid} in exp {iexp}. Using box extraction.')
             else:
@@ -368,9 +377,8 @@ class CoAdd2D:
                            f'flux not available in slit/order = {slitorderid}')
 
         # TODO For now just use the zero as the reference for the wavelengths? Perhaps we should be rebinning the data though?
-        rms_sn, weights = coadd.sn_weights(wave_stack, flux_stack, ivar_stack, mask_stack, self.sn_smooth_npix,
-                                           const_weights=const_weights)
-        return rms_sn, weights.T
+        rms_sn, weights = coadd.sn_weights(fluxes, ivars, gpms, self.sn_smooth_npix, const_weights=const_weights)
+        return rms_sn, weights
 
     def coadd(self, only_slits=None, interp_dspat=True):
         """
@@ -413,7 +421,11 @@ class CoAdd2D:
             maskdef_dict = self.get_maskdef_dict(slit_idx, ref_trace_stack)
 
             # weights
-            if not isinstance(self.use_weights, str) and self.use_weights.ndim > 2:
+            #if not isinstance(self.use_weights, str) and self.use_weights.ndim > 2:
+            #    weights = self.use_weights[slit_idx]
+            #else:
+            #    weights = self.use_weights
+            if not isinstance(self.use_weights, str):
                 weights = self.use_weights[slit_idx]
             else:
                 weights = self.use_weights
@@ -782,10 +794,11 @@ class CoAdd2D:
         #  This all seems a bit hacky
         if self.par['coadd2d']['use_slits4wvgrid'] or nobjs_tot==0:
             nslits_tot = np.sum([slits.nslits for slits in self.stack_dict['slits_list']])
-            waves = np.zeros((self.nspec_max, nslits_tot*3))
-            gpm = np.zeros_like(waves, dtype=bool)
+            #waves = np.zeros((self.nspec_max, nslits_tot*3))
+            #gpm = np.zeros_like(waves, dtype=bool)
+            waves, gpms = [], []
             box_radius = 3.
-            indx = 0
+            #indx = 0
             # Loop on the exposures
             for iexp, (waveimg, slitmask, slits) in enumerate(zip(self.stack_dict['waveimg_stack'],
                                                 self.stack_dict['slitmask_stack'],
@@ -801,22 +814,26 @@ class CoAdd2D:
                     box_denom = moment1d(waveimg * mask > 0.0, trace_spat, 2 * box_radius, row=row)[0]
                     wave_box = moment1d(waveimg * mask, trace_spat, 2 * box_radius,
                                     row=row)[0] / (box_denom + (box_denom == 0.0))
-                    waves[:self.nspec_array[iexp], indx:indx+3] = wave_box
+                    waves += [wave for wave in wave_box.T]
+                    gpms  += [wave > 0. for wave in wave_box.T]
+                    #waves[:self.nspec_array[iexp], indx:indx+3] = wave_box
                     # TODO -- This looks a bit risky
-                    gpm[:self.nspec_array[iexp], indx: indx+3] = wave_box > 0.
-                    indx += 3
+                    #gpm[:self.nspec_array[iexp], indx: indx+3] = wave_box > 0.
+                    #indx += 3
         else:
-            waves = np.zeros((self.nspec_max, nobjs_tot))
-            gpm = np.zeros_like(waves, dtype=bool)
-            indx = 0
+            waves, gpms = [], []
+            #waves = np.zeros((self.nspec_max, nobjs_tot))
+            #gpm = np.zeros_like(waves, dtype=bool)
+            #indx = 0
             for iexp, spec_this in enumerate(self.stack_dict['specobjs_list']):
                 for spec in spec_this:
-                    waves[:self.nspec_array[iexp], indx] = spec.OPT_WAVE
+                    waves.append(spec.OPT_WAVE)
+                    gpms.append(spec.OPT_MASK)
                     # TODO -- OPT_MASK is likely to become a bpm with int values
-                    gpm[:self.nspec_array[iexp], indx] = spec.OPT_MASK
-                    indx += 1
+                    #gpm[:self.nspec_array[iexp], indx] = spec.OPT_MASK
+                    #indx += 1
 
-        wave_grid, wave_grid_mid, dsamp = wvutils.get_wave_grid(waves=waves, gpms=gpm,
+        wave_grid, wave_grid_mid, dsamp = wvutils.get_wave_grid(waves=waves, gpms=gpms,
                                                                 spec_samp_fact=self.spec_samp_fact,
                                                                 **kwargs_wave)
 
@@ -1248,40 +1265,48 @@ class MultiSlitCoAdd2D(CoAdd2D):
         # Loop over each exposure, slit, find the brighest object on that slit for every exposure
         for iexp, sobjs in enumerate(specobjs_list):
             msgs.info("Working on exposure {}".format(iexp))
-            nspec_now = self.nspec_array[iexp]
+            #nspec_now = self.nspec_array[iexp]
             for islit, spat_id in enumerate(spat_ids):
                 ithis = np.abs(sobjs.SLITID - spat_id) <= self.par['coadd2d']['spat_toler']
-                nobj_slit = np.sum(ithis)
+                #nobj_slit = np.sum(ithis)
                 if np.any(ithis):
                     objid_this = sobjs[ithis].OBJID
-                    flux = np.zeros((nspec_now, nobj_slit))
-                    ivar = np.zeros((nspec_now, nobj_slit))
-                    wave = np.zeros((nspec_now, nobj_slit))
-                    mask = np.zeros((nspec_now, nobj_slit), dtype=bool)
-                    remove_indx = []
+                    waves, fluxes, ivars, gpms = [], [], [], []
+                    #flux = np.zeros((nspec_now, nobj_slit))
+                    #ivar = np.zeros((nspec_now, nobj_slit))
+                    #wave = np.zeros((nspec_now, nobj_slit))
+                    #mask = np.zeros((nspec_now, nobj_slit), dtype=bool)
+                    #remove_indx = []
                     for iobj, spec in enumerate(sobjs[ithis]):
                         # check if OPT_COUNTS is available
                         if spec.has_opt_ext():
-                            wave[:, iobj], flux[:, iobj], ivar[:, iobj], mask[:, iobj] = spec.get_opt_ext()
+                            wave_iobj, flux_iobj, ivar_iobj, gpm_iobj = spec.get_opt_ext()
+                            waves.append(wave_iobj)
+                            fluxes.append(flux_iobj)
+                            ivars.append(ivar_iobj)
+                            gpms.append(gpm_iobj)
                         # check if BOX_COUNTS is available
                         elif spec.has_box_ext():
-                            wave[:, iobj], flux[:, iobj], ivar[:, iobj], mask[:, iobj] = spec.get_box_ext()
+                            wave_iobj, flux_iobj, ivar_iobj, gpm_iobj = spec.get_box_ext()
+                            waves.append(wave_iobj)
+                            fluxes.append(flux_iobj)
+                            ivars.append(ivar_iobj)
+                            gpms.append(gpm_iobj)
                             msgs.warn(f'Optimal extraction not available for obj {spec.OBJID} '
                                       f'in slit {spat_id}. Using box extraction.')
                         # if both are not available, we remove the object in this slit,
                         # because otherwise coadd.sn_weights will crash
                         else:
                             msgs.warn(f'Optimal and Boxcar extraction not available for obj {spec.OBJID} in slit {spat_id}.')
-                            remove_indx.append(iobj)
-                    # if the number of removed objects is less than the total number of objects in this slit,
-                    # i.e., we still have some objects left, we can proced with computing rms_sn
-                    if len(remove_indx) < nobj_slit:
-                        flux = np.delete(flux, remove_indx,1)
-                        ivar = np.delete(ivar, remove_indx,1)
-                        wave = np.delete(wave, remove_indx,1)
-                        mask = np.delete(mask, remove_indx,1)
-
-                        rms_sn, weights = coadd.sn_weights(wave, flux, ivar, mask, None, const_weights=True)
+                            #remove_indx.append(iobj)
+                    # if there are objects on this slit left, we can proceed with computing rms_sn
+                    if len(waves) > 0:
+                        #len(remove_indx) < nobj_slit:
+                        #flux = np.delete(flux, remove_indx,1)
+                        #ivar = np.delete(ivar, remove_indx,1)
+                        #wave = np.delete(wave, remove_indx,1)
+                        #mask = np.delete(mask, remove_indx,1)
+                        rms_sn, weights = coadd.sn_weights(fluxes, ivars, gpms, None, const_weights=True)
                         imax = np.argmax(rms_sn)
                         slit_snr_max[islit, iexp] = rms_sn[imax]
                         objid_max[islit, iexp] = objid_this[imax]
