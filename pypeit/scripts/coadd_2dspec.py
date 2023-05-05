@@ -65,7 +65,6 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         from astropy.io import fits
 
         from pypeit import msgs
-        from pypeit import io
         from pypeit import coadd2d
         from pypeit import inputfiles
         from pypeit import specobjs
@@ -100,7 +99,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
         # Get the paths
         coadd_scidir, qa_path = map(lambda x : Path(x).resolve(),
-                                    CoAdd2D.output_paths(spec2d_files, par))
+                                    coadd2d.CoAdd2D.output_paths(spec2d_files, par))
 
         # Get the output basename
         head2d = fits.getheader(spec2d_files[0])

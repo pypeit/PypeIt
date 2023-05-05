@@ -52,14 +52,15 @@ from pypeit import msgs
 from pypeit import pypeitsetup
 from pypeit import metadata
 from pypeit import io
+from pypeit import inputfiles 
 from pypeit import pypeit
+from pypeit import coadd2d
 from pypeit.par.pypeitpar import PypeItPar
 from pypeit.calibframe import CalibFrame
 from pypeit.core.parse import parse_binning
 from pypeit.scripts import scriptbase
 from pypeit.spectrographs import available_spectrographs
 from pypeit.slittrace import SlitTraceSet 
-from pypeit import inputfiles 
 
 from pypeit.scripts.setup_coadd2d import SetupCoAdd2D
 from pypeit.scripts.coadd_2dspec import CoAdd2DSpec
@@ -176,6 +177,7 @@ def quicklook_regroup(fitstbl):
 def generate_sci_pypeitfile(redux_path:str, 
                             ref_calib_dir:Path,
                             ps_sci, 
+                            calib_grp:int=None,
                             det:str=None,
                             clean:bool=False,
                             slitspatnum:str=None,
@@ -202,6 +204,10 @@ def generate_sci_pypeitfile(redux_path:str,
             location of the calibrations expected by :class:`~pypeit.PypeIt`.
         ps_sci (:class:`~pypeit.pypeitsetup.PypeItSetup`):
             Setup object for the science frame(s) only.
+        calib_grp (:obj:`int`, optional):
+            If the reference calibration directory contains results from more
+            than one calibration group, this *must* be provided, specifying
+            which calibration group should be used.
         det (:obj:`str`, optional):
             Detector/mosaic identifier.  If None, all detectors are reduced.
         clean (:obj:`bool`, optional):
@@ -227,7 +233,7 @@ def generate_sci_pypeitfile(redux_path:str,
         msgs.error(f'Reference calibration directory does not exist: {ref_calib_dir}')
 
     # Get the setup and calibration group to use for the science frame(s)
-    setup, calib = get_setup_calib(ref_calib_dir)
+    setup, calib = get_setup_calib(ref_calib_dir, calib_grp=calib_grp)
 
     # Force them in the fitstbl
     # TODO: Make this series of operations a function in PypeItMetaData?
@@ -526,7 +532,7 @@ def merge_setups(calibrated_setups, calib_match, frame_setup):
     return new_frame_setup.tolist()
 
 
-def get_setup_calib(calib_dir):
+def get_setup_calib(calib_dir, calib_grp=None):
     """
     Using all of the files found in the provided directory, determine the setup
     and calibration group to use for the quicklook science frame(s).
@@ -534,6 +540,10 @@ def get_setup_calib(calib_dir):
     Args:
         calib_dir (:obj:`str`, `Path`_):
             Directory with the calibration files.
+        calib_grp (:obj:`int`, optional):
+            If the calibration directory contains results from more than one
+            calibration group, this *must* be provided, specifying which
+            calibration group should be used.
 
     Returns:
         :obj:`tuple`: The setup name and calibration group.
@@ -576,11 +586,14 @@ def get_setup_calib(calib_dir):
     if len(unique_calibs) == 1:
         # There's only one calibration group, so use it.
         return setup, unique_calibs[0]
+    if calib_grp is not None:
+        if str(calib_grp) in unique_calibs:
+            return setup, str(calib_grp)
+        msgs.error(f'Selected calibration group {calib_grp} is not available in {_calib_dir}.  '
+                   'Must select a valid group.  Directory currently contains the following '
+                   f'calibration groups: {unique_calibs}')
 
-    # TODO: For now, we fault here.  For quick-look, this means there should
-    # only be one calibration group, or all the calibrations are assigned to
-    # 'all' calibration groups.  Otherwise, we could have the user supply the
-    # calibration group.
+    # Cannot determine which calibration group to use.
     msgs.error(f'Calibrations in {_calib_dir} are part of multiple calibration groups.  Unclear '
                'how to proceed.')
 
@@ -633,6 +646,10 @@ class QL(scriptbase.ScriptBase):
                                  'in that directory that match the instrument setup/configuration '
                                  'of the provided data, the code will construct new calibrations '
                                  '(assuming relevant raw files are provided).')
+        parser.add_argument('--calib_group', type=int, default=None,
+                            help='If the calibration directory contains results from more than '
+                                 'one calibration group, you *must* specify which one to use.  '
+                                 'The code will fault otherwise.')
         parser.add_argument('--clean', default=False, action='store_true',
                             help='Remove the existing output directories to force a fresh '
                                  'reduction.  If False, any existing directory structure will '
@@ -645,7 +662,9 @@ class QL(scriptbase.ScriptBase):
         #     header (i.e., target in the fitstbl) or from the mask information
 
         # TODO: Get rid of "calibs only"?  I.e., force user only provide
-        # calibrations if they only want to process calibrations...
+        # calibrations if they want to process only calibrations.  Maybe the
+        # point is that latter isn't clear for frames typed as
+        # `arc,science,tilt`...
         parser.add_argument('--calibs_only', default=False, action='store_true',
                             help='Reduce only the calibrations?')
         parser.add_argument('--overwrite_calibs', default=False, action='store_true',
@@ -674,7 +693,7 @@ class QL(scriptbase.ScriptBase):
         parser.add_argument('--skip_display', dest='show', default=True, action='store_false',
                             help='Run the quicklook without displaying any results.')
 
-        # TODO: Add fluxing option
+        # TODO: Add fluxing option?
 
         # Coadding options
         parser.add_argument('--coadd', default=False, action='store_true',
@@ -797,7 +816,7 @@ class QL(scriptbase.ScriptBase):
 
             # Check that all the frames are assigned to the same calibration group
             # NOTE: This is largely superfluous given the use of get_setup_calib
-            # in generate_sci_pyepitfile, but it's useful to keep the warning
+            # in generate_sci_pypeitfile, but it's useful to keep the warning
             # here.
             if any(ps_sci.fitstbl['calib'] != ps_sci.fitstbl['calib'][0]):
                 msgs.warn('Automated configuration assigned multiple calibration groups to your '
@@ -891,7 +910,8 @@ class QL(scriptbase.ScriptBase):
         sci_pypeit_file = generate_sci_pypeitfile(
                     args.redux_path, 
                     setup_calib_dir, 
-                    ps_sci, 
+                    ps_sci,
+                    calib_grp=args.calib_group, 
                     det=args.det,
                     clean=args.clean,
                     slitspatnum=args.slitspatnum,
@@ -899,15 +919,8 @@ class QL(scriptbase.ScriptBase):
                     boxcar_radius=args.boxcar_radius,
                     snr_thresh=args.snr_thresh)
 
-#        from pypeit.inputfiles import PypeItFile
-#        f = PypeItFile.from_file(sci_pypeit_file)
-#        embed()
-#        exit()
-
         # Run it
         pypeIt = pypeit.PypeIt(sci_pypeit_file, reuse_calibs=True)
-        embed()
-        exit()
         pypeIt.reduce_all()
         pypeIt.build_qa()
 
@@ -916,18 +929,23 @@ class QL(scriptbase.ScriptBase):
         if args.coadd:
             # Run the setup script to get the baseline coadd2d file
             # TODO:
-            #   - Add sensitivity function
+            #   - Add sensitivity function?
             #   - Allow SetupCoAdd2D to auto-detect dithers based on the pypeit
-            #     file and parse/prepare the coadding offsets accordingly
-            #   - and other options
-            SetupCoAdd2D.main(SetupCoAdd2D.parse_args([sci_pypeit_file]))
+            #     file and parse/prepare the coadding offsets accordingly.  Maybe
+            #     this is effectively already done?
+            command_line_args = [sci_pypeit_file]
+            if args.only_slits is not None:
+                command_line_args += ['--only_slits'] + args.only_slits
+            if args.offsets is not None:
+                command_line_args += ['--offsets', args.offsets]
+            if args.weights is not None:
+                command_line_args += ['--weights', args.weights]
+            SetupCoAdd2D.main(SetupCoAdd2D.parse_args(command_line_args))
 
             # Find all the coadd2d scripts
             # NOTE: This should only find *one* coadd2d file because quick-look
             # should be limited to performing reduction for one target at a
             # time.
-            # TODO: Have SetupCoAdd2D.main return the names of the written
-            # files?
             coadd_file = sorted(Path(sci_pypeit_file).resolve().parent.glob('*.coadd2d'))
             if len(coadd_file) != 1:
                 msgs.error('There should be only one 2D coadd file.')
@@ -935,16 +953,14 @@ class QL(scriptbase.ScriptBase):
             
             # Run the coadding
             coadd2dFile = inputfiles.Coadd2DFile.from_file(coadd_file)
-            if len(coadd2dFile.data) < 2:
-                msgs.error(f'{coadd_file} only has one spec2d file.  Continuing...')
-
-            # TODO: Add options (e.g. spatial/spectral sampling...)
-            CoAdd2DSpec.main(CoAdd2DSpec.parse_args([coadd_file]))
+            CoAdd2DSpec.main(CoAdd2DSpec.parse_args([str(coadd_file),
+                                                     '--spec_samp_fact', str(args.spec_samp_fact),
+                                                     '--spat_samp_fact', str(args.spat_samp_fact)]))
 
             # Get the output file name
             spectrograph, par, _ = coadd2dFile.get_pypeitpar()
             spec2d_files = coadd2dFile.filenames
-            coadd_scidir = Path(CoAdd2D.output_paths(spec2d_files, par)[0]).resolve()
+            coadd_scidir = Path(coadd2d.CoAdd2D.output_paths(spec2d_files, par)[0]).resolve()
             basename = coadd2d.CoAdd2D.default_basename(spec2d_files)
             spec2d_file = str(coadd_scidir / f'spec2d_{basename}.fits')
         else:
@@ -953,8 +969,14 @@ class QL(scriptbase.ScriptBase):
             spec2d_file = pypeIt.spec_output_file(frame, twod=True)
 
         if args.show:
-            # TODO: Need to parse detector here!
+            # TODO: Need to parse detector here?
             Show2DSpec.main(Show2DSpec.parse_args([spec2d_file]))
+
+        # TODO: 
+        #   - Print a statement that allows users to copy-paste the correct
+        #     pypeit_show_1dspec call?
+        #   - Provide a summary of the objects (that's not buried in previous
+        #     screen output)?
 
         exec_s = np.around(time.perf_counter()-tstart, decimals=1)
         msgs.info(f'Quicklook execution time: {datetime.timedelta(seconds=exec_s)}')
