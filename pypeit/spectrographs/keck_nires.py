@@ -136,6 +136,8 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         # Coadding
         par['coadd1d']['wave_method'] = 'log10'
+        par['coadd2d']['offsets'] = 'header'
+
 
         return par
 

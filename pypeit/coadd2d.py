@@ -149,6 +149,7 @@ class CoAdd2D:
         #    2) offsets not 'auto' (i.e. a list) - use them
         #    -------------- only for Multislit --------------
         #    3) offsets = 'maskdef_offsets' - use `maskdef_offset` saved in SlitTraceSet
+        #    4) offsets = 'header' - use the dither offsets recorded in the header
         # ===============================================================================
         # weights
         #    1) weights = 'auto' -- if brightest object exists auto compute weights,
@@ -921,17 +922,46 @@ class CoAdd2D:
 
         """
         msgs.info('Get Offsets')
+        # 1) offsets are provided in the header of the spec2d files
+        if offsets == 'header':
+            msgs.info('Using offsets from header')
+            pscale = self.stack_dict['detectors'][0].platescale
+            dithoffs = [self.spectrograph.get_meta_value(f, 'dithoff') for f in self.spec2d]
+            if None in dithoffs:
+                msgs.error('Dither offsets keyword not found for one or more spec2d files. '
+                           'Choose another option for `offsets`')
+            dithoffs_pix = - np.array(dithoffs) / pscale
+            self.offsets = dithoffs_pix[0] - dithoffs_pix
+            self.offsets_report(self.offsets, 'header keyword')
 
-        if self.objid_bri is None and offsets == 'auto':
+        elif self.objid_bri is None and offsets == 'auto':
             msgs.error('Offsets cannot be computed because no unique reference object '
                        'with the highest S/N was found. To continue, provide offsets in `Coadd2DPar`')
 
-        # 1) a list of offsets is provided by the user (no matter if we have a bright object or not)
-        if isinstance(offsets, (list, np.ndarray)):
+        # 2) a list of offsets is provided by the user (no matter if we have a bright object or not)
+        elif isinstance(offsets, (list, np.ndarray)):
             msgs.info('Using user input offsets')
             # use them
             self.offsets = self.check_input(offsets, type='offsets')
             self.offsets_report(self.offsets, 'user input')
+
+        # 3) parset `offsets` is = 'maskdef_offsets' (no matter if we have a bright object or not)
+        elif offsets == 'maskdef_offsets':
+            if self.maskdef_offset is not None:
+                # the offsets computed during the main reduction (`run_pypeit`) are used
+                msgs.info('Determining offsets using maskdef_offset recoded in SlitTraceSet')
+                self.offsets = self.maskdef_offset[0] - self.maskdef_offset
+                self.offsets_report(self.offsets, 'maskdef_offset')
+            else:
+                # if maskdef_offsets were not computed during the main reduction, we cannot continue
+                msgs.error('No maskdef_offset recoded in SlitTraceSet')
+
+        # 4) parset `offsets` = 'auto' but we have a bright object
+        elif offsets == 'auto' and self.objid_bri is not None:
+            # see child method
+            pass
+        else:
+            msgs.error('Invalid value for `offsets`')
 
     def compute_weights(self, weights):
         """
@@ -965,6 +995,13 @@ class CoAdd2D:
                           'with the highest S/N was found. Using uniform weights instead.')
             elif weights == 'uniform':
                 msgs.info('Using uniform weights')
+
+        # 3) Bright object exists and parset `weights` is equal to 'auto'
+        elif (self.objid_bri is not None) and (weights == 'auto'):
+            # see child method
+            pass
+        else:
+            msgs.error('Invalid value for `weights`')
 
     def get_brightest_object(self, specobjs_list, spat_ids):
         """
@@ -1093,18 +1130,8 @@ class MultiSlitCoAdd2D(CoAdd2D):
         """
         super().compute_offsets(offsets)
 
-        # 2) parset `offsets` is = 'maskdef_offsets' (no matter if we have a bright object or not)
-        if offsets == 'maskdef_offsets':
-            if self.maskdef_offset is not None:
-                # the offsets computed during the main reduction (`run_pypeit`) are used
-                msgs.info('Determining offsets using maskdef_offset recoded in SlitTraceSet')
-                self.offsets = self.maskdef_offset[0] - self.maskdef_offset
-                self.offsets_report(self.offsets, 'maskdef_offset')
-            else:
-                # if maskdef_offsets were not computed during the main reduction, we cannot continue
-                msgs.error('No maskdef_offset recoded in SlitTraceSet')
-        # 3) parset `offsets` = 'auto' but we have a bright object
-        elif offsets == 'auto' and self.objid_bri is not None:
+        # adjustment for multislit to case 4) parset `offsets` = 'auto' but we have a bright object
+        if offsets == 'auto' and self.objid_bri is not None:
             # Compute offsets using the bright object
             if self.par['coadd2d']['user_obj'] is not None:
                 offsets_method = 'user object on slitid = {:d}'.format(self.spatid_bri)
@@ -1180,7 +1207,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
         super().compute_weights(weights)
 
-        # 3) Bright object exists and parset `weights` is equal to 'auto'
+        # adjustment for multislit to case 3) Bright object exists and parset `weights` is equal to 'auto'
         if (self.objid_bri is not None) and (weights == 'auto'):
             # compute weights using bright object
             _, self.use_weights = self.optimal_weights(self.spatid_bri, self.objid_bri, const_weights=True)
@@ -1439,12 +1466,12 @@ class EchelleCoAdd2D(CoAdd2D):
         """
         super().compute_offsets(offsets)
 
-        # adjustment for echelle to case 1): a list of offsets is provided by the user
+        # adjustment for echelle to case 2): a list of offsets is provided by the user
         if isinstance(self.offsets, (list, np.ndarray)):
             self.objid_bri = None
 
-        # 2) parset `offsets` = 'auto' but we have a bright object
-        if offsets == 'auto' and self.objid_bri is not None:
+        # adjustment for echelle to case 4) parset `offsets` = 'auto' but we have a bright object
+        elif offsets == 'auto' and self.objid_bri is not None:
             # offsets are not determined, but the bright object is used to construct
             # a reference trace (this is done in coadd using method `reference_trace_stack`)
             self.offsets = None
@@ -1466,7 +1493,7 @@ class EchelleCoAdd2D(CoAdd2D):
         """
         super().compute_weights(weights)
 
-        # 3) Bright object exists and parset `weights` is equal to 'auto'
+        # adjustment for echelle to case 3) Bright object exists and parset `weights` is equal to 'auto'
         if (self.objid_bri is not None) and (weights == 'auto'):
             # computing a list of weights for all the slitord_ids that we than parse in coadd
             slitord_ids = self.stack_dict['slits_list'][0].slitord_id
