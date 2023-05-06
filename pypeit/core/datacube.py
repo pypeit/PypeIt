@@ -913,7 +913,6 @@ def create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv, collapse=False, e
             The reference image to be used for the cross-correlation
     """
     # Grab cos(dec) for convenience
-    embed()
     cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
 
     # Setup the cube ranges
@@ -933,7 +932,9 @@ def create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv, collapse=False, e
 
     # If a white light WCS is being generated, make sure there's only 1 wavelength bin
     if collapse:
-        dwave = np.max(all_wave) - np.min(all_wave)
+        wav_min = np.min(all_wave)
+        wav_max = np.max(all_wave)
+        dwave = wav_max - wav_min
         numwav = 1
 
     # Generate a master WCS to register all frames
@@ -1258,9 +1259,10 @@ def generate_cube_subpixel(outfile, output_wcs, all_ra, all_dec, all_wave, all_s
         hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
 
     # Subpixellate
+    debug=True
     subpix = subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts, all_spatpos, all_specpos,
                           all_spatid, tilts, slits, astrom_trans, bins, all_idx=all_idx,
-                          spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
+                          spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, debug=debug)
     # Extract the variables that we need
     if debug:
         datacube, varcube, bpmcube, residcube = subpix
@@ -1452,7 +1454,7 @@ def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_w
             varcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(all_var[this_sl] * all_wght_subpix[this_sl]**2, num_subpixels))
             normcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(all_wght_subpix[this_sl], num_subpixels))
             if debug:
-                residcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=all_sci[this_sl] * np.sqrt(all_ivar[this_sl]))
+                residcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(all_sci[this_sl] * np.sqrt(all_ivar[this_sl]), num_subpixels))
     # Normalise the datacube and variance cube
     nc_inverse = utils.inverse(normcube)
     datacube *= nc_inverse
@@ -1662,19 +1664,27 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     weights = np.ones(numfiles)  # Weights to use when combining cubes
     flat_splines = dict()   # A dictionary containing the splines of the flatfield
     # Load the default scaleimg frame for the scale correction
+    scalecorr_default = "none"
     relScaleImgDef = np.array([1])
     if cubepar['scale_corr'] is not None:
-        msgs.info("Loading default scale image for relative spectral illumination correction:" +
-                  msgs.newline() + cubepar['scale_corr'])
-        try:
-            spec2DObj = spec2dobj.Spec2DObj.from_file(cubepar['scale_corr'], detname)
-            relScaleImgDef = spec2DObj.scaleimg
-        except:
-            msgs.warn("Could not load scaleimg from spec2d file:" + msgs.newline() +
-                      cubepar['scale_corr'] + msgs.newline() +
-                      "scale correction will not be performed unless you have specified the correct" + msgs.newline() +
-                      "scale_corr file in the spec2d block")
-            cubepar['scale_corr'] = None
+        if cubepar['scale_corr'] == "image":
+            msgs.info("The default relative spectral illumination correction will use the science image")
+            scalecorr_default = "image"
+        else:
+            msgs.info("Loading default scale image for relative spectral illumination correction:" +
+                      msgs.newline() + cubepar['scale_corr'])
+            try:
+                spec2DObj = spec2dobj.Spec2DObj.from_file(cubepar['scale_corr'], detname)
+                relScaleImgDef = spec2DObj.scaleimg
+                scalecorr_default = cubepar['scale_corr']
+            except:
+                msgs.warn("Could not load scaleimg from spec2d file:" + msgs.newline() +
+                          cubepar['scale_corr'] + msgs.newline() +
+                          "scale correction will not be performed unless you have specified the correct" + msgs.newline() +
+                          "scale_corr file in the spec2d block")
+                cubepar['scale_corr'] = None
+                scalecorr_default = "none"
+
     # Load the default sky frame to be used for sky subtraction
     skysub_default = "image"
     skyImgDef, skySclDef = None, None  # This is the default behaviour (i.e. to use the "image" for the sky subtraction)
@@ -1772,26 +1782,45 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             msgs.info("Using the following frame for sky subtraction:"+msgs.newline()+this_skysub)
 
         # Load the relative scale image, if something other than the default has been provided
+        this_scalecorr = scalecorr_default
         relScaleImg = relScaleImgDef.copy()
         if opts['scale_corr'][ff] is not None:
-            msgs.info("Loading relative scale image:" + msgs.newline() + opts['scale_corr'][ff])
-            spec2DObj_scl = spec2dobj.Spec2DObj.from_file(opts['scale_corr'][ff], detname)
-            try:
-                relScaleImg = spec2DObj_scl.scaleimg
-            except:
-                msgs.warn("Could not load scaleimg from spec2d file:" + msgs.newline() + opts['scale_corr'][ff])
-                if cubepar['scale_corr'] is not None:
-                    msgs.info("Using the default scaleimg from spec2d file:" + msgs.newline() + cubepar['scale_corr'])
+            if opts['scale_corr'][ff].lower() == 'default':
+                if scalecorr_default == "image":
+                    relScaleImg = spec2DObj.scaleimg
+                    this_scalecorr = "image"  # Use the current spec2d for the relative spectral illumination scaling
                 else:
-                    msgs.warn("Scale correction will not be performed")
-                relScaleImg = relScaleImgDef.copy()
+                    this_scalecorr = scalecorr_default  # Use the default value for the scale correction
+            elif opts['scale_corr'][ff].lower() == 'image':
+                relScaleImg = spec2DObj.scaleimg
+                this_scalecorr = "image"  # Use the current spec2d for the relative spectral illumination scaling
+            elif opts['scale_corr'][ff].lower() == 'none':
+                relScaleImg = np.array([1])
+                this_scalecorr = "none"  # Don't do relative spectral illumination scaling
+            else:
+                # Load a user specified frame for sky subtraction
+                msgs.info("Loading the following frame for the relative spectral illumination correction:" +
+                          msgs.newline() + opts['scale_corr'][ff])
+                try:
+                    spec2DObj_scl = spec2dobj.Spec2DObj.from_file(opts['scale_corr'][ff], detname)
+                except:
+                    msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + opts['skysub_frame'][ff])
+                relScaleImg = spec2DObj_scl.scaleimg
+                this_scalecorr = opts['scale_corr'][ff]
+        if this_scalecorr == "none":
+            msgs.info("Relative spectral illumination correction will not be performed.")
+        else:
+            msgs.info("Using the following frame for the relative spectral illumination correction:" +
+                      msgs.newline()+this_scalecorr)
 
-        # Prepare the relative scalings
+        # Prepare the relative scaling factors
         relScale = 1.0
         relSclSky = skyScl/spec2DObj.scaleimg  # This factor ensures the sky has the same relative scaling as the science frame
         if cubepar['scale_corr'] is not None or opts['scale_corr'][ff] is not None:
-            relScale = spec2DObj.scaleimg/relScaleImg
-        sciImg = (spec2DObj.sciimg - skyImg*relSclSky)*relScale  # Subtract sky
+            relScale = spec2DObj.scaleimg/relScaleImg  # This factor is applied to the sky subtracted science frame
+
+        # Extract the relevant information from the spec2d file
+        sciImg = (spec2DObj.sciimg - skyImg*relSclSky)*relScale  # Subtract sky and apply relative illumination
         ivar = spec2DObj.ivarraw / relScale**2
         waveimg = spec2DObj.waveimg
         bpmmask = spec2DObj.bpmmask
@@ -1974,7 +2003,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         numpix = raimg[onslit_gpm].size
 
         # Calculate the weights relative to the zeroth cube
-        weights[ff] = exptime  #np.median(flux_sav[resrt]*np.sqrt(ivar_sav[resrt]))**2
+        weights[ff] = 1.0#exptime  #np.median(flux_sav[resrt]*np.sqrt(ivar_sav[resrt]))**2
 
         # Get the slit image and then unset pixels in the slit image that are bad
         this_specpos, this_spatpos = np.where(onslit_gpm)
@@ -2066,7 +2095,6 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                                               all_spatpos[ww], all_specpos[ww], all_spatid[ww],
                                               all_tilts, all_slits, all_align, voxedge, all_idx=all_idx[ww],
                                               spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
-            embed()
             if reference_image is None:
                 # ref_idx will be the index of the cube with the highest S/N
                 ref_idx = np.argmax(weights)
@@ -2093,7 +2121,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         all_wghts = np.ones_like(all_sci)
     else:
         # Collapse all spatially translated white light images
-        # TODO :: Really should regenerate total white light image here...
+        # TODO :: Really should regenerate total white light image here (with full wavelength range and maybe with subpixel=1)...
         wl_full = np.sum(wl_imgs, axis=2)
         all_wghts = compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx,
                                     wl_full, dspat, dwv, relative_weights=cubepar['relative_weights'])
@@ -2117,7 +2145,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             wl_wvrng = get_whitelight_range(np.max(mnmx_wv[:, :, 0]),
                                             np.min(mnmx_wv[:, :, 1]),
                                             cubepar['whitelight_range'])
-        generate_cube_subpixel(outfile, cube_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts,
+        generate_cube_subpixel(outfile, cube_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, np.ones(all_wghts.size),#all_wghts,
                                all_spatpos, all_specpos, all_spatid, all_tilts, all_slits, all_align, vox_edges,
                                all_idx=all_idx, overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
                                fluxcal=fluxcal, sensfunc=sensfunc, specname=specname, whitelight_range=wl_wvrng,
