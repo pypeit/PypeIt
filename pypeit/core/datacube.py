@@ -1829,7 +1829,10 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
         # TODO :: Include a flexure correction from the sky frame?
 
-        wave0 = waveimg[waveimg != 0.0].min()
+        wnonzero = (waveimg != 0.0)
+        if not np.any(wnonzero):
+            msgs.error("The wavelength image contains only zeros - You need to check the data reduction.")
+        wave0 = waveimg[wnonzero].min()
         # Calculate the delta wave in every pixel on the slit
         waveimp = np.roll(waveimg, 1, axis=0)
         waveimn = np.roll(waveimg, -1, axis=0)
