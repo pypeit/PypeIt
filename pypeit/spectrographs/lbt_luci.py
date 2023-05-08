@@ -515,7 +515,7 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         # was standard
         par['reduce']['extraction']['std_prof_nsigma'] = 100.
         # Perform global sky subtraction for standard stars
-        par['reduce']['skysub']['global_sky_std'] = True
+        par['reduce']['skysub']['global_sky_std'] = False
         par['reduce']['findobj']['maxnumber_std'] = 1
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
