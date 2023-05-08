@@ -160,6 +160,7 @@ class FindObjects:
         self.manual = manual
         self.sky_region_file = sky_region_file
         self.wv_calib = wv_calib  # TODO :: Ideally, we want to avoid this if possible. Find a better way to do joint_skysub fitting outside of the find_objects class.
+        self.waveimg = None
         # Parse
         # Slit pieces
         #   WARNING -- It is best to unpack here then pass around self.slits
@@ -1366,12 +1367,13 @@ class IFUFindObjects(MultiSlitFindObjects):
                                                global_sky, box_rad, self.slits, trace_spat[:, sl_ref],
                                                self.pypeline, self.det)
         # Calculate the flexure
-        flex_dict = flexure.spec_flex_shift(ref_skyspec, sky_spectrum, sky_fwhm_pix, spec_fwhm_pix=ref_fwhm_pix,
+        flex_dict_ref = flexure.spec_flex_shift(ref_skyspec, sky_spectrum, sky_fwhm_pix, spec_fwhm_pix=ref_fwhm_pix,
                                             mxshft=self.par['flexure']['spec_maxshift'],
                                             excess_shft=self.par['flexure']['excessive_shift'],
                                             method="slitcen")
-        this_slitshift = np.ones(self.slits.nslits) * flex_dict['shift']
+        this_slitshift = np.ones(self.slits.nslits) * flex_dict_ref['shift']
         # Now loop through all slits to calculate the additional shift relative to the reference slit
+        flex_list = []
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
             thismask = (self.slitmask == slit_spat)
             # Extract sky spectrum for this slit
@@ -1385,6 +1387,9 @@ class IFUFindObjects(MultiSlitFindObjects):
                                                 excess_shft=self.par['flexure']['excessive_shift'],
                                                 method="slitcen")
             this_slitshift[slit_idx] += flex_dict['shift']
+            flex_list.append(flex_dict.copy())
+        # Replace the reference slit with the absolute shift
+        flex_list[sl_ref] = flex_dict_ref.copy()
         # Add this flexure to the previous flexure correction
         self.slitshift += this_slitshift
         # Now report the flexure values
@@ -1393,6 +1398,13 @@ class IFUFindObjects(MultiSlitFindObjects):
                                                                                                 slit_spat,
                                                                                                 self.slitshift[
                                                                                                     slit_idx]))
+        # Save QA
+        if flex_list is not None:
+            basename = f'{self.basename}_global_{self.spectrograph.get_det_name(self.det)}'
+            out_dir = os.path.join(self.par['rdx']['redux_path'], 'QA')
+            slit_bpm = np.zeros(self.slits.nslits, dtype=bool)
+            flexure.spec_flexure_qa(self.slits.slitord_id, slit_bpm, basename, flex_list, out_dir=out_dir)
+
         # Recalculate the wavelength image, and the global sky taking into account the spectral flexure
         msgs.info("Generating wavelength image, accounting for spectral flexure")
         self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spec_flexure=self.slitshift,
