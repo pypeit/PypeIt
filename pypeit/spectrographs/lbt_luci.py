@@ -433,11 +433,11 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
                 raise ValueError()
             
             camera = self.get_meta_value(self.get_headarr(hdu), 'camera')
-            if camera == 'N1.8':
+            if camera == 'N1.8 Camera':
                 platescale = 0.2500
-            elif camera == 'N3.75':
+            elif camera == 'N3.75 Camera':
                 platescale = 0.1190
-            elif camera == 'N30': # currently untested
+            elif camera == 'N30 Camera': # currently untested
                 platescale = 0.0150
             else:
                 msgs.error("Camera not recognized (options: N1.8, N3.75, N30)")
@@ -516,6 +516,7 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         par['reduce']['extraction']['std_prof_nsigma'] = 100.
         # Perform global sky subtraction for standard stars
         par['reduce']['skysub']['global_sky_std'] = True
+        par['reduce']['findobj']['maxnumber_std'] = 1
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
 
@@ -674,11 +675,11 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
                 raise ValueError()
 
             camera = self.get_meta_value(self.get_headarr(hdu), 'camera')
-            if camera == 'N1.8':
+            if camera == 'N1.8 Camera':
                 platescale = 0.2500
-            elif camera == 'N3.75':
+            elif camera == 'N3.75 Camera':
                 platescale = 0.1178
-            elif camera == 'N30': # currently untested
+            elif camera == 'N30 Camera': # currently untested
                 platescale = 0.0150
             else:
                 msgs.error("Camera not recognized (options: N1.8, N3.75, N30)")
@@ -746,8 +747,10 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         par['reduce']['extraction']['std_prof_nsigma'] = 100.
         # Perform global sky subtraction for standard stars
         par['reduce']['skysub']['global_sky_std'] = True
+        par['reduce']['findobj']['maxnumber_std'] = 1
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
+        
 
         # Processing steps
         turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
