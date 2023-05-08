@@ -25,20 +25,20 @@ The primary way this is currently achieved is by:
        reducing data in those cases.
 
 Particularly because of the latter, the quick-look script follows a specific
-directory structure and makes assumptions about which calibrations can be used
-that are more lenient than recommended for a robust reduction.
+:ref:`quicklook_directory_structure` and makes assumptions about which
+calibrations can be used that are more lenient than recommended for a robust
+reduction.
 
 Importantly, ``pypeit_ql`` can only be used to reduce data *for a single science
-target.* All the science frames provided will be combined.  Standard star frames
-can be included and, as long as they are automatically identified as standards,
-they will be reduced separately from the science target.  For instruments with
-dither patterns that PypeIt can parse, image combination groups will be grouped
-by dither offset position.
+target in a single instrument configuration.* All the science frames provided
+will be combined.  Standard star frames can be included and, as long as they are
+automatically identified as standards, they will be reduced separately from the
+science target.  For instruments with dither patterns that PypeIt can parse,
+images will be grouped by dither offset position.  These dithers can then be
+optionally combined using PypeIt's :ref:`2D coadding script <coadd2d>`.
 
-Here, we describe the algorithm and provide specific usage tutorials.
-
-The script usage can be displayed by calling the script with the
-``-h`` option:
+Here, we describe the algorithm and provide specific usage tutorials.  The
+script usage can be displayed by calling the script with the ``-h`` option:
 
 .. include:: help/pypeit_ql.rst
 
@@ -70,15 +70,15 @@ Specifying the input raw files
 
 The script provides a few ways that you can specify the files to reduce:
 
-#. Provide a file with a specific :ref:`format <input_files>` that lists the
-   files to be reduced.  The format must follow the standard PypeIt file
-   :ref:`input-files-data-block`; however, only the ``filename`` column is
-   required.
+    #. Provide a file with a specific :ref:`format <input_files>` that lists the
+       files to be reduced.  The format must follow the standard PypeIt file
+       :ref:`input-files-data-block`; however, only the ``filename`` column is
+       required/used.
 
-#. Provide the directory and list of files directly on the command line.  
+    #. Provide the directory and list of files directly on the command line.  
 
-#. Provide the directory and the file extension, which will be used to search
-   for and reduce all files found.
+    #. Provide the directory and the file extension, which will be used to search
+       for and reduce all files found.
 
 An example file named ``input.rawfiles`` used in the first approach could look
 like this:
@@ -123,13 +123,15 @@ in the above example like so:
 
     pypeit_ql shane_kast_blue --raw_files b1.fits.gz b10.fits.gz b27.fits.gz --raw_path /path/to/files --sci_files b27.fits.gz
 
+.. _quicklook_directory_structure:
+
 Directory Structure
 +++++++++++++++++++
 
 As with typical executions of :ref:`run-pypeit`, ``pypeit_ql`` yields
 directories with calibrations, quality-assessment plots, and science products.
 The difference is that ``pypeit_ql`` keeps the calibrations and science products
-more separate.
+separate.
 
 For example, executing:
 
@@ -140,12 +142,14 @@ For example, executing:
 will yield two directories where you executed the call: ``b27/`` and
 ``shane_kast_blue_A/``.  Both directories will look very similar to a normal
 execution of :ref:`run-pypeit` (see :ref:`outputs-dir`), except the latter will
-*only* contain calibrations and the former will only contain the science results
-with a symlink to the ``Calibrations`` directory.  The name of the directory
+*only* contain calibrations (and related QA plots) and the former will *only*
+contain the science results (and related QA plots).  The name of the directory
 with the reduction for the science frames is based on the name of the frame,
 ``b27`` in this example.  The name of directory with the calibrations is always
 the combination of the instrument name and setup/configuration identifier (e.g.
-``shane_kast_blue_A``), just as produced by :ref:`pypeit_setup`.
+``shane_kast_blue_A``), just as produced by :ref:`pypeit_setup`.  A symlink to
+the ``shane_kast_blue_A/Calibrations/`` directory is included in ``b27/`` such
+that the directory mimics the normal output from :ref:`run-pypeit`.  
 
 If multiple science frames are provided, the name of the output directory
 combines the names of the first and last science frames in the stack.  For
@@ -262,7 +266,7 @@ The quick-look script proceeds as follows:
 - Any new calibrations are processed using the pypeit file written to the new
   calibrations directory (e.g., ``shane_kast_blue_B``).  *Do not delete these
   pypeit files!*  They are what's used to match the instrument
-  setup/configuration to new frames to be processed.  Note that adjustements can
+  setup/configuration to new frames to be processed.  Note that adjustments can
   be made directly to that file and the calibrations can be re-processed using a
   normal execution of :ref:`run-pypeit`.
 

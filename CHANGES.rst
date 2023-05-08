@@ -27,7 +27,7 @@
 - The ``'calib'`` column is now always added to the pypeit file, regardless of
   whether or not you also request the ``'comb_id'`` and ``'bkg_id'`` columns.
 - Names of associated calibration frames now written to ``spec2d`` file headers.
-- Major quicklook updates.  ql_multislit.py temporarily deprecated.
+- Major quicklook updates.  ql_multislit.py deprecated.
 
 1.12.2 (29 Mar 2023)
 --------------------
