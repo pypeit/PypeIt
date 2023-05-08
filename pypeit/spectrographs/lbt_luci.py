@@ -21,10 +21,6 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
     """
     Class to handle LBT/LUCI specific code
 
-    The current implementation of the LUCI spectrograph sets the plate scale
-    appropriate for the N1.8 camera. Other cameras, such as the N30 camera
-    used in adative optics mode is not implemented.
-
     The provided default reduction parameters have been tailored and tested
     for LUCI1 and LUCI2 using the G200 low resolution grating and the zJspec
     and HKspec filters.
@@ -59,6 +55,7 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
         # additional
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
         self.meta['filter1'] = dict(ext=0, card='FILTER2')
+        self.meta['camera'] = dict(ext=0, card='CAMERA')
         # populating dispangle with the grating wavelength
         self.meta['dispangle'] = dict(ext=0, card='GRATWLEN', rtol=0.1)
 
@@ -67,7 +64,7 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
         self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
-        # additioanl
+        # additional
         self.meta['readmode'] = dict(ext=0, card='READMODE')
         self.meta['savemode'] = dict(ext=0, card='SAVEMODE')
         self.meta['dit'] = dict(ext=0, card='DIT')
@@ -172,7 +169,7 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['decker', 'dispname', 'dispangle', 'filter1']
+        return ['decker', 'dispname', 'dispangle', 'filter1', 'camera']
 
     def raw_header_cards(self):
         """
@@ -434,7 +431,8 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
             else:
                 msgs.error("Read mode not recognized (options: LIR, MER)")
                 raise ValueError()
-                
+            
+            camera = self.get_meta_value(self.get_headarr(hdu), 'camera')
             if camera == 'N1.8':
                 platescale = 0.2500
             elif camera == 'N3.75':
@@ -442,7 +440,7 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
             elif camera == 'N30': # currently untested
                 platescale = 0.0150
             else:
-                msgs.error("Read mode not recognized (options: N1.8, N3.75, N30)")
+                msgs.error("Camera not recognized (options: N1.8, N3.75, N30)")
 
         # Detector 1
         detector_dict = dict(
@@ -675,6 +673,7 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
                 msgs.error("Read mode not recognized (options: LIR, MER)")
                 raise ValueError()
 
+            camera = self.get_meta_value(self.get_headarr(hdu), 'camera')
             if camera == 'N1.8':
                 platescale = 0.2500
             elif camera == 'N3.75':
@@ -682,7 +681,7 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
             elif camera == 'N30': # currently untested
                 platescale = 0.0150
             else:
-                msgs.error("Read mode not recognized (options: N1.8, N3.75, N30)")
+                msgs.error("Camera not recognized (options: N1.8, N3.75, N30)")
 
         # Detector 1
         detector_dict = dict(

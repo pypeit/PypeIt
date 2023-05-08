@@ -173,7 +173,9 @@ def define_additional_meta(nlamps=20):
                        'dit': dict(dtype=float,
                                    comment='Detector integration time'),
                        'ndit': dict(dtype=int,
-                                    comment='Number of integrations')
+                                    comment='Number of integrations'),
+                       'camera': dict(dtype=str,
+                                      comment='Camera (e.g. N1.8/N3.75/N30 for LUCI)')
                        }
 
     for kk in range(nlamps):
