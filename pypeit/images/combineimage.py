@@ -211,6 +211,7 @@ class CombineImage:
                 gpm_stack = np.zeros(shape, dtype=bool)
                 lampstat = [None]*self.nfiles
                 exptime = np.zeros(self.nfiles, dtype=float)
+                spat_flexure = np.zeros(self.nfiles, dtype=float)
 
             # Save the lamp status
             lampstat[kk] = self.spectrograph.get_lamps_status(pypeitImage.rawheadlist)
@@ -235,6 +236,9 @@ class CombineImage:
                 pypeitImage.update_mask('SATURATION', action='turn_off')
             # Get a simple boolean good-pixel mask for all the unmasked pixels
             gpm_stack[kk] = pypeitImage.select_flag(invert=True)
+            # Spatial flexure
+            if pypeitImage.spat_flexure is not None:
+                spat_flexure[kk] = pypeitImage.spat_flexure
 
         # Check that the lamps being combined are all the same:
         if not lampstat[1:] == lampstat[:-1]:
@@ -260,6 +264,9 @@ class CombineImage:
             comb_texp = np.mean(exptime)
         else:
             comb_texp = exptime[0]
+            
+        # Average the spatial flexure
+        comb_spat_flex = np.mean(spat_flexure)
 
         # Coadd them
         if combine_method == 'mean':
@@ -317,7 +324,8 @@ class CombineImage:
                                        PYP_SPEC=self.spectrograph.name,
                                        units='e-' if self.par['apply_gain'] else 'ADU',
                                        exptime=comb_texp, noise_floor=self.par['noise_floor'],
-                                       shot_noise=self.par['shot_noise'])
+                                       shot_noise=self.par['shot_noise'],
+                                       spat_flexure=comb_spat_flex)
 
         # Internals
         # TODO: Do we need these?

@@ -787,6 +787,14 @@ class PypeItImage(datamodel.DataContainer):
         # units
         # TODO: Instead raise an error if they're not the same
         new_units = self.units if self.units == other.units else None
+        
+        # spatial flexure
+        # TODO: for now we assume the flexure is the same in both images
+        # since doing anything else is not really feasible
+        if self.spat_flexure is not None:
+            new_spat_flexure = self.spat_flexure
+        else:
+            new_spat_flexure = None
 
         # Create the new image
         # TODO: We should instead *copy* the detector object; otherwise, it's
@@ -796,7 +804,8 @@ class PypeItImage(datamodel.DataContainer):
         new_pypeitImage = PypeItImage(newimg, ivar=new_ivar, nimg=new_nimg, rn2img=new_rn2,
                                       base_var=new_base, img_scale=new_img_scale,
                                       fullmask=new_fullmask, detector=self.detector,
-                                      PYP_SPEC=new_spec, units=new_units)
+                                      PYP_SPEC=new_spec, units=new_units,
+                                      spat_flexure=new_spat_flexure)
 
         # Files
         if self.files is not None and other.files is not None:

@@ -220,7 +220,8 @@ class ProcessImagesPar(ParSet):
                  dark_expscale=None,
                  empirical_rn=None, shot_noise=None, noise_floor=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
-                 use_pattern=None, subtract_continuum=None, spat_flexure_correct=None):
+                 use_pattern=None, subtract_continuum=None, spat_flexure_correct=None,
+                 spat_flexure_maxshift=None, spat_flexure_cont_samp=None, spat_flexure_sigdetect=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -338,8 +339,20 @@ class ProcessImagesPar(ParSet):
         defaults['spat_flexure_correct'] = False
         dtypes['spat_flexure_correct'] = bool
         descr['spat_flexure_correct'] = 'Correct slits, illumination flat, etc. for flexure'
+        
+        defaults['spat_flexure_maxshift'] = 20
+        dtypes['spat_flexure_maxshift'] = int
+        descr['spat_flexure_maxshift'] = 'Maximum allowed spatial flexure shift in pixels.'
+        
+        defaults['spat_flexure_cont_samp'] = 30
+        dtypes['spat_flexure_cont_samp'] = int
+        descr['spat_flexure_cont_samp'] = 'Continuum sampling interval for spatial flexure cross-correlation.'
+        
+        defaults['spat_flexure_sigdetect'] = 3.
+        dtypes['spat_flexure_sigdetect'] = [int, float]
+        descr['spat_flexure_sigdetect'] = 'Detection threshold for spatial flexure cross-correlation peaks.'
 
-
+        
         defaults['combine'] = 'mean'
         options['combine'] = ProcessImagesPar.valid_combine_methods()
         dtypes['combine'] = str
@@ -436,7 +449,8 @@ class ProcessImagesPar(ParSet):
                    'satpix', 'master_setup_and_bit',
                    'n_lohi', 'mask_cr',
                    'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact', 'sigclip',
-                   'sigfrac', 'objlim']
+                   'sigfrac', 'objlim',
+                   'spat_flexure_maxshift', 'spat_flexure_cont_samp', 'spat_flexure_sigdetect']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -858,7 +872,7 @@ class FlexurePar(ParSet):
                                    'Use the median flexure shift among all the objects in the same slit ' \
                                    '(if more than one object is detected) or among all ' \
                                    'the other slits; if not available, the flexure correction will not be applied.'
-
+                                   
         # Instantiate the parameter set
         super(FlexurePar, self).__init__(list(pars.keys()),
                                          values=list(pars.values()),

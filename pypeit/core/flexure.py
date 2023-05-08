@@ -40,7 +40,7 @@ from pypeit import data
 from IPython import embed
 
 
-def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
+def spat_flexure_shift(sciimg, slits, maxlag=20, cont_samp=30, sigdetect=3.0, debug=False):
     """
     Calculate a rigid flexure shift in the spatial dimension
     between the slitmask and the science image.
@@ -78,8 +78,9 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
     xcorr_norm = xcorr / xcorr_denom
     # TODO -- Generate a QA plot
     tampl_true, tampl, pix_max, twid, centerr, ww, arc_cont, nsig \
-            = arc.detect_lines(xcorr_norm, sigdetect=3.0, fit_frac_fwhm=1.5, fwhm=5.0,
-                               cont_frac_fwhm=1.0, cont_samp=30, nfind=1, debug=debug)
+            = arc.detect_lines(xcorr_norm, sigdetect=sigdetect, fit_frac_fwhm=1.5, fwhm=5.0,
+                               cont_frac_fwhm=1.0, cont_samp=cont_samp, nfind=1, debug=debug)
+    
     # No peak? -- e.g. data fills the entire detector
     if len(tampl) == 0:
         msgs.warn('No peak found in spatial flexure.  Assuming there is none..')
@@ -91,11 +92,11 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
     xcorr_max = np.interp(pix_max, np.arange(lags.shape[0]), xcorr_norm)
     lag_max = np.interp(pix_max, np.arange(lags.shape[0]), lags)
     msgs.info('Spatial flexure measured: {}'.format(lag_max[0]))
-
+    
     if debug:
         plt.figure(figsize=(14, 6))
-        plt.plot(lags, xcorr_norm, color='black', drawstyle='steps-mid', lw=3, label='x-corr', linewidth=1.0)
-        plt.plot(lag_max[0], xcorr_max[0], 'g+', markersize=6.0, label='peak')
+        plt.plot(lags, xcorr_norm, color='black', drawstyle='steps-mid', lw=3, label='x-corr')
+        plt.scatter(lag_max[0], xcorr_max[0], color='r', marker='x', s=100.0, linewidth=2, label='peak',zorder=10)
         plt.title('Best shift = {:5.3f}'.format(lag_max[0]) + ',  corr_max = {:5.3f}'.format(xcorr_max[0]))
         plt.legend()
         plt.show()

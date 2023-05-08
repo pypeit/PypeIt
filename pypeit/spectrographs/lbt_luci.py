@@ -434,6 +434,15 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
             else:
                 msgs.error("Read mode not recognized (options: LIR, MER)")
                 raise ValueError()
+                
+            if camera == 'N1.8':
+                platescale = 0.2500
+            elif camera == 'N3.75':
+                platescale = 0.1190
+            elif camera == 'N30': # currently untested
+                platescale = 0.0150
+            else:
+                msgs.error("Read mode not recognized (options: N1.8, N3.75, N30)")
 
         # Detector 1
         detector_dict = dict(
@@ -443,10 +452,8 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
             specaxis=1,
             specflip=False,
             spatflip=False,
-            platescale=0.2496,
-            # Dark current nominally is < 360 electrons per hours
-            # but the dark subtraction will effectively bring this to 0
-            darkcurr=0.0,
+            platescale=platescale,
+            darkcurr= 0.03,
             # Saturation is 55000, but will be set to dummy value for
             # now as integrated exposures over multiple detector integrations
             # will provide higher counts.
@@ -462,10 +469,6 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
             # mimicked as 1
             numamplifiers=1,
             gain=np.atleast_1d(2.21),
-            # The readout noise for LUCI are different for
-            # different readout modes. We will be adopting the read out noise
-            # for the LIR mode as it is higher the MER readout noise will be
-            # commented out.
             ronoise=ronoise,  # variable populated from readmode meta above
             datasec=np.atleast_1d('[5:2044,5:2044]'),
             # For Luci the first 4 pixels on each side can
@@ -473,7 +476,10 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
             # included here.
             oscansec=np.atleast_1d('[5:2044,1:4]'),
             )
-        return detector_container.DetectorContainer(**detector_dict)
+            
+        detector = detector_container.DetectorContainer(**detector_dict)
+
+        return detector
 
     @classmethod
     def default_pypeit_par(cls):
@@ -489,29 +495,29 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths'][
-            'rms_threshold'] = 0.20  # 0.20  # Might be grating dependent..
+            'rms_threshold'] = 0.30  # 0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['fwhm'] = 4.0
         par['calibrations']['wavelengths']['n_final'] = 4
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
 
-        # Reduced from 0.93 to 0.9
-        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.9
-
-        # Identification of slit edges
-        par['calibrations']['slitedges']['edge_thresh'] = 25.0
-        par['calibrations']['slitedges']['minimum_slit_length'] = 30.
+        # Reidentification parameters
+        par['calibrations']['slitedges']['minimum_slit_length'] = 10.
+        par['calibrations']['slitedges']['edge_thresh'] = 30.
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        
+        # Large chunk of long slit is lost with default tweak threshold.
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.85
 
         # Extraction
-        # Model full slit currently turned on
-        par['reduce']['extraction']['model_full_slit'] = True
+        # Model full slit currently turned off
+        par['reduce']['extraction']['model_full_slit'] = False
         # Tailored profile nsigma parameter for the standard, trying 100 (30
         # was standard
         par['reduce']['extraction']['std_prof_nsigma'] = 100.
-        # Do not perform global sky subtraction for standard stars
-        par['reduce']['skysub']['global_sky_std'] = False
+        # Perform global sky subtraction for standard stars
+        par['reduce']['skysub']['global_sky_std'] = True
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
 
@@ -521,13 +527,76 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         par.reset_all_processimages_par(**turn_off)
 
         # Flexure
-        par['flexure']['spec_method'] = 'skip'
+        # Parameters should work for long-slit N1.8 camera exposures
+        # N3.75 camera and/or multi-slit may require careful adjustment
+        par['scienceframe']['process']['spat_flexure_correct'] = True
+        par['scienceframe']['process']['spat_flexure_maxshift'] = 100
+        par['scienceframe']['process']['spat_flexure_cont_samp'] = 2
+        par['scienceframe']['process']['spat_flexure_sigdetect'] = 2.
+        par['calibrations']['tiltframe']['process']['spat_flexure_correct'] = True
+        par['calibrations']['tiltframe']['process']['spat_flexure_maxshift'] = 100
+        par['calibrations']['tiltframe']['process']['spat_flexure_cont_samp'] = 2
+        par['calibrations']['tiltframe']['process']['spat_flexure_sigdetect'] = 2.
+
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] = 'nothing'
         # par['scienceframe']['process']['satpix'] = 'reject'
 
         return par
+        
+    def get_rawimage(self, raw_file, det):
+        """
+        Read raw images and generate a few other bits and pieces that are key
+        for image processing.
+
+        .. warning::
+
+            - When reading multiple detectors for a mosaic, this function
+              expects all detector arrays to have exactly the same shape.
+
+        Parameters
+        ----------
+        raw_file : :obj:`str`
+            File to read
+        det : :obj:`int`, :obj:`tuple`
+            1-indexed detector(s) to read.  An image mosaic is selected using a
+            :obj:`tuple` with the detectors in the mosaic, which must be one of
+            the allowed mosaics returned by :func:`allowed_mosaics`.
+
+        Returns
+        -------
+        detector : :class:`~pypeit.images.detector_container.DetectorContainer`, :class:`~pypeit.images.mosaic.Mosaic`
+            Detector metadata parameters for one or more detectors.
+        raw : `numpy.ndarray`_
+            Raw image for this detector.  Shape is 2D if a single detector image
+            is read and 3D if multiple detectors are read.  E.g., the image from
+            the first detector in the tuple is accessed using ``raw_img[0]``.
+        hdu : `astropy.io.fits.HDUList`_
+            Opened fits file
+        texp : :obj:`float`
+            Exposure time *in seconds*.
+        rawdatasec : `numpy.ndarray`_
+            Data (Science) section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.  Shape
+            is identical to ``raw_img``.
+        oscansec : `numpy.ndarray`_
+            Overscan section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.  Shape
+            is identical to ``raw_img``.
+        """
+        
+        detector, raw, hdu, texp, datasec, oscansec = super().get_rawimage(raw_file, det)
+        
+        # Non-linearity correction
+        # See: https://scienceops.lbto.org/luci/instrument-characteristics/detector/
+        # I assume that the correction applies to each DIT, not the full exposure.
+        ndit = hdu[0].header['NDIT']
+        raw = ndit*(raw/ndit + 2.767e-6*((raw/ndit)**2.0))
+        
+        return detector, raw, hdu, texp, datasec, oscansec
 
 
     def config_specific_par(self, scifile, inp_par=None):
@@ -606,6 +675,14 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
                 msgs.error("Read mode not recognized (options: LIR, MER)")
                 raise ValueError()
 
+            if camera == 'N1.8':
+                platescale = 0.2500
+            elif camera == 'N3.75':
+                platescale = 0.1178
+            elif camera == 'N30': # currently untested
+                platescale = 0.0150
+            else:
+                msgs.error("Read mode not recognized (options: N1.8, N3.75, N30)")
 
         # Detector 1
         detector_dict = dict(
@@ -615,7 +692,7 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
             specaxis=1,
             specflip=False,
             spatflip=False,
-            platescale=0.2496,
+            platescale=platescale,
             darkcurr=0.0,
             # Saturation is 55000, but will be set to dummy value for
             # now as integrated exposures over multiple detector integrations
@@ -629,7 +706,11 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
             datasec= np.atleast_1d('[5:2044,5:2044]'),
             oscansec= np.atleast_1d('[5:2044,1:4]'),
             )
-        return detector_container.DetectorContainer(**detector_dict)
+            
+            
+        detector = detector_container.DetectorContainer(**detector_dict)
+        
+        return detector
 
     @classmethod
     def default_pypeit_par(cls):
@@ -645,28 +726,27 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths'][
-            'rms_threshold'] = 0.20  # 0.20  # Might be grating dependent..
+            'rms_threshold'] = 0.30  # 0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['fwhm'] = 4.0
         par['calibrations']['wavelengths']['n_final'] = 4
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        
+        # Large chunk of slit is lost with default tweak threshold.
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.85
 
-        # Identification of slit edges
-        par['calibrations']['slitedges']['edge_thresh'] = 25.0
-        par['calibrations']['slitedges']['minimum_slit_length'] = 30.
+        par['calibrations']['slitedges']['minimum_slit_length'] = 10.
+        par['calibrations']['slitedges']['edge_thresh'] = 30.
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-
-        # Reduced from 0.93 to 0.9
-        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.9
 
         # Extraction
         # Model full slit currently turned on
-        par['reduce']['extraction']['model_full_slit'] = True
+        par['reduce']['extraction']['model_full_slit'] = False
         # Tailored profile nsigma parameter for the standard
         par['reduce']['extraction']['std_prof_nsigma'] = 100.
-        # Do not perform global sky subtraction for standard stars
-        par['reduce']['skysub']['global_sky_std'] = False
+        # Perform global sky subtraction for standard stars
+        par['reduce']['skysub']['global_sky_std'] = True
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
 
@@ -677,12 +757,72 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
 
         # Flexure
         par['flexure']['spec_method'] = 'skip'
+        par['scienceframe']['process']['spat_flexure_correct'] = True
+        par['scienceframe']['process']['spat_flexure_maxshift'] = 100
+        par['scienceframe']['process']['spat_flexure_cont_samp'] = 2
+        par['scienceframe']['process']['spat_flexure_sigdetect'] = 2.
+        par['calibrations']['tiltframe']['process']['spat_flexure_correct'] = True
+        par['calibrations']['tiltframe']['process']['spat_flexure_maxshift'] = 100
+        par['calibrations']['tiltframe']['process']['spat_flexure_cont_samp'] = 2
+        par['calibrations']['tiltframe']['process']['spat_flexure_sigdetect'] = 2.
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] = 'nothing'
         # par['scienceframe']['process']['satpix'] = 'reject'
 
         return par
+        
+    def get_rawimage(self, raw_file, det):
+        """
+        Read raw images and generate a few other bits and pieces that are key
+        for image processing.
+
+        .. warning::
+
+            - When reading multiple detectors for a mosaic, this function
+              expects all detector arrays to have exactly the same shape.
+
+        Parameters
+        ----------
+        raw_file : :obj:`str`
+            File to read
+        det : :obj:`int`, :obj:`tuple`
+            1-indexed detector(s) to read.  An image mosaic is selected using a
+            :obj:`tuple` with the detectors in the mosaic, which must be one of
+            the allowed mosaics returned by :func:`allowed_mosaics`.
+
+        Returns
+        -------
+        detector : :class:`~pypeit.images.detector_container.DetectorContainer`, :class:`~pypeit.images.mosaic.Mosaic`
+            Detector metadata parameters for one or more detectors.
+        raw : `numpy.ndarray`_
+            Raw image for this detector.  Shape is 2D if a single detector image
+            is read and 3D if multiple detectors are read.  E.g., the image from
+            the first detector in the tuple is accessed using ``raw_img[0]``.
+        hdu : `astropy.io.fits.HDUList`_
+            Opened fits file
+        texp : :obj:`float`
+            Exposure time *in seconds*.
+        rawdatasec : `numpy.ndarray`_
+            Data (Science) section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.  Shape
+            is identical to ``raw_img``.
+        oscansec : `numpy.ndarray`_
+            Overscan section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.  Shape
+            is identical to ``raw_img``.
+        """
+        
+        detector, raw, hdu, texp, datasec, oscansec = super().get_rawimage(raw_file, det)
+        
+        # Non-linearity correction
+        # See: https://scienceops.lbto.org/luci/instrument-characteristics/detector/
+        ndit = hdu[0].header['NDIT']
+        raw = ndit*(raw/ndit+2.898e-6*((raw/ndit)**2.0))
+        
+        return detector, raw, hdu, texp, datasec, oscansec
 
     def config_specific_par(self, scifile, inp_par=None):
         """
