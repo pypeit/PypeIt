@@ -348,7 +348,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             exprng (:obj:`list`, optional):
                 Range in the allowed exposure time for a frame of type
                 ``ftype``. See
-                :func:`pypeit.core.framematch.check_frame_exptime`.
+                :func:`~pypeit.core.framematch.check_frame_exptime`.
 
         Returns:
             `numpy.ndarray`_: Boolean array with the flags selecting the
