@@ -33,10 +33,11 @@ class PypeItSetup:
             A list of strings with the full path to each file to be
             reduced.
         frametype (:obj:`dict`, optional):
-            A dictionary that associates the name of the file (just the
-            fits file name without the full path) to a specific frame
-            type (e.g., arc, bias, etc.).  If None, this is determined
-            by the :func:`get_frame_types` method.
+            A dictionary that associates the name of the file (just the fits
+            file name without the full path) to a specific frame type (e.g.,
+            arc, bias, etc.).  The file name and type are expected to be the key
+            and value of the dictionary, respectively.  If None, this is
+            determined by the :func:`get_frame_types` method.
         usrdata (:obj:`astropy.table.Table`, optional):
             A user provided set of data used to supplement or overwrite
             metadata read from the file headers.  The table must have a
@@ -188,7 +189,7 @@ class PypeItSetup:
         return cls.from_rawfiles(io.files_from_extension(root, extension=extension), spectrograph)
 
     @classmethod
-    def from_rawfiles(cls, data_files:list, spectrograph:str):
+    def from_rawfiles(cls, data_files:list, spectrograph:str, frametype=None):
         """ Instantiate the :class:`PypeItSetup` object by providing a list of raw files.
 
         Args:
@@ -196,6 +197,12 @@ class PypeItSetup:
                 List of raw files to be reduced.
             spectrograph (str): 
                 The PypeIt name of the spectrograph used 
+            frametype (:obj:`dict`, optional):
+                A dictionary that associates the name of the file (just the fits
+                file name without the full path) to a specific frame type (e.g.,
+                arc, bias, etc.).  The file name and type are expected to be the
+                key and value of the dictionary, respectively.  If None, this is
+                determined by the :func:`get_frame_types` method.
 
         Returns:
             :class:`PypeItSetup`: The instance of the class.
@@ -206,7 +213,7 @@ class PypeItSetup:
         cfg_lines += ['    spectrograph = {0}'.format(spectrograph)]
 
         # Instantiate
-        return cls(data_files, cfg_lines=cfg_lines)
+        return cls(data_files, cfg_lines=cfg_lines, frametype=frametype)
 
     @property
     def nfiles(self):
@@ -375,7 +382,7 @@ class PypeItSetup:
         # Remove the files from the frametype
         if self.frametype is not None:
             self.frametype = {k : v for k,v in self.frametype.items()
-                                if Path(f).resolve().name in self.fitstbl['filename']}
+                                if Path(k).resolve().name in self.fitstbl['filename']}
         # Remove the files from the user data
         if self.usrdata is not None:
             keep = [i for i in range(len(self.usrdata)) 

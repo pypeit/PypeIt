@@ -404,7 +404,7 @@ def calib_manifest(calib_dir, spectrograph):
     # Check the calibration directory exists
     _calib_dir = Path(calib_dir).resolve()
     if not _calib_dir.exists():
-        msgs.error(f'Calibration directory does not exist: {_calib_dir}')
+        return None
 
     # Find the pypeit files
     pypeit_files = sorted(_calib_dir.glob('{0}_*/{0}*.pypeit'.format(spectrograph)))
@@ -457,10 +457,14 @@ def match_to_calibs(ps:pypeitsetup.PypeItSetup, calib_dir:str, calibrated_setups
         If a setup in ``ps`` is not matched, the associated dictionary item is
         None.
     """
-    if calibrated_setups is None:
-        calibrated_setups = calib_manifest(calib_dir, ps.spectrograph.name)
-
     matched_configs = {}
+    if calibrated_setups is None:
+        # Try to build the calibration manifest
+        calibrated_setups = calib_manifest(calib_dir, ps.spectrograph.name)
+    if calibrated_setups is None:
+        # If it still doesn't exist, return empty dictionary
+        return matched_configs
+
     for setup, config in ps.fitstbl.configs.items():
         if calibrated_setups is None:
             matched_configs[setup] = None
@@ -746,20 +750,26 @@ class QL(scriptbase.ScriptBase):
         ps = pypeitsetup.PypeItSetup.from_rawfiles(files, args.spectrograph)
         ps.run(setup_only=True)
 
-        # Check for any untyped files
-        unknown_types = [t is None for t in ps.fitstbl['frametype']]
-        if any(unknown_types):
-            # TODO: Remove them and keep going or fault?
-            # TODO: Check these against ones that have been specified as science using 'sci_files'
-            msgs.error('Could not determine frame types for the following files: ' +
-                       ', '.join(ps.fitstbl['frametype'][unknown_types]))
-
         # Find the raw science files
         sci_idx = ps.fitstbl.find_frames('science') if args.sci_files is None \
                         else np.in1d(ps.fitstbl['filename'].data, args.sci_files)
+        # TODO: Allow for standard files to be identified?
+
+        # Check for any untyped files (that have not been typed) as science
+        # files.  NOTE: This works regardless of whether or not sci_files has
+        # been defined.
+        unknown_types = [t is None for t in ps.fitstbl['frametype']]
+        if any(unknown_types & np.logical_not(sci_idx)):
+            # TODO: Remove them and keep going instead?
+            msgs.error('Could not determine frame types for the following files: ' +
+                       ', '.join(ps.fitstbl['filename'][unknown_types & np.logical_not(sci_idx)]))
+
+        # Include any standards? 
+        # TODO: Standards are only reduced if there are also science frames?
         if any(sci_idx) and not args.ignore_std:
-            # Include standards
-            sci_idx |= ps.fitstbl.find_frames('standard')
+            std_idx = ps.fitstbl.find_frames('standard')
+        else:
+            std_idx = np.zeros(sci_idx.size, dtype=bool)
 
         # Set the directory with the calibrations
         setup_calib_dir = None if args.setup_calib_dir is None \
@@ -770,13 +780,22 @@ class QL(scriptbase.ScriptBase):
         if any(sci_idx):
             # Generate science setup object
             sci_files = ps.fitstbl.frame_paths(sci_idx)
-            ps_sci = pypeitsetup.PypeItSetup.from_rawfiles(sci_files, ps.spectrograph.name)
+            frametype = {Path(f).name : 'science' for f in sci_files}
+            if any(std_idx):
+                std_files = ps.fitstbl.frame_paths(std_idx)
+                frametype = {**frametype, **{Path(f).name : 'standard' for f in std_files}}
+                sci_files += std_files
+            ps_sci = pypeitsetup.PypeItSetup.from_rawfiles(sci_files, ps.spectrograph.name,
+                                                           frametype=frametype)
             # NOTE: By default, groupings=True in PypeItSetup.run, meaning that
             # the combination groups should be automatically set.  Setting the
             # combination groups is needed when standards are included and to
             # automatically identify dithered observations for some
             # spectrographs.
             ps_sci.run(setup_only=True)
+#            if 
+#            # TODO: Ensure that the file types are correct
+#            ps_sci.fitstbl['frametype'] = 
 
             # Limit to a single setup
             if len(ps_sci.fitstbl.configs.keys()) > 1:
@@ -832,6 +851,8 @@ class QL(scriptbase.ScriptBase):
                     # to try to build the calibrations?
                     msgs.error('No calibrations exist or could not find appropriate setup match '
                                f'in provided parent directory: {args.parent_calib_dir}')
+                # NOTE: Code above check that there is only one setup in ps_sci
+                setup_calib_dir = setup_calib_dir[ps_sci.fitstbl['setup'][0]]['calib_dir']
                 msgs.info(f'Attempting to use archived calibrations found in {setup_calib_dir}.')
 
         elif not args.calibs_only:
@@ -848,6 +869,7 @@ class QL(scriptbase.ScriptBase):
             # Set the parent directory
             parent_calib_dir = args.redux_path if args.parent_calib_dir is None \
                                     else args.parent_calib_dir
+
             # Find all of the existing calibrations for this setup in the parent
             # directory
             calibrated_setups = calib_manifest(parent_calib_dir, ps.spectrograph.name)
