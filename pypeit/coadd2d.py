@@ -51,7 +51,7 @@ class CoAdd2D:
     def get_instance(cls, spec2dfiles, spectrograph, par, det=1, offsets=None, weights='auto',
                      spec_samp_fact=1.0, spat_samp_fact=1.0,
                      sn_smooth_npix=None, bkg_redux=False, find_negative=False, show=False,
-                     show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
+                     show_peaks=False, debug_offsets=False, debug=False):
         """
         Instantiate the subclass appropriate for the provided spectrograph.
 
@@ -70,13 +70,12 @@ class CoAdd2D:
                         spec2dfiles, spectrograph, par, det=det, offsets=offsets, weights=weights,
                         spec_samp_fact=spec_samp_fact, spat_samp_fact=spat_samp_fact,
                         sn_smooth_npix=sn_smooth_npix, bkg_redux=bkg_redux, find_negative=find_negative,
-                        show=show, show_peaks=show_peaks, debug_offsets=debug_offsets, debug=debug,
-                        **kwargs_wave)
+                        show=show, show_peaks=show_peaks, debug_offsets=debug_offsets, debug=debug)
 
     def __init__(self, spec2d, spectrograph, par, det=1, offsets=None, weights='auto',
                  spec_samp_fact=1.0, spat_samp_fact=1.0,
                  sn_smooth_npix=None, bkg_redux=False, find_negative=False, show=False,
-                 show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
+                 show_peaks=False, debug_offsets=False, debug=False):
         """
 
         Args:
@@ -139,10 +138,7 @@ class CoAdd2D:
                 the screen.
             debug (:obj:`bool`, optional):
                 Show QA for debugging.
-            **kwargs_wave
-                Keyword arguments passed to
-                :func:`pypeit.core.coadd.get_wave_grid`, which determine how the
-                wavelength grid is created for the 2d coadding.
+
         """
 
         # Use Cases:
@@ -829,16 +825,15 @@ class CoAdd2D:
 #            ref_trace_stack.append(slits.center[:,slitid] - offsets[iexp])
 #        return ref_trace_stack
 
-    def get_wave_grid(self, **kwargs_wave):
+    def get_wave_grid(self, wave_method):
         """
         Routine to create a wavelength grid for 2d coadds using all of the
         wavelengths of the extracted objects. Calls
         :func:`~pypeit.core.wavecal.wvutils.get_wave_grid`.
 
         Args:
-            **kwargs_wave (dict):
-                Optional argumments for
-                :func:`~pypeit.core.wavecal.wvutils.get_wave_grid`.
+            wave_method (str):
+               The method to use to create the wavelength grid passed to wvutils.get_wave_grid.
 
         Returns:
             tuple: Returns the following:
@@ -879,8 +874,9 @@ class CoAdd2D:
                     box_denom = moment1d(waveimg * mask > 0.0, trace_spat, 2 * box_radius, row=row)[0]
                     wave_box = moment1d(waveimg * mask, trace_spat, 2 * box_radius,
                                     row=row)[0] / (box_denom + (box_denom == 0.0))
+                    gpm_box = box_denom > 0.
                     waves += [wave for wave in wave_box.T]
-                    gpms  += [wave > 0. for wave in wave_box.T]
+                    gpms  += [(wave > 0.) & gpm for (wave, gpm) in zip(wave_box.T, gpm_box.T)]
                     #waves[:self.nspec_array[iexp], indx:indx+3] = wave_box
                     # TODO -- This looks a bit risky
                     #gpm[:self.nspec_array[iexp], indx: indx+3] = wave_box > 0.
@@ -894,14 +890,15 @@ class CoAdd2D:
                 for spec in spec_this:
                     # NOTE: BOX extraction usage needed for quicklook
                     waves.append(spec.OPT_WAVE if spec.OPT_WAVE is not None else spec.BOX_WAVE)
-                    gpms.append(spec.OPT_MASK if spect.OPT_MASK is not None else spec.BOX_MASK)
+                    gpms.append(spec.OPT_MASK if spec.OPT_MASK is not None else spec.BOX_MASK)
                     # TODO -- OPT_MASK is likely to become a bpm with int values
                     #gpm[:self.nspec_array[iexp], indx] = spec.OPT_MASK
                     #indx += 1
 
-        wave_grid, wave_grid_mid, dsamp = wvutils.get_wave_grid(waves=waves, gpms=gpms,
-                                                                spec_samp_fact=self.spec_samp_fact,
-                                                                **kwargs_wave)
+        #TESTING
+        wave_grid, wave_grid_mid, dsamp = wvutils.get_wave_grid(waves=waves, gpms=gpms, wave_method=wave_method,
+                                                                spec_samp_fact=self.spec_samp_fact)
+
 
         return wave_grid, wave_grid_mid, dsamp
 
@@ -1151,19 +1148,19 @@ class MultiSlitCoAdd2D(CoAdd2D):
     """
     def __init__(self, spec2d_files, spectrograph, par, det=1, offsets=None, weights='auto',
                  spec_samp_fact=1.0, spat_samp_fact=1.0, sn_smooth_npix=None,
-                 bkg_redux=False, find_negative=False, show=False, show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
+                 bkg_redux=False, find_negative=False, show=False, show_peaks=False, debug_offsets=False, debug=False):
         super().__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
                                                spec_samp_fact=spec_samp_fact, spat_samp_fact=spat_samp_fact,
                                                sn_smooth_npix=sn_smooth_npix, bkg_redux=bkg_redux, find_negative=find_negative, par=par,
                                         show=show, show_peaks=show_peaks, debug_offsets=debug_offsets,
-                                        debug=debug, **kwargs_wave)
+                                        debug=debug)
 
         # maskdef offset
         self.maskdef_offset = np.array([slits.maskdef_offset for slits in self.stack_dict['slits_list']])
 
         # Default wave_method for Multislit is linear
-        kwargs_wave['wave_method'] = 'linear' if 'wave_method' not in kwargs_wave else kwargs_wave['wave_method']
-        self.wave_grid, self.wave_grid_mid, self.dsamp = self.get_wave_grid(**kwargs_wave)
+        wave_method = 'linear' if self.par['coadd2d']['wave_method'] is None else self.par['coadd2d']['wave_method']
+        self.wave_grid, self.wave_grid_mid, self.dsamp = self.get_wave_grid(wave_method)
 
         # Check if the user-input object to compute offsets and weights exists
         if self.par['coadd2d']['user_obj'] is not None:
@@ -1504,17 +1501,16 @@ class EchelleCoAdd2D(CoAdd2D):
     """
     def __init__(self, spec2d_files, spectrograph, par, det=1, offsets=None, weights='auto',
                  spec_samp_fact=1.0, spat_samp_fact=1.0, sn_smooth_npix=None,
-                 bkg_redux=False, find_negative=False, show=False, show_peaks=False, debug_offsets=False, debug=False,
-                 **kwargs_wave):
+                 bkg_redux=False, find_negative=False, show=False, show_peaks=False, debug_offsets=False, debug=False):
         super().__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
                                              spec_samp_fact=spec_samp_fact, spat_samp_fact=spat_samp_fact,
                                              sn_smooth_npix=sn_smooth_npix, bkg_redux=bkg_redux, find_negative=find_negative,
                                              par=par, show=show, show_peaks=show_peaks, debug_offsets=debug_offsets,
-                                             debug=debug, **kwargs_wave)
+                                             debug=debug)
 
         # Default wave_method for Echelle is log10
-        kwargs_wave['wave_method'] = 'log10' if 'wave_method' not in kwargs_wave else kwargs_wave['wave_method']
-        self.wave_grid, self.wave_grid_mid, self.dsamp = self.get_wave_grid(**kwargs_wave)
+        wave_method = 'log10' if self.par['coadd2d']['wave_method'] is None else self.par['coadd2d']['wave_method']
+        self.wave_grid, self.wave_grid_mid, self.dsamp = self.get_wave_grid(wave_method)
 
         # Check if the user-input object to compute offsets and weights exists
         if self.par['coadd2d']['user_obj'] is not None:

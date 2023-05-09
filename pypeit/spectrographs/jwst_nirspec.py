@@ -5,12 +5,11 @@ Module for JWST NIRSpec specific methods.
 """
 import glob
 import numpy as np
-from astropy.io import fits
-from astropy.time import Time
 
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
+from pypeit import io
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
@@ -50,7 +49,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         detector_dict1 = dict(
             binning='1,1',
             det=1,
-            dataext=0,
+            dataext=1,
             specaxis=1,
             specflip=False,
             spatflip=False,
@@ -73,7 +72,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         detector_dict2 = detector_dict1.copy()
         detector_dict2.update(dict(
             det=2,
-            dataext=0,
+            dataext=1,
             darkcurr=0.0057,
             saturation=60400.,
             gain=np.atleast_1d(1.137),
@@ -203,7 +202,6 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
             `numpy.ndarray`_: Boolean array with the flags selecting the
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
-        embed()
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         # TODO: Allow for 'sky' frame type, for now include sky in
         # 'science' category
@@ -241,6 +239,55 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         """
         return [(1,2)]
 
+    def get_rawimage(self, raw_file, det):
+        """
+        Read raw images and generate a few other bits and pieces
+        that are key for image processing.
+
+        Based on readmhdufits.pro
+
+        Parameters
+        ----------
+        raw_file : :obj:`str`
+            File to read
+        det : :obj:`int`
+            1-indexed detector to read
+
+        Returns
+        -------
+        detector_par : :class:`pypeit.images.detector_container.DetectorContainer`
+            Detector metadata parameters.
+        raw_img : `numpy.ndarray`_
+            Raw image for this detector.
+        hdu : `astropy.io.fits.HDUList`_
+            Opened fits file
+        exptime : :obj:`float`
+            Exposure time read from the file header
+        rawdatasec_img : `numpy.ndarray`_
+            Data (Science) section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        oscansec_img : `numpy.ndarray`_
+            Overscan section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        """
+        # Check for file; allow for extra .gz, etc. suffix
+        fil = glob.glob(raw_file + '*')
+        if len(fil) != 1:
+            msgs.error("Found {:d} files matching {:s}".format(len(fil)))
 
 
+        # Read
+        msgs.info("Reading JWST/NIRSpec file: {:s}".format(fil[0]))
+        hdu = io.fits_open(fil[0])
+        head0 = hdu[0].header
 
+        detector = self.get_detector_par(det if det is not None else 1, hdu=hdu)
+        raw_img = hdu[detector['dataext']].data.astype(float)
+
+        # Need the exposure time
+        exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
+
+        # Return
+        return detector, raw_img.T, hdu, exptime, None, None

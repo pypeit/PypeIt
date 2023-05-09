@@ -53,11 +53,11 @@ def arr_setup_to_setup_list(arr_setup):
 
     Args:
         arr_setup: (list)
-          A list of length setup of echelle output arrays of shape=(nspec, norders, nexp)
+          A list of length nsetups echelle output arrays of shape=(nspec, norders, nexp)
 
     Returns:
         setup_list: (list)
-          List of length nsteups. Each element of the setup list is a list of length
+          List of length nsetups. Each element of the setup list is a list of length
           norder*nexp elements, each of which contains the shape = (nspec1,) wavelength arrays
           for the order/exposure in setup1. The list is arranged such that the nexp1 spectra
           for iorder=0 appear first, then come nexp1 spectra for iorder=1, i.e. the outer or
