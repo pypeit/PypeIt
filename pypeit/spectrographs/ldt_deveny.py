@@ -1,10 +1,23 @@
 """
 Module for LDT/DeVeny specific methods.
 
+The DeVeny spectrograph was built at Kitt Peak National Observatory (KPNO)
+and known as the White Spectrograph. It had a long career at the #1 36-inch
+and 84-inch telescopes there before being retired; Lowell Observatory acquired
+the spectrograph from KPNO on indefinite loan in 1998. A new CCD camera was
+built for it, and the instrument was further modified for installation on the
+72-inch Perkins telescope in 2005. Following 8 years of service there, it was
+removed in 2013 for upgrades for installation on the Lowell Discovery Telescope
+(LDT) instrument cube. It has been in service since February 2015. The
+spectrograph was designed for f/7.5 telescope optics, and new re-imaging
+optics were designed and fabricated to match the spectrograph with LDT's
+f/6.1 beam.
+
 .. include:: ../include/links.rst
 """
 import numpy as np
 
+from astropy.table import Table
 from astropy.time import Time
 
 from pypeit import io
@@ -27,7 +40,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
     camera = 'DeVeny'
     url = 'https://lowell.edu/research/telescopes-and-facilities/ldt/deveny-optical-spectrograph/'
     header_name = 'Deveny'
-    comment = 'LDT DeVeny Optical Spectrograph'
+    comment = 'LDT DeVeny Optical Spectrograph, 2015 - present'
     supported = True
 
     # Parameters equal to the PypeIt defaults, shown here for completeness
@@ -123,7 +136,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         self.meta['slitwid'] = dict(ext=0, card='SLITASEC')
         self.meta['lampstat01'] = dict(card=None, compound=True)
 
-    def compound_meta(self, headarr, meta_key):
+    def compound_meta(self, headarr:list, meta_key:str) -> object:
         """
         Methods to generate metadata requiring interpretation of the header
         data, instead of simply reading the value of a header card.
@@ -135,7 +148,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
                 Metadata keyword to construct.
 
         Returns:
-            object: Metadata value read from the header(s).
+            :obj:`object`: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
             # Binning in lois headers is space-separated (like Gemini).
@@ -228,12 +241,12 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         downstream output files for configuration identification.
 
         The list of raw data FITS keywords should be those used to populate
-        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
-        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
         for a particular spectrograph, if different from the name of the
-        PypeIt metadata keyword.
+        ``PypeIt`` metadata keyword.
 
-        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
         to include additional FITS keywords in downstream output files.
 
         Returns:
@@ -307,8 +320,8 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['reduce']['findobj']['snr_thresh'] = 50.0   # Default: 10.0
         par['reduce']['findobj']['maxnumber_std'] = 1   # Default: 5
         par['reduce']['findobj']['maxnumber_sci'] = 5   # Default: 10
-        par['reduce']['findobj']['find_fwhm'] = assumed_seeing / 0.34   # Default: 5.0 pix
-        par['reduce']['extraction']['boxcar_radius'] = assumed_seeing * 1.5  # Default: 1.5"
+        par['reduce']['findobj']['find_fwhm'] = np.round(assumed_seeing / 0.34, 1)   # Default: 5.0 pix
+        par['reduce']['extraction']['boxcar_radius'] = np.round(assumed_seeing * 1.5, 1)  # Default: 1.5"
         par['reduce']['extraction']['use_2dmodel_mask'] = False  # Default: True
         par['reduce']['skysub']['sky_sigrej'] = 4.0  # Default: 3.0
 
@@ -322,7 +335,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
 
         return par
 
-    def check_frame_type(self, ftype, fitstbl, exprng=None):
+    def check_frame_type(self, ftype:str, fitstbl:Table, exprng=None):
         """
         Check for frames of the provided type.
 
@@ -393,13 +406,13 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         Define the list of keys to be output into a standard ``PypeIt`` file.
 
         Returns:
-            :obj:`list`: The list of keywords in the relevant
+            :obj:`list` : The list of keywords in the relevant
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
         return super().pypeit_file_keys() + ['dispangle','slitwid','lampstat01']
 
-    def get_lamps(self, fitstbl):
+    def get_lamps(self, fitstbl:Table) -> list:
         """
         Extract the list of arc lamps used from header
 
@@ -408,15 +421,15 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             There are some faint Cd and Hg lines in the DV9 spectra that are
             helpful for nailing down the wavelength calibration for that
             grating, but these lines are too faint / close to other lines for
-            use with other gratings.  Therefore, use a grating-specific line
-            list for Cd and Hg with DV9, but use the usual ion lists for
-            everything else.
+            use with other gratings.  This method loads the more detailed
+            lists for DV9, but loads the usual line lists for all other
+            gratings.
 
         Args:
             fitstbl (`astropy.table.Table`_):
                 The table with the metadata for one or more arc frames.
         Returns:
-            lamps (:obj:`list`) : List used arc lamps
+            :obj:`list` : List of the used arc lamps
         """
         grating = fitstbl['dispname'][0].split()[0]              # Get the DVn specifier
         return [
@@ -555,13 +568,13 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         that are key for image processing.
 
         For LDT/DeVeny, the LOIS control system automatically adjusts the
-        DATASEC and OSCANSEC regions if the CCD is used in a binning other
-        than 1x1.  The get_rawimage() method in the base class assumes these
-        sections are fixed and adjusts them based on the binning -- incorrect
-        for this instrument.
+        ``DATASEC`` and ``OSCANSEC`` regions if the CCD is used in a binning other
+        than 1x1.  The :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.get_rawimage`
+        method in the base class assumes these sections are fixed and adjusts
+        them based on the binning -- an incorrect assumption for this instrument.
 
         This method is a stripped-down version of the base class method and
-        additionally does NOT send the binning to parse.sec2slice().
+        additionally does *NOT* send the binning to :func:`~pypeit.core.parse.sec2slice`.
 
         Parameters
         ----------
@@ -572,7 +585,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
 
         Returns
         -------
-        detector_par : :class:`pypeit.images.detector_container.DetectorContainer`
+        detector_par : :class:`~pypeit.images.detector_container.DetectorContainer`
             Detector metadata parameters.
         raw_img : `numpy.ndarray`_
             Raw image for this detector.
@@ -627,35 +640,37 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
 
     def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table):
         """
-        This routine is for performing instrument/disperser specific tweaks to
-        standard stars so that sensitivity function fits will be well behaved.
+        This routine is for performing instrument- and/or disperser-specific
+        tweaks to standard stars so that sensitivity function fits will be
+        well behaved.
 
         These are tweaks needed by LDT/DeVeny for smooth sensfunc sailing.
 
         Parameters
         ----------
-        wave_in: (float np.ndarray) shape = (nspec,)
-            Input standard star wavelenghts
-        counts_in: (float np.ndarray) shape = (nspec,)
-            Input standard star counts
-        counts_ivar_in: (float np.ndarray) shape = (nspec,)
-            Input inverse variance of standard star counts
-        gpm_in: (bool np.ndarray) shape = (nspec,)
-            Input good pixel mask for standard
-        meta_table: (dict)
-            Table containing meta data that is slupred from the specobjs object.
-            See unpack_object routine in specobjs.py for the contents of this table.
+        wave_in: `numpy.ndarray`_
+            Input standard star wavelengths (:obj:`float`, ``shape = (nspec,)``)
+        counts_in: `numpy.ndarray`_
+            Input standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        counts_ivar_in: `numpy.ndarray`_
+            Input inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        gpm_in: `numpy.ndarray`_
+            Input good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        meta_table: :obj:`dict`
+            Table containing meta data that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
+            object.  See :meth:`~pypeit.specobjs.SpecObjs.unpack_object` for the
+            contents of this table.
 
         Returns
         -------
-        wave_out: (float np.ndarray) shape = (nspec,)
-            Output standard star wavelenghts
-        counts_out: (float np.ndarray) shape = (nspec,)
-            Output standard star counts
-        counts_ivar_out: (float np.ndarray) shape = (nspec,)
-            Output inverse variance of standard star counts
-        gpm_out: (bool np.ndarray) shape = (nspec,)
-            Output good pixel mask for standard
+        wave_out: `numpy.ndarray`_
+            Output standard star wavelengths (:obj:`float`, ``shape = (nspec,)``)
+        counts_out: `numpy.ndarray`_
+            Output standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        counts_ivar_out: `numpy.ndarray`_
+            Output inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        gpm_out: `numpy.ndarray`_
+            Output good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
         """
         # First, simply chop off the wavelengths outside physical limits:
         beyond = (wave_in < 2900.0) | (wave_in > 11000.0)
@@ -700,15 +715,15 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         """
         In order to orient LDT/DeVeny images into the PypeIt-standard
         configuration, frames are essentially rotated 90º clockwise.  As such,
-        x' = y and y' = -x.
+        :math:`x' = y` and :math:`y' = -x`.
 
-        The TRIMSEC / BIASSEC FITS keywords in LDT/DeVeny data specify the
-        proper regions to be trimmed for the data and overscan arrays,
+        The ``TRIMSEC`` / ``BIASSEC`` FITS keywords in LDT/DeVeny data specify
+        the proper regions to be trimmed for the data and overscan arrays,
         respectively, in the native orientation.  This method performs the
-        rotation and returns the section in the Numpy image section required
+        rotation and returns the slices for the Numpy image section required
         by the PypeIt processing routines.
 
-        The LDT/DeVeny FITS header lists the sections as '[SPEC_SEC,SPAT_SEC]'.
+        The LDT/DeVeny FITS header lists the sections as ``'[SPEC_SEC,SPAT_SEC]'``.
 
         Args:
             section_string (:obj:`str`):
@@ -716,7 +731,8 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             nspecpix (:obj:`int`):
                 The total number of pixels in the spectral direction
         Returns:
-            section (:obj:`numpy.ndarray`): Numpy image section needed by PypeIt
+            section (`numpy.ndarray`_):
+                Numpy image section needed by PypeIt
         """
         # Split out the input section into spectral and spatial pieces
         spec_sec, spat_sec = section_string.strip('[]').split(',')
@@ -730,46 +746,44 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
 
     @staticmethod
     def scrub_isot_dateobs(dt_str: str):
-        """Scrub the input DATE-OBS for ingestion by datetime
+        """Scrub the input ``DATE-OBS`` for ingestion by AstroPy Time
 
-        First of all, strict ISO 8601 format requires a 6-digit "microsecond" field
-        as the fractional portion of the seconds.  In the DATE-OBS field, lois only
-        prints two digits for the fractional second.  The main scrub here adds
-        additional trailing zeroes to satifsy the formatting requirements of
-        :obj:`datetime.datetime.fromisoformat`.
+        The main issue this method addresses is that sometimes the LOIS
+        software at LDT has roundoff abnormalities in the time string written
+        to the ``DATE-OBS`` header keyword.  For example, in one header
+        ``2020-01-30T13:17:010.0`` was written, where the seconds has 3 digits
+        -- presumably the seconds field was constructed with a leading zero
+        because ``sec`` was < 10, but when rounded for printing
+        yielded "10.00", producing a complete seconds field of ``010.00``.
 
-        While this yields happy results for the majority of cases, sometimes lois
-        has roundoff abnormalities in the time string written to the DATE-OBS
-        header keyword.  For example, "2020-01-30T13:17:010.00" was written, where
-        the seconds has 3 digits -- presumably the seconds field was constructed
-        with a leading zero because ``sec`` was < 10, but when rounded for printing
-        yielded "10.00", producing a complete seconds field of "010.00".
-
-        These kinds of abnormalities cause the standard python datetime parsers to
-        freak out with ``ValueError`` s.  This function attempts to return the
-        datetime directly, but then scrubs any values that cause a ``ValueError``.
+        This abnormality, along with a seconds field equaling ``60.00``, causes
+        AstroPy's Time parser to freak out with a ``ValueError``.  This
+        method attempts to return the `astropy.time.Time`_ object directly, but
+        then scrubs any values that cause a ``ValueError``.
 
         The scrubbing consists of deconstructing the string into its components,
-        then carefully reconstructing it into proper ISO 8601 format.  Also, some
-        recursive edge-case catching is done, but at some point you just have to
-        go buy a lottery ticket.
+        then carefully reconstructing it into proper ISO 8601 format.  Also,
+        some recursive edge-case catching is done, but at some point you just
+        have to give up and go buy a lottery ticket.
+
+        If you have a truly bizarre ``DATE-OBS`` string, simply edit that keyword
+        in the FITS header and then re-run ``PypeIt``.
 
         Parameters
         ----------
-        dt_str : str
-            Input datetime string from the DATE-OBS header keyword
+        dt_str : :obj:`str`
+            Input datetime string from the ``DATE-OBS`` header keyword
 
         Returns
         -------
         `astropy.time.Time`_
-            The Astropy Time() object corresponding to the DATE-OBS input string
+            The AstroPy Time object corresponding to the ``DATE-OBS`` input string
         """
         # Clean all leading / trailing whitespace
         dt_str = dt_str.strip()
+
+        # Attempt to directly return the AstroPy Time object
         try:
-            # fromisoformat() expects a 6-digit microsecond field; append zeros
-            if (n_micro := len(dt_str.split(".")[-1])) < 6:
-                dt_str += "0" * (6 - n_micro)
             return Time(dt_str, format='isot')
         except ValueError:
             # Split out all pieces of the datetime, and recompile

@@ -182,12 +182,12 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         downstream output files for configuration identification.
 
         The list of raw data FITS keywords should be those used to populate
-        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
-        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
         for a particular spectrograph, if different from the name of the
-        PypeIt metadata keyword.
+        ``PypeIt`` metadata keyword.
 
-        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
         to include additional FITS keywords in downstream output files.
 
         Returns:

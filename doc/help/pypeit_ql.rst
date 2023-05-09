@@ -5,13 +5,14 @@
                      [--raw_path RAW_PATH] [--ext EXT]
                      [--sci_files SCI_FILES [SCI_FILES ...]]
                      [--redux_path REDUX_PATH] [--parent_calib_dir PARENT_CALIB_DIR]
-                     [--setup_calib_dir SETUP_CALIB_DIR] [--clean] [--calibs_only]
-                     [--overwrite_calibs] [--slitspatnum SLITSPATNUM]
-                     [--maskID MASKID] [--boxcar_radius BOXCAR_RADIUS]
-                     [--det DET [DET ...]] [--ignore_std] [--snr_thresh SNR_THRESH]
-                     [--skip_display] [--coadd]
-                     [--only_slits ONLY_SLITS [ONLY_SLITS ...]] [--offsets OFFSETS]
-                     [--weights WEIGHTS] [--spec_samp_fact SPEC_SAMP_FACT]
+                     [--setup_calib_dir SETUP_CALIB_DIR] [--calib_group CALIB_GROUP]
+                     [--clean] [--calibs_only] [--overwrite_calibs]
+                     [--slitspatnum SLITSPATNUM] [--maskID MASKID]
+                     [--boxcar_radius BOXCAR_RADIUS] [--det DET [DET ...]]
+                     [--ignore_std] [--snr_thresh SNR_THRESH] [--skip_display]
+                     [--coadd] [--only_slits ONLY_SLITS [ONLY_SLITS ...]]
+                     [--offsets OFFSETS] [--weights WEIGHTS]
+                     [--spec_samp_fact SPEC_SAMP_FACT]
                      [--spat_samp_fact SPAT_SAMP_FACT]
                      spectrograph
     
@@ -80,6 +81,10 @@
                             of the provided data, the code will construct new
                             calibrations (assuming relevant raw files are provided).
                             (default: None)
+      --calib_group CALIB_GROUP
+                            If the calibration directory contains results from more
+                            than one calibration group, you *must* specify which one
+                            to use. The code will fault otherwise. (default: None)
       --clean               Remove the existing output directories to force a fresh
                             reduction. If False, any existing directory structure
                             will remain, but any existing science files will still

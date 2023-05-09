@@ -224,12 +224,12 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
         downstream output files for configuration identification.
 
         The list of raw data FITS keywords should be those used to populate
-        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
-        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
         for a particular spectrograph, if different from the name of the
-        PypeIt metadata keyword.
+        ``PypeIt`` metadata keyword.
 
-        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
         to include additional FITS keywords in downstream output files.
 
         Returns:
@@ -474,7 +474,7 @@ class GTCMAATSpectrograph(GTCOSIRISPlusSpectrograph):
         # Don't correct flexure by default, but you should use slitcen,
         # because this is a slit-based IFU where no objects are extracted.
         par['flexure']['spec_method'] = 'skip'
-        par['flexure']['spec_maxshift'] = 2.5  # Just in case someone switches on spectral flexure, this needs to be minimal
+        par['flexure']['spec_maxshift'] = 3  # Just in case someone switches on spectral flexure, this needs to be minimal
 
         # Flux calibration parameters
         par['sensfunc']['UVIS']['extinct_correct'] = False  # This must be False - the extinction correction is performed when making the datacube
@@ -806,12 +806,12 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         downstream output files for configuration identification.
 
         The list of raw data FITS keywords should be those used to populate
-        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
-        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
         for a particular spectrograph, if different from the name of the
-        PypeIt metadata keyword.
+        ``PypeIt`` metadata keyword.
 
-        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
         to include additional FITS keywords in downstream output files.
 
         Returns:
