@@ -27,7 +27,7 @@
 - The ``'calib'`` column is now always added to the pypeit file, regardless of
   whether or not you also request the ``'comb_id'`` and ``'bkg_id'`` columns.
 - Names of associated calibration frames now written to ``spec2d`` file headers.
-- Major quicklook updates.  ql_multislit.py temporarily deprecated.
+- Major quicklook updates.  ql_multislit.py deprecated.
 - Improve speed in ginga visualization of traces and added
   `pypeit_chk_tilts`. Note that this script uses an update
   of the tilts datamodel, so it will not work on older reductions.
