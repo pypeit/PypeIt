@@ -1,21 +1,21 @@
 
 .. include:: ../include/links.rst
 
-.. _masterarc:
+.. _arc:
 
-=========
-MasterArc
-=========
+===
+Arc
+===
 
 Overview
 ========
 
-This file describes the data model for the ``MasterArc`` image.
+This file describes the data model for the ``Arc`` image.
 It is generally a simple combination of all input arc frames.
 
 The image is written to disk as a multi-extension FITS file
-prefixed by ``MasterArc`` in the ``Masters/`` folder.
-See :ref:`master-naming` for the naming convention.
+prefixed by ``Arc`` in the ``Calibrations/`` folder.
+See :ref:`calib-naming` for the naming convention.
 
 
 Inspecting
@@ -26,7 +26,7 @@ You can view it with any standard image viewer, e.g.:
 
 .. code-block:: console
 
-    ginga Masters/MasterArc_A_1_01.fits
+    ginga Calibrations/Arc_A_1_01.fits
 
 Most often you use only one arc frame and this appears
 very similar to the raw image.  If you do stack several,

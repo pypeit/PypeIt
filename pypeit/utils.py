@@ -11,6 +11,7 @@ import pickle
 import pathlib
 import itertools
 import glob
+import collections.abc
 
 from IPython import embed
 
@@ -1022,6 +1023,58 @@ def yamlify(obj, debug=False):
     if debug:
         print(type(obj))
     return obj
+
+
+def add_sub_dict(d, key):
+    """
+    If a key is not present in the provided dictionary, add it as a new nested
+    dictionary.
+
+    Args:
+        d (:obj:`dict`):
+            Dictionary to alter
+        key (:obj:`str`):
+            Key to add
+
+    Examples:
+        >>> d = {}
+        >>> add_sub_dict(d, 'test')
+        >>> d
+        {'test': {}}
+        >>> d['test'] = 'this'
+        >>> add_sub_dict(d, 'test')
+        >>> d
+        {'test': 'this'}
+        >>> add_sub_dict(d, 'and')
+        >>> d['and'] = 'that'
+        >>> d
+        {'test': 'this', 'and': 'that'}
+    """
+    if key not in d.keys():
+        d[key] = {}
+
+
+def recursive_update(d, u):
+    """
+    Update dictionary values with recursion to nested dictionaries.
+
+    Thanks to:
+    https://stackoverflow.com/questions/3232943/update-value-of-a-nested-dictionary-of-varying-depth
+
+    Args:
+        d (:obj:`dict`):
+            Dictionary (potentially of other dictionaries) to be updated.  This
+            is both edited in-place and returned.
+        u (:obj:`dict`):
+            Dictionary (potentially of other dictionaries) with the
+            updated/additional values.
+
+    Returns:
+        :obj:`dict`: The updated dictionary.
+    """
+    for k, v in u.items():
+        d[k] = recursive_update(d.get(k, {}), v) if isinstance(v, collections.abc.Mapping) else v
+    return d
 
 
 def save_pickle(fname, obj):

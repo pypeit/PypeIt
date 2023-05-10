@@ -235,25 +235,32 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
     def get_comb_group(self, fitstbl):
         """
+        Automatically assign combination groups and background images by parsing
+        known dither patterns.
 
-        This method is used in :func:`pypeit.metadata.PypeItMetaData.set_combination_groups`,
-        and modifies calib, comb_id and bkg_id metas for a specific instrument.
+        This method is used in
+        :func:`~pypeit.metadata.PypeItMetaData.set_combination_groups`, and
+        directly modifies the ``comb_id`` and ``bkg_id`` columns in the provided
+        table.
 
         Specifically here for NIRES, since it's likely to have one set of flat/dark frames for
         different targets, this method sets calib = "all" for the flat and dark frames and
         assigns different calib values to the science/standard frames of different targets.
 
-        Moreover, this method parses from the header the dither pattern of the science/standard
-        frames in a given calibration group and assigns to each of them a comb_id and a
-        bkg_id. The dither patterns used here are: "ABAB", "ABBA", "ABpat", "ABC".
-        Note that the frames in the same dither positions (A positions or B positions)
-        of each "ABAB" or "ABBA" sequence are 2D coadded  (without optimal weighting)
-        before the background subtraction, while for the other dither patterns (e.g., "ABpat"),
-        the frames in the same dither positions are not coadded.
-        comb_id and bkg_id will not assigned if:
+        Moreover, this method parses from the header the dither pattern of the
+        science/standard frames in a given calibration group and assigns to each
+        of them a default ``comb_id`` and ``bkg_id``. The dither patterns used
+        here are: "ABAB", "ABBA", "ABpat", and "ABC".  Note that the frames in
+        the same dither positions (A positions or B positions) of each "ABAB" or
+        "ABBA" sequence are 2D coadded  (without optimal weighting) before the
+        background subtraction, while for the other dither patterns (e.g.,
+        "ABpat"), the frames in the same dither positions are not coadded.  The
+        ``comb_id`` and ``bkg_id`` will *not* assigned if:
 
-            - dither offset is zero for every frames of a dither sequence
-            - dither pattern recorded in the header is NONE or MANUAL, or is none of the above patterns.
+            - the dither offset is zero for every frame in the dither sequence
+
+            - the dither pattern recorded in the header is not recognized or set
+              to NONE or MANUAL.
 
         Args:
             fitstbl(`astropy.table.Table`_):
@@ -298,11 +305,10 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                     # where this targ
                     targ_idx = in_cfg & (fitstbl['target'] == targ)
                     if 'calib' in fitstbl.keys():
-                        targ_calib += 1
                         # set different calib for different targs
                         if 'science' in fitstbl['frametype'][targ_idx][0] or \
                            ('standard' in fitstbl['frametype'][targ_idx][0] and 'arc' in fitstbl['frametype'][targ_idx][0]):
-                            fitstbl['calib'][targ_idx] = targ_calib
+                            fitstbl['calib'][targ_idx] = str(targ_calib)
                         elif 'standard' in fitstbl['frametype'][targ_idx]:
                             # find the science frames
                             sci_in_cfg = sci_idx & np.array([setup in _set for _set in fitstbl['setup']])
@@ -310,6 +316,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                                 # find the closest (in time) science frame to the standard target
                                 close_idx = np.argmin(np.absolute(fitstbl[sci_in_cfg]['mjd'] - fitstbl[targ_idx]['mjd'][0]))
                                 fitstbl['calib'][targ_idx] = fitstbl['calib'][sci_in_cfg][close_idx]
+                        targ_calib += 1
 
                     # how many dither patterns are used for the selected science/standard target?
                     uniq_dithpats = np.unique(fitstbl[targ_idx]['dithpat'])
@@ -478,7 +485,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels.
+                Processed bias frame used to identify bad pixels.
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
@@ -545,7 +552,4 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
             provided by ``order``.
         """
         return np.full(order_vec.size, 0.15)
-
-
-
 

@@ -110,7 +110,6 @@ class ObsLog(scriptbase.ScriptBase):
         ps = PypeItSetup.from_file_root(args.root, args.spec, 
                                         extension=args.extension)
         ps.run(setup_only=True,  # This allows for bad headers
-               write_files=False, 
                groupings=args.groupings,
                clean_config=args.bad_frames)
 

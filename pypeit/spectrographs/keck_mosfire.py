@@ -130,22 +130,19 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
         return par
 
-
-
-    def get_ql_master_dir(self, file):
+    # NOTE: This function is used by the dev-suite
+    def get_ql_calib_dir(self, file):
         """
-        Returns master file directory for quicklook reductions.
+        Returns calibrations file directory for quicklook reductions.
 
         Args:
             file (str):
               Image file
 
         Returns:
-            master_dir (str):
-              Quicklook Master directory
+            :obj:`str`: Quicklook calibrations directory
 
         """
-
         mosfire_filter = self.get_meta_value(file, 'filter1')
         return os.path.join(self.name, mosfire_filter)
 
@@ -411,43 +408,56 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         """
         return ['MASKNAME', 'OBSMODE', 'FILTER']
 
-    def modify_config(self, fitstbl, cfg):
+    def modify_config(self, row, cfg):
         """
-        Modify the configuration dictionary for a given frame. This method is used
-        in :func:`pypeit.metadata.PypeItMetaData.set_configurations` to modify in place
-        the configuration requirement to assign a specific frame to the current setup.
 
-        This is needed for the reduction of 'LONGSLIT' and 'long2pos' data, which often use
-        calibrations taken with a different decker (MASKNAME).
+        Modify the configuration dictionary for a given frame. This method is
+        used in :func:`~pypeit.metadata.PypeItMetaData.set_configurations` to
+        modify in place the configuration requirement to assign a specific frame
+        to the current setup.
 
-            - For the 'LONGSLIT' masks, when we are assigning a configuration to a calibration file
-              that was taken with the longest slit available (46 CSUs), since these calibrations are
-              generally used for the reduction of science frames with shorter slits, we remove the
-              configuration requirement on the slit lenght for the current file.
+        This is needed for the reduction of 'LONGSLIT' and 'long2pos' data,
+        which often use calibrations taken with a different decker (MASKNAME).
 
-            - For the 'long2pos' masks, when we are assigning a configuration to a calibration file
-              that was taken with the 'long2pos' mask, since these calibrations are generally used
-              for the reduction of science frames taken with 'long2pos_specphot' masks, we modify the
-              configuration requirement on the decker_secondary for the current file.
+            - For the 'LONGSLIT' masks, when we are assigning a configuration to
+              a calibration file that was taken with the longest slit available
+              (46 CSUs), since these calibrations are generally used for the
+              reduction of science frames with shorter slits, we remove the
+              configuration requirement on the slit length for the current file.
+
+            - For the 'long2pos' masks, when we are assigning a configuration to
+              a calibration file that was taken with the 'long2pos' mask, since
+              these calibrations are generally used for the reduction of science
+              frames taken with 'long2pos_specphot' masks, we modify the
+              configuration requirement on the decker_secondary for the current
+              file.
 
         Args:
-            fitstbl(`astropy.table.Table`_):
-                The table with the metadata for one frames.
+            row (`astropy.table.Row`_):
+                The table row with the metadata for one frame.
             cfg (:obj:`dict`):
-                dictionary with metadata associated to a specific configuration.
+                Dictionary with metadata associated to a specific configuration.
 
         Returns:
-            :obj:`dict`: modified dictionary with metadata associated to a specific configuration.
+            :obj:`dict`: modified dictionary with metadata associated to a
+            specific configuration.
         """
-        if fitstbl['decker'] is not None and cfg['decker_secondary'] is not None and 'LONGSLIT' in fitstbl['decker'] \
-                and 'LONGSLIT' in cfg['decker_secondary'] and 'science' not in fitstbl['frametype'] and\
-                'standard' not in fitstbl['frametype'] and fitstbl['slitlength'] == 46.:
+        if row['decker'] is not None \
+                and cfg['decker_secondary'] is not None \
+                and 'LONGSLIT' in row['decker'] \
+                and 'LONGSLIT' in cfg['decker_secondary'] \
+                and 'science' not in row['frametype'] \
+                and 'standard' not in row['frametype'] \
+                and row['slitlength'] == 46.:
             cfg2 = copy.deepcopy(cfg)
             cfg2.pop('slitlength')
             return cfg2
-        if fitstbl['decker'] is not None and cfg['decker_secondary'] is not None and 'long2pos' in fitstbl['decker'] and \
-                'long2pos' in cfg['decker_secondary'] and 'science' not in fitstbl['frametype'] \
-                and 'standard' not in fitstbl['frametype']:
+        if row['decker'] is not None \
+                and cfg['decker_secondary'] is not None \
+                and 'long2pos' in row['decker'] \
+                and 'long2pos' in cfg['decker_secondary'] \
+                and 'science' not in row['frametype'] \
+                and 'standard' not in row['frametype']:
             cfg2 = copy.deepcopy(cfg)
             cfg2['decker_secondary'] = 'long2pos'
             return cfg2
@@ -455,22 +465,28 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
     def get_comb_group(self, fitstbl):
         """
+        Automatically assign combination groups and background images by parsing
+        known dither patterns.
 
-        This method is used in :func:`pypeit.metadata.PypeItMetaData.set_combination_groups`,
-        and modifies comb_id and bkg_id metas for a specific instrument.
+        This method is used in
+        :func:`~pypeit.metadata.PypeItMetaData.set_combination_groups`, and
+        directly modifies the ``comb_id`` and ``bkg_id`` columns in the provided
+        table.
 
-        Specifically here, this method parses the dither pattern of the science/standard
-        frames in a given calibration group and assigns to each of them a comb_id and a
-        bkg_id. The dither pattern used here are: "Slit Nod", "Mask Nod", "ABA'B'",
-        "ABAB", "ABBA", "long2pos_specphot", and "Stare". Note that the frames in the
-        same dither positions (A positions or B positions) of each "ABAB" or "ABBA"
-        sequence are 2D coadded  (without optimal weighting) before the background
-        subtraction, while for the other dither patterns, the frames in the same
-        dither positions are not coadded.
-        For "long2pos_specphot" masks, the comb_id and a bkg_id are assigned such that
-        one of the two frames with spectrum taken using the narrower slit is used as background
-        frame and subtracted from the frame with spectrum taken using the wider slit.
+        Specifically here, this method parses the dither pattern of the
+        science/standard frames in a given calibration group and assigns to each
+        of them a comb_id and a bkg_id. The known dither patterns are: "Slit
+        Nod", "Mask Nod", "ABA'B'", "ABAB", "ABBA", "long2pos_specphot", and
+        "Stare". Note that the frames in the same dither positions (A positions
+        or B positions) of each "ABAB" or "ABBA" sequence are 2D coadded
+        (without optimal weighting) before the background subtraction, while for
+        the other dither patterns, the frames in the same dither positions are
+        not coadded.
 
+        For "long2pos_specphot" masks, the ``comb_id`` and a ``bkg_id`` are
+        assigned such that one of the two frames with spectra taken using the
+        narrower slit is used as the background frame and subtracted from the
+        frame with spectra taken using the wider slit.
 
         Args:
             fitstbl(`astropy.table.Table`_):
@@ -706,6 +722,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
+    # TODO: Is this supposed to be deprecated in favor of get_comb_group?
     def parse_dither_pattern(self, file_list, ext=None):
         """
         Parse headers from a file list to determine the dither pattern.

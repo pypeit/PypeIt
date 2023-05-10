@@ -28,23 +28,51 @@ from IPython import embed
 
 class FindObjects:
     """
-    This class will organize and run actions related to
-    finding objects, global sky subtraction, and skymask construction for
-    a Science or Standard star exposure
+    Base class used to find objects and perform global sky subtraction for
+    science or standard-star exposures.
 
     Args:
-        sciImg (:class:`~pypeit.images.pypeitimage.PypeItImage`):
+        sciImg (:class:`~pypeit.images.scienceimage.ScienceImage`):
             Image to reduce.
+        slits (:class:`~pypeit.slittrace.SlitTracSet`):
+            Object providing slit traces for the image to reduce.
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
-        par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
+            PypeIt Sspectrograph class
+        par (:class:`~pypeit.par.pyepeitpar.PypeItPar`):
+            Reduction parameters class
         objtype (:obj:`str`):
-           Specifies object being reduced 'science' 'standard' 'science_coadd2d'
+            Specifies object being reduced.  Should be 'science',
+            'standard', or 'science_coadd2d'.
+        wv_calib (:class:`~pypeit.wavetilts.WaveCalib`, optional):
+            This is only used for the IFU child when a joint sky subtraction
+            is requested.
+        waveTilts (:class:`~pypeit.wavetilts.WaveTilts`, optional):
+            Calibration frame with arc/sky line tracing of the wavelength
+            tilt.  Only waveTilts or tilts is needed (not both).
+        tilts (`numpy.ndarray`_, optional):
+            Tilts frame produced by
+            :func:`~pypeit.wavetilts.WaveTilts.fit2tiltimg` for given a
+            spatial flexure.  Only waveTilts or tilts is needed (not both).
+        initial_skymask (`numpy.ndarray`_, optional):
+            Boolean array that selects (array elements are True) image
+            pixels in sky regions.  If provided, the 2nd pass on the global
+            sky subtraction is omitted.
         bkg_redux (:obj:`bool`, optional):
             If True, the sciImg has been subtracted by
             a background image (e.g. standard treatment in the IR)
+        find_negative (:obj:`bool`, optional):
+            If True, the negative objects are found
+        std_redux (:obj:`bool`, optional):
+            If True, the object being extracted is a standard star,
+            so that the reduction parameters can be adjusted accordingly.
         show (:obj:`bool`, optional):
-           Show plots along the way?
+            Show plots along the way?
+        clear_ginga (:obj:`bool`, optional):
+            Clear the ginga window before showing the object finding results.
+        basename (:obj:`str`, optional):
+            Base name for output files
         manual (:class:`~pypeit.manual_extract.ManualExtractObj`, optional):
+            Object containing manual extraction instructions/parameters.
 
     Attributes:
         ivarmodel (`numpy.ndarray`_):
@@ -85,69 +113,25 @@ class FindObjects:
 
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, sciImg, slits, spectrograph, par, objtype, wv_calib=None, waveTilts=None, tilts=None, sky_region_file=None,
-                     bkg_redux=False, find_negative=False, std_redux=False, show=False, clear_ginga=True,
-                     basename=None, manual=None):
+    def get_instance(cls, sciImg, slits, spectrograph, par, objtype, wv_calib=None, waveTilts=None,
+                     tilts=None, initial_skymask=None, bkg_redux=False, find_negative=False,
+                     std_redux=False, show=False, clear_ginga=True, basename=None, manual=None):
         """
-        Instantiate the Reduce subclass appropriate for the provided
-        spectrograph.
+        Instantiate and return the :class:`FindObjects` subclass appropriate for
+        the provided spectrograph.
 
-        The class must be subclassed from Reduce.  See :class:`Reduce` for
-        the description of the valid keyword arguments.
-
-        Args:
-            sciImg (:class:`~pypeit.images.scienceimage.ScienceImage`):
-                Image to reduce.
-            spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
-                PypeIt Sspectrograph class
-            par (:class:`~pypeit.par.pyepeitpar.PypeItPar`):
-                Reduction parameters class
-            objtype (:obj:`str`):
-                Specifies object being reduced 'science' 'standard'
-                'science_coadd2d'.  This is used only to determine the
-                spat_flexure_shift and ech_order for coadd2d.
-            wv_calib (:class:`~pypeit.wavetilts.WaveCalib`, optional):
-                This is only used for the IFU child when a joint sky subtraction
-                is requested.  This is the waveCalib object which is optional,
-                but either wv_calib or waveimg must be provided.
-            waveTilts (:class:`pypeit.wavetilts.WaveTilts`, optional):
-                DataContainer with arc/sky line tracing of the wavelength tilt
-                Only waveTilts or tilts is needed (not both)
-            tilts (`numpy.ndarray`_, optional):
-                Tilts frame produced by waveTilts.fit2tiltimg() for given a spatial flexure.
-                Only waveTilts or tilts is needed (not both)
-            sky_region_file (str, optional):
-                Name fo the Master sky region file created by the user
-            bkg_redux (:obj:`bool`, optional):
-                If True, the sciImg has been subtracted by
-                a background image (e.g. standard treatment in the IR)
-            find_negative (:obj:`bool`, optional):
-                If True, the negative objects are found
-            std_redux (:obj:`bool`, optional):
-                If True the object being extracted is a standards star
-                so that the reduction parameters can be adjusted accordingly.
-            manual (:class:`~pypeit.manual_extract.ManualExtractObj`, optional):
-                Class with info guiding the manual extraction
-            basename (str, optional):
-                Output filename used for spectral flexure QA
-            show (:obj:`bool`, optional):
-                Show plots along the way?
-            **kwargs
-                Passed to Parent init
-
-        Returns:
-            :class:`~pypeit.find_objects.FindObjects`:  Object finding class.
+        For argument descriptions, see :class:`FindObjects`.
         """
         return next(c for c in utils.all_subclasses(FindObjects)
                     if c.__name__ == (spectrograph.pypeline + 'FindObjects'))(
-            sciImg, slits, spectrograph, par, objtype, wv_calib=wv_calib, waveTilts=waveTilts, tilts=tilts,
-            sky_region_file=sky_region_file, bkg_redux=bkg_redux,
+            sciImg, slits, spectrograph, par, objtype, wv_calib=wv_calib, waveTilts=waveTilts,
+            tilts=tilts, initial_skymask=initial_skymask, bkg_redux=bkg_redux,
             find_negative=find_negative, std_redux=std_redux, show=show, clear_ginga=clear_ginga,
             basename=basename, manual=manual)
 
-    def __init__(self, sciImg, slits, spectrograph, par, objtype, wv_calib=None, waveTilts=None, tilts=None,
-                 sky_region_file=None, bkg_redux=False, find_negative=False, std_redux=False, show=False,
-                 clear_ginga=True, basename=None, manual=None):
+    def __init__(self, sciImg, slits, spectrograph, par, objtype, wv_calib=None, waveTilts=None,
+                 tilts=None, initial_skymask=None, bkg_redux=False, find_negative=False,
+                 std_redux=False, show=False, clear_ginga=True, basename=None, manual=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
         # Instantiation attributes for this object
@@ -158,7 +142,7 @@ class FindObjects:
         self.scaleimg = np.array([1.0], dtype=float)  # np.array([1]) applies no scale
         self.basename = basename
         self.manual = manual
-        self.sky_region_file = sky_region_file
+        self.initial_skymask = initial_skymask
         self.wv_calib = wv_calib  # TODO :: Ideally, we want to avoid this if possible. Find a better way to do joint_skysub fitting outside of the find_objects class.
         # Parse
         # Slit pieces
@@ -341,56 +325,43 @@ class FindObjects:
                                                      show_peaks=show_peaks)
             return np.zeros_like(self.sciImg.image), sobjs_obj
 
-        # Check if the user wants to use a pre-defined sky regions file.
-        user_regions = self.par['reduce']['skysub']['user_regions']
-        if user_regions == '': user_regions = None
-        # Check if sky regions should be loaded
-        load_skyreg = self.sky_region_file is not None or user_regions is not None
-        if load_skyreg:
-            skymask_init = self.load_skyregions(sky_region_file=self.sky_region_file)
-            # Perform a fit to the global sky model
-            initial_sky = self.global_skysub(skymask=skymask_init, update_crmask=False, objs_not_masked=True,
-                                                show_fit=show_skysub_fit)
-            # Perform object finding
-            sobjs_obj, self.nobj = \
-                self.find_objects(self.sciImg.image - initial_sky, self.sciImg.ivar, std_trace=std_trace,
-                                  show_peaks=show_peaks,
-                                  show=self.findobj_show and not self.std_redux,
-                                  save_objfindQA=self.par['reduce']['findobj']['skip_second_find'] | self.std_redux)
+        # Perform a first pass sky-subtraction.  The mask is either empty or
+        # uses the mask specified by the user.
+        
+        # TODO: Should we make this no_poly=True to have fewer degrees of freedom in
+        # the with with-object global sky fits??
+        initial_sky0 = self.global_skysub(skymask=self.initial_skymask, update_crmask=False,
+                                          objs_not_masked=True, show_fit=show_skysub_fit)
+        # First pass object finding
+        save_objfindQA = self.par['reduce']['findobj']['skip_second_find'] or self.std_redux \
+                            or self.initial_skymask is not None 
+        sobjs_obj, self.nobj = \
+            self.find_objects(self.sciImg.image-initial_sky0, self.sciImg.ivar, std_trace=std_trace,
+                              show_peaks=show_peaks, show=self.findobj_show and not self.std_redux,
+                              save_objfindQA=save_objfindQA)
+
+        if self.nobj == 0 or self.initial_skymask is not None:
+            # Either no objects were found, or the initial sky mask was provided by the user.
+            # Either way, don't don't redo global sky subtraction
+            msgs.info('Either no objects were found or a user-provided sky mask was used.  '
+                      'Skipping second pass of sky-subtraction and object finding.')
+            return initial_sky0, sobjs_obj
+
+        # If objects were found, create skymask using first pass objects that
+        # were identified, sobjs_obj
+        skymask_init = self.create_skymask(sobjs_obj)
+        # Global sky subtract now using the skymask defined by object positions
+        initial_sky = self.global_skysub(skymask=skymask_init, show_fit=show_skysub_fit)
+        # Second pass object finding on sky-subtracted image with updated sky
+        # created after masking objects
+        if not self.std_redux and not self.par['reduce']['findobj']['skip_second_find']:
+            sobjs_obj, self.nobj = self.find_objects(self.sciImg.image - initial_sky,
+                                                     self.sciImg.ivar, std_trace=std_trace,
+                                                     show=self.findobj_show, show_peaks=show_peaks)
         else:
-            # Perform a first pass sky-subtraction without masking any objects. Should  we make this no_poly=True to
-            # have fewer degrees of freedom in the with with-object global sky fits??
-            initial_sky0 = self.global_skysub(update_crmask=False, objs_not_masked=True,
-                                              show_fit=show_skysub_fit)
-            # First pass object finding
-            sobjs_obj, self.nobj = \
-                self.find_objects(self.sciImg.image-initial_sky0, self.sciImg.ivar, std_trace=std_trace,
-                                  show_peaks=show_peaks,
-                                  show=self.findobj_show and not self.std_redux,
-                                  save_objfindQA=self.par['reduce']['findobj']['skip_second_find'] | self.std_redux)
-
-            if self.nobj == 0:
-                # If no objects were found don't redo global sky subtraction
-                initial_sky = initial_sky0
-                msgs.info("No objects identified, skipping second pass of sky-subtraction and object finding")
-            else:
-                # If objects were found, create skymask using first pass objects that were identified, sobjs_obj
-                skymask_init = self.create_skymask(sobjs_obj)
-                # Global sky subtract now using the skymask defined by object positions
-                initial_sky = self.global_skysub(skymask=skymask_init, show_fit=show_skysub_fit)
-                # Second pass object finding on sky-subtracted image with updated sky created after masking objects
-                if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
-                    sobjs_obj, self.nobj = self.find_objects(self.sciImg.image - initial_sky, self.sciImg.ivar,
-                                                    std_trace=std_trace, show=self.findobj_show,
-                                                    show_peaks=show_peaks)
-                else:
-                    msgs.info("Skipping 2nd run of finding objects")
-
+            msgs.info("Skipping 2nd run of finding objects")
         # TODO I think the final global should go here as well from the pypeit.py class lines 837
-
         return initial_sky, sobjs_obj
-
-
 
     def find_objects(self, image, ivar, std_trace=None,
                      show_peaks=False, show_fits=False,
@@ -610,77 +581,8 @@ class FindObjects:
             # Global skysub is the first step in a new extraction so clear the channels here
             self.show('global', global_sky=global_sky, slits=True, sobjs=sobjs_show, clear=False)
 
-
         # Return
         return global_sky
-
-    def load_skyregions(self, sky_region_file=None):
-        """
-        Generate or load the sky regions.
-
-        Preference is given to generate the sky regions using the "user_regions" argument,
-        since this is set by the user in their .pypeit file, in the following way:
-
-        .. code-block:: ini
-
-            [reduce]
-                [[skysub]]
-                    user_regions = :25,75:
-
-        The alternative is to load a MasterSkyRegions file (generated by the pypeit_skysub_regions GUI). If the
-        user wishes to load the MasterSkyRegions file, they need to set user_regions = True:
-
-        .. code-block:: ini
-
-            [reduce]
-                [[skysub]]
-                    user_regions = master
-
-        Parameters
-        ----------
-        sky_region_file : str, None, optional
-            Name of the sky regions file
-
-        Returns
-        -------
-        skymask :  `numpy.ndarray`_
-            A boolean array of sky pixels (True is a pixel that corresponds to a sky region)
-        """
-        user_regions = self.par['reduce']['skysub']['user_regions']
-        # Perform some checks
-        if user_regions is None:
-            msgs.error("When manually setting the sky regions, you must set the user_regions argument to be 'master'"
-                       "(i.e. load a MasterSkyRegions file) or set the percentage regions, for example:\n" +
-                       msgs.pypeitpar_text(['reduce', 'skysub', 'user_regions = :25,75:']))
-        # First priority given to user_regions first
-        if user_regions == 'master':
-            # Check if a file exists
-            if os.path.exists(sky_region_file):
-                msgs.info("Loading SkyRegions file: " + msgs.newline() + sky_region_file)
-                skyreg = buildimage.SkyRegions.from_file(sky_region_file)
-                skymask = skyreg.image.astype(bool)
-            else:
-                msgs.error("Master SkyRegions file does not exist. Create a Master SkyRegions frame, or set "+
-                           msgs.newline()+"the percentage user_regions")
-        else:
-            msgs.info("Using user_regions to generate the sky regions")
-            if len(user_regions) == 0:
-                msgs.error("Specified user regions are incorrect:\n" +
-                           msgs.pypeitpar_text(['reduce', 'skysub', 'user_regions = {0:s}'.format(user_regions)]))
-            skyregtxt = user_regions
-            if type(skyregtxt) is list:
-                skyregtxt = ",".join(skyregtxt)
-            msgs.info("Generating skysub mask based on the user defined regions   {0:s}".format(skyregtxt))
-            # The resolution probably doesn't need to be a user parameter
-            maxslitlength = np.max(self.slits_right-self.slits_left)
-            # Get the regions
-            status, regions = skysub.read_userregions(skyregtxt, self.slits.nslits, maxslitlength)
-            # Generate image
-            skymask = skysub.generate_mask(self.pypeline, regions, self.slits, self.slits_left,
-                                                self.slits_right, spat_flexure=self.spat_flexure_shift)
-
-        # Return the result
-        return skymask
 
     def show(self, attr, image=None, global_sky=None, showmask=False, sobjs=None,
              chname=None, slits=False,clear=False):
@@ -926,23 +828,6 @@ class EchelleFindObjects(FindObjects):
             msgs.error('slitord_id is missing. Plate scale for current echelle order cannot be determined.')
         return self.spectrograph.order_platescale(slitord_id, binning=self.binning)[0]
 
-
-# TODO This does not appear to be used anywhere
-#    def get_positive_sobj(self, specobjs, iord):
-#        """
-#        Return the current object from self.sobjs_obj
-#
-#        Args:
-#            iord (int):
-#                Echelle order index
-#
-#        Returns:
-#            :class:`pypeit.specobj.SpecObj`:
-#
-#        """
-#        # pos indices of objects for this slit
-#        thisobj = (self.sobjs_obj.ech_orderindx == iord) & (self.sobjs_obj.ech_objid > 0)
-#        return self.sobjs_obj[np.where(thisobj)[0][0]]
 
     def find_objects_pypeline(self, image, ivar, std_trace=None,
                               show=False, show_peaks=False, show_fits=False,
@@ -1347,3 +1232,4 @@ class IFUFindObjects(MultiSlitFindObjects):
                                        objs_not_masked=objs_not_masked)
 
         return global_sky
+

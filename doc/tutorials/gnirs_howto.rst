@@ -74,7 +74,7 @@ another one to be generated from the average of the Bs, then we would set the
 ``calib`` IDs to be 0110, where the 0 and 1 are arbitrary numbers (i.e. it could
 also be 4554). However, if the instrument is not expected to flex much in an
 ABBA sequence, it is actually advantageous to combine the entire ABBA sequence
-into one Master frame for wavelength calibration and tilt generation. The reason
+into one frame for wavelength calibration and tilt generation. The reason
 for this is that by averaging four images, the flux from the science object gets
 diluted. This is desirable for OH wavelength and tilt calibrations because the
 object counts, particularly if the object is bright, is actually a contaminant.

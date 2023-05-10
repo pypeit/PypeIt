@@ -202,7 +202,7 @@ Filters
 +++++++
 
 The list of available filters is provided in
-`this file <https://github.com/pypeit/PypeIt/blob/master/pypeit/data/filters/filter_list.ascii>`__.
+`this file <https://github.com/pypeit/PypeIt/blob/release/pypeit/data/filters/filter_list.ascii>`__.
 
 
 Scaling
