@@ -399,10 +399,10 @@ def zerolag_shift_stretch(theta, y1, y2):
     # Zero lag correlation
     corr_zero = np.sum(y1*y2_corr)
     corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2_corr*y2_corr))
-    corr_norm = corr_zero/corr_denom
     if corr_denom == 0.0:
         msgs.warn('The shifted and stretched spectrum is zero everywhere. Cross-correlation cannot be performed. There is likely a bug somewhere')
         raise PypeItError()
+    corr_norm = corr_zero / corr_denom
     return -corr_norm
 
 
@@ -521,6 +521,10 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
     else:
         y1, y2 = inspec1, inspec2
 
+    if np.all(y1 == 0) or np.all(y2 == 0):
+        msgs.warn('One of the input spectra is all zeros. Returning shift = 0.0')
+        return 0.0, 0.0
+
     nspec = y1.shape[0]
     lags = np.arange(-nspec + 1, nspec)
     corr = scipy.signal.correlate(y1, y2, mode='full')
@@ -540,8 +544,8 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
         plt.legend()
         plt.show()
 
-
     return lag_max[0], corr_max[0]
+
 
 def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use_raw_arc=False,
                         shift_mnmx=(-0.2,0.2), stretch_mnmx=(0.95,1.05), sigdetect = 5.0, sig_ceil=10.0,

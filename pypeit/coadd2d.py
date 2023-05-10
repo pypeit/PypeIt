@@ -4,6 +4,7 @@ Module for performing two-dimensional coaddition of spectra.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
+from pathlib import Path
 import os
 import copy
 
@@ -13,8 +14,10 @@ import numpy as np
 from scipy import ndimage
 from matplotlib import pyplot as plt
 from astropy.table import Table, vstack
+from astropy.io import fits
 
 from pypeit import msgs
+from pypeit import io
 from pypeit import utils
 from pypeit import specobjs
 from pypeit import slittrace
@@ -29,7 +32,6 @@ from pypeit import calibrations
 from pypeit import spec2dobj
 from pypeit.core.moment import moment1d
 from pypeit.manual_extract import ManualExtractionObj
-
 
 
 class CoAdd2D:
@@ -149,6 +151,7 @@ class CoAdd2D:
         #    2) offsets not 'auto' (i.e. a list) - use them
         #    -------------- only for Multislit --------------
         #    3) offsets = 'maskdef_offsets' - use `maskdef_offset` saved in SlitTraceSet
+        #    4) offsets = 'header' - use the dither offsets recorded in the header
         # ===============================================================================
         # weights
         #    1) weights = 'auto' -- if brightest object exists auto compute weights,
@@ -265,6 +268,69 @@ class CoAdd2D:
         cfg['reduce']['findobj']['skip_skysub'] = True
 
         return cfg
+
+    @staticmethod
+    def default_basename(spec2d_files):
+        """
+        Construct the base name of the output spec2d file produced by coadding.
+
+        Args:
+            spec2d_files (:obj:`list`):
+                The list of PypeIt spec2d files to be coadded.
+
+        Returns:
+            :obj:`str`: The root base name for the output coadd2d spec2d file.
+        """
+        # Get the output basename
+        frsthdr = fits.getheader(spec2d_files[0])
+        lasthdr = fits.getheader(spec2d_files[-1])
+        if 'FILENAME' not in frsthdr:
+            msgs.error(f'Missing FILENAME keyword in {spec2d_files[0]}.  Set the basename '
+                        'using the command-line option.')
+        if 'FILENAME' not in lasthdr:
+            msgs.error(f'Missing FILENAME keyword in {spec2d_files[-1]}.  Set the basename '
+                        'using the command-line option.')
+        if 'TARGET' not in frsthdr:
+            msgs.error(f'Missing TARGET keyword in {spec2d_files[0]}.  Set the basename '
+                        'using the command-line option.')
+        return f"{io.remove_suffix(frsthdr['FILENAME'])}-" \
+                f"{io.remove_suffix(lasthdr['FILENAME'])}-{frsthdr['TARGET']}"
+
+    @staticmethod
+    def output_paths(spec2d_files, par):
+        """
+        Construct the names and ensure the existence of the science and QA output directories.
+
+        Args:
+            spec2d_files (:obj:`list`):
+                The list of PypeIt spec2d files to be coadded.  The top-level
+                directory for the coadd2d output directories is assumed to be
+                same as used by the basic reductions.  For example, if one of
+                the spec2d files is
+                ``/path/to/reductions/Science/spec2d_file.fits``, the parent
+                directory for the coadd2d directories is
+                ``/path/to/reductions/``.
+            par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
+                Full set of parameters.  The only used parameters are
+                ``par['rdx']['scidir']`` and ``par['rdx']['qadir']``.  WARNING:
+                This also *alters* the value of ``par['rdx']['qadir']``!!
+
+        Returns:
+            :obj:`tuple`: Two strings with the names of (1) the science output
+            directory and (2) the QA output directory.  The function also
+            creates both directories if they do not exist.
+        """
+        # Science output directory
+        pypeit_scidir = Path(spec2d_files[0]).parent
+        coadd_scidir = pypeit_scidir.parent / f"{par['rdx']['scidir']}_coadd"
+        if not coadd_scidir.exists():
+            coadd_scidir.mkdir(parents=True)
+        # QA directory
+        par['rdx']['qadir'] += '_coadd'
+        qa_path = pypeit_scidir.parent / par['rdx']['qadir'] / 'PNGs'
+        if not qa_path.exists():
+            qa_path.mkdir(parents=True)
+        return str(coadd_scidir), str(qa_path)
 
     def good_slitindx(self, only_slits=None):
         """
@@ -810,9 +876,12 @@ class CoAdd2D:
             indx = 0
             for iexp, spec_this in enumerate(self.stack_dict['specobjs_list']):
                 for spec in spec_this:
-                    waves[:self.nspec_array[iexp], indx] = spec.OPT_WAVE
+                    # NOTE: BOX extraction usage needed for quicklook
+                    waves[:self.nspec_array[iexp], indx] \
+                            = spec.OPT_WAVE if spec.OPT_WAVE is not None else spec.BOX_WAVE
                     # TODO -- OPT_MASK is likely to become a bpm with int values
-                    gpm[:self.nspec_array[iexp], indx] = spec.OPT_MASK
+                    gpm[:self.nspec_array[iexp], indx] \
+                            = spec.OPT_MASK if spec.OPT_MASK is not None else spec.BOX_MASK
                     indx += 1
 
         wave_grid, wave_grid_mid, dsamp = wvutils.get_wave_grid(waves=waves, masks=gpm,
@@ -921,17 +990,46 @@ class CoAdd2D:
 
         """
         msgs.info('Get Offsets')
+        # 1) offsets are provided in the header of the spec2d files
+        if offsets == 'header':
+            msgs.info('Using offsets from header')
+            pscale = self.stack_dict['detectors'][0].platescale
+            dithoffs = [self.spectrograph.get_meta_value(f, 'dithoff') for f in self.spec2d]
+            if None in dithoffs:
+                msgs.error('Dither offsets keyword not found for one or more spec2d files. '
+                           'Choose another option for `offsets`')
+            dithoffs_pix = - np.array(dithoffs) / pscale
+            self.offsets = dithoffs_pix[0] - dithoffs_pix
+            self.offsets_report(self.offsets, 'header keyword')
 
-        if self.objid_bri is None and offsets == 'auto':
+        elif self.objid_bri is None and offsets == 'auto':
             msgs.error('Offsets cannot be computed because no unique reference object '
                        'with the highest S/N was found. To continue, provide offsets in `Coadd2DPar`')
 
-        # 1) a list of offsets is provided by the user (no matter if we have a bright object or not)
-        if isinstance(offsets, (list, np.ndarray)):
+        # 2) a list of offsets is provided by the user (no matter if we have a bright object or not)
+        elif isinstance(offsets, (list, np.ndarray)):
             msgs.info('Using user input offsets')
             # use them
             self.offsets = self.check_input(offsets, type='offsets')
             self.offsets_report(self.offsets, 'user input')
+
+        # 3) parset `offsets` is = 'maskdef_offsets' (no matter if we have a bright object or not)
+        elif offsets == 'maskdef_offsets':
+            if self.maskdef_offset is not None:
+                # the offsets computed during the main reduction (`run_pypeit`) are used
+                msgs.info('Determining offsets using maskdef_offset recoded in SlitTraceSet')
+                self.offsets = self.maskdef_offset[0] - self.maskdef_offset
+                self.offsets_report(self.offsets, 'maskdef_offset')
+            else:
+                # if maskdef_offsets were not computed during the main reduction, we cannot continue
+                msgs.error('No maskdef_offset recoded in SlitTraceSet')
+
+        # 4) parset `offsets` = 'auto' but we have a bright object
+        elif offsets == 'auto' and self.objid_bri is not None:
+            # see child method
+            pass
+        else:
+            msgs.error('Invalid value for `offsets`')
 
     def compute_weights(self, weights):
         """
@@ -965,6 +1063,13 @@ class CoAdd2D:
                           'with the highest S/N was found. Using uniform weights instead.')
             elif weights == 'uniform':
                 msgs.info('Using uniform weights')
+
+        # 3) Bright object exists and parset `weights` is equal to 'auto'
+        elif (self.objid_bri is not None) and (weights == 'auto'):
+            # see child method
+            pass
+        else:
+            msgs.error('Invalid value for `weights`')
 
     def get_brightest_object(self, specobjs_list, spat_ids):
         """
@@ -1093,18 +1198,8 @@ class MultiSlitCoAdd2D(CoAdd2D):
         """
         super().compute_offsets(offsets)
 
-        # 2) parset `offsets` is = 'maskdef_offsets' (no matter if we have a bright object or not)
-        if offsets == 'maskdef_offsets':
-            if self.maskdef_offset is not None:
-                # the offsets computed during the main reduction (`run_pypeit`) are used
-                msgs.info('Determining offsets using maskdef_offset recoded in SlitTraceSet')
-                self.offsets = self.maskdef_offset[0] - self.maskdef_offset
-                self.offsets_report(self.offsets, 'maskdef_offset')
-            else:
-                # if maskdef_offsets were not computed during the main reduction, we cannot continue
-                msgs.error('No maskdef_offset recoded in SlitTraceSet')
-        # 3) parset `offsets` = 'auto' but we have a bright object
-        elif offsets == 'auto' and self.objid_bri is not None:
+        # adjustment for multislit to case 4) parset `offsets` = 'auto' but we have a bright object
+        if offsets == 'auto' and self.objid_bri is not None:
             # Compute offsets using the bright object
             if self.par['coadd2d']['user_obj'] is not None:
                 offsets_method = 'user object on slitid = {:d}'.format(self.spatid_bri)
@@ -1180,7 +1275,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
         super().compute_weights(weights)
 
-        # 3) Bright object exists and parset `weights` is equal to 'auto'
+        # adjustment for multislit to case 3) Bright object exists and parset `weights` is equal to 'auto'
         if (self.objid_bri is not None) and (weights == 'auto'):
             # compute weights using bright object
             _, self.use_weights = self.optimal_weights(self.spatid_bri, self.objid_bri, const_weights=True)
@@ -1439,12 +1534,12 @@ class EchelleCoAdd2D(CoAdd2D):
         """
         super().compute_offsets(offsets)
 
-        # adjustment for echelle to case 1): a list of offsets is provided by the user
+        # adjustment for echelle to case 2): a list of offsets is provided by the user
         if isinstance(self.offsets, (list, np.ndarray)):
             self.objid_bri = None
 
-        # 2) parset `offsets` = 'auto' but we have a bright object
-        if offsets == 'auto' and self.objid_bri is not None:
+        # adjustment for echelle to case 4) parset `offsets` = 'auto' but we have a bright object
+        elif offsets == 'auto' and self.objid_bri is not None:
             # offsets are not determined, but the bright object is used to construct
             # a reference trace (this is done in coadd using method `reference_trace_stack`)
             self.offsets = None
@@ -1466,7 +1561,7 @@ class EchelleCoAdd2D(CoAdd2D):
         """
         super().compute_weights(weights)
 
-        # 3) Bright object exists and parset `weights` is equal to 'auto'
+        # adjustment for echelle to case 3) Bright object exists and parset `weights` is equal to 'auto'
         if (self.objid_bri is not None) and (weights == 'auto'):
             # computing a list of weights for all the slitord_ids that we than parse in coadd
             slitord_ids = self.stack_dict['slits_list'][0].slitord_id

@@ -2,14 +2,16 @@
 
     $ pypeit_ql -h
     usage: pypeit_ql [-h] [--raw_files RAW_FILES [RAW_FILES ...]]
-                     [--raw_path RAW_PATH] [--ext EXT]
-                     [--sci_files SCI_FILES [SCI_FILES ...]]
+                     [--raw_path RAW_PATH] [--sci_files SCI_FILES [SCI_FILES ...]]
                      [--redux_path REDUX_PATH] [--parent_calib_dir PARENT_CALIB_DIR]
-                     [--setup_calib_dir SETUP_CALIB_DIR] [--clean] [--calibs_only]
-                     [--overwrite_calibs] [--slitspatnum SLITSPATNUM]
-                     [--maskID MASKID] [--boxcar_radius BOXCAR_RADIUS]
-                     [--det DET [DET ...]] [--no_stack] [--ignore_std]
-                     [--snr_thresh SNR_THRESH] [--coadd]
+                     [--setup_calib_dir SETUP_CALIB_DIR] [--clear_science]
+                     [--calibs_only] [--overwrite_calibs] [--det DET [DET ...]]
+                     [--slitspatnum SLITSPATNUM] [--maskID MASKID]
+                     [--boxcar_radius BOXCAR_RADIUS] [--snr_thresh SNR_THRESH]
+                     [--ignore_std] [--skip_display] [--coadd2d]
+                     [--only_slits ONLY_SLITS [ONLY_SLITS ...]] [--offsets OFFSETS]
+                     [--weights WEIGHTS] [--spec_samp_fact SPEC_SAMP_FACT]
+                     [--spat_samp_fact SPAT_SAMP_FACT]
                      spectrograph
     
     Script to produce quick-look PypeIt reductions
@@ -35,7 +37,7 @@
                             vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
                             wht_isis_blue, wht_isis_red
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       --raw_files RAW_FILES [RAW_FILES ...]
                             Either a PypeIt-formatted input file with the list of
@@ -47,16 +49,13 @@
       --raw_path RAW_PATH   Directory with the raw files to process. Ignored if a
                             PypeIt-formatted file is provided using the --rawfiles
                             option. (default: current working directory)
-      --ext EXT             If raw file names are not provided directly using the
-                            --rawfiles option, this sets the extension used when
-                            searching for any files in the path defined by
-                            --raw_path. All files found in the raw path with this
-                            extension will be processed. (default: .fits)
       --sci_files SCI_FILES [SCI_FILES ...]
                             A space-separated list of raw file names that are
                             science exposures. These files must *also* be in the
                             list of raw files. Use of this option overrides the
-                            automated PypeIt frame typing. (default: None)
+                            automated PypeIt frame typing. Should only be used of
+                            automatic frame typing fails or is undesirable.
+                            (default: None)
       --redux_path REDUX_PATH
                             Path for the QL reduction outputs. (default: current
                             working directory)
@@ -70,27 +69,21 @@
                             Directory with/for calibrations specific to your
                             instrument configuration/setup. Use of this option
                             circumvents the automated naming system for the
-                            configuration/setup sub-directories. If None, it is
-                            assumed that no calibrations exist and they must be
-                            created using the provided raw files. The top-level
-                            directory is given by parent_calib_dir (or redux_path)
-                            and the sub-directories follow the normal PypeIt naming
-                            scheme. (default: None)
-      --clean               Remove the existing output directories to force a fresh
-                            reduction. If False, any existing directory structure
-                            will remain, but any existing science files will still
-                            be overwritten. (default: False)
+                            configuration/setup sub-directories. If None, the code
+                            will try to find relevant calibrations in the
+                            parent_calib_dir. If no calibrations exist in that
+                            directory that match the instrument setup/configuration
+                            of the provided data, the code will construct new
+                            calibrations (assuming relevant raw files are provided).
+                            (default: None)
+      --clear_science       Remove the existing output science directories to force
+                            a fresh reduction. If False, any existing directory
+                            structure will remain, and any alterations to existing
+                            science files will follow the normal behavior of
+                            run_pypeit. (default: False)
       --calibs_only         Reduce only the calibrations? (default: False)
-      --overwrite_calibs    Overwrite any existing calibration files? (default:
-                            False)
-      --slitspatnum SLITSPATNUM
-                            Reduce the slit(s) as specified by the slitspatnum
-                            value(s) (default: None)
-      --maskID MASKID       Reduce the slit(s) as specified by the maskID value(s)
-                            (default: None)
-      --boxcar_radius BOXCAR_RADIUS
-                            Set the radius for the boxcar extraction in arcseconds
-                            (default: None)
+      --overwrite_calibs    Re-process and overwrite any existing calibration files.
+                            (default: False)
       --det DET [DET ...]   A space-separated set of detectors or detector mosaics
                             to reduce. By default, *all* detectors or default
                             mosaics for this instrument will be reduced. Detectors
@@ -100,13 +93,43 @@
                             and 5 for Keck/DEIMOS, you would use --det 1 5; to
                             reduce mosaics made up of detectors 1,5 and 3,7, you
                             would use --det 1,5 3,7 (default: None)
-      --no_stack            Do *not* stack multiple science frames (default: True)
+      --slitspatnum SLITSPATNUM
+                            Reduce the slit(s) as specified by the slitspatnum
+                            value(s) (default: None)
+      --maskID MASKID       Reduce the slit(s) as specified by the maskID value(s)
+                            (default: None)
+      --boxcar_radius BOXCAR_RADIUS
+                            Set the radius for the boxcar extraction in arcseconds
+                            (default: None)
+      --snr_thresh SNR_THRESH
+                            Change the default S/N threshold used during source
+                            detection (default: None)
       --ignore_std          If standard star observations are automatically
                             detected, ignore those frames. Otherwise, they are
                             included with the reduction of the science frames.
                             (default: False)
-      --snr_thresh SNR_THRESH
-                            Change the default S/N threshold used during source
-                            detection (default: None)
-      --coadd               Perform default 2D coadding. (default: False)
+      --skip_display        Run the quicklook without displaying any results.
+                            (default: True)
+      --coadd2d             Perform default 2D coadding. (default: False)
+      --only_slits ONLY_SLITS [ONLY_SLITS ...]
+                            If coadding, only coadd this space-separated set of
+                            slits. If not provided, all slits are coadded. (default:
+                            None)
+      --offsets OFFSETS     If coadding, spatial offsets to apply to each image; see
+                            the [coadd2d][offsets] parameter. Options are restricted
+                            here to either maskdef_offsets or auto. If not
+                            specified, the (spectrograph-specific) default is used.
+                            (default: None)
+      --weights WEIGHTS     If coadding, weights used to coadd images; see the
+                            [coadd2d][weights] parameter. Options are restricted
+                            here to either uniform or auto. If not specified, the
+                            (spectrograph-specific) default is used. (default: None)
+      --spec_samp_fact SPEC_SAMP_FACT
+                            If coadding, adjust the wavelength grid sampling by this
+                            factor. For a finer grid, set value to <1.0; for coarser
+                            sampling, set value to >1.0). (default: 1.0)
+      --spat_samp_fact SPAT_SAMP_FACT
+                            If coadding, adjust the spatial grid sampling by this
+                            factor. For a finer grid, set value to <1.0; for coarser
+                            sampling, set value to >1.0). (default: 1.0)
     

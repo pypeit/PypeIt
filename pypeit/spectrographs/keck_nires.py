@@ -134,6 +134,10 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['IR']['maxiter'] = 2
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
 
+        # COADD2D
+        # set offsets for coadd2d
+        par['coadd2d']['offsets'] = 'header'
+
         return par
 
     def init_meta(self):

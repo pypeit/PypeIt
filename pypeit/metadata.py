@@ -410,7 +410,7 @@ class PypeItMetaData:
         self.set_calibration_groups(default=True)
         self.set_combination_groups()
 
-    def get_configuration(self, indx, cfg_keys=None):
+    def get_configuration(self, indx, cfg_keys=None, modified=False):
         """
         Return the configuration dictionary for a given frame.
 
@@ -422,13 +422,18 @@ class PypeItMetaData:
                 The list of metadata keys to use to construct the
                 configuration.  If None, the `configuration_keys` of
                 :attr:`spectrograph` is used.
+            modified (:obj:`bool`, optional):
+                Return the configuration as modified by the
+                spectrograph-specific
+                :func:`~pypeit.spectrographs.spectrograph.Spectrograph.modify_config`.
 
         Returns:
             dict: A dictionary with the metadata values from the
             selected row.
         """
         _cfg_keys = self.spectrograph.configuration_keys() if cfg_keys is None else cfg_keys
-        return {k:self.table[k][indx] for k in _cfg_keys}
+        cfg = {k:self.table[k][indx] for k in _cfg_keys}
+        return self.spectrograph.modify_config(self.table[indx], cfg) if modified else cfg
 
     def construct_obstime(self, row):
         """
@@ -821,15 +826,15 @@ class PypeItMetaData:
         for i in range(nrows):
             for d, cfg in _configs.items():
                 # modify the configuration items only for specific frames. This is instrument dependent.
-                cfg = self.spectrograph.modify_config(self.table[i], cfg)
-                if self.spectrograph.same_configuration([self.get_configuration(i), cfg]):
-#                if row_match_config(self.table[i], cfg, self.spectrograph):
+                mod_cfg = self.spectrograph.modify_config(self.table[i], cfg)
+                this_cfg = self.get_configuration(i, modified=True)
+                if self.spectrograph.same_configuration([this_cfg, mod_cfg], check_keys=False):
                     if d in self.table['setup'][i]:
                         continue
                     elif self.table['setup'][i] == 'None':
                         self.table['setup'][i] = d
                     elif not is_science[i]:
-                        self.table['setup'][i] += ',{}'.format(d)
+                        self.table['setup'][i] += f',{d}'
 
         # Check if any of the configurations are not set
         not_setup = self.table['setup'] == 'None'

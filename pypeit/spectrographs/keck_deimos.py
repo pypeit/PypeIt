@@ -361,6 +361,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             # pca
             par['calibrations']['slitedges']['sync_predict'] = 'auto'
 
+            # set offsets for coadd2d
+            par['coadd2d']['offsets'] = 'maskdef_offsets'
+
 
         # Templates
         if self.get_meta_value(headarr, 'dispname') == '600ZD':

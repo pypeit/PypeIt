@@ -197,9 +197,8 @@ class PypeIt:
         Returns:
             :obj:`str`: The path for the output file
         """
-        return self.get_spec_file_name(self.science_path, self.fitstbl.construct_basename(frame))
-#        return os.path.join(self.science_path, 'spec{0}d_{1}.fits'.format('2' if twod else '1',
-#                                                    self.fitstbl.construct_basename(frame)))
+        return self.get_spec_file_name(self.science_path, self.fitstbl.construct_basename(frame),
+                                       twod=twod)
 
     @staticmethod
     def get_spec_file_name(science_path, basename, twod=False):
@@ -291,7 +290,7 @@ class PypeIt:
                     user_slits=slittrace.merge_user_slit(self.par['rdx']['slitspatnum'],
                                                          self.par['rdx']['maskIDs']))
                 # Do it
-                # These need to be separate to accomodate COADD2D
+                # These need to be separate to accommodate COADD2D
                 self.caliBrate.set_config(grp_frames[0], self.det, self.par['calibrations'])
 
                 self.caliBrate.run_the_steps()

@@ -182,6 +182,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                 par['calibrations']['slitedges']['det_buffer'] = 0
                 # artificially add left and right edges
                 par['calibrations']['slitedges']['bound_detector'] = True
+            # set offsets for coadd2d
+            par['coadd2d']['offsets'] = 'header'
 
         # Turn on the use of mask design
         else:
@@ -199,6 +201,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                                                                        '1:{}:2040'.format(pix_end)]
                 # assume that the main target is always detected, i.e., skipping force extraction
                 par['reduce']['slitmask']['extract_missing_objs'] = False
+            # set offsets for coadd2d
+            par['coadd2d']['offsets'] = 'maskdef_offsets'
 
         # wavelength calibration
         supported_filters = ['Y', 'J', 'J2', 'H', 'K']

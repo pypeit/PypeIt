@@ -1,18 +1,19 @@
 .. code-block:: console
 
     $ pypeit_setup_coadd2d -h
-    usage: pypeit_setup_coadd2d [-h] [--keep_par] [--obj OBJ [OBJ ...]]
-                                [--det DET [DET ...]]
+    usage: pypeit_setup_coadd2d [-h] (-f PYPEIT_FILE | -d SCIENCE_DIR) [--keep_par]
+                                [--obj OBJ [OBJ ...]] [--det DET [DET ...]]
                                 [--only_slits ONLY_SLITS [ONLY_SLITS ...]]
-                                pypeit_file
+                                [--offsets OFFSETS] [--weights WEIGHTS]
     
     Prepare a configuration file for performing 2D coadds
     
-    positional arguments:
-      pypeit_file           PypeIt reduction file
-    
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
+      -f PYPEIT_FILE, --pypeit_file PYPEIT_FILE
+                            PypeIt reduction file (default: None)
+      -d SCIENCE_DIR, --science_dir SCIENCE_DIR
+                            Directory with spec2d files to stack (default: None)
       --keep_par            Propagate all parameters from the pypeit file to the
                             coadd2d file(s). If not set, only the required
                             parameters and their default values are included in the
@@ -36,4 +37,15 @@
       --only_slits ONLY_SLITS [ONLY_SLITS ...]
                             A space-separated set of slits to coadd. If not
                             provided, all slits are coadded. (default: None)
+      --offsets OFFSETS     Spatial offsets to apply to each image; see the
+                            [coadd2d][offsets] parameter. Options are restricted
+                            here to either maskdef_offsets or auto. If not
+                            specified, the (spectrograph-specific) default is used.
+                            Other options exist but must be entered by directly
+                            editing the coadd2d file. (default: None)
+      --weights WEIGHTS     Weights used to coadd images; see the [coadd2d][weights]
+                            parameter. Options are restricted here to either uniform
+                            or auto. If not specified, the (spectrograph-specific)
+                            default is used. Other options exist but must be entered
+                            by directly editing the coadd2d file. (default: None)
     
