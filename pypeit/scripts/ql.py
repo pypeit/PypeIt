@@ -66,7 +66,7 @@ from pypeit.scripts.setup_coadd2d import SetupCoAdd2D
 from pypeit.scripts.coadd_2dspec import CoAdd2DSpec
 from pypeit.scripts.show_2dspec import Show2DSpec
 
-def get_files(raw_files, raw_path, ext):
+def get_files(raw_files, raw_path):
     """
     Use the user-provided input to get the files to process.
 
@@ -77,9 +77,6 @@ def get_files(raw_files, raw_path, ext):
         raw_path (:obj:`str`):
             The path to the raw files parsed from the ``raw_path`` command line
             argument.
-        ext (:obj:`str`):
-            The file extension used to search for raw files parsed from the
-            ``ext`` command line argument.
 
     Returns:
         :obj:`list`: List of strings providing the full path to each raw file.
@@ -95,11 +92,10 @@ def get_files(raw_files, raw_path, ext):
             pass
     if files is None: 
         try:
-            files = inputfiles.grab_rawfiles(raw_paths=[raw_path], list_of_files=raw_files,
-                                             extension=ext) 
+            files = inputfiles.grab_rawfiles(raw_paths=[raw_path], list_of_files=raw_files)
         except PypeItError as e:
-            msgs.error('Unable to parse provided input files.  Check --raw_files, --raw_path, '
-                        'and/or --ext input.')
+            msgs.error('Unable to parse provided input files.  Check --raw_files and '
+                       '--raw_path input.')
     return files
 
 
@@ -158,28 +154,59 @@ def quicklook_regroup(fitstbl):
             if 'target' in fitstbl.keys() \
                     and not all(fitstbl['target'][is_type] == fitstbl['target'][is_type][0]):
                 msgs.error(f'All {frametype} frames must be of the same target.')
+
+            # Regroup dithered observations so that all images at a unique
+            # offset are combined.
             if 'bkg_id' in fitstbl.keys() and any(fitstbl['bkg_id'].data[is_type] != -1):
                 if 'dithoff' not in fitstbl.keys():
                     msgs.error('CODING ERROR: Metadata does not include dithoff column!')
                 # Group the unique dither positions
                 dith, inv = np.unique(fitstbl['dithoff'].data[is_type], return_inverse=True)
-                fitstbl['comb_id'][is_type] = inv + comb_strt
-                # NOTE: This does the "dumb" thing of just setting the background
-                # image for the first offset to the second one, and setting the
-                # background for all other offsets to be the first one.
-                fitstbl['bkg_id'][np.where(is_type)[0][inv == comb_strt]] = comb_strt+1
-                fitstbl['bkg_id'][np.where(is_type)[0][inv != comb_strt]] = comb_strt
+                if len(dith) == 1:
+                    msgs.warn('All exposures have the same offset!')
+                    fitstbl['comb_id'][is_type] = comb_strt
+                else:
+                    # This creates comb+bkg pairs that match the absolute value of the offset
+                    # - Find the unique absolute values
+                    abs_dith, abs_inv = np.unique(np.absolute(dith), return_inverse=True)
+                    # - Create the indices that will identify the background images
+                    bkg_inv = np.arange(dith.size)
+                    # - For each unique throw, swap the combination IDs for the background IDs
+                    for i in range(abs_dith.size):
+                        bkg_inv[abs_inv == i] = bkg_inv[abs_inv == i][::-1]
+                    # - Get the background indices
+                    bkg_inv = bkg_inv[inv]
+
+                    if np.array_equal(bkg_inv, inv):
+                        # All of the offsets are unique!  Do the "dumb" thing of
+                        # just setting the background image for the first offset
+                        # to the second one, and setting the background for all
+                        # other offsets to be the first one.
+                        fitstbl['bkg_id'][np.where(is_type)[0][inv == comb_strt]] = comb_strt+1
+                        fitstbl['bkg_id'][np.where(is_type)[0][inv != comb_strt]] = comb_strt
+                    else:
+                        same_frame = np.equal(bkg_inv, inv)
+                        if any(same_frame):
+                            # One or more of the offsets has no matched
+                            # absolute-value pair.  Just use one of the other
+                            # background images.
+                            indx = np.where(np.logical_not(same_frame))[0][-1]
+                            bkg_inv[same_frame] = bkg_inv[indx]
+                        # All the offsets have a matched absolute value pair
+                        fitstbl['comb_id'][is_type] = inv + comb_strt
+                        fitstbl['bkg_id'][is_type] = bkg_inv + comb_strt
             else:
+                # Force all images to be combined
                 fitstbl['comb_id'][is_type] = comb_strt
+            # Prep for the next image type (only if there are standards!)
             comb_strt = np.amax(fitstbl['comb_id'].data[is_type])+1
 
 
 def generate_sci_pypeitfile(redux_path:str, 
                             ref_calib_dir:Path,
                             ps_sci, 
-                            calib_grp:int=None,
                             det:str=None,
-                            clean:bool=False,
+                            clear:bool=False,
                             slitspatnum:str=None,
                             maskID:str=None,
                             boxcar_radius:float=None,
@@ -204,13 +231,9 @@ def generate_sci_pypeitfile(redux_path:str,
             location of the calibrations expected by :class:`~pypeit.PypeIt`.
         ps_sci (:class:`~pypeit.pypeitsetup.PypeItSetup`):
             Setup object for the science frame(s) only.
-        calib_grp (:obj:`int`, optional):
-            If the reference calibration directory contains results from more
-            than one calibration group, this *must* be provided, specifying
-            which calibration group should be used.
         det (:obj:`str`, optional):
             Detector/mosaic identifier.  If None, all detectors are reduced.
-        clean (:obj:`bool`, optional):
+        clear (:obj:`bool`, optional):
             Remove the directory structure for these files; i.e., start a
             completely clean reduction.  If false, any existing directory
             structure will remain, but any existing science reduction products
@@ -233,7 +256,7 @@ def generate_sci_pypeitfile(redux_path:str,
         msgs.error(f'Reference calibration directory does not exist: {ref_calib_dir}')
 
     # Get the setup and calibration group to use for the science frame(s)
-    setup, calib = get_setup_calib(ref_calib_dir, calib_grp=calib_grp)
+    setup, calib = get_setup_calib(ref_calib_dir)
 
     # Force them in the fitstbl
     # TODO: Make this series of operations a function in PypeItMetaData?
@@ -248,7 +271,7 @@ def generate_sci_pypeitfile(redux_path:str,
     calib_dir = sci_dir / ps_sci.par['calibrations']['calib_dir']
 
     # Science reduction folder
-    if sci_dir.exists() and clean:
+    if sci_dir.exists() and clear:
         shutil.rmtree(sci_dir)
     # NOTE: This is done here (as opposed to waiting for the pypeit.PypeIt call
     # to create it) so that the symlink to the calibrations directory can be
@@ -271,7 +294,7 @@ def generate_sci_pypeitfile(redux_path:str,
     # the reduced standard and remove the standard from the setup object.
     std_spec1d = None
     is_std = ps_sci.fitstbl.find_frames('standard', index=True)
-    if len(is_std) > 0 and not clean:
+    if len(is_std) > 0 and not clear:
         for i in is_std:
             std_spec1d = pypeit.PypeIt.get_spec_file_name(
                             str(sci_dir / ps_sci.par['rdx']['scidir']),
@@ -285,7 +308,7 @@ def generate_sci_pypeitfile(redux_path:str,
             # NOTE: Should not need to regroup!
             msgs.warn(f'Found existing standard star reduction: {std_spec1d}.  This will be used '
                       'and the standards will not be re-reduced!  To force them to be '
-                      're-reduced, use the --clean option.')
+                      're-reduced, use the --clear_science option.')
             ps_sci.remove_table_rows(is_std)
 
     # TODO: Push this stuff into a function in par/pypeitpar.py?
@@ -621,17 +644,14 @@ class QL(scriptbase.ScriptBase):
         parser.add_argument('--raw_path', type=str, default='current working directory',
                             help='Directory with the raw files to process.  Ignored if a '
                                  'PypeIt-formatted file is provided using the --rawfiles option.')
-        parser.add_argument('--ext', type=str, default='.fits',
-                            help='If raw file names are not provided directly using the '
-                                 '--rawfiles option, this sets the extension used when searching '
-                                 'for any files in the path defined by --raw_path.  All files '
-                                 'found in the raw path with this extension will be processed.')
+        # TODO: Allow user to specify target to be reduced?
 
         parser.add_argument('--sci_files', type=str, nargs='+',
                             help='A space-separated list of raw file names that are science '
                                  'exposures.  These files must *also* be in the list of raw '
                                  'files.  Use of this option overrides the automated PypeIt '
-                                 'frame typing.')
+                                 'frame typing.  Should only be used of automatic frame typing '
+                                 'fails or is undesirable.')
 
         parser.add_argument('--redux_path', type=str, default='current working directory',
                             help='Path for the QL reduction outputs.')
@@ -650,35 +670,22 @@ class QL(scriptbase.ScriptBase):
                                  'in that directory that match the instrument setup/configuration '
                                  'of the provided data, the code will construct new calibrations '
                                  '(assuming relevant raw files are provided).')
-        parser.add_argument('--calib_group', type=int, default=None,
-                            help='If the calibration directory contains results from more than '
-                                 'one calibration group, you *must* specify which one to use.  '
-                                 'The code will fault otherwise.')
-        parser.add_argument('--clean', default=False, action='store_true',
-                            help='Remove the existing output directories to force a fresh '
+        parser.add_argument('--clear_science', default=False, action='store_true',
+                            help='Remove the existing output science directories to force a fresh '
                                  'reduction.  If False, any existing directory structure will '
-                                 'remain, but any existing science files will still be '
-                                 'overwritten.')
-
-        # TODO: Options to add?:
-        #   - do not overwrite existing reductions
-        #   - specify `target` to be reduced, either parsed from the frame
-        #     header (i.e., target in the fitstbl) or from the mask information
+                                 'remain, and any alterations to existing science files will '
+                                 'follow the normal behavior of run_pypeit.')
 
         # TODO: Get rid of "calibs only"?  I.e., force user only provide
         # calibrations if they want to process only calibrations.  Maybe the
-        # point is that latter isn't clear for frames typed as
+        # point is that the latter isn't clear for frames typed as
         # `arc,science,tilt`...
         parser.add_argument('--calibs_only', default=False, action='store_true',
                             help='Reduce only the calibrations?')
+
         parser.add_argument('--overwrite_calibs', default=False, action='store_true',
-                            help='Overwrite any existing calibration files?')
-        parser.add_argument('--slitspatnum', type=str,
-                            help='Reduce the slit(s) as specified by the slitspatnum value(s)')
-        parser.add_argument('--maskID', type=int,
-                            help='Reduce the slit(s) as specified by the maskID value(s)')
-        parser.add_argument('--boxcar_radius', type=float,
-                            help='Set the radius for the boxcar extraction in arcseconds')
+                            help='Re-process and overwrite any existing calibration files.')
+
         parser.add_argument('--det', type=str, nargs='+',
                             help='A space-separated set of detectors or detector mosaics to '
                                  'reduce.  By default, *all* detectors or default mosaics for '
@@ -688,20 +695,28 @@ class QL(scriptbase.ScriptBase):
                                  'separately reduce detectors 1 and 5 for Keck/DEIMOS, you would '
                                  'use --det 1 5; to reduce mosaics made up of detectors 1,5 and '
                                  '3,7, you would use --det 1,5 3,7')
+        parser.add_argument('--slitspatnum', type=str,
+                            help='Reduce the slit(s) as specified by the slitspatnum value(s)')
+        parser.add_argument('--maskID', type=int,
+                            help='Reduce the slit(s) as specified by the maskID value(s)')
+        parser.add_argument('--boxcar_radius', type=float,
+                            help='Set the radius for the boxcar extraction in arcseconds')
+        parser.add_argument('--snr_thresh', default=None, type=float,
+                            help='Change the default S/N threshold used during source detection')
+
         parser.add_argument('--ignore_std', default=False, action='store_true',
                             help='If standard star observations are automatically detected, '
                                  'ignore those frames.  Otherwise, they are included with the '
                                  'reduction of the science frames.')
-        parser.add_argument('--snr_thresh', default=None, type=float,
-                            help='Change the default S/N threshold used during source detection')
         parser.add_argument('--skip_display', dest='show', default=True, action='store_false',
                             help='Run the quicklook without displaying any results.')
 
         # TODO: Add fluxing option?
 
         # Coadding options
-        parser.add_argument('--coadd', default=False, action='store_true',
+        parser.add_argument('--coadd2d', default=False, action='store_true',
                             help='Perform default 2D coadding.')
+        # TODO: Consolidate slitspatnum and only_slits!
         parser.add_argument('--only_slits', type=str, nargs='+',
                             help='If coadding, only coadd this space-separated set of slits.  If '
                                  'not provided, all slits are coadded.')
@@ -732,12 +747,10 @@ class QL(scriptbase.ScriptBase):
 
         tstart = time.perf_counter()
 
-        #assert False
-
         # Parse the raw files
-        files = get_files(args.raw_files, args.raw_path, args.ext)
+        files = get_files(args.raw_files, args.raw_path)
         if len(files) == 0:
-            msgs.error('No files to read!  Check --raw_files, --raw_path, and/or --ext input.')
+            msgs.error('No files to read!  Check --raw_files and --raw_path input.')
 
         # TODO: Include an option to save the ingested file list as a PypeIt
         # RawFile that can be edited?
@@ -780,10 +793,14 @@ class QL(scriptbase.ScriptBase):
         if any(sci_idx):
             # Generate science setup object
             sci_files = ps.fitstbl.frame_paths(sci_idx)
-            frametype = {Path(f).name : 'science' for f in sci_files}
+            use_type = 'arc,science,tilt' \
+                            if 'arc' in ps.fitstbl['frametype'][sci_idx][0] else 'science'
+            frametype = {Path(f).name : use_type for f in sci_files}
             if any(std_idx):
                 std_files = ps.fitstbl.frame_paths(std_idx)
-                frametype = {**frametype, **{Path(f).name : 'standard' for f in std_files}}
+                use_type = 'arc,standard,tilt' \
+                                if 'arc' in ps.fitstbl['frametype'][std_idx][0] else 'standard'
+                frametype = {**frametype, **{Path(f).name : use_type for f in std_files}}
                 sci_files += std_files
             ps_sci = pypeitsetup.PypeItSetup.from_rawfiles(sci_files, ps.spectrograph.name,
                                                            frametype=frametype)
@@ -793,9 +810,8 @@ class QL(scriptbase.ScriptBase):
             # automatically identify dithered observations for some
             # spectrographs.
             ps_sci.run(setup_only=True)
-#            if 
-#            # TODO: Ensure that the file types are correct
-#            ps_sci.fitstbl['frametype'] = 
+
+            # TODO: Ensure that the file types are correct
 
             # Limit to a single setup
             if len(ps_sci.fitstbl.configs.keys()) > 1:
@@ -920,6 +936,7 @@ class QL(scriptbase.ScriptBase):
                 # Run
                 pypeIt = pypeit.PypeIt(calib_pypeit_file,
                                        redux_path=str(redux_path),
+                                       reuse_calibs=not args.overwrite_calibs,
                                        calib_only=True)
                 pypeIt.calib_all()
 
@@ -933,9 +950,8 @@ class QL(scriptbase.ScriptBase):
                     args.redux_path, 
                     setup_calib_dir, 
                     ps_sci,
-                    calib_grp=args.calib_group, 
                     det=args.det,
-                    clean=args.clean,
+                    clear=args.clear_science,
                     slitspatnum=args.slitspatnum,
                     maskID=args.maskID, 
                     boxcar_radius=args.boxcar_radius,
@@ -948,14 +964,14 @@ class QL(scriptbase.ScriptBase):
 
         # TODO: There are currently no tests for this!!
         # Perform coadding if requested
-        if args.coadd:
+        if args.coadd2d:
             # Run the setup script to get the baseline coadd2d file
+            # NOTE: By running the setup script with ``--keep_par`` flag,
+            # parameters that skip the sky subtraction and the optimal
+            # extraction should be propagated to the 2D coadding...
             # TODO:
             #   - Add sensitivity function?
-            #   - Allow SetupCoAdd2D to auto-detect dithers based on the pypeit
-            #     file and parse/prepare the coadding offsets accordingly.  Maybe
-            #     this is effectively already done?
-            command_line_args = [sci_pypeit_file]
+            command_line_args = ['-f', sci_pypeit_file, '--keep_par']
             if args.only_slits is not None:
                 command_line_args += ['--only_slits'] + args.only_slits
             if args.offsets is not None:

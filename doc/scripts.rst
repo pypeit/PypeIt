@@ -351,6 +351,16 @@ The script usage can be displayed by calling the script with the
 
 .. include:: help/pypeit_multislit_flexure.rst
 
+pypeit_setup_coadd2d
+--------------------
+
+This is used to setup a ``coadd2d`` file for performing 2D coadds; see :doc:`coadd2d`.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_setup_coadd2d.rst
+
 pypeit_coadd_2dspec
 -------------------
 
