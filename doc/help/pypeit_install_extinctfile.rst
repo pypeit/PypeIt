@@ -9,6 +9,6 @@
       files       Filename(s) of the extinction file(s) to be installed in the
                   PypeIt cache
     
-    options:
+    optional arguments:
       -h, --help  show this help message and exit
     

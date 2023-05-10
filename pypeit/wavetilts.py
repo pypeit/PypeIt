@@ -925,16 +925,16 @@ def show_tilts_mpl(tilt_img, tilt_traces, show_traces=False, left_edges=None,
     """Show the TiltImage with the traced and 2D fitted tilts overlaid
 
     Args:
-        tilt_img (`np.ndarray`_):
+        tilt_img (`numpy.ndarray`_):
             TiltImage
         tilt_traces (`astropy.table.Table`_):
             Table containing the traced and fitted tilts.
             See :func:`make_tbl_tilt_traces` for information on the table columns.
         show_traces (bool, optional):
             Show the traced tilts
-        left_edges, right_edges (`np.ndarray`_, optional):
+        left_edges, right_edges (`numpy.ndarray`_, optional):
             Left and right edges of the slits
-        slit_ids (`np.ndarray`_, optional):
+        slit_ids (`numpy.ndarray`_, optional):
             Slit IDs
         cut (tuple, optional):
             Lower and upper levels cut for the image display
