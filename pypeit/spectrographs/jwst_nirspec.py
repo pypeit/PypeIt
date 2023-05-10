@@ -159,6 +159,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
 
+
     def compound_meta(self, headarr, meta_key):
         """
         Methods to generate metadata requiring interpretation of the header
@@ -181,6 +182,22 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
             elif exp_type == 'NRS_FIXEDSLIT':
                 return headarr[0].get('PATTTYPE')
 
+
+    def configuration_keys(self):
+        """
+        Return the metadata keys that define a unique instrument
+        configuration.
+
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
+        """
+        return ['dispname', 'filter1', 'decker']
 
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
