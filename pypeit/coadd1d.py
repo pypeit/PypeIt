@@ -146,7 +146,7 @@ class CoAdd1D:
         """
         self.coaddfile = coaddfile
         wave_gpm = self.wave_coadd > 1.0
-        # Generate the DataContainer
+        # Generate the spectrum container object
         onespec = OneSpec(wave=self.wave_coadd[wave_gpm], wave_grid_mid=self.wave_grid_mid[wave_gpm], flux=self.flux_coadd[wave_gpm],
                           PYP_SPEC=self.spectrograph.name, ivar=self.ivar_coadd[wave_gpm],
                           mask=self.gpm_coadd[wave_gpm].astype(int),
@@ -164,7 +164,7 @@ class CoAdd1D:
         if obj_model is not None:
             onespec.obj_model = obj_model[wave_gpm]
         # Write
-        onespec.to_file(coaddfile, history = history, overwrite=overwrite)
+        onespec.to_file(coaddfile, history=history, overwrite=overwrite)
 
     def coadd(self):
         """

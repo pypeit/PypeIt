@@ -1,13 +1,12 @@
 .. code-block:: console
 
     $ pypeit_chk_alignments -h
-    usage: pypeit_chk_alignments [-h] [--chname CHNAME] master_file
+    usage: pypeit_chk_alignments [-h] [--chname CHNAME] file
     
-    Display MasterAlignment image and the trace data
+    Display Alignment image and the trace data
     
     positional arguments:
-      master_file      PypeIt Master Alignment file [e.g.
-                       MasterAlignment_A_1_01.fits]
+      file             PypeIt Alignment file [e.g. Alignment_A_1_DET01.fits]
     
     options:
       -h, --help       show this help message and exit

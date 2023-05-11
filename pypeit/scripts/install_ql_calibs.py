@@ -1,5 +1,5 @@
 """
-Script to install quick-look master files into the user's pypeit installation.
+Script to install quick-look calibration files into the user's pypeit installation.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
@@ -9,20 +9,20 @@ from pypeit.scripts import scriptbase
 from pypeit import data
 
 
-class InstallQLMasters(scriptbase.ScriptBase):
+class InstallQLCalibs(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
         import os
 
-        parser = super().get_parser(description='Script to install PypeIt QL Master files',
+        parser = super().get_parser(description='Script to install PypeIt QL calibration files',
                                     width=width)
         group = parser.add_mutually_exclusive_group()
         group.add_argument('--zip', type=str, default=None,
-                           help='Zip file of the full QL_MASTERS directory downloaded from the '
+                           help='Zip file of the full QL_CALIB directory downloaded from the '
                                 'PypeIt Google Drive')
         group.add_argument('--ql_path', type=str, default=None,
-                           help='An existing directory to symlink as the QL_MASTERS directory.')
+                           help='An existing directory to symlink as the QL_CALIB directory.')
         parser.add_argument('--odir', type=str, default='current working directory',
                             help='The directory in which to extract the zip file.  Ignored if a '
                                  'direct path is provided using --ql_path.')
@@ -40,7 +40,7 @@ class InstallQLMasters(scriptbase.ScriptBase):
         # Check that either the zip file or the directory is provided
         if args.zip is None and args.ql_path is None:
             raise ValueError('Must provide either the zip file or the path to an existing '
-                             'QL_MASTERS directory.')
+                             'QL_CALIB directory.')
 
         if args.zip is None:
             # Directory should already exist.  Check that
@@ -62,13 +62,13 @@ class InstallQLMasters(scriptbase.ScriptBase):
                 zip_ref.extractall()
 
             # Check that it created the expected directory
-            ql_dir = os.path.join(_odir, 'QL_MASTERS')
+            ql_dir = os.path.join(_odir, 'QL_CALIB')
             if not os.path.isdir(ql_dir):
-                raise NotADirectoryError('Zip file should have created a QL_MASTERS directory in '
+                raise NotADirectoryError('Zip file should have created a QL_CALIB directory in '
                                         f'{_odir}, but that directory does not exist.  Check '
                                         'and/or re-download the zip file.')
 
-        # Create a symlink to the QL_MASTERS directory in the pypeit/data
+        # Create a symlink to the QL_CALIB directory in the pypeit/data
         # directory.
         create_symlink(ql_dir, data.Paths.data, overwrite=True)
 

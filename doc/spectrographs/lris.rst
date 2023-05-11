@@ -139,7 +139,7 @@ for detector 2.  This may occur if the counts from the flat field
 are too low (e.g., using internal flats rather than twilight
 flats with a higher signal in the blue).
 Therefore, if you use internal flats, be careful to inspect the
-slits defined by PypeIt as described in :doc:`../calibrations/master_edges`.
+slits defined by PypeIt as described in :doc:`../calibrations/edges`.
 
 If the defined slit(s) does not cover the portion of
 the illuminated detector where your source falls, you

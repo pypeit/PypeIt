@@ -52,7 +52,7 @@ of plots):
 .. code-block:: console
 
     pypeit_trace_edges -f my_pypeit_file.pypeit --debug --show
-    pypeit_chk_edges Masters/MasterEdges_file.fits.gz
+    pypeit_chk_edges Calibrations/Edges_file.fits.gz
 
 2.
 
