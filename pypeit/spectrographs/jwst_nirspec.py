@@ -199,6 +199,20 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         """
         return ['dispname', 'filter1', 'decker']
 
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard ``PypeIt`` file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        pypeit_keys = super().pypeit_file_keys()
+        pypeit_keys.remove('airmass')
+        pypeit_keys.remove('binning')
+        return pypeit_keys #+ ['lampstat01', 'dithpat', 'dithpos', 'dithoff', 'frameno']
+
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
