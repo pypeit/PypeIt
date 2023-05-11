@@ -151,7 +151,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             :obj:`object`: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            # Binning in lois headers is space-separated (like Gemini).
+            # Binning in lois headers is space-separated
             binspec, binspatial = parse.parse_binning(headarr[0]['CCDSUM'])
             return parse.binning2string(binspec, binspatial)
 
@@ -464,7 +464,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         # Adjust parameters based on DeVeny grating used
         grating = self.get_meta_value(scifile, 'dispname')
 
-        # How to compute resolving power on the fly?  (From p200_dbsp)
+        # TODO: Compute resolving power on the fly  (e.g., from p200_dbsp)
         # par['sensfunc']['UVIS']['resolution'] = resolving_power.decompose().value
 
         if grating == 'DV1 (150/5000)':
@@ -556,8 +556,8 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['flexure']['spec_maxshift'] //= binspec  # Must be an integer
         par['sensfunc']['UVIS']['resolution'] /= binspec
 
-        # SlitEdges Exclusion Regions (10 pixels at each edge) -- adjust based on binning
-        excl_l, excl_r, last = np.array([10, 505, 515], dtype=int) // binspat
+        # SlitEdges Exclusion Regions (30 pixels at each edge) -- adjust based on binning
+        excl_l, excl_r, last = np.array([30, 485, 515], dtype=int) // binspat
         par['calibrations']['slitedges']['exclude_regions'] = f"1:0:{excl_l},1:{excl_r}:{last}"
 
         return par
@@ -673,11 +673,11 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             Output good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
         """
         # First, simply chop off the wavelengths outside physical limits:
-        beyond = (wave_in < 2900.0) | (wave_in > 11000.0)
-        wave_out = wave_in[np.logical_not(beyond)]
-        counts_out = counts_in[np.logical_not(beyond)]
-        counts_ivar_out = counts_ivar_in[np.logical_not(beyond)]
-        gpm_out = gpm_in[np.logical_not(beyond)]
+        valid_wave = (wave_in >= 2900.0) & (wave_in <= 11000.0)
+        wave_out = wave_in[valid_wave]
+        counts_out = counts_in[valid_wave]
+        counts_ivar_out = counts_ivar_in[valid_wave]
+        gpm_out = gpm_in[valid_wave]
 
         # Next, build a gpm based on other reasonable wavelengths and filters
         edge_region = (wave_out < 3000.0) | (wave_out > 10200.0)
