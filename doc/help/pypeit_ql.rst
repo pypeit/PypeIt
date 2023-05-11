@@ -2,17 +2,15 @@
 
     $ pypeit_ql -h
     usage: pypeit_ql [-h] [--raw_files RAW_FILES [RAW_FILES ...]]
-                     [--raw_path RAW_PATH] [--ext EXT]
-                     [--sci_files SCI_FILES [SCI_FILES ...]]
+                     [--raw_path RAW_PATH] [--sci_files SCI_FILES [SCI_FILES ...]]
                      [--redux_path REDUX_PATH] [--parent_calib_dir PARENT_CALIB_DIR]
-                     [--setup_calib_dir SETUP_CALIB_DIR] [--calib_group CALIB_GROUP]
-                     [--clean] [--calibs_only] [--overwrite_calibs]
+                     [--setup_calib_dir SETUP_CALIB_DIR] [--clear_science]
+                     [--calibs_only] [--overwrite_calibs] [--det DET [DET ...]]
                      [--slitspatnum SLITSPATNUM] [--maskID MASKID]
-                     [--boxcar_radius BOXCAR_RADIUS] [--det DET [DET ...]]
-                     [--ignore_std] [--snr_thresh SNR_THRESH] [--skip_display]
-                     [--coadd] [--only_slits ONLY_SLITS [ONLY_SLITS ...]]
-                     [--offsets OFFSETS] [--weights WEIGHTS]
-                     [--spec_samp_fact SPEC_SAMP_FACT]
+                     [--boxcar_radius BOXCAR_RADIUS] [--snr_thresh SNR_THRESH]
+                     [--ignore_std] [--skip_display] [--coadd2d]
+                     [--only_slits ONLY_SLITS [ONLY_SLITS ...]] [--offsets OFFSETS]
+                     [--weights WEIGHTS] [--spec_samp_fact SPEC_SAMP_FACT]
                      [--spat_samp_fact SPAT_SAMP_FACT]
                      spectrograph
     
@@ -39,7 +37,7 @@
                             vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
                             wht_isis_blue, wht_isis_red
     
-    options:
+    optional arguments:
       -h, --help            show this help message and exit
       --raw_files RAW_FILES [RAW_FILES ...]
                             Either a PypeIt-formatted input file with the list of
@@ -51,16 +49,13 @@
       --raw_path RAW_PATH   Directory with the raw files to process. Ignored if a
                             PypeIt-formatted file is provided using the --rawfiles
                             option. (default: current working directory)
-      --ext EXT             If raw file names are not provided directly using the
-                            --rawfiles option, this sets the extension used when
-                            searching for any files in the path defined by
-                            --raw_path. All files found in the raw path with this
-                            extension will be processed. (default: .fits)
       --sci_files SCI_FILES [SCI_FILES ...]
                             A space-separated list of raw file names that are
                             science exposures. These files must *also* be in the
                             list of raw files. Use of this option overrides the
-                            automated PypeIt frame typing. (default: None)
+                            automated PypeIt frame typing. Should only be used of
+                            automatic frame typing fails or is undesirable.
+                            (default: None)
       --redux_path REDUX_PATH
                             Path for the QL reduction outputs. (default: current
                             working directory)
@@ -81,25 +76,14 @@
                             of the provided data, the code will construct new
                             calibrations (assuming relevant raw files are provided).
                             (default: None)
-      --calib_group CALIB_GROUP
-                            If the calibration directory contains results from more
-                            than one calibration group, you *must* specify which one
-                            to use. The code will fault otherwise. (default: None)
-      --clean               Remove the existing output directories to force a fresh
-                            reduction. If False, any existing directory structure
-                            will remain, but any existing science files will still
-                            be overwritten. (default: False)
+      --clear_science       Remove the existing output science directories to force
+                            a fresh reduction. If False, any existing directory
+                            structure will remain, and any alterations to existing
+                            science files will follow the normal behavior of
+                            run_pypeit. (default: False)
       --calibs_only         Reduce only the calibrations? (default: False)
-      --overwrite_calibs    Overwrite any existing calibration files? (default:
-                            False)
-      --slitspatnum SLITSPATNUM
-                            Reduce the slit(s) as specified by the slitspatnum
-                            value(s) (default: None)
-      --maskID MASKID       Reduce the slit(s) as specified by the maskID value(s)
-                            (default: None)
-      --boxcar_radius BOXCAR_RADIUS
-                            Set the radius for the boxcar extraction in arcseconds
-                            (default: None)
+      --overwrite_calibs    Re-process and overwrite any existing calibration files.
+                            (default: False)
       --det DET [DET ...]   A space-separated set of detectors or detector mosaics
                             to reduce. By default, *all* detectors or default
                             mosaics for this instrument will be reduced. Detectors
@@ -109,16 +93,24 @@
                             and 5 for Keck/DEIMOS, you would use --det 1 5; to
                             reduce mosaics made up of detectors 1,5 and 3,7, you
                             would use --det 1,5 3,7 (default: None)
+      --slitspatnum SLITSPATNUM
+                            Reduce the slit(s) as specified by the slitspatnum
+                            value(s) (default: None)
+      --maskID MASKID       Reduce the slit(s) as specified by the maskID value(s)
+                            (default: None)
+      --boxcar_radius BOXCAR_RADIUS
+                            Set the radius for the boxcar extraction in arcseconds
+                            (default: None)
+      --snr_thresh SNR_THRESH
+                            Change the default S/N threshold used during source
+                            detection (default: None)
       --ignore_std          If standard star observations are automatically
                             detected, ignore those frames. Otherwise, they are
                             included with the reduction of the science frames.
                             (default: False)
-      --snr_thresh SNR_THRESH
-                            Change the default S/N threshold used during source
-                            detection (default: None)
       --skip_display        Run the quicklook without displaying any results.
                             (default: True)
-      --coadd               Perform default 2D coadding. (default: False)
+      --coadd2d             Perform default 2D coadding. (default: False)
       --only_slits ONLY_SLITS [ONLY_SLITS ...]
                             If coadding, only coadd this space-separated set of
                             slits. If not provided, all slits are coadded. (default:

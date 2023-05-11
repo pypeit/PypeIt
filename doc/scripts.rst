@@ -351,6 +351,16 @@ The script usage can be displayed by calling the script with the
 
 .. include:: help/pypeit_multislit_flexure.rst
 
+pypeit_setup_coadd2d
+--------------------
+
+This is used to setup a ``coadd2d`` file for performing 2D coadds; see :doc:`coadd2d`.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_setup_coadd2d.rst
+
 pypeit_coadd_2dspec
 -------------------
 
@@ -491,7 +501,7 @@ solutions.  Here is a standard call:
 
     pypeit_show_wvcalib WaveCalib_A_1_DET01.fits 17 --is_order  # for magellan_mage
 
-This launches a `matplotlib`_` GUI plot of Order=17 for the magellan_mage spectrograph.
+This launches a `matplotlib`_ GUI plot of Order=17 for the magellan_mage spectrograph.
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
@@ -508,6 +518,19 @@ The script usage can be displayed by calling the script with the
 ``-h`` option:
 
 .. include:: help/pypeit_show_arxiv.rst
+
+pypeit_chk_tilts
+----------------
+
+This script displays Tiltimg and 2D fitted tilts in a `ginga`_ viewer or `matplotlib`_ window,
+allowing to assess the quality of the tilts calibration. See :ref:`pypeit_chk_tilts`
+for more details.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_chk_tilts.rst
+
 
 pypeit_chk_flats
 ----------------

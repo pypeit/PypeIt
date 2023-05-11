@@ -74,23 +74,6 @@ is a simple list of the :doc:`out_spec2D` files.
 You may also include file-specific options in the :ref:`data_block`
 as additional columns.  See :ref:`data_block` for its formatting.
 
-.. warning::
-
-    .. deprecated:: 1.9.2
-
-        Previously the :ref:`data_block` did not require 
-        the column name ``filename`` and the ``path`` was not permitted.
-        It might have looked like this:
-
-        .. code-block:: ini
-
-            # Data block
-            spec2d read
-            spec2d_b170320_2083-c17_60L._LRISb_2017Mar20T055336.211.fits
-            spec2d end
-
-        Edit it accordingly to meet the new standard above.
-
 .. _pypeit_setup_coadd2d:
 
 Setup script
@@ -110,12 +93,13 @@ using a pypeit file, you can construct the default coadd2d file(s) using:
 
 .. code-block:: console
 
-    pypeit_setup_coadd2d keck_lris_A.pypeit
+    pypeit_setup_coadd2d -f keck_lris_A.pypeit
 
 This will produce one ``.coadd2d`` file per unique ``target`` in the pypeit file
 with associated ``spec2d`` files in the output science directory.  The script
 provides additional options that allow you to select specific objects/targets,
-specify the detectors to coadd, and/or specify the slits that should be coadded.
+specify the method used to set the offsets and/or weights, specify the detectors
+to coadd, and/or specify the slits that should be coadded.
 
 .. _pypeit-coadd-2dspec:
 

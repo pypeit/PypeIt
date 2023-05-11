@@ -34,7 +34,7 @@
       full_rawpath          Full path to the raw files
       files                 list of frames i.e. img1.fits img2.fits
     
-    options:
+    optional arguments:
       -h, --help            show this help message and exit
       --spec_samp_fact SPEC_SAMP_FACT
                             Make the wavelength grid finer (spec_samp_fact < 1.0) or
@@ -67,7 +67,8 @@
                             (default: current working directory)
       --master_dir MASTER_DIR
                             Location of PypeIt Master files used for the reduction.
-                            (default: None)
+                            (default: /Users/dpelliccia/Pypeit/PypeIt-development-
+                            suite/QL_MASTERS)
       --embed               Upon completion embed in ipython shell (default: False)
       --show                Show the reduction steps. Equivalent to the -s option
                             when running pypeit. (default: False)

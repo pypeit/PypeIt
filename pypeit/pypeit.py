@@ -290,7 +290,7 @@ class PypeIt:
                     user_slits=slittrace.merge_user_slit(self.par['rdx']['slitspatnum'],
                                                          self.par['rdx']['maskIDs']))
                 # Do it
-                # These need to be separate to accomodate COADD2D
+                # These need to be separate to accommodate COADD2D
                 self.caliBrate.set_config(grp_frames[0], self.det, self.par['calibrations'])
 
                 self.caliBrate.run_the_steps()
@@ -453,7 +453,7 @@ class PypeIt:
         :class:`~pypeit.par.pypeitpar.ReduxPar` parameters.
 
         Args:
-            spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph):
+            spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
                 Spectrograph instance that defines the allowed
                 detectors/mosaics.
             detnum (:obj:`int`, :obj:`tuple`):

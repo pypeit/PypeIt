@@ -333,16 +333,17 @@ class FindObjects:
         initial_sky0 = self.global_skysub(skymask=self.initial_skymask, update_crmask=False,
                                           objs_not_masked=True, show_fit=show_skysub_fit)
         # First pass object finding
-        save_objfindQA = self.par['reduce']['findobj']['skip_second_find'] | self.std_redux
+        save_objfindQA = self.par['reduce']['findobj']['skip_second_find'] or self.std_redux \
+                            or self.initial_skymask is not None 
         sobjs_obj, self.nobj = \
             self.find_objects(self.sciImg.image-initial_sky0, self.sciImg.ivar, std_trace=std_trace,
                               show_peaks=show_peaks, show=self.findobj_show and not self.std_redux,
                               save_objfindQA=save_objfindQA)
 
-        if self.nobj == 0 or self.initial_skymask is None:
+        if self.nobj == 0 or self.initial_skymask is not None:
             # Either no objects were found, or the initial sky mask was provided by the user.
             # Either way, don't don't redo global sky subtraction
-            msgs.info('Either no objecsts were found or a user-provided sky mask was used.  '
+            msgs.info('Either no objects were found or a user-provided sky mask was used.  '
                       'Skipping second pass of sky-subtraction and object finding.')
             return initial_sky0, sobjs_obj
 

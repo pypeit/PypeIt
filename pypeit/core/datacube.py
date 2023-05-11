@@ -1019,7 +1019,7 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
     and better looking cubes, versus no sampling and better behaved errors.
 
     Args:
-        outfile (`str`):
+        outfile (str):
             Filename to be used to save the datacube
         output_wcs (`astropy.wcs.wcs.WCS`_):
             Output world coordinate system.
@@ -1029,28 +1029,28 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
             1D flattened array containing the inverse variance of each pixel from all spec2d files
         all_wghts (`numpy.ndarray`_):
             1D flattened array containing the weights of each pixel to be used in the combination
-        all_wave (`numpy.ndarray`_)
+        all_wave (`numpy.ndarray`_):
             1D flattened array containing the wavelength of each pixel (units = Angstroms)
-        tilts (`numpy.ndarray`_)
+        tilts (`numpy.ndarray`_):
             2D wavelength tilts frame
-        slits (:class:`pypeit.slittrace.SlitTraceSet`_)
+        slits (:class:`pypeit.slittrace.SlitTraceSet`):
             Information stored about the slits
-        slitid_img_gpm (`numpy.ndarray`_)
+        slitid_img_gpm (`numpy.ndarray`_):
             An image indicating which pixels belong to a slit (0 = not on a slit or a masked pixel).
             Any positive value indicates the spatial ID of the pixel.
-        astrom_trans (:class:`pypeit.alignframe.AlignmentSplines`_):
+        astrom_trans (:class:`pypeit.alignframe.AlignmentSplines`):
             A Class containing the transformation between detector pixel coordinates and WCS pixel coordinates
         bins (tuple):
             A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and z wavelength coordinates
-        spec_subpixel (`int`, optional):
+        spec_subpixel (int, optional):
             What is the subpixellation factor in the spectral direction. Higher values give more reliable results,
             but note that the time required goes as (spec_subpixel * spat_subpixel). The default value is 5,
             which divides each detector pixel into 5 subpixels in the spectral direction.
-        spat_subpixel (`int`, optional):
+        spat_subpixel (int, optional):
             What is the subpixellation factor in the spatial direction. Higher values give more reliable results,
             but note that the time required goes as (spec_subpixel * spat_subpixel). The default value is 5,
             which divides each detector pixel into 5 subpixels in the spatial direction.
-        overwrite (`bool`, optional):
+        overwrite (bool, optional):
             If True, the output cube will be overwritten.
         blaze_wave (`numpy.ndarray`_, optional):
             Wavelength array of the spectral blaze function
@@ -1063,7 +1063,7 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
             Sensitivity function that has been applied to the datacube
         specname (str, optional):
             Name of the spectrograph
-        debug (bool):
+        debug (bool, optional):
             If True, a residuals cube will be output. If the datacube generation is correct, the
             distribution of pixels in the residual cube with no flux should have mean=0 and std=1.
     """

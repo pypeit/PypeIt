@@ -77,8 +77,8 @@ The script provides a few ways that you can specify the files to reduce:
 
     #. Provide the directory and list of files directly on the command line.  
 
-    #. Provide the directory and the file extension, which will be used to search
-       for and reduce all files found.
+    #. Provide only the raw directory, which will be used to search
+       for any ``*.fits*`` files and reduce all files found.
 
 An example file named ``input.rawfiles`` used in the first approach could look
 like this:
@@ -111,7 +111,7 @@ in ``/path/to/files``, the third entry option would look like this:
 
 .. code-block:: console
 
-    pypeit_ql shane_kast_blue --raw_path /path/to/files --ext fits.gz
+    pypeit_ql shane_kast_blue --raw_path /path/to/files
 
 In this example (see more below), the three files are an arc-lamp exposure
 (``b1.fits.gz``), a dome-flat exposure (``b10.fits.gz``), and an on-sky science

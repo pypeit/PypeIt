@@ -444,13 +444,13 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
 
 def show_trace(viewer, ch, trace, trc_name=None, maskdef_extr=None, manual_extr=None, clear=False,
                rotate=False, pstep=50, yval=None):
-    """
+    r"""
 
     Args:
         viewer (ginga.util.grc.RemoteClient):
-            Ginga RC viewer
+            Ginga RC viewer.
         ch (ginga.util.grc._channel_proxy):
-            Ginga channel
+            Ginga channel.
         trace (`numpy.ndarray`_):
             Array with spatial position of the object traces on the detector.
             Shape must be :math:`(N_{\rm spec},)` or :math:`(N_{\rm spec}, N_{\rm trace})`.
@@ -465,8 +465,7 @@ def show_trace(viewer, ch, trace, trc_name=None, maskdef_extr=None, manual_extr=
         rotate (:obj:`bool`, optional):
             Rotate the image?
         pstep (:obj:`bool`, optional):
-            Show every pstep point of the edges as opposed to *every*
-            point, recommended for speed.
+            Show every pstep point of the edges as opposed to *every* point, recommended for speed.
         yval (`numpy.ndarray`_, optional):
             Array with spectral position of the object traces. Shape must be :math:`(N_{\rm spec},)`
             or :math:`(N_{\rm spec}, N_{\rm trace})`. If not passed in, the default of

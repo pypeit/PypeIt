@@ -26,6 +26,14 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                             help="Show the peaks found by the object finding algorithm.")
         parser.add_argument("--basename", type=str, default=None,
                             help="Basename of files to save the parameters, spec1d, and spec2d")
+
+        parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
+        parser.add_argument('-v', '--verbosity', type=int, default=1,
+                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
+                                 'Level 2 writes a log with filename coadd_2dspec_YYYYMMDD-HHMM.log')
+
+        # TODO: Make spec_samp_fact and spat_samp_fact parameters in CoAdd2DPar,
+        # and then move these to setup_coadd2d.py
         parser.add_argument('--spec_samp_fact', default=1.0, type=float,
                             help="Make the wavelength grid finer (spec_samp_fact < 1.0) or "
                                  "coarser (spec_samp_fact > 1.0) by this sampling factor, i.e. "
@@ -34,10 +42,6 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                             help="Make the spatial grid finer (spat_samp_fact < 1.0) or coarser "
                                  "(spat_samp_fact > 1.0) by this sampling factor, i.e. units of "
                                  "spat_samp_fact are pixels.")
-        parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
-        parser.add_argument('-v', '--verbosity', type=int, default=1,
-                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
-                                 'Level 2 writes a log with filename coadd_2dspec_YYYYMMDD-HHMM.log')
 
         #parser.add_argument("--wave_method", type=str, default=None,
         #                    help="Wavelength method for wavelength grid. If not set, code will "
