@@ -453,7 +453,7 @@ class PypeIt:
         :class:`~pypeit.par.pypeitpar.ReduxPar` parameters.
 
         Args:
-            spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph):
+            spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
                 Spectrograph instance that defines the allowed
                 detectors/mosaics.
             detnum (:obj:`int`, :obj:`tuple`):

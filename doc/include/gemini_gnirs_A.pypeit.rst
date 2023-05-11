@@ -17,7 +17,7 @@
     
     # Data block 
     data read
-     path /Users/westfall/Work/packages/PypeIt-development-suite/RAW_DATA/gemini_gnirs/32_SB_SXD
+     path /Volumes/GoogleDrive/.shortcut-targets-by-id/1oh19siB1-F0jjmY-F_jr73eA-TQYEiFW/PypeIt-development-suite/RAW_DATA/gemini_gnirs/32_SB_SXD
                 filename |         frametype |           ra |         dec |   target |      dispname |           decker | binning |              mjd | airmass | exptime | dispangle |           dithoff | calib | comb_id | bkg_id
     cN20170331S0216.fits |  arc,science,tilt | 205.53380833 |  9.47733611 |    pisco | 32/mmSB_G5533 | 0.68arcsec_G5530 |     1,1 | 57843.3709743134 |   1.077 |   300.0 |    6.1887 | -0.34225501721318 |     0 |       5 |     -1
     cN20170331S0217.fits |  arc,science,tilt | 205.53380833 |  9.47733611 |    pisco | 32/mmSB_G5533 | 0.68arcsec_G5530 |     1,1 | 57843.3746886267 |   1.068 |   300.0 |    6.1887 |  2.65774498278682 |     0 |       6 |     -1

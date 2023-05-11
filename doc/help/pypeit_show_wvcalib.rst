@@ -10,7 +10,7 @@
       file                  WaveCalib file
       slit_order            Slit or Order number
     
-    options:
+    optional arguments:
       -h, --help            show this help message and exit
       --slit_file SLIT_FILE
                             Slit file (default: None)

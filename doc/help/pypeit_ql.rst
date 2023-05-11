@@ -37,7 +37,7 @@
                             vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
                             wht_isis_blue, wht_isis_red
     
-    options:
+    optional arguments:
       -h, --help            show this help message and exit
       --raw_files RAW_FILES [RAW_FILES ...]
                             Either a PypeIt-formatted input file with the list of
