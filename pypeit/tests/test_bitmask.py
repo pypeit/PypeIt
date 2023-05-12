@@ -7,7 +7,6 @@ import numpy
 from astropy.io import fits
 
 from pypeit.bitmask import BitMask
-from pypeit.pypmsgs import PypeItError
 
 #-----------------------------------------------------------------------------
 
@@ -99,11 +98,11 @@ def test_wrong_bits():
     mask[cosmics_indx] = image_bm.turn_on(mask[cosmics_indx], 'COSMIC')
     
     # Fails with all bad flags
-    with pytest.raises(PypeItError):
+    with pytest.raises(ValueError):
         out = image_bm.flagged(mask, flag='JUNK')
 
     # Fails with mix of good and bad flags
-    with pytest.raises(PypeItError):
+    with pytest.raises(ValueError):
         out = image_bm.flagged(mask, flag=['COSMIC', 'JUNK'])
 
     assert numpy.sum(image_bm.flagged(mask, flag='COSMIC')) == numpy.sum(cosmics_indx)

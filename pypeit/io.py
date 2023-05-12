@@ -846,19 +846,24 @@ def create_symlink(filename, symlink_dir, relative_symlink=False, overwrite=Fals
     os.symlink(olink_src, olink_dest)
 
 
-def files_from_extension(raw_path:str,
+def files_from_extension(raw_path,
                          extension:str='fits'):
     """
     Grab the list of files with a given extension 
 
     Args:
-        raw_path (str):
-            Path to raw files, which may or may not include the prefix of the
-            files to search for.  For example, this can be the directory
+        raw_path (str or list):
+            Path(s) to raw files, which may or may not include the prefix of the
+            files to search for.  
+
+            For a string input, for example, this can be the directory
             ``'/path/to/files/'`` or the directory plus the file prefix
             ``'/path/to/files/prefix'``, which yeilds the search strings
             ``'/path/to/files/*fits'`` or ``'/path/to/files/prefix*fits'``,
             respectively.
+
+            For a list input, this can use wildcards for multiple directories.
+
         extension (str, optional):
             File extension to search on.
 
@@ -870,14 +875,8 @@ def files_from_extension(raw_path:str,
         dfname = os.path.join(raw_path, f'*{extension}*') \
                     if os.path.isdir(raw_path) else f'{raw_path}*{extension}*'
         return sorted(glob.glob(dfname))
-    elif isinstance(raw_path, list):
-        # Loop over the list
-        retlist = []
-        for rpath in raw_path:
-            # Grab the list of files
-            dfname = os.path.join(rpath, f'*{extension}*') \
-                        if os.path.isdir(rpath) else f'{rpath}*{extension}*'
-            retlist += sorted(glob.glob(dfname))
-        return retlist
-    else:
-        msgs.error(f"Incorrect type {type(raw_path)} for raw_path (must be str or list)")
+    
+    if isinstance(raw_path, list):
+        return numpy.concatenate([files_from_extension(p, extension=extension) for p in raw_path]).tolist()
+
+    msgs.error(f"Incorrect type {type(raw_path)} for raw_path (must be str or list)")

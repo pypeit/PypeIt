@@ -36,7 +36,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -63,7 +63,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -251,7 +251,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -275,7 +275,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
@@ -309,7 +309,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         super().init_meta()
@@ -329,7 +329,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
         or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
         for a particular spectrograph, if different from the name of the
-        ``PypeIt`` metadata keyword.
+        PypeIt metadata keyword.
 
         This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
         to include additional FITS keywords in downstream output files.
@@ -450,7 +450,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -467,7 +467,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         super().init_meta()
@@ -504,7 +504,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
         or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
         for a particular spectrograph, if different from the name of the
-        ``PypeIt`` metadata keyword.
+        PypeIt metadata keyword.
 
         This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
         to include additional FITS keywords in downstream output files.
@@ -661,7 +661,7 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -695,7 +695,7 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         super().init_meta()
@@ -716,7 +716,7 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
         or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
         for a particular spectrograph, if different from the name of the
-        ``PypeIt`` metadata keyword.
+        PypeIt metadata keyword.
 
         This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
         to include additional FITS keywords in downstream output files.

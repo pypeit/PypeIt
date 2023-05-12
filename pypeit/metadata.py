@@ -1332,7 +1332,7 @@ class PypeItMetaData:
                 indx = self['filename'] == ifile
                 try:
                     type_bits[indx] = self.type_bitmask.turn_on(type_bits[indx], flag=ftypes.split(','))
-                except PypeItError as err:
+                except ValueError as err:
                     msgs.error(f'Improper frame type supplied!{msgs.newline()}Check your PypeIt Reduction File')
             return self.set_frame_types(type_bits, merge=merge)
     
