@@ -1892,7 +1892,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
         scaleImg *= relscl_model
         #rawimg_copy /= relscl_model
         modelimg_copy /= relscl_model
-        if max(abs(1/minv), abs(maxv)) < 1.005:  # Relative accruacy of 0.5% is sufficient
+        if max(abs(1/minv), abs(maxv)) < 1.005:  # Relative accuracy of 0.5% is sufficient
             break
     debug = False
     if debug:
