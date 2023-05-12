@@ -771,9 +771,14 @@ class PypeIt:
             # spatial flexure determined for the background image.
             sciImg = sciImg.sub(bgimg)
 
+        # Flexure
+        spat_flexure = None
+        if (self.objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_correct']) or \
+                (self.objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_correct']):
+            spat_flexure = sciImg.spat_flexure
         # Build the initial sky mask
         initial_skymask = self.load_skyregions(initial_slits=self.spectrograph.pypeline != 'IFU',
-                                               scifile=sciImg.files[0], frame=frames[0])
+                                               scifile=sciImg.files[0], frame=frames[0], spat_flexure=spat_flexure)
 
         # Deal with manual extraction
         row = self.fitstbl[frames[0]]
@@ -801,7 +806,7 @@ class PypeIt:
         # Return
         return initial_sky, sobjs_obj, sciImg, objFind
 
-    def load_skyregions(self, initial_slits=False, scifile=None, frame=None):
+    def load_skyregions(self, initial_slits=False, scifile=None, frame=None, spat_flexure=None):
         """
         Generate or load sky regions, if defined by the user.
 
@@ -838,6 +843,8 @@ class PypeIt:
         frame : :obj:`int`, optional
             The index of the frame used to construct the calibration key.  Only
             used if ``user_regions = user``.
+        spat_flexure : :obj:`float`, None, optional
+            The spatial flexure (measured in pixels) of the science frame relative to the trace frame.
 
         Returns
         -------
@@ -867,14 +874,6 @@ class PypeIt:
             msgs.info(f'Loading SkyRegions file: {regfile}')
             return buildimage.SkyRegions.from_file(regfile).image.astype(bool)
 
-        # Flexure
-        spat_flexure = None
-        if (self.objtype == 'science'
-                and self.par['scienceframe']['process']['spat_flexure_correct']) or \
-           (self.objtype == 'standard'
-                and self.par['calibrations']['standardframe']['process']['spat_flexure_correct']):
-            spat_flexure = sciImg.spat_flexure
-
         skyregtxt = self.par['reduce']['skysub']['user_regions']
         if isinstance(skyregtxt, list):
             skyregtxt = ",".join(skyregtxt)
@@ -885,10 +884,13 @@ class PypeIt:
 
         maxslitlength = np.max(slits_right-slits_left)
         # Get the regions
-        status, regions = skysub.read_userregions(skyregtxt, self.caliBrate.slits.nslits,
-                                                  maxslitlength)
+        status, regions = skysub.read_userregions(skyregtxt, self.caliBrate.slits.nslits, maxslitlength)
+        if status == 1:
+            msgs.error("Unknown error in sky regions definition. Please check the value:" + msgs.newline() + skyregtxt)
+        elif status == 2:
+            msgs.error("Sky regions definition must contain a percentage range, and therefore must contain a ':'")
         # Generate and return image
-        # TODO: Is this applying the spatial flexure twice?  I.e., once above
+        # TODO :: Is this applying the spatial flexure twice?  I.e., once above
         # when calling select_edges, and once below when passed to
         # generate_mask?
         return skysub.generate_mask(self.spectrograph.pypeline, regions, self.caliBrate.slits,
