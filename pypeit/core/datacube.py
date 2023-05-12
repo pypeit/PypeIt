@@ -1259,7 +1259,6 @@ def generate_cube_subpixel(outfile, output_wcs, all_ra, all_dec, all_wave, all_s
         hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
 
     # Subpixellate
-    debug=True
     subpix = subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts, all_spatpos, all_specpos,
                           all_spatid, tilts, slits, astrom_trans, bins, all_idx=all_idx,
                           spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, debug=debug)
@@ -1688,12 +1687,13 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     # Load the default sky frame to be used for sky subtraction
     skysub_default = "image"
     skyImgDef, skySclDef = None, None  # This is the default behaviour (i.e. to use the "image" for the sky subtraction)
-
     if cubepar['skysub_frame'] in [None, 'none', '', 'None']:
         skysub_default = "none"
         skyImgDef = np.array([0.0])  # Do not perform sky subtraction
         skySclDef = np.array([0.0])  # Do not perform sky subtraction
     elif cubepar['skysub_frame'].lower() == "image":
+        msgs.info("The sky model in the spec2d science frames will be used for sky subtraction" +msgs.newline() +
+                  "(unless specific skysub frames have been specified)")
         skysub_default = "image"
     else:
         msgs.info("Loading default image for sky subtraction:" +
@@ -1814,10 +1814,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                       msgs.newline()+this_scalecorr)
 
         # Prepare the relative scaling factors
-        relScale = 1.0
         relSclSky = skyScl/spec2DObj.scaleimg  # This factor ensures the sky has the same relative scaling as the science frame
-        if cubepar['scale_corr'] is not None or opts['scale_corr'][ff] is not None:
-            relScale = spec2DObj.scaleimg/relScaleImg  # This factor is applied to the sky subtracted science frame
+        relScale = spec2DObj.scaleimg/relScaleImg  # This factor is applied to the sky subtracted science frame
 
         # Extract the relevant information from the spec2d file
         sciImg = (spec2DObj.sciimg - skyImg*relSclSky)*relScale  # Subtract sky and apply relative illumination
@@ -1827,7 +1825,9 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
         # TODO :: Really need to write some detailed information in the docs about all of the various corrections that can optionally be applied
 
-        # TODO :: Include a flexure correction from the sky frame?
+        # TODO :: Include a flexure correction from the sky frame? Note, you cannot use the waveimg from a sky frame,
+        #  since the heliocentric correction may have been applied to the sky frame. Need to recalculate waveimg using
+        #  the slitshifts from a skyimage, and then apply the vel_corr from the science image.
 
         wnonzero = (waveimg != 0.0)
         if not np.any(wnonzero):
@@ -1942,13 +1942,18 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         if cubepar['grating_corr'] and flatfile not in flat_splines.keys():
             msgs.info("Calculating relative sensitivity for grating correction")
             flatimages = flatfield.FlatImages.from_file(flatfile)
-            flatframe = flatimages.illumflat_raw/flatimages.fit2illumflat(slits, frametype='illum', initial=True,
-                                                                          spat_flexure=spat_flexure)
-            # Calculate the relative scale
-            scale_model = flatfield.illum_profile_spectral(flatframe, waveimg, slits,
-                                                           slit_illum_ref_idx=flatpar['slit_illum_ref_idx'], model=None,
-                                                           skymask=None, trim=flatpar['slit_trim'], flexure=spat_flexure,
-                                                           smooth_npix=flatpar['slit_illum_smooth_npix'])
+            total_illum = flatimages.fit2illumflat(slits, finecorr=False, frametype='illum', initial=True, spat_flexure=spat_flexure) * \
+                          flatimages.fit2illumflat(slits, finecorr=True, frametype='illum', initial=True, spat_flexure=spat_flexure)
+            flatframe = flatimages.pixelflat_raw / total_illum
+            if flatimages.pixelflat_spec_illum is None:
+                # Calculate the relative scale
+                scale_model = flatfield.illum_profile_spectral(flatframe, waveimg, slits,
+                                                               slit_illum_ref_idx=flatpar['slit_illum_ref_idx'], model=None,
+                                                               skymask=None, trim=flatpar['slit_trim'], flexure=spat_flexure,
+                                                               smooth_npix=flatpar['slit_illum_smooth_npix'])
+            else:
+                msgs.info("Using relative spectral illumination from FlatImages")
+                scale_model = flatimages.pixelflat_spec_illum
             # Apply the relative scale and generate a 1D "spectrum"
             onslit = waveimg != 0
             wavebins = np.linspace(np.min(waveimg[onslit]), np.max(waveimg[onslit]), slits.nspec)
@@ -2148,8 +2153,22 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             wl_wvrng = get_whitelight_range(np.max(mnmx_wv[:, :, 0]),
                                             np.min(mnmx_wv[:, :, 1]),
                                             cubepar['whitelight_range'])
-        generate_cube_subpixel(outfile, cube_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, np.ones(all_wghts.size),#all_wghts,
-                               all_spatpos, all_specpos, all_spatid, all_tilts, all_slits, all_align, vox_edges,
-                               all_idx=all_idx, overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
-                               fluxcal=fluxcal, sensfunc=sensfunc, specname=specname, whitelight_range=wl_wvrng,
-                               spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
+        # TODO :: THIS IS JUST TEMPORARY (probably)... the first bit outputs separate files, the second bit combines all frames.
+        #  Might want to have an option where if reference_image is provided, but not combine, the first option is done.
+        if True:
+            # embed()
+            # assert(False)
+            for ff in range(numfiles):
+                outfile = get_output_filename("", cubepar['output_filename'], False, ff)
+                ww = np.where(all_idx==ff)
+                generate_cube_subpixel(outfile, cube_wcs, all_ra[ww], all_dec[ww], all_wave[ww], all_sci[ww], all_ivar[ww], np.ones(all_wghts[ww].size),
+                                       all_spatpos[ww], all_specpos[ww], all_spatid[ww], all_tilts[ff], all_slits[ff], all_align[ff], vox_edges,
+                                       all_idx=all_idx[ww], overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
+                                       fluxcal=fluxcal, sensfunc=sensfunc, specname=specname, whitelight_range=wl_wvrng,
+                                       spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
+        else:
+            generate_cube_subpixel(outfile, cube_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, np.ones(all_wghts.size),#all_wghts,
+                                   all_spatpos, all_specpos, all_spatid, all_tilts, all_slits, all_align, vox_edges,
+                                   all_idx=all_idx, overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
+                                   fluxcal=fluxcal, sensfunc=sensfunc, specname=specname, whitelight_range=wl_wvrng,
+                                   spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
