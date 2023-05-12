@@ -1509,7 +1509,8 @@ class CubePar(ParSet):
                                 'for the sky subtraction, specify the relative path+file to the spec2D file that you ' \
                                 'would like to use for the sky subtraction. The model fit to the sky of the specified ' \
                                 'frame will be used. Note, the sky and science frames do not need to have the same ' \
-                                'exposure time.'
+                                'exposure time; the sky model will be scaled to the science frame based on the ' \
+                                'relative exposure time.'
 
         # Instantiate the parameter set
         super(CubePar, self).__init__(list(pars.keys()),
@@ -3384,7 +3385,7 @@ class WaveTiltsPar(ParSet):
         defaults['spat_order'] = 3
         dtypes['spat_order'] = [int, float, list, np.ndarray]
         descr['spat_order'] = 'Order of the legendre polynomial to be fit to the the tilt of an arc line. This parameter determines ' \
-                              'both the orer of the *individual* arc line tilts, as well as the order of the spatial direction of the ' \
+                              'both the order of the *individual* arc line tilts, as well as the order of the spatial direction of the ' \
                               '2d legendre polynomial (spatial, spectral) that is fit to obtain a global solution for the tilts across the ' \
                               'slit/order. This can be a single number or a list/array providing the value for each slit'
 
