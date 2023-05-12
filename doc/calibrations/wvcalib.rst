@@ -1,20 +1,20 @@
 
 .. include:: ../include/links.rst
 
-.. _master_wvcalib:
+.. _wvcalib:
 
-===============
-MasterWaveCalib
-===============
+=========
+WaveCalib
+=========
 
 Overview
 ========
 
-This file describes the data model for the ``MasterWaveCalib``.
+This file describes the data model for the ``WaveCalib``.
 
 The images are written to disk as a multi-extension FITS file
-prefixed by ``MasterWaveCalib`` in the ``Masters/`` folder.
-See :ref:`master-naming` for the naming convention.
+prefixed by ``WaveCalib`` in the ``Calibrations/`` folder.
+See :ref:`calib-naming` for the naming convention.
 
 Inspecting
 ==========
@@ -29,7 +29,7 @@ with the **pypeit_chk_wavecalib** script, e.g. :
 
 .. code-block:: console
 
-    $ pypeit_chk_wavecalib Masters/MasterWaveCalib_A_1_MSC03.fits
+    $ pypeit_chk_wavecalib Calibrations/WaveCalib_A_1_MSC03.fits
 
      N. SpatID minWave Wave_cen maxWave dWave Nlin     IDs_Wave_range    IDs_Wave_cov(%) mesured_fwhm  RMS
     --- ------ ------- -------- ------- ----- ---- --------------------- --------------- ------------ -----

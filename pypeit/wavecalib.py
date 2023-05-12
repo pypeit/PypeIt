@@ -4,31 +4,31 @@ Module for guiding 1D Wavelength Calibration
 .. include:: ../include/links.rst
 
 """
-import os
 import inspect
 import json
 
 import numpy as np
-
 from matplotlib import pyplot as plt
 
-from linetools import utils as ltu
+from linetools.utils import jsonify
 from astropy.table import Table
 
 from pypeit import msgs
 from pypeit.core import arc, qa
 from pypeit.core import fitting
+from pypeit.core import parse
 from pypeit.core.wavecal import autoid, wv_fitting
 from pypeit.core.gui.identify import Identify
 from pypeit import datamodel
+from pypeit import calibframe
 from pypeit.core.wavecal import echelle
 
 
 from IPython import embed
 
-class WaveCalib(datamodel.DataContainer):
+class WaveCalib(calibframe.CalibFrame):
     """
-    DataContainer for the output from BuildWaveCalib
+    Calibration frame containing the wavelength calibration.
 
     All of the items in the datamodel are required for instantiation, although
     they can be None (but shouldn't be)
@@ -40,18 +40,28 @@ class WaveCalib(datamodel.DataContainer):
     """
     version = '1.1.0'
 
-    # MasterFrame fun
-    master_type = 'WaveCalib'
-    master_file_format = 'fits'
+    # Calibration frame attributes
+    calib_type = 'WaveCalib'
+    calib_file_format = 'fits'
 
-    datamodel = {'wv_fits': dict(otype=np.ndarray, atype=wv_fitting.WaveFit,
+    # NOTE:
+    #   - Internals are identical to the base class
+    #   - Datamodel already contains CalibFrame base elements, so no need to
+    #     include it here.
+
+    datamodel = {'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
+                 'wv_fits': dict(otype=np.ndarray, atype=wv_fitting.WaveFit,
                                  descr='WaveFit to each 1D wavelength solution'),
                  #'wv_fit2d': dict(otype=fitting.PypeItFit,
                  #                 descr='2D wavelength solution (echelle)'),
                  'wv_fit2d': dict(otype=np.ndarray, atype=fitting.PypeItFit,
-                                  descr='2D wavelength solution(s) (echelle).  If there is more than one, they must be aligned to the separate detectors analyzed'),
+                                  descr='2D wavelength solution(s) (echelle).  If there is more '
+                                        'than one, they must be aligned to the separate detectors '
+                                        'analyzed'),
                  'det_img': dict(otype=np.ndarray, atype=np.integer,
-                                  descr='Detector image which indicates which pixel in the mosaic corresponds to which detector; used occasionally by echelle.  Currently only saved if ech_separate_2d=True'),
+                                  descr='Detector image which indicates which pixel in the mosaic '
+                                        'corresponds to which detector; used occasionally by '
+                                        'echelle.  Currently only saved if ech_separate_2d=True'),
                  'arc_spectra': dict(otype=np.ndarray, atype=np.floating,
                                      descr='2D array: 1D extracted spectra, slit by slit '
                                            '(nspec, nslits)'),
@@ -59,9 +69,9 @@ class WaveCalib(datamodel.DataContainer):
                                 descr='Total number of slits.  This can include masked slits'),
                  'spat_ids': dict(otype=np.ndarray, atype=np.integer, 
                                   descr='Slit spat_ids. Named distinctly from that in WaveFit '),
-                 'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
                  'strpar': dict(otype=str, descr='Parameters as a string'),
-                 'lamps': dict(otype=str, descr='List of arc lamps used for the wavelength calibration')}
+                 'lamps': dict(otype=str,
+                               descr='List of arc lamps used for the wavelength calibration')}
 
     def __init__(self, wv_fits=None, nslits=None, spat_ids=None, PYP_SPEC=None,
                  strpar=None, wv_fit2d=None, arc_spectra=None, lamps=None,
@@ -72,27 +82,20 @@ class WaveCalib(datamodel.DataContainer):
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
 
-    def _init_internals(self):
-        # Master stuff
-        self.master_key = None
-        self.master_dir = None
-
     def _bundle(self):
         """
-        Over-write default _bundle() method to write one
-        HDU per image.  Any extras are in the HDU header of
-        the primary image.
+        Override base class function to write one HDU per image.  Any extras are
+        in the HDU header of the primary image.
 
         Returns:
             :obj:`list`: A list of dictionaries, each list element is
-            written to its own fits extension. See the description
-            above.
+            written to its own fits extension.
         """
         _d = []
 
-        # Spat_ID first
+        # Spat_ID are always first
         if self.spat_ids is None:
-            msgs.error("Cannot write WaveCalib without spat_ids")
+            msgs.error('Cannot write WaveCalib without spat_ids!')
         _d.append(dict(spat_ids=self.spat_ids))
 
         # Rest of the datamodel
@@ -137,27 +140,15 @@ class WaveCalib(datamodel.DataContainer):
         # Return
         return _d
 
-    # TODO: Although I don't like doing it, kwargs is here to catch the
-    # extraneous keywords that can be passed to _parse from the base class but
-    # won't be used.
     @classmethod
-    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,
-               hdu_prefix=None, **kwargs):
+    def _parse(cls, hdu, **kwargs):
         """
-        See datamodel.DataContainer for docs
-
-        Args:
-            hdu:
-            ext:
-            transpose_table_arrays:
-            debug:
-            hdu_prefix:
-
-        Returns:
-
+        See :func:`~pypeit.datamodel.DataContainer._parse` for description and
+        list of returned objects.  All keyword arguments are ignored by this
+        function!
         """
-        # Grab everything but the bspline's
-        _d, dm_version_passed, dm_type_passed, parsed_hdus = super(WaveCalib, cls)._parse(hdu)
+        # Grab everything but the bsplines
+        _d, dm_version_passed, dm_type_passed, parsed_hdus = super()._parse(hdu)
         # Now the wave_fits
         list_of_wave_fits = []
         list_of_wave2d_fits = []
@@ -209,7 +200,8 @@ class WaveCalib(datamodel.DataContainer):
 
         """
         if not np.array_equal(self.spat_ids, slits.spat_id):
-            msgs.error("Your wvcalib solutions are out of sync with your slits.  Remove Masters and start from scratch")
+            msgs.error('Your wavelength solutions are out of sync with your slits.  Remove '
+                       'Calibrations and restart from scratch.')
 
     def build_waveimg(self, tilts, slits, spat_flexure=None, spec_flexure=None):
         """
@@ -371,8 +363,6 @@ class BuildWaveCalib:
         par (:class:`pypeit.par.pypeitpar.WaveSolutionPar`):
             The parameters used for the wavelength solution
             Uses ['calibrations']['wavelengths']
-        binspectral (int, optional):
-            Binning of the Arc in the spectral dimension
         meta_dict (dict: optional):
             Dictionary containing meta information required for wavelength
             calibration. Specifically for non-fixed format echelles this dict
@@ -388,8 +378,6 @@ class BuildWaveCalib:
             Bad pixel mask image
         qa_path (str, optional):
             For QA
-        master_key (:obj:`str`, optional):
-            For naming QA only
 
     Attributes:
         steps : list
@@ -412,10 +400,11 @@ class BuildWaveCalib:
         wvc_bpm (`numpy.ndarray`_):  Mask for slits attempted to have a wv_calib solution
     """
 
+    # TODO: Is this used anywhere?
     frametype = 'wv_calib'
 
-    def __init__(self, msarc, slits, spectrograph, par, lamps, binspectral=None, meta_dict=None, det=1,
-                 qa_path=None, msbpm=None, master_key=None):
+    def __init__(self, msarc, slits, spectrograph, par, lamps, meta_dict=None, det=1, qa_path=None,
+                 msbpm=None):
 
         # TODO: This should be a stop-gap to avoid instantiation of this with
         # any Nones.
@@ -424,20 +413,19 @@ class BuildWaveCalib:
 
         # Required parameters
         self.msarc = msarc
+        self.binspectral = parse.parse_binning(self.msarc.detector.binning)[0]
         self.slits = slits
         self.spectrograph = spectrograph
         self.par = par
         self.lamps = lamps
-        self.meta_dict=meta_dict
+        self.meta_dict = meta_dict
 
         # Optional parameters
         self.bpm = self.msarc.select_flag(flag='BPM') if msbpm is None else msbpm.astype(bool)
         if self.bpm.shape != self.msarc.shape:
             msgs.error('Bad-pixel mask is not the same shape as the arc image.')
-        self.binspectral = binspectral
         self.qa_path = qa_path
         self.det = det
-        self.master_key = master_key
 
         # Attributes
         self.steps = []     # steps executed
@@ -450,10 +438,6 @@ class BuildWaveCalib:
             self.nonlinear_counts = self.msarc.detector.nonlinear_counts()
         except:
             self.nonlinear_counts = 1e10
-
-#        self.nonlinear_counts = 1e10 if self.spectrograph is None \
-#            else self.spectrograph.nonlinear_counts(self.msarc.detector)
-            #else self.spectrograph.nonlinear_counts(self.det)
 
         # --------------------------------------------------------------
         # TODO: Build another base class that does these things for both
@@ -620,6 +604,10 @@ class BuildWaveCalib:
                                   spat_ids=self.slits.spat_id,
                                   PYP_SPEC=self.spectrograph.name,
                                   lamps=','.join(self.lamps))
+        # Inherit the calibration frame naming from self.msarc
+        # TODO: Should throw an error here if these calibration frame naming
+        # elements are not defined by self.msarc...
+        self.wv_calib.copy_calib_internals(self.msarc)
 
         # Update mask
         self.update_wvmask()
@@ -628,7 +616,7 @@ class BuildWaveCalib:
         if not skip_QA:
             ok_mask_idx = np.where(np.invert(self.wvc_bpm))[0]
             for slit_idx in ok_mask_idx:
-                outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', 
+                outfile = qa.set_qa_filename(self.wv_calib.calib_key, 'arc_fit_qa', 
                                              slit=self.slits.slitord_id[slit_idx],
                                              out_dir=self.qa_path)
                 #
@@ -723,6 +711,13 @@ class BuildWaveCalib:
 
             # QA
             if not skip_QA:
+                if wv_calib.calib_key is None:
+                    msgs.warn('WaveCalib object provided does not have a defined calibration '
+                              'key.  The QA files will not include this key in the file name, '
+                              'meaning that existing QA files may be overwritten.')
+                    calib_key = '' 
+                else:
+                    calib_key = wv_calib.calib_key
                 # Separate detectors?
                 if self.par['ech_separate_2d']:
                     det_str = f'_{idet}'
@@ -730,12 +725,12 @@ class BuildWaveCalib:
                     det_str = ''
                 # Global QA
                 outfile_global = qa.set_qa_filename(
-                    self.master_key+det_str, 'arc_fit2d_global_qa',
+                    calib_key+det_str, 'arc_fit2d_global_qa',
                     out_dir=self.qa_path)
                 arc.fit2darc_global_qa(fit2d, nspec, outfile=outfile_global)
                 # Order QA
                 outfile_orders = qa.set_qa_filename(
-                    self.master_key+det_str, 'arc_fit2d_orders_qa',
+                    calib_key+det_str, 'arc_fit2d_orders_qa',
                     out_dir=self.qa_path)
                 arc.fit2darc_orders_qa(fit2d, nspec, outfile=outfile_orders)
 
@@ -839,7 +834,7 @@ class BuildWaveCalib:
 
         # Pack up
         sv_par = self.par.data.copy()
-        j_par = ltu.jsonify(sv_par)
+        j_par = jsonify(sv_par)
         self.wv_calib['strpar'] = json.dumps(j_par)#, sort_keys=True, indent=4, separators=(',', ': '))
 
         return self.wv_calib

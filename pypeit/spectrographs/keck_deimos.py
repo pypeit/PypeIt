@@ -361,6 +361,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             # pca
             par['calibrations']['slitedges']['sync_predict'] = 'auto'
 
+            # set offsets for coadd2d
+            par['coadd2d']['offsets'] = 'maskdef_offsets'
+
 
         # Templates
         if self.get_meta_value(headarr, 'dispname') == '600ZD':
@@ -903,7 +906,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set

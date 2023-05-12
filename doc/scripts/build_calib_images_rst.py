@@ -289,7 +289,7 @@ if __name__ == '__main__':
     # Set the output directory
     output_root = Path(resource_filename('pypeit', '')).resolve().parent / 'doc' / 'include'
 
-    # Simple datamodels for MasterArc, MasterBias, MasterDark, MasterTiltimg
+    # Simple datamodels for Arc, Bias, Dark, Tiltimg
     for obj in [buildimage.ArcImage, buildimage.BiasImage, buildimage.DarkImage,
                 buildimage.TiltImage]:
 
@@ -304,7 +304,7 @@ if __name__ == '__main__':
         print('Wrote: {}'.format(ofile))
 
 
-    # All data written to a single extension for MasterAlignments and MasterTilts
+    # All data written to a single extension for Alignments and Tilts
     from pypeit.alignframe import Alignments
     single_table_datamodel(Alignments, output_root, 'ALIGN',
                            'Spatial alignment data; see :class:`~pypeit.alignframe.Alignments`.')
@@ -312,16 +312,16 @@ if __name__ == '__main__':
     single_table_datamodel(WaveTilts, output_root, 'TILTS',
                            'Tilts data; see :class:`~pypeit.wavetilts.WaveTilts`.')
 
-    # MasterEdges
+    # Edges
     edges_datamodel(output_root)
 
-    # MasterSlits
+    # Slits
     slits_datamodel(output_root)
 
-    # MasterWaveCalib
+    # WaveCalib
     wavecalib_datamodel(output_root)
 
-    # MasterFlat
+    # Flat
     flatfield_datamodel(output_root)
 
 

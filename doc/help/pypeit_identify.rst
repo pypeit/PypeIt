@@ -7,12 +7,11 @@
                            [--linear] [--force_save] [--rescale_resid]
                            arc_file slits_file
     
-    Launch PypeIt identify tool, display extracted MasterArc, and load linelist.Run
-    above the Masters/ folder.
+    Launch PypeIt identify tool, display extracted Arc, and load linelist.
     
     positional arguments:
-      arc_file              PypeIt MasterArc file
-      slits_file            PypeIt MasterSlits file
+      arc_file              PypeIt Arc file
+      slits_file            PypeIt Slits file
     
     options:
       -h, --help            show this help message and exit

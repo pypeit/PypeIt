@@ -17,7 +17,7 @@ from scipy.interpolate import interp1d, RegularGridInterpolator, RBFInterpolator
 import numpy as np
 
 from pypeit import msgs
-from pypeit import alignframe, datamodel, flatfield, io, masterframe, specobj, spec2dobj, utils, wavecalib
+from pypeit import alignframe, datamodel, flatfield, io, specobj, spec2dobj, utils, wavecalib
 from pypeit.core.flexure import calculate_image_phase
 from pypeit.core import coadd, extract, findobj_skymask, flux_calib, parse, skysub
 from pypeit.core.procimg import grow_mask
@@ -79,18 +79,18 @@ class DataCube(datamodel.DataContainer):
                  'PYP_SPEC': dict(otype=str, descr='PypeIt: Spectrograph name'),
                  'fluxed': dict(otype=bool, descr='Boolean indicating if the datacube is fluxed.')}
 
+    internals = ['head0',
+                 'filename',
+                 'spectrograph',
+                 'spect_meta'
+                ]
+
     def __init__(self, flux, sig, bpm, PYP_SPEC, blaze_wave, blaze_spec, sensfunc=None, fluxed=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k, values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
-
-    def _init_internals(self):
-        self.head0 = None
-        self.filename = None
-        self.spectrograph = None
-        self.spect_meta = None
 
     def _bundle(self):
         """
@@ -136,7 +136,7 @@ class DataCube(datamodel.DataContainer):
 
         """
         if primary_hdr is None:
-            primary_hdr = io.initialize_header(primary=True)
+            primary_hdr = io.initialize_header()
         # Build the header
         if self.head0 is not None and self.PYP_SPEC is not None:
             spectrograph = load_spectrograph(self.PYP_SPEC)
@@ -158,17 +158,16 @@ class DataCube(datamodel.DataContainer):
         Args:
             ifile (str):  Filename holding the object
         """
-        # Load the file as usual
-        slf = super(DataCube, cls).from_file(ifile)
-
-        # Set the internals
-        hdul = fits.open(ifile)
-        slf.filename = ifile
-        slf.head0 = hdul[1].header  # Actually use the first extension here, since it contains the WCS
-        # Meta
-        slf.spectrograph = load_spectrograph(slf.PYP_SPEC)
-        slf.spect_meta = slf.spectrograph.parse_spec_header(hdul[0].header)
-        return slf
+        with io.fits_open(ifile) as hdu:
+            # Read using the base class
+            self = super().from_hdu(hdu)
+            # Internals
+            self.filename = ifile
+            self.head0 = hdu[1].header  # Actually use the first extension here, since it contains the WCS
+            # Meta
+            self.spectrograph = load_spectrograph(self.PYP_SPEC)
+            self.spect_meta = self.spectrograph.parse_spec_header(hdu[0].header)
+        return self
 
     @property
     def ivar(self):
@@ -829,7 +828,7 @@ def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, al
     numfiles = np.unique(all_idx).size
 
     if whitelightWCS is None:
-        # Generate a master 2D WCS to register all frames
+        # Generate a 2D WCS to register all frames
         coord_min = [np.min(all_ra), np.min(all_dec), np.min(all_wave)]
         coord_dlt = [dspat, dspat, np.max(all_wave) - np.min(all_wave)]
         whitelightWCS = generate_WCS(coord_min, coord_dlt)
@@ -1049,7 +1048,7 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
     idx_max = np.unravel_index(np.argmax(whitelight_img), whitelight_img.shape)
     msgs.info("Highest S/N object located at spaxel (x, y) = {0:d}, {1:d}".format(idx_max[0], idx_max[1]))
 
-    # Generate a master 2D WCS to register all frames
+    # Generate a 2D WCS to register all frames
     coord_min = [np.min(all_ra), np.min(all_dec), np.min(all_wave)]
     coord_dlt = [dspat, dspat, dwv]
     whitelightWCS = generate_WCS(coord_min, coord_dlt)
@@ -1545,6 +1544,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
     # Grab the parset, if not provided
     if parset is None:
+        # TODO :: Use config_specific_par instead?
         parset = spec.default_pypeit_par()
     cubepar = parset['reduce']['cube']
     flatpar = parset['calibrations']['flatfield']
@@ -1717,7 +1717,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         spat_flexure = None  #spec2DObj.sci_spat_flexure
 
         # Load the header
-        hdr = fits.open(fil)[0].header
+        hdr = spec2DObj.head0
 
         # Get the exposure time
         exptime = hdr['EXPTIME']
@@ -1883,13 +1883,14 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         # Loading the alignments frame for these data
         alignments = None
         if cubepar['astrometric']:
-            alignfile = masterframe.construct_file_name(alignframe.Alignments, hdr['TRACMKEY'],
-                                                        master_dir=hdr['PYPMFDIR'])
-            if os.path.exists(alignfile) and cubepar['astrometric']:
-                msgs.info("Loading alignments")
-                alignments = alignframe.Alignments.from_file(alignfile)
+            key = alignframe.Alignments.calib_type.upper()
+            if key in spec2DObj.calibs:
+                alignfile = os.path.join(spec2DObj.calibs['DIR'], spec2DObj.calibs[key])
+                if os.path.exists(alignfile) and cubepar['astrometric']:
+                    msgs.info("Loading alignments")
+                    alignments = alignframe.Alignments.from_file(alignfile)
             else:
-                msgs.warn("Could not find Master Alignment frame:"+msgs.newline()+alignfile)
+                msgs.warn(f'Processed Alignment frame not recorded or not found: {alignfile}')
                 msgs.info("Using slit edges for astrometric transform")
         else:
             msgs.info("Astrometric correction will not be performed")
@@ -1938,7 +1939,11 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
         # Correct for sensitivity as a function of grating angle
         # (this assumes the spectrum of the flatfield lamp has the same shape for all setups)
-        flatfile = masterframe.construct_file_name(flatfield.FlatImages, hdr['FLATMKEY'], master_dir=hdr['PYPMFDIR'])
+        key = flatfield.FlatImages.calib_type.upper()
+        if key not in spec2DObj.calibs:
+            msgs.error('Processed flat calibration file not recorded by spec2d file!')
+        flatfile = os.path.join(spec2DObj.calibs['DIR'], spec2DObj.calibs[key])
+        # TODO: Check that the file exists?
         if cubepar['grating_corr'] and flatfile not in flat_splines.keys():
             msgs.info("Calculating relative sensitivity for grating correction")
             flatimages = flatfield.FlatImages.from_file(flatfile)

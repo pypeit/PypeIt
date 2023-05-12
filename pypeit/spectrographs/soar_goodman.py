@@ -332,6 +332,10 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
         #par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
 
+        # TODO: Temporary fix for failure mode.  Remove once Ryan provides a
+        # fix.
+        par['calibrations']['flatfield']['slit_illum_finecorr'] = False
+
         return par
 
 
@@ -389,7 +393,7 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
@@ -578,7 +582,7 @@ class SOARGoodmanBlueSpectrograph(SOARGoodmanSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed calibration frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set

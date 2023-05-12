@@ -148,7 +148,7 @@ window after using
 the :ref:`pypeit_chk_edges` script, with this explicit call
 (be patient with `ginga`_)::
 
-    pypeit_chk_edges Masters/MasterEdges_A_1_07.fits.gz
+    pypeit_chk_edges Calibrations/Edges_A_1_07.fits.gz
 
 .. image:: ../figures/deimos_edges_image.png
 
@@ -159,7 +159,7 @@ lines indicate the left/right slit edges (green/magenta in more recent versions)
 labels are the internal slit identifiers of PypeIt.
 The cyan numbers are the user-assigned ID values of the slits.
 
-See :doc:`../calibrations/master_edges` for further details.
+See :doc:`../calibrations/edges` for further details.
 
 Arc
 +++
@@ -167,14 +167,14 @@ Arc
 Here is a screen shot of most of the arc image as viewed
 with `ginga`_::
 
-    ginga Masters/MasterArc_A_1_07.fits
+    ginga Calibrations/Arc_A_1_DET07.fits
 
 As typical of most arc images, one sees a series
 of arc lines, here oriented approximately horizontally. 
 
 .. image:: ../figures/deimos_arc_image.png
 
-See :doc:`../calibrations/master_arc` for further details.
+See :doc:`../calibrations/arc` for further details.
 
 Wavelengths
 +++++++++++
@@ -200,7 +200,7 @@ What you hope to see in this QA is:
  - In the upper right, an RMS < 0.1 pixels
  - In the lower right, a random scatter about 0 residuals
 
-See :doc:`../calibrations/master_wvcalib` for further details.
+See :doc:`../calibrations/wvcalib` for further details.
 
 
 2D
@@ -217,7 +217,7 @@ the spectral position.  "Good" measurements included in the parametric trace are
 shown as black points; rejected points are shown in red.  Provided most were not
 rejected, the fit should be good.  An RMS<0.1 is also desired.
 
-See :doc:`../calibrations/master_wvcalib` for further details.
+See :doc:`../calibrations/wvcalib` for further details.
 
 Flatfield
 +++++++++
@@ -229,7 +229,7 @@ Here is a zoom-in screen shot from the first tab in the `ginga`_
 window (pixflat_norm) after using
 :ref:`pypeit_chk_flats`, with this explicit call::
 
-    pypeit_chk_flats Masters/MasterFlat_A_1_07.fits
+    pypeit_chk_flats Calibrations/Flat_A_1_07.fits
 
 .. image:: ../figures/deimos_flat.png
 
@@ -240,7 +240,7 @@ are also plotted (green/red lines; green/magenta in more recent versions).
 The regions of the detector beyond the slit
 boundaries have been set to unit value.
 
-See :doc:`../calibrations/master_flat` for further details.
+See :doc:`../calibrations/flat` for further details.
 
 Spectra
 -------

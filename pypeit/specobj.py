@@ -204,12 +204,35 @@ class SpecObj(datamodel.DataContainer):
     Defines the current datmodel.
     """
 
+    internals = [# Object finding
+                 'smash_peakflux',
+                 'smash_snr',
+                 # Hand
+                 'hand_extract_flag',
+                 'hand_extract_spec',
+                 'hand_extract_spat',
+                 'hand_extract_det',
+                 'hand_extract_fwhm',
+                 # Object profile
+                 'prof_nsigma',
+                 'sign',
+                 'min_spat',
+                 'max_spat',
+                 # Echelle
+                 'ech_frac_was_fit',
+                 'ech_snr'
+                ]
+
     def __init__(self, PYPELINE, DET, OBJTYPE='unknown',
                  SLITID=None, ECH_ORDER=None, ECH_ORDERINDX=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
         super().__init__(d=_d)
+
+        # Initialize internal values that are not None
+        self.hand_extract_flag = False
+        self.sign = 1.
 
         self.FLEX_SHIFT_GLOBAL = 0.
         self.FLEX_SHIFT_LOCAL = 0.
@@ -229,28 +252,6 @@ class SpecObj(datamodel.DataContainer):
         # Mask. Watch out for places where ivar is infinite due to a divide by 0
         slf[mode+'_MASK'] = (slf[mode+'_COUNTS_IVAR'] > 0.) & np.isfinite(slf[mode+'_COUNTS_IVAR'])
         return slf
-
-    def _init_internals(self):
-        # Object finding
-        self.smash_peakflux = None
-        self.smash_snr = None
-
-        # Hand
-        self.hand_extract_flag = False
-        self.hand_extract_spec = None
-        self.hand_extract_spat = None
-        self.hand_extract_det = None
-        self.hand_extract_fwhm = None
-
-        # Object profile
-        self.prof_nsigma = None
-        self.sign = 1.0
-        self.min_spat = None
-        self.max_spat = None
-
-        # Echelle
-        self.ech_frac_was_fit = None #
-        self.ech_snr = None #
 
     def _validate(self):
         """

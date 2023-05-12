@@ -66,12 +66,10 @@ class ChkForCalibs(scriptbase.ScriptBase):
                                 + 'on how to add a new instrument.')
 
         # Initialize PypeItSetup based on the arguments
-        output_path = os.path.join(os.getcwd(), 'setup_files')
-        ps = PypeItSetup.from_file_root(args.root, args.spectrograph, extension=args.extension,
-                                        output_path=output_path)
+        ps = PypeItSetup.from_file_root(args.root, args.spectrograph, extension=args.extension)
 
         # Run the setup
-        ps.run(setup_only=True)#, write_bkg_pairs=args.background)
+        ps.run(setup_only=True)
         is_science = ps.fitstbl.find_frames('science')
 
         msgs.info('Loaded spectrograph {0}'.format(ps.spectrograph.name))
@@ -153,8 +151,28 @@ class ChkForCalibs(scriptbase.ScriptBase):
         answers.pprint_all()
         print('======================================================')
         # Remove setup_files
-        if not args.save_setups:
-            shutil.rmtree(output_path)
+        if args.save_setups:
+            # TODO: This is nearly an exact copy of the code in
+            # `pypeit/scripts/setup.py`.  Consolidate somehow?
+            # Output directory is hard-coded to be 'setup_files'
+            output_path = Path().resolve() / 'setup_files'
+            if not output_path.exists():
+                output_path.mkdir(parents=True)
+            # Write the sorted file,
+            sorted_file = output_path / ps.pypeit_file.replace('.pypeit', '.sorted')
+            ps.fitstbl.write_sorted(sorted_file)
+            # the calib file,
+            calib_file = sorted_file.with_suffix('.calib')
+            caldir = calib_file.parent / ps.par['calibrations']['calib_dir']
+            Calibrations.association_summary(calib_file, ps.fitstbl, ps.spectrograph, caldir,
+                                             overwrite=True)
+            # and the obslog file
+            obslog_file = sorted_file.with_suffix('.obslog')
+            header = ['Auto-generated PypeIt Observing Log',
+                      f'{0}'.format(time.strftime("%a %d %b %Y %H:%M:%S", time.localtime()))]
+            ps.fitstbl.write(output=obslog_file, columns='pypeit', sort_col='mjd', overwrite=True,
+                             header=header)
+
         # Return objects used by unit tests
         return answers, ps
 

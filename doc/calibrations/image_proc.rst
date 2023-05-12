@@ -39,9 +39,10 @@ where:
       regions,
     - :math:`B` is a longer-term pixel-by-pixel bias estimate (in ADU after
       overscan subtraction) using bias images,
-    - the quantity :math:`C=c/s` is the number of electron counts excited by
+    - the quantity :math:`C=N_{\rm frames}\ c/s\prime=c/s` is the number of electron counts excited by
       photons hitting the detector,
-    - :math:`1/s` is an efficiency factor (one of many) that accounts for relative
+    - :math:`1/s=N_{\rm frames}/s\prime` is a factor that accounts for the number
+      of frames contributing to the electron counts, and the relative
       throughput factors (see below) that can be measured from flat-field frames,
     - :math:`D` is the dark-current, i.e., the rate at which the detector
       generates thermal electrons, in e-/pixel/s,
@@ -61,7 +62,7 @@ that isolate the detector bias, dark current, and relative throughput, to find:
 
 .. math::
 
-    c = s\ \left[ g\ (p - O - B) - N_{\rm bin}\ D\ t_{\rm exp} \right]
+    c = s\prime / N_{\rm frames}\ \left[ g\ (p - O - B) - N_{\rm bin}\ D\ t_{\rm exp} \right]
 
 During this process, we also generate a noise model for the result of the image
 processing, calculated using :func:`~pypeit.core.procimg.variance_model`.  The
@@ -69,7 +70,7 @@ full variance model, :math:`V`, is:
 
 .. math::
 
-    V = s^2\ \left[ {\rm max}(0, C) + N_{\rm bin}\ D\ t_{\rm exp} +
+    V = s\prime^2 / N_{\rm frames}^2\ \left[ {\rm max}(0, C) + N_{\rm bin}\ D\ t_{\rm exp} +
             V_{\rm rn} + V_{\rm proc} \right] + \epsilon^2 {\rm max}(0, c)^2
 
 where
@@ -247,7 +248,7 @@ given instrument.
 
 Importantly, PypeIt also subtracts this tabulated dark-current value from
 any provided dark frames.  This means that dark frames, combined into the
-``MasterDark``, are used to correct for the 2D, pixel-to-pixel deviation in the
+``Dark``, are used to correct for the 2D, pixel-to-pixel deviation in the
 measured dark current *with respect to the tabulated value.*  These deviations are
 expected to be small compared to the tabulated dark current value, and a warning
 is thrown if the median difference between the measured and tabulated dark
@@ -264,7 +265,7 @@ dark frame, make sure that you bias-subtract your dark frames!
     Nominally, the exposure time for dark images should be identical to the
     frames they are applied to.  If they are not, PypeIt provides a
     parameter that will allow you to scale the dark frame counts by the ratio of the
-    exposure times to appropriately subtract the counts/s measured by the master
+    exposure times to appropriately subtract the counts/s measured by the processed
     dark frame from the science frame (see the ``dark_expscale`` parameter).
     Take care when using this option!  Also, beware how the dark images are
     processed.  Specifically, scaling by the ratio of the exposure times assumes
@@ -412,8 +413,8 @@ the :doc:`../conventions`.
 
     The basic image processing workflow is largely independent for each frame
     type.  In particular, there's no intelligent automated checking in place for
-    how master frames are processed and whether it is correct to apply those
-    masters to other frames.  For example, if you overscan subtract your bias
+    how calibration frames are processed and whether it is correct to apply those
+    calibrations to other frames.  For example, if you overscan subtract your bias
     frames, you should also overscan subtract all other frames before performing
     bias subtraction, and vice versa.  When altering the processing workflow, it
     is up to the user to make sure that the processing of images is appropriate

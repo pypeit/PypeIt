@@ -1,19 +1,19 @@
 
 .. include:: ../include/links.rst
 
-===========
-MasterTilts
-===========
+=====
+Tilts
+=====
 
 Overview
 ========
 
-This file describes the data model for the ``MasterTilts``.
+This file describes the data model for the ``Tilts``.
 
 
 The images are written to disk as a multi-extension FITS file
-prefixed by ``MasterTilts`` in the ``Masters/`` folder.
-See :ref:`master-naming` for the naming convention.
+prefixed by ``Tilts`` in the ``Calibrations/`` folder.
+See :ref:`calib-naming` for the naming convention.
 
 
 Inspecting

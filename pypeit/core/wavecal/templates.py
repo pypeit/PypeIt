@@ -49,6 +49,8 @@ else:
     # print("You may wish to set the PYPEIT_DEV environment variable")
     pass
 
+# TODO: Rename the "Master" files here?
+
 
 def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
                    normalize=False, subtract_conti=False, wvspec=None,
@@ -61,7 +63,7 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
     Args:
         in_files (list or str):
             Wavelength solution files, XIDL or PypeIt
-            If PypeIt, they can be a mix of MasterWaveCalib JSON and FITS files
+            If PypeIt, they can be a mix of WaveCalib JSON and FITS files
         slits (list):
             Slits in the archive files to use
         wv_cuts (list):
