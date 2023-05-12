@@ -20,7 +20,7 @@ How to build archived sensitivity functions
    .. code-block:: bash
 
         mkdir sensfunc_files
-        PypeIt-development-suite/sensfunc_archive/create_deimos_sensfuncs.py all source_files sensfunc_files
+        PypeIt-development-suite/sensfunc_archive/create_deimos_sensfuncs.py all data_products sensfunc_files
 
 4. Copy the results to the PypeIt repository.
 
@@ -91,15 +91,18 @@ Combining multiple sensivity functions
 
 The archived DEIMOS sensitivity functions are created by combining 
 multiple sensivity functions from different detectors at different 
-grating tilts to get a wider wavelength coverage.
+grating tilts to get a wider wavelength coverage. The steps in this
+process are typically:
 
-1 choose sensitivity functions for grating
+   1 Choose sensitivity functions for grating. The functions should have good wavelength coverage,
+     and low airmass.
 
-2 translate them up/down to roughly match
+   2 Start with the bluest sensitivity function and translate the next function up/down to roughly match.
+     One or both function may be truncated to fit.
 
-3a cover detector gaps by truncatating and concatenating sensfuncs
-or
-3b truncating and joining with a polynomial fit.
+   3 If the gap between sensitivity function isn't smooth (for example on a detector boundary) 
+     a polynomial fit can be used to join them.
 
-Helper functiosn in blah. See jupyter notebook blah for an example.
+Helper functions in TODO/stitcutils.py. See jupyter notebook todo for a detailed example of how the sesnitivity
+functions for the 600ZD DEIMOS grating were stitched together.
 
