@@ -14,12 +14,10 @@ import datetime
 from IPython import embed
 
 import numpy as np
-import yaml
 
 from astropy import table, time
 
 from pypeit import msgs
-from pypeit import utils
 from pypeit import inputfiles
 from pypeit.core import framematch
 from pypeit.core import flux_calib
@@ -28,7 +26,6 @@ from pypeit.core import meta
 from pypeit.io import dict_to_lines
 from pypeit.par import PypeItPar
 from pypeit.bitmask import BitMask
-from pypeit.pypmsgs import PypeItError
 
 
 # TODO: Turn this into a DataContainer
@@ -1333,7 +1330,9 @@ class PypeItMetaData:
                 try:
                     type_bits[indx] = self.type_bitmask.turn_on(type_bits[indx], flag=ftypes.split(','))
                 except ValueError as err:
-                    msgs.error(f'Improper frame type supplied!{msgs.newline()}Check your PypeIt Reduction File')
+                    msgs.error(f'Improper frame type supplied!{msgs.newline()}'
+                               f'{err}{msgs.newline()}'
+                               'Check your PypeIt Reduction File')
             return self.set_frame_types(type_bits, merge=merge)
     
         # Loop over the frame types

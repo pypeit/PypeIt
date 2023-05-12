@@ -176,7 +176,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
                         "600/6750":"DV7", "831/8000":"DV8", "1200/5000":"DV9",
                         "2160/5000":"DV10", "UNKNOWN":"DVxx"}
             if (grating_kwd := headarr[0]['GRATING']) not in gratings:
-                raise ValueError(f"Grating value {grating_kwd} not recognized.")
+                msgs.error(f"Grating value {grating_kwd} not recognized.")
             if grating_kwd == "UNKNOWN":
                 msgs.warn(f"Grating not selected in the LOUI; {msgs.newline()}"
                           "Fix the header keyword GRATING before proceeding.")
