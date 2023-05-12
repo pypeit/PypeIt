@@ -2449,7 +2449,7 @@ class WavelengthSolutionPar(ParSet):
                  nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
                  rms_threshold=None, match_toler=None, func=None, n_first=None, n_final=None,
                  sigrej_first=None, sigrej_final=None, numsearch=None,
-                 nfitpix=None, IDpixels=None, IDwaves=None, refframe=None,
+                 nfitpix=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
                  ech_separate_2d=None):
 
@@ -2680,12 +2680,6 @@ class WavelengthSolutionPar(ParSet):
         descr['nfitpix'] = 'Number of pixels to fit when deriving the centroid of the arc ' \
                            'lines (an odd number is best)'
 
-        dtypes['IDpixels'] = [int, float, list]
-        descr['IDpixels'] = 'One or more pixels at which to manually identify a line'
-
-        dtypes['IDwaves'] = [int, float, list]
-        descr['IDwaves'] = 'Wavelengths of the manually identified lines'
-
         # TODO: What should the default be?  None or 'heliocentric'?
         defaults['refframe'] = 'heliocentric'
         options['refframe'] = WavelengthSolutionPar.valid_reference_frames()
@@ -2710,7 +2704,7 @@ class WavelengthSolutionPar(ParSet):
                    'fwhm', 'fwhm_fromlines', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
-                   'IDpixels', 'IDwaves', 'refframe', 'nsnippet', 'use_instr_flag',
+                   'refframe', 'nsnippet', 'use_instr_flag',
                    'wvrng_arxiv']
 
         badkeys = np.array([pk not in parkeys for pk in k])
