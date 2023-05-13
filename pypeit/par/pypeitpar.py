@@ -4579,7 +4579,7 @@ class PypeItPar(ParSet):
         Examples:
             To turn off the slit-illumination correction for all frames:
 
-            >>> from pypeit.spectrographs import load_spectrograph
+            >>> from pypeit.spectrographs.util import load_spectrograph
             >>> spec = load_spectrograph('shane_kast_blue')
             >>> par = spec.default_pypeit_par()
             >>> par.reset_all_processimages_par(use_illumflat=False)
