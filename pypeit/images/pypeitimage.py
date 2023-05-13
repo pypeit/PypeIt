@@ -3,12 +3,13 @@
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import os
 import inspect
 
 from IPython import embed
 
 import numpy as np
+
+from astropy.io import fits
 
 from pypeit import msgs
 from pypeit.images.imagebitmask import ImageBitMaskArray
@@ -17,8 +18,8 @@ from pypeit.images.mosaic import Mosaic
 from pypeit.core import procimg
 from pypeit.display import display
 from pypeit import datamodel
+from pypeit.calibframe import CalibFrame
 from pypeit import utils
-from pypeit import masterframe
 
 
 class PypeItImage(datamodel.DataContainer):
@@ -88,16 +89,13 @@ class PypeItImage(datamodel.DataContainer):
         process_steps (:obj:`list`):
             List of steps executed during processing of the image data; see
             :class:`~pypeit.images.rawimage.RawImage.process`.
-        master_key (:obj:`str`):
-            Master key, only for Master frames
-        master_dir (:obj:`str`):
-            Master directory, only for Master frames
     """
 
     version = '1.3.0'
     """Datamodel version number"""
 
-    datamodel = {'image': dict(otype=np.ndarray, atype=np.floating, descr='Primary image data'),
+    datamodel = {'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
+                 'image': dict(otype=np.ndarray, atype=np.floating, descr='Primary image data'),
                  'ivar': dict(otype=np.ndarray, atype=np.floating,
                               descr='Inverse variance image'),
                  'nimg': dict(otype=np.ndarray, atype=np.integer,
@@ -122,7 +120,6 @@ class PypeItImage(datamodel.DataContainer):
                                   descr='The detector (see :class:`~pypeit.images.detector_container.DetectorContainer`) '
                                         'or mosaic (see :class:`~pypeit.images.mosaic.Mosaic`) '
                                         'parameters'),
-                 'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
                  'units': dict(otype=str, descr='(Unscaled) Pixel units (e- or ADU)'),
                  # TODO: Consider forcing exptime to be a float.
                  'exptime': dict(otype=(int, float), descr='Effective exposure time (s)'),
@@ -133,36 +130,35 @@ class PypeItImage(datamodel.DataContainer):
                                             'and SlitTrace')}
     """Data model components."""
 
+    internals = ['process_steps', 'files', 'rawheadlist']
+
     @classmethod
     def from_pypeitimage(cls, pypeitImage):
         """
-        Generate an instance
-        This enables building the Child from the Parent, e.g. a MasterFrame Image
+        Instantiate the object from an existing :class:`PypeItImage`.
 
-        This is *not* a deepcopy
+        This allows for the general construction of a :class:`PypeItImage` that
+        can then be subsequently decorated by an appropriate type with default
+        attributes.  See, e.g., :class:`~pypeit.images.buildimage.ArcImage`.
+
+        Note that this is *not* a deep copy.
 
         Args:
             pypeitImage (:class:`PypeItImage`):
-
-        Returns:
-            pypeitImage (:class:`PypeItImage`):
-
+                The input image to convert into the appropriate type.
         """
         _d = {}
         for key in pypeitImage.datamodel.keys():
             if pypeitImage[key] is None:
                 continue
             _d[key] = pypeitImage[key]
-        # Instantiate
-        slf = cls(**_d)
-        # Internals
-        slf.process_steps = pypeitImage.process_steps
-        slf.files = pypeitImage.files
-        slf.rawheadlist = pypeitImage.rawheadlist
-        slf.master_dir = pypeitImage.master_dir
-        slf.master_key = pypeitImage.master_key
-        # Return
-        return slf
+        # Instantiate using the derived class
+        self = cls(**_d)
+        # Copy the PypeItImage internals
+        for attr in pypeitImage.internals:
+            setattr(self, attr, getattr(pypeitImage, attr))
+        # Done
+        return self
 
     def __init__(self, image, ivar=None, nimg=None, amp_img=None, det_img=None, rn2img=None,
                  base_var=None, img_scale=None, fullmask=None, detector=None, spat_flexure=None,
@@ -217,18 +213,6 @@ class PypeItImage(datamodel.DataContainer):
                 self.update_mask('USER', action='turn_off')
             self.update_mask('USER', indx=crmask)
 
-    def _init_internals(self):
-        """
-        Initialize attributes that are not part of the datamodel.
-        """
-#        self.head0 = None
-        self.process_steps = None
-        self.files = None
-        self.rawheadlist = None
-        # Master stuff
-        self.master_key = None
-        self.master_dir = None
-
     def _bundle(self):
         """
         Package the datamodel for writing.
@@ -261,7 +245,7 @@ class PypeItImage(datamodel.DataContainer):
         return d
 
     @classmethod
-    def from_hdu(cls, hdu, hdu_prefix=None, chk_version=True):
+    def from_hdu(cls, hdu, chk_version=True, hdu_prefix=None):
         """
         Instantiate the object from an HDU extension.
 
@@ -274,20 +258,22 @@ class PypeItImage(datamodel.DataContainer):
         Args:
             hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
                 The HDU(s) with the data to use for instantiation.
-            hdu_prefix (:obj:`str`, optional):
-                Maintained for consistency with the base class but is
-                not used by this method.
             chk_version (:obj:`bool`, optional):
                 If True, raise an error if the datamodel version or
                 type check failed. If False, throw a warning only.
+            hdu_prefix (:obj:`str`, optional):
+                Only parse HDUs with extension names matched to this prefix. If
+                None, :attr:`hdu_prefix` is used. If the latter is also None, no
+                prefix is expected.
         """
+        # TODO: Is there a way to read the mask array directly using the
+        # ext_pseudo functionality?
         # Set the default hdu prefix if none is provided
-        if hdu_prefix is None:
-            hdu_prefix = cls.hdu_prefix
+        _hdu_prefix = cls.hdu_prefix if hdu_prefix is None else hdu_prefix
 
         # Need to separately parse the mask because it is not called 'MASK'.
         # Set the mask extension name.
-        mask_ext = 'FULLMASK' if hdu_prefix is None else f'{hdu_prefix}FULLMASK'
+        mask_ext = 'FULLMASK' if _hdu_prefix is None else f'{_hdu_prefix}FULLMASK'
 
         # Get all the extensions
         ext = [h.name for h in hdu] if hasattr(hdu, '__len__') else [hdu.name]
@@ -298,7 +284,7 @@ class PypeItImage(datamodel.DataContainer):
 
         # Parse everything *but* the mask extension
         d, version_passed, type_passed, parsed_hdus \
-                = super()._parse(hdu, ext=ext, hdu_prefix=hdu_prefix)
+                = super()._parse(hdu, ext=ext, hdu_prefix=_hdu_prefix)
         if not type_passed:
             msgs.error(f'The HDU(s) cannot be parsed by a {cls.__name__} object!')
         if not version_passed:
@@ -714,6 +700,11 @@ class PypeItImage(datamodel.DataContainer):
             - the detector from the first image (``self``) is used for the
               returned image and the detector for the ``other`` image is
               *ignored*
+            - if the spatial flexure is defined for the first image, it is
+              propagated regardless of the value for the 2nd image.  If it is
+              also defined for the 2nd image and the flexure is different from
+              the first image, a warning is issued.  If the flexure is only
+              defined for the 2nd image, it is ignored.
 
         Args:
             other (:class:`~pypeit.images.pypeitimage.PypeItImage`):
@@ -788,7 +779,14 @@ class PypeItImage(datamodel.DataContainer):
         # TODO: Instead raise an error if they're not the same
         new_units = self.units if self.units == other.units else None
 
-        # Create the new image
+        # Spatial flexure
+        spat_flexure = self.spat_flexure
+        if other.spat_flexure is not None and spat_flexure is not None \
+                and other.spat_flexure != spat_flexure:
+            msgs.warn(f'Spatial flexure different for images being subtracted ({spat_flexure} '
+                      f'vs. {other.spat_flexure}).  Adopting {spat_flexure}.')
+
+        # Create the new image.
         # TODO: We should instead *copy* the detector object; otherwise, it's
         # possible that it will be shared between multiple images.  Nominally,
         # this should be okay because the detector data is meant to be static,
@@ -796,13 +794,18 @@ class PypeItImage(datamodel.DataContainer):
         new_pypeitImage = PypeItImage(newimg, ivar=new_ivar, nimg=new_nimg, rn2img=new_rn2,
                                       base_var=new_base, img_scale=new_img_scale,
                                       fullmask=new_fullmask, detector=self.detector,
-                                      PYP_SPEC=new_spec, units=new_units)
+                                      spat_flexure=spat_flexure, PYP_SPEC=new_spec,
+                                      units=new_units)
 
         # Files
         if self.files is not None and other.files is not None:
             new_pypeitImage.files = self.files + other.files
 
-        return new_pypeitImage
+        # Return the result using the `from_pypeitimage` instantiation method to
+        # ensure the type of the output image is identical to the type of self.
+        # It does not matter whether it's done here or above when instantiating
+        # new_pypeitimage.  Both properly propagate the `files` attribute.
+        return self.__class__.from_pypeitimage(new_pypeitImage)
 
     def show(self):
         """
@@ -823,4 +826,173 @@ class PypeItImage(datamodel.DataContainer):
         repr = repr + '>'
         return repr
 
+    def _base_header(self, hdr=None):
+        """
+        Build the generic header written to all PypeIt images.
+
+        Args:
+            hdr (`astropy.io.fits.Header`, optional):
+                Header object to update.  The object is modified in-place and
+                also returned. If None, an empty header is instantiated, edited,
+                and returned.
+
+        Returns:
+            `astropy.io.fits.Header`_: The initialized (or edited) fits header.
+        """
+        # Standard init
+        _hdr = super()._base_header(hdr=hdr)
+
+        #   - List the completed steps
+        if self.process_steps is not None:
+            _hdr['STEPS'] = (','.join(self.process_steps), 'Completed reduction steps')
+        #   - Provide the file names
+        if self.files is not None:
+            nfiles = len(self.files)
+            ndig = int(np.log10(nfiles)) + 1
+            for i in range(nfiles):
+                _hdr['F{0}'.format(i + 1).zfill(ndig)] \
+                        = (self.files[i], 'PypeIt: Processed raw file')
+        # Return
+        return _hdr
+
+
+class PypeItCalibrationImage(PypeItImage, CalibFrame):
+    """
+    Abstract base class used with PypeIt calibration images.
+    
+    This class inherits the core datamodel attributes and functionality from
+    :class:`PypeItImage`, including the version number, but uses the naming
+    conventions driven by :class:`~pypeit.calibframe.CalibFrame`.  Some
+    more-specific inheritance notes:
+
+        - Inheritance order matters!  The order must be :class:`PypeItImage`,
+          then :class:`~pypeit.calibframe.CalibFrame` to ensure the correct
+          method resolution order.
+
+        - The datamodel version is inherited from :class:`PypeItImage`.
+
+        - There is no need to combine the datamodels because ``PYP_SPEC`` is
+          already part of :class:`PypeItImage`.
+
+        - The ``__init__`` function is inherited from :class:`PypeItImage`.
+
+        - The ``_bundle`` method is inherited from :class:`PypeItImage`; the
+          ``to_file`` method is inherited from
+          :class:`~pypeit.calibframe.CalibFrame`; ``from_hdu`` is specific to
+          this class because we need to combine the :class:`PypeItImage` and
+          :class:`~pypeit.calibframe.CalibFrame` functionality; all other IO
+          methods are inherited directly from
+          :class:`~pypeit.datamodel.DataContainer`.
+
+    """
+
+    internals = PypeItImage.internals + CalibFrame.internals
+    """
+    Combines internals from both base classes.
+    """
+    
+    @classmethod
+    def from_hdu(cls, hdu, chk_version=True, hdu_prefix=None, **kwargs):
+        """
+        Instantiate the object from an HDU extension.
+
+        This uses the :func:`PypeItImage.from_hdu` method, and then parses the
+        necessary :class:`~pypeit.calibframe.CalibFrame`-specific attributes
+        from one of the relevant headers.
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
+                The HDU(s) with the data to use for instantiation.
+            chk_version (:obj:`bool`, optional):
+                If True, raise an error if the datamodel version or
+                type check failed. If False, throw a warning only.
+            hdu_prefix (:obj:`str`, optional):
+                Only parse HDUs with extension names matched to this prefix. If
+                None, :attr:`hdu_prefix` is used. If the latter is also None, no
+                prefix is expected.
+            **kwargs:
+                Passed directly to :func:`~pypeit.datamodel.DataContainer._parse`.
+        """
+        # NOTE: Python method resolution order dictates that this call uses the
+        # PypeItImage method.
+        self = super().from_hdu(hdu, chk_version=chk_version, hdu_prefix=hdu_prefix, **kwargs)
+
+        if isinstance(hdu, fits.HDUList):
+            # Find a header with the correct datamodel class
+            hdr_to_parse = None
+            for h in hdu:
+                if 'DMODCLS' in h.header and h.header['DMODCLS'] == cls.__name__:
+                    hdr_to_parse = h.header
+                    break
+            if hdr_to_parse is None:
+                msgs.error('Provided HDUList does not have any HDUs constructed by the correct '
+                           f'datamodel class, {cls.__name__}.')
+        else:
+            hdr_to_parse = hdu.header
+        self.calib_keys_from_header(hdr_to_parse)
+        return self
+
+    @classmethod
+    def from_pypeitimage(cls, pypeitImage, calib_dir=None, setup=None, calib_id=None,
+                         detname=None):
+        """
+        Instantiate the object from an existing :class:`PypeItImage`.
+
+        This allows for the general construction of a :class:`PypeItImage` that
+        can then be subsequently decorated by an appropriate type with default
+        attributes.  See, e.g., :class:`~pypeit.images.buildimage.ArcImage`.
+
+        .. note::
+
+            - This is *not* a deep copy.
+
+            - To appropriately set the relevant
+              :class:`~pypeit.calibframe.CalibFrame` internals, **all** of the
+              optional arguments must be provided.
+
+        Args:
+            pypeitImage (:class:`PypeItImage`):
+                The input image to convert into the appropriate type.
+            calib_dir (:obj:`str`, `Path`_, optional):
+                Output directory for the processed calibration frames
+            setup (:obj:`str`, optional):
+                The string identifier for the instrument setup/configuration;
+                see :func:`~pypeit.metadata.PypeItMetaData.unique_configurations`.
+            calib_id (:obj:`str`, :obj:`list`, :obj:`int`):
+                Identifiers for one or more calibration groups for this
+                calibration frame.  See
+                :func:`~pypeit.calibframe.CalibFrame.ingest_calib_id`.
+            detname (:obj:`str`):
+                The identifier used for the detector or detector mosaic for the
+                relevant instrument; see
+                :func:`~pypeit.spectrograph.spectrograph.Spectrograph.get_det_name`.
+
+        Returns:
+            :class:`PypeItImage`: Image with the appropriate type and
+            :class:`~pypeit.calibframe.CalibFrame` internals.
+        """
+        # Instantiate from a PypeItImage
+        self = super().from_pypeitimage(pypeitImage)
+        if None in [calib_dir, setup, calib_id, detname]:
+            return self
+        # Set the output paths
+        self.set_paths(calib_dir, setup, calib_id, detname)
+        # Done
+        return self
+
+    def _base_header(self, hdr=None):
+        """
+        Override the base class functions to combine the operations of both base
+        classes.
+        """
+        return CalibFrame._base_header(self, hdr=PypeItImage._base_header(self, hdr=hdr))
+
+    def sub(self, other):
+        """
+        Over-ride subtraction function from :class:`PypeItImage` to ensure that
+        the internals are propagated.
+        """
+        result = super().sub(other)
+        result.copy_calib_internals(self)
+        return result
 

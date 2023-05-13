@@ -35,7 +35,7 @@ Before executing ``run_pypeit``, you must have
     #. Edited the :doc:`pypeit_file` in that directory as recommended for a
        successful reduction.
 
-    #. (optional) Removed any calibration files in the ``Masters/`` folder.
+    #. (optional) Removed any calibration files in the ``Calibrations/`` folder.
        This is particularly necessary if you're re-reducing data that was
        previously reduced by an older PypeIt version.  However, when in doubt,
        it's good practice to perform a fresh reduction by removing these files
@@ -82,10 +82,8 @@ then remove them and run without ``-o``.
 -m
 ++
 
-This ``-m`` or ``--do_not_use_masters`` flag tells PypeIt to **avoid**
-using any existing
-calibration frames (referred to as "Master Frames") instead
-of loading from disk.
+This ``-m`` or ``--do_not_use_calibs`` flag tells PypeIt to **avoid** using any
+existing calibration frames instead of loading from disk.
 
 Using this can *greatly* slow down the code.
 

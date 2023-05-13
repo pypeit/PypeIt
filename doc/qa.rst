@@ -20,7 +20,7 @@ HTML
 
 When the code completes (or crashes out), a set of
 HTML files are generated in the ``QA/`` folder.  There
-is one HTML file per MasterFrame set and one
+is one HTML file per calibration frame set and one
 HTML file per science exposure.  Example names are
 ``MF_A.html``.
 
@@ -58,7 +58,7 @@ calibration.
    pixel number and wavelength, and the bottom-right plot shows the residuals as
    a function of pixel number.
 
-See :doc:`calibrations/master_wvcalib` for more discussion of this QA.
+See :doc:`calibrations/wvcalib` for more discussion of this QA.
 
 .. _qa-wave-tilt:
 
@@ -75,7 +75,7 @@ in the wavelength as a function of spatial position within the slits.
    horizontal line of black dots is an OH line.  Red points were rejected in the
    2D fitting.  Provided most were not rejected, the fit should be good.
 
-See :doc:`calibrations/master_tilts` for more discussion of this QA.
+See :doc:`calibrations/tilts` for more discussion of this QA.
 
 
 Exposure QA

@@ -8,7 +8,7 @@ Functionality Improvements / User-level Updates
 - Refactor quicklook scripts
 - Added spectral flexure and reference frame corrections for IFU data
 - Allow separate sky frame to be used for sky subtraction with IFU data
-- Limit the images written to the MasterEdges file to only the trace
+- Limit the images written to the Edges file to only the trace
   image, mask, and detector.
 
 Instrument-specific Updates

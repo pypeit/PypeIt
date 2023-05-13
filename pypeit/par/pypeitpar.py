@@ -60,6 +60,7 @@ assuming you want it to be accessed throughout the code.
 .. include:: ../include/links.rst
 
 """
+from pathlib import Path
 import os
 import warnings
 import inspect
@@ -144,7 +145,7 @@ class FrameGroupPar(ParSet):
         # TODO: JFH This is not documented. What are the options for useframe and what the  does it do?
         defaults['useframe'] = None
         dtypes['useframe'] = str
-        descr['useframe'] = 'A master calibrations file to use if it exists.'
+        descr['useframe'] = 'A calibrations file to use if it exists.'
 
         defaults['exprng'] = [None, None]
         dtypes['exprng'] = list
@@ -214,7 +215,7 @@ class ProcessImagesPar(ParSet):
                  n_lohi=None, #replace=None,
                  lamaxiter=None, grow=None,
                  comb_sigrej=None,
-                 master_setup_and_bit=None,
+#                 calib_setup_and_bit=None,
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None,
                  use_biasimage=None, use_overscan=None, use_darkimage=None,
                  dark_expscale=None,
@@ -411,9 +412,10 @@ class ProcessImagesPar(ParSet):
         dtypes['objlim'] = [int, float]
         descr['objlim'] = 'Object detection limit in LA cosmics routine'
 
-        defaults['master_setup_and_bit'] = None
-        dtypes['master_setup_and_bit'] = str
-        descr['master_setup_and_bit'] = 'Over-ride the master setup and bit, e.g. "A_7".  Only recommended for use with quicklook'
+#        defaults['calib_setup_and_bit'] = None
+#        dtypes['calib_setup_and_bit'] = str
+#        descr['calib_setup_and_bit'] = 'Over-ride the calibration setup and bit, e.g. "A_7".  ' \
+#                                       'Only recommended for use with quicklook.'
 
         # Instantiate the parameter set
         super(ProcessImagesPar, self).__init__(list(pars.keys()),
@@ -433,7 +435,7 @@ class ProcessImagesPar(ParSet):
                    'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
                    'dark_expscale', 'spat_flexure_correct', 'use_illumflat', 'use_specillum',
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
-                   'satpix', 'master_setup_and_bit',
+                   'satpix', #'calib_setup_and_bit',
                    'n_lohi', 'mask_cr',
                    'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact', 'sigclip',
                    'sigfrac', 'objlim']
@@ -1238,12 +1240,13 @@ class Coadd2DPar(ParSet):
                               'I.e., only this/these slit/s will be coadded.'
 
         defaults['offsets'] = 'auto'
-        dtypes['offsets'] = [list, str]
+        dtypes['offsets'] = [str, list]
         descr['offsets'] = 'Offsets for the images being combined (spat pixels). Options are: ' \
-                           '``maskdef_offsets``, ``auto``, and a list of offsets. ' \
+                           '``maskdef_offsets``, ``header``, ``auto``, and a list of offsets. ' \
                            'Use ``maskdef_offsets`` to use the offsets computed during the slitmask ' \
-                           'design matching (currently available for DEIMOS and MOSFIRE only). If ``auto`` ' \
-                           'is chosen, PypeIt will try to compute the offsets using a reference object ' \
+                           'design matching (currently available for DEIMOS and MOSFIRE only). If equal ' \
+                           'to ``header``, the dither offsets recorded in the header, when available, will be used. ' \
+                           'If ``auto`` is chosen, PypeIt will try to compute the offsets using a reference object ' \
                            'with the highest S/N, or an object selected by the user (see ``user_obj``). ' \
                            'If a list of offsets is provided, PypeIt will use it.'
 
@@ -1326,7 +1329,7 @@ class CubePar(ParSet):
     """
 
     def __init__(self, slit_spec=None, relative_weights=None, combine=None, output_filename=None,
-                 standard_cube=None, reference_image=None, save_whitelight=None, method=None,
+                 standard_cube=None, reference_image=None, save_whitelight=None, whitelight_range=None, method=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None, astrometric=None, grating_corr=None, scale_corr=None,
                  skysub_frame=None, spec_subpixel=None, spat_subpixel=None):
@@ -1391,8 +1394,19 @@ class CubePar(ParSet):
                                    'will be given by the "output_filename" variable with a suffix "_whitelight". ' \
                                    'Note that the white light image collapses the flux along the wavelength axis, ' \
                                    'so some spaxels in the 2D white light image may have different wavelength ' \
-                                   'ranges. If combine=False, the individual spec3d files will have a suffix ' \
-                                   '"_whitelight".'
+                                   'ranges. To set the wavelength range, use the "whitelight_range" parameter. ' \
+                                   'If combine=False, the individual spec3d files will have a suffix "_whitelight".'
+
+        defaults['whitelight_range'] = [None, None]
+        dtypes['whitelight_range'] = list
+        descr['whitelight_range'] = 'A two element list specifying the wavelength range over which to generate the ' \
+                                    'white light image. The first (second) element is the minimum (maximum) ' \
+                                    'wavelength to use. If either of these elements are None, PypeIt will ' \
+                                    'automatically use a wavelength range that ensures all spaxels have the ' \
+                                    'same wavelength coverage. Note, if you are using a reference_image to align ' \
+                                    'all frames, it is preferable to use the same white light wavelength range ' \
+                                    'for all white light images. For example, you may wish to use an emission ' \
+                                    'line map to register two frames.' \
 
         defaults['method'] = "subpixel"
         dtypes['method'] = str
@@ -1498,7 +1512,8 @@ class CubePar(ParSet):
                                 'for the sky subtraction, specify the relative path+file to the spec2D file that you ' \
                                 'would like to use for the sky subtraction. The model fit to the sky of the specified ' \
                                 'frame will be used. Note, the sky and science frames do not need to have the same ' \
-                                'exposure time.'
+                                'exposure time; the sky model will be scaled to the science frame based on the ' \
+                                'relative exposure time.'
 
         # Instantiate the parameter set
         super(CubePar, self).__init__(list(pars.keys()),
@@ -1517,7 +1532,7 @@ class CubePar(ParSet):
         parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'reference_image', 'save_whitelight',
                    'method', 'spec_subpixel', 'spat_subpixel', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
                    'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'relative_weights', 'combine',
-                   'astrometric', 'grating_corr', 'scale_corr', 'skysub_frame']
+                   'astrometric', 'grating_corr', 'scale_corr', 'skysub_frame', 'whitelight_range']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -1532,6 +1547,8 @@ class CubePar(ParSet):
         allowed_methods = ["subpixel", "NGP"]#, "resample"
         if self.data['method'] not in allowed_methods:
             raise ValueError("The 'method' must be one of:\n"+", ".join(allowed_methods))
+        if len(self.data['whitelight_range']) != 2:
+            raise ValueError("The 'whitelight_range' must be a two element list of either NoneType or float")
 
 
 class FluxCalibratePar(ParSet):
@@ -3371,7 +3388,7 @@ class WaveTiltsPar(ParSet):
         defaults['spat_order'] = 3
         dtypes['spat_order'] = [int, float, list, np.ndarray]
         descr['spat_order'] = 'Order of the legendre polynomial to be fit to the the tilt of an arc line. This parameter determines ' \
-                              'both the orer of the *individual* arc line tilts, as well as the order of the spatial direction of the ' \
+                              'both the order of the *individual* arc line tilts, as well as the order of the spatial direction of the ' \
                               '2d legendre polynomial (spatial, spectral) that is fit to obtain a global solution for the tilts across the ' \
                               'slit/order. This can be a single number or a list/array providing the value for each slit'
 
@@ -3475,19 +3492,6 @@ class WaveTiltsPar(ParSet):
                 raise ValueError('Continuum rejection threshold must be a single number or a '
                                  'two-element list/array.')
 
-    #@staticmethod
-    #def valid_methods():
-    #    """
-    #    Return the valid methods to use for tilt tracing.
-    #    """
-    #    return [ 'pca', 'spca', 'spline', 'interp', 'perp', 'zero' ]
-
-#    def validate(self):
-#        # Convert param to list
-#        if isinstance(self.data['params'], int):
-#            self.data['params'] = [self.data['params']]
-#        pass
-
 
 class ReducePar(ParSet):
     """
@@ -3588,8 +3592,8 @@ class FindObjPar(ParSet):
     def __init__(self, trace_npoly=None, snr_thresh=None, find_trim_edge=None,
                  find_maxdev=None, find_extrap_npoly=None, maxnumber_sci=None, maxnumber_std=None,
                  find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None,
-                 ech_find_nabove_min_snr=None, skip_second_find=None, skip_final_global=None, skip_skysub=None,
-                 find_negative=None, find_min_max=None):
+                 ech_find_nabove_min_snr=None, skip_second_find=None, skip_final_global=None,
+                 skip_skysub=None, find_negative=None, find_min_max=None, std_spec1d=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -3708,6 +3712,14 @@ class FindObjPar(ParSet):
                                 'detector. It only used for object finding. This parameter is helpful if your object only ' \
                                 'has emission lines or at high redshift and the trace only shows in part of the detector.'
 
+        defaults['std_spec1d'] = None
+        dtypes['std_spec1d'] = str
+        descr['std_spec1d'] = 'A PypeIt spec1d file of a previously reduced standard star.  The ' \
+                              'trace of the standard star spectrum is used as a crutch for ' \
+                              'tracing the object spectra, when a direct trace is not possible ' \
+                              '(i.e., faint sources).  If provided, this overrides use of any ' \
+                              'standards included in your pypeit file; the standard exposures ' \
+                              'will still be reduced.'
 
         # Instantiate the parameter set
         super(FindObjPar, self).__init__(list(pars.keys()),
@@ -3726,8 +3738,9 @@ class FindObjPar(ParSet):
         parkeys = ['trace_npoly', 'snr_thresh', 'find_trim_edge',
                    'find_extrap_npoly', 'maxnumber_sci', 'maxnumber_std',
                    'find_maxdev', 'find_fwhm', 'ech_find_max_snr',
-                   'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find', 'skip_final_global',
-                   'skip_skysub', 'find_negative', 'find_min_max']
+                   'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find',
+                   'skip_final_global', 'skip_skysub', 'find_negative', 'find_min_max',
+                   'std_spec1d']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -3739,7 +3752,9 @@ class FindObjPar(ParSet):
         return cls(**kwargs)
 
     def validate(self):
-        pass
+        if self.data['std_spec1d'] is not None \
+                and not Path(self.data['std_spec1d']).resolve().exists():
+            msgs.error(f'{self.data["std_spec1d"]} does not exist!')
 
 
 class SkySubPar(ParSet):
@@ -3796,14 +3811,14 @@ class SkySubPar(ParSet):
         # Masking
         defaults['user_regions'] = None
         dtypes['user_regions'] = [str, list]
-        descr['user_regions'] = 'A user-defined sky regions mask can be set using this keyword. To allow ' \
-                                'the code to identify the sky regions automatically, set this variable to ' \
-                                'an empty string. If you wish to set the sky regions, The text should be ' \
-                                'a comma separated list of percentages to apply to _all_ slits ' \
-                                ' For example: The following string   :10,35:65,80:   would select the ' \
-                                'first 10%, the inner 30%, and the final 20% of _all_ slits. Alternatively, you ' \
-                                'can also set the argument to be "master", which will load a MasterSkyRegions ' \
-                                'file that the user has generated with the pypeit_skysub_regions tool.'
+        descr['user_regions'] = 'Provides a user-defined mask defining sky regions.  By ' \
+                                'default, the sky regions are identified automatically.  To ' \
+                                'specify sky regions for *all* slits, provide a comma separated ' \
+                                'list of percentages.  For example, setting user_regions = ' \
+                                ':10,35:65,80: selects the first 10%, the inner 30%, and the ' \
+                                'final 20% of *all* slits as containing sky.  Setting ' \
+                                'user_regions = user will attempt to load any SkyRegions ' \
+                                'files generated by the user via the pypeit_skysub_regions tool.'
 
         defaults['mask_by_boxcar'] = False
         dtypes['mask_by_boxcar'] = bool
@@ -3969,12 +3984,11 @@ class CalibrationsPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
     """
-    def __init__(self, master_dir=None, setup=None, bpm_usebias=None, biasframe=None,
-                 darkframe=None, arcframe=None, tiltframe=None, pixelflatframe=None,
-                 pinholeframe=None, alignframe=None, alignment=None, traceframe=None,
-                 illumflatframe=None, lampoffflatsframe=None, skyframe=None,
-                 standardframe=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None,
-                 raise_chk_error=None):
+    def __init__(self, calib_dir=None, bpm_usebias=None, biasframe=None, darkframe=None,
+                 arcframe=None, tiltframe=None, pixelflatframe=None, pinholeframe=None,
+                 alignframe=None, alignment=None, traceframe=None, illumflatframe=None,
+                 lampoffflatsframe=None, skyframe=None, standardframe=None, flatfield=None,
+                 wavelengths=None, slitedges=None, tilts=None, raise_chk_error=None):
 
 
         # Grab the parameter names and values from the function
@@ -3991,15 +4005,12 @@ class CalibrationsPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        defaults['master_dir'] = 'Masters'
-        dtypes['master_dir'] = str
-        descr['master_dir'] = 'If provided, it should be the name of the folder to ' \
-                          'write master files. NOT A PATH. '
-
-        dtypes['setup'] = str
-        descr['setup'] = 'If masters=\'force\', this is the setup name to be used: e.g., ' \
-                         'C_02_aa .  The detector number is ignored but the other information ' \
-                         'must match the Master Frames in the master frame folder.'
+        defaults['calib_dir'] = 'Calibrations'
+        dtypes['calib_dir'] = str
+        descr['calib_dir'] = 'The name of the directory for the processed calibration frames.  ' \
+                             'The host path for the directory is set by the redux_path (see ' \
+                             ':class:`ReduxPar`).  Beware that success when changing the ' \
+                             'default value is not well tested!'
 
         defaults['raise_chk_error'] = True
         dtypes['raise_chk_error'] = bool
@@ -4137,7 +4148,7 @@ class CalibrationsPar(ParSet):
         k = np.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = [ 'master_dir', 'setup', 'bpm_usebias', 'raise_chk_error']
+        parkeys = [ 'calib_dir', 'bpm_usebias', 'raise_chk_error']
 
         allkeys = parkeys + ['biasframe', 'darkframe', 'arcframe', 'tiltframe', 'pixelflatframe',
                              'illumflatframe', 'lampoffflatsframe',
@@ -4193,13 +4204,6 @@ class CalibrationsPar(ParSet):
     # the Calibrations class.  May not be necessary because validate will
     # be called for all the sub parameter sets, but this can do higher
     # level checks, if necessary.
-
-    # JFH I'm not sure what to do about this function? Commentingo out for now.
-    #def validate(self):
-    #    if self.data['masters'] == 'force' \
-    #            and (self.data['setup'] is None or len(self.data['setup']) == 0):
-    #        raise ValueError('When forcing use of master frames, you must specify the setup to '
-    #                         'be used using the \'setup\' keyword.')
 
 #-----------------------------------------------------------------------------
 # Parameters superset
@@ -4887,18 +4891,3 @@ class Collate1DPar(ParSet):
         """
         pass
 
-
-def ql_is_on(config:ConfigObj):
-    """ Check whether QL is set to "on"
-
-    Args:
-        config (configobj.ConfigObj): 
-            parameters
-
-    Returns:
-        bool: True if QL is on
-    """
-    try: 
-        return config['rdx']['quicklook']
-    except:
-        return False

@@ -688,7 +688,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         :func:`~pypeit.core.procimg.base_variance`.
     count_scale : :obj:`float`, `numpy.ndarray`_, optional
         A scale factor, :math:`s`, that *has already been applied* to the
-        provided science image.  For example, if the image has been flat-field
+        provided science image. It accounts for the number of frames contributing to
+        the provided counts, and the relative throughput factors that can be measured
+        from flat-field frames. For example, if the image has been flat-field
         corrected, this is the inverse of the flat-field counts.  If None, set
         to 1.  If a single float, assumed to be constant across the full image.
         If an array, the shape must match ``base_var``.  The variance will be 0
@@ -1171,8 +1173,10 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
         :func:`~pypeit.core.procimg.base_variance`.
     count_scale : :obj:`float`, `numpy.ndarray`_, optional
         A scale factor that *has already been applied* to the provided science
-        image.  For example, if the image has been flat-field corrected, this is
-        the inverse of the flat-field counts.  If None, set to 1.  If a single
+        image. It accounts for the number of frames contributing to
+        the provided counts, and the relative throughput factors that can be measured
+        from flat-field frames. For example, if the image has been flat-field corrected,
+        this is the inverse of the flat-field counts.  If None, set to 1.  If a single
         float, assumed to be constant across the full image.  If an array, the
         shape must match ``base_var``.  The variance will be 0 wherever this
         array is not positive, modulo the provided ``adderr``.  This is one of
@@ -1491,9 +1495,10 @@ def generate_mask(pypeline, skyreg, slits, slits_left, slits_right, spat_flexure
     # TODO: I don't understand why slmsk needs to be instantiated.  SlitTraceSet
     # does this internally.
     slmsk = np.zeros(left_edg.shape[1], dtype=slittrace.SlitTraceSet.bitmask.minimum_dtype())
-    slitreg = slittrace.SlitTraceSet(left_edg, righ_edg, pypeline, nspec=slits.nspec, nspat=slits.nspat,
-                                     mask=slmsk, specmin=spec_min, specmax=spec_max,
-                                     binspec=slits.binspec, binspat=slits.binspat, pad=0)
+    slitreg = slittrace.SlitTraceSet(left_edg, righ_edg, pypeline, nspec=slits.nspec,
+                                     nspat=slits.nspat, mask=slmsk, specmin=spec_min,
+                                     specmax=spec_max, binspec=slits.binspec,
+                                     binspat=slits.binspat, pad=0)
     # Generate the mask, and return
     return (slitreg.slit_img(use_spatial=False, flexure=spat_flexure) >= 0).astype(bool)
 

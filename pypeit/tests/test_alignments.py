@@ -1,16 +1,16 @@
 """
 Module to run tests on Alignment frames
 """
-import os
-import pytest
+from pathlib import Path
+
+from IPython import embed
+
 import numpy as np
 
+from astropy.io import fits
+
 from pypeit import alignframe
-
-
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
+from pypeit.tests.tstutils import data_path
 
 
 def test_alignments():
@@ -26,16 +26,23 @@ def test_alignments():
                         spat_id=np.arange(nslits))
 
     alignments = alignframe.Alignments(**instant_dict)
+    alignments.set_paths(data_path(''), 'A', '1', 'DET01')
+    ofile = Path(alignments.get_path()).resolve()
 
     # I/O
-    outfile = data_path('tst_alignments.fits')
-    alignments.to_file(outfile, overwrite=True)
-    _alignments = alignframe.Alignments.from_file(outfile)
+    alignments.to_file(overwrite=True)
+    assert ofile.exists(), 'File not written'
+    with fits.open(ofile) as hdu:
+        assert hdu[1].name == 'ALIGN', 'Extension name changed'
+    _alignments = alignframe.Alignments.from_file(str(ofile))
+
     # Test
     for key in instant_dict.keys():
         if isinstance(instant_dict[key], np.ndarray):
             assert np.array_equal(alignments[key], _alignments[key])
         else:
             assert alignments[key] == _alignments[key]
-    # Now delete
-    os.remove(outfile)
+
+    # Clean-up
+    ofile.unlink()
+

@@ -13,11 +13,9 @@ import os
 from astropy import stats
 from abc import ABCMeta
 
-from linetools import utils as ltu
-
 from pypeit import msgs, utils
 from pypeit.display import display
-from pypeit.core import skysub, extract, wave, flexure
+from pypeit.core import skysub, extract, flexure
 
 from IPython import embed
 
@@ -229,7 +227,7 @@ class Extract:
             self.wv_calib = wv_calib
             self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
         elif wv_calib is None and waveimg is not None:
-            self.waveimg=waveimg
+            self.waveimg = waveimg
 
         # Now apply a global flexure correction to each slit provided it's not a standard star
         if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
@@ -440,7 +438,7 @@ class Extract:
                 self.slits.mask[reduce_masked], 'BADEXTRACT')
 
         # Return
-        return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, self.waveimg, self.tilts
+        return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, self.waveimg, self.tilts, self.slits
 
     def local_skysub_extract(self, global_sky, sobjs, model_noise=True, spat_pix=None,
                              show_profile=False, show_resids=False, show=False):
@@ -527,51 +525,6 @@ class Extract:
             out_dir = os.path.join(self.par['rdx']['redux_path'], 'QA')
             flexure.spec_flexure_qa(self.slits.slitord_id, self.extract_bpm, basename, flex_list,
                                     specobjs=sobjs, out_dir=out_dir)
-
-    def refframe_correct(self, ra, dec, obstime, sobjs=None):
-        """ Correct the calibrated wavelength to the user-supplied reference frame
-
-        Args:
-            radec (astropy.coordiantes.SkyCoord):
-                Sky Coordinate of the observation
-            obstime (:obj:`astropy.time.Time`):
-                Observation time
-            sobjs (:class:`pypeit.specobjs.Specobjs`, None):
-                Spectrally extracted objects
-
-        """
-        # Correct Telescope's motion
-        refframe = self.par['calibrations']['wavelengths']['refframe']
-        if refframe in ['heliocentric', 'barycentric'] \
-                and self.par['calibrations']['wavelengths']['reference'] != 'pixel':
-            msgs.info("Performing a {0} correction".format(self.par['calibrations']['wavelengths']['refframe']))
-            # Calculate correction
-            radec = ltu.radec_to_coord((ra, dec))
-            vel, vel_corr = wave.geomotion_correct(radec, obstime,
-                                                   self.spectrograph.telescope['longitude'],
-                                                   self.spectrograph.telescope['latitude'],
-                                                   self.spectrograph.telescope['elevation'],
-                                                   refframe)
-            # Apply correction to objects
-            msgs.info('Applying {0} correction = {1:0.5f} km/s'.format(refframe, vel))
-            if (sobjs is not None) and (sobjs.nobj != 0):
-                # Loop on slits to apply
-                gd_slitord = self.slits.slitord_id[np.logical_not(self.extract_bpm)]
-                for slitord in gd_slitord:
-                    indx = sobjs.slitorder_indices(slitord)
-                    this_specobjs = sobjs[indx]
-                    # Loop on objects
-                    for specobj in this_specobjs:
-                        if specobj is None:
-                            continue
-                        specobj.apply_helio(vel_corr, refframe)
-
-            # Apply correction to wavelength image
-            self.vel_corr = vel_corr
-            self.waveimg *= vel_corr
-
-        else:
-            msgs.info('A wavelength reference frame correction will not be performed.')
 
     def show(self, attr, image=None, showmask=False, sobjs=None,
              chname=None, slits=False,clear=False):
@@ -897,17 +850,13 @@ class EchelleExtract(Extract):
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
 
-# TODO Should this be removed? I think so.
-# TODO :: RJC - Eventually, yes, but this should not be removed yet - there are several aspects of the spectral flexure + reference frame correction that need to be sorted out.
 class IFUExtract(MultiSlitExtract):
     """
-    Child of Reduce for IFU reductions
+    Child of Extract for IFU reductions
 
     See parent doc string for Args and Attributes
 
     """
     def __init__(self, sciImg, slits, sobjs_obj, spectrograph, par, objtype, **kwargs):
-        super(IFUExtract, self).__init__(sciImg, slits, sobjs_obj, spectrograph, par, objtype, **kwargs)
-        self.initialise_slits(slits, initial=True)
-
-
+        # IFU doesn't extract, and there's no need for a super call here.
+        return

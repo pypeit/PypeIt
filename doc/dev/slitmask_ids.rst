@@ -16,6 +16,7 @@ Version History
 1.2         Debora Pelliccia    26 Jan 2021 1.3.1dev
 1.3         Debora Pelliccia    21 Oct 2021 1.6.1dev
 1.4         J. Xavier Prochaska 11 Jan 2022 1.7.1dev
+1.5         Kyle Westfall       23 Mar 2023 1.12.2dev
 =========   =================== =========== ===========
 
 ----
@@ -103,9 +104,9 @@ Access
 ------
 
 The ``maskdef_id`` is recorded for each slits in the :class:`~pypeit.slittrace.SlitTraceSet` datamodel,
-which is written to disk as a multi-extension FITS file prefixed by MasterSlits.
+which is written to disk as a multi-extension FITS file prefixed by Slits.
 In addition, for DEIMOS and MOSFIRE a second `astropy.io.fits.BinTableHDU`_ is written to disk and contains
-more slitmask design information. See :ref:`master_slits` for a description of the provided information
+more slitmask design information. See :ref:`slits` for a description of the provided information
 and for a way to visualize them.
 
 Moreover, the ``maskdef_id`` assigned to each slit can be found, after a full reduction with ``PypeIt``

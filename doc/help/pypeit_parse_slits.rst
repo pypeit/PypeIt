@@ -6,7 +6,7 @@
     Print info on slits from a input file
     
     positional arguments:
-      input_file  Either a spec2D or MasterSlits filename
+      input_file  Either a spec2D or Slits filename
     
     options:
       -h, --help  show this help message and exit
