@@ -732,7 +732,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
                                    use_mad=False, sticky=False)
     fitmask = pypeitFit.bool_gpm.reshape(tilts_dspat.shape)
     # Compute a rejection mask that we will use later. These are
-    # locations that were fit but were rejectedK
+    # locations that were fit but were rejected
     rej_mask = tot_mask & np.invert(fitmask)
     # Compute and store the 2d tilts fit
     delta_tilt_1 = xnspecmin1 * pypeitFit.eval(tilts_spec[tilts_mask] / xnspecmin1,
