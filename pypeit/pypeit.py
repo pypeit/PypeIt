@@ -878,9 +878,10 @@ class PypeIt:
         if isinstance(skyregtxt, list):
             skyregtxt = ",".join(skyregtxt)
         msgs.info(f'Generating skysub mask based on the user defined regions: {skyregtxt}')
-        # The resolution probably doesn't need to be a user parameter
+        # NOTE : Do not include spatial flexure here!
+        #        It is included when generating the mask in the return statement below
         slits_left, slits_right, _ \
-            = self.caliBrate.slits.select_edges(initial=initial_slits, flexure=spat_flexure)
+            = self.caliBrate.slits.select_edges(initial=initial_slits, flexure=None)
 
         maxslitlength = np.max(slits_right-slits_left)
         # Get the regions
@@ -890,9 +891,6 @@ class PypeIt:
         elif status == 2:
             msgs.error("Sky regions definition must contain a percentage range, and therefore must contain a ':'")
         # Generate and return image
-        # TODO :: Is this applying the spatial flexure twice?  I.e., once above
-        # when calling select_edges, and once below when passed to
-        # generate_mask?
         return skysub.generate_mask(self.spectrograph.pypeline, regions, self.caliBrate.slits,
                                     slits_left, slits_right, spat_flexure=spat_flexure)
 
