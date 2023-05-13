@@ -1135,7 +1135,7 @@ class IFUFindObjects(MultiSlitFindObjects):
                 return global_sky
 
         # Iterate to use a model variance image
-        numiter = 4  # TODO :: Is this enough?
+        numiter = 10  # TODO :: Is this enough?
         model_ivar = self.sciImg.ivar
         sl_ref = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
         for nn in range(numiter):
@@ -1159,21 +1159,25 @@ class IFUFindObjects(MultiSlitFindObjects):
                 this_slit = (self.slitmask == spatid)
                 this_slit_mask = inmask & this_slit
                 this_wave = self.waveimg[this_slit_mask]
+                this_ivar = model_ivar[this_slit_mask]
                 wavedg = np.linspace(np.min(this_wave), np.max(this_wave), nbins+1)
                 wavcen = 0.5*(wavedg[1:]+wavedg[:-1])
                 scale_all = self.sciImg.image[this_slit_mask] * utils.inverse(global_sky[this_slit_mask])
                 scale_bin = np.zeros(nbins)
+                scale_err = np.zeros(nbins)
                 for bb in range(nbins):
-                    scale_bin[bb] = np.median(scale_all[(this_wave >= wavedg[bb]) & (this_wave <= wavedg[bb+1])])
-                coeff = np.polyfit(wavcen, scale_bin, deg=3)
-                # if debug:
-                #     plt.plot(wavcen, scale_bin, 'bx')
-                #     wavmod = np.linspace(np.min(this_wave), np.max(this_wave), 100)
-                #     plt.plot(wavmod, np.polyval(coeff, wavmod), 'r-')
-                #     plt.show()
+                    cond = (this_wave >= wavedg[bb]) & (this_wave <= wavedg[bb+1])
+                    scale_bin[bb] = np.median(scale_all[cond])
+                    scale_err[bb] = 1.4826 * np.median(np.abs(scale_all[cond] - scale_bin[bb]))
+                coeff = np.polyfit(wavcen, scale_bin, w=1/scale_err, deg=3)
+                if False:
+                    plt.plot(wavcen, scale_bin, 'bx')
+                    wavmod = np.linspace(np.min(this_wave), np.max(this_wave), 100)
+                    plt.plot(wavmod, np.polyval(coeff, wavmod), 'r-')
+                    plt.show()
                 scaleImg[this_slit] *= np.polyval(coeff, self.waveimg[this_slit])
                 if sl == sl_ref:
-                    scaleImg[this_slit] /= np.polyval(coeff, self.waveimg[this_slit])
+                    scaleImg[thismask] /= np.polyval(coeff, self.waveimg[thismask])
             minv, maxv = np.min(scaleImg), np.max(scaleImg)
             msgs.info("Minimum/Maximum scales = {0:.5f}, {1:.5f}".format(minv, maxv))
             self.apply_relative_scale(scaleImg)
