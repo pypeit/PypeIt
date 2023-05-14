@@ -707,7 +707,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # tilts_spat = trc_tilt_dict['tilts_dspat'][:,use_tilt] # spatial offset from the central trace
     tilts_spec = trc_tilt_dict['tilts_spec']  # line spectral pixel position from legendre fit evaluated at slit center
     tilts_mask = trc_tilt_dict['tilts_mask']  # Reflects if trace is on the slit
-    tilts_mad = trc_tilt_dict['tilts_mad']  # quantitfies aggregate error of this tilt
+    tilts_mad = trc_tilt_dict['tilts_mad']  # quantifies aggregate error of this tilt
 
     use_mask = np.outer(np.ones(nspat, dtype=bool), use_tilt)
     #    tot_mask = tilts_mask & (tilts_err < 900) & use_mask
