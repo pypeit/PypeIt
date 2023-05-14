@@ -1169,7 +1169,8 @@ class IFUFindObjects(MultiSlitFindObjects):
                     cond = (this_wave >= wavedg[bb]) & (this_wave <= wavedg[bb+1])
                     scale_bin[bb] = np.median(scale_all[cond])
                     scale_err[bb] = 1.4826 * np.median(np.abs(scale_all[cond] - scale_bin[bb]))
-                coeff = np.polyfit(wavcen, scale_bin, w=1/scale_err, deg=3)
+                wgd = np.where(scale_err > 0)
+                coeff = np.polyfit(wavcen[wgd], scale_bin[wgd], w=1/scale_err[wgd], deg=3)
                 if False:
                     plt.plot(wavcen, scale_bin, 'bx')
                     wavmod = np.linspace(np.min(this_wave), np.max(this_wave), 100)

@@ -2160,7 +2160,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                                             cubepar['whitelight_range'])
         # TODO :: THIS IS JUST TEMPORARY (probably)... the first bit outputs separate files, the second bit combines all frames.
         #  Might want to have an option where if reference_image is provided, but not combine, the first option is done.
-        if True:
+        if False:
             # embed()
             # assert(False)
             for ff in range(numfiles):
