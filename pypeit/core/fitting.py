@@ -580,7 +580,7 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
         inmask = np.ones(ydata.size, dtype=bool)
 
     nin_good = np.sum(inmask)
-    iter = 0
+    iIter = 0
     qdone = False
     thismask = np.copy(inmask)
 
@@ -588,7 +588,7 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
     # results in signficant speedup for e.g. differential_evolution optimization. Thus
     # init_from_last is None on the first iteration and then is updated in the iteration loop.
     init_from_last = None
-    while (not qdone) and (iter < maxiter):
+    while (not qdone) and (iIter < maxiter):
         ret_tuple = fitfunc(ydata, thismask, arg_dict, init_from_last=init_from_last, **kwargs_optimizer)
         if (len(ret_tuple) == 2):
             result, ymodel = ret_tuple
@@ -610,9 +610,9 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
             msgs.info(
                 'Iteration #{:d}: nrej={:d} new rejections, nrej_tot={:d} total rejections out of ntot={:d} '
                 'total pixels'.format(iter, nrej, nrej_tot, nin_good))
-        iter += 1
+        iIter += 1
 
-    if (iter == maxiter) & (maxiter != 0):
+    if (iIter == maxiter) & (maxiter != 0):
         msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_optimize')
     outmask = np.copy(thismask)
     if np.sum(outmask) == 0:
