@@ -303,8 +303,7 @@ class RawImage:
         return utils.inverse(var)
 
     def estimate_readnoise(self):
-        """
-        Estimate the readnoise (in electrons) based on the overscan regions of
+        """ Estimate the readnoise (in electrons) based on the overscan regions of
         the image.
 
         If the readnoise is not known for any of the amplifiers (i.e., if
@@ -748,11 +747,8 @@ class RawImage:
                        'mosaic) to determine spatial flexure.')
         self.spat_flexure_shift = flexure.spat_flexure_shift(self.image[0], slits)
         self.steps[step] = True
-        # Return (required!) 
-        return self.spat_flexure_shift
-
         # Return
-        return self.spat_flexure_shift 
+        return self.spat_flexure_shift
 
     def flatfield(self, flatimages, slits=None, force=False, debug=False):
         """
