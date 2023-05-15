@@ -490,7 +490,6 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     ymult = np.fmin(np.fmax(ymult1, scale_min), scale_max)
     flux_rescale = ymult*flux
     ivar_rescale = ivar/ymult**2
-
     if debug:
         # Determine the y-range for the QA plots
         scale_spec_qa(wave, flux_med, ivar_med, wave, flux_ref_med, ivar_ref_med, ymult, 'poly', mask = mask, mask_ref=mask_ref,
@@ -1342,6 +1341,7 @@ def compute_stack(wave_grid, waves, fluxes, ivars, gpms, weights, min_weight=1e-
     '''
 
     #mask bad values and extreme values (usually caused by extreme low sensitivity at the edge of detectors)
+    #TODO cutting on the value of ivar is dicey for data in different units. This should be removed.
     uber_gpms = [gpm & (weight > 0.0) & (wave > 1.0) & (ivar > 0.0) & (utils.inverse(ivar)<1e10)
                  for gpm, weight, wave, ivar in zip(gpms, weights, waves, ivars)]
     waves_flat, fluxes_flat, ivars_flat, weights_flat = [], [], [], []
@@ -2227,7 +2227,6 @@ def combspec(waves, fluxes, ivars, gpms, sn_smooth_npix,
         wave_grid, wave_grid_mid, waves, fluxes, ivars, gpms, rms_sn, weights, ref_percentile=ref_percentile, maxiter_scale=maxiter_scale,
         sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
         sn_min_polyscale=sn_min_polyscale, sn_min_medscale=sn_min_medscale, debug=debug_scale, show=show_scale)
-
     # Rejecting and coadding
     wave_stack, flux_stack, ivar_stack, gpm_stack, nused, outmask = spec_reject_comb(
         wave_grid, wave_grid_mid, waves, fluxes_scale, ivars_scale, gpms, weights, sn_clip=sn_clip, lower=lower, upper=upper,
