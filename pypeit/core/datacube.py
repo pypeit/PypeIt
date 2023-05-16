@@ -1566,11 +1566,10 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                     msgs.info("Loading alignments")
                     alignments = alignframe.Alignments.from_file(alignfile)
             else:
-                msgs.warn(f'Processed Alignment frame not recorded or not found: {alignfile}.  '
-                          'Astrometric correction will not be performed.')
-                astrometric = False
+                msgs.warn(f'Processed alignment frame not recorded or not found!')
+                msgs.info("Using slit edges for astrometric transform")
         else:
-            msgs.info("Astrometric correction will not be performed")
+            msgs.info("Using slit edges for astrometric transform")
         # If nothing better was provided, use the slit edges
         if alignments is None:
             left, right, _ = slits.select_edges(initial=True, flexure=flexure)
