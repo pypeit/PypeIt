@@ -9,7 +9,7 @@ doc/build_/*
 bin/bin/*
 # Test folders that crop up
 keck_lris_blue_A/
-Masters/
+Calibrations/
 Science/
 QA/
 
@@ -79,7 +79,7 @@ Thumbs.db
 *.swp
 pypeit/_compiler.c
 pypeit/data/telluric/atm_grids/*.fits
-pypeit/data/QL_MASTERS
+pypeit/data/QL_CALIB
 
 *.pckl
 

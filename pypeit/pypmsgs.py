@@ -30,6 +30,9 @@ developers = ['ema', 'joe', 'milvang', 'rcooke', 'thsyu', 'xavier']
 class PypeItError(Exception):
     pass
 
+class PypeItDataModelError(PypeItError):
+    pass
+
 
 class Messages:
     """
@@ -172,7 +175,7 @@ class Messages:
         close_qa(self.pypeit_file, self.qa_path)
         return self.reset_log_file(None)
 
-    def error(self, msg):
+    def error(self, msg, cls='PypeItError'):
         """
         Print an error message
         """
@@ -183,7 +186,7 @@ class Messages:
         # TODO: This no longer "closes" the QA plots
         self.close()
 
-        raise PypeItError(msg)
+        raise eval(cls)(msg)
 
         # TODO: Does this do anything? I didn't think anything past `raise`
         # would be executed.

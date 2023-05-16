@@ -1326,6 +1326,17 @@ class MultiSlitFlexure(DataContainer):
                  'rms_arc': dict(otype=np.ndarray, atype=np.floating,
                                  descr='RMS of fit (ndet, nslits)')}
 
+    internals = ['flex_par',        # Parameters (FlexurePar)
+                 'spectrograph',    # spectrograph
+                 'specobjs',        # Specobjs object
+                 'sobj_idx',        # (ndet, nslits); Index to specobjs (tuple of arrays)
+                 'sky_table',       # Sky line table
+                 # 2D models
+                 'pmodel_m',
+                 'pmodel_b',
+                 'pmodel_l'
+                ]
+
     def __init__(self, s1dfile=None, PYP_SPEC=None, nslits=None, det=None, 
                  SN=None, slitid=None, mn_wv=None, fit_slope=None, fit_b=None,
                  fit_los=None, objra=None, objdec=None, maskdef_id=None, rms_arc=None, 
@@ -1343,22 +1354,6 @@ class MultiSlitFlexure(DataContainer):
         #  Sky lines -- This one is ASCII, so don't use load_sky_spectrum()
         sky_file = 'sky_single_mg.dat'
         self.sky_table = ascii.read(data.Paths.sky_spec / sky_file)
-
-    def _init_internals(self):
-        # Parameters (FlexurePar)
-        self.flex_par = None 
-        # spectrograph
-        self.spectrograph = None
-        # Specobjs object
-        self.specobjs = None
-        # Index to specobjs (tuple of arrays)
-        self.sobj_idx = None  # (ndet, nslits)
-        # Sky line table
-        self.sky_table = None
-        # 2D models
-        self.pmodel_m = None
-        self.pmodel_b = None
-        self.pmodel_l = None
 
     # NOTE: If you make changes to how this object is bundled into the output
     # datamodel, make sure you update the documentation in

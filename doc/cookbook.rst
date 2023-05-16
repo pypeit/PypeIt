@@ -185,8 +185,8 @@ Although :ref:`run-pypeit` provides a few command-line options, the
 :ref:`parameters` used by its algorithms.
 
 In the above example, a successful execution of :ref:`run-pypeit` will yield a
-set of calibration "master" frames held in the
-``${RDXDIR}/keck_deimos_A/Masters`` directory, extracted 1D and 2D spectra in
+set of calibration frames held in the
+``${RDXDIR}/keck_deimos_A/Calibrations`` directory, extracted 1D and 2D spectra in
 the ``${RDXDIR}/keck_deimos_A/Science`` directory, and a set of quality
 assessment plots in the ``${RDXDIR}/keck_deimos_A/QA`` directory.
 
@@ -198,7 +198,7 @@ assessment plots in the ``${RDXDIR}/keck_deimos_A/QA`` directory.
 *For more detail, see* :doc:`calibrations/calibrations`.
 
 As the code runs, when a new calibration is generated the default is to write it
-to disk as a "Master Frame" file.  Quality assessment plots for some of these
+to disk as a "calibration frame" file.  Quality assessment plots for some of these
 are written to the :doc:`qa` folder for inspection.  We encourage you to inspect
 these calibration outputs as they come, both the files themselves and the QA
 plots.
@@ -207,13 +207,13 @@ Here is the order they tend to be created
 with a separate doc for how to view each, what they should
 look like, and how to troubleshoot:
 
-  - View the :doc:`calibrations/master_bias` image (if you produced one)
-  - View the :doc:`calibrations/master_arc` image
-  - Check slit edges with the :doc:`calibrations/master_edges` file
-  - View the :doc:`calibrations/master_tilt` image
-  - Check the 1D wavelength solution in the :doc:`calibrations/master_wvcalib` output
-  - Check the 2D wavelength solution in the :doc:`calibrations/master_tilts` output
-  - Check the :doc:`calibrations/master_flat` images
+  - View the :doc:`calibrations/bias` image (if you produced one)
+  - View the :doc:`calibrations/arc` image
+  - Check slit edges with the :doc:`calibrations/edges` file
+  - View the :doc:`calibrations/tilt` image
+  - Check the 1D wavelength solution in the :doc:`calibrations/wvcalib` output
+  - Check the 2D wavelength solution in the :doc:`calibrations/tilts` output
+  - Check the :doc:`calibrations/flat` images
 
 Note that only a subset of these files may be made, depending on your
 spectrograph and the calibration files available.

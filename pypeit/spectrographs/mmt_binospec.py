@@ -271,7 +271,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
@@ -422,7 +422,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         elif det == 2:  # B DETECTOR
             order = range(5, 9, 1)
 
-        # insert extensions into master image...
+        # insert extensions into calibration image...
         for kk, jj in enumerate(order):
             # grab complete extension...
             data, overscan, datasec, biassec = binospec_read_amp(hdu, jj)

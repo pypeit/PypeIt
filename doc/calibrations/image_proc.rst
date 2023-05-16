@@ -248,7 +248,7 @@ given instrument.
 
 Importantly, PypeIt also subtracts this tabulated dark-current value from
 any provided dark frames.  This means that dark frames, combined into the
-``MasterDark``, are used to correct for the 2D, pixel-to-pixel deviation in the
+``Dark``, are used to correct for the 2D, pixel-to-pixel deviation in the
 measured dark current *with respect to the tabulated value.*  These deviations are
 expected to be small compared to the tabulated dark current value, and a warning
 is thrown if the median difference between the measured and tabulated dark
@@ -265,7 +265,7 @@ dark frame, make sure that you bias-subtract your dark frames!
     Nominally, the exposure time for dark images should be identical to the
     frames they are applied to.  If they are not, PypeIt provides a
     parameter that will allow you to scale the dark frame counts by the ratio of the
-    exposure times to appropriately subtract the counts/s measured by the master
+    exposure times to appropriately subtract the counts/s measured by the processed
     dark frame from the science frame (see the ``dark_expscale`` parameter).
     Take care when using this option!  Also, beware how the dark images are
     processed.  Specifically, scaling by the ratio of the exposure times assumes
@@ -413,8 +413,8 @@ the :doc:`../conventions`.
 
     The basic image processing workflow is largely independent for each frame
     type.  In particular, there's no intelligent automated checking in place for
-    how master frames are processed and whether it is correct to apply those
-    masters to other frames.  For example, if you overscan subtract your bias
+    how calibration frames are processed and whether it is correct to apply those
+    calibrations to other frames.  For example, if you overscan subtract your bias
     frames, you should also overscan subtract all other frames before performing
     bias subtraction, and vice versa.  When altering the processing workflow, it
     is up to the user to make sure that the processing of images is appropriate

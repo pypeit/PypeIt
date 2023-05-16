@@ -20,12 +20,11 @@ from pypeit import specobjs
 from pypeit import io
 from pypeit import utils
 from pypeit import __version__
-from pypeit.pypmsgs import PypeItError
+from pypeit.pypmsgs import PypeItError, PypeItDataModelError
 
 from pypeit.display import display
 from pypeit.images.imagebitmask import ImageBitMask
 from pypeit.images.detector_container import DetectorContainer
-from pypeit import masterframe
 from pypeit import spec2dobj
 from pypeit.scripts import scriptbase
 
@@ -98,9 +97,9 @@ class Show2DSpec(scriptbase.ScriptBase):
                             help='Upon completion embed in ipython shell')
         parser.add_argument('--ignore_extract_mask', default=False, action='store_true',
                             help='Ignore the extraction mask')
-        parser.add_argument('--sensfunc', type=str, default=None,
-                            help='Pass in a sensfunc to display the sky-subtracted image with a '
-                                 'flux calibration')
+#        parser.add_argument('--sensfunc', type=str, default=None,
+#                            help='Pass in a sensfunc to display the sky-subtracted image with a '
+#                                 'flux calibration')
         parser.add_argument('--channels', type=str,
                             help='Only show a subset of the channels (0-indexed), e.g. 1,3')
         parser.add_argument('--prefix', type=str, default='',
@@ -139,7 +138,7 @@ class Show2DSpec(scriptbase.ScriptBase):
         # for the datamodel version to be different
         try:
             spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, detname, chk_version=False)
-        except PypeItError:
+        except PypeItDataModelError:
             try:
                 # Try to get the pypeit version used to write this file
                 file_pypeit_version = fits.getval(args.file, 'VERSPYP', 0)
@@ -306,7 +305,7 @@ class Show2DSpec(scriptbase.ScriptBase):
         # TODO Place holder for putting in sensfunc
         #if args.sensfunc:
         #    # Load the sensitivity function
-        #    wave_sens, sfunc, _, _, _ = sensfunc.SensFunc.load(sensfunc_masterframe_name)
+        #    wave_sens, sfunc, _, _, _ = sensfunc.SensFunc.load(sensfunc_name)
         #    # Interpolate the sensitivity function onto the wavelength grid of the data. Since the image is rectified
         #    # this is trivial and we don't need to do a 2d interpolation
         #    sens_factor = flux_calib.get_sensfunc_factor(

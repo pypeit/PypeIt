@@ -214,6 +214,8 @@ class CombineImage:
                 spat_flexure = np.zeros(self.nfiles, dtype=float)
 
             # Save the lamp status
+            # TODO: As far as I can tell, this is the *only* place rawheadlist
+            # is used.  Is there a way we can get this from fitstbl instead?
             lampstat[kk] = self.spectrograph.get_lamps_status(pypeitImage.rawheadlist)
             # Save the exposure time to check if it's consistent for all images.
             exptime[kk] = pypeitImage.exptime

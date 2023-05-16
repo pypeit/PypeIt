@@ -141,10 +141,10 @@ background image for the frame taken at the center. Here is an example:
 
 .. code-block:: console
 
-              filename |        frametype | ... | dithpat | dithpos | dithoff | frameno | calib | comb_id | bkg_id
-NR.20181126.38930.fits | arc,science,tilt | ... |     ABC |       A |     0.0 |      31 |     1 |       1 |      2
-NR.20181126.39604.fits | arc,science,tilt | ... |     ABC |       B |     5.0 |      32 |     1 |       2 |      3
-NR.20181126.40277.fits | arc,science,tilt | ... |     ABC |       C |    -5.0 |      33 |     1 |       3 |      2
+                  filename |        frametype | ... | dithpat | dithpos | dithoff | frameno | calib | comb_id | bkg_id
+    NR.20181126.38930.fits | arc,science,tilt | ... |     ABC |       A |     0.0 |      31 |     1 |       1 |      2
+    NR.20181126.39604.fits | arc,science,tilt | ... |     ABC |       B |     5.0 |      32 |     1 |       2 |      3
+    NR.20181126.40277.fits | arc,science,tilt | ... |     ABC |       C |    -5.0 |      33 |     1 |       3 |      2
 
 
 This combination of ``comb_id`` and ``bkg_id`` will create three reduced frames:

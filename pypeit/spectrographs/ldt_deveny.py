@@ -254,7 +254,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['calibrations']['bpm_usebias'] = True
 
         # Wavelength Calibration Parameters
-        # Do not sigmaclip the arc frames for better MasterArc and better wavecalib
+        # Do not sigmaclip the arc frames for better Arc and better wavecalib
         par['calibrations']['arcframe']['process']['clip'] = False
         # Do not sigmaclip the tilt frames
         par['calibrations']['tiltframe']['process']['clip'] = False

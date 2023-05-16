@@ -16,7 +16,6 @@ from pypeit import data
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.metadata import PypeItMetaData
-from pypeit import masterframe
 from pypeit.inputfiles import PypeItFile 
 
 # ----------------------------------------------------------------------
@@ -147,7 +146,7 @@ def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype
             fitstbl.set_frame_types(type_bits)
             # Calibration groups
             cfgs = fitstbl.unique_configurations() #ignore_frames=['bias', 'dark'])
-            fitstbl.set_configurations(cfgs)
+            fitstbl.set_configurations(configs=cfgs)
             fitstbl.set_calibration_groups() #global_frames=['bias', 'dark'])
 
     return fitstbl
