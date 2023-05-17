@@ -139,6 +139,8 @@ class WaveTilts(calibframe.CalibFrame):
             `numpy.ndarray`_:  New tilt image
 
         """
+        msgs.info("Generating a tilts image from the fit parameters")
+
         _flexure = 0. if flexure is None else flexure
 
         final_tilts = np.zeros_like(slitmask).astype(float)
@@ -201,7 +203,7 @@ class WaveTilts(calibframe.CalibFrame):
             tilt_img_dict = buildimage.TiltImage.from_file(Path(self.calib_dir).resolve() / self.tiltimg_filename)
             tilt_img = tilt_img_dict.image * (slitmask > -1) if slits is not None else tilt_img_dict.image
         else:
-            msgs.err('Tiltimg not found.')
+            msgs.error('Tilt image not found.')
 
         # get waveimg
         if waveimg is None and in_ginga:
