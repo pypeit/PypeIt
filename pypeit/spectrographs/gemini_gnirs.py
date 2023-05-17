@@ -347,8 +347,11 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['tilts']['tracethresh'] = 10
             par['calibrations']['tilts']['sig_neigh'] = 5.0
             par['calibrations']['tilts']['nfwhm_neigh'] = 2.0
+        elif '10/mmLBHR_G5532' in self.dispname:
+            # TODO :: Need to fill this in
+            pass
         else:
-            msgs.error('Unrecognized GNIRS dispname')
+            msgs.error(f'Unrecognized GNIRS dispname: {self.dispname}')
 
         return par
 
