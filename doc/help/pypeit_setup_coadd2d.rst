@@ -8,7 +8,7 @@
     
     Prepare a configuration file for performing 2D coadds
     
-    options:
+    optional arguments:
       -h, --help            show this help message and exit
       -f PYPEIT_FILE, --pypeit_file PYPEIT_FILE
                             PypeIt reduction file (default: None)

@@ -9,6 +9,6 @@
       files       Filename(s) of the line list files to be installed in the PypeIt
                   cache
     
-    options:
+    optional arguments:
       -h, --help  show this help message and exit
     
