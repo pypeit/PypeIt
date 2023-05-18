@@ -1281,7 +1281,6 @@ def compute_stack(wave_grid, waves, fluxes, ivars, gpms, weights, min_weight=1e-
 
     # New mask for the stack
     gpm_stack = (weights_total > min_weight) & (nused > 0.0)
-
     return wave_stack, flux_stack, ivar_stack, gpm_stack, nused
 
 def get_ylim(flux, ivar, mask):
@@ -1840,8 +1839,12 @@ def spec_reject_comb(wave_grid, wave_grid_mid, waves_list, fluxes_list, ivars_li
     qdone = False
     while (not qdone) and (iter < maxiter_reject):
         # Compute the stack
+        #from IPython import embed
+        #embed()
         wave_stack, flux_stack, ivar_stack, gpm_stack, nused = compute_stack(
             wave_grid, waves_list, fluxes_list, ivars_list, utils.array_to_explist(this_gpms, nspec_list=nspec_list), weights_list)
+        print("np.sum(wave_stack > 1.0)", np.sum(wave_stack > 1.0), len(wave_stack))
+        print("np.where(nused == 0)", np.where(nused == 0))
         # Interpolate the individual spectra onto the wavelength grid of the stack. Use wave_grid_mid for this
         # since it has no masked values
         flux_stack_nat, ivar_stack_nat, gpm_stack_nat, _ = interp_spec(
@@ -2144,7 +2147,8 @@ def combspec(waves, fluxes, ivars, gpms, sn_smooth_npix,
         spectrum on wave_stack wavelength grid. True=Good.
         shape=(ngrid,)
     '''
-
+    #from IPython import embed
+    #embed()
     # We cast to float64 because of a bug in np.histogram
     _waves = [np.float64(wave) for wave in waves]
     _fluxes = [np.float64(flux) for flux in fluxes]
