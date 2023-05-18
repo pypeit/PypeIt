@@ -29,6 +29,9 @@
 - Names of associated calibration frames now written to ``spec2d`` file headers.
 - Added the option to disable strict version checking for 1d coadds.
 - Major quicklook updates.  ql_multislit.py temporarily deprecated.
+- Improve speed in ginga visualization of traces and added
+  `pypeit_chk_tilts`. Note that this script uses an update
+  of the tilts datamodel, so it will not work on older reductions.
 
 1.12.2 (29 Mar 2023)
 --------------------
