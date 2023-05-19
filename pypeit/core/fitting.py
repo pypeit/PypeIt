@@ -1015,7 +1015,7 @@ def iterfit(xdata, ydata, invvar=None, inmask=None, upper=5, lower=5, x2=None,
         elif error == 0:
             # ToDO JFH by setting inmask to be tempin which is maskwork, we are basically implicitly enforcing sticky rejection
             # here. See djs_reject.py. I'm leaving this as is for consistency with the IDL version, but this may require
-            # further consideration. I think requiring stick to be set is the more transparent behavior.
+            # further consideration. I think requiring sticky to be set is the more transparent behavior.
             maskwork, qdone = pydl.djs_reject(ywork, yfit, invvar=invwork, inmask=inmask_rej, outmask=maskwork,
                                               upper=upper, lower=lower, **kwargs_reject)
         else:
