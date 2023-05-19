@@ -8,7 +8,7 @@
     positional arguments:
       file                  filename.coadd3d file
     
-    options:
+    optional arguments:
       -h, --help            show this help message and exit
       --det DET             Detector (default: 1)
       -o, --overwrite       Overwrite any existing files/directories (default:

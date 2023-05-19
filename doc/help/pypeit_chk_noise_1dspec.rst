@@ -13,7 +13,7 @@
     positional arguments:
       files                 PypeIt spec1d file(s) (default: None)
     
-    options:
+    optional arguments:
       -h, --help            show this help message and exit
       --fileformat FILEFORMAT
                             Is this coadd1d or spec1d? (default: spec1d)
