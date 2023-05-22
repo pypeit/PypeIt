@@ -31,6 +31,7 @@
 - Improve speed in ginga visualization of traces and added
   `pypeit_chk_tilts`. Note that this script uses an update
   of the tilts datamodel, so it will not work on older reductions.
+- Adds Keck/ESI to PypeIt
 
 1.12.2 (29 Mar 2023)
 --------------------
