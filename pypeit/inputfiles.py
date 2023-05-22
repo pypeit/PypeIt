@@ -420,7 +420,7 @@ class InputFile:
                 Override the current version and use this one instead.  **For
                 documentation purposes only!**
             date_override (:obj:`str`, optional):
-                Override the current version and use this one instead.  **For
+                Override the current date and use this one instead.  **For
                 documentation purposes only!**
         """
         _version = __version__ if version_override is None else version_override

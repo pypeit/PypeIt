@@ -331,6 +331,10 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
         #par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
 
+        # TODO: Temporary fix for failure mode.  Remove once Ryan provides a
+        # fix.
+        par['calibrations']['flatfield']['slit_illum_finecorr'] = False
+
         return par
 
 

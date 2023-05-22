@@ -28,7 +28,6 @@ provide instrument-specific:
 
 from abc import ABCMeta
 from pathlib import Path
-import os
 
 from IPython import embed
 
@@ -224,14 +223,21 @@ class Spectrograph:
 
         return par
 
-    def ql_par(self):
-        """ Generate a list of QL specific parameters 
+    # TODO: Include a script in doc/ that will automatically document the
+    # parameters set here.
+    @staticmethod
+    def ql_par():
+        """
+        Return the list of parameters specific to quick-look reduction of
+        science frames for this spectrograph.
 
-        The ones below are the default for any spectrograph.
-        They may be over-ridden by the specific spectrograph module
+        The following parameters are set by default for any spectrograph.
+        Derived classes may override this function.
 
         Returns:
-            list: List of QL specific parameters.  
+            :obj:`dict`: Dictionary with a form that matches
+            :class:`~pypeit.par.pypeitpar.PypeItPar` with the parameters to be
+            set.
         """
         return dict(
             # Calibration + misc
@@ -263,25 +269,6 @@ class Spectrograph:
                 )
             )
         )
-
-#        ql_cfg = ['[rdx]', 
-#                  '    ignore_bad_headers = True',
-#                        '[baseprocess]', 
-#                            'use_biasimage = False', 
-#                        '[calibrations]', 
-#                        '    raise_chk_error = False',
-#                        '  [[flatfield]]', 
-#                        '       saturated_slits = mask']
-#        ql_cfg += ['[scienceframe]',
-#                        '    [[process]]',
-#                        '        mask_cr = False',
-#                        '[reduce]',
-#                        '    [[extraction]]',
-#                        '        skip_optimal = True',
-#                        '    [[findobj]]',
-#                        '        skip_second_find = True']
-#        return ql_cfg
-
 
     def _check_extensions(self, filename):
         """
@@ -449,36 +436,6 @@ class Spectrograph:
         if detector_par['spatflip']:
             image = np.flip(image, axis=1)
         return image
-
-
-
-#    def parse_dither_pattern(self, file_list, ext=None):
-#        """
-#        Parse headers from a file list to determine the dither pattern.
-#
-#        Parameters
-#        ----------
-#        file_list (list of strings):
-#            List of files for which dither pattern is desired
-#        ext (int, optional):
-#            Extension containing the relevant header for these files. Default=None. If None, code uses
-#            self.primary_hdrext
-#
-#        Returns
-#        -------
-#        dither_pattern, dither_id, offset_arcsec
-#
-#        dither_pattern (str `numpy.ndarray`_):
-#            Array of dither pattern names
-#        dither_id (str `numpy.ndarray`_):
-#            Array of dither pattern IDs
-#        offset_arc (float `numpy.ndarray`_):
-#            Array of dither pattern offsets
-#        """
-#        nfiles = len(file_list)
-#        dummy_str_array = np.array(nfiles*[''])
-#        dummy_id_array = np.array(nfiles*['A'])
-#        return dummy_str_array, dummy_id_array,  np.zeros(nfiles)
 
     # TODO: JFH Are these bad pixel masks in the raw frame, or the
     # flipped/transposed pypeit frame?? KBW: Does the new description of
@@ -725,7 +682,65 @@ class Spectrograph:
             object.
         """
         return ['dispname', 'dichroic', 'decker']
-    
+
+    def same_configuration(self, configs, check_keys=True):
+        """
+        Check if a set of instrument setup/configurations are all the same,
+        within the tolerance set for this spectrograph for each configuration
+        key.
+
+        Args:
+            configs (:obj:`dict`, array-like):
+                A list or dictionary of configuration parameters.  Each list or
+                dictionary element must be a dictionary with the values for the
+                configuration-defining metadata parameters for this
+                spectrograph.
+            check_keys (:obj:`bool`, optional):
+                Check that the keys in each configuration match the expected
+                keys defined by :func:`configuration_keys`.  If False, the keys
+                are set by the first configuration in ``configs``, *not* those
+                returned by :func:`configuration_keys`.
+        
+        Returns:
+            :obj:`bool`: Flag that all configurations in the list are the same.
+        """
+        cfg_id = list(configs.keys() if isinstance(configs, dict) else range(len(configs)))
+
+        if check_keys:
+            # The list of metadata keys used to define a unique configuration
+            cfg_meta = self.configuration_keys()
+            # Check that the relevant keys are in the first configuration
+            for key in cfg_meta:
+                if key not in configs[cfg_id[0]].keys():
+                    msgs.error(f'Configuration {cfg_id[0]} missing required key, {key}.  Cannot '
+                               'determine if configurations are the same!')
+                if key not in self.meta.keys():
+                    msgs.error(f'CODING ERROR: {key} is a configuration key but not defined in '
+                               f'the metadata dictionary for {self.__class__.__name__}!')
+        else:
+            cfg_meta = configs[cfg_id[0]].keys()
+
+        # Match against all of the other configurations
+        for _cfg_id in cfg_id[1:]:
+            matched = []
+            for key in cfg_meta:
+                if key not in configs[_cfg_id].keys():
+                    msgs.error(f'Configuration {_cfg_id} missing required key, {key}.  Cannot '
+                               'determine if configurations are the same!')
+                # TODO: Instead check if 'rtol' exists and is not None?
+                if isinstance(configs[cfg_id[0]][key], (float, np.floating)) \
+                        and isinstance(configs[_cfg_id][key], (float, np.floating)):
+                    # NOTE: No float-valued metadata can be 0!
+                    matched += [np.abs(configs[cfg_id[0]][key]-configs[_cfg_id][key])
+                                    / configs[cfg_id[0]][key] < self.meta[key]['rtol']]
+                else:
+                    matched += [np.all(configs[cfg_id[0]][key] == configs[_cfg_id][key])]
+            if not np.all(matched):
+                # We found a difference so return
+                return False
+        # Went through all configurations and didn't find any differences
+        return True
+
     def raw_header_cards(self):
         """
         Return additional raw header cards to be propagated in
@@ -746,24 +761,25 @@ class Spectrograph:
         """
         return []
 
-    def modify_config(self, fitstbl, cfg):
+    def modify_config(self, row, cfg):
         """
-        Modify the configuration dictionary for a given frame. This method is used
-        in :func:`pypeit.metadata.PypeItMetaData.set_configurations` to modify in place
-        the configuration requirement to assign a specific frame to the current setup.
+        Modify the configuration dictionary for a given frame. This method is
+        used in :func:`~pypeit.metadata.PypeItMetaData.set_configurations` to
+        modify in place the configuration requirement to assign a specific frame
+        to the current setup.
 
         **This method is not defined for all spectrographs.**
 
         Args:
-            fitstbl(`astropy.table.Table`_):
-                The table with the metadata for one frames.
+            row (`astropy.table.Row`_):
+                The table row with the metadata for one frame.
             cfg (:obj:`dict`):
-                dictionary with metadata associated to a specific configuration.
+                Dictionary with metadata associated to a specific configuration.
 
         Returns:
-            :obj:`dict`: modified dictionary with metadata associated to a specific configuration.
+            :obj:`dict`: modified dictionary with metadata associated to a
+            specific configuration.
         """
-
         return cfg
 
     def valid_configuration_values(self):
@@ -808,7 +824,7 @@ class Spectrograph:
                           'Proceed with great caution...')
             # Check the name
             if instr_names[0] != self.header_name:
-                msgs.warn('The instrument name in the headers of the raw files do not match the '
+                msgs.warn('The instrument name in the headers of the raw files does not match the '
                           f'expected one! Found {instr_names[0]}, expected {self.header_name}.  '
                           'You may have chosen the wrong PypeIt spectrograph name!')
 
@@ -842,12 +858,16 @@ class Spectrograph:
 
     def get_comb_group(self, fitstbl):
         """
+        Automatically assign combination groups and background images by parsing
+        known dither patterns.
 
-        This method is used in :func:`pypeit.metadata.PypeItMetaData.set_combination_groups`,
-        and modifies comb_id and bkg_id metas for a specific instrument.
+        This method is used in
+        :func:`~pypeit.metadata.PypeItMetaData.set_combination_groups`, and
+        directly modifies the ``comb_id`` and ``bkg_id`` columns in the provided
+        table.
 
-
-        **This method is not defined for all spectrographs.**
+        **This method is not defined for all spectrographs.**  This base-class
+        implementation simply returns the input table.
 
         Args:
             fitstbl(`astropy.table.Table`_):

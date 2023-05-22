@@ -16,6 +16,15 @@ summaries of each script and points to other pages with more information.
 
 **If you are developing a new script, see** :ref:`new_script`.
 
+.. warning::
+
+    Whenever you upgrade PypeIt, beware that this may include changes to the
+    output file data models.  These changes are not required to be
+    backwards-compatible, meaning that, e.g., ``pypeit_show_2dspec`` may fault
+    when trying to view ``spec2d*`` files produced with your existing PypeIt
+    version after upgrading to a new version.  **The best approach is to always
+    re-reduce data you're still working with anytime you update PypeIt.**
+
 .. contents:: PypeIt Scripts
    :depth: 1
    :local:
@@ -342,6 +351,16 @@ The script usage can be displayed by calling the script with the
 
 .. include:: help/pypeit_multislit_flexure.rst
 
+pypeit_setup_coadd2d
+--------------------
+
+This is used to setup a ``coadd2d`` file for performing 2D coadds; see :doc:`coadd2d`.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_setup_coadd2d.rst
+
 pypeit_coadd_2dspec
 -------------------
 
@@ -482,7 +501,7 @@ solutions.  Here is a standard call:
 
     pypeit_show_wvcalib WaveCalib_A_1_DET01.fits 17 --is_order  # for magellan_mage
 
-This launches a `matplotlib`_` GUI plot of Order=17 for the magellan_mage spectrograph.
+This launches a `matplotlib`_ GUI plot of Order=17 for the magellan_mage spectrograph.
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
@@ -499,6 +518,19 @@ The script usage can be displayed by calling the script with the
 ``-h`` option:
 
 .. include:: help/pypeit_show_arxiv.rst
+
+pypeit_chk_tilts
+----------------
+
+This script displays Tiltimg and 2D fitted tilts in a `ginga`_ viewer or `matplotlib`_ window,
+allowing to assess the quality of the tilts calibration. See :ref:`pypeit_chk_tilts`
+for more details.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_chk_tilts.rst
+
 
 pypeit_chk_flats
 ----------------

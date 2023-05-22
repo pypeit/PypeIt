@@ -60,6 +60,9 @@ used for the calibration of the third science frame.
 
     - There is currently a limit of no more than 63 calibration groups.
 
+    - Calibration frames can be assigned to multiple calibration groups, but
+      science frames can only be assigned to *one* calibration group.
+
 .. _calibrations-calibfile:
 
 ".calib" File

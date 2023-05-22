@@ -188,7 +188,7 @@ with PypeIt.   The basic steps are:
 
 The code is guided by the :class:`~pypeit.wavecalib.WaveCalib` class, partially
 described by `this notebook
-<https://github.com/pypeit/pypeit/blob/releas/doc/nb/WaveCalib.ipynb>`__
+<https://github.com/pypeit/pypeit/blob/release/doc/nb/WaveCalib.ipynb>`__
 (BEWARE, this may be out of date).
 
 For the primary step (#3), we have developed several

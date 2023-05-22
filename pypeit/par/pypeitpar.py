@@ -215,7 +215,7 @@ class ProcessImagesPar(ParSet):
                  n_lohi=None, #replace=None,
                  lamaxiter=None, grow=None,
                  comb_sigrej=None,
-                 calib_setup_and_bit=None,
+#                 calib_setup_and_bit=None,
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None,
                  use_biasimage=None, use_overscan=None, use_darkimage=None,
                  dark_expscale=None,
@@ -412,10 +412,10 @@ class ProcessImagesPar(ParSet):
         dtypes['objlim'] = [int, float]
         descr['objlim'] = 'Object detection limit in LA cosmics routine'
 
-        defaults['calib_setup_and_bit'] = None
-        dtypes['calib_setup_and_bit'] = str
-        descr['calib_setup_and_bit'] = 'Over-ride the calibration setup and bit, e.g. "A_7".  ' \
-                                       'Only recommended for use with quicklook.'
+#        defaults['calib_setup_and_bit'] = None
+#        dtypes['calib_setup_and_bit'] = str
+#        descr['calib_setup_and_bit'] = 'Over-ride the calibration setup and bit, e.g. "A_7".  ' \
+#                                       'Only recommended for use with quicklook.'
 
         # Instantiate the parameter set
         super(ProcessImagesPar, self).__init__(list(pars.keys()),
@@ -435,7 +435,7 @@ class ProcessImagesPar(ParSet):
                    'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
                    'dark_expscale', 'spat_flexure_correct', 'use_illumflat', 'use_specillum',
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
-                   'satpix', 'calib_setup_and_bit',
+                   'satpix', #'calib_setup_and_bit',
                    'n_lohi', 'mask_cr',
                    'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact', 'sigclip',
                    'sigfrac', 'objlim']
@@ -1240,12 +1240,13 @@ class Coadd2DPar(ParSet):
                               'I.e., only this/these slit/s will be coadded.'
 
         defaults['offsets'] = 'auto'
-        dtypes['offsets'] = [list, str]
+        dtypes['offsets'] = [str, list]
         descr['offsets'] = 'Offsets for the images being combined (spat pixels). Options are: ' \
-                           '``maskdef_offsets``, ``auto``, and a list of offsets. ' \
+                           '``maskdef_offsets``, ``header``, ``auto``, and a list of offsets. ' \
                            'Use ``maskdef_offsets`` to use the offsets computed during the slitmask ' \
-                           'design matching (currently available for DEIMOS and MOSFIRE only). If ``auto`` ' \
-                           'is chosen, PypeIt will try to compute the offsets using a reference object ' \
+                           'design matching (currently available for DEIMOS and MOSFIRE only). If equal ' \
+                           'to ``header``, the dither offsets recorded in the header, when available, will be used. ' \
+                           'If ``auto`` is chosen, PypeIt will try to compute the offsets using a reference object ' \
                            'with the highest S/N, or an object selected by the user (see ``user_obj``). ' \
                            'If a list of offsets is provided, PypeIt will use it.'
 
@@ -4880,18 +4881,3 @@ class Collate1DPar(ParSet):
         """
         pass
 
-
-#def ql_is_on(config:ConfigObj):
-#    """ Check whether QL is set to "on"
-#
-#    Args:
-#        config (configobj.ConfigObj): 
-#            parameters
-#
-#    Returns:
-#        bool: True if QL is on
-#    """
-#    try: 
-#        return config['rdx']['quicklook']
-#    except:
-#        return False

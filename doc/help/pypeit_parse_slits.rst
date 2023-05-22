@@ -8,6 +8,6 @@
     positional arguments:
       input_file  Either a spec2D or Slits filename
     
-    options:
+    optional arguments:
       -h, --help  show this help message and exit
     

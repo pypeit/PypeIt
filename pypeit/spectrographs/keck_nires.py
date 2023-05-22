@@ -134,6 +134,10 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['IR']['maxiter'] = 2
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
 
+        # COADD2D
+        # set offsets for coadd2d
+        par['coadd2d']['offsets'] = 'header'
+
         return par
 
     def init_meta(self):
@@ -231,25 +235,32 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
     def get_comb_group(self, fitstbl):
         """
+        Automatically assign combination groups and background images by parsing
+        known dither patterns.
 
-        This method is used in :func:`pypeit.metadata.PypeItMetaData.set_combination_groups`,
-        and modifies calib, comb_id and bkg_id metas for a specific instrument.
+        This method is used in
+        :func:`~pypeit.metadata.PypeItMetaData.set_combination_groups`, and
+        directly modifies the ``comb_id`` and ``bkg_id`` columns in the provided
+        table.
 
         Specifically here for NIRES, since it's likely to have one set of flat/dark frames for
         different targets, this method sets calib = "all" for the flat and dark frames and
         assigns different calib values to the science/standard frames of different targets.
 
-        Moreover, this method parses from the header the dither pattern of the science/standard
-        frames in a given calibration group and assigns to each of them a comb_id and a
-        bkg_id. The dither patterns used here are: "ABAB", "ABBA", "ABpat", "ABC".
-        Note that the frames in the same dither positions (A positions or B positions)
-        of each "ABAB" or "ABBA" sequence are 2D coadded  (without optimal weighting)
-        before the background subtraction, while for the other dither patterns (e.g., "ABpat"),
-        the frames in the same dither positions are not coadded.
-        comb_id and bkg_id will not assigned if:
+        Moreover, this method parses from the header the dither pattern of the
+        science/standard frames in a given calibration group and assigns to each
+        of them a default ``comb_id`` and ``bkg_id``. The dither patterns used
+        here are: "ABAB", "ABBA", "ABpat", and "ABC".  Note that the frames in
+        the same dither positions (A positions or B positions) of each "ABAB" or
+        "ABBA" sequence are 2D coadded  (without optimal weighting) before the
+        background subtraction, while for the other dither patterns (e.g.,
+        "ABpat"), the frames in the same dither positions are not coadded.  The
+        ``comb_id`` and ``bkg_id`` will *not* assigned if:
 
-            - dither offset is zero for every frames of a dither sequence
-            - dither pattern recorded in the header is NONE or MANUAL, or is none of the above patterns.
+            - the dither offset is zero for every frame in the dither sequence
+
+            - the dither pattern recorded in the header is not recognized or set
+              to NONE or MANUAL.
 
         Args:
             fitstbl(`astropy.table.Table`_):
