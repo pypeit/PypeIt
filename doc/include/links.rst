@@ -17,10 +17,11 @@
 .. numpy
 .. _numpy: https://numpy.org/
 .. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
+.. _numpy.uint8: https://numpy.org/doc/stable/reference/arrays.scalars.html
 .. _numpy.int32: https://numpy.org/doc/stable/reference/arrays.scalars.html
 .. _numpy.integer: https://numpy.org/doc/stable/reference/arrays.scalars.html#numpy.integer
 .. _numpy.floating: https://numpy.org/doc/stable/reference/arrays.scalars.html#numpy.floating
-.. _numpy.bool_: https://numpy.org/doc/stable/reference/arrays.scalars.html#numpy.bool_
+.. _numpy.bool: https://numpy.org/doc/stable/reference/arrays.scalars.html
 .. _numpy.ma.MaskedArray: http://docs.scipy.org/doc/numpy/reference/maskedarray.baseclass.html
 .. _numpy.ma.median: https://numpy.org/doc/stable/reference/generated/numpy.ma.median.html
 .. _numpy.recarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.recarray.html

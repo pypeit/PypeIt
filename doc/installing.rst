@@ -130,6 +130,15 @@ If this causes problems (e.g., a new PypeIt script is unavailable or
 you encounter script errors), first try uninstalling (e.g., ``pip uninstall pypeit``)
 and then reinstalling.
 
+.. warning::
+
+    Whenever you upgrade PypeIt, beware that this may include changes to the
+    output file data models.  These changes are not required to be
+    backwards-compatible, meaning that, e.g., ``pypeit_show_2dspec`` may fault
+    when trying to view ``spec2d*`` files produced with your existing PypeIt
+    version after upgrading to a new version.  **The best approach is to always
+    re-reduce data you're still working with anytime you update PypeIt.**
+
 Install via ``conda`` (recommended overall)
 -------------------------------------------
 
@@ -175,6 +184,15 @@ matter of executing:
 If this causes problems (e.g., a new PypeIt script is unavailable or
 you encounter script errors), simply remove the conda environment
 (e.g., ``conda env remove pypeit``) and reinstall as above.
+
+.. warning::
+
+    Whenever you upgrade PypeIt, beware that this may include changes to the
+    output file data models.  These changes are not required to be
+    backwards-compatible, meaning that, e.g., ``pypeit_show_2dspec`` may fault
+    when trying to view ``spec2d*`` files produced with your existing PypeIt
+    version after upgrading to a new version.  **The best approach is to always
+    re-reduce data you're still working with anytime you update PypeIt.**
 
 .. _m1_macs:
 

@@ -60,7 +60,8 @@ class RunPypeIt(scriptbase.ScriptBase):
 
         parser.add_argument('-r', '--redux_path', default=None,
                             help='Path to directory for the reduction.  Only advised for testing')
-        parser.add_argument('-m', '--do_not_reuse_calibs', default=False, action='store_true',
+        parser.add_argument('-m', '--do_not_reuse_calibs', dest='reuse_calibs', default=True,
+                            action='store_false',
                             help='Do not load previously generated calibrations, even ones made '
                                  'during the run.')
         parser.add_argument('-s', '--show', default=False, action='store_true',
@@ -81,11 +82,12 @@ class RunPypeIt(scriptbase.ScriptBase):
     def main(args):
 
         import os
+        from IPython import embed
 
-        import numpy as np
-
+        from pypeit import inputfiles
         from pypeit import pypeit
         from pypeit import msgs
+
 
         # Load options from command line
         splitnm = os.path.splitext(args.pypeit_file)
@@ -93,13 +95,20 @@ class RunPypeIt(scriptbase.ScriptBase):
             msgs.error('Input file must have a .pypeit extension!')
         logname = splitnm[0] + ".log"
 
-        # Instantiate the main pipeline reduction object
-        pypeIt = pypeit.PypeIt(args.pypeit_file, verbosity=args.verbosity,
-                               reuse_calibs=np.invert(args.do_not_reuse_calibs),
-                               overwrite=args.overwrite,
-                               redux_path=args.redux_path,
-                               calib_only=args.calib_only,
-                               logname=logname, show=args.show)
+        ## This is a hack until we get the subclassing working
+        pypeItFile = inputfiles.PypeItFile.from_file(args.pypeit_file)
+        spectrograph = pypeItFile.get_spectrograph()
+        if spectrograph.telescope['name'] != 'JWST':
+            # Instantiate the main pipeline reduction object
+            pypeIt = pypeit.PypeIt(args.pypeit_file, verbosity=args.verbosity,
+                                   reuse_calibs=args.reuse_calibs, overwrite=args.overwrite,
+                                   redux_path=args.redux_path, calib_only=args.calib_only,
+                                   logname=logname, show=args.show)
+        else:
+            pypeIt = pypeit.JWST(args.pypeit_file, verbosity=args.verbosity,
+                                 reuse_calibs=args.reuse_calibs, overwrite=args.overwrite,
+                                 redux_path=args.redux_path, calib_only=args.calib_only,
+                                 logname=logname, show=args.show)
 
         if args.calib_only:
             calib_dict = pypeIt.calib_all()

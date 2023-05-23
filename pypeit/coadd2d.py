@@ -4,6 +4,7 @@ Module for performing two-dimensional coaddition of spectra.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
+from pathlib import Path
 import os
 import copy
 
@@ -13,8 +14,10 @@ import numpy as np
 from scipy import ndimage
 from matplotlib import pyplot as plt
 from astropy.table import Table, vstack
+from astropy.io import fits
 
 from pypeit import msgs
+from pypeit import io
 from pypeit import utils
 from pypeit import specobjs
 from pypeit import slittrace
@@ -29,7 +32,6 @@ from pypeit import calibrations
 from pypeit import spec2dobj
 from pypeit.core.moment import moment1d
 from pypeit.manual_extract import ManualExtractionObj
-
 
 
 class CoAdd2D:
@@ -49,7 +51,7 @@ class CoAdd2D:
     def get_instance(cls, spec2dfiles, spectrograph, par, det=1, offsets=None, weights='auto',
                      spec_samp_fact=1.0, spat_samp_fact=1.0,
                      sn_smooth_npix=None, bkg_redux=False, find_negative=False, show=False,
-                     show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
+                     show_peaks=False, debug_offsets=False, debug=False):
         """
         Instantiate the subclass appropriate for the provided spectrograph.
 
@@ -68,13 +70,12 @@ class CoAdd2D:
                         spec2dfiles, spectrograph, par, det=det, offsets=offsets, weights=weights,
                         spec_samp_fact=spec_samp_fact, spat_samp_fact=spat_samp_fact,
                         sn_smooth_npix=sn_smooth_npix, bkg_redux=bkg_redux, find_negative=find_negative,
-                        show=show, show_peaks=show_peaks, debug_offsets=debug_offsets, debug=debug,
-                        **kwargs_wave)
+                        show=show, show_peaks=show_peaks, debug_offsets=debug_offsets, debug=debug)
 
     def __init__(self, spec2d, spectrograph, par, det=1, offsets=None, weights='auto',
                  spec_samp_fact=1.0, spat_samp_fact=1.0,
                  sn_smooth_npix=None, bkg_redux=False, find_negative=False, show=False,
-                 show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
+                 show_peaks=False, debug_offsets=False, debug=False):
         """
 
         Args:
@@ -137,10 +138,7 @@ class CoAdd2D:
                 the screen.
             debug (:obj:`bool`, optional):
                 Show QA for debugging.
-            **kwargs_wave
-                Keyword arguments passed to
-                :func:`pypeit.core.coadd.get_wave_grid`, which determine how the
-                wavelength grid is created for the 2d coadding.
+
         """
 
         # Use Cases:
@@ -149,6 +147,7 @@ class CoAdd2D:
         #    2) offsets not 'auto' (i.e. a list) - use them
         #    -------------- only for Multislit --------------
         #    3) offsets = 'maskdef_offsets' - use `maskdef_offset` saved in SlitTraceSet
+        #    4) offsets = 'header' - use the dither offsets recorded in the header
         # ===============================================================================
         # weights
         #    1) weights = 'auto' -- if brightest object exists auto compute weights,
@@ -266,6 +265,69 @@ class CoAdd2D:
 
         return cfg
 
+    @staticmethod
+    def default_basename(spec2d_files):
+        """
+        Construct the base name of the output spec2d file produced by coadding.
+
+        Args:
+            spec2d_files (:obj:`list`):
+                The list of PypeIt spec2d files to be coadded.
+
+        Returns:
+            :obj:`str`: The root base name for the output coadd2d spec2d file.
+        """
+        # Get the output basename
+        frsthdr = fits.getheader(spec2d_files[0])
+        lasthdr = fits.getheader(spec2d_files[-1])
+        if 'FILENAME' not in frsthdr:
+            msgs.error(f'Missing FILENAME keyword in {spec2d_files[0]}.  Set the basename '
+                        'using the command-line option.')
+        if 'FILENAME' not in lasthdr:
+            msgs.error(f'Missing FILENAME keyword in {spec2d_files[-1]}.  Set the basename '
+                        'using the command-line option.')
+        if 'TARGET' not in frsthdr:
+            msgs.error(f'Missing TARGET keyword in {spec2d_files[0]}.  Set the basename '
+                        'using the command-line option.')
+        return f"{io.remove_suffix(frsthdr['FILENAME'])}-" \
+                f"{io.remove_suffix(lasthdr['FILENAME'])}-{frsthdr['TARGET']}"
+
+    @staticmethod
+    def output_paths(spec2d_files, par):
+        """
+        Construct the names and ensure the existence of the science and QA output directories.
+
+        Args:
+            spec2d_files (:obj:`list`):
+                The list of PypeIt spec2d files to be coadded.  The top-level
+                directory for the coadd2d output directories is assumed to be
+                same as used by the basic reductions.  For example, if one of
+                the spec2d files is
+                ``/path/to/reductions/Science/spec2d_file.fits``, the parent
+                directory for the coadd2d directories is
+                ``/path/to/reductions/``.
+            par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
+                Full set of parameters.  The only used parameters are
+                ``par['rdx']['scidir']`` and ``par['rdx']['qadir']``.  WARNING:
+                This also *alters* the value of ``par['rdx']['qadir']``!!
+
+        Returns:
+            :obj:`tuple`: Two strings with the names of (1) the science output
+            directory and (2) the QA output directory.  The function also
+            creates both directories if they do not exist.
+        """
+        # Science output directory
+        pypeit_scidir = Path(spec2d_files[0]).parent
+        coadd_scidir = pypeit_scidir.parent / f"{par['rdx']['scidir']}_coadd"
+        if not coadd_scidir.exists():
+            coadd_scidir.mkdir(parents=True)
+        # QA directory
+        par['rdx']['qadir'] += '_coadd'
+        qa_path = pypeit_scidir.parent / par['rdx']['qadir'] / 'PNGs'
+        if not qa_path.exists():
+            qa_path.mkdir(parents=True)
+        return str(coadd_scidir), str(qa_path)
+
     def good_slitindx(self, only_slits=None):
         """
         This provides an array of index of slits in the un-coadded frames that are considered good for 2d coadding.
@@ -345,10 +407,11 @@ class CoAdd2D:
         nexp = len(self.stack_dict['specobjs_list'])
         nspec = self.stack_dict['specobjs_list'][0][0].TRACE_SPAT.shape[0]
         # Grab the traces, flux, wavelength and noise for this slit and objid.
-        flux_stack = np.zeros((nspec, nexp), dtype=float)
-        ivar_stack = np.zeros((nspec, nexp), dtype=float)
-        wave_stack = np.zeros((nspec, nexp), dtype=float)
-        mask_stack = np.zeros((nspec, nexp), dtype=bool)
+        waves, fluxes, ivars, gpms = [], [], [], []
+        #flux_stack = np.zeros((nspec, nexp), dtype=float)
+        #ivar_stack = np.zeros((nspec, nexp), dtype=float)
+        #wave_stack = np.zeros((nspec, nexp), dtype=float)
+        #mask_stack = np.zeros((nspec, nexp), dtype=bool)
 
         for iexp, sobjs in enumerate(self.stack_dict['specobjs_list']):
             ithis = sobjs.slitorder_objid_indices(slitorderid, objid[iexp])
@@ -356,10 +419,18 @@ class CoAdd2D:
                 msgs.error('Slit/order or OBJID provided not valid. Optimal weights cannot be determined.')
             # check if OPT_COUNTS is available
             if sobjs[ithis][0].has_opt_ext():
-                wave_stack[:, iexp], flux_stack[:, iexp], ivar_stack[:, iexp], mask_stack[:, iexp] = sobjs[ithis][0].get_opt_ext()
+                wave_iexp, flux_iexp, ivar_iexp, gpm_iexp = sobjs[ithis][0].get_opt_ext()
+                waves.append(wave_iexp)
+                fluxes.append(flux_iexp)
+                ivars.append(ivar_iexp)
+                gpms.append(gpm_iexp)
             # check if BOX_COUNTS is available
             elif sobjs[ithis][0].has_box_ext():
-                wave_stack[:, iexp], flux_stack[:, iexp], ivar_stack[:, iexp], mask_stack[:, iexp] = sobjs[ithis][0].get_box_ext()
+                wave_iexp, flux_iexp, ivar_iexp, gpm_iexp = sobjs[ithis][0].get_box_ext()
+                waves.append(wave_iexp)
+                fluxes.append(flux_iexp)
+                ivars.append(ivar_iexp)
+                gpms.append(gpm_iexp)
                 msgs.warn(f'Optimal extraction not available for object '
                           f'{objid[iexp]} of slit/order {slitorderid} in exp {iexp}. Using box extraction.')
             else:
@@ -367,9 +438,8 @@ class CoAdd2D:
                            f'flux not available in slit/order = {slitorderid}')
 
         # TODO For now just use the zero as the reference for the wavelengths? Perhaps we should be rebinning the data though?
-        rms_sn, weights = coadd.sn_weights(wave_stack, flux_stack, ivar_stack, mask_stack, self.sn_smooth_npix,
-                                           const_weights=const_weights)
-        return rms_sn, weights.T
+        rms_sn, weights = coadd.sn_weights(fluxes, ivars, gpms, self.sn_smooth_npix, const_weights=const_weights)
+        return rms_sn, weights
 
     def coadd(self, only_slits=None, interp_dspat=True):
         """
@@ -412,7 +482,11 @@ class CoAdd2D:
             maskdef_dict = self.get_maskdef_dict(slit_idx, ref_trace_stack)
 
             # weights
-            if not isinstance(self.use_weights, str) and self.use_weights.ndim > 2:
+            #if not isinstance(self.use_weights, str) and self.use_weights.ndim > 2:
+            #    weights = self.use_weights[slit_idx]
+            #else:
+            #    weights = self.use_weights
+            if not isinstance(self.use_weights, str):
                 weights = self.use_weights[slit_idx]
             else:
                 weights = self.use_weights
@@ -751,16 +825,15 @@ class CoAdd2D:
 #            ref_trace_stack.append(slits.center[:,slitid] - offsets[iexp])
 #        return ref_trace_stack
 
-    def get_wave_grid(self, **kwargs_wave):
+    def get_wave_grid(self, wave_method):
         """
         Routine to create a wavelength grid for 2d coadds using all of the
         wavelengths of the extracted objects. Calls
         :func:`~pypeit.core.wavecal.wvutils.get_wave_grid`.
 
         Args:
-            **kwargs_wave (dict):
-                Optional argumments for
-                :func:`~pypeit.core.wavecal.wvutils.get_wave_grid`.
+            wave_method (str):
+               The method to use to create the wavelength grid passed to wvutils.get_wave_grid.
 
         Returns:
             tuple: Returns the following:
@@ -781,10 +854,11 @@ class CoAdd2D:
         #  This all seems a bit hacky
         if self.par['coadd2d']['use_slits4wvgrid'] or nobjs_tot==0:
             nslits_tot = np.sum([slits.nslits for slits in self.stack_dict['slits_list']])
-            waves = np.zeros((self.nspec_max, nslits_tot*3))
-            gpm = np.zeros_like(waves, dtype=bool)
+            #waves = np.zeros((self.nspec_max, nslits_tot*3))
+            #gpm = np.zeros_like(waves, dtype=bool)
+            waves, gpms = [], []
             box_radius = 3.
-            indx = 0
+            #indx = 0
             # Loop on the exposures
             for iexp, (waveimg, slitmask, slits) in enumerate(zip(self.stack_dict['waveimg_stack'],
                                                 self.stack_dict['slitmask_stack'],
@@ -800,24 +874,30 @@ class CoAdd2D:
                     box_denom = moment1d(waveimg * mask > 0.0, trace_spat, 2 * box_radius, row=row)[0]
                     wave_box = moment1d(waveimg * mask, trace_spat, 2 * box_radius,
                                     row=row)[0] / (box_denom + (box_denom == 0.0))
-                    waves[:self.nspec_array[iexp], indx:indx+3] = wave_box
+                    gpm_box = box_denom > 0.
+                    waves += [wave for wave in wave_box.T]
+                    gpms  += [(wave > 0.) & gpm for (wave, gpm) in zip(wave_box.T, gpm_box.T)]
+                    #waves[:self.nspec_array[iexp], indx:indx+3] = wave_box
                     # TODO -- This looks a bit risky
-                    gpm[:self.nspec_array[iexp], indx: indx+3] = wave_box > 0.
-                    indx += 3
+                    #gpm[:self.nspec_array[iexp], indx: indx+3] = wave_box > 0.
+                    #indx += 3
         else:
-            waves = np.zeros((self.nspec_max, nobjs_tot))
-            gpm = np.zeros_like(waves, dtype=bool)
-            indx = 0
+            waves, gpms = [], []
+            #waves = np.zeros((self.nspec_max, nobjs_tot))
+            #gpm = np.zeros_like(waves, dtype=bool)
+            #indx = 0
             for iexp, spec_this in enumerate(self.stack_dict['specobjs_list']):
                 for spec in spec_this:
-                    waves[:self.nspec_array[iexp], indx] = spec.OPT_WAVE
+                    # NOTE: BOX extraction usage needed for quicklook
+                    waves.append(spec.OPT_WAVE if spec.OPT_WAVE is not None else spec.BOX_WAVE)
+                    gpms.append(spec.OPT_MASK if spec.OPT_MASK is not None else spec.BOX_MASK)
                     # TODO -- OPT_MASK is likely to become a bpm with int values
-                    gpm[:self.nspec_array[iexp], indx] = spec.OPT_MASK
-                    indx += 1
+                    #gpm[:self.nspec_array[iexp], indx] = spec.OPT_MASK
+                    #indx += 1
 
-        wave_grid, wave_grid_mid, dsamp = wvutils.get_wave_grid(waves=waves, masks=gpm,
-                                                                spec_samp_fact=self.spec_samp_fact,
-                                                                **kwargs_wave)
+        wave_grid, wave_grid_mid, dsamp = wvutils.get_wave_grid(waves=waves, gpms=gpms, wave_method=wave_method,
+                                                                spec_samp_fact=self.spec_samp_fact)
+
 
         return wave_grid, wave_grid_mid, dsamp
 
@@ -921,17 +1001,46 @@ class CoAdd2D:
 
         """
         msgs.info('Get Offsets')
+        # 1) offsets are provided in the header of the spec2d files
+        if offsets == 'header':
+            msgs.info('Using offsets from header')
+            pscale = self.stack_dict['detectors'][0].platescale
+            dithoffs = [self.spectrograph.get_meta_value(f, 'dithoff') for f in self.spec2d]
+            if None in dithoffs:
+                msgs.error('Dither offsets keyword not found for one or more spec2d files. '
+                           'Choose another option for `offsets`')
+            dithoffs_pix = - np.array(dithoffs) / pscale
+            self.offsets = dithoffs_pix[0] - dithoffs_pix
+            self.offsets_report(self.offsets, 'header keyword')
 
-        if self.objid_bri is None and offsets == 'auto':
+        elif self.objid_bri is None and offsets == 'auto':
             msgs.error('Offsets cannot be computed because no unique reference object '
                        'with the highest S/N was found. To continue, provide offsets in `Coadd2DPar`')
 
-        # 1) a list of offsets is provided by the user (no matter if we have a bright object or not)
-        if isinstance(offsets, (list, np.ndarray)):
+        # 2) a list of offsets is provided by the user (no matter if we have a bright object or not)
+        elif isinstance(offsets, (list, np.ndarray)):
             msgs.info('Using user input offsets')
             # use them
             self.offsets = self.check_input(offsets, type='offsets')
             self.offsets_report(self.offsets, 'user input')
+
+        # 3) parset `offsets` is = 'maskdef_offsets' (no matter if we have a bright object or not)
+        elif offsets == 'maskdef_offsets':
+            if self.maskdef_offset is not None:
+                # the offsets computed during the main reduction (`run_pypeit`) are used
+                msgs.info('Determining offsets using maskdef_offset recoded in SlitTraceSet')
+                self.offsets = self.maskdef_offset[0] - self.maskdef_offset
+                self.offsets_report(self.offsets, 'maskdef_offset')
+            else:
+                # if maskdef_offsets were not computed during the main reduction, we cannot continue
+                msgs.error('No maskdef_offset recoded in SlitTraceSet')
+
+        # 4) parset `offsets` = 'auto' but we have a bright object
+        elif offsets == 'auto' and self.objid_bri is not None:
+            # see child method
+            pass
+        else:
+            msgs.error('Invalid value for `offsets`')
 
     def compute_weights(self, weights):
         """
@@ -965,6 +1074,13 @@ class CoAdd2D:
                           'with the highest S/N was found. Using uniform weights instead.')
             elif weights == 'uniform':
                 msgs.info('Using uniform weights')
+
+        # 3) Bright object exists and parset `weights` is equal to 'auto'
+        elif (self.objid_bri is not None) and (weights == 'auto'):
+            # see child method
+            pass
+        else:
+            msgs.error('Invalid value for `weights`')
 
     def get_brightest_object(self, specobjs_list, spat_ids):
         """
@@ -1031,19 +1147,19 @@ class MultiSlitCoAdd2D(CoAdd2D):
     """
     def __init__(self, spec2d_files, spectrograph, par, det=1, offsets=None, weights='auto',
                  spec_samp_fact=1.0, spat_samp_fact=1.0, sn_smooth_npix=None,
-                 bkg_redux=False, find_negative=False, show=False, show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
+                 bkg_redux=False, find_negative=False, show=False, show_peaks=False, debug_offsets=False, debug=False):
         super().__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
                                                spec_samp_fact=spec_samp_fact, spat_samp_fact=spat_samp_fact,
                                                sn_smooth_npix=sn_smooth_npix, bkg_redux=bkg_redux, find_negative=find_negative, par=par,
                                         show=show, show_peaks=show_peaks, debug_offsets=debug_offsets,
-                                        debug=debug, **kwargs_wave)
+                                        debug=debug)
 
         # maskdef offset
         self.maskdef_offset = np.array([slits.maskdef_offset for slits in self.stack_dict['slits_list']])
 
         # Default wave_method for Multislit is linear
-        kwargs_wave['wave_method'] = 'linear' if 'wave_method' not in kwargs_wave else kwargs_wave['wave_method']
-        self.wave_grid, self.wave_grid_mid, self.dsamp = self.get_wave_grid(**kwargs_wave)
+        wave_method = 'linear' if self.par['coadd2d']['wave_method'] is None else self.par['coadd2d']['wave_method']
+        self.wave_grid, self.wave_grid_mid, self.dsamp = self.get_wave_grid(wave_method)
 
         # Check if the user-input object to compute offsets and weights exists
         if self.par['coadd2d']['user_obj'] is not None:
@@ -1093,18 +1209,8 @@ class MultiSlitCoAdd2D(CoAdd2D):
         """
         super().compute_offsets(offsets)
 
-        # 2) parset `offsets` is = 'maskdef_offsets' (no matter if we have a bright object or not)
-        if offsets == 'maskdef_offsets':
-            if self.maskdef_offset is not None:
-                # the offsets computed during the main reduction (`run_pypeit`) are used
-                msgs.info('Determining offsets using maskdef_offset recoded in SlitTraceSet')
-                self.offsets = self.maskdef_offset[0] - self.maskdef_offset
-                self.offsets_report(self.offsets, 'maskdef_offset')
-            else:
-                # if maskdef_offsets were not computed during the main reduction, we cannot continue
-                msgs.error('No maskdef_offset recoded in SlitTraceSet')
-        # 3) parset `offsets` = 'auto' but we have a bright object
-        elif offsets == 'auto' and self.objid_bri is not None:
+        # adjustment for multislit to case 4) parset `offsets` = 'auto' but we have a bright object
+        if offsets == 'auto' and self.objid_bri is not None:
             # Compute offsets using the bright object
             if self.par['coadd2d']['user_obj'] is not None:
                 offsets_method = 'user object on slitid = {:d}'.format(self.spatid_bri)
@@ -1180,7 +1286,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
         super().compute_weights(weights)
 
-        # 3) Bright object exists and parset `weights` is equal to 'auto'
+        # adjustment for multislit to case 3) Bright object exists and parset `weights` is equal to 'auto'
         if (self.objid_bri is not None) and (weights == 'auto'):
             # compute weights using bright object
             _, self.use_weights = self.optimal_weights(self.spatid_bri, self.objid_bri, const_weights=True)
@@ -1221,40 +1327,48 @@ class MultiSlitCoAdd2D(CoAdd2D):
         # Loop over each exposure, slit, find the brighest object on that slit for every exposure
         for iexp, sobjs in enumerate(specobjs_list):
             msgs.info("Working on exposure {}".format(iexp))
-            nspec_now = self.nspec_array[iexp]
+            #nspec_now = self.nspec_array[iexp]
             for islit, spat_id in enumerate(spat_ids):
                 ithis = np.abs(sobjs.SLITID - spat_id) <= self.par['coadd2d']['spat_toler']
-                nobj_slit = np.sum(ithis)
+                #nobj_slit = np.sum(ithis)
                 if np.any(ithis):
                     objid_this = sobjs[ithis].OBJID
-                    flux = np.zeros((nspec_now, nobj_slit))
-                    ivar = np.zeros((nspec_now, nobj_slit))
-                    wave = np.zeros((nspec_now, nobj_slit))
-                    mask = np.zeros((nspec_now, nobj_slit), dtype=bool)
-                    remove_indx = []
+                    waves, fluxes, ivars, gpms = [], [], [], []
+                    #flux = np.zeros((nspec_now, nobj_slit))
+                    #ivar = np.zeros((nspec_now, nobj_slit))
+                    #wave = np.zeros((nspec_now, nobj_slit))
+                    #mask = np.zeros((nspec_now, nobj_slit), dtype=bool)
+                    #remove_indx = []
                     for iobj, spec in enumerate(sobjs[ithis]):
                         # check if OPT_COUNTS is available
                         if spec.has_opt_ext():
-                            wave[:, iobj], flux[:, iobj], ivar[:, iobj], mask[:, iobj] = spec.get_opt_ext()
+                            wave_iobj, flux_iobj, ivar_iobj, gpm_iobj = spec.get_opt_ext()
+                            waves.append(wave_iobj)
+                            fluxes.append(flux_iobj)
+                            ivars.append(ivar_iobj)
+                            gpms.append(gpm_iobj)
                         # check if BOX_COUNTS is available
                         elif spec.has_box_ext():
-                            wave[:, iobj], flux[:, iobj], ivar[:, iobj], mask[:, iobj] = spec.get_box_ext()
+                            wave_iobj, flux_iobj, ivar_iobj, gpm_iobj = spec.get_box_ext()
+                            waves.append(wave_iobj)
+                            fluxes.append(flux_iobj)
+                            ivars.append(ivar_iobj)
+                            gpms.append(gpm_iobj)
                             msgs.warn(f'Optimal extraction not available for obj {spec.OBJID} '
                                       f'in slit {spat_id}. Using box extraction.')
                         # if both are not available, we remove the object in this slit,
                         # because otherwise coadd.sn_weights will crash
                         else:
                             msgs.warn(f'Optimal and Boxcar extraction not available for obj {spec.OBJID} in slit {spat_id}.')
-                            remove_indx.append(iobj)
-                    # if the number of removed objects is less than the total number of objects in this slit,
-                    # i.e., we still have some objects left, we can proced with computing rms_sn
-                    if len(remove_indx) < nobj_slit:
-                        flux = np.delete(flux, remove_indx,1)
-                        ivar = np.delete(ivar, remove_indx,1)
-                        wave = np.delete(wave, remove_indx,1)
-                        mask = np.delete(mask, remove_indx,1)
-
-                        rms_sn, weights = coadd.sn_weights(wave, flux, ivar, mask, None, const_weights=True)
+                            #remove_indx.append(iobj)
+                    # if there are objects on this slit left, we can proceed with computing rms_sn
+                    if len(waves) > 0:
+                        #len(remove_indx) < nobj_slit:
+                        #flux = np.delete(flux, remove_indx,1)
+                        #ivar = np.delete(ivar, remove_indx,1)
+                        #wave = np.delete(wave, remove_indx,1)
+                        #mask = np.delete(mask, remove_indx,1)
+                        rms_sn, weights = coadd.sn_weights(fluxes, ivars, gpms, None, const_weights=True)
                         imax = np.argmax(rms_sn)
                         slit_snr_max[islit, iexp] = rms_sn[imax]
                         objid_max[islit, iexp] = objid_this[imax]
@@ -1386,17 +1500,16 @@ class EchelleCoAdd2D(CoAdd2D):
     """
     def __init__(self, spec2d_files, spectrograph, par, det=1, offsets=None, weights='auto',
                  spec_samp_fact=1.0, spat_samp_fact=1.0, sn_smooth_npix=None,
-                 bkg_redux=False, find_negative=False, show=False, show_peaks=False, debug_offsets=False, debug=False,
-                 **kwargs_wave):
+                 bkg_redux=False, find_negative=False, show=False, show_peaks=False, debug_offsets=False, debug=False):
         super().__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
                                              spec_samp_fact=spec_samp_fact, spat_samp_fact=spat_samp_fact,
                                              sn_smooth_npix=sn_smooth_npix, bkg_redux=bkg_redux, find_negative=find_negative,
                                              par=par, show=show, show_peaks=show_peaks, debug_offsets=debug_offsets,
-                                             debug=debug, **kwargs_wave)
+                                             debug=debug)
 
         # Default wave_method for Echelle is log10
-        kwargs_wave['wave_method'] = 'log10' if 'wave_method' not in kwargs_wave else kwargs_wave['wave_method']
-        self.wave_grid, self.wave_grid_mid, self.dsamp = self.get_wave_grid(**kwargs_wave)
+        wave_method = 'log10' if self.par['coadd2d']['wave_method'] is None else self.par['coadd2d']['wave_method']
+        self.wave_grid, self.wave_grid_mid, self.dsamp = self.get_wave_grid(wave_method)
 
         # Check if the user-input object to compute offsets and weights exists
         if self.par['coadd2d']['user_obj'] is not None:
@@ -1439,12 +1552,12 @@ class EchelleCoAdd2D(CoAdd2D):
         """
         super().compute_offsets(offsets)
 
-        # adjustment for echelle to case 1): a list of offsets is provided by the user
+        # adjustment for echelle to case 2): a list of offsets is provided by the user
         if isinstance(self.offsets, (list, np.ndarray)):
             self.objid_bri = None
 
-        # 2) parset `offsets` = 'auto' but we have a bright object
-        if offsets == 'auto' and self.objid_bri is not None:
+        # adjustment for echelle to case 4) parset `offsets` = 'auto' but we have a bright object
+        elif offsets == 'auto' and self.objid_bri is not None:
             # offsets are not determined, but the bright object is used to construct
             # a reference trace (this is done in coadd using method `reference_trace_stack`)
             self.offsets = None
@@ -1466,7 +1579,7 @@ class EchelleCoAdd2D(CoAdd2D):
         """
         super().compute_weights(weights)
 
-        # 3) Bright object exists and parset `weights` is equal to 'auto'
+        # adjustment for echelle to case 3) Bright object exists and parset `weights` is equal to 'auto'
         if (self.objid_bri is not None) and (weights == 'auto'):
             # computing a list of weights for all the slitord_ids that we than parse in coadd
             slitord_ids = self.stack_dict['slits_list'][0].slitord_id

@@ -27,7 +27,7 @@ You can view it with any standard image viewer, e.g.:
 
 .. code-block:: console
 
-    ginga Calibrations/Tilt_A_1_01.fits
+    ginga Calibrations/Tiltimg_A_1_01.fits
 
 Most often you use only one tilt frame and this appears
 very similar to the raw image.  If you do stack several,

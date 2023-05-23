@@ -59,12 +59,10 @@ class TraceEdges(scriptbase.ScriptBase):
 
         import time
         from pathlib import Path
-        import os
         import numpy as np
         from pypeit import msgs
         from pypeit.spectrographs.util import load_spectrograph
         from pypeit import edgetrace
-        from pypeit import slittrace
         from pypeit.pypeit import PypeIt
         from pypeit.images import buildimage
 
@@ -76,7 +74,7 @@ class TraceEdges(scriptbase.ScriptBase):
         if args.pypeit_file is not None:
             pypeit_file = Path(args.pypeit_file).resolve()
             if not pypeit_file.exists():
-                raise FileNotFoundError(f'File does not exist: {pypeit_file}')
+                msgs.error(f'File does not exist: {pypeit_file}')
             redux_path = pypeit_file.parent if args.redux_path is None \
                             else Path(args.redux_path).resolve()
 
@@ -87,7 +85,7 @@ class TraceEdges(scriptbase.ScriptBase):
             # Get the calibration group to use
             group = np.unique(rdx.fitstbl['calib'])[0] if args.group is None else args.group
             if group not in np.unique(rdx.fitstbl['calib']):
-                raise ValueError('Not a valid calibration group: {0}'.format(group))
+                msgs.error(f'Invalid calibration group: {group}')
             # Find the rows in the metadata table with trace frames in the
             # specified calibration group
             tbl_rows = rdx.fitstbl.find_frames('trace', calib_ID=int(group), index=True)
@@ -126,7 +124,7 @@ class TraceEdges(scriptbase.ScriptBase):
             binning = '1,1' if args.binning is None else args.binning
             trace_file = Path(args.trace_file).resolve()
             if not trace_file.exists():
-                raise FileNotFoundError(f'File does not exist: {trace_file}')
+                msgs.error(f'File does not exist: {trace_file}')
             files = [str(trace_file)]
             redux_path = trace_file.parent if args.redux_path is None \
                             else Path(args.redux_path).resolve()

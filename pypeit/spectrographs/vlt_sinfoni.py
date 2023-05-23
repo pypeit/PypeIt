@@ -230,6 +230,27 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         """
         return ['decker', 'dispname', 'filter1']
 
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['HIERARCH ESO INS OPTI1 NAME', 'HIERARCH ESO INS GRAT1 NAME',
+                'HIERARCH ESO INS FILT1 NAME']
+
     def pypeit_file_keys(self):
         """
         Define the list of keys to be output into a standard ``PypeIt`` file.

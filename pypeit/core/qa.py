@@ -84,6 +84,8 @@ def set_qa_filename(root, method, det=None, slit=None, prefix=None, out_dir=None
         outfile = 'PNGs/{:s}_S{:04d}_spec_flex_sky.png'.format(root, slit)
     elif method == 'spatillum_finecorr':
         outfile = 'PNGs/{:s}_S{:04d}_spatillum_finecorr.png'.format(root, slit)
+    elif method == 'detector_structure':
+        outfile = 'PNGs/{:s}_{:s}_detector_structure.png'.format(root, det)
     else:
         raise IOError("NOT READY FOR THIS QA: {:s}".format(method))
     # Return

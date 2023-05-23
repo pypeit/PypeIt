@@ -356,7 +356,7 @@ class PypeItMetaData:
             for col in ['setup', 'calib', 'calibbit', 'comb_id', 'bkg_id']:
                 if col in self.keys():
                     del self.table[col]
-            self.set_configurations(self.unique_configurations())
+            self.set_configurations()
             self.set_calibration_groups()
             self.set_combination_groups()
 
@@ -410,12 +410,9 @@ class PypeItMetaData:
         self.set_calibration_groups(default=True)
         self.set_combination_groups()
 
-    def get_configuration(self, indx, cfg_keys=None):
+    def get_configuration(self, indx, cfg_keys=None, modified=False):
         """
         Return the configuration dictionary for a given frame.
-
-        This is not the same as the backwards compatible "setup"
-        dictionary.
 
         Args:
             indx (:obj:`int`):
@@ -425,13 +422,18 @@ class PypeItMetaData:
                 The list of metadata keys to use to construct the
                 configuration.  If None, the `configuration_keys` of
                 :attr:`spectrograph` is used.
+            modified (:obj:`bool`, optional):
+                Return the configuration as modified by the
+                spectrograph-specific
+                :func:`~pypeit.spectrographs.spectrograph.Spectrograph.modify_config`.
 
         Returns:
             dict: A dictionary with the metadata values from the
             selected row.
         """
         _cfg_keys = self.spectrograph.configuration_keys() if cfg_keys is None else cfg_keys
-        return {k:self.table[k][indx] for k in _cfg_keys}
+        cfg = {k:self.table[k][indx] for k in _cfg_keys}
+        return self.spectrograph.modify_config(self.table[indx], cfg) if modified else cfg
 
     def construct_obstime(self, row):
         """
@@ -472,61 +474,61 @@ class PypeItMetaData:
                                            datetime.datetime.strftime(dtime, '%Y%m%dT'),
                                            tiso.value.split("T")[1].replace(':',''))
 
-    def get_setup(self, row, det=None, config_only=False):
-        """
-        Construct the setup dictionary.
-
-        .. todo::
-            - This is for backwards compatibility, but we should
-              consider reformatting it.  And it may be something to put
-              in the relevant spectrograph class.
-
-        Args:
-            row (:obj:`int`):
-                The 0-indexed row used to construct the setup.
-            det (:obj:`int`, optional):
-                The 1-indexed detector to include.  If None, all
-                detectors are included.
-            config_only (:obj:`bool`, optional):
-                Just return the dictionary with the configuration, don't
-                include the top-level designation of the configuration
-                itself.
-
-        Returns:
-            dict: The pypeit setup dictionary with the default format.
-
-        Raises:
-            PypeItError:
-                Raised if the 'setup' isn't been defined.
-        """
-        if 'setup' not in self.keys():
-            msgs.error('Cannot provide instrument setup without \'setup\' column; '
-                       'run set_configurations.')
-        dispname = 'none' if 'dispname' not in self.keys() else self['dispname'][row]
-        dispangle = 'none' if 'dispangle' not in self.keys() else self['dispangle'][row]
-        dichroic = 'none' if 'dichroic' not in self.keys() else self['dichroic'][row]
-        decker = 'none' if 'decker' not in self.keys() else self['decker'][row]
-        slitwid = 'none' if 'slitwid' not in self.keys() else self['slitwid'][row]
-        slitlen = 'none' if 'slitlen' not in self.keys() else self['slitlen'][row]
-        binning = '1,1' if 'binning' not in self.keys() else self['binning'][row]
-
-        skey = 'Setup {}'.format(self['setup'][row])
-        # Key names *must* match configuration_keys() for spectrographs
-        setup = {skey:
-                    {'--':
-                        {'disperser': {'dispname': dispname, 'dispangle':dispangle},
-                         'dichroic': dichroic,
-                         'slit': {'decker': decker, 'slitwid':slitwid, 'slitlen':slitlen},
-                         'binning': binning,  # PypeIt orientation binning of a science image
-                         }
-                     }
-                 }
-        #_det = np.arange(self.spectrograph.ndet)+1 if det is None else [det]
-        #for d in _det:
-        #    setup[skey][str(d).zfill(2)] \
-        #            = {'binning': binning, 'det': d,
-        #               'namp': self.spectrograph.detector[d-1]['numamplifiers']}
-        return setup[skey] if config_only else setup
+#    def get_setup(self, row, det=None, config_only=False):
+#        """
+#        Construct the setup dictionary.
+#
+#        .. todo::
+#            - This is for backwards compatibility, but we should
+#              consider reformatting it.  And it may be something to put
+#              in the relevant spectrograph class.
+#
+#        Args:
+#            row (:obj:`int`):
+#                The 0-indexed row used to construct the setup.
+#            det (:obj:`int`, optional):
+#                The 1-indexed detector to include.  If None, all
+#                detectors are included.
+#            config_only (:obj:`bool`, optional):
+#                Just return the dictionary with the configuration, don't
+#                include the top-level designation of the configuration
+#                itself.
+#
+#        Returns:
+#            dict: The pypeit setup dictionary with the default format.
+#
+#        Raises:
+#            PypeItError:
+#                Raised if the 'setup' isn't been defined.
+#        """
+#        if 'setup' not in self.keys():
+#            msgs.error('Cannot provide instrument setup without \'setup\' column; '
+#                       'run set_configurations.')
+#        dispname = 'none' if 'dispname' not in self.keys() else self['dispname'][row]
+#        dispangle = 'none' if 'dispangle' not in self.keys() else self['dispangle'][row]
+#        dichroic = 'none' if 'dichroic' not in self.keys() else self['dichroic'][row]
+#        decker = 'none' if 'decker' not in self.keys() else self['decker'][row]
+#        slitwid = 'none' if 'slitwid' not in self.keys() else self['slitwid'][row]
+#        slitlen = 'none' if 'slitlen' not in self.keys() else self['slitlen'][row]
+#        binning = '1,1' if 'binning' not in self.keys() else self['binning'][row]
+#
+#        skey = 'Setup {}'.format(self['setup'][row])
+#        # Key names *must* match configuration_keys() for spectrographs
+#        setup = {skey:
+#                    {'--':
+#                        {'disperser': {'dispname': dispname, 'dispangle':dispangle},
+#                         'dichroic': dichroic,
+#                         'slit': {'decker': decker, 'slitwid':slitwid, 'slitlen':slitlen},
+#                         'binning': binning,  # PypeIt orientation binning of a science image
+#                         }
+#                     }
+#                 }
+#        #_det = np.arange(self.spectrograph.ndet)+1 if det is None else [det]
+#        #for d in _det:
+#        #    setup[skey][str(d).zfill(2)] \
+#        #            = {'binning': binning, 'det': d,
+#        #               'namp': self.spectrograph.detector[d-1]['numamplifiers']}
+#        return setup[skey] if config_only else setup
 
     def get_configuration_names(self, ignore=None, return_index=False, configs=None):
         """
@@ -613,6 +615,26 @@ class PypeItMetaData:
         if rm_none and 'None' in _cfg.keys():
             del _cfg['None']
         return _cfg
+
+    @staticmethod
+    def maximum_number_of_configurations():
+        nascii = len(string.ascii_uppercase)
+        return nascii + nascii**2
+
+    @staticmethod
+    def configuration_generator(start=0):
+        nascii = len(string.ascii_uppercase)
+        return (string.ascii_uppercase[i] if i < nascii \
+                    else string.ascii_uppercase[int((i-nascii)//nascii)] \
+                            + string.ascii_uppercase[int((i-nascii) % nascii)]
+                    for i in range(start, nascii + nascii**2))
+
+    @property
+    def n_configs(self):
+        if self.configs is None:
+            msgs.error('Configurations not defined by PypeItMetaData object.  Execute '
+                       'unique_configurations first.')
+        return len(list(self.configs.keys()))
 
     def unique_configurations(self, force=False, copy=False, rm_none=False):
         """
@@ -706,44 +728,45 @@ class PypeItMetaData:
         if len(indx) == 0:
             msgs.error('No frames to use to define configurations!')
 
-        # Get the list of keys to use
-        cfg_keys = self.spectrograph.configuration_keys()
-
-        # Configuration identifiers are iterations through the
-        # upper-case letters: A, B, C, etc.
-        double_alphabet = [str_i + str_j for str_i in string.ascii_uppercase for str_j in string.ascii_uppercase]
-        cfg_iter = list(string.ascii_uppercase) + double_alphabet
-        cfg_indx = 0
+        # Instantiate the configuration generator
+        cfg_gen = PypeItMetaData.configuration_generator()
 
         # TODO: Placeholder: Allow an empty set of configuration keys
         # meaning that the instrument setup has only one configuration.
-        if len(cfg_keys) == 0:
+        if len(self.spectrograph.configuration_keys()) == 0:
             self.configs = {}
-            self.configs[cfg_iter[cfg_indx]] = {}
+            self.configs[next(cfg_gen)] = {}
             msgs.info('All files assumed to be from a single configuration.')
             return self._get_cfgs(copy=copy, rm_none=rm_none)
 
         # Use the first file to set the first unique configuration
         self.configs = {}
-        self.configs[cfg_iter[cfg_indx]] = self.get_configuration(indx[0], cfg_keys=cfg_keys)
-        cfg_indx += 1
+        self.configs[next(cfg_gen)] = self.get_configuration(indx[0])
 
-        # Check if any of the other files show a different
-        # configuration.
+        # Check if any of the other files show a different configuration.
         for i in indx[1:]:
-            j = 0
+            cfg = self.get_configuration(i)
+            matched = False
             for c in self.configs.values():
-                if row_match_config(self.table[i], c, self.spectrograph):
+                if self.spectrograph.same_configuration([c,cfg]):
+                    matched = True
                     break
-                j += 1
-            unique = j == len(self.configs)
-            if unique:
-                if cfg_indx == len(cfg_iter):
-                    msgs.error('Cannot assign more than {0} configurations!'.format(len(cfg_iter)))
-                self.configs[cfg_iter[cfg_indx]] = self.get_configuration(i, cfg_keys=cfg_keys)
-                cfg_indx += 1
+            if matched:
+                # Matches an existing configuration, so move on to the next
+                # frame
+                continue
 
-        msgs.info('Found {0} unique configurations.'.format(len(self.configs)))
+            try:
+                # Get the next setup identifier
+                setup = next(cfg_gen)
+            except StopIteration:
+                msgs.error('Cannot assign more configurations!  Either something went wrong'
+                           'or you are trying to reduce data from more than '
+                           f'{PypeItMetaData.maximum_number_of_configurations()} setups!')
+            # Add the configuration
+            self.configs[setup] = cfg
+
+        msgs.info(f'Found {len(self.configs)} unique configuration(s).')
         return self._get_cfgs(copy=copy, rm_none=rm_none)
 
     def set_configurations(self, configs=None, force=False, fill=None):
@@ -803,14 +826,15 @@ class PypeItMetaData:
         for i in range(nrows):
             for d, cfg in _configs.items():
                 # modify the configuration items only for specific frames. This is instrument dependent.
-                cfg = self.spectrograph.modify_config(self.table[i], cfg)
-                if row_match_config(self.table[i], cfg, self.spectrograph):
+                mod_cfg = self.spectrograph.modify_config(self.table[i], cfg)
+                this_cfg = self.get_configuration(i, modified=True)
+                if self.spectrograph.same_configuration([this_cfg, mod_cfg], check_keys=False):
                     if d in self.table['setup'][i]:
                         continue
                     elif self.table['setup'][i] == 'None':
                         self.table['setup'][i] = d
                     elif not is_science[i]:
-                        self.table['setup'][i] += ',{}'.format(d)
+                        self.table['setup'][i] += f',{d}'
 
         # Check if any of the configurations are not set
         not_setup = self.table['setup'] == 'None'
@@ -1071,7 +1095,8 @@ class PypeItMetaData:
         # The configuration must be present to determine the calibration
         # group
         if 'setup' not in self.keys():
-            msgs.error('Must have defined \'setup\' column first; try running set_configurations.')
+            msgs.error('CODING ERROR: Must have defined \'setup\' column first; try running '
+                       'set_configurations.')
         configs = np.unique(np.concatenate([_setup.split(',') for _setup in self['setup'].data])).tolist()
         if 'None' in configs:
             configs.remove('None')      # Ignore frames with undefined configurations
@@ -1084,7 +1109,9 @@ class PypeItMetaData:
         # any changes to the strings will be truncated at 4 characters.
         self.table['calib'] = np.full(len(self), 'None', dtype=object)
         for i in range(n_cfg):
-            in_cfg = np.array([configs[i] in _set for _set in self.table['setup']]) & (self['framebit'] > 0)
+            in_cfg = np.array([configs[i] in _set for _set in self.table['setup']]) # & (self['framebit'] > 0)
+            if not any(in_cfg):
+                continue
             icalibs = np.full(len(self['calib'][in_cfg]), 'None', dtype=object)
             for c in range(len(self['calib'][in_cfg])):
                 if self['calib'][in_cfg][c] == 'None':
@@ -1409,14 +1436,21 @@ class PypeItMetaData:
 
         Args:
             assign_objects (:obj:`bool`, optional):
-                If all of 'comb_id' values are less than 0 (meaning
-                they're unassigned), the combination groups are set to
-                be unique for each standard and science frame.
+                If all of 'comb_id' values are less than 0 (meaning they're
+                unassigned), the combination groups are set to be unique for
+                each standard and science frame.  For some instruments (e.g.,
+                Keck/NIRES), this will also parse known dither patterns and use
+                them to set default difference-imaging groups.
+
         """
         if 'comb_id' not in self.keys():
             self['comb_id'] = -1
         if 'bkg_id' not in self.keys():
             self['bkg_id'] = -1
+
+        # NOTE: Importantly, this if statement means that, if the user has
+        # defined any non-negative combination IDs in their pypeit file, none of
+        # this automated assignment logic is executed.
         if assign_objects and np.all(self['comb_id'] < 0):
             # find_frames will throw an exception if framebit is not
             # set...
@@ -1576,7 +1610,7 @@ class PypeItMetaData:
                 Override the current version and use this one instead.  **For
                 documentation purposes only!**
             date_override (:obj:`str`, optional):
-                Override the current version and use this one instead.  **For
+                Override the current date and use this one instead.  **For
                 documentation purposes only!**
 
         Raises:
@@ -1833,38 +1867,4 @@ class PypeItMetaData:
         """
         return self.calib_bitmask.flagged_bits(self['calibbit'][row])
 
-
-# TODO: Is there a reason why this is not an attribute of
-# PypeItMetaData?
-def row_match_config(row, config, spectrograph):
-    """
-    Queries whether a row from the fitstbl matches the
-    input configuration
-
-    Args:
-        row (astropy.table.Row): From fitstbl
-        config (dict): Defines the configuration
-        spectrograph (pypeit.spectrographs.spectrograph.Spectrograph):
-          Used to grab the rtol value for float meta (e.g. dispangle)
-
-    Returns:
-        bool: True if the row matches the input configuration
-
-    """
-    # Loop on keys in config
-    match = []
-    for k in config.keys():
-        # Deal with floating configs (e.g. grating angle)
-        if isinstance(config[k], float):
-            if row[k] is None:
-                match.append(False)
-            elif np.abs(config[k]-row[k])/config[k] < spectrograph.meta[k]['rtol']:
-                match.append(True)
-            else:
-                match.append(False)
-        else:
-            # The np.all allows for arrays in the Table (e.g. binning)
-            match.append(np.all(config[k] == row[k]))
-    # Check
-    return np.all(match)
 

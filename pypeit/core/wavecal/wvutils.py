@@ -149,11 +149,11 @@ def get_wave_grid(waves=None, gpms=None, wave_method='linear', iref=0, wave_grid
     Create a new wavelength grid for spectra to be rebinned and coadded.
 
     Args:
-        waves (`numpy.ndarray`_, optional):
-            Set of N original wavelength arrays.  Shape is (nspec, nexp).
+        waves (list):
+            List of the `numpy.ndarray`_ N original 1d wavelength arrays.  Shapes of the input arrays are arbitrary.
             Required unless wave_method='user_input' in which case it need not be passed in.
-        gpms (`numpy.ndarray`_, optional):
-            Good-pixel mask for wavelengths.  Shape must match waves.
+        gpms (list)
+            Good-pixel mask for wavelengths.  Same format as waves and shapes of the individual arrays must match.
         wave_method (:obj:`str`, optional):
             Desired method for creating new wavelength grid:
 
@@ -400,10 +400,10 @@ def zerolag_shift_stretch(theta, y1, y2):
     # Zero lag correlation
     corr_zero = np.sum(y1*y2_corr)
     corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2_corr*y2_corr))
-    corr_norm = corr_zero/corr_denom
     if corr_denom == 0.0:
         msgs.warn('The shifted and stretched spectrum is zero everywhere. Cross-correlation cannot be performed. There is likely a bug somewhere')
         raise PypeItError()
+    corr_norm = corr_zero / corr_denom
     return -corr_norm
 
 
@@ -529,6 +529,10 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
     else:
         y1, y2 = inspec1, inspec2
 
+    if np.all(y1 == 0) or np.all(y2 == 0):
+        msgs.warn('One of the input spectra is all zeros. Returning shift = 0.0')
+        return 0.0, 0.0
+
     nspec = y1.shape[0]
     lags = np.arange(-nspec + 1, nspec)
     corr = scipy.signal.correlate(y1, y2, mode='full')
@@ -548,8 +552,8 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
         plt.legend()
         plt.show()
 
-
     return lag_max[0], corr_max[0]
+
 
 def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use_raw_arc=False,
                         shift_mnmx=(-0.2,0.2), stretch_mnmx=(0.95,1.05), sigdetect = 5.0, sig_ceil=10.0,
@@ -818,142 +822,4 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
     outfile = os.path.join(outpath, outroot)
     tbl.write(outfile, overwrite=overwrite)
     print("Wrote: {}".format(outfile))
-
-
-# JFH Deprecated array based codes start here.
-# TODO: the other methods iref should be deprecated or removed
-def get_wave_grid_array(waves=None, masks=None, wave_method='linear', iref=0, wave_grid_min=None,
-                  wave_grid_max=None, dwave=None, dv=None, dloglam=None, wave_grid_input=None,
-                  spec_samp_fact=1.0):
-    """
-    Create a new wavelength grid for spectra to be rebinned and coadded.
-    Args:
-        waves (`numpy.ndarray`_, optional):
-            Set of N original wavelength arrays.  Shape is (nspec, nexp).
-            Required unless wave_method='user_input' in which case it need not be passed in.
-        masks (`numpy.ndarray`_, optional):
-            Good-pixel mask for wavelengths.  Shape must match waves.
-        wave_method (:obj:`str`, optional):
-            Desired method for creating new wavelength grid:
-                * 'iref' -- Use the first wavelength array (default)
-                * 'velocity' -- Grid is uniform in velocity
-                * 'log10'  -- Grid is uniform in log10(wave). This is the same as velocity.
-                * 'linear' -- Constant pixel grid
-                * 'concatenate' -- Meld the input wavelength arrays
-                * 'user_input' -- Use a user input wavelength grid. wave_grid_input must be set for this option.
-        iref (:obj:`int`, optional):
-            Index in waves array for reference spectrum
-        wave_grid_min (:obj:`float`, optional):
-            min wavelength value for the final grid
-        wave_grid_max (:obj:`float`, optional):
-            max wavelength value for the final grid
-        dwave (:obj:`float`, optional):
-            Pixel size in same units as input wavelength array (e.g. Angstroms).
-            If not input, the median pixel size is calculated and used.
-        dv (:obj:`float`, optional):
-            Pixel size in km/s for velocity method.  If not input, the median
-            km/s per pixel is calculated and used
-        dloglam (:obj:`float`, optional):
-            Pixel size in log10(wave) for the log10 method.
-        spec_samp_fact (:obj:`float`, optional):
-            Make the wavelength grid sampling finer (spec_samp_fact < 1.0) or
-            coarser (spec_samp_fact > 1.0) by this sampling factor. This
-            basically multiples the 'native' spectral pixels by
-            ``spec_samp_fact``, i.e. units ``spec_samp_fact`` are pixels.
-        wave_grid_input (`numpy.ndarray`_, optional):
-            User input wavelength grid to be used with the 'user_input' wave_method.
-            Shape is (nspec_input,)
-    Returns:
-        :obj:`tuple`: Returns two `numpy.ndarray`_ objects and a float:
-            - ``wave_grid``: (ndarray, (ngrid +1,)) New wavelength grid, not masked.
-              This is a set of bin edges (rightmost edge for the last bin and leftmost edges for the rest),
-              while wave_grid_mid is a set of bin centers, hence wave_grid has 1 more value than wave_grid_mid.
-            - ``wave_grid_mid``: ndarray, (ngrid,) New wavelength grid evaluated at the centers of
-              the wavelength bins, that is this grid is simply offset from
-              ``wave_grid`` by ``dsamp/2.0``, in either linear space or log10
-              depending on whether linear or (log10 or velocity) was requested.
-              Last bin center is removed since it falls outside wave_grid.
-              For iref or concatenate, the linear wavelength sampling will be
-              calculated.
-            - ``dsamp``: The pixel sampling for wavelength grid created.
-    """
-    c_kms = constants.c.to('km/s').value
-
-    if wave_method == 'user_input':
-        wave_grid = wave_grid_input
-    else:
-        if masks is None:
-            masks = waves > 1.0
-
-        if wave_grid_min is None:
-            wave_grid_min = waves[masks].min()
-        if wave_grid_max is None:
-            wave_grid_max = waves[masks].max()
-
-        dwave_data, dloglam_data, resln_guess, pix_per_sigma = get_sampling(waves)
-
-        if wave_method in ['velocity', 'log10']:
-            if dv is not None and dloglam is not None:
-                msgs.error('You can only specify dv or dloglam but not both')
-            elif dv is not None:
-                dloglam_pix = dv/c_kms/np.log(10.0)
-            elif dloglam is not None:
-                dloglam_pix = dloglam
-            else:
-                dloglam_pix = dloglam_data
-
-            # Generate wavelength array
-            wave_grid, wave_grid_mid, dsamp = wavegrid(wave_grid_min, wave_grid_max, dloglam_pix,
-                                 spec_samp_fact=spec_samp_fact, log10=True)
-
-        elif wave_method == 'linear': # Constant Angstrom
-            if dwave is not None:
-                dwave_pix = dwave
-            else:
-                dwave_pix = dwave_data
-            # Generate wavelength array
-            wave_grid, wave_grid_mid, dsamp = wavegrid(wave_grid_min, wave_grid_max, dwave_pix, spec_samp_fact=spec_samp_fact)
-
-        elif wave_method == 'concatenate':  # Concatenate
-            # Setup
-            loglam = np.log10(waves) # This deals with padding (0's) just fine, i.e. they get masked..
-            nexp = waves.shape[1]
-            newloglam = loglam[:, iref]  # Deals with mask
-            # Loop
-            for j in range(nexp):
-                if j == iref:
-                    continue
-                #
-                iloglam = loglam[:, j]
-                dloglam_0 = (newloglam[1]-newloglam[0])
-                dloglam_n =  (newloglam[-1] - newloglam[-2]) # Assumes sorted
-                if (newloglam[0] - iloglam[0]) > dloglam_0:
-                    kmin = np.argmin(np.abs(iloglam - newloglam[0] - dloglam_0))
-                    newloglam = np.concatenate([iloglam[:kmin], newloglam])
-                #
-                if (iloglam[-1] - newloglam[-1]) > dloglam_n:
-                    kmin = np.argmin(np.abs(iloglam - newloglam[-1] - dloglam_n))
-                    newloglam = np.concatenate([newloglam, iloglam[kmin:]])
-            # Finish
-            wave_grid = np.power(10.0,newloglam)
-
-        elif wave_method == 'iref': # Use the iref index wavelength array
-            wave_tmp = waves[:, iref]
-            wave_grid = wave_tmp[ wave_tmp > 1.0]
-
-        else:
-            msgs.error("Bad method for wavelength grid: {:s}".format(wave_method))
-
-
-    if wave_method in ['iref', 'concatenate', 'user_input']:
-        wave_grid_diff = np.diff(wave_grid)
-        wave_grid_diff = np.append(wave_grid_diff, wave_grid_diff[-1])
-        wave_grid_mid = wave_grid + wave_grid_diff / 2.0
-        dsamp = np.median(wave_grid_diff)
-        # removing the last bin since the midpoint now falls outside of wave_grid rightmost bin. This matches
-        # the convention in wavegrid above
-        wave_grid_mid = wave_grid_mid[:-1]
-
-
-    return wave_grid, wave_grid_mid, dsamp
 

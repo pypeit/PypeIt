@@ -30,16 +30,34 @@ from astropy import stats
 from pypeit import msgs
 from pypeit.move_median import move_median
 
+def zero_not_finite(array):
+    """
+    Set the elements of an array to zero which are inf or nan
+
+    Args:
+        array (`np.ndarray`_):
+          An numpy array of arbitrary shape that potentially has nans or infinities
+
+    Returns:
+        new_array (`np.ndarray`_)
+          A copy of the array with the nans and inifinities set to zero
+
+    """
+    not_finite = np.logical_not(np.isfinite(array))
+    new_array = array.copy()
+    new_array[not_finite] = 0.0
+    return new_array
+
 def arr_setup_to_setup_list(arr_setup):
     """
 
     Args:
         arr_setup: (list)
-          A list of length setup of echelle output arrays of shape=(nspec, norders, nexp)
+          A list of length nsetups echelle output arrays of shape=(nspec, norders, nexp)
 
     Returns:
         setup_list: (list)
-          List of length nsteups. Each element of the setup list is a list of length
+          List of length nsetups. Each element of the setup list is a list of length
           norder*nexp elements, each of which contains the shape = (nspec1,) wavelength arrays
           for the order/exposure in setup1. The list is arranged such that the nexp1 spectra
           for iorder=0 appear first, then come nexp1 spectra for iorder=1, i.e. the outer or
@@ -1299,10 +1317,7 @@ def recursive_update(d, u):
         :obj:`dict`: The updated dictionary.
     """
     for k, v in u.items():
-        if isinstance(v, collections.abc.Mapping):
-            d[k] = recursive_update(d.get(k, {}), v)
-        else:
-            d[k] = v
+        d[k] = recursive_update(d.get(k, {}), v) if isinstance(v, collections.abc.Mapping) else v
     return d
 
 

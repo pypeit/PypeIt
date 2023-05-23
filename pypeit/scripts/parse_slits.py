@@ -75,12 +75,18 @@ class ParseSlits(scriptbase.ScriptBase):
             raise IOError("Bad file type input!")
 
         if file_type == 'Slits':
-            slits = slittrace.SlitTraceSet.from_file(pargs.input_file)#, chk_version=False)
-            print_slits(slits)
-            return
+            try:
+                slits = slittrace.SlitTraceSet.from_file(pargs.input_file, chk_version=False)
+            # TODO: Should this specify the type of exception to pass?
+            except:
+                pass
+            else:
+                print_slits(slits)
+                return
 
         try:
             allspec2D = spec2dobj.AllSpec2DObj.from_fits(pargs.input_file, chk_version=False)
+            # TODO: Should this specify the type of exception to pass?
         except:
             pass
         else:

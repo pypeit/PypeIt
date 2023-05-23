@@ -8,7 +8,7 @@ Attribute        Type              Array Type         Description
 ``coeff``        `numpy.ndarray`_  `numpy.floating`_  Fit coefficients               
 ``funcname``     str                                  Function of fit                
 ``icoeff``       `numpy.ndarray`_  `numpy.floating`_  ??                             
-``mask``         `numpy.ndarray`_  `numpy.bool_`_     Mask                           
+``mask``         `numpy.ndarray`_  `numpy.bool`_      Mask                           
 ``nord``         int                                  Order of the bspline fit       
 ``npoly``        int                                  Order of the bspline polynomial
 ``xmax``         float                                Normalization for input data   

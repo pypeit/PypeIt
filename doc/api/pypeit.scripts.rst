@@ -14,6 +14,7 @@ Submodules
    pypeit.scripts.chk_for_calibs
    pypeit.scripts.chk_noise_1dspec
    pypeit.scripts.chk_noise_2dspec
+   pypeit.scripts.chk_tilts
    pypeit.scripts.chk_wavecalib
    pypeit.scripts.coadd_1dspec
    pypeit.scripts.coadd_2dspec
@@ -38,6 +39,7 @@ Submodules
    pypeit.scripts.scriptbase
    pypeit.scripts.sensfunc
    pypeit.scripts.setup
+   pypeit.scripts.setup_coadd2d
    pypeit.scripts.show_1dspec
    pypeit.scripts.show_2dspec
    pypeit.scripts.show_arxiv

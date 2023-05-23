@@ -67,7 +67,8 @@
                             (default: current working directory)
       --master_dir MASTER_DIR
                             Location of PypeIt Master files used for the reduction.
-                            (default: None)
+                            (default: /Users/dpelliccia/Pypeit/PypeIt-development-
+                            suite/QL_MASTERS)
       --embed               Upon completion embed in ipython shell (default: False)
       --show                Show the reduction steps. Equivalent to the -s option
                             when running pypeit. (default: False)

@@ -26,6 +26,14 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                             help="Show the peaks found by the object finding algorithm.")
         parser.add_argument("--basename", type=str, default=None,
                             help="Basename of files to save the parameters, spec1d, and spec2d")
+
+        parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
+        parser.add_argument('-v', '--verbosity', type=int, default=1,
+                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
+                                 'Level 2 writes a log with filename coadd_2dspec_YYYYMMDD-HHMM.log')
+
+        # TODO: Make spec_samp_fact and spat_samp_fact parameters in CoAdd2DPar,
+        # and then move these to setup_coadd2d.py
         parser.add_argument('--spec_samp_fact', default=1.0, type=float,
                             help="Make the wavelength grid finer (spec_samp_fact < 1.0) or "
                                  "coarser (spec_samp_fact > 1.0) by this sampling factor, i.e. "
@@ -34,10 +42,6 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                             help="Make the spatial grid finer (spat_samp_fact < 1.0) or coarser "
                                  "(spat_samp_fact > 1.0) by this sampling factor, i.e. units of "
                                  "spat_samp_fact are pixels.")
-        parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
-        parser.add_argument('-v', '--verbosity', type=int, default=1,
-                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
-                                 'Level 2 writes a log with filename coadd_2dspec_YYYYMMDD-HHMM.log')
 
         #parser.add_argument("--wave_method", type=str, default=None,
         #                    help="Wavelength method for wavelength grid. If not set, code will "
@@ -65,7 +69,6 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         from astropy.io import fits
 
         from pypeit import msgs
-        from pypeit import io
         from pypeit import coadd2d
         from pypeit import inputfiles
         from pypeit import specobjs
@@ -99,42 +102,13 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         spec2d_files = coadd2dFile.filenames
 
         # Get the paths
-        # NOTE: These two should be the same as 
-        #   Path(par['rdx']['redux_path']).resolve() / par['rdx']['scidir']
-        #   Path(spec2d_files[0]).parent
-        pypeit_scidir = Path(spec2d_files[0]).parent
-        coadd_scidir = pypeit_scidir.parent / f"{par['rdx']['scidir']}_coadd"
-        if not coadd_scidir.exists():
-            coadd_scidir.mkdir(parents=True)
-#        pypeit_calib_dir = pypeit_scidir.parent / par['calibrations']['calib_dir']
-#        coadd_calib_dir = pypeit_scidir.parent / f"{par['calibrations']['calib_dir']}_coadd"
-#        if not coadd_calib_dir.exists():
-#            coadd_calib_dir.mkdir(parents=True)
-#        pypeit_qa_dir = pypeit_scidir.parent / par['rdx']['qadir']
-#        coadd_qa_dir = pypeit_scidir.parent / f"{par['rdx']['qadir']}_coadd"
-#        qa_path = coadd_qa_dir / 'PNGs'
-        parset['rdx']['qadir'] += '_coadd'
-        qa_path = pypeit_scidir.parent / parset['rdx']['qadir'] / 'PNGs'
-        if not qa_path.exists():
-            qa_path.mkdir(parents=True)
+        coadd_scidir, qa_path = map(lambda x : Path(x).resolve(),
+                                    coadd2d.CoAdd2D.output_paths(spec2d_files, par))
 
         # Get the output basename
         head2d = fits.getheader(spec2d_files[0])
-        if args.basename is None:
-            lasthdr = fits.getheader(spec2d_files[-1])
-            if 'FILENAME' not in head2d:
-                msgs.error(f'Missing FILENAME keyword in {spec2d_files[0]}.  Set the basename '
-                           'using the command-line option.')
-            if 'FILENAME' not in lasthdr:
-                msgs.error(f'Missing FILENAME keyword in {spec2d_files[-1]}.  Set the basename '
-                           'using the command-line option.')
-            if 'TARGET' not in head2d:
-                msgs.error(f'Missing TARGET keyword in {spec2d_files[0]}.  Set the basename '
-                           'using the command-line option.')
-            basename = f"{io.remove_suffix(head2d['FILENAME'])}-" \
-                       f"{io.remove_suffix(lasthdr['FILENAME'])}-{head2d['TARGET']}"
-        else:
-            basename = args.basename
+        basename = coadd2d.CoAdd2D.default_basename(spec2d_files) \
+                        if args.basename is None else args.basename
 
         # Write the par to disk
         par_outfile = coadd_scidir.parent / f'{basename}_coadd2d.par'
@@ -143,7 +117,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
         # Now run the coadds
         bkg_redux = head2d['SKYSUB'] == 'DIFF'
-        find_negative = head2d['FINDOBJ'] == 'NEG'
+        find_negative = head2d['FINDOBJ'] == 'POS_NEG'
 
         # Print status message
         msgs_string = f'Reducing target {basename}' + msgs.newline()

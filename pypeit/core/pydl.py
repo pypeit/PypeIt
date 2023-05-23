@@ -897,12 +897,12 @@ def djs_reject(data, model, outmask=None, inmask=None,
 
     # print(newmask)
     if grow > 0:
-        rejects = newmask == 0
-        if rejects.any():
-            irejects = rejects.nonzero()[0]
-            for k in range(1, grow):
-                newmask[(irejects - k) > 0] = 0
-                newmask[(irejects + k) < (data.shape[0]-1)] = 0
+        bpm = np.logical_not(newmask)
+        if bpm.any():
+            irejects = np.where(bpm)[0]
+            for k in range(1, grow+1):
+                newmask[np.clip(irejects - k, 0,None)] = False
+                newmask[np.clip(irejects + k, None, data.shape[0]-1)] = False
     if inmask is not None:
         newmask = newmask & inmask
     if sticky:

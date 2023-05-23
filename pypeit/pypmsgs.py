@@ -186,7 +186,6 @@ class Messages:
         # TODO: This no longer "closes" the QA plots
         self.close()
 
-#        raise PypeItError(msg)
         raise eval(cls)(msg)
 
         # TODO: Does this do anything? I didn't think anything past `raise`

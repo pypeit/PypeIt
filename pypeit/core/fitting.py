@@ -443,7 +443,7 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
         # Update the iteration
         iIter += 1
     if (iIter == maxiter) & (maxiter != 0) & verbose:
-        msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_polyfit_djs')
+        msgs.warn(f'Maximum number of iterations maxiter={maxiter} reached in robust_polyfit_djs')
 
     # Do the final fit
     pypeitFit = PypeItFit(xval=xarray.astype(float), yval=yarray.astype(float),
@@ -580,7 +580,7 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
         inmask = np.ones(ydata.size, dtype=bool)
 
     nin_good = np.sum(inmask)
-    iter = 0
+    iIter = 0
     qdone = False
     thismask = np.copy(inmask)
 
@@ -588,7 +588,7 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
     # results in signficant speedup for e.g. differential_evolution optimization. Thus
     # init_from_last is None on the first iteration and then is updated in the iteration loop.
     init_from_last = None
-    while (not qdone) and (iter < maxiter):
+    while (not qdone) and (iIter < maxiter):
         ret_tuple = fitfunc(ydata, thismask, arg_dict, init_from_last=init_from_last, **kwargs_optimizer)
         if (len(ret_tuple) == 2):
             result, ymodel = ret_tuple
@@ -610,9 +610,9 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
             msgs.info(
                 'Iteration #{:d}: nrej={:d} new rejections, nrej_tot={:d} total rejections out of ntot={:d} '
                 'total pixels'.format(iter, nrej, nrej_tot, nin_good))
-        iter += 1
+        iIter += 1
 
-    if (iter == maxiter) & (maxiter != 0):
+    if (iIter == maxiter) & (maxiter != 0):
         msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_optimize')
     outmask = np.copy(thismask)
     if np.sum(outmask) == 0:
@@ -881,6 +881,9 @@ def iterfit(xdata, ydata, invvar=None, inmask=None, upper=5, lower=5, x2=None,
     invvar : :class:`numpy.ndarray`, optional
         Inverse variance of `ydata`.  If not set, it will be calculated based
         on the standard deviation.
+    inmask : :class:`numpy.ndarray`, optional
+        Input Good Pixel Mask for performing the fit.  If not set, it will be
+        set to the locus of positive ``invvar`` points.
     upper : :class:`int` or :class:`float`, optional
         Upper rejection threshold in units of sigma, defaults to 5 sigma.
     lower : :class:`int` or :class:`float`, optional
@@ -898,6 +901,8 @@ def iterfit(xdata, ydata, invvar=None, inmask=None, upper=5, lower=5, x2=None,
         Full breakpoints for the b-spline, default None.
     kwargs_bspline : :class:`dict`, optional
         Keyword arguments for the b-spline, default {}.
+    kwargs_reject : :class:`dict`, optional
+        Keyword arguments passed to :func:`pypeit.core.pydl.djs_reject`, default {}.
 
     Returns
     -------
@@ -933,7 +938,7 @@ def iterfit(xdata, ydata, invvar=None, inmask=None, upper=5, lower=5, x2=None,
     else:
         outmask = np.ones(invvar.shape, dtype='bool')
     xsort = xdata.argsort()
-    maskwork = (outmask & inmask & (invvar > 0.0))[xsort]
+    maskwork = (outmask & inmask & (invvar > 0.0))[xsort]  # `maskwork` is in xsort order
     if 'oldset' in kwargs_bspline:
         sset = kwargs_bspline['oldset']
         sset.mask[:] = True
@@ -996,8 +1001,12 @@ def iterfit(xdata, ydata, invvar=None, inmask=None, upper=5, lower=5, x2=None,
                         ct = 0
                     else:
                         sset.mask[goodbk[ileft]] = False
-            error, yfit = sset.fit(xwork, ywork, invwork * maskwork,
-                                   x2=x2work)
+            error, yfit = sset.fit(
+                xwork,  # x-sorted x data array
+                ywork,  # x-sorted y data array
+                invwork * maskwork,  # masked x-sorted invvar array
+                x2=x2work  # x-sorted x2 array
+            )
         iiter += 1
         inmask_rej = maskwork
         if error == -2:
@@ -1006,12 +1015,13 @@ def iterfit(xdata, ydata, invvar=None, inmask=None, upper=5, lower=5, x2=None,
         elif error == 0:
             # ToDO JFH by setting inmask to be tempin which is maskwork, we are basically implicitly enforcing sticky rejection
             # here. See djs_reject.py. I'm leaving this as is for consistency with the IDL version, but this may require
-            # further consideration. I think requiring stick to be set is the more transparent behavior.
+            # further consideration. I think requiring sticky to be set is the more transparent behavior.
             maskwork, qdone = pydl.djs_reject(ywork, yfit, invvar=invwork, inmask=inmask_rej, outmask=maskwork,
                                               upper=upper, lower=lower, **kwargs_reject)
         else:
             pass
     outmask[xsort] = maskwork
+    # TODO: TPEB 2/2/23. Why do these next two lines exist?  They don't seem to do anything.
     temp = yfit
     yfit[xsort] = temp
     return (sset, outmask)

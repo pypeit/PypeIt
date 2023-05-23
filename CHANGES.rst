@@ -8,6 +8,11 @@
 - Deprecate use of python 3.8 with PypeIt, allow python 3.11
 - Make pypeit_show_2dspec (somewhat) backwards compatible.
 - Added the option to disable strict version checking for 1d coadds.
+- Hotfix for KCWI when using alignment (aka ContBars) frames for the astrometric correction.
+- Sensitivity function masking and output updates
+- Fixed a bug in the `variance_model` calculation for combined images.
+- Added the possibility to use dither offsets saved in the header of the science frames for
+  coadding 2D spectra (``dithoff`` must be part of the spectrograph metadata).
 - Calibration group numbers can now be anything, as long as there are no more
   than 63 unique integers.
 - Removed use of the term "master", renamed to calibration frames/files.
@@ -23,6 +28,10 @@
   whether or not you also request the ``'comb_id'`` and ``'bkg_id'`` columns.
 - Names of associated calibration frames now written to ``spec2d`` file headers.
 - Added the option to disable strict version checking for 1d coadds.
+- Major quicklook updates.  ql_multislit.py temporarily deprecated.
+- Improve speed in ginga visualization of traces and added
+  `pypeit_chk_tilts`. Note that this script uses an update
+  of the tilts datamodel, so it will not work on older reductions.
 
 1.12.2 (29 Mar 2023)
 --------------------
