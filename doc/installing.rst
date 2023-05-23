@@ -106,7 +106,7 @@ PypeIt has a few optional dependencies that improve and/or expand functionality.
 
       .. code-block:: console
 
-        pip install "pypeit[pyside,scikit-image]"
+        pip install "pypeit[pyqt,scikit-image]"
 
     - To take advantage of an interface that allows you to ingest PypeIt outputs
       into its ``Spectrum1D`` and ``SpectrumList`` objects (see
