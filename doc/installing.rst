@@ -53,7 +53,7 @@ or `conda`_:
 
 .. code-block:: console
 
-    conda create -n pypeit python=3.9
+    conda create -n pypeit python=3.11
     conda activate pypeit
 
 See the `Virtualenv documentation <https://virtualenv.pypa.io/en/latest/>`_
@@ -74,15 +74,15 @@ either
 
 .. code-block:: console
 
-    pip install "pypeit[pyqt5]"
+    pip install "pypeit[pyqt]"
 
-to select the ``PyQT5`` QT bindings or
+to select the ``PyQT`` QT bindings or
 
 .. code-block:: console
 
-    pip install "pypeit[pyside2]"
+    pip install "pypeit[pyside]"
 
-to select ``PySide2``; see :ref:`interactive`.
+to select ``PySide``; see :ref:`interactive`.
 
 .. note::
 
@@ -106,16 +106,16 @@ PypeIt has a few optional dependencies that improve and/or expand functionality.
 
       .. code-block:: console
 
-        pip install "pypeit[pyside2,scikit-image]"
+        pip install "pypeit[pyside,scikit-image]"
 
     - To take advantage of an interface that allows you to ingest PypeIt outputs
       into its ``Spectrum1D`` and ``SpectrumList`` objects (see
       :ref:`spec-1d-output`), you can include `specutils`_ in the installation
       like so:
-    
+
       .. code-block:: console
 
-        pip install "pypeit[pyqt5,specutils]"
+        pip install "pypeit[pyqt,specutils]"
 
 Upgrading to a new version via ``pip``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -314,7 +314,7 @@ Quick-Look Calibration Files
     installation scripts described below every time you upgrade your
     installation (via `pip`_ or `conda`_).
 
-Some of the quick-look reductions provided by PypeIt require canned calibration 
+Some of the quick-look reductions provided by PypeIt require canned calibration
 files to speed up the data-reduction process, as appropriate for a quick-look
 result.  These files are hosted in the ``QL_CALIB`` directory in the `PypeIt
 dev-suite Google Drive`_.
@@ -362,16 +362,17 @@ Interactive tools in PypeIt are built using the `QT
 provide an abstract interface to the two most widely used QT bindings for
 Python (see :ref:`dependencies`):
 
-* `pyqt5 <https://riverbankcomputing.com/software/pyqt/intro>`_
-* `PySide2 <https://wiki.qt.io/Qt_for_Python>`_
+* `pyqt <https://riverbankcomputing.com/software/pyqt/intro>`_
+* `PySide <https://wiki.qt.io/Qt_for_Python>`_
 
 At least one of those bindings must be installed for the interative GUIs to
 work. **Do not install both!**  These two packages do not play nicely together.
-We strongly recommend that you use ``pyqt5``, unless you are attracted to the
-more flexible licensing that ``PySide2`` provides.  ``PySide2`` can occasionally
+We strongly recommend that you use ``pyqt``, unless you are attracted to the
+more flexible licensing that ``PySide`` provides.  ``PySide`` can occasionally
 cause GUIs to crash because of conflicts with other packages in your environment
-that use ``pyqt5`` (all the more reason to isolate your PypeIt installation
-in its own environment).
+that use ``pyqt`` (all the more reason to isolate your PypeIt installation
+in its own environment). ``PySide`` plus its dependencies is also a signficantly
+larger download than ``pyqt``.
 
 C code
 ------
@@ -410,7 +411,7 @@ GCC 12.x via ``homebrew``, you would get ``pypeit`` to use it by doing, for exam
 
 .. code-block:: console
 
-    CC=gcc-12 pip install "pypeit[pyqt5]"
+    CC=gcc-12 pip install "pypeit[pyqt]"
 
 Basically, ``pypeit`` checks the ``CC`` environment variable for what compiler to use so configure
 that as needed to use your desired compiler. The ``pypeit_c_enabled`` script can be used to check if
@@ -455,8 +456,8 @@ PypeIt dependencies.  If you run into any more, please `submit an issue
 
 .. TODO: IS THIS FIRST ITEM STILL TRUE?
 
-- At the moment, an implicit dependency on QT bindings remains (either PyQT5 or
-  PySide2) because of our dependence on ``linetools``.
+- At the moment, an implicit dependency on QT bindings remains (either PyQT or
+  PySide) because of our dependence on ``linetools``.
 
 ----
 
@@ -484,14 +485,14 @@ dependencies as well:
 
 .. code-block:: console
 
-    pip install --upgrade "git+https://github.com/pypeit/PypeIt#egg=pypeit[pyqt5]"
+    pip install --upgrade "git+https://github.com/pypeit/PypeIt#egg=pypeit[pyqt]"
 
 These commands will install the default branch, ``release``. You can also
 specify a different branch, such as the main ``develop`` branch:
 
 .. code-block:: console
 
-    pip install --upgrade "git+https://github.com/pypeit/PypeIt.git@develop#egg=pypeit[pyqt5]"
+    pip install --upgrade "git+https://github.com/pypeit/PypeIt.git@develop#egg=pypeit[pyqt]"
 
 Commit hashes, tag names, or git refs can also be specified; see the `VCS
 Support documentation
@@ -518,13 +519,13 @@ Then install the code, include the development dependencies:
 .. code-block:: console
 
     cd PypeIt
-    pip install -e ".[dev,pyqt5]"
+    pip install -e ".[dev,pyqt]"
 
 An "editable" install means that any changes you make in the repository
 directory tree will become immediately available the next time the code is
 imported. Including the ``[dev]`` set of optional dependencies ensures that all
-of the tools you need to test and build PypeIt are installed. The ``pyqt5``
-installation option instructs the script to use the PyQt5 Qt backend.  You may
+of the tools you need to test and build PypeIt are installed. The ``pyqt``
+installation option instructs the script to use the PyQt Qt backend.  You may
 also want to include the ``bottleneck`` option. (Again, note that you may or may
 not need the quotes above depending on your shell, and that you should avoid
 cutting and pasting these commands into a terminal window.)
@@ -569,7 +570,7 @@ For example:
     python
     >>> import pypeit
 
-**To ensure that your installation of either ``pyqt5`` or ``pyside2`` works**,
+**To ensure that your installation of either ``pyqt`` or ``pyside`` works**,
 you can try to use ``pypeit_show_1dspec`` on one of the test files distributed
 with the package.  Below is a zshell command-line incantation (it's likely the
 same in bash) that will locate a test spec1D file and attempt to use
@@ -579,7 +580,7 @@ same in bash) that will locate a test spec1D file and attempt to use
 
     python -c "from pkg_resources import resource_filename; print(resource_filename('pypeit', 'tests/files/spec1d_r153-J0025-0312_KASTr_20150123T025323.850.fits'))" | xargs -I {} pypeit_show_1dspec {}
 
-If ``pyqt5`` or ``pypside2`` are correctly installed, this should show a test
+If ``pyqt`` or ``pypside`` are correctly installed, this should show a test
 spectrum from the Shane/KAST spectrograph.
 
 Developer Tests
