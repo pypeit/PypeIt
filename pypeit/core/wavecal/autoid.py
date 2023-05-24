@@ -198,7 +198,7 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
     return
 
 
-def arc_fwhm_qa(fwhmFit, outfile=None):
+def arc_fwhm_qa(fwhmFit, spat_id, outfile=None, show_QA=False):
     """
     QA for Arc FWHM fitting
 
@@ -209,20 +209,59 @@ def arc_fwhm_qa(fwhmFit, outfile=None):
     Returns:
 
     """
+    spec_order, spat_order = (fwhmFit.fitc.shape[0]-1, fwhmFit.fitc.shape[1]-1)
     plt.rcdefaults()
     plt.rcParams['font.family']= 'serif'
-
+    # Calculate the model FWHM at the measured positions, and the RMS of the fit
+    model = fwhmFit.eval(fwhmFit.xval, fwhmFit.x2)
+    gpm = (fwhmFit.gpm == 0)
+    dev = (model-fwhmFit.yval)[gpm]
+    med = np.median(dev)
+    rms = 1.4826 * np.median(np.abs(dev-med))
+    # Calculate the typical fractional error
+    dev = (model/fwhmFit.yval)[gpm] - 1
+    med = np.median(dev)
+    rmsfwhm = 1.4826 * np.median(np.abs(dev-med))
+    # Determine the unique spatial positions where the FWHM was measured
+    unq = np.unique(fwhmFit.x2)
+    colors = plt.cm.Spectral(unq)
+    spec_vec = np.linspace(0, fwhmFit.xval.max(), 10)
     # Begin
     plt.close('all')
-    nrows, ncols = 2,2
-    if outfile is None:
-        figsize = (16,8)
-        idfont = 'small'
-    else:
-        figsize = (8,4)
-        idfont = 'xx-small'
-    fig = plt.figure(figsize=figsize)
-    gs = gridspec.GridSpec(nrows, ncols)
+    # Show the fit
+    fig, ax = plt.subplots(figsize=(12, 18))
+    ax.cla()
+    # Plot this for all spatial locations considered
+    # ax.scatter(fwhmFit.x2, fwhmFit.yval-model, s=200, c=fwhmFit.xval, cmap='Spectral')
+    # Plot the model fits with the same colors
+    for uu in range(unq.size):
+        # The mask to use for this spatial location
+        this_fitmask = (fwhmFit.gpm == 1) & (fwhmFit.x2 == unq[uu])
+        this_rejmask = (fwhmFit.gpm == 0) & (fwhmFit.x2 == unq[uu])
+        # Plot the data
+        ax.scatter(fwhmFit.xval[this_rejmask], fwhmFit.yval[this_rejmask], s=20, facecolors='none', edgecolors=colors[uu])
+        ax.scatter(fwhmFit.xval[this_fitmask], fwhmFit.yval[this_fitmask], s=20, facecolors=colors[uu], edgecolors='none')
+        this_model = fwhmFit.eval(spec_vec, unq[uu]*np.ones(spec_vec.size))
+        ax.plot(spec_vec, this_model, color=colors[uu])
+    # Finalise the plot details
+    mdiff = np.max(model)-np.min(model)
+    ymin = np.min(model)-0.5*mdiff
+    ymax = np.max(model)+0.5*mdiff
+    ax.set_ylim((ymin, ymax))
+    ax.set_xlabel('Spectral coordinate (pixels)', fontsize=15)
+    ax.set_ylabel('FWHM (pixels)', fontsize=15)
+    titletxt = f'FWHM residual map (spat_order, spec_order)=({spat_order},{spec_order}) for slit={spat_id}: ' \
+               f'rms={rms:.2f}, rms/FWHM={rmsfwhm:.2f}'
+    ax.set_title(titletxt, fontsize=15)
+
+    if outfile is not None:
+        plt.savefig(outfile, dpi=400)
+
+    if show_QA:
+        plt.show()
+
+    plt.close()
+    plt.rcdefaults()
 
     return
 
@@ -650,13 +689,13 @@ def map_fwhm(image, imbpm, slits, nsample=None, sigdetect=10., ord=None, fwhm=5.
     nslits = slits.nslits
     scale = (2 * np.sqrt(2 * np.log(2)))
     _nsample = 10 if nsample is None else nsample  # Sample every 10 pixels unless the argument is set
-    _ord = (2, 3) if ord is None else ord  # The polynomial order to fit to the resolution map.
+    _ord = (1, 2) if ord is None else ord  # The polynomial order to fit to the resolution map.
     slits_left, slits_right, _ = slits.select_edges(initial=True, flexure=None)
     slit_lengths = np.mean(slits_right-slits_left, axis=0)
     spec_vec = np.arange(image.shape[0])
     resmap = [None for sl in range(nslits)]  # Setup the resmap
     for sl in range(nslits):
-        msgs.info(f"Calculating resolution for slit {sl+1}/{nslits}")
+        msgs.info(f"Calculating spectral resolution for slit {sl+1}/{nslits}")
         # Fraction along the slit in the spatial direction to sample the arc line width
         nmeas = int(0.5+slit_lengths[sl]/_nsample)
         slitsamp = np.linspace(0.01, 0.99, nmeas)
@@ -680,7 +719,7 @@ def map_fwhm(image, imbpm, slits, nsample=None, sigdetect=10., ord=None, fwhm=5.
     # plt.imshow(im)
     # plt.show()
     # Return a list of the PypeIt fits
-    return resmap
+    return np.array(resmap)
 
 
 def measure_fwhm(spec, sigdetect=10., fwhm=5.):
