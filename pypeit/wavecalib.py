@@ -164,6 +164,7 @@ class WaveCalib(calibframe.CalibFrame):
         # Now the wave_fits
         list_of_wave_fits = []
         list_of_wave2d_fits = []
+        list_of_fwhm_fits = []
         spat_ids = []
         for ihdu in hdu:
             if 'WAVEFIT' in ihdu.name:
@@ -188,6 +189,10 @@ class WaveCalib(calibframe.CalibFrame):
                 iwave2dfit = fitting.PypeItFit.from_hdu(ihdu)
                 list_of_wave2d_fits.append(iwave2dfit)
                 parsed_hdus += ihdu.name
+            elif 'FWHMFIT' in ihdu.name:
+                ifwhmfit = fitting.PypeItFit.from_hdu(ihdu)
+                list_of_fwhm_fits.append(ifwhmfit)
+                parsed_hdus += ihdu.name
         # Check
         if spat_ids != _d['spat_ids'].tolist():
             msgs.error("Bad parsing of WaveCalib")
@@ -195,6 +200,7 @@ class WaveCalib(calibframe.CalibFrame):
         _d['wv_fits'] = np.asarray(list_of_wave_fits)
         if len(list_of_wave2d_fits) > 0:
             _d['wv_fit2d'] = np.asarray(list_of_wave2d_fits)
+        _d['fwhm_map'] = np.asarray(list_of_fwhm_fits)
         return _d, dm_version_passed, dm_type_passed, parsed_hdus
 
     @property
@@ -214,6 +220,25 @@ class WaveCalib(calibframe.CalibFrame):
         if not np.array_equal(self.spat_ids, slits.spat_id):
             msgs.error('Your wavelength solutions are out of sync with your slits.  Remove '
                        'Calibrations and restart from scratch.')
+
+    def build_fwhmimg(self, tilts, slits, initial=False, spat_flexure=None):
+        """
+        TODO :: docstring
+        """
+        # Check spatial flexure type
+        if (spat_flexure is not None) and (not isinstance(spat_flexure, float)):
+            msgs.error("Spatial flexure must be None or float")
+        # Generate the slit mask and slit edges - pad slitmask by 1 for edge effects
+        slitmask = slits.slit_img(pad=1, initial=initial, flexure=spat_flexure)
+        slits_left, slits_right, _ = slits.select_edges(initial=initial, flexure=spat_flexure)
+        # Build a map of the FWHM
+        fwhmimg = np.zeros(tilts.shape)
+        for sl, spat_id in enumerate(slits.spat_id):
+            this_mask = slitmask == spat_id
+            spec, spat = np.where(this_mask)
+            spat_loc = (spat - slits_left[spec, sl]) / (slits_right[spec, sl] - slits_left[spec, sl])
+            fwhmimg[this_mask] = self.fwhm_map[sl].eval(spec, spat_loc)
+        return fwhmimg
 
     def build_waveimg(self, tilts, slits, spat_flexure=None, spec_flexure=None):
         """
