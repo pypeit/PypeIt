@@ -24,6 +24,7 @@ from pypeit.core.wavecal import patterns
 from pypeit.core.wavecal import wv_fitting
 from pypeit.core.wavecal import wvutils
 from pypeit.core import arc
+from pypeit.core import fitting
 
 from pypeit.core import pca
 from pypeit import utils
@@ -193,6 +194,35 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
     plt.close('all')
 
     plt.rcdefaults()
+
+    return
+
+
+def arc_fwhm_qa(fwhmFit, outfile=None):
+    """
+    QA for Arc FWHM fitting
+
+    Args:
+        fwhmFit (:class:`pypeit.core.fitting.PypeItFit`):
+        outfile (:obj:`str`, optional): Name of output file or 'show' to show on screen
+
+    Returns:
+
+    """
+    plt.rcdefaults()
+    plt.rcParams['font.family']= 'serif'
+
+    # Begin
+    plt.close('all')
+    nrows, ncols = 2,2
+    if outfile is None:
+        figsize = (16,8)
+        idfont = 'small'
+    else:
+        figsize = (8,4)
+        idfont = 'xx-small'
+    fig = plt.figure(figsize=figsize)
+    gs = gridspec.GridSpec(nrows, ncols)
 
     return
 
@@ -588,6 +618,69 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
         patt_dict_slit['acceptable'] = False
 
     return detections, spec_cont_sub, patt_dict_slit
+
+
+def map_fwhm(image, imbpm, slits, nsample=None, sigdetect=10., ord=None, fwhm=5.):
+    """
+    Map the arc line FWHM at all spectral and spatial locations of all slits
+
+    Args:
+        image (`numpy.ndarray`_):
+            Arc image (nspec, nspat)
+        imbpm (`numpy.ndarray`_):
+            Bad pixel mask corresponding to the input arc image (nspec, nspat)
+        slits (:class:`pypeit.slittrace.SlitTraceSet`):
+            Slit edges
+        nsample (int, None, optional):
+            Number of spatial detector pixels between each estimate of the FWHM
+        sigdetect (:obj:`float`, optional):
+            Sigma threshold above fluctuations for arc-line detection.
+            Used by :func:`pypeit.core.arc.detect_lines`.
+        ord (tuple, optional):
+            The polynomial order that should be used to fit the resolution map (two element tuple).
+            The first (second) element is the polynomial order in the spectral (spatial) dimension.
+        fwhm (:obj:`float`, optional):
+            Number of pixels per fwhm resolution element.
+            Used by :func:`pypeit.core.arc.detect_lines`.
+
+    Returns:
+        list: list of PypeItFit objects that provide the FWHM (in pixels) given a spectral pixel
+        and the spatial coordinate (expressed as a fraction along the slit in the spatial direction)
+    """
+    nslits = slits.nslits
+    scale = (2 * np.sqrt(2 * np.log(2)))
+    _nsample = 10 if nsample is None else nsample  # Sample every 10 pixels unless the argument is set
+    _ord = (2, 3) if ord is None else ord  # The polynomial order to fit to the resolution map.
+    slits_left, slits_right, _ = slits.select_edges(initial=True, flexure=None)
+    slit_lengths = np.mean(slits_right-slits_left, axis=0)
+    spec_vec = np.arange(image.shape[0])
+    resmap = [None for sl in range(nslits)]  # Setup the resmap
+    for sl in range(nslits):
+        msgs.info(f"Calculating resolution for slit {sl+1}/{nslits}")
+        # Fraction along the slit in the spatial direction to sample the arc line width
+        nmeas = int(0.5+slit_lengths[sl]/_nsample)
+        slitsamp = np.linspace(0.01, 0.99, nmeas)
+        this_samp, this_cent, this_wdth = np.array([]), np.array([]), np.array([])
+        for ss in range(nmeas):
+            spat_vec = np.round(slitsamp[ss] * slits_left[:, sl] + (1 - slitsamp[ss]) * slits_right[:, sl]).astype(int)
+            arc_spec = image[(spec_vec, spat_vec)]
+            arc_bpm = imbpm[(spec_vec, spat_vec)]
+            # Detect lines and store the FWHM
+            _, _, cent, wdth, _, best, _, nsig = arc.detect_lines(arc_spec, sigdetect=sigdetect, fwhm=fwhm, bpm=arc_bpm)
+            this_cent = np.append(this_cent, cent[best])
+            this_wdth = np.append(this_wdth, scale*wdth[best])  # Scale convert sig to FWHM
+            this_samp = np.append(this_samp, slitsamp[ss]*np.ones(wdth[best].size))
+        # Perform a 2D robust fit on the measures for this slit
+        resmap[sl] = fitting.robust_fit(this_cent, this_wdth, _ord, x2=this_samp,
+                                        lower=3, upper=3, function='polynomial2d')
+    # If storing QA, save the relevant QA
+    # resmap[sl].eval(SPECTRAL_PIXEL, FRACTION_OF_THE_SLIT_FROM_LEFT_TO_RIGHT)
+    # xx, yy = np.meshgrid(np.linspace(0, image.shape[0], 100), np.linspace(0, 1, 100))
+    # im = resmap[sl].eval(xx, yy)
+    # plt.imshow(im)
+    # plt.show()
+    # Return a list of the PypeIt fits
+    return resmap
 
 
 def measure_fwhm(spec, sigdetect=10., fwhm=5.):
