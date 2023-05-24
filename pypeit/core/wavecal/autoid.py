@@ -659,7 +659,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     return detections, spec_cont_sub, patt_dict_slit
 
 
-def map_fwhm(image, imbpm, slits, nsample=None, sigdetect=10., ord=None, fwhm=5.):
+def map_fwhm(image, imbpm, slits, npixel=None, nsample=None, sigdetect=10., ord=None, fwhm=5.):
     """
     Map the arc line FWHM at all spectral and spatial locations of all slits
 
@@ -670,8 +670,12 @@ def map_fwhm(image, imbpm, slits, nsample=None, sigdetect=10., ord=None, fwhm=5.
             Bad pixel mask corresponding to the input arc image (nspec, nspat)
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
             Slit edges
-        nsample (int, None, optional):
+        npixel (int, None, optional):
             Number of spatial detector pixels between each estimate of the FWHM
+            Only nsample or npixel should be specified. Precedence is given to nsample.
+        nsample (int, None, optional):
+            Number of positions along the spatial direction of the slit to estimate the FWHM.
+            Only nsample or npixel should be specified. Precedence is given to nsample.
         sigdetect (:obj:`float`, optional):
             Sigma threshold above fluctuations for arc-line detection.
             Used by :func:`pypeit.core.arc.detect_lines`.
@@ -688,7 +692,7 @@ def map_fwhm(image, imbpm, slits, nsample=None, sigdetect=10., ord=None, fwhm=5.
     """
     nslits = slits.nslits
     scale = (2 * np.sqrt(2 * np.log(2)))
-    _nsample = 10 if nsample is None else nsample  # Sample every 10 pixels unless the argument is set
+    _npixel = 10 if npixel is None else npixel  # Sample every 10 pixels unless the argument is set (Note: this is only used if nsample is not set)
     _ord = (1, 2) if ord is None else ord  # The polynomial order to fit to the resolution map.
     slits_left, slits_right, _ = slits.select_edges(initial=True, flexure=None)
     slit_lengths = np.mean(slits_right-slits_left, axis=0)
@@ -697,7 +701,7 @@ def map_fwhm(image, imbpm, slits, nsample=None, sigdetect=10., ord=None, fwhm=5.
     for sl in range(nslits):
         msgs.info(f"Calculating spectral resolution for slit {sl+1}/{nslits}")
         # Fraction along the slit in the spatial direction to sample the arc line width
-        nmeas = int(0.5+slit_lengths[sl]/_nsample)
+        nmeas = int(0.5+slit_lengths[sl]/_npixel) if nsample is None else nsample
         slitsamp = np.linspace(0.01, 0.99, nmeas)
         this_samp, this_cent, this_wdth = np.array([]), np.array([]), np.array([])
         for ss in range(nmeas):

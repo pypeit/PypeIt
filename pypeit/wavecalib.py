@@ -38,7 +38,7 @@ class WaveCalib(calibframe.CalibFrame):
     .. include:: ../include/class_datamodel_wavecalib.rst
 
     """
-    version = '1.1.0'
+    version = '1.1.1'
 
     # Calibration frame attributes
     calib_type = 'WaveCalib'
@@ -59,7 +59,7 @@ class WaveCalib(calibframe.CalibFrame):
                                         'than one, they must be aligned to the separate detectors '
                                         'analyzed'),
                  'fwhm_map': dict(otype=np.ndarray, atype=fitting.PypeItFit,
-                                  descr='A fit that determines the FWHM at every location in every slit'),
+                                  descr='A fit that determines the FWHM at every location of every slit'),
                  'det_img': dict(otype=np.ndarray, atype=np.integer,
                                   descr='Detector image which indicates which pixel in the mosaic '
                                         'corresponds to which detector; used occasionally by '
@@ -109,7 +109,7 @@ class WaveCalib(calibframe.CalibFrame):
                 continue
             # Array?
             if self.datamodel[key]['otype'] == np.ndarray and \
-                key not in ['wv_fits', 'wv_fit2d']:
+                key not in ['wv_fits', 'wv_fit2d', 'fwhm_map']:
                 _d.append({key: self[key]})
             # TODO: Can we put all the WAVEFIT and PYPEITFIT at the end of the
             # list of HDUs?  This would mean ARC_SPECTRA is always in the same
@@ -137,6 +137,16 @@ class WaveCalib(calibframe.CalibFrame):
                 for ss, wv_fit2d in enumerate(self[key]):
                     dkey = f'WAVE2DFIT-{ss}'
                     _d.append({dkey: wv_fit2d})
+            elif key == 'fwhm_map':
+                for ss, fwhm_fit in enumerate(self[key]):
+                    dkey = 'SPAT_ID-{}_FWHMFIT'.format(self.spat_ids[ss])
+                    # Generate a dummy?
+                    if fwhm_fit is None:
+                        _fwhm_fit = fitting.PypeItFit()
+                    else:
+                        _fwhm_fit = fwhm_fit
+                    # Save
+                    _d.append({dkey: _fwhm_fit})
             else: # Add to header of the spat_id image
                 _d[0][key] = self[key]
         # Return
@@ -521,14 +531,14 @@ class BuildWaveCalib:
             msgs.info("Slit widths (arcsec): {}".format(np.round(self.slits.maskdef_designtab['SLITWID'].data, 2)))
 
         # Generate a map of the instrumental FWHM
-        fwhm_map = autoid.map_fwhm(self.msarc.image, np.logical_not(self.gpm), self.slits)
+        fwhm_map = autoid.map_fwhm(self.msarc.image, np.logical_not(self.gpm), self.slits, nsample=10)
         # Calculate the typical FWHM down the centre of the slit
         measured_fwhms = np.zeros(arccen.shape[1], dtype=object)
         for islit in range(arccen.shape[1]):
             if islit not in ok_mask_idx:
                 continue
             # Measure the FWHM at the midpoint of the slit (in both the spectral and spatial directions)
-            measured_fwhms[islit] = fwhm_map[islit](self.msarc.image.shape[0]//2, 0.5)
+            measured_fwhms[islit] = fwhm_map[islit].eval(self.msarc.image.shape[0]//2, 0.5)
 
         # Obtain calibration for all slits
         if method == 'holy-grail':
@@ -624,6 +634,7 @@ class BuildWaveCalib:
         if not skip_QA:
             ok_mask_idx = np.where(np.invert(self.wvc_bpm))[0]
             for slit_idx in ok_mask_idx:
+                msgs.info(f"Preparing wavelength calibration QA for slit {slit_idx+1}/{self.slits.nslits}")
                 # Obtain the output QA name for the wavelength solution
                 outfile = qa.set_qa_filename(self.wv_calib.calib_key, 'arc_fit_qa', 
                                              slit=self.slits.slitord_id[slit_idx],
@@ -636,40 +647,13 @@ class BuildWaveCalib:
                                                   slit=self.slits.slitord_id[slit_idx],
                                                   out_dir=self.qa_path)
                 # Save the wavelength solution fits
-                autoid.arc_fwhm_qa(self.wv_calib.fwhm_map[slit_idx], outfile=outfile_fwhm)
+                autoid.arc_fwhm_qa(self.wv_calib.fwhm_map[slit_idx], outfile=outfile_fwhm,
+                                   spat_id=self.slits.slitord_id[slit_idx])
 
 
         # Return
         self.steps.append(inspect.stack()[0][3])
         return self.wv_calib
-
-    def build_resolution_map(self, slitIDs=None):
-        """
-        Measure the FWHM of arc lines as a function of spatial and spectral position for each slit/order
-
-        Args:
-            slitIDs (:obj:`list`, optional):
-                A list of the slit IDs to extract (if None, all slits will be extracted)
-
-        Returns:
-            tuple: Returns the following:
-                - self.arccen: ndarray, (nspec, nslit): arc spectrum for
-                  all slits
-                - self.arc_maskslit: ndarray, bool (nsit): boolean array
-                  containing a mask indicating which slits are good
-                  True = masked (bad)
-
-        """
-        # Do it on the slits not masked in self.slitmask
-        arccen, arccen_bpm, arc_maskslit = arc.get_censpec(
-            self.slitcen, self.slitmask, self.msarc.image, gpm=self.gpm, slit_bpm=self.wvc_bpm, slitIDs=slitIDs)
-        # Step
-        self.steps.append(inspect.stack()[0][3])
-
-        # Update the mask
-        self.wvc_bpm |= arc_maskslit
-
-        return arccen, self.wvc_bpm
 
     def echelle_2dfit(self, wv_calib, debug=False, skip_QA=False):
         """
