@@ -32,6 +32,8 @@
   `pypeit_chk_tilts`. Note that this script uses an update
   of the tilts datamodel, so it will not work on older reductions.
 - Updates to reduction parameters for LDT/DeVeny
+- Instrumental FWHM map is calculated and output in ``Calibrations``,
+  ``spec1d``, ``spec2d``, and ``spec3d`` files.
 
 1.12.2 (29 Mar 2023)
 --------------------
