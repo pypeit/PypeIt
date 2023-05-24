@@ -214,8 +214,9 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
     chi2_denom = np.fmax(np.nansum(ivar_sub*mask_sub > 0.0, axis=1) - 1.0, 1.0)
     chi2 = chi2_num/chi2_denom
 
-    # Calculate the Angstroms/pixel
-    ang_per_pix = np.gradient(wave_opt)
+    # Calculate the Angstroms/pixel and FWHM
+    if fwhm_opt is not None:
+        fwhm_opt *= np.gradient(wave_opt)  # Convert pixel FWHM to Angstroms
     # Fill in the optimally extraction tags
     spec.OPT_WAVE = wave_opt    # Optimally extracted wavelengths
     spec.OPT_COUNTS = flux_opt    # Optimally extracted flux
@@ -223,7 +224,7 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
     spec.OPT_COUNTS_SIG = np.sqrt(utils.inverse(spec.OPT_COUNTS_IVAR))
     spec.OPT_COUNTS_NIVAR = None if nivar_opt is None else nivar_opt*np.logical_not(badwvs)  # Optimally extracted noise variance (sky + read noise) only
     spec.OPT_MASK = mask_opt*np.logical_not(badwvs)     # Mask for optimally extracted flux
-    spec.OPT_FWHM = fwhm_opt * ang_per_pix  # FWHM (in Angstroms) for the optimally extracted spectrum
+    spec.OPT_FWHM = fwhm_opt  # FWHM (in Angstroms) for the optimally extracted spectrum
     spec.OPT_COUNTS_SKY = sky_opt      # Optimally extracted sky
     spec.OPT_COUNTS_SIG_DET = base_opt      # Square root of optimally extracted read noise squared
     spec.OPT_FRAC_USE = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
@@ -428,8 +429,10 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, base
     ivar_box = 1.0/(var_box + (var_box == 0.0))
     nivar_box = None if nvar_box is None else 1.0/(nvar_box + (nvar_box == 0.0))
 
-    # Calculate the Angstroms/pixel
-    ang_per_pix = np.gradient(wave_box)
+    # Calculate the Angstroms/pixel and the final FWHM value
+    if fwhm_box is not None:
+        ang_per_pix = np.gradient(wave_box)
+        fwhm_box *= ang_per_pix / (pixtot - pixmsk)  # Need to divide by total number of unmasked pixels
     # Fill em up!
     spec.BOX_WAVE = wave_box
     spec.BOX_COUNTS = flux_box*mask_box
@@ -437,7 +440,7 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, base
     spec.BOX_COUNTS_SIG = np.sqrt(utils.inverse( spec.BOX_COUNTS_IVAR))
     spec.BOX_COUNTS_NIVAR = None if nivar_box is None else nivar_box*mask_box*np.logical_not(bad_box)
     spec.BOX_MASK = mask_box*np.logical_not(bad_box)
-    spec.BOX_FWHM = fwhm_box*ang_per_pix/(pixtot-pixmsk)  # Need to divide by total number of unmasked pixels
+    spec.BOX_FWHM = fwhm_box  # FWHM (in Angstroms) for the boxcar extracted spectrum
     spec.BOX_COUNTS_SKY = sky_box
     spec.BOX_COUNTS_SIG_DET = base_box
     # TODO - Confirm this should be float, not int
