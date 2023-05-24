@@ -629,12 +629,12 @@ class BuildWaveCalib:
                                              slit=self.slits.slitord_id[slit_idx],
                                              out_dir=self.qa_path)
                 # Save the wavelength solution fits
-                autoid.arc_fit_qa(self.wv_calib.wv_fits[slit_idx],
-                                  outfile=outfile)
+                autoid.arc_fit_qa(self.wv_calib.wv_fits[slit_idx], outfile=outfile)
+
                 # Obtain the output QA name for the resolution map
                 outfile_fwhm = qa.set_qa_filename(self.wv_calib.calib_key, 'arc_fwhm_qa',
-                                             slit=self.slits.slitord_id[slit_idx],
-                                             out_dir=self.qa_path)
+                                                  slit=self.slits.slitord_id[slit_idx],
+                                                  out_dir=self.qa_path)
                 # Save the wavelength solution fits
                 autoid.arc_fwhm_qa(self.wv_calib.fwhm_map[slit_idx], outfile=outfile_fwhm)
 
