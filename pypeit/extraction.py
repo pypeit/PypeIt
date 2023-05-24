@@ -234,7 +234,7 @@ class Extract:
         msgs.info("Generating FWHM image")
         self.fwhmimg = None
         if wv_calib is not None:
-            self.fwhmimg = wv_calib.build_fwhmimg(self, tilts, slits, initial=True, spat_flexure=self.spat_flexure_shift)
+            self.fwhmimg = wv_calib.build_fwhmimg(self.tilts, self.slits, initial=True, spat_flexure=self.spat_flexure_shift)
         else:
             msgs.warn("FWHM image could not be generated")
 
