@@ -54,7 +54,7 @@ class SpecObj(datamodel.DataContainer):
             Running index for the order.
     """
 
-    version = '1.1.8'
+    version = '1.1.9'
     """
     Current datamodel version number.
     """
@@ -87,6 +87,8 @@ class SpecObj(datamodel.DataContainer):
                                                 'noise only (counts^2)'),
                  'OPT_MASK': dict(otype=np.ndarray, atype=np.bool_,
                                   descr='Mask for optimally extracted flux. True=good'),
+                 'OPT_FWHM': dict(otype=np.ndarray, atype=np.bool_,
+                                  descr='FWHM at every pixel of the optimally extracted flux.'),
                  'OPT_COUNTS_SKY': dict(otype=np.ndarray, atype=float,
                                         descr='Optimally extracted sky (counts)'),
                  'OPT_COUNTS_SIG_DET': dict(otype=np.ndarray, atype=float,
@@ -118,6 +120,8 @@ class SpecObj(datamodel.DataContainer):
                                                 'only (counts^2)'),
                  'BOX_MASK': dict(otype=np.ndarray, atype=np.bool_,
                                   descr='Mask for boxcar extracted flux. True=good'),
+                 'BOX_FWHM': dict(otype=np.ndarray, atype=np.bool_,
+                                  descr='FWHM at every pixel of the boxcar extracted flux.'),
                  'BOX_COUNTS_SKY': dict(otype=np.ndarray, atype=float,
                                         descr='Boxcar extracted sky (counts)'),
                  'BOX_COUNTS_SIG_DET': dict(otype=np.ndarray, atype=float,
