@@ -33,6 +33,9 @@ from pypeit import msgs
 
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+import matplotlib.colorbar as colorbar
+import matplotlib.colors as mcolors
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.patches import Patch
 
@@ -205,9 +208,6 @@ def arc_fwhm_qa(fwhmFit, spat_id, outfile=None, show_QA=False):
     Args:
         fwhmFit (:class:`pypeit.core.fitting.PypeItFit`):
         outfile (:obj:`str`, optional): Name of output file or 'show' to show on screen
-
-    Returns:
-
     """
     spec_order, spat_order = (fwhmFit.fitc.shape[0]-1, fwhmFit.fitc.shape[1]-1)
     plt.rcdefaults()
@@ -229,7 +229,7 @@ def arc_fwhm_qa(fwhmFit, spat_id, outfile=None, show_QA=False):
     # Begin
     plt.close('all')
     # Show the fit
-    fig, ax = plt.subplots(figsize=(12, 18))
+    fig, ax = plt.subplots(figsize=(6, 9))
     ax.cla()
     # Plot this for all spatial locations considered
     # ax.scatter(fwhmFit.x2, fwhmFit.yval-model, s=200, c=fwhmFit.xval, cmap='Spectral')
@@ -239,8 +239,8 @@ def arc_fwhm_qa(fwhmFit, spat_id, outfile=None, show_QA=False):
         this_fitmask = (fwhmFit.gpm == 1) & (fwhmFit.x2 == unq[uu])
         this_rejmask = (fwhmFit.gpm == 0) & (fwhmFit.x2 == unq[uu])
         # Plot the data
-        ax.scatter(fwhmFit.xval[this_rejmask], fwhmFit.yval[this_rejmask], s=20, facecolors='none', edgecolors=colors[uu])
-        ax.scatter(fwhmFit.xval[this_fitmask], fwhmFit.yval[this_fitmask], s=20, facecolors=colors[uu], edgecolors='none')
+        ax.scatter(fwhmFit.xval[this_rejmask], fwhmFit.yval[this_rejmask], s=50, facecolors='none', edgecolors=colors[uu])
+        ax.scatter(fwhmFit.xval[this_fitmask], fwhmFit.yval[this_fitmask], s=50, facecolors=colors[uu], edgecolors='none')
         this_model = fwhmFit.eval(spec_vec, unq[uu]*np.ones(spec_vec.size))
         ax.plot(spec_vec, this_model, color=colors[uu])
     # Finalise the plot details
@@ -248,12 +248,28 @@ def arc_fwhm_qa(fwhmFit, spat_id, outfile=None, show_QA=False):
     ymin = np.min(model)-0.5*mdiff
     ymax = np.max(model)+0.5*mdiff
     ax.set_ylim((ymin, ymax))
-    ax.set_xlabel('Spectral coordinate (pixels)', fontsize=15)
-    ax.set_ylabel('FWHM (pixels)', fontsize=15)
-    titletxt = f'FWHM residual map (spat_order, spec_order)=({spat_order},{spec_order}) for slit={spat_id}: ' \
-               f'rms={rms:.2f}, rms/FWHM={rmsfwhm:.2f}'
-    ax.set_title(titletxt, fontsize=15)
+    ax.set_xlabel('Spectral coordinate (pixels)', fontsize=12)
+    ax.set_ylabel('FWHM (pixels)', fontsize=12)
+    titletxt = f'FWHM residual map (spat_order, spec_order)=({spat_order},{spec_order}) for slit={spat_id}:\n' \
+               f'rms={rms:.2f}, rms/FWHM={rmsfwhm:.2f}\n' \
+               f'filled (unfilled) symbols = included (excluded) in fit'
+    ax.set_title(titletxt, fontsize=12)
 
+    # Make a colorbar to illustrate the FWHM along the slit in the spatial direction
+    cmap = mcolors.ListedColormap(colors)
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    cbar = colorbar.Colorbar(cax,
+                             orientation='vertical',
+                             cmap=cmap,
+                             norm=plt.Normalize(unq[0]-0.5*(unq[1]-unq[0]), unq[-1]+0.5*(unq[-1]-unq[-2])))
+    cbar_labels = [f"{uu:.3f}" for uu in unq]
+    cbar.set_ticks(unq)
+    cbar.ax.set_yticklabels(cbar_labels, fontsize=10)
+    cbar.solids.set_edgecolor('black')
+    cbar.set_label(label='Fraction along the slit in the spatial direction', weight='bold', fontsize=12)
+
+    plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
     if outfile is not None:
         plt.savefig(outfile, dpi=400)
 
