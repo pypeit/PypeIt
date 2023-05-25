@@ -200,7 +200,8 @@ class WaveCalib(calibframe.CalibFrame):
         _d['wv_fits'] = np.asarray(list_of_wave_fits)
         if len(list_of_wave2d_fits) > 0:
             _d['wv_fit2d'] = np.asarray(list_of_wave2d_fits)
-        _d['fwhm_map'] = np.asarray(list_of_fwhm_fits)
+        if len(list_of_fwhm_fits) > 0:
+            _d['fwhm_map'] = np.asarray(list_of_fwhm_fits)
         return _d, dm_version_passed, dm_type_passed, parsed_hdus
 
     @property
@@ -578,7 +579,7 @@ class BuildWaveCalib:
         for islit in range(arccen.shape[1]):
             if islit not in ok_mask_idx:
                 continue
-            # Measure the FWHM at the midpoint of the slit (in both the spectral and spatial directions)
+            # Measure the FWHM (in pixels) at the midpoint of the slit (in both the spectral and spatial directions)
             measured_fwhms[islit] = fwhm_map[islit].eval(self.msarc.image.shape[0]//2, 0.5)
 
         # Obtain calibration for all slits

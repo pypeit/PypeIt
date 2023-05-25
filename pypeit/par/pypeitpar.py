@@ -2554,7 +2554,7 @@ class WavelengthSolutionPar(ParSet):
         #                            'be accurately centroided'
 
         defaults['sigdetect'] = 5.
-        dtypes['sigdetect'] =  [int, float, list, np.ndarray]
+        dtypes['sigdetect'] = [int, float, list, np.ndarray]
         descr['sigdetect'] = 'Sigma threshold above fluctuations for arc-line detection.  Arcs ' \
                              'are continuum subtracted and the fluctuations are computed after ' \
                              'continuum subtraction.  This can be a single number or a vector ' \
@@ -2584,7 +2584,7 @@ class WavelengthSolutionPar(ParSet):
                                    '2D polynomial fit to the FWHM of the arc lines. See also, fwhm_spat_order.'
 
         # These are the parameters used for reidentification
-        defaults['reid_arxiv']=None
+        defaults['reid_arxiv'] = None
         dtypes['reid_arxiv'] = str
         descr['reid_arxiv'] = 'Name of the archival wavelength solution file that will be used ' \
                               'for the wavelength reidentification.  Only used if ``method`` is ' \
@@ -2711,7 +2711,7 @@ class WavelengthSolutionPar(ParSet):
         k = np.array([*cfg.keys()])
         parkeys = ['reference', 'method', 'echelle', 'ech_nspec_coeff',
                    'ech_norder_coeff', 'ech_sigrej', 'ech_separate_2d', 'lamps', 'sigdetect',
-                   'fwhm', 'fwhm_fromlines', 'fwhm_spat_order, fwhm_spec_order',
+                   'fwhm', 'fwhm_fromlines', 'fwhm_spat_order', 'fwhm_spec_order',
                    'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
@@ -4571,7 +4571,7 @@ class PypeItPar(ParSet):
         Examples:
             To turn off the slit-illumination correction for all frames:
 
-            >>> from pypeit.spectrographs import load_spectrograph
+            >>> from pypeit.spectrographs.util import load_spectrograph
             >>> spec = load_spectrograph('shane_kast_blue')
             >>> par = spec.default_pypeit_par()
             >>> par.reset_all_processimages_par(use_illumflat=False)
