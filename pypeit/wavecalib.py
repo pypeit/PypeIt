@@ -223,7 +223,20 @@ class WaveCalib(calibframe.CalibFrame):
 
     def build_fwhmimg(self, tilts, slits, initial=False, spat_flexure=None):
         """
-        TODO :: docstring
+        Generates an image of the instrument FWHM (units=pixels) at every pixel on the detector.
+
+        Args:
+            tilts (`numpy.ndarray`_):
+                Image holding tilts
+            slits (:class:`pypeit.slittrace.SlitTraceSet`):
+                Properties of the slits
+            initial (bool, optional):
+                If True, the initial slit locations will be used. Otherwise, the tweaked edges will be used.
+            spat_flexure (float, optional):
+                Spatial flexure correction in pixels.
+
+        Returns:
+            `numpy.ndarray`_: The FWHM image.
         """
         # Check spatial flexure type
         if (spat_flexure is not None) and (not isinstance(spat_flexure, float)):
@@ -251,6 +264,7 @@ class WaveCalib(calibframe.CalibFrame):
             tilts (`numpy.ndarray`_):
                 Image holding tilts
             slits (:class:`pypeit.slittrace.SlitTraceSet`):
+                Properties of the slits
             spat_flexure (float, optional):
                 Spatial flexure correction in pixels.
             spec_flexure (float, `numpy.ndarray`_, optional):

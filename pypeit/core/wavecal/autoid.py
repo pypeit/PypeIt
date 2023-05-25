@@ -716,12 +716,6 @@ def map_fwhm(image, imbpm, slits, npixel=None, nsample=None, sigdetect=10., ord=
         # Perform a 2D robust fit on the measures for this slit
         resmap[sl] = fitting.robust_fit(this_cent, this_wdth, _ord, x2=this_samp,
                                         lower=3, upper=3, function='polynomial2d')
-    # If storing QA, save the relevant QA
-    # resmap[sl].eval(SPECTRAL_PIXEL, FRACTION_OF_THE_SLIT_FROM_LEFT_TO_RIGHT)
-    # xx, yy = np.meshgrid(np.linspace(0, image.shape[0], 100), np.linspace(0, 1, 100))
-    # im = resmap[sl].eval(xx, yy)
-    # plt.imshow(im)
-    # plt.show()
     # Return a list of the PypeIt fits
     return np.array(resmap)
 
