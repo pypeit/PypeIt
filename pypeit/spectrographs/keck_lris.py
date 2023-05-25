@@ -135,7 +135,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self.meta['decker'] = dict(ext=0, card='SLITNAME')
         self.meta['binning'] = dict(card=None, compound=True)
         # 
-        self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        self.meta['mjd'] = dict(card=None, compound=True)
         self.meta['exptime'] = dict(ext=0, card='ELAPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
@@ -174,8 +174,27 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         if meta_key == 'binning':
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             binning = parse.binning2string(binspec, binspatial)
-
             return binning
+        elif meta_key == 'mjd':
+            if headarr[0].get('MJD-OBS') is not None:
+                return headarr[0]['MJD-OBS']
+            elif headarr[0].get('UTC') is not None or headarr[0].get('UT') is not None:
+                ut = headarr[0].get('UTC') if headarr[0].get('UTC') is not None else headarr[0].get('UT')
+                if headarr[0].get('DATE-OBS') is not None:
+                    return time.Time('{}T{}'.format(headarr[0]['DATE-OBS'], ut)).mjd
+                elif headarr[0].get('DATE') is not None:
+                    # LRIS sometime has a duplicate DATE card. The first one is the date of the
+                    # file creation and the second one is the date of the observation.
+                    # We want the second one. Find it by looking for the date string without "T"
+                    dd = np.where([headarr[0].cards[i][0] == 'DATE' and 'T' not in headarr[0].cards[i][1]
+                                   for i in range(len(headarr[0].cards))])[0]
+                    if dd.size > 0:
+                        date = headarr[0].cards[dd[0]][1]
+                        return time.Time('{}T{}'.format(date, ut)).mjd
+                    else:
+                        # this is most likely not the obs date+time, but the date+time the file
+                        # was created, which should be very close to the obs time
+                        return time.Time(headarr[0]['DATE']).mjd
         elif 'lampstat' in meta_key:
             idx = int(meta_key[-2:])
             try:
@@ -185,7 +204,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                           'or incorrectly specified the wrong spectrograph, '
                           'or are reading in other files from your directory.  '
                           'Using 2022-01-01 as the date for parsing lamp info from headers')
-                curr_date =  time.Time("2022-01-01", format='isot')
+                curr_date = time.Time("2022-01-01", format='isot')
             # Modern -- Assuming the change occurred with the new red detector
             t_newlamp = time.Time("2014-02-15", format='isot')  # LAMPS changed in Header
             if curr_date > t_newlamp:
@@ -792,6 +811,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         # FWHM
         binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
         par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[0]
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
 
         # Slit tracing
         # Reduce the slit parameters because the flux does not span the full detector
@@ -881,19 +901,19 @@ class KeckLRISBOrigSpectrograph(KeckLRISBSpectrograph):
     supported = True    # TODO: Is this true?
     comment = 'Original detector; replaced in 20??; see :doc:`lris`'
 
-    def init_meta(self):
-        """
-        Define how metadata are derived from the spectrograph files.
-
-        That is, this associates the PypeIt-specific metadata keywords
-        with the instrument-specific header cards using :attr:`meta`.
-        """
-        super().init_meta()
-        # Remove the lamps
-        keys = list(self.meta.keys())
-        for key in keys:
-            if 'lampstat' in key:
-                self.meta.pop(key)
+    # def init_meta(self):
+    #     """
+    #     Define how metadata are derived from the spectrograph files.
+    #
+    #     That is, this associates the PypeIt-specific metadata keywords
+    #     with the instrument-specific header cards using :attr:`meta`.
+    #     """
+    #     super().init_meta()
+    #     # Remove the lamps
+    #     keys = list(self.meta.keys())
+    #     for key in keys:
+    #         if 'lampstat' in key:
+    #             self.meta.pop(key)
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -1239,6 +1259,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # FWHM
         binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
         par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[0]
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
 
         # Return
         return par
@@ -1600,19 +1621,19 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
         # Return
         return detector
 
-    def init_meta(self):
-        """
-        Define how metadata are derived from the spectrograph files.
-
-        That is, this associates the PypeIt-specific metadata keywords
-        with the instrument-specific header cards using :attr:`meta`.
-        """
-        super().init_meta()
-        # Remove the lamps
-        keys = list(self.meta.keys())
-        for key in keys:
-            if 'lampstat' in key:
-                self.meta.pop(key)
+    # def init_meta(self):
+    #     """
+    #     Define how metadata are derived from the spectrograph files.
+    #
+    #     That is, this associates the PypeIt-specific metadata keywords
+    #     with the instrument-specific header cards using :attr:`meta`.
+    #     """
+    #     super().init_meta()
+    #     # Remove the lamps
+    #     keys = list(self.meta.keys())
+    #     for key in keys:
+    #         if 'lampstat' in key:
+    #             self.meta.pop(key)
 
     def get_rawimage(self, raw_file, det):
         """

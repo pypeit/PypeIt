@@ -982,8 +982,11 @@ class PypeItMetaData:
         # may not be integers instead of strings.
         self['calib'] = np.array([str(c) for c in self['calib']], dtype=object)
         # Collect and expand any lists
-        group_names = np.unique(np.concatenate(
-                        [s.split(',') for s in self['calib'] if s not in ['all', 'None']]))
+        # group_names = np.unique(np.concatenate(
+        #                 [s.split(',') for s in self['calib'] if s not in ['all', 'None']]))
+        # DP changed to below because np.concatenate does not accept an empty list,
+        # which is the case when calib is None for all frames
+        group_names = np.unique(np.array([s.split(',') for s in self['calib'] if s not in ['all', 'None']]).flatten())
         # Expand any ranges
         keep_group = np.ones(group_names.size, dtype=bool)
         added_groups = []
