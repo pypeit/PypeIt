@@ -659,7 +659,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     return detections, spec_cont_sub, patt_dict_slit
 
 
-def map_fwhm(image, imbpm, slits, npixel=None, nsample=None, sigdetect=10., ord=None, fwhm=5.):
+def map_fwhm(image, imbpm, slits, npixel=None, nsample=None, sigdetect=10., specord=1, spatord=0, fwhm=5.):
     """
     Map the arc line FWHM at all spectral and spatial locations of all slits
 
@@ -679,9 +679,12 @@ def map_fwhm(image, imbpm, slits, npixel=None, nsample=None, sigdetect=10., ord=
         sigdetect (:obj:`float`, optional):
             Sigma threshold above fluctuations for arc-line detection.
             Used by :func:`pypeit.core.arc.detect_lines`.
-        ord (tuple, optional):
-            The polynomial order that should be used to fit the resolution map (two element tuple).
-            The first (second) element is the polynomial order in the spectral (spatial) dimension.
+        specord (tuple, optional):
+            The spectral polynomial order to use in the 2D polynomial fit to the
+            FWHM of the arc lines. See also, spatord.
+        spatord (tuple, optional):
+            The spatial polynomial order to use in the 2D polynomial fit to the
+            FWHM of the arc lines. See also, specord.
         fwhm (:obj:`float`, optional):
             Number of pixels per fwhm resolution element.
             Used by :func:`pypeit.core.arc.detect_lines`.
@@ -693,7 +696,7 @@ def map_fwhm(image, imbpm, slits, npixel=None, nsample=None, sigdetect=10., ord=
     nslits = slits.nslits
     scale = (2 * np.sqrt(2 * np.log(2)))
     _npixel = 10 if npixel is None else npixel  # Sample every 10 pixels unless the argument is set (Note: this is only used if nsample is not set)
-    _ord = (1, 2) if ord is None else ord  # The polynomial order to fit to the resolution map.
+    _ord = (specord, spatord)  # The 2D polynomial orders to fit to the resolution map.
     slits_left, slits_right, _ = slits.select_edges(initial=True, flexure=None)
     slit_lengths = np.mean(slits_right-slits_left, axis=0)
     spec_vec = np.arange(image.shape[0])
