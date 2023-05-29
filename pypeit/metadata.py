@@ -14,12 +14,10 @@ import datetime
 from IPython import embed
 
 import numpy as np
-import yaml
 
-from astropy import table, coordinates, time, units
+from astropy import table, time
 
 from pypeit import msgs
-from pypeit import utils
 from pypeit import inputfiles
 from pypeit.core import framematch
 from pypeit.core import flux_calib
@@ -1326,13 +1324,18 @@ class PypeItMetaData:
         if user is not None:
             if len(user.keys()) != len(self):
                 if len(np.unique(self['filename'].data)) != len(self):
-                    raise ValueError('Your pypeit file has duplicate filenames which is not allowed.')
+                    msgs.error('Your pypeit file has duplicate filenames which is not allowed.')
                 else:
-                    raise ValueError('The user-provided dictionary does not match table length.')
+                    msgs.error('The user-provided dictionary does not match table length.')
             msgs.info('Using user-provided frame types.')
             for ifile,ftypes in user.items():
                 indx = self['filename'] == ifile
-                type_bits[indx] = self.type_bitmask.turn_on(type_bits[indx], flag=ftypes.split(','))
+                try:
+                    type_bits[indx] = self.type_bitmask.turn_on(type_bits[indx], flag=ftypes.split(','))
+                except ValueError as err:
+                    msgs.error(f'Improper frame type supplied!{msgs.newline()}'
+                               f'{err}{msgs.newline()}'
+                               'Check your PypeIt Reduction File')
             return self.set_frame_types(type_bits, merge=merge)
     
         # Loop over the frame types

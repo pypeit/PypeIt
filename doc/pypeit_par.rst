@@ -435,8 +435,6 @@ Class Instantiation: :class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`
 ====================  =========================  ============================================================================  ================  =============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 Key                   Type                       Options                                                                       Default           Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
 ====================  =========================  ============================================================================  ================  =============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-``IDpixels``          int, float, list           ..                                                                            ..                One or more pixels at which to manually identify a line                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
-``IDwaves``           int, float, list           ..                                                                            ..                Wavelengths of the manually identified lines                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
 ``cc_local_thresh``   float                      ..                                                                            0.7               Threshold for the *local* cross-correlation coefficient, evaluated at each reidentified line,  between an input spectrum and the shifted and stretched archive spectrum above which a line must be to be considered a good line for reidentification. The local cross-correlation is evaluated at each candidate reidentified line (using a window of nlocal_cc), and is then used to score the the reidentified lines to arrive at the final set of good reidentifications.                                                                                                                                                                                                                                                                                                                                 
 ``cc_thresh``         float, list, ndarray       ..                                                                            0.7               Threshold for the *global* cross-correlation coefficient between an input spectrum and member of the archive required to attempt reidentification.  Spectra from the archive with a lower cross-correlation are not used for reidentification. This can be a single number or a list/array providing the value for each slit.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
 ``ech_norder_coeff``  int                        ..                                                                            4                 For echelle spectrographs, this is the order of the final 2d fit to the order dimension.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
@@ -574,7 +572,7 @@ Key                  Type        Options                                        
 ===================  ==========  ========================================================  ====================  ======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 ``excessive_shift``  str         ``crash``, ``set_to_zero``, ``continue``, ``use_median``  ``use_median``        Behavior when the measured spectral flexure shift is larger than ``spec_maxshift``.  The options are: 'crash' - Raise an error and halt the data reduction; 'set_to_zero' - Set the flexure shift to zero and continue with the reduction; 'continue' - Use the large flexure value whilst issuing a warning; and 'use_median' - Use the median flexure shift among all the objects in the same slit (if more than one object is detected) or among all the other slits; if not available, the flexure correction will not be applied.
 ``multi_min_SN``     int, float  ..                                                        1                     Minimum S/N for analyzing sky spectrum for flexure                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
-``spec_maxshift``    int, float  ..                                                        20                    Maximum allowed spectral flexure shift in pixels.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+``spec_maxshift``    int         ..                                                        20                    Maximum allowed spectral flexure shift in pixels.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 ``spec_method``      str         ``boxcar``, ``slitcen``, ``skip``                         ``skip``              Method used to correct for flexure. Use skip for no correction.  If slitcen is used, the flexure correction is performed before the extraction of objects (not recommended).  Options are: None, boxcar, slitcen, skip                                                                                                                                                                                                                                                                                                                
 ``spectrum``         str         ..                                                        ``paranal_sky.fits``  Archive sky spectrum to be used for the flexure correction.                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
 ===================  ==========  ========================================================  ====================  ======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
@@ -701,7 +699,7 @@ Key                   Type        Options  Default  Description
 ``skip_extraction``   bool        ..       False    Do not perform an object extraction                                                                                                                                                                                                                                                          
 ``skip_optimal``      bool        ..       False    Perform boxcar extraction only (i.e. skip Optimal and local skysub)                                                                                                                                                                                                                          
 ``sn_gauss``          int, float  ..       4.0      S/N threshold for performing the more sophisticated optimal extraction which performs a b-spline fit to the object profile. For S/N < sn_gauss the code will simply optimal extractwith a Gaussian with FWHM determined from the object finding.                                             
-``std_prof_nsigma``   float       ..       30.0     prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection.                                                                                                                                                                                                           
+``std_prof_nsigma``   float       ..       30.0     prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection. NOTE: Not consumed by the code at present.                                                                                                                                                                
 ``use_2dmodel_mask``  bool        ..       True     Mask pixels rejected during profile fitting when extracting.Turning this off may help with bright emission lines.                                                                                                                                                                            
 ``use_user_fwhm``     bool        ..       False    Boolean indicating if PypeIt should use the FWHM provided by the user (``find_fwhm`` in `FindObjPar`) for the optimal extraction. If this parameter is ``False`` (default), PypeIt estimates the FWHM for each detected object, and uses ``find_fwhm`` as initial guess.                     
 ====================  ==========  =======  =======  =============================================================================================================================================================================================================================================================================================
@@ -1906,7 +1904,7 @@ Alterations to the default parameters are:
       [[extraction]]
           skip_extraction = True
   [flexure]
-      spec_maxshift = 2.5
+      spec_maxshift = 3
   [sensfunc]
       [[UVIS]]
           extinct_correct = False
@@ -4138,11 +4136,13 @@ Alterations to the default parameters are:
               clip = False
               use_pixelflat = False
               use_illumflat = False
+              subtract_continuum = True
       [[tiltframe]]
           [[[process]]]
               clip = False
               use_pixelflat = False
               use_illumflat = False
+              subtract_continuum = True
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
@@ -4180,6 +4180,10 @@ Alterations to the default parameters are:
               mask_cr = True
               noise_floor = 0.01
               use_illumflat = False
+      [[flatfield]]
+          spec_samp_fine = 30
+          pixelflat_min_wave = 3000.0
+          slit_illum_finecorr = False
       [[wavelengths]]
           method = full_template
           lamps = use_header
@@ -4203,11 +4207,23 @@ Alterations to the default parameters are:
           use_illumflat = False
   [reduce]
       [[findobj]]
-          snr_thresh = 5.0
+          trace_npoly = 3
+          snr_thresh = 50.0
+          maxnumber_sci = 5
+          maxnumber_std = 1
+          find_fwhm = 3.5
+      [[skysub]]
+          sky_sigrej = 4.0
+      [[extraction]]
+          boxcar_radius = 1.8
+          use_2dmodel_mask = False
   [flexure]
       spec_method = boxcar
+      spec_maxshift = 30
   [sensfunc]
-      polyorder = 7
+      [[UVIS]]
+          polycorrect = False
+          nresln = 15
 
 .. _instr_par-magellan_fire:
 
