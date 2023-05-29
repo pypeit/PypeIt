@@ -192,7 +192,10 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             return parse.binning2string(binspec, binspatial)
         elif meta_key == 'dispname':
-            dname = headarr[0]['INSTRUME'].split(' ')[1]
+            if headarr[0]['PRISMNAM'] == 'in':
+                dname = 'Echellette'
+            else: # TODO -- Figure out prism and imaging modes
+                dname = 'UNKNWN'
             return dname
         else:
             msgs.error("Not ready for this compound meta")
