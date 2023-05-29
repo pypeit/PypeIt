@@ -449,9 +449,9 @@ class BuildWaveCalib:
         # the slits
         if self.slits is not None and self.msarc is not None:
             # Redo?
-            if self.par['redo_slit'] is not None:
+            if self.par['redo_slits'] is not None:
                 if self.par['echelle'] and self.slits.ech_order is not None:
-                    idx = np.where(self.slits.ech_order == self.par['redo_slit'])[0][0]
+                    idx = np.in1d(self.slits.ech_order, self.par['redo_slits'])
                     # Turn off mask
                     self.slits.mask[idx] = self.slits.bitmask.turn_off(
                             self.slits.mask[idx], 'BADWVCALIB')
@@ -560,7 +560,8 @@ class BuildWaveCalib:
             # Now preferred
             # Slit positions
             arcfitter = autoid.ArchiveReid(arccen, self.lamps, self.par,
-                                           ech_fixed_format=self.spectrograph.ech_fixed_format, ok_mask=ok_mask_idx,
+                                           ech_fixed_format=self.spectrograph.ech_fixed_format, 
+                                           ok_mask=ok_mask_idx,
                                            measured_fwhms=measured_fwhms,
                                            orders=self.orders,
                                            nonlinear_counts=self.nonlinear_counts)
@@ -597,7 +598,8 @@ class BuildWaveCalib:
                 arccen, order_vec, arcspec_arxiv, wave_soln_arxiv,
                 self.lamps, self.par, ok_mask=ok_mask_idx,
                 nonlinear_counts=self.nonlinear_counts,
-                debug_all=False, redo_slit=self.par['redo_slit'])
+                debug_all=False, 
+                redo_slits=np.atleast_1d(self.par['redo_slits']))
 
             # Save as internals in case we need to redo
             self.wave_soln_arxiv = wave_soln_arxiv
@@ -608,16 +610,17 @@ class BuildWaveCalib:
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
 
         # Build the DataContainer
-        if self.par['redo_slit'] is not None:
+        if self.par['redo_slits'] is not None:
             self.wv_calib = prev_wvcalib
             # Update/reset items
             self.wv_calib.arc_spectra = arccen
-            #
+            # Save?
             for key in final_fit.keys():
-                idx = int(key)
-                self.wv_calib.wv_fits[idx] = final_fit[key]
-                self.wv_calib.wv_fits[idx].spat_id = self.slits.spat_id[idx]
-                self.wv_calib.wv_fits[idx].fwhm = measured_fwhms[idx]
+                if final_fit[key]['rms'] < self.par['rms_threshold']:
+                    idx = int(key)
+                    self.wv_calib.wv_fits[idx] = final_fit[key]
+                    self.wv_calib.wv_fits[idx].spat_id = self.slits.spat_id[idx]
+                    self.wv_calib.wv_fits[idx].fwhm = measured_fwhms[idx]
         else:
             # Loop on WaveFit items
             tmp = []
@@ -849,8 +852,8 @@ class BuildWaveCalib:
         self.arccen, self.wvc_bpm = self.extract_arcs()
 
         # Fill up the calibrations and generate QA
-        skip_QA = True  # for debugging
-        msgs.warn("TURN QA BACK ON!!!")
+        #skip_QA = True  # for debugging
+        #msgs.warn("TURN QA BACK ON!!!")
         self.wv_calib = self.build_wv_calib(
             self.arccen, self.par['method'], 
             skip_QA=skip_QA,
@@ -872,20 +875,22 @@ class BuildWaveCalib:
             if self.par['ech_separate_2d']:
                 self.wv_calib.det_img = self.msarc.det_img.copy()
 
+            # TODO -- Turn the following back on!
             # Try a second attempt with 1D, if needed
             if np.any(bad_rms):
-                for bad_slit in np.where(bad_rms)[0]:
-                    embed(header='877 of wavecalib')
-                    # TODO -- just run solve_xcorr
-                    # Generate a better guess at wavelengths
-                    patt_dict, final_fit = autoid.echelle_wvcalib(
-                        self.arccen, self.slits.ech_order, 
-                        self.arcspec_arxiv, self.wave_soln_arxiv,
-                        self.lamps, self.par, 
-                        #ok_mask=ok_mask_idx,
-                        nonlinear_counts=self.nonlinear_counts,
-                        debug_all=False, redo_slit=self.slits.ech_order[bad_slit],
-                        debug_reid=True)
+                embed(header='877 of wavecalib')
+                # TODO -- just run solve_xcorr
+                # Generate a better guess at wavelengths
+                patt_dict, final_fit = autoid.echelle_wvcalib(
+                    self.arccen, self.slits.ech_order, 
+                    self.arcspec_arxiv, self.wave_soln_arxiv,
+                    self.lamps, self.par, 
+                    #ok_mask=ok_mask_idx,
+                    nonlinear_counts=self.nonlinear_counts,
+                    debug_all=False, 
+                    redo_slits=self.slits.ech_order[bad_rms],
+                    debug_reid=True)
+                embed(header='893 of wavecalib')
 
         # Deal with mask
         self.update_wvmask()

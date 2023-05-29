@@ -554,8 +554,8 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
         patt_dict_slit['sigdetect'] = sigdetect
         return detections, spec_cont_sub, patt_dict_slit
 
-    if debug_reid:
-        embed(header='557 of autoid.py')
+    #if debug_reid:
+    #    embed(header='557 of autoid.py')
 
     # Finalize the best guess of each line
     patt_dict_slit = patterns.solve_xcorr(
@@ -979,7 +979,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
                     ok_mask=None, use_unknowns=True, debug_all=False,
                     debug_peaks=False, debug_xcorr=False, debug_reid=False, 
                     debug_fits=False, nonlinear_counts=1e10,
-                    redo_slit:int=None):
+                    redo_slits:list=None):
     r"""
     Algorithm to wavelength calibrate echelle data based on a predicted or archived wavelength solution
 
@@ -1029,9 +1029,9 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
         For arc line detection: Arc lines above this saturation
         threshold are not used in wavelength solution fits because
         they cannot be accurately centroided
-    redo_slit: int, optional
+    redo_slits: list, optional
         If provided, only perform the wavelength calibration for the
-        given slit. 
+        given slit(s). 
 
     Returns
     -------
@@ -1084,7 +1084,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
     bad_orders = np.array([], dtype=int)
     # Reidentify each slit, and perform a fit
     for iord in range(norders):
-        if redo_slit is not None and orders[iord] != redo_slit:
+        if redo_slits is not None and orders[iord] not in redo_slits:
             continue
         # ToDO should we still be populating wave_calib with an empty dict here?
         if iord not in ok_mask:
@@ -1104,18 +1104,33 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
             debug_peaks=(debug_peaks or debug_all),
             debug_xcorr=(debug_xcorr or debug_all),
             debug_reid=(debug_reid or debug_all))
+        # Perform the fit
+        if debug_fits or debug_all:
+            embed(header='1115 of autoid')
         # Check if an acceptable reidentification solution was found
         if not all_patt_dict[str(iord)]['acceptable']:
             wv_calib[str(iord)] = None
             bad_orders = np.append(bad_orders, iord)
             continue
 
-        # Perform the fit
         n_final = wvutils.parse_param(par, 'n_final', iord)
-        final_fit = wv_fitting.fit_slit(spec_cont_sub[:, iord], all_patt_dict[str(iord)], detections[str(iord)],
-                                        tot_line_list, match_toler=par['match_toler'], func=par['func'],
-                                        n_first=par['n_first'],
-                                        sigrej_first=par['sigrej_first'], n_final=n_final, sigrej_final=par['sigrej_final'])
+        final_fit = wv_fitting.fit_slit(
+            spec_cont_sub[:, iord], all_patt_dict[str(iord)], 
+            detections[str(iord)], tot_line_list, 
+            match_toler=par['match_toler'], 
+            func=par['func'], n_first=par['n_first'],
+            sigrej_first=par['sigrej_first'], 
+            n_final=n_final, 
+            sigrej_final=par['sigrej_final'])
+
+        #final_fit = wv_fitting.fit_slit(
+        #    spec_cont_sub[:, iord], all_patt_dict[str(iord)], 
+        #    detections[str(iord)], tot_line_list, 
+        #    match_toler=par['match_toler'], 
+        #    func=par['func'], n_first=3,
+        #    sigrej_first=2.0,
+        #    n_final=n_final, 
+        #    sigrej_final=2.5)
 
         # Did the fit succeed?
         if final_fit is None:
@@ -1141,14 +1156,14 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
     # Print the final report of all lines
     report_final(norders, all_patt_dict, detections, 
                  wv_calib, ok_mask, bad_orders,
-                 redo_slit=redo_slit, orders=orders)
+                 redo_slits=redo_slits, orders=orders)
 
     return all_patt_dict, wv_calib
 
 
 def report_final(nslits, all_patt_dict, detections, 
                  wv_calib, ok_mask, bad_slits, 
-                 redo_slit:int=None,
+                 redo_slits:list=None,
                  orders:np.ndarray=None):
     """
     Print out the final report for wavelength calibration
@@ -1166,6 +1181,10 @@ def report_final(nslits, all_patt_dict, detections,
             Mask of indices of good slits
         bad_slits (ndarray, bool):
             List of slits that are bad
+        redo_slits (list, optional):
+            Report on only these slits
+        orders (np.ndarray, optional):
+            Echelle orders
     """
     for slit in range(nslits):
         # Prepare a message for bad wavelength solutions
@@ -1175,7 +1194,7 @@ def report_final(nslits, all_patt_dict, detections,
             badmsg += f'    Order: {orders[slit]}' + msgs.newline()
         badmsg +=  '  Wavelength calibration not performed!'
         # Redo?
-        if redo_slit is not None and orders[slit] != redo_slit:
+        if redo_slits is not None and orders[slit] not in redo_slits:
             continue
         if slit not in ok_mask or slit in bad_slits or all_patt_dict[str(slit)] is None:
             msgs.warn(badmsg)

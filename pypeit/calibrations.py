@@ -837,7 +837,7 @@ class Calibrations:
             self.wv_calib.chk_synced(self.slits)
             self.slits.mask_wvcalib(self.wv_calib)
             # Return
-            if self.par['wavelengths']['redo_slit'] is None:
+            if self.par['wavelengths']['redo_slits'] is None:
                 return self.wv_calib
 
         # Determine lamp list to use for wavecalib
