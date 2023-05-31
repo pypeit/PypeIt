@@ -69,29 +69,11 @@ creates an environment for you.
 Install via ``pip``
 -------------------
 
-To install the latest release of PypeIt and its required dependencies, execute
-either
+To install the latest release of PypeIt and its required dependencies, execute:
 
 .. code-block:: console
 
-    pip install "pypeit[pyqt]"
-
-to select the ``PyQT`` QT bindings or
-
-.. code-block:: console
-
-    pip install "pypeit[pyside]"
-
-to select ``PySide``; see :ref:`interactive`.
-
-.. note::
-
-    Whether or not it is correct syntax to use the quotes in the commands above
-    depends on your shell.  The above commands are specific to ZShell, whereas
-    you don't need the quotes in Bash.  But, in any case, you should avoid
-    copying these commands from your browser since the unicode for quotation
-    marks may not be correct, leading to errors when they are directly pasted
-    into a terminal window.
+    pip install pypeit
 
 .. _optional-dependencies:
 
@@ -106,7 +88,7 @@ PypeIt has a few optional dependencies that improve and/or expand functionality.
 
       .. code-block:: console
 
-        pip install "pypeit[pyqt,scikit-image]"
+        pip install "pypeit[scikit-image]"
 
     - To take advantage of an interface that allows you to ingest PypeIt outputs
       into its ``Spectrum1D`` and ``SpectrumList`` objects (see
@@ -115,7 +97,16 @@ PypeIt has a few optional dependencies that improve and/or expand functionality.
 
       .. code-block:: console
 
-        pip install "pypeit[pyqt,specutils]"
+        pip install "pypeit[specutils]"
+
+.. note::
+
+    Whether or not it is correct syntax to use the quotes in the commands above
+    depends on your shell.  The above commands are specific to ZShell, whereas
+    you don't need the quotes in Bash.  But, in any case, you should avoid
+    copying these commands from your browser since the unicode for quotation
+    marks may not be correct, leading to errors when they are directly pasted
+    into a terminal window.
 
 Upgrading to a new version via ``pip``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -366,13 +357,10 @@ Python (see :ref:`dependencies`):
 * `PySide <https://wiki.qt.io/Qt_for_Python>`_
 
 At least one of those bindings must be installed for the interative GUIs to
-work. **Do not install both!**  These two packages do not play nicely together.
-We strongly recommend that you use ``pyqt``, unless you are attracted to the
-more flexible licensing that ``PySide`` provides.  ``PySide`` can occasionally
-cause GUIs to crash because of conflicts with other packages in your environment
-that use ``pyqt`` (all the more reason to isolate your PypeIt installation
-in its own environment). ``PySide`` plus its dependencies is also a signficantly
-larger download than ``pyqt``.
+work. By default ``pypeit`` will install ``pyqt6``. Other backends can be used
+by installing them manually via ``pip`` or ``conda`` and then setting the ``QT_API``
+environment variable. See the `QtPy documentation <https://github.com/spyder-ide/qtpy>`_
+for more details.
 
 C code
 ------
@@ -411,7 +399,7 @@ GCC 12.x via ``homebrew``, you would get ``pypeit`` to use it by doing, for exam
 
 .. code-block:: console
 
-    CC=gcc-12 pip install "pypeit[pyqt]"
+    CC=gcc-12 pip install pypeit
 
 Basically, ``pypeit`` checks the ``CC`` environment variable for what compiler to use so configure
 that as needed to use your desired compiler. The ``pypeit_c_enabled`` script can be used to check if
@@ -456,8 +444,7 @@ PypeIt dependencies.  If you run into any more, please `submit an issue
 
 .. TODO: IS THIS FIRST ITEM STILL TRUE?
 
-- At the moment, an implicit dependency on QT bindings remains (either PyQT or
-  PySide) because of our dependence on ``linetools``.
+- At the moment, an implicit dependency on QT bindings remains because of our dependence on ``linetools``.
 
 ----
 
@@ -485,14 +472,14 @@ dependencies as well:
 
 .. code-block:: console
 
-    pip install --upgrade "git+https://github.com/pypeit/PypeIt#egg=pypeit[pyqt]"
+    pip install --upgrade "git+https://github.com/pypeit/PypeIt#egg=pypeit"
 
 These commands will install the default branch, ``release``. You can also
 specify a different branch, such as the main ``develop`` branch:
 
 .. code-block:: console
 
-    pip install --upgrade "git+https://github.com/pypeit/PypeIt.git@develop#egg=pypeit[pyqt]"
+    pip install --upgrade "git+https://github.com/pypeit/PypeIt.git@develop#egg=pypeit"
 
 Commit hashes, tag names, or git refs can also be specified; see the `VCS
 Support documentation
@@ -519,16 +506,14 @@ Then install the code, include the development dependencies:
 .. code-block:: console
 
     cd PypeIt
-    pip install -e ".[dev,pyqt]"
+    pip install -e ".[dev]"
 
 An "editable" install means that any changes you make in the repository
 directory tree will become immediately available the next time the code is
 imported. Including the ``[dev]`` set of optional dependencies ensures that all
-of the tools you need to test and build PypeIt are installed. The ``pyqt``
-installation option instructs the script to use the PyQt Qt backend.  You may
-also want to include the ``bottleneck`` option. (Again, note that you may or may
-not need the quotes above depending on your shell, and that you should avoid
-cutting and pasting these commands into a terminal window.)
+of the tools you need to test and build PypeIt are installed. (Again, note that
+you may or may not need the quotes above depending on your shell, and that you
+should avoid cutting and pasting these commands into a terminal window.)
 
 Finally, you may want to add lines to your relevant shell configuration file
 (e.g., ``.zshrc`` or ``.bashrc``) that activate the relevant environment
@@ -570,7 +555,7 @@ For example:
     python
     >>> import pypeit
 
-**To ensure that your installation of either ``pyqt`` or ``pyside`` works**,
+**To ensure that your installation of ``pyqt6`` works**,
 you can try to use ``pypeit_show_1dspec`` on one of the test files distributed
 with the package.  Below is a zshell command-line incantation (it's likely the
 same in bash) that will locate a test spec1D file and attempt to use
@@ -580,7 +565,7 @@ same in bash) that will locate a test spec1D file and attempt to use
 
     python -c "from pkg_resources import resource_filename; print(resource_filename('pypeit', 'tests/files/spec1d_r153-J0025-0312_KASTr_20150123T025323.850.fits'))" | xargs -I {} pypeit_show_1dspec {}
 
-If ``pyqt`` or ``pypside`` are correctly installed, this should show a test
+If ``pyqt6`` or another Qt backend is correctly installed, this should show a test
 spectrum from the Shane/KAST spectrograph.
 
 Developer Tests
