@@ -100,7 +100,7 @@ jobs:
         source ~/.bashrc && conda env create -f environment-test.yml
     - name: Test with pytest within the conda environment
       run: |
-        source ~/.bashrc && conda activate pypeit-test && pip install -e .[test] --no-deps && pytest
+        source ~/.bashrc && conda activate pypeit && pip install -e .[test] --no-deps && pytest
 
   codestyle:
     runs-on: ubuntu-latest
