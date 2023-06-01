@@ -26,5 +26,4 @@ dependencies:
   - pip
   - linetools>=0.3dev2231
   - pip:
-    - pypeit
     - specutils
