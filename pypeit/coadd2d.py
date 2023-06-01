@@ -482,6 +482,12 @@ class CoAdd2D:
                 weights = self.use_weights[slit_idx]
             else:
                 weights = self.use_weights
+                
+            # manual offsets
+            if isinstance(self.offsets, list):
+                manual_offsets = self.offsets
+            else:
+                manual_offsets = None
             # Perform the 2d coadd
             # NOTE: mask_stack is a gpm, and this is called inmask_stack in
             # compute_coadd2d, and outmask in coadd_dict is also a gpm
@@ -495,7 +501,8 @@ class CoAdd2D:
                                                self.stack_dict['waveimg_stack'],
                                                self.wave_grid, self.spat_samp_fact,
                                                maskdef_dict=maskdef_dict,
-                                               weights=weights, interp_dspat=interp_dspat)
+                                               weights=weights, interp_dspat=interp_dspat,
+                                               manual_offsets=manual_offsets)
             coadd_list.append(coadd_dict)
 
         return coadd_list

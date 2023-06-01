@@ -2775,6 +2775,8 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
         Spatial sampling for 2d coadd spatial bins in pixels. A value > 1.0
         (i.e. bigger pixels) will downsample the images spatially, whereas < 1.0
         will oversample. Default = 1.0
+    manual_offsets : list, optional
+        
 
     Returns
     -------
@@ -2812,7 +2814,8 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
 def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack,
                     inmask_stack, thismask_stack, waveimg_stack,
                     wave_grid, spat_samp_fact=1.0, maskdef_dict=None,
-                    weights='uniform', interp_dspat=True):
+                    weights='uniform', interp_dspat=True,
+                    manual_offsets=None):
     """
     Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs.
 
@@ -2943,7 +2946,8 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
 
     # Determine the wavelength grid that we will use for the current slit/order
     wave_bins = get_wave_bins(thismask_stack, waveimg_stack, wave_grid)
-    dspat_bins, dspat_stack = get_spat_bins(thismask_stack, ref_trace_stack, spat_samp_fact=spat_samp_fact)
+    dspat_bins, dspat_stack = get_spat_bins(thismask_stack, ref_trace_stack, spat_samp_fact=spat_samp_fact,
+                                            manual_offsets=manual_offsets)
 
     skysub_stack = [sciimg - skymodel for sciimg, skymodel in zip(sciimg_stack, skymodel_stack)]
     #sci_list = [weights_stack, sciimg_stack, skysub_stack, tilts_stack,
