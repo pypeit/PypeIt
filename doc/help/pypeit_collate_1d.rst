@@ -42,7 +42,7 @@
                             ...
                             end
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       --spec1d_files [SPEC1D_FILES ...]
                             One or more spec1d files to flux/coadd/archive. Can
