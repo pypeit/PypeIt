@@ -227,3 +227,127 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
+
+class MDMOSMOSR4KSpectrograph(MDMOSMOSMDM4KSpectrograph):
+    """
+    Child to handle MDM OSMOS R4K instrument+detector
+    """
+    ndet = 1
+    name = 'mdm_osmos_r4k'
+    telescope = telescopes.KPNOTelescopePar()
+    camera = 'R4K'
+    url = 'https://www.astronomy.ohio-state.edu/martini.10/osmos/'
+    header_name = 'OSMOS'
+    supported = True
+    comment = 'MDM OSMOS spectrometer for the red'
+
+    def get_detector_par(self, det, hdu=None):
+        """
+        Return metadata for the selected detector.
+
+        THIS IS FOR WINDOWED SCIENCE FRAMES
+        AND WE ARE HACKING THE CALIBS
+
+        Args:
+            det (:obj:`int`):
+                1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
+
+        Returns:
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
+        """
+        # Detector 1
+        detector_dict = dict(
+            binning         = '1,1' if hdu is None 
+                                    else self.get_meta_value(self.get_headarr(hdu), 'binning'),
+            det=1,
+            dataext         = 0,
+            specaxis        = 1,
+            specflip        = True,
+            spatflip        = False,
+            xgap            = 0.,
+            ygap            = 0.,
+            ysize           = 1.,
+            platescale      = 0.273,
+            mincounts       = -1e10,
+            darkcurr        = 0.0,
+            saturation      = 65535.,
+            nonlinear       = 0.86,
+            numamplifiers   = 4,
+            gain            = np.atleast_1d([2.2, 2.2, 2.2, 2.2]),
+            ronoise         = np.atleast_1d([3.0, 3.0, 3.0, 3.0]),
+            datasec         = np.atleast_1d(['[:524,33:2064]', '[524:,33:2064]',
+                '[:524, 2065:4092', '[524:, 2065:4092']),
+            oscansec        = np.atleast_1d(['[:524, 1:32]', '[524:, 1:32]',
+                '[:524, 4128:]', '[524:, 4128:]']),
+        )
+        # Return
+        return detector_container.DetectorContainer(**detector_dict)
+
+    def check_frame_type(self, ftype, fitstbl, exprng=None):
+        """
+        Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
+        """
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        if ftype in ['science', 'standard']:
+            return good_exp & (fitstbl['idname'] == 'OBJECT')
+        if ftype == 'bias':
+            return good_exp & (fitstbl['idname'] == 'zero')
+        if ftype in ['pixelflat', 'trace']:
+            return good_exp & (fitstbl['lampstat01'] == 'Flat') & (fitstbl['idname'] == 'FLAT')
+        if ftype in ['pinhole', 'dark']:
+            # Don't type pinhole or dark frames
+            return np.zeros(len(fitstbl), dtype=bool)
+        if ftype in ['arc','tilt']:
+            return good_exp & (fitstbl['idname'] == 'COMP') 
+        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        return np.zeros(len(fitstbl), dtype=bool)
+
+    @classmethod
+    def default_pypeit_par(cls):
+        """
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of PypeIt methods.
+        """
+        par = super().default_pypeit_par()
+
+        # Ignore PCA
+        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+
+        # Set pixel flat combination method
+        par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
+        # Wavelength calibration methods
+        par['calibrations']['wavelengths']['method'] = 'full_template'
+        par['calibrations']['wavelengths']['lamps'] = ['HgI', 'NeI']
+        #par['calibrations']['wavelengths']['reid_arxiv'] = 'mdm_osmos_mdm4k.fits'
+        par['calibrations']['wavelengths']['sigdetect'] = 10.0
+        # Set the default exposure time ranges for the frame typing
+        par['calibrations']['biasframe']['exprng'] = [None, 1]
+        par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
+        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
+        par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures on this telescope
+        par['calibrations']['standardframe']['exprng'] = [None, 120]
+        par['scienceframe']['exprng'] = [90, None]
+
+        return par
