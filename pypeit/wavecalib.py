@@ -558,7 +558,7 @@ class BuildWaveCalib:
             final_fit = autoid.full_template(arccen, self.lamps, self.par, ok_mask_idx, self.det,
                                              self.binspectral, measured_fwhms=measured_fwhms,
                                              nonlinear_counts=self.nonlinear_counts,
-                                             nsnippet=self.par['nsnippet'])
+                                             nsnippet=self.par['nsnippet'])#,
                                              #debug=True, debug_reid=True, debug_xcorr=True)
         elif self.par['method'] == 'echelle':
             # TODO -- Merge this with reidentify for fixed echelle formats

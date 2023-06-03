@@ -663,7 +663,8 @@ def set_fwhm(par, measured_fwhm=None):
     return fwhm
 
 
-def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
+def full_template(spec, lamps, par, ok_mask, det, binspectral, 
+                  nsnippet=2,
                   measured_fwhms=None, debug_xcorr=False, debug_reid=False,
                   x_percentile=50., template_dict=None, debug=False, 
                   nonlinear_counts=1e10):
@@ -785,7 +786,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
             ax = plt.gca()
             #
             ax.plot(xvals, tspec, label='template')  # Template
-            ax.plot(xvals, np.roll(pspec, int(shift_cc)), 'k', label='input')  # Input
+            ax.plot(xvals, np.roll(pad_spec, int(shift_cc)), 'k', label='input')  # Input
             ax.legend()
             plt.show()
             #embed(header='909 autoid')

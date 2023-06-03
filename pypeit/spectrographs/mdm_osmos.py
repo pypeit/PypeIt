@@ -334,14 +334,19 @@ class MDMOSMOSR4KSpectrograph(MDMOSMOSMDM4KSpectrograph):
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        # Bound the detector with slit edges if no edges are found
+        par['calibrations']['slitedges']['bound_detector'] = True
 
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         # Wavelength calibration methods
         par['calibrations']['wavelengths']['method'] = 'full_template'
+        #par['calibrations']['wavelengths']['method'] = 'reidentify'
         par['calibrations']['wavelengths']['lamps'] = ['HgI', 'NeI']
-        #par['calibrations']['wavelengths']['reid_arxiv'] = 'mdm_osmos_mdm4k.fits'
-        par['calibrations']['wavelengths']['sigdetect'] = 10.0
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'mdm_osmos_r4k.fits'
+        par['calibrations']['wavelengths']['sigdetect'] = 5.0
+        par['calibrations']['wavelengths']['nsnippet'] = 1
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
