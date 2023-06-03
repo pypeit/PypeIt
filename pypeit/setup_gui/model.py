@@ -39,10 +39,6 @@ class ModelState(enum.Enum):
     """The model contains data that has not been saved to a file."""
 
 
-class OpCanceledError(Exception):
-    """Exception thrown when a background operation has been canceled."""
-    def __init__(self):
-        super().__init__()
 
 
 class LogBuffer(io.TextIOBase):
@@ -976,12 +972,12 @@ class PypeItFileModel(QObject):
                             an existing .pypeit file.
     """
 
-    state_changed = Signal(str)
+    stateChanged = Signal(str, ModelState)
     """Signal(str): Signal sent when the state of the file model changes. The config nasme of the file is sent as the signal parameter."""
 
-    def __init__(self, config_name, config_dict, spectrograph, metadata_model, params_model, state):
+    def __init__(self, config_name, config_dict, metadata_model, params_model, state):
         super().__init__()
-        self._spectrograph = spectrograph
+        self._spectrograph = metadata_model.metadata.spectrograph
         self.config_name = config_name 
         self.metadata_model = metadata_model
         self.params_model = params_model
@@ -1019,70 +1015,32 @@ class PypeItFileModel(QObject):
             # Raise an exception that will look nice when displayed to the GUI
             raise RuntimeError(f"Failed saving setup {self.config_name} to {self.save_location}.\nException: {e}")
         self.state = ModelState.UNCHANGED
-        self.state_changed.emit(self.config_name)
+        self.stateChanged.emit(self.config_name, self.state)
         
 
-class PypeItSetupModel(QObject):
-    """Model representing a PypeItSetup object to the GUI.
+class PypeItObsLogModel(QObject):
+    """Model representing an obslog to the GUI.
     """
-
-    operation_progress = Signal(str)
-    """Signal(str): Signal that indicates a background operation has progressed. Sends a string describing the progress, 
-                    e.g. a file name that had it's metadata read."""
-
-    operation_complete = Signal(str)
-    """Signal(str): Signal that indicates a background_operation completed. Sends an error message if it failed,
-                    `"CANCEL"` if it was canceled, or an empty string if it succeeded."""
-
-    configs_deleted = Signal(list)
-    """Signal(list): Signal sent when configurations within the setup have been deleted. Sends the list of
-                     removed configurations."""
-
-    configs_added = Signal(list)
-    """Signal(list): Signal sent when configurations within the setup have been added. Sends the list of added
-                     configurations."""
 
     spectrograph_changed = Signal(str)
     """Signal(str): Signal sent when the spectrgraph for the setup has changed. Sends the name of the new spectrograph."""
 
-    state_changed = Signal()
-    """Signal(): Signal sent when the state attribute of the model has changed."""
-
     def __init__(self):
         super().__init__()
         self._spectrograph = None
-        self._pypeit_setup = None
         self.metadata_model = PypeItMetadataModel(None)
         self.paths_model = QStringListModel()
         self.raw_data_files = []
-        self.pypeit_files = dict()
-        self.log_buffer = None
         self.default_extension = ".fits"
-
-    def setup_logging(self, logname, verbosity):
-        """
-        Setup the PypeIt logging mechanism. Also setups the
-        LogWatcher mechanism for monitoring the log.
-
-        Args:
-            logname (str): The filename to log to.
-            verbosity (int): The verbosity level to log at.
-        """
-        self.log_buffer = LogBuffer(logname,verbosity)
-        msgs.reset(verbosity=verbosity, log=self.log_buffer, log_to_stderr=False)
-
 
     @property
     def state(self):
-        """ModelState: The state of the model.
-        """
-        if len(self.pypeit_files.values()) == 0:
+        if self.metadata_model.metadata is None:
+            msgs.info("Obslog state is NEW")
             return ModelState.NEW
         else:
-            if any([config.state!=ModelState.UNCHANGED for config in self.pypeit_files.values()]):
-                return ModelState.CHANGED
-            else:
-                return ModelState.UNCHANGED
+            msgs.info("Obslog state is UNCHANGED")
+            return ModelState.UNCHANGED
 
     def set_spectrograph(self, new_spec):
         """Set the current spectrograph.
@@ -1092,6 +1050,14 @@ class PypeItSetupModel(QObject):
         """
         msgs.info(f"Spectrograph is now {new_spec}")
         self._spectrograph = spectrographs.util.load_spectrograph(new_spec)
+        self.spectrograph_changed.emit(self._spectrograph.name)
+
+
+    def setMetadata(self, metadata):
+        """Sets the obslog to reflect a new PypeItMetadata object."""
+        self.metadata_model.setMetadata(metadata)
+        self._spectrograph = metadata.spectrograph
+        self.paths_model.setStringList(np.unique(metadata.table['directory']))
         self.spectrograph_changed.emit(self._spectrograph.name)
 
     @property
@@ -1130,7 +1096,7 @@ class PypeItSetupModel(QObject):
             # default from the command line. Append a "*" to match compressed files
             allowed_extensions = [self.default_extension + "*"]
 
-        self.raw_data_files = []
+        raw_data_files = []
         for directory in self.paths_model.stringList():
             msgs.info(f"Scanning directory: {directory}")
             for extension in allowed_extensions:
@@ -1141,61 +1107,99 @@ class PypeItSetupModel(QObject):
                     glob_pattern = os.path.join(directory, "*" + extension)
 
                 msgs.info(f"Searching for raw data files with {glob_pattern}")
-                self.raw_data_files += glob.glob(glob_pattern)
+                raw_data_files += glob.glob(glob_pattern)
 
-        return len(self.raw_data_files)
+        return raw_data_files
 
 
     def reset(self):
         """Reset the model to an empty state."""
 
         msgs.info(f"Resetting to empty setup.")
-        self._pypeit_setup = None
         self.raw_data_files = []
         self.raw_data_dirs = []
         self.metadata_model.setMetadata(None)     
         self.paths_model.setStringList([])
         self._spectrograph = None
         self.spectrograph_changed.emit(None)
-        self._setConfigurations({})
-        self.state_changed.emit()
+
+class PypeItSetupGUIModel(QObject):
+    """
+    Maintains the state of the overall PypeItSetupGUI.
+    """
+    filesDeleted = Signal(list)
+    """Signal(list): Signal sent when PypeIt files within the GUI have been closed. Sends the list of
+                     removed files."""
+
+    filesAdded = Signal(list)
+    """Signal(list): Signal sent when PypeIt files within the GUI have been created or opened. Sends the list of the
+                     new files."""
+
+    stateChanged = Signal()
+    """Signal(): Signal sent when the state attribute of the model has changed."""
+
+    def __init__(self):
+        super().__init__()
+        self._pypeit_setup = None
+        self.pypeit_files = dict()
+        self.log_buffer = None
+        self.obslog_model = PypeItObsLogModel()
+
+    def setup_logging(self, logname, verbosity):
+        """
+        Setup the PypeIt logging mechanism and a log buffer
+        for monitoring the progress of operations and
+        viewing the log.
+
+        Args:
+            logname (str): The filename to log to.
+            verbosity (int): The verbosity level to log at.
+        """
+        self.log_buffer = LogBuffer(logname,verbosity)
+        msgs.reset(verbosity=verbosity, log=self.log_buffer, log_to_stderr=False)
+
+    @property
+    def state(self):
+        """ModelState: The state of the model.
+        """
+        if self.obslog_model.state == ModelState.NEW:
+            msgs.info("GUI state is NEW")
+            return ModelState.NEW
+        else:
+            if any([file.state!=ModelState.UNCHANGED for file in self.pypeit_files.values()]):
+                msgs.info("GUI state is CHANGED")
+                return ModelState.CHANGED
+            else:
+                msgs.info("GUI state is UNCHANGED")
+                return ModelState.UNCHANGED
+
+    def reset(self):
+        """Reset the model to an empty state."""
+
+        msgs.info(f"Resetting to NEW state.")
+        self.closeAllFiles()
+        self.obslog_model.reset()
+        self.stateChanged.emit()
 
     def run_setup(self):
-        """Run setup on the raw data in this setup. This function is ran as a background 
-        operation.
-        """
-        try:
-            self._pypeit_setup = PypeItSetup.from_rawfiles(self.raw_data_files, self._spectrograph.name)
+        """Run setup on the raw data in the obslog."""
 
-            added_metadata_re = re.compile("Adding metadata for (.*)$")
+        raw_data_files =  self.obslog_model.scan_raw_data_directories()
+        
+        if len(raw_data_files) == 0:
+            raise ValueError("Could not find any files in any of the raw data paths.")
 
-            self.log_buffer.watch("added_metadata", added_metadata_re, self._addedMetadata)
+        self._pypeit_setup = PypeItSetup.from_rawfiles(raw_data_files, self.obslog_model.spectrograph)
 
-            # These were taken from the default parameters in pypeit_obslog
-            self._pypeit_setup.run(setup_only=True,
-                                write_files=False, 
-                                groupings=True,
-                                clean_config=False)
-            self.log_buffer.unwatch("added_metadata")
+        # These were taken from the default parameters in pypeit_obslog
+        self._pypeit_setup.run(setup_only=True,
+                               write_files=False, 
+                               groupings=True,
+                               clean_config=False)
 
-            self.metadata_model.setMetadata(self._pypeit_setup.fitstbl)
-            self.paths_model.setStringList(np.unique(self._pypeit_setup.fitstbl.table['directory']))
-            self._setConfigurations(self._pypeit_setup.fitstbl.unique_configurations())
-            self.operation_complete.emit("")
-            self.state_changed.emit()
-        except OpCanceledError:
-            # The operation was canceled, reset pypeit_setup and return
-            self.log_buffer.unwatch("added_metadata")
-            msgs.info("OpCanceled")
-            self._pypeit_setup = None
-            self.operation_complete.emit("CANCEL")
-        except Exception as e:
-            self.log_buffer.unwatch("added_metadata")
-            msgs.info("Exception")
-            msgs.info(traceback.format_exc())
-            # Any other exception is an error reading the metadata
-            self._pypeit_setup = None
-            self.operation_complete.emit("Could not read metadata. Are you sure the spectrograph is set correctly?\nCheck the logs for more information.")
+        self.obslog_model.setMetadata(self._pypeit_setup.fitstbl)
+        self.createFilesForConfigs()
+        self.stateChanged.emit()
 
     def open_pypeit_file(self, pypeit_file):
         """Open an existing pypeit file and load it into this setup.
@@ -1203,9 +1207,6 @@ class PypeItSetupModel(QObject):
         Args:
             pypeit_file (str): The pypeit file to open.
         """
-        
-        # We can't just create a PypeItSetup using from_pypeit_file because we 
-        # need the paths for raw_data_directory.
         pf = PypeItFile.from_file(pypeit_file)
 
         if len(pf.file_paths) == 0:
@@ -1222,23 +1223,20 @@ class PypeItSetupModel(QObject):
         self._pypeit_setup.build_fitstbl()        
         self._pypeit_setup.fitstbl.set_configurations(fill=pf.setup_name)
         self._pypeit_setup.fitstbl.get_frame_types(user=dict(zip(pf.data['filename'], pf.data['frametype'])))
-        self.paths_model.setStringList(np.unique(self._pypeit_setup.fitstbl.table['directory']))
-        self.metadata_model.setMetadata(self._pypeit_setup.fitstbl)        
-        self._spectrograph = self._pypeit_setup.spectrograph
-        self.spectrograph_changed.emit(self.spectrograph)
-        self._setConfigurations(self._pypeit_setup.fitstbl.unique_configurations(), state=ModelState.UNCHANGED)
-        self.state_changed.emit()
+        self.obslog_model.setMetadata(self._pypeit_setup.fitstbl)        
+        self.createFilesForConfigs()
+        self.stateChanged.emit()
 
-    def removeConfig(self, name):
+    def removeFile(self, name):
         del self.pypeit_files[name]
-        self.configs_deleted.emit([name])
+        self.filesDeleted.emit([name])
 
     def createNewPypeItFile(self, config_name, selectedRows):
         # Create a new empty configuration.
         # First figure out the name
         # This is assuming a single letter name
         if len(self.pypeit_files) == 0:
-            # Now configs, just add "A"
+            # No configs, just add "A"
             new_name = "A"
         else:
             largest_name = max(self.pypeit_files.keys())
@@ -1249,7 +1247,7 @@ class PypeItSetupModel(QObject):
 
         # Get the metadata model for the given config_name
         if config_name == 'ObsLog':
-            model = self.metadata_model
+            model = self.obslog_model.metadata_model
         else:
             model = self.pypeit_files[config_name].metadata_model
 
@@ -1259,57 +1257,54 @@ class PypeItSetupModel(QObject):
 
         pf_model = PypeItFileModel(new_name, 
                                    config_dict, 
-                                   self._spectrograph, 
                                    model.createCopyForRows(selectedRows),
                                    PypeItParamsProxy(self._pypeit_setup),
                                    state=ModelState.NEW)
 
-        pf_model.state_changed.connect(self.state_changed)
+        pf_model.stateChanged.connect(self.stateChanged)
 
         self.pypeit_files[new_name] = pf_model            
 
-        self.configs_added.emit([pf_model])
-        self.state_changed.emit()
+        self.filesAdded.emit([pf_model])
+        self.stateChanged.emit()
 
-    def _addedMetadata(self, name, match):
-        """Callback used to report progress on reading files when running setup."""
-        if QThread.currentThread().isInterruptionRequested():
-            raise OpCanceledError()
+    def closeAllFiles(self):
+        # Delete all files
+        deleted_files = list(self.pypeit_files.keys())
+        self.pypeit_files = dict()
+        if len(deleted_files) > 0:
+            self.filesDeleted.emit(deleted_files)
 
-        self.operation_progress.emit(match.group(1))
-
-    def _setConfigurations(self, unique_configs, state=ModelState.CHANGED):
+    def createFilesForConfigs(self, configs=None, state=ModelState.CHANGED):
         """
-        Private method to reset configurations to a new set. Any previous configurations are deleted.
+        Private method to create PypeIt files for new configurations.
 
         Args:
             unique_config (dict): A the new configurations to set.
-
+            pypeit_setup (:obj:`PypeItSetup`): The PypeItSetup object with parameter info for the new files.
             state (ModelState, Optional): The state of the new model. Defaults to CHANGED, meaning it has not been saved.
 
         """
-        msgs.info(f"Unique Configs {unique_configs}")
-
-        # Delete previous configurations
-        deleted_configs = list(self.pypeit_files.keys())
-        if len(deleted_configs) > 0:
-            self.configs_deleted.emit(deleted_configs)
+        if configs is None:
+            configs = self.obslog_model.metadata_model.metadata.unique_configurations()
+            msgs.info(f"Creating files for all unique configurations: {configs}")
+        else:
+            msgs.info(f"Creating files for configs {configs}")
 
         # Create a new PypeItFileModel for each unique configuration
-        config_names = list(unique_configs.keys())
-        self.pypeit_files = dict()
+        config_names = list(configs.keys())
         for config_name in config_names:
             pf_model = PypeItFileModel(config_name, 
-                                       unique_configs[config_name], 
-                                       self._spectrograph, 
-                                       self.metadata_model.createCopyForConfig(config_name),
+                                       configs[config_name], 
+                                       self.obslog_model.metadata_model.createCopyForConfig(config_name),
                                        PypeItParamsProxy(self._pypeit_setup),
                                        state=state)
 
             # Any change to the file models can change the over all state, so connect the signals
-            pf_model.state_changed.connect(self.state_changed)
+            pf_model.stateChanged.connect(self.stateChanged)
             self.pypeit_files[config_name] = pf_model
 
-        msgs.info(f"Self configs: {self.pypeit_files}")
+        msgs.info(f"Current files: {self.pypeit_files}")
         if len(config_names) > 0:
-            self.configs_added.emit(list(self.pypeit_files.values()))
+            self.filesAdded.emit(list(self.pypeit_files.values()))
+

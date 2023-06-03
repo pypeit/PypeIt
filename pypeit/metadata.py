@@ -170,6 +170,7 @@ class PypeItMetaData:
         # Allow for single files
         _files = files if hasattr(files, '__len__') else [files]
 
+        msgs.info(f"Building metadata for {len(_files)} files.")
         # Build lists to fill
         data = {k:[] for k in self.spectrograph.meta.keys()}
         data['directory'] = ['None']*len(_files)
@@ -1658,7 +1659,7 @@ class PypeItMetaData:
         # Find unique configurations, always ignoring any 'None'
         # configurations...
         cfg = self.unique_configurations(copy=True, rm_none=True)
-
+        msgs.info(f"unique configs: {cfg}")
         # Get the setups to write
         if configs is None or configs == 'all' or configs == ['all']:
             cfg_keys = list(cfg.keys())

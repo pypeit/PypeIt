@@ -127,226 +127,107 @@ class PersistentStringListModel(QStringListModel):
         # but ignores them, persisting the entire list instead
         self._settings.setValue(self._value_name, self.stringList())
 
-class PathsViewerPanel(QGroupBox):
+
+class PathEditor(QWidget):
     """
-    A custom widget to displays a list of paths but does not allow them to be edited.
-    
-    Args:
-        parent(QWidget):                 The parent object of the location panel.
-        name (str):                      The name to display for this location panel.
-        lines_to_display (int,Optional): How many lines to display in the list of file locations. Defaults to None for unbounded.
-    """
-
-    def __init__(self, parent=None, name=None, model=QStringListModel(), lines_to_display=None):
-        super().__init__(title = name, parent=parent)
-        self.parent = parent
-        self.name = name
-        self.lines_to_display = lines_to_display
-
-        layout = QHBoxLayout(self) 
-
-        # We have a single widget to put in the scroll_area which contains a list of labels
-        self._path_container = QListView(parent=self) #QWidget()
-        layout.addWidget(self._path_container)
-        self._path_container.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
-        self._path_container.setModel(model)
-
-        # Set the height of the container widget if a fixed # of lines was given
-        if lines_to_display is not None:
-            ll_margins = self._path_container.contentsMargins()
-            ll_fm = self._path_container.fontMetrics()
-            msgs.info(f"font height: {ll_fm.height()} spacing {self._path_container.spacing()}")
-            self._path_container.setFixedHeight(ll_margins.top() + ll_margins.bottom() + ll_fm.height()*lines_to_display)
-
-        #self._path_container.setBackgroundRole(QPalette.ColorRole.AlternateBase)
-        #msgs.info(f"My bg role/autofill: {self.backgroundRole()}/{self.foregroundRole()}/{self.autoFillBackground()} container role/autofill {self._path_container.backgroundRole()}/{self.foregroundRole()}/{self._path_container.autoFillBackground()}")
-
-    def _update(self, *args, **kwargs):
-        """
-        Update the panel with the current list of paths
-        in the model. This is called by multiple event
-        handlers, and so gets different arguments from each.
-        """
-
-        # Since this is intended for small lists, it just 
-        # doesn't use its arguments and just updates/adds/removes the labels
-        # for each item in the model
-        row_count = self._model.rowCount()
-        container_layout = self._path_container.layout()
-        msgs.info(f"update container_layout: {container_layout}")
-
-        msgs.info(f"Updating PathViewerPanel, rowcount: {row_count}")
-
-
-        # Remove extra labels if needed
-        if row_count < len(self._labels):
-            for i in range(row_count, len(self._labels)):
-                container_layout.removeWidget(self._labels[i])
-            del(self._labels[row_count:])
-
-        # Update/add existing labels
-        for i in range(row_count):
-            path = self._model.data(self._model.index(i, 0), Qt.DisplayRole)
-            if i < len(self._labels):
-                self._labels[i].setText(path)
-            else:
-                msgs.info(f"Adding path {path}")
-                label = QPushButton(text=path) #QLabel(parent=self._path_container)
-                #label.setTextFormat(Qt.TextFormat.PlainText)
-                #label.setText(path)
-                self._labels.append(label)
-                container_layout.addWidget(label)
-
-
-class PathsEditorPanel(QGroupBox):
-    """
-    A custon widget that displays a list of paths and allows it to be edited. It has an editable combo box for entering 
-    file locations, a browse button to use a file dialog to enter the file location, and a list of all the file locations entered.
-    A right click menu allows items to be removed.
+    A custon widget that allows for entering a path. It has an editable combo box for entering 
+    file locations, a browse button to use and a file dialog to enter the file location.
     The history of past locations is kept in the combo box list and file dialog history. 
 
     Args:
-        parent(QWidget):                 The parent object of the location panel.
-        name (str):                      The name to display for this location panel.
+        parent(QWidget):                 The parent of this widget.
         browse_caption (str):            The caption text to use when searching for locations, also used as place holder
                                          text when no location has been set.
-        lines_to_display (int,Optional): How many lines to display in the list of file locations. Defaults to None for unbounded.
     """
 
-    def __init__(self, parent=None, name=None, model=QStringListModel(), browse_caption = None, lines_to_display=None):
-        super().__init__(title = name, parent=parent)
-        self.parent = parent
-        self.name = name
+    pathEntered = Signal(str)
+
+    def __init__(self, browse_caption, parent=None):
+        super().__init__(parent=parent)
         self.browse_caption = browse_caption
 
         # Setup the combo box
-        layout = QGridLayout()
+        layout = QHBoxLayout()
         layout.setSpacing(0)
-        self._location = QComboBox(parent=self)
-        self._location.setEditable(True)
-        self._location.setInsertPolicy(QComboBox.InsertAtTop)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self._path = QComboBox(parent=self)
+        self._path.setEditable(True)
+        self._path.setInsertPolicy(QComboBox.InsertAtTop)
 
         # Setup history
         self._history = QStringListModel()
-        self._location.setModel(self._history)
+        self._path.setModel(self._history)
         if browse_caption is not None:
-            self._location.lineEdit().setPlaceholderText(browse_caption)
+            self._path.lineEdit().setPlaceholderText(browse_caption)
 
-        self._location.setCurrentIndex(-1)
-        self._location.activated.connect(self._new_location)
-        layout.addWidget(self._location, 0, 0, 1, 1)
+        self._path.setCurrentIndex(-1)
+        self._path.activated.connect(self._new_path)
+        layout.addWidget(self._path)
 
         # Setup the browse button
         self._browse_button = QToolButton(parent=self)
         self._browse_button.setText(self.tr("Browse..."))
         self._browse_button.clicked.connect(self.browse)
-        layout.addWidget(self._browse_button, 0, 1, 1, 1)
+        layout.addWidget(self._browse_button)
 
-        # The list of current locations
-        self._location_list = QListView(self)        
-        
-        if lines_to_display is not None:
-            ll_margins = self._location_list.contentsMargins()
-            ll_fm = self._location_list.fontMetrics()
-            msgs.info(f"font height: {ll_fm.height()} spacing {self._location_list.spacing()}")
-            self._location_list.setFixedHeight(ll_margins.top() + ll_margins.bottom() + ll_fm.height()*lines_to_display)
-
-        # Out model is the model of the location list
-        self.setModel(model)
-
-        # Build the action for deleting files from the location panel
-        self._location_list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-        delete_action = QAction(self._location_list, text=self.tr("Delete selected"))
-        delete_action.setToolTip(self.tr("Delete selected " + name))
-        delete_action.setShortcut(QKeySequence.StandardKey.Delete)
-        delete_action.triggered.connect(self._deleteSelection)
-        self._location_list.addAction(delete_action)
-        self._location_list.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
-
-        layout.addWidget(self._location_list, 1, 0, 1, 2)
         self.setLayout(layout)
-
-    def add_location(self, new_location):
-        """Add a new location to the list.
+   
+    def _add_path(self, new_path):
+        """Set the path, adding it to history and signaling listeners.
 
         Args:
-            new_location (str): The new location to add.
+            new_path (str): The new path to add.
         """
 
         # Add to history if needed
-        if new_location not in self._history.stringList():
+        if new_path not in self._history.stringList():
             # It's not in the history, insert it into the 
-            # location list (which uses the history as its model)
-            self._location.insertItem(0, new_location)
+            # combo box (which uses the history as its model)
+            self._path.insertItem(0, new_path)
 
-        # Don't add duplicate items
-        if new_location not in self._paths_model.stringList():
-            row_number = self._paths_model.rowCount()
-            self._paths_model.insertRows(row_number, 1)
-            self._paths_model.setData(self._paths_model.index(row_number,0),new_location)
+        self._path.setCurrentIndex(-1)
+        self.pathEntered.emit(new_path)
 
     def setHistory(self, history):
         self._history = history
-        self._location.setModel(history)
-        self._location.setCurrentIndex(-1)
+        self._path.setModel(history)
+        self._path.setCurrentIndex(-1)
 
     def history(self):
         return self._history
     
-    def setModel(self, model):
-        self._location_list.setModel(model)
-        self._paths_model=model
-
     def browse(self):
         """Opens up a :class:`FileDialog` requesting the user select a location.
 
         Returns: 
             str: The new location, or None if Cancel was pressed.
         """
-        browse_dialog = FileDialog(self.parent, 
-                                   caption = self.name, 
+        browse_dialog = FileDialog(self, 
+                                   caption = self.browse_caption, 
                                    file_mode=QFileDialog.Directory,
                                    history=self._history.stringList())
 
         if browse_dialog.show() == DialogResponses.ACCEPT:
             # the User selected a directory
             # Add it to our location list
-            self.add_location(browse_dialog.selected_path)
+            self._add_path(browse_dialog.selected_path)
 
             return browse_dialog.selected_path
         else:
             return None
 
-    def _new_location(self, new_index):
+    def _new_path(self, new_index):
         """
-        Signal handler for when the combo box selects a new location.
+        Signal handler for when the combo box selects a new path.
 
         Args:
             new_index: The index within the combo box that was selected.
         """
         # Forward the signal to clients with the actual string value of the new
         # location
-        msgs.info(f"_new_location {new_index}")
         if new_index != -1: 
-            new_location = self._location.currentText()
-            self.add_location(new_location)
-            self._location.setCurrentIndex(-1)
-
-    def _deleteSelection(self, parent):
-        msgs.info(f"Delete selection")
-        selection = self._location_list.selectedIndexes()
-        for index in selection:
-            self._paths_model.removeRow(index.row())
-
-    def setEnabled(self, value):
-        """
-        Set whether the widget (both combobox and browse button) is enabled.
-
-        Args:
-            value (bool): True to enable the widget is enabled, False to disable it
-        """
-        # This will also enable/disable the child combo box and button widgets
-        super().setEnabled(value)
+            new_path = self._path.currentText()
+            self._add_path(new_path)
 
 class PypeItEnumListEditor(QWidget):
     def __init__(self, parent, allowed_values, num_lines=5):
@@ -441,14 +322,11 @@ class PypeItCustomEditorDelegate(QStyledItemDelegate):
         
         model = index.model().sourceModel()
         
-        column_name = model.getColumnNumName(index)
+        column_name = model.getColumnNameFromNum(index)
 
         if column_name == "frametype":
             msgs.info("Creating enum list editor for frametype")
             return PypeItEnumListEditor(parent=parent, allowed_values=model.getAllFrameTypes())
-        if column_name == "setup":
-            msgs.info("Creating enum list editor for setup")
-            return PypeItEnumListEditor(parent=parent, allowed_values=setup_gui_main_window.model.pypeit_files.keys())
         
         msgs.info(f"Creating default editor for {column_name}")
         return super().createEditor(parent, option, index)
@@ -521,14 +399,17 @@ class PypeItMetadataView(QTableView):
         parent (QtWidget):                                            The parent widget of the table view
         model  (:class:`pypeit.setup_gui.model.PypeItMetadataModel`): The model for the table. Optional, defaults to None.
     """
-    def __init__(self, parent, model):
+    def __init__(self, parent, model, controller):
         super().__init__(parent=parent)
+        self._controller=controller
         self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.setItemDelegate(PypeItCustomEditorDelegate(parent=self))
         self.setModel(model)
-    
+        self.addActions(controller.getActions(self))
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
+
     def setModel(self, model):
         """Set the PypeItMetadataProxy model to use for the table.
         
@@ -675,23 +556,25 @@ class ConfigValuesPanel(QGroupBox):
         
         layout.addWidget(scroll_area)
 
-class PypeItFileTab(QWidget):
+class PypeItFileView(QWidget):
     """Widget for displaying the information needed for one pypeit file. This includes
     the spectrograph, the configuration keys and values, the files that share that 
     configuration, and the PypeIt parameters.
 
     Args:
         (pypeit.setup_gui.model.PypeItFileModel): The model representing all the information needed for a .pypeit file.
+        (pypeit.setup_gui.model.PypeItFileController): The controller for managing the user's interaction with a PypeIt file)
     """
 
+    # TODO still need itemsSelected?
     itemsSelected = Signal()
     """Signal sent when items have been selected in the metadata table."""
 
-    def __init__(self, model):
+    def __init__(self, model, controller):
         super().__init__()
 
         layout = QVBoxLayout(self) 
-        self._model = model
+        self.model = model
 
         # Add the file name as the first row and second rows
         filename_label = QLabel(self.tr("Filename:"))
@@ -713,17 +596,21 @@ class PypeItFileTab(QWidget):
         # Add the Raw Data directory panel to the third row, second column
         # This is not editable, because the user can add/remove directories by adding/removing individual
         # files in the metadata_file_table
-        self.raw_data_paths = PathsViewerPanel(self, self.tr("Raw Data Directories"), model=model.paths_model)
+        paths_group = QGroupBox(self.tr("Raw Data Directories"),self)
+        paths_group_layout = QVBoxLayout(paths_group)        
+        paths_viewer = QListView(paths_group)
+        paths_viewer.setModel(model.paths_model)
+        paths_viewer.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
+        paths_group_layout.addWidget(paths_viewer)   
+        third_row_layout.addWidget(paths_group)
 
-        third_row_layout.addWidget(self.raw_data_paths)
-
-        # Make the metadata wider than the config panel
+        # Make the paths wider than the config values panel
         third_row_layout.setStretch(1, 2)
 
         # Create a group box and table view for the file metadata table
         file_group = QGroupBox(self.tr("File Metadata"))
         file_group_layout = QVBoxLayout()
-        self.file_metadata_table = PypeItMetadataView(self, model.metadata_model)
+        self.file_metadata_table = PypeItMetadataView(self, model.metadata_model, controller.getMetadataController(model.metadata_model))
         file_group_layout.addWidget(self.file_metadata_table)
         file_group.setLayout(file_group_layout)        
         layout.addWidget(file_group)
@@ -745,7 +632,7 @@ class PypeItFileTab(QWidget):
         layout.setStretch(3,10)
         layout.setStretch(4,10)
 
-        self._model.state_changed.connect(self.update_filename)
+        self.model.stateChanged.connect(self.update_filename)
 
         # Forward item selected signals
         self.file_metadata_table.itemsSelected.connect(self.itemsSelected)
@@ -755,21 +642,21 @@ class PypeItFileTab(QWidget):
     Signal handler that updates the filename when the underlying model is saved.
     """
     def update_filename(self):
-        self.filename_value.setText(self._model.filename)
+        self.filename_value.setText(self.model.filename)
 
     @property
     def name(self):
         """
         str: The configuration name.
         """
-        return self._model.config_name
+        return self.model.config_name
 
     @property
     def state(self):
         """
         :class:`pypeit.setup_gui.model.ModelState`): The state of this configuration's model. NEW, CHANGED, or UNCHANGED.
         """
-        return self._model.state
+        return self.model.state
 
     @property
     def tab_name(self):
@@ -781,6 +668,9 @@ class PypeItFileTab(QWidget):
         else:
             return self.name
 
+    def closeable(self):
+        return True
+
     def selectedRows(self):
         """ Return the selected rows in the metadata table.
 
@@ -789,20 +679,24 @@ class PypeItFileTab(QWidget):
         """
         return self.file_metadata_table.selectedRows()
 
-class ObsLogTab(QWidget):
+class ObsLogView(QWidget):
     """Widget for displaying the observation log for raw data files for the same spectrograph but 
     potentially different observing configurations.
 
     Args:
-        model (:class:`pypeit.setup_gui.model.PypeItSetupModel`): The model to use for the file metadata.
+        model (:class:`pypeit.setup_gui.model.PypeItObsLogModel`): Model object for a PypeIt Setup GUI.
+        controller (:class:`pypeit.setup_gui.model.PypeItObsLogController`): Controller object for the PypeIt Setup GUI.
         parent (QWidget): The parent widget of the tab.
     """
-
+    # TODO do I still want this?
     itemsSelected = Signal()
+
     """Signal sent when items are selected in the metadata table."""
 
-    def __init__(self, model, parent=None):
+    def __init__(self, model, controller, parent=None):
         super().__init__(parent)        
+
+        self._controller = controller
 
         layout = QVBoxLayout(self)
         # Place the spectrograph group box and combo box in the first row, first column
@@ -823,15 +717,39 @@ class ObsLogTab(QWidget):
         spectrograph_box.setLayout(spectrograph_layout)
         top_row_layout.addWidget(spectrograph_box)
 
-        self.raw_data_paths = PathsEditorPanel(self, self.tr("Raw Data Directories"), 
-                                            model=model.paths_model, 
-                                            browse_caption=self.tr("Choose raw data directory"), 
-                                            lines_to_display=5)
-        self.raw_data_paths.setHistory(PersistentStringListModel("RawDataDirectory", "History"))
-        self.raw_data_paths.setEnabled(False)
+        # Create a Group Box to group the paths editor and viewer
+        paths_group = QGroupBox(self.tr("Raw Data Directories"),self)
+        paths_group_layout = QVBoxLayout(paths_group)        
+
+        self.paths_editor = PathEditor(browse_caption=self.tr("Choose raw data directory"), parent=self)
+        self.paths_editor.setHistory(PersistentStringListModel("RawDataDirectory", "History"))
+        self.paths_editor.setEnabled(False)
+        self.paths_editor.pathEntered.connect(controller.addNewPath)
+
+        paths_group_layout.addWidget(self.paths_editor)
+
+
+        self._paths_viewer = QListView(paths_group)
+        self._paths_viewer.setModel(model.paths_model)
+        fm = self.fontMetrics()
+        # Only display 5 paths
+        lines =5
+        self._paths_viewer.setFixedHeight(fm.height()*lines+self._paths_viewer.spacing()*(lines-1))
+        paths_group_layout.addWidget(self._paths_viewer)
+
+        # Add action for removing a path
+        self._paths_viewer.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        delete_action = QAction(self._paths_viewer, text=self.tr("Delete selected"))
+        delete_action.setToolTip(self.tr("Delete selected path"))
+        delete_action.setShortcut(QKeySequence.StandardKey.Delete)
+        delete_action.triggered.connect(self._deletePaths)
+        self._paths_viewer.addAction(delete_action)
+        self._paths_viewer.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
+
 
         # Add the Raw Data directory panel to the first row, second column
-        top_row_layout.addWidget(self.raw_data_paths)
+        top_row_layout.addWidget(paths_group)
+
         # Make the metadata wider than the spectrograph
         top_row_layout.setStretch(1, 2)
 
@@ -839,7 +757,7 @@ class ObsLogTab(QWidget):
         # Add the File Metadata box in the second row
         file_group = QGroupBox(self.tr("File Metadata"))
         file_group_layout = QHBoxLayout()        
-        self.obslog_table = PypeItMetadataView(file_group, model.metadata_model)
+        self.obslog_table = PypeItMetadataView(file_group, model.metadata_model, controller.getMetadataController(model.metadata_model))
         file_group_layout.addWidget(self.obslog_table)
         file_group.setLayout(file_group_layout)
         layout.addWidget(file_group)
@@ -848,11 +766,17 @@ class ObsLogTab(QWidget):
         self.setModel(model)
 
         # Update model with new spectrograph/data paths
-        self.spectrograph.textActivated.connect(self._model.set_spectrograph)
+        self.spectrograph.textActivated.connect(controller.setSpectrograph)
         self.spectrograph.textActivated.connect(self.update_raw_data_paths_state)
 
         # Forward item selected signals
         self.obslog_table.itemsSelected.connect(self.itemsSelected)
+
+    def _deletePaths(self, parent):
+        msgs.info(f"Delete selection")
+        selection = self._paths_viewer.selectedIndexes()
+        rows = [index.row() for index in selection]
+        self._controller.removePaths(rows)
 
     @property
     def state(self):
@@ -873,45 +797,52 @@ class ObsLogTab(QWidget):
         Included for consistency with :class:`PypeItFileTab`."""
         return "ObsLog"
 
+    def closeable(self):
+        # Never close the obslog
+        return False
+
     def setModel(self,model):
         """Set a new model for file metadata.
 
         Args:
             model (:class:`pypeit.setup_gui.model.PypeItSetupModel`): The new metadata model
         """
-        self._model=model
-        self.raw_data_paths.setModel(model.paths_model)
+        self.model=model
         if model.spectrograph is not None:
             self.spectrograph.setCurrentIndex(self.spectrograph.findText(model.spectrograph))
             msgs.info(f"Set current text to {model.spectrograph}, current index {self.spectrograph.currentIndex()}")
             self.update_raw_data_paths_state()
         self.obslog_table.setModel(model.metadata_model)
-        
+        self._controller.setModel(model)
         # Update based on changes to the model
-        model.state_changed.connect(self.update_from_model)
+        model.spectrograph_changed.connect(self.update_from_model)
+        model.paths_model.dataChanged.connect(self.update_from_model)
+        model.paths_model.rowsRemoved.connect(self.update_from_model)
+        model.paths_model.modelReset.connect(self.update_from_model)
+
 
     def update_raw_data_paths_state(self):
         """Enable/Disable the raw data paths location panel based on the model state. """
-        if self._model.state == ModelState.NEW:
+        if self.model.state == ModelState.NEW:
             if self.spectrograph.currentIndex() == -1:
-                self.raw_data_paths.setEnabled(False)
+                self.paths_editor.setEnabled(False)
             else:
-                self.raw_data_paths.setEnabled(True)
+                self.paths_editor.setEnabled(True)
         else:
-            self.raw_data_paths.setEnabled(True)
+            self.paths_editor.setEnabled(True)
 
     def update_from_model(self):
         """
         Updates the spectrograph and raw data location widgets based on model updates.
         """
         # Update the current spectrograph
-        if self._model.spectrograph is None:
+        if self.model.spectrograph is None:
             self.spectrograph.setCurrentIndex(-1)
         else:
-            self.spectrograph.setCurrentText(self._model.spectrograph)
+            self.spectrograph.setCurrentText(self.model.spectrograph)
 
         # Disable changing the spectrograph if the model isn't in the new state
-        if self._model.state == ModelState.NEW:
+        if self.model.state == ModelState.NEW:
             self.spectrograph.setEnabled(True)
         else:
             self.spectrograph.setEnabled(False)
@@ -959,110 +890,66 @@ class SpectrographValidator(QValidator):
                         return QValidator.Intermediate, str_input, int_input
         return QValidator.Invalid, str_input, int_input
 
-class PypeItSetupView(QTabWidget):
+class TabManagerWidget(QTabWidget):
     """
-    Widget which serves of the view of a :class:`PypeItSetup` object.
-    It allows the user to specify file paths and a spectrograph,
-    and using tabs for each unique configuration that can be
-    written to a PypeIt file.
+    Widget which manages tabs for the obslog and pypeit files.
+    It extends the QTabWidget functionality by allowing tabs by
+    adding widgets to add and remove tabs as well as specifying
+    the modification state with a "*" when a tab hasn't been saved.
 
     Args:
-        model (:class:`pypeit.setup_gui.model.PypeItSetupModel`): Model object for a PypeItSetup.
+        model (:class:`pypeit.setup_gui.model.SetupGUIStateModel`): Model object for a PypeIt Setup GUI.
+        controller (:class:`pypeit.setup_gui.model.SetupGUIControllerl`): Controller object for the PypeIt Setup GUI.
     """
 
-    def __init__(self, model):
-        super().__init__()
-        # Setup our tabs
-        self._file_tabs = []
-        self._obs_log_tab = ObsLogTab(model)
+    tabCreateRequest = Signal()
 
-        # Add the tab widget for the obs log and pypeit files
-        self.addTab(self._obs_log_tab, self._obs_log_tab.tab_name)
-        self.setTabPosition(QTabWidget.South)
+    def __init__(self, parent, tab_position=QTabWidget.South):
+        super().__init__(parent=parent)
+        
+        self._tabNames = []
 
-        # Allow tabs to be closed, but not the obslog tab
+        self.setTabPosition(tab_position)
+
+        # Allow tabs to be closed
         self.setTabsClosable(True)
-        self.hideTabCloseButton(0, always=True)
+       
 
         # Add a button to create new tabs
         self.newTabButton = QPushButton("+",parent=self)
-        self.newTabButton.setFixedHeight(self.tabBar().tabRect(0).height())
-        self.newTabButton.setEnabled(False)
+        #self.newTabButton.setFixedHeight(self.tabBar().tabRect(0).height())
         self.setCornerWidget(self.newTabButton, corner=Qt.Corner.BottomLeftCorner)
 
-        # Set our model
-        self._model = model
-        self._obs_log_tab.setModel(self._model)
 
-        self.create_file_tabs(self._model.pypeit_files.values())
+        # Connect new tab signals
+        self.newTabButton.clicked.connect(self.tabCreateRequest)
 
-        # Get notifications about new/removed unique configurations
-        self._model.configs_added.connect(self.create_file_tabs)
-        self._model.configs_deleted.connect(self.delete_tabs)
-
-        # Connect new/delete signals
-        self.newTabButton.clicked.connect(self._createNewConfig)
-        self.tabCloseRequested.connect(self._closeTab)
-
-        # Keep track of what tab is selected
-        self._current_tab = None
-        self.currentChanged.connect(self._currentTabChanged)
-        self._currentTabChanged(0)
-
-
-
-    def _createNewConfig(self):
-        """Creates a new configuration based on rows selected in the metadata."""
-
-        # Get the currently selected metadata rows
-        selectedRows = self._current_tab.selectedRows()
-        if len(selectedRows) == 0:
-            return
-
-        config_name = self._current_tab.name
-        try:
-            self._model.createNewPypeItFile(config_name, selectedRows)
-        except Exception as e:
-            setup_gui_main_window.display_error(f"Failed to create new tab {e.__class__.__name__}: {e}")
-            msgs.warn(f"Failed to create new tab.")
-            msgs.warn(traceback.format_exc())
-
-
-    def _closeTab(self, index):
-        """Close an existing tab.
-        
-        Args:
-            index (int): The index of the tab being closed.
-        """
-        config_name = self.widget(index).name
-        if config_name == "ObsLog":
-            # Shouldn't happen, but ignore requests to delete the obs log 
-            return
+    def addNewTab(self, tab):
+        index = self.addTab(tab, tab.name)
+        self._tabNames.append(tab.name)
+        if tab.closeable():
+            self.updateTabText(tab.name, tab.state)
+            tab.model.stateChanged.connect(self.updateTabText)
         else:
-            setup_gui_main_window.controller.removeConfig(config_name)
+            self._hideTabCloseButton(index, always=True)
 
-    def _currentTabChanged(self, index):
-        """
-        Signal handler that to keep track of the currently selected 
-        metadata rows when the current tab changes.
-        """
+    def closeTab(self, tab_name):
+        index = self._tabNames.index(tab_name)
+        tab = self.widget(index)
+        if tab.closeable():
+            tab.model.stateChanged.disconnect(self.updateTabText)
+        self.removeTab(index)
+        del self._tabNames[index]
 
-        if self._current_tab is not None:
-            self._current_tab.itemsSelected.disconnect(self._updateNewTabButton)
-            
-        self._current_tab = self.widget(index)
-        self._updateNewTabButton()
-        self._current_tab.itemsSelected.connect(self._updateNewTabButton)
-
-    def _updateNewTabButton(self):
-        """Updates the enabled state of the new tab button based on whether rows are selected."""
-
-        if len(self._current_tab.selectedRows()) > 0:
-            self.newTabButton.setEnabled(True)
+    def updateTabText(self, tab_name, tab_state):
+        index = self._tabNames.index(tab_name)
+        if tab_state == ModelState.CHANGED or tab_state == ModelState.NEW:
+            self.setTabText(index, "*"+tab_name)
         else:
-            self.newTabButton.setEnabled(False)
+            self.setTabText(index, tab_name)
 
-    def hideTabCloseButton(self, tab_pos, always=False):
+
+    def _hideTabCloseButton(self, tab_pos, always=False):
         """Hides the tab close button on a tab. Used for the ObsLog tab.
         
         Args:
@@ -1076,78 +963,6 @@ class PypeItSetupView(QTabWidget):
             close_button.setFixedWidth(tab_pos)
         close_button.hide()
 
-
-    @property
-    def state(self):
-        """:class:`pypeit.setup_gui.model.ModelState`: The state of the underlying model."""
-        return ModelState.NEW if self._model is None else self._model.state
-
-    def create_file_tabs(self, pypeit_file_models):
-        """
-        Create new tabs for new unique configurations found either by openeing a pypeit file or
-        by reading raw data directories.
-
-        Args:
-            pypeit_file_models (list of :class:`pypeit.setup_gui.model.PypeItFileModel`): Models for the tabs to add.
-        """
-        msgs.info(f"create_file_tabs for {len(pypeit_file_models)} unique configs")
-        for pypeit_file_model in pypeit_file_models:
-            try:
-                msgs.info(f"Creating tab {pypeit_file_model.config_name}")
-                self.setUpdatesEnabled(False) # To prevent flickering when updating
-                # Keep tabs sorted
-                tab_index = None
-                for i in range(len(self._file_tabs)):
-                    if pypeit_file_model.config_name < self._file_tabs[i].name:
-                        tab_index = i
-                        break
-                    elif pypeit_file_model.config_name == self._file_tabs[i].name:
-                        msgs.bug(f"Duplicate name in tab list: {pypeit_file_model.config_name}")
-                        return
-
-                if tab_index == None:
-                    tab_index = len(self._file_tabs)
-
-                file_tab = PypeItFileTab(pypeit_file_model)
-                pypeit_file_model.state_changed.connect(self.update_tab_status)
-
-                self._file_tabs.insert(tab_index,file_tab)
-                # Insert at tab_index + 1 because of the ObsLog tab
-                self.insertTab(tab_index + 1, file_tab, file_tab.tab_name)
-
-            finally:
-                self.setUpdatesEnabled(True) # To allow redrawing after updating
-
-    def delete_tabs(self, tab_list):
-        """
-        Delete any tabs no longer in the model.
-
-        Args:
-            tab_list (list of str): List of the configuration names removed.
-        """
-        msgs.info(f"View Deleting tabs {tab_list}")
-        if len(tab_list) == 0:
-            return
-
-        # Go backwards through the config list so indices remain valid after removing
-        for i in reversed(range(len(self._file_tabs))):
-            if self._file_tabs[i].name in tab_list:
-                # Remember to increment index by 1 because of the ObsLog tab
-                self.removeTab(i+1)
-                del self._file_tabs[i]
-    
-    def update_tab_status(self, name):
-        """
-        Update a tab's name to indicate if it has been changed but not saved.
-
-        Args:
-            tab_index (int): The index of the tab.
-        """
-        # Find the associated tab and set its name.
-        for tab_index in range(len(self._file_tabs)):
-            if self._file_tabs[tab_index].name == name:
-                self.setTabText(tab_index+1, self._file_tabs[tab_index].tab_name)
-                break
 
 
 class LogWindow(QWidget):
@@ -1301,8 +1116,8 @@ class SetupGUIMainWindow(QWidget):
     """Main window widget for the PypeIt Setup GUI
 
     Args:
-        available_spectrographs (list of str): The list of spectrographs supported by PypeIt.
-        controller (:class:`pypeit.setup_gui.controller.SetupGUIController`): The controller for the PypeITSetupGUI.
+        model (:class:`pypeit.setup_gui.model.SetupGUIStateModel`): The model for the PypeitSetupGUI.
+        controller (:class:`pypeit.setup_gui.controller.SetupGUIController`): The controller for the PypeitSetupGUI.
     """
 
     def __init__(self, model, controller):
@@ -1310,19 +1125,33 @@ class SetupGUIMainWindow(QWidget):
 
         self.layout = QVBoxLayout(self)
         self.model = model    
-        self.controller = controller
+        self._controller = controller
 
-        # Listen for operation_complete signals from the model, this
-        # updates the progress dialog
-        self.model.operation_complete.connect(self.operation_complete)
+        # Create the initial observation log tab
+        self._obs_log_tab = ObsLogView(model = model.obslog_model,
+                                       controller = controller.getObsLogController(model.obslog_model, self))
 
         # Layout the main window
-        self.setup_view = PypeItSetupView(self.model) 
-        self.layout.addWidget(self.setup_view)
+        self.tab_widget = TabManagerWidget(parent=self)
+        self.tab_widget.addNewTab(self._obs_log_tab)
+        self.layout.addWidget(self.tab_widget)
+
+        # Monitor the current tab
+        self._current_tab = self._obs_log_tab
+
+        # Create the row of buttons for user actions
         self.layout.addLayout(self._create_button_box())
 
+        # For viewing the log
         self._logWindow = None
 
+        # For displaying operation progress
+        self.current_op_progress_dialog = None
+
+        # Monitor the model for new or closed files, and update the tab widget accordingly
+        # These are queued because this can happen in a background operation thread
+        self.model.filesAdded.connect(self.create_file_tabs)
+        self.model.filesDeleted.connect(self.delete_tabs)
 
         # Setup application/window icon TODO this doesn't work in windows. Mac???
         self.setWindowIcon(QIcon(str(Path(__file__).parent / "images/window_icon.png")))
@@ -1330,15 +1159,195 @@ class SetupGUIMainWindow(QWidget):
 
         self.resize(1650,900)
 
-        # TODO Having a global variable seems like a hack, but
-        # there needs to be some global place for various views that need to 
-        # A) Use the controller to prompt the user or
-        # B) Access global model state like the allowable spectrographs, frame types,
-        #    currently known configs etc
-        global setup_gui_main_window 
-        setup_gui_main_window = self
+    def create_progress_dialog(self, op_caption, max_progress_value, cancel_func):
+        """Start displaying progress information for an operation. This uses the QProgressDialog, which will not
+        display itself until a minimum amount of time has passed (currently 1s)
+        
+        Args:
+            op_caption (str):         The name of the operation.
+            max_progress_value (int): The maximum progress value (i.e. the value when done).
+            cancel_func (:class:`collections.abc.Callable`):   A callable to deal with cancel being pressed in the 
+                                                               progress dialog.
+        """
+        msgs.info(f"Starting operation {op_caption} max progress: {max_progress_value}")
+        self.current_op_progress_dialog = QProgressDialog(self.tr(op_caption), self.tr("Cancel"), 0, max_progress_value, parent=self)
+        self.current_op_progress_dialog.setMinimumWidth(380)
+        self.current_op_progress_dialog.setWindowTitle(op_caption)
+        self.current_op_progress_dialog.setMinimumDuration(1000)
+        self.current_op_progress_dialog.setValue(0)            
+        self.current_op_progress_dialog.canceled.connect(cancel_func)
+
+    def show_operation_progress(self, increase, message=None):
+        """
+        Increase the amount of progress being displayed in a progress dialog.
+
+        Args:
+            increase (int):          How much to increase the current progress by.
+            message (str, Optional): A message indicating what step has been performed.
+        """
+        msgs.info(f"dialog is none {self.current_op_progress_dialog is None}")
+        if self.current_op_progress_dialog is not None:
+            msgs.info(f"increase {increase} message{message} current value {self.current_op_progress_dialog.value()}")
+            self.current_op_progress_dialog.setValue(self.current_op_progress_dialog.value() + increase)
+            if message is not None:
+                self.current_op_progress_dialog.setLabelText(message)
+
+    def operation_complete(self):
+        """
+        Stop displaying progress for an operation because it has completed..
+        """
+        msgs.info(f"Ending operation, dialog is none {self.current_op_progress_dialog is None}")
+        if self.current_op_progress_dialog is not None:
+            self.current_op_progress_dialog.done(QDialog.Accepted)
+            self.current_op_progress_dialog = None
+
+    def update_save_tab_button(self):
+        """Update the enabled/disabled state of the save tab button based on the
+        current selected tab."""
+        tab = self.tab_widget.currentWidget()
+        if tab.name == "ObsLog":
+            self.saveTabButton.setEnabled(False)
+        else:
+            self.saveTabButton.setEnabled(tab.state != ModelState.UNCHANGED)
+
+    def update_setup_button(self):
+        """Enable/disable the setup button based on whether a spectrograph and raw
+        data directories have been selected."""
+        # Setup can only be run if the spectrograph is set and there's at least one
+        # raw data directory
+        msgs.info(f"Checking setup button status spec: {self.model.obslog_model.spectrograph} dirs {self.model.obslog_model.raw_data_directories}")
+        if (self.model.obslog_model.spectrograph is not None and
+            len(self.model.obslog_model.raw_data_directories) > 0):
+            self.setupButton.setEnabled(True)
+        else:
+            self.setupButton.setEnabled(False)
+
+    def update_buttons_from_model_state(self):
+        """Update the enabled/disabled state of buttons based on the model state."""
+        self.saveAllButton.setEnabled(self.model.state==ModelState.CHANGED)
+        self.clearButton.setEnabled(self.model.state!=ModelState.NEW)
+        self.update_save_tab_button()
+
+    def _showLog(self):
+        """Signal handler that opens the log window."""
+        if self._logWindow is not None:
+            self._logWindow.activateWindow()
+            self._logWindow.raise_()
+        else:
+            self._logWindow = LogWindow(self, self.model.log_buffer)
+            self._logWindow.closed.connect(self._logClosed)
+            self._logWindow.show()
+
+    def _logClosed(self):
+        """Signal handler that clears the log window when it closes."""
+        self._logWindow = None
+            
+    def _create_button_box(self):
+        """Create the box with action buttons.
+        
+        Returns:
+            QWidget: The widget with the action buttons for the GUI."""
+            
+        button_layout = QHBoxLayout()
+
+        button = QPushButton(text = 'Open')
+        button.setToolTip("Open a .pypeit file.")
+        button.clicked.connect(self._controller.open_pypeit_file)
+        button_layout.addWidget(button)
+        self.openButton = button
+
+        button = QPushButton(text = 'Clear')
+        button.setToolTip("Clear everything and start with a blank slate.")
+        button.setEnabled(False)
+        button.clicked.connect(self._controller.clear)
+        button_layout.addWidget(button)
+        self.clearButton = button
+
+        button = QPushButton(text = 'Run Setup')
+        button.setToolTip("Scan the raw data and setup a .pypeit file for unique configuration.")
+        button.setEnabled(False)
+        button.clicked.connect(self._controller.run_setup)
+        button_layout.addWidget(button)
+        self.setupButton = button
 
 
+        button = QPushButton(text = 'Save Tab')
+        button.setToolTip("Save the curretly active tab.")
+        button.setEnabled(False)
+        button.clicked.connect(self._controller.save_one)
+        button_layout.addWidget(button)
+        self.saveTabButton = button
+
+        button = QPushButton(text = 'Save All')
+        button.setToolTip("Save all tabs with unsaved changes.")
+        button.setEnabled(False)
+        button.clicked.connect(self._controller.save_all)
+        button_layout.addWidget(button)
+        self.saveAllButton = button
+
+        button_layout.addStretch()
+
+        button = QPushButton(text = 'View log')
+        button.setToolTip("Opens a window containing the log.")
+        button.clicked.connect(self._showLog)
+        button_layout.addWidget(button)
+        self.logButton = button
+
+        button = QPushButton(text = 'Exit')
+        button.setToolTip("Quits this application.")
+        button.clicked.connect(self._controller.exit)
+        button_layout.addWidget(button)
+
+        # Monitor when new files are added and removed,
+        # so we can update buttons.
+        self.model.obslog_model.paths_model.dataChanged.connect(self.update_setup_button)
+        self.model.obslog_model.paths_model.rowsRemoved.connect(self.update_setup_button)
+        self.model.obslog_model.paths_model.modelReset.connect(self.update_setup_button)
+
+        # Monitor spectrograph changes
+        self.model.obslog_model.spectrograph_changed.connect(self.update_setup_button)
+
+        # Monitor the current tab to update the save_tab button
+        self.tab_widget.currentChanged.connect(self.update_save_tab_button)
+
+        # Monitor the application's NEW/CHANGED/UNCHANGED state to enable/disable buttons
+        self.model.stateChanged.connect(self.update_buttons_from_model_state)
+
+        # Setup may have already been run from the command line, so update button status on init
+        self.update_setup_button()
+        self.update_buttons_from_model_state()
+        return button_layout
+
+    def create_file_tabs(self, pypeit_file_models):
+        """
+        Create new tabs for new unique configurations found either by openeing a pypeit file or
+        by reading raw data directories.
+
+        Args:
+            pypeit_file_models (list of :class:`pypeit.setup_gui.model.PypeItFileModel`): Models for the tabs to add.
+        """
+        msgs.info(f"create_file_tabs for {len(pypeit_file_models)} unique configs")
+        try:
+            self.tab_widget.setUpdatesEnabled(False) # To prevent flickering when updating
+            for model in pypeit_file_models:
+                new_tab =  PypeItFileView(model, self._controller.getPypeItFileController(model))
+                self.tab_widget.addNewTab(new_tab)
+        finally:
+            self.tab_widget.setUpdatesEnabled(True) # To allow redrawing after updating
+
+    def delete_tabs(self, file_list):
+        """
+        Delete any tabs no longer in the model.
+
+        Args:
+            tab_list (list of str): List of the configuration names removed.
+        """
+        msgs.info(f"View Deleting tabs {file_list}")
+        if len(file_list) == 0:
+            return
+
+        for file_name in  file_list:
+            self.tab_widget.closeTab(file_name)
 
     def display_error(self, message):
         """
@@ -1440,149 +1449,4 @@ class SetupGUIMainWindow(QWidget):
             save_dialog.selected_path = None
 
         return (save_dialog.selected_path, response)
-
-    def start_operation_progress(self, op_caption, max_progress_value, cancel_func):
-        """Start displaying progress information for an operation. This uses the QProgressDialog, which will not
-        display itself until a minimum amount of time has passed (currently 1s)
-        
-        Args:
-            op_caption (str):         The name of the operation.
-            max_progress_value (int): The maximum progress value (i.e. the value when done).
-            cancel_func (:class:`collections.abc.Callable`):   A callable to deal with cancel being pressed in the 
-                                                               progress dialog.
-        """
-        self.current_op_progress_dialog = QProgressDialog(self.tr(op_caption), self.tr("Cancel"), 0, max_progress_value, parent=self)
-        self.current_op_progress_dialog.setMinimumWidth(380)
-        self.current_op_progress_dialog.setWindowTitle(op_caption)
-        self.current_op_progress_dialog.setMinimumDuration(1000)
-        self.current_op_progress_dialog.setValue(0)            
-        self.current_op_progress_dialog.canceled.connect(cancel_func)
-
-    def increase_operation_progress(self, increase, message=None):
-        """
-        Increase the amount of progress being displayed in a progress dialog.
-
-        Args:
-            increase (int):          How much to increase the current progress by.
-            message (str, Optional): A message indicating what step has been performed.
-        """
-        self.current_op_progress_dialog.setValue(self.current_op_progress_dialog.value() + increase)
-        if message is not None:
-            self.current_op_progress_dialog.setLabelText(message)
-
-    def operation_complete(self):
-        """
-        Stop displaying progress for an operation because it has completed..
-        """
-        if self.current_op_progress_dialog is not None:
-            self.current_op_progress_dialog.done(QDialog.Accepted)
-            self.current_op_progress_dialog = None
-
-    def update_save_tab_button(self):
-        """Update the enabled/disabled state of the save tab button based on the
-        current selected tab."""
-        tab = self.setup_view.currentWidget()
-        if tab.name == "ObsLog":
-            self.saveTabButton.setEnabled(False)
-        else:
-            self.saveTabButton.setEnabled(tab.state != ModelState.UNCHANGED)
-
-    def update_setup_button(self):
-        """Enable/disable the setup button based on whether a spectrograph and raw
-        data directories have been selected."""
-        # Setup can only be run if the spectrograph is set and there's at least one
-        # raw data directory
-        msgs.info(f"Checking setup button status spec: {self.model.spectrograph} dirs {self.model.raw_data_directories}")
-        if (self.model.spectrograph is not None and
-            len(self.model.raw_data_directories) > 0):
-            self.setupButton.setEnabled(True)
-        else:
-            self.setupButton.setEnabled(False)
-
-    def update_buttons_from_model_state(self):
-        """Update the enabled/disabled state of buttons based on the model state."""
-        self.saveAllButton.setEnabled(self.setup_view.state!=ModelState.UNCHANGED)
-        self.clearButton.setEnabled(self.setup_view.state!=ModelState.NEW)
-        self.update_save_tab_button()
-
-    def _showLog(self):
-        """Signal handler that opens the log window."""
-        if self._logWindow is not None:
-            self._logWindow.activateWindow()
-            self._logWindow.raise_()
-        else:
-            self._logWindow = LogWindow(self, self.model.log_buffer)
-            self._logWindow.closed.connect(self._logClosed)
-            self._logWindow.show()
-
-    def _logClosed(self):
-        """Signal handler that clears the log window when it closes."""
-        self._logWindow = None
-            
-    def _create_button_box(self):
-        """Create the box with action buttons.
-        
-        Returns:
-            QWidget: The widget with the action buttons for the GUI."""
-            
-        button_layout = QHBoxLayout()
-
-        button = QPushButton(text = 'Open')
-        button.setToolTip("Open a .pypeit file.")
-        button.clicked.connect(self.controller.open_pypeit_file)
-        button_layout.addWidget(button)
-        self.openButton = button
-
-        button = QPushButton(text = 'Clear')
-        button.setToolTip("Clear everything and start with a blank slate.")
-        button.setEnabled(False)
-        button.clicked.connect(self.controller.clear)
-        button_layout.addWidget(button)
-        self.clearButton = button
-
-        button = QPushButton(text = 'Run Setup')
-        button.setToolTip("Scan the raw data and setup a .pypeit file for unique configuration.")
-        button.setEnabled(False)
-        button.clicked.connect(self.controller.run_setup)
-        button_layout.addWidget(button)
-        self.setupButton = button
-
-
-        button = QPushButton(text = 'Save Tab')
-        button.setToolTip("Save the curretly active tab.")
-        button.setEnabled(False)
-        button.clicked.connect(self.controller.save_one)
-        button_layout.addWidget(button)
-        self.saveTabButton = button
-
-        button = QPushButton(text = 'Save All')
-        button.setToolTip("Save all tabs with unsaved changes.")
-        button.setEnabled(False)
-        button.clicked.connect(self.controller.save_all)
-        button_layout.addWidget(button)
-        self.saveAllButton = button
-
-        button_layout.addStretch()
-
-        button = QPushButton(text = 'View log')
-        button.setToolTip("Opens a window containing the log.")
-        button.clicked.connect(self._showLog)
-        button_layout.addWidget(button)
-        self.logButton = button
-
-        button = QPushButton(text = 'Exit')
-        button.setToolTip("Quits this application.")
-        button.clicked.connect(self.controller.exit)
-        button_layout.addWidget(button)
-
-        # Attach signals to enable/disable the Run Setup button and Save Tab button
-        self.model.spectrograph_changed.connect(self.update_setup_button)
-        self.model.paths_model.dataChanged.connect(self.update_setup_button)
-        self.setup_view.currentChanged.connect(self.update_save_tab_button)
-        self.model.state_changed.connect(self.update_buttons_from_model_state)
-
-        # Setup may have already been run from the command line, so update button status on init
-        self.update_setup_button()
-        self.update_buttons_from_model_state()
-        return button_layout
 
