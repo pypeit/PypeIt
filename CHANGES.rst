@@ -36,6 +36,7 @@
 - Improvements to wavelength grids and masking in coadd routines.
 - Fixed a bug in echelle coadding where the wrong coadded spectra were being
 used in final stacks.
+- Sensitivity function models can now be computed relative to the blaze spectrum.
 - Refactored coadding routines to work with lists to support coadding
 data from different setups.
 - Changes to how masking is dealt with in extraction to fix a bug in how masks
