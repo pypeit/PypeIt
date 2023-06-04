@@ -22,13 +22,16 @@ this way, if structural changes to this directory are needed, only this module
 need be modified and the remainder of the package can remain ignorant of those
 changes and continue to call the paths supplied by this module.
 
+Furthermore, all paths returned by this module are :obj:`pathlib.Path` objects
+rather than pure strings, with all of the functionality therein contained.
+
 Most (by number) of the package data files here are distributed with the
-``PypeIt`` package and are accessed via the :class:`~pypeit.data.utils.Paths`
+``PypeIt`` package and are accessed via the :class:`~pypeit.data.Paths`
 class.  For instance, the NIR spectrophotometry for Vega is accessed via:
 
 .. code-block:: python
 
-    vega_file = os.path.join(data.Paths.standards, 'vega_tspectool_vacuum.dat')
+    vega_file = data.Paths.standards / 'vega_tspectool_vacuum.dat'
 
 For some directories, however, the size of the included files is large enough
 that it was beginning to cause problems with distributing the package via PyPI.
@@ -62,12 +65,12 @@ testing a new ``get_*_filepath()`` routine.  Order of operations is:
 If new package-included data are added that are not very large (total directory
 size < a few MB), it is not necessary to use the AstroPy cache/download system.
 In this case, simply add the directory path to the
-:class:`~pypeit.data.utils.Paths` class and access the enclosed files similarly
+:class:`~pypeit.data.Paths` class and access the enclosed files similarly
 to the Vega example above.
 
 .. include:: ../include/links.rst
 """
-import os
+import pathlib
 import shutil
 import urllib.error
 
@@ -91,117 +94,125 @@ __all__ = ['Paths', 'load_telluric_grid', 'load_thar_spec',
 
 
 # Package-Data Paths =========================================================#
-class Paths_meta(type):
-    """MetaClass for Paths; only needed until python>=3.9
-
-    The use of this metaclass is necessary until PypeIt sets python>=3.9, at
-    which time, the methods shown below can be in the base Paths() class with
-    the dual decorators:
-        @classmethod
-        @property
-
-    This entire machinery is in place because we do not instantiate the Paths()
-    class, but rather use it only as a container for the hardwired paths with
-    error checking.
-
-    TODO: Upon upgrade to python>=3.9, turn the metaclass into the Paths()
-          class, and add the @classmethod decorator to each method.
-    """
-    def __init__(cls, *args, **kwargs):
-
-        # Class Attributes -- Hardwired Paths
-        cls._data = resource_filename('pypeit', 'data')
-
-        # Telluric Corrections
-        cls._telgrid = os.path.join(cls._data, 'telluric', 'atm_grids')
-        cls._tel_model = os.path.join(cls._data, 'telluric', 'models')
-
-        # Wavelength Calibrations
-        cls._arclines = os.path.join(cls._data, 'arc_lines')
-        cls._reid_arxiv = os.path.join(cls._data, 'arc_lines', 'reid_arxiv')
-        cls._linelist = os.path.join(cls._data, 'arc_lines', 'lists')
-        cls._nist = os.path.join(cls._data, 'arc_lines', 'NIST')
-        cls._arc_plot = os.path.join(cls._data, 'arc_lines', 'plots')
-
-        # Flux Calibrations
-        cls._standards = os.path.join(cls._data, 'standards')
-        cls._extinction = os.path.join(cls._data, 'extinction')
-        cls._skisim = os.path.join(cls._data, 'skisim')
-        cls._filters = os.path.join(cls._data, 'filters')
-        cls._sensfuncs = os.path.join(cls._data, 'sensfuncs')
-
-        # Other
-        cls._sky_spec = os.path.join(cls._data, 'sky_spec')
-        cls._static_calibs = os.path.join(cls._data, 'static_calibs')
-        cls._spectrographs = os.path.join(cls._data, 'spectrographs')
-
-    @property
-    def data(cls):
-        return check_isdir(cls._data)
-
-    # Telluric Corrections
-    @property
-    def telgrid(cls):
-        return check_isdir(cls._telgrid)
-    @property
-    def tel_model(cls):
-        return check_isdir(cls._tel_model)
-
-    # Wavelength Calibrations
-    @property
-    def arclines(cls):
-        return check_isdir(cls._arclines)
-    @property
-    def reid_arxiv(cls):
-        return check_isdir(cls._reid_arxiv)
-    @property
-    def linelist(cls):
-        return check_isdir(cls._linelist)
-    @property
-    def nist(cls):
-        return check_isdir(cls._nist)
-    @property
-    def arc_plot(cls):
-        return check_isdir(cls._arc_plot)
-
-    # Flux Calibrations
-    @property
-    def standards(cls):
-        return check_isdir(cls._standards)
-    @property
-    def extinction(cls):
-        return check_isdir(cls._extinction)
-    @property
-    def skisim(cls):
-        return check_isdir(cls._skisim)
-    @property
-    def filters(cls):
-        return check_isdir(cls._filters)
-    @property
-    def sensfuncs(cls):
-        return check_isdir(cls._sensfuncs)
-
-    # Other
-    @property
-    def sky_spec(cls):
-        return check_isdir(cls._sky_spec)
-    @property
-    def static_calibs(cls):
-        return check_isdir(cls._static_calibs)
-    @property
-    def spectrographs(cls):
-        return check_isdir(cls._spectrographs)
-
-
-class Paths(metaclass=Paths_meta):
+class Paths:
     """List of hardwired paths within the pypeit.data module
 
-    [extended_summary]
+    Each `@property` method returns a :obj:`pathlib.Path` object
     """
+
+    # Class Attributes -- Hardwired Paths
+    _data = pathlib.Path(resource_filename('pypeit', 'data'))
+
+    # Telluric Corrections
+    _telgrid = _data / 'telluric' / 'atm_grids'
+    _tel_model = _data / 'telluric' / 'models'
+
+    # Wavelength Calibrations
+    _arclines = _data / 'arc_lines'
+    _reid_arxiv = _arclines / 'reid_arxiv'
+    _linelist = _arclines / 'lists'
+    _nist = _arclines / 'NIST'
+    _arc_plot = _arclines /'plots'
+
+    # Flux Calibrations
+    _standards = _data / 'standards'
+    _extinction = _data / 'extinction'
+    _skisim = _data / 'skisim'
+    _filters = _data / 'filters'
+    _sensfuncs = _data / 'sensfuncs'
+
+    # Other
+    _sky_spec = _data / 'sky_spec'
+    _static_calibs = _data / 'static_calibs'
+    _spectrographs = _data / 'spectrographs'
+
+    @classmethod
+    @property
+    def data(cls):
+        return cls.check_isdir(cls._data)
+
+    # Telluric Corrections
+    @classmethod
+    @property
+    def telgrid(cls):
+        return cls.check_isdir(cls._telgrid)
+    @classmethod
+    @property
+    def tel_model(cls):
+        return cls.check_isdir(cls._tel_model)
+
+    # Wavelength Calibrations
+    @classmethod
+    @property
+    def arclines(cls):
+        return cls.check_isdir(cls._arclines)
+    @classmethod
+    @property
+    def reid_arxiv(cls):
+        return cls.check_isdir(cls._reid_arxiv)
+    @classmethod
+    @property
+    def linelist(cls):
+        return cls.check_isdir(cls._linelist)
+    @classmethod
+    @property
+    def nist(cls):
+        return cls.check_isdir(cls._nist)
+    @classmethod
+    @property
+    def arc_plot(cls):
+        return cls.check_isdir(cls._arc_plot)
+
+    # Flux Calibrations
+    @classmethod
+    @property
+    def standards(cls):
+        return cls.check_isdir(cls._standards)
+    @classmethod
+    @property
+    def extinction(cls):
+        return cls.check_isdir(cls._extinction)
+    @classmethod
+    @property
+    def skisim(cls):
+        return cls.check_isdir(cls._skisim)
+    @classmethod
+    @property
+    def filters(cls):
+        return cls.check_isdir(cls._filters)
+    @classmethod
+    @property
+    def sensfuncs(cls):
+        return cls.check_isdir(cls._sensfuncs)
+
+    # Other
+    @classmethod
+    @property
+    def sky_spec(cls):
+        return cls.check_isdir(cls._sky_spec)
+    @classmethod
+    @property
+    def static_calibs(cls):
+        return cls.check_isdir(cls._static_calibs)
+    @classmethod
+    @property
+    def spectrographs(cls):
+        return cls.check_isdir(cls._spectrographs)
+
+    @staticmethod
+    def check_isdir(path):
+        """Check that the hardwired directory exists
+
+        If yes, return the directory path, else raise an error message
+        """
+        if not path.is_dir():
+            msgs.error(f"Unable to find {path}.  "
+                        "Check your installation.")
+        return path
 
 
 # Remote-fetch functions for package data not distributed via PyPI ===========#
-def get_reid_arxiv_filepath(arxiv_file):
+def get_reid_arxiv_filepath(arxiv_file: str) -> tuple[pathlib.Path, str]:
     """Return the full path to the ``reid_arxiv`` file
 
     In an attempt to reduce the size of the PypeIt package as distributed on
@@ -230,16 +241,16 @@ def get_reid_arxiv_filepath(arxiv_file):
     Returns:
         tuple: The full path and whether the path is in the cache:
 
-           * reid_path (str): The full path to the ``reid_arxiv`` file
-           * arxiv_fmt (str): The extension of the ``reid_arxiv`` file (format)
+           * reid_path (:obj:`pathlib.Path`): The full path to the ``reid_arxiv`` file
+           * arxiv_fmt (:obj:`str`): The extension of the ``reid_arxiv`` file (format)
     """
     # Full path within the package data structure:
-    reid_path = os.path.join(Paths.reid_arxiv, arxiv_file)
+    reid_path = Paths.reid_arxiv / arxiv_file
     arxiv_fmt = arxiv_file.split(".")[-1].lower()
 
     # Check if the file does NOT exist in the package directory
     # NOTE: This should be the case for all but from-source installations
-    if not os.path.isfile(reid_path):
+    if not reid_path.is_file():
 
         # Output an informational message
         msgs.info(f"reid_arxiv file {arxiv_file} does not exist in{msgs.newline()}"
@@ -251,7 +262,7 @@ def get_reid_arxiv_filepath(arxiv_file):
     return reid_path, arxiv_fmt
 
 
-def get_skisim_filepath(skisim_file):
+def get_skisim_filepath(skisim_file: str) -> pathlib.Path:
     """Return the full path to the ``skisim`` file
 
     In an attempt to reduce the size of the PypeIt package as distributed on
@@ -278,14 +289,14 @@ def get_skisim_filepath(skisim_file):
           The base filename of the ``skisim`` file to be located
 
     Returns:
-        str: The full path to the ``skisim`` file
+        :obj:`pathlib.Path`: The full path to the ``skisim`` file
     """
     # Full path within the package data structure:
-    skisim_path = os.path.join(Paths.skisim, skisim_file)
+    skisim_path = Paths.skisim / skisim_file
 
     # Check if the file does NOT exist in the package directory
     # NOTE: This should be the case for all but from-source installations
-    if not os.path.isfile(skisim_path):
+    if not skisim_path.is_file():
 
         # Output an informational message
         msgs.info(f"skisim file {skisim_file} does not exist in{msgs.newline()}"
@@ -297,7 +308,7 @@ def get_skisim_filepath(skisim_file):
     return skisim_path
 
 
-def get_sensfunc_filepath(sensfunc_file, symlink_in_pkgdir=False):
+def get_sensfunc_filepath(sensfunc_file: str, symlink_in_pkgdir=False) -> pathlib.Path:
     """Return the full path to the ``sensfunc`` file
 
     In an attempt to reduce the size of the PypeIt package as distributed on
@@ -327,14 +338,14 @@ def get_sensfunc_filepath(sensfunc_file, symlink_in_pkgdir=False):
           pointing to the cached downloaded file.  Defaults to False.
 
     Returns:
-        str: The full path to the ``sensfunc`` file
+        :obj:`pthlib.Path`: The full path to the ``sensfunc`` file
     """
     # Full path within the package data structure:
-    sensfunc_path = os.path.join(Paths.sensfuncs, sensfunc_file)
+    sensfunc_path = Paths.sensfuncs / sensfunc_file
 
     # Check if the file does NOT exist in the package directory
     # NOTE: This should be the case for all but from-source installations
-    if not os.path.isfile(sensfunc_path):
+    if not sensfunc_path.is_file():
 
         # Output an informational message
         msgs.info(f"sensfunc file {sensfunc_file} does not exist in{msgs.newline()}"
@@ -344,9 +355,9 @@ def get_sensfunc_filepath(sensfunc_file, symlink_in_pkgdir=False):
 
         # If requested, copy to package data directory and point the path there
         if symlink_in_pkgdir:
-            path_in_pkgdir = os.path.join(Paths.sensfuncs, sensfunc_file)
+            path_in_pkgdir = Paths.sensfuncs / sensfunc_file
             # Create the symlink
-            os.symlink(sensfunc_path, path_in_pkgdir)
+            path_in_pkgdir.symlink_to(sensfunc_path)
             # Return the path to the symlink in the package directory
             sensfunc_path = path_in_pkgdir
 
@@ -354,7 +365,7 @@ def get_sensfunc_filepath(sensfunc_file, symlink_in_pkgdir=False):
     return sensfunc_path
 
 
-def get_telgrid_filepath(telgrid_file):
+def get_telgrid_filepath(telgrid_file: str) -> pathlib.Path:
     """Return the full path to the ``telgrid`` file
 
     Atmospheric Telluric Grid files are not part of the PypeIt package itself
@@ -376,14 +387,14 @@ def get_telgrid_filepath(telgrid_file):
           The base filename of the ``telgrid`` file to be located
 
     Returns:
-        str: The full path to the ``telgrid`` file
+        :obj:`pathlib.Path`: The full path to the ``telgrid`` file
     """
     # Full path within the package data structure:
-    telgrid_path = os.path.join(Paths.telgrid, telgrid_file)
+    telgrid_path = Paths.telgrid / telgrid_file
 
     # Check if the file does NOT exist in the package directory
     # NOTE: This should be the case for most installations
-    if not os.path.isfile(telgrid_path):
+    if not telgrid_path.is_file():
 
         # Output a brief warning for now -- makes it easier to find in the output
         msgs.info(f"telgrid file {telgrid_file} does not exist in{msgs.newline()}"
@@ -393,14 +404,14 @@ def get_telgrid_filepath(telgrid_file):
 
         # If a development version, MOVE into the package directory, point path there
         if ".dev" in __version__:
-            shutil.move(telgrid_path, os.path.join(Paths.telgrid, telgrid_file))
-            telgrid_path = os.path.join(Paths.telgrid, telgrid_file)
+            shutil.move(telgrid_path, Paths.telgrid / telgrid_file)
+            telgrid_path = Paths.telgrid / telgrid_file
 
     # Return the path to the `telgrid` file
     return telgrid_path
 
 
-def get_linelist_filepath(linelist_file):
+def get_linelist_filepath(linelist_file: str) -> pathlib.Path:
     """Return the full path to the ``linelist`` file
 
     It is desired to allow users to utilize their own arc line lists for
@@ -427,14 +438,14 @@ def get_linelist_filepath(linelist_file):
           The base filename of the ``linelist`` file to be located
 
     Returns:
-        str: The full path to the ``linelist`` file
+        :obj:`pathlib.Path`: The full path to the ``linelist`` file
     """
     # Full path within the package data structure:
-    linelist_path = os.path.join(Paths.linelist, linelist_file)
+    linelist_path = Paths.linelist / linelist_file
 
     # Check if the file does NOT exist in the package directory
     # NOTE: This should only be the case for user-installed line lists
-    if not os.path.isfile(linelist_path):
+    if not linelist_path.is_file():
 
         linelist_path = fetch_remote_file(linelist_file, "arc_lines/lists")
 
@@ -446,7 +457,7 @@ def get_linelist_filepath(linelist_file):
     return linelist_path
 
 
-def get_extinctfile_filepath(extinction_file):
+def get_extinctfile_filepath(extinction_file: str) -> pathlib.Path:
     """Return the full path to the ``extinction`` file
 
     Unlike other get_*_filepath() functions, the extinction files are included
@@ -460,14 +471,14 @@ def get_extinctfile_filepath(extinction_file):
           The base filename of the ``extinction`` file to be located
 
     Returns:
-        str: The full path to the ``extinction`` file
+        :obj:`pathlib.Path`: The full path to the ``extinction`` file
     """
     # Full path within the package data structure:
-    extinction_path = os.path.join(Paths.extinction, extinction_file)
+    extinction_path = Paths.extinction / extinction_file
 
     # Check if the file does NOT exist in the package directory
     # NOTE: This should be the case only for user-installed extinction files
-    if not os.path.isfile(extinction_path):
+    if not extinction_path.is_file():
 
         extinction_path = fetch_remote_file(extinction_file, "extinction")
 
@@ -480,8 +491,14 @@ def get_extinctfile_filepath(extinction_file):
 
 
 # AstroPy download/cache infrastructure ======================================#
-def fetch_remote_file(filename, filetype, remote_host='github', install_script=False,
-                      force_update=False, full_url=None):
+def fetch_remote_file(
+    filename: str,
+    filetype: str,
+    remote_host='github',
+    install_script=False,
+    force_update=False,
+    full_url=None
+) -> pathlib.Path:
     """Use ``astropy.utils.data`` to fetch file from remote or cache
 
     The function ``download_file()`` will first look in the local cache (the option
@@ -510,7 +527,7 @@ def fetch_remote_file(filename, filetype, remote_host='github', install_script=F
           The full url (i.e., skip _build_remote_url())  Defaults to None.
 
     Returns:
-        str: The local path to the desired file in the cache
+        :obj:`pathlib.Path`: The local path to the desired file in the cache
     """
     # In some cases, we have the full URL already, but most of the time not
     if full_url:
@@ -527,9 +544,13 @@ def fetch_remote_file(filename, filetype, remote_host='github', install_script=F
 
     # Get the file from cache, if available, or download from the remote server
     try:
-        return astropy.utils.data.download_file(remote_url, sources=sources, timeout=10,
-                                                cache="update" if force_update else True,
-                                                pkgname="pypeit")
+        cache_fn = astropy.utils.data.download_file(
+            remote_url,
+            sources=sources,
+            timeout=10,
+            cache="update" if force_update else True,
+            pkgname="pypeit"
+        )
 
     except urllib.error.URLError as error:
         if remote_host == "s3_cloud" and (requests.head(sources[0]).status_code in
@@ -572,8 +593,11 @@ def fetch_remote_file(filename, filetype, remote_host='github', install_script=F
         # Raise the appropriate error message
         msgs.error(err_msg)
 
+    # If no error, return the pathlib object
+    return pathlib.Path(cache_fn)
 
-def search_cache(pattern_str):
+
+def search_cache(pattern_str: str) -> list[pathlib.Path]:
     """Search the cache for items matching a pattern string
 
     This function searches the PypeIt cache for files whose URL keys contain
@@ -591,8 +615,8 @@ def search_cache(pattern_str):
     # Retreive a dictionary of the cache contents
     cache_dict = astropy.utils.data.cache_contents(pkgname="pypeit")
 
-    # Return just the local filenames for items matching the `pattern_str`
-    return [cache_dict[url] for url in cache_dict if pattern_str in url]
+    # Return just the local filenames' Paths for items matching the `pattern_str`
+    return [pathlib.Path(cache_dict[url]) for url in cache_dict if pattern_str in url]
 
 
 def write_file_to_cache(filename, cachename, filetype, remote_host="github"):
@@ -701,7 +725,7 @@ def _get_s3_hostname():
         urllib.error.URLError,
         github.GithubException
     ):
-        filepath = os.path.join(Paths.data, "s3_url.txt")
+        filepath = Paths.data / "s3_url.txt"
 
     # Open the file and return the URL
     with open(filepath, "r", encoding="utf-8") as fileobj:
@@ -709,7 +733,7 @@ def _get_s3_hostname():
 
 
 # Loading Functions for Particular File Types ================================#
-def load_telluric_grid(filename):
+def load_telluric_grid(filename: str):
     """Load a telluric atmospheric grid
 
     NOTE: This is where the path to the data directory is added!
@@ -731,7 +755,7 @@ def load_telluric_grid(filename):
 
     # Check for existance of file
     # NOTE: With the use of `get_telgrid_filepath()`, this should never run
-    if not os.path.isfile(file_with_path):
+    if not file_with_path.is_file():
         msgs.error(f"File {file_with_path} is not on your disk.  "
                    "You likely need to download the Telluric files.  "
                    "See https://pypeit.readthedocs.io/en/release/installing.html"
@@ -752,7 +776,7 @@ def load_thar_spec():
     Returns:
         (:obj:`astropy.io.fits.HDUList`): ThAr Spectrum FITS HDU list
     """
-    return io.fits_open(os.path.join(Paths.arclines, 'thar_spec_MM201006.fits'))
+    return io.fits_open(Paths.arclines / 'thar_spec_MM201006.fits')
 
 
 def load_sky_spectrum(sky_file):
@@ -771,16 +795,4 @@ def load_sky_spectrum(sky_file):
     Returns:
         (:obj:`XSpectrum1D`): Sky spectrum
     """
-    return xspectrum1d.XSpectrum1D.from_file(os.path.join(Paths.sky_spec, sky_file))
-
-
-# Utility Function ===========================================================#
-def check_isdir(path):
-    """Check that the hardwired directory exists
-
-    If yes, return the directory path, else raise NotADirectoryError
-    """
-    if not os.path.isdir(path):
-        raise NotADirectoryError(f"Unable to find {path}.  "
-                                    "Check your installation.")
-    return path
+    return xspectrum1d.XSpectrum1D.from_file(str(Paths.sky_spec / sky_file))

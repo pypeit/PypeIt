@@ -11,8 +11,9 @@ Version History
 =========   ================   =========== ===========
 *Version*   *Author*           *Date*      ``PypeIt``
 =========   ================   =========== ===========
-1.0         Kyle Westfall      9 Aug 2022  1.10.1dev
-1.1         Debora Pelliccia   9 Nov 2022  1.11.1dev
+1.0         Kyle Westfall      9 Aug 2022   1.10.1dev
+1.1         Debora Pelliccia   9 Nov 2022   1.11.1dev
+1.2         Debora Pelliccia   24 Mar 2023  1.12.2dev
 =========   ================   =========== ===========
 
 ----
@@ -38,25 +39,24 @@ required for the frame-typing and their associated keyword in the
 ===============     ============
 ``idname``          ``OBSTYPE``
 ``exptime``          ``ITIME``
+``target``          ``TARGNAME``
 ===============     ============
 
 The criteria used to select each frame type are as follows:
 
-================   ==========================================================   =========
-Frame              ``OBSTYPE``                                                  ``ITIME``
-================   ==========================================================   =========
-``science``        ``'Object'``, ``'object'``                                   ``>60s``
-``standard``       ``'Object'``, ``'object'``, ``'standard'``, ``'telluric'``   ``<60s``
-``lampoffflats``   ``'dark'``, ``'Dark'``                                       Not used
-``pixelflat``      ``'domeflat'``                                               Not used
-``trace``          ``'domeflat'``                                               Not used
-``arc``            ``'Object'``, ``'object'``                                   Not used
-``tilt``           ``'Object'``, ``'object'``                                   Not used
-================   ==========================================================   =========
+================   ==========================================================   ===================   =========
+Frame              ``OBSTYPE``                                                  ``TARGNAME``          ``ITIME``
+================   ==========================================================   ===================   =========
+``science``        ``'Object'``, ``'object'``                                   ``!= 'DOME PHLAT'``   ``>60s``
+``standard``       ``'Object'``, ``'object'``, ``'standard'``, ``'telluric'``   ``!= 'DOME PHLAT'``   ``<60s``
+``lampoffflats``   ``'dark'``, ``'Dark'``                                             Not use         Not used
+``pixelflat``      ``'domeflat'``                                                     Not use         Not used
+``trace``          ``'domeflat'``                                                     Not use         Not used
+``arc``            ``'Object'``, ``'object'``                                   ``!= 'DOME PHLAT'``   ``>60s``
+``tilt``           ``'Object'``, ``'object'``                                   ``!= 'DOME PHLAT'``   ``>60s``
+================   ==========================================================   ===================   =========
 
 .. note::
-
-    - Frames with type ``bias``, ``dark``, ``illumflat``, and ``pinhole`` are *not* typed.
 
     - By default, the exposure time (``ITIME``) is only used to distinguish
       between ``science`` and ``standard`` frames; the criteria for ``ITIME``

@@ -104,6 +104,8 @@ class TracePCA(DataContainer):
                                                 'coefficients at a new reference coordinate.')}
     """Object datamodel."""
 
+    internals = ['is_empty']
+
     # TODO: Add a show method that plots the pca coefficients and the
     # current fit, if there is one
     def __init__(self, trace_cen=None, npca=None, pca_explained_var=99.0, reference_row=None,
@@ -111,15 +113,12 @@ class TracePCA(DataContainer):
 
         # Instantiate as an empty DataContainer
         super(TracePCA, self).__init__()
+        self.is_empty = True
 
         # Only do the decomposition if the trace coordinates are provided.
         if trace_cen is not None:
             self.decompose(trace_cen, npca=npca, pca_explained_var=pca_explained_var,
                            reference_row=reference_row, coo=coo)
-
-    def _init_internals(self):
-        """Add any attributes that are *not* part of the datamodel."""
-        self.is_empty = True
 
     def decompose(self, trace_cen, npca=None, pca_explained_var=99.0, reference_row=None,
                   coo=None):

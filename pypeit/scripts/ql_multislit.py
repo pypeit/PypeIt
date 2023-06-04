@@ -5,11 +5,10 @@ Script for quick-look reductions for Multislit observations.
 .. include:: ../include/links.rst
 """
 
-import os
 import copy
+import os
+import pathlib
 import time
-
-from pkg_resources import resource_filename
 
 from IPython import embed
 
@@ -21,9 +20,7 @@ from astropy.stats import sigma_clipped_stats
 
 from pypeit import utils
 from pypeit import data
-from pypeit import pypeit
 from pypeit import par, msgs
-from pypeit import pypeitsetup
 from pypeit import wavecalib
 from pypeit import wavetilts
 from pypeit import spec2dobj
@@ -37,7 +34,6 @@ from pypeit.display import display
 from pypeit.images import buildimage
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core.parse import get_dnum, parse_binning
-from pypeit.core.wavecal import wvutils
 from pypeit import sensfunc
 from pypeit.core import flux_calib
 from pypeit.scripts import scriptbase
@@ -112,7 +108,7 @@ def print_offset_report(files, dither_pattern, dither_id, offset_arcsec, target,
     msg_string += msgs.newline() + '----------------------------------------------------'
     for iexp, file in enumerate(files):
         msg_string += msgs.newline() + '    {:s}    {:s}   {:6.2f}    {:6.2f}'.format(
-            os.path.basename(file), dither_id[iexp], offset_arcsec[iexp], offset_arcsec[iexp] / platescale)
+            file.name, dither_id[iexp], offset_arcsec[iexp], offset_arcsec[iexp] / platescale)
     msg_string += msgs.newline() + '********************************************************'
     msgs.info(msg_string)
 
@@ -182,11 +178,11 @@ def run(files, dither_id, offset_arcsec, caliBrate, spectrograph, platescale, pa
                 msgs.warn('Skpping files that do not have an A-B match with the same throw:')
                 for iexp in range(len(A_files_uni)):
                     msg_string += msgs.newline() + '    {:s}    {:s}   {:6.2f}    {:6.2f}'.format(
-                        os.path.basename(A_files_uni[iexp]), A_dither_id_uni[iexp],
+                        A_files_uni[iexp].name, A_dither_id_uni[iexp],
                         A_offset[iexp], A_offset[iexp] / platescale)
                 for iexp in range(len(B_files_uni)):
                     msg_string += msgs.newline() + '    {:s}    {:s}   {:6.2f}    {:6.2f}'.format(
-                        os.path.basename(B_files_uni[iexp]), B_dither_id_uni[iexp],
+                        B_files_uni[iexp].name, B_dither_id_uni[iexp],
                         B_offset[iexp], B_offset[iexp] / platescale)
         else:
             msgs.info('Reducing images for offset = {:}'.format(A_offset[0]))
@@ -380,7 +376,7 @@ class QL_Multislit(scriptbase.ScriptBase):
 
         tstart = time.time()
         # Parse the files sort by MJD
-        files = np.array([os.path.join(args.full_rawpath, file) for file in args.files])
+        files = np.array([pathlib.Path(args.full_rawpath) / file for file in args.files])
         nfiles = len(files)
 
 
@@ -401,32 +397,34 @@ class QL_Multislit(scriptbase.ScriptBase):
         # Get the master path
 
         # Calibration Master directory
-        master_dir = os.path.join(data.Paths.data, 'QL_MASTERS') if args.master_dir is None else args.master_dir
+        master_dir = data.Paths.data / 'QL_MASTERS' if args.master_dir is None else pathlib.Path(args.master_dir)
         master_subdir = spectrograph.get_ql_master_dir(files[0])
-        master_path = os.path.join(master_dir, master_subdir)
-        if not os.path.isdir(master_path):
+        master_path = master_dir / master_subdir
+        if not master_path.is_dir():
             msgs.error(f'{master_path} does not exist!  You must install the QL_MASTERS '
                        'directory; download the data from the PypeIt dev-suite Google Drive and '
                        'either define a QL_MASTERS environmental variable or use the '
                        'pypeit_install_ql_masters script.')
 
         bias_masterframe_name = \
-            utils.find_single_file(os.path.join(master_path, "MasterBias*"))
-        slit_masterframe_name \
-            = utils.find_single_file(os.path.join(master_path, "MasterSlits*"))
-        tilts_masterframe_name \
-            = utils.find_single_file(os.path.join(master_path, "MasterTilts*"))
-        wvcalib_masterframe_name \
-            = utils.find_single_file(os.path.join(master_path, 'MasterWaveCalib*'))
-        std_spec1d_file = utils.find_single_file(os.path.join(master_path, 'spec1d_*'))
-        sensfunc_masterframe_name = utils.find_single_file(os.path.join(master_path, 'sens_*'))
+            utils.find_single_file(master_path / "MasterBias*")
+        slit_masterframe_name = \
+            utils.find_single_file(master_path / "MasterSlits*")
+        tilts_masterframe_name = \
+            utils.find_single_file(master_path / "MasterTilts*")
+        wvcalib_masterframe_name = \
+            utils.find_single_file(master_path / "MasterWaveCalib*")
+        std_spec1d_file = \
+            utils.find_single_file(master_path / "spec1d_*")
+        sensfunc_masterframe_name = \
+            utils.find_single_file(master_path / "sens_*")
 
 
         # TODO Implement some kind of checking for minimal masters. If --flux is set check for sensfunc etc.
         #if (bias_masterframe_name is None or not os.path.isfile(bias_masterframe_name)) or \
-        if (slit_masterframe_name is None or not os.path.isfile(slit_masterframe_name)) or \
-                (tilts_masterframe_name is None or not os.path.isfile(tilts_masterframe_name)) or \
-                (std_spec1d_file is None or not os.path.isfile(std_spec1d_file)):
+        if (slit_masterframe_name is None or not slit_masterframe_name.is_file()) or \
+                (tilts_masterframe_name is None or not tilts_masterframe_name.is_file()) or \
+                (std_spec1d_file is None or not std_spec1d_file.is_file()):
             # or (sensfunc_masterframe_name is None or not os.path.isfile(sensfunc_masterframe_name)):
             msgs.error('Master frames not found.  Check that environment variable QL_MASTERS '
                        'points at the Master Calibs')

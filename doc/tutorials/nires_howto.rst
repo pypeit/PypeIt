@@ -11,7 +11,7 @@ Overview
 ========
 
 This doc goes through a full run of PypeIt on one of our example Keck/NIRES
-datasets (specifically the ``NIRES`` dataset).  If you're having trouble
+datasets (specifically the ``ABBA_wstandard`` dataset).  If you're having trouble
 reducing your data, we encourage you to try going through this tutorial using
 this example dataset first.  See :ref:`here <dev-suite>` to find the example
 dataset, please join our `PypeIt Users Slack <pypeit-users.slack.com>`__ (using
@@ -29,7 +29,7 @@ Before reducing your data with PypeIt, you first have to prepare a
 
 .. code-block:: bash
 
-    pypeit_setup -r $HOME/Work/packages/PypeIt-development-suite/RAW_DATA/keck_nires/NIRES/ -s keck_nires -b -c A 
+    pypeit_setup -r $HOME/Work/packages/PypeIt-development-suite/RAW_DATA/keck_nires/ABBA_wstandard/ -s keck_nires -b -c A
 
 where the ``-r`` argument should be replaced by your local directory and the
 ``-b`` indicates that the data uses background images and should include the
@@ -43,20 +43,24 @@ called ``keck_nires_A.pypeit`` that looks like this:
 .. include:: ../include/keck_nires_A.pypeit.rst
 
 For this example dataset, the details of the default pypeit file are not
-correct; see :ref:`here <nires_config_report>` for an example where the frame
+completely correct; see :ref:`here <nires_config_report>` for an example where the frame
 typing and dither pattern determinations *are* correct by default.
 
 The issue with this dataset is that only two pointings in the ABBA pattern for
 the standard star observations are available, the exposure time of the standard
-observations is longer than expected, and the dither pattern of the science
-frames are set to MANUAL.  All of this means you need to edit the pypeit file to
-correct specific errors.  The corrections needed are:
+observations is longer than expected (and PypeIt set it as science frame),
+and the dither pattern of the science frames are set to MANUAL.
+PypeIt attempts to assign ``comb_id`` and ``bkg_id`` to the two standard star
+pointings, however, you need to edit the pypeit file to
+correct the other errors.  The corrections needed are:
 
     - Set the frametypes for ``s190519_0059.fits`` and ``s190519_0060.fits`` to
-      ``arc,standard,tilt`` (i.e., change ``science`` to ``standard`` for these
-      frames).
+      ``standard``.
 
-    - Set the ``bkg_id`` for the ``standard`` and ``science`` frames; see below
+    - Assign the same calibration group to the standard and science frames
+      (i.e., same ``calib`` value).
+
+    - Set the ``bkg_id`` for the ``science`` frames; see below
       and :ref:`a-b_differencing`.
 
 The corrected version looks like this (pulled directly from the :ref:`dev-suite`):
@@ -66,27 +70,19 @@ The corrected version looks like this (pulled directly from the :ref:`dev-suite`
 Use of the standard frame
 -------------------------
 
-By setting the science and standard frames to also be ``arc`` and ``tilt``
+By setting the science frames to also be ``arc`` and ``tilt``
 frames, we're indicating that the OH sky lines should be used to perform the
-wavelength calibration.  The wavelength calibration for these two sets of frames
-will be performed *independently* because we assign them to different
-:ref:`calibration-groups`.  However, you can assign them to the same calibration
-group, which means that the 2 standard star and 2 science exposures will be
-combined into a single "arc/tilt" frame used for the wavelength calibration of
-all frames; this is potentially the preferred approach.
+wavelength calibration. Generally the standard star observations are not
+sufficiently long to have good signal in the sky lines to perform the
+wavelength calibration. This is why, generally, we do not
+set the standard frames to be also ``arc`` and ``tilt`` frames, but we use
+the wavelength calibration obtained from the science frame (this is why we
+give to the standard frames the same ``calib`` value as the science frames).
 
-.. TODO: Clear up the above.  Should we simply recommend that you combine all
-   frames into a single calibration group?  Does NIRES have any appreciable
-   flexure?
+We note, however, that in this specific case the observations of the standard star
+are sufficiently long to allow for good signal in the sky lines. Therefore, if
+desired, you could set the standard frames to be also ``arc`` and ``tilt`` frames.
 
-The observations of the standard star in this dataset are sufficiently long that
-there is good signal in the sky lines that allows for use of the OH lines for
-its wavelength calibration.  More generally, beware that short exposures may not
-allow for this, in which case you should not designate your ``standard`` frames
-as also being ``arc,tilt`` frames and you must assign the standard frames to a
-calibration group that includes ``arc,tilt`` frames.  In this example, that
-would mean assigning all 4 science and standard frames to the same calibration
-group.
 
 The main data-reduction script (:ref:`run-pypeit`) does *not* perform the
 telluric correction; this is done by a separate script.  Even if you don't
@@ -103,23 +99,21 @@ yield a poorer spectral extraction.
 Dither sequence
 ---------------
 
-As stated above, the automated algorithms in :ref:`pypeit_setup` don't correctly
-set the dither pattern for this dataset, as handled by the
-``comb_id`` and ``bkg_id`` columns.  See :ref:`here <nires_config_report>` for
-an example where the frame typing and dither pattern determinations *are*
-correct by default.
-
 In this example dataset, the science object and the standard star are both only
-observed at two offset positions.  We use the :ref:`pypeit_file` (see the
-corrected version above) to indicate this using the ``comb_id`` and ``bkg_id``
-columns, as described by :ref:`a-b_differencing` (specifically, see
+observed at two offset positions. Although PypeIt is able to correctly assign
+``comb_id`` and ``bkg_id`` for the standard frames (by using the information
+on the dither pattern and dither offset), the same is not possible for the
+science frames, for which a "MANUAL" dither pattern was used.
+We, therefore, edit the :ref:`pypeit_file` (see the
+corrected version above) to assign ``comb_id`` and ``bkg_id`` to the science frames
+as described by :ref:`a-b_differencing` (specifically, see
 :ref:`ab-image-differencing`).
 
-By setting ``comb_id=1`` and ``bkg_id=2`` for frame ``s190519_0059.fits``, we
-are indicating that this frame should be treated as frame "1" (A) and that frame
-"2" (B) should be used as its background.  We reverse the values of ``comb_id``
-and ``bkg_id`` for frame ``s190519_0060.fits``, which indicates that this frame
-should be treated as frame "2" (B) and that frame "1" (A) should be used as its
+By setting ``comb_id=3`` and ``bkg_id=4`` for frame ``s190519_0067.fits``, we
+are indicating that this frame should be treated as frame A and that frame
+B should be used as its background.  We reverse the values of ``comb_id``
+and ``bkg_id`` for frame ``s190519_0068.fits``, which indicates that this frame
+should be treated as frame B and that frame A should be used as its
 background.  I.e., the ``comb_id`` column effectively sets the numeric identity
 of each frame, and the ``bkg_id`` column selects the numeric identity of the
 frame that should be used as the background image.
@@ -161,7 +155,7 @@ same.  To show the results of the trace, run, e.g.:
 
 .. code-block:: bash
     
-    pypeit_chk_edges Masters/MasterEdges_A_7_DET01.fits.gz
+    pypeit_chk_edges Calibrations/Edges_A_7_DET01.fits.gz
 
 which will show the image and overlay the traces (green is the left edge;
 magenta is the right edge); this should open a `ginga`_ window for you if one
@@ -187,10 +181,10 @@ Next the code performs the wavelength calibration.  Via the :ref:`pypeit_file`,
 we designated two sets of wavelength calibration frames, one for the standard
 star and one for the science frame.  You should inspect the results for both.
 
-First, it's important to understand PypeIt's :ref:`master-naming` convention,
+First, it's important to understand PypeIt's :ref:`calib-naming` convention,
 specifically the calibration group bit identities used in the output file names.
-In this example, two :ref:`masterarc` files are produced:
-``Masters/MasterArc_A_2_DET01.fits`` and ``Masters/MasterArc_A_4_DET01.fits``.
+In this example, two :ref:`arc` files are produced:
+``Calibrations/Arc_A_2_DET01.fits`` and ``Calibrations/Arc_A_4_DET01.fits``.
 The ``2`` and ``4`` are the bits associated with the calibration group and link
 back to which files are associated with each frame type.  The
 :ref:`calibrations-calibfile` provides the direct association of input frame
@@ -204,7 +198,7 @@ observations with `ginga`_:
 
 .. code-block:: bash
 
-    ginga Masters/MastersArc_A_2_DET01.fits
+    ginga Calibrations/sArc_A_2_DET01.fits
 
 1D Wavelength Solution
 ++++++++++++++++++++++
@@ -233,7 +227,7 @@ wavelength calibration for all orders. We can run it with this simple call:
 
 .. code-block:: bash
 
-    pypeit_chk_wavecalib Masters/MasterWaveCalib_A_2_DET01.fits
+    pypeit_chk_wavecalib Calibrations/WaveCalib_A_2_DET01.fits
 
 and it prints on screen the following (you may need to expand the width of your
 terminal to see the full output):
@@ -294,13 +288,14 @@ PypeIt computes a number of multiplicative corrections to correct the 2D
 spectral response for pixel-to-pixel detector throughput variations and
 lower-order spatial and spectral illumination and throughput corrections.  We
 collectively refer to these as flat-field corrections; see :ref:`here
-<flat_fielding>` and :ref:`here <master_flat>`.
+<flat_fielding>` and :ref:`here <flat>`. For NIRES observations, flats
+with lamps off, if available, are also subtracted.
 
 You can inspect the flat-field corrections using the following script:
 
 .. code-block:: bash
 
-    pypeit_chk_flats Masters/MasterFlat_A_7_DET01.fits
+    pypeit_chk_flats Calibrations/Flat_A_7_DET01.fits
 
 Note that the calibration group number for this image is ``7`` (instead of 2 or
 4) because the flat field images were used for all calibration groups.  The

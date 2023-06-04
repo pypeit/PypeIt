@@ -78,7 +78,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -130,28 +130,25 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
         return par
 
-
-
-    def get_ql_master_dir(self, file):
+    # NOTE: This function is used by the dev-suite
+    def get_ql_calib_dir(self, file):
         """
-        Returns master file directory for quicklook reductions.
+        Returns calibrations file directory for quicklook reductions.
 
         Args:
             file (str):
               Image file
 
         Returns:
-            master_dir (str):
-              Quicklook Master directory
+            :obj:`str`: Quicklook calibrations directory
 
         """
-
         mosfire_filter = self.get_meta_value(file, 'filter1')
         return os.path.join(self.name, mosfire_filter)
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
@@ -185,6 +182,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                 par['calibrations']['slitedges']['det_buffer'] = 0
                 # artificially add left and right edges
                 par['calibrations']['slitedges']['bound_detector'] = True
+            # set offsets for coadd2d
+            par['coadd2d']['offsets'] = 'header'
 
         # Turn on the use of mask design
         else:
@@ -202,6 +201,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                                                                        '1:{}:2040'.format(pix_end)]
                 # assume that the main target is always detected, i.e., skipping force extraction
                 par['reduce']['slitmask']['extract_missing_objs'] = False
+            # set offsets for coadd2d
+            par['coadd2d']['offsets'] = 'maskdef_offsets'
 
         # wavelength calibration
         supported_filters = ['Y', 'J', 'J2', 'H', 'K']
@@ -252,7 +253,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -387,43 +388,76 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         """
         return ['decker_secondary', 'slitlength', 'slitwid', 'dispname', 'filter1']
 
-    def modify_config(self, fitstbl, cfg):
+    def raw_header_cards(self):
         """
-        Modify the configuration dictionary for a given frame. This method is used
-        in :func:`pypeit.metadata.PypeItMetaData.set_configurations` to modify in place
-        the configuration requirement to assign a specific frame to the current setup.
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
 
-        This is needed for the reduction of 'LONGSLIT' and 'long2pos' data, which often use
-        calibrations taken with a different decker (MASKNAME).
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
 
-            - For the 'LONGSLIT' masks, when we are assigning a configuration to a calibration file
-              that was taken with the longest slit available (46 CSUs), since these calibrations are
-              generally used for the reduction of science frames with shorter slits, we remove the
-              configuration requirement on the slit lenght for the current file.
-
-            - For the 'long2pos' masks, when we are assigning a configuration to a calibration file
-              that was taken with the 'long2pos' mask, since these calibrations are generally used
-              for the reduction of science frames taken with 'long2pos_specphot' masks, we modify the
-              configuration requirement on the decker_secondary for the current file.
-
-        Args:
-            fitstbl(`astropy.table.Table`_):
-                The table with the metadata for one frames.
-            cfg (:obj:`dict`):
-                dictionary with metadata associated to a specific configuration.
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
 
         Returns:
-            :obj:`dict`: modified dictionary with metadata associated to a specific configuration.
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
         """
-        if fitstbl['decker'] is not None and cfg['decker_secondary'] is not None and 'LONGSLIT' in fitstbl['decker'] \
-                and 'LONGSLIT' in cfg['decker_secondary'] and 'science' not in fitstbl['frametype'] and\
-                'standard' not in fitstbl['frametype'] and fitstbl['slitlength'] == 46.:
+        return ['MASKNAME', 'OBSMODE', 'FILTER']
+
+    def modify_config(self, row, cfg):
+        """
+
+        Modify the configuration dictionary for a given frame. This method is
+        used in :func:`~pypeit.metadata.PypeItMetaData.set_configurations` to
+        modify in place the configuration requirement to assign a specific frame
+        to the current setup.
+
+        This is needed for the reduction of 'LONGSLIT' and 'long2pos' data,
+        which often use calibrations taken with a different decker (MASKNAME).
+
+            - For the 'LONGSLIT' masks, when we are assigning a configuration to
+              a calibration file that was taken with the longest slit available
+              (46 CSUs), since these calibrations are generally used for the
+              reduction of science frames with shorter slits, we remove the
+              configuration requirement on the slit length for the current file.
+
+            - For the 'long2pos' masks, when we are assigning a configuration to
+              a calibration file that was taken with the 'long2pos' mask, since
+              these calibrations are generally used for the reduction of science
+              frames taken with 'long2pos_specphot' masks, we modify the
+              configuration requirement on the decker_secondary for the current
+              file.
+
+        Args:
+            row (`astropy.table.Row`_):
+                The table row with the metadata for one frame.
+            cfg (:obj:`dict`):
+                Dictionary with metadata associated to a specific configuration.
+
+        Returns:
+            :obj:`dict`: modified dictionary with metadata associated to a
+            specific configuration.
+        """
+        if row['decker'] is not None \
+                and cfg['decker_secondary'] is not None \
+                and 'LONGSLIT' in row['decker'] \
+                and 'LONGSLIT' in cfg['decker_secondary'] \
+                and 'science' not in row['frametype'] \
+                and 'standard' not in row['frametype'] \
+                and row['slitlength'] == 46.:
             cfg2 = copy.deepcopy(cfg)
             cfg2.pop('slitlength')
             return cfg2
-        if fitstbl['decker'] is not None and cfg['decker_secondary'] is not None and 'long2pos' in fitstbl['decker'] and \
-                'long2pos' in cfg['decker_secondary'] and 'science' not in fitstbl['frametype'] \
-                and 'standard' not in fitstbl['frametype']:
+        if row['decker'] is not None \
+                and cfg['decker_secondary'] is not None \
+                and 'long2pos' in row['decker'] \
+                and 'long2pos' in cfg['decker_secondary'] \
+                and 'science' not in row['frametype'] \
+                and 'standard' not in row['frametype']:
             cfg2 = copy.deepcopy(cfg)
             cfg2['decker_secondary'] = 'long2pos'
             return cfg2
@@ -431,22 +465,28 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
     def get_comb_group(self, fitstbl):
         """
+        Automatically assign combination groups and background images by parsing
+        known dither patterns.
 
-        This method is used in :func:`pypeit.metadata.PypeItMetaData.set_combination_groups`,
-        and modifies comb_id and bkg_id metas for a specific instrument.
+        This method is used in
+        :func:`~pypeit.metadata.PypeItMetaData.set_combination_groups`, and
+        directly modifies the ``comb_id`` and ``bkg_id`` columns in the provided
+        table.
 
-        Specifically here, this method parses the dither pattern of the science/standard
-        frames in a given calibration group and assigns to each of them a comb_id and a
-        bkg_id. The dither pattern used here are: "Slit Nod", "Mask Nod", "ABA'B'",
-        "ABAB", "ABBA", "long2pos_specphot", and "Stare". Note that the frames in the
-        same dither positions (A positions or B positions) of each "ABAB" or "ABBA"
-        sequence are 2D coadded  (without optimal weighting) before the background
-        subtraction, while for the other dither patterns, the frames in the same
-        dither positions are not coadded.
-        For "long2pos_specphot" masks, the comb_id and a bkg_id are assigned such that
-        one of the two frames with spectrum taken using the narrower slit is used as background
-        frame and subtracted from the frame with spectrum taken using the wider slit.
+        Specifically here, this method parses the dither pattern of the
+        science/standard frames in a given calibration group and assigns to each
+        of them a comb_id and a bkg_id. The known dither patterns are: "Slit
+        Nod", "Mask Nod", "ABA'B'", "ABAB", "ABBA", "long2pos_specphot", and
+        "Stare". Note that the frames in the same dither positions (A positions
+        or B positions) of each "ABAB" or "ABBA" sequence are 2D coadded
+        (without optimal weighting) before the background subtraction, while for
+        the other dither patterns, the frames in the same dither positions are
+        not coadded.
 
+        For "long2pos_specphot" masks, the ``comb_id`` and a ``bkg_id`` are
+        assigned such that one of the two frames with spectra taken using the
+        narrower slit is used as the background frame and subtracted from the
+        frame with spectra taken using the wider slit.
 
         Args:
             fitstbl(`astropy.table.Table`_):
@@ -623,7 +663,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
     def pypeit_file_keys(self):
         """
-        Define the list of keys to be output into a standard ``PypeIt`` file.
+        Define the list of keys to be output into a standard PypeIt file.
 
         Returns:
             :obj:`list`: The list of keywords in the relevant
@@ -682,6 +722,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
+    # TODO: Is this supposed to be deprecated in favor of get_comb_group?
     def parse_dither_pattern(self, file_list, ext=None):
         """
         Parse headers from a file list to determine the dither pattern.
@@ -726,29 +767,29 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         Parameters
         ----------
-        wave_in: (float np.ndarray) shape = (nspec,)
-            Input standard star wavelenghts
-        counts_in: (float np.ndarray) shape = (nspec,)
-            Input standard star counts
-        counts_ivar_in: (float np.ndarray) shape = (nspec,)
-            Input inverse variance of standard star counts
-        gpm_in: (bool np.ndarray) shape = (nspec,)
-            Input good pixel mask for standard
-        meta_table: (astropy.table)
-            Table containing meta data that is slupred from the specobjs object. See unpack_object routine in specobjs.py
-            for the contents of this table.
+        wave_in: `numpy.ndarray`_
+            Input standard star wavelengths (:obj:`float`, ``shape = (nspec,)``)
+        counts_in: `numpy.ndarray`_
+            Input standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        counts_ivar_in: `numpy.ndarray`_
+            Input inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        gpm_in: `numpy.ndarray`_
+            Input good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        meta_table: :obj:`dict`
+            Table containing meta data that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
+            object.  See :meth:`~pypeit.specobjs.SpecObjs.unpack_object` for the
+            contents of this table.
 
         Returns
         -------
-        wave_out: (float np.ndarray) shape = (nspec,)
-            Output standard star wavelenghts
-        counts_out: (float np.ndarray) shape = (nspec,)
-            Output standard star counts
-        counts_ivar_out: (float np.ndarray) shape = (nspec,)
-            Output inverse variance of standard star counts
-        gpm_out: (bool np.ndarray) shape = (nspec,)
-            Output good pixel mask for standard
-
+        wave_out: `numpy.ndarray`_
+            Output standard star wavelengths (:obj:`float`, ``shape = (nspec,)``)
+        counts_out: `numpy.ndarray`_
+            Output standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        counts_ivar_out: `numpy.ndarray`_
+            Output inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        gpm_out: `numpy.ndarray`_
+            Output good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
         """
 
         # Could check the wavelenghts here to do something more robust to header/meta data issues

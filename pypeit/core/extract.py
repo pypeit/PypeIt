@@ -4,29 +4,22 @@ Module for PypeIt extraction code
 .. include:: ../include/links.rst
 
 """
-import copy
 
+import astropy.stats
+import matplotlib.pyplot as plt
 import numpy as np
-import scipy
-from matplotlib import pyplot as plt
+import scipy.interpolate
+import scipy.ndimage
+import scipy.special
 
 from IPython import embed
 
-from astropy import stats
-
 from pypeit import msgs
 from pypeit import utils
-from pypeit import specobj
-from pypeit import specobjs
-from pypeit import tracepca
 from pypeit import bspline
-from pypeit.display import display
 from pypeit.core import pydl
-from pypeit.core import pixels
-from pypeit.core import arc
 from pypeit.core import fitting
 from pypeit.core import procimg
-from pypeit.core.trace import fit_trace
 from pypeit.core.moment import moment1d
 
 
@@ -95,7 +88,9 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
         Must have the same shape as ``sciimg``, :math:`(N_{\rm spec}, N_{\rm spat})`.
     count_scale : :obj:`float` or `numpy.ndarray`_, optional
         A scale factor, :math:`s`, that *has already been applied* to the
-        provided science image.  For example, if the image has been flat-field
+        provided science image. It accounts for the number of frames contributing to
+        the provided counts, and the relative throughput factors that can be measured
+        from flat-field frames. For example, if the image has been flat-field
         corrected, this is the inverse of the flat-field counts.  If None, set
         to 1.  If a single float, assumed to be constant across the full image.
         If an array, the shape must match ``base_var``.  The variance will be 0
@@ -349,7 +344,9 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, base_var=None,
         Must have the same shape as ``sciimg``, :math:`(N_{\rm spec}, N_{\rm spat})`.
     count_scale : :obj:`float` or `numpy.ndarray`_, optional
         A scale factor, :math:`s`, that *has already been applied* to the
-        provided science image.  For example, if the image has been flat-field
+        provided science image. It accounts for the number of frames contributing to
+        the provided counts, and the relative throughput factors that can be measured
+        from flat-field frames. For example, if the image has been flat-field
         corrected, this is the inverse of the flat-field counts.  If None, set
         to 1.  If a single float, assumed to be constant across the full image.
         If an array, the shape must match ``base_var``.  The variance will be 0
@@ -693,6 +690,9 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
     waveimg: `numpy.ndarray`_
         Floating-point wavelength image. Must have the same shape as ``image``,
         :math:`(N_{\rm spec}, N_{\rm spat})`.
+    thismask : `numpy.ndarray`_
+        Boolean image indicating which pixels are on the slit/order in question.
+        Must have the same shape as ``sciimg``, :math:`(N_{\rm spec}, N_{\rm spat})`.
     spat_img: `numpy.ndarray`_
         Floating-point image containing the spatial location of pixels.
         Must have the same shape as ``image``, :math:`(N_{\rm spec}, N_{\rm spat})`.
@@ -769,8 +769,8 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
     sn2_img = np.zeros((nspec,nspat))
     spline_img = np.zeros((nspec,nspat))
 
-    flux_sm = scipy.ndimage.filters.median_filter(flux, size=5, mode = 'reflect')
-    fluxivar_sm0 =  scipy.ndimage.filters.median_filter(fluxivar, size = 5, mode = 'reflect')
+    flux_sm = scipy.ndimage.median_filter(flux, size=5, mode = 'reflect')
+    fluxivar_sm0 =  scipy.ndimage.median_filter(fluxivar, size = 5, mode = 'reflect')
     fluxivar_sm0 = fluxivar_sm0*(fluxivar > 0.0)
     wave_min = waveimg[thismask].min()
     wave_max = waveimg[thismask].max()
@@ -816,7 +816,9 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
         ## Select the top 30% data for estimating the med_sn2. This ensures the code still fit line only object and/or
         ## high redshift quasars which might only have signal in part of the spectrum.
         sn2_percentile = np.percentile(sn2,percentile_sn2)
-        mean, med_sn2, stddev = stats.sigma_clipped_stats(sn2[sn2>sn2_percentile],sigma_lower=3.0,sigma_upper=5.0)
+        mean, med_sn2, stddev = astropy.stats.sigma_clipped_stats(
+            sn2[sn2>sn2_percentile],sigma_lower=3.0,sigma_upper=5.0
+        )
     else:
         med_sn2 = 0.0
 
@@ -840,9 +842,11 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
     cmask2 = np.zeros(nspec,dtype='bool')
     cmask2[indsp] = cmask
     cont_flux1 = pydl.djs_maskinterp(cont_flux1,(cmask2 == False))
-    (_, _, sigma1) = stats.sigma_clipped_stats(flux[indsp],sigma_lower=3.0,sigma_upper=5.0)
+    (_, _, sigma1) = astropy.stats.sigma_clipped_stats(
+        flux[indsp],sigma_lower=3.0,sigma_upper=5.0
+    )
 
-    sn2_med_filt = scipy.ndimage.filters.median_filter(sn2, size=9, mode='reflect')
+    sn2_med_filt = scipy.ndimage.median_filter(sn2, size=9, mode='reflect')
     if np.any(totmask):
         sn2_interp = scipy.interpolate.interp1d(wave[indsp][isrt],sn2_med_filt[isrt],assume_sorted=False,
                                                 bounds_error=False,fill_value = 'extrapolate')
@@ -871,7 +875,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
         if((nbad2 > 0) or (ngood0 > 0)):
             spline_flux1[indbad2] = np.median(spline_flux1[np.invert(badpix)])
         # take a 5-pixel median to filter out some hot pixels
-        spline_flux1 = scipy.ndimage.filters.median_filter(spline_flux1,size=5,mode ='reflect')
+        spline_flux1 = scipy.ndimage.median_filter(spline_flux1,size=5,mode='reflect')
 
         # Create the normalized object image
         if np.any(totmask):

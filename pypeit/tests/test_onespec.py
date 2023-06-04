@@ -37,5 +37,3 @@ def test_io():
     ofile.unlink()
 
 
-
-

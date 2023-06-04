@@ -30,7 +30,7 @@
                            wht_isis_blue, wht_isis_red
       file                 FITS file
     
-    optional arguments:
+    options:
       -h, --help           show this help message and exit
       --list               List the extensions only? (default: False)
       --proc               Process the image (i.e. orient, overscan subtract,

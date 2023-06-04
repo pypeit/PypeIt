@@ -1,8 +1,37 @@
 
-1.12.3dev
----------
+1.13.0 (2 June 2023)
+--------------------
 
+- Implemented a resample algorithm when generating datacubes
 - Hotfix to docs to ensure pypeit_loaders api doc is generated
+- Allow user control of the local sky subtraction window
+- Deprecate use of python 3.8 with PypeIt, allow python 3.11
+- Make pypeit_show_2dspec (somewhat) backwards compatible.
+- Added the option to disable strict version checking for 1d coadds.
+- Hotfix for KCWI when using alignment (aka ContBars) frames for the astrometric correction.
+- Sensitivity function masking and output updates
+- Fixed a bug in the `variance_model` calculation for combined images.
+- Added the possibility to use dither offsets saved in the header of the science frames for
+  coadding 2D spectra (``dithoff`` must be part of the spectrograph metadata).
+- Calibration group numbers can now be anything, as long as there are no more
+  than 63 unique integers.
+- Removed use of the term "master", renamed to calibration frames/files.
+  Default output directory for calibration frames is now ``Calibrations``.
+  Calibration frames renamed; e.g., ``MasterArc`` is now ``Arc``.
+- Calibration frame naming now done via ``calibframe.CalibFrame`` class.
+- Start to deprecate use of ``os.path`` in favor of ``pathlib``
+- Deprecated ``pypeit_parse_calib_id`` script, but improved the ``.calib`` file
+  provided by ``pypeit_setup``.  The ``.calib`` file is now always written, and
+  provides a direct association between input raw files and output calibration
+  files.  Discussed in new docs.
+- The ``'calib'`` column is now always added to the pypeit file, regardless of
+  whether or not you also request the ``'comb_id'`` and ``'bkg_id'`` columns.
+- Names of associated calibration frames now written to ``spec2d`` file headers.
+- Major quicklook updates.  ql_multislit.py deprecated.
+- Improve speed in ginga visualization of traces and added
+  `pypeit_chk_tilts`. Note that this script uses an update
+  of the tilts datamodel, so it will not work on older reductions.
+- Updates to reduction parameters for LDT/DeVeny
 
 1.12.2 (29 Mar 2023)
 --------------------
@@ -16,6 +45,8 @@
 - Added new specutils interface
 - Fixed bugs when only performing calibrations and (1) calib groups are all set
   to 'all' or (2) anything other than '0'.
+- Added `MASKDEF_OBJMAG` and `MASKDEF_OBJMAG_BAND` in spec1d datamodel.
+- Improved NIRES dither pattern parsing and automatic assignment of `comb_id` and `bkg_id`.
 
 1.12.1 (21 Feb 2023)
 --------------------

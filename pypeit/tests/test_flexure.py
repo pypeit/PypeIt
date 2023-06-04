@@ -1,15 +1,12 @@
 """
 Module to run tests on simple fitting routines for arrays
 """
-import os
-
-import pytest
 
 import numpy as np
 
 from linetools.spectra.io import readspec
 
-from pypeit.core import flexure, arc
+from pypeit.core import flexure
 from pypeit import data
 from pypeit.core.wavecal import autoid
 
@@ -22,8 +19,9 @@ def test_flex_shift():
     # Dummy slf
     # Read spectra
     obj_spec = readspec(data_path('obj_lrisb_600_sky.fits'))
-    arx_file = os.path.join(data.Paths.sky_spec, 'sky_LRISb_600.fits')
-    arx_spec = readspec(arx_file)
+    arx_file = data.Paths.sky_spec / 'sky_LRISb_600.fits'
+    # linetools expects string paths, not `pathlib.Path` objects
+    arx_spec = readspec(str(arx_file))
     arx_fwhm_pix = autoid.measure_fwhm(arx_spec.flux.value, sigdetect=4., fwhm=4.)
 
     # Call

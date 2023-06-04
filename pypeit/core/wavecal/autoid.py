@@ -2,17 +2,20 @@
 
 .. include:: ../include/links.rst
 """
-from scipy.ndimage.filters import gaussian_filter
-from scipy.spatial import cKDTree
-import itertools
-import scipy
-from linetools import utils as ltu
-from astropy import table, stats
 import copy
+import itertools
+
+import astropy.stats
+import astropy.table
 import numpy as np
+import scipy.interpolate
+import scipy.ndimage
+import scipy.spatial
+
+from linetools import utils as ltu
+
 from IPython import embed
 
-from astropy.table import Table
 
 from pypeit.par import pypeitpar
 from pypeit.core.wavecal import kdtree_generator
@@ -20,7 +23,6 @@ from pypeit.core.wavecal import waveio
 from pypeit.core.wavecal import patterns
 from pypeit.core.wavecal import wv_fitting
 from pypeit.core.wavecal import wvutils
-from pypeit.core.wavecal import echelle
 from pypeit.core import arc
 
 from pypeit.core import pca
@@ -510,9 +512,9 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
         # Compute a "local" zero lag correlation of the slit spectrum and the shifted and stretch arxiv spectrum over a
         # a nlocal_cc_odd long segment of spectrum. We will then uses spectral similarity as a further criteria to
         # decide which lines are good matches
-        prod_smooth = scipy.ndimage.filters.convolve1d(spec_cont_sub*spec_arxiv_ss, window)
-        spec2_smooth = scipy.ndimage.filters.convolve1d(spec_cont_sub**2, window)
-        arxiv2_smooth = scipy.ndimage.filters.convolve1d(spec_arxiv_ss**2, window)
+        prod_smooth = scipy.ndimage.convolve1d(spec_cont_sub*spec_arxiv_ss, window)
+        spec2_smooth = scipy.ndimage.convolve1d(spec_cont_sub**2, window)
+        arxiv2_smooth = scipy.ndimage.convolve1d(spec_arxiv_ss**2, window)
         denom = np.sqrt(spec2_smooth*arxiv2_smooth)
         corr_local = np.zeros_like(denom)
         corr_local[denom > 0] = prod_smooth[denom > 0]/denom[denom > 0]
@@ -620,7 +622,9 @@ def measure_fwhm(spec, sigdetect=10., fwhm=5.):
     while nsig_thrshd >= sigdetect:
         if wdth[nsig >= nsig_thrshd].size > 6:
             # compute average `wdth`
-            mean, med, _ = stats.sigma_clipped_stats(wdth[nsig >= nsig_thrshd], sigma_lower=2.0, sigma_upper=2.0)
+            mean, med, _ = astropy.stats.sigma_clipped_stats(
+                wdth[nsig >= nsig_thrshd], sigma_lower=2.0, sigma_upper=2.0
+            )
             # FWHM in pixels
             measured_fwhm = med * (2 * np.sqrt(2 * np.log(2)))
             break
@@ -747,32 +751,32 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
         msgs.info("Processing slit {}".format(slit))
         msgs.info("Using sigdetect = {}".format(sigdetect))
         # Grab the observed arc spectrum
-        ispec = spec[:,slit]
+        obs_spec_i = spec[:,slit]
         # get FWHM for this slit
         fwhm = set_fwhm(par, measured_fwhm=measured_fwhms[slit])
 
         # Find the shift
         ncomb = temp_spec.size
-        # Remove the continuum before adding the padding to ispec
-        _, _, _, _, ispec_cont_sub = wvutils.arc_lines_from_spec(ispec)
-        _, _, _, _, tspec_cont_sub = wvutils.arc_lines_from_spec(temp_spec)
+        # Remove the continuum before adding the padding to obs_spec_i
+        _, _, _, _, obs_spec_cont_sub = wvutils.arc_lines_from_spec(obs_spec_i)
+        _, _, _, _, templ_spec_cont_sub = wvutils.arc_lines_from_spec(temp_spec)
         # Pad
-        pspec = np.zeros_like(temp_spec)
-        nspec = len(ispec)
+        pad_spec = np.zeros_like(temp_spec)
+        nspec = len(obs_spec_i)
         npad = ncomb - nspec
         if npad > 0:    # Pad the input spectrum
-            pspec[npad // 2:npad // 2 + len(ispec)] = ispec_cont_sub
-            tspec = tspec_cont_sub
+            pad_spec[npad // 2:npad // 2 + len(obs_spec_i)] = obs_spec_cont_sub
+            tspec = templ_spec_cont_sub
         elif npad < 0:  # Pad the template!
-            pspec = ispec_cont_sub
+            pad_spec = obs_spec_cont_sub
             npad *= -1
             tspec = np.zeros(nspec)
-            tspec[npad // 2:npad // 2 + ncomb] = tspec_cont_sub
+            tspec[npad // 2:npad // 2 + ncomb] = templ_spec_cont_sub
         else:  # No padding necessary
-            pspec = ispec_cont_sub
-            tspec = tspec_cont_sub
+            pad_spec = obs_spec_cont_sub
+            tspec = templ_spec_cont_sub
         # Cross-correlate
-        shift_cc, corr_cc = wvutils.xcorr_shift(tspec, pspec, debug=debug, fwhm=fwhm, percent_ceil=x_percentile)
+        shift_cc, corr_cc = wvutils.xcorr_shift(tspec, pad_spec, debug=debug, fwhm=fwhm, percent_ceil=x_percentile)
         #shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec, pspec, debug=debug, percent_ceil=x_percentile)
         msgs.info("Shift = {}; cc = {}".format(shift_cc, corr_cc))
         if debug:
@@ -799,13 +803,13 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
             mwv = temp_wv[i0:i0 + nspec]
 
         # Loop on snippets
-        nsub = ispec.size // nsnippet
+        nsub = obs_spec_i.size // nsnippet
         sv_det, sv_IDs = [], []
         for kk in range(nsnippet):
             # Construct
             j0 = nsub * kk
-            j1 = min(nsub*(kk+1), ispec.size)
-            tsnippet = ispec[j0:j1]
+            j1 = min(nsub*(kk+1), obs_spec_i.size)
+            tsnippet = obs_spec_i[j0:j1]
             msnippet = mspec[j0:j1]
             mwvsnippet = mwv[j0:j1]
             # TODO: JFH This continue statement deals with the case when the msnippet derives from *entirely* zero-padded
@@ -846,7 +850,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
             continue
         # Fit
         try:
-            final_fit = wv_fitting.iterative_fitting(ispec, dets, gd_det,
+            final_fit = wv_fitting.iterative_fitting(obs_spec_i, dets, gd_det,
                                               IDs[gd_det], line_lists, bdisp,
                                               verbose=False, n_first=par['n_first'],
                                               match_toler=par['match_toler'],
@@ -953,7 +957,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, ok_mask=No
         line_lists = waveio.load_line_lists(lamps)
         unknwns = waveio.load_unknown_list(lamps)
 
-    tot_line_list = table.vstack([line_lists, unknwns]) if use_unknowns else line_lists
+    tot_line_list = astropy.table.vstack([line_lists, unknwns]) if use_unknowns else line_lists
 
     # Array to hold continuum subtracted arcs
     spec_cont_sub = np.zeros_like(spec)
@@ -1211,7 +1215,7 @@ class ArchiveReid:
             self.line_lists = waveio.load_line_lists(self.lamps)
             self.unknwns = waveio.load_unknown_list(self.lamps)
 
-        self.tot_line_list = table.vstack([self.line_lists, self.unknwns]) if self.use_unknowns \
+        self.tot_line_list = astropy.table.vstack([self.line_lists, self.unknwns]) if self.use_unknowns \
                                 else self.line_lists
 
         # Read in the wv_calib_arxiv and pull out some relevant quantities
@@ -1429,7 +1433,7 @@ class HolyGrail:
                 self._unknwns = waveio.load_unknown_list(self._lamps)
 
         if self._use_unknowns:
-            self._tot_list = table.vstack([self._line_lists, self._unknwns])
+            self._tot_list = astropy.table.vstack([self._line_lists, self._unknwns])
         else:
             self._tot_list = self._line_lists
 
@@ -1567,7 +1571,7 @@ class HolyGrail:
             good_fit[slit] = self.report_prelim(slit, best_patt_dict, best_final_fit)
 
         # Now that all slits have been inspected, cross match to generate a
-        # master list of all lines in every slit, and refit all spectra
+        # list of all lines in every slit, and refit all spectra
         if self._nslit > 1:
             msgs.info('Checking wavelength solution by cross-correlating with all slits')
 
@@ -1688,8 +1692,8 @@ class HolyGrail:
                 msgs.warn("Patterns can only be generated with 3 <= polygon <= 6")
                 return None
 
-            dettreep = cKDTree(patternp, leafsize=30)
-            dettreem = cKDTree(patternm, leafsize=30)
+            dettreep = scipy.spatial.cKDTree(patternp, leafsize=30)
+            dettreem = scipy.spatial.cKDTree(patternm, leafsize=30)
 
             # Query the detections tree
             msgs.info("Querying KD tree patterns (slit {0:d}/{1:d})".format(slit+1, self._nslit))
@@ -1943,7 +1947,7 @@ class HolyGrail:
             patterns.solve_triangles(bsdet, self._wvdata, dindex, lindex, patt_dict = patt_dict)
 
             if self._debug:
-                tmp_list = table.vstack([self._line_lists, self._unknwns])
+                tmp_list = astropy.table.vstack([self._line_lists, self._unknwns])
                 match_qa(self._spec[:, bs], bsdet, tmp_list,patt_dict['IDs'], patt_dict['scores'])
 
             # Use only the perfect IDs
@@ -2388,7 +2392,7 @@ class HolyGrail:
         #histimgp = gaussian_filter(histimgp, 3)
         #histimgm = gaussian_filter(histimgm, 3)
         histimg = histimgp - histimgm
-        sm_histimg = gaussian_filter(histimg, [30, 15])
+        sm_histimg = scipy.ndimage.gaussian_filter(histimg, [30, 15])
 
         #histpeaks = patterns.detect_2Dpeaks(np.abs(sm_histimg))
         histpeaks = patterns.detect_2Dpeaks(np.abs(histimg))

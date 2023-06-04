@@ -1,7 +1,6 @@
 """ Module for I/O in arclines
 """
-import glob
-import os
+import pathlib
 
 import astropy.table
 import linetools.utils
@@ -15,22 +14,23 @@ from IPython import embed
 
 
 # TODO -- Move this to the WaveCalib object
-def load_wavelength_calibration(filename):
+def load_wavelength_calibration(filename: pathlib.Path) -> dict:
     """
     Load the wavelength calibration data from a file.
 
     Args:
-        filename (:obj:`str`):
+        filename (:obj:`pathlib.Path`):
             Name of the json file.
 
     Returns:
         :obj:`dict`: Returns the wavelength calibration dictionary.
         Lists read from the json file are returnes as numpy arrays.
     """
-    if not os.path.isfile(filename):
+    if not filename.is_file():
         msgs.error(f"File does not exist: {filename}")
 
-    wv_calib = linetools.utils.loadjson(filename)
+    # Force any possible pathlib.Path object to string before `loadjson`
+    wv_calib = linetools.utils.loadjson(str(filename))
 
     # Recast a few items as arrays
     for key in wv_calib.keys():
@@ -65,10 +65,10 @@ def load_template(arxiv_file, det, wvrng=None):
 
     """
     # Path already included?
-    if os.path.basename(arxiv_file) == arxiv_file:
+    if pathlib.Path(arxiv_file).name == arxiv_file:
         calibfile, _ = data.get_reid_arxiv_filepath(arxiv_file)
     else:
-        calibfile = arxiv_file
+        calibfile = pathlib.Path(arxiv_file)
     # Read me
     tbl = astropy.table.Table.read(calibfile, format='fits')
     # Parse on detector?
@@ -178,7 +178,7 @@ def load_line_lists(lamps, unknown=False, all=False, restrict_on_instr=None):
     # All?
     if all:
         # Search both in the package directory and the PypeIt cache
-        line_files = glob.glob(os.path.join(data.Paths.linelist, '*_lines.dat'))
+        line_files = list(data.Paths.linelist.glob('*_lines.dat'))
         line_files.append(data.search_cache('_lines.dat'))
         lamps = []
         for line_file in line_files:

@@ -84,6 +84,8 @@ def set_qa_filename(root, method, det=None, slit=None, prefix=None, out_dir=None
         outfile = 'PNGs/{:s}_S{:04d}_spec_flex_sky.png'.format(root, slit)
     elif method == 'spatillum_finecorr':
         outfile = 'PNGs/{:s}_S{:04d}_spatillum_finecorr.png'.format(root, slit)
+    elif method == 'detector_structure':
+        outfile = 'PNGs/{:s}_{:s}_detector_structure.png'.format(root, det)
     else:
         raise IOError("NOT READY FOR THIS QA: {:s}".format(method))
     # Return
@@ -233,11 +235,11 @@ def html_init(f, title):
 
 
 def html_mf_pngs(idval):
-    """ Generate HTML for MasterFrame PNGs
+    """ Generate HTML for QA PNGs
 
     Args:
         idval: str
-          Master key of the calibration set
+            Key identifier of the calibration set
 
     Returns:
         tuple: 
@@ -379,9 +381,9 @@ def gen_qa_dir(qa_path):
     if not os.path.exists(qa_path):
         os.makedirs(qa_path)
 
-
+# TODO: Need to revisit this...
 def gen_mf_html(pypeit_file, qa_path):
-    """ Generate the HTML for a MasterFrame set
+    """ Generate the HTML for QA
 
     Args:
         pypeit_file (str):
@@ -412,7 +414,7 @@ def gen_mf_html(pypeit_file, qa_path):
     body = ''
     with open(MF_filename,'w') as f:
         # Start
-        links = html_init(f, 'QA  Setup {:s}: MasterFrame files'.format(setup))
+        links = html_init(f, 'QA Setup {:s}: Calibration files'.format(setup))
         # Loop on calib_sets
         for cbset in cbsets:
             for det in dets:

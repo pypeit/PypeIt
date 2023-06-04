@@ -1,6 +1,6 @@
 from scipy.io import readsav
 import numpy as np
-import os.path
+import pathlib
 
 from pypeit import io
 from pypeit import data
@@ -22,7 +22,7 @@ def sav_to_fits(savfile):
 
 
     """
-    savfile_name = os.path.splitext(os.path.basename(savfile))[0]
+    savfile_name = pathlib.Path(savfile).stem
     sav = readsav(savfile, python_dict=True)
 
     list_keys = list(sav.keys())
@@ -30,8 +30,10 @@ def sav_to_fits(savfile):
         if type(sav[k]) is not np.ndarray:
             sav[k] = np.asarray([sav[k]])
 
-    io.write_to_fits(sav, os.path.join(data.Paths.static_calibs, 'keck_deimos',
-                                       f'{savfile_name}.fits'),
-                     overwrite=True)
+    io.write_to_fits(
+        sav,
+        data.Paths.static_calibs / 'keck_deimos', f'{savfile_name}.fits',
+        overwrite=True
+    )
 
     return

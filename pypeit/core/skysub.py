@@ -5,10 +5,10 @@
 """
 import numpy as np
 
-from scipy import ndimage
-from scipy.special import ndtr
+import scipy.ndimage
+import scipy.special
 
-from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
 
 from IPython import embed
 
@@ -342,7 +342,7 @@ def skyoptimal(piximg, data, ivar, oprof, sigrej=3.0, npoly=1, spatial_img=None,
 
     chi2 = (data[good] - yfit1) ** 2 * ivar[good]
     chi2_srt = np.sort(chi2)
-    gauss_prob = 1.0 - 2.0 * ndtr(-1.2 * sigrej)
+    gauss_prob = 1.0 - 2.0 * scipy.special.ndtr(-1.2 * sigrej)
     sigind = int(np.fmin(np.rint(gauss_prob * float(ngood)), ngood - 1))
     chi2_sigrej = chi2_srt[sigind]
     mask1 = (chi2 < chi2_sigrej)
@@ -454,11 +454,11 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
         dsamp_init = np.roll(samplmin, -1) - samplmax
         dsamp_init[nbkpt - 1] = dsamp_init[nbkpt - 2]
         kernel_size = int(np.fmax(np.ceil(dsamp_init.size*0.01)//2*2 + 1,15))  # This ensures kernel_size is odd
-        dsamp_med = ndimage.filters.median_filter(dsamp_init, size=kernel_size, mode='reflect')
+        dsamp_med = scipy.ndimage.median_filter(dsamp_init, size=kernel_size, mode='reflect')
         boxcar_size = int(np.fmax(np.ceil(dsamp_med.size*0.005)//2*2 + 1,5))
         # Boxcar smooth median dsamp
         kernel = np.ones(boxcar_size)/ float(boxcar_size)
-        dsamp = ndimage.convolve(dsamp_med, kernel, mode='reflect')
+        dsamp = scipy.ndimage.convolve(dsamp_med, kernel, mode='reflect')
         # if more than samp_frac of the pixels have dsamp < bsp_min than just use a uniform breakpoint spacing
         if np.sum(dsamp <= bsp_min) > samp_frac*nbkpt:
             msgs.info('Sampling of wavelengths is nearly continuous.')
@@ -688,7 +688,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         :func:`~pypeit.core.procimg.base_variance`.
     count_scale : :obj:`float`, `numpy.ndarray`_, optional
         A scale factor, :math:`s`, that *has already been applied* to the
-        provided science image.  For example, if the image has been flat-field
+        provided science image. It accounts for the number of frames contributing to
+        the provided counts, and the relative throughput factors that can be measured
+        from flat-field frames. For example, if the image has been flat-field
         corrected, this is the inverse of the flat-field counts.  If None, set
         to 1.  If a single float, assumed to be constant across the full image.
         If an array, the shape must match ``base_var``.  The variance will be 0
@@ -749,7 +751,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         chi2_sigrej = 6.0
         #sigrej_ceil = 10.0
     # We will use this number later
-    gauss_prob = 1.0 - 2.0 * ndtr(-sigrej)
+    gauss_prob = 1.0 - 2.0 * scipy.special.ndtr(-sigrej)
 
     # Create the images that will be returned
     modelivar = np.copy(sciivar)
@@ -779,7 +781,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
             min_spat1 = slit_left
             max_spat1 = slit_righ
         else:
-            # The default value of maskwidth = 3.0 * FWHM = 7.05 * sigma in objfind with a log(S/N) correction for bright objects
+            # The default value of maskwidth = 4.0 * FWHM = 9.4 * sigma in objfind with a log(S/N) correction for bright objects
+            # But the width can be adjusted with `par['reduce']['skysub']['local_maskwidth']`
             left_edges = np.array([sobjs[i].TRACE_SPAT - sobjs[i].maskwidth - 1 for i in group])
             righ_edges = np.array([sobjs[i].TRACE_SPAT + sobjs[i].maskwidth + 1 for i in group])
 
@@ -1170,8 +1173,10 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
         :func:`~pypeit.core.procimg.base_variance`.
     count_scale : :obj:`float`, `numpy.ndarray`_, optional
         A scale factor that *has already been applied* to the provided science
-        image.  For example, if the image has been flat-field corrected, this is
-        the inverse of the flat-field counts.  If None, set to 1.  If a single
+        image. It accounts for the number of frames contributing to
+        the provided counts, and the relative throughput factors that can be measured
+        from flat-field frames. For example, if the image has been flat-field corrected,
+        this is the inverse of the flat-field counts.  If None, set to 1.  If a single
         float, assumed to be constant across the full image.  If an array, the
         shape must match ``base_var``.  The variance will be 0 wherever this
         array is not positive, modulo the provided ``adderr``.  This is one of
@@ -1490,9 +1495,10 @@ def generate_mask(pypeline, skyreg, slits, slits_left, slits_right, spat_flexure
     # TODO: I don't understand why slmsk needs to be instantiated.  SlitTraceSet
     # does this internally.
     slmsk = np.zeros(left_edg.shape[1], dtype=slittrace.SlitTraceSet.bitmask.minimum_dtype())
-    slitreg = slittrace.SlitTraceSet(left_edg, righ_edg, pypeline, nspec=slits.nspec, nspat=slits.nspat,
-                                     mask=slmsk, specmin=spec_min, specmax=spec_max,
-                                     binspec=slits.binspec, binspat=slits.binspat, pad=0)
+    slitreg = slittrace.SlitTraceSet(left_edg, righ_edg, pypeline, nspec=slits.nspec,
+                                     nspat=slits.nspat, mask=slmsk, specmin=spec_min,
+                                     specmax=spec_max, binspec=slits.binspec,
+                                     binspat=slits.binspat, pad=0)
     # Generate the mask, and return
     return (slitreg.slit_img(use_spatial=False, flexure=spat_flexure) >= 0).astype(bool)
 

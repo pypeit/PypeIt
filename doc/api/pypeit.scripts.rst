@@ -14,6 +14,7 @@ Submodules
    pypeit.scripts.chk_for_calibs
    pypeit.scripts.chk_noise_1dspec
    pypeit.scripts.chk_noise_2dspec
+   pypeit.scripts.chk_tilts
    pypeit.scripts.chk_wavecalib
    pypeit.scripts.coadd_1dspec
    pypeit.scripts.coadd_2dspec
@@ -25,12 +26,11 @@ Submodules
    pypeit.scripts.identify
    pypeit.scripts.install_extinctfile
    pypeit.scripts.install_linelist
-   pypeit.scripts.install_ql_masters
+   pypeit.scripts.install_ql_calibs
    pypeit.scripts.install_telluric
    pypeit.scripts.lowrdx_skyspec
    pypeit.scripts.multislit_flexure
    pypeit.scripts.obslog
-   pypeit.scripts.parse_calib_id
    pypeit.scripts.parse_slits
    pypeit.scripts.qa_html
    pypeit.scripts.ql
@@ -39,6 +39,7 @@ Submodules
    pypeit.scripts.scriptbase
    pypeit.scripts.sensfunc
    pypeit.scripts.setup
+   pypeit.scripts.setup_coadd2d
    pypeit.scripts.show_1dspec
    pypeit.scripts.show_2dspec
    pypeit.scripts.show_arxiv

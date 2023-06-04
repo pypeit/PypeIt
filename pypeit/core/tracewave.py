@@ -641,7 +641,7 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
 
 def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, maxdev=0.2,
               maxiter=100, sigrej=3.0, pad_spec=30, pad_spat=5, func2d='legendre2d',
-              doqa=True, master_key='test', slitord_id=0, show_QA=False, out_dir=None,
+              doqa=True, calib_key='test', slitord_id=0, show_QA=False, out_dir=None,
               minmax_extrap=(150.,1000.)):
     """
     THIS NEEDS A DOC STRING
@@ -808,12 +808,12 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # TODO: I think we should do the QA outside of core functions.
     if doqa:
         arc_tilts_2d_qa(tilts_dspat, tilts, tilts_2dfit, tot_mask, rej_mask, spat_order, spec_order,
-                     rms_fit, fwhm, slitord_id=slitord_id, setup=master_key, show_QA=show_QA, out_dir=out_dir)
+                     rms_fit, fwhm, slitord_id=slitord_id, setup=calib_key, show_QA=show_QA, out_dir=out_dir)
         arc_tilts_spat_qa(tilts_dspat, tilts, tilts_2dfit, tilts_spec, tot_mask, rej_mask, spat_order,
-                       spec_order, rms_fit, fwhm, slitord_id=slitord_id, setup=master_key, show_QA=show_QA,
+                       spec_order, rms_fit, fwhm, slitord_id=slitord_id, setup=calib_key, show_QA=show_QA,
                        out_dir=out_dir)
         arc_tilts_spec_qa(tilts_spec, tilts, tilts_2dfit, tot_mask, rej_mask, rms_fit, fwhm,
-                       slitord_id=slitord_id, setup=master_key, show_QA=show_QA, out_dir=out_dir)
+                       slitord_id=slitord_id, setup=calib_key, show_QA=show_QA, out_dir=out_dir)
 
     return tilt_fit_dict, trc_tilt_dict_out
 
@@ -1096,3 +1096,5 @@ def arc_tilts_spat_qa(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask,
 
     plt.close()
     plt.rcdefaults()
+
+

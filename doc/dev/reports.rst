@@ -17,6 +17,7 @@ development of ``PypeIt``.
    slitmask_ids
    deimosconfig
    mosfireconfig
+   niresconfig
    radec_object
    deimos_wavecalib
    add_missing_obj

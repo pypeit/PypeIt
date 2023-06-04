@@ -2,7 +2,7 @@
 
 .. TODO: We should consider removing bin/pypeit_clean and bin/pypeit_cp_spec1d    
 
-.. TODO: Can we update the ql masters install script to use the cache system?
+.. TODO: Can we update the ql calibs install script to use the cache system?
 
 .. _pypeit_scripts:
 
@@ -15,6 +15,15 @@ into your path (e.g. ``~/anaconda/bin``).  This document provides brief
 summaries of each script and points to other pages with more information.
 
 **If you are developing a new script, see** :ref:`new_script`.
+
+.. warning::
+
+    Whenever you upgrade PypeIt, beware that this may include changes to the
+    output file data models.  These changes are not required to be
+    backwards-compatible, meaning that, e.g., ``pypeit_show_2dspec`` may fault
+    when trying to view ``spec2d*`` files produced with your existing PypeIt
+    version after upgrading to a new version.  **The best approach is to always
+    re-reduce data you're still working with anytime you update PypeIt.**
 
 .. contents:: PypeIt Scripts
    :depth: 1
@@ -68,17 +77,17 @@ The script usage can be displayed by calling the script with the
 
 .. include:: help/pypeit_install_telluric.rst
 
-pypeit_install_ql_masters
--------------------------
+pypeit_install_ql_calibs
+------------------------
 
-After downloading the ``QL_MASTERS`` directory for use with the quick-look
+After downloading the ``QL_CALIB`` directory for use with the quick-look
 scripts, this script "installs" the files by creating a symlink to it within the
 PypeIt code base.
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
 
-.. include:: help/pypeit_install_ql_masters.rst
+.. include:: help/pypeit_install_ql_calibs.rst
 
 pypeit_install_linelist
 -----------------------
@@ -161,61 +170,8 @@ to the screen; e.g.:
 
     setups pass     scifiles
     ------ -------- ---------------
-         A False ALDc200205.fits
+         A False    ALDc200205.fits
       None True
-
-.. _pypeit-parse-calib-id:
-
-pypeit_parse_calib_id
----------------------
-
-The ``pypeit_parse_calib_id`` script prints a simple summary to the screen
-of the calibration frames.  This enables you (hopefully) to parse the 
-rather obscure PypeIt naming.  Here is a typical call:
-
-.. code-block:: console
-
-    pypeit_parse_calib_id vlt_xshooter_vis_1x1.pypeit
-
-And the associated output:
-
-.. TODO: Make sure this is up to date
-
-.. code-block:: python
-
-    {
-        "1": {
-            "A_1_DET01": {
-                "arc": {
-                    "master_key": "A_1_DET01",
-                    "master_name": "MasterArc_A_1_DET01.fits",
-                    "raw_files": [
-                        "XSHOO.2010-04-28T14:36:27.000.fits.gz"
-                    ]
-                },
-                "bias": {
-                    "master_key": "A_1_DET01",
-                    "master_name": "MasterBias_A_1_DET01.fits",
-                    "raw_files": [
-                        "XSHOO.2010-04-28T10:23:42.901.fits.gz",
-                        "XSHOO.2010-04-28T10:26:26.465.fits.gz",
-                        "XSHOO.2010-04-28T10:29:10.029.fits.gz"
-                    ]
-                },
-                "tilt": {
-                    "master_key": "A_1_DET01",
-                    "master_name": "MasterTiltimg_A_1_DET01.fits",
-                    "raw_files": [
-                        "XSHOO.2010-04-28T14:36:27.000.fits.gz"
-                    ]
-                }
-            }
-        }
-    }
-
-Here, the first level is the calib_grp (``1``), the next level gives
-the Master key (``A_1_DET01``) and then there is a listing of the files
-contributing to each of the :ref:`calibrations`.  See those docs for more.
 
 pypeit_obslog
 -------------
@@ -395,6 +351,16 @@ The script usage can be displayed by calling the script with the
 
 .. include:: help/pypeit_multislit_flexure.rst
 
+pypeit_setup_coadd2d
+--------------------
+
+This is used to setup a ``coadd2d`` file for performing 2D coadds; see :doc:`coadd2d`.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_setup_coadd2d.rst
+
 pypeit_coadd_2dspec
 -------------------
 
@@ -441,8 +407,8 @@ The script usage can be displayed by calling the script with the
 pypeit_chk_alignments
 ---------------------
 
-This script simply shows the ``MasterAlignments`` file for visual inspection;
-see :doc:`calibrations/master_align`.
+This script simply shows the ``Alignments`` file for visual inspection;
+see :doc:`calibrations/align`.
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
@@ -466,7 +432,7 @@ pypeit_parse_slits
 ------------------
 
 This script prints a simple summary of the state of the reduction for all of the
-slits in a given :doc:`out_spec2D` or :doc:`calibrations/master_slits` file.  
+slits in a given :doc:`out_spec2D` or :doc:`calibrations/slits` file.  
 Here is a standard call:
 
 .. code-block:: console
@@ -505,7 +471,7 @@ pypeit_chk_wavecalib
 --------------------
 
 This script prints a set of simple wavelength calibration diagnostics for all of
-the slits in a given :doc:`out_spec2D` or :doc:`calibrations/master_wvcalib`
+the slits in a given :doc:`out_spec2D` or :doc:`calibrations/wvcalib`
 file.  See :ref:`pypeit-chk-wavecalib` for more details.  Standard command-line
 calls are:
 
@@ -517,7 +483,7 @@ or:
 
 .. code-block:: console
 
-    pypeit_chk_wavecalib Masters/MasterWaveCalib_A_1_DET07.fits
+    pypeit_chk_wavecalib Calibrations/WaveCalib_A_1_DET07.fits
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
@@ -533,9 +499,9 @@ solutions.  Here is a standard call:
 
 .. code-block:: console
 
-    pypeit_show_wvcalib MasterWaveCalib_A_1_DET01.fits 17 --is_order  # for magellan_mage
+    pypeit_show_wvcalib WaveCalib_A_1_DET01.fits 17 --is_order  # for magellan_mage
 
-This launches a `matplotlib`_` GUI plot of Order=17 for the magellan_mage spectrograph.
+This launches a `matplotlib`_ GUI plot of Order=17 for the magellan_mage spectrograph.
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
@@ -552,6 +518,19 @@ The script usage can be displayed by calling the script with the
 ``-h`` option:
 
 .. include:: help/pypeit_show_arxiv.rst
+
+pypeit_chk_tilts
+----------------
+
+This script displays Tiltimg and 2D fitted tilts in a `ginga`_ viewer or `matplotlib`_ window,
+allowing to assess the quality of the tilts calibration. See :ref:`pypeit_chk_tilts`
+for more details.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_chk_tilts.rst
+
 
 pypeit_chk_flats
 ----------------

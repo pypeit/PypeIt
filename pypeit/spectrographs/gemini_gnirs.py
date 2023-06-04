@@ -69,7 +69,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -87,6 +87,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['reduce']['findobj']['find_trim_edge'] = [2,2]    # Slit is too short to trim 5,5 especially
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['skysub']['global_sky_std']  = False    # Do not perform global sky subtraction for standard stars
+        # TODO: JFH: Is this the correct behavior?  (Is why we have sky-subtraction problems for GNIRS?)
         par['reduce']['skysub']['no_poly'] = True             # Do not use polynomial degree of freedom for global skysub
         par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
         par['reduce']['findobj']['maxnumber_sci'] = 2  # Slit is narrow so allow one object per order
@@ -111,7 +112,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
@@ -209,7 +210,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -273,9 +274,29 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         """
         return ['decker', 'dispname', 'dispangle']
 
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['SLIT', 'GRATING', 'GRATTILT']
+
     def pypeit_file_keys(self):
         """
-        Define the list of keys to be output into a standard ``PypeIt`` file.
+        Define the list of keys to be output into a standard PypeIt file.
 
         Returns:
             :obj:`list`: The list of keywords in the relevant
@@ -430,7 +451,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set

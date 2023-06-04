@@ -54,7 +54,7 @@ class SpecObj(datamodel.DataContainer):
             Running index for the order.
     """
 
-    version = '1.1.7'
+    version = '1.1.8'
     """
     Current datamodel version number.
     """
@@ -177,6 +177,9 @@ class SpecObj(datamodel.DataContainer):
                  'DEC': dict(otype=float, descr='Declination (J2000) decimal degree'),
                  'MASKDEF_ID': dict(otype=(int, np.integer), descr='Slitmask definition ID'),
                  'MASKDEF_OBJNAME': dict(otype=str, descr='Name of the object from the slitmask definition'),
+                 'MASKDEF_OBJMAG': dict(otype=float, descr='Magnitude of the object from the slitmask definition'),
+                 'MASKDEF_OBJMAG_BAND': dict(otype=str, descr='Magnitude band of the object from the slitmask '
+                                                              'definition'),
                  'MASKDEF_EXTRACT': dict(otype=bool, descr='Boolean indicating if this is a forced extraction '
                                                            'at the expected location from slitmask design. '),
                  'hand_extract_flag': dict(otype=bool, descr='Boolean indicating if this is a forced extraction '
@@ -201,12 +204,35 @@ class SpecObj(datamodel.DataContainer):
     Defines the current datmodel.
     """
 
+    internals = [# Object finding
+                 'smash_peakflux',
+                 'smash_snr',
+                 # Hand
+                 'hand_extract_flag',
+                 'hand_extract_spec',
+                 'hand_extract_spat',
+                 'hand_extract_det',
+                 'hand_extract_fwhm',
+                 # Object profile
+                 'prof_nsigma',
+                 'sign',
+                 'min_spat',
+                 'max_spat',
+                 # Echelle
+                 'ech_frac_was_fit',
+                 'ech_snr'
+                ]
+
     def __init__(self, PYPELINE, DET, OBJTYPE='unknown',
                  SLITID=None, ECH_ORDER=None, ECH_ORDERINDX=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
         super().__init__(d=_d)
+
+        # Initialize internal values that are not None
+        self.hand_extract_flag = False
+        self.sign = 1.
 
         self.FLEX_SHIFT_GLOBAL = 0.
         self.FLEX_SHIFT_LOCAL = 0.
@@ -226,28 +252,6 @@ class SpecObj(datamodel.DataContainer):
         # Mask. Watch out for places where ivar is infinite due to a divide by 0
         slf[mode+'_MASK'] = (slf[mode+'_COUNTS_IVAR'] > 0.) & np.isfinite(slf[mode+'_COUNTS_IVAR'])
         return slf
-
-    def _init_internals(self):
-        # Object finding
-        self.smash_peakflux = None
-        self.smash_snr = None
-
-        # Hand
-        self.hand_extract_flag = False
-        self.hand_extract_spec = None
-        self.hand_extract_spat = None
-        self.hand_extract_det = None
-        self.hand_extract_fwhm = None
-
-        # Object profile
-        self.prof_nsigma = None
-        self.sign = 1.0
-        self.min_spat = None
-        self.max_spat = None
-
-        # Echelle
-        self.ech_frac_was_fit = None #
-        self.ech_snr = None #
 
     def _validate(self):
         """
@@ -340,8 +344,9 @@ class SpecObj(datamodel.DataContainer):
         """
         SN = 0.
         for pref in ['OPT', 'BOX']:
-            if self[pref+'_COUNTS'] is not None:
-                SN = np.median(self[pref+'_COUNTS'] * np.sqrt(self[pref+'_COUNTS_IVAR']))
+            if self[pref+'_COUNTS'] is not None and np.any(self[pref+'_MASK']):
+                SN = np.median(self[pref+'_COUNTS'][self[pref+'_MASK']] *
+                               np.sqrt(self[pref+'_COUNTS_IVAR'][self[pref+'_MASK']]))
             if SN != 0.:
                 break
         return SN
@@ -632,7 +637,8 @@ class SpecObj(datamodel.DataContainer):
             if hasattr(self, attr) and getattr(self, attr) is not None:
                 # Special ones
                 if attr in ['DET', 'SLITID', 'SPAT_PIXPOS', 'NAME', 'RA', 
-                            'DEC', 'MASKDEF_ID', 'MASKDEF_OBJNAME', 'MASKDEF_EXTRACT']:
+                            'DEC', 'MASKDEF_ID', 'MASKDEF_OBJNAME', 'MASKDEF_EXTRACT',
+                            'MASKDEF_OBJMAG', 'MASKDEF_OBJMAG_BAND']:
                     rdict[attr] = getattr(self,attr)
                 else:
                     rdict[attr] = True

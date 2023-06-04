@@ -59,13 +59,13 @@ Datamodels
 Calibration Frames
 ==================
 
-All reduced calibration frames are held in the ``Masters`` directory and given
-the file name prefix ``Master`` (e.g., ``MasterArc``).  See :ref:`outputs-dir`
+All reduced calibration frames are held in the ``Calibrations/`` directory and given
+the named after their calibration type (e.g., ``Arc``).  See :ref:`outputs-dir`
 and :ref:`calibrations`.
 
-The master frames are also assigned a unique identifier that is a combination of
+The calibration frames are also assigned a unique identifier that is a combination of
 their setup, calibration group, and detector (e.g., ``A_1_DET01``).  For details
-on the construction of this identifier, see :ref:`master-naming`.
+on the construction of this identifier, see :ref:`calib-naming`.
 
 .. _science_frame_naming:
 

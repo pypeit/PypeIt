@@ -8,6 +8,7 @@ Provides a set of I/O routines.
 
 """
 import os
+from pathlib import Path
 import glob
 import sys
 import warnings
@@ -24,7 +25,7 @@ from astropy.table import Table
 
 from pypeit import msgs
 from pypeit import par
-from pypeit import inputfiles
+#from pypeit import inputfiles
 
 # These imports are largely just to make the versions available for
 # writing to the header. See `initialize_header`
@@ -201,6 +202,37 @@ def compress_file(ifile, overwrite=False, rm_original=True):
         os.remove(ifile)
 
 
+def remove_suffix(file):
+    """
+    Remove the suffix of a file name.
+
+    For normal filenames, this simply returns the file string without its last
+    suffix.  For gzipped files, this removes both the '.gz' suffix, and the one
+    preceding it.
+
+    Args:
+        file (:obj:`str`):
+            File name or full path to use
+
+    Returns:
+        :obj:`str`: The file without its suffix or its input path, if provided.
+
+    Examples:
+
+        >>> remove_suffix('unzipped_file.txt')
+        'unzipped_file'
+        >>> remove_suffix('/path/to/unzipped_file.fits')
+        'unzipped_file'
+        >>> remove_suffix('dot.separated.file.name.txt')
+        'dot.separated.file.name'
+        >>> remove_suffix('gzipped_file.fits.gz')
+        'gzipped_file'
+
+    """
+    _file = Path(file)
+    return (_file.with_suffix('')).stem if _file.suffix == '.gz' else _file.stem
+
+
 def parse_hdr_key_group(hdr, prefix='F'):
     """
     Parse a group of fits header values grouped by a keyword prefix.
@@ -248,32 +280,29 @@ def parse_hdr_key_group(hdr, prefix='F'):
         return []
 
 
-def initialize_header(hdr=None, primary=False):
+def initialize_header(hdr=None):
     """
-    Initialize a FITS header.
+    Initialize FITS header for all PypeIt output fits images.
 
     Args:
         hdr (`astropy.io.fits.Header`, optional):
-            Header object to update with basic summary
-            information. The object is modified in-place and also
-            returned. If None, an empty header is instantiated,
-            edited, and returned.
-        primary (bool, optional):
-            If true and hdr is None, generate a Primary header
+            Header object to update with basic summary information. The object
+            is modified in-place and also returned. If None, an empty header is
+            instantiated, edited, and returned.
 
     Returns:
         `astropy.io.fits.Header`: The initialized (or edited)
         fits header.
     """
-    # Add versioning; this hits the highlights but should it add
-    # the versions of all packages included in the requirements.txt
-    # file?
     if hdr is None:
-        if primary:
-            hdr = fits.PrimaryHDU().header
-        else:
-            hdr = fits.Header()
-    hdr['VERSPYT'] = ('.'.join([ str(v) for v in sys.version_info[:3]]), 'Python version')
+        # NOTE: It's not necessary to distinguish between a generic header and
+        # PrimaryHDU header here.  Astropy takes care of the difference when it
+        # constructs the PrimaryHDU in the HDUList.
+        hdr = fits.Header()
+
+    # Add versioning
+    # TODO: Include additional packages?
+    hdr['VERSPYT'] = ('.'.join([str(v) for v in sys.version_info[:3]]), 'Python version')
     hdr['VERSNPY'] = (numpy.__version__, 'Numpy version')
     hdr['VERSSCI'] = (scipy.__version__, 'Scipy version')
     hdr['VERSAST'] = (astropy.__version__, 'Astropy version')
@@ -282,8 +311,6 @@ def initialize_header(hdr=None, primary=False):
 
     # Save the date of the reduction
     hdr['DATE'] = (time.strftime('%Y-%m-%d',time.gmtime()), 'UTC date created')
-
-    # TODO: Anything else?
 
     # Return
     return hdr
@@ -294,6 +321,7 @@ def header_version_check(hdr, warning_only=True):
     Check the package versions in the header match the system versions.
 
     .. note::
+
         The header must contain the keywords written by
         :func:`initialize_header`.
 
@@ -738,7 +766,7 @@ def fits_open(filename, **kwargs):
     bytes.
 
     Args:
-        filename (:obj:`str`):
+        filename (:obj:`str`, `Path`_):
             File name for the fits file to open.
         **kwargs:
             Passed directly to `astropy.io.fits.open`_.
@@ -754,7 +782,7 @@ def fits_open(filename, **kwargs):
     # string before checking that it exists.  There should be a more robust way
     # to do this!  Is there are more appropriate os.path function that allows
     # for this different type of object?
-    if isinstance(filename, str) and not os.path.isfile(filename):
+    if isinstance(filename, (str, Path)) and not Path(filename).resolve().exists():
         msgs.error(f'{filename} does not exist!')
     try:
         return fits.open(filename, **kwargs)
@@ -765,7 +793,7 @@ def fits_open(filename, **kwargs):
             return fits.open(filename, ignore_missing_end=True, **kwargs)
         except OSError as e:
             msgs.error(f'That failed, too!  Astropy is unable to open {filename} and reports the '
-                      f'following error: {e}')
+                       f'following error: {e}')
 
 
 def create_symlink(filename, symlink_dir, relative_symlink=False, overwrite=False, quiet=False):
@@ -818,63 +846,37 @@ def create_symlink(filename, symlink_dir, relative_symlink=False, overwrite=Fals
     os.symlink(olink_src, olink_dest)
 
 
-def grab_rawfiles(raw_paths:list=None, 
-               file_of_files:str=None,
-               list_of_files:list=None,
-               extension:str='.fits'):
-    """ Grab the list of raw files
+def files_from_extension(raw_path,
+                         extension:str='fits'):
+    """
+    Grab the list of files with a given extension 
 
     Args:
-        raw_paths (list, optional): 
-            List of paths to raw files
-        file_of_files (str, optional): 
-            File with list of raw files. PypeIt input file formatted
-        list_of_files (list, optional): 
-            List of raw files (str).  These are combined with raw_paths
-        extension (str, optional): 
-            File extension to search on.  Defaults to '.fits'.
+        raw_path (str or list):
+            Path(s) to raw files, which may or may not include the prefix of the
+            files to search for.  
+
+            For a string input, for example, this can be the directory
+            ``'/path/to/files/'`` or the directory plus the file prefix
+            ``'/path/to/files/prefix'``, which yeilds the search strings
+            ``'/path/to/files/*fits'`` or ``'/path/to/files/prefix*fits'``,
+            respectively.
+
+            For a list input, this can use wildcards for multiple directories.
+
+        extension (str, optional):
+            File extension to search on.
 
     Returns:
-        list: List of raw data filenames with full path
+        list: List of raw data filenames (sorted) with full path
     """
-
-    # Which option>
-    if file_of_files is not None: # PypeIt formatted list of files
-        iRaw = inputfiles.RawFiles.from_file(file_of_files)
-        data_files = iRaw.filenames
-    elif list_of_files is not None: # An actual list
-        data_files = []
-        for raw_path in raw_paths:
-            for ifile in list_of_files:
-                if os.path.isfile(os.path.join(raw_path, ifile)):
-                    data_files.append(os.path.join(raw_path, ifile))
-    else: # Search in raw_paths for files with the given extension
-        data_files = []
-        for raw_path in raw_paths:
-            data_files += files_from_extension(raw_path, 
-                                               extension)
-    # Finish
-    return data_files
+    if isinstance(raw_path, str):
+        # Grab the list of files
+        dfname = os.path.join(raw_path, f'*{extension}*') \
+                    if os.path.isdir(raw_path) else f'{raw_path}*{extension}*'
+        return sorted(glob.glob(dfname))
     
+    if isinstance(raw_path, list):
+        return numpy.concatenate([files_from_extension(p, extension=extension) for p in raw_path]).tolist()
 
-def files_from_extension(raw_path:str,
-                         extension:str='fits'):
-    """ Grab the list of files with a given extension 
-
-        Args:
-            raw_path (str):
-                Path to raw files
-            extension (str, optional):
-                File extension to search on.  Defaults to '.fits'.
-
-        Returns:
-            list: List of raw data filenames (sorted) with full path
-    """
-    # Grab the list of files
-    dfname = os.path.join(raw_path, '*{0}*'.format(extension)) \
-                if os.path.isdir(raw_path) else '{0}*{1}*'.format(raw_path, extension)
-    data_files = glob.glob(dfname)
-    data_files.sort()
-
-    # Return
-    return data_files
+    msgs.error(f"Incorrect type {type(raw_path)} for raw_path (must be str or list)")

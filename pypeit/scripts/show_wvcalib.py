@@ -21,9 +21,9 @@ class ShowWvCalib(scriptbase.ScriptBase):
     def get_parser(cls, width=None):
         parser = super().get_parser(description='Show the result of wavelength calibration',
                                     width=width)
-        parser.add_argument("file", type=str, help="MasterWaveCalib file")
+        parser.add_argument("file", type=str, help="WaveCalib file")
         parser.add_argument("slit_order", type=int, help="Slit or Order number")
-        parser.add_argument("--slit_file", type=str, help="Master Slit file")
+        parser.add_argument("--slit_file", type=str, help="Slit file")
         parser.add_argument("--is_order", default=False, action="store_true",
                             help="Input slit/order is an order")
         return parser
