@@ -33,6 +33,15 @@
   `pypeit_chk_tilts`. Note that this script uses an update
   of the tilts datamodel, so it will not work on older reductions.
 - Updates to reduction parameters for LDT/DeVeny
+- Improvements to wavelength grids and masking in coadd routines.
+- Fixed a bug in echelle coadding where the wrong coadded spectra were being
+used in final stacks.
+- Refactored coadding routines to work with lists to support coadding
+data from different setups.
+- Changes to how masking is dealt with in extraction to fix a bug in how masks
+were being treated for echelle data
+- Various fixes and changes required to add more support for Keck/HIRES and JWST
+
 
 1.12.2 (29 Mar 2023)
 --------------------
