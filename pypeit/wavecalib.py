@@ -875,7 +875,6 @@ class BuildWaveCalib:
             if self.par['ech_separate_2d']:
                 self.wv_calib.det_img = self.msarc.det_img.copy()
 
-            # TODO -- Turn the following back on!
             # Try a second attempt with 1D, if needed
             if np.any(bad_rms):
                 embed(header='877 of wavecalib')
