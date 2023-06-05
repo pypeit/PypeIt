@@ -191,6 +191,7 @@ class CoAdd2D:
         self.wave_grid = None
         self.good_slits = None
         self.maskdef_offset = None
+        self.angle_offsets = None
 
 
         # Load the stack_dict
@@ -1002,14 +1003,10 @@ class CoAdd2D:
         # 1) offsets are provided in the header of the spec2d files
         if offsets == 'header':
             msgs.info('Using offsets from header')
-            pscale = self.stack_dict['detectors'][0].platescale
-            dithoffs = [self.spectrograph.get_meta_value(f, 'dithoff') for f in self.spec2d]
-            if None in dithoffs:
-                msgs.error('Dither offsets keyword not found for one or more spec2d files. '
-                           'Choose another option for `offsets`')
-            dithoffs_pix = - np.array(dithoffs) / pscale
-            self.offsets = dithoffs_pix[0] - dithoffs_pix
+            dithoffs = np.array([self.spectrograph.get_meta_value(f, 'dithoff') for f in self.spec2d])
+            self.offsets = dithoffs[0]-dithoffs
             self.offsets_report(self.offsets, 'header keyword')
+            self.angle_offsets = True
 
         elif self.objid_bri is None and offsets == 'auto':
             msgs.error('Offsets cannot be computed because no unique reference object '
@@ -1021,6 +1018,9 @@ class CoAdd2D:
             # use them
             self.offsets = self.check_input(offsets, type='offsets')
             self.offsets_report(self.offsets, 'user input')
+            self.angle_offsets = True
+            # FBD: Currently treating this as though the user knows the dithers in arcsec,
+            # but should probably make this an input parameter in case they want pixels
 
         # 3) parset `offsets` is = 'maskdef_offsets' (no matter if we have a bright object or not)
         elif offsets == 'maskdef_offsets':
@@ -1029,6 +1029,7 @@ class CoAdd2D:
                 msgs.info('Determining offsets using maskdef_offset recoded in SlitTraceSet')
                 self.offsets = self.maskdef_offset[0] - self.maskdef_offset
                 self.offsets_report(self.offsets, 'maskdef_offset')
+                self.angle_offsets = False
             else:
                 # if maskdef_offsets were not computed during the main reduction, we cannot continue
                 msgs.error('No maskdef_offset recoded in SlitTraceSet')
@@ -1188,6 +1189,8 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
         # get self.offsets
         self.compute_offsets(offsets)
+        if self.angle_offsets:
+            self.offsets = np.round(self.offsets / self.[slit_idx]).astype(int)
 
     # TODO When we run multislit, we actually compute the rebinned images twice. Once here to compute the offsets
     # and another time to weighted_combine the images in compute2d. This could be sped up
@@ -1269,6 +1272,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
             self.offsets = offsets
             self.offsets_report(self.offsets, offsets_method)
+            self.angle_offsets = False
 
     def compute_weights(self, weights):
         """
@@ -1530,6 +1534,8 @@ class EchelleCoAdd2D(CoAdd2D):
 
         # get self.offsets
         self.compute_offsets(offsets)
+        if self.angle_offsets:
+            self.offsets = np.round(self.offsets / self.spectrograph.order_platescale(self.spectrograph.orders,self.binning)[slit_idx]).astype(int)
 
     def compute_offsets(self, offsets):
         """
@@ -1556,6 +1562,7 @@ class EchelleCoAdd2D(CoAdd2D):
                 msgs.info('Reference trace about which 2d coadd is performed is computed using user object')
             else:
                 msgs.info('Reference trace about which 2d coadd is performed is computed using the brightest object')
+            self.angle_offsets = False
 
     def compute_weights(self, weights):
         """
