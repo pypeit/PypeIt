@@ -484,13 +484,9 @@ class CoAdd2D:
             else:
                 weights = self.use_weights
                 
-            # manual offsets
-            if len(self.offsets) > 1:
-                manual_offsets = np.round(self.offsets / self.spectrograph.order_platescale(self.spectrograph.orders,self.binning)[slit_idx]).astype(int)
-            else:
-                manual_offsets = None
-                
-            #embed()
+            if self.angle_offsets and self.pypeline == 'Echelle':
+                self.offsets = np.round(self.offsets / self.spectrograph.order_platescale(self.spectrograph.orders,self.binning)[slit_idx]).astype(int)
+
             # Perform the 2d coadd
             # NOTE: mask_stack is a gpm, and this is called inmask_stack in
             # compute_coadd2d, and outmask in coadd_dict is also a gpm
@@ -505,7 +501,7 @@ class CoAdd2D:
                                                self.wave_grid, self.spat_samp_fact,
                                                maskdef_dict=maskdef_dict,
                                                weights=weights, interp_dspat=interp_dspat,
-                                               manual_offsets=manual_offsets)
+                                               offsets=self.offsets, angle_offsets=self.angle_offsets)
             coadd_list.append(coadd_dict)
 
         return coadd_list
@@ -1004,6 +1000,10 @@ class CoAdd2D:
         if offsets == 'header':
             msgs.info('Using offsets from header')
             dithoffs = np.array([self.spectrograph.get_meta_value(f, 'dithoff') for f in self.spec2d])
+            if dithoffs[0] is None:
+                dithoffs = np.array([self.spectrograph.get_meta_value(f, 'dither') for f in self.spec2d])
+                if dithoffs[0] is None:
+                    msgs.error('Invalid header keyword for dithers (only: dithoff, dither)')
             self.offsets = dithoffs[0]-dithoffs
             self.offsets_report(self.offsets, 'header keyword')
             self.angle_offsets = True
@@ -1190,7 +1190,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
         # get self.offsets
         self.compute_offsets(offsets)
         if self.angle_offsets:
-            self.offsets = np.round(self.offsets / self.[slit_idx]).astype(int)
+            self.offsets = np.round(self.offsets / self.stack_dict['detectors'][0].platescale).astype(int)
 
     # TODO When we run multislit, we actually compute the rebinned images twice. Once here to compute the offsets
     # and another time to weighted_combine the images in compute2d. This could be sped up
@@ -1534,9 +1534,7 @@ class EchelleCoAdd2D(CoAdd2D):
 
         # get self.offsets
         self.compute_offsets(offsets)
-        if self.angle_offsets:
-            self.offsets = np.round(self.offsets / self.spectrograph.order_platescale(self.spectrograph.orders,self.binning)[slit_idx]).astype(int)
-
+    
     def compute_offsets(self, offsets):
         """
         Determine self.offsets, the offset of the frames to be coadded with respect to the first frame

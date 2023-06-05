@@ -2775,9 +2775,7 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
         Spatial sampling for 2d coadd spatial bins in pixels. A value > 1.0
         (i.e. bigger pixels) will downsample the images spatially, whereas < 1.0
         will oversample. Default = 1.0
-    manual_offsets : list, optional
-        
-
+    
     Returns
     -------
     dspat_bins : `numpy.ndarray`_
@@ -2793,8 +2791,6 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
     dspat_stack = []
     spat_min = np.inf
     spat_max = -np.inf
-    if manual_offsets is None:
-        manual_offsets = np.zeros(nimgs)
     for thismask, trace in zip(thismask_stack, trace_stack):
         nspec, nspat = thismask.shape
         dspat_iexp = (np.arange(nspat)[np.newaxis, :] - trace[:, np.newaxis]) / spat_samp_fact
@@ -2817,7 +2813,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
                     inmask_stack, thismask_stack, waveimg_stack,
                     wave_grid, spat_samp_fact=1.0, maskdef_dict=None,
                     weights='uniform', interp_dspat=True,
-                    manual_offsets=None):
+                    offsets=None, angle_offsets=None):
     """
     Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs.
 
@@ -2960,7 +2956,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
 
     sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack \
             = rebin2d(wave_bins, dspat_bins, waveimg_stack, dspat_stack, thismask_stack,
-                      inmask_stack, sci_list, var_list, manual_offsets)
+                      inmask_stack, sci_list, var_list, offsets, angle_offsets)
     #embed()
     # Now compute the final stack with sigma clipping
     sigrej = 3.0
@@ -3046,7 +3042,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
 
 def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack,
             thismask_stack, inmask_stack, sci_list, var_list,
-            manual_offsets):
+            offsets, angle_offsets):
     """
     Rebin a set of images and propagate variance onto a new spectral and spatial grid. This routine effectively
     "recitifies" images using np.histogram2d which is extremely fast and effectively performs
@@ -3128,10 +3124,10 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack,
     for jj in range(len(var_list)):
         var_list_out.append(np.zeros(shape_out))
         
-    if manual_offsets is None:
-        manual_offsets = np.zeros(nimgs)
+    if angle_offsets is not True:
+        offsets = np.zeros(nimgs)
 
-    for img, (waveimg, spatimg, thismask, inmask, offset) in enumerate(zip(waveimg_stack, spatimg_stack, thismask_stack, inmask_stack, manual_offsets)):
+    for img, (waveimg, spatimg, thismask, inmask, offset) in enumerate(zip(waveimg_stack, spatimg_stack, thismask_stack, inmask_stack, offsets)):
 
         spec_rebin_this = waveimg[thismask]
         # Have to "cancel" the original offsets, which are along detector pixels
