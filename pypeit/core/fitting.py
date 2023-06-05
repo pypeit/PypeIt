@@ -1134,7 +1134,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lo
     yfit = np.zeros(ydata.shape)
     reduced_chi = 0.
 
-    # TODO: Instanting these place-holder arrays can be expensive.  Can we avoid doing this?
+    # TODO: Instantiating these place-holder arrays can be expensive.  Can we avoid doing this?
     outmask = True if invvar.size == 1 else np.ones(invvar.shape, dtype=bool)
 
     if ingpm is None:

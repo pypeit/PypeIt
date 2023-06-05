@@ -1108,6 +1108,173 @@ class IFUFindObjects(MultiSlitFindObjects):
         # Now apply the correction to the science frame
         self.apply_relative_scale(scaleImg)
 
+    def convolve_skymodel(self, input_img, fwhm_map, thismask, subpixel=10, nsample=10, snr=None):
+        """
+        TODO :: docstring
+        """
+        # TODO :: need to move these
+        from scipy.interpolate import RegularGridInterpolator
+        from scipy.sparse import dok_array, linalg
+        from skimage import restoration
+        deconvolve = False if snr is None else True
+        embed()
+        imgmsg = "deconvolution" if deconvolve else "convolution"
+        fwhm_to_sig = 2 * np.sqrt(2 * np.log(2))
+        # Make a subpixellated input science image
+        _input_img = np.repeat(input_img, subpixel, axis=0)
+        if deconvolve:
+            _input_snr = np.repeat(snr, subpixel, axis=0)
+        # Calculate the excess sigma (in subpixel coordinates)
+        sig_exc = subpixel * np.sqrt(fwhm_map[thismask]**2 - np.min(fwhm_map[thismask])**2)/fwhm_to_sig
+        nspec, nspat = _input_img.shape
+        # We need to loop over a range of kernel widths, and then interpolate. This assumes that the FWHM
+        # locally around every pixel is roughly constant to within +/-5 sigma of the profile width
+        kernwids = np.linspace(0.0, np.max(sig_exc), nsample)  # Need to include the zero index
+        # Setup the output array. Note that the first image is the input (i.e. no convolution)
+        conv_allkern = np.zeros(input_img.shape + (nsample,))
+        conv_allkern[:, :, 0] = input_img
+        for kk in range(nsample):
+            if kk == 0:
+                # The first element is the original image
+                continue
+            msgs.info(f"Image spectral {imgmsg} - STEP {kk}/{nsample-1}")
+            # Generate a kernel and normalise
+            kernsize = 2 * int(5 * kernwids[kk] + 0.5) + 1  # Use a Gaussian kernel, covering +/-5sigma
+            midp = (kernsize-1) // 2
+            xkern = np.arange(kernsize, dtype=int) - midp
+            kern = np.exp(-0.5 * (xkern/kernwids[kk])**2)
+
+            psf = kern[:,None]
+            psf = psf/np.sum(psf)
+            # conv_allkern[:, :, kk] = rebinND(restoration.unsupervised_wiener(_input_img, psf, clip=False)[0], input_img.shape)
+            # a=time.time()
+            conv_allkern[:, :, kk] = rebinND(restoration.wiener(_input_img, psf, balance=0.1, clip=False), input_img.shape)
+            # print(time.time()-a)
+            # rebinND(restoration.wiener(_input_img, psf, balance=0.1, clip=False), input_img.shape)
+            conv_allkern[:, :, kk] = rebinND(restoration.wiener(input_img, psf, balance=1, clip=False,
+                                                                reg=np.array([[0, -1, 0], [0, 2, 0], [0, -1, 0]])),
+                                             input_img.shape)
+            # conv_allkern[:, :, kk] = rebinND(restoration.unsupervised_wiener(_input_img, psf, clip=False), input_img.shape)
+
+            # ATTEMPT 5
+            # Deconvolve the image in the spectral dimension
+            fullsize = nspec + kernsize - 1
+            fsize = 2 ** np.int(np.ceil(np.log2(fullsize)))  # Use this size for a more efficient computation
+            conv = np.fft.fft(_input_img, fsize, axis=0)
+            kern = kern/np.sum(kern)
+            if deconvolve:
+                csnr = np.fft.fft(np.ones(), fsize, axis=0)
+                krn = np.fft.fft(kern, fsize)[:, None]
+                Gf = (1/krn) / (1 + 1/((krn*np.conj(krn))*(csnr*np.conj(csnr))))
+                conv *= Gf
+            else:
+                conv *= np.fft.fft(kern, fsize)[:, None]
+            # Inverse transform and rebin onto the shape of the science image
+            # third index is offset by one because the zeroth index is the input
+            # TODO :: need to move rebinND from datacube.py to utils.py
+            conv_allkern[:, :, kk] = rebinND(np.fft.ifft(conv, axis=0).real.copy()[kernsize:kernsize + nspec, :],
+                                             input_img.shape)
+            tmp = restoration.wiener(input_img, psf, balance=0.02**2, clip=False)
+
+            plt.subplot(121)
+            plt.imshow(input_img, vmin=400, vmax=1000)
+            plt.subplot(122)
+            # plt.imshow(conv_allkern[:, :, 1], vmin=400, vmax=1000)
+            plt.imshow(tmp, vmin=400, vmax=1000)
+            plt.show()
+
+            # ATTEMPT 4
+            # Try banded matrix
+            import time
+            from scipy.linalg import solve_banded
+            # Solve this in segments
+            nseg = 100
+            offs = nseg//4
+            left_idx = 0
+            right_idx = nseg*subpixel
+            segm = 0
+            while segm != -1:
+                this_nspec = nseg * subpixel
+                if right_idx >= _input_img.shape[0]:
+                    segm = -1  # Use -1 to flag that this is the final segment
+                    right_idx = _input_img.shape[0]
+                    left_idx = right_idx - nseg*subpixel
+                # Extract the relevant bit of the science image
+                this_sciimg = _input_img[left_idx:right_idx,:]
+                # Fill in the banded array
+                gauskern = np.zeros((kernsize, this_nspec))
+                for ii in range(this_nspec):
+                    minidx, maxidx = max(0, ii+xkern[0]), min(this_nspec, ii+xkern[-1]+1)
+                    minkrn, maxkrn = minidx + midp - ii, maxidx + midp - ii
+                    thiskern = kern[minkrn:maxkrn]
+                    if minidx == 0: addf = -minkrn  # Deals with left side of banded matrix
+                    elif maxidx == this_nspec: addf = kernsize-maxkrn   # Deals with right side of banded matrix
+                    else: addf = 0    # Deals with the middle of the banded matrix
+                    gkidx = (np.arange(minkrn+addf, maxkrn+addf)[::-1], np.arange(minidx, maxidx),)
+                    gauskern[gkidx] = thiskern/np.sum(thiskern)
+                rbin = rebinND(solve_banded((midp, midp), gauskern, this_sciimg), (nseg,nspat,))
+                if segm == 0:
+                    conv_allkern[:nseg, :, kk] = rbin[:,:]
+                elif segm == -1:
+                    # The last segment
+                    conv_allkern[offs-rbin.shape[0]:, :, kk] = rbin[offs:,:]
+                    break
+                else:
+                    # All other segments
+                    tidx = segm*2*offs
+                    conv_allkern[tidx+offs:tidx+3*offs, :, kk] = rbin[offs:3*offs,:]
+                # Iterate
+                left_idx += 2*offs*subpixel
+                right_idx = left_idx + nseg*subpixel
+                segm += 1
+
+            # ATTEMPT 3
+            # Setup a sparse array for the convolution kernel
+            gauskern = dok_array((nspec, nspec), dtype=np.float32)
+            # Fill in the sparse array
+            for ii in range(nspec):
+                minidx, maxidx = max(0, ii+xkern[0]), min(nspec, ii+xkern[-1])
+                minkrn, maxkrn = minidx + midp - ii, maxidx + midp - ii
+                thiskern = kern[minkrn:maxkrn]
+                gauskern[minidx:maxidx, ii] = thiskern/np.sum(thiskern)
+            # Invert the kernel matrix
+            # gausinv = linalg.inv(gauskern.tocsc())
+            a=time.time()
+            gausinv = linalg.inv(gauskern.tocsr())
+            # res = linalg.spsolve(gauskern.tocsc(), _sciimg)
+            print(time.time()-a)
+            conv_allkern[:, :, kk] = rebinND(res, input_img.shape)
+
+            # ATTEMPT 2
+            # Deconvolve the image in the spectral dimension
+            fullsize = nspec + kernsize - 1
+            fsize = 2 ** np.int(np.ceil(np.log2(fullsize)))  # Use this size for a more efficient computation
+            conv = np.fft.fft(_input_img, fsize, axis=0)
+            if deconvolve:
+                conv /= np.fft.fft(kern, fsize)[:, None]
+            else:
+                conv *= np.fft.fft(kern, fsize)[:, None]
+            # Inverse transform and rebin onto the shape of the science image
+            # third index is offset by one because the zeroth index is the input
+            # TODO :: need to move rebinND from datacube.py to utils.py
+            conv_allkern[:, :, kk] = rebinND(np.fft.ifft(conv, axis=0).real.copy()[kernsize:kernsize + nspec, :],
+                                             input_img.shape)
+            del conv
+        msgs.info(f"Collating all {imgmsg} steps")
+        conv_interp = RegularGridInterpolator((np.arange(conv_allkern.shape[0]), np.arange(nspat), kernwids), conv_allkern)
+        msgs.info(f"Applying the {imgmsg} solution")
+        eval_spec, eval_spat = np.where(thismask)
+        sciimg_deconv = np.copy(input_img)
+        sciimg_deconv[thismask] = conv_interp((eval_spec, eval_spat, sig_exc))
+        plt.subplot(121)
+        plt.imshow(input_img, vmin=400, vmax=1500)
+        plt.subplot(122)
+        plt.imshow(conv_allkern[:,:,-1], vmin=400, vmax=1500)
+        # plt.imshow(sciimg_deconv, vmin=0, vmax=1000)
+        plt.show()
+
+        return sciimg_deconv
+
     def joint_skysub(self, skymask=None, update_crmask=True, trim_edg=(0,0),
                      show_fit=False, show=False, show_objs=False, adderr=0.01, objs_not_masked=False):
         """ Perform a joint sky model fit to the data. See Reduce.global_skysub()
@@ -1116,7 +1283,7 @@ class IFUFindObjects(MultiSlitFindObjects):
         msgs.info("Performing joint global sky subtraction")
         # Mask objects using the skymask? If skymask has been set by objfinding, and masking is requested, then do so
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
-        global_sky = np.zeros_like(self.sciImg.image)
+        _global_sky = np.zeros_like(self.sciImg.image)
         thismask = (self.slitmask > 0)
         inmask = (self.sciImg.select_flag(invert=True) & thismask & skymask_now).astype(bool)
         # Convert the wavelength image to A/pixel, registered at pixel 0 (this gives something like
@@ -1131,7 +1298,15 @@ class IFUFindObjects(MultiSlitFindObjects):
             update_crmask = False
             if not self.par['reduce']['skysub']['global_sky_std']:
                 msgs.info('Skipping global sky-subtraction for standard star.')
-                return global_sky
+                return _global_sky
+
+        # Use the FWHM map determined from the arc lines to convert the science frame
+        # to have the same effective spectral resolution.
+        fwhm_map = self.wv_calib.build_fwhmimg(self.tilts, self.slits, initial=True, spat_flexure=self.spat_flexure_shift)
+        thismask = thismask & (fwhm_map != 0.0)
+        # Need to include S/N for deconvolution
+        sciimg = self.convolve_skymodel(self.sciImg.image, fwhm_map, thismask,
+                                        snr=self.sciImg.image*np.sqrt(self.sciImg.ivar))
 
         # Iterate to use a model variance image
         numiter = 4
@@ -1139,7 +1314,7 @@ class IFUFindObjects(MultiSlitFindObjects):
         for nn in range(numiter):
             msgs.info("Performing iterative joint sky subtraction - ITERATION {0:d}/{1:d}".format(nn+1, numiter))
             # TODO trim_edg is in the parset so it should be passed in here via trim_edg=tuple(self.par['reduce']['trim_edge']),
-            global_sky[thismask] = skysub.global_skysub(self.sciImg.image, model_ivar, tilt_wave,
+            _global_sky[thismask] = skysub.global_skysub(sciimg, model_ivar, tilt_wave,
                                                         thismask, self.slits_left, self.slits_right, inmask=inmask,
                                                         sigrej=sigrej, trim_edg=trim_edg,
                                                         bsp=self.par['reduce']['skysub']['bspline_spacing'],
@@ -1150,21 +1325,34 @@ class IFUFindObjects(MultiSlitFindObjects):
             # Update the ivar image used in the sky fit
             msgs.info("Updating sky noise model")
             # Choose the highest counts out of sky and object
-            counts = global_sky
+            counts = _global_sky
             _scale = None if self.sciImg.img_scale is None else self.sciImg.img_scale[thismask]
             # NOTE: darkcurr must be a float for the call below to work.
             var = procimg.variance_model(self.sciImg.base_var[thismask], counts=counts[thismask],
                                          count_scale=_scale, noise_floor=adderr)
             model_ivar[thismask] = utils.inverse(var)
             # Redo the relative spectral illumination correction with the improved sky model
-            self.illum_profile_spectral(global_sky, skymask=thismask)
+            self.illum_profile_spectral(_global_sky, skymask=thismask)
 
         if update_crmask:
             # Find CRs with sky subtraction
             # NOTE: There's no need to run `sciImg.update_mask_cr` after this.
             # This operation updates the mask directly!
-            self.sciImg.build_crmask(self.par['scienceframe']['process'],
-                                     subtract_img=global_sky)
+            self.sciImg.build_crmask(self.par['scienceframe']['process'], subtract_img=_global_sky)
+
+        # We now have a joint global sky fit to the modified science image (i.e. the one with the effective resolution)
+        # Invert the correction here so the global sky has the appropriate spectral resolution at each pixel.
+        global_sky = self.convolve_skymodel(_global_sky)
+
+        # Update the ivar image used in the sky fit
+        msgs.info("Updating sky noise model")
+        # Choose the highest counts out of sky and object
+        counts = global_sky
+        _scale = None if self.sciImg.img_scale is None else self.sciImg.img_scale[thismask]
+        # NOTE: darkcurr must be a float for the call below to work.
+        var = procimg.variance_model(self.sciImg.base_var[thismask], counts=counts[thismask],
+                                     count_scale=_scale, noise_floor=adderr)
+        model_ivar[thismask] = utils.inverse(var)
 
         # Step
         self.steps.append(inspect.stack()[0][3])
