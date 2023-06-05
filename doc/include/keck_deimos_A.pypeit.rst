@@ -20,7 +20,7 @@
     
     # Data block 
     data read
-     path /Volumes/GoogleDrive/.shortcut-targets-by-id/1oh19siB1-F0jjmY-F_jr73eA-TQYEiFW/PypeIt-development-suite/RAW_DATA/keck_deimos/1200G_M_7750
+     path /Users/westfall/Work/packages/PypeIt-development-suite/RAW_DATA/keck_deimos/1200G_M_7750
                      filename |                 frametype |                 ra |                dec |  target | dispname | decker | binning |          mjd |    airmass | exptime |     dispangle |      amp | filter1 |  lampstat01 |    dateobs |         utc | frameno | calib
     DE.20170425.09554.fits.gz |                  arc,tilt |  57.99999999999999 |               45.0 | unknown |    1200G |  dra11 |     1,1 | 57868.110529 | 1.41291034 |     1.0 | 7699.95654297 | SINGLE:B |   OG550 | Kr Xe Ar Ne | 2017-04-25 | 02:39:14.41 |      49 |     0
     DE.20170425.09632.fits.gz | pixelflat,illumflat,trace |  57.99999999999999 |               45.0 | unknown |    1200G |  dra11 |     1,1 | 57868.111418 | 1.41291034 |    12.0 | 7699.95654297 | SINGLE:B |   OG550 |          Qz | 2017-04-25 | 02:40:32.06 |      50 |     0

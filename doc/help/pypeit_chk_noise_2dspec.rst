@@ -13,7 +13,7 @@
     positional arguments:
       files                 PypeIt spec2d file(s) (default: None)
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       --det DET             Detector name or number. If a number, the name is
                             constructed assuming the reduction is for a single
