@@ -2739,7 +2739,7 @@ def get_wave_bins(thismask_stack, waveimg_stack, wave_grid):
     return wave_grid[ind_lower:ind_upper + 1]
 
 
-def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
+def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0, manual_offsets=None):
     """
     Determine the spatial bins for a 2d coadd and relative pixel coordinate
     images. This routine loops over all the images being coadded and creates an
@@ -2793,9 +2793,11 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
     dspat_stack = []
     spat_min = np.inf
     spat_max = -np.inf
-    for thismask, trace in zip(thismask_stack, trace_stack):
+    if manual_offsets is None:
+        manual_offsets = np.zeros(nimgs)
+    for thismask, trace, offset in zip(thismask_stack, trace_stack, manual_offsets):
         nspec, nspat = thismask.shape
-        dspat_iexp = (np.arange(nspat)[np.newaxis, :] - trace[:, np.newaxis]) / spat_samp_fact
+        dspat_iexp = (np.arange(nspat)[np.newaxis, :] - trace[:, np.newaxis] - offset) / spat_samp_fact
         dspat_stack.append(dspat_iexp)
         spat_min = min(spat_min, np.amin(dspat_iexp[thismask]))
         spat_max = max(spat_max, np.amax(dspat_iexp[thismask]))
@@ -2946,8 +2948,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
 
     # Determine the wavelength grid that we will use for the current slit/order
     wave_bins = get_wave_bins(thismask_stack, waveimg_stack, wave_grid)
-    dspat_bins, dspat_stack = get_spat_bins(thismask_stack, ref_trace_stack, spat_samp_fact=spat_samp_fact,
-                                            manual_offsets=manual_offsets)
+    dspat_bins, dspat_stack = get_spat_bins(thismask_stack, ref_trace_stack, spat_samp_fact=spat_samp_fact, manual_offsets=manual_offsets)
 
     skysub_stack = [sciimg - skymodel for sciimg, skymodel in zip(sciimg_stack, skymodel_stack)]
     #sci_list = [weights_stack, sciimg_stack, skysub_stack, tilts_stack,
@@ -2959,7 +2960,8 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
 
     sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack \
             = rebin2d(wave_bins, dspat_bins, waveimg_stack, dspat_stack, thismask_stack,
-                      inmask_stack, sci_list, var_list)
+                      inmask_stack, sci_list, var_list, manual_offsets)
+    #embed()
     # Now compute the final stack with sigma clipping
     sigrej = 3.0
     maxiters = 10
@@ -3043,7 +3045,8 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
 
 
 def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack,
-            thismask_stack, inmask_stack, sci_list, var_list):
+            thismask_stack, inmask_stack, sci_list, var_list,
+            manual_offsets):
     """
     Rebin a set of images and propagate variance onto a new spectral and spatial grid. This routine effectively
     "recitifies" images using np.histogram2d which is extremely fast and effectively performs
@@ -3124,23 +3127,28 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack,
     var_list_out = []
     for jj in range(len(var_list)):
         var_list_out.append(np.zeros(shape_out))
+        
+    if manual_offsets is None:
+        manual_offsets = np.zeros(nimgs)
 
-    for img, (waveimg, spatimg, thismask, inmask) in enumerate(zip(waveimg_stack, spatimg_stack, thismask_stack, inmask_stack)):
+    for img, (waveimg, spatimg, thismask, inmask, offset) in enumerate(zip(waveimg_stack, spatimg_stack, thismask_stack, inmask_stack, manual_offsets)):
 
         spec_rebin_this = waveimg[thismask]
-        spat_rebin_this = spatimg[thismask]
+        spat_rebin_this = spatimg[thismask]+offset
 
         # This fist image is purely for bookeeping purposes to determine the number of times each pixel
         # could have been sampled
         nsmp_rebin_stack[img, :, :], spec_edges, spat_edges = np.histogram2d(spec_rebin_this, spat_rebin_this,
                                                                bins=[spec_bins, spat_bins], density=False)
+        nsmp_rebin_stack[img, :, :] = np.roll(nsmp_rebin_stack[img, :, :], -offset, axis=1)
 
         finmask = thismask & inmask
         spec_rebin = waveimg[finmask]
-        spat_rebin = spatimg[finmask]
+        spat_rebin = spatimg[finmask]+offset
         norm_img, spec_edges, spat_edges = np.histogram2d(spec_rebin, spat_rebin,
                                                           bins=[spec_bins, spat_bins], density=False)
         norm_rebin_stack[img, :, :] = norm_img
+        norm_rebin_stack[img, :, :] = np.roll(norm_rebin_stack[img, :, :], -offset, axis=1)
 
         # Rebin the science images
         for indx, sci in enumerate(sci_list):
@@ -3148,6 +3156,7 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack,
                                                                bins=[spec_bins, spat_bins], density=False,
                                                                weights=sci[img][finmask])
             sci_list_out[indx][img, :, :] = (norm_img > 0.0) * weigh_sci/(norm_img + (norm_img == 0.0))
+            sci_list_out[indx][img, :, :] = np.roll(sci_list_out[indx][img, :, :], -offset, axis=1)
 
         # Rebin the variance images, note the norm_img**2 factor for correct error propagation
         for indx, var in enumerate(var_list):
@@ -3155,5 +3164,6 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack,
                                                                bins=[spec_bins, spat_bins], density=False,
                                                                weights=var[img][finmask])
             var_list_out[indx][img, :, :] = (norm_img > 0.0)*weigh_var/(norm_img + (norm_img == 0.0))**2
+            var_list_out[indx][img, :, :] = np.roll(var_list_out[indx][img, :, :], -offset, axis=1)
 
     return sci_list_out, var_list_out, norm_rebin_stack.astype(int), nsmp_rebin_stack.astype(int)

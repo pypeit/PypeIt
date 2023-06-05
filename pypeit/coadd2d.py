@@ -484,10 +484,12 @@ class CoAdd2D:
                 weights = self.use_weights
                 
             # manual offsets
-            if isinstance(self.offsets, list):
-                manual_offsets = self.offsets
+            if len(self.offsets) > 1:
+                manual_offsets = np.round(self.offsets / self.spectrograph.order_platescale(self.spectrograph.orders,self.binning)[slit_idx]).astype(int)
             else:
                 manual_offsets = None
+                
+            #embed()
             # Perform the 2d coadd
             # NOTE: mask_stack is a gpm, and this is called inmask_stack in
             # compute_coadd2d, and outmask in coadd_dict is also a gpm
@@ -817,7 +819,7 @@ class CoAdd2D:
             :obj:`list`: A list of reference traces for the 2d coadding that
             have been offset.
         """
-        return [slits.center[:,slitid] - offsets[iexp] 
+        return [slits.center[:,slitid] # - offsets[iexp]
                     for iexp, slits in enumerate(self.stack_dict['slits_list'])]
 #        ref_trace_stack = []
 #        for iexp, slits in enumerate(self.stack_dict['slits_list']):
