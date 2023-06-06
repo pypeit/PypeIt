@@ -1,4 +1,4 @@
-1.13.0dev (6 June 2023)
+1.13.1dev (6 June 2023)
 ------------------------
 
 - Instrumental FWHM map is calculated and output in ``Calibrations`` and ``spec1d`` files.
