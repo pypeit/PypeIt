@@ -1208,9 +1208,9 @@ def generate_cube_subpixel(outfile, output_wcs, all_ra, all_dec, all_wave, all_s
             1D flattened array containing the spatid of each pixel
         tilts (`numpy.ndarray`_, list):
             2D wavelength tilts frame, or a list of tilt frames (see all_idx)
-        slits (:class:`pypeit.slittrace.SlitTraceSet`_, list)
+        slits (:class:`pypeit.slittrace.SlitTraceSet`, list):
             Information stored about the slits, or a list of SlitTraceSet (see all_idx)
-        astrom_trans (:class:`pypeit.alignframe.AlignmentSplines`_, list):
+        astrom_trans (:class:`pypeit.alignframe.AlignmentSplines`, list):
             A Class containing the transformation between detector pixel coordinates
             and WCS pixel coordinates, or a list of Alignment Splines (see all_idx)
         bins (tuple):
