@@ -406,6 +406,7 @@ class FlatImages(calibframe.CalibFrame):
         illumflat_pixel, illumflat_illum = None, None
         pixelflat_finecorr, illumflat_finecorr = None, None
         pixelflat_totalillum, illumflat_totalillum = None, None
+
         if slits is None and self.calib_dir is not None or self.calib_key is not None:
             # If the slits are not defined, and the relevant attributes are set,
             # try to read the associated SlitTraceSet

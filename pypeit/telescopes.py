@@ -189,9 +189,9 @@ class LDTTelescopePar(TelescopePar):
                                               longitude=loc.lon.to(units.deg).value,
                                               latitude=loc.lat.to(units.deg).value,
                                               elevation=loc.height.to(units.m).value,
-                                              fratio=6.1,
-                                              diameter=4.3,
-                                              eff_aperture=12.85)
+                                              fratio=6.18,
+                                              diameter=4.25,
+                                              eff_aperture=12.37)
 
 
 # TODO provisional values

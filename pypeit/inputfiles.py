@@ -267,7 +267,9 @@ class InputFile:
         paths = []
         for l in lines:
             # Strip allows for preceding spaces before path
-            prs = l.strip().split(" ")
+            l = l.strip()
+            # Split at only the first space to allow paths that contain spaces
+            prs = [l[:l.find(' ')], l[l.find(' ')+1:]]
             if prs[0] != 'path':
                 break
             paths += [ prs[1] ]

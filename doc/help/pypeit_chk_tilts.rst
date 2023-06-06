@@ -9,7 +9,7 @@
     positional arguments:
       file           PypeIt Tilts file [e.g. Tilt_A_1_01.fits]
     
-    optional arguments:
+    options:
       -h, --help     show this help message and exit
       --mpl          Use a matplotlib window instead of ginga to show the tilts.
                      Faster plotting. (default: False)
