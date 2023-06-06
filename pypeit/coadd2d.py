@@ -824,7 +824,7 @@ class CoAdd2D:
             :obj:`list`: A list of reference traces for the 2d coadding that
             have been offset.
         """
-        return [slits.center[:,slitid] + offsets[iexp]
+        return [slits.center[:,slitid] - offsets[iexp]
                     for iexp, slits in enumerate(self.stack_dict['slits_list'])]
 #        ref_trace_stack = []
 #        for iexp, slits in enumerate(self.stack_dict['slits_list']):
@@ -1013,7 +1013,7 @@ class CoAdd2D:
                 if dithers[0] is None:
                     msgs.error('Invalid header keyword for dither offsets (only: dithoff, dither)')
                 else:
-                    self.offsets = dithers
+                    self.offsets = -dithers
             else:
                 self.offsets = dithoffs[0]-dithoffs
             self.offsets_report(self.offsets, 'header keyword')
