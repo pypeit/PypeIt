@@ -1009,11 +1009,11 @@ class CoAdd2D:
             msgs.info('Using offsets from header')
             dithoffs = np.array([self.spectrograph.get_meta_value(f, 'dithoff') for f in self.spec2d])
             if dithoffs[0] is None:
-                dithoffs = np.array([self.spectrograph.get_meta_value(f, 'dither') for f in self.spec2d])
-                if dithoffs[0] is None:
+                dithers = np.array([self.spectrograph.get_meta_value(f, 'dither') for f in self.spec2d])
+                if dithers[0] is None:
                     msgs.error('Invalid header keyword for dither offsets (only: dithoff, dither)')
                 else:
-                    self.offsets = -dithoffs
+                    self.offsets = dithers
             else:
                 self.offsets = dithoffs[0]-dithoffs
             self.offsets_report(self.offsets, 'header keyword')
