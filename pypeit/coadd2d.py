@@ -1200,9 +1200,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
         # get self.offsets
         self.compute_offsets(offsets)
-        if self.angle_offsets:
-            self.offsets = np.round(self.offsets / self.stack_dict['detectors'][0].platescale).astype(int)
-
+        
     # TODO When we run multislit, we actually compute the rebinned images twice. Once here to compute the offsets
     # and another time to weighted_combine the images in compute2d. This could be sped up
     # TODO The reason we rebin the images for the purposes of computing the offsets is to deal with combining
