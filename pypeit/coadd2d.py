@@ -27,7 +27,7 @@ from pypeit.images import pypeitimage
 from pypeit.core import findobj_skymask
 from pypeit.core.wavecal import wvutils
 from pypeit.core import coadd
-#from pypeit.core import parse
+from pypeit.core import parse
 from pypeit import calibrations
 from pypeit import spec2dobj
 from pypeit.core.moment import moment1d
@@ -471,7 +471,15 @@ class CoAdd2D:
         coadd_list = []
         for slit_idx in self.good_slits:
             msgs.info('Performing 2d coadd for slit: {:d}/{:d}'.format(slit_idx, self.nslits_single - 1))
-            ref_trace_stack = self.reference_trace_stack(slit_idx, offsets=self.offsets,
+            
+            if self.angle_offsets:
+                if self.pypeline == 'Echelle':
+                    pscale = self.spectrograph.order_platescale(self.spectrograph.orders,self.binning)[slit_idx]
+                else:
+                    bin_spec, bin_spat = parse.parse_binning(self.binning)
+                    pscale = self.stack_dict['detectors'][0].platescale*bin_spat
+                offsets = self.offsets / pscale
+            ref_trace_stack = self.reference_trace_stack(slit_idx, offsets=offsets,
                                                          objid=self.objid_bri)
 
             thismask_stack = [np.abs(slitmask - self.stack_dict['slits_list'][0].spat_id[slit_idx]) <= self.par['coadd2d']['spat_toler'] for slitmask in self.stack_dict['slitmask_stack']]
@@ -484,9 +492,9 @@ class CoAdd2D:
             else:
                 weights = self.use_weights
                 
-            if self.angle_offsets and self.pypeline == 'Echelle':
-                self.offsets = np.round(self.offsets / self.spectrograph.order_platescale(self.spectrograph.orders,self.binning)[slit_idx]).astype(int)
-
+            # adjust offsets for sampling
+            offsets = np.round(offsets / self.spat_samp_fact).astype(int)
+                
             # Perform the 2d coadd
             # NOTE: mask_stack is a gpm, and this is called inmask_stack in
             # compute_coadd2d, and outmask in coadd_dict is also a gpm
@@ -501,9 +509,9 @@ class CoAdd2D:
                                                self.wave_grid, self.spat_samp_fact,
                                                maskdef_dict=maskdef_dict,
                                                weights=weights, interp_dspat=interp_dspat,
-                                               offsets=self.offsets, angle_offsets=self.angle_offsets)
+                                               offsets=offsets, angle_offsets=self.angle_offsets)
             coadd_list.append(coadd_dict)
-
+        
         return coadd_list
 
     def create_pseudo_image(self, coadd_list):
@@ -816,7 +824,7 @@ class CoAdd2D:
             :obj:`list`: A list of reference traces for the 2d coadding that
             have been offset.
         """
-        return [slits.center[:,slitid] - offsets[iexp]
+        return [slits.center[:,slitid] + offsets[iexp]
                     for iexp, slits in enumerate(self.stack_dict['slits_list'])]
 #        ref_trace_stack = []
 #        for iexp, slits in enumerate(self.stack_dict['slits_list']):
@@ -1003,8 +1011,11 @@ class CoAdd2D:
             if dithoffs[0] is None:
                 dithoffs = np.array([self.spectrograph.get_meta_value(f, 'dither') for f in self.spec2d])
                 if dithoffs[0] is None:
-                    msgs.error('Invalid header keyword for dithers (only: dithoff, dither)')
-            self.offsets = dithoffs[0]-dithoffs
+                    msgs.error('Invalid header keyword for dither offsets (only: dithoff, dither)')
+                else:
+                    self.offsets = -dithoffs
+            else:
+                self.offsets = dithoffs[0]-dithoffs
             self.offsets_report(self.offsets, 'header keyword')
             self.angle_offsets = True
 
