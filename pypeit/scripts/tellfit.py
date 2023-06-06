@@ -177,7 +177,7 @@ class TellFit(scriptbase.ScriptBase):
                                              only_orders=par['telluric']['only_orders'],
                                              mask_hydrogen_lines=par['sensfunc']['mask_hydrogen_lines'],
                                              mask_helium_lines=par['sensfunc']['mask_helium_lines'],
-                                             hydrogen_mask_wid=par['sensfunc']['hydrogen_masl_wid'],
+                                             hydrogen_mask_wid=par['sensfunc']['hydrogen_mask_wid'],
                                              delta_coeff_bounds=par['telluric']['delta_coeff_bounds'],
                                              minmax_coeff_bounds=par['telluric']['minmax_coeff_bounds'],
                                              maxiter=par['telluric']['maxiter'],

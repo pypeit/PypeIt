@@ -384,7 +384,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         # Check for file; allow for extra .gz, etc. suffix
         fil = glob.glob(raw_file + '*')
         if len(fil) != 1:
-            msgs.error("Found {:d} files matching {:s}".format(len(fil)))
+            msgs.error("Found {:d} files matching {:s}".format(len(fil)), raw_file)
 
         # Read
         msgs.info("Reading BINOSPEC file: {:s}".format(fil[0]))

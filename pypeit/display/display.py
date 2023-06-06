@@ -435,8 +435,8 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
         # maskdef_ids
         if _maskdef_ids is not None:
             canvas_list += [dict(type='text',
-                                 args=(float(y[bot, i]), float(_slit_id_loc[bot,i])-250, str('S{0}'.format(_slit_ids[i]))) if rotate
-                                 else (float(_slit_id_loc[bot,i]), float(y[bot, i])-250, str('S{0}'.format(_slit_ids[i]))),
+                                 args=(float(y[bot, i]), float(_slit_id_loc[bot,i])-250, str('{0}'.format(_maskdef_ids[i]))) if rotate
+                                 else (float(_slit_id_loc[bot,i]), float(y[bot, i])-250, str('{0}'.format(_maskdef_ids[i]))),
                                  kwargs=dict(color=str('cyan'), fontsize=20., rot_deg=90.)) for i in range(nslits)]
 
     canvas.add('constructedcanvas', canvas_list)
