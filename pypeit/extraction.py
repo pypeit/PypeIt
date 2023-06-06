@@ -229,6 +229,13 @@ class Extract:
         elif wv_calib is None and waveimg is not None:
             self.waveimg = waveimg
 
+        msgs.info("Generating FWHM image")
+        self.fwhmimg = None
+        if wv_calib is not None:
+            self.fwhmimg = wv_calib.build_fwhmimg(self.tilts, self.slits, initial=True, spat_flexure=self.spat_flexure_shift)
+        else:
+            msgs.warn("FWHM image could not be generated")
+
         # Now apply a global flexure correction to each slit provided it's not a standard star
         if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
             # Update slitshift values
@@ -331,7 +338,7 @@ class Extract:
                 inmask = self.sciImg.select_flag(invert=True) & thismask
                 # Do it
                 extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar, inmask, self.waveimg,
-                                       global_sky, sobj, base_var=self.sciImg.base_var,
+                                       global_sky, sobj, fwhmimg=self.fwhmimg, base_var=self.sciImg.base_var,
                                        count_scale=self.sciImg.img_scale,
                                        noise_floor=self.sciImg.noise_floor)
 
@@ -721,6 +728,11 @@ class MultiSlitExtract(Extract):
             sn_gauss = self.par['reduce']['extraction']['sn_gauss']
             use_2dmodel_mask = self.par['reduce']['extraction']['use_2dmodel_mask']
             no_local_sky = self.par['reduce']['skysub']['no_local_sky']
+            # TODO: skysub.local_skysub_extract() accepts a `prof_nsigma` parameter, but none
+            #       is provided here.  Additionally, the ExtractionPar keyword std_prof_nsigma
+            #       is not used anywhere in the code.  Should it be be used here, in conjunction
+            #       with whether this object IS_STANDARD?
+            # prof_nsigma = self.par['reduce']['extraction']['std_prof_nsigma'] if IS_STANDARD else None
 
             # Local sky subtraction and extraction
             self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], self.extractmask[thismask] \
@@ -729,12 +741,13 @@ class MultiSlitExtract(Extract):
                                               thismask, self.slits_left[:,slit_idx],
                                               self.slits_right[:, slit_idx],
                                               self.sobjs[thisobj], ingpm=ingpm,
-                                              spat_pix=spat_pix,
+                                              fwhmimg=self.fwhmimg, spat_pix=spat_pix,
                                               model_full_slit=model_full_slit,
                                               sigrej=sigrej, model_noise=model_noise,
                                               std=self.std_redux, bsp=bsp,
                                               force_gauss=force_gauss, sn_gauss=sn_gauss,
                                               show_profile=show_profile,
+                                              # prof_nsigma=prof_nsigma,
                                               use_2dmodel_mask=use_2dmodel_mask,
                                               no_local_sky=no_local_sky,
                                               base_var=self.sciImg.base_var,

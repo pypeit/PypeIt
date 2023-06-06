@@ -1,6 +1,10 @@
+1.13.1dev (6 June 2023)
+------------------------
 
-1.12.3dev
----------
+- Instrumental FWHM map is calculated and output in ``Calibrations`` and ``spec1d`` files.
+
+1.13.0 (2 June 2023)
+--------------------
 
 - Implemented a resample algorithm when generating datacubes
 - Hotfix to docs to ensure pypeit_loaders api doc is generated
@@ -28,6 +32,10 @@
   whether or not you also request the ``'comb_id'`` and ``'bkg_id'`` columns.
 - Names of associated calibration frames now written to ``spec2d`` file headers.
 - Major quicklook updates.  ql_multislit.py deprecated.
+- Improve speed in ginga visualization of traces and added
+  `pypeit_chk_tilts`. Note that this script uses an update
+  of the tilts datamodel, so it will not work on older reductions.
+- Updates to reduction parameters for LDT/DeVeny
 
 1.12.2 (29 Mar 2023)
 --------------------
