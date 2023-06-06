@@ -34,8 +34,8 @@ from pypeit import msgs
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-import matplotlib.colorbar as colorbar
-import matplotlib.colors as mcolors
+from matplotlib import colorbar
+import matplotlib.colors
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.patches import Patch
 
@@ -47,7 +47,8 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
 
     Args:
         waveFit (:class:`pypeit.core.wavecal.wv_fitting.WaveFit`):
-        outfile (:obj:`str`, optional): Name of output file or 'show' to show on screen
+        outfile (:obj:`str`, optional):
+            Name of output file or 'show' to show on screen
         ids_only (bool, optional):
         title (:obj:`str`, optional):
         log (:obj:`bool`, optional):
@@ -207,7 +208,14 @@ def arc_fwhm_qa(fwhmFit, spat_id, outfile=None, show_QA=False):
 
     Args:
         fwhmFit (:class:`pypeit.core.fitting.PypeItFit`):
-        outfile (:obj:`str`, optional): Name of output file or 'show' to show on screen
+            2D fit (spatial+spectral) to the measured FWHM based on the arc lines.
+        spat_id (int):
+            The spatial ID of the slit. It is the spatial midpoint of the slit,
+            halfway along the spectral direction.
+        outfile (:obj:`str`, optional):
+            Name of output file or 'show' to show on screen
+        show_QA (bool, optional):
+            If True, the generated QA will be shown on the screen (default is False)
     """
     spec_order, spat_order = (fwhmFit.fitc.shape[0]-1, fwhmFit.fitc.shape[1]-1)
     plt.rcdefaults()
@@ -256,7 +264,7 @@ def arc_fwhm_qa(fwhmFit, spat_id, outfile=None, show_QA=False):
     ax.set_title(titletxt, fontsize=12)
 
     # Make a colorbar to illustrate the FWHM along the slit in the spatial direction
-    cmap = mcolors.ListedColormap(colors)
+    cmap = matplotlib.colors.ListedColormap(colors)
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.05)
     cbar = colorbar.Colorbar(cax,
@@ -278,8 +286,6 @@ def arc_fwhm_qa(fwhmFit, spat_id, outfile=None, show_QA=False):
 
     plt.close()
     plt.rcdefaults()
-
-    return
 
 
 def match_qa(arc_spec, tcent, line_list, IDs, scores, outfile = None, title=None, path=None):
@@ -706,7 +712,7 @@ def map_fwhm(image, imbpm, slits, npixel=None, nsample=None, sigdetect=10., spec
             Used by :func:`pypeit.core.arc.detect_lines`.
 
     Returns:
-        list: list of PypeItFit objects that provide the FWHM (in pixels) given a spectral pixel
+        `numpy.ndarray`_: Numpy array of PypeItFit objects that provide the FWHM (in pixels) given a spectral pixel
         and the spatial coordinate (expressed as a fraction along the slit in the spatial direction)
     """
     nslits = slits.nslits
@@ -735,7 +741,7 @@ def map_fwhm(image, imbpm, slits, npixel=None, nsample=None, sigdetect=10., spec
         # Perform a 2D robust fit on the measures for this slit
         resmap[sl] = fitting.robust_fit(this_cent, this_wdth, _ord, x2=this_samp,
                                         lower=3, upper=3, function='polynomial2d')
-    # Return a list of the PypeIt fits
+    # Return an array containing the PypeIt fits
     return np.array(resmap)
 
 

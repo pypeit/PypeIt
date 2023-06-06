@@ -9,6 +9,6 @@
       input_file  PypeIt WaveCalib file [e.g. WaveCalib_A_1_DET01.fits] or spec2d
                   file
     
-    optional arguments:
+    options:
       -h, --help  show this help message and exit
     

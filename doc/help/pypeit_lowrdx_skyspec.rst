@@ -10,6 +10,6 @@
       lowrdx_sky  LowRedux Sky Spectrum (IDL save file)
       new_file    PYPIT FITS sky spectrum
     
-    optional arguments:
+    options:
       -h, --help  show this help message and exit
     
