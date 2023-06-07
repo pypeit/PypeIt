@@ -1,7 +1,5 @@
 import pytest
 
-from collections import OrderedDict
-
 from IPython import embed
 
 import numpy
@@ -9,15 +7,14 @@ import numpy
 from astropy.io import fits
 
 from pypeit.bitmask import BitMask
-from pypeit.tests.tstutils import data_path
 
 #-----------------------------------------------------------------------------
 
 class ImageBitMask(BitMask):
     def __init__(self):
-        bits = OrderedDict([('BPM', 'Pixel is part of a bad-pixel mask'),
-                            ('COSMIC', 'Pixel is contaminated by a cosmic ray'),
-                            ('SATURATED', 'Pixel is saturated.')])
+        bits = {'BPM': 'Pixel is part of a bad-pixel mask',
+                'COSMIC': 'Pixel is contaminated by a cosmic ray',
+                'SATURATED': 'Pixel is saturated.'}
         super(ImageBitMask, self).__init__(list(bits.keys()), descr=list(bits.values()))
 
 
@@ -99,12 +96,12 @@ def test_wrong_bits():
     cosmics_indx[numpy.random.randint(0,high=n,size=100),
                  numpy.random.randint(0,high=n,size=100)] = True
     mask[cosmics_indx] = image_bm.turn_on(mask[cosmics_indx], 'COSMIC')
-
-#    out = image_bm.flagged(mask, 'JUNK')
     
+    # Fails with all bad flags
     with pytest.raises(ValueError):
         out = image_bm.flagged(mask, flag='JUNK')
 
+    # Fails with mix of good and bad flags
     with pytest.raises(ValueError):
         out = image_bm.flagged(mask, flag=['COSMIC', 'JUNK'])
 
