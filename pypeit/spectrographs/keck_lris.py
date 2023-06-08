@@ -118,6 +118,9 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             if self.name == 'keck_lris_red':
                 par['calibrations']['slitedges']['edge_thresh'] = 1000.
 
+        # Arc lamps list from header
+        par['calibrations']['wavelengths']['lamps'] = ['use_header']
+
         return par
 
     def init_meta(self):
@@ -148,14 +151,15 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
         # Extras for pypeit file
+        self.meta['dateobs'] = dict(card=None, compound=True)
         if self.name == 'keck_lris_red_mark4':
             self.meta['amp'] = dict(ext=0, card='TAPLINES')
         else:
             self.meta['amp'] = dict(ext=0, card='NUMAMPS')
 
-        # Lamps -- Have varied in time..
-        for kk in range(12): # This needs to match the length of LAMPS below
-            self.meta['lampstat{:02d}'.format(kk+1)] = dict(card=None, compound=True)
+        # Lamps
+        # similar approach to DEIMOS
+        self.meta['lampstat01'] = dict(card=None, compound=True)
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -195,38 +199,68 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                         # this is most likely not the obs date+time, but the date+time the file
                         # was created, which should be very close to the obs time
                         return time.Time(headarr[0]['DATE']).mjd
-        elif 'lampstat' in meta_key:
-            idx = int(meta_key[-2:])
-            try:
-                curr_date = time.Time(self.get_meta_value(headarr, 'mjd'), format='mjd')
-            except:
-                msgs.warn('No mjd in header. You either have bad headers, '
-                          'or incorrectly specified the wrong spectrograph, '
-                          'or are reading in other files from your directory.  '
-                          'Using 2022-01-01 as the date for parsing lamp info from headers')
-                curr_date = time.Time("2022-01-01", format='isot')
-            # Modern -- Assuming the change occurred with the new red detector
-            t_newlamp = time.Time("2014-02-15", format='isot')  # LAMPS changed in Header
-            if curr_date > t_newlamp:
-                lamp_names = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'KRYPTON', 'XENON',
-                              'FEARGON', 'DEUTERI', 'FLAMP1', 'FLAMP2', 'HALOGEN']
-                return headarr[0][lamp_names[idx-1]]  # Use this index is offset by 1
-            else:  # Original lamps
-                plamps = headarr[0]['LAMPS'].split(',')
-                # https: // www2.keck.hawaii.edu / inst / lris / instrument_key_list.html
-                old_lamp_names = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'HALOGEN']
-                if idx <= 5: # Arcs
-                    return ('off' if plamps[idx - 1] == '0' else 'on')
-                elif idx == 10:  # Current FLAMP1
-                    return headarr[0]['FLIMAGIN'].strip()
-                elif idx == 11:  # Current FLAMP2
-                    return headarr[0]['FLSPECTR'].strip()
-                elif idx == 12:  # Current Halogen slot
-                    return ('off' if plamps[len(old_lamp_names)-1] == '0' else 'on')
-                else:  # Lamp didn't exist.  Set to None
-                    return 'None'
+        elif meta_key == 'dateobs':
+            if headarr[0].get('DATE-OBS') is not None:
+                return headarr[0]['DATE-OBS']
+            elif headarr[0].get('DATE') is not None:
+                    return headarr[0]['DATE'].split('T')[0]
+        elif meta_key == 'lampstat01':
+            # lamp status header keywords
+            lamp_keys = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'HALOGEN',
+                         'KRYPTON', 'XENON', 'FEARGON', 'DEUTERI']
+            # pypeit lamp names
+            lamp_names = np.array(['HgI', 'NeI', 'ArI', 'CdI', 'ZnI', 'Halogen', 'KrI', 'XeI', 'FeAr', '2H'])
+
+            # lamps header keywords changed over time. We know when the change happened ("2014-02-15"),
+            # but will try to not use the date and instead look for the latest keyword.
+            # old keyword looks like LAMPS = '0,0,0,0,0,1', which refers to 'MERCURY,NEON,ARGON,CADMIUM,ZINC,HALOGEN'
+            old_lamp_status = np.array(headarr[0].get('LAMPS').split(','), dtype=int).astype(bool) \
+                if headarr[0].get('LAMPS') is not None else None
+            new_lamp_status = np.array([headarr[0].get(k) == 'on' for k in lamp_keys])
+            where_on = np.where(new_lamp_status)[0] if old_lamp_status is None else np.where(old_lamp_status)[0]
+            if where_on.size > 0:
+                return lamp_names[where_on][0]
+
+            # dome flat header keywords changed over time, but it's not clear-cut the date of the change.
+            # We check if the latest keyword is present, and if not, we assume it's the old one.
+            elif headarr[0].get('FLAMP1') == 'on' or headarr[0].get('FLAMP2') == 'on':
+                return 'on'
+            elif headarr[0].get('FLIMAGIN') == 'on' or headarr[0].get('FLSPECTR') == 'on':
+                return 'on'
+            else:
+                return 'off'
         else:
             msgs.error("Not ready for this compound meta")
+        # elif 'lampstat' in meta_key:
+        #     idx = int(meta_key[-2:])
+        #     try:
+        #         curr_date = time.Time(self.get_meta_value(headarr, 'mjd'), format='mjd')
+        #     except:
+        #         msgs.warn('No mjd in header. You either have bad headers, '
+        #                   'or incorrectly specified the wrong spectrograph, '
+        #                   'or are reading in other files from your directory.  '
+        #                   'Using 2022-01-01 as the date for parsing lamp info from headers')
+        #         curr_date = time.Time("2022-01-01", format='isot')
+        #     # Modern -- Assuming the change occurred with the new red detector
+        #     t_newlamp = time.Time("2014-02-15", format='isot')  # LAMPS changed in Header
+        #     if curr_date > t_newlamp:
+        #         lamp_names = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'KRYPTON', 'XENON',
+        #                       'FEARGON', 'DEUTERI', 'FLAMP1', 'FLAMP2', 'HALOGEN']
+        #         return headarr[0][lamp_names[idx-1]]  # Use this index is offset by 1
+        #     else:  # Original lamps
+        #         plamps = headarr[0]['LAMPS'].split(',')
+        #         # https: // www2.keck.hawaii.edu / inst / lris / instrument_key_list.html
+        #         old_lamp_names = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'HALOGEN']
+        #         if idx <= 5: # Arcs
+        #             return ('off' if plamps[idx - 1] == '0' else 'on')
+        #         elif idx == 10:  # Current FLAMP1
+        #             return headarr[0]['FLIMAGIN'].strip()
+        #         elif idx == 11:  # Current FLAMP2
+        #             return headarr[0]['FLSPECTR'].strip()
+        #         elif idx == 12:  # Current Halogen slot
+        #             return ('off' if plamps[len(old_lamp_names)-1] == '0' else 'on')
+        #         else:  # Lamp didn't exist.  Set to None
+        #             return 'None'
 
     def configuration_keys(self):
         """
@@ -244,6 +278,24 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         """
         return super().configuration_keys() + ['binning']
 
+    # def config_independent_frames(self):
+    #     """
+    #     Define frame types that are independent of the fully defined
+    #     instrument configuration.
+    #
+    #     Bias and dark frames are considered independent of a configuration,
+    #     but the DATE-OBS keyword is used to assign each to the most-relevant
+    #     configuration frame group. See
+    #     :func:`~pypeit.metadata.PypeItMetaData.set_configurations`.
+    #
+    #     Returns:
+    #         :obj:`dict`: Dictionary where the keys are the frame types that
+    #         are configuration independent and the values are the metadata
+    #         keywords that can be used to assign the frames to a configuration
+    #         group.
+    #     """
+    #     return {'bias': 'dateobs', 'dark': 'dateobs'}
+
     def pypeit_file_keys(self):
         """
         Define the list of keys to be output into a standard PypeIt file.
@@ -253,7 +305,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return super().pypeit_file_keys() + ['frameno']
+        return super().pypeit_file_keys() + ['hatch', 'lampstat01', 'dateobs', 'utc', 'frameno']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -284,7 +336,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Allow for dome or internal
             good_dome = self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == 'open')
-            good_internal = self.lamps(fitstbl, 'halogen') & (fitstbl['hatch'] == 'closed')
+            good_internal = self.lamps(fitstbl, 'internal') & (fitstbl['hatch'] == 'closed')
             # Flats and trace frames are typed together
             return good_exp & (good_dome + good_internal)
         if ftype in ['pinhole', 'dark']:
@@ -317,27 +369,35 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         """
         if status == 'off':
             # Check if all are off
-            return np.all(np.array([ (fitstbl[k] == 'off') | (fitstbl[k] == 'None')
-                                        for k in fitstbl.keys() if 'lampstat' in k]), axis=0)
+            return fitstbl['lampstat01'] == 'off'
         elif status == 'arcs':
             # Check if any arc lamps are on
-            arc_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,9) ]
-            return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
-                                            if k in arc_lamp_stat]), axis=0)
+            return np.array([lamp not in ['Halogen', '2H', 'on', 'off'] for lamp in fitstbl['lampstat01']])
         elif status == 'dome':
             # Check if any dome lamps are on
-            # Warning 9, 10 are FEARGON and DEUTERI
-            dome_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(9,13) ]
-            return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
-                                            if k in dome_lamp_stat]), axis=0)
-        elif status == 'halogen':
-            halo_lamp_stat = ['lampstat12']
-            return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
-                                            if k in halo_lamp_stat]), axis=0)
+            return fitstbl['lampstat01'] == 'on'
+
+        elif status == 'internal':
+            return np.array([lamp in ['Halogen', '2H'] for lamp in fitstbl['lampstat01']])
         else:
             msgs.error(f"Bad status option! {status}")
 
         raise ValueError('No implementation for status = {0}'.format(status))
+
+    def get_lamps(self, fitstbl):
+        """
+        Extract the list of arc lamps used from header
+
+        Args:
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more arc frames.
+
+        Returns:
+            lamps (:obj:`list`) : List used arc lamps
+
+        """
+
+        return [f'{lamp}' for lamp in np.unique(np.concatenate([lname.split() for lname in fitstbl['lampstat01']]))]
 
     def get_rawimage(self, raw_file, det):
         """
