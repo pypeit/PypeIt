@@ -985,8 +985,8 @@ class PypeItMetaData:
         # group_names = np.unique(np.concatenate(
         #                 [s.split(',') for s in self['calib'] if s not in ['all', 'None']]))
         # DP changed to below because np.concatenate does not accept an empty list,
-        # which is the case when calib is None for all frames
-        group_names = np.unique(np.array([s.split(',') for s in self['calib'] if s not in ['all', 'None']]).flatten())
+        # which is the case when calib is None for all frames. This should avoid the code to crash
+        group_names = np.unique(sum([s.split(',') for s in self['calib'] if s not in ['all', 'None']], []))
         # Expand any ranges
         keep_group = np.ones(group_names.size, dtype=bool)
         added_groups = []
