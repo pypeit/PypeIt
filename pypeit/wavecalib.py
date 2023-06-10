@@ -59,7 +59,7 @@ class WaveCalib(calibframe.CalibFrame):
                                         'than one, they must be aligned to the separate detectors '
                                         'analyzed'),
                  'fwhm_map': dict(otype=np.ndarray, atype=fitting.PypeItFit,
-                                  descr='A fit that determines the FWHM at every location of every slit'),
+                                  descr='A fit that determines the spectral FWHM at every location of every slit'),
                  'det_img': dict(otype=np.ndarray, atype=np.integer,
                                   descr='Detector image which indicates which pixel in the mosaic '
                                         'corresponds to which detector; used occasionally by '
@@ -224,7 +224,7 @@ class WaveCalib(calibframe.CalibFrame):
 
     def build_fwhmimg(self, tilts, slits, initial=False, spat_flexure=None):
         """
-        Generates an image of the instrument FWHM (units=pixels) at every pixel on the detector.
+        Generates an image of the instrument spectral FWHM (units=pixels) at every pixel on the detector.
 
         Args:
             tilts (`numpy.ndarray`_):
@@ -237,7 +237,7 @@ class WaveCalib(calibframe.CalibFrame):
                 Spatial flexure correction in pixels.
 
         Returns:
-            `numpy.ndarray`_: The FWHM image.
+            `numpy.ndarray`_: The spectral FWHM image.
         """
         # Check spatial flexure type
         if (spat_flexure is not None) and (not isinstance(spat_flexure, float)):
@@ -245,7 +245,7 @@ class WaveCalib(calibframe.CalibFrame):
         # Generate the slit mask and slit edges - pad slitmask by 1 for edge effects
         slitmask = slits.slit_img(pad=1, initial=initial, flexure=spat_flexure)
         slits_left, slits_right, _ = slits.select_edges(initial=initial, flexure=spat_flexure)
-        # Build a map of the FWHM
+        # Build a map of the spectral FWHM
         fwhmimg = np.zeros(tilts.shape)
         for sl, spat_id in enumerate(slits.spat_id):
             this_mask = slitmask == spat_id
@@ -570,16 +570,17 @@ class BuildWaveCalib:
         if self.slits.maskdef_designtab is not None:
             msgs.info("Slit widths (arcsec): {}".format(np.round(self.slits.maskdef_designtab['SLITWID'].data, 2)))
 
-        # Generate a map of the instrumental FWHM
+        # Generate a map of the instrumental spectral FWHM
         fwhm_map = autoid.map_fwhm(self.msarc.image, np.logical_not(self.gpm), self.slits, nsample=10,
                                    specord=self.par['fwhm_spec_order'],
                                    spatord=self.par['fwhm_spat_order'])
-        # Calculate the typical FWHM down the centre of the slit
+        # Calculate the typical spectral FWHM down the centre of the slit
         measured_fwhms = np.zeros(arccen.shape[1], dtype=object)
         for islit in range(arccen.shape[1]):
             if islit not in ok_mask_idx:
                 continue
-            # Measure the FWHM (in pixels) at the midpoint of the slit (in both the spectral and spatial directions)
+            # Measure the spectral FWHM (in pixels) at the midpoint of the slit
+            # (i.e. the midpoint in both the spectral and spatial directions)
             measured_fwhms[islit] = fwhm_map[islit].eval(self.msarc.image.shape[0]//2, 0.5)
 
         # Obtain calibration for all slits
@@ -684,7 +685,7 @@ class BuildWaveCalib:
                 # Save the wavelength solution fits
                 autoid.arc_fit_qa(self.wv_calib.wv_fits[slit_idx], outfile=outfile)
 
-                # Obtain the output QA name for the resolution map
+                # Obtain the output QA name for the spectral resolution map
                 outfile_fwhm = qa.set_qa_filename(self.wv_calib.calib_key, 'arc_fwhm_qa',
                                                   slit=self.slits.slitord_id[slit_idx],
                                                   out_dir=self.qa_path)
