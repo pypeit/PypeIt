@@ -683,7 +683,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
 
 def map_fwhm(image, imbpm, slits, npixel=None, nsample=None, sigdetect=10., specord=1, spatord=0, fwhm=5.):
     """
-    Map the arc line FWHM at all spectral and spatial locations of all slits
+    Map the spectral FWHM at all spectral and spatial locations of all slits, using an input image (usually an arc)
 
     Args:
         image (`numpy.ndarray`_):
@@ -708,12 +708,12 @@ def map_fwhm(image, imbpm, slits, npixel=None, nsample=None, sigdetect=10., spec
             The spatial polynomial order to use in the 2D polynomial fit to the
             FWHM of the arc lines. See also, specord.
         fwhm (:obj:`float`, optional):
-            Number of pixels per fwhm resolution element.
+            Number of pixels per FWHM resolution element.
             Used by :func:`pypeit.core.arc.detect_lines`.
 
     Returns:
-        `numpy.ndarray`_: Numpy array of PypeItFit objects that provide the FWHM (in pixels) given a spectral pixel
-        and the spatial coordinate (expressed as a fraction along the slit in the spatial direction)
+        `numpy.ndarray`_: Numpy array of PypeItFit objects that provide the spectral FWHM (in pixels) given a
+        spectral pixel and the spatial coordinate (expressed as a fraction along the slit in the spatial direction)
     """
     nslits = slits.nslits
     scale = (2 * np.sqrt(2 * np.log(2)))
@@ -733,13 +733,13 @@ def map_fwhm(image, imbpm, slits, npixel=None, nsample=None, sigdetect=10., spec
             spat_vec = np.round(slitsamp[ss] * slits_left[:, sl] + (1 - slitsamp[ss]) * slits_right[:, sl]).astype(int)
             # Some slits are traced off the detector, so only consider pixels that are on the detector
             wdet = np.where((spat_vec >= 0) & (spat_vec<image.shape[1]))
-            # Extract the relevent pixels
+            # Extract the relevant pixels
             arc_spec = image[(spec_vec[wdet], spat_vec[wdet])]
             arc_bpm = imbpm[(spec_vec[wdet], spat_vec[wdet])]
-            # Detect lines and store the FWHM
+            # Detect lines and store the spectral FWHM
             _, _, cent, wdth, _, best, _, nsig = arc.detect_lines(arc_spec, sigdetect=sigdetect, fwhm=fwhm, bpm=arc_bpm)
             this_cent = np.append(this_cent, cent[best])
-            this_fwhm = np.append(this_fwhm, scale*wdth[best])  # Scale convert sig to FWHM
+            this_fwhm = np.append(this_fwhm, scale*wdth[best])  # Scale convert sig to spectral FWHM
             this_samp = np.append(this_samp, slitsamp[ss]*np.ones(wdth[best].size))
         # Perform a 2D robust fit on the measures for this slit
         resmap[sl] = fitting.robust_fit(this_cent, this_fwhm, _ord, x2=this_samp,
