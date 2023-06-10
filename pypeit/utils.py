@@ -1453,7 +1453,7 @@ def lhs(n, samples=None, criterion=None, iterations=None, seed_or_rng=12345):
                                      'centermaximin', 'cm', 'correlation',
                                      'corr'), 'Invalid value for "criterion": {}'.format(criterion)
     else:
-        H = _lhsclassic(n, samples)
+        H = _lhsclassic(rng, n, samples)
 
     if criterion is None:
         criterion = 'center'
