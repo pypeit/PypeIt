@@ -1372,7 +1372,7 @@ def load_pickle(fname):
 
 ## Python version taken from https://pythonhosted.org/pyDOE/randomized.html by JFH
 
-def lhs(n, samples=None, criterion=None, iterations=None):
+def lhs(n, samples=None, criterion=None, iterations=None, seed_or_rng=12345):
     """
     Generate a latin-hypercube design
 
@@ -1442,6 +1442,7 @@ def lhs(n, samples=None, criterion=None, iterations=None):
         >>> lhs(4, samples=5, criterion='correlate', iterations=10)
 
     """
+    rng = np.random.default_rng(seed_or_rng)
     H = None
 
     if samples is None:
@@ -1462,24 +1463,25 @@ def lhs(n, samples=None, criterion=None, iterations=None):
 
     if H is None:
         if criterion.lower() in ('center', 'c'):
-            H = _lhscentered(n, samples)
+            H = _lhscentered(rng, n, samples)
         elif criterion.lower() in ('maximin', 'm'):
-            H = _lhsmaximin(n, samples, iterations, 'maximin')
+            H = _lhsmaximin(rng, n, samples, iterations, 'maximin')
         elif criterion.lower() in ('centermaximin', 'cm'):
-            H = _lhsmaximin(n, samples, iterations, 'centermaximin')
+            H = _lhsmaximin(rng, n, samples, iterations, 'centermaximin')
         elif criterion.lower() in ('correlate', 'corr'):
-            H = _lhscorrelate(n, samples, iterations)
+            H = _lhscorrelate(rng, n, samples, iterations)
 
     return H
 
 ################################################################################
 
-def _lhsclassic(n, samples):
+def _lhsclassic(rng, n, samples):
     # Generate the intervals
     cut = np.linspace(0, 1, samples + 1)
 
     # Fill points uniformly in each interval
-    u = np.random.rand(samples, n)
+    u = rng.random((samples, n))
+    #u = np.random.rand(samples, n)
     a = cut[:samples]
     b = cut[1:samples + 1]
     rdpoints = np.zeros_like(u)
@@ -1489,19 +1491,21 @@ def _lhsclassic(n, samples):
     # Make the random pairings
     H = np.zeros_like(rdpoints)
     for j in range(n):
-        order = np.random.permutation(range(samples))
+        order = rng.permutation(range(samples))
+        #order = np.random.permutation(range(samples))
         H[:, j] = rdpoints[order, j]
 
     return H
 
 ################################################################################
 
-def _lhscentered(n, samples):
+def _lhscentered(rng, n, samples):
     # Generate the intervals
     cut = np.linspace(0, 1, samples + 1)
 
     # Fill points uniformly in each interval
-    u = np.random.rand(samples, n)
+    u = rng.random((samples, n))
+    #u = np.random.rand(samples, n)
     a = cut[:samples]
     b = cut[1:samples + 1]
     _center = (a + b ) /2
@@ -1509,21 +1513,22 @@ def _lhscentered(n, samples):
     # Make the random pairings
     H = np.zeros_like(u)
     for j in range(n):
-        H[:, j] = np.random.permutation(_center)
+        H[:, j] = rng.permutation(_center)
+        #H[:, j] = np.random.permutation(_center)
 
     return H
 
 ################################################################################
 
-def _lhsmaximin(n, samples, iterations, lhstype):
+def _lhsmaximin(rng, n, samples, iterations, lhstype):
     maxdist = 0
 
     # Maximize the minimum distance between points
     for i in range(iterations):
         if lhstype=='maximin':
-            Hcandidate = _lhsclassic(n, samples)
+            Hcandidate = _lhsclassic(rng, n, samples)
         else:
-            Hcandidate = _lhscentered(n, samples)
+            Hcandidate = _lhscentered(rng, n, samples)
 
         d = _pdist(Hcandidate)
         if maxdist <np.min(d):
@@ -1534,13 +1539,13 @@ def _lhsmaximin(n, samples, iterations, lhstype):
 
 ################################################################################
 
-def _lhscorrelate(n, samples, iterations):
+def _lhscorrelate(rng, n, samples, iterations):
     mincorr = np.inf
 
     # Minimize the components correlation coefficients
     for i in range(iterations):
         # Generate a random LHS
-        Hcandidate = _lhsclassic(n, samples)
+        Hcandidate = _lhsclassic(rng, n, samples)
         R = np.corrcoef(Hcandidate)
         if np.max(np.abs(R[ R!=1]) ) <mincorr:
             mincorr = np.max(np.abs( R -np.eye(R.shape[0])))
