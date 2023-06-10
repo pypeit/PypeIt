@@ -1,0 +1,60 @@
+
+Version 1.13.0
+==============
+
+Functionality/Performance Improvements and Additions
+----------------------------------------------------
+
+- Allow user control of the local sky subtraction window
+- Implemented a resample algorithm when generating datacubes
+- Sensitivity function masking and output updates
+- Improve speed in ginga visualization of traces and added
+  `pypeit_chk_tilts`. Note that this script uses an update
+  of the tilts datamodel, so it will not work on older reductions.
+- Fixed a bug in the `variance_model` calculation for combined images.
+
+Datamodel Changes
+-----------------
+
+- Removed use of the term "master", renamed to calibration frames/files.
+  Default output directory for calibration frames is now ``Calibrations``.
+  Calibration frames renamed from, e.g., ``MasterArc*`` to ``Arc*``.
+- Names of associated calibration frames now written to ``spec2d`` file headers.
+
+Dependency Changes
+------------------
+
+- Deprecate support for python 3.8 with PypeIt, allow python 3.11
+- Make pypeit_show_2dspec (somewhat) backwards compatible.
+- Added the option to disable strict version checking for 1d coadds.
+- Start to deprecate use of ``os.path`` in favor of ``pathlib``
+
+Script Changes
+--------------
+
+- In PypeIt files, the ``'calib'`` column is now always added to the pypeit
+  file, regardless of whether or not you also request the ``'comb_id'`` and
+  ``'bkg_id'`` columns.
+- In PypeIt files, the calibration group numbers can now be anything, as long as
+  there are no more than 63 unique integers.
+- Deprecated ``pypeit_parse_calib_id`` script, but improved the ``.calib`` file
+  provided by ``pypeit_setup``.  The ``.calib`` file is now always written, and
+  provides a direct association between input raw files and output calibration
+  files.  Discussed in new docs.
+- Added coadd2d setup script
+- Added the possibility to use dither offsets saved in the header of the science
+  frames for coadding 2D spectra (``dithoff`` must be part of the spectrograph
+  metadata).
+- Major quicklook updates; see documentation.  ql_multislit.py deprecated.
+
+Instrument-specific Updates
+---------------------------
+
+- Updates to reduction parameters for LDT/DeVeny
+
+Hotfixes
+--------
+
+- Hotfix to docs to ensure ``pypeit_loaders`` api doc is generated
+- Hotfix for KCWI when using alignment (aka ContBars) frames for the astrometric correction.
+
