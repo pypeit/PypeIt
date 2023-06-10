@@ -580,7 +580,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         :class:`pypeit.images.imagebitmask.ImageBitMask`
         shape=(nspec, nspat)
     fwhmimg : `numpy.ndarray`_, None, optional:
-        Floating-point image containing the modeled FWHM (in pixels) at every pixel location.
+        Floating-point image containing the modeled spectral FWHM (in pixels) at every pixel location.
         Must have the same shape as ``sciimg``, :math:`(N_{\rm spec}, N_{\rm spat})`.
     spat_pix: `numpy.ndarray`_, optional
         Image containing the spatial location of pixels. If not
