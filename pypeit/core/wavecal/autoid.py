@@ -728,18 +728,21 @@ def map_fwhm(image, imbpm, slits, npixel=None, nsample=None, sigdetect=10., spec
         # Fraction along the slit in the spatial direction to sample the arc line width
         nmeas = int(0.5+slit_lengths[sl]/_npixel) if nsample is None else nsample
         slitsamp = np.linspace(0.01, 0.99, nmeas)
-        this_samp, this_cent, this_wdth = np.array([]), np.array([]), np.array([])
+        this_samp, this_cent, this_fwhm = np.array([]), np.array([]), np.array([])
         for ss in range(nmeas):
             spat_vec = np.round(slitsamp[ss] * slits_left[:, sl] + (1 - slitsamp[ss]) * slits_right[:, sl]).astype(int)
-            arc_spec = image[(spec_vec, spat_vec)]
-            arc_bpm = imbpm[(spec_vec, spat_vec)]
+            # Some slits are traced off the detector, so only consider pixels that are on the detector
+            wdet = np.where((spat_vec >= 0) & (spat_vec<image.shape[1]))
+            # Extract the relevent pixels
+            arc_spec = image[(spec_vec[wdet], spat_vec[wdet])]
+            arc_bpm = imbpm[(spec_vec[wdet], spat_vec[wdet])]
             # Detect lines and store the FWHM
             _, _, cent, wdth, _, best, _, nsig = arc.detect_lines(arc_spec, sigdetect=sigdetect, fwhm=fwhm, bpm=arc_bpm)
             this_cent = np.append(this_cent, cent[best])
-            this_wdth = np.append(this_wdth, scale*wdth[best])  # Scale convert sig to FWHM
+            this_fwhm = np.append(this_fwhm, scale*wdth[best])  # Scale convert sig to FWHM
             this_samp = np.append(this_samp, slitsamp[ss]*np.ones(wdth[best].size))
         # Perform a 2D robust fit on the measures for this slit
-        resmap[sl] = fitting.robust_fit(this_cent, this_wdth, _ord, x2=this_samp,
+        resmap[sl] = fitting.robust_fit(this_cent, this_fwhm, _ord, x2=this_samp,
                                         lower=3, upper=3, function='polynomial2d')
     # Return an array containing the PypeIt fits
     return np.array(resmap)
