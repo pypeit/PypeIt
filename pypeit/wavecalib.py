@@ -59,7 +59,7 @@ class WaveCalib(calibframe.CalibFrame):
                                         'than one, they must be aligned to the separate detectors '
                                         'analyzed'),
                  'fwhm_map': dict(otype=np.ndarray, atype=fitting.PypeItFit,
-                                  descr='A fit that determines the FWHM at every location of every slit'),
+                                  descr='A fit that determines the spectral FWHM at every location of every slit'),
                  'det_img': dict(otype=np.ndarray, atype=np.integer,
                                   descr='Detector image which indicates which pixel in the mosaic '
                                         'corresponds to which detector; used occasionally by '
@@ -685,7 +685,7 @@ class BuildWaveCalib:
                 # Save the wavelength solution fits
                 autoid.arc_fit_qa(self.wv_calib.wv_fits[slit_idx], outfile=outfile)
 
-                # Obtain the output QA name for the resolution map
+                # Obtain the output QA name for the spectral resolution map
                 outfile_fwhm = qa.set_qa_filename(self.wv_calib.calib_key, 'arc_fwhm_qa',
                                                   slit=self.slits.slitord_id[slit_idx],
                                                   out_dir=self.qa_path)

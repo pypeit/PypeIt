@@ -666,7 +666,7 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
         if wv_calib is not None:
             # Allow for wavelength failures
             if wv_calib.fwhm_map is not None:
-                # Evaluate the FWHM at the centre of the slit (in both the spectral and spatial directions)
+                # Evaluate the spectral FWHM at the centre of the slit (in both the spectral and spatial directions)
                 spec_fwhm_pix = wv_calib.fwhm_map[islit].eval(slits.nspec/2, 0.5)
 
         if slit_cen:

@@ -204,11 +204,11 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
 
 def arc_fwhm_qa(fwhmFit, spat_id, outfile=None, show_QA=False):
     """
-    QA for Arc FWHM fitting
+    QA for spectral FWHM fitting
 
     Args:
         fwhmFit (:class:`pypeit.core.fitting.PypeItFit`):
-            2D fit (spatial+spectral) to the measured FWHM based on the arc lines.
+            2D fit (spatial+spectral) to the measured spectral FWHM (usually based on the arc lines).
         spat_id (int):
             The spatial ID of the slit. It is the spatial midpoint of the slit,
             halfway along the spectral direction.
@@ -220,7 +220,7 @@ def arc_fwhm_qa(fwhmFit, spat_id, outfile=None, show_QA=False):
     spec_order, spat_order = (fwhmFit.fitc.shape[0]-1, fwhmFit.fitc.shape[1]-1)
     plt.rcdefaults()
     plt.rcParams['font.family']= 'serif'
-    # Calculate the model FWHM at the measured positions, and the RMS of the fit
+    # Calculate the model spectral FWHM at the measured positions, and the RMS of the fit
     model = fwhmFit.eval(fwhmFit.xval, fwhmFit.x2)
     gpm = (fwhmFit.gpm == 0)
     dev = (model-fwhmFit.yval)[gpm]
@@ -230,7 +230,7 @@ def arc_fwhm_qa(fwhmFit, spat_id, outfile=None, show_QA=False):
     dev = (model/fwhmFit.yval)[gpm] - 1
     med = np.median(dev)
     rmsfwhm = 1.4826 * np.median(np.abs(dev-med))
-    # Determine the unique spatial positions where the FWHM was measured
+    # Determine the unique spatial positions where the spectral FWHM was measured
     unq = np.unique(fwhmFit.x2)
     colors = plt.cm.Spectral(unq)
     spec_vec = np.linspace(0, fwhmFit.xval.max(), 10)
@@ -257,13 +257,13 @@ def arc_fwhm_qa(fwhmFit, spat_id, outfile=None, show_QA=False):
     ymax = np.max(model)+0.5*mdiff
     ax.set_ylim((ymin, ymax))
     ax.set_xlabel('Spectral coordinate (pixels)', fontsize=12)
-    ax.set_ylabel('FWHM (pixels)', fontsize=12)
-    titletxt = f'FWHM residual map (spat_order, spec_order)=({spat_order},{spec_order}) for slit={spat_id}:\n' \
+    ax.set_ylabel('Spectral FWHM (pixels)', fontsize=12)
+    titletxt = f'Spectral FWHM residual map (spat_order, spec_order)=({spat_order},{spec_order}) for slit={spat_id}:\n' \
                f'rms={rms:.2f}, rms/FWHM={rmsfwhm:.2f}\n' \
                f'filled (unfilled) symbols = included (excluded) in fit'
     ax.set_title(titletxt, fontsize=12)
 
-    # Make a colorbar to illustrate the FWHM along the slit in the spatial direction
+    # Make a colorbar to illustrate the spectral FWHM along the slit in the spatial direction
     cmap = matplotlib.colors.ListedColormap(colors)
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.05)
