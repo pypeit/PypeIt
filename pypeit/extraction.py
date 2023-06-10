@@ -231,12 +231,12 @@ class Extract:
         elif wv_calib is None and waveimg is not None:
             self.waveimg = waveimg
 
-        msgs.info("Generating FWHM image")
+        msgs.info("Generating spectral FWHM image")
         self.fwhmimg = None
         if wv_calib is not None:
             self.fwhmimg = wv_calib.build_fwhmimg(self.tilts, self.slits, initial=True, spat_flexure=self.spat_flexure_shift)
         else:
-            msgs.warn("FWHM image could not be generated")
+            msgs.warn("Spectral FWHM image could not be generated")
 
         # Now apply a global flexure correction to each slit provided it's not a standard star
         if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
