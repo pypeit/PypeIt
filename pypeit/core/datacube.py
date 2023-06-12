@@ -1362,6 +1362,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                                          star_mag=senspar['star_mag'],
                                          ra=star_ra, dec=star_dec)
         # Calculate the sensitivity curve
+        # TODO :: This needs to be addressed... unify flux calibration into the main PypeIt routines.
         msgs.warn("Datacubes are currently flux-calibrated using the UVIS algorithm... this will be deprecated soon")
         zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm =\
             flux_calib.fit_zeropoint(wave.value, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
