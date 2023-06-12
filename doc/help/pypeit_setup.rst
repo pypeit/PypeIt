@@ -1,14 +1,14 @@
 .. code-block:: console
 
     $ pypeit_setup -h
-    usage: pypeit_setup [-h] [-s SPECTROGRAPH] [-r [ROOT ...]] [-e EXTENSION]
+    usage: pypeit_setup [-h] [-s SPECTROGRAPH] [-r ROOT [ROOT ...]] [-e EXTENSION]
                         [-d OUTPUT_PATH] [-o] [-c CFG_SPLIT] [-b] [-m]
                         [-v VERBOSITY] [-k]
     
     Parse data files to construct a pypeit file in preparation for reduction using
     'run_pypeit'
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       -s SPECTROGRAPH, --spectrograph SPECTROGRAPH
                             A valid spectrograph identifier: bok_bc,
@@ -30,7 +30,7 @@
                             soar_goodman_red, tng_dolores, vlt_fors2, vlt_sinfoni,
                             vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
                             wht_isis_blue, wht_isis_red (default: None)
-      -r [ROOT ...], --root [ROOT ...]
+      -r ROOT [ROOT ...], --root ROOT [ROOT ...]
                             Root to search for data files. You can provide the top-
                             level directory (e.g., /data/Kast) or the search string
                             up through the wildcard (.e.g, /data/Kast/b). Use the
