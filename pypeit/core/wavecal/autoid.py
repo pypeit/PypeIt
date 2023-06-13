@@ -263,19 +263,20 @@ def arc_fwhm_qa(fwhmFit, spat_id, outfile=None, show_QA=False):
                f'filled (unfilled) symbols = included (excluded) in fit'
     ax.set_title(titletxt, fontsize=12)
 
-    # Make a colorbar to illustrate the spectral FWHM along the slit in the spatial direction
-    cmap = matplotlib.colors.ListedColormap(colors)
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes("right", size="5%", pad=0.05)
-    cbar = colorbar.Colorbar(cax,
-                             orientation='vertical',
-                             cmap=cmap,
-                             norm=plt.Normalize(unq[0]-0.5*(unq[1]-unq[0]), unq[-1]+0.5*(unq[-1]-unq[-2])))
-    cbar_labels = [f"{uu:.3f}" for uu in unq]
-    cbar.set_ticks(unq)
-    cbar.ax.set_yticklabels(cbar_labels, fontsize=10)
-    cbar.solids.set_edgecolor('black')
-    cbar.set_label(label='Fraction along the slit in the spatial direction', weight='bold', fontsize=12)
+    if unq.size >= 2:
+        # Make a colorbar to illustrate the spectral FWHM along the slit in the spatial direction
+        cmap = matplotlib.colors.ListedColormap(colors)
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.05)
+        cbar = colorbar.Colorbar(cax,
+                                 orientation='vertical',
+                                 cmap=cmap,
+                                 norm=plt.Normalize(unq[0]-0.5*(unq[1]-unq[0]), unq[-1]+0.5*(unq[-1]-unq[-2])))
+        cbar_labels = [f"{uu:.3f}" for uu in unq]
+        cbar.set_ticks(unq)
+        cbar.ax.set_yticklabels(cbar_labels, fontsize=10)
+        cbar.solids.set_edgecolor('black')
+        cbar.set_label(label='Fraction along the slit in the spatial direction', weight='bold', fontsize=12)
 
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
     if outfile is not None:
