@@ -33,13 +33,14 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
     ndet = 1
     telescope = telescopes.MagellanTelescopePar()
     camera = 'FIRE'
+    url = 'http://web.mit.edu/~rsimcoe/www/FIRE/index.html'
     header_name = 'FIRE'
 
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -62,7 +63,7 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
 
     def pypeit_file_keys(self):
         """
-        Define the list of keys to be output into a standard ``PypeIt`` file.
+        Define the list of keys to be output into a standard PypeIt file.
 
         Returns:
             :obj:`list`: The list of keywords in the relevant
@@ -90,6 +91,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
     """
     name = 'magellan_fire'
     pypeline = 'Echelle'
+    ech_fixed_format = True
     supported = True
     comment = 'Magellan/FIRE in echelle mode'
 
@@ -137,7 +139,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -156,7 +158,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
 
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
-        par['calibrations']['wavelengths']['ech_fix_format'] = True
+#        par['calibrations']['wavelengths']['ech_fix_format'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 6
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
@@ -379,7 +381,7 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 

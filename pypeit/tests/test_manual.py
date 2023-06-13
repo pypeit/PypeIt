@@ -6,7 +6,6 @@ import numpy as np
 from pypeit.manual_extract import ManualExtractionObj
 from pypeit.spectrographs.util import load_spectrograph
 
-
 def test_instantiate():
 
     # Init
@@ -20,9 +19,14 @@ def test_instantiate():
     spectrograph = load_spectrograph('keck_deimos')
     mex2 = ManualExtractionObj.by_fitstbl_input('tst.fits', '1:1181.8:3820.6:3.', spectrograph)
     mex3 = ManualExtractionObj.by_fitstbl_input('tst.fits', '1:1181.8:3820.6:3.;-1:1183.8:3820.6:3.', spectrograph)
+    mex4 = ManualExtractionObj.by_fitstbl_input('tst.fits', '1:1181.8:3820.6:3.:4.;2:1183.8:3820.6:3.', spectrograph)
 
     # Test
     assert np.all(mex3.detname == np.array(['DET01','DET01']))
+
+    # Boxcar
+    assert np.all(mex3.boxcar_rad == np.array([-1.]))
+    assert np.all(mex4.boxcar_rad == np.array([4., -1.]))
 
 
 def test_dict_for_obj():

@@ -1,45 +1,24 @@
-import collections
+"""
+parse module.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
+
+"""
 import inspect
 
-import glob
-from os import path
-from multiprocessing import cpu_count
+from IPython import embed
 
 import numpy as np
-
-from astropy.time import Time
-
 
 # Logging
 from pypeit import msgs
 
 
-def get_current_name():
-    """ Return the name of the function that called this function
-    """
-    ll = inspect.currentframe().f_back.f_code.co_name.split('_')
-    return "'" + " ".join(ll) + "'"
-
-
-def get_nmbr_name(anmbr=None, bnmbr=None, cnmbr=None):
-    """ Return the name of the function that called this function,
-    and append a two digit number to the first (when anmbr!=None),
-    the second (when bnmbr!=None), or third (when cnmbr!=None) element
-    of the function name.
-    """
-    cspl = inspect.currentframe().f_back.f_code.co_name.split('_')
-    if anmbr is not None:
-        cspl[0] += "{0:02d}".format(anmbr)
-    if bnmbr is not None:
-        cspl[1] += "{0:02d}".format(bnmbr)
-    if cnmbr is not None:
-        cspl[2] += "{0:02d}".format(cnmbr)
-    return "_".join(cspl)
-
-
 def load_sections(string, fmt_iraf=True):
     """
-    From the input string, return the coordinate sections
+    From the input string, return the coordinate sections.
+    In IRAF format (1 index) or Python
 
     Parameters
     ----------
@@ -55,7 +34,7 @@ def load_sections(string, fmt_iraf=True):
 
     Returns
     -------
-    sections : list (or None)
+    sections : list or None
       the detector sections
     """
     xyrng = string.strip('[]()').split(',')
@@ -116,498 +95,6 @@ def get_dnum(det, caps=False, prefix=True):
     return dnum
 
 
-def check_deprecated(v, deprecated, upper=False):
-    """ Check if a keyword argument is deprecated.
-
-    Parameters
-    ----------
-    v : str
-      value of a keyword argument
-    deprecated : list
-      list of deprecated values that v might be
-    upper : bool (optional)
-      If True, the allowed list is expected to contain only
-      uppercase strings. If False, the allowed list is expected
-      to contain only lowercase strings.
-
-    Returns
-    -------
-    v : str
-      A string used by the settings dictionary
-    """
-    ll = inspect.currentframe().f_back.f_code.co_name.split('_')
-    func_name = "'" + " ".join(ll) + "'"
-    if upper:
-        v = v.upper()
-    else:
-        v = v.lower()
-    if v in deprecated:
-        msgs.error("The argument of {0:s} is deprecated.".format(func_name) + msgs.newline() +
-                   "Please choose one of the following:" + msgs.newline() +
-                   ", ".join(deprecated))
-    return
-
-
-def key_allowed(v, allowed, upper=False):
-    """ Check that a keyword argument is in an allowed list of parameters.
-
-    Parameters
-    ----------
-    v : str
-      value of a keyword argument
-    allowed : list
-      list of allowed values that v can take
-    upper : bool (optional)
-      If True, the allowed list is expected to contain only
-      uppercase strings. If False, the allowed list is expected
-      to contain only lowercase strings.
-
-    Returns
-    -------
-    v : str
-      A string used by the settings dictionary
-    """
-    ll = inspect.currentframe().f_back.f_code.co_name.split('_')
-    func_name = "'" + " ".join(ll) + "'"
-    if upper:
-        v = v.upper()
-    else:
-        v = v.lower()
-    if v not in allowed:
-        msgs.error("The argument of {0:s} must be one of".format(func_name) + msgs.newline() +
-                   ", ".join(allowed))
-    if v.lower() == "none":
-        v = None
-    return v
-
-
-def key_allowed_filename(v, allowed):
-    """ Check that a keyword argument is in an allowed list of parameters.
-    If not, assume that it is a filename.
-
-    Parameters
-    ----------
-    v : str
-      value of a keyword argument
-    allowed : list
-      list of allowed values that v can take
-
-    Returns
-    -------
-    v : str
-      A string used by the settings dictionary
-    """
-    vt = v.lower()
-    if vt not in allowed:
-        msgs.warn("Assuming the following is the name of a file:" + msgs.newline() + v)
-    else:
-        v = vt
-    return v
-
-
-def key_bool(v):
-    """ Check that a keyword argument is a boolean variable.
-
-    Parameters
-    ----------
-    v : str
-      value of a keyword argument
-
-    Returns
-    -------
-    v : str
-      A string used by the settings dictionary
-    """
-    ll = inspect.currentframe().f_back.f_code.co_name.split('_')
-    func_name = "'" + " ".join(ll) + "'"
-    if v.lower() == "true":
-        v = True
-    elif v.lower() == "false":
-        v = False
-    else:
-        msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(func_name))
-    return v
-
-
-def key_check(v):
-    """ Check that a keyword argument satisfies the form required of a
-    keyword argument that checks frame types.
-
-    Parameters
-    ----------
-    v : str
-      value of a keyword argument
-
-    Returns
-    -------
-    v : str, list
-      A value used by the settings dictionary
-    """
-    text = v.strip().replace('_', ' ')
-    if ',' in text and text[0:2] != '%,':
-        # There are multiple possibilities - split the text
-        v = text.split(',')
-    else:
-        v = text
-    return v
-
-
-def key_float(v):
-    """ Check that a keyword argument is a float.
-
-    Parameters
-    ----------
-    v : str
-      value of a keyword argument
-
-    Returns
-    -------
-    v : float
-      A value used by the settings dictionary
-    """
-    ll = inspect.currentframe().f_back.f_code.co_name.split('_')
-    func_name = "'" + " ".join(ll) + "'"
-    try:
-        v = float(v)
-    except ValueError:
-        msgs.error("The argument of {0:s} must be of type float".format(func_name))
-    return v
-
-
-def key_int(v):
-    """ Check that a keyword argument is an int.
-
-    Parameters
-    ----------
-    v : str
-      value of a keyword argument
-
-    Returns
-    -------
-    v : int
-      A value used by the settings dictionary
-    """
-    ll = inspect.currentframe().f_back.f_code.co_name.split('_')
-    func_name = "'" + " ".join(ll) + "'"
-    try:
-        v = int(v)
-    except ValueError:
-        msgs.error("The argument of {0:s} must be of type int".format(func_name))
-    return v
-
-
-def key_keyword(v, force_format=True):
-    """ Check that a keyword argument satisfies the form required
-    for specifying a header keyword.
-
-    Parameters
-    ----------
-    v : str
-      value of a keyword argument
-    force_format : bool
-      If True, v can only have the format of a header keyword.
-      If False, v can take the form of a header keyword, or a
-      user-specified value. In the latter case, the boolean
-      variable 'valid' is returned so the parent function
-      knows if the supplied value of v should be dealt with as
-      a manual entry or as a header keyword.
-
-    Returns
-    -------
-    v : str
-      A value used by the settings dictionary
-    valid : bool
-      Is the input a valid header keyword format
-    """
-    ll = inspect.currentframe().f_back.f_code.co_name.split('_')
-    func_name = "'" + " ".join(ll) + "'"
-    if v.lower() == "none":
-        v = None
-    else:
-        valid = is_keyword(v)
-        if not valid and force_format:
-            msgs.error("The argument of {0:s} must be of the form:".format(func_name) + msgs.newline() +
-                       "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                       "and NAME is the header keyword name")
-        elif valid and force_format:
-            return v
-        else:
-            return v, valid
-    return v
-
-
-def key_list(strlist):
-    """ Check that a keyword argument is a list. Set the
-    appropriate type of the list based on the supplied values.
-
-    Parameters
-    ----------
-    v : str
-      value of a keyword argument
-
-    Returns
-    -------
-    v : list
-      A value used by the settings dictionary
-    """
-    # Check if the input array is a null list
-    if strlist == "[]" or strlist == "()":
-        return []
-    # Remove outer brackets and split by commas
-    temp = strlist.lstrip('([').rstrip(')]').split(',')
-    addarr = []
-    # Find the type of the array elements
-    for i in temp:
-        if i.lower() == 'none':
-            # None type
-            addarr += [None]
-        elif i.lower() == 'true' or i.lower() == 'false':
-            # bool type
-            addarr += [i.lower() in ['true']]
-        elif ',' in i:
-            # a list
-            addarr += i.lstrip('([').rstrip('])').split(',')
-            msgs.bug("nested lists could cause trouble if elements are not strings!")
-        elif '.' in i:
-            try:
-                # Might be a float
-                addarr += [float(i)]
-            except ValueError:
-                # Must be a string
-                addarr += [i]
-        else:
-            try:
-                # Could be an integer
-                addarr += [int(i)]
-            except ValueError:
-                # Must be a string
-                addarr += [i]
-    return addarr
-
-
-def key_list_allowed(v, allowed):
-    """ Check that a keyword argument is a list. Set the
-    appropriate type of the list based on the supplied values.
-    Then, check that each value in the list is also in the
-    supplied 'allowed' list.
-
-    Parameters
-    ----------
-    v : str
-      value of a keyword argument
-    allowed : list
-      list of allowed values that v can take
-
-    Returns
-    -------
-    v : list
-      A value used by the settings dictionary
-    """
-    ll = inspect.currentframe().f_back.f_code.co_name.split('_')
-    func_name = "'" + " ".join(ll) + "'"
-    v = key_list(v)
-    for ll in v:
-        if ll not in allowed:
-            msgs.error("The allowed list does not include: {0:s}".format(ll) + msgs.newline() +
-                       "Please choose one of the following:" + msgs.newline() +
-                       ", ".join(allowed) + msgs.newline() +
-                       "for the argument of {0:s}".format(func_name))
-    return v
-
-
-def key_none_allowed(v, allowed):
-    """ Check if a keyword argument is set to None. If not,
-    check that its value is in the 'allowed' list.
-
-    Parameters
-    ----------
-    v : str
-      value of a keyword argument
-    allowed : list
-      list of allowed values that v can take
-
-    Returns
-    -------
-    v : None, str
-      A value used by the settings dictionary
-    """
-    ll = inspect.currentframe().f_back.f_code.co_name.split('_')
-    func_name = "'" + " ".join(ll) + "'"
-    if v.lower() == "none":
-        v = None
-    elif v.lower() in allowed:
-        for i in allowed:
-            if v.lower() == i:
-                v = i
-                break
-    else:
-        msgs.error("The argument of {0:s} must be one of".format(func_name) + msgs.newline() +
-                   ", ".join(allowed))
-    return v
-
-
-def key_none_allowed_filename(v, allowed):
-    """ Check if a keyword argument is set to None. If not,
-    check that its value is in the 'allowed' list. Finally,
-    assume that the supplied value is the name of a filename.
-
-    Parameters
-    ----------
-    v : str
-      value of a keyword argument
-    allowed : list
-      list of allowed values that v can take
-
-    Returns
-    -------
-    v : None, str
-      A value used by the settings dictionary
-    """
-    if v.lower() == "none":
-        v = None
-    elif v.lower() in allowed:
-        for i in allowed:
-            if v.lower() == i:
-                v = i
-                break
-    else:
-        msgs.info("Assuming the following is the name of a file:" + msgs.newline() + v)
-    return v
-
-def key_none_int(v):
-    """ Check if a keyword argument is set to None. If not,
-    assume the supplied value is an int.
-
-    Parameters
-    ----------
-    v : str
-      value of a keyword argument
-
-    Returns
-    -------
-    v : list
-      A value used by the settings dictionary
-    """
-    if v.lower() == "none":
-        v = None
-    else:
-        v = key_int(v)
-    return v
-
-def key_none_list(v):
-    """ Check if a keyword argument is set to None. If not,
-    assume the supplied value is a list.
-
-    Parameters
-    ----------
-    v : str
-      value of a keyword argument
-
-    Returns
-    -------
-    v : list
-      A value used by the settings dictionary
-    """
-    if v.lower() == "none":
-        v = None
-    else:
-        if "," in v:
-            v = v.strip("()[]").split(",")
-        else:
-            v = [v]
-    return v
-
-
-def key_none(v):
-    """ Check if a keyword argument is set to None.
-
-    Parameters
-    ----------
-    v : str
-      value of a keyword argument
-
-    Returns
-    -------
-    v : None, str
-      A value used by the settings dictionary
-    """
-    if v.lower() == "none":
-        v = None
-    return v
-
-
-def key_min_val(v, vmin):
-    """ Check that the value exceeds a minimum
-    Returns
-    -------
-    bool
-
-    """
-    if v < vmin:
-        msgs.error("The argument of {0:s} must be >= -1".format(get_current_name()))
-    else:
-        return True
-
-def combine_methods():
-    """ The methods that can be used to combine a set of frames into a master frame
-    """
-    methods = ['mean', 'median', 'weightmean']
-    return methods
-
-
-def combine_replaces():
-    """ The options that can be used to replace rejected pixels when combining a set of frames
-    """
-    methods = ['min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat']
-    return methods
-
-
-def combine_satpixs():
-    """ The options that can be used to replace saturated pixels when combining a set of frames
-    """
-    methods = ['reject', 'force', 'nothing']
-    return methods
-
-
-def is_keyword(v):
-    """ Check if a value is of the format required to be a call to a header keyword
-
-    Parameters
-    ----------
-    v : str
-      Value to be tested
-
-    Returns
-    -------
-    valid : bool
-      True if 'v' has the correct format to be a header keyword, False otherwise.
-    """
-    valid = True
-    if ("," in v) or ("." not in v):
-        # Either an array or doesn't have the header keyword format (i.e. a fullstop)
-        return False
-    # Test if the first element is an integer
-    vspl = v.split(".")
-    try:
-        int(vspl[0])
-    except ValueError:
-        valid = False
-    # Test if there are two parts to the expression
-    if len(vspl) != 2:
-        return False
-    # Test if the second element is a string
-    try:
-        if valid is True:
-            int(vspl[1])
-            # Input value must be a floating point number
-            valid = False
-    except ValueError:
-        # Input value must be a string
-        valid = True
-    return valid
-
-
 def binning2string(binspectral, binspatial):
     """
     Convert the binning from integers to a string following the PypeIt
@@ -639,7 +126,7 @@ def parse_binning(binning):
         binning (str, ndarray or tuple):
 
     Returns:
-        int,int: binspectral, binspatial
+        tuple: binspectral, binspatial as integers
 
     """
     # comma separated format
@@ -673,8 +160,8 @@ def parse_slitspatnum(slitspatnum):
             A single string or list of strings to parse.
 
     Returns:
-        :obj:`tuple`:  Two integer arrays with the list of 1-indexed detector
-        numbers and spatial pixels coordinates for each slit.  The shape of each
+        :obj:`tuple`:  Two arrays with the list of 1-indexed detectors (str)
+        and spatial pixels coordinates for each slit.  The shape of each
         array is ``(nslits,)``, where ``nslits`` is the number of
         ``slitspatnum`` entries parsed (1 if only a single string is provided).
     """
@@ -684,10 +171,10 @@ def parse_slitspatnum(slitspatnum):
         slitspatnum = ",".join(slitspatnum)
     for item in slitspatnum.split(','):
         spt = item.split(':')
-        dets.append(int(spt[0]))
+        dets.append(spt[0])
         spat_ids.append(int(spt[1]))
     # Return
-    return np.array(dets).astype(int), np.array(spat_ids).astype(int)
+    return np.array(dets).astype(str), np.array(spat_ids).astype(int)
 
 
 def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, binning=None):
@@ -782,7 +269,7 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
     return tuple(slices)
 
 
-def str2list(inp, length):
+def str2list(inp, length=None):
     """
     Expand a string with a comma-separated set of integers and slices
     into a list of the relevant integers.
@@ -802,9 +289,10 @@ def str2list(inp, length):
         inp (:obj:`str`):
             String with a comma-separated set of integers and slices;
             can also be 'all'.
-        length (:obj:`int`):
-            Maximum length of the list, which is needed to allow for
-            open slices (e.g., '8:').
+        length (:obj:`int`, optional):
+            Maximum length of the list, which is needed to allow for open slices
+            (e.g., '8:').  If None, open slices and setting ``inp='all'`` will
+            raise a ValueError.
     
     Returns:
         list: List of parsed integers.
@@ -812,15 +300,26 @@ def str2list(inp, length):
     if inp == 'None':
         return None
 
-    gi = np.arange(length)
     if inp == 'all':
-        # Flag 'em all!
-        return gi.tolist()
+        if length is None:
+            raise ValueError('To use inp=all in str2list, must provide length.')
+        return np.arange(length).tolist()
 
-    # Parse the input string into a list of integers
-    grp = np.concatenate([[int(g)] if g.find(':') == -1 else (gi[sec2slice(g)]).tolist()
-                                for g in inp.split(',')])
+    if length is not None:
+        gi = np.arange(length)
 
-    # Return the list, and ensure the integers are unique
-    return np.unique(grp).tolist()
+    groups = inp.split(',')
+    indices = []
+    for i, grp in enumerate(groups):
+        if ':' in grp:
+            if (grp[-1] == ':' or grp[0] == ':'):
+                if length is None:
+                    raise ValueError('To use open ended slices in str2lit, must provide length.')
+                indices += gi[sec2slice(grp)].tolist()
+            else:
+                start, end = map(lambda x: int(x), grp.split(':'))
+                indices += [i for i in range(start, end)]
+        else:
+            indices += [int(grp)]
+    return np.unique(indices).tolist()
 

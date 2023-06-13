@@ -7,39 +7,42 @@ Module for generating an Alignment image to map constant spatial locations
 import inspect
 import numpy as np
 from IPython import embed
+from scipy.interpolate import interp1d, RegularGridInterpolator
 
 from pypeit.display import display
 from pypeit.core import findobj_skymask
-from pypeit import datamodel, msgs
+from pypeit import datamodel
+from pypeit import calibframe
+from pypeit import msgs
 
 
-class Alignments(datamodel.DataContainer):
+class Alignments(calibframe.CalibFrame):
     """
-    Simple DataContainer for the alignment output
+    Calibration frame holding result of slit alignment processing.
 
-    All of the items in the datamodel are required for instantiation,
-      although they can be None (but shouldn't be)
+    All of the items in the datamodel are required for instantiation, although
+    they can be None (but shouldn't be)
 
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_alignments.rst
     """
-    minimum_version = '1.1.0'
     version = '1.1.0'
 
-    # I/O
-    output_to_disk = None  # This writes all items that are not None
-    hdu_prefix = None
+    # Calibration frame attributes
+    calib_type = 'Alignment'
+    calib_file_format = 'fits'
 
-    # Master fun
-    master_type = 'Alignment'
-    master_file_format = 'fits'
-
-    datamodel = {'alignframe': dict(otype=np.ndarray, atype=np.floating,
+    # Datamodel already includes PYP_SPEC, so no need to combine it with the
+    # CalibFrame base datamodel.
+    datamodel = {'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
+                 'alignframe': dict(otype=np.ndarray, atype=np.floating,
                                     descr='Processed, combined alignment frames'),
                  'nspec': dict(otype=int, descr='The number of spectral elements'),
                  'nalign': dict(otype=int, descr='Number of alignment traces in each slit'),
                  'nslits': dict(otype=int, descr='The number of slits'),
                  'traces': dict(otype=np.ndarray, atype=np.floating,
                                 descr='Traces of the alignment frame'),
-                 'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
                  'spat_id': dict(otype=np.ndarray, atype=np.integer, descr='Slit spat_id ')}
 
     def __init__(self, alignframe=None, nspec=None, nalign=None, nslits=None,
@@ -50,14 +53,18 @@ class Alignments(datamodel.DataContainer):
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
 
-    def _init_internals(self):
-        # Master stuff
-        self.master_key = None
-        self.master_dir = None
-
     def _validate(self):
         # TBC - need to check that all alignment traces have been correctly traced
         pass
+
+    # NOTE: If you make changes to how this object is bundled into the output
+    # datamodel, make sure you update the documentation in
+    # doc/calibrations/align.rst!
+    def _bundle(self):
+        """
+        Override the base class method simply to set the HDU extension name.
+        """
+        return super()._bundle(ext='ALIGN')
 
     def is_synced(self, slits):
         """
@@ -70,17 +77,16 @@ class Alignments(datamodel.DataContainer):
 
         """
         if not np.array_equal(self.spat_id, slits.spat_id):
-            msgs.error("Your alignment solutions are out of sync with your slits.  Remove Masters and start from scratch")
+            msgs.error('Your alignment solutions are out of sync with your slits.  Remove '
+                       'Calibrations and restart from scratch.')
 
     def show(self, slits=None):
         """
-        Simple wrapper to show_alignment()
+        Simple wrapper for :func:`show_alignment`.
 
-        Parameters
-        ----------
-
-        Returns:
-
+        Args:
+            slits (:class:`pypeit.slittrace.SlitTraceSet`, optional):
+                Slit properties, including traces.
         """
         # Show
         show_alignment(self.alignframe, align_traces=self.traces, slits=slits)
@@ -103,9 +109,6 @@ class TraceAlignment:
             The parameters used for the align traces
         det (:obj:`int`, optional):
             Detector number
-        binning (:obj:`str`, optional):
-            Detector binning in comma separated numbers for the
-            spectral and spatial binning.
         qa_path (:obj:`str`, optional):
             Directory for QA plots
         msbpm (`numpy.ndarray`_, optional):
@@ -119,24 +122,12 @@ class TraceAlignment:
         slits (:class:`~pypeit.slittrace.SlitTraceSet`):
             Slit edge traces.
     """
-    version = '1.0.0'
-
-    # Frametype is a class attribute
-    frametype = 'alignment'
-    """
-    Frame type designation.
-    """
-
-    master_type = 'Alignment'
-    master_file_format = 'fits'
-
-    def __init__(self, rawalignimg, slits, spectrograph, alignpar, det=1,
-                 binning=None, qa_path=None, msbpm=None):
+    def __init__(self, rawalignimg, slits, spectrograph, alignpar, det=1, qa_path=None,
+                 msbpm=None):
 
         # Defaults
         self.spectrograph = spectrograph
         self.PYP_SPEC = spectrograph.name
-        self.binning = binning
         # Alignment parameters
         self.alignpar = alignpar
 
@@ -145,7 +136,7 @@ class TraceAlignment:
         self.slits = slits
 
         # Optional parameters
-        self.bpm = rawalignimg.mask if msbpm is None else msbpm
+        self.bpm = rawalignimg.fullmask.bpm if msbpm is None else msbpm
         self.qa_path = qa_path
         self.det = det
 
@@ -260,13 +251,14 @@ class TraceAlignment:
         if show:
             show_alignment(self.rawalignimg.image, align_traces=align_traces, slits=self.slits)
 
-        return Alignments(alignframe=self.rawalignimg.image,
-                          nspec=self.nspec,
-                          nalign=align_traces.shape[1],
-                          nslits=self.nslits,
-                          traces=align_traces,
-                          PYP_SPEC=self.PYP_SPEC,
-                          spat_id=self.slits.spat_id)
+        # Build the alignment calibration frame
+        align = Alignments(alignframe=self.rawalignimg.image, nspec=self.nspec,
+                           nalign=align_traces.shape[1], nslits=self.nslits, traces=align_traces,
+                           PYP_SPEC=self.PYP_SPEC, spat_id=self.slits.spat_id)
+        # Copy the internals from the processed alignment image
+        align.copy_calib_internals(self.rawalignimg)
+        # Return
+        return align
 
 
 def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
@@ -277,7 +269,7 @@ def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
     ----------
 
     alignframe : `numpy.ndarray`_
-        Image to be plotted (i.e. the master align frame)
+        Image to be plotted (i.e. the align frame)
     align_traces : list, optional
         The align traces
     slits : :class:`pypeit.slittrace.SlitTraceSet`, optional
@@ -311,3 +303,109 @@ def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
                                    color=color)
 
 
+class AlignmentSplines:
+    def __init__(self, traces, locations, tilts):
+        """Convenience class to build and transform between detector pixel coordinates and
+        WCS pixel coordinates (i.e. constant wavelength and spatial position).
+
+        Parameters
+        ----------
+        traces : `numpy.ndarray`
+            3D array containing the alignments (traces) of the slits. This allows different
+            slices to be aligned correctly. Ideally, this variable will be assigned the
+            value of alignments.traces. However, this can also be assigned the
+            left and right slit edges:
+
+            .. code-block:: python
+
+                traces = np.append(left.reshape((left.shape[0], 1, left.shape[1])),
+                       right.reshape((left.shape[0], 1, left.shape[1])), axis=1)
+                # In this case, you should set the locations argument to
+                locations=np.array([0,1])
+
+        locations : `numpy.ndarray`_, list
+            locations along the slit of the alignment traces. Must
+            be a 1D array of the same length as alignments.traces.shape[1]
+        tilts : `numpy.ndarray`
+            Spectral tilts.
+        """
+        # Perform some checks
+        msgs.work("Spatial flexure is not currently implemented for the astrometric alignment")
+        if type(locations) is list:
+            locations = np.array(locations)
+        if locations.size != traces.shape[1]:
+            msgs.error("The size of locations must be the same as traces.shape[1]")
+        # Store the relevant input
+        self.traces = traces
+        self.locations = locations
+        self.tilts = tilts
+        self.nspec, self.ntrace, self.nslit = traces.shape
+        # Transform between detector pixels and the locations:
+        self.spl_loc = self.nslit * [self.nspec*[None]]  # Splines - map (x,y) pixels ==> tilts
+        self.spl_slen = self.nslit * [None]  # Splines - map y pixel ==> slit length
+        self.spl_transform = self.nslit * [None]  # Splines - map x,y pixel ==> offset in pixels from the central trace
+        self.spl_fulltilts = RegularGridInterpolator((np.arange(tilts.shape[0]), np.arange(tilts.shape[1])),
+                                                     tilts * (self.nspec - 1), method='linear')
+        self.build_splines()
+
+    def build_splines(self):
+        """
+        Build the interpolation transforms for each slit
+        """
+        spldict = dict(kind='linear', bounds_error=False, fill_value="extrapolate")
+        ycoord = np.arange(self.nspec)
+        for sl in range(self.nslit):
+            msgs.info("Calculating astrometric transform of slit {0:d}/{1:d}".format(sl+1, self.nslit))
+            xlr, tlr = np.zeros((self.nspec, 2)), np.zeros((self.nspec, 2))
+            eval_trim = 2  # This evaluates the slit length inside the actual slit edges, due to edge effects.
+            for sp in range(self.nspec):
+                # Calculate x coordinate at the slit edges, and the spectral tilts at those locations
+                xlr[sp, :] = interp1d(self.locations, self.traces[sp,:,sl], **spldict)([0.0, 1.0])
+                tmptilt = self.spl_fulltilts([[sp, xlr[sp,0] + eval_trim],
+                                              [sp, xlr[sp,0] + eval_trim+1],
+                                              [sp, xlr[sp,1] - eval_trim],
+                                              [sp, xlr[sp,1] - eval_trim-1]])
+                tlr[sp, :] = [tmptilt[0]-eval_trim*(tmptilt[1]-tmptilt[0]),
+                              tmptilt[2]-eval_trim*(tmptilt[3]-tmptilt[2])]
+                # pseudo-2D alignments -> locations
+                self.spl_loc[sl][sp] = interp1d(self.traces[sp,:,sl], self.locations, **spldict)
+            # For a given tilt value, get the (x,y) coordinate of the right edge
+            tilt_ypos = interp1d(tlr[:,1], ycoord, **spldict)
+            ypos_xpos = interp1d(ycoord, xlr[:,1], **spldict)
+            ypos = tilt_ypos(tlr[:,0])
+            xpos = ypos_xpos(ypos)
+            # Calculate the slitlength from (xlr, y), (xpos, ypos) coordinates
+            slitlen = np.sqrt((ypos - np.arange(ypos.size)) ** 2 + (xpos - xlr[:, 0]) ** 2)
+            self.spl_slen[sl] = interp1d(ycoord, slitlen, **spldict)  # The tilt used to calculate the slit length corresponds to the left edge, so use ycoord for the first argument
+            # Construct a 2D Regular grid that interpolates over all coordinates
+            xcoord = np.arange(np.floor(np.min(xlr)), np.ceil(np.max(xlr))+1, 1.0)
+            out_transform = np.zeros((self.nspec, xcoord.size))
+            for sp in range(self.nspec):
+                out_transform[sp,:] = (self.spl_loc[sl][sp](xcoord) - 0.5) * self.spl_slen[sl](sp)
+            self.spl_transform[sl] = RegularGridInterpolator((ycoord, xcoord), out_transform, method='linear',
+                                                             bounds_error=False, fill_value=None) # This will extrapolate
+            # TODO :: Remove these notes...
+            # We now have everything we need to calculate the location and tilt of every pixel in the image.
+            # evalpos = (self.spl_loc[sl][ypixels](xpixels) - 0.5) * self.spl_slen[sl](ypixels)
+            # wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init] * (nspec - 1), 0)
+
+    def transform(self, slitnum, spatpix, specpix):
+        """
+        Convenience function to return the spatial offset in pixels
+        from the spatial center of the slit.
+
+        Parameters
+        ----------
+        slitnum : `int`
+            Slit number
+        spatpix : `numpy.ndarray`
+            Detector pixel coordinate (spatial direction)
+        specpix : `numpy.ndarray`
+            Detector pixel coordinate (spectral direction)
+
+        Returns
+        -------
+        spl_transform : `numpy.ndarray`
+            The spatial offset (measured in pixels) from the center of the slit.
+        """
+        return self.spl_transform[slitnum]((specpix, spatpix))

@@ -8,20 +8,20 @@ General utility functions.
 import os
 import inspect
 import pickle
-import warnings
+import pathlib
 import itertools
-from glob import glob
-from typing import List
+import glob
+import collections.abc
 
 from IPython import embed
 
 import numpy as np
 from numpy.lib.stride_tricks import as_strided
 
-from scipy import ndimage
+import scipy.ndimage
 
 import matplotlib
-from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
 
 from astropy import units
 from astropy import stats
@@ -351,6 +351,37 @@ def nearest_unmasked(arr, use_indices=False):
     return np.ma.argmin(nearest, axis=1)
 
 
+def contiguous_true(m):
+    """
+    Find contiguous regions of True values in a boolean numpy array.
+
+    This is identically what is done by `numpy.ma.flatnotmasked_contiguous`_,
+    except the argument is the mask, not a masked array, and it selects
+    contiguous True regions instead of contiguous False regions.
+
+    Args:
+        m (array-like):
+            A boolean array.  Must be 1D.
+
+    Returns:
+        :obj:`list`: A list of slice objects that select contiguous regions of
+        True values in the provided array.
+    """
+    _m = np.atleast_1d(m)
+    if _m.ndim > 1:
+        raise ValueError('contiguous_true only accepts 1D arrays.')
+    if not np.any(_m):
+        return [slice(0, _m.size)]
+    i = 0
+    result = []
+    for (k, g) in itertools.groupby(_m.ravel()):
+        n = len(list(g))
+        if k:
+            result.append(slice(i, i + n))
+        i += n
+    return result
+
+
 def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest', replace='original'):
     """
     Boxcar smooth an image along their first axis (rows).
@@ -391,11 +422,11 @@ def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest', replace='original'):
 
     if wgt is None:
         # No weights so just smooth
-        return ndimage.convolve(img, kernel, mode='nearest')
+        return scipy.ndimage.convolve(img, kernel, mode='nearest')
 
     # Weighted smoothing
-    cimg = ndimage.convolve(img*wgt, kernel, mode='nearest')
-    wimg = ndimage.convolve(wgt, kernel, mode='nearest')
+    cimg = scipy.ndimage.convolve(img*wgt, kernel, mode='nearest')
+    wimg = scipy.ndimage.convolve(wgt, kernel, mode='nearest')
     smoothed_img = np.ma.divide(cimg, wimg)
     if replace == 'original':
         smoothed_img[smoothed_img.mask] = img[smoothed_img.mask]
@@ -600,7 +631,7 @@ def fast_running_median(seq, window_size):
     The input is extended by reflecting about the edge of the last pixel.
 
     This code has been confirmed to produce identical results to
-    scipy.ndimage.filters.median_filter with the reflect boundary
+    scipy.ndimage.median_filter with the reflect boundary
     condition, but is ~ 100 times faster.
 
     Args:
@@ -611,7 +642,7 @@ def fast_running_median(seq, window_size):
         ndarray: median filtered values
 
     Code originally contributed by Peter Otten, made to be consistent with
-    scipy.ndimage.filters.median_filter by Joe Hennawi.
+    scipy.ndimage.median_filter by Joe Hennawi.
 
     Now makes use of the Bottleneck library https://pypi.org/project/Bottleneck/.
     """
@@ -630,7 +661,7 @@ def fast_running_median(seq, window_size):
     result = move_median.move_median(seq_pad, window_size)
 
     # This takes care of the offset produced by the original code deducec by trial and error comparison with
-    # scipy.ndimage.filters.medfilt
+    # scipy.ndimage.medfilt
 
     result = np.roll(result, -window_size//2 + 1)
     return result[window_size:-window_size]
@@ -869,83 +900,6 @@ def polyval2d(x, y, m):
     return z
 
 
-'''
-def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
-                   function="polynomial", initialmask=None, forceimask=False,
-                   minx=None, maxx=None, guesses=None, bspline_par=None, verbose=True):
-    """
-    A robust (equally weighted) polynomial fit is performed to the xarray, yarray pairs
-    mask[i] = 1 are masked values
-
-    :param xarray: independent variable values
-    :param yarray: dependent variable values
-    :param order: the order of the polynomial to be used in the fitting
-    :param weights: weights to be used in the fitting (weights = 1/sigma)
-    :param maxone: If True, only the most deviant point in a given iteration will be removed
-    :param sigma: confidence interval for rejection
-    :param function: which function should be used in the fitting (valid inputs: 'polynomial', 'legendre', 'chebyshev', 'bspline')
-    :param initialmask: a mask can be supplied as input, these values will be masked for the first iteration. 1 = value masked
-    :param forceimask: if True, the initialmask will be forced for all iterations
-    :param minx: minimum value in the array (or the left limit for a legendre/chebyshev polynomial)
-    :param maxx: maximum value in the array (or the right limit for a legendre/chebyshev polynomial)
-    :return: mask, ct -- mask is an array of the masked values, ct is the coefficients of the robust polyfit.
-    """
-    # Setup the initial mask
-    if initialmask is None:
-        mask = np.zeros(xarray.size, dtype=np.int)
-        if forceimask:
-            msgs.warn("Initial mask cannot be enforced -- no initital mask supplied")
-            forceimask = False
-    else:
-        mask = initialmask.copy()
-    mskcnt = np.sum(mask)
-    # Iterate, and mask out new values on each iteration
-    ct = guesses
-
-    while True:
-        w = np.where(mask == 0)
-        xfit = xarray[w]
-        yfit = yarray[w]
-        if weights is not None:
-            wfit = weights[w]
-        else:
-            wfit = None
-        ct = func_fit(xfit, yfit, function, order, w=wfit,
-                      guesses=ct, minx=minx, maxx=maxx, bspline_par=bspline_par)
-        yrng = func_val(ct, xarray, function, minx=minx, maxx=maxx)
-        sigmed = 1.4826*np.median(np.abs(yfit-yrng[w]))
-        #if xarray.size-np.sum(mask) <= order+2: JFH fixed this bug
-        if xarray.size - np.sum(mask) <= order + 1:
-            if verbose:
-                msgs.warn("More parameters than data points - fit might be undesirable")
-            break  # More data was masked than allowed by order
-        if maxone:  # Only remove the most deviant point
-            tst = np.abs(yarray[w]-yrng[w])
-            m = np.argmax(tst)
-            if tst[m] > sigma*sigmed:
-                mask[w[0][m]] = 1
-        else:
-            if forceimask:
-                w = np.where((np.abs(yarray-yrng) > sigma*sigmed) | (initialmask==1))
-            else:
-                w = np.where(np.abs(yarray-yrng) > sigma*sigmed)
-            mask[w] = 1
-        if mskcnt == np.sum(mask): break  # No new values have been included in the mask
-        mskcnt = np.sum(mask)
-
-    # Final fit
-    w = np.where(mask == 0)
-    xfit = xarray[w]
-    yfit = yarray[w]
-    if weights is not None:
-        wfit = weights[w]
-    else:
-        wfit = None
-    ct = func_fit(xfit, yfit, function, order, w=wfit, minx=minx, maxx=maxx, bspline_par=bspline_par)
-    return mask, ct
-'''
-
-
 def subsample(frame):
     """
     Used by LACosmic
@@ -997,8 +951,7 @@ def yamlify(obj, debug=False):
 
     Recursively process an object so it can be serialised for yaml.
 
-    Based on jsonify in `linetools
-    <https://pypi.python.org/pypi/linetools>`_.
+    Based on jsonify in `linetools`_.
 
     Also found in desiutils
 
@@ -1020,8 +973,10 @@ def yamlify(obj, debug=False):
         :class:`numpy.ndarray` is converted to :class:`list`,
         :class:`numpy.int64` is converted to :class:`int`, etc.
     """
+    # TODO: Change to np.floating?
     if isinstance(obj, (np.float64, np.float32)):
         obj = float(obj)
+    # TODO: Change to np.integer?
     elif isinstance(obj, (np.int32, np.int64, np.int16)):
         obj = int(obj)
     elif isinstance(obj, np.bool_):
@@ -1068,6 +1023,58 @@ def yamlify(obj, debug=False):
     if debug:
         print(type(obj))
     return obj
+
+
+def add_sub_dict(d, key):
+    """
+    If a key is not present in the provided dictionary, add it as a new nested
+    dictionary.
+
+    Args:
+        d (:obj:`dict`):
+            Dictionary to alter
+        key (:obj:`str`):
+            Key to add
+
+    Examples:
+        >>> d = {}
+        >>> add_sub_dict(d, 'test')
+        >>> d
+        {'test': {}}
+        >>> d['test'] = 'this'
+        >>> add_sub_dict(d, 'test')
+        >>> d
+        {'test': 'this'}
+        >>> add_sub_dict(d, 'and')
+        >>> d['and'] = 'that'
+        >>> d
+        {'test': 'this', 'and': 'that'}
+    """
+    if key not in d.keys():
+        d[key] = {}
+
+
+def recursive_update(d, u):
+    """
+    Update dictionary values with recursion to nested dictionaries.
+
+    Thanks to:
+    https://stackoverflow.com/questions/3232943/update-value-of-a-nested-dictionary-of-varying-depth
+
+    Args:
+        d (:obj:`dict`):
+            Dictionary (potentially of other dictionaries) to be updated.  This
+            is both edited in-place and returned.
+        u (:obj:`dict`):
+            Dictionary (potentially of other dictionaries) with the
+            updated/additional values.
+
+    Returns:
+        :obj:`dict`: The updated dictionary.
+    """
+    for k, v in u.items():
+        d[k] = recursive_update(d.get(k, {}), v) if isinstance(v, collections.abc.Mapping) else v
+    return d
 
 
 def save_pickle(fname, obj):
@@ -1357,27 +1364,27 @@ def is_float(s):
 
     return True
 
-def find_single_file(file_pattern):
+def find_single_file(file_pattern) -> pathlib.Path:
     """Find a single file matching a wildcard pattern.
 
     Args:
         file_pattern (str): A filename pattern, see the python 'glob' module.
 
     Returns:
-        str: A file name, or None if no filename was found. This will give a warning
+        :obj:`pathlib.Path`: A file name, or None if no filename was found. This will give a warning
              if multiple files are found and return the first one.
     """
 
-    files = glob(file_pattern)
+    files = glob.glob(file_pattern)
     if len(files) == 1:
-        return files[0]
+        return pathlib.Path(files[0])
     elif len(files) == 0:
         return None
     else:
         msgs.warn(f'Found multiple files matching {file_pattern}; using the first one.')
-        return files[0]
+        return pathlib.Path(files[0])
 
-def DFS(v: int, visited: List[bool], group: List[int], adj: np.ndarray):
+def DFS(v: int, visited: list[bool], group: list[int], adj: np.ndarray):
     """
     Depth-First Search of graph given by matrix `adj` starting from `v`.
     Updates `visited` and `group`.

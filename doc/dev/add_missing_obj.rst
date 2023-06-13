@@ -44,7 +44,7 @@ to compute this offset) is recorded in the :class:`~pypeit.specobjs.SpecObjs`'s 
 ``SPAT_PIXPOS``. Correcting for **slitmask_offset** allows ``PypeIt`` to deal also with dithered
 observations. Other relevant attributes are also updated, i.e., ``TRACE_SPAT``, ``SPAT_FRACPOS``,
 ``OBJID``, ``FWHM``, ``RA``, ``DEC``, ``MASKDEF_OBJNAME``, ``MASKDEF_ID`` (see spec1D
-:ref:`out_spec1D:Current Data Model` for a description of these parameters).
+:ref:`spec1D-datamodel` for a description of these parameters).
 The attribute ``MASKDEF_EXTRACT`` is set to **True** to flag the spectra that have been extracted
 from undetected objects.
 
@@ -55,11 +55,11 @@ Application
 To perform the determination of the location on the slit of undetected objects, the parameters
 described in the *Application* section of :ref:`slitmask_ids_report` and
 :ref:`radec_object_report` must be set.
-Moreover, **extract_missing_objs** flag in :ref:`pypeit_par:SlitMaskPar Keywords` must be **True**.
+Moreover, **extract_missing_objs** flag in :ref:`slitmaskpar` must be **True**.
 This is the default for DEIMOS (except when the *LongMirr* or the *LVM* mask is used) and
 MOSFIRE (except when the *LONGSLIT* or the *long2pos* mask is used).
 
-See :ref:`pypeit_par:SlitMaskPar Keywords` for more details.
+See :ref:`slitmaskpar` for more details.
 
 For LRIS one needs to add these explicitly to the :ref:`pypeit_file`, e.g.::
 
@@ -78,9 +78,9 @@ Access
 
 - A flag that identifies the undetected objects for which the extraction was "forced" is visible in
   the .txt file with a list of all extracted spectra, generated at the end the ``PypeIt`` reduction.
-- The same flag is also visible when running `pypeit_show_1d --list` (see :ref:`out_spec1D:pypeit_show_1dspec`)
+- The same flag is also visible when running `pypeit_show_1d --list` (see :ref:`pypeit_show_1dspec`)
 - The forced extraction are shown in a different color than the detected objects (yellow vs. orange)
-  in `ginga` when running `pypeit_show_2d` (see :ref:`out_spec2D:pypeit_show_2dspec`)
+  in `ginga` when running `pypeit_show_2d` (see :ref:`pypeit_show_2dspec`)
 - the **slitmask_offset** value is reported when running ``pypeit_parse_slits Science/spec2d_XXX.fits``.
 
 
@@ -126,13 +126,13 @@ and is as follows:
 
     1. Load the information relative to the specific instrument (DEIMOS, MOSFIRE).
 
-    2. Load the :ref:`pypeit_par:Instrument-Specific Default Configuration` parameters and select the detector.
+    2. Load the :ref:`instr_par` parameters and select the detector.
 
     3. Build a trace image using three flat-field images from a specific dataset in the :ref:`dev-suite`.
 
     4. Update the instrument configuration parameters to include configurations specific for the
        used instrument setup. Among others, this step sets the **extract_missing_objs** flag in
-       :ref:`pypeit_par:SlitMaskPar Keywords` to **True**.
+       :ref:`slitmaskpar` to **True**.
 
     5. Run the slit tracing procedure using :class:`~pypeit.edgetrace.EdgeTraceSet`, during which
        the slitmask ID assignment is performed (see :ref:`slitmask_ids_report`), and the ``maskdef_id``

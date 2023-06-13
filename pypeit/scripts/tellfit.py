@@ -4,9 +4,9 @@ Fit telluric absorption to observed spectra
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
+from IPython import embed
 
 from pypeit.scripts import scriptbase
-from pypeit import data
 
 
 class TellFit(scriptbase.ScriptBase):
@@ -69,6 +69,9 @@ class TellFit(scriptbase.ScriptBase):
                             help="Show the telluric corrected spectrum")
         parser.add_argument("--par_outfile", default='telluric.par',
                             help="Name of output file to save the parameters used by the fit")
+        parser.add_argument('-v', '--verbosity', type=int, default=1,
+                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
+                                 'Level 2 writes a log with filename tellfit_YYYYMMDD-HHMM.log')
         return parser
 
     @staticmethod
@@ -82,12 +85,14 @@ class TellFit(scriptbase.ScriptBase):
         from astropy.io import fits
 
         from pypeit import msgs
+        from pypeit import data
         from pypeit.par import pypeitpar
         from pypeit.spectrographs.util import load_spectrograph
         from pypeit.core import telluric
         from pypeit import inputfiles
 
-        from IPython import embed
+        # Set the verbosity, and create a logfile if verbosity == 2
+        msgs.set_logfile_and_verbosity('tellfit', args.verbosity)
 
         # Determine the spectrograph
         header = fits.getheader(args.spec1dfile)
@@ -105,7 +110,7 @@ class TellFit(scriptbase.ScriptBase):
         par = spectrograph_def_par if args.tell_file is None else \
                 pypeitpar.PypeItPar.from_cfg_lines(
                     cfg_lines=spectrograph_def_par.to_config(),
-                    merge_with=tcfg_lines)
+                    merge_with=(tcfg_lines,))
 
         # If args was provided override defaults. Note this does undo .tell file
         if args.objmodel is not None:
@@ -170,7 +175,9 @@ class TellFit(scriptbase.ScriptBase):
                                              model=par['telluric']['model'],
                                              polyorder=par['telluric']['polyorder'],
                                              only_orders=par['telluric']['only_orders'],
-                                             mask_abs_lines=par['telluric']['mask_abs_lines'],
+                                             mask_hydrogen_lines=par['sensfunc']['mask_hydrogen_lines'],
+                                             mask_helium_lines=par['sensfunc']['mask_helium_lines'],
+                                             hydrogen_mask_wid=par['sensfunc']['hydrogen_mask_wid'],
                                              delta_coeff_bounds=par['telluric']['delta_coeff_bounds'],
                                              minmax_coeff_bounds=par['telluric']['minmax_coeff_bounds'],
                                              maxiter=par['telluric']['maxiter'],

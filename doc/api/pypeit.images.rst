@@ -7,6 +7,7 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
+   pypeit.images.bitmaskarray
    pypeit.images.buildimage
    pypeit.images.combineimage
    pypeit.images.detector_container

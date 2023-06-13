@@ -1,7 +1,7 @@
 """
 Implements classes and function for the PypeIt data model.
 
-.. data-container:
+.. _data-container:
 
 DataContainer
 -------------
@@ -459,8 +459,7 @@ With this implementation:
 .. include:: ../include/links.rst
 
 """
-import os
-import warnings
+from pathlib import Path
 
 from IPython import embed
 
@@ -471,7 +470,6 @@ from astropy.io import fits
 from astropy.table import Table
 
 from pypeit import io
-from pypeit import masterframe
 from pypeit import msgs
 
 # TODO: There are methods in, e.g., doc/scripts/build_specobj_rst.py that output
@@ -486,6 +484,7 @@ class DataContainer:
     Defines an abstract class for holding and manipulating data.
 
     The primary utilities of the class are:
+
         - Attributes can be accessed normally or as expected for a :obj:`dict`
         - Attributes and items are restricted to conform to a specified data model.
 
@@ -620,6 +619,11 @@ class DataContainer:
     # looks like this is already possible at least for some types, see
     # pypeit.tracepca.TracePCA.reference_row.
 
+    internals = None
+    """
+    A list of strings identifying a set of internal attributes that are not part
+    of the datamodel.
+    """
 
     def __init__(self, d=None):
 
@@ -675,7 +679,7 @@ class DataContainer:
                             break
                     if dc is None:
                         msgs.error(f'Could not assign dictionary element {key} to datamodel '
-                                   f'for {self.__class__.__name__}.')
+                                   f'for {self.__class__.__name__}.', cls='PypeItDataModelError')
                     setattr(self, key, dc)
                     continue
                 
@@ -695,7 +699,10 @@ class DataContainer:
 
         These should be set to None
         """
-        pass
+        if self.internals is None:
+            return
+        for attr in self.internals:
+            setattr(self, attr, None) 
 
     def _validate(self):
         """
@@ -751,7 +758,7 @@ class DataContainer:
 
         Certain **restrictions** apply to how the data can be bundled
         for the general parser implementation (:func:`_parse`) to
-        work correctly. These restriction are:
+        work correctly. These restrictions are:
 
             - The shape and orientation of any input arrays are
               assumed to be correct.
@@ -820,7 +827,7 @@ class DataContainer:
                 d = Table(d)
             except:
                 msgs.error(f'Cannot force all elements of {self.__class__.__name__} datamodel'
-                           'into a single-row astropy Table!')
+                           'into a single-row astropy Table!', cls='PypeItDataModelError')
 
         return [d] if ext is None else [{ext:d}]
 
@@ -955,17 +962,18 @@ class DataContainer:
 
         if len(_ext_pseudo) != len(_ext):
             msgs.error(f'Length of provided extension pseudonym list must match number of '
-                       f'extensions selected: {len(_ext)}.')
+                       f'extensions selected: {len(_ext)}.', cls='PypeItDataModelError')
 
         str_ext = np.logical_not([isinstance(e, (int, np.integer)) for e in _ext_pseudo])
 
         # Construct instantiation dictionary
         _d = dict.fromkeys(cls.datamodel.keys())
 
-        # Log if relevant data is found for this datamodel
+        # Log if relevant data is found for this datamodel, allowing for
+        # DataContainers that have no data, although such a usage case should be
+        # rare.
         if np.all([_hdu[e].data is None for e in _ext]):
-            # TODO: This is a KLUDGE. Not sure we should allow this...
-            msgs.warn('Extensions to be read by {0} have no data!'.format(cls.__name__))
+            msgs.warn(f'Extensions to be read by {cls.__name__} have no data!')
             # This is so that the returned booleans for reading the
             # data are not tripped as false!
             found_data = True
@@ -1173,6 +1181,9 @@ class DataContainer:
         if value is None:
             self.__dict__[item] = value
             return
+        # Convert Path objects to string for saving in the datamodel
+        if isinstance(value, Path):
+            value = str(value)
         # Check data type
         if not isinstance(value, self.datamodel[item]['otype']):
             raise TypeError(f'Cannot assign object of type {type(value)} to {item}.\n'
@@ -1201,6 +1212,20 @@ class DataContainer:
             :obj:`dict_keys`: The iterable with the data model keys.
         """
         return self.datamodel.keys()
+
+    def check_populated(self, dm_items):
+        """
+        Check that a set of datamodel items are populated.
+
+        Args:
+            dm_items (:obj:`list`, :obj:`str`):
+                One or more items in the datamodel to check.
+
+        Returns:
+            :obj:`bool`: Flag that *all* the requested datamodel items are
+            populated (not None).
+        """
+        return np.all([key in self.keys() and self[key] is not None for key in dm_items])
 
     def _primary_header(self, hdr=None):
         """
@@ -1252,10 +1277,27 @@ class DataContainer:
         _hdr['DMODVER'] = (self.version, 'Datamodel version')
         return _hdr
 
+    @staticmethod
+    def valid_write_to_hdu_type(obj):
+        """
+        Check if the provided object can be written to an `astropy.io.fits.HDUList`_.
+
+        This needs to be consistent with :func:`~pypeit.io.write_to_hdu`.
+
+        Args:
+            obj (object):
+                Object to write
+
+        Returns:
+            :obj:`bool`: Flag that object can be written.
+        """
+        return isinstance(obj, (DataContainer, dict, Table, np.ndarray, list))
+
     # TODO: Always have this return an HDUList instead of either that
     # or a normal list?
+    # NOTE: This function should *not* include **kwargs.
     def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None,
-               limit_hdus=None, force_to_bintbl=False, hdu_prefix=None):
+               force_to_bintbl=False, hdu_prefix=None):
         """
         Construct one or more HDU extensions with the data.
 
@@ -1290,8 +1332,6 @@ class DataContainer:
                 are identical.
             primary_hdr (`astropy.io.fits.Header`, optional):
                 Header to add to the primary if add_primary=True
-            limit_hdus (:obj:`list`, optional):
-                Limit the HDUs that can be written to the items in this list
             force_to_bintbl (:obj:`bool`, optional):
                 Force construction of a `astropy.io.fits.BinTableHDU`_ instead
                 of an `astropy.io.fits.ImageHDU`_ when either there are no
@@ -1304,8 +1344,10 @@ class DataContainer:
                 prefix is added.
 
         Returns:
-            :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs,
-            where the type depends on the value of ``add_primary``.
+            :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs, where the
+            type depends on the value of ``add_primary``: If True, an
+            `astropy.io.fits.HDUList`_ is returned, otherwise a :obj:`list` is
+            returned.
         """
         # Bundle the data
         data = self._bundle()
@@ -1317,12 +1359,10 @@ class DataContainer:
         if _primary_hdr is not None:
             hdr_keys = np.array([k.upper() for k in self.keys()])
             indx = np.isin(hdr_keys, list(_primary_hdr.keys()))
-            # TODO: This is a hack to deal with PYP_SPEC, but this
-            # needs to be cleaned up, as does masterframe more
-            # generally...
-            if np.sum(indx) > 1 or (np.sum(indx) == 1 and hdr_keys[indx] != 'PYP_SPEC'):
+            if np.sum(indx) > 1:
                 msgs.error('CODING ERROR: Primary header should not contain keywords that are the '
-                           'same as the datamodel for {0}.'.format(self.__class__.__name__))
+                           'same as the datamodel for {0}.'.format(self.__class__.__name__),
+                           cls='PypeItDataModelError')
 
         # Initialize the base header
         _hdr = self._base_header(hdr=hdr)
@@ -1331,12 +1371,14 @@ class DataContainer:
         if _hdr is not None \
                 and np.any(np.isin([k.upper() for k in self.keys()], list(_hdr.keys()))):
             msgs.error('CODING ERROR: Baseline header should not contain keywords that are the '
-                       'same as the datamodel for {0}.'.format(self.__class__.__name__))
+                       'same as the datamodel for {0}.'.format(self.__class__.__name__),
+                       cls='PypeItDataModelError')
 
         # Construct the list of HDUs
         hdu = []
         for d in data:
-            if isinstance(d, dict) and len(d) == 1:
+            if isinstance(d, dict) and len(d) == 1 \
+                    and DataContainer.valid_write_to_hdu_type(d[list(d.keys())[0]]):
                 ext = list(d.keys())[0]
                 # Allow for embedded DataContainer's
                 if isinstance(d[ext], DataContainer):
@@ -1355,21 +1397,21 @@ class DataContainer:
                                             force_to_bintbl=force_to_bintbl)]
             else:
                 hdu += [io.write_to_hdu(d, hdr=_hdr, force_to_bintbl=force_to_bintbl)]
+
         # Prefixes
-        _hdu_prefix = (None if self.hdu_prefix is None else self.hdu_prefix) \
-                        if hdu_prefix is None else hdu_prefix
+        _hdu_prefix = self.hdu_prefix if hdu_prefix is None else hdu_prefix
         if _hdu_prefix is not None:
             for ihdu in hdu:
-                ihdu.name = _hdu_prefix+ihdu.name
+                ihdu.name = f'{_hdu_prefix}{ihdu.name}'
         # Limit?
-        if limit_hdus:
-            hdu = [h for h in hdu if h.name in limit_hdus]
+        if self.output_to_disk is not None:
+            hdu = [h for h in hdu if h.name in self.output_to_disk]
+
         # Return
         return fits.HDUList([fits.PrimaryHDU(header=_primary_hdr)] + hdu) if add_primary else hdu
 
     @classmethod
-    def from_hdu(cls, hdu, ext=None, ext_pseudo=None, hdu_prefix=None, 
-                 chk_version=True, allow_subclasses=False):
+    def from_hdu(cls, hdu, chk_version=True, **kwargs):
         """
         Instantiate the object from an HDU extension.
 
@@ -1378,30 +1420,24 @@ class DataContainer:
         Args:
             hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
                 The HDU(s) with the data to use for instantiation.
-            ext (:obj:`str`, optional):
-                Passed to :func:`_parse`.
-            ext_pseudo (:obj:`str`, optional):
-                Passed to :func:`_parse`.
-            hdu_prefix (:obj:`str`, optional):
-                Passed to :func:`_parse`.
             chk_version (:obj:`bool`, optional):
                 If True, raise an error if the datamodel version or
                 type check failed. If False, throw a warning only.
-            allow_subclasses (:obj:`bool`, optional):
-                Passed to :func:`_parse`.
+            **kwargs:
+                Passed directly to :func:`_parse`.
         """
-        d, dm_version_passed, dm_type_passed, parsed_hdus \
-                = cls._parse(hdu, ext=ext, ext_pseudo=ext_pseudo, 
-                             hdu_prefix=hdu_prefix,
-                             allow_subclasses=allow_subclasses)
-
+        d, dm_version_passed, dm_type_passed, parsed_hdus = cls._parse(hdu, **kwargs)
         # Check version and type?
         if not dm_type_passed:
-            msgs.error('The HDU(s) cannot be parsed by a {0} object!'.format(cls.__name__))
+            msgs.error(f'The HDU(s) cannot be parsed by a {cls.__name__} object!',
+                       cls='PypeItDataModelError')
         if not dm_version_passed:
-            _f = msgs.error if chk_version else msgs.warn
-            _f('Current version of {0} object in code (v{1})'.format(cls.__name__, cls.version)
-               + ' does not match version used to write your HDU(s)!')
+            msg = f'Current version of {cls.__name__} object in code ({cls.version}) ' \
+                  'does not match version used to write your HDU(s)!'
+            if chk_version:
+                msgs.error(msg, cls='PypeItDataModelError')
+            else:
+                msgs.warn(msg)
 
         # Instantiate
         # NOTE: We can't use `cls(d)`, where `d` is the dictionary returned by
@@ -1440,125 +1476,65 @@ class DataContainer:
         DataContainer.__init__(self, d=d)
         return self
 
-    def to_file(self, ofile, overwrite=False, checksum=True, primary_hdr=None, hdr=None,
-                limit_hdus=None):
+    def to_file(self, ofile, overwrite=False, checksum=True, **kwargs):
         """
         Write the data to a file.
 
         This is a convenience wrapper for :func:`to_hdu` and
-        :func:`pypeit.io.write_to_fits`. The output is always placed
-        in the 2nd extension; the first (primary) extension is always
-        empty.
+        :func:`pypeit.io.write_to_fits`.  The ``add_primary`` parameter of
+        :func:`to_hdu` is *always* true such that the first extension of the
+        written fits file is *always* an empty primary header.
 
         Args:
-            ofile (:obj:`str`):
+            ofile (:obj:`str`, `Path`_):
                 Fits file for the data. File names with '.gz'
                 extensions will be gzipped; see
                 :func:`pypeit.io.write_to_fits`.
-            primary_hdr (`astropy.io.fits.Header`, optional):
-                Primary header to add to first extension. Passed
-                directly to :func:`to_hdu`; see usage there.
-            hdr (`astropy.io.fits.Header`, optional):
-                Baseline header to add to all returned HDUs. Passed
-                directly to :func:`to_hdu`; see usage there.
             overwrite (:obj:`bool`, optional):
                 Flag to overwrite any existing file.
             checksum (:obj:`bool`, optional):
                 Passed to `astropy.io.fits.HDUList.writeto`_ to add
                 the DATASUM and CHECKSUM keywords fits header(s).
-            limit_hdus (:obj:`list`, optional):
-                Passed to :func:`to_hdu`; see usage there
+            kwargs (:obj:`dict`, optional):
+                Passed directly to :func:`to_hdu`.
         """
-        io.write_to_fits(self.to_hdu(add_primary=True, primary_hdr=primary_hdr,
-                                     limit_hdus=limit_hdus, hdr=hdr),
-                         ofile, overwrite=overwrite, checksum=checksum, hdr=hdr)
+        # NOTE: This call does *not* need to also pass hdr to io.write_to_fits
+        # because the first argument of the function is always an
+        # astropy.io.fits.HDUList.
+        io.write_to_fits(self.to_hdu(add_primary=True, **kwargs),
+                         str(ofile), overwrite=overwrite, checksum=checksum)
 
-    # TODO: This requires that master_key be an attribute... This
-    # method is a bit too ad hoc for me...
-    def to_master_file(self, master_filename=None, **kwargs):
-        """
-        Wrapper on to_file() that deals with masterframe naming and header
-
-        This also sets master_key and master_dir internally if
-        when master_filename is provided
-
-        self.hdu_prefix and self.output_to_disk must be set (or None)
-
-        Args:
-            master_filename (str, optional):
-                Name of masterfile;  if provided, parsed for master_key, master_dir
-                If not provided, constructed from internal master_key, master_dir
-            **kwargs: passed to to_file()
-        """
-        # Output file
-        if master_filename is None:
-            master_filename = masterframe.construct_file_name(self, self.master_key,
-                                                              master_dir=self.master_dir)
-        else:
-            self.master_key, self.master_dir = masterframe.grab_key_mdir(
-                master_filename, from_filename=True)
-        # Header
-        if hasattr(self, 'process_steps'):
-            steps = self.process_steps
-        else:
-            steps = None
-        if hasattr(self, 'files'):
-            raw_files = self.files
-        else:
-            raw_files = None
-        hdr = masterframe.build_master_header(self, self.master_key, self.master_dir,
-                                              steps=steps, raw_files=raw_files)
-        # Finish
-        self.to_file(master_filename, primary_hdr=hdr,
-                     limit_hdus=self.output_to_disk, overwrite=True, **kwargs)
-
-    # TODO: Add options to compare the checksum and/or check the package versions
     @classmethod
-    def from_file(cls, ifile, verbose=True, chk_version=True):
+    def from_file(cls, ifile, verbose=True, chk_version=True, **kwargs):
         """
         Instantiate the object from an extension in the specified fits file.
 
         This is a convenience wrapper for :func:`from_hdu`.
         
         Args:
-            ifile (:obj:`str`):
+            ifile (:obj:`str`, `Path`_):
                 Fits file with the data to read
             verbose (:obj:`bool`, optional):
                 Print informational messages
             chk_version (:obj:`bool`, optional):
                 Passed to :func:`from_hdu`.
+            kwargs (:obj:`dict`, optional):
+                Arguments passed directly to :func:`from_hdu`.
 
         Raises:
             FileNotFoundError:
                 Raised if the specified file does not exist.
         """
-        if not os.path.isfile(ifile):
-            raise FileNotFoundError('{0} does not exist!'.format(ifile))
+        _ifile = Path(ifile).resolve()
+        if not _ifile.exists():
+            raise FileNotFoundError(f'{_ifile} does not exist!')
 
         if verbose:
-            msgs.info("Loading {} from {}".format(cls.__name__, ifile))
+            msgs.info(f'Loading {cls.__name__} from {_ifile}')
 
         # Do it
-        with io.fits_open(ifile) as hdu:
-            obj = cls.from_hdu(hdu, chk_version=chk_version)
-            if hasattr(obj, 'head0'):
-                obj.head0 = hdu[0].header
-            if hasattr(obj, 'filename'):
-                obj.filename = ifile
-
-            # Master this and that
-            if hasattr(cls, 'master_type'):
-                obj.master_key, obj.master_dir = masterframe.grab_key_mdir(ifile)
-                if hasattr(obj, 'head0'):
-                    if 'MSTRTYP' in obj.head0.keys():
-                        if obj.head0['MSTRTYP'] != cls.master_type:
-                            msgs.error('Master Type read from header incorrect!  '
-                                       'Found {0}; expected {1}'.format(obj.head0['MSTRTYP'],
-                                                                        cls.master_type))
-                    else:
-                        msgs.warn('DataContainer has `master_type` attribute but is missing the '
-                                  'MSTRTYP header keyword!')
-        return obj
+        with io.fits_open(_ifile) as hdu:
+            return cls.from_hdu(hdu, chk_version=chk_version, **kwargs)
 
     def __repr__(self):
         """ Over-ride print representation

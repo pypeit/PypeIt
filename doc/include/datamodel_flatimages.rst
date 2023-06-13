@@ -1,19 +1,25 @@
 
-Version 1.1.1
+Version 1.1.2
 
-===========================  ========  ==========  =================================================
-HDU Name                     Obj Type  Array Type  Description                                      
-===========================  ========  ==========  =================================================
-``PYP_SPEC``                 str                   PypeIt spectrograph name                         
-``ILLUMFLAT_BPM``            ndarray   integer     Mirrors SlitTraceSet mask for Flat-specific flags
-``ILLUMFLAT_RAW``            ndarray   floating    Processed, combined illum flats                  
-``ILLUMFLAT_SPAT_BSPLINES``  ndarray   bspline     B-spline models for illum flat                   
-``PIXELFLAT_BPM``            ndarray   integer     Mirrors SlitTraceSet mask for Flat-specific flags
-``PIXELFLAT_MODEL``          ndarray   floating    Model flat                                       
-``PIXELFLAT_NORM``           ndarray   floating    Normalized pixel flat                            
-``PIXELFLAT_RAW``            ndarray   floating    Processed, combined pixel flats                  
-``PIXELFLAT_SPAT_BSPLINES``  ndarray   bspline     B-spline models for pixel flat                   
-``PIXELFLAT_SPEC_ILLUM``     ndarray   floating    Relative spectral illumination                   
-``PIXELFLAT_WAVEIMG``        ndarray   floating    Waveimage for pixel flat                         
-``SPAT_ID``                  ndarray   integer     Slit spat_id                                     
-===========================  ========  ==========  =================================================
+================================  ==============================  =========  =============================================================================================================================================================
+HDU Name                          HDU Type                        Data Type  Description                                                                                                                                                  
+================================  ==============================  =========  =============================================================================================================================================================
+``PRIMARY``                       `astropy.io.fits.PrimaryHDU`_   ...        Empty data HDU.  Contains basic header information.                                                                                                          
+``PIXELFLAT_RAW``                 `astropy.io.fits.ImageHDU`_     float64    Processed, combined pixel flats                                                                                                                              
+``PIXELFLAT_NORM``                `astropy.io.fits.ImageHDU`_     float64    Normalized pixel flat                                                                                                                                        
+``PIXELFLAT_MODEL``               `astropy.io.fits.ImageHDU`_     float64    Model flat                                                                                                                                                   
+``PIXELFLAT_SPAT_ID-?-BSPLINE``   `astropy.io.fits.BinTableHDU`_  ...        bspline model of the pixelflat for ``spat_id=?``; see :class:`~pypeit.bspline.bspline.bspline`                                                               
+...                               ...                             ...        ...                                                                                                                                                          
+``PIXELFLAT_SPAT_ID-?-FINECORR``  `astropy.io.fits.BinTableHDU`_  ...        2D polynomial fits to the fine correction of the spatial illumination profile of the pixelflat for ``slit_id=?``; see :class:`~pypeit.core.fitting.PypeItFit`
+...                               ...                             ...        ...                                                                                                                                                          
+``PIXELFLAT_BPM``                 `astropy.io.fits.ImageHDU`_     int16      Mirrors SlitTraceSet mask for flat-specific flags                                                                                                            
+``PIXELFLAT_SPEC_ILLUM``          `astropy.io.fits.ImageHDU`_     float64    Relative spectral illumination                                                                                                                               
+``PIXELFLAT_WAVEIMG``             `astropy.io.fits.ImageHDU`_     float64    Waveimage for pixel flat                                                                                                                                     
+``ILLUMFLAT_RAW``                 `astropy.io.fits.ImageHDU`_     float64    Processed, combined illum flats                                                                                                                              
+``ILLUMFLAT_SPAT_ID-?-BSPLINE``   `astropy.io.fits.BinTableHDU`_  ...        bspline model of the illumflat for ``spat_id=?``; see :class:`~pypeit.bspline.bspline.bspline`                                                               
+...                               ...                             ...        ...                                                                                                                                                          
+``ILLUMFLAT_SPAT_ID-?-FINECORR``  `astropy.io.fits.BinTableHDU`_  ...        2D polynomial fits to the fine correction of the spatial illumination profile of the illumflat for ``slit_id=?``; see :class:`~pypeit.core.fitting.PypeItFit`
+...                               ...                             ...        ...                                                                                                                                                          
+``ILLUMFLAT_BPM``                 `astropy.io.fits.ImageHDU`_     int16      Mirrors SlitTraceSet mask for flat-specific flags                                                                                                            
+``SPAT_ID``                       `astropy.io.fits.ImageHDU`_     int64      Slit spat_id                                                                                                                                                 
+================================  ==============================  =========  =============================================================================================================================================================

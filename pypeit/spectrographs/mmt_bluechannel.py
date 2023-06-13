@@ -26,6 +26,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
     header_name = 'mmtbluechan'
     telescope = telescopes.MMTTelescopePar()
     camera = 'Blue_Channel'
+    url = 'http://www.mmto.org/instrument-suite/blue-red-channel-spectrographs/blue-channel-details/'
     supported = True
 
     def get_detector_par(self, det, hdu=None):
@@ -97,7 +98,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -115,6 +116,9 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='DISPERSE')
         self.meta['idname'] = dict(ext=0, card='IMAGETYP')
+        self.meta['dispangle'] = dict(ext=0, card=None, compound=True, rtol=0.002)
+        self.meta['cenwave'] = dict(ext=0, card=None, compound=True, rtol=5.0)
+        self.meta['filter1'] = dict(ext=0, card='INSFILTE')
 
         # used for arc and continuum lamps
         self.meta['lampstat01'] = dict(ext=0, card=None, compound=True)
@@ -141,6 +145,18 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             binspec, binspatial = headarr[0]['CCDSUM'].split()
             binning = parse.binning2string(binspec, binspatial)
             return binning
+        elif meta_key == 'cenwave':
+            if headarr[0]['CENWAVE'] == 'moving':
+                cenwave = None
+            else:
+                cenwave = int(headarr[0]['CENWAVE'])
+            return cenwave
+        elif meta_key == 'dispangle':
+            if headarr[0]['TILTPOS'] == 'moving':
+                dispangle = None
+            else:
+                dispangle = float(headarr[0]['TILTPOS'])
+            return dispangle
         elif meta_key == 'mjd':
             """
             Need to combine 'DATE-OBS' and 'UT' headers and then use astropy to make an mjd.
@@ -159,17 +175,53 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
                 return headarr[0]['COMPLAMP']
             else:
                 return 'off'
-        
+
         msgs.error(f"Not ready for compound meta, {meta_key}, for MMT Blue Channel.")
+
+    def configuration_keys(self):
+        """
+        Return the metadata keys that define a unique instrument
+        configuration.
+
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
+        """
+        return ['dispname', 'dispangle', 'filter1']
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['DISPERSE', 'TILTPOS', 'INSFILTE']
 
     @classmethod
     def default_pypeit_par(cls):
         """
         Return the default parameters to use for this instrument.
-        
+
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -177,18 +229,20 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.5
         par['calibrations']['wavelengths']['sigdetect'] = 5.
-        par['calibrations']['wavelengths']['fwhm']= 5.0
-        # HeNeAr is by far most commonly used, though ThAr is used for some situations.
-        par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII', 'HeI', 'NeI']
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
+
+        # Parse the lamps used from the image header.
+        par['calibrations']['wavelengths']['lamps'] = ['use_header']
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
 
         # Processing steps
-        turn_off = dict(use_biasimage=False, use_darkimage=False)
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
 
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
+
         ## Do not perform global sky subtraction for standard stars
         par['reduce']['skysub']['global_sky_std']  = False
 
@@ -203,15 +257,16 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         # short exposures for flats to avoid saturation, but the 1200 and 832
         # can use much longer exposures due to the higher resolution and the
         # continuum lamp not being very bright in the blue/near-UV.
-        par['calibrations']['pixelflatframe']['exprng'] = [None, 100]
-        par['calibrations']['traceframe']['exprng'] = [None, 100]
+        par['calibrations']['pixelflatframe']['exprng'] = [None, 600]
+        par['calibrations']['traceframe']['exprng'] = [None, 600]
         par['calibrations']['standardframe']['exprng'] = [None, 600]
-        par['calibrations']['arcframe']['exprng'] = [10, None]
+        par['calibrations']['arcframe']['exprng'] = [1, None]
         par['calibrations']['darkframe']['exprng'] = [300, None]
+        par['calibrations']['illumflatframe']['exprng'] = [None, 3600]
 
         # less than 30 sec implies conditions are bright enough for scattered
         # light to be significant which affects the illumination of the slit.
-        par['calibrations']['illumflatframe']['exprng'] = [30, None]
+        par['calibrations']['illumflatframe']['exprng'] = [1, None]
 
         # Need to specify this for long-slit data
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
@@ -219,6 +274,46 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
 
         # Sensitivity function parameters
         par['sensfunc']['polyorder'] = 7
+
+        return par
+
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        Args:
+            scifile (:obj:`str`):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
+            adjusted for configuration specific parameter values.
+        """
+        par = super().config_specific_par(scifile, inp_par=inp_par)
+
+        grating = self.get_meta_value(scifile, 'dispname')
+        cenwave = self.get_meta_value(scifile, 'cenwave')
+
+        if grating in ['300GPM', '500GPM', '800GPM', '1200GPM']:
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = f"mmt_bluechannel_{grating}.fits"
+
+        # the 832 GPM grating can be used in 1st or 2nd order and therefore needs two templates.
+        # the blue, 2nd order setting has a usable range from 3200-5500 A while the red, 1st order
+        # setting is usable from 6400-10000 A. of course, why one would use a "blue" channel that far
+        # into the red is a valid question...
+        if grating == '832GPM' and cenwave < 6000:
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = f"mmt_bluechannel_{grating}_order2.fits"
+
+        if grating == '832GPM' and cenwave >= 6000:
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = f"mmt_bluechannel_{grating}_order1.fits"
 
         return par
 
@@ -242,7 +337,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
@@ -262,21 +357,47 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
 
         return bpm_img
 
-    def configuration_keys(self):
+    def get_lamps(self, fitstbl):
         """
-        Return the metadata keys that define a unique instrument
-        configuration.
+        Extract the list of arc lamps used from header
 
-        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
-        identify the unique configurations among the list of frames read
-        for a given reduction.
+        .. note::
+
+            Blue channel uses a variety of lamps depending on grating and wavelength range. HeNeAr covers
+            the vast majority of cases, but ThAr, HgCd, and CuAr have important use cases.
+
+        Args:
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more arc frames.
+        Returns:
+            lamps (:obj:`list`) : List used arc lamps
+        """
+        lampspecs = fitstbl['lampstat01']
+        lamps = []
+
+        for lampstr in lampspecs:
+            if 'Ne' in lampstr:
+                lamps += ['NeI']
+            if 'HeAr' in lampstr:
+                lamps += ['HeI', 'ArI', 'ArII']
+            if 'ThAr' in lampstr:
+                # this is a hack to work around non-functional ThAr lamp at time test data was taken
+                lamps += ['ArI', 'ArII']
+            if 'HgCd' in lampstr:
+                lamps += ['HgI', 'CdI']
+
+        return list(set(lamps))
+
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard PypeIt file.
 
         Returns:
-            :obj:`list`: List of keywords of data pulled from file headers
-            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
-            object.
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
         """
-        return ['dispname']
+        return super().pypeit_file_keys() + ['cenwave','lampstat01']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -300,17 +421,43 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype == 'bias':
             return fitstbl['idname'] == 'zero'
-        if ftype in ['science', 'standard']:
-            return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'object')
-        if ftype in ['arc', 'tilt']:
+        if ftype == 'dark':
+            return fitstbl['idname'] == 'dark'
+        if ftype == 'science':
+            return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'object') & (fitstbl['target'] != 'skyflat')
+        if ftype == 'standard':
+            return (
+                good_exp
+                & (fitstbl['lampstat01'] == 'off')
+                & (fitstbl['idname'] == 'object')
+                & (fitstbl['target'] != 'skyflat')
+                & (fitstbl['decker'] == '5.0x180')
+            )
+        if ftype == 'arc':
             # should flesh this out to include all valid arc lamp combos
-            return good_exp & (fitstbl['lampstat01'] != 'off') & (fitstbl['idname'] == 'comp') & (fitstbl['decker'] != '5.0x180')
+            return (
+                good_exp
+                & (fitstbl['lampstat01'] != 'off')
+                & (fitstbl['lampstat01'] != 'BC')
+                & (fitstbl['idname'] == 'comp')
+                & (fitstbl['decker'] != '5.0x180')
+                & (fitstbl['target'] != 'focus')
+            )
+        if ftype == 'tilt':
+            # should flesh this out to include all valid arc lamp combos
+            return (
+                good_exp
+                & (fitstbl['lampstat01'] != 'off')
+                & (fitstbl['lampstat01'] != 'BC')
+                & (fitstbl['idname'] == 'comp')
+                & (fitstbl['decker'] != '5.0x180')
+            )
         if ftype in ['trace', 'pixelflat']:
+            # i think the bright lamp, BC, is the only one ever used for this. imagetyp should always be set to flat, but sometimes not.
+            return good_exp & (fitstbl['lampstat01'] == 'BC')
+        if ftype == 'illumflat':
             # i think the bright lamp, BC, is the only one ever used for this. imagetyp should always be set to flat.
-            return good_exp & (fitstbl['lampstat01'] == 'BC') & (fitstbl['idname'] == 'flat')
-        if ftype in ['illumflat']:
-            # these can be set to flat or object depending if they're twilight or dark sky
-            return good_exp & (fitstbl['idname'] in ['flat', 'object']) & (fitstbl['lampstat01'] == 'off')
+            return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['target'] == 'skyflat')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)

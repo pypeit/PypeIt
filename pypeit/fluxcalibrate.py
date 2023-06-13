@@ -109,6 +109,7 @@ class MultiSlitFC(FluxCalibrate):
                                          self.par['extinct_correct'], sens.algorithm),
                                      longitude=self.spectrograph.telescope['longitude'],
                                      latitude=self.spectrograph.telescope['latitude'],
+                                     extinctfilepar=self.par['extinct_file'],
                                      extrap_sens=self.par['extrap_sens'],
                                      airmass=float(sobjs.header['AIRMASS']))
 
@@ -152,6 +153,7 @@ class EchelleFC(FluxCalibrate):
                                          extrap_sens = self.par['extrap_sens'],
                                          longitude=self.spectrograph.telescope['longitude'],
                                          latitude=self.spectrograph.telescope['latitude'],
+                                         extinctfilepar=self.par['extinct_file'],
                                          airmass=float(sobjs.header['AIRMASS']))
             elif indx.size == 0:
                 msgs.info('Unable to flux calibrate order = {:} as it is not in your sensitivity function. '

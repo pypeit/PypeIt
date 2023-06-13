@@ -5,9 +5,7 @@ Define a utility base class used to hold parameters.
 .. include:: ../include/links.rst
 """
 import os
-import warnings
 import textwrap
-import sys
 
 from IPython import embed
 
@@ -15,6 +13,7 @@ import numpy
 
 from astropy.io import fits
 
+from pypeit import msgs
 from pypeit.par import util
 
 
@@ -209,8 +208,10 @@ class ParSet:
         if isinstance(value, list):
             is_parset_or_dict = [ isinstance(v, (ParSet, dict)) for v in value ]
             if numpy.any(is_parset_or_dict) and not numpy.all(is_parset_or_dict):
-                warnings.warn('List includes a mix of ParSet and dicts with other types.  '
-                              'Displaying and writing the ParSet will not be correct!')
+                msgs.warn(
+                    "List includes a mix of ParSet and dicts with other types.  "
+                    "Displaying and writing the ParSet will not be correct!"
+                )
 
         if self.options[key] is not None:
             if isinstance(value, list):
@@ -651,7 +652,7 @@ class ParSet:
                 section_name argument was provided.
         """
         if cfg_file is not None and os.path.isfile(cfg_file) and not append and not quiet:
-            warnings.warn('Selected configuration file already exists and will be overwritten!')
+            msgs.warn("Selected configuration file already exists and will be overwritten!")
 
         config_output = []
         if numpy.all([ isinstance(d, ParSet) or d is None for d in self.data.values() ]):
@@ -693,7 +694,7 @@ class ParSet:
 
     @staticmethod
     def _rst_class_name(p):
-        return ':class:`' +  type(p).__module__ + '.' + type(p).__name__ + '`'
+        return ':class:`~' +  type(p).__module__ + '.' + type(p).__name__ + '`'
 
     def to_rst_table(self, parsets_listed=[]):
         """
@@ -731,8 +732,10 @@ class ParSet:
             data_table[i+1,4] = '..' if self.descr[k] is None \
                                     else ParSet._data_string(self.descr[k])
 
-        output = [ '{0} Keywords'.format(type(self).__name__) ]
-        output += [ '-'*len(output[0]) ]
+        output = [ f'.. _{type(self).__name__.lower()}:']
+        output += [ '' ]
+        output += [ f'{type(self).__name__} Keywords']
+        output += [ '-'*len(output[2]) ]
         output += [ '' ]
         output += ['Class Instantiation: ' + ParSet._rst_class_name(self)]
         output += ['']
@@ -796,8 +799,10 @@ class ParSet:
                 continue
             if isinstance(value, ParSet):
                 if not quiet:
-                    warnings.warn('ParSets within ParSets are not written to headers!  '
-                                  'Skipping {0}.'.format(key))
+                    msgs.warn(
+                        "ParSets within ParSets are not written to headers!  "
+                        f"Skipping {key}."
+                    )
                 continue
             if isinstance(value, list):
                 _value = '[' + ', '.join([str(v) for v in value]) + ']'
@@ -1006,9 +1011,11 @@ class ParDatabase(object):
             # inp.dtype is always a list
             if any([t in inp[i].dtype[k] for t in [int , float]]) \
                 and any([t in inp[i].dtype[k] for t in [list, numpy.ndarray]]):
-                warnings.warn('Parameter set has elements that can be either individual ' \
-                              'ints/floats or lists/arrays.  Database column {0} will have type ' \
-                              '\'object\'.'.format(k))
+                msgs.warn(
+                    "Parameter set has elements that can be either individual "
+                    f"ints/floats or lists/arrays.  Database column {k} will have type "
+                    "'object'."
+                )
                 dtypes += [(k,object)]
             elif len(list({int, float} - set(inp[i].dtype[k]))) == 0:
                 dtypes += [(k,float)]

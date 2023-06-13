@@ -4,6 +4,7 @@ Launch the identify GUI tool.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
+import argparse
 from IPython import embed
 
 from pypeit.scripts import scriptbase
@@ -13,10 +14,9 @@ class Identify(scriptbase.ScriptBase):
     @classmethod
     def get_parser(cls, width=None):
         parser = super().get_parser(description='Launch PypeIt identify tool, display extracted '
-                                                'MasterArc, and load linelist.'
-                                                'Run above the Masters/ folder.', width=width)
-        parser.add_argument('arc_file', type=str, default=None, help='PypeIt MasterArc file')
-        parser.add_argument('slits_file', type=str, default=None, help='PypeIt MasterSlits file')
+                                                'Arc, and load linelist.', width=width)
+        parser.add_argument('arc_file', type=str, default=None, help='PypeIt Arc file')
+        parser.add_argument('slits_file', type=str, default=None, help='PypeIt Slits file')
         parser.add_argument("--lamps", type=str,
                             help="Comma separated list of calibration lamps (no spaces)")
         parser.add_argument('-s', '--solution', default=False, action='store_true',
@@ -32,31 +32,30 @@ class Identify(scriptbase.ScriptBase):
         parser.add_argument("--pixtol", type=float, default=0.1,
                             help="Pixel tolerance for Auto IDs")
         parser.add_argument('--test', default=False, action='store_true',
-                            help="Unit tests?")
+                            help=argparse.SUPPRESS)
         parser.add_argument("--linear", default=False, action="store_true",
-                            help="Show the spectrum in linear scale? (Default: log")
+                            help="Show the spectrum in linear (rather than log) scale")
         parser.add_argument('--force_save', default=False, action='store_true',
                             help="Save the solutions, despite the RMS")
+        parser.add_argument('--rescale_resid', default=False, action='store_true',
+                            help="Rescale the residual plot to include all points?")
         return parser
 
     @staticmethod
     def main(args):
 
         import os
-        import sys
 
         import numpy as np
         
         from pypeit import msgs
-        from pypeit import masterframe
         from pypeit.spectrographs.util import load_spectrograph
         from pypeit.core.gui.identify import Identify
-        from pypeit.core.wavecal import waveio
         from pypeit.wavecalib import BuildWaveCalib, WaveCalib
         from pypeit import slittrace
         from pypeit.images.buildimage import ArcImage
 
-        # Load the MasterArc file
+        # Load the Arc file
         msarc = ArcImage.from_file(args.arc_file)
 
         # Load the spectrograph
@@ -78,15 +77,13 @@ class Identify(scriptbase.ScriptBase):
         slits.mask = slits.mask_init
 
         # Check if a solution exists
-        solnname = masterframe.construct_file_name(WaveCalib, msarc.master_key,
-                                                   master_dir=msarc.master_dir)
-        wv_calib = waveio.load_wavelength_calibration(solnname) \
+        solnname = WaveCalib.construct_file_name(msarc.calib_key, calib_dir=msarc.calib_dir)
+        wv_calib = WaveCalib.from_file(solnname) \
                         if os.path.exists(solnname) and args.solution else None
 
-        # Load the MasterFrame (if it exists and is desired).  Bad-pixel mask
-        # set to any flagged pixel in MasterArc.
-        wavecal = BuildWaveCalib(msarc, slits, spec, par, lamps, binspectral=slits.binspec,
-                                 det=args.det, master_key=msarc.master_key,
+        # Load the calibration frame (if it exists and is desired).  Bad-pixel mask
+        # set to any flagged pixel in Arc.
+        wavecal = BuildWaveCalib(msarc, slits, spec, par, lamps, det=args.det,
                                  msbpm=msarc.select_flag())
         arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[args.slit])
 
@@ -102,9 +99,11 @@ class Identify(scriptbase.ScriptBase):
                                         pxtoler=args.pixtol, test=args.test, 
                                         fwhm=args.fwhm,
                                         sigdetect=args.sigdetect,
-                                        specname=spec.name, y_log=not args.linear)
+                                        specname=spec.name,
+                                        y_log=not args.linear,
+                                        rescale_resid=args.rescale_resid)
 
-        # Testing?
+        # If testing, return now
         if args.test:
             return arcfitter
         final_fit = arcfitter.get_results()
@@ -115,8 +114,8 @@ class Identify(scriptbase.ScriptBase):
         if 'WaveFit' in arcfitter._fitdict.keys():
             waveCalib = WaveCalib(nslits=1, wv_fits=np.atleast_1d(arcfitter._fitdict['WaveFit']),
                                   arc_spectra=np.atleast_2d(arcfitter.specdata).T,
-                                  spat_ids=np.atleast_1d(int(arcfitter._spatid)), PYP_SPEC=msarc.PYP_SPEC,
-                                  lamps=','.join(lamps))
+                                  spat_ids=np.atleast_1d(int(arcfitter._spatid)),
+                                  PYP_SPEC=msarc.PYP_SPEC, lamps=','.join(lamps))
         else:
             waveCalib = None
 

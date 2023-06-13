@@ -3,8 +3,7 @@ Routines for matching frames to certain types or each other.
 
 .. include:: ../include/links.rst
 """
-import os
-import re
+# TODO -- Move this out of core?
 
 from collections import OrderedDict
 
@@ -21,14 +20,6 @@ class FrameTypeBitMask(BitMask):
     standard, or trace.
     """
     def __init__(self):
-        # TODO: This needs to be an OrderedDict for now to ensure that
-        # the bits assigned to each key is always the same. As of python
-        # 3.7, normal dict types are guaranteed to preserve insertion
-        # order as part of its data model. When/if we require python
-        # 3.7, we can remove this (and other) OrderedDict usage in favor
-        # of just a normal dict.
-
-        # TODO JFH: I don't think we ever use pinhole. Should we remove it.
         # TODO JFH: We need a background image type
         frame_types = OrderedDict([
                        ('align', 'Trace constant spatial positions along the slit'),
@@ -84,7 +75,7 @@ class FrameTypeBitMask(BitMask):
         return out[0] if isinstance(type_bits, np.integer) else out
 
 
-def valid_frametype(frametype, quiet=False):
+def valid_frametype(frametype, quiet=False, raise_error=False):
     """
     Confirm the provided frame type is known to ``PypeIt``.
 
@@ -93,13 +84,21 @@ def valid_frametype(frametype, quiet=False):
             The frame type name.
         quiet (:obj:`bool`, optional):
             Suppress output
+        raise_error (:obj:`bool`, optional):
+            Instead of issuing a warning, raise an exception.
 
     Returns:
         :obj:`bool`: Flag that the frametype name is valid.
     """
     good_frametype = frametype in FrameTypeBitMask().keys()
-    if not quiet and not good_frametype:
-        msgs.warn(f'{frametype} is not a valid PypeIt frame type.')
+    if not good_frametype:
+        _f = None
+        if not quiet and not raise_error:
+            _f = msgs.warn
+        elif raise_error:
+            _f = msgs.error
+        if _f is not None:
+            _f(f'{frametype} is not a valid PypeIt frame type.')
     return good_frametype
     
 

@@ -189,14 +189,6 @@ class CombineImage:
             msgs.error(f'Unknown image combination method, {combine_method}.  Must be '
                        '"mean" or "median".')
 
-        # If not provided, generate the bpm for this spectrograph and detector.
-        # Regardless of the file used, this must result in the same bpm, so we
-        # just use the first one.
-        # TODO: Why is this done here?  It's the same thing as what's done if
-        # bpm is not passed to RawImage.process...
-#        if bpm is None:
-#            bpm = self.spectrograph.bpm(self.files[0], self.det)
-
         # Loop on the files
         for kk, ifile in enumerate(self.files):
             # Load raw image
@@ -221,6 +213,8 @@ class CombineImage:
                 exptime = np.zeros(self.nfiles, dtype=float)
 
             # Save the lamp status
+            # TODO: As far as I can tell, this is the *only* place rawheadlist
+            # is used.  Is there a way we can get this from fitstbl instead?
             lampstat[kk] = self.spectrograph.get_lamps_status(pypeitImage.rawheadlist)
             # Save the exposure time to check if it's consistent for all images.
             exptime[kk] = pypeitImage.exptime
@@ -272,7 +266,7 @@ class CombineImage:
         # Coadd them
         if combine_method == 'mean':
             weights = np.ones(self.nfiles, dtype=float)/self.nfiles
-            img_list_out, var_list_out, gpm, nstack \
+            img_list_out, var_list_out, gpm, nframes \
                     = combine.weighted_combine(weights,
                                                [img_stack, scl_stack],  # images to stack
                                                [rn2img_stack, basev_stack], # variances to stack
@@ -281,12 +275,13 @@ class CombineImage:
                                                sigrej=sigrej, maxiters=maxiters)
             comb_img, comb_scl = img_list_out
             comb_rn2, comb_basev = var_list_out
-            comb_rn2[gpm] /= comb_scl[gpm]**2
-            comb_basev[gpm] /= comb_scl[gpm]**2
+            # Divide by the number of images that contributed to each pixel
+            comb_scl[gpm] /= nframes[gpm]
+
         elif combine_method == 'median':
             bpm_stack = np.logical_not(gpm_stack)
-            nstack = np.sum(gpm_stack, axis=0)
-            gpm = nstack > 0
+            nframes = np.sum(gpm_stack, axis=0)
+            gpm = nframes > 0
             comb_img = np.ma.median(np.ma.MaskedArray(img_stack, mask=bpm_stack),axis=0).filled(0.)
             # TODO: I'm not sure if this is right.  Maybe we should just take
             # the masked average scale instead?
@@ -297,8 +292,10 @@ class CombineImage:
             comb_basev = np.ma.sum(np.ma.MaskedArray(basev_stack, mask=bpm_stack),axis=0).filled(0.)
             # Convert to standard error in the median (pi/2 factor relates standard variance
             # in mean (sum(variance_i)/n^2) to standard variance in median)
-            comb_rn2[gpm] *= np.pi/2/nstack[gpm]**2/comb_scl[gpm]**2
-            comb_basev[gpm] *= np.pi/2/nstack[gpm]**2/comb_scl[gpm]**2
+            comb_rn2[gpm] *= np.pi/2/nframes[gpm]**2
+            comb_basev[gpm] *= np.pi/2/nframes[gpm]**2
+            # Divide by the number of images that contributed to each pixel
+            comb_scl[gpm] *= np.pi/2/nframes[gpm]
         else:
             # NOTE: Given the check at the beginning of the function, the code
             # should *never* make it here.
@@ -311,10 +308,11 @@ class CombineImage:
                                           noise_floor=self.par['noise_floor'])
 
         # Build the combined image
-        comb = pypeitimage.PypeItImage(image=comb_img, ivar=utils.inverse(comb_var), nimg=nstack,
+        comb = pypeitimage.PypeItImage(image=comb_img, ivar=utils.inverse(comb_var), nimg=nframes,
                                        amp_img=pypeitImage.amp_img, det_img=pypeitImage.det_img,
                                        rn2img=comb_rn2, base_var=comb_basev, img_scale=comb_scl,
-                                       bpm=np.logical_not(gpm).astype(np.uint8),
+                                       # NOTE: This *must* be a boolean.
+                                       bpm=np.logical_not(gpm), 
                                        # NOTE: The detector is needed here so
                                        # that we can get the dark current later.
                                        detector=pypeitImage.detector,

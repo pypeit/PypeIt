@@ -1,7 +1,7 @@
 """
 Provides methods common to :class:`pypeit.metadata.PypeItMetaData` and
 :class:`pypeit.spectographs.spectrograph.Spectrograph` that define the
-common metadata used for all specrographs.
+common metadata used for all spectrographs.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
@@ -23,9 +23,9 @@ def convert_radec(ra, dec):
     then they will be converted to floats
 
     Args:
-        ra (str or float or np.ndarray):
+        ra (str or float or `numpy.ndarray`_):
             RA as decimal deg (float) or  hh:mm:ss.s (str)
-        dec (str or float or np.ndarray):
+        dec (str or float or `numpy.ndarray`_):
             DEC as decimal deg (float) or  +dd:mm:ss.s (str)
             Must be the same format as ra
 
@@ -132,6 +132,13 @@ def define_additional_meta(nlamps=20):
                        'calpos': dict(dtype=str, comment='Position of calibration system (KCWI)'),
                        'datasec': dict(dtype=str, comment='Data section (windowing)'),
                        'dateobs': dict(dtype=str, comment='Observation date'),
+                       'decker_secondary': dict(dtype=str, comment='Partial Slitmask/decker name. '
+                                                                  'It differs from decker. This is currently '
+                                                                  'only needed for the reduction of some '
+                                                                  'MOSFIRE masks, which use calibrations '
+                                                                  'taken with a partially different decker '
+                                                                  'name than the one used for the associated '
+                                                                  'science frames.'),
                        'detector': dict(dtype=str, comment='Name of detector'),
                        'dichroic': dict(dtype=str, comment='Beam splitter'),
                        'dispangle': dict(dtype=float, comment='Angle of the disperser', rtol=0.),
@@ -140,6 +147,7 @@ def define_additional_meta(nlamps=20):
                        'dithpat': dict(dtype=str, comment='Dither pattern'),
                        'dithpos': dict(dtype=str, comment='Dither position'),
                        'dithoff': dict(dtype=float, comment='Dither offset'),
+                       'echangle':dict(dtype=float, comment='Echelle angle'),
                        'filter1': dict(dtype=str, comment='First filter in optical path'),
                        'frameno': dict(dtype=str, comment='Frame number provided by instrument software'),
                        'hatch': dict(dtype=str, comment='Position of instrument hatch'),
@@ -153,8 +161,12 @@ def define_additional_meta(nlamps=20):
                        'pressure': dict(dtype=float, comment='Pressure (units.bar) at observation time'),
                        'seq_expno': dict(dtype=int, comment='Number of exposure in observing sequence'),
                        'slitwid': dict(dtype=float, comment='Slit width, sometimes distinct from decker'),
+                       'slitlength': dict(dtype=float, comment='Slit length, used only for long slits'),
                        'temperature': dict(dtype=float, comment='Temperature (units.K) at observation time'),
-                       'utc': dict(dtype=str, comment='UTC of observation')}
+                       'utc': dict(dtype=str, comment='UTC of observation'),
+                       'xd': dict(dtype=float, comment='Cross disperser (e.g. red or blue for HIRES)'),
+                       'xdangle':dict(dtype=float, comment='Cross disperser angle'),
+                       }
 
     for kk in range(nlamps):
         additional_meta['lampstat{:02d}'.format(kk+1)] \

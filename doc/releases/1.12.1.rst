@@ -1,0 +1,27 @@
+
+Version 1.12.1
+==============
+
+Instrument-specific Updates
+---------------------------
+
+- Implemented the upgraded GTC/OSIRIS+
+- Added support for more NOT/ALFOSC grisms as well as NOT recommended standards
+- Implemented the SOAR/Goodman (blue) M1 only
+
+Minor Updates
+-------------
+
+- Modify install notes to allow python 3.10; python3.8 not longer explicitly supported
+- Allow for bad orders during extraction without crashing
+
+Hotfixes
+--------
+
+- Specify sphinx versions to correctly work with sphinx_rtd_theme
+- Fixed bug that caused crash of sensfunc routines using telluric grids in offline processing
+- Fixed error when showing flats in Ginga when the fine correction is not performed
+- Fixed keymap error when displaying GUIs
+- New docs on OneSpec 
+
+

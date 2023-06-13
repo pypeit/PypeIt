@@ -33,6 +33,10 @@ class TracePCA(DataContainer):
     :func:`pypeit.core.pca.fit_pca_coefficients`, and
     :func:`pypeit.core.pca.pca_predict`.
 
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_tracepca.rst
+
     Args:
         trace_cen (`numpy.ndarray`_, optional):
             A floating-point array with the spatial location of each
@@ -69,7 +73,7 @@ class TracePCA(DataContainer):
                                              'coordinate system for the PCA.'),
                  'trace_coo': dict(otype=np.ndarray, atype=(float,np.floating),
                                    descr='Trace coordinates.  Shape must be '
-                                         r':math:`(N_{\rm spec},N_{\rm trace}).'),
+                                         r':math:`(N_{\rm spec},N_{\rm trace})`.'),
                  'nspec': dict(otype=int,
                                descr='Number of pixels in the image spectral direction.'),
                  'ntrace': dict(otype=int, descr='Number of traces used to construct the PCA.'),
@@ -100,6 +104,8 @@ class TracePCA(DataContainer):
                                                 'coefficients at a new reference coordinate.')}
     """Object datamodel."""
 
+    internals = ['is_empty']
+
     # TODO: Add a show method that plots the pca coefficients and the
     # current fit, if there is one
     def __init__(self, trace_cen=None, npca=None, pca_explained_var=99.0, reference_row=None,
@@ -107,15 +113,12 @@ class TracePCA(DataContainer):
 
         # Instantiate as an empty DataContainer
         super(TracePCA, self).__init__()
+        self.is_empty = True
 
         # Only do the decomposition if the trace coordinates are provided.
         if trace_cen is not None:
             self.decompose(trace_cen, npca=npca, pca_explained_var=pca_explained_var,
                            reference_row=reference_row, coo=coo)
-
-    def _init_internals(self):
-        """Add any attributes that are *not* part of the datamodel."""
-        self.is_empty = True
 
     def decompose(self, trace_cen, npca=None, pca_explained_var=99.0, reference_row=None,
                   coo=None):

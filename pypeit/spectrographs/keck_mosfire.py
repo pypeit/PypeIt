@@ -3,6 +3,7 @@ Module for Keck/MOSFIRE specific methods.
 
 .. include:: ../include/links.rst
 """
+import copy
 import os
 import numpy as np
 from astropy.io import fits
@@ -29,6 +30,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
     name = 'keck_mosfire'
     telescope = telescopes.KeckTelescopePar()
     camera = 'MOSFIRE'
+    url = 'https://www2.keck.hawaii.edu/inst/mosfire/home.html'
     header_name = 'MOSFIRE'
     supported = True
     comment = 'Gratings tested: Y, J, J2, H, K; see :doc:`mosfire`'
@@ -76,7 +78,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -128,28 +130,25 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
         return par
 
-
-
-    def get_ql_master_dir(self, file):
+    # NOTE: This function is used by the dev-suite
+    def get_ql_calib_dir(self, file):
         """
-        Returns master file directory for quicklook reductions.
+        Returns calibrations file directory for quicklook reductions.
 
         Args:
             file (str):
               Image file
 
         Returns:
-            master_dir (str):
-              Quicklook Master directory
+            :obj:`str`: Quicklook calibrations directory
 
         """
-
         mosfire_filter = self.get_meta_value(file, 'filter1')
         return os.path.join(self.name, mosfire_filter)
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
@@ -183,6 +182,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                 par['calibrations']['slitedges']['det_buffer'] = 0
                 # artificially add left and right edges
                 par['calibrations']['slitedges']['bound_detector'] = True
+            # set offsets for coadd2d
+            par['coadd2d']['offsets'] = 'header'
 
         # Turn on the use of mask design
         else:
@@ -200,6 +201,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                                                                        '1:{}:2040'.format(pix_end)]
                 # assume that the main target is always detected, i.e., skipping force extraction
                 par['reduce']['slitmask']['extract_missing_objs'] = False
+            # set offsets for coadd2d
+            par['coadd2d']['offsets'] = 'maskdef_offsets'
 
         # wavelength calibration
         supported_filters = ['Y', 'J', 'J2', 'H', 'K']
@@ -250,7 +253,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -269,6 +272,15 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         self.meta['idname'] = dict(card=None, compound=True)
         self.meta['frameno'] = dict(ext=0, card='FRAMENUM')
         self.meta['object'] = dict(ext=0, card='OBJECT')
+        # The following 3 metas (decker_secondary, slitwid, slitlength) are introduced
+        # only to reduce data (LONGSLIT and long2pos) with calibrations taken with
+        # a different decker ('MASKNAME')
+        # decker_secondary is different than decker (MASKNAME) only for 'LONGSLIT' masks
+        self.meta['decker_secondary'] = dict(card=None, compound=True)
+        # slit width, defined only for 'LONGSLIT' masks
+        self.meta['slitwid'] = dict(card=None, compound=True, rtol=0.1)
+        # slit length in numbers of CSU, defined only for only for 'LONGSLIT' masks
+        self.meta['slitlength'] = dict(card=None, compound=True, rtol=0.1)
         # Filter
         self.meta['filter1'] = dict(ext=0, card='FILTER')
         # Lamps on/off or Ar/Ne
@@ -294,6 +306,33 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         Returns:
             object: Metadata value read from the header(s).
         """
+        if meta_key == 'decker_secondary':
+            # decker_secondary is different than decker (MASKNAME) only for 'LONGSLIT' masks
+            maskname = headarr[0].get('MASKNAME')
+            if 'LONGSLIT' in maskname:
+                return maskname.split('(')[0].split('-')[0]
+            else:
+                return maskname
+        if meta_key == 'slitlength':
+            # slitlength is defined only for 'LONGSLIT' masks since this info is generally
+            # included in the slitmask name (MASKNAME) of 'LONGSLIT' masks and
+            # it's useful to associate science frames to calibrations taken with different MASKNAME
+            maskname = headarr[0].get('MASKNAME')
+            if 'LONGSLIT' in maskname and 'x' in maskname:
+                return maskname.split('(')[0].split('x')[0].split('-')[1]
+            else:
+                return None
+
+        if meta_key == 'slitwid':
+            # slitwid is defined only for 'LONGSLIT' masks since this info is generally
+            # included in the slitmask name (MASKNAME) of 'LONGSLIT' masks and
+            # it's useful to associate science frames to calibrations taken with different MASKNAME
+            maskname = headarr[0].get('MASKNAME')
+            if 'LONGSLIT' in maskname and 'x' in maskname:
+                return maskname.split('(')[0].split('x')[1]
+            else:
+                return None
+
         if meta_key == 'idname':
             FLATSPEC = headarr[0].get('FLATSPEC')
             PWSTATA7 = headarr[0].get('PWSTATA7')
@@ -347,11 +386,284 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['decker', 'dispname', 'filter1']
+        return ['decker_secondary', 'slitlength', 'slitwid', 'dispname', 'filter1']
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['MASKNAME', 'OBSMODE', 'FILTER']
+
+    def modify_config(self, row, cfg):
+        """
+
+        Modify the configuration dictionary for a given frame. This method is
+        used in :func:`~pypeit.metadata.PypeItMetaData.set_configurations` to
+        modify in place the configuration requirement to assign a specific frame
+        to the current setup.
+
+        This is needed for the reduction of 'LONGSLIT' and 'long2pos' data,
+        which often use calibrations taken with a different decker (MASKNAME).
+
+            - For the 'LONGSLIT' masks, when we are assigning a configuration to
+              a calibration file that was taken with the longest slit available
+              (46 CSUs), since these calibrations are generally used for the
+              reduction of science frames with shorter slits, we remove the
+              configuration requirement on the slit length for the current file.
+
+            - For the 'long2pos' masks, when we are assigning a configuration to
+              a calibration file that was taken with the 'long2pos' mask, since
+              these calibrations are generally used for the reduction of science
+              frames taken with 'long2pos_specphot' masks, we modify the
+              configuration requirement on the decker_secondary for the current
+              file.
+
+        Args:
+            row (`astropy.table.Row`_):
+                The table row with the metadata for one frame.
+            cfg (:obj:`dict`):
+                Dictionary with metadata associated to a specific configuration.
+
+        Returns:
+            :obj:`dict`: modified dictionary with metadata associated to a
+            specific configuration.
+        """
+        if row['decker'] is not None \
+                and cfg['decker_secondary'] is not None \
+                and 'LONGSLIT' in row['decker'] \
+                and 'LONGSLIT' in cfg['decker_secondary'] \
+                and 'science' not in row['frametype'] \
+                and 'standard' not in row['frametype'] \
+                and row['slitlength'] == 46.:
+            cfg2 = copy.deepcopy(cfg)
+            cfg2.pop('slitlength')
+            return cfg2
+        if row['decker'] is not None \
+                and cfg['decker_secondary'] is not None \
+                and 'long2pos' in row['decker'] \
+                and 'long2pos' in cfg['decker_secondary'] \
+                and 'science' not in row['frametype'] \
+                and 'standard' not in row['frametype']:
+            cfg2 = copy.deepcopy(cfg)
+            cfg2['decker_secondary'] = 'long2pos'
+            return cfg2
+        return cfg
+
+    def get_comb_group(self, fitstbl):
+        """
+        Automatically assign combination groups and background images by parsing
+        known dither patterns.
+
+        This method is used in
+        :func:`~pypeit.metadata.PypeItMetaData.set_combination_groups`, and
+        directly modifies the ``comb_id`` and ``bkg_id`` columns in the provided
+        table.
+
+        Specifically here, this method parses the dither pattern of the
+        science/standard frames in a given calibration group and assigns to each
+        of them a comb_id and a bkg_id. The known dither patterns are: "Slit
+        Nod", "Mask Nod", "ABA'B'", "ABAB", "ABBA", "long2pos_specphot", and
+        "Stare". Note that the frames in the same dither positions (A positions
+        or B positions) of each "ABAB" or "ABBA" sequence are 2D coadded
+        (without optimal weighting) before the background subtraction, while for
+        the other dither patterns, the frames in the same dither positions are
+        not coadded.
+
+        For "long2pos_specphot" masks, the ``comb_id`` and a ``bkg_id`` are
+        assigned such that one of the two frames with spectra taken using the
+        narrower slit is used as the background frame and subtracted from the
+        frame with spectra taken using the wider slit.
+
+        Args:
+            fitstbl(`astropy.table.Table`_):
+                The table with the metadata for all the frames.
+
+        Returns:
+            `astropy.table.Table`_: modified fitstbl.
+        """
+        #TODO incorporate parse_dither_pattern() here.
+
+        # find index of fitstbl that contains science and standard frames
+        # where science
+        sci_idx = np.array(['science' in _tab for _tab in fitstbl['frametype']])
+        # where standard
+        std_idx = np.array(['standard' in _tab for _tab in fitstbl['frametype']])
+
+        sci_std_idx = [sci_idx, std_idx]
+        # loop over the science and standard frames
+        for idx in sci_std_idx:
+            setups = np.unique(fitstbl[idx]['setup'])
+            # loop over the setups
+            for setup in setups:
+                in_cfg = idx & np.array([setup in _set for _set in fitstbl['setup']])
+                if len(fitstbl[in_cfg]) == 1:
+                    continue
+                # how many dither patterns are used for the selected science/standard frames?
+                uniq_dithpats = np.unique(fitstbl[in_cfg]['dithpat'])
+                # loop through the dither patterns
+                for dpat in uniq_dithpats:
+                    if dpat == 'none':
+                        continue
+                    # where this dpat
+                    dpat_idx = in_cfg & (fitstbl['dithpat'] == dpat) & \
+                               np.array([dithpos in ["A", "B", "A'", "B'"] for dithpos in fitstbl['dithpos']])
+
+                    # compute comb_id
+                    if len(fitstbl[dpat_idx]) > 1:
+                        # get default combid and bkgid
+                        combid = np.copy(fitstbl['comb_id'][dpat_idx].data)
+                        bkgid = np.copy(fitstbl['bkg_id'][dpat_idx].data)
+                        dpos = fitstbl[dpat_idx]['dithpos']
+
+                        if "long2pos_specphot" in fitstbl[dpat_idx]['decker']:
+                            doff = fitstbl[dpat_idx]['dithoff']
+                            # find the starting index of the BAA sequence
+                            dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B") &
+                                                (np.roll(dpos, -2) == "A"))[0]
+                            for i in dpos_idx:
+                                # make sure that that dither offsets are correct
+                                if i < len(dpos)-2 and doff[i] == 0. and abs(doff[i+1]) > 0. and doff[i+1] == -doff[i+2]:
+                                    bkgid[i] = combid[i+1]
+                                    bkgid[i+1] = combid[i+2]
+                                    bkgid[i+2] = combid[i+1]
+
+                        elif "long2pos" in fitstbl[dpat_idx]['decker']:
+                            # find the starting index of the BA sequence
+                            dpos_idx = np.where((dpos == "B") & (np.roll(dpos, -1) == "A"))[0]
+                            for i in dpos_idx:
+                                # exclude when np.roll counts the 1st element of dpos to be in a
+                                # sequence with the last element
+                                if i < len(dpos) - 1:
+                                    bkgid[i] = combid[i + 1]
+                                    bkgid[i + 1] = combid[i]
+
+                        elif dpat in ["Slit Nod", "Mask Nod"]:
+                            # find the starting index of the AB sequence
+                            dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B"))[0]
+                            for i in dpos_idx:
+                                # exclude when np.roll counts the 1st element of dpos to be in a
+                                # sequence with the last element
+                                if i < len(dpos)-1:
+                                    bkgid[i] = combid[i+1]
+                                    bkgid[i+1] = combid[i]
+
+                        elif dpat == "ABA'B'":
+                            # find the starting index of the ABA'B' sequence
+                            dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B") &
+                                                (np.roll(dpos, -2) == "A'") & (np.roll(dpos, -3) == "B'"))[0]
+                            for i in dpos_idx:
+                                if i < len(dpos) - 3:
+                                    bkgid[i] = combid[i+1]
+                                    bkgid[i+1] = combid[i]
+                                    bkgid[i+2] = bkgid[i+3]
+                                    bkgid[i+3] = bkgid[i+2]
+
+                        elif dpat == "ABAB":
+                            # find the starting index of the ABAB sequence
+                            dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B") &
+                                                (np.roll(dpos, -2) == "A") & (np.roll(dpos, -3) == "B"))[0]
+                            for i in dpos_idx:
+                                if i < len(dpos) - 3:
+                                    bkgid[i] = combid[i+1]
+                                    bkgid[i+1] = combid[i]
+                                    combid[i+2] = combid[i]
+                                    bkgid[i+2] = bkgid[i]
+                                    combid[i+3] = combid[i+1]
+                                    bkgid[i+3] = bkgid[i+1]
+
+                        elif dpat == "ABBA":
+                            # find the starting index of the ABBA sequence
+                            dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B") &
+                                                (np.roll(dpos, -2) == "B") & (np.roll(dpos, -3) == "A"))[0]
+                            for i in dpos_idx:
+                                if i < len(dpos) - 3:
+                                    bkgid[i] = combid[i+1]
+                                    bkgid[i+1] = combid[i]
+                                    combid[i+2] = combid[i+1]
+                                    bkgid[i+2] = bkgid[i+1]
+                                    combid[i+3] = combid[i]
+                                    bkgid[i+3] = bkgid[i]
+
+                        # if dpat is "Stare" try to find a sequence using dpos
+                        elif dpat == "Stare":
+                            # find the starting index of a possible ABBA sequence
+                            dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B") &
+                                                (np.roll(dpos, -2) == "B") & (np.roll(dpos, -3) == "A"))[0]
+                            if dpos_idx.size > 0:
+                                for i in dpos_idx:
+                                    if i < len(dpos) - 3:
+                                        bkgid[i] = combid[i+1]
+                                        bkgid[i+1] = combid[i]
+                                        combid[i+2] = combid[i+1]
+                                        bkgid[i+2] = bkgid[i+1]
+                                        combid[i+3] = combid[i]
+                                        bkgid[i+3] = bkgid[i]
+                            # find the starting index of a possible ABA'B' sequence
+                            dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B") &
+                                                (np.roll(dpos, -2) == "A'") & (np.roll(dpos, -3) == "B'"))[0]
+                            if dpos_idx.size > 0:
+                                for i in dpos_idx:
+                                    if i < len(dpos) - 3:
+                                        bkgid[i] = combid[i+1]
+                                        bkgid[i+1] = combid[i]
+                                        bkgid[i+2] = bkgid[i+3]
+                                        bkgid[i+3] = bkgid[i+2]
+                            # find the starting index of a possible AB sequence
+                            dpos_idx = np.where((dpos == "A") & (np.roll(dpos, -1) == "B"))[0]
+                            if dpos_idx.size > 0:
+                                for i in dpos_idx:
+                                    # exclude when np.roll counts the 1st element of dpos to be in a
+                                    # sequence with the last element
+                                    if i < len(dpos)-1:
+                                        bkgid[i] = combid[i+1]
+                                        bkgid[i+1] = combid[i]
+
+                        # assign bkgid for files that deviate from general a sequence
+                        for i in range(len(fitstbl[dpat_idx])):
+                            # if A frame doesn't have bkgid assigned
+                            if bkgid[i] == -1 and \
+                            (fitstbl[dpat_idx]['dithpos'][i] == "A" or fitstbl[dpat_idx]['dithpos'][i] == "A'"):
+                                # find closest (in mjd) B frame to subtract from this A
+                                if fitstbl[dpat_idx]['dithpos'][i] == "A":
+                                    pos_idx = fitstbl[dpat_idx]['dithpos'] == "B"
+                                elif fitstbl[dpat_idx]['dithpos'][i] == "A'":
+                                    pos_idx = fitstbl[dpat_idx]['dithpos'] == "B'"
+                                if np.any(pos_idx):
+                                    close_idx = np.argmin(np.absolute(fitstbl[dpat_idx][pos_idx]['mjd'] - fitstbl[dpat_idx]['mjd'][i]))
+                                    bkgid[i] = combid[pos_idx][close_idx]
+                            # if B frame doesn't have bkgid assigned
+                            if bkgid[i] == -1 and \
+                            (fitstbl[dpat_idx]['dithpos'][i] == "B" or fitstbl[dpat_idx]['dithpos'][i] == "B'"):
+                                # find closest (in mjd) A frame to subtract from this B
+                                if fitstbl[dpat_idx]['dithpos'][i] == "B":
+                                    pos_idx = np.where(fitstbl[dpat_idx]['dithpos'] == "A")[0]
+                                elif fitstbl[dpat_idx]['dithpos'][i] == "B'":
+                                    pos_idx = np.where(fitstbl[dpat_idx]['dithpos'] == "A'")[0]
+                                if np.any(pos_idx):
+                                    close_idx = np.argmin(np.absolute(fitstbl[dpat_idx][pos_idx]['mjd'] - fitstbl[dpat_idx]['mjd'][i]))
+                                    bkgid[i] = combid[pos_idx][close_idx]
+                        fitstbl['bkg_id'][dpat_idx] = bkgid
+                        fitstbl['comb_id'][dpat_idx] = combid
+
+        return fitstbl
 
     def pypeit_file_keys(self):
         """
-        Define the list of keys to be output into a standard ``PypeIt`` file.
+        Define the list of keys to be output into a standard PypeIt file.
 
         Returns:
             :obj:`list`: The list of keywords in the relevant
@@ -363,7 +675,11 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 #        # pypeit.metadata.PypeItMetaData.set_pypeit_cols
 #        pypeit_keys += [calib', 'comb_id', 'bkg_id']
 #        return pypeit_keys
-        return super().pypeit_file_keys() + [ 'lampstat01', 'dithpat', 'dithpos', 'dithoff', 'frameno']
+        pypeit_keys = super().pypeit_file_keys()
+        pypeit_keys.remove('decker_secondary')
+        pypeit_keys.remove('slitwid')
+        pypeit_keys.remove('slitlength')
+        return pypeit_keys + ['lampstat01', 'dithpat', 'dithpos', 'dithoff', 'frameno']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -401,11 +717,12 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             # TODO: This is a kludge.  Allow science frames to also be
             # classified as arcs
             is_arc = fitstbl['idname'] == 'arclamp'
-            is_obj = (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'object')
+            is_obj = (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'object') & ('long2pos_specphot' not in fitstbl['decker'])
             return good_exp & (is_arc | is_obj)
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
+    # TODO: Is this supposed to be deprecated in favor of get_comb_group?
     def parse_dither_pattern(self, file_list, ext=None):
         """
         Parse headers from a file list to determine the dither pattern.
@@ -450,29 +767,29 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         Parameters
         ----------
-        wave_in: (float np.ndarray) shape = (nspec,)
-            Input standard star wavelenghts
-        counts_in: (float np.ndarray) shape = (nspec,)
-            Input standard star counts
-        counts_ivar_in: (float np.ndarray) shape = (nspec,)
-            Input inverse variance of standard star counts
-        gpm_in: (bool np.ndarray) shape = (nspec,)
-            Input good pixel mask for standard
-        meta_table: (astropy.table)
-            Table containing meta data that is slupred from the specobjs object. See unpack_object routine in specobjs.py
-            for the contents of this table.
+        wave_in: `numpy.ndarray`_
+            Input standard star wavelengths (:obj:`float`, ``shape = (nspec,)``)
+        counts_in: `numpy.ndarray`_
+            Input standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        counts_ivar_in: `numpy.ndarray`_
+            Input inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        gpm_in: `numpy.ndarray`_
+            Input good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        meta_table: :obj:`dict`
+            Table containing meta data that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
+            object.  See :meth:`~pypeit.specobjs.SpecObjs.unpack_object` for the
+            contents of this table.
 
         Returns
         -------
-        wave_out: (float np.ndarray) shape = (nspec,)
-            Output standard star wavelenghts
-        counts_out: (float np.ndarray) shape = (nspec,)
-            Output standard star counts
-        counts_ivar_out: (float np.ndarray) shape = (nspec,)
-            Output inverse variance of standard star counts
-        gpm_out: (bool np.ndarray) shape = (nspec,)
-            Output good pixel mask for standard
-
+        wave_out: `numpy.ndarray`_
+            Output standard star wavelengths (:obj:`float`, ``shape = (nspec,)``)
+        counts_out: `numpy.ndarray`_
+            Output standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        counts_ivar_out: `numpy.ndarray`_
+            Output inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        gpm_out: `numpy.ndarray`_
+            Output good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
         """
 
         # Could check the wavelenghts here to do something more robust to header/meta data issues
@@ -685,7 +1002,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                                  posx_pa=posx_pa)
         return self.slitmask
 
-    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None):
+    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None,
+                              trc_path=None, binning=None):
         """
         Provides the slit edges positions predicted by the slitmask design using
         the mask coordinates already converted from mm to pixels by the method
@@ -724,7 +1042,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         # build an array of values containing the bottom (right) edge of the slits
         # starting edge
         edge = self._starting_edge(filename)
-        bot_edges = np.array([edge], dtype=np.int)
+        bot_edges = np.array([edge], dtype=int)
         for i in range(self.slitmask.nslits - 1):
             # target is the slit number
             edge -= (self.slitmask.onsky[:,2][i]/platescale + slit_gap)

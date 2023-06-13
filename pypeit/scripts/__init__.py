@@ -4,9 +4,11 @@ from pypeit.scripts import scriptbase
 
 # The import of all the script modules here is what enables the dynamic
 # compiling of all the available scripts below
+from pypeit.scripts import cache_github_data
 from pypeit.scripts import chk_alignments
 from pypeit.scripts import chk_edges
 from pypeit.scripts import chk_flats
+from pypeit.scripts import chk_tilts
 from pypeit.scripts import chk_for_calibs
 from pypeit.scripts import chk_noise_1dspec
 from pypeit.scripts import chk_noise_2dspec
@@ -19,20 +21,21 @@ from pypeit.scripts import compare_sky
 from pypeit.scripts import flux_calib
 from pypeit.scripts import flux_setup
 from pypeit.scripts import identify
-from pypeit.scripts import install_ql_masters
+from pypeit.scripts import install_extinctfile
+from pypeit.scripts import install_linelist
+from pypeit.scripts import install_ql_calibs
 from pypeit.scripts import install_telluric
 from pypeit.scripts import lowrdx_skyspec
 from pypeit.scripts import multislit_flexure
 from pypeit.scripts import obslog
-from pypeit.scripts import parse_calib_id
 from pypeit.scripts import parse_slits
 from pypeit.scripts import qa_html
-from pypeit.scripts import ql_keck_deimos
-from pypeit.scripts import ql_keck_nires
-from pypeit.scripts import ql_mos
+from pypeit.scripts import ql
+from pypeit.scripts import ql_multislit
 from pypeit.scripts import run_pypeit
 from pypeit.scripts import sensfunc
 from pypeit.scripts import setup
+from pypeit.scripts import setup_coadd2d
 from pypeit.scripts import show_1dspec
 from pypeit.scripts import show_2dspec
 from pypeit.scripts import show_arxiv

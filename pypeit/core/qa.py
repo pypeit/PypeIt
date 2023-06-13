@@ -17,6 +17,8 @@ from IPython import embed
 # to QA directory, even if the user sets something else...
 def set_qa_filename(root, method, det=None, slit=None, prefix=None, out_dir=None):
     """
+    Generate the filename for the QA file from the input parameters.
+    
     Parameters
     ----------
     root : str
@@ -80,6 +82,10 @@ def set_qa_filename(root, method, det=None, slit=None, prefix=None, out_dir=None
     elif method == 'spec_flexure_qa_sky':
 #        outfile = 'QA/PNGs/{:s}_D{:02d}_S{:04d}_spec_flex_sky.png'.format(root, det, slit)
         outfile = 'PNGs/{:s}_S{:04d}_spec_flex_sky.png'.format(root, slit)
+    elif method == 'spatillum_finecorr':
+        outfile = 'PNGs/{:s}_S{:04d}_spatillum_finecorr.png'.format(root, slit)
+    elif method == 'detector_structure':
+        outfile = 'PNGs/{:s}_{:s}_detector_structure.png'.format(root, det)
     else:
         raise IOError("NOT READY FOR THIS QA: {:s}".format(method))
     # Return
@@ -110,7 +116,7 @@ def get_dimen(x, maxp=25):
             xt = maxp
         else:
             xt = xr
-        ypg = int(np.sqrt(np.float(xt)))
+        ypg = int(np.sqrt(float(xt)))
         if int(xt) % ypg == 0:
             xpg = int(xt)/ypg
         else:
@@ -123,6 +129,7 @@ def get_dimen(x, maxp=25):
 
 def gen_timestamp():
     """ Generate a simple time stamp including the current user
+
     Returns
     -------
     timestamp : str
@@ -140,12 +147,17 @@ def gen_timestamp():
 
 def html_header(title):
     """
+    Generate a simple HTML header
+    
     Parameters
     ----------
-    title : str, optional
+    title : str
+        Title for the header
 
     Returns
     -------
+    head : str
+        An HTML header as a long string
 
     """
     head = '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -174,12 +186,19 @@ def html_header(title):
     return head
 
 def html_end(f, body, links=None):
-    """ Fill in the HTML file and end it
+    """ Fill in the HTML file with a proper ending
+
     Parameters
     ----------
     f : file
     body : str
     links : str, optional
+
+    Returns
+    -------
+    end : str
+        The text written to the end of the HTML file
+    
     """
     # Write links
     if links is not None:
@@ -197,6 +216,16 @@ def html_end(f, body, links=None):
 
 
 def html_init(f, title):
+    """
+    Initialize the HTML file
+
+    Args:
+        f (fileobj): file object to write to
+        title (str): title
+
+    Returns:
+        str: Initial HTML text incluing the header and links
+    """
     head = html_header(title)
     f.write(head)
     # Init links
@@ -206,17 +235,17 @@ def html_init(f, title):
 
 
 def html_mf_pngs(idval):
-    """ Generate HTML for MasterFrame PNGs
+    """ Generate HTML for QA PNGs
 
     Args:
         idval: str
-          Master key of the calibration set
+            Key identifier of the calibration set
 
     Returns:
-        links: str
-          HTML links to the PNGs
-        body: str
-          HTML edits for the main body
+        tuple: 
+
+          - links -- HTML links to the PNGs
+          - body -- HTML edits for the main body
 
     """
     links = ''
@@ -288,6 +317,8 @@ def html_mf_pngs(idval):
 
 def html_exp_pngs(exp_name, det):
     """
+    Generate HTML for Exposure PNGs
+
     Parameters
     ----------
     exp_name : str
@@ -350,9 +381,9 @@ def gen_qa_dir(qa_path):
     if not os.path.exists(qa_path):
         os.makedirs(qa_path)
 
-
+# TODO: Need to revisit this...
 def gen_mf_html(pypeit_file, qa_path):
-    """ Generate the HTML for a MasterFrame set
+    """ Generate the HTML for QA
 
     Args:
         pypeit_file (str):
@@ -383,7 +414,7 @@ def gen_mf_html(pypeit_file, qa_path):
     body = ''
     with open(MF_filename,'w') as f:
         # Start
-        links = html_init(f, 'QA  Setup {:s}: MasterFrame files'.format(setup))
+        links = html_init(f, 'QA Setup {:s}: Calibration files'.format(setup))
         # Loop on calib_sets
         for cbset in cbsets:
             for det in dets:
@@ -407,6 +438,8 @@ def gen_mf_html(pypeit_file, qa_path):
 
 
 def gen_exp_html():
+    """ Generate the HTML for an Exposure set
+    """
     # Find all obj_trace files -- Not fool proof but ok
     obj_files = glob.glob('QA/PNGs/*obj_trace.png')
     # Parse for names
@@ -438,6 +471,12 @@ def gen_exp_html():
 
 
 def close_qa(pypeit_file, qa_path):
+    """Tie off QA under a crash
+
+    Args:
+        pypeit_file (_type_): _description_
+        qa_path (_type_): _description_
+    """
     if pypeit_file is None:
         return
     try:
