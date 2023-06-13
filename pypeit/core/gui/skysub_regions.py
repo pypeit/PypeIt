@@ -579,7 +579,8 @@ class SkySubGUI:
             outfil = self._outname
             if os.path.exists(self._outname) and not self._overwrite:
                 outfil = 'temp.fits'
-                msgs.warn("File exists:\n{0:s}\nSaving regions to 'temp.fits'")
+                msgs.warn(f"A SkyRegions file already exists and you have not forced an overwrite:\n{self._outname}")
+                msgs.info(f"Saving regions to: {outfil}")
                 self._overwrite = True
             msskyreg = buildimage.SkyRegions(image=inmask.astype(float), PYP_SPEC=self.spectrograph)
             msskyreg.to_file(file_path=outfil)
