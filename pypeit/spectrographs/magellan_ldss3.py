@@ -23,6 +23,7 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
     telescope = telescopes.MMTTelescopePar()
     camera = 'LDSS3'
     supported = True
+    comment = 'Longslit only (so far)'
 
     def get_detector_par(self, hdu, det):
         """
@@ -164,7 +165,7 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 7
-        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits')
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
 
         return par
 
