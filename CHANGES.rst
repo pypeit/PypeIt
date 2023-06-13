@@ -1,6 +1,10 @@
+1.13.1dev (6 June 2023)
+------------------------
 
-1.12.3dev
----------
+- Hotfix for skysub regions GUI that used np.bool
+
+1.13.0 (2 June 2023)
+--------------------
 
 - Implemented a resample algorithm when generating datacubes
 - Hotfix to docs to ensure pypeit_loaders api doc is generated
