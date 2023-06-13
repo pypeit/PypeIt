@@ -1,6 +1,7 @@
 1.13.1dev (6 June 2023)
 ------------------------
 
+- Hotfix for skysub regions GUI that used np.bool
 - Instrumental FWHM map is calculated and output in ``Calibrations`` and ``spec1d`` files.
 
 1.13.0 (2 June 2023)
