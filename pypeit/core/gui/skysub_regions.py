@@ -97,7 +97,7 @@ class SkySubGUI:
         self._nslits = slits.nslits
         self._maxslitlength = np.max(self.slits.get_slitlengths(initial=initial))
         self._resolution = int(10.0 * self._maxslitlength) if resolution is None else int(resolution)
-        self._allreg = np.zeros(int(self._resolution), dtype=np.bool)
+        self._allreg = np.zeros(int(self._resolution), dtype=bool)
         self._specx = np.arange(int(self._resolution))
         self._start = [0, 0]
         self._end = [0, 0]
@@ -579,7 +579,8 @@ class SkySubGUI:
             outfil = self._outname
             if os.path.exists(self._outname) and not self._overwrite:
                 outfil = 'temp.fits'
-                msgs.warn("File exists:\n{0:s}\nSaving regions to 'temp.fits'")
+                msgs.warn(f"A SkyRegions file already exists and you have not forced an overwrite:\n{self._outname}")
+                msgs.info(f"Saving regions to: {outfil}")
                 self._overwrite = True
             msskyreg = buildimage.SkyRegions(image=inmask.astype(float), PYP_SPEC=self.spectrograph)
             msskyreg.to_file(file_path=outfil)
@@ -676,6 +677,6 @@ class SkySubGUI:
     def reset_regions(self):
         """ Reset the sky regions for all slits simultaneously
         """
-        self._skyreg = [np.zeros(self._resolution, dtype=np.bool) for all in range(self._nslits)]
+        self._skyreg = [np.zeros(self._resolution, dtype=bool) for all in range(self._nslits)]
         self._allreg[:] = False
 

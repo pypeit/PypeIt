@@ -626,7 +626,7 @@ def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
 
         # Prepare for optimal
         msgs.info("Starting optimal extraction")
-        thismask = np.ones(box_sciimg.shape, dtype=np.bool)
+        thismask = np.ones(box_sciimg.shape, dtype=bool)
         nspec, nspat = thismask.shape[0], thismask.shape[1]
         slit_left = np.zeros(nspec)
         slit_right = np.ones(nspec)*(nspat-1)
