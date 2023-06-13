@@ -629,7 +629,7 @@ def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
 
         # Prepare for optimal
         msgs.info("Starting optimal extraction")
-        thismask = np.ones(box_sciimg.shape, dtype=np.bool)
+        thismask = np.ones(box_sciimg.shape, dtype=bool)
         nspec, nspat = thismask.shape[0], thismask.shape[1]
         slit_left = np.zeros(nspec)
         slit_right = np.ones(nspec)*(nspat-1)
@@ -1633,6 +1633,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                                          star_mag=senspar['star_mag'],
                                          ra=star_ra, dec=star_dec)
         # Calculate the sensitivity curve
+        # TODO :: This needs to be addressed... unify flux calibration into the main PypeIt routines.
+        msgs.warn("Datacubes are currently flux-calibrated using the UVIS algorithm... this will be deprecated soon")
         zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm =\
             flux_calib.fit_zeropoint(wave.value, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
                           mask_hydrogen_lines=senspar['mask_hydrogen_lines'],
