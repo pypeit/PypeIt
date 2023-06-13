@@ -768,6 +768,11 @@ class MultiSlitExtract(Extract):
             sn_gauss = self.par['reduce']['extraction']['sn_gauss']
             use_2dmodel_mask = self.par['reduce']['extraction']['use_2dmodel_mask']
             no_local_sky = self.par['reduce']['skysub']['no_local_sky']
+            # TODO: skysub.local_skysub_extract() accepts a `prof_nsigma` parameter, but none
+            #       is provided here.  Additionally, the ExtractionPar keyword std_prof_nsigma
+            #       is not used anywhere in the code.  Should it be be used here, in conjunction
+            #       with whether this object IS_STANDARD?
+            # prof_nsigma = self.par['reduce']['extraction']['std_prof_nsigma'] if IS_STANDARD else None
 
             # Local sky subtraction and extraction
             self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], self.extractmask[thismask] \
@@ -782,6 +787,7 @@ class MultiSlitExtract(Extract):
                                               std=self.std_redux, bsp=bsp,
                                               force_gauss=force_gauss, sn_gauss=sn_gauss,
                                               show_profile=show_profile,
+                                              # prof_nsigma=prof_nsigma,
                                               use_2dmodel_mask=use_2dmodel_mask,
                                               no_local_sky=no_local_sky,
                                               base_var=self.sciImg.base_var,
