@@ -341,6 +341,10 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['fit_order'] = 4
         par['calibrations']['slitedges']['pad'] = 2  # Need to pad out the tilts for the astrometric transform when creating a datacube.
 
+        # KCWI has non-uniform spectral resolution across the field-of-view
+        par['calibrations']['wavelengths']['fwhm_spec_order'] = 1
+        par['calibrations']['wavelengths']['fwhm_spat_order'] = 2
+
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['flatfield']['spec_samp_coarse'] = 20.0

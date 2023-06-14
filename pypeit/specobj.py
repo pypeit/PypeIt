@@ -54,7 +54,7 @@ class SpecObj(datamodel.DataContainer):
             Running index for the order.
     """
 
-    version = '1.1.8'
+    version = '1.1.9'
     """
     Current datamodel version number.
     """
@@ -87,6 +87,8 @@ class SpecObj(datamodel.DataContainer):
                                                 'noise only (counts^2)'),
                  'OPT_MASK': dict(otype=np.ndarray, atype=np.bool_,
                                   descr='Mask for optimally extracted flux. True=good'),
+                 'OPT_FWHM': dict(otype=np.ndarray, atype=float,
+                                  descr='Spectral FWHM (in Angstroms) at every pixel of the optimally extracted flux.'),
                  'OPT_COUNTS_SKY': dict(otype=np.ndarray, atype=float,
                                         descr='Optimally extracted sky (counts)'),
                  'OPT_COUNTS_SIG_DET': dict(otype=np.ndarray, atype=float,
@@ -118,6 +120,8 @@ class SpecObj(datamodel.DataContainer):
                                                 'only (counts^2)'),
                  'BOX_MASK': dict(otype=np.ndarray, atype=np.bool_,
                                   descr='Mask for boxcar extracted flux. True=good'),
+                 'BOX_FWHM': dict(otype=np.ndarray, atype=float,
+                                  descr='Spectral FWHM (in Angstroms) at every pixel of the boxcar extracted flux.'),
                  'BOX_COUNTS_SKY': dict(otype=np.ndarray, atype=float,
                                         descr='Boxcar extracted sky (counts)'),
                  'BOX_COUNTS_SIG_DET': dict(otype=np.ndarray, atype=float,
@@ -162,7 +166,7 @@ class SpecObj(datamodel.DataContainer):
                  'trace_spec': dict(otype=np.ndarray, atype=(int,np.integer),
                                       descr='Array of pixels along the spectral direction'),
                  'maskwidth': dict(otype=(float, np.floating),
-                                      descr='Size (in units of fwhm) of the region used for local sky subtraction'),
+                                      descr='Size (in units of spatial fwhm) of the region used for local sky subtraction'),
                  # Slit and Object
                  'WAVE_RMS': dict(otype=(float, np.floating),
                                      descr='RMS (pix) for the wavelength solution for this slit.'),
