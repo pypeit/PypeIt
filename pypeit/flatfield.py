@@ -594,7 +594,7 @@ class FlatField:
             # If we're only doing the spatial illumination profile, the detector structure
             # has already been divided out by the pixel flat. No need to calculate structure
             if not self.spat_illum_only:
-                niter = 1  # Need two iterations, particularly for the fine spatial illumination correction.
+                niter = 1  # Just do one iteration... two is too long, and doesn't significantly improve the fine spatial illumination correction.
                 det_resp_model = 1  # Initialise detector structure to a value of 1 (i.e. no detector structure)
                 onslits = self.slits.slit_img(pad=-self.flatpar['slit_trim'], initial=False) != -1
                 for ff in range(niter):

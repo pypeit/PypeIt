@@ -961,9 +961,9 @@ class PypeIt:
                 slits.bitmask.turn_on(slits.mask[flagged_slits], 'BADSKYSUB')
 
         if not self.par['reduce']['extraction']['skip_extraction']:
-            msgs.info("Extraction begins for {} on det={}".format(self.basename, det))
+            msgs.info(f"Extraction begins for {self.basename} on det={det}")
             # Instantiate Reduce object
-            # Required for pypeline specific object
+            # Required for pipeline specific object
             # At instantiation, the fullmask in self.sciImg is modified
             # TODO Are we repeating steps in the init for FindObjects and Extract??
             self.exTract = extraction.Extract.get_instance(
@@ -977,7 +977,7 @@ class PypeIt:
             slitgpm = np.logical_not(self.exTract.extract_bpm)
             slitshift = self.exTract.slitshift
         else:
-            msgs.info("Extraction skipped for {} on det={}".format(self.basename, det))
+            msgs.info(f"Extraction skipped for {self.basename} on det={det}")
             # Since the extraction was not performed, fill the arrays with the best available information
             skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, tilts = \
                 final_global_sky, \
@@ -1041,7 +1041,7 @@ class PypeIt:
         # Return
         return spec2DObj, sobjs
 
-    # TODO :: Need to move this outside of this class...
+    # TODO :: Should this be moved outside of this class?
     def refframe_correct(self, slits, ra, dec, obstime, slitgpm=None, waveimg=None, sobjs=None):
         """ Correct the calibrated wavelength to the user-supplied reference frame
 

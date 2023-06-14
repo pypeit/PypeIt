@@ -1135,7 +1135,7 @@ class IFUFindObjects(MultiSlitFindObjects):
                 return global_sky
 
         # Iterate to use a model variance image
-        numiter = 10  # TODO :: Is this enough?
+        numiter = 10  # This is more than enough, and will probably break earlier than this
         model_ivar = self.sciImg.ivar
         sl_ref = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
         for nn in range(numiter):
@@ -1152,9 +1152,9 @@ class IFUFindObjects(MultiSlitFindObjects):
 
             # Calculate the relative spectral illumination
             scaleImg = np.ones_like(self.sciImg.image)
+            # Divide the slit into 20 bins and calculate the median of each bin
+            nbins = 20
             for sl, spatid in enumerate(self.slits.spat_id):
-                # Divide the slit into 20 bins and calculate the median of each bin
-                nbins = 20
                 # Prepare the masks, edges, and fitting variables
                 this_slit = (self.slitmask == spatid)
                 this_slit_mask = inmask & this_slit
@@ -1171,11 +1171,6 @@ class IFUFindObjects(MultiSlitFindObjects):
                     scale_err[bb] = 1.4826 * np.median(np.abs(scale_all[cond] - scale_bin[bb]))
                 wgd = np.where(scale_err > 0)
                 coeff = np.polyfit(wavcen[wgd], scale_bin[wgd], w=1/scale_err[wgd], deg=3)
-                if False:
-                    plt.plot(wavcen, scale_bin, 'bx')
-                    wavmod = np.linspace(np.min(this_wave), np.max(this_wave), 100)
-                    plt.plot(wavmod, np.polyval(coeff, wavmod), 'r-')
-                    plt.show()
                 scaleImg[this_slit] *= np.polyval(coeff, self.waveimg[this_slit])
                 if sl == sl_ref:
                     scaleImg[thismask] /= np.polyval(coeff, self.waveimg[thismask])
@@ -1263,13 +1258,6 @@ class IFUFindObjects(MultiSlitFindObjects):
         #     global_sky_sep = Reduce.global_skysub(self, skymask=skymask, update_crmask=update_crmask, trim_edg=trim_edg,
         #                                           show_fit=show_fit, show=show, show_objs=show_objs)
 
-        # TODO :: I think this can be deleted... the method in joint_skysub is quicker and better.
-        if False:
-            self.illum_profile_spectral(global_sky_sep, skymask=skymask)
-            # Recalculate the flexure after applying the relative spectral illumination
-            if method in ['slitcen']:
-                self.calculate_flexure(global_sky_sep)
-
         # Use sky information in all slits to perform a joint sky fit
         global_sky = self.joint_skysub(skymask=skymask, update_crmask=update_crmask, trim_edg=trim_edg,
                                        show_fit=show_fit, show=show, show_objs=show_objs,
@@ -1332,8 +1320,7 @@ class IFUFindObjects(MultiSlitFindObjects):
                                                                                                     slit_idx]))
         # Save QA
         # TODO BEFORE PR MERGE :: Need to implement QA
-        if False:
-        # if flex_list is not None:
+        if flex_list is not None:
             basename = f'{self.basename}_global_{self.spectrograph.get_det_name(self.det)}'
             out_dir = os.path.join(self.par['rdx']['redux_path'], 'QA')
             slit_bpm = np.zeros(self.slits.nslits, dtype=bool)

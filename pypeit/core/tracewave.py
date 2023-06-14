@@ -69,32 +69,6 @@ def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_
                            max_frac_fwhm=max_frac_fwhm, cont_samp=cont_samp,
                            niter_cont=niter_cont, nonlinear_counts=nonlinear_counts,
                            bpm=bpm, debug=debug_peaks)
-    # TODO :: REMOVE THIS CODE BEFORE MERGING PR
-    if False:
-        # Testing tilt trace of twilight flat
-        from scipy.signal import find_peaks
-
-        peak_sig = -np.log(arc_spec)
-        mad = 1.4826 * np.median(np.abs(peak_sig - np.median(peak_sig)))
-        peaks, peak_info = find_peaks(peak_sig, distance=npix_neigh, prominence=2*mad)
-        peaks_fit = peaks.copy().astype(float)
-        wgood = np.where((peaks >= 5) & (peaks <= peak_sig.size-5))  # Ignore edge cases
-        for pp in range(peaks.size):
-            if pp not in wgood[0]:
-                continue
-            xfit = np.arange(-2, 3) + peaks[pp]
-            coeff = np.polyfit(xfit, peak_sig[xfit], 2)
-            peaks_fit[pp] = -0.5*coeff[1]/coeff[0]
-        # plt.plot(peak_sig)
-        # plt.plot(peaks, peak_sig[peaks], "x")
-        # plt.show()
-        tcent_tot = peaks_fit
-        nsig_tot = tracethresh*np.ones(peaks.size)  #peak_info['prominences']
-        tampl_cont_tot = peak_sig[peaks]
-    #    good = np.zeros(tampl_tot.size, dtype=bool)
-    #    good[wgood] = True
-    #    arc.find_lines_qa(arc_cont_sub, tcent_tot, tampl_cont_tot, good, bpm=bpm,
-    #                      nonlinear=nonlinear_counts)
 
     # Good lines
     arcdet = tcent_tot[wgood]
