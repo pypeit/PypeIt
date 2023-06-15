@@ -1328,7 +1328,7 @@ class CubePar(ParSet):
     see :ref:`parameters`.
     """
 
-    def __init__(self, slit_spec=None, relative_weights=None, combine=None, output_filename=None,
+    def __init__(self, slit_spec=None, relative_weights=None, align=None, combine=None, output_filename=None,
                  standard_cube=None, reference_image=None, save_whitelight=None, whitelight_range=None, method=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None, astrometric=None, grating_corr=None, scale_corr=None,
@@ -1537,7 +1537,7 @@ class CubePar(ParSet):
         # Basic keywords
         parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'reference_image', 'save_whitelight',
                    'method', 'spec_subpixel', 'spat_subpixel', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
-                   'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'relative_weights', 'combine',
+                   'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'relative_weights', 'align', 'combine',
                    'astrometric', 'grating_corr', 'scale_corr', 'skysub_frame', 'whitelight_range']
 
         badkeys = np.array([pk not in parkeys for pk in k])
