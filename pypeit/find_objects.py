@@ -1317,8 +1317,9 @@ class IFUFindObjects(MultiSlitFindObjects):
             msgs.info("Flexure correction, slit {0:d} (spat id={1:d}): {2:.3f} pixels".format(1+slit_idx, slit_spat,
                                                                                               self.slitshift[slit_idx]))
         # Save QA
-        # TODO BEFORE PR MERGE :: Need to implement QA
-        if flex_list is not None:
+        # TODO :: Need to implement QA
+        msgs.work("QA is not currently implemented for the flexure correction")
+        if False:#flex_list is not None:
             basename = f'{self.basename}_global_{self.spectrograph.get_det_name(self.det)}'
             out_dir = os.path.join(self.par['rdx']['redux_path'], 'QA')
             slit_bpm = np.zeros(self.slits.nslits, dtype=bool)
