@@ -48,7 +48,7 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         lenSpec = hdu[0].header['NAXIS2']      # length of spectral axis. Vertical axis of original .fits files
     
         datasec = np.atleast_1d([
-            '[{0:d}:{1:d},{2:d}:{3:d}]'.format(1, lenSpec, 1, 301)
+            '[{0:d}:{1:d},{2:d}:{3:d}]'.format(1, lenSpec, 1, 300)
         ])
         oscansec = np.atleast_1d([
             '[{0:d}:{1:d},{2:d}:{3:d}]'.format(1, lenSpec, 308, lenSpat)
