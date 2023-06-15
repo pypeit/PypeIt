@@ -1552,8 +1552,16 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
     # prep
     numfiles = len(files)
-    combine = cubepar['combine']
     method = cubepar['method'].lower()
+    combine = cubepar['combine']
+    align = cubepar['align']
+    # If there is only one frame being "combined" AND there's no reference image, then don't compute the translation.
+    if numfiles == 1 and cubepar["reference_image"] is None:
+        align = False
+    # TODO :: The default behaviour (combine=False, align=False) produces a datacube that uses the instrument WCS
+    #  It should be possible (and perhaps desirable) to do a spatial alignment (i.e. align=True), apply this to the
+    #  RA,Dec values of each pixel, and then use the instrument WCS to save the output (or, just adjust the crval).
+    #  At the moment, if the user wishes to spatially align the frames, a different WCS is generated.
 
     # Determine what method is requested
     spec_subpixel, spat_subpixel = 1, 1
@@ -2024,8 +2032,9 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         this_specpos, this_spatpos = np.where(onslit_gpm)
         this_spatid = slitid_img_init[onslit_gpm]
 
-        # If individual frames are to be output, there's no need to store information, just make the cubes now
-        if not combine:
+        # If individual frames are to be output without aligning them,
+        # there's no need to store information, just make the cubes now
+        if not combine and not align:
             # Get the output filename
             if numfiles == 1 and cubepar['output_filename'] != "":
                 outfile = get_output_filename("", cubepar['output_filename'], True, -1)
@@ -2072,17 +2081,15 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         all_slits.append(slits)
         all_align.append(alignSplines)
 
-    # No need to continue if we are not combining frames
-    if not combine:
+    # No need to continue if we are not combining nor aligning frames
+    if not combine and not align:
         return
 
     # Grab cos(dec) for convenience
     cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
 
-    # If there is only one frame being "combined" AND there's no reference image, then don't compute the translation.
-    translate = False if cubepar["reference_image"] is None and numfiles == 1 else True
     # Register spatial offsets between all frames
-    if translate:
+    if align:
         # Find the wavelength range where all frames overlap
         min_wl, max_wl = get_whitelight_range(np.max(mnmx_wv[:, :, 0]),  # The max blue wavelength
                                               np.min(mnmx_wv[:, :, 1]),  # The min red wavelength
@@ -2162,20 +2169,21 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                                             cubepar['whitelight_range'])
         # TODO :: THIS IS JUST TEMPORARY (probably)... the first bit outputs separate files, the second bit combines all frames.
         #  Might want to have an option where if reference_image is provided, but not combine, the first option is done.
-        if False:
+        if combine:
+            generate_cube_subpixel(outfile, cube_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar,
+                                   np.ones(all_wghts.size),  # all_wghts,
+                                   all_spatpos, all_specpos, all_spatid, all_tilts, all_slits, all_align, vox_edges,
+                                   all_idx=all_idx, overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
+                                   fluxcal=fluxcal, sensfunc=sensfunc, specname=specname, whitelight_range=wl_wvrng,
+                                   spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
+        else:
             # embed()
             # assert(False)
             for ff in range(numfiles):
                 outfile = get_output_filename("", cubepar['output_filename'], False, ff)
-                ww = np.where(all_idx==ff)
+                ww = np.where(all_idx == ff)
                 generate_cube_subpixel(outfile, cube_wcs, all_ra[ww], all_dec[ww], all_wave[ww], all_sci[ww], all_ivar[ww], np.ones(all_wghts[ww].size),
                                        all_spatpos[ww], all_specpos[ww], all_spatid[ww], all_tilts[ff], all_slits[ff], all_align[ff], vox_edges,
                                        all_idx=all_idx[ww], overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
                                        fluxcal=fluxcal, sensfunc=sensfunc, specname=specname, whitelight_range=wl_wvrng,
                                        spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
-        else:
-            generate_cube_subpixel(outfile, cube_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, np.ones(all_wghts.size),#all_wghts,
-                                   all_spatpos, all_specpos, all_spatid, all_tilts, all_slits, all_align, vox_edges,
-                                   all_idx=all_idx, overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
-                                   fluxcal=fluxcal, sensfunc=sensfunc, specname=specname, whitelight_range=wl_wvrng,
-                                   spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
