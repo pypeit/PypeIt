@@ -1362,6 +1362,12 @@ class CubePar(ParSet):
                                     'view of all input observations, and is generally only required if high ' \
                                     'relative precision is desired.'
 
+        defaults['align'] = False
+        dtypes['align'] = [bool]
+        descr['align'] = 'If set to True, the input frames will be spatially aligned by cross-correlating the ' \
+                         'whitelight images with either a reference image (see `reference_image`) or the whitelight ' \
+                         'image that is generated using the first spec2d listed in the coadd3d file.'
+
         defaults['combine'] = False
         dtypes['combine'] = [bool]
         descr['combine'] = 'If set to True, the input frames will be combined. Otherwise, a separate ' \
