@@ -1558,6 +1558,10 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     # If there is only one frame being "combined" AND there's no reference image, then don't compute the translation.
     if numfiles == 1 and cubepar["reference_image"] is None:
         align = False
+    # TODO :: The default behaviour (combine=False, align=False) produces a datacube that uses the instrument WCS
+    #  It should be possible (and perhaps desirable) to do a spatial alignment (i.e. align=True), apply this to the
+    #  RA,Dec values of each pixel, and then use the instrument WCS to save the output (or, just adjust the crval).
+    #  At the moment, if the user wishes to spatially align the frames, a different WCS is generated.
 
     # Determine what method is requested
     spec_subpixel, spat_subpixel = 1, 1
