@@ -1207,6 +1207,7 @@ class IFUFindObjects(MultiSlitFindObjects):
         if self.wv_calib is None:
             msgs.error("A wavelength calibration is needed (wv_calib) if a joint sky fit is requested.")
         msgs.info("Generating wavelength image")
+
         self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
         # Calculate spectral flexure
         method = self.par['flexure']['spec_method']
