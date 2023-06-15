@@ -633,25 +633,6 @@ class RawImage:
         self.spat_flexure_shift = self.spatial_flexure_shift(slits) \
                                     if self.par['spat_flexure_correct'] else None
 
-        # For KCWI, need to subtract scattered light before flatfielding
-        # TODO :: REALLY NEED TO DELETE THIS - CHECKING IF SCATTERED LIGHT IS IMPORTANT
-        if self.spectrograph.name == "keck_kcwi":
-            for ii in range(self.nimg):
-                spatbin = 1  # This needs to be set from the known spatial binning... probably can just take the image shape (spatial dimension)
-                ym = 4096 // (2*spatbin)
-                y0 = ym - 180//spatbin
-                y1 = ym + 180//spatbin
-                scattlightl = np.nanmedian(self.image[ii, :, :20], axis=1)[:,None]
-                scattlightr = np.nanmedian(self.image[ii, :, -40:], axis=1)[:,None]
-                scattlight = np.nanmedian(self.image[ii, :, y0:y1], axis=1)[:,None]
-                medl = np.median(scattlightl/scattlight)
-                medr = np.median(scattlightr/scattlight)
-                spatimg = np.meshgrid(np.arange(self.image.shape[2]), np.arange(self.image.shape[1]))[0]
-                scatimg = np.outer(scattlight, np.ones(self.image.shape[2]))
-                scatimg[spatimg < ym] *= 1 + (medl - 1) * (spatimg[spatimg < ym]/ym - 1)**2
-                scatimg[spatimg >= ym] *= 1 + (medr - 1) * (spatimg[spatimg >= ym] / (4095-ym) - ym/(4095-ym)) ** 2
-                self.image[ii, :, :] -= scatimg
-
         # Flat-field the data.  This propagates the flat-fielding corrections to
         # the variance.  The returned bpm is propagated to the PypeItImage
         # bitmask below.

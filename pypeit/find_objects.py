@@ -1188,7 +1188,7 @@ class IFUFindObjects(MultiSlitFindObjects):
                                          count_scale=_scale, noise_floor=adderr)
             model_ivar[thismask] = utils.inverse(var)
 
-            # TODO :: Recalculating the global sky and flexure is probably overkill...
+            # RJC :: Recalculating the global sky and flexure is probably overkill... but please keep this code in for now
             # Recalculate the sky on each individual slit and redetermine the spectral flexure
             # global_sky_sep = super().global_skysub(skymask=skymask, update_crmask=update_crmask,
             #                                        trim_edg=trim_edg, show_fit=show_fit, show=show,
