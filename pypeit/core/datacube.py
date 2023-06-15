@@ -24,7 +24,10 @@ from pypeit.core.procimg import grow_mask
 from pypeit.spectrographs.util import load_spectrograph
 
 # Use a fast histogram for speed!
-from fast_histogram import histogramdd
+try:
+    from fast_histogram import histogramdd
+except ImportError:
+    histogramdd = None
 
 from IPython import embed
 
@@ -1447,12 +1450,19 @@ def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_w
             this_wave = wave_spl(tiltpos)
             # Convert world coordinates to voxel coordinates, then histogram
             vox_coord = output_wcs.wcs_world2pix(np.vstack((this_ra, this_dec, this_wave * 1.0E-10)).T, 0)
-            # use the "fast histogram" algorithm, that assumes regular bin spacing
-            datacube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(all_sci[this_sl] * all_wght_subpix[this_sl], num_subpixels))
-            varcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(all_var[this_sl] * all_wght_subpix[this_sl]**2, num_subpixels))
-            normcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(all_wght_subpix[this_sl], num_subpixels))
-            if debug:
-                residcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(all_sci[this_sl] * np.sqrt(all_ivar[this_sl]), num_subpixels))
+            if histogramdd is not None:
+                # use the "fast histogram" algorithm, that assumes regular bin spacing
+                datacube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(all_sci[this_sl] * all_wght_subpix[this_sl], num_subpixels))
+                varcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(all_var[this_sl] * all_wght_subpix[this_sl]**2, num_subpixels))
+                normcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(all_wght_subpix[this_sl], num_subpixels))
+                if debug:
+                    residcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(all_sci[this_sl] * np.sqrt(all_ivar[this_sl]), num_subpixels))
+            else:
+                datacube += np.histogramdd(vox_coord, bins=outshape, weights=np.repeat(all_sci[this_sl] * all_wght_subpix[this_sl], num_subpixels))
+                varcube += np.histogramdd(vox_coord, bins=outshape, weights=np.repeat(all_var[this_sl] * all_wght_subpix[this_sl]**2, num_subpixels))
+                normcube += np.histogramdd(vox_coord, bins=outshape, weights=np.repeat(all_wght_subpix[this_sl], num_subpixels))
+                if debug:
+                    residcube += np.histogramdd(vox_coord, bins=outshape, weights=np.repeat(all_sci[this_sl] * np.sqrt(all_ivar[this_sl]), num_subpixels))
     # Normalise the datacube and variance cube
     nc_inverse = utils.inverse(normcube)
     datacube *= nc_inverse
@@ -1562,6 +1572,12 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     #  It should be possible (and perhaps desirable) to do a spatial alignment (i.e. align=True), apply this to the
     #  RA,Dec values of each pixel, and then use the instrument WCS to save the output (or, just adjust the crval).
     #  At the moment, if the user wishes to spatially align the frames, a different WCS is generated.
+    if histogramdd is None:
+        msgs.warn("Generating a datacube is faster if you install fast-histogram:"+msgs.newline()+
+                  "https://pypi.org/project/fast-histogram/")
+        if method != 'ngp':
+            msgs.warn("Forcing NGP algorithm, because fast-histogram is not installed")
+            method = 'ngp'
 
     # Determine what method is requested
     spec_subpixel, spat_subpixel = 1, 1
