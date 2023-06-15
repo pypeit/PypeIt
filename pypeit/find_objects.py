@@ -1314,10 +1314,8 @@ class IFUFindObjects(MultiSlitFindObjects):
         self.slitshift += this_slitshift
         # Now report the flexure values
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
-            msgs.info("Flexure correction of slit {0:d} (spat id={1:d}): {2:.3f} pixels".format(1 + slit_idx,
-                                                                                                slit_spat,
-                                                                                                self.slitshift[
-                                                                                                    slit_idx]))
+            msgs.info("Flexure correction, slit {0:d} (spat id={1:d}): {2:.3f} pixels".format(1+slit_idx, slit_spat,
+                                                                                              self.slitshift[slit_idx]))
         # Save QA
         # TODO BEFORE PR MERGE :: Need to implement QA
         if flex_list is not None:
