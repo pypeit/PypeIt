@@ -795,7 +795,7 @@ class PypeItImage(datamodel.DataContainer):
                                       base_var=new_base, img_scale=new_img_scale,
                                       fullmask=new_fullmask, detector=self.detector,
                                       spat_flexure=spat_flexure, PYP_SPEC=new_spec,
-                                      units=new_units)
+                                      units=new_units, exptime=self.exptime)
 
         # Files
         if self.files is not None and other.files is not None:

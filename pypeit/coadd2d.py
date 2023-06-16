@@ -220,6 +220,12 @@ class CoAdd2D:
         self.binning = np.array([self.stack_dict['slits_list'][0].binspec,
                                  self.stack_dict['slits_list'][0].binspat])
 
+        # check if exptime is consistent for all images
+        if np.any(np.absolute(np.diff(self.stack_dict['exptime_stack'])) > 0):
+            msgs.warn('Exposure time is not consistent for all images being combined!  '
+                      'Using the average.')
+        self.exptime_coadd = np.mean(self.stack_dict['exptime_stack'])
+
         self.spat_ids = self.stack_dict['slits_list'][0].spat_id
 
         # If smoothing is not input, smooth by 10% of the maximum spectral dimension
@@ -486,7 +492,9 @@ class CoAdd2D:
             # NOTE: mask_stack is a gpm, and this is called inmask_stack in
             # compute_coadd2d, and outmask in coadd_dict is also a gpm
             mask_stack = [mask == 0 for mask in self.stack_dict['mask_stack']]
-            coadd_dict = coadd.compute_coadd2d(ref_trace_stack, self.stack_dict['sciimg_stack'],
+            coadd_dict = coadd.compute_coadd2d(ref_trace_stack, self.exptime_coadd,
+                                               self.stack_dict['exptime_stack'],
+                                               self.stack_dict['sciimg_stack'],
                                                self.stack_dict['sciivar_stack'],
                                                self.stack_dict['skymodel_stack'],
                                                mask_stack,
@@ -916,6 +924,7 @@ class CoAdd2D:
         sciivar_stack = []
         mask_stack = []
         slitmask_stack = []
+        exptime_stack = []
         #tilts_stack = []
         # Object stacks
         specobjs_list = []
@@ -943,6 +952,7 @@ class CoAdd2D:
             spat_flexure_list.append(s2dobj.sci_spat_flexure)
 
             sciimg_stack.append(s2dobj.sciimg)
+            exptime_stack.append(s2dobj.head0['EXPTIME'])
             waveimg_stack.append(s2dobj.waveimg)
             skymodel_stack.append(s2dobj.skymodel)
             sciivar_stack.append(s2dobj.ivarmodel)
@@ -951,7 +961,8 @@ class CoAdd2D:
 
         return dict(specobjs_list=specobjs_list, slits_list=slits_list,
                     slitmask_stack=slitmask_stack,
-                    sciimg_stack=sciimg_stack, sciivar_stack=sciivar_stack,
+                    sciimg_stack=sciimg_stack, exptime_stack=exptime_stack,
+                    sciivar_stack=sciivar_stack,
                     skymodel_stack=skymodel_stack, mask_stack=mask_stack,
                     waveimg_stack=waveimg_stack,
                     redux_path=redux_path,

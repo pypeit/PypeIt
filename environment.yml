@@ -12,7 +12,7 @@ dependencies:
   - scikit-learn>=1.0
   - astropy>=4.3
   - setuptools>=46.4
-  - matplotlib>=3.4
+  - matplotlib>=3.7
   - configobj>=5.0.6
   - ipython>=7.27
   - extension-helpers>=0.1
