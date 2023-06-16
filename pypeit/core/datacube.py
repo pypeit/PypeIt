@@ -691,6 +691,30 @@ def make_good_skymask(slitimg, tilts):
     return gpm
 
 
+def get_whitelight_pixels(all_wave, min_wl, max_wl):
+    """ Determine which pixels are included within the specified wavelength range
+    Args:
+        all_wave (`numpy.ndarray`_):
+            The wavelength of each individual pixel
+        min_wl (float):
+            Minimum wavelength to consider
+        max_wl (float):
+            Maximum wavelength to consider
+
+    Returns:
+        ww (`numpy.ndarray`_): The indices of all_wave that contain pixels within the requested wavelength range
+        wavediff (float): The wavelength range (i.e. maximum wavelength - minimum wavelength)
+    """
+    wavediff = np.max(all_wave) - np.min(all_wave)
+    if min_wl < max_wl:
+        ww = np.where((all_wave > min_wl) & (all_wave < max_wl))
+        wavediff = max_wl - min_wl
+    else:
+        msgs.warn("Datacubes do not completely overlap in wavelength. Offsets may be unreliable...")
+        ww = (np.arange(all_wave.size),)
+    return ww, wavediff
+
+
 def get_whitelight_range(wavemin, wavemax, wl_range):
     """ Get the wavelength range to use for the white light images
     Args:
@@ -2110,13 +2134,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         min_wl, max_wl = get_whitelight_range(np.max(mnmx_wv[:, :, 0]),  # The max blue wavelength
                                               np.min(mnmx_wv[:, :, 1]),  # The min red wavelength
                                               cubepar['whitelight_range'])  # The user-specified values (if any)
-        wavediff = np.max(all_wave) - np.min(all_wave)
-        if min_wl < max_wl:
-            ww = np.where((all_wave > min_wl) & (all_wave < max_wl))
-            wavediff = max_wl - min_wl
-        else:
-            msgs.warn("Datacubes do not completely overlap in wavelength. Offsets may be unreliable...")
-            ww = (np.arange(all_wave.size),)
+        # Get the good whitelight pixels
+        ww, wavediff = get_whitelight_pixels(all_wave, min_wl, max_wl)
         # Iterate over white light image generation and spatial shifting
         numiter = 2
         for dd in range(numiter):
@@ -2158,9 +2177,21 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         # No need to calculate weights if there's just one frame
         all_wghts = np.ones_like(all_sci)
     else:
-        # Collapse all spatially translated white light images
-        # TODO :: Really should regenerate total white light image here (with full wavelength range and maybe with subpixel=1)...
-        wl_full = np.sum(wl_imgs, axis=2)
+        # Find the wavelength range where all frames overlap
+        min_wl, max_wl = get_whitelight_range(np.max(mnmx_wv[:, :, 0]),  # The max blue wavelength
+                                              np.min(mnmx_wv[:, :, 1]),  # The min red wavelength
+                                              cubepar['whitelight_range'])  # The user-specified values (if any)
+        # Get the good whitelight pixels
+        ww, wavediff = get_whitelight_pixels(all_wave, min_wl, max_wl)
+        # Get a suitable WCS
+        image_wcs, voxedge, reference_image = create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, wavediff, collapse=True)
+        # Generate the whitelight image
+        wl_full = generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave,
+                                          all_sci, all_ivar, all_wghts,
+                                          all_spatpos, all_specpos, all_spatid,
+                                          all_tilts, all_slits, all_align, voxedge, all_idx=all_idx,
+                                          spec_subpixel=1, spat_subpixel=1)
+        # Compute the weights
         all_wghts = compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx,
                                     wl_full, dspat, dwv, relative_weights=cubepar['relative_weights'])
 
