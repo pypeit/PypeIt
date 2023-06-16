@@ -1126,7 +1126,7 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
 
 def generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts, all_spatpos, all_specpos,
                             all_spatid, tilts, slits, astrom_trans, bins, all_idx=None,
-                            spec_subpixel=10, spat_subpixel=10):
+                            spec_subpixel=10, spat_subpixel=10, combine=False):
     """
     Generate a white light image from the input pixels
 
@@ -1172,13 +1172,15 @@ def generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave, all_sci, all_i
             What is the subpixellation factor in the spatial direction. Higher values give more reliable results,
             but note that the time required goes as (spec_subpixel * spat_subpixel). The default value is 5,
             which divides each detector pixel into 5 subpixels in the spatial direction.
-
+        combine (`bool`, optional):
+            If True, all of the input frames will be combined into a single output. Otherwise, individual images
+            will be generated.
     Returns:
         all_wl_imgs (`numpy.ndarray`_): The white light images for all frames
     """
     # Perform some checks on the input -- note, more complete checks are performed in subpixellate()
     _all_idx = np.zeros(all_sci.size) if all_idx is None else all_idx
-    numfr = np.unique(_all_idx).size
+    numfr = 1 if combine else np.unique(_all_idx).size
     if len(tilts) != numfr or len(slits) != numfr or len(astrom_trans) != numfr:
         msgs.error("The following arguments must be the same length as the expected number of frames to be combined:"
                    + msgs.newline() + "tilts, slits, astrom_trans")
@@ -1190,7 +1192,10 @@ def generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave, all_sci, all_i
     # Loop through all frames and generate white light images
     for fr in range(numfr):
         msgs.info(f"Creating image {fr+1}/{numfr}")
-        ww = np.where(_all_idx == fr)
+        if combine:
+            ww = np.where(_all_idx >= 0)
+        else:
+            ww = np.where(_all_idx == fr)
         # Subpixellate
         img, _, _ = subpixellate(image_wcs, all_ra[ww], all_dec[ww], all_wave[ww],
                                  all_sci[ww], all_ivar[ww], all_wghts[ww], all_spatpos[ww],
@@ -1482,11 +1487,11 @@ def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_w
                 if debug:
                     residcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(all_sci[this_sl] * np.sqrt(all_ivar[this_sl]), num_subpixels))
             else:
-                datacube += np.histogramdd(vox_coord, bins=outshape, weights=np.repeat(all_sci[this_sl] * all_wght_subpix[this_sl], num_subpixels))
-                varcube += np.histogramdd(vox_coord, bins=outshape, weights=np.repeat(all_var[this_sl] * all_wght_subpix[this_sl]**2, num_subpixels))
-                normcube += np.histogramdd(vox_coord, bins=outshape, weights=np.repeat(all_wght_subpix[this_sl], num_subpixels))
+                datacube += np.histogramdd(vox_coord, bins=outshape, weights=np.repeat(all_sci[this_sl] * all_wght_subpix[this_sl], num_subpixels))[0]
+                varcube += np.histogramdd(vox_coord, bins=outshape, weights=np.repeat(all_var[this_sl] * all_wght_subpix[this_sl]**2, num_subpixels))[0]
+                normcube += np.histogramdd(vox_coord, bins=outshape, weights=np.repeat(all_wght_subpix[this_sl], num_subpixels))[0]
                 if debug:
-                    residcube += np.histogramdd(vox_coord, bins=outshape, weights=np.repeat(all_sci[this_sl] * np.sqrt(all_ivar[this_sl]), num_subpixels))
+                    residcube += np.histogramdd(vox_coord, bins=outshape, weights=np.repeat(all_sci[this_sl] * np.sqrt(all_ivar[this_sl]), num_subpixels))[0]
     # Normalise the datacube and variance cube
     nc_inverse = utils.inverse(normcube)
     datacube *= nc_inverse
@@ -2181,19 +2186,19 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         min_wl, max_wl = get_whitelight_range(np.max(mnmx_wv[:, :, 0]),  # The max blue wavelength
                                               np.min(mnmx_wv[:, :, 1]),  # The min red wavelength
                                               cubepar['whitelight_range'])  # The user-specified values (if any)
-        # Get the good whitelight pixels
+        # Get the good white light pixels
         ww, wavediff = get_whitelight_pixels(all_wave, min_wl, max_wl)
         # Get a suitable WCS
         image_wcs, voxedge, reference_image = create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, wavediff, collapse=True)
-        # Generate the whitelight image
+        # Generate the white light image (note: hard-coding subpixel=1 in both directions, and combining into a single image)
         wl_full = generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave,
                                           all_sci, all_ivar, all_wghts,
                                           all_spatpos, all_specpos, all_spatid,
                                           all_tilts, all_slits, all_align, voxedge, all_idx=all_idx,
-                                          spec_subpixel=1, spat_subpixel=1)
+                                          spec_subpixel=1, spat_subpixel=1, combine=True)
         # Compute the weights
-        all_wghts = compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx,
-                                    wl_full, dspat, dwv, relative_weights=cubepar['relative_weights'])
+        all_wghts = compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, wl_full[:, :, 0],
+                                    dspat, dwv, relative_weights=cubepar['relative_weights'])
 
     # Generate the WCS, and the voxel edges
     cube_wcs, vox_edges, _ = create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv)
