@@ -2808,13 +2808,12 @@ class EdgeTracePar(ParSet):
                  trace_median_frac=None, trace_thresh=None, fwhm_uniform=None, niter_uniform=None,
                  fwhm_gaussian=None, niter_gaussian=None, det_buffer=None, max_nudge=None,
                  sync_predict=None, sync_center=None, gap_offset=None, sync_to_edge=None,
-                 bound_detector=None, minimum_slit_dlength=None, dlength_range=None, 
+                 bound_detector=None, minimum_slit_dlength=None, dlength_range=None,
                  minimum_slit_length=None, minimum_slit_length_sci=None,
                  length_range=None, minimum_slit_gap=None, clip=None, order_match=None,
-                 order_offset=None, overlap=None, use_maskdesign=None, maskdesign_maxsep=None,
+                 order_offset=None, add_missed_orders=None, overlap=None, use_maskdesign=None, maskdesign_maxsep=None,
                  maskdesign_step=None, maskdesign_sigrej=None, pad=None, add_slits=None,
-                 add_predict=None, rm_slits=None,
-                 maskdesign_filename=None):
+                 add_predict=None, rm_slits=None,  maskdesign_filename=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3173,6 +3172,12 @@ class EdgeTracePar(ParSet):
                                 'fraction of the detector spatial scale. If None, no offset ' \
                                 'is applied.'
 
+        defaults['add_missed_orders'] = False
+        dtypes['add_missed_orders'] = bool
+        descr['add_missed_orders'] = 'If orders are not detected by the automated edge tracing, ' \
+                                     'attempt to add them based on their expected positions on ' \
+                                     'on the detector.  Echelle spectrographs only.'
+
         defaults['overlap'] = False
         dtypes['overlap'] = bool
         descr['overlap'] = 'Assume slits identified as abnormally short are actually due to ' \
@@ -3284,12 +3289,11 @@ class EdgeTracePar(ParSet):
                    'smash_range', 'edge_detect_clip', 'trace_median_frac', 'trace_thresh',
                    'fwhm_uniform', 'niter_uniform', 'fwhm_gaussian', 'niter_gaussian',
                    'det_buffer', 'max_nudge', 'sync_predict', 'sync_center', 'gap_offset',
-                   'sync_to_edge', 'bound_detector', 'minimum_slit_dlength', 'dlength_range', 
+                   'sync_to_edge', 'bound_detector', 'minimum_slit_dlength', 'dlength_range',
                    'minimum_slit_length', 'minimum_slit_length_sci', 'length_range',
-                   'minimum_slit_gap', 'clip', 'order_match', 'order_offset', 'overlap',
-                   'use_maskdesign', 'maskdesign_maxsep', 'maskdesign_step', 
-                   'maskdesign_sigrej', 'maskdesign_filename',
-                   'pad', 'add_slits', 'add_predict', 'rm_slits']
+                   'minimum_slit_gap', 'clip', 'order_match', 'order_offset',  'add_missed_orders',
+                   'overlap', 'use_maskdesign', 'maskdesign_maxsep', 'maskdesign_step', 'maskdesign_sigrej',
+                    'maskdesign_filename', 'pad', 'add_slits', 'add_predict', 'rm_slits']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
