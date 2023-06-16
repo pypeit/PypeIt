@@ -1341,8 +1341,8 @@ class CubePar(ParSet):
     see :ref:`parameters`.
     """
 
-    def __init__(self, slit_spec=None, relative_weights=None, combine=None, output_filename=None,
-                 standard_cube=None, reference_image=None, save_whitelight=None, method=None,
+    def __init__(self, slit_spec=None, relative_weights=None, align=None, combine=None, output_filename=None,
+                 standard_cube=None, reference_image=None, save_whitelight=None, whitelight_range=None, method=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None, astrometric=None, grating_corr=None, scale_corr=None,
                  skysub_frame=None, spec_subpixel=None, spat_subpixel=None):
@@ -1374,6 +1374,12 @@ class CubePar(ParSet):
                                     'This only works well if there is a common continuum source in the field of ' \
                                     'view of all input observations, and is generally only required if high ' \
                                     'relative precision is desired.'
+
+        defaults['align'] = False
+        dtypes['align'] = [bool]
+        descr['align'] = 'If set to True, the input frames will be spatially aligned by cross-correlating the ' \
+                         'whitelight images with either a reference image (see `reference_image`) or the whitelight ' \
+                         'image that is generated using the first spec2d listed in the coadd3d file.'
 
         defaults['combine'] = False
         dtypes['combine'] = [bool]
@@ -1407,8 +1413,19 @@ class CubePar(ParSet):
                                    'will be given by the "output_filename" variable with a suffix "_whitelight". ' \
                                    'Note that the white light image collapses the flux along the wavelength axis, ' \
                                    'so some spaxels in the 2D white light image may have different wavelength ' \
-                                   'ranges. If combine=False, the individual spec3d files will have a suffix ' \
-                                   '"_whitelight".'
+                                   'ranges. To set the wavelength range, use the "whitelight_range" parameter. ' \
+                                   'If combine=False, the individual spec3d files will have a suffix "_whitelight".'
+
+        defaults['whitelight_range'] = [None, None]
+        dtypes['whitelight_range'] = list
+        descr['whitelight_range'] = 'A two element list specifying the wavelength range over which to generate the ' \
+                                    'white light image. The first (second) element is the minimum (maximum) ' \
+                                    'wavelength to use. If either of these elements are None, PypeIt will ' \
+                                    'automatically use a wavelength range that ensures all spaxels have the ' \
+                                    'same wavelength coverage. Note, if you are using a reference_image to align ' \
+                                    'all frames, it is preferable to use the same white light wavelength range ' \
+                                    'for all white light images. For example, you may wish to use an emission ' \
+                                    'line map to register two frames.' \
 
         defaults['method'] = "subpixel"
         dtypes['method'] = str
@@ -1514,7 +1531,8 @@ class CubePar(ParSet):
                                 'for the sky subtraction, specify the relative path+file to the spec2D file that you ' \
                                 'would like to use for the sky subtraction. The model fit to the sky of the specified ' \
                                 'frame will be used. Note, the sky and science frames do not need to have the same ' \
-                                'exposure time.'
+                                'exposure time; the sky model will be scaled to the science frame based on the ' \
+                                'relative exposure time.'
 
         # Instantiate the parameter set
         super(CubePar, self).__init__(list(pars.keys()),
@@ -1532,8 +1550,8 @@ class CubePar(ParSet):
         # Basic keywords
         parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'reference_image', 'save_whitelight',
                    'method', 'spec_subpixel', 'spat_subpixel', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
-                   'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'relative_weights', 'combine',
-                   'astrometric', 'grating_corr', 'scale_corr', 'skysub_frame']
+                   'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'relative_weights', 'align', 'combine',
+                   'astrometric', 'grating_corr', 'scale_corr', 'skysub_frame', 'whitelight_range']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -1548,6 +1566,8 @@ class CubePar(ParSet):
         allowed_methods = ["subpixel", "NGP"]#, "resample"
         if self.data['method'] not in allowed_methods:
             raise ValueError("The 'method' must be one of:\n"+", ".join(allowed_methods))
+        if len(self.data['whitelight_range']) != 2:
+            raise ValueError("The 'whitelight_range' must be a two element list of either NoneType or float")
 
 
 class FluxCalibratePar(ParSet):

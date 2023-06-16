@@ -59,6 +59,9 @@ def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_
             either because the detection wasn't significant enough or the
             line was too close to a more-significant, neighboring line.
     """
+    # Setup some convenience variables
+    npix_neigh = nfwhm_neigh * fwhm
+
     # Find peaks
     tampl_tot, tampl_cont_tot, tcent_tot, twid_tot, _, wgood, arc_cont_sub, nsig_tot \
         = arc.detect_lines(arc_spec, sigdetect=np.min([sig_neigh, tracethresh]), fwhm=fwhm,
@@ -67,17 +70,10 @@ def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_
                            niter_cont=niter_cont, nonlinear_counts=nonlinear_counts,
                            bpm=bpm, debug=debug_peaks)
 
-    #    good = np.zeros(tampl_tot.size, dtype=bool)
-    #    good[wgood] = True
-    #    arc.find_lines_qa(arc_cont_sub, tcent_tot, tampl_cont_tot, good, bpm=bpm,
-    #                      nonlinear=nonlinear_counts)
-
     # Good lines
     arcdet = tcent_tot[wgood]
     arc_ampl = tampl_cont_tot[wgood]
     nsig = nsig_tot[wgood]
-
-    npix_neigh = nfwhm_neigh * fwhm
 
     # Determine the best lines to use to trace the tilts
     aduse = np.zeros(arcdet.size, dtype=bool)  # Which lines should be used to trace the tilts
@@ -685,7 +681,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # tilts_spat = trc_tilt_dict['tilts_dspat'][:,use_tilt] # spatial offset from the central trace
     tilts_spec = trc_tilt_dict['tilts_spec']  # line spectral pixel position from legendre fit evaluated at slit center
     tilts_mask = trc_tilt_dict['tilts_mask']  # Reflects if trace is on the slit
-    tilts_mad = trc_tilt_dict['tilts_mad']  # quantitfies aggregate error of this tilt
+    tilts_mad = trc_tilt_dict['tilts_mad']  # quantifies aggregate error of this tilt
 
     use_mask = np.outer(np.ones(nspat, dtype=bool), use_tilt)
     #    tot_mask = tilts_mask & (tilts_err < 900) & use_mask
@@ -697,21 +693,20 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
 
     # TODO: Make adderr a parameter?  Where does this come from?
     adderr = 0.03
-    tilts_sigma = ((tilts_mad < 100.0) & (tilts_mad > 0.0)) \
-                  * np.sqrt(np.abs(tilts_mad) ** 2 + adderr ** 2)
+    tilts_sigma = ((tilts_mad < 100.0) & (tilts_mad > 0.0)) * np.sqrt(np.abs(tilts_mad) ** 2 + adderr ** 2)
 
     tilts_ivar = utils.inverse((tilts_sigma.flatten() / xnspecmin1) ** 2)
     pypeitFit = fitting.robust_fit(tilts_spec.flatten() / xnspecmin1,
-                                               (tilts.flatten() - tilts_spec.flatten()) / xnspecmin1,
-                                               fitxy, x2=tilts_dspat.flatten() / xnspatmin1,
-                                               in_gpm=tot_mask.flatten(), invvar=tilts_ivar,
-                                               function=func2d, maxiter=maxiter, lower=sigrej,
-                                               upper=sigrej, maxdev=maxdev_pix / xnspecmin1,
-                                               minx=-0.0, maxx=1.0, minx2=-1.0, maxx2=1.0,
-                                               use_mad=False, sticky=False)
+                                   (tilts.flatten() - tilts_spec.flatten()) / xnspecmin1,
+                                   fitxy, x2=tilts_dspat.flatten() / xnspatmin1,
+                                   in_gpm=tot_mask.flatten(), invvar=tilts_ivar,
+                                   function=func2d, maxiter=maxiter, lower=sigrej,
+                                   upper=sigrej, maxdev=maxdev_pix / xnspecmin1,
+                                   minx=-0.0, maxx=1.0, minx2=-1.0, maxx2=1.0,
+                                   use_mad=False, sticky=False)
     fitmask = pypeitFit.bool_gpm.reshape(tilts_dspat.shape)
     # Compute a rejection mask that we will use later. These are
-    # locations that were fit but were rejectedK
+    # locations that were fit but were rejected
     rej_mask = tot_mask & np.invert(fitmask)
     # Compute and store the 2d tilts fit
     delta_tilt_1 = xnspecmin1 * pypeitFit.eval(tilts_spec[tilts_mask] / xnspecmin1,
