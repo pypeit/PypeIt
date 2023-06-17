@@ -402,7 +402,7 @@ class Extract:
         Returns:
             tuple: skymodel (ndarray), objmodel (ndarray), ivarmodel (ndarray),
                outmask (ndarray), sobjs (SpecObjs), waveimg (`numpy.ndarray`_),
-               tilts (`numpy.ndarray`_).
+               tilts (`numpy.ndarray`_), slits (:class:`~pypeit.slittrace.SlitTraceSet`).
                See main doc string for description
 
         """
@@ -436,8 +436,6 @@ class Extract:
             self.sobjs = self.sobjs_obj
 
         # Update the mask
-        # TODO avoid modifying arguments to a class or function in place. If slits is mutable, it should be a return
-        # value for the run function
         # TODO: change slits.mask > 2 to use named flags.
         reduce_masked = np.where(np.invert(self.extract_bpm_init) & self.extract_bpm & (self.slits.mask > 2))[0]
         if len(reduce_masked) > 0:
