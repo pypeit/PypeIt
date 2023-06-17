@@ -199,6 +199,8 @@ class CoAdd2D:
 
         self.nexp = len(self.spec2d)
 
+        self.exptime_coadd = self.stack_dict['exptime_coadd']
+
         # Check that there are the same number of slits on every exposure
         nslits_list = [slits.nslits for slits in self.stack_dict['slits_list']]
         if not len(set(nslits_list)) == 1:
@@ -219,12 +221,6 @@ class CoAdd2D:
             msgs.error('Not all of your exposures have the same spatial binning. Check your inputs')
         self.binning = np.array([self.stack_dict['slits_list'][0].binspec,
                                  self.stack_dict['slits_list'][0].binspat])
-
-        # check if exptime is consistent for all images
-        if np.any(np.absolute(np.diff(self.stack_dict['exptime_stack'])) > 0):
-            msgs.warn('Exposure time is not consistent for all images being combined!  '
-                      'Using the average.')
-        self.exptime_coadd = np.mean(self.stack_dict['exptime_stack'])
 
         self.spat_ids = self.stack_dict['slits_list'][0].spat_id
 
@@ -492,9 +488,7 @@ class CoAdd2D:
             # NOTE: mask_stack is a gpm, and this is called inmask_stack in
             # compute_coadd2d, and outmask in coadd_dict is also a gpm
             mask_stack = [mask == 0 for mask in self.stack_dict['mask_stack']]
-            coadd_dict = coadd.compute_coadd2d(ref_trace_stack, self.exptime_coadd,
-                                               self.stack_dict['exptime_stack'],
-                                               self.stack_dict['sciimg_stack'],
+            coadd_dict = coadd.compute_coadd2d(ref_trace_stack, self.stack_dict['sciimg_stack'],
                                                self.stack_dict['sciivar_stack'],
                                                self.stack_dict['skymodel_stack'],
                                                mask_stack,
@@ -959,12 +953,25 @@ class CoAdd2D:
             mask_stack.append(s2dobj.bpmmask.mask)
             slitmask_stack.append(s2dobj.slits.slit_img(flexure=s2dobj.sci_spat_flexure))
 
+        # check if exptime is consistent for all images
+        exptime_coadd = np.mean(exptime_stack)
+        if np.any(np.absolute(np.diff(exptime_stack)) > 0):
+            msgs.warn('Exposure time is not consistent for all images being coadded! '
+                      f'Scaling each image by the mean exposure time ({exptime_coadd} s) before coadding.')
+            exp_scale = exptime_coadd / exptime_stack
+            for iexp in range(nfiles):
+                sciimg_stack[iexp] *= exp_scale[iexp]
+                skymodel_stack[iexp] *= exp_scale[iexp]
+                sciivar_stack[iexp] /= exp_scale[iexp]**2
+
         return dict(specobjs_list=specobjs_list, slits_list=slits_list,
                     slitmask_stack=slitmask_stack,
-                    sciimg_stack=sciimg_stack, exptime_stack=exptime_stack,
+                    sciimg_stack=sciimg_stack,
                     sciivar_stack=sciivar_stack,
                     skymodel_stack=skymodel_stack, mask_stack=mask_stack,
                     waveimg_stack=waveimg_stack,
+                    exptime_stack=exptime_stack,
+                    exptime_coadd=exptime_coadd,
                     redux_path=redux_path,
                     detectors=detectors_list,
                     spectrograph=self.spectrograph.name,

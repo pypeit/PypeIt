@@ -257,8 +257,6 @@ class CombineImage:
         # Do a similar check for exptime
         if np.any(np.absolute(np.diff(exptime)) > 0):
             # TODO: This should likely throw an error instead!
-            # DP: Should we remove this TODO? We are now actually
-            #  using the average exposure time to scale the images fluxes
             msgs.warn('Exposure time is not consistent for all images being combined!  '
                       'Using the average.')
             comb_texp = np.mean(exptime)
@@ -269,7 +267,7 @@ class CombineImage:
         if combine_method == 'mean':
             weights = np.ones(self.nfiles, dtype=float)/self.nfiles
             img_list_out, var_list_out, gpm, nframes \
-                    = combine.weighted_combine(weights, comb_texp, exptime,
+                    = combine.weighted_combine(weights,
                                                [img_stack, scl_stack],  # images to stack
                                                [rn2img_stack, basev_stack], # variances to stack
                                                gpm_stack, sigma_clip=sigma_clip,

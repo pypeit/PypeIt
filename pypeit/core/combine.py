@@ -13,7 +13,7 @@ from IPython import embed
 
 
 # TODO make weights optional and do uniform weighting without.
-def weighted_combine(weights, texp_comb, texps, sci_list, var_list, inmask_stack,
+def weighted_combine(weights, sci_list, var_list, inmask_stack,
                      sigma_clip=False, sigma_clip_stack=None, sigrej=None, maxiters=5):
     r"""
     Combine multiple sets of images, all using the same weights and mask.
@@ -58,10 +58,6 @@ def weighted_combine(weights, texp_comb, texps, sci_list, var_list, inmask_stack
         via the ``inmask_stack`` argument, meaning there should not be any
         weights that are set to zero (although in principle this would still
         work).
-    texp_comb : float
-        Exposure time of the combined image.
-    texps : `numpy.ndarray`_, float, shape (nimgs,)
-        Exposure times of the images to combine.
     sci_list : :obj:`list`
         List of floating-point `numpy.ndarray`_ image groups to stack.  Each
         image group *must* have the same shape: ``(nimgs, nspec, nspat)``.
@@ -156,19 +152,17 @@ def weighted_combine(weights, texp_comb, texps, sci_list, var_list, inmask_stack
     weights_stack = broadcast_weights(weights, shape)
     weights_mask_stack = weights_stack*mask_stack.astype(float)
 
-    # scale to take into account frames with different exposure times
-    scale = texp_comb/texps[:, None, None]
-
     weights_sum = np.sum(weights_mask_stack, axis=0)
     inv_w_sum = 1./(weights_sum + (weights_sum == 0.0))
     sci_list_out = []
     for sci_stack in sci_list:
-        sci_list_out.append(np.sum(scale * sci_stack * weights_mask_stack, axis=0) * inv_w_sum)
+        sci_list_out.append(np.sum(sci_stack * weights_mask_stack, axis=0) * inv_w_sum)
     var_list_out = []
     for var_stack in var_list:
-        var_list_out.append(np.sum(scale**2 * var_stack * weights_mask_stack**2, axis=0) * inv_w_sum**2)
+        var_list_out.append(np.sum(var_stack * weights_mask_stack**2, axis=0) * inv_w_sum**2)
     # Was it masked everywhere?
     gpm = np.any(mask_stack, axis=0)
+
     return sci_list_out, var_list_out, gpm, nused
 
 

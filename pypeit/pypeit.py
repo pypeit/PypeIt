@@ -579,10 +579,6 @@ class PypeIt:
             sciImg_list.append(sciImg)
             objFind_list.append(objFind)
 
-        # update exposure time for combined sciImg. If the frames that are in the same combination group have
-        # different exposure times, the average one will be used. See pypeit/images/combineimage.run()
-        # assuming that exptime is the same for all the detectors
-        all_spec2d['meta']['exptime'] = sciImg_list[0].exptime
         # slitmask stuff
         if len(calibrated_det) > 0 and self.par['reduce']['slitmask']['assign_obj']:
             # get object positions from slitmask design and slitmask offsets for all the detectors

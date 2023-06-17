@@ -2809,7 +2809,7 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
 
 # TODO JFH I would like to modify this to take a stakc or coordinate or spatial
 #  position image instead of a stack of reference traces
-def compute_coadd2d(ref_trace_stack, exptime_coadd, exptime_stack, sciimg_stack, sciivar_stack, skymodel_stack,
+def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack,
                     inmask_stack, thismask_stack, waveimg_stack,
                     wave_grid, spat_samp_fact=1.0, maskdef_dict=None,
                     weights='uniform', interp_dspat=True):
@@ -2838,10 +2838,6 @@ def compute_coadd2d(ref_trace_stack, exptime_coadd, exptime_stack, sciimg_stack,
             or it could be the trace of the object of interest in each
             exposure determined by running PypeIt on the individual
             images.  Shape is (nspec, nimgs).
-        exptime_coadd (float):
-            Exposure time of the coadded image.
-        exptime_stack (list):
-            List of exposure times for each image in the stack.  Shape is (nimgs,).
         sciimg_stack (list):
             List of science images, each of which is a float `numpy.ndarray`_. Length of the list is nimgs.
             Shapes of the individual elements in the list are (nspec, nspat),  but each image can have a different shape.
@@ -2968,10 +2964,10 @@ def compute_coadd2d(ref_trace_stack, exptime_coadd, exptime_stack, sciimg_stack,
     # sci_list_rebin[2] = rebinned sciimg-sky_model images that we used for the sigma clipping
     # NOTE: outmask is a gpm
     sci_list_out, var_list_out, outmask, nused \
-            = combine.weighted_combine(sci_list_rebin[0], exptime_coadd, np.array(exptime_stack),
-                                       sci_list_rebin[1:], var_list_rebin, norm_rebin_stack != 0,
-                                       sigma_clip=True, sigma_clip_stack=sci_list_rebin[2],
-                                       sigrej=sigrej, maxiters=maxiters)
+            = combine.weighted_combine(sci_list_rebin[0], sci_list_rebin[1:], var_list_rebin,
+                               norm_rebin_stack != 0, sigma_clip=True,
+                               sigma_clip_stack=sci_list_rebin[2], sigrej=sigrej,
+                               maxiters=maxiters)
     sciimg, imgminsky, waveimg, dspat = sci_list_out
     sciivar = utils.inverse(var_list_out[0])
 
