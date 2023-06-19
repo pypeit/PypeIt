@@ -488,8 +488,10 @@ class ParSet:
             except:
                 pass
             if not exclude_defaults or par[k] != par.default[k]:
-                lines += [ component_indent + k + ' = ' + ParSet._data_string(par[k]) ]
-
+                argvalue = ParSet._data_string(par[k])
+                if isinstance(par[k], list):
+                    argvalue += ','
+                lines += [ component_indent + k + ' = ' + argvalue ]
         # Then add the items that are ParSets as subsections
         for k in parset_keys:
             section_comment = None
