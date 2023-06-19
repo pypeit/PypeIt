@@ -1,7 +1,7 @@
 1.13.1dev (6 June 2023)
 ------------------------
 
-- Hotfix for skysub regions GUI that used np.bool
+- Hotfix for skysub regions GUI that used np.bool 
 - Hotfix to stop pypeit_setup from crashing on data from lbt_luci1, lbt_luci2, magellan_fire, 
   magellan_fire_long, p200_tspec, or vlt_sinfoni.
 
